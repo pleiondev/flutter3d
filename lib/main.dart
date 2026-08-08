@@ -133,6 +133,12 @@ class _SpikePageState extends State<SpikePage>
   /// Set only when `--dart-define=FLUTTER3D_CAPTURE=...` asked for a PNG.
   final FrameCapture? _capture = FrameCapture.fromEnvironment();
 
+  /// Reused across taps: picking allocates nothing per cast, and the result
+  /// object is owned by the caster.
+  final Raycaster _raycaster = Raycaster();
+  final List<SceneNode> _selection = <SceneNode>[];
+  String? _pickDescription;
+
   /// Flutter's own frame timings, which are the numbers that actually say
   /// whether the app is dropping frames. The renderer's `cpuMicros` is only a
   /// slice of `buildDuration`, and neither of them is the GPU time.
@@ -195,6 +201,36 @@ class _SpikePageState extends State<SpikePage>
     _ticker = createTicker((elapsed) {
       setState(() => _elapsed = elapsed);
     })..start();
+  }
+
+  /// Selects whatever the tap landed on, or clears the selection.
+  ///
+  /// The ray is built from logical widget coordinates, not physical pixels: the
+  /// two differ by the device pixel ratio, and the ray only depends on the
+  /// aspect ratio, which they share.
+  void _handleTap(Offset position, Size size) {
+    _raycaster.setFromScreen(
+      _camera,
+      position.dx,
+      position.dy,
+      width: size.width,
+      height: size.height,
+    );
+    final hit = _raycaster.intersectScene(_scene);
+
+    setState(() {
+      _selection.clear();
+      if (hit == null) {
+        _pickDescription = null;
+        return;
+      }
+      _selection.add(hit.requireNode);
+      _pickDescription = '${hit.requireNode.name ?? 'mesh'} · '
+          'tri ${hit.triangleIndex} · '
+          '${hit.distance.toStringAsFixed(2)} away · '
+          'uv ${hit.uv.x.toStringAsFixed(2)},${hit.uv.y.toStringAsFixed(2)}'
+          '${hit.approximate ? ' (bounds only)' : ''}';
+    });
   }
 
   /// Index of the model named by `FLUTTER3D_SOURCE`, or 0.
@@ -348,6 +384,7 @@ class _SpikePageState extends State<SpikePage>
                       onChanged: () => setState(() {
                         _orbit.syncProjectionDepth(_camera);
                       }),
+                      onTapPoint: _handleTap,
                       child: SceneSurface(
                         renderer: renderer,
                         scene: _scene,
@@ -358,6 +395,7 @@ class _SpikePageState extends State<SpikePage>
                           wireframe: _wireframe,
                           backfaceCulling: _culling,
                           debug: _debug,
+                          highlighted: _selection,
                         ),
                         onFrame: (frame) {
                           _lastFrame = frame;
@@ -398,6 +436,7 @@ class _SpikePageState extends State<SpikePage>
               onDebug: (v) => setState(() => _debug = v),
               uiMicros: _uiMicros,
               rasterMicros: _rasterMicros,
+              pick: _pickDescription,
               onFrameAll: () => setState(() {
                 _orbit.frameBounds(_scene.computeBounds());
                 _orbit.syncProjectionDepth(_camera);
@@ -508,6 +547,7 @@ class _Controls extends StatelessWidget {
     required this.onDebug,
     required this.uiMicros,
     required this.rasterMicros,
+    required this.pick,
     required this.onFrameAll,
     required this.renderer,
     required this.scene,
@@ -541,6 +581,10 @@ class _Controls extends StatelessWidget {
   final ValueChanged<DebugDrawOptions> onDebug;
   final int uiMicros;
   final int rasterMicros;
+
+  /// What the last tap selected, or null when nothing is selected.
+  final String? pick;
+
   final VoidCallback onFrameAll;
   final Renderer renderer;
   final Scene scene;
@@ -718,8 +762,13 @@ class _Controls extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'Drag to orbit · scroll or pinch to zoom · two fingers to pan',
-              style: textTheme.bodySmall?.copyWith(color: Colors.white38),
+              pick == null
+                  ? 'Drag to orbit · scroll or pinch to zoom · two fingers to '
+                      'pan · tap to pick'
+                  : 'picked: $pick',
+              style: textTheme.bodySmall?.copyWith(
+                color: pick == null ? Colors.white38 : Colors.lightGreenAccent,
+              ),
             ),
           ),
           if (warnings.isNotEmpty)

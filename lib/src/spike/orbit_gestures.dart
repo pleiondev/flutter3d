@@ -15,12 +15,21 @@ class OrbitGestureDetector extends StatefulWidget {
     required this.controller,
     required this.onChanged,
     required this.child,
+    this.onTapPoint,
   });
 
   final OrbitController controller;
 
   /// Called after the controller moves, so the host can repaint.
   final VoidCallback onChanged;
+
+  /// A tap, reported in the detector's own logical coordinates along with the
+  /// size those coordinates are relative to.
+  ///
+  /// Both are needed to build a picking ray, and the size has to come from here
+  /// rather than from the caller: only this widget knows the box the pointer
+  /// position was measured against.
+  final void Function(Offset localPosition, Size size)? onTapPoint;
 
   final Widget child;
 
@@ -68,6 +77,12 @@ class _OrbitGestureDetectorState extends State<OrbitGestureDetector> {
     widget.onChanged();
   }
 
+  void _handleTapUp(TapUpDetails details) {
+    final size = context.size;
+    if (size == null) return;
+    widget.onTapPoint?.call(details.localPosition, size);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Listener(
@@ -77,6 +92,10 @@ class _OrbitGestureDetectorState extends State<OrbitGestureDetector> {
         behavior: HitTestBehavior.opaque,
         onScaleStart: _handleScaleStart,
         onScaleUpdate: _handleScaleUpdate,
+        // Tap coexists with scale: the arena hands a press that never moves to
+        // the tap recognizer, so picking does not cost the orbit gesture
+        // anything.
+        onTapUp: widget.onTapPoint == null ? null : _handleTapUp,
         child: widget.child,
       ),
     );

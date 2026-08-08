@@ -10,7 +10,7 @@ import '../geometry/geometry.dart';
 /// dropping the last reference to a [GpuMesh] is what frees it. Real resource
 /// lifetime management (ref counting, deferred release while the GPU may still
 /// be reading) belongs in the RHI layer, not here.
-final class GpuMesh {
+final class GpuMesh implements MeshGeometry {
   GpuMesh._({
     required this.vertexBuffer,
     required this.indexBuffer,
@@ -23,11 +23,17 @@ final class GpuMesh {
 
   final gpu.DeviceBuffer vertexBuffer;
   final gpu.DeviceBuffer indexBuffer;
+
+  @override
   final int vertexCount;
+
+  @override
   final int indexCount;
+
   final gpu.IndexType indexType;
 
   /// Object-space bounds, kept for culling and for framing the camera.
+  @override
   final Aabb3 bounds;
 
   /// The geometry this was uploaded from, retained for anything the CPU still
@@ -38,6 +44,7 @@ final class GpuMesh {
   /// being able to answer those questions at all. Callers that will never need
   /// it — a streamed scene where memory matters more than picking — can drop it
   /// with `keepSourceData: false`.
+  @override
   final MeshData? source;
 
   factory GpuMesh.upload(MeshData mesh, {bool keepSourceData = true}) {
@@ -55,6 +62,7 @@ final class GpuMesh {
   }
 
   /// Radius of the sphere around the AABB centre, used to frame the camera.
+  @override
   double get boundingRadius {
     final extent = (bounds.max - bounds.min)..scale(0.5);
     return extent.length;

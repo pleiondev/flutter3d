@@ -43,6 +43,8 @@ base class SceneNode {
 
   final Matrix4 _localMatrix = Matrix4.identity();
   final Matrix4 _worldMatrix = Matrix4.identity();
+  final Matrix4 _inverseWorldMatrix = Matrix4.identity();
+  int _inverseWorldVersion = -1;
 
   bool _localDirty = false;
   int _worldVersion = ++_versionCounter;
@@ -174,6 +176,21 @@ base class SceneNode {
       _bumpWorld();
     }
     return _worldMatrix;
+  }
+
+  /// The world-to-node transform, cached on [worldVersion].
+  ///
+  /// Wanted by anything that works in a node's own space: a camera's view matrix
+  /// is this exact thing, and so is the matrix that carries a picking ray into
+  /// mesh space, where testing triangles is far cheaper than transforming them.
+  Matrix4 get inverseWorldMatrix {
+    final version = worldVersion;
+    if (version != _inverseWorldVersion) {
+      _inverseWorldMatrix.setFrom(_worldMatrix);
+      _inverseWorldMatrix.invert();
+      _inverseWorldVersion = version;
+    }
+    return _inverseWorldMatrix;
   }
 
   void _recomputeLocal() {

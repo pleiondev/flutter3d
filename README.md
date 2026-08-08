@@ -25,8 +25,11 @@ What works today:
   gizmos, world axes, camera frusta) drawn in one call, `dart:developer` Timeline
   spans around every frame phase, and a frame panel with UI/raster/render/submit
   timings next to draw, pipeline-switch and cull counts;
-- 221 tests — geometry, projection, scene, sorting, debug draw, glTF and OBJ —
-  all without a GPU.
+- **CPU picking**: ray/AABB, ray/sphere and Möller–Trumbore ray/triangle, a
+  `Raycaster` that casts from widget coordinates, and tap-to-select in the demo
+  with the hit outlined by the debug overlay;
+- 264 tests — geometry, projection, scene, sorting, debug draw, intersections,
+  raycasting, glTF and OBJ — all without a GPU.
 
 ## Running
 
@@ -162,12 +165,19 @@ shaders/
 tool/build_shaders.sh           calls impellerc directly, no Native Assets
 tool/bench/bench.dart           the AOT benchmark behind docs/FFI-analysis.md
 lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
-lib/src/engine/scene/           scene graph, cameras, lights, orbit controller
+lib/src/engine/math/            ray intersections, allocation-free
+lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF and OBJ decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
-test/                           221 tests, all runnable without a GPU
+test/                           264 tests, all runnable without a GPU
 ```
+
+The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing
+and picking need no device, and requiring one would have meant none of them could
+be unit tested — the renderer is the only place that cares whether the geometry
+was actually uploaded. `CpuMesh` is the implementation for geometry that is
+queried but never drawn.
 
 ## The key architectural consequence
 

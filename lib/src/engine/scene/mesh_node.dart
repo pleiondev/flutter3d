@@ -1,15 +1,21 @@
 import 'package:vector_math/vector_math.dart';
 
-import '../gpu/gpu_mesh.dart';
+import '../geometry/mesh_geometry.dart';
 import '../render/material.dart';
 import 'scene.dart';
 import 'scene_node.dart';
 
 /// A node that draws a mesh.
+///
+/// The geometry is a [MeshGeometry] rather than a `GpuMesh`, which is what keeps
+/// this whole layer free of flutter_gpu: bounds, culling, framing and picking
+/// need no device, and requiring one would mean none of them could be tested
+/// without a GPU. The renderer is the place that cares whether the geometry has
+/// actually been uploaded.
 final class MeshNode extends SceneNode {
   MeshNode(this.mesh, this.material, {super.name});
 
-  GpuMesh mesh;
+  MeshGeometry mesh;
   Material material;
 
   /// Skips frustum culling for this node.
@@ -30,7 +36,7 @@ final class MeshNode extends SceneNode {
   /// matrix is the only thing that invalidates them, its version is the whole
   /// cache key.
   int _boundsVersion = -1;
-  GpuMesh? _boundsMesh;
+  MeshGeometry? _boundsMesh;
 
   /// World-space axis-aligned bounds, recomputed only when the transform changes.
   Aabb3 get worldBounds {

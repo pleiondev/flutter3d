@@ -163,19 +163,12 @@ final class CameraNode extends SceneNode {
 
   Projection projection;
 
-  final Matrix4 _viewMatrix = Matrix4.identity();
-  int _viewVersion = -1;
-
   /// World-to-eye transform, recomputed only when the node moves.
-  Matrix4 get viewMatrix {
-    final version = worldVersion;
-    if (version != _viewVersion) {
-      _viewMatrix.setFrom(worldMatrix);
-      _viewMatrix.invert();
-      _viewVersion = version;
-    }
-    return _viewMatrix;
-  }
+  ///
+  /// The view matrix is exactly the node's inverse world transform, so it reuses
+  /// the cache every node has rather than keeping a second copy keyed on the
+  /// same version.
+  Matrix4 get viewMatrix => inverseWorldMatrix;
 
   /// Combined view-projection for a viewport of the given aspect ratio.
   ///

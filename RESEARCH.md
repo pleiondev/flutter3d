@@ -250,7 +250,9 @@ choose an engine.
 - [ ] **P1** Euler angles with axis orders, matrix decomposition, `slerp`/`nlerp`, spherical
       coordinates.
 - [ ] **P1** Curves and splines (Catmull-Rom, Bezier, path), easing functions.
-- [ ] **P2** Intersections: ray×AABB/sphere/triangle/OBB/plane, sphere×frustum, sweep tests.
+- [x] **P2** Intersections: ray×AABB/sphere/triangle/OBB/plane, sphere×frustum, sweep tests.
+      AABB, sphere and triangle (Möller–Trumbore) are done, with `out` parameters and a `-1`
+      sentinel instead of a nullable double. OBB, plane and sweeps are not.
 - [ ] **P2** SoA transform storage (`Float32List`) instead of an array of objects.
 
 ### Layer 2. Scene graph
@@ -393,8 +395,11 @@ choose an engine.
 
 ### Layer 10. Interaction
 
-- [ ] **P1** CPU raycasting against the scene (through a BVH), a `HitResult` with point, normal,
-      UV, submesh.
+- [x] **P1** CPU raycasting against the scene (through a BVH), a `HitResult` with point, normal,
+      UV, submesh. `Raycaster` casts from NDC or from widget coordinates, rejects on the same
+      cached world sphere culling uses, then tests triangles in the mesh's own space — the ray is
+      transformed, not the geometry. Still a linear pass over the mesh registry; the BVH replaces
+      that first stage without touching the rest.
 - [ ] **P2** Raycasting against skinned geometry, GPU picking via an id buffer.
 - [ ] **P2** **Flutter widgets in 3D space** with forwarded pointers — a unique advantage of
       Flutter over web engines; flutter_scene already does it.

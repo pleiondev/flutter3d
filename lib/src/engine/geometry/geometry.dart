@@ -5,6 +5,7 @@ library;
 
 export 'lathe_shape.dart';
 export 'mesh_data.dart';
+export 'mesh_geometry.dart';
 export 'primitive_shapes.dart';
 export 'shape.dart';
 export 'vertex_layout.dart';

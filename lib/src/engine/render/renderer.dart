@@ -6,6 +6,7 @@ import 'dart:ui' as ui;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../gpu/gpu_mesh.dart';
 import '../scene/light_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
@@ -461,6 +462,17 @@ final class Renderer {
         for (var i = 0; i < indices.length; i++) {
           final item = _renderList.itemAt(indices[i]);
           final node = item.requireNode;
+          final mesh = node.mesh;
+          // The scene deals in MeshGeometry so that culling and picking need no
+          // device; only here does it matter that the geometry actually reached
+          // the GPU. A CPU-only mesh in a drawn scene is a bug in the caller,
+          // not something to skip quietly.
+          if (mesh is! GpuMesh) {
+            throw StateError(
+              'MeshNode "${node.name}" holds ${mesh.runtimeType}, which has no '
+              'GPU buffers. Upload it with GpuMesh.upload before drawing it.',
+            );
+          }
           final material = node.material;
 
           if (boundPipeline != material.lighting) {
@@ -494,11 +506,11 @@ final class Renderer {
             pass.setDepthWriteEnable(true);
           }
 
-          pass.bindVertexBuffer(node.mesh.vertexView, node.mesh.vertexCount);
+          pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
           pass.bindIndexBuffer(
-            node.mesh.indexView,
-            node.mesh.indexType,
-            node.mesh.indexCount,
+            mesh.indexView,
+            mesh.indexType,
+            mesh.indexCount,
           );
 
           _bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
