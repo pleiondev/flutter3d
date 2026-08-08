@@ -63,7 +63,7 @@ class LatheShape extends Shape {
 
   @override
   MeshData build({
-    VertexLayout layout = VertexLayout.positionNormalTexcoord,
+    VertexLayout layout = VertexLayout.standard,
   }) {
     final normals = profileNormals;
     if (profile.length < 2) {
@@ -126,12 +126,31 @@ class LatheShape extends Shape {
     final position = Vector3.zero();
     final normal = Vector3.zero();
     final texcoord = Vector2.zero();
+    final tangent = Vector4.zero();
+
+    // The tangent of a surface of revolution is known in closed form, so there
+    // is no reason to derive it from UV differences the way a general mesh has
+    // to. U runs with the sweep angle, and dP/du is the circumferential
+    // direction whatever the profile does.
+    //
+    // The bitangent sign follows: dP/dv works out to minus cross(normal,
+    // tangent), and glTF's bitangent is minus dP/dv, so w is +1 — flipping with
+    // a negative sweep, because then U runs the other way.
+    final sweepSign = sweepAngle < 0.0 ? -1.0 : 1.0;
+    final bitangentSign = sweepSign;
 
     for (var i = 0; i < columnCount; i++) {
       final t = i / segments;
       final angle = startAngle + sweepAngle * t;
       final cosA = math.cos(angle);
       final sinA = math.sin(angle);
+
+      tangent.setValues(
+        -sinA * sweepSign,
+        0.0,
+        cosA * sweepSign,
+        bitangentSign,
+      );
 
       for (var j = 0; j < rowCount; j++) {
         final radius = rows[j].x;
@@ -152,6 +171,7 @@ class LatheShape extends Shape {
           position: position,
           normal: normal,
           texcoord: texcoord,
+          tangent: tangent,
         );
       }
     }

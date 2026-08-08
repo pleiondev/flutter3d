@@ -121,7 +121,7 @@ final class ModelLoadRequest {
   const ModelLoadRequest({
     required this.source,
     this.format = ModelFormat.auto,
-    this.layout = VertexLayout.positionNormalTexcoord,
+    this.layout = VertexLayout.standard,
     this.objNormals = ObjNormals.smooth,
   });
 

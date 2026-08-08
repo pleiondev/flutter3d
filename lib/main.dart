@@ -56,6 +56,21 @@ final List<SceneSource> kSources = <SceneSource>[
     'anim: Interpolation',
     'assets/samples/InterpolationTest.glb',
   ),
+  // Built to catch a wrong bitangent sign: the left half has authored tangents
+  // and the right half has none, so a generator that disagrees with the file
+  // shows up as the two halves lighting differently.
+  // The same model twice: NormalTangentTest supplies no TANGENT and forces the
+  // engine to generate one, NormalTangentMirrorTest ships authored tangents for
+  // the identical geometry. Rendering both and diffing the two frames is the
+  // only direct check that the generator agrees with an authoring tool.
+  const ModelFileSource(
+    'map: Tangent gen',
+    'assets/samples/NormalTangentTest.glb',
+  ),
+  const ModelFileSource(
+    'map: Tangent file',
+    'assets/samples/NormalTangentMirrorTest.glb',
+  ),
   // The Utah teapot: positions and faces only, so its normals are generated.
   const ModelFileSource('obj: Teapot', 'assets/samples/teapot.obj'),
 ];
@@ -232,7 +247,10 @@ class _SpikePageState extends State<SpikePage>
       final checker = const CheckerboardTexture().upload();
       _fallbackAlbedo = fallback;
       _checkerAlbedo = checker;
-      _renderer = Renderer.create(fallbackAlbedo: fallback);
+      _renderer = Renderer.create(
+        fallbackAlbedo: fallback,
+        fallbackNormal: SolidColorTexture.flatNormal.upload(),
+      );
     } catch (error, stack) {
       _initError = error;
       _initStack = stack;
@@ -387,6 +405,15 @@ class _SpikePageState extends State<SpikePage>
       // models do not z-fight.
       final bounds = _scene.computeBounds();
       _orbit.frameBounds(bounds);
+      // After framing, because frameBounds sets the distance but leaves the
+      // angles alone — a capture that names an angle has to keep it.
+      final orbit = startupOrbitFromEnvironment();
+      if (orbit != null) {
+        _orbit
+          ..yaw = orbit.yaw
+          ..pitch = orbit.pitch
+          ..apply();
+      }
       _orbit.syncProjectionDepth(_camera);
       _placeSceneLights(bounds);
     });

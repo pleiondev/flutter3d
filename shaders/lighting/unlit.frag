@@ -13,5 +13,5 @@ vec3 ShadeLight(Surface s, LightSample light) {
 
 void main() {
   Surface s = ReadSurface();
-  WriteDisplayColor(s.albedo);
+  WriteDisplayColor(s.albedo, s.alpha);
 }

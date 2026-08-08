@@ -103,7 +103,7 @@ enum GltfPrimitiveMode {
 /// throwing, so a file that merely *offers* a compressed variant still loads.
 final class GltfLoader {
   GltfLoader({
-    this.layout = VertexLayout.positionNormalTexcoord,
+    this.layout = VertexLayout.standard,
     this.generateFlatNormalsWhenMissing = true,
   });
 
@@ -735,10 +735,18 @@ final class GltfLoader {
       }
     }
 
-    return _DecodedPrimitive(
-      mesh: builder.build(),
-      materialIndex: materialIndex,
-    );
+    var mesh = builder.build();
+
+    // glTF says a normal-mapped primitive without TANGENT must have tangents
+    // computed with a standard algorithm. Doing it unconditionally when the
+    // layout asks for tangents is simpler and no less correct: without UVs the
+    // generator writes the neutral frame, which is what the vertices already
+    // hold.
+    if (wantsTangent && tangents == null) {
+      mesh = mesh.withGeneratedTangents(target: layout);
+    }
+
+    return _DecodedPrimitive(mesh: mesh, materialIndex: materialIndex);
   }
 
   // ---------------------------------------------------------------- materials

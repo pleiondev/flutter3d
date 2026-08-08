@@ -43,14 +43,21 @@ uniform FragInfo {
   /// x: cos(inner cone angle). y: cos(outer cone angle).
   vec4 light_cone[kMaxLights];
 
-  /// rgb: albedo tint applied on top of the texture.
+  /// rgb: albedo tint applied on top of the texture. w: opacity.
   vec4 base_color;
+
+  /// rgb: emissive factor, already linear. w unused.
+  vec4 emissive;
 
   /// xyz: camera position in world space, needed for every specular term.
   vec4 camera_position;
 
   /// x: metallic, y: roughness, z: ambient strength, w: specular strength.
   vec4 material;
+
+  /// x: alpha cutoff (negative when the material is not masked), y: normal
+  /// scale, z: occlusion strength, w: emissive strength.
+  vec4 material2;
 
   /// x: exposure, y: active light count. The rest is reserved so adding a
   /// frame-wide parameter does not change the offsets of anything already here.
@@ -64,11 +71,14 @@ uniform sampler2D base_color_texture;
 /// evaluated, resolved once per fragment.
 struct Surface {
   vec3 albedo;      // linear, already tinted
-  vec3 n;           // unit normal
+  float alpha;      // opacity after texture, tint and vertex colour
+  vec3 n;           // unit normal, perturbed by the normal map when there is one
   vec3 v;           // unit direction to the camera
   float n_dot_v;
   float metallic;
   float roughness;  // perceptual
+  float occlusion;  // 1 means unoccluded
+  vec3 emissive;    // linear, added after shading
   float ambient;
   float exposure;
 };
@@ -86,8 +96,20 @@ struct LightSample {
 Surface ReadSurface() {
   Surface s;
 
-  vec3 texel = texture(base_color_texture, v_texcoord).rgb;
-  s.albedo = SrgbToLinear(texel) * SrgbToLinear(frag_info.base_color.rgb);
+  vec4 texel = texture(base_color_texture, v_texcoord);
+  // Vertex colour is authored linear per the glTF spec, unlike the base colour
+  // texture and the tint, which are sRGB.
+  s.albedo = SrgbToLinear(texel.rgb) *
+             SrgbToLinear(frag_info.base_color.rgb) *
+             v_color.rgb;
+  s.alpha = texel.a * frag_info.base_color.a * v_color.a;
+
+  // Alpha masking, glTF's third alpha mode. A negative cutoff means the
+  // material is opaque or blended, and discard would then be wrong rather than
+  // merely unnecessary. Doing it before anything else is deliberate: a
+  // discarded fragment should not pay for the lighting loop.
+  float cutoff = frag_info.material2.x;
+  if (cutoff >= 0.0 && s.alpha < cutoff) discard;
 
   s.n = normalize(v_normal);
   s.v = normalize(frag_info.camera_position.xyz - v_world_position);
@@ -99,6 +121,11 @@ Surface ReadSurface() {
   s.roughness = clamp(frag_info.material.y, 0.02, 1.0);
   s.ambient = frag_info.material.z;
   s.exposure = max(frag_info.frame_params.x, 0.0);
+
+  // Neutral until ApplyMaterialMaps says otherwise, so a model that samples no
+  // maps still has a complete surface.
+  s.occlusion = 1.0;
+  s.emissive = vec3(0.0);
 
   return s;
 }

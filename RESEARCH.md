@@ -309,11 +309,12 @@ choose an engine.
       permutations, one shader per lighting model.
 - [x] **P0** `Material` with typed uniforms and texture slots, `UnlitMaterial`.
 - [x] **P1** **PBR metal-roughness**, glTF-compatible: baseColor, metallic, roughness, normal,
-      occlusion, emissive, ORM packing, per-map UV set and `KHR_texture_transform`. So far only
-      baseColor, metallic and roughness; no normal, AO or emissive maps.
-- [x] **P1** Alpha modes: opaque / mask (cutoff) / blend, double-sided, vertex colours. Blend and
-      double-sided are there; cutoff is not applied in the shader, and vertex colours are decoded
-      but not shaded.
+      occlusion, emissive, ORM packing, per-map UV set and `KHR_texture_transform`. All five maps
+      are sampled, with neutral fallback textures instead of "has a map" flags. Only UV set 0, and
+      `KHR_texture_transform` is decoded but not applied.
+- [x] **P1** Alpha modes: opaque / mask (cutoff) / blend, double-sided, vertex colours. All of it:
+      the cutoff is a negative sentinel in the uniform when the material is not masked, so masking
+      needs neither a flag nor a permutation, and vertex colours multiply the albedo.
 - [ ] **P1** A "GLSL uniform block → Dart class" code generator, so bindings are type-safe.
 - [ ] **P2** Additional models: toon/cel, matcap, gradient, wireframe, unlit-emissive.
 - [ ] **P2** glTF extensions: clearcoat, sheen, transmission, volume, iridescence, anisotropy,
@@ -542,7 +543,15 @@ them fails "silently", without a single error in the log:
    writes the array as one contiguous block from its base offset, which is correct because the
    std140 stride for a `vec4` array is a flat 16 bytes. `shaders/spike_array.frag` keeps the
    probe for the next SDK bump.
-6. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
+6. **A sampler the shader never reads is dropped too.** The same trap as the phantom uniform
+   block, and it bites where you would not look for it: Lambert samples the metal-rough map
+   through a shared header, then ignores metallic and roughness because a diffuse model has no
+   response to either — so the compiler removes `metallic_roughness_texture` from its signature
+   while the engine still thinks there is a slot to bind. The fix is to make the source honest
+   (each model calls only the map functions it uses) and to have `tool/build_shaders.sh` print the
+   compiled binding table after every build, so the hand-written metadata cannot drift from it
+   unnoticed.
+7. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
    rewinds a bump allocator the GPU is still reading from. The symptom is not a crash but flickering
    geometry and lighting under load, which is far harder to diagnose. The cure is a ring of host
    buffers sized by the number of frames in flight (3 for us).

@@ -153,6 +153,30 @@ Set<String> startupLightsFromEnvironment() {
       .toSet();
 }
 
+/// Starting orbit angles in radians, as `yaw,pitch`, or null when unset.
+///
+/// A capture is only comparable against another if the camera is where it was
+/// last time, and some checks need a specific angle rather than any fixed one:
+/// NormalTangentTest only lines up face-on, because off-axis the whole point of
+/// the model is that normal mapping and real geometry stop agreeing.
+({double yaw, double pitch})? startupOrbitFromEnvironment() {
+  const spec = String.fromEnvironment('FLUTTER3D_ORBIT');
+  if (spec.trim().isEmpty) return null;
+
+  final parts = spec.split(',');
+  if (parts.length != 2) {
+    stderr.writeln('FLUTTER3D_ORBIT: expected "yaw,pitch", got "$spec"');
+    return null;
+  }
+  final yaw = double.tryParse(parts[0].trim());
+  final pitch = double.tryParse(parts[1].trim());
+  if (yaw == null || pitch == null) {
+    stderr.writeln('FLUTTER3D_ORBIT: "$spec" is not two numbers');
+    return null;
+  }
+  return (yaw: yaw, pitch: pitch);
+}
+
 /// Whether the demo's turntable spin is on.
 ///
 /// Worth a define because it is the one thing that makes two captures of the

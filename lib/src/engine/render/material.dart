@@ -25,11 +25,24 @@ final class Material {
     this.roughness = 0.5,
     this.albedo,
     this.albedoSampler,
+    this.normal,
+    this.normalSampler,
+    this.normalScale = 1.0,
+    this.metallicRoughness,
+    this.metallicRoughnessSampler,
+    this.occlusion,
+    this.occlusionSampler,
+    this.occlusionStrength = 1.0,
+    this.emissiveTexture,
+    this.emissiveSampler,
+    Vector3? emissive,
+    this.emissiveStrength = 1.0,
     this.alphaMode = MaterialAlphaMode.opaque,
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
     this.drawBucket = 0,
-  }) : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0);
+  })  : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
+        emissive = emissive ?? Vector3.zero();
 
   final String? name;
 
@@ -44,6 +57,41 @@ final class Material {
 
   gpu.Texture? albedo;
   gpu.SamplerOptions? albedoSampler;
+
+  /// Tangent-space normal map. Null means the geometric normal is used.
+  ///
+  /// A missing map is a *neutral* texture at bind time, not a flag: the renderer
+  /// binds a flat 1x1 normal, a white ORM, a white occlusion and a white
+  /// emissive when a slot is empty. Flags would have to agree with the shader in
+  /// two places; a neutral texel is right by construction, and the branch it
+  /// would have cost is worth more than the sample.
+  gpu.Texture? normal;
+  gpu.SamplerOptions? normalSampler;
+
+  /// Scales the tangent-space xy of the normal map, per glTF's `normalScale`.
+  double normalScale;
+
+  /// glTF's ORM packing: roughness in green, metallic in blue.
+  gpu.Texture? metallicRoughness;
+  gpu.SamplerOptions? metallicRoughnessSampler;
+
+  /// Ambient occlusion in red.
+  gpu.Texture? occlusion;
+  gpu.SamplerOptions? occlusionSampler;
+
+  /// How much of the occlusion map to apply, from 0 (ignore) to 1 (in full).
+  double occlusionStrength;
+
+  gpu.Texture? emissiveTexture;
+  gpu.SamplerOptions? emissiveSampler;
+
+  /// Linear emissive factor, multiplied by the emissive map. Black by default,
+  /// so a material with a map but no factor emits nothing — which is what glTF
+  /// specifies.
+  final Vector3 emissive;
+
+  /// `KHR_materials_emissive_strength`, a multiplier on top of the factor.
+  double emissiveStrength;
 
   MaterialAlphaMode alphaMode;
   double alphaCutoff;

@@ -28,6 +28,10 @@ const String _kLineInfoBlock = 'LineInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
+const String _kNormalTextureSlot = 'normal_texture';
+const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
+const String _kOcclusionTextureSlot = 'occlusion_texture';
+const String _kEmissiveTextureSlot = 'emissive_texture';
 
 /// Scene-wide shading knobs that are not per-material.
 final class RenderSettings {
@@ -145,6 +149,7 @@ final class Renderer {
     required this.debugLineVertexShader,
     required this.debugLineFragmentShader,
     required this.fallbackAlbedo,
+    required this.fallbackNormal,
     required this.transients,
     required this.msaaEnabled,
   });
@@ -162,7 +167,12 @@ final class Renderer {
   ///
   /// A shader that declares a sampler must have something bound to it, so
   /// "no texture" has to be a neutral texture rather than an absent binding.
+  /// White is also neutral for the ORM, occlusion and emissive slots: it
+  /// multiplies each factor by one, so the same texture serves all four.
   final gpu.Texture fallbackAlbedo;
+
+  /// 1x1 (0.5, 0.5, 1.0): the tangent-space normal that perturbs nothing.
+  final gpu.Texture fallbackNormal;
 
   final bool msaaEnabled;
 
@@ -192,7 +202,9 @@ final class Renderer {
   // pattern the render list was shaped to avoid.
   final Float32List _cameraData = Float32List(4);
   final Float32List _baseColorData = Float32List(4);
+  final Float32List _emissiveData = Float32List(4);
   final Float32List _materialData = Float32List(4);
+  final Float32List _material2Data = Float32List(4);
   final Float32List _frameParams = Float32List(4);
 
   gpu.RenderPipeline? _debugLinePipeline;
@@ -220,7 +232,10 @@ final class Renderer {
   gpu.Texture? _colorResolve;
   gpu.Texture? _depthStencil;
 
-  factory Renderer.create({required gpu.Texture fallbackAlbedo}) {
+  factory Renderer.create({
+    required gpu.Texture fallbackAlbedo,
+    required gpu.Texture fallbackNormal,
+  }) {
     final library = gpu.ShaderLibrary.fromAsset(bundleAsset);
     if (library == null) {
       throw StateError('Failed to load the shader bundle: $bundleAsset');
@@ -243,6 +258,7 @@ final class Renderer {
       debugLineVertexShader: require('DebugLineVertex'),
       debugLineFragmentShader: require('DebugLine'),
       fallbackAlbedo: fallbackAlbedo,
+      fallbackNormal: fallbackNormal,
       transients: List<gpu.HostBuffer>.generate(
         _kFramesInFlight,
         (_) => gpu.gpuContext.createHostBuffer(),
@@ -542,10 +558,24 @@ final class Renderer {
             _baseColorData[2] = material.baseColor.z;
             _baseColorData[3] = material.baseColor.w;
 
+            _emissiveData[0] = material.emissive.x;
+            _emissiveData[1] = material.emissive.y;
+            _emissiveData[2] = material.emissive.z;
+
             _materialData[0] = material.metallic;
             _materialData[1] = material.roughness;
             _materialData[2] = scene.ambientIntensity;
             _materialData[3] = settings.specular;
+
+            // A negative cutoff means "not masked". The shader compares against
+            // it directly, so encoding the mode in the value keeps a branch and
+            // a separate flag out of the uniform block.
+            _material2Data[0] = material.alphaMode == MaterialAlphaMode.mask
+                ? material.alphaCutoff
+                : -1.0;
+            _material2Data[1] = material.normalScale;
+            _material2Data[2] = material.occlusionStrength;
+            _material2Data[3] = material.emissiveStrength;
 
             _frameParams[0] = settings.exposure;
             _frameParams[1] = lights.count.toDouble();
@@ -560,23 +590,56 @@ final class Renderer {
               'light_direction': lights.directions,
               'light_cone': lights.cones,
               'base_color': _baseColorData,
+              'emissive': _emissiveData,
               'camera_position': _cameraData,
               'material': _materialData,
+              'material2': _material2Data,
               'frame_params': _frameParams,
             });
           }
 
+          // Bound strictly according to the model's declared slots. The
+          // compiler drops a sampler the shader never reads, and binding one
+          // Metal does not have is a native crash rather than a no-op.
           if (material.lighting.usesAlbedoTexture) {
-            pass.bindTexture(
-              fragmentShader.getUniformSlot(_kAlbedoTextureSlot),
+            _bindTexture(
+              pass,
+              fragmentShader,
+              _kAlbedoTextureSlot,
               material.albedo ?? fallbackAlbedo,
-              sampler: material.albedoSampler ??
-                  gpu.SamplerOptions(
-                    minFilter: gpu.MinMagFilter.linear,
-                    magFilter: gpu.MinMagFilter.linear,
-                    widthAddressMode: gpu.SamplerAddressMode.repeat,
-                    heightAddressMode: gpu.SamplerAddressMode.repeat,
-                  ),
+              material.albedoSampler,
+            );
+          }
+          if (material.lighting.usesMaterialMaps) {
+            _bindTexture(
+              pass,
+              fragmentShader,
+              _kNormalTextureSlot,
+              material.normal ?? fallbackNormal,
+              material.normalSampler,
+            );
+            _bindTexture(
+              pass,
+              fragmentShader,
+              _kOcclusionTextureSlot,
+              material.occlusion ?? fallbackAlbedo,
+              material.occlusionSampler,
+            );
+            _bindTexture(
+              pass,
+              fragmentShader,
+              _kEmissiveTextureSlot,
+              material.emissiveTexture ?? fallbackAlbedo,
+              material.emissiveSampler,
+            );
+          }
+          if (material.lighting.usesMetallicRoughnessMap) {
+            _bindTexture(
+              pass,
+              fragmentShader,
+              _kMetallicRoughnessTextureSlot,
+              material.metallicRoughness ?? fallbackAlbedo,
+              material.metallicRoughnessSampler,
             );
           }
 
@@ -691,6 +754,28 @@ final class Renderer {
     developer.Timeline.finishSync();
     return true;
   }
+
+  /// Binds one texture slot, defaulting the sampler to linear-repeat.
+  void _bindTexture(
+    gpu.RenderPass pass,
+    gpu.Shader shader,
+    String slot,
+    gpu.Texture texture,
+    gpu.SamplerOptions? sampler,
+  ) {
+    pass.bindTexture(
+      shader.getUniformSlot(slot),
+      texture,
+      sampler: sampler ?? _defaultSampler,
+    );
+  }
+
+  static final gpu.SamplerOptions _defaultSampler = gpu.SamplerOptions(
+    minFilter: gpu.MinMagFilter.linear,
+    magFilter: gpu.MinMagFilter.linear,
+    widthAddressMode: gpu.SamplerAddressMode.repeat,
+    heightAddressMode: gpu.SamplerAddressMode.repeat,
+  );
 
   /// A view over the identity index sequence, growing the backing buffer when
   /// the overlay outgrows it.

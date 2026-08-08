@@ -226,6 +226,18 @@ final class ModelAsset {
         roughness: source.roughness,
         albedo: source.albedo,
         albedoSampler: source.albedoSampler,
+        normal: source.normal,
+        normalSampler: source.normalSampler,
+        normalScale: source.normalScale,
+        metallicRoughness: source.metallicRoughness,
+        metallicRoughnessSampler: source.metallicRoughnessSampler,
+        occlusion: source.occlusion,
+        occlusionSampler: source.occlusionSampler,
+        occlusionStrength: source.occlusionStrength,
+        emissiveTexture: source.emissiveTexture,
+        emissiveSampler: source.emissiveSampler,
+        emissive: source.emissive.clone(),
+        emissiveStrength: source.emissiveStrength,
         alphaMode: source.alphaMode,
         alphaCutoff: source.alphaCutoff,
         doubleSided: source.doubleSided,
@@ -330,13 +342,26 @@ final class ModelAsset {
     required LightingModel lighting,
     required Future<gpu.Texture?> Function(int) textureFor,
   }) async {
-    gpu.Texture? albedo;
-    gpu.SamplerOptions? sampler;
-    final binding = source.baseColorTexture;
-    if (binding != null) {
-      albedo = await textureFor(binding.imageIndex);
-      sampler = samplerOptionsFor(binding.sampling);
+    /// Resolves one texture slot, returning both the image and its sampler.
+    ///
+    /// A slot the file does not declare comes back null and the renderer binds
+    /// a neutral texture instead, which is why nothing here has to record
+    /// "this material has no normal map".
+    Future<(gpu.Texture?, gpu.SamplerOptions?)> resolve(
+      TextureBinding? binding,
+    ) async {
+      if (binding == null) return (null, null);
+      return (
+        await textureFor(binding.imageIndex),
+        samplerOptionsFor(binding.sampling),
+      );
     }
+
+    final (albedo, albedoSampler) = await resolve(source.baseColorTexture);
+    final (normal, normalSampler) = await resolve(source.normalTexture);
+    final (orm, ormSampler) = await resolve(source.metallicRoughnessTexture);
+    final (occlusion, occlusionSampler) = await resolve(source.occlusionTexture);
+    final (emissive, emissiveSampler) = await resolve(source.emissiveTexture);
 
     return Material(
       name: source.name,
@@ -347,7 +372,19 @@ final class ModelAsset {
       metallic: source.metallic,
       roughness: source.roughness,
       albedo: albedo,
-      albedoSampler: sampler,
+      albedoSampler: albedoSampler,
+      normal: normal,
+      normalSampler: normalSampler,
+      normalScale: source.normalScale,
+      metallicRoughness: orm,
+      metallicRoughnessSampler: ormSampler,
+      occlusion: occlusion,
+      occlusionSampler: occlusionSampler,
+      occlusionStrength: source.occlusionStrength,
+      emissiveTexture: emissive,
+      emissiveSampler: emissiveSampler,
+      emissive: source.emissive.clone(),
+      emissiveStrength: source.emissiveStrength,
       alphaMode: switch (source.alphaMode) {
         SurfaceAlphaMode.opaque => MaterialAlphaMode.opaque,
         SurfaceAlphaMode.mask => MaterialAlphaMode.mask,

@@ -50,6 +50,22 @@ final class VertexLayout {
     tangent,
   ]);
 
+  /// What the engine's mesh shader reads: position, normal, UV, tangent, colour.
+  ///
+  /// One layout for everything rather than a permutation per attribute set. The
+  /// vertex layout is structural — flutter_gpu takes it from the shader's `in`
+  /// declarations — so a second layout means a second vertex shader and a second
+  /// pipeline for every lighting model. At 64 bytes a vertex this costs twice
+  /// what position/normal/UV did, which buys normal mapping and vertex colours
+  /// without multiplying the bundle.
+  static const VertexLayout standard = VertexLayout([
+    position,
+    normal,
+    texcoord,
+    tangent,
+    color,
+  ]);
+
   int get floatsPerVertex {
     var total = 0;
     for (final a in attributes) {

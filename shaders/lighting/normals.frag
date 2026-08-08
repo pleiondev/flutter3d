@@ -16,5 +16,5 @@
 
 void main() {
   vec3 n = normalize(v_normal);
-  WriteDisplayColor(n * 0.5 + vec3(0.5));
+  WriteDisplayColor(n * 0.5 + vec3(0.5), 1.0);
 }

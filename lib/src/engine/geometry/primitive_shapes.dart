@@ -46,7 +46,7 @@ class CuboidShape extends Shape {
 
   @override
   MeshData build({
-    VertexLayout layout = VertexLayout.positionNormalTexcoord,
+    VertexLayout layout = VertexLayout.standard,
   }) {
     final half = size * 0.5;
     final builder =
@@ -55,10 +55,17 @@ class CuboidShape extends Shape {
     final normal = Vector3.zero();
     final texcoord = Vector2.zero();
 
+    // Each face's UV axes are declared above, so the tangent is exactly the U
+    // axis — no need to recover it from UV differences. cross(u, v) is the
+    // normal for every entry, which makes cross(normal, tangent) equal the V
+    // axis; glTF wants the bitangent to be *minus* dP/dv, so the sign is -1.
+    final tangent = Vector4.zero();
+
     for (final face in _faces) {
       normal.setValues(face[0][0], face[0][1], face[0][2]);
       final uAxis = face[1];
       final vAxis = face[2];
+      tangent.setValues(uAxis[0], uAxis[1], uAxis[2], -1.0);
       final base = builder.vertexCount;
 
       for (final corner in _corners) {
@@ -74,6 +81,7 @@ class CuboidShape extends Shape {
           position: position,
           normal: normal,
           texcoord: texcoord,
+          tangent: tangent,
         );
       }
 
@@ -103,7 +111,7 @@ class PlaneShape extends Shape {
 
   @override
   MeshData build({
-    VertexLayout layout = VertexLayout.positionNormalTexcoord,
+    VertexLayout layout = VertexLayout.standard,
   }) {
     if (widthSegments < 1 || depthSegments < 1) {
       throw ArgumentError('Plane segment counts must be >= 1.');
@@ -117,6 +125,9 @@ class PlaneShape extends Shape {
     final normal = Vector3(0.0, 1.0, 0.0);
     final position = Vector3.zero();
     final texcoord = Vector2.zero();
+    // U runs along +X and V along +Z, so cross(normal, +X) is -Z, which is
+    // already minus dP/dv — the sign is positive.
+    final tangent = Vector4(1.0, 0.0, 0.0, 1.0);
 
     for (var iz = 0; iz <= depthSegments; iz++) {
       final tz = iz / depthSegments;
@@ -128,6 +139,7 @@ class PlaneShape extends Shape {
           position: position,
           normal: normal,
           texcoord: texcoord,
+          tangent: tangent,
         );
       }
     }

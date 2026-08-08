@@ -3,7 +3,7 @@
 // Pure diffuse. The cheapest model that still reads as three-dimensional, and
 // the reference point for judging whether the fancier models are worth their
 // cost on a given target.
-#include <lib/surface.glsl>
+#include <lib/material_maps.glsl>
 
 vec3 ShadeLight(Surface s, LightSample light) {
   // The radiance and the N.L factor are applied by AccumulateLights, so the
@@ -13,6 +13,12 @@ vec3 ShadeLight(Surface s, LightSample light) {
 
 void main() {
   Surface s = ReadSurface();
-  vec3 ambient = s.albedo * s.ambient;
-  WriteSurface(AccumulateLights(s) + ambient, s.exposure);
+  // No ORM map: a purely diffuse model has no response to metallic or
+  // roughness, so sampling it would leave a slot the compiler then drops.
+  ApplyCommonMaps(s);
+  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  WriteSurface(
+      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
+      s.exposure,
+      s.alpha);
 }

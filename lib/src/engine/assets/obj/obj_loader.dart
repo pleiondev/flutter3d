@@ -35,7 +35,7 @@ enum ObjNormals {
 /// skipped rather than treated as errors.
 final class ObjLoader {
   ObjLoader({
-    this.layout = VertexLayout.positionNormalTexcoord,
+    this.layout = VertexLayout.standard,
     this.normals = ObjNormals.smooth,
     this.splitByGroup = true,
     this.flipTexcoordV = true,
@@ -618,6 +618,12 @@ final class _SurfaceBuilder {
     final mesh = builder.build();
     if (!hasFileNormals && normalMode == ObjNormals.smooth) {
       _accumulateSmoothNormals(mesh);
+    }
+    // OBJ has no tangent record at all, so a layout that wants one always has
+    // to derive it. After the smoothing pass, because the frame is built
+    // relative to the final normals.
+    if (layout.has(VertexLayout.tangent)) {
+      return mesh.withGeneratedTangents(target: layout);
     }
     return mesh;
   }

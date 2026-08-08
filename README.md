@@ -12,6 +12,12 @@ What works today:
   profile (the "vase"); shapes are values (`Shape`), not static methods;
 - six **switchable lighting models**, each its own pre-built fragment shader:
   Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon, Normals;
+- **material maps**: normal (with a full TBN), ORM, occlusion and emissive, plus
+  alpha masking and vertex colours — with neutral fallback textures instead of
+  per-map flags, so the shader needs no branch and the engine no bookkeeping;
+- **tangents**: generated with Lengyel's method where a mesh has none, taken
+  analytically where the surface knows them, and checked against a real
+  exporter's output on `NormalTangentMirrorTest`;
 - **up to eight lights of any type** — directional, point and spot with glTF's
   inverse-square falloff, range window and cone ramp — packed into `vec4[8]`
   uniform arrays with the count as a uniform, so switching a light on or off
@@ -36,8 +42,8 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 324 tests — geometry, projection, scene, sorting, debug draw, intersections,
-  raycasting, animation, lighting, glTF and OBJ — all without a GPU.
+- 352 tests — geometry, projection, scene, sorting, debug draw, intersections,
+  raycasting, animation, lighting, tangents, glTF and OBJ — all without a GPU.
 
 ## Running
 
@@ -125,6 +131,7 @@ What is supported:
 | Accessors | every componentType, `byteStride` (interleaved data), `normalized` with the symmetric clamp for signed types, sparse, and accessors with no bufferView (zeros) |
 | Topologies | TRIANGLES; STRIP and FAN are rewritten as triangle lists so no pipeline permutation is needed per topology |
 | Attributes | POSITION, NORMAL, TEXCOORD_0, TANGENT, COLOR_0 — only those the target `VertexLayout` declares are read |
+| Tangents | TANGENT when the file has it, otherwise generated with Lengyel's method as the spec requires |
 | Normals | an absent NORMAL produces **flat** normals, as the spec requires, which de-indexes the mesh |
 | Node graph | `matrix` and TRS, accumulated transforms, meshes reused across nodes, cycle guard |
 | Materials | metal-rough, all texture slots, alphaMode/cutoff, doubleSided, `KHR_materials_unlit`, `KHR_materials_emissive_strength` |
@@ -163,6 +170,8 @@ either does not start or silently renders nothing. Worth keeping to hand.
 | The scene is all ambient, as if the light shone away from the camera | Getters shaped like `readDirection([out])` ended in `result.normalized()`, which returns a **new** vector and leaves `out` holding the un-normalized, un-negated value. The renderer read its own variable rather than the return value, so the light direction was inverted: `N·L` went negative and clamped to zero. Normalize **in place** (`normalize()`), and pin it with `expect(returned, same(out))` |
 | `Binding has not yet been initialized` when reading assets off the UI isolate | `BackgroundIsolateBinaryMessenger.ensureInitialized(token)` grants a background isolate a working channel but creates no `ServicesBinding`, and `rootBundle` resolves through `ServicesBinding.instance`. Routing `flutter/assets` by hand fails deeper still — Flutter's own reply handler throws on a cast. Keep file reads on the UI isolate and request siblings over a port |
 | Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. Re-run `./tool/build_shaders.sh` |
+| A normal-mapped surface lights from the wrong side, on half the model | The bitangent sign. glTF's bitangent is `cross(normal, tangent) * w`, and it is **minus** dP/dv — texture V grows downwards while a normal map's green channel points up. Deriving `w` from `+dP/dv` gives tangent directions that agree with an exporter to seven digits and signs that are backwards everywhere, which only shows up on mirrored UV islands. `NormalTangentMirrorTest` settles it: it ships authored tangents for geometry `NormalTangentTest` leaves bare |
+| A texture is bound but the shader has no such slot | The compiler drops a sampler whose result never reaches the output, exactly as it does an unused uniform block. A model that samples a map and then ignores the value — Lambert reading metallic-roughness — ends up without the slot. `tool/build_shaders.sh` prints the compiled binding table so the metadata can be checked against it |
 | A draw is submitted, the counter goes up, nothing appears | There is **no non-indexed draw**. `draw()` with only a vertex buffer bound succeeds and renders nothing. Bind an index buffer even when the indices are the identity `0, 1, 2, …` sequence — the debug line overlay keeps one in a device buffer that only grows |
 | `PathAccessException … Operation not permitted` when writing a file | macOS Flutter apps are sandboxed. Anything outside `~/Library/Containers/<bundle id>/Data` is refused, so frame captures resolve relative paths against the app's own temp directory |
 
@@ -172,8 +181,9 @@ either does not start or silently renders nothing. Worth keeping to hand.
 shaders/
   mesh.vert                     vertex shader (this is what defines the vertex layout!)
   debug_line.vert               vertex shader for the debug overlay's own layout
-  lib/color.glsl                colour space and output, no uniforms
-  lib/surface.glsl              the material interface shared by lighting models
+  lib/color.glsl                colour space, varyings and output, no uniforms
+  lib/surface.glsl              the material and lighting interface shared by models
+  lib/material_maps.glsl        the texture maps, included only by shaders that sample them
   lighting/*.frag               one shader per lighting model, plus debug_line.frag
   flutter3d.shaderbundle.json   bundle manifest
 tool/build_shaders.sh           calls impellerc directly, no Native Assets
@@ -185,7 +195,7 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF and OBJ decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
-test/                           324 tests, all runnable without a GPU
+test/                           352 tests, all runnable without a GPU
 ```
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing

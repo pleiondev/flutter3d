@@ -5,7 +5,7 @@
 // Not energy conserving and not physically based, but it is what most older
 // engines shipped, and it stays useful for stylised looks where a controllable
 // highlight matters more than correctness.
-#include <lib/surface.glsl>
+#include <lib/material_maps.glsl>
 
 vec3 ShadeLight(Surface s, LightSample light) {
   // Map perceptual roughness onto a Phong exponent. The mapping is arbitrary;
@@ -20,6 +20,13 @@ vec3 ShadeLight(Surface s, LightSample light) {
 
 void main() {
   Surface s = ReadSurface();
-  vec3 ambient = s.albedo * s.ambient;
-  WriteSurface(AccumulateLights(s) + ambient, s.exposure);
+  ApplyCommonMaps(s);
+  // Roughness drives the Phong exponent, so the ORM map does reach the
+  // output here.
+  ApplyMetallicRoughnessMap(s);
+  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  WriteSurface(
+      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
+      s.exposure,
+      s.alpha);
 }

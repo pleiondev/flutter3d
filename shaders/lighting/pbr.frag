@@ -8,7 +8,7 @@
 // There is no image-based lighting here: a prefiltered environment needs mip
 // levels, and flutter_gpu on the stable channel exposes none. The ambient term
 // below is a flat stand-in, which is exactly the gap IBL would fill.
-#include <lib/surface.glsl>
+#include <lib/material_maps.glsl>
 
 float D_GGX(float n_dot_h, float alpha) {
   float a = n_dot_h * alpha;
@@ -53,7 +53,17 @@ vec3 ShadeLight(Surface s, LightSample light) {
 
 void main() {
   Surface s = ReadSurface();
+  ApplyCommonMaps(s);
+  ApplyMetallicRoughnessMap(s);
+
   vec3 diffuseColor = s.albedo * (1.0 - clamp(s.metallic, 0.0, 1.0));
-  vec3 ambient = diffuseColor * s.ambient;
-  WriteSurface(AccumulateLights(s) + ambient, s.exposure);
+  // Ambient occlusion darkens indirect light. It is applied to the direct term
+  // too, which is not physical, but with no IBL the flat ambient is far too
+  // weak for an occlusion map to be visible otherwise.
+  vec3 ambient = diffuseColor * s.ambient * s.occlusion;
+
+  WriteSurface(
+      AccumulateLights(s) * s.occlusion + ambient + s.emissive,
+      s.exposure,
+      s.alpha);
 }

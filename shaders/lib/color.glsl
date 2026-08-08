@@ -15,9 +15,15 @@ precision highp float;
 const float kPi = 3.14159265359;
 
 // One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
 in vec3 v_world_position;
 in vec3 v_normal;
 in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
 
 out vec4 frag_color;
 
@@ -73,6 +79,11 @@ vec3 TonemapNeutral(vec3 color) {
 
 /// Writes a lit result: apply exposure, tone map, then encode to sRGB.
 ///
+/// Alpha is passed through untouched. Tone mapping is a transform on light, and
+/// coverage is not light — running opacity through the curve would make a
+/// half-transparent surface change how transparent it is with the exposure
+/// slider.
+///
 /// Exposure is a multiply in linear space applied *before* the tone map, which is
 /// what makes it behave like a camera stop rather than a brightness slider: it
 /// moves which part of the scene's range lands in the mapper's shoulder, instead
@@ -81,9 +92,9 @@ vec3 TonemapNeutral(vec3 color) {
 /// Without it the mapper's headroom goes unused — a scene whose brightest value
 /// sits at linear 0.6 never reaches display white, and the result reads as
 /// under-exposed even though nothing is clipping.
-void WriteSurface(vec3 linearColor, float exposure) {
+void WriteSurface(vec3 linearColor, float exposure, float alpha) {
   frag_color =
-      vec4(LinearToSrgb(TonemapNeutral(linearColor * exposure)), 1.0);
+      vec4(LinearToSrgb(TonemapNeutral(linearColor * exposure)), alpha);
 }
 
 /// Writes a colour that is already display-referred, skipping the tone map.
@@ -91,8 +102,8 @@ void WriteSurface(vec3 linearColor, float exposure) {
 /// For unlit and debug output: an unlit albedo round-trips sRGB to linear and
 /// back, so tone mapping it would change authored colours, and a normal encoded
 /// as RGB is not a light value at all.
-void WriteDisplayColor(vec3 linearColor) {
-  frag_color = vec4(LinearToSrgb(linearColor), 1.0);
+void WriteDisplayColor(vec3 linearColor, float alpha) {
+  frag_color = vec4(LinearToSrgb(linearColor), alpha);
 }
 
 #endif  // COLOR_GLSL_
