@@ -1,0 +1,33 @@
+name: flutter3d
+description: "Спайк 3D-движка на Flutter GPU."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Низкоуровневый графический API. Живёт в bin/cache/pkg/flutter_gpu.
+  flutter_gpu:
+    sdk: flutter
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Собирается скриптом tool/build_shaders.sh через impellerc.
+    - build/shaders/flutter3d.shaderbundle
+    # Официальные тестовые модели Khronos (glTF-Sample-Assets).
+    - assets/samples/
+    - assets/samples/cube/

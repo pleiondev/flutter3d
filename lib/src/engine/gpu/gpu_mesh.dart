@@ -1,0 +1,62 @@
+import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'package:vector_math/vector_math.dart';
+
+import '../geometry/geometry.dart';
+
+/// GPU-resident counterpart of a [MeshData].
+///
+/// Uploads happen once at construction. flutter_gpu offers no explicit release
+/// for a [gpu.DeviceBuffer] — handles are collected once unreachable — so
+/// dropping the last reference to a [GpuMesh] is what frees it. Real resource
+/// lifetime management (ref counting, deferred release while the GPU may still
+/// be reading) belongs in the RHI layer, not here.
+final class GpuMesh {
+  GpuMesh._({
+    required this.vertexBuffer,
+    required this.indexBuffer,
+    required this.vertexCount,
+    required this.indexCount,
+    required this.indexType,
+    required this.bounds,
+  });
+
+  final gpu.DeviceBuffer vertexBuffer;
+  final gpu.DeviceBuffer indexBuffer;
+  final int vertexCount;
+  final int indexCount;
+  final gpu.IndexType indexType;
+
+  /// Object-space bounds, kept for culling and for framing the camera.
+  final Aabb3 bounds;
+
+  factory GpuMesh.upload(MeshData mesh) {
+    final packed = mesh.packIndices();
+
+    return GpuMesh._(
+      vertexBuffer: gpu.gpuContext.createDeviceBufferWithCopy(mesh.vertexBytes),
+      indexBuffer: gpu.gpuContext.createDeviceBufferWithCopy(packed.bytes),
+      vertexCount: mesh.vertexCount,
+      indexCount: packed.count,
+      indexType: packed.is16Bit ? gpu.IndexType.int16 : gpu.IndexType.int32,
+      bounds: mesh.computeBounds(),
+    );
+  }
+
+  /// Radius of the sphere around the AABB centre, used to frame the camera.
+  double get boundingRadius {
+    final extent = (bounds.max - bounds.min)..scale(0.5);
+    return extent.length;
+  }
+
+  gpu.BufferView get vertexView => gpu.BufferView(
+        vertexBuffer,
+        offsetInBytes: 0,
+        lengthInBytes: vertexBuffer.sizeInBytes,
+      );
+
+  gpu.BufferView get indexView => gpu.BufferView(
+        indexBuffer,
+        offsetInBytes: 0,
+        lengthInBytes: indexBuffer.sizeInBytes,
+      );
+}

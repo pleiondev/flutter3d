@@ -1,0 +1,30 @@
+{
+  "MeshVertex": {
+    "type": "vertex",
+    "file": "shaders/mesh.vert"
+  },
+  "Unlit": {
+    "type": "fragment",
+    "file": "shaders/lighting/unlit.frag"
+  },
+  "Lambert": {
+    "type": "fragment",
+    "file": "shaders/lighting/lambert.frag"
+  },
+  "BlinnPhong": {
+    "type": "fragment",
+    "file": "shaders/lighting/blinn_phong.frag"
+  },
+  "Pbr": {
+    "type": "fragment",
+    "file": "shaders/lighting/pbr.frag"
+  },
+  "Toon": {
+    "type": "fragment",
+    "file": "shaders/lighting/toon.frag"
+  },
+  "Normals": {
+    "type": "fragment",
+    "file": "shaders/lighting/normals.frag"
+  }
+}
