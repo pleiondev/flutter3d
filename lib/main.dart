@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
-import 'package:vector_math/vector_math.dart' show Vector2, Vector3;
+import 'package:vector_math/vector_math.dart' show Aabb3, Vector2, Vector3;
 
 import 'src/engine/animation/animation.dart';
 import 'src/engine/assets/model_asset.dart';
@@ -116,6 +116,8 @@ class _SpikePageState extends State<SpikePage>
   late final SceneNode _modelPivot;
   late final CameraNode _camera;
   late final LightNode _light;
+  late final LightNode _fill;
+  late final LightNode _spot;
   late final OrbitController _orbit;
   late final RenderView _view;
 
@@ -191,6 +193,37 @@ class _SpikePageState extends State<SpikePage>
     // Local direction, so it is relative to wherever the camera looks: shining
     // forward, from the upper left of the view.
     _light.setLocalForward(Vector3(0.35, -0.45, -0.82));
+
+    // Two world-fixed lights of the other two types, so the demo actually
+    // exercises attenuation and the spot cone rather than only the directional
+    // path. They are placed from the model's bounds on load, because a scene
+    // that fits in one unit and one that spans two hundred need very different
+    // distances for the same look.
+    _fill = LightNode(
+      type: LightType.point,
+      color: Vector3(0.35, 0.62, 1.0),
+      intensity: 4.0,
+      name: 'fill light',
+    );
+    _spot = LightNode(
+      type: LightType.spot,
+      color: Vector3(1.0, 0.45, 0.25),
+      intensity: 12.0,
+      innerConeAngle: 0.25,
+      outerConeAngle: 0.5,
+      name: 'spot light',
+    );
+    _scene
+      ..add(_fill)
+      ..add(_spot);
+
+    final enabled = startupLightsFromEnvironment();
+    if (enabled.isNotEmpty) {
+      for (final light in <LightNode>[_light, _fill, _spot]) {
+        light.visible = enabled.contains(light.name?.toLowerCase());
+      }
+    }
+
     _orbit = OrbitController(_camera, distance: 3.0, yaw: 0.6, pitch: 0.35);
     _view = RenderView(camera: _camera);
 
@@ -352,9 +385,43 @@ class _SpikePageState extends State<SpikePage>
 
       // Frame the newly placed model, and tie the depth range to it so small
       // models do not z-fight.
-      _orbit.frameBounds(_scene.computeBounds());
+      final bounds = _scene.computeBounds();
+      _orbit.frameBounds(bounds);
       _orbit.syncProjectionDepth(_camera);
+      _placeSceneLights(bounds);
     });
+  }
+
+  /// Puts the point and spot lights at a sensible distance for this model.
+  ///
+  /// Scaled by the model rather than fixed: inverse-square falloff means a
+  /// distance that flatters a one-unit cube leaves a two-hundred-unit scene in
+  /// the dark, and the intensity would have to be retuned per model instead.
+  void _placeSceneLights(Aabb3 bounds) {
+    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final radius = ((bounds.max - bounds.min)..scale(0.5)).length;
+    final distance = radius <= 0.0 ? 1.5 : radius * 2.0;
+
+    _fill.setPosition(
+      centre.x - distance,
+      centre.y + distance * 0.35,
+      centre.z + distance * 0.6,
+    );
+    // Intensity is photometric-ish: with inverse-square falloff it has to grow
+    // with the square of the distance to keep the same brightness on the model.
+    _fill
+      ..intensity = 4.0 * distance * distance
+      ..range = distance * 6.0;
+
+    _spot.setPosition(
+      centre.x + distance * 0.4,
+      centre.y + distance * 1.6,
+      centre.z + distance * 0.4,
+    );
+    _spot
+      ..lookAt(centre)
+      ..intensity = 12.0 * distance * distance
+      ..range = distance * 6.0;
   }
 
   void _applyLighting(LightingModel model) {
@@ -485,6 +552,8 @@ class _SpikePageState extends State<SpikePage>
                     onCulling: (v) => setState(() => _culling = v),
                     debug: _debug,
                     onDebug: (v) => setState(() => _debug = v),
+                    lights: <LightNode>[_light, _fill, _spot],
+                    onLightsChanged: () => setState(() {}),
                     uiMicros: _uiMicros,
                     rasterMicros: _rasterMicros,
                     pick: _pickDescription,
@@ -601,6 +670,8 @@ class _Controls extends StatelessWidget {
     required this.onCulling,
     required this.debug,
     required this.onDebug,
+    required this.lights,
+    required this.onLightsChanged,
     required this.uiMicros,
     required this.rasterMicros,
     required this.pick,
@@ -637,6 +708,11 @@ class _Controls extends StatelessWidget {
   final ValueChanged<bool> onCulling;
   final DebugDrawOptions debug;
   final ValueChanged<DebugDrawOptions> onDebug;
+
+  /// The scene's lights, so each can be switched on and off.
+  final List<LightNode> lights;
+
+  final VoidCallback onLightsChanged;
   final int uiMicros;
   final int rasterMicros;
 
@@ -773,6 +849,27 @@ class _Controls extends StatelessWidget {
             _AnimationControls(player: player!, onChanged: onPlayerChanged),
           ],
           const SizedBox(height: 6),
+          _Label('Lights', textTheme),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              for (final light in lights)
+                FilterChip(
+                  label: Text('${light.name ?? light.type.name} '
+                      '(${light.type.name})'),
+                  selected: light.visible,
+                  // Switching a light off only shortens the shader's loop; the
+                  // pipeline is untouched, which the "pipeline sw" counter below
+                  // keeps honest.
+                  onSelected: (v) {
+                    light.visible = v;
+                    onLightsChanged();
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
           _Label('Debug draw', textTheme),
           Wrap(
             spacing: 8,
@@ -821,7 +918,9 @@ class _Controls extends StatelessWidget {
             'submit ${_ms(frame?.submitMicros ?? 0)} · '
             '${frame?.drawCalls ?? 0} draws · '
             '${frame?.pipelineSwitches ?? 0} pipeline sw · '
-            '${frame?.culled ?? 0} culled'
+            '${frame?.culled ?? 0} culled · '
+            '${frame?.lights ?? 0} lights'
+            '${(frame?.lightsDropped ?? 0) > 0 ? ' (+${frame!.lightsDropped} dropped)' : ''}'
             '${(frame?.debugLines ?? 0) > 0 ? ' · ${frame!.debugLines} debug lines' : ''}',
             style: textTheme.bodySmall?.copyWith(color: Colors.white60),
           ),

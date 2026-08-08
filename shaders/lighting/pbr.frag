@@ -28,9 +28,7 @@ vec3 F_Schlick(vec3 f0, float v_dot_h) {
   return f0 + (vec3(1.0) - f0) * f;
 }
 
-void main() {
-  Surface s = ReadSurface();
-
+vec3 ShadeLight(Surface s, LightSample light) {
   // Perceptual roughness is squared to get the GGX alpha; this is what makes
   // the roughness slider feel linear.
   float alpha = s.roughness * s.roughness;
@@ -40,16 +38,22 @@ void main() {
   vec3 f0 = mix(vec3(0.04), s.albedo, s.metallic);
   vec3 diffuseColor = s.albedo * (1.0 - s.metallic);
 
-  float d = D_GGX(s.n_dot_h, alpha);
-  float vis = V_SmithGGXCorrelated(s.n_dot_v, s.n_dot_l, alpha);
-  vec3 f = F_Schlick(f0, s.v_dot_h);
+  float d = D_GGX(light.n_dot_h, alpha);
+  float vis = V_SmithGGXCorrelated(s.n_dot_v, light.n_dot_l, alpha);
+  vec3 f = F_Schlick(f0, light.v_dot_h);
 
   vec3 specular = d * vis * f * frag_info.material.w;
   // Energy left over after reflection is what scatters diffusely.
   vec3 diffuse = diffuseColor * (vec3(1.0) - f) / kPi;
 
-  vec3 direct = (diffuse + specular) * s.light * s.n_dot_l * kPi;
-  vec3 ambient = diffuseColor * s.ambient;
+  // The pi puts the result back on the scale the tone mapper and the exposure
+  // default were calibrated against.
+  return (diffuse + specular) * kPi;
+}
 
-  WriteSurface(direct + ambient, s.exposure);
+void main() {
+  Surface s = ReadSurface();
+  vec3 diffuseColor = s.albedo * (1.0 - clamp(s.metallic, 0.0, 1.0));
+  vec3 ambient = diffuseColor * s.ambient;
+  WriteSurface(AccumulateLights(s) + ambient, s.exposure);
 }

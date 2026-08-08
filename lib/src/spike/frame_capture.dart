@@ -70,6 +70,8 @@ final class FrameCapture {
     // is not possible in the very situations this path exists for.
     stdout.writeln('frame capture: ${frame.drawCalls} draws, '
         '${frame.pipelineSwitches} pipeline switches, ${frame.culled} culled, '
+        '${frame.lights} lights (${frame.lightsDropped} dropped), '
+        '${frame.pipelines} pipelines, '
         '${frame.debugLines} debug lines, ${frame.submitMicros} us submit');
     unawaited(_write(frame.image));
   }
@@ -134,6 +136,22 @@ DebugDrawOptions debugDrawFromEnvironment() {
 /// Label of the model to select at startup, empty when unset.
 String startupSourceFromEnvironment() =>
     const String.fromEnvironment('FLUTTER3D_SOURCE');
+
+/// Which of the demo's lights start switched on.
+///
+/// Names are matched against `LightNode.name`, comma separated; an empty define
+/// leaves every light on. It exists so the "switching a light off does not
+/// rebuild the pipeline" claim can be checked from a capture rather than argued
+/// from the code.
+Set<String> startupLightsFromEnvironment() {
+  const spec = String.fromEnvironment('FLUTTER3D_LIGHTS');
+  if (spec.trim().isEmpty) return const <String>{};
+  return spec
+      .split(',')
+      .map((name) => name.trim().toLowerCase())
+      .where((name) => name.isNotEmpty)
+      .toSet();
+}
 
 /// Whether the demo's turntable spin is on.
 ///

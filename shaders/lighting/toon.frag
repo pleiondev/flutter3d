@@ -9,19 +9,31 @@
 // genuinely model-agnostic.
 #include <lib/surface.glsl>
 
-void main() {
-  Surface s = ReadSurface();
-
+vec3 ShadeLight(Surface s, LightSample light) {
   // Fewer bands as roughness rises, so the slider still does something here.
   float bands = mix(5.0, 2.0, s.roughness);
   // smoothstep on the band edge keeps the step from aliasing into jagged
   // terminator lines.
-  float quantized = floor(s.n_dot_l * bands) / bands;
-  float fraction = fract(s.n_dot_l * bands);
+  float quantized = floor(light.n_dot_l * bands) / bands;
+  float fraction = fract(light.n_dot_l * bands);
   quantized += smoothstep(0.85, 1.0, fraction) / bands;
 
-  float rim = pow(1.0 - s.n_dot_v, 3.0) * frag_info.material.w;
+  // AccumulateLights multiplies by N.L, which is exactly what banding is meant
+  // to replace, so divide it back out and keep the quantized ramp instead.
+  float ramp = quantized / max(light.n_dot_l, 1e-3);
 
-  vec3 shaded = s.albedo * (s.ambient + quantized) * s.light;
-  WriteSurface(shaded + s.light * rim * 0.35, s.exposure);
+  return s.albedo * ramp;
+}
+
+void main() {
+  Surface s = ReadSurface();
+
+  // The rim is a property of the view, not of any one light, so it belongs
+  // outside the loop — adding it per light would make it brighten with the
+  // number of lamps in the scene.
+  float rim = pow(1.0 - s.n_dot_v, 3.0) * frag_info.material.w;
+  vec3 ambient = s.albedo * s.ambient;
+
+  WriteSurface(
+      AccumulateLights(s) + ambient + vec3(rim * 0.35), s.exposure);
 }

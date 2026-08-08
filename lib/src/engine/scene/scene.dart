@@ -65,9 +65,9 @@ final class Scene {
 
   /// First light of the given type, or null.
   ///
-  /// The renderer currently shades with a single directional light: more than
-  /// one needs either an uber-shader loop or clustered lighting, and both are
-  /// shader work rather than scene work.
+  /// A convenience for scene code — "where is the key light" — not something the
+  /// renderer needs: it packs every visible light into a [LightBuffer] and the
+  /// shaders loop over the lot.
   LightNode? firstLightOfType(LightType type) {
     for (var i = 0; i < _lights.length; i++) {
       if (_lights[i].type == type) return _lights[i];

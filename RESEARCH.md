@@ -325,9 +325,14 @@ choose an engine.
 ### Layer 6. Lighting and shadows
 
 - [x] **P1** Directional, point, spot; attenuation, cone falloff, intensities in physical units.
-      Only directional is shaded; point and spot exist in the scene but are not shaded.
-- [ ] **P1** **The lighting scheme**: forward with a lamp limit → later **clustered forward**.
-      On tile-based mobile GPUs deferred loses; clustered is the right target.
+      All three are shaded, with glTF's inverse-square falloff plus the range window and the
+      smooth cone ramp. Intensities are still unitless multipliers rather than lumens.
+- [x] **P1** **The lighting scheme**: forward with a lamp limit → later **clustered forward**.
+      On tile-based mobile GPUs deferred loses; clustered is the right target. Forward with a
+      limit of 8 is done: the lights live in `vec4 x[8]` uniform arrays with the count as a
+      uniform, so switching a light on or off leaves the pipeline alone. Which eight matter when
+      there are more is the question clustered forward answers; today the extras are dropped and
+      counted.
 - [ ] **P1** **IBL**: irradiance (SH9 or a small cubemap) + a prefiltered specular cubemap (GGX
       across mip levels) + a BRDF LUT. Prefiltering is done with render passes into mip levels,
       since there is no compute. ⚠️ Requires render-to-mip-level on master.
@@ -529,7 +534,15 @@ them fails "silently", without a single error in the log:
    and offset, output empty. The fix is to bind an identity `0, 1, 2, …` index buffer, which for a
    line list carries no information at all. Worth keeping in a device buffer that only grows,
    rather than re-uploading a constant every frame.
-5. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
+5. **Arrays in a uniform block work.** This was the one open question behind the whole lighting
+   design, and the answer is unambiguous: `vec4 lights[8]` survives into the compiled Metal
+   struct, and reflection reports the block at the std140 size with the array's base offset in
+   the right place — 160 bytes for `vec4 + vec4[8] + vec4`, with the member after the array at
+   144. Individual elements are *not* reflected (`lights[0]` returns null), so the Dart side
+   writes the array as one contiguous block from its base offset, which is correct because the
+   std140 stride for a `vec4` array is a flat 16 bytes. `shaders/spike_array.frag` keeps the
+   probe for the next SDK bump.
+6. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
    rewinds a bump allocator the GPU is still reading from. The symptom is not a crash but flickering
    geometry and lighting under load, which is far harder to diagnose. The cure is a ring of host
    buffers sized by the number of frames in flight (3 for us).

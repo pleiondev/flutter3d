@@ -7,7 +7,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../gpu/gpu_mesh.dart';
-import '../scene/light_node.dart';
+import '../scene/light_buffer.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import 'debug_draw.dart';
@@ -87,6 +87,9 @@ final class FrameResult {
     required this.culled,
     required this.pipelineSwitches,
     required this.debugLines,
+    required this.lights,
+    required this.lightsDropped,
+    required this.pipelines,
   });
 
   final ui.Image image;
@@ -112,6 +115,22 @@ final class FrameResult {
 
   /// Line segments submitted by the debug overlay, zero when it is off.
   final int debugLines;
+
+  /// Lights actually shaded this frame.
+  final int lights;
+
+  /// Lights that did not fit in the uniform array, so a scene that quietly
+  /// stopped lighting its ninth lamp says so instead of looking wrong.
+  final int lightsDropped;
+
+  /// Pipelines the renderer has built so far.
+  ///
+  /// Reported per frame because it is the number that has to stay put: light
+  /// count, light type and material values are all uniforms, and any of them
+  /// pushing this up would mean a permutation had crept in where a uniform
+  /// belonged. With no runtime shader compilation, that is not a slow path —
+  /// it is a wrong one.
+  final int pipelines;
 }
 
 /// Draws a [Scene] through one or more [RenderView]s.
@@ -164,6 +183,17 @@ final class Renderer {
 
   /// Reused across frames, so a steady overlay allocates nothing.
   final DebugDraw debugDraw = DebugDraw();
+
+  /// The scene's lights, repacked once per view.
+  final LightBuffer lights = LightBuffer();
+
+  // Uniform scratch, reused rather than rebuilt per draw. Writing a fresh
+  // Float32List for every member of every draw is precisely the allocation
+  // pattern the render list was shaped to avoid.
+  final Float32List _cameraData = Float32List(4);
+  final Float32List _baseColorData = Float32List(4);
+  final Float32List _materialData = Float32List(4);
+  final Float32List _frameParams = Float32List(4);
 
   gpu.RenderPipeline? _debugLinePipeline;
 
@@ -373,9 +403,9 @@ final class Renderer {
     var culled = 0;
     var pipelineSwitches = 0;
     var debugLines = 0;
+    var lightOverflow = 0;
     LightingModel? boundPipeline;
 
-    final lightDirection = vm.Vector3.zero();
     final cameraPosition = vm.Vector3.zero();
 
     for (final view in ordered) {
@@ -424,35 +454,17 @@ final class Renderer {
 
       camera.readWorldPosition(cameraPosition);
 
-      // One directional light for now. More requires either an uber-shader loop
-      // or clustered lighting, both of which are shader work, not scene work.
-      final light = scene.firstLightOfType(LightType.directional);
-      if (light != null) {
-        light.readDirectionToLight(lightDirection);
-      } else {
-        lightDirection.setValues(0.45, 0.8, 0.6);
-        lightDirection.normalize();
-      }
-      final lightColor = light == null
-          ? Float32List.fromList(<double>[1.0, 0.97, 0.92, 1.0])
-          : Float32List.fromList(<double>[
-              light.color.x,
-              light.color.y,
-              light.color.z,
-              light.intensity,
-            ]);
-      final lightDirData = Float32List.fromList(<double>[
-        lightDirection.x,
-        lightDirection.y,
-        lightDirection.z,
-        0.0,
-      ]);
-      final cameraData = Float32List.fromList(<double>[
-        cameraPosition.x,
-        cameraPosition.y,
-        cameraPosition.z,
-        0.0,
-      ]);
+      // Every visible light, packed once per view rather than per draw. The
+      // count is a uniform, so switching a light off shortens the shader's loop
+      // without touching the pipeline — which is the whole point of the array,
+      // given there is no runtime shader compilation to fall back on.
+      lights.gather(scene.lights);
+      if (lights.count == 0) lights.useDefaultLight();
+      lightOverflow = lights.overflow;
+
+      _cameraData[0] = cameraPosition.x;
+      _cameraData[1] = cameraPosition.y;
+      _cameraData[2] = cameraPosition.z;
 
       developer.Timeline.startSync('Renderer.encodeDraws');
       for (final indices in <List<int>>[
@@ -525,28 +537,32 @@ final class Renderer {
           // FragInfo still reports it with a non-zero size while the compiled
           // function binds no buffer, and binding that segfaults inside Metal.
           if (material.lighting.usesFragInfo) {
+            _baseColorData[0] = material.baseColor.x;
+            _baseColorData[1] = material.baseColor.y;
+            _baseColorData[2] = material.baseColor.z;
+            _baseColorData[3] = material.baseColor.w;
+
+            _materialData[0] = material.metallic;
+            _materialData[1] = material.roughness;
+            _materialData[2] = scene.ambientIntensity;
+            _materialData[3] = settings.specular;
+
+            _frameParams[0] = settings.exposure;
+            _frameParams[1] = lights.count.toDouble();
+
             _bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
-              'light_direction': lightDirData,
-              'light_color': lightColor,
-              'base_color': Float32List.fromList(<double>[
-                material.baseColor.x,
-                material.baseColor.y,
-                material.baseColor.z,
-                material.baseColor.w,
-              ]),
-              'camera_position': cameraData,
-              'material': Float32List.fromList(<double>[
-                material.metallic,
-                material.roughness,
-                scene.ambientIntensity,
-                settings.specular,
-              ]),
-              'frame_params': Float32List.fromList(<double>[
-                settings.exposure,
-                0.0,
-                0.0,
-                0.0,
-              ]),
+              // Whole arrays written from their reflected base offset. Impeller
+              // reflects the array, not its elements — `lights[0]` comes back
+              // null — but the std140 stride for a vec4 array is a flat 16
+              // bytes, so a contiguous write lands each element correctly.
+              'light_position': lights.positions,
+              'light_color': lights.colors,
+              'light_direction': lights.directions,
+              'light_cone': lights.cones,
+              'base_color': _baseColorData,
+              'camera_position': _cameraData,
+              'material': _materialData,
+              'frame_params': _frameParams,
             });
           }
 
@@ -604,6 +620,9 @@ final class Renderer {
       culled: culled,
       pipelineSwitches: pipelineSwitches,
       debugLines: debugLines,
+      lights: lights.count,
+      lightsDropped: lightOverflow,
+      pipelines: _pipelineCache.length,
     );
   }
 

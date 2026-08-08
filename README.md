@@ -12,6 +12,10 @@ What works today:
   profile (the "vase"); shapes are values (`Shape`), not static methods;
 - six **switchable lighting models**, each its own pre-built fragment shader:
   Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon, Normals;
+- **up to eight lights of any type** — directional, point and spot with glTF's
+  inverse-square falloff, range window and cone ramp — packed into `vec4[8]`
+  uniform arrays with the count as a uniform, so switching a light on or off
+  never rebuilds a pipeline;
 - **decoders for glTF 2.0 / GLB and Wavefront OBJ** behind one `ModelDocument`
   abstraction with shared `SurfaceMaterial` / `TextureBinding` / `EncodedImage`,
   so the GPU upload path is written once for both formats;
@@ -32,8 +36,8 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 311 tests — geometry, projection, scene, sorting, debug draw, intersections,
-  raycasting, animation, glTF and OBJ — all without a GPU.
+- 324 tests — geometry, projection, scene, sorting, debug draw, intersections,
+  raycasting, animation, lighting, glTF and OBJ — all without a GPU.
 
 ## Running
 
@@ -60,12 +64,16 @@ flutter run -d macos \
   --dart-define=FLUTTER3D_CAPTURE=shot.png \
   --dart-define=FLUTTER3D_CAPTURE_FRAME=200 \
   --dart-define=FLUTTER3D_DEBUG_DRAW=bounds,normals,lights,axes,frusta \
-  --dart-define=FLUTTER3D_SOURCE=teapot
+  --dart-define=FLUTTER3D_SOURCE=teapot \
+  --dart-define=FLUTTER3D_SPIN=false \
+  --dart-define="FLUTTER3D_LIGHTS=key light,spot light"
 ```
 
 A relative capture path lands in the app's sandbox temp directory, and the run
-prints the absolute path along with the frame's draw, pipeline-switch, cull and
-debug-line counts. `FLUTTER3D_SOURCE` matches a model chip by substring.
+prints the absolute path along with the frame's draw, pipeline, light, cull and
+debug-line counts. `FLUTTER3D_SOURCE` matches a model chip by substring;
+`FLUTTER3D_SPIN=false` stops the turntable so two captures differ only by what
+is being tested; `FLUTTER3D_LIGHTS` names which lights start switched on.
 
 ## Loading models
 
@@ -177,7 +185,7 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF and OBJ decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
-test/                           311 tests, all runnable without a GPU
+test/                           324 tests, all runnable without a GPU
 ```
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing
@@ -202,3 +210,12 @@ to 97 KB with seven.
 It also makes the pipeline the most expensive state change in a pass, which is why
 it is the **high-order term** when the render list is sorted — see
 [docs/FFI-analysis.md](docs/FFI-analysis.md) for the measurements behind that.
+
+The same constraint is why lighting is a uniform array rather than a permutation
+per light count. Verified rather than assumed: `vec4 lights[8]` survives into the
+compiled Metal struct, and reflection reports the block at its std140 size with
+the array's base offset intact. Individual elements are not reflected, so the
+whole array is written from that base — correct because the std140 stride for a
+`vec4` array is a flat 16 bytes. The probe is kept in `shaders/spike_array.frag`
+for the next SDK bump. The payoff is measurable: a capture with three lights and
+one with a single light both report **one** pipeline.

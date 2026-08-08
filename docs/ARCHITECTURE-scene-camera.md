@@ -370,7 +370,11 @@ Since then, and covered by their own sections above: CPU raycasting, the debug l
 `ModelAsset.instantiate` rebuilding the decoded hierarchy rather than flattening it — which is
 what animation needed, because a track says "move node 7" and node 7 has to carry its subtree.
 
-Not done: ordered layers (only a bitmask so far), multiple light sources in the shader, BVH.
+Multiple light sources are shaded too: `LightBuffer` packs every visible light into four `vec4[8]`
+uniform arrays with the count as a uniform, so a light switching off shortens the shader's loop and
+leaves the pipeline cache untouched.
+
+Not done: ordered layers (only a bitmask so far), BVH.
 
 ---
 

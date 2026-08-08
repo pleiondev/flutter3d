@@ -7,19 +7,19 @@
 // highlight matters more than correctness.
 #include <lib/surface.glsl>
 
-void main() {
-  Surface s = ReadSurface();
-
+vec3 ShadeLight(Surface s, LightSample light) {
   // Map perceptual roughness onto a Phong exponent. The mapping is arbitrary;
   // it just has to feel monotonic as the roughness slider moves.
   float shininess = mix(256.0, 4.0, s.roughness);
-  float specular = pow(s.n_dot_h, shininess) * frag_info.material.w;
+  float specular = pow(light.n_dot_h, shininess) * frag_info.material.w;
 
-  // Gate the highlight by N.L so it cannot appear on unlit facing-away parts.
-  specular *= step(0.0001, s.n_dot_l);
+  // The caller already dropped lights with N.L at zero, so no separate gate is
+  // needed to keep the highlight off facing-away geometry.
+  return s.albedo + vec3(specular);
+}
 
-  vec3 diffuse = s.albedo * s.light * s.n_dot_l;
+void main() {
+  Surface s = ReadSurface();
   vec3 ambient = s.albedo * s.ambient;
-
-  WriteSurface(diffuse + ambient + s.light * specular, s.exposure);
+  WriteSurface(AccumulateLights(s) + ambient, s.exposure);
 }

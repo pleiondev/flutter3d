@@ -6,6 +6,7 @@
 library;
 
 export 'camera_node.dart';
+export 'light_buffer.dart';
 export 'light_node.dart';
 export 'mesh_node.dart';
 export 'raycaster.dart';

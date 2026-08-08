@@ -5,11 +5,14 @@
 // cost on a given target.
 #include <lib/surface.glsl>
 
+vec3 ShadeLight(Surface s, LightSample light) {
+  // The radiance and the N.L factor are applied by AccumulateLights, so the
+  // model itself only says how the surface responds.
+  return s.albedo;
+}
+
 void main() {
   Surface s = ReadSurface();
-
-  vec3 diffuse = s.albedo * s.light * s.n_dot_l;
   vec3 ambient = s.albedo * s.ambient;
-
-  WriteSurface(diffuse + ambient, s.exposure);
+  WriteSurface(AccumulateLights(s) + ambient, s.exposure);
 }
