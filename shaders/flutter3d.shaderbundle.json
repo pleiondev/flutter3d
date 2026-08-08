@@ -26,5 +26,13 @@
   "Normals": {
     "type": "fragment",
     "file": "shaders/lighting/normals.frag"
+  },
+  "DebugLineVertex": {
+    "type": "vertex",
+    "file": "shaders/debug_line.vert"
+  },
+  "DebugLine": {
+    "type": "fragment",
+    "file": "shaders/lighting/debug_line.frag"
   }
 }

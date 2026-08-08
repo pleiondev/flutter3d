@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
@@ -151,6 +152,25 @@ final class ModelLoadRequest {
 /// Sibling files are requested back over a port, so a `.gltf` referencing an
 /// external `.bin` works exactly as it does synchronously.
 Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
+  // An async span, not startSync/finishSync: the read and the isolate round trip
+  // both suspend, and a synchronous span would close on the first await and
+  // report a fraction of the real cost.
+  final task = developer.TimelineTask()
+    ..start('decodeModelInIsolate', arguments: <String, Object?>{
+      'source': request.source.key,
+    });
+  try {
+    return await _decodeModelInIsolate(request, task);
+  } finally {
+    task.finish();
+  }
+}
+
+Future<ModelDocument> _decodeModelInIsolate(
+  ModelLoadRequest request,
+  developer.TimelineTask task,
+) async {
+  task.instant('read');
   final primary = await request.source.read();
   final resolve = request.source.resolveUri;
 
@@ -170,6 +190,7 @@ Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
 
   final servicePort = requests.sendPort;
   try {
+    task.instant('decode');
     return await Isolate.run(
       () => decodeModelBytes(request, primary, _portResolver(servicePort)),
     );
@@ -216,18 +237,28 @@ Future<ModelDocument> decodeModelBytes(
   Uint8List bytes,
   AssetUriResolver resolveUri,
 ) {
-  switch (_resolveFormat(request, bytes)) {
+  final format = _resolveFormat(request, bytes);
+  // Named after the format so the background isolate's span says which decoder
+  // the time went into, rather than just "decode".
+  final task = developer.TimelineTask()
+    ..start('decode ${format.name}', arguments: <String, Object?>{
+      'bytes': bytes.length,
+    });
+
+  final Future<ModelDocument> decoded;
+  switch (format) {
     case ModelFormat.obj:
-      return ObjLoader(
+      decoded = ObjLoader(
         layout: request.layout,
         normals: request.objNormals,
       ).load(bytes, resolveUri: resolveUri);
 
     case ModelFormat.gltf:
     case ModelFormat.auto:
-      return GltfLoader(layout: request.layout)
+      decoded = GltfLoader(layout: request.layout)
           .load(bytes, resolveUri: resolveUri);
   }
+  return decoded.whenComplete(task.finish);
 }
 
 /// Chooses a decoder from the file name, then from the bytes.

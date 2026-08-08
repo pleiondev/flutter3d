@@ -283,7 +283,9 @@ choose an engine.
 - [ ] **P2** Morph targets (positions/normals, weights).
 - [ ] **P2** Static batching (merge by material), a `BatchedMesh` equivalent.
 - [ ] **P2** Procedural builders (extrude, revolve, tube, text geometry), CSG.
-- [ ] **P2** Geometry readback (needed by physics and by raycasting against live geometry).
+- [x] **P2** Geometry readback (needed by physics and by raycasting against live geometry).
+      flutter_gpu cannot read a buffer back, so `GpuMesh` retains the `MeshData` it was uploaded
+      from instead; `keepSourceData: false` opts out where memory matters more than picking.
 - [ ] **P3** Automatic LOD generation (mesh simplification), meshopt-compatible vertex order
       optimisation.
 
@@ -426,11 +428,16 @@ choose an engine.
 ### Layer 14. Tooling and DX
 
 - [x] **P1** A debug overlay: FPS, UI/raster time, draw calls, triangles, resource memory. We have
-      vtx/tri/draws/pipeline switches/MSAA; timings and memory are missing.
+      UI and raster durations from `FrameTiming`, renderer CPU time, submit time, draws, pipeline
+      switches, culled count, vtx/tri and MSAA state. Resource memory is still missing.
 - [x] **P1** Debug drawing: wireframe (`setPolygonMode`, free), normals, bounding boxes, light
-      gizmos, axes, grid. Wireframe only.
-- [ ] **P1** Profiling through the `dart:developer` Timeline (`startSync`/`finishSync`) with frame
-      phases marked up; profile **only in profile/release**.
+      gizmos, axes, grid. All of it except the ground grid, plus camera frusta; the whole overlay
+      is one `PrimitiveType.line` draw out of a reusable buffer.
+- [x] **P1** Profiling through the `dart:developer` Timeline (`startSync`/`finishSync`) with frame
+      phases marked up; profile **only in profile/release**. Phases: `Renderer.render`,
+      `RenderList.build`, `RenderList.sort`, `Renderer.encodeDraws`, `DebugDraw.build`,
+      `DebugDraw.encode`, `CommandBuffer.submit`, plus async `TimelineTask` spans around model
+      decoding.
 - [ ] **P2** **Golden-image render tests** in CI — the only protection against a new master
       revision silently ruining the picture.
 - [ ] **P2** CI that builds shader bundles on several master revisions.
@@ -486,12 +493,12 @@ Additional findings (important ones that were not in the docs):
 
 ### What only showed up at runtime
 
-Reading the sources is not enough — three things surfaced only on a live GPU, and all three fail
-"silently", without a single error in the log:
+Reading the sources is not enough — the following surfaced only on a live GPU, and every one of
+them fails "silently", without a single error in the log:
 
 1. **Flutter GPU is enabled at the application level.** The `FLTEnableFlutterGPU` key in
    `Info.plist`, or the `--enable-flutter-gpu` flag. Without it `ShaderLibrary.fromAsset` throws at
-   startup — the only one of the three that is at least visible. `FLTEnableImpeller` is needed
+   startup — the only one on this list that is at least visible. `FLTEnableImpeller` is needed
    separately: on macOS Impeller is not yet the default renderer, and without that key the built
    application only launches via `flutter run --enable-impeller` and crashes on a double click.
 2. **`Viewport` and `Scissor` default to zero size,** and the API does not complain about drawing
@@ -507,7 +514,13 @@ Reading the sources is not enough — three things surfaced only on a live GPU, 
    material inputs should not declare them. Our `Normals` debug model stepped on this; the cure is
    splitting the shared header (`lib/color.glsl` without uniforms, `lib/surface.glsl` with them)
    plus an explicit `LightingModel.usesFragInfo` flag.
-4. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
+4. **There is no non-indexed draw.** `draw()` takes no parameters, and binding only a vertex
+   buffer produces nothing: the call succeeds, the draw counter goes up, and not a pixel changes.
+   The debug line overlay hit this — 30 vertices bound, uniform block reflected at the right size
+   and offset, output empty. The fix is to bind an identity `0, 1, 2, …` index buffer, which for a
+   line list carries no information at all. Worth keeping in a device buffer that only grows,
+   rather than re-uploading a constant every frame.
+5. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
    rewinds a bump allocator the GPU is still reading from. The symptom is not a crash but flickering
    geometry and lighting under load, which is far harder to diagnose. The cure is a ring of host
    buffers sized by the number of frames in flight (3 for us).

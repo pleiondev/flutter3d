@@ -18,6 +18,7 @@ final class GpuMesh {
     required this.indexCount,
     required this.indexType,
     required this.bounds,
+    required this.source,
   });
 
   final gpu.DeviceBuffer vertexBuffer;
@@ -29,7 +30,17 @@ final class GpuMesh {
   /// Object-space bounds, kept for culling and for framing the camera.
   final Aabb3 bounds;
 
-  factory GpuMesh.upload(MeshData mesh) {
+  /// The geometry this was uploaded from, retained for anything the CPU still
+  /// has to answer about the mesh: raycasting against triangles, drawing
+  /// normals, and later collision shapes.
+  ///
+  /// flutter_gpu offers no readback, so the alternative to keeping this is not
+  /// being able to answer those questions at all. Callers that will never need
+  /// it — a streamed scene where memory matters more than picking — can drop it
+  /// with `keepSourceData: false`.
+  final MeshData? source;
+
+  factory GpuMesh.upload(MeshData mesh, {bool keepSourceData = true}) {
     final packed = mesh.packIndices();
 
     return GpuMesh._(
@@ -39,6 +50,7 @@ final class GpuMesh {
       indexCount: packed.count,
       indexType: packed.is16Bit ? gpu.IndexType.int16 : gpu.IndexType.int32,
       bounds: mesh.computeBounds(),
+      source: keepSourceData ? mesh : null,
     );
   }
 

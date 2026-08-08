@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -7,6 +8,8 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/light_node.dart';
 import '../scene/scene.dart';
+import '../scene/scene_node.dart';
+import 'debug_draw.dart';
 import 'lighting_model.dart';
 import 'material.dart';
 import 'render_list.dart';
@@ -20,6 +23,7 @@ import 'render_view.dart';
 /// a missing block, which surfaces much later as "no uniform block named ...".
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
+const String _kLineInfoBlock = 'LineInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
@@ -31,6 +35,8 @@ final class RenderSettings {
     this.exposure = 1.6,
     this.wireframe = false,
     this.backfaceCulling = true,
+    this.debug = const DebugDrawOptions(),
+    this.highlighted = const <SceneNode>[],
   });
 
   final double specular;
@@ -46,17 +52,27 @@ final class RenderSettings {
   final bool wireframe;
   final bool backfaceCulling;
 
+  /// Which debug overlays to draw on top of the scene.
+  final DebugDrawOptions debug;
+
+  /// Nodes to outline, typically whatever picking last selected.
+  final List<SceneNode> highlighted;
+
   RenderSettings copyWith({
     double? specular,
     double? exposure,
     bool? wireframe,
     bool? backfaceCulling,
+    DebugDrawOptions? debug,
+    List<SceneNode>? highlighted,
   }) =>
       RenderSettings(
         specular: specular ?? this.specular,
         exposure: exposure ?? this.exposure,
         wireframe: wireframe ?? this.wireframe,
         backfaceCulling: backfaceCulling ?? this.backfaceCulling,
+        debug: debug ?? this.debug,
+        highlighted: highlighted ?? this.highlighted,
       );
 }
 
@@ -64,13 +80,21 @@ final class RenderSettings {
 final class FrameResult {
   const FrameResult({
     required this.image,
+    required this.cpuMicros,
     required this.submitMicros,
     required this.drawCalls,
     required this.culled,
     required this.pipelineSwitches,
+    required this.debugLines,
   });
 
   final ui.Image image;
+
+  /// Wall-clock time spent inside [Renderer.render], submit included.
+  ///
+  /// This is what the renderer costs the UI thread. It is not the GPU cost: the
+  /// frame is still executing when this number is taken.
+  final int cpuMicros;
 
   /// Wall-clock time inside `CommandBuffer.submit`. Not a GPU timestamp —
   /// flutter_gpu exposes none — but enough to notice a regression.
@@ -84,6 +108,9 @@ final class FrameResult {
   /// How often the pipeline changed. With sorting working this should be close
   /// to the number of distinct lighting models in view.
   final int pipelineSwitches;
+
+  /// Line segments submitted by the debug overlay, zero when it is off.
+  final int debugLines;
 }
 
 /// Draws a [Scene] through one or more [RenderView]s.
@@ -95,6 +122,8 @@ final class Renderer {
   Renderer._({
     required this.library,
     required this.vertexShader,
+    required this.debugLineVertexShader,
+    required this.debugLineFragmentShader,
     required this.fallbackAlbedo,
     required this.transients,
     required this.msaaEnabled,
@@ -102,6 +131,12 @@ final class Renderer {
 
   final gpu.ShaderLibrary library;
   final gpu.Shader vertexShader;
+
+  /// The debug overlay's own stage pair. Separate from the mesh shaders because
+  /// the line buffer has a different vertex layout, and flutter_gpu takes the
+  /// layout from the shader's `in` declarations.
+  final gpu.Shader debugLineVertexShader;
+  final gpu.Shader debugLineFragmentShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -126,6 +161,21 @@ final class Renderer {
 
   final RenderList _renderList = RenderList();
 
+  /// Reused across frames, so a steady overlay allocates nothing.
+  final DebugDraw debugDraw = DebugDraw();
+
+  gpu.RenderPipeline? _debugLinePipeline;
+
+  /// A 0, 1, 2, … index buffer for the debug overlay.
+  ///
+  /// The overlay's vertices are already in draw order, so indices carry no
+  /// information — but `draw()` submits nothing without an index buffer bound,
+  /// and there is no non-indexed entry point in the API. Keeping the identity
+  /// sequence in a device buffer that only grows means the cost is one upload
+  /// when the overlay gets bigger, not one per frame.
+  gpu.DeviceBuffer? _debugIndexBuffer;
+  int _debugIndexCapacity = 0;
+
   /// Pipelines keyed by fragment shader; creating one compiles and links state
   /// on the backend, far too expensive to repeat per frame.
   final Map<String, gpu.RenderPipeline> _pipelineCache =
@@ -144,17 +194,23 @@ final class Renderer {
     if (library == null) {
       throw StateError('Failed to load the shader bundle: $bundleAsset');
     }
-    final vertexShader = library['MeshVertex'];
-    if (vertexShader == null) {
-      throw StateError(
-        'The bundle has no MeshVertex entry. Check '
-        'shaders/flutter3d.shaderbundle.json.',
-      );
+    gpu.Shader require(String name) {
+      final shader = library[name];
+      if (shader == null) {
+        throw StateError(
+          'The bundle has no "$name" entry. Check '
+          'shaders/flutter3d.shaderbundle.json and rebuild with '
+          'tool/build_shaders.sh.',
+        );
+      }
+      return shader;
     }
 
     return Renderer._(
       library: library,
-      vertexShader: vertexShader,
+      vertexShader: require('MeshVertex'),
+      debugLineVertexShader: require('DebugLineVertex'),
+      debugLineFragmentShader: require('DebugLine'),
       fallbackAlbedo: fallbackAlbedo,
       transients: List<gpu.HostBuffer>.generate(
         _kFramesInFlight,
@@ -273,6 +329,11 @@ final class Renderer {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
     }
+    // Timeline markers, not print statements: the phases below are only
+    // meaningful next to Flutter's own build and raster spans, and only in
+    // profile or release, where the debug interpreter is not the bottleneck.
+    developer.Timeline.startSync('Renderer.render');
+    final frameClock = Stopwatch()..start();
     _ensureTargets(width, height);
 
     final resolve = _colorResolve!;
@@ -304,27 +365,32 @@ final class Renderer {
     final commandBuffer = gpu.gpuContext.createCommandBuffer();
     final pass = commandBuffer.createRenderPass(renderTarget);
 
-    // Set the viewport and scissor explicitly: both default to a zero-sized
-    // rect, and nothing in the API complains about drawing into one.
-    pass.setDepthWriteEnable(true);
-    pass.setDepthCompareOperation(gpu.CompareFunction.less);
-    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
-    pass.setPolygonMode(
-      settings.wireframe ? gpu.PolygonMode.line : gpu.PolygonMode.fill,
-    );
-
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
     var drawCalls = 0;
     var culled = 0;
     var pipelineSwitches = 0;
+    var debugLines = 0;
     LightingModel? boundPipeline;
 
     final lightDirection = vm.Vector3.zero();
     final cameraPosition = vm.Vector3.zero();
 
     for (final view in ordered) {
+      // Per view rather than once: the debug overlay at the end of each view
+      // leaves the pass in line-drawing state, so the next view has to
+      // re-establish its own.
+      //
+      // Viewport and scissor are set explicitly because both default to a
+      // zero-sized rect, and nothing in the API complains about drawing into one.
+      pass.setDepthWriteEnable(true);
+      pass.setDepthCompareOperation(gpu.CompareFunction.less);
+      pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+      pass.setPolygonMode(
+        settings.wireframe ? gpu.PolygonMode.line : gpu.PolygonMode.fill,
+      );
+
       final fraction = view.viewportFraction;
       final vx = (fraction.x * width).round();
       final vy = (fraction.y * height).round();
@@ -341,13 +407,18 @@ final class Renderer {
       final frustum = vm.Frustum.matrix(viewProjection);
 
       final visibleBefore = scene.meshes.length;
+      developer.Timeline.startSync('RenderList.build');
       _renderList.build(
         scene,
         view,
         viewMatrix: viewMatrix,
         frustum: frustum,
       );
+      developer.Timeline.finishSync();
+
+      developer.Timeline.startSync('RenderList.sort');
       _renderList.sort(view);
+      developer.Timeline.finishSync();
       culled += visibleBefore - _renderList.length;
 
       camera.readWorldPosition(cameraPosition);
@@ -382,6 +453,7 @@ final class Renderer {
         0.0,
       ]);
 
+      developer.Timeline.startSync('Renderer.encodeDraws');
       for (final indices in <List<int>>[
         _renderList.opaque,
         _renderList.transparent,
@@ -484,18 +556,132 @@ final class Renderer {
           drawCalls++;
         }
       }
+      developer.Timeline.finishSync();
+
+      if (_encodeDebugLines(
+        pass: pass,
+        host: host,
+        scene: scene,
+        view: view,
+        viewProjection: viewProjection,
+        aspect: aspect,
+        settings: settings,
+      )) {
+        debugLines += debugDraw.lineCount;
+        drawCalls++;
+        // The overlay bound its own pipeline, so the next view must rebind.
+        boundPipeline = null;
+      }
     }
 
+    developer.Timeline.startSync('CommandBuffer.submit');
     final stopwatch = Stopwatch()..start();
     commandBuffer.submit();
     stopwatch.stop();
+    developer.Timeline.finishSync();
+
+    final image = resolve.asImage();
+    frameClock.stop();
+    developer.Timeline.finishSync();
 
     return FrameResult(
-      image: resolve.asImage(),
+      image: image,
+      cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: stopwatch.elapsedMicroseconds,
       drawCalls: drawCalls,
       culled: culled,
       pipelineSwitches: pipelineSwitches,
+      debugLines: debugLines,
+    );
+  }
+
+  /// Builds and submits the debug overlay for one view. Returns false when there
+  /// was nothing to draw.
+  ///
+  /// The whole overlay is a single non-indexed `PrimitiveType.line` draw out of
+  /// the per-frame host buffer, so switching it on costs one buffer write and one
+  /// draw call no matter how much it shows.
+  bool _encodeDebugLines({
+    required gpu.RenderPass pass,
+    required gpu.HostBuffer host,
+    required Scene scene,
+    required RenderView view,
+    required vm.Matrix4 viewProjection,
+    required double aspect,
+    required RenderSettings settings,
+  }) {
+    if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
+      return false;
+    }
+
+    developer.Timeline.startSync('DebugDraw.build');
+    debugDraw.buildForScene(
+      scene,
+      settings.debug,
+      activeCamera: view.camera,
+      aspect: aspect,
+      highlighted: settings.highlighted,
+    );
+    developer.Timeline.finishSync();
+    if (debugDraw.isEmpty) return false;
+
+    developer.Timeline.startSync('DebugDraw.encode');
+    // The mesh draws left an index buffer bound; this draw is non-indexed, and
+    // a stale index buffer would make it read triangle indices as line vertices.
+    pass.clearBindings();
+
+    pass.bindPipeline(
+      _debugLinePipeline ??= gpu.gpuContext.createRenderPipeline(
+        debugLineVertexShader,
+        debugLineFragmentShader,
+      ),
+    );
+    pass.setPrimitiveType(gpu.PrimitiveType.line);
+    pass.setPolygonMode(gpu.PolygonMode.fill);
+    pass.setCullMode(gpu.CullMode.none);
+    pass.setColorBlendEnable(false);
+    // Drawn on top of the scene: a bounding box that disappears inside the very
+    // object it bounds is not much of a diagnostic.
+    pass.setDepthWriteEnable(false);
+    pass.setDepthCompareOperation(gpu.CompareFunction.always);
+
+    final vertexCount = debugDraw.vertexCount;
+    pass.bindVertexBuffer(host.emplace(debugDraw.vertexBytes), vertexCount);
+    pass.bindIndexBuffer(
+      _identityIndices(vertexCount),
+      gpu.IndexType.int32,
+      vertexCount,
+    );
+    _bindUniformBlock(pass, host, debugLineVertexShader, _kLineInfoBlock, {
+      'view_projection': viewProjection.storage,
+    });
+
+    pass.draw();
+    developer.Timeline.finishSync();
+    return true;
+  }
+
+  /// A view over the identity index sequence, growing the backing buffer when
+  /// the overlay outgrows it.
+  gpu.BufferView _identityIndices(int count) {
+    if (count > _debugIndexCapacity) {
+      var capacity = math.max(_debugIndexCapacity * 2, 1024);
+      while (capacity < count) {
+        capacity *= 2;
+      }
+      final indices = Uint32List(capacity);
+      for (var i = 0; i < capacity; i++) {
+        indices[i] = i;
+      }
+      _debugIndexBuffer = gpu.gpuContext.createDeviceBufferWithCopy(
+        indices.buffer.asByteData(),
+      );
+      _debugIndexCapacity = capacity;
+    }
+    return gpu.BufferView(
+      _debugIndexBuffer!,
+      offsetInBytes: 0,
+      lengthInBytes: count * 4,
     );
   }
 }

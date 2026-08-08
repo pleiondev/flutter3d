@@ -33,6 +33,10 @@ final class VertexLayout {
   static const VertexAttribute color = VertexAttribute('color', 4);
 
   static const VertexLayout positionOnly = VertexLayout([position]);
+
+  /// The debug line layout, matching shaders/debug_line.vert.
+  static const VertexLayout positionColor = VertexLayout([position, color]);
+
   static const VertexLayout positionNormal = VertexLayout([position, normal]);
   static const VertexLayout positionNormalTexcoord = VertexLayout([
     position,

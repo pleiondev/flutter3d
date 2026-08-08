@@ -8,11 +8,13 @@ import 'package:vector_math/vector_math.dart' show Vector2, Vector3;
 import 'src/engine/assets/model_asset.dart';
 import 'src/engine/assets/resource_cache.dart';
 import 'src/engine/geometry/geometry.dart';
+import 'src/engine/render/debug_draw.dart';
 import 'src/engine/render/lighting_model.dart';
 import 'src/engine/render/procedural_texture.dart';
 import 'src/engine/render/render_view.dart';
 import 'src/engine/render/renderer.dart';
 import 'src/engine/scene/scene_graph.dart';
+import 'src/spike/frame_capture.dart';
 import 'src/spike/orbit_gestures.dart';
 import 'src/spike/scene_source.dart';
 
@@ -125,7 +127,17 @@ class _SpikePageState extends State<SpikePage>
   bool _wireframe = false;
   bool _spinning = true;
   bool _culling = true;
+  DebugDrawOptions _debug = debugDrawFromEnvironment();
   FrameResult? _lastFrame;
+
+  /// Set only when `--dart-define=FLUTTER3D_CAPTURE=...` asked for a PNG.
+  final FrameCapture? _capture = FrameCapture.fromEnvironment();
+
+  /// Flutter's own frame timings, which are the numbers that actually say
+  /// whether the app is dropping frames. The renderer's `cpuMicros` is only a
+  /// slice of `buildDuration`, and neither of them is the GPU time.
+  int _uiMicros = 0;
+  int _rasterMicros = 0;
 
   @override
   void initState() {
@@ -176,15 +188,44 @@ class _SpikePageState extends State<SpikePage>
       },
     );
 
-    if (_renderer != null) _selectSource(0);
+    if (_renderer != null) _selectSource(_startupSourceIndex());
+
+    SchedulerBinding.instance.addTimingsCallback(_onFrameTimings);
 
     _ticker = createTicker((elapsed) {
       setState(() => _elapsed = elapsed);
     })..start();
   }
 
+  /// Index of the model named by `FLUTTER3D_SOURCE`, or 0.
+  ///
+  /// Matched case-insensitively on a substring so a capture command can say
+  /// `teapot` instead of quoting the full chip label.
+  int _startupSourceIndex() {
+    final wanted = startupSourceFromEnvironment().trim().toLowerCase();
+    if (wanted.isEmpty) return 0;
+    for (var i = 0; i < kSources.length; i++) {
+      if (kSources[i].label.toLowerCase().contains(wanted)) return i;
+    }
+    debugPrint('FLUTTER3D_SOURCE: no model matches "$wanted"; using the first.');
+    return 0;
+  }
+
+  /// Records the most recent frame's UI and raster durations.
+  ///
+  /// Deliberately without `setState`: the ticker already rebuilds every frame,
+  /// and asking for another build from inside a timings callback schedules a
+  /// frame from within frame reporting.
+  void _onFrameTimings(List<FrameTiming> timings) {
+    if (timings.isEmpty) return;
+    final last = timings.last;
+    _uiMicros = last.buildDuration.inMicroseconds;
+    _rasterMicros = last.rasterDuration.inMicroseconds;
+  }
+
   @override
   void dispose() {
+    SchedulerBinding.instance.removeTimingsCallback(_onFrameTimings);
     _ticker.dispose();
     _held?.release();
     super.dispose();
@@ -316,8 +357,12 @@ class _SpikePageState extends State<SpikePage>
                           exposure: _exposure,
                           wireframe: _wireframe,
                           backfaceCulling: _culling,
+                          debug: _debug,
                         ),
-                        onFrame: (frame) => _lastFrame = frame,
+                        onFrame: (frame) {
+                          _lastFrame = frame;
+                          _capture?.offer(frame);
+                        },
                       ),
                     ),
             ),
@@ -349,6 +394,10 @@ class _SpikePageState extends State<SpikePage>
               onSpinning: (v) => setState(() => _spinning = v),
               culling: _culling,
               onCulling: (v) => setState(() => _culling = v),
+              debug: _debug,
+              onDebug: (v) => setState(() => _debug = v),
+              uiMicros: _uiMicros,
+              rasterMicros: _rasterMicros,
               onFrameAll: () => setState(() {
                 _orbit.frameBounds(_scene.computeBounds());
                 _orbit.syncProjectionDepth(_camera);
@@ -455,6 +504,10 @@ class _Controls extends StatelessWidget {
     required this.onSpinning,
     required this.culling,
     required this.onCulling,
+    required this.debug,
+    required this.onDebug,
+    required this.uiMicros,
+    required this.rasterMicros,
     required this.onFrameAll,
     required this.renderer,
     required this.scene,
@@ -484,6 +537,10 @@ class _Controls extends StatelessWidget {
   final ValueChanged<bool> onSpinning;
   final bool culling;
   final ValueChanged<bool> onCulling;
+  final DebugDrawOptions debug;
+  final ValueChanged<DebugDrawOptions> onDebug;
+  final int uiMicros;
+  final int rasterMicros;
   final VoidCallback onFrameAll;
   final Renderer renderer;
   final Scene scene;
@@ -603,18 +660,60 @@ class _Controls extends StatelessWidget {
                 label: const Text('Frame all'),
                 onPressed: onFrameAll,
               ),
-              Text(
-                asset == null
-                    ? 'loading…'
-                    : '${asset!.vertexCount} vtx · ${asset!.triangleCount} tri · '
-                        '${frame?.drawCalls ?? 0} draws · '
-                        '${frame?.pipelineSwitches ?? 0} pipeline sw · '
-                        '${scene.meshes.length} nodes · '
-                        'load $loadMillis ms · '
-                        'MSAA ${renderer.msaaEnabled ? '4x' : 'off'}',
-                style: textTheme.bodySmall,
+            ],
+          ),
+          const SizedBox(height: 6),
+          _Label('Debug draw', textTheme),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              FilterChip(
+                label: const Text('Bounds'),
+                selected: debug.bounds,
+                onSelected: (v) => onDebug(debug.copyWith(bounds: v)),
+              ),
+              FilterChip(
+                label: const Text('Normals'),
+                selected: debug.normals,
+                onSelected: (v) => onDebug(debug.copyWith(normals: v)),
+              ),
+              FilterChip(
+                label: const Text('Lights'),
+                selected: debug.lightGizmos,
+                onSelected: (v) => onDebug(debug.copyWith(lightGizmos: v)),
+              ),
+              FilterChip(
+                label: const Text('Axes'),
+                selected: debug.axes,
+                onSelected: (v) => onDebug(debug.copyWith(axes: v)),
+              ),
+              FilterChip(
+                label: const Text('Frusta'),
+                selected: debug.cameraFrustums,
+                onSelected: (v) => onDebug(debug.copyWith(cameraFrustums: v)),
               ),
             ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            asset == null
+                ? 'loading…'
+                : '${asset!.vertexCount} vtx · ${asset!.triangleCount} tri · '
+                    '${scene.meshes.length} nodes · '
+                    'load $loadMillis ms · '
+                    'MSAA ${renderer.msaaEnabled ? '4x' : 'off'}',
+            style: textTheme.bodySmall,
+          ),
+          Text(
+            'ui ${_ms(uiMicros)} · raster ${_ms(rasterMicros)} · '
+            'render ${_ms(frame?.cpuMicros ?? 0)} · '
+            'submit ${_ms(frame?.submitMicros ?? 0)} · '
+            '${frame?.drawCalls ?? 0} draws · '
+            '${frame?.pipelineSwitches ?? 0} pipeline sw · '
+            '${frame?.culled ?? 0} culled'
+            '${(frame?.debugLines ?? 0) > 0 ? ' · ${frame!.debugLines} debug lines' : ''}',
+            style: textTheme.bodySmall?.copyWith(color: Colors.white60),
           ),
           Padding(
             padding: const EdgeInsets.only(top: 4),
@@ -639,6 +738,10 @@ class _Controls extends StatelessWidget {
     );
   }
 }
+
+/// Microseconds as milliseconds with two decimals, so a sub-millisecond phase is
+/// still readable instead of collapsing to "0 ms".
+String _ms(int micros) => '${(micros / 1000.0).toStringAsFixed(2)} ms';
 
 class _Label extends StatelessWidget {
   const _Label(this.text, this.theme);

@@ -21,7 +21,12 @@ What works today:
 - frustum culling, draw-call sorting with the pipeline as the high-order key,
   a pipeline cache, 4x MSAA, depth testing, wireframe, linear-space shading with
   tone mapping (Khronos PBR Neutral) and exposure;
-- 209 tests — geometry, projection, scene, sorting, glTF and OBJ — all without a GPU.
+- **observability**: a line-based debug overlay (bounds, vertex normals, light
+  gizmos, world axes, camera frusta) drawn in one call, `dart:developer` Timeline
+  spans around every frame phase, and a frame panel with UI/raster/render/submit
+  timings next to draw, pipeline-switch and cull counts;
+- 221 tests — geometry, projection, scene, sorting, debug draw, glTF and OBJ —
+  all without a GPU.
 
 ## Running
 
@@ -36,6 +41,24 @@ flutter run -d macos
 The `--enable-impeller` and `--enable-flutter-gpu` flags are not needed: both are
 switched on through `macos/Runner/Info.plist`, so the built app also works when
 launched by double-clicking it.
+
+### Capturing a frame
+
+Judging a render by eye does not scale, and grabbing the window with
+`screencapture` needs a logged-in session with the display awake. The demo can
+therefore write the render target straight to a PNG and quit:
+
+```bash
+flutter run -d macos \
+  --dart-define=FLUTTER3D_CAPTURE=shot.png \
+  --dart-define=FLUTTER3D_CAPTURE_FRAME=200 \
+  --dart-define=FLUTTER3D_DEBUG_DRAW=bounds,normals,lights,axes,frusta \
+  --dart-define=FLUTTER3D_SOURCE=teapot
+```
+
+A relative capture path lands in the app's sandbox temp directory, and the run
+prints the absolute path along with the frame's draw, pipeline-switch, cull and
+debug-line counts. `FLUTTER3D_SOURCE` matches a model chip by substring.
 
 ## Loading models
 
@@ -123,24 +146,27 @@ either does not start or silently renders nothing. Worth keeping to hand.
 | The scene is all ambient, as if the light shone away from the camera | Getters shaped like `readDirection([out])` ended in `result.normalized()`, which returns a **new** vector and leaves `out` holding the un-normalized, un-negated value. The renderer read its own variable rather than the return value, so the light direction was inverted: `N·L` went negative and clamped to zero. Normalize **in place** (`normalize()`), and pin it with `expect(returned, same(out))` |
 | `Binding has not yet been initialized` when reading assets off the UI isolate | `BackgroundIsolateBinaryMessenger.ensureInitialized(token)` grants a background isolate a working channel but creates no `ServicesBinding`, and `rootBundle` resolves through `ServicesBinding.instance`. Routing `flutter/assets` by hand fails deeper still — Flutter's own reply handler throws on a cast. Keep file reads on the UI isolate and request siblings over a port |
 | Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. Re-run `./tool/build_shaders.sh` |
+| A draw is submitted, the counter goes up, nothing appears | There is **no non-indexed draw**. `draw()` with only a vertex buffer bound succeeds and renders nothing. Bind an index buffer even when the indices are the identity `0, 1, 2, …` sequence — the debug line overlay keeps one in a device buffer that only grows |
+| `PathAccessException … Operation not permitted` when writing a file | macOS Flutter apps are sandboxed. Anything outside `~/Library/Containers/<bundle id>/Data` is refused, so frame captures resolve relative paths against the app's own temp directory |
 
 ## Layout
 
 ```
 shaders/
   mesh.vert                     vertex shader (this is what defines the vertex layout!)
+  debug_line.vert               vertex shader for the debug overlay's own layout
   lib/color.glsl                colour space and output, no uniforms
   lib/surface.glsl              the material interface shared by lighting models
-  lighting/*.frag               one shader per lighting model
+  lighting/*.frag               one shader per lighting model, plus debug_line.frag
   flutter3d.shaderbundle.json   bundle manifest
 tool/build_shaders.sh           calls impellerc directly, no Native Assets
 tool/bench/bench.dart           the AOT benchmark behind docs/FFI-analysis.md
 lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
 lib/src/engine/scene/           scene graph, cameras, lights, orbit controller
-lib/src/engine/render/          renderer, render list, materials, sorting
+lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF and OBJ decoders, isolate loading, cache
-lib/src/spike/                  demo glue
-test/                           209 tests, all runnable without a GPU
+lib/src/spike/                  demo glue and the frame capture hook
+test/                           221 tests, all runnable without a GPU
 ```
 
 ## The key architectural consequence
