@@ -45,65 +45,29 @@ vec3 LinearToSrgb(vec3 linear) {
       step(vec3(0.0031308), linear));
 }
 
-/// Khronos PBR Neutral tone mapper.
+/// Writes scene-referred linear light into the HDR target.
 ///
-/// Physically based shading produces values above 1: a specular highlight at a
-/// grazing angle easily reaches 10x display white, and without tone mapping it
-/// clips to a flat white patch. This is the mapper the glTF ecosystem settled on,
-/// which matters because the renderer targets glTF materials — the same asset
-/// should not look different here than in a reference viewer.
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
 ///
-/// It leaves everything below the compression threshold untouched, so midtones
-/// keep their values and only highlights roll off. That is the property a
-/// filmic curve like ACES lacks: ACES would darken the whole image to tame one
-/// highlight.
-vec3 TonemapNeutral(vec3 color) {
-  const float kStartCompression = 0.8 - 0.04;
-  const float kDesaturation = 0.15;
-
-  float minChannel = min(color.r, min(color.g, color.b));
-  float offset =
-      minChannel < 0.08 ? minChannel - 6.25 * minChannel * minChannel : 0.04;
-  color -= offset;
-
-  float peak = max(color.r, max(color.g, color.b));
-  if (peak < kStartCompression) return color;
-
-  const float d = 1.0 - kStartCompression;
-  float newPeak = 1.0 - d * d / (peak + d - kStartCompression);
-  color *= newPeak / peak;
-
-  float desaturate = 1.0 - 1.0 / (kDesaturation * (peak - newPeak) + 1.0);
-  return mix(color, vec3(newPeak), desaturate);
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+void WriteSurface(vec3 linearColor, float alpha) {
+  frag_color = vec4(linearColor, alpha);
 }
 
-/// Writes a lit result: apply exposure, tone map, then encode to sRGB.
+/// Writes a value that is already display-referred.
 ///
-/// Alpha is passed through untouched. Tone mapping is a transform on light, and
-/// coverage is not light — running opacity through the curve would make a
-/// half-transparent surface change how transparent it is with the exposure
-/// slider.
-///
-/// Exposure is a multiply in linear space applied *before* the tone map, which is
-/// what makes it behave like a camera stop rather than a brightness slider: it
-/// moves which part of the scene's range lands in the mapper's shoulder, instead
-/// of stretching an already-compressed image.
-///
-/// Without it the mapper's headroom goes unused — a scene whose brightest value
-/// sits at linear 0.6 never reaches display white, and the result reads as
-/// under-exposed even though nothing is clipping.
-void WriteSurface(vec3 linearColor, float exposure, float alpha) {
-  frag_color =
-      vec4(LinearToSrgb(TonemapNeutral(linearColor * exposure)), alpha);
-}
-
-/// Writes a colour that is already display-referred, skipping the tone map.
-///
-/// For unlit and debug output: an unlit albedo round-trips sRGB to linear and
-/// back, so tone mapping it would change authored colours, and a normal encoded
-/// as RGB is not a light value at all.
-void WriteDisplayColor(vec3 linearColor, float alpha) {
-  frag_color = vec4(LinearToSrgb(linearColor), alpha);
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
 }
 
 #endif  // COLOR_GLSL_

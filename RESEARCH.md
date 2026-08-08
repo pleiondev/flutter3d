@@ -231,8 +231,10 @@ choose an engine.
       uniforms, suballocation for small things. A ring of 3 `HostBuffer`s, one per frame in flight.
 - [ ] **P0** Resource lifetime management: explicit `dispose`, ref counting, deferred release
       after N frames (the GPU is still reading).
-- [ ] **P1** A pool of render targets and textures reused by (size, format, usage) — on mobile,
-      per-frame memory is critical.
+- [x] **P1** A pool of render targets and textures reused by (size, format, usage) — on mobile,
+      per-frame memory is critical. `RenderTargetPool` keys on size, format, sample count and
+      storage mode, and releases wait out the frames in flight for the same reason the host
+      buffers do.
 - [ ] **P1** A `CommandEncoder` abstraction over `CommandBuffer`/`RenderPass` so that the upper
       layers do not know about flutter_gpu.
 - [ ] **P2** A second backend (WebGL2 via `dart:js_interop`) if web is needed, or a `NullDevice`
@@ -353,9 +355,9 @@ choose an engine.
 - [x] **P1** Sorting: opaque by (pipeline, material, mesh) + front-to-back; transparent
       back-to-front by depth. A radix sort over packed keys, with the pipeline as the high bits.
 - [x] **P1** Tonemapping (Khronos PBR Neutral) + exposure. Done.
-- [ ] **P1** An HDR target (`r16g16b16a16Float`). Right now tonemapping is applied in the shader
-      right before writing into an 8-bit target, so there is no intermediate HDR buffer — and it
-      will be needed for bloom and for anything that reads luminance above 1.
+- [x] **P1** An HDR target (`r16g16b16a16Float`). The scene renders into one and the tone map,
+      exposure and sRGB encode moved into a composite pass, which is what makes anything above
+      display white survive long enough for post-processing to see it.
 - [x] **P1** Correct colour management: linear space internally, sRGB on output.
 - [x] **P1** MSAA + resolve, an (optional) depth prepass, clearing/storing attachments with the
       right `LoadAction`/`StoreAction` (on mobile this is a direct bandwidth saving). The depth
@@ -363,11 +365,16 @@ choose an engine.
 - [ ] **P2** **A frame graph**: passes as nodes with declared inputs and outputs, automatic target
       reuse and ordering. The Babylon 8 / PlayCanvas route. Expensive, but otherwise
       post-processing turns into spaghetti.
-- [ ] **P2** A post-processing stack: bloom, FXAA/SMAA, vignette, grain, chromatic aberration,
-      colour grading (2D-tiled LUT), fog (linear/exp/height).
+- [x] **P2** A post-processing stack: bloom, FXAA/SMAA, vignette, grain, chromatic aberration,
+      colour grading (2D-tiled LUT), fog (linear/exp/height). Bloom only so far — threshold with a
+      soft knee, a chain of half-size targets down and a tent filter back up, since there are no
+      mip levels to build a pyramid from. The rest of the stack is not done.
 - [ ] **P3** TAA (needs a motion vector pass + jitter), DOF, SSR, motion blur, god rays.
-- [ ] **P3** MRT / prepass for screen-space effects (⚠️ check support for several
-      `ColorAttachment`s in one `RenderTarget`).
+- [x] **P3** MRT / prepass for screen-space effects (⚠️ check support for several
+      `ColorAttachment`s in one `RenderTarget`). Checked, and it works: a probe writing two
+      distinct constants reads back (64, 128, 191) and (191, 128, 64) from the two attachments.
+      Nothing uses it yet, but the deferred-style effects that would are no longer blocked on an
+      unknown. `shaders/post/mrt_probe.frag` keeps the probe.
 
 ### Layer 8. Animation
 
@@ -471,7 +478,7 @@ assumptions.
 |---|---|---|
 | Compressed formats (ASTC/BC/ETC2) | **No.** Exactly 16 `PixelFormat` values, all uncompressed | `lib/src/formats.dart:36` |
 | `instanceCount` in `draw()` | **No.** `void draw()` takes no parameters at all | `lib/src/render_pass.dart:450` |
-| MRT | **Structurally present**: `RenderTarget.colorAttachments` is a `List`, and `_setColorAttachment(ctx, index, …)` is called in an `indexed` loop. `setColorBlendEnable` accepts a `colorAttachmentIndex` | `lib/src/render_pass.dart:222,240,354` |
+| MRT | **Present, and verified at runtime**: two attachments each receive their own fragment output. Structurally, `RenderTarget.colorAttachments` is a `List` and `setColorBlendEnable` accepts a `colorAttachmentIndex` | `lib/src/render_pass.dart:222,240,354` |
 | Render-to-mip-level | **There are no mips at all.** `Texture` has no `mipCount`, `overwrite()` writes only the base level, and there is only `getBaseMipLevelSizeInBytes()` | `lib/src/texture.dart:82,96` |
 
 Additional findings (important ones that were not in the docs):
@@ -551,7 +558,13 @@ them fails "silently", without a single error in the log:
    (each model calls only the map functions it uses) and to have `tool/build_shaders.sh` print the
    compiled binding table after every build, so the hand-written metadata cannot drift from it
    unnoticed.
-7. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
+7. **One render pass per command buffer.** Metal allows a single encoder open on a command buffer
+   at a time, and flutter_gpu offers no way to end a `RenderPass` — there is no `end()`, and the
+   object is finished implicitly. Creating a second pass on a buffer that already has one aborts
+   the process with `A command encoder is already encoding to this command buffer`. A multi-pass
+   frame therefore means a command buffer per pass, submitted in order; buffers on the same queue
+   execute in submission order, so the ordering the passes need comes for free.
+8. **`CommandBuffer.submit()` is asynchronous.** Calling `HostBuffer.reset()` right after it
    rewinds a bump allocator the GPU is still reading from. The symptom is not a crash but flickering
    geometry and lighting under load, which is far harder to diagnose. The cure is a ring of host
    buffers sized by the number of frames in flight (3 for us).
@@ -562,8 +575,7 @@ depth row are easy to swap. The result is a black viewport with no errors whatso
 thing is caught by a unit test without a GPU (`test/projection_test.dart`), and it is an argument
 for keeping the camera and the maths in a layer that does not depend on flutter_gpu.
 
-What remains unverified: MRT only by code structure, its runtime behaviour was not tested; a
-benchmark of draw calls and GC pauses at 10k transforms was not done.
+What remains unverified: a benchmark of draw calls and GC pauses at 10k transforms was not done.
 
 ---
 

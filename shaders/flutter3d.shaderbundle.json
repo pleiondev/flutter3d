@@ -34,5 +34,29 @@
   "DebugLine": {
     "type": "fragment",
     "file": "shaders/lighting/debug_line.frag"
+  },
+  "FullscreenVertex": {
+    "type": "vertex",
+    "file": "shaders/post/fullscreen.vert"
+  },
+  "BloomThreshold": {
+    "type": "fragment",
+    "file": "shaders/post/bloom_threshold.frag"
+  },
+  "BloomDownsample": {
+    "type": "fragment",
+    "file": "shaders/post/bloom_downsample.frag"
+  },
+  "BloomUpsample": {
+    "type": "fragment",
+    "file": "shaders/post/bloom_upsample.frag"
+  },
+  "Composite": {
+    "type": "fragment",
+    "file": "shaders/post/composite.frag"
+  },
+  "MrtProbe": {
+    "type": "fragment",
+    "file": "shaders/post/mrt_probe.frag"
   }
 }

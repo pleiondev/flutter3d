@@ -40,6 +40,5 @@ void main() {
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
           s.emissive,
-      s.exposure,
       s.alpha);
 }

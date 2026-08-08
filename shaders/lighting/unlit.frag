@@ -13,5 +13,8 @@ vec3 ShadeLight(Surface s, LightSample light) {
 
 void main() {
   Surface s = ReadSurface();
-  WriteDisplayColor(s.albedo, s.alpha);
+  // The albedo is already linear, and an unlit surface is best
+  // understood as emitting exactly it, so it goes into the HDR
+  // target as light like everything else.
+  WriteSurface(s.albedo, s.alpha);
 }

@@ -7,6 +7,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../gpu/gpu_mesh.dart';
+import '../gpu/render_target_pool.dart';
 import '../scene/light_buffer.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
@@ -25,6 +26,8 @@ import 'render_view.dart';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kLineInfoBlock = 'LineInfo';
+const String _kBloomInfoBlock = 'BloomInfo';
+const String _kCompositeInfoBlock = 'CompositeInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
@@ -32,6 +35,9 @@ const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
+const String _kPostSourceSlot = 'source_texture';
+const String _kSceneTextureSlot = 'scene_texture';
+const String _kBloomTextureSlot = 'bloom_texture';
 
 /// Scene-wide shading knobs that are not per-material.
 final class RenderSettings {
@@ -42,6 +48,8 @@ final class RenderSettings {
     this.backfaceCulling = true,
     this.debug = const DebugDrawOptions(),
     this.highlighted = const <SceneNode>[],
+    this.tonemap = true,
+    this.bloom = const BloomSettings(),
   });
 
   final double specular;
@@ -63,6 +71,15 @@ final class RenderSettings {
   /// Nodes to outline, typically whatever picking last selected.
   final List<SceneNode> highlighted;
 
+  /// Whether the composite pass applies the tone curve.
+  ///
+  /// On for anything that renders light. Off for a debug view, where the colour
+  /// is not a light value at all and a tone curve would corrupt it — a normal
+  /// encoded as RGB has no business being rolled off.
+  final bool tonemap;
+
+  final BloomSettings bloom;
+
   RenderSettings copyWith({
     double? specular,
     double? exposure,
@@ -70,6 +87,8 @@ final class RenderSettings {
     bool? backfaceCulling,
     DebugDrawOptions? debug,
     List<SceneNode>? highlighted,
+    bool? tonemap,
+    BloomSettings? bloom,
   }) =>
       RenderSettings(
         specular: specular ?? this.specular,
@@ -78,6 +97,58 @@ final class RenderSettings {
         backfaceCulling: backfaceCulling ?? this.backfaceCulling,
         debug: debug ?? this.debug,
         highlighted: highlighted ?? this.highlighted,
+        tonemap: tonemap ?? this.tonemap,
+        bloom: bloom ?? this.bloom,
+      );
+}
+
+/// How much of the frame's light spills into a glow.
+final class BloomSettings {
+  const BloomSettings({
+    this.enabled = true,
+    this.threshold = 1.0,
+    this.knee = 0.5,
+    this.intensity = 0.06,
+    this.levels = 5,
+    this.filterRadius = 1.0,
+  });
+
+  final bool enabled;
+
+  /// Luminance above which a pixel starts to bloom. One is display white, which
+  /// is the only value with a physical meaning: below it nothing is clipping,
+  /// above it the display cannot show the difference and a lens would scatter.
+  final double threshold;
+
+  /// Width of the soft ramp below the threshold. A hard cut makes the glow
+  /// appear along a visible contour as a highlight brightens through it.
+  final double knee;
+
+  final double intensity;
+
+  /// How many halvings the chain does. Each one doubles the glow's reach, so
+  /// this is the radius control; there is no mip pyramid to lean on because
+  /// flutter_gpu has no mip levels at all.
+  final int levels;
+
+  /// Tent-filter radius, in source texels, used on the way back up.
+  final double filterRadius;
+
+  BloomSettings copyWith({
+    bool? enabled,
+    double? threshold,
+    double? knee,
+    double? intensity,
+    int? levels,
+    double? filterRadius,
+  }) =>
+      BloomSettings(
+        enabled: enabled ?? this.enabled,
+        threshold: threshold ?? this.threshold,
+        knee: knee ?? this.knee,
+        intensity: intensity ?? this.intensity,
+        levels: levels ?? this.levels,
+        filterRadius: filterRadius ?? this.filterRadius,
       );
 }
 
@@ -148,6 +219,11 @@ final class Renderer {
     required this.vertexShader,
     required this.debugLineVertexShader,
     required this.debugLineFragmentShader,
+    required this.fullscreenVertexShader,
+    required this.bloomThresholdShader,
+    required this.bloomDownsampleShader,
+    required this.bloomUpsampleShader,
+    required this.compositeShader,
     required this.fallbackAlbedo,
     required this.fallbackNormal,
     required this.transients,
@@ -162,6 +238,14 @@ final class Renderer {
   /// layout from the shader's `in` declarations.
   final gpu.Shader debugLineVertexShader;
   final gpu.Shader debugLineFragmentShader;
+
+  /// The post-processing stages. All of them share one vertex shader, because a
+  /// full-screen pass differs only in its fragment work.
+  final gpu.Shader fullscreenVertexShader;
+  final gpu.Shader bloomThresholdShader;
+  final gpu.Shader bloomDownsampleShader;
+  final gpu.Shader bloomUpsampleShader;
+  final gpu.Shader compositeShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -226,11 +310,35 @@ final class Renderer {
 
   final Map<String, gpu.Shader> _fragmentShaders = <String, gpu.Shader>{};
 
+  /// Textures reused across frames and across bloom levels.
+  final RenderTargetPool targetPool = RenderTargetPool();
+
   int _targetWidth = 0;
   int _targetHeight = 0;
-  gpu.Texture? _colorMsaa;
-  gpu.Texture? _colorResolve;
+
+  /// The scene, in linear light with no upper bound. Everything post-processing
+  /// does depends on values above display white surviving this far, which is
+  /// exactly what the old 8-bit target threw away.
+  gpu.Texture? _hdrColor;
+  gpu.Texture? _hdrMsaa;
+  gpu.Texture? _ldrColor;
   gpu.Texture? _depthStencil;
+
+  /// The HDR format, chosen once. Half floats rather than full: the extra range
+  /// of `r32g32b32a32Float` buys nothing for light values and doubles the
+  /// bandwidth of every post-processing read.
+  static const gpu.PixelFormat hdrFormat = gpu.PixelFormat.r16g16b16a16Float;
+
+  gpu.RenderPipeline? _bloomThresholdPipeline;
+  gpu.RenderPipeline? _bloomDownsamplePipeline;
+  gpu.RenderPipeline? _bloomUpsamplePipeline;
+  gpu.RenderPipeline? _compositePipeline;
+
+  /// Positions and UVs of the one triangle every full-screen pass draws.
+  gpu.DeviceBuffer? _fullscreenVertices;
+
+  final Float32List _bloomParams = Float32List(4);
+  final Float32List _compositeParams = Float32List(4);
 
   factory Renderer.create({
     required gpu.Texture fallbackAlbedo,
@@ -257,6 +365,11 @@ final class Renderer {
       vertexShader: require('MeshVertex'),
       debugLineVertexShader: require('DebugLineVertex'),
       debugLineFragmentShader: require('DebugLine'),
+      fullscreenVertexShader: require('FullscreenVertex'),
+      bloomThresholdShader: require('BloomThreshold'),
+      bloomDownsampleShader: require('BloomDownsample'),
+      bloomUpsampleShader: require('BloomUpsample'),
+      compositeShader: require('Composite'),
       fallbackAlbedo: fallbackAlbedo,
       fallbackNormal: fallbackNormal,
       transients: List<gpu.HostBuffer>.generate(
@@ -296,28 +409,42 @@ final class Renderer {
     if (width == _targetWidth && height == _targetHeight) return;
 
     final sampleCount = msaaEnabled ? 4 : 1;
-    final colorFormat = gpu.gpuContext.defaultColorFormat;
 
-    _colorResolve = gpu.gpuContext.createTexture(
+    // The scene target is sampled by the composite pass, so it has to be
+    // devicePrivate rather than transient — tile memory cannot be read back.
+    _hdrColor = gpu.gpuContext.createTexture(
       gpu.StorageMode.devicePrivate,
       width,
       height,
-      format: colorFormat,
+      format: hdrFormat,
+      enableRenderTargetUsage: true,
+      enableShaderReadUsage: true,
     );
 
     if (msaaEnabled) {
       // deviceTransient is tile memory: more bandwidth, less memory. Right for
       // intermediates like the MSAA and depth attachments, never read back.
-      _colorMsaa = gpu.gpuContext.createTexture(
+      _hdrMsaa = gpu.gpuContext.createTexture(
         gpu.StorageMode.deviceTransient,
         width,
         height,
-        format: colorFormat,
+        format: hdrFormat,
         sampleCount: 4,
       );
     } else {
-      _colorMsaa = null;
+      _hdrMsaa = null;
     }
+
+    // The final image is 8-bit and display-referred; it is what becomes the
+    // ui.Image, so there is nothing to gain from more precision here.
+    _ldrColor = gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: gpu.gpuContext.defaultColorFormat,
+      enableRenderTargetUsage: true,
+      enableShaderReadUsage: true,
+    );
 
     _depthStencil = gpu.gpuContext.createTexture(
       gpu.StorageMode.deviceTransient,
@@ -327,8 +454,259 @@ final class Renderer {
       sampleCount: sampleCount,
     );
 
+    // Every pooled spec is keyed on size, so after a resize none of them can
+    // ever match again.
+    targetPool.trim();
+
     _targetWidth = width;
     _targetHeight = height;
+  }
+
+  /// The one triangle every full-screen pass draws, uploaded once.
+  ///
+  /// A triangle rather than a quad: a quad has a diagonal seam where the GPU
+  /// rasterizes the 2x2 fragment quads along it twice. The UVs are authored so
+  /// that NDC +1 in Y maps to texture row zero, matching where Metal puts the
+  /// origin of a render target.
+  gpu.BufferView get _fullscreenTriangle {
+    final buffer = _fullscreenVertices ??=
+        gpu.gpuContext.createDeviceBufferWithCopy(
+      Float32List.fromList(<double>[
+        -1.0, -1.0, 0.0, 1.0, //
+        3.0, -1.0, 2.0, 1.0, //
+        -1.0, 3.0, 0.0, -1.0, //
+      ]).buffer.asByteData(),
+    );
+    return gpu.BufferView(
+      buffer,
+      offsetInBytes: 0,
+      lengthInBytes: buffer.sizeInBytes,
+    );
+  }
+
+  gpu.RenderPipeline _postPipeline(
+    gpu.RenderPipeline? cached,
+    gpu.Shader fragment,
+    void Function(gpu.RenderPipeline) store,
+  ) {
+    if (cached != null) return cached;
+    final pipeline =
+        gpu.gpuContext.createRenderPipeline(fullscreenVertexShader, fragment);
+    store(pipeline);
+    return pipeline;
+  }
+
+  /// Runs one full-screen pass into [target].
+  ///
+  /// Every post stage is the same shape — bind the triangle, bind a source
+  /// texture, write a small uniform block, draw three vertices — so it is
+  /// written once and parameterized.
+  void _drawFullscreen({
+    required gpu.HostBuffer host,
+    required gpu.Texture target,
+    required gpu.RenderPipeline pipeline,
+    required gpu.Shader fragment,
+    required Map<String, gpu.Texture> textures,
+    required String uniformBlock,
+    required Float32List uniformData,
+    required String uniformMember,
+  }) {
+    // One command buffer per pass, because Metal allows a single encoder open
+    // at a time and flutter_gpu offers no way to end one. Buffers submitted to
+    // the same queue execute in submission order, which is the ordering these
+    // passes need.
+    final commandBuffer = gpu.gpuContext.createCommandBuffer();
+    final pass = commandBuffer.createRenderPass(
+      gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(
+          texture: target,
+          // Nothing under a full-screen pass survives it, so clearing is both
+          // correct and cheaper than loading the previous contents.
+          loadAction: gpu.LoadAction.dontCare,
+          storeAction: gpu.StoreAction.store,
+        ),
+      ),
+    );
+
+    pass.setViewport(
+      gpu.Viewport(x: 0, y: 0, width: target.width, height: target.height),
+    );
+    pass.setScissor(
+      gpu.Scissor(x: 0, y: 0, width: target.width, height: target.height),
+    );
+    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+    pass.setCullMode(gpu.CullMode.none);
+    pass.setColorBlendEnable(false);
+    pass.setDepthWriteEnable(false);
+    pass.setDepthCompareOperation(gpu.CompareFunction.always);
+
+    pass.bindPipeline(pipeline);
+    pass.bindVertexBuffer(_fullscreenTriangle, 3);
+    pass.bindIndexBuffer(_identityIndices(3), gpu.IndexType.int32, 3);
+
+    textures.forEach((slot, texture) {
+      _bindTexture(pass, fragment, slot, texture, _clampSampler);
+    });
+
+    _bindUniformBlock(pass, host, fragment, uniformBlock, {
+      uniformMember: uniformData,
+    });
+
+    pass.draw();
+    commandBuffer.submit();
+  }
+
+  /// Clamped and linear: a post pass reading outside the source would otherwise
+  /// wrap the opposite edge of the screen into the glow.
+  static final gpu.SamplerOptions _clampSampler = gpu.SamplerOptions(
+    minFilter: gpu.MinMagFilter.linear,
+    magFilter: gpu.MinMagFilter.linear,
+    widthAddressMode: gpu.SamplerAddressMode.clampToEdge,
+    heightAddressMode: gpu.SamplerAddressMode.clampToEdge,
+  );
+
+  /// Builds the bloom chain and returns its top level, or null when bloom is
+  /// off. Any intermediate levels are returned to the pool.
+  gpu.Texture? _renderBloom({
+    required gpu.HostBuffer host,
+    required gpu.Texture scene,
+    required BloomSettings settings,
+  }) {
+    if (!settings.enabled || settings.intensity <= 0.0) return null;
+
+    final levels = settings.levels.clamp(1, 8);
+    final chain = <gpu.Texture>[];
+
+    var sourceWidth = scene.width;
+    var sourceHeight = scene.height;
+    gpu.Texture source = scene;
+
+    developer.Timeline.startSync('Bloom.downsample');
+    for (var level = 0; level < levels; level++) {
+      final spec = RenderTargetSpec(
+        width: math.max(1, sourceWidth ~/ 2),
+        height: math.max(1, sourceHeight ~/ 2),
+        format: hdrFormat,
+      );
+      // Once a level is a single pixel there is nothing left to halve, and
+      // continuing would just re-blur one texel.
+      if (level > 0 && spec.width == sourceWidth && spec.height == sourceHeight) {
+        break;
+      }
+
+      final target = targetPool.acquire(spec);
+      _bloomParams[0] = 1.0 / sourceWidth;
+      _bloomParams[1] = 1.0 / sourceHeight;
+      _bloomParams[2] = level == 0 ? settings.threshold : 0.0;
+      _bloomParams[3] = level == 0 ? settings.knee : 0.0;
+
+      final isFirst = level == 0;
+      _drawFullscreen(
+        host: host,
+        target: target,
+        pipeline: isFirst
+            ? _postPipeline(_bloomThresholdPipeline, bloomThresholdShader,
+                (p) => _bloomThresholdPipeline = p)
+            : _postPipeline(_bloomDownsamplePipeline, bloomDownsampleShader,
+                (p) => _bloomDownsamplePipeline = p),
+        fragment: isFirst ? bloomThresholdShader : bloomDownsampleShader,
+        textures: <String, gpu.Texture>{_kPostSourceSlot: source},
+        uniformBlock: _kBloomInfoBlock,
+        uniformData: _bloomParams,
+        uniformMember: 'params',
+      );
+
+      chain.add(target);
+      source = target;
+      sourceWidth = spec.width;
+      sourceHeight = spec.height;
+    }
+    developer.Timeline.finishSync();
+
+    // Back up the chain, each level's blur added into the one above it. The
+    // widest level supplies the broad glow and the narrowest the tight core.
+    developer.Timeline.startSync('Bloom.upsample');
+    for (var level = chain.length - 1; level > 0; level--) {
+      final from = chain[level];
+      final into = chain[level - 1];
+
+      _bloomParams[0] = 1.0 / from.width;
+      _bloomParams[1] = 1.0 / from.height;
+      _bloomParams[2] = settings.filterRadius;
+      _bloomParams[3] = 0.0;
+
+      _drawFullscreenAdditive(
+        host: host,
+        target: into,
+        source: from,
+      );
+    }
+    developer.Timeline.finishSync();
+
+    // Everything below the top is scratch.
+    for (var level = 1; level < chain.length; level++) {
+      targetPool.release(chain[level]);
+    }
+    return chain.isEmpty ? null : chain.first;
+  }
+
+  /// The upsample step, which differs from every other post pass by blending
+  /// rather than replacing.
+  void _drawFullscreenAdditive({
+    required gpu.HostBuffer host,
+    required gpu.Texture target,
+    required gpu.Texture source,
+  }) {
+    final commandBuffer = gpu.gpuContext.createCommandBuffer();
+    final pass = commandBuffer.createRenderPass(
+      gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(
+          texture: target,
+          // Load, not clear: the point is to add to what the downsample left.
+          loadAction: gpu.LoadAction.load,
+          storeAction: gpu.StoreAction.store,
+        ),
+      ),
+    );
+
+    pass.setViewport(
+      gpu.Viewport(x: 0, y: 0, width: target.width, height: target.height),
+    );
+    pass.setScissor(
+      gpu.Scissor(x: 0, y: 0, width: target.width, height: target.height),
+    );
+    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+    pass.setCullMode(gpu.CullMode.none);
+    pass.setDepthWriteEnable(false);
+    pass.setDepthCompareOperation(gpu.CompareFunction.always);
+    pass.setColorBlendEnable(true);
+    pass.setColorBlendEquation(
+      gpu.ColorBlendEquation(
+        sourceColorBlendFactor: gpu.BlendFactor.one,
+        destinationColorBlendFactor: gpu.BlendFactor.one,
+        sourceAlphaBlendFactor: gpu.BlendFactor.one,
+        destinationAlphaBlendFactor: gpu.BlendFactor.one,
+      ),
+    );
+
+    pass.bindPipeline(
+      _postPipeline(_bloomUpsamplePipeline, bloomUpsampleShader,
+          (p) => _bloomUpsamplePipeline = p),
+    );
+    pass.bindVertexBuffer(_fullscreenTriangle, 3);
+    pass.bindIndexBuffer(_identityIndices(3), gpu.IndexType.int32, 3);
+    _bindTexture(
+      pass,
+      bloomUpsampleShader,
+      _kPostSourceSlot,
+      source,
+      _clampSampler,
+    );
+    _bindUniformBlock(pass, host, bloomUpsampleShader, _kBloomInfoBlock, {
+      'params': _bloomParams,
+    });
+    pass.draw();
+    commandBuffer.submit();
   }
 
   /// Writes a uniform block using shader reflection, then binds it. Returns false
@@ -383,15 +761,19 @@ final class Renderer {
     final frameClock = Stopwatch()..start();
     _ensureTargets(width, height);
 
-    final resolve = _colorResolve!;
-    final msaa = _colorMsaa;
-    final clear = views.first.clearColor;
+    final hdr = _hdrColor!;
+    final msaa = _hdrMsaa;
+    // The clear colour is authored the way a colour picker shows it, but the
+    // scene target holds linear light and the composite pass encodes on the way
+    // out. Clearing with the sRGB value directly would send it through the
+    // encode twice and wash the background out.
+    final clear = _srgbToLinear(views.first.clearColor);
 
     final colorAttachment = msaa == null
-        ? gpu.ColorAttachment(texture: resolve, clearValue: clear)
+        ? gpu.ColorAttachment(texture: hdr, clearValue: clear)
         : gpu.ColorAttachment(
             texture: msaa,
-            resolveTexture: resolve,
+            resolveTexture: hdr,
             storeAction: gpu.StoreAction.multisampleResolve,
             clearValue: clear,
           );
@@ -406,6 +788,13 @@ final class Renderer {
     );
 
     final host = transients[_frameIndex % _kFramesInFlight];
+    // This slot's textures were handed back a full ring ago, so the GPU is done
+    // with them; the same reasoning that governs the host buffers.
+    final expired = _pendingRelease[_frameIndex % _kFramesInFlight];
+    for (final texture in expired) {
+      targetPool.release(texture);
+    }
+    expired.clear();
     _frameIndex++;
     host.reset();
 
@@ -649,29 +1038,48 @@ final class Renderer {
       }
       developer.Timeline.finishSync();
 
-      if (_encodeDebugLines(
-        pass: pass,
-        host: host,
-        scene: scene,
-        view: view,
-        viewProjection: viewProjection,
-        aspect: aspect,
-        settings: settings,
-      )) {
-        debugLines += debugDraw.lineCount;
-        drawCalls++;
-        // The overlay bound its own pipeline, so the next view must rebind.
-        boundPipeline = null;
-      }
+      // The debug overlay is deliberately NOT drawn here. Anything written into
+      // the HDR target is scene light: it would be tone mapped, and a bright
+      // enough gizmo would bleed into the bloom. The overlay belongs on top of
+      // the finished image, so it is drawn in the composite pass below.
     }
 
+    // Submitted before the post passes: they sample this target, and the queue
+    // orders command buffers by submission.
     developer.Timeline.startSync('CommandBuffer.submit');
     final stopwatch = Stopwatch()..start();
     commandBuffer.submit();
     stopwatch.stop();
     developer.Timeline.finishSync();
 
-    final image = resolve.asImage();
+    final bloom = _renderBloom(
+      host: host,
+      scene: hdr,
+      settings: settings.bloom,
+    );
+
+    developer.Timeline.startSync('Renderer.composite');
+    final ldr = _ldrColor!;
+    final overlayLines = _encodeComposite(
+      host: host,
+      target: ldr,
+      scene: hdr,
+      bloom: bloom,
+      sceneGraph: scene,
+      views: ordered,
+      settings: settings,
+      width: width,
+      height: height,
+    );
+    developer.Timeline.finishSync();
+
+    debugLines += overlayLines;
+    // The composite is a draw, and so is each overlay batch.
+    drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
+
+    if (bloom != null) _releaseAfterFrame(bloom);
+
+    final image = ldr.asImage();
     frameClock.stop();
     developer.Timeline.finishSync();
 
@@ -688,6 +1096,223 @@ final class Renderer {
       pipelines: _pipelineCache.length,
     );
   }
+
+  /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.
+  ///
+  /// One pass for both because the overlay has to land on the finished image
+  /// but must not be a separate render target — and because keeping the pass
+  /// open is free, while a second one would reload the attachment.
+  ///
+  /// Returns the number of overlay line segments drawn.
+  int _encodeComposite({
+    required gpu.HostBuffer host,
+    required gpu.Texture target,
+    required gpu.Texture scene,
+    required gpu.Texture? bloom,
+    required Scene sceneGraph,
+    required List<RenderView> views,
+    required RenderSettings settings,
+    required int width,
+    required int height,
+  }) {
+    final commandBuffer = gpu.gpuContext.createCommandBuffer();
+    final pass = commandBuffer.createRenderPass(
+      gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(
+          texture: target,
+          loadAction: gpu.LoadAction.dontCare,
+          storeAction: gpu.StoreAction.store,
+        ),
+      ),
+    );
+
+    pass.setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height));
+    pass.setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height));
+    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+    pass.setCullMode(gpu.CullMode.none);
+    pass.setColorBlendEnable(false);
+    pass.setDepthWriteEnable(false);
+    pass.setDepthCompareOperation(gpu.CompareFunction.always);
+
+    _compositeParams[0] = settings.exposure;
+    _compositeParams[1] = bloom == null ? 0.0 : settings.bloom.intensity;
+    _compositeParams[2] = settings.tonemap ? 1.0 : 0.0;
+
+    pass.bindPipeline(
+      _postPipeline(_compositePipeline, compositeShader,
+          (p) => _compositePipeline = p),
+    );
+    pass.bindVertexBuffer(_fullscreenTriangle, 3);
+    pass.bindIndexBuffer(_identityIndices(3), gpu.IndexType.int32, 3);
+    _bindTexture(
+      pass,
+      compositeShader,
+      _kSceneTextureSlot,
+      scene,
+      _clampSampler,
+    );
+    // With bloom off there is still a sampler to satisfy, and the scene itself
+    // is the cheapest texture to hand it — the intensity above is zero, so its
+    // contribution is multiplied out.
+    _bindTexture(
+      pass,
+      compositeShader,
+      _kBloomTextureSlot,
+      bloom ?? scene,
+      _clampSampler,
+    );
+    _bindUniformBlock(pass, host, compositeShader, _kCompositeInfoBlock, {
+      'params': _compositeParams,
+    });
+    pass.draw();
+
+    if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
+      commandBuffer.submit();
+      return 0;
+    }
+
+    var lines = 0;
+    for (final view in views) {
+      final fraction = view.viewportFraction;
+      final vw = math.max(1, (fraction.width * width).round());
+      final vh = math.max(1, (fraction.height * height).round());
+      pass.setViewport(
+        gpu.Viewport(
+          x: (fraction.x * width).round(),
+          y: (fraction.y * height).round(),
+          width: vw,
+          height: vh,
+        ),
+      );
+
+      if (_encodeDebugLines(
+        pass: pass,
+        host: host,
+        scene: sceneGraph,
+        view: view,
+        viewProjection: view.camera.viewProjection(vw / vh),
+        aspect: vw / vh,
+        settings: settings,
+      )) {
+        lines += debugDraw.lineCount;
+      }
+    }
+    commandBuffer.submit();
+    return lines;
+  }
+
+  /// Draws into two colour attachments and reports what came back.
+  ///
+  /// A probe rather than a feature: `RenderTarget.colorAttachments` is a list
+  /// and `setColorBlendEnable` takes an attachment index, so MRT looks supported
+  /// — but "looks supported in the bindings" has been wrong twice in this
+  /// project already, and the deferred-style effects that would depend on it are
+  /// worth nothing if the second attachment is silently dropped.
+  ///
+  /// Returns a human-readable verdict. Costs two 4x4 textures and one draw, and
+  /// is only called when asked for.
+  Future<String> probeMultipleRenderTargets() async {
+    final probe = library['MrtProbe'];
+    if (probe == null) return 'MRT probe: the bundle has no MrtProbe entry.';
+
+    const size = 4;
+    gpu.Texture makeTarget() => gpu.gpuContext.createTexture(
+          gpu.StorageMode.devicePrivate,
+          size,
+          size,
+          format: gpu.gpuContext.defaultColorFormat,
+          enableRenderTargetUsage: true,
+          enableShaderReadUsage: true,
+        );
+
+    final first = makeTarget();
+    final second = makeTarget();
+
+    try {
+      final commandBuffer = gpu.gpuContext.createCommandBuffer();
+      final pass = commandBuffer.createRenderPass(
+        gpu.RenderTarget(
+          colorAttachments: <gpu.ColorAttachment>[
+            gpu.ColorAttachment(
+              texture: first,
+              clearValue: vm.Vector4.zero(),
+              storeAction: gpu.StoreAction.store,
+            ),
+            gpu.ColorAttachment(
+              texture: second,
+              clearValue: vm.Vector4.zero(),
+              storeAction: gpu.StoreAction.store,
+            ),
+          ],
+        ),
+      );
+
+      pass.setViewport(
+        gpu.Viewport(x: 0, y: 0, width: size, height: size),
+      );
+      pass.setScissor(gpu.Scissor(x: 0, y: 0, width: size, height: size));
+      pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+      pass.setCullMode(gpu.CullMode.none);
+      pass.setColorBlendEnable(false);
+      pass.setColorBlendEnable(false, colorAttachmentIndex: 1);
+      pass.setDepthWriteEnable(false);
+      pass.setDepthCompareOperation(gpu.CompareFunction.always);
+
+      pass.bindPipeline(
+        gpu.gpuContext.createRenderPipeline(fullscreenVertexShader, probe),
+      );
+      pass.bindVertexBuffer(_fullscreenTriangle, 3);
+      pass.bindIndexBuffer(_identityIndices(3), gpu.IndexType.int32, 3);
+      pass.draw();
+      commandBuffer.submit();
+
+      // asImage plus toByteData is the only readback path available: there is
+      // no buffer readback in flutter_gpu at all.
+      final a = await first.asImage().toByteData();
+      final b = await second.asImage().toByteData();
+      if (a == null || b == null) return 'MRT probe: readback returned nothing.';
+
+      String describe(ByteData data) =>
+          '(${data.getUint8(0)}, ${data.getUint8(1)}, ${data.getUint8(2)})';
+
+      // The shader writes distinct constants, so equal targets mean the second
+      // attachment received a copy of the first rather than its own output.
+      final same = a.getUint8(0) == b.getUint8(0) &&
+          a.getUint8(2) == b.getUint8(2);
+      return 'MRT probe: attachment 0 ${describe(a)}, attachment 1 '
+          '${describe(b)} — ${same ? 'IDENTICAL, so the second output was not '
+              'honoured' : 'distinct, so MRT works'}.';
+    } catch (error) {
+      return 'MRT probe: threw $error';
+    }
+  }
+
+  /// Converts a display-referred colour into the linear light the scene target
+  /// holds. Alpha is coverage, not light, so it passes through.
+  static vm.Vector4 _srgbToLinear(vm.Vector4 color) {
+    double channel(double c) => c <= 0.04045
+        ? c / 12.92
+        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    return vm.Vector4(
+      channel(color.x),
+      channel(color.y),
+      channel(color.z),
+      color.w,
+    );
+  }
+
+  /// Returns a pooled texture once the GPU can no longer be reading it.
+  ///
+  /// `CommandBuffer.submit` is asynchronous, so a texture handed back at the end
+  /// of a frame can still be in flight. Reusing it immediately produces the same
+  /// class of bug the host-buffer ring exists to prevent — flicker under load,
+  /// not a crash — so releases wait out the frames in flight.
+  void _releaseAfterFrame(gpu.Texture texture) {
+    _pendingRelease[_frameIndex % _kFramesInFlight].add(texture);
+  }
+
+  final List<List<gpu.Texture>> _pendingRelease = List<List<gpu.Texture>>
+      .generate(_kFramesInFlight, (_) => <gpu.Texture>[]);
 
   /// Builds and submits the debug overlay for one view. Returns false when there
   /// was nothing to draw.

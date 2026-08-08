@@ -166,6 +166,7 @@ class _SpikePageState extends State<SpikePage>
   bool _spinning = startupSpinFromEnvironment();
   bool _culling = true;
   DebugDrawOptions _debug = debugDrawFromEnvironment();
+  BloomSettings _bloom = const BloomSettings();
   FrameResult? _lastFrame;
 
   /// Set only when `--dart-define=FLUTTER3D_CAPTURE=...` asked for a PNG.
@@ -267,6 +268,10 @@ class _SpikePageState extends State<SpikePage>
     );
 
     if (_renderer != null) _selectSource(_startupSourceIndex());
+
+    if (const bool.fromEnvironment('FLUTTER3D_MRT_PROBE')) {
+      _renderer?.probeMultipleRenderTargets().then(debugPrint);
+    }
 
     SchedulerBinding.instance.addTimingsCallback(_onFrameTimings);
 
@@ -581,6 +586,8 @@ class _SpikePageState extends State<SpikePage>
                     onDebug: (v) => setState(() => _debug = v),
                     lights: <LightNode>[_light, _fill, _spot],
                     onLightsChanged: () => setState(() {}),
+                    bloom: _bloom,
+                    onBloom: (v) => setState(() => _bloom = v),
                     uiMicros: _uiMicros,
                     rasterMicros: _rasterMicros,
                     pick: _pickDescription,
@@ -699,6 +706,8 @@ class _Controls extends StatelessWidget {
     required this.onDebug,
     required this.lights,
     required this.onLightsChanged,
+    required this.bloom,
+    required this.onBloom,
     required this.uiMicros,
     required this.rasterMicros,
     required this.pick,
@@ -740,6 +749,9 @@ class _Controls extends StatelessWidget {
   final List<LightNode> lights;
 
   final VoidCallback onLightsChanged;
+
+  final BloomSettings bloom;
+  final ValueChanged<BloomSettings> onBloom;
   final int uiMicros;
   final int rasterMicros;
 
@@ -894,6 +906,45 @@ class _Controls extends StatelessWidget {
                     onLightsChanged();
                   },
                 ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _Label('Bloom', textTheme),
+          Row(
+            children: <Widget>[
+              FilterChip(
+                label: const Text('Bloom'),
+                selected: bloom.enabled,
+                onSelected: (v) => onBloom(bloom.copyWith(enabled: v)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _Slider(
+                  label: 'Threshold',
+                  value: bloom.threshold,
+                  max: 4.0,
+                  enabled: bloom.enabled,
+                  onChanged: (v) => onBloom(bloom.copyWith(threshold: v)),
+                ),
+              ),
+              Expanded(
+                child: _Slider(
+                  label: 'Intensity',
+                  value: bloom.intensity,
+                  max: 0.5,
+                  enabled: bloom.enabled,
+                  onChanged: (v) => onBloom(bloom.copyWith(intensity: v)),
+                ),
+              ),
+              Expanded(
+                child: _Slider(
+                  label: 'Radius',
+                  value: bloom.filterRadius,
+                  max: 4.0,
+                  enabled: bloom.enabled,
+                  onChanged: (v) => onBloom(bloom.copyWith(filterRadius: v)),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),
