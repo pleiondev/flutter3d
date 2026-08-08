@@ -28,8 +28,12 @@ What works today:
 - **CPU picking**: ray/AABB, ray/sphere and Möller–Trumbore ray/triangle, a
   `Raycaster` that casts from widget coordinates, and tap-to-select in the demo
   with the hit outlined by the debug overlay;
-- 264 tests — geometry, projection, scene, sorting, debug draw, intersections,
-  raycasting, glTF and OBJ — all without a GPU.
+- **glTF transform animation**: all three interpolations (`STEP`, `LINEAR`,
+  `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
+  with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
+  hierarchy rebuilt on instantiation so an animated parent carries its subtree;
+- 311 tests — geometry, projection, scene, sorting, debug draw, intersections,
+  raycasting, animation, glTF and OBJ — all without a GPU.
 
 ## Running
 
@@ -117,9 +121,11 @@ What is supported:
 | Node graph | `matrix` and TRS, accumulated transforms, meshes reused across nodes, cycle guard |
 | Materials | metal-rough, all texture slots, alphaMode/cutoff, doubleSided, `KHR_materials_unlit`, `KHR_materials_emissive_strength` |
 | Mirroring transforms | detected from the determinant's sign; the winding order is flipped per instance |
+| Node hierarchy | kept index-aligned with the file, transform-only nodes included, because animation channels address nodes by index |
+| Animations | all samplers and channels; `STEP`, `LINEAR` and `CUBICSPLINE`; translation, rotation, scale and weights (weights decoded but not applied) |
 
-Not there: skinning, animation, morph targets (parsed only as far as the node
-graph), Draco and meshopt (reported in `warnings`), KTX2, TEXCOORD_1 and up.
+Not there: skinning, morph targets, cameras, Draco and meshopt (reported in
+`warnings`), KTX2, TEXCOORD_1 and up.
 
 Non-fatal decoding problems land in `warnings` and are surfaced in the UI — a
 skipped primitive or an ignored extension explains a model that looks odd but
@@ -165,12 +171,13 @@ shaders/
 tool/build_shaders.sh           calls impellerc directly, no Native Assets
 tool/bench/bench.dart           the AOT benchmark behind docs/FFI-analysis.md
 lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
+lib/src/engine/animation/       clips, tracks, sampling, the player
 lib/src/engine/math/            ray intersections, allocation-free
 lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF and OBJ decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
-test/                           264 tests, all runnable without a GPU
+test/                           311 tests, all runnable without a GPU
 ```
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing

@@ -365,9 +365,12 @@ choose an engine.
 
 ### Layer 8. Animation
 
-- [ ] **P1** `AnimationClip` + tracks (translation / rotation / scale / weights / arbitrary
-      property), step / linear / cubicspline interpolation (the full glTF set).
-- [ ] **P1** `AnimationPlayer`: play/pause/seek/loop/speed, bound to frame time.
+- [x] **P1** `AnimationClip` + tracks (translation / rotation / scale / weights / arbitrary
+      property), step / linear / cubicspline interpolation (the full glTF set). Weights are
+      decoded but have nothing to drive until morph targets exist; arbitrary properties are not
+      done.
+- [x] **P1** `AnimationPlayer`: play/pause/seek/loop/speed, bound to frame time. Wrap modes are
+      once / loop / ping-pong, and playback takes a delta so the caller chooses the clock.
 - [ ] **P1** `Skeleton` + joint hierarchy, inverse bind matrices, application to skinning.
 - [ ] **P2** Blending: layers, crossfade, additive, per-bone masks.
 - [ ] **P2** Morph target weights in animation.
@@ -379,8 +382,9 @@ choose an engine.
 - [x] **P1** **A glTF 2.0 / GLB loader** — done for the geometry part: the container, buffers
       (BIN chunk / base64 / external files), accessors with stride, normalized and sparse, the
       node graph with TRS and matrices, metal-rough materials, images, strip/fan conversion into
-      triangles, flat normal generation per the spec, mirrored transform detection. Still to do:
-      animations, skins, cameras, morph targets.
+      triangles, flat normal generation per the spec, mirrored transform detection, the node
+      hierarchy kept index-aligned with the file, and animations. Still to do: skins, cameras,
+      morph targets.
 - [ ] **P1** Loading in an **`Isolate`**: JSON parsing, image decoding, decompression — all off
       the UI thread, handed over via `TransferableTypedData`. Otherwise loading janks.
 - [ ] **P1** An asset cache with ref counting, load cancellation, progress.

@@ -333,8 +333,11 @@ interactivity, after which the demo starts to make sense.
 
 - **Layers now or later.** A bitmask costs almost nothing, an ordered layer list is noticeably more
   expensive. The proposal is a mask now, the list together with post-processing.
-- **Transform animation.** It arrives in layer 8; node versions already give it the right hook-up
-  point, but the API shape (tracks → nodes) is not decided here.
+- **Transform animation.** ~~It arrives in layer 8~~ — done. The version counters turned out to be
+  exactly the right hook-up point: the player writes TRS through `setPosition` / `setRotation` /
+  `setScale` and everything derived refreshes itself, so there is no update pass to order against
+  the animation. Tracks address nodes by index into the decoded model's hierarchy, and
+  `ModelInstance` carries the index-to-node map.
 - **Multithreading.** Culling and sorting in an isolate is tempting, but then `SceneNode` must not
   be a graph of references. We are not committing to it yet, though flat registries do not close
   that path off.
@@ -363,8 +366,11 @@ Steps 1–7 from §6, except BVH culling and full-blown layers:
   becoming controllable: a GGX highlight at a grazing angle produced 8375 pixels of pure white, and
   after tonemapping there are none.
 
-Not done: ordered layers (only a bitmask so far), multiple light sources in the shader, BVH,
-preserving the glTF hierarchy during instantiation.
+Since then, and covered by their own sections above: CPU raycasting, the debug line overlay, and
+`ModelAsset.instantiate` rebuilding the decoded hierarchy rather than flattening it — which is
+what animation needed, because a track says "move node 7" and node 7 has to carry its subtree.
+
+Not done: ordered layers (only a bitmask so far), multiple light sources in the shader, BVH.
 
 ---
 

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import '../../animation/animation.dart';
 import '../../geometry/geometry.dart';
 import '../asset_resolver.dart';
 import '../model_document.dart';
@@ -130,13 +131,17 @@ final class GltfLoader {
     final warnings = <String>[];
     final images = await _decodeImages(json, buffers, resolveUri, warnings);
     final materials = _decodeMaterials(json, warnings);
-    final instances = _decodeScene(json, reader, warnings);
+    final graph = _decodeScene(json, reader, warnings);
+    final animations = _decodeAnimations(json, reader, graph.nodes, warnings);
 
     return GltfAsset(
-      surfaces: instances,
+      surfaces: graph.surfaces,
       materials: materials,
       images: images,
       warnings: warnings,
+      nodes: graph.nodes,
+      roots: graph.roots,
+      animations: animations,
     );
   }
 
@@ -162,7 +167,7 @@ final class GltfLoader {
 
   // ---------------------------------------------------------------- scene walk
 
-  List<ModelSurface> _decodeScene(
+  _SceneGraph _decodeScene(
     Map<String, Object?> json,
     GltfAccessorReader reader,
     List<String> warnings,
@@ -195,6 +200,13 @@ final class GltfLoader {
     final instances = <ModelSurface>[];
     final onPath = <int>{};
 
+    // Index-aligned with the glTF `nodes` array, because that is what animation
+    // channels address. Every node is kept, including the transform-only ones:
+    // those are precisely the ones an animation moves.
+    final modelNodes = <ModelNode>[
+      for (final node in nodes) _modelNodeFrom(node),
+    ];
+
     void visit(int nodeIndex, Matrix4 parentTransform) {
       if (nodeIndex < 0 || nodeIndex >= nodes.length) {
         warnings.add('Node index $nodeIndex is out of range; skipped.');
@@ -222,6 +234,7 @@ final class GltfLoader {
         final nodeName = node['name'];
 
         for (final primitive in primitives) {
+          modelNodes[nodeIndex].surfaces.add(instances.length);
           instances.add(
             ModelSurface(
               name: nodeName is String ? nodeName : null,
@@ -243,7 +256,196 @@ final class GltfLoader {
     for (final root in roots) {
       visit(root, Matrix4.identity());
     }
-    return instances;
+    return _SceneGraph(
+      surfaces: instances,
+      nodes: modelNodes,
+      roots: roots.where((i) => i >= 0 && i < modelNodes.length).toList(),
+    );
+  }
+
+  /// One glTF node as a [ModelNode], with its transform kept as TRS.
+  ///
+  /// A `matrix` node is decomposed, which loses shear — the same trade-off
+  /// three.js and Babylon make, and shear in authored assets is vanishingly
+  /// rare. TRS is what the scene graph stores and what animation interpolates,
+  /// so keeping a matrix here would only move the decomposition later.
+  ModelNode _modelNodeFrom(Map<String, Object?> node) {
+    final name = node['name'];
+    final translation = Vector3.zero();
+    final rotation = Quaternion.identity();
+    final scale = Vector3(1.0, 1.0, 1.0);
+
+    final matrix = node['matrix'];
+    if (matrix is List && matrix.length == 16) {
+      _localTransform(node).decompose(translation, rotation, scale);
+    } else {
+      final t = _vec3(node['translation']);
+      if (t != null) translation.setFrom(t);
+      final s = _vec3(node['scale']);
+      if (s != null) scale.setFrom(s);
+      final r = node['rotation'];
+      if (r is List && r.length == 4) {
+        rotation
+          ..setValues(
+            _asDouble(r[0]) ?? 0.0,
+            _asDouble(r[1]) ?? 0.0,
+            _asDouble(r[2]) ?? 0.0,
+            _asDouble(r[3]) ?? 1.0,
+          )
+          ..normalize();
+      }
+    }
+
+    return ModelNode(
+      name: name is String ? name : null,
+      translation: translation,
+      rotation: rotation,
+      scale: scale,
+      children: _intList(node['children']),
+    );
+  }
+
+  // ---------------------------------------------------------------- animation
+
+  /// Decodes `animations` into engine clips.
+  ///
+  /// Channels are grouped per clip and addressed by node index, which is why the
+  /// node array above is kept index-aligned with glTF's rather than compacted to
+  /// the nodes that happen to draw something.
+  List<AnimationClip> _decodeAnimations(
+    Map<String, Object?> json,
+    GltfAccessorReader reader,
+    List<ModelNode> nodes,
+    List<String> warnings,
+  ) {
+    final animations = _mapList(json['animations']);
+    if (animations.isEmpty) return const <AnimationClip>[];
+
+    final clips = <AnimationClip>[];
+    for (var a = 0; a < animations.length; a++) {
+      final animation = animations[a];
+      final label = 'animations[$a]';
+      final samplers = _mapList(animation['samplers']);
+      final channels = _mapList(animation['channels']);
+      final tracks = <AnimationTrack>[];
+
+      for (var c = 0; c < channels.length; c++) {
+        final channel = channels[c];
+        final channelLabel = '$label.channels[$c]';
+
+        final target = channel['target'];
+        if (target is! Map) {
+          warnings.add('$channelLabel has no target; skipped.');
+          continue;
+        }
+        final nodeIndex = _asInt(target['node']);
+        if (nodeIndex == null) {
+          // A channel with no node is legal and means "do nothing", which the
+          // spec allows so that a clip can be authored before its target is.
+          continue;
+        }
+        if (nodeIndex < 0 || nodeIndex >= nodes.length) {
+          warnings.add('$channelLabel targets node $nodeIndex, which does not '
+              'exist; skipped.');
+          continue;
+        }
+
+        final pathName = target['path'];
+        final path =
+            AnimationPath.fromGltf(pathName is String ? pathName : null);
+        if (path == null) {
+          warnings.add('$channelLabel targets unknown path "$pathName"; '
+              'skipped.');
+          continue;
+        }
+
+        final samplerIndex = _asInt(channel['sampler']);
+        if (samplerIndex == null ||
+            samplerIndex < 0 ||
+            samplerIndex >= samplers.length) {
+          warnings.add('$channelLabel references sampler $samplerIndex, which '
+              'does not exist; skipped.');
+          continue;
+        }
+        final sampler = samplers[samplerIndex];
+
+        final inputAccessor = _asInt(sampler['input']);
+        final outputAccessor = _asInt(sampler['output']);
+        if (inputAccessor == null || outputAccessor == null) {
+          warnings.add('$label.samplers[$samplerIndex] is missing input or '
+              'output; skipped.');
+          continue;
+        }
+
+        final interpolationName = sampler['interpolation'];
+        final interpolation = AnimationInterpolation.fromGltf(
+          interpolationName is String ? interpolationName : null,
+        );
+
+        final Float32List times;
+        final Float32List values;
+        try {
+          times = reader.readAsFloats(inputAccessor);
+          values = reader.readAsFloats(outputAccessor);
+        } on FormatException catch (error) {
+          warnings.add('$channelLabel could not be read: ${error.message}');
+          continue;
+        }
+
+        if (times.isEmpty) {
+          warnings.add('$channelLabel has no keyframes; skipped.');
+          continue;
+        }
+
+        // Weight tracks carry one value per morph target, and only the value
+        // count knows how many that is.
+        final perKey = interpolation.valuesPerKey;
+        final componentCount = path == AnimationPath.weights
+            ? values.length ~/ (times.length * perKey)
+            : path.componentCount;
+
+        if (componentCount <= 0 ||
+            values.length != times.length * componentCount * perKey) {
+          warnings.add(
+            '$channelLabel has ${times.length} keys but ${values.length} '
+            'values, which does not divide into ${interpolation.name} '
+            '${path.name} keyframes; skipped.',
+          );
+          continue;
+        }
+
+        if (path == AnimationPath.weights) {
+          warnings.add('$channelLabel animates morph target weights, which are '
+              'decoded but not applied.');
+        }
+
+        tracks.add(
+          AnimationTrack(
+            nodeIndex: nodeIndex,
+            path: path,
+            interpolation: interpolation,
+            times: times,
+            values: values,
+            componentCount: componentCount,
+          ),
+        );
+      }
+
+      if (tracks.isEmpty) {
+        warnings.add('$label has no usable channels; skipped.');
+        continue;
+      }
+
+      final name = animation['name'];
+      clips.add(
+        AnimationClip(
+          name: name is String ? name : 'animation $a',
+          tracks: tracks,
+        ),
+      );
+    }
+
+    return clips;
   }
 
   /// Node-local transform: either an explicit matrix or a TRS triple, never
@@ -733,6 +935,23 @@ final class _DecodedPrimitive {
 
   final MeshData mesh;
   final int? materialIndex;
+}
+
+/// The scene walk's two outputs: the flattened surfaces and the hierarchy they
+/// came from.
+final class _SceneGraph {
+  const _SceneGraph({
+    required this.surfaces,
+    required this.nodes,
+    required this.roots,
+  });
+
+  final List<ModelSurface> surfaces;
+
+  /// Index-aligned with the file's `nodes` array.
+  final List<ModelNode> nodes;
+
+  final List<int> roots;
 }
 
 // --------------------------------------------------------------- JSON helpers

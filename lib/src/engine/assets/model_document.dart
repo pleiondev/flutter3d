@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import '../animation/animation.dart';
 import '../geometry/geometry.dart';
 
 /// How a surface treats the alpha channel.
@@ -152,6 +153,48 @@ final class ModelSurface {
   final String? name;
 }
 
+/// A node in a decoded model's hierarchy.
+///
+/// The hierarchy exists so animation has something to target. A flattened list
+/// of surfaces with baked transforms is enough to draw a static model, but an
+/// animation track says "move node 7", and a node that moves has to carry its
+/// subtree with it — which is exactly the information flattening throws away.
+///
+/// TRS rather than a matrix, because that is what animation interpolates and
+/// what [SceneNode] stores.
+final class ModelNode {
+  ModelNode({
+    this.name,
+    Vector3? translation,
+    Quaternion? rotation,
+    Vector3? scale,
+    List<int>? children,
+    List<int>? surfaces,
+  })  : translation = translation ?? Vector3.zero(),
+        rotation = rotation ?? Quaternion.identity(),
+        scale = scale ?? Vector3(1.0, 1.0, 1.0),
+        children = children ?? <int>[],
+        surfaces = surfaces ?? <int>[];
+
+  final String? name;
+
+  final Vector3 translation;
+  final Quaternion rotation;
+  final Vector3 scale;
+
+  /// Indices into [ModelDocument.nodes].
+  final List<int> children;
+
+  /// Indices into [ModelDocument.surfaces] drawn at this node.
+  final List<int> surfaces;
+
+  Matrix4 toMatrix() => Matrix4.compose(translation, rotation, scale);
+
+  @override
+  String toString() => 'ModelNode(${name ?? 'unnamed'}, '
+      '${children.length} children, ${surfaces.length} surfaces)';
+}
+
 /// A decoded model, whatever format it came from.
 ///
 /// The seam between decoders and the rest of the engine: glTF and OBJ both
@@ -163,6 +206,37 @@ abstract class ModelDocument {
   List<ModelSurface> get surfaces;
   List<SurfaceMaterial> get materials;
   List<EncodedImage> get images;
+
+  /// The model's node hierarchy.
+  ///
+  /// Defaults to one node per surface, which is the truth for a format that has
+  /// no hierarchy at all — OBJ groups are siblings, not a tree. A decoder with a
+  /// real hierarchy overrides this, and animation then has something to target.
+  List<ModelNode> get nodes {
+    final translation = Vector3.zero();
+    final rotation = Quaternion.identity();
+    final scale = Vector3(1.0, 1.0, 1.0);
+
+    return <ModelNode>[
+      for (var i = 0; i < surfaces.length; i++)
+        () {
+          surfaces[i].transform.decompose(translation, rotation, scale);
+          return ModelNode(
+            name: surfaces[i].name,
+            translation: translation.clone(),
+            rotation: rotation.clone(),
+            scale: scale.clone(),
+            surfaces: <int>[i],
+          );
+        }(),
+    ];
+  }
+
+  /// Indices into [nodes] with no parent.
+  List<int> get roots => <int>[for (var i = 0; i < nodes.length; i++) i];
+
+  /// Clips that drive [nodes]. Empty for formats that carry no animation.
+  List<AnimationClip> get animations => const <AnimationClip>[];
 
   /// Non-fatal findings from decoding: ignored extensions, skipped primitives,
   /// unresolved references. Surfaced rather than logged so callers can decide

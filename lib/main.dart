@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' show Vector2, Vector3;
 
+import 'src/engine/animation/animation.dart';
 import 'src/engine/assets/model_asset.dart';
 import 'src/engine/assets/resource_cache.dart';
 import 'src/engine/geometry/geometry.dart';
@@ -36,9 +37,25 @@ final List<SceneSource> kSources = <SceneSource>[
   ProceduralSource('Vase', _vase),
   const ModelFileSource('glb: Box', 'assets/samples/Box.glb'),
   const ModelFileSource('glb: Textured', 'assets/samples/BoxTextured.glb'),
-  const ModelFileSource('glb: Vtx colors', 'assets/samples/BoxVertexColors.glb'),
+  const ModelFileSource(
+    'glb: Vtx colors',
+    'assets/samples/BoxVertexColors.glb',
+  ),
   const ModelFileSource('gltf: Triangle', 'assets/samples/Triangle.gltf'),
   const ModelFileSource('gltf: Cube + bin', 'assets/samples/cube/Cube.gltf'),
+  // Animated samples. Between them they cover all three glTF interpolations:
+  // AnimatedCube is a single looping rotation, BoxAnimated animates a hierarchy
+  // so a moving parent has to carry its child, and InterpolationTest exists
+  // specifically to show STEP, LINEAR and CUBICSPLINE side by side.
+  const ModelFileSource(
+    'anim: Cube',
+    'assets/samples/animated_cube/AnimatedCube.gltf',
+  ),
+  const ModelFileSource('anim: Box', 'assets/samples/BoxAnimated.glb'),
+  const ModelFileSource(
+    'anim: Interpolation',
+    'assets/samples/InterpolationTest.glb',
+  ),
   // The Utah teapot: positions and faces only, so its normals are generated.
   const ModelFileSource('obj: Teapot', 'assets/samples/teapot.obj'),
 ];
@@ -116,8 +133,12 @@ class _SpikePageState extends State<SpikePage>
 
   int _sourceIndex = 0;
   ModelAsset? _asset;
-  SceneNode? _instance;
+  ModelInstance? _instance;
   String? _loadError;
+
+  /// Frame time of the previous tick, so the animation player gets a delta
+  /// rather than an absolute time — that is what lets speed and ping-pong work.
+  Duration _lastTick = Duration.zero;
 
   LightingModel _lighting = LightingModel.pbr;
   double _roughness = 0.35;
@@ -125,7 +146,7 @@ class _SpikePageState extends State<SpikePage>
   double _specular = 1.0;
   double _exposure = 1.6;
   bool _wireframe = false;
-  bool _spinning = true;
+  bool _spinning = startupSpinFromEnvironment();
   bool _culling = true;
   DebugDrawOptions _debug = debugDrawFromEnvironment();
   FrameResult? _lastFrame;
@@ -225,7 +246,8 @@ class _SpikePageState extends State<SpikePage>
         return;
       }
       _selection.add(hit.requireNode);
-      _pickDescription = '${hit.requireNode.name ?? 'mesh'} · '
+      _pickDescription =
+          '${hit.requireNode.name ?? 'mesh'} · '
           'tri ${hit.triangleIndex} · '
           '${hit.distance.toStringAsFixed(2)} away · '
           'uv ${hit.uv.x.toStringAsFixed(2)},${hit.uv.y.toStringAsFixed(2)}'
@@ -243,7 +265,9 @@ class _SpikePageState extends State<SpikePage>
     for (var i = 0; i < kSources.length; i++) {
       if (kSources[i].label.toLowerCase().contains(wanted)) return i;
     }
-    debugPrint('FLUTTER3D_SOURCE: no model matches "$wanted"; using the first.');
+    debugPrint(
+      'FLUTTER3D_SOURCE: no model matches "$wanted"; using the first.',
+    );
     return 0;
   }
 
@@ -304,9 +328,17 @@ class _SpikePageState extends State<SpikePage>
     _lastLoadMillis = stopwatch.elapsedMilliseconds;
 
     setState(() {
-      _instance?.removeFromParent();
-      _instance = asset.instantiate(_scene, parent: _modelPivot);
+      _instance?.removeFromScene();
+      _selection.clear();
+      _pickDescription = null;
+
+      final instance = asset.instantiate(_scene, parent: _modelPivot);
+      _instance = instance;
       _asset = asset;
+
+      // An animated model plays by default: a viewer that loads a clip and then
+      // shows a still frame looks broken.
+      instance.player?.play();
 
       // Show what the model actually uses, so the numbers on the sliders are not
       // a lie the moment a new model loads. A file with no materials at all — the
@@ -371,83 +403,107 @@ class _SpikePageState extends State<SpikePage>
       _modelPivot.setRotationYawPitchRoll(seconds * 0.7, 0.0, 0.0);
     }
 
+    // The model's own clips advance on the same clock. A delta rather than the
+    // elapsed total, so pausing the player actually pauses it instead of making
+    // it jump on resume.
+    final delta =
+        (_elapsed - _lastTick).inMicroseconds / Duration.microsecondsPerSecond;
+    _lastTick = _elapsed;
+    if (delta > 0.0 && delta < 0.5) _instance?.player?.update(delta);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0E1014),
       body: SafeArea(
-        child: Column(
-          children: <Widget>[
-            Expanded(
-              child: _loadError != null
-                  ? _LoadErrorPanel(message: _loadError!)
-                  : OrbitGestureDetector(
-                      controller: _orbit,
-                      onChanged: () => setState(() {
-                        _orbit.syncProjectionDepth(_camera);
-                      }),
-                      onTapPoint: _handleTap,
-                      child: SceneSurface(
-                        renderer: renderer,
-                        scene: _scene,
-                        view: _view,
-                        settings: RenderSettings(
-                          specular: _specular,
-                          exposure: _exposure,
-                          wireframe: _wireframe,
-                          backfaceCulling: _culling,
-                          debug: _debug,
-                          highlighted: _selection,
+        child: LayoutBuilder(
+          builder: (context, constraints) => Column(
+            children: <Widget>[
+              Expanded(
+                child: _loadError != null
+                    ? _LoadErrorPanel(message: _loadError!)
+                    : OrbitGestureDetector(
+                        controller: _orbit,
+                        onChanged: () => setState(() {
+                          _orbit.syncProjectionDepth(_camera);
+                        }),
+                        onTapPoint: _handleTap,
+                        child: SceneSurface(
+                          renderer: renderer,
+                          scene: _scene,
+                          view: _view,
+                          settings: RenderSettings(
+                            specular: _specular,
+                            exposure: _exposure,
+                            wireframe: _wireframe,
+                            backfaceCulling: _culling,
+                            debug: _debug,
+                            highlighted: _selection,
+                          ),
+                          onFrame: (frame) {
+                            _lastFrame = frame;
+                            _capture?.offer(frame);
+                          },
                         ),
-                        onFrame: (frame) {
-                          _lastFrame = frame;
-                          _capture?.offer(frame);
-                        },
                       ),
-                    ),
-            ),
-            _Controls(
-              sources: kSources,
-              sourceIndex: _sourceIndex,
-              onSource: _selectSource,
-              lighting: _lighting,
-              onLighting: _applyLighting,
-              roughness: _roughness,
-              onRoughness: (v) => setState(() {
-                _roughness = v;
-                _applyMaterialSliders();
-              }),
-              metallic: _metallic,
-              onMetallic: (v) => setState(() {
-                _metallic = v;
-                _applyMaterialSliders();
-              }),
-              specular: _specular,
-              onSpecular: (v) => setState(() => _specular = v),
-              exposure: _exposure,
-              onExposure: (v) => setState(() => _exposure = v),
-              ambient: _scene.ambientIntensity,
-              onAmbient: (v) => setState(() => _scene.ambientIntensity = v),
-              wireframe: _wireframe,
-              onWireframe: (v) => setState(() => _wireframe = v),
-              spinning: _spinning,
-              onSpinning: (v) => setState(() => _spinning = v),
-              culling: _culling,
-              onCulling: (v) => setState(() => _culling = v),
-              debug: _debug,
-              onDebug: (v) => setState(() => _debug = v),
-              uiMicros: _uiMicros,
-              rasterMicros: _rasterMicros,
-              pick: _pickDescription,
-              onFrameAll: () => setState(() {
-                _orbit.frameBounds(_scene.computeBounds());
-                _orbit.syncProjectionDepth(_camera);
-              }),
-              renderer: renderer,
-              scene: _scene,
-              asset: _asset,
-              frame: _lastFrame,
-              loadMillis: _lastLoadMillis,
-            ),
-          ],
+              ),
+              // Bounded and scrollable: the panel grows with every feature, and an
+              // unbounded one squeezed the viewport down to a single pixel row on
+              // a short window — which looks exactly like a renderer that stopped
+              // drawing.
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: constraints.maxHeight * 0.55,
+                ),
+                child: SingleChildScrollView(
+                  child: _Controls(
+                    sources: kSources,
+                    sourceIndex: _sourceIndex,
+                    onSource: _selectSource,
+                    lighting: _lighting,
+                    onLighting: _applyLighting,
+                    roughness: _roughness,
+                    onRoughness: (v) => setState(() {
+                      _roughness = v;
+                      _applyMaterialSliders();
+                    }),
+                    metallic: _metallic,
+                    onMetallic: (v) => setState(() {
+                      _metallic = v;
+                      _applyMaterialSliders();
+                    }),
+                    specular: _specular,
+                    onSpecular: (v) => setState(() => _specular = v),
+                    exposure: _exposure,
+                    onExposure: (v) => setState(() => _exposure = v),
+                    ambient: _scene.ambientIntensity,
+                    onAmbient: (v) =>
+                        setState(() => _scene.ambientIntensity = v),
+                    wireframe: _wireframe,
+                    onWireframe: (v) => setState(() => _wireframe = v),
+                    spinning: _spinning,
+                    onSpinning: (v) => setState(() => _spinning = v),
+                    culling: _culling,
+                    onCulling: (v) => setState(() => _culling = v),
+                    debug: _debug,
+                    onDebug: (v) => setState(() => _debug = v),
+                    uiMicros: _uiMicros,
+                    rasterMicros: _rasterMicros,
+                    pick: _pickDescription,
+                    player: _instance?.player,
+                    onPlayerChanged: () => setState(() {}),
+                    onFrameAll: () => setState(() {
+                      _orbit.frameBounds(_scene.computeBounds());
+                      _orbit.syncProjectionDepth(_camera);
+                    }),
+                    renderer: renderer,
+                    scene: _scene,
+                    asset: _asset,
+                    frame: _lastFrame,
+                    loadMillis: _lastLoadMillis,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -548,6 +604,8 @@ class _Controls extends StatelessWidget {
     required this.uiMicros,
     required this.rasterMicros,
     required this.pick,
+    required this.player,
+    required this.onPlayerChanged,
     required this.onFrameAll,
     required this.renderer,
     required this.scene,
@@ -584,6 +642,12 @@ class _Controls extends StatelessWidget {
 
   /// What the last tap selected, or null when nothing is selected.
   final String? pick;
+
+  /// The current model's animation player, null when it carries no clips.
+  final AnimationPlayer? player;
+
+  /// Called after a transport control mutates the player, so the panel redraws.
+  final VoidCallback onPlayerChanged;
 
   final VoidCallback onFrameAll;
   final Renderer renderer;
@@ -700,12 +764,14 @@ class _Controls extends StatelessWidget {
                 selected: culling,
                 onSelected: onCulling,
               ),
-              ActionChip(
-                label: const Text('Frame all'),
-                onPressed: onFrameAll,
-              ),
+              ActionChip(label: const Text('Frame all'), onPressed: onFrameAll),
             ],
           ),
+          if (player != null && player!.hasClips) ...<Widget>[
+            const SizedBox(height: 6),
+            _Label('Animation', textTheme),
+            _AnimationControls(player: player!, onChanged: onPlayerChanged),
+          ],
           const SizedBox(height: 6),
           _Label('Debug draw', textTheme),
           Wrap(
@@ -744,9 +810,9 @@ class _Controls extends StatelessWidget {
             asset == null
                 ? 'loading…'
                 : '${asset!.vertexCount} vtx · ${asset!.triangleCount} tri · '
-                    '${scene.meshes.length} nodes · '
-                    'load $loadMillis ms · '
-                    'MSAA ${renderer.msaaEnabled ? '4x' : 'off'}',
+                      '${scene.meshes.length} nodes · '
+                      'load $loadMillis ms · '
+                      'MSAA ${renderer.msaaEnabled ? '4x' : 'off'}',
             style: textTheme.bodySmall,
           ),
           Text(
@@ -764,7 +830,7 @@ class _Controls extends StatelessWidget {
             child: Text(
               pick == null
                   ? 'Drag to orbit · scroll or pinch to zoom · two fingers to '
-                      'pan · tap to pick'
+                        'pan · tap to pick'
                   : 'picked: $pick',
               style: textTheme.bodySmall?.copyWith(
                 color: pick == null ? Colors.white38 : Colors.lightGreenAccent,
@@ -788,6 +854,110 @@ class _Controls extends StatelessWidget {
   }
 }
 
+/// Transport controls for the current model's clips.
+///
+/// Scrubbing pauses first: dragging a slider while the clip is running fights
+/// the ticker, and every frame would snap the playhead back.
+class _AnimationControls extends StatelessWidget {
+  const _AnimationControls({required this.player, required this.onChanged});
+
+  final AnimationPlayer player;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final names = player.clipNames;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: <Widget>[
+            FilterChip(
+              label: Text(player.isPlaying ? 'Pause' : 'Play'),
+              selected: player.isPlaying,
+              onSelected: (_) {
+                player.isPlaying ? player.pause() : player.play();
+                onChanged();
+              },
+            ),
+            ActionChip(
+              label: const Text('Rewind'),
+              onPressed: () {
+                player.stop();
+                onChanged();
+              },
+            ),
+            for (final wrap in AnimationWrap.values)
+              ChoiceChip(
+                label: Text(wrap.name),
+                selected: player.wrap == wrap,
+                onSelected: (_) {
+                  player.wrap = wrap;
+                  onChanged();
+                },
+              ),
+            if (names.length > 1)
+              for (var i = 0; i < names.length; i++)
+                ChoiceChip(
+                  label: Text(names[i]),
+                  selected: player.clipIndex == i,
+                  onSelected: (_) {
+                    player.play(i);
+                    onChanged();
+                  },
+                ),
+          ],
+        ),
+        Row(
+          children: <Widget>[
+            Expanded(
+              flex: 3,
+              child: _Slider(
+                label:
+                    'Time '
+                    '${player.time.toStringAsFixed(2)}/'
+                    '${player.duration.toStringAsFixed(2)}s',
+                value: player.duration <= 0.0
+                    ? 0.0
+                    : player.time / player.duration,
+                enabled: player.duration > 0.0,
+                onChanged: (v) {
+                  player.pause();
+                  player.seek(v * player.duration);
+                  onChanged();
+                },
+              ),
+            ),
+            Expanded(
+              child: _Slider(
+                label: 'Speed ${player.speed.toStringAsFixed(2)}x',
+                value: player.speed,
+                max: 3.0,
+                enabled: true,
+                onChanged: (v) {
+                  player.speed = v;
+                  onChanged();
+                },
+              ),
+            ),
+          ],
+        ),
+        Text(
+          '${player.clips.length} clip'
+          '${player.clips.length == 1 ? '' : 's'} · '
+          '${player.clip?.tracks.length ?? 0} tracks',
+          style: textTheme.bodySmall?.copyWith(color: Colors.white60),
+        ),
+      ],
+    );
+  }
+}
+
 /// Microseconds as milliseconds with two decimals, so a sub-millisecond phase is
 /// still readable instead of collapsing to "0 ms".
 String _ms(int micros) => '${(micros / 1000.0).toStringAsFixed(2)} ms';
@@ -800,12 +970,12 @@ class _Label extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(
-          text.toUpperCase(),
-          style: theme.labelSmall?.copyWith(letterSpacing: 1.1),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Text(
+      text.toUpperCase(),
+      style: theme.labelSmall?.copyWith(letterSpacing: 1.1),
+    ),
+  );
 }
 
 class _Slider extends StatelessWidget {
@@ -831,8 +1001,8 @@ class _Slider extends StatelessWidget {
         Text(
           '$label ${value.toStringAsFixed(2)}',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: enabled ? null : Theme.of(context).disabledColor,
-              ),
+            color: enabled ? null : Theme.of(context).disabledColor,
+          ),
         ),
         Slider(
           value: value.clamp(0.0, max),

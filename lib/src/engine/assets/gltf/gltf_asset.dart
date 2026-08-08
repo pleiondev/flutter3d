@@ -1,3 +1,4 @@
+import '../../animation/animation.dart';
 import '../model_document.dart';
 
 /// The decoded result of a glTF or GLB file.
@@ -11,6 +12,9 @@ final class GltfAsset extends ModelDocument {
     required this.materials,
     required this.images,
     required this.warnings,
+    required this.nodes,
+    required this.roots,
+    this.animations = const <AnimationClip>[],
   });
 
   @override
@@ -25,8 +29,20 @@ final class GltfAsset extends ModelDocument {
   @override
   final List<String> warnings;
 
+  /// The real glTF hierarchy, not the flat default: animation targets nodes by
+  /// index, and a node that moves has to take its subtree with it.
+  @override
+  final List<ModelNode> nodes;
+
+  @override
+  final List<int> roots;
+
+  @override
+  final List<AnimationClip> animations;
+
   @override
   String toString() => 'GltfAsset(${surfaces.length} surfaces, $vertexCount '
       'vertices, $triangleCount triangles, ${materials.length} materials, '
-      '${images.length} images)';
+      '${images.length} images, ${nodes.length} nodes, '
+      '${animations.length} animations)';
 }

@@ -766,6 +766,8 @@ void main() {
         materials: <SurfaceMaterial>[],
         images: <EncodedImage>[],
         warnings: <String>[],
+        nodes: <ModelNode>[],
+        roots: <int>[],
       );
       final bounds = asset.computeBounds();
       expect(bounds.min.x.isFinite, isTrue);

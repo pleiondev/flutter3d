@@ -134,3 +134,12 @@ DebugDrawOptions debugDrawFromEnvironment() {
 /// Label of the model to select at startup, empty when unset.
 String startupSourceFromEnvironment() =>
     const String.fromEnvironment('FLUTTER3D_SOURCE');
+
+/// Whether the demo's turntable spin is on.
+///
+/// Worth a define because it is the one thing that makes two captures of the
+/// same scene differ. Turning it off is what lets a capture isolate something
+/// else that moves — an animation clip, a rotating light — or be compared
+/// against a golden.
+bool startupSpinFromEnvironment() =>
+    const bool.fromEnvironment('FLUTTER3D_SPIN', defaultValue: true);
