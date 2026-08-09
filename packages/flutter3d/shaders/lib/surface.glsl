@@ -264,7 +264,8 @@ uniform PointShadow {
   /// owns, or negative when it has none. A fifth torch in a room lands here.
   vec4 slots[kMaxLights];
 
-  /// x unused. y: distance bias in metres. z: strength. w unused.
+  /// x: half a texel, in tile-local uv. y: distance bias in metres.
+  /// z: strength. w unused.
   vec4 params;
 }
 point_shadow;
@@ -309,6 +310,22 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // bottom row, so a whole region compares against an unrelated distance and
   // comes out as a black slab.
   vec2 uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
+  // Held half a texel inside the tile, because the fetch below is bilinear and
+  // an atlas has a different face — or a different light — on the other side of
+  // every edge. Without this, a fragment at the very edge of a face blends its
+  // occluder distance with one measured from somewhere else entirely, and the
+  // seam is worst exactly where the face boundaries are. PlayCanvas insets the
+  // scissor and flutter_scene insets the sample; either end works, and this is
+  // the end that costs nothing to render.
+  //
+  // Clamping rather than rejecting: a fragment beyond the tile edge belongs to
+  // the neighbouring face, which the dominant-axis test above already picked,
+  // so this only bites on the boundary itself.
+  //
+  // Half a texel is the right figure for one bilinear fetch and no more. Adding
+  // a PCF kernel here means growing it to the kernel's radius plus a half, or
+  // the outer taps start reading across again.
+  uv = clamp(uv, point_shadow.params.x, 1.0 - point_shadow.params.x);
   // The face across, the light down: six tiles wide, four tall.
   vec2 tile = vec2(float(face), float(slot));
   uv = (uv + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));

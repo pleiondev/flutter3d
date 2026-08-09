@@ -1676,30 +1676,39 @@ final class Renderer implements PluginServices {
       _fogData[1] = fog.resolvedColor.y;
       _fogData[2] = fog.resolvedColor.z;
       _fogData[3] = fog.density;
-      _pointShadowParams[0] = _cubeShadowLight.toDouble();
-      _pointShadowParams[1] = 0.08;
-      _pointShadowParams[2] =
-          _cubeShadowLight < 0 ? 0.0 : settings.shadows.strength;
-      bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
-        'faces': _cubeFaceMatrices,
-        'lights': _cubeLightData,
-        'slots': _shadowSlots,
-        'params': _pointShadowParams,
-      });
-      _bindTexture(
-        pass,
-        fragmentShader,
-        'point_shadow_texture',
-        _cubeShadow ?? fallbackAlbedo,
-        _clampSampler,
-      );
-      _bindTexture(
-        pass,
-        fragmentShader,
-        'point_shadow_static_texture',
-        _cubeShadowStatic ?? fallbackAlbedo,
-        _clampSampler,
-      );
+      // Gated on the model, like every other block and sampler here. Unlit
+      // declares FragInfo but reaches no lighting loop, so the compiler drops
+      // all three of these — and binding a block the compiled shader does not
+      // have is a native failure, not a no-op.
+      if (material.lighting.usesPointShadow) {
+        // Half a texel, in tile-local uv: what the shader holds its sample
+        // inside the tile by, so a bilinear tap cannot reach the next face.
+        _pointShadowParams[0] =
+            _cubeShadowTile > 0 ? 0.5 / _cubeShadowTile : 0.0;
+        _pointShadowParams[1] = 0.08;
+        _pointShadowParams[2] =
+            _cubeShadowLight < 0 ? 0.0 : settings.shadows.strength;
+        bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
+          'faces': _cubeFaceMatrices,
+          'lights': _cubeLightData,
+          'slots': _shadowSlots,
+          'params': _pointShadowParams,
+        });
+        _bindTexture(
+          pass,
+          fragmentShader,
+          'point_shadow_texture',
+          _cubeShadow ?? fallbackAlbedo,
+          _clampSampler,
+        );
+        _bindTexture(
+          pass,
+          fragmentShader,
+          'point_shadow_static_texture',
+          _cubeShadowStatic ?? fallbackAlbedo,
+          _clampSampler,
+        );
+      }
 
       bindUniformBlock(pass, host, fragmentShader, _kFogInfoBlock, {
         'fog': _fogData,

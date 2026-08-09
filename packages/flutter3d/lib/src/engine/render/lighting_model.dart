@@ -73,6 +73,17 @@ enum LightingModel {
   /// questions and will diverge the moment an unlit-but-shadowed model exists.
   bool get usesShadowMap => usesMaterialMaps;
 
+  /// Whether the shader reads the `PointShadow` block and the two cube atlases.
+  ///
+  /// The same set again, and for the same reason kept its own name. It is a
+  /// separate flag rather than a reuse because it was missing entirely: point
+  /// shadows were added binding the block and both atlases to every model with
+  /// a [usesFragInfo], which includes Unlit — and the compiled Unlit shader
+  /// keeps none of the three, since it calls no lighting loop to reach them.
+  /// The build script's table is what says so, and `lighting-unlit` is what
+  /// noticed.
+  bool get usesPointShadow => usesMaterialMaps;
+
   /// Whether the shader samples `metallic_roughness_texture`.
   ///
   /// Separate from [usesMaterialMaps] because Lambert is purely diffuse: it has
