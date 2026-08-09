@@ -245,20 +245,26 @@ uniform sampler2D point_shadow_texture;
 /// occluder costs one extra read and saves six views of the level every frame.
 uniform sampler2D point_shadow_static_texture;
 
+/// How many lights may have a row of the atlas. Six tiles across each.
+const int kShadowSlots = 4;
+
 uniform PointShadow {
-  /// The same six view-projections the atlas was rendered with.
+  /// The same view-projections the atlas was rendered with, six per slot.
   ///
   /// Passed rather than reconstructed. Deriving cube face coordinates here
   /// would be a second implementation of a decision the renderer already made,
   /// and the two would disagree about handedness or up vectors on some face
   /// and nowhere else — which shows as one face of every shadow being wrong.
-  mat4 faces[6];
+  mat4 faces[6 * kShadowSlots];
 
-  /// xyz: the light's world position. w: its range.
-  vec4 light;
+  /// Per slot. xyz: the light's world position. w: its range.
+  vec4 lights[kShadowSlots];
 
-  /// x: index of the light this belongs to, negative when there is none.
-  /// y: distance bias in metres. z: strength. w unused.
+  /// Per light, in the order the lighting knows them: x is the atlas row it
+  /// owns, or negative when it has none. A fifth torch in a room lands here.
+  vec4 slots[kMaxLights];
+
+  /// x unused. y: distance bias in metres. z: strength. w unused.
   vec4 params;
 }
 point_shadow;
@@ -267,17 +273,17 @@ point_shadow;
 ///
 /// One, fully lit, when this is not that light or the atlas has nothing to say.
 float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
-  if (point_shadow.params.x < 0.0) return 1.0;
-  if (lightIndex != int(point_shadow.params.x + 0.5)) return 1.0;
+  int slot = int(point_shadow.slots[lightIndex].x + 0.5);
+  if (point_shadow.slots[lightIndex].x < 0.0) return 1.0;
   float strength = point_shadow.params.z;
   if (strength <= 0.0) return 1.0;
 
   // Offset along the normal before measuring, for the same reason the
   // directional map does it: the error is proportional to slope, not depth.
   vec3 origin = world + normal * point_shadow.params.y;
-  vec3 toFragment = origin - point_shadow.light.xyz;
+  vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
-  float range = max(point_shadow.light.w, 1e-4);
+  float range = max(point_shadow.lights[slot].w, 1e-4);
   if (distance >= range) return 1.0;
 
   // The dominant axis picks the face, in the order the renderer wrote them:
@@ -292,7 +298,7 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
     face = toFragment.z > 0.0 ? 4 : 5;
   }
 
-  vec4 clip = point_shadow.faces[face] * vec4(origin, 1.0);
+  vec4 clip = point_shadow.faces[slot * 6 + face] * vec4(origin, 1.0);
   if (clip.w <= 0.0) return 1.0;
   vec2 ndc = clip.xy / clip.w;
   if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) return 1.0;
@@ -303,8 +309,9 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // bottom row, so a whole region compares against an unrelated distance and
   // comes out as a black slab.
   vec2 uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
-  vec2 tile = vec2(float(face - (face / 3) * 3), float(face / 3));
-  uv = (uv + tile) * vec2(1.0 / 3.0, 0.5);
+  // The face across, the light down: six tiles wide, four tall.
+  vec2 tile = vec2(float(face), float(slot));
+  uv = (uv + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
 
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.

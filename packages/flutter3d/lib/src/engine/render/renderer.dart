@@ -826,6 +826,7 @@ final class Renderer implements PluginServices {
     required vm.Vector3 position,
     required double range,
     required bool static,
+    required int slot,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (range <= 0.0) return false;
@@ -837,8 +838,8 @@ final class Renderer implements PluginServices {
     // frustum is square, and any other aspect would stretch one axis of every
     // face.
     final tile = settings.resolution.clamp(128, 1024);
-    final width = tile * 3;
-    final height = tile * 2;
+    final width = tile * 6;
+    final height = tile * kShadowedLights;
     if (_cubeShadow == null || _cubeShadowTile != tile) {
       _cubeShadowStatic = gpu.gpuContext.createTexture(
         gpu.StorageMode.devicePrivate,
@@ -908,15 +909,16 @@ final class Renderer implements PluginServices {
     var drawn = 0;
 
     for (var face = 0; face < _cubeFaces.length; face++) {
+      // A row of six per light: the face across, the light down.
       pass.setViewport(gpu.Viewport(
-        x: (face % 3) * tile,
-        y: (face ~/ 3) * tile,
+        x: face * tile,
+        y: slot * tile,
         width: tile,
         height: tile,
       ));
       pass.setScissor(gpu.Scissor(
-        x: (face % 3) * tile,
-        y: (face ~/ 3) * tile,
+        x: face * tile,
+        y: slot * tile,
         width: tile,
         height: tile,
       ));
@@ -929,7 +931,8 @@ final class Renderer implements PluginServices {
       // Kept so the lighting projects with exactly what drew the face. See the
       // note in surface.glsl: deriving cube coordinates there instead would be
       // the same decision made twice, and the two would disagree on one face.
-      _cubeFaceMatrices.setRange(face * 16, face * 16 + 16, _cubeMatrix.storage);
+      final at = (slot * 6 + face) * 16;
+      _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
 
       for (final node in scene.meshes) {
         if (!node.visibleInHierarchy || !node.castsShadow) continue;
@@ -978,21 +981,26 @@ final class Renderer implements PluginServices {
     return drawn > 0;
   }
 
-  /// The first point light in the scene that asked for a shadow.
-  LightNode? _firstShadowingPointLight(Scene scene) {
-    for (final light in scene.lights) {
-      if (light.type == LightType.point && light.castsShadow) return light;
-    }
-    return null;
-  }
+  /// How many point lights may have a cube map at once.
+  ///
+  /// Four, because the atlas is one texture and a row of six tiles per light
+  /// at a usable size is already a large one. A fifth torch in a room goes
+  /// unshadowed rather than evicting one that might be nearer — which torch
+  /// matters is a level's judgement, not the renderer's.
+  static const int kShadowedLights = 4;
 
-  final Float32List _cubeFaceMatrices = Float32List(16 * 6);
+  final Float32List _cubeFaceMatrices = Float32List(16 * 6 * kShadowedLights);
+  final Float32List _cubeLightData = Float32List(4 * kShadowedLights);
+
+  /// One vec4 per light the shading knows about; x is its atlas row or -1.
+  final Float32List _shadowSlots = Float32List(4 * LightBuffer.maxLights);
+
   final Float32List _pointShadowParams = Float32List(4);
-  final Float32List _pointShadowLight = Float32List(4);
-  final vm.Vector3 _cubePosition = vm.Vector3.zero();
 
-  /// Index of the light the atlas belongs to, or -1.
+  /// Number of atlas rows in use, or -1 when none are.
   int _cubeShadowLight = -1;
+
+  final vm.Vector3 _cubePosition = vm.Vector3.zero();
 
   gpu.RenderPipeline? _cubeShadowPipeline;
   gpu.Texture? _cubeShadow;
@@ -1644,7 +1652,8 @@ final class Renderer implements PluginServices {
           _cubeShadowLight < 0 ? 0.0 : settings.shadows.strength;
       bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
         'faces': _cubeFaceMatrices,
-        'light': _pointShadowLight,
+        'lights': _cubeLightData,
+        'slots': _shadowSlots,
         'params': _pointShadowParams,
       });
       _bindTexture(
@@ -1897,19 +1906,24 @@ final class Renderer implements PluginServices {
       casterIndex: shadowCaster,
     );
 
-    // The first point light that asks for a shadow gets the cube atlas.
-    // One light, deliberately: six faces of geometry is the price, and the
-    // question of how many lights can afford it is the next thing to measure
-    // rather than guess.
-    _cubeShadowLight = -1;
-    final point = _firstShadowingPointLight(scene);
-    if (point != null) point.readWorldPosition(_cubePosition);
-    final range = point == null
-        ? 0.0
-        : (point.range > 0.0 ? point.range : 20.0);
-    if (point != null) {
-      // The walls once, and only if they have not been done: six views of the
-      // level's whole geometry is a load-time cost, not a per-frame one.
+    // Up to four point lights get a row of the atlas each, in the order they
+    // appear. In order rather than by importance because "which torch matters
+    // most" is a level's judgement, not the renderer's, and a fifth simply
+    // goes unshadowed rather than evicting one.
+    for (var i = 0; i < _shadowSlots.length; i++) {
+      _shadowSlots[i] = -1.0;
+    }
+    var slot = 0;
+    for (final light in scene.lights) {
+      if (slot >= kShadowedLights) break;
+      if (light.type != LightType.point || !light.castsShadow) continue;
+      final index = lights.packed.indexOf(light);
+      if (index < 0) continue;
+
+      light.readWorldPosition(_cubePosition);
+      final range = light.range > 0.0 ? light.range : 20.0;
+
+      // The walls once. Six views of the level's geometry is a load-time cost.
       if (!_staticShadowBaked) {
         _renderCubeShadow(
           host: host,
@@ -1918,12 +1932,12 @@ final class Renderer implements PluginServices {
           position: _cubePosition,
           range: range,
           static: true,
+          slot: slot,
         );
-        _staticShadowBaked = true;
       }
 
       // And everything that moves, every frame. A pickup that spins would
-      // otherwise leave its shadow behind in the orientation it was baked in.
+      // otherwise leave its shadow behind in the pose it was baked in.
       _renderCubeShadow(
         host: host,
         scene: scene,
@@ -1931,15 +1945,19 @@ final class Renderer implements PluginServices {
         position: _cubePosition,
         range: range,
         static: false,
+        slot: slot,
       );
+
+      _cubeLightData[slot * 4] = _cubePosition.x;
+      _cubeLightData[slot * 4 + 1] = _cubePosition.y;
+      _cubeLightData[slot * 4 + 2] = _cubePosition.z;
+      _cubeLightData[slot * 4 + 3] = range;
+      // Which atlas row this light's shader index should read.
+      _shadowSlots[index * 4] = slot.toDouble();
+      slot++;
     }
-    if (point != null) {
-      _cubeShadowLight = lights.packed.indexOf(point);
-      _pointShadowLight[0] = _cubePosition.x;
-      _pointShadowLight[1] = _cubePosition.y;
-      _pointShadowLight[2] = _cubePosition.z;
-      _pointShadowLight[3] = range;
-    }
+    _staticShadowBaked = _staticShadowBaked || slot > 0;
+    _cubeShadowLight = slot > 0 ? 0 : -1;
 
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
