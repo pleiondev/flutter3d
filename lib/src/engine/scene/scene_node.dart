@@ -1,5 +1,6 @@
 import 'package:vector_math/vector_math.dart';
 
+import '../animation/animation_player.dart' show AnimationTarget;
 import 'scene.dart';
 
 /// A node in the scene graph: a name, a place in the hierarchy, and a transform.
@@ -25,7 +26,7 @@ import 'scene.dart';
 ///    parent the same number the old one had, and the change would go unnoticed.
 ///  * [worldVersion] doubles as a cheap invalidation key for anything derived
 ///    from the transform — world bounds, view matrices, normal matrices.
-base class SceneNode {
+base class SceneNode implements AnimationTarget {
   SceneNode({this.name});
 
   String? name;
@@ -79,6 +80,7 @@ base class SceneNode {
 
   // -------------------------------------------------------------- transform
 
+  @override
   void setPosition(double x, double y, double z) {
     _position.setValues(x, y, z);
     _localDirty = true;
@@ -96,6 +98,7 @@ base class SceneNode {
     _localDirty = true;
   }
 
+  @override
   void setRotation(Quaternion value) {
     _rotation.setFrom(value);
     _rotation.normalize();
@@ -109,6 +112,7 @@ base class SceneNode {
     _localDirty = true;
   }
 
+  @override
   void setScale(double x, double y, double z) {
     _scale.setValues(x, y, z);
     _localDirty = true;

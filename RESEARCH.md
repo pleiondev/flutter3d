@@ -265,8 +265,17 @@ choose an engine.
 - [x] **P1** Visibility, layers/culling masks, tags, lookup by name/path. Tags are not done.
 - [x] **P1** **Frustum culling** + hierarchical bounding volumes (AABB bottom-up). World bounds
       are cached by `worldVersion`; hierarchical AABBs are absent.
-- [ ] **P2** A spatial index (BVH or loose octree) for culling and raycasting.
-- [ ] **P2** LOD groups with automatic switching by screen size.
+- [x] **P2** A spatial index (BVH or loose octree) for culling and raycasting. A median-split BVH
+      over world bounding spheres, shared by the render list and the raycaster, rebuilt only when
+      a transform version changes. Measured rather than assumed, and the measurement is worth
+      keeping in view: on 200 000 objects with everything on screen the tree *loses* — 4.6 ms
+      against 2.4 ms linear — because it can reject nothing; with the world larger than the view it
+      wins outright. A rebuild of that scene costs 93 ms, so the threshold is high and a large
+      scene that moves every frame still belongs on the linear path.
+- [x] **P2** LOD groups with automatic switching by screen size. `LodGroup` picks by the fraction
+      of the viewport the object's bounding sphere covers, not by distance — the same object at the
+      same distance is worth different detail through different lenses. Hidden levels fall out of
+      culling and picking for free, because both already respect visibility.
 - [ ] **P2** Decide: a classic object tree or **an ECS with archetypes**. For Dart the argument
       for ECS is stronger than usual, because of GC and linear traversal.
 - [ ] **P3** Occlusion culling (no compute — only CPU software or hi-z through depth

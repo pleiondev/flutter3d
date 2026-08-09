@@ -22,6 +22,7 @@ import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/key_sort.dart';
+import 'package:flutter3d/src/engine/scene/bvh.dart';
 
 /// Runs [body] enough times to be measurable and reports per-iteration cost.
 Future<void> bench(
@@ -159,6 +160,116 @@ void main() async {
     unit: 'object',
   );
   print('  (…of which $visible visible)');
+
+  // The same question at the scale that motivates a tree, answered both ways.
+  //
+  // The linear pass grows with the object count however few are on screen. The
+  // tree rejects whole subtrees, so its cost tracks what is visible rather than
+  // what exists — a change in shape, not in constant factor, and that is what
+  // makes 200 000 objects affordable.
+  //
+  // Two worlds, because the answer depends entirely on which one you are in.
+  // A dense cluster that fits in the frustum gives the tree nothing to reject,
+  // and it can only lose. A world larger than the view is where it earns its
+  // keep — and that is the world 200 000 objects implies.
+  const bigCount = 200000;
+
+  Float32List worldOf(double spread) {
+    final spheres = Float32List(bigCount * 4);
+    for (var i = 0; i < bigCount; i++) {
+      spheres[i * 4] = ((i % 100) - 50.0) * spread;
+      spheres[i * 4 + 1] = (((i ~/ 100) % 100) - 50.0) * spread;
+      spheres[i * 4 + 2] = (((i ~/ 10000) % 100) - 50.0) * spread;
+      spheres[i * 4 + 3] = 0.5;
+    }
+    return spheres;
+  }
+
+  final bigSpheres = worldOf(1.0);
+
+  var bigVisible = 0;
+  await bench(
+    'frustum cull, $bigCount spheres, linear',
+    5,
+    () async {
+      bigVisible = 0;
+      for (var i = 0; i < bigCount; i++) {
+        probe.center.setValues(
+          bigSpheres[i * 4],
+          bigSpheres[i * 4 + 1],
+          bigSpheres[i * 4 + 2],
+        );
+        probe.radius = bigSpheres[i * 4 + 3];
+        if (frustum.intersectsWithSphere(probe)) bigVisible++;
+      }
+    },
+    items: bigCount,
+    unit: 'object',
+  );
+
+  var stampSeed = 1;
+  final tree = SceneBvh()..refresh(bigSpheres, bigCount, 1);
+  var treeCandidates = 0;
+  await bench(
+    'frustum cull, $bigCount spheres, BVH (tree already built)',
+    5,
+    () async {
+      treeCandidates = 0;
+      tree.queryFrustum(frustum, (_) => treeCandidates++);
+    },
+    items: bigCount,
+    unit: 'object',
+  );
+  print('  (…$treeCandidates candidates offered from ${tree.nodeCount} '
+      'nodes; the linear pass tested all $bigCount and found $bigVisible)');
+
+  await bench(
+    'BVH rebuild, $bigCount spheres',
+    3,
+    // A fresh stamp each time, or refresh would recognise the data and
+    // skip the work being measured.
+    () async => tree.refresh(bigSpheres, bigCount, ++stampSeed),
+    items: bigCount,
+    unit: 'object',
+  );
+
+  // The same count spread over a world twenty times wider, so the frustum holds
+  // a small slice of it. This is the shape a real scene has.
+  final wideSpheres = worldOf(20.0);
+  var wideVisible = 0;
+  await bench(
+    'frustum cull, $bigCount spheres in a wide world, linear',
+    5,
+    () async {
+      wideVisible = 0;
+      for (var i = 0; i < bigCount; i++) {
+        probe.center.setValues(
+          wideSpheres[i * 4],
+          wideSpheres[i * 4 + 1],
+          wideSpheres[i * 4 + 2],
+        );
+        probe.radius = wideSpheres[i * 4 + 3];
+        if (frustum.intersectsWithSphere(probe)) wideVisible++;
+      }
+    },
+    items: bigCount,
+    unit: 'object',
+  );
+
+  final wideTree = SceneBvh()..refresh(wideSpheres, bigCount, 1);
+  var wideCandidates = 0;
+  await bench(
+    'frustum cull, $bigCount spheres in a wide world, BVH',
+    5,
+    () async {
+      wideCandidates = 0;
+      wideTree.queryFrustum(frustum, (_) => wideCandidates++);
+    },
+    items: bigCount,
+    unit: 'object',
+  );
+  print('  (…$wideCandidates candidates offered, $wideVisible actually '
+      'visible of $bigCount)');
 
   // Sorting a packed-key render list, the shape RenderList produces.
   final keys = Int64List(objectCount);

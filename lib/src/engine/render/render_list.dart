@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import '../scene/bvh.dart';
+import '../scene/scene_spheres.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
 import 'key_sort.dart';
@@ -33,6 +35,35 @@ final class RenderList {
   /// Material ids for the state sort term. Owned here because this is the only
   /// place they are used.
   final MaterialSortIds materialIds = MaterialSortIds();
+
+  /// Above this many meshes, culling goes through the tree.
+  ///
+  /// Set from measurement rather than taste, and the measurement is not
+  /// flattering. `tool/bench/bench.dart` on 200 000 spheres:
+  ///
+  /// | case | linear | BVH |
+  /// |---|---|---|
+  /// | everything on screen | 2.4 ms | 4.6 ms |
+  /// | nothing on screen | 1.6 ms | 0.0 ms |
+  ///
+  /// A tree only pays when it can reject. With every object visible it adds
+  /// traversal on top of the same leaf tests and loses outright — and a rebuild
+  /// of that scene costs 93 ms, which no frame can absorb. So the threshold is
+  /// high, the rebuild is skipped unless a transform actually changed, and a
+  /// scene that both is large and moves constantly is still better served by
+  /// the linear pass. Getting past that is what clustered culling and a
+  /// refittable tree are for; neither is here yet.
+  static const int bvhThreshold = 2048;
+
+  /// Shared with the raycaster, so the tree is built once per frame rather than
+  /// once per consumer.
+  final SceneBvh bvh = SceneBvh();
+
+  /// Whether the last [build] went through the tree.
+  bool usedBvh = false;
+
+  final Aabb3 _bvhScratch = Aabb3();
+  Float32List _bvhSpheres = Float32List(0);
 
   final List<DrawItem> _pool = <DrawItem>[];
   int _used = 0;
@@ -78,11 +109,17 @@ final class RenderList {
     final centre = Vector3.zero();
     final sphere = Sphere.centerRadius(Vector3.zero(), 1.0);
 
-    for (var i = 0; i < meshes.length; i++) {
-      final node = meshes[i];
-      if (!node.visibleInHierarchy) continue;
-      if ((node.layerMask & view.layerMask) == 0) continue;
-      if (node.mesh.indexCount == 0) continue;
+    /// The per-mesh work, identical whichever way the candidates arrived.
+    ///
+    /// Shared on purpose: the tree is only allowed to skip meshes it can prove
+    /// are outside the frustum, so every candidate it does produce must go
+    /// through exactly the same tests the linear pass applies. That is what
+    /// makes "the tree returns the same visible set" a property rather than a
+    /// hope.
+    void consider(MeshNode node) {
+      if (!node.visibleInHierarchy) return;
+      if ((node.layerMask & view.layerMask) == 0) return;
+      if (node.mesh.indexCount == 0) return;
 
       centre.setFrom(node.worldBoundsCentre);
       final radius = node.worldBoundsRadius;
@@ -90,7 +127,7 @@ final class RenderList {
       if (node.frustumCulled) {
         sphere.center.setFrom(centre);
         sphere.radius = radius;
-        if (!frustum.intersectsWithSphere(sphere)) continue;
+        if (!frustum.intersectsWithSphere(sphere)) return;
       }
 
       // Eye-space depth is the third row of the view matrix applied to the
@@ -116,6 +153,26 @@ final class RenderList {
       } else {
         opaque.add(index);
       }
+    }
+
+    usedBvh = meshes.length >= bvhThreshold;
+    if (usedBvh) {
+      _bvhSpheres = ensureSphereCapacity(_bvhSpheres, meshes.length);
+      bvh.refresh(
+        _bvhSpheres,
+        meshes.length,
+        packSceneSpheres(meshes, _bvhSpheres),
+      );
+      bvh.queryFrustum(
+        frustum,
+        (index) => consider(meshes[index]),
+        scratch: _bvhScratch,
+      );
+      return;
+    }
+
+    for (var i = 0; i < meshes.length; i++) {
+      consider(meshes[i]);
     }
   }
 

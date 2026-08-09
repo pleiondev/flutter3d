@@ -2,8 +2,22 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
-import '../scene/scene_node.dart';
 import 'animation_clip.dart';
+
+/// What a player can drive.
+///
+/// An interface rather than `SceneNode` directly, and the direction matters:
+/// the animation layer is reached from the asset decoders, so depending on the
+/// scene graph would drag `Material` — and through it flutter_gpu and
+/// `dart:ui` — into everything that merely decodes a glTF file. That is exactly
+/// what stopped `tool/bench/bench.dart` from compiling ahead of time.
+///
+/// `SceneNode` satisfies it as written; nothing else has to.
+abstract interface class AnimationTarget {
+  void setPosition(double x, double y, double z);
+  void setRotation(Quaternion value);
+  void setScale(double x, double y, double z);
+}
 
 /// How a clip behaves when it runs off its end.
 enum AnimationWrap {
@@ -17,10 +31,10 @@ enum AnimationWrap {
   pingPong,
 }
 
-/// Plays [AnimationClip]s onto scene nodes.
+/// Plays [AnimationClip]s onto animation targets.
 ///
 /// The player writes through `setPosition` / `setRotation` / `setScale`, which
-/// is all it has to do: the version counters on [SceneNode] make everything
+/// is all it has to do: the version counters on a scene node make everything
 /// derived from a transform — world matrices, bounds, normal matrices — refresh
 /// on their own. There is no invalidation to remember and no update pass to run
 /// in the right order.
@@ -36,7 +50,7 @@ final class AnimationPlayer {
   /// Node for each index a track can address, null where the instance created
   /// none. Index-aligned with the model's node list, which is what an animation
   /// channel addresses.
-  final List<SceneNode?> targets;
+  final List<AnimationTarget?> targets;
 
   int _clipIndex = -1;
   double _time = 0.0;

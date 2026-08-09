@@ -12,6 +12,8 @@ What works today:
   profile (the "vase"); shapes are values (`Shape`), not static methods;
 - six **switchable lighting models**, each its own pre-built fragment shader:
   Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon, Normals;
+- **a BVH** over world bounds, shared by culling and picking and rebuilt only
+  when something moves, plus **LOD groups** that switch by screen coverage;
 - **directional shadows**: the pass is a render view whose camera is the light,
   with an orthographic volume fitted to the scene, linear depth in a colour
   target because depth textures cannot be sampled, front-face culling, PCF 3x3
@@ -50,9 +52,9 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 357 tests — geometry, projection, scene, sorting, debug draw, intersections,
-  raycasting, animation, lighting, tangents, render targets, glTF and OBJ — all
-  without a GPU.
+- 382 tests — geometry, projection, scene, sorting, debug draw, intersections,
+  raycasting, animation, lighting, tangents, render targets, BVH, LOD, glTF and
+  OBJ — all without a GPU.
 
 ## Running
 
@@ -211,7 +213,7 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF and OBJ decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
-test/                           357 tests, all runnable without a GPU
+test/                           382 tests, all runnable without a GPU
 ```
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing

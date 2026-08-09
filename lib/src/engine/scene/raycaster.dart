@@ -1,11 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:vector_math/vector_math.dart' hide Ray;
 
 import '../geometry/mesh_data.dart';
 import '../geometry/vertex_layout.dart';
 import '../math/intersections.dart';
+import 'bvh.dart';
 import 'camera_node.dart';
 import 'mesh_node.dart';
 import 'scene.dart';
+import 'scene_spheres.dart';
 
 /// What a ray hit.
 ///
@@ -84,6 +88,19 @@ final class Raycaster {
   /// double-sided or inside-out mesh is still something they clicked on.
   bool cullBackFaces = false;
 
+  /// Optional spatial index, normally the render list's.
+  ///
+  /// Shared rather than owned: the renderer already rebuilds a tree over the
+  /// same meshes every frame, and a second one would double both the memory and
+  /// the rebuild cost to answer the same question.
+  SceneBvh? bvh;
+
+  /// Above this many meshes a tree is worth using, matching the render list's
+  /// threshold so a scene does not end up with one consumer on each path.
+  static const int bvhThreshold = 512;
+
+  Float32List _spheres = Float32List(0);
+
   final HitResult _hit = HitResult();
   final Ray _localRay = Ray.zero();
   final Vector3 _a = Vector3.zero();
@@ -157,11 +174,16 @@ final class Raycaster {
     var best = maxDistance;
 
     final meshes = scene.meshes;
-    for (var i = 0; i < meshes.length; i++) {
-      final node = meshes[i];
-      if (visibleOnly && !node.visibleInHierarchy) continue;
-      if ((node.layerMask & layerMask) == 0) continue;
-      if (node.mesh.indexCount == 0) continue;
+
+    /// One candidate, whichever way it arrived.
+    ///
+    /// The tree may only skip meshes the ray provably misses, so everything it
+    /// does produce runs the same tests the linear pass would — which is what
+    /// keeps the two paths returning the same hit.
+    void consider(MeshNode node) {
+      if (visibleOnly && !node.visibleInHierarchy) return;
+      if ((node.layerMask & layerMask) == 0) return;
+      if (node.mesh.indexCount == 0) return;
 
       // The same cheap rejection culling uses, against the same cached sphere.
       final sphereDistance = raySphere(
@@ -169,9 +191,31 @@ final class Raycaster {
         node.worldBoundsCentre,
         node.worldBoundsRadius,
       );
-      if (sphereDistance == kNoHit || sphereDistance > best) continue;
+      if (sphereDistance == kNoHit || sphereDistance > best) return;
 
       if (_intersectNode(node, best)) best = _hit.distance;
+    }
+
+    final tree = bvh;
+    if (tree != null && meshes.length >= bvhThreshold) {
+      _spheres = ensureSphereCapacity(_spheres, meshes.length);
+      tree.refresh(
+        _spheres,
+        meshes.length,
+        packSceneSpheres(meshes, _spheres),
+      );
+      // maxDistance, not `best`: the closure narrows `best` as it goes, but the
+      // traversal order is not front-to-back, so a node rejected on a stale
+      // bound could be the nearest hit.
+      tree.queryRay(
+        ray,
+        (index) => consider(meshes[index]),
+        maxDistance: maxDistance,
+      );
+    } else {
+      for (var i = 0; i < meshes.length; i++) {
+        consider(meshes[i]);
+      }
     }
 
     return _hit.node == null ? null : _hit;

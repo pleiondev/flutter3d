@@ -213,7 +213,7 @@ final class ModelAsset {
           ? null
           : AnimationPlayer(
               clips: clips,
-              targets: List<SceneNode?>.of(created),
+              targets: List<AnimationTarget?>.of(created),
             ),
     );
   }
