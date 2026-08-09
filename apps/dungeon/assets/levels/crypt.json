@@ -33,6 +33,12 @@
       "normal": "assets/textures/stone_normal.png",
       "orm": "assets/textures/stone_orm.png"
     },
+    "keymetal": {
+      "baseColor": [1.0, 1.0, 1.0, 1.0], "roughness": 0.4,
+      "albedo": "assets/textures/key_albedo.jpg",
+      "normal": "assets/textures/key_normal.png",
+      "orm": "assets/textures/key_orm.png"
+    },
     "iron": {
       "baseColor": [0.72, 0.70, 0.68, 1.0], "roughness": 0.6,
       "texelsPerMetre": 1.2,
@@ -104,7 +110,9 @@
     { "type": "torch", "at": [-6, 3.2, -18] },
     { "type": "torch", "at": [13, 3.2, 4] },
 
-    { "type": "key", "at": [14, 0.8, 4], "color": "iron", "name": "iron_key" },
+    { "type": "key", "at": [14, 0.9, 4], "color": "iron", "name": "iron_key",
+      "model": "assets/models/key.glb", "material": "keymetal",
+      "size": [0.7, 0.7, 0.7], "tint": [0.95, 0.60, 0.20] },
 
     { "type": "door", "at": [0, 2.5, -13], "name": "crypt_door", "key": "iron",
       "size": [4, 5, 1], "travel": [0, 4.4, 0], "speed": 2.2, "wait": 4,

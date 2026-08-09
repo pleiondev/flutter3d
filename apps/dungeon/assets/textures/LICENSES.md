@@ -22,3 +22,19 @@ Each prefix has three files: `_albedo.jpg` (sRGB base colour),
 `_normal.png` (tangent space, OpenGL green-up) and `_orm.png`
 (occlusion in red, roughness in green, metallic in blue — glTF's
 packing).
+
+## The key
+
+`key_*` and `assets/models/key.glb` are **not** from ambientCG and their
+licence is **unrecorded**. The archive they came from (`key.zip`, a Cinema 4D
+export dated 2019, repackaged 2022) carries no licence file, no readme and no
+author — only an OBJ and four texture maps.
+
+That is a blocker for shipping, not a formatting problem: an asset whose terms
+nobody can point to cannot be redistributed, and "we could not find the licence"
+is not a defence. Before this game is published the key has to be traced to its
+source and its terms written here, or replaced.
+
+The model was prepared by `tool/prepare_model.mjs` (decimated to 2 499
+triangles, scaled to 0.6 m, tangents generated with MikkTSpace) and its maps
+packed by `tool/pack_maps.py`.

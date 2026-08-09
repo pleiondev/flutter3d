@@ -132,6 +132,10 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _wish = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
+  /// Wall-clock seconds since the game started, for anything that only has to
+  /// look alive — a turning pickup, a flickering torch.
+  double _elapsed = 0.0;
+
   MechanismWorld? _mechanisms;
   FixtureVisuals? _fixtureVisuals;
 
@@ -184,7 +188,8 @@ class _GameScreenState extends State<GameScreen>
       );
       final visuals = MonsterVisuals(loaded.scene);
       final mechanisms = MechanismWorld(loaded.collision);
-      final fixtures = FixtureVisuals(loaded.scene, loaded);
+      final fixtures = FixtureVisuals(loaded.scene, loaded)
+        ..fallbackAlbedo = _renderer?.fallbackAlbedo;
 
       // The level's entities become actors. Which entity becomes what is the
       // entity kind's business, in flutter3d_game; all the application supplies
@@ -258,11 +263,12 @@ class _GameScreenState extends State<GameScreen>
     _lastTick = elapsed;
     if (dt > 0.0) _fps = _fps * 0.9 + (1.0 / dt) * 0.1;
 
+    _elapsed += dt;
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
     _monsterVisuals?.sync();
-    _fixtureVisuals?.sync();
+    _fixtureVisuals?.sync(_elapsed);
     setState(() {});
   }
 
