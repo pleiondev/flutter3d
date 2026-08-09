@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+// `Material` exists in both flutter/material.dart and flutter3d; the level
+// loader is the only place that builds one, so it is hidden here.
+import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
+
+import 'src/level_scene.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.
@@ -61,16 +65,10 @@ class _GameScreenState extends State<GameScreen>
   late final GameLoop _loop;
   late final Ticker _ticker;
 
-  /// The same room as the scene, in the shape the simulation understands.
-  ///
-  /// Built alongside the meshes rather than derived from them: a renderer mesh
-  /// is triangles and a collider is a brush, and keeping one authored list that
-  /// produces both is what stops the two from drifting apart. When the level
-  /// format arrives it will be that list.
-  final CollisionWorld _collision = CollisionWorld();
-  late final CharacterController _body;
+  /// The level, once it has loaded. Null while it is loading or if it failed.
+  LoadedLevel? _loaded;
+  CharacterController? _body;
 
-  final Scene _scene = Scene();
   final CameraNode _camera = CameraNode(name: 'player');
   late final RenderView _view;
   Renderer? _renderer;
@@ -108,13 +106,6 @@ class _GameScreenState extends State<GameScreen>
     );
 
     _view = RenderView(camera: _camera);
-    _buildRoom();
-
-    _body = CharacterController(
-      world: _collision,
-      position: Vector3(0.0, 0.95, 6.0),
-    );
-    _smoothedPosition.jumpTo(_body.position);
 
     try {
       _renderer = Renderer.create(
@@ -126,6 +117,42 @@ class _GameScreenState extends State<GameScreen>
     }
 
     _ticker = createTicker(_onTick)..start();
+    unawaited(_loadLevel());
+  }
+
+  Future<void> _loadLevel() async {
+    try {
+      final loaded = await const LevelLoader().load(_levelAsset);
+      final start = loaded.level.playerStart;
+
+      final body = CharacterController(
+        world: loaded.collision,
+        // Lifted by half the body height: a spawn is authored where the
+        // player's feet go, which is the only place an author can see.
+        position: (start?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _loaded = loaded;
+        _body = body;
+        _yaw = start?.yaw ?? 0.0;
+        _smoothedPosition.jumpTo(body.position);
+        // Loading blocked the ticker for a couple of seconds, and all of that
+        // time is sitting in the accumulator. None of it happened in the game,
+        // so it is dropped rather than simulated — otherwise the first frame
+        // spends its whole budget catching up, and the dropped-step counter
+        // reads as a performance problem for the rest of the session.
+        _loop.clock.reset();
+      });
+
+      for (final issue in loaded.issues) {
+        debugPrint('level: $issue');
+      }
+    } catch (error, stack) {
+      debugPrint('level failed to load: $error\n$stack');
+      if (mounted) setState(() => _initError = error);
+    }
   }
 
   @override
@@ -135,83 +162,7 @@ class _GameScreenState extends State<GameScreen>
     super.dispose();
   }
 
-  /// A stand-in for a level: a floor and something to walk around.
-  ///
-  /// The numbers are chosen to look like a dungeon rather than to be neutral.
-  /// A default white material under a bright directional light clips to flat
-  /// white everywhere, which reads as "the renderer is broken" even when it is
-  /// working perfectly — dark stone and a single torch show the shading.
-  void _buildRoom() {
-    final stone = engine.Material(
-      baseColor: Vector4(0.38, 0.36, 0.32, 1.0),
-      roughness: 0.85,
-    );
-
-    final floorSize = Vector3(40.0, 0.5, 40.0);
-    final floorAt = Vector3(0.0, -0.25, 0.0);
-    _scene.add(
-      MeshNode(GpuMesh.upload(CuboidShape(size: floorSize).build()), stone,
-          name: 'floor')
-        ..setPositionFrom(floorAt),
-    );
-    _collision.addBox(floorAt, floorSize);
-
-    // One mesh, eight nodes: the geometry is uploaded once and instanced by
-    // reference, which is all the instancing flutter_gpu offers.
-    final pillarSize = Vector3(1.5, 4.0, 1.5);
-    final pillarMesh = GpuMesh.upload(CuboidShape(size: pillarSize).build());
-    for (var i = 0; i < 8; i++) {
-      final angle = i / 8.0 * 2.0 * math.pi;
-      final at = Vector3(math.cos(angle) * 9.0, 2.0, math.sin(angle) * 9.0);
-      _scene.add(
-        MeshNode(pillarMesh, stone, name: 'pillar$i')..setPositionFrom(at),
-      );
-      _collision.addBox(at, pillarSize);
-    }
-
-    // Something to climb, so the step-up and the jump are reachable without a
-    // level: a short flight of stairs and the ledge they lead to.
-    final stepMesh = GpuMesh.upload(
-      CuboidShape(size: Vector3(4.0, 0.3, 1.2)).build(),
-    );
-    for (var i = 0; i < 5; i++) {
-      final at = Vector3(0.0, 0.15 + i * 0.3, -3.0 - i * 1.2);
-      _scene.add(
-        MeshNode(stepMesh, stone, name: 'step$i')..setPositionFrom(at),
-      );
-      // The collider is a solid block down to the floor, not a floating slab:
-      // a stair with a gap under it is a stair the player can fall into.
-      _collision.addBox(
-        Vector3(at.x, (0.3 + i * 0.3) / 2.0, at.z),
-        Vector3(4.0, 0.3 + i * 0.3, 1.2),
-      );
-    }
-
-    // A weak, cold directional light standing in for whatever daylight reaches
-    // this far down. It aims along the node's local -Z, the same forward axis a
-    // camera uses, so it is pointed with lookAt rather than by setting a vector.
-    _scene.add(
-      LightNode(
-        color: Vector3(0.55, 0.62, 0.80),
-        intensity: 0.8,
-        name: 'sky',
-      )
-        ..setPosition(6.0, 12.0, 5.0)
-        ..lookAt(Vector3.zero()),
-    );
-
-    // The torch does the actual lighting, and its falloff is what makes the
-    // room feel enclosed.
-    _scene.add(
-      LightNode(
-        type: LightType.point,
-        color: Vector3(1.0, 0.72, 0.38),
-        intensity: 20.0,
-        range: 22.0,
-        name: 'torch',
-      )..setPosition(0.0, 3.0, 0.0),
-    );
-  }
+  static const String _levelAsset = 'assets/levels/crypt.json';
 
   void _onTick(Duration elapsed) {
     final dt = _lastTick == Duration.zero
@@ -227,6 +178,10 @@ class _GameScreenState extends State<GameScreen>
   /// One step of simulated time. Everything that decides where the player is
   /// happens here and nowhere else.
   void _step(double dt) {
+    final body = _body;
+    final loaded = _loaded;
+    if (body == null || loaded == null) return;
+
     _yaw -= _input.lookDelta.x * _lookSensitivity;
     _pitch = (_pitch - _input.lookDelta.y * _lookSensitivity)
         .clamp(-_pitchLimit, _pitchLimit);
@@ -245,23 +200,25 @@ class _GameScreenState extends State<GameScreen>
       _forward.z * axis.y + _right.z * axis.x,
     );
 
-    if (_input.pressed(GameAction.jump)) _body.requestJump();
+    if (_input.pressed(GameAction.jump)) body.requestJump();
 
-    _body.step(
+    body.step(
       dt,
       wishDirection: _wish,
       sprint: _input.held(GameAction.sprint),
     );
 
-    _collision.update();
-    _collision.clearKinematicDeltas();
+    loaded.collision.update();
+    loaded.collision.clearKinematicDeltas();
 
-    _smoothedPosition.push(_body.position);
+    _smoothedPosition.push(body.position);
   }
 
   @override
   Widget build(BuildContext context) {
     final renderer = _renderer;
+    final loaded = _loaded;
+    final body = _body;
     if (renderer == null) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -275,6 +232,18 @@ class _GameScreenState extends State<GameScreen>
               'after every Flutter SDK change.',
               style: const TextStyle(color: Colors.white70),
             ),
+          ),
+        ),
+      );
+    }
+
+    if (loaded == null || body == null) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Text(
+            'Loading the crypt…',
+            style: TextStyle(color: Colors.white54),
           ),
         ),
       );
@@ -299,7 +268,7 @@ class _GameScreenState extends State<GameScreen>
             children: <Widget>[
               _SceneSurface(
                 renderer: renderer,
-                scene: _scene,
+                scene: loaded.scene,
                 view: _view,
                 onBeforeFrame: _placeCamera,
               ),
@@ -308,8 +277,8 @@ class _GameScreenState extends State<GameScreen>
                 fps: _fps,
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,
-                position: _body.position,
-                grounded: _body.isGrounded,
+                position: body.position,
+                grounded: body.isGrounded,
               ),
             ],
           ),
