@@ -645,16 +645,24 @@ class _SpikePageState extends State<SpikePage>
       ..intensity = 1.0 * distance * distance
       ..range = distance * 6.0;
 
-    // Spread around the model on a circle, each at a different height, so no
-    // two rows of the atlas hold the same view. Identical placements would
-    // make four rows indistinguishable and the golden would pass on one again.
+    // Spread around the model, each at a different distance and height, so no
+    // two rows of the atlas hold the same view.
+    //
+    // The radius **shrinks** with the index, which is the whole point when
+    // there are more casters than rows: the lights added last are the nearest,
+    // so choosing by relevance and choosing by scene order pick different sets.
+    // The first attempt had the radius fixed and the height rising with the
+    // index, which made scene order agree with distance — and
+    // `cube-shadow-crowded` passed with the ranking stubbed out to a constant,
+    // pinning nothing at all.
     for (var i = 0; i < _extraPoints.length; i++) {
       final angle = (i + 1) * math.pi * 2.0 / (_extraPoints.length + 1);
+      final radius = distance * (1.7 - 0.22 * i);
       _extraPoints[i]
         ..setPosition(
-          centre.x + math.cos(angle) * distance,
-          centre.y + distance * (0.2 + 0.3 * i),
-          centre.z + math.sin(angle) * distance,
+          centre.x + math.cos(angle) * radius,
+          centre.y + distance * (0.9 - 0.12 * i),
+          centre.z + math.sin(angle) * radius,
         )
         ..intensity = 1.0 * distance * distance
         ..range = distance * 6.0;

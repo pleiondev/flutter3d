@@ -285,6 +285,24 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     pointShadow: true,
     extraPointShadows: 3,
   ),
+
+  // Six casters for four rows, which is the case the allocator exists for.
+  //
+  // Until it existed the rows went to the first four point lights in scene
+  // order, so a level with five torches had one that could not cast a shadow
+  // anywhere, ever. Now the rows go to whichever four look largest from the
+  // camera. This scene is only meaningful if relevance and scene order pick
+  // *different* sets — check that when re-recording, because if they agree the
+  // golden passes either way and pins nothing.
+  const GoldenScene(
+    name: 'cube-shadow-crowded',
+    source: 'Teapot',
+    bloom: false,
+    lights: <String>{'key light', 'fill light'},
+    shadowMap: true,
+    pointShadow: true,
+    extraPointShadows: 5,
+  ),
 ];
 
 /// Looks up a scene by name.
