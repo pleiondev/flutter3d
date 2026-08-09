@@ -27,6 +27,7 @@ final class GoldenScene {
     this.viewModel = false,
     this.surfaceBuffer = false,
     this.shadowMap = false,
+    this.pointShadow = false,
   });
 
   /// File name, without an extension, under `test/goldens/`.
@@ -44,6 +45,10 @@ final class GoldenScene {
 
   /// Shows the shadow map instead of the lit image.
   final bool shadowMap;
+
+  /// Makes the scene's first point light a shadow caster, so the cube atlas
+  /// has something in it.
+  final bool pointShadow;
 
   /// Matched against a model chip label by substring, as `FLUTTER3D_SOURCE` is.
   final String source;
@@ -216,6 +221,19 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     source: 'Teapot',
     bloom: false,
     shadowMap: true,
+  ),
+
+  // The point light's cube atlas: three tiles across, two down, each a
+  // ninety-degree view from the light. Pinned because the layout is a decision
+  // written twice — once in the renderer's face list and once in the shader's
+  // face selection — and a golden is what stops the two from drifting.
+  const GoldenScene(
+    name: 'cube-shadow',
+    source: 'Teapot',
+    bloom: false,
+    lights: <String>{'key light'},
+    shadowMap: true,
+    pointShadow: true,
   ),
 ];
 

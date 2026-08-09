@@ -10,6 +10,7 @@ import '../gpu/gpu_mesh.dart';
 import '../gpu/render_target_pool.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
+import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
@@ -792,6 +793,187 @@ final class Renderer implements PluginServices {
   ///
   /// Returns false when there is nothing to shadow, leaving [_shadowParams] at
   /// zero strength so the lighting shaders skip the lookup entirely.
+  /// The six directions a cube shadow looks in, and the up vector for each.
+  ///
+  /// Order fixes the atlas layout, so the shader's face selection and this
+  /// list are one decision written twice — which is why they are both spelled
+  /// out rather than derived: +X, -X, +Y, -Y, +Z, -Z, left to right then top
+  /// to bottom in a three-by-two grid.
+  static final List<(vm.Vector3, vm.Vector3)> _cubeFaces =
+      <(vm.Vector3, vm.Vector3)>[
+    (vm.Vector3(1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
+    (vm.Vector3(-1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
+    (vm.Vector3(0.0, 1.0, 0.0), vm.Vector3(0.0, 0.0, 1.0)),
+    (vm.Vector3(0.0, -1.0, 0.0), vm.Vector3(0.0, 0.0, -1.0)),
+    (vm.Vector3(0.0, 0.0, 1.0), vm.Vector3(0.0, 1.0, 0.0)),
+    (vm.Vector3(0.0, 0.0, -1.0), vm.Vector3(0.0, 1.0, 0.0)),
+  ];
+
+  /// Renders one point light's six faces into the cube atlas.
+  ///
+  /// One pass, six viewports. That is the whole reason this is affordable and
+  /// it is not an assumption: setViewport is pass state on this backend, which
+  /// a spike established by drawing two casters into two halves of one map.
+  /// Six passes would have been six command buffers and six submissions.
+  ///
+  /// The faces store radial distance from the light, normalised by its range,
+  /// rather than clip depth — see shadow_distance.frag for why a cube cannot
+  /// use depth without showing a seam at every face boundary.
+  bool _renderCubeShadow({
+    required gpu.HostBuffer host,
+    required Scene scene,
+    required ShadowSettings settings,
+    required vm.Vector3 position,
+    required double range,
+  }) {
+    if (!settings.enabled || settings.strength <= 0.0) return false;
+    if (range <= 0.0) return false;
+
+    final shader = library['ShadowDistance'];
+    if (shader == null) return false;
+
+    // A three-by-two grid of square tiles. Square because a ninety-degree
+    // frustum is square, and any other aspect would stretch one axis of every
+    // face.
+    final tile = settings.resolution.clamp(128, 1024);
+    final width = tile * 3;
+    final height = tile * 2;
+    if (_cubeShadow == null || _cubeShadowTile != tile) {
+      _cubeShadow = gpu.gpuContext.createTexture(
+        gpu.StorageMode.devicePrivate,
+        width,
+        height,
+        format: hdrFormat,
+        enableRenderTargetUsage: true,
+        enableShaderReadUsage: true,
+      );
+      _cubeShadowTile = tile;
+    }
+
+    final depth = targetPool.acquire(
+      RenderTargetSpec(
+        width: width,
+        height: height,
+        format: gpu.gpuContext.defaultDepthStencilFormat,
+        storageMode: gpu.StorageMode.deviceTransient,
+      ),
+    );
+
+    developer.Timeline.startSync('Renderer.cubeShadow');
+    final commandBuffer = gpu.gpuContext.createCommandBuffer();
+    final pass = commandBuffer.createRenderPass(
+      gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(
+          texture: _cubeShadow!,
+          // Cleared to the far end: anything no face drew reads as "nothing
+          // between the light and the range", which is the right default for
+          // a direction with no caster in it.
+          clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+          storeAction: gpu.StoreAction.store,
+        ),
+        depthStencilAttachment: gpu.DepthStencilAttachment(
+          texture: depth,
+          depthClearValue: 1.0,
+        ),
+      ),
+    );
+
+    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+    pass.setDepthWriteEnable(true);
+    pass.setDepthCompareOperation(gpu.CompareFunction.less);
+    pass.setColorBlendEnable(false);
+    pass.setCullMode(gpu.CullMode.frontFace);
+
+    _cubeLight[0] = position.x;
+    _cubeLight[1] = position.y;
+    _cubeLight[2] = position.z;
+    _cubeLight[3] = range;
+
+    final projection = PerspectiveProjection(
+      fovYRadians: math.pi / 2,
+      near: 0.05,
+      far: range,
+    ).toMatrix(1.0);
+    final mvp = vm.Matrix4.identity();
+    var drawn = 0;
+
+    for (var face = 0; face < _cubeFaces.length; face++) {
+      pass.setViewport(gpu.Viewport(
+        x: (face % 3) * tile,
+        y: (face ~/ 3) * tile,
+        width: tile,
+        height: tile,
+      ));
+      pass.setScissor(gpu.Scissor(
+        x: (face % 3) * tile,
+        y: (face ~/ 3) * tile,
+        width: tile,
+        height: tile,
+      ));
+
+      final (aim, up) = _cubeFaces[face];
+      final view = _lookAt(position, position + aim, up);
+      _cubeMatrix
+        ..setFrom(projection)
+        ..multiply(view);
+
+      for (final node in scene.meshes) {
+        if (!node.visibleInHierarchy || !node.castsShadow) continue;
+        final mesh = node.mesh;
+        if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+        // Static geometry only for now: a skinned caster needs the skinned
+        // vertex stage, and a monster's shadow is worth less than getting the
+        // walls right first.
+        if (node.skeleton != null) continue;
+
+        pass.bindPipeline(
+          _cubeShadowPipeline ??=
+              gpu.gpuContext.createRenderPipeline(vertexShader, shader),
+        );
+        pass.setWindingOrder(
+          node.worldIsMirrored
+              ? gpu.WindingOrder.clockwise
+              : gpu.WindingOrder.counterClockwise,
+        );
+        pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
+        pass.bindIndexBuffer(mesh.indexView, mesh.indexType, mesh.indexCount);
+
+        mvp
+          ..setFrom(_cubeMatrix)
+          ..multiply(node.worldMatrix);
+        bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
+          'mvp': mvp.storage,
+          'model': node.worldMatrix.storage,
+          'normal_matrix': node.worldNormalMatrix.storage,
+        });
+        bindUniformBlock(pass, host, shader, 'ShadowLight', {
+          'light': _cubeLight,
+        });
+        pass.draw();
+        drawn++;
+      }
+    }
+
+    commandBuffer.submit();
+    targetPool.release(depth);
+    developer.Timeline.finishSync();
+    return drawn > 0;
+  }
+
+  /// The first point light in the scene that asked for a shadow.
+  LightNode? _firstShadowingPointLight(Scene scene) {
+    for (final light in scene.lights) {
+      if (light.type == LightType.point && light.castsShadow) return light;
+    }
+    return null;
+  }
+
+  gpu.RenderPipeline? _cubeShadowPipeline;
+  gpu.Texture? _cubeShadow;
+  int _cubeShadowTile = 0;
+  final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
+  final Float32List _cubeLight = Float32List(4);
+
   bool _renderShadowMap({
     required gpu.HostBuffer host,
     required Scene scene,
@@ -1663,6 +1845,21 @@ final class Renderer implements PluginServices {
       casterIndex: shadowCaster,
     );
 
+    // The first point light that asks for a shadow gets the cube atlas.
+    // One light, deliberately: six faces of geometry is the price, and the
+    // question of how many lights can afford it is the next thing to measure
+    // rather than guess.
+    final point = _firstShadowingPointLight(scene);
+    if (point != null) {
+      _renderCubeShadow(
+        host: host,
+        scene: scene,
+        settings: settings.shadows,
+        position: point.worldMatrix.getTranslation(),
+        range: point.range > 0.0 ? point.range : 20.0,
+      );
+    }
+
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
@@ -1984,7 +2181,10 @@ final class Renderer implements PluginServices {
     pass.setDepthCompareOperation(gpu.CompareFunction.always);
 
     final showingSurface = settings.showSurfaceBuffer;
-    final showingShadow = settings.showShadowMap && _shadowMap != null;
+    // The cube atlas when there is one, because that is the map anybody
+    // debugging shadows now wants to see.
+    final shadowView = _cubeShadow ?? _shadowMap;
+    final showingShadow = settings.showShadowMap && shadowView != null;
     final raw = showingSurface || showingShadow;
     _compositeParams[0] = raw ? 1.0 : settings.exposure;
     _compositeParams[1] = raw || bloom == null ? 0.0 : settings.bloom.intensity;
@@ -2001,7 +2201,7 @@ final class Renderer implements PluginServices {
       compositeShader,
       _kSceneTextureSlot,
       showingShadow
-          ? _shadowMap!
+          ? shadowView
           : (showingSurface ? (_surfaceColor ?? scene) : scene),
       _clampSampler,
     );

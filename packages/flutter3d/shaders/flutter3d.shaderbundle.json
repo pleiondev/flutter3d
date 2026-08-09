@@ -78,5 +78,9 @@
   "Reflections": {
     "type": "fragment",
     "file": "shaders/post/reflections.frag"
+  },
+  "ShadowDistance": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_distance.frag"
   }
 }

@@ -318,6 +318,9 @@ class _SpikePageState extends State<SpikePage>
       color: Vector3(0.35, 0.62, 1.0),
       intensity: 4.0,
       name: 'fill light',
+      // Set only by the golden that wants to look at the cube atlas, because
+      // the atlas costs six views of the scene and nothing else here needs it.
+      castsShadow: GoldenRunner.fromEnvironment()?.scene.pointShadow ?? false,
     );
     _spot = LightNode(
       type: LightType.spot,

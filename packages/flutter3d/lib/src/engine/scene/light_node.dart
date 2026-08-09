@@ -17,6 +17,7 @@ final class LightNode extends SceneNode {
     Vector3? color,
     this.intensity = 1.0,
     this.range = 0.0,
+    this.castsShadow = false,
     this.innerConeAngle = 0.0,
     this.outerConeAngle = math.pi / 4.0,
     super.name,
@@ -26,6 +27,14 @@ final class LightNode extends SceneNode {
 
   /// Linear RGB.
   final Vector3 color;
+
+  /// Whether this light wants a shadow map.
+  ///
+  /// A request, not a promise: the renderer shadows one directional light and
+  /// one point light, and asking does not put a light at the front of that
+  /// queue. The level format has carried the flag since it was written and
+  /// nothing read it, which is why a torch lit the far side of a wall.
+  bool castsShadow;
 
   double intensity;
 
