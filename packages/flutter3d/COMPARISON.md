@@ -84,46 +84,86 @@ reload of materials, texture atlasing, accessibility semantics, Flutter widgets
 rendered into 3D, selection outlines, trails, sprites, memory reports, render
 profiling.
 
-## 4. The plan
+## 4. Strategy: the race not to run
 
-Ordered so that each stage is defensible on its own, and so the thing we lead
-on stays led.
+### The premise to reject
 
-**Stage 0 — finish and defend the shadow lead.** The atlas now fills all four
-rows (`cube-shadow-many`). Next: per-frame caster selection by relevance so
-four is a limit on simultaneity rather than on the level, with the bake keyed
-on the light rather than the atlas row. Then take their spot-shadow filtering —
-rotated Poisson, `ShadowCasterFaces`, split depth/normal bias — and apply it to
-our cube faces. That converts "we have point shadows and they do not" into "our
-point shadows are good", which is the harder claim to catch up to.
+`flutter_scene` is written by the author of `flutter_gpu` itself. They are
+closer to the platform than we will ever be — engine capabilities land there
+first — and they are four times our size. **Competing on breadth means being
+permanently second while spending the whole budget on our weakest ground.**
 
-**Stage 1 — the two absences that stop a game shipping.** Physics first, since
-a bug is already open against its absence; audio second. Neither needs to be
-written from scratch — both are areas where taking the shape of their API and
-implementing against it is the fast path.
+Getting ahead requires changing the axis, not running faster on theirs.
 
-**Stage 2 — texture pipeline.** Mipmaps and a compressed format. This is the
-single largest quality-per-effort item on the list: it fixes minification
-aliasing everywhere at once and unlocks prefiltered specular, which is the
-prerequisite for IBL.
+### The axis: dynamic local light
 
-**Stage 3 — IBL and environment.** Depends on stage 2. This is the biggest
-purely visual gap; a PBR renderer without it never looks finished.
+This is the one place they are *structurally absent* rather than merely behind:
 
-**Stage 4 — the post stack, cheapest first.** FXAA, then auto-exposure, then
-SSAO. Fix SSR with a view-space test rather than the depth-space one that puts
-highlights through walls.
+- point-light shadows: none (`PointLight` has no `castsShadow` at all);
+- particles as a light source: none (no mention of light in any particle file);
+- volumetric light: **directional only** — `god_rays.dart` marches the cascaded
+  shadow map and documents itself as requiring a shadow-casting
+  `DirectionalLight`, "skipped otherwise".
 
-**Stage 5 — architecture.** Instancing and a depth prepass, and by then the
-plugin seam will want to become a render graph.
+And it is where we already lead. The point that matters: these are not three
+features but **one foundation and three things built on it**. The cube atlas is
+the foundation, and they do not have it. Until they build it, none of the steps
+below are available to them at any price.
 
-Web and Gaussian splats are deliberately not on this list. Both are large, and
-neither serves a dungeon.
+### The four steps
 
-## 5. One thing to copy immediately
+Each reuses the atlas, so each one raises the cost of catching up rather than
+just adding to a list.
 
-Their atlas insets each tile's scissor by `4 / atlasResolution` so a bilinear
-tap at a tile edge cannot reach into its neighbour (this is PlayCanvas's trick
-too). Our cube atlas has no such inset and samples with a plain `texture()`
-fetch, so every face boundary in the atlas can read a neighbouring face's
-distance. It is a small, contained shader change and it is a real defect today.
+| # | Step | Rough effort | What it buys |
+|---|---|---|---|
+| 1 | **Many shadowed lights.** Slot allocator replacing the hard four: lights sorted by screen size, slots by size, a light keeps its slot across frames, bakes amortised at one per frame. PlayCanvas's model, already read | **1–2 weeks** — atlas, slot table and static/dynamic split all exist; the new work is selection and slot persistence | Dozens of shadowed torches instead of four. Their clustered `light_culling.dart` cannot substitute: clustering without point shadows still leaves the point lights shadowless |
+| 2 | **Shadow quality.** Take their spot filtering — rotated Poisson, `ShadowCasterFaces`, split depth/normal bias — then PCSS so a torch's shadow softens with distance | **1–2 weeks** — mostly shader and parameters; PCSS adds a blocker-search tap | Converts "we have point shadows and they do not" into "our point shadows are good", which is the far harder claim to catch |
+| 3 | **Volumetric light from a torch.** Ray march sampling the same cube atlas: dusty shafts, correctly occluded | **2–4 weeks** — new pass, dithered march, half-res plus upsample for cost | The visual signature. Uncopyable without steps 0–1 first; their god rays are structurally sun-only |
+| 4 | **Baked interior irradiance** (probes / irradiance volumes) | **4–8 weeks**, and the riskiest — bake tooling, placement, runtime sampling | Their IBL is environment lighting, which is to say outdoors. An interior needs this or a PBR render never looks finished |
+
+Estimates are rough — call them ±50% — and assume one engineer who already
+knows this code. They are sized against what is already here, not against a
+green field.
+
+### Deliberately not doing
+
+- **Web.** Large, they have it, and a dungeon does not need it.
+- **Our own physics and audio.** These are disqualifiers — no game ships without
+  them — but writing them spends the differentiation budget on ground where
+  there is none to gain. Integrate instead: **physics 2–4 weeks, audio 1–3
+  weeks** to bind and wire, against months to author.
+- **Material DSL, Gaussian splats, a scene format.** Catch-up moves by
+  definition.
+
+### The one breadth item we still have to take
+
+**Mipmaps and a compressed texture format** — 3–6 weeks, with an unknown to
+resolve first. Everything minification-aliases without them, and prefiltered
+specular (hence step 4) is gated on them. RESEARCH.md §7 records that this
+channel has no mip chain at all, yet they ship `mipmap.dart`, `mipmap_async.dart`
+and transcoders for ASTC/BC1/BC3/ETC2. **Read how they did it before planning
+the work** — it could be much cheaper or much dearer than it looks, and that
+answer changes the order of everything after it.
+
+### Positioning
+
+Not "a 3D engine for Flutter" — that fight is lost — but **an engine for games
+with dynamic light in enclosed spaces**. We are first there and the gap widens
+on its own.
+
+One asset worth naming: we have **a real game driving the engine**.
+`flutter_scene` is an engine in search of games. Every feature here is checked
+against a product, which is how three defects surfaced in a single sitting.
+
+## 5. State of the shadow work
+
+Done on this branch, in order: the atlas fills all four rows (one pass, one
+clear); the golden that claimed to cover point shadows was recording the
+directional map and now covers the atlas; a second golden gives four lights a
+row each; the sample is held half a texel inside its tile so a bilinear tap
+cannot cross into the next face; the `PointShadow` block is no longer bound to
+Unlit, which kept none of it and failed the bind.
+
+A note on how all four hid: the goldens were run only for the scenes judged
+affected. Every one of these was found by running the whole suite once.
