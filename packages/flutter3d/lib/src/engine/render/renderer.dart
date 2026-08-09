@@ -56,6 +56,7 @@ final class RenderSettings {
     this.tonemap = true,
     this.bloom = const BloomSettings(),
     this.shadows = const ShadowSettings(),
+    this.surfaceBuffer = false,
   });
 
   final double specular;
@@ -87,6 +88,15 @@ final class RenderSettings {
   final BloomSettings bloom;
 
   final ShadowSettings shadows;
+
+  /// Whether the scene pass writes its second attachment: world-space normal
+  /// and depth, for a screen-space effect to read.
+  ///
+  /// Off by default because it costs a store per pixel and nothing reads it
+  /// unless asked. The shaders write it either way — a pipeline may declare
+  /// more outputs than its target has attachments — so this is purely whether
+  /// anybody is listening.
+  final bool surfaceBuffer;
 
   RenderSettings copyWith({
     double? specular,
@@ -439,6 +449,8 @@ final class Renderer implements PluginServices {
   gpu.Texture? _hdrColor;
   gpu.Texture? _hdrMsaa;
   gpu.Texture? _ldrColor;
+  gpu.Texture? _surfaceColor;
+  gpu.Texture? _surfaceMsaa;
   gpu.Texture? _depthStencil;
 
   /// The HDR format, chosen once. Half floats rather than full: the extra range
@@ -582,6 +594,28 @@ final class Renderer implements PluginServices {
       enableRenderTargetUsage: true,
       enableShaderReadUsage: true,
     );
+
+    // The surface buffer: world-space normal and depth, for whatever runs after
+    // the scene. Allocated with the rest rather than on demand, because a
+    // resize is the only moment any of this is allowed to be reallocated and a
+    // buffer that appears mid-session would be the one that is the wrong size.
+    _surfaceColor = gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: hdrFormat,
+      enableRenderTargetUsage: true,
+      enableShaderReadUsage: true,
+    );
+    _surfaceMsaa = msaaEnabled
+        ? gpu.gpuContext.createTexture(
+            gpu.StorageMode.deviceTransient,
+            width,
+            height,
+            format: hdrFormat,
+            sampleCount: 4,
+          )
+        : null;
 
     _depthStencil = gpu.gpuContext.createTexture(
       gpu.StorageMode.deviceTransient,
@@ -1405,8 +1439,30 @@ final class Renderer implements PluginServices {
             clearValue: clear,
           );
 
-    final renderTarget = gpu.RenderTarget.singleColor(
-      colorAttachment,
+    // Attached only when something wants it. A pipeline may declare more
+    // outputs than the target has attachments — the extra is discarded — so
+    // the shaders write the surface unconditionally and this decides whether
+    // anyone is listening. See RESEARCH.md.
+    final surface = settings.surfaceBuffer ? _surfaceColor : null;
+    final surfaceAttachment = surface == null
+        ? null
+        : (msaa == null
+            ? gpu.ColorAttachment(
+                texture: surface,
+                clearValue: vm.Vector4.zero(),
+              )
+            : gpu.ColorAttachment(
+                texture: _surfaceMsaa!,
+                resolveTexture: surface,
+                storeAction: gpu.StoreAction.multisampleResolve,
+                clearValue: vm.Vector4.zero(),
+              ));
+
+    final renderTarget = gpu.RenderTarget(
+      colorAttachments: <gpu.ColorAttachment>[
+        colorAttachment,
+        if (surfaceAttachment != null) surfaceAttachment,
+      ],
       depthStencilAttachment: gpu.DepthStencilAttachment(
         texture: _depthStencil!,
         // Standard depth: clear to the far plane, nearer fragments win.
