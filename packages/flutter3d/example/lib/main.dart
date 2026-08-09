@@ -205,6 +205,10 @@ class _SpikePageState extends State<SpikePage>
   bool _culling = true;
   DebugDrawOptions _debug =
       GoldenRunner.fromEnvironment()?.scene.debug ?? debugDrawFromEnvironment();
+  /// Set only by a golden that wants to look at the surface buffer.
+  final bool _showSurfaceBuffer =
+      GoldenRunner.fromEnvironment()?.scene.surfaceBuffer ?? false;
+
   BloomSettings _bloom = BloomSettings(
     enabled: GoldenRunner.fromEnvironment()?.scene.bloom ?? true,
   );
@@ -722,6 +726,7 @@ class _SpikePageState extends State<SpikePage>
                             // transform would corrupt it: a normal encoded as
                             // RGB has no business being rolled off or exposed.
                             tonemap: _lighting != LightingModel.normals,
+                            showSurfaceBuffer: _showSurfaceBuffer,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;

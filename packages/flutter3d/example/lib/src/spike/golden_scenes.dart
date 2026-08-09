@@ -25,6 +25,7 @@ final class GoldenScene {
     this.height = 360,
     this.particles = false,
     this.viewModel = false,
+    this.surfaceBuffer = false,
   });
 
   /// File name, without an extension, under `test/goldens/`.
@@ -35,6 +36,10 @@ final class GoldenScene {
 
   /// Draws a held box over the finished scene, in its own pass.
   final bool viewModel;
+
+  /// Shows the scene pass's second attachment — world-space normal in rgb,
+  /// depth in alpha — instead of the lit image.
+  final bool surfaceBuffer;
 
   /// Matched against a model chip label by substring, as `FLUTTER3D_SOURCE` is.
   final String source;
@@ -181,6 +186,23 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     bloom: false,
     ground: false,
     viewModel: true,
+  ),
+  // The surface buffer, which nothing samples yet and which therefore nobody
+  // had looked at. A picture of it is the only way to find out whether the
+  // normals are right side up before an effect starts reflecting off them —
+  // and pinning it means the next change to WriteSurface cannot quietly
+  // scramble it.
+  //
+  // No tone map and no bloom: a normal encoded as a colour is not a light
+  // value, and a curve applied to one turns a wrong answer into a plausible
+  // picture. The renderer forces both off for this view.
+  const GoldenScene(
+    name: 'surface-buffer',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    surfaceBuffer: true,
   ),
 ];
 

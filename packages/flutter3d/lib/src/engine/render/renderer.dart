@@ -57,6 +57,7 @@ final class RenderSettings {
     this.bloom = const BloomSettings(),
     this.shadows = const ShadowSettings(),
     this.surfaceBuffer = false,
+    this.showSurfaceBuffer = false,
   });
 
   final double specular;
@@ -97,6 +98,21 @@ final class RenderSettings {
   /// more outputs than its target has attachments — so this is purely whether
   /// anybody is listening.
   final bool surfaceBuffer;
+
+  /// Composites the surface buffer instead of the scene.
+  ///
+  /// The only way to find out whether the normals in it are right side up
+  /// before something starts reflecting off them. Tone mapping and exposure
+  /// are skipped for it: a normal encoded as a colour is not a light value,
+  /// and a tone curve applied to one turns a wrong answer into a plausible
+  /// picture.
+  ///
+  /// Implies [surfaceBuffer]; asking to see a buffer nobody filled would show
+  /// whatever was in the texture last.
+  final bool showSurfaceBuffer;
+
+  /// Whether the scene pass should write the surface buffer at all.
+  bool get needsSurfaceBuffer => surfaceBuffer || showSurfaceBuffer;
 
   RenderSettings copyWith({
     double? specular,
@@ -1443,7 +1459,7 @@ final class Renderer implements PluginServices {
     // outputs than the target has attachments — the extra is discarded — so
     // the shaders write the surface unconditionally and this decides whether
     // anyone is listening. See RESEARCH.md.
-    final surface = settings.surfaceBuffer ? _surfaceColor : null;
+    final surface = settings.needsSurfaceBuffer ? _surfaceColor : null;
     final surfaceAttachment = surface == null
         ? null
         : (msaa == null
@@ -1727,9 +1743,11 @@ final class Renderer implements PluginServices {
     pass.setDepthWriteEnable(false);
     pass.setDepthCompareOperation(gpu.CompareFunction.always);
 
-    _compositeParams[0] = settings.exposure;
-    _compositeParams[1] = bloom == null ? 0.0 : settings.bloom.intensity;
-    _compositeParams[2] = settings.tonemap ? 1.0 : 0.0;
+    final showingSurface = settings.showSurfaceBuffer;
+    _compositeParams[0] = showingSurface ? 1.0 : settings.exposure;
+    _compositeParams[1] =
+        showingSurface || bloom == null ? 0.0 : settings.bloom.intensity;
+    _compositeParams[2] = showingSurface || !settings.tonemap ? 0.0 : 1.0;
 
     pass.bindPipeline(
       _postPipeline(_compositePipeline, compositeShader,
@@ -1741,7 +1759,7 @@ final class Renderer implements PluginServices {
       pass,
       compositeShader,
       _kSceneTextureSlot,
-      scene,
+      showingSurface ? (_surfaceColor ?? scene) : scene,
       _clampSampler,
     );
     // With bloom off there is still a sampler to satisfy, and the scene itself
