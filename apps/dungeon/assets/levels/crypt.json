@@ -95,7 +95,7 @@
   "lights": [
     { "type": "point", "at": [-6.0, 2.9, 8], "color": [1.0, 0.68, 0.34], "intensity": 6.5, "range": 13, "name": "entry_torch" },
     { "type": "point", "at": [-2.0, 2.9, -6], "color": [1.0, 0.68, 0.34], "intensity": 5.0, "range": 11, "name": "corridor_torch" },
-    { "type": "point", "at": [-9.0, 2.9, -18], "color": [1.0, 0.70, 0.36], "intensity": 7.0, "range": 15, "castsShadow": true, "name": "pillar_torch" },
+    { "type": "point", "at": [-9.0, 2.9, -18], "color": [1.0, 0.70, 0.36], "intensity": 7.0, "range": 15, "name": "pillar_torch" },
     { "type": "point", "at": [6, 3.2, -28], "color": [0.55, 0.75, 1.0], "intensity": 20, "range": 16, "name": "cold_window" },
     { "type": "point", "at": [13, 2.9, 2.6], "color": [1.0, 0.66, 0.30], "intensity": 5.0, "range": 9, "name": "passage_torch" },
     { "type": "point", "at": [8.15, 4.6, -28], "color": [1.0, 0.72, 0.38], "intensity": 15, "range": 10, "name": "gallery_lamp" },

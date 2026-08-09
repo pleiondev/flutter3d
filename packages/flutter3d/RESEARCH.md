@@ -374,6 +374,14 @@ choose an engine.
       static half of a point light's shadow can be rendered once at load rather
       than every frame, leaving only monsters and doors to redraw. That may cut
       the whole thing to nearly free, and it is the first thing to try.
+      **Second finding, from looking:** with the atlas sampled, a torch casts a
+      black slab across the floor rather than the shape of the thing in front of
+      it. A shadow that is a wide band instead of a silhouette means a whole
+      region is being compared against something unrelated — that is, the face
+      chosen from the direction is reading the wrong tile. The prime suspect is
+      the vertical axis: tiles are placed by viewport `y` and read by texture
+      `v`, and if those run opposite then the top row of faces reads the bottom
+      row. Check that before anything else; the fix is one sign.
       **First question answered:** a mid-pass viewport change does take effect —
       two casters drawn into two halves of one map give two images. So the cost
       is one pass per light with sixfold vertex work, not six passes. What is

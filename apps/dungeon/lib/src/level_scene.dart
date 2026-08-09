@@ -222,6 +222,10 @@ final class LevelLoader {
       color: light.color,
       intensity: light.intensity,
       range: light.range,
+      // The second place this flag was dropped. It travels from the document
+      // to LevelLight and stopped here, so a light marked as a caster in the
+      // level has never been one in the scene.
+      castsShadow: light.castsShadow,
       name: light.name,
     )..setPositionFrom(light.position);
 
