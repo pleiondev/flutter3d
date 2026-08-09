@@ -1,6 +1,10 @@
 import 'package:vector_math/vector_math.dart';
 
 import '../actors/monster.dart';
+import '../physics/collider.dart';
+import '../physics/collision_shape.dart';
+import '../world/mover.dart';
+import '../world/signals.dart';
 import 'level.dart';
 import 'level_issue.dart';
 import 'spawn_context.dart';
@@ -43,6 +47,55 @@ abstract base class EntityKind {
   /// — a spawn point is a coordinate somebody reads, and a torch is a light the
   /// level already carries.
   void spawn(EntityDef entity, SpawnContext context) {}
+
+  /// Puts the box this entity brings with it into the world.
+  ///
+  /// On the base class for the same reason [requireTarget] is: five kinds place
+  /// a box of their own, and five copies of the same six lines is five chances
+  /// to get the layer wrong.
+  Collider place(
+    EntityDef entity,
+    SpawnContext context, {
+    required ColliderKind kind,
+    int layer = CollisionLayers.world,
+    int mask = CollisionLayers.all,
+    Vector3? fallbackSize,
+  }) {
+    final size = entity.vector('size') ?? fallbackSize ?? Vector3.all(1.0);
+    return context.world.add(
+      Collider(
+        shape: CollisionBox(size / 2.0),
+        position: entity.position,
+        kind: kind,
+        layer: layer,
+        mask: mask,
+      ),
+    );
+  }
+
+  /// Reports that an entity which has to occupy space does not say how much.
+  void requireSize(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final size = entity.vector('size');
+    if (size == null) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'has no "size", so there would be nothing there',
+          where: scope.describe(entity),
+        ),
+      );
+      return;
+    }
+    if (size.x <= 0.0 || size.y <= 0.0 || size.z <= 0.0) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'has a size of ${size.x} x ${size.y} x ${size.z}',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+  }
 
   /// Reports that a named reference does not resolve.
   ///
@@ -176,6 +229,7 @@ abstract final class EntityTypes {
   static const String key = 'key';
   static const String door = 'door';
   static const String lift = 'lift';
+  static const String platform = 'platform';
   static const String button = 'button';
   static const String trigger = 'trigger';
   static const String note = 'note';
@@ -291,9 +345,36 @@ final class PickupKind extends EntityKind {
 final class KeyKind extends EntityKind {
   const KeyKind() : super(EntityTypes.key);
 
+  /// Small enough to walk past without collecting by accident, big enough to
+  /// walk into on purpose.
+  static final Vector3 defaultSize = Vector3(0.4, 0.4, 0.4);
+
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     requireText(entity, scope, out, 'color');
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final colour = entity.string('color');
+    if (colour == null) return;
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.trigger,
+      layer: CollisionLayers.pickup,
+      mask: CollisionLayers.player,
+      fallbackSize: defaultSize,
+    );
+    final pickup = context.mechanisms.add(
+      KeyPickup(name: entity.name, colour: colour, collider: collider),
+    );
+    context.reveal(
+      entity,
+      collider,
+      mechanism: pickup,
+      size: entity.vector('size') ?? defaultSize,
+    );
   }
 }
 
@@ -304,6 +385,25 @@ final class DoorKind extends EntityKind {
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     requireKeyExists(entity, scope, out);
     requireTravel(entity, scope, out);
+    requireSize(entity, scope, out);
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final travel = entity.vector('travel');
+    if (travel == null) return;
+    final collider = place(entity, context, kind: ColliderKind.kinematic);
+    final door = context.mechanisms.add(
+      Door(
+        name: entity.name,
+        collider: collider,
+        travel: travel,
+        speed: entity.number('speed') ?? Door.defaultSpeed,
+        wait: entity.number('wait') ?? Door.defaultWait,
+        key: entity.string('key'),
+      ),
+    );
+    context.reveal(entity, collider, mechanism: door);
   }
 }
 
@@ -313,16 +413,96 @@ final class LiftKind extends EntityKind {
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     requireTravel(entity, scope, out);
+    requireSize(entity, scope, out);
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final travel = entity.vector('travel');
+    if (travel == null) return;
+    final collider = place(entity, context, kind: ColliderKind.kinematic);
+    final lift = context.mechanisms.add(
+      Lift(
+        name: entity.name,
+        collider: collider,
+        travel: travel,
+        speed: entity.number('speed') ?? Lift.defaultSpeed,
+        wait: entity.number('wait') ?? Lift.defaultWait,
+      ),
+    );
+    context.reveal(entity, collider, mechanism: lift);
+  }
+}
+
+/// Moves on its own timetable rather than waiting to be called.
+final class PlatformKind extends EntityKind {
+  const PlatformKind() : super(EntityTypes.platform);
+
+  @override
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    requireTravel(entity, scope, out);
+    requireSize(entity, scope, out);
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final travel = entity.vector('travel');
+    if (travel == null) return;
+    final collider = place(entity, context, kind: ColliderKind.kinematic);
+    final platform = context.mechanisms.add(
+      Platform(
+        name: entity.name,
+        collider: collider,
+        travel: travel,
+        speed: entity.number('speed') ?? Platform.defaultSpeed,
+        wait: entity.number('wait') ?? Platform.defaultWait,
+      ),
+    );
+    // So a row of them does not move as one slab.
+    platform.offsetBy(entity.number('phase') ?? 0.0);
+    context.reveal(entity, collider, mechanism: platform);
   }
 }
 
 final class ButtonKind extends EntityKind {
   const ButtonKind() : super(EntityTypes.button);
 
+  /// A panel, not a block: a button is something on a wall.
+  static final Vector3 defaultSize = Vector3(0.6, 0.6, 0.15);
+
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     requireTarget(entity, scope, out);
     requireKeyExists(entity, scope, out);
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final target = entity.string('target');
+    if (target == null) return;
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.trigger,
+      layer: CollisionLayers.trigger,
+      mask: CollisionLayers.player,
+      fallbackSize: defaultSize,
+    );
+    final button = context.mechanisms.add(
+      Button(
+        name: entity.name,
+        target: target,
+        collider: collider,
+        once: entity.flag('once'),
+        key: entity.string('key'),
+      ),
+    );
+    context.reveal(
+      entity,
+      collider,
+      mechanism: button,
+      size: entity.vector('size') ?? defaultSize,
+    );
   }
 }
 
@@ -332,16 +512,35 @@ final class TriggerKind extends EntityKind {
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     requireTarget(entity, scope, out);
-    final size = entity.vector('size');
-    if (size == null) {
-      out.add(
-        LevelIssue(
-          LevelIssueSeverity.error,
-          'has no "size", so there is no volume to step into',
-          where: scope.describe(entity),
-        ),
-      );
-    }
+    requireSize(entity, scope, out);
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final target = entity.string('target');
+    if (target == null) return;
+    // Monsters can be allowed to set a trigger off, which is how an ambush
+    // works, but the default is the player alone — otherwise the first monster
+    // to wander through the room springs every trap in it.
+    final who = entity.flag('anyone')
+        ? CollisionLayers.player | CollisionLayers.monster
+        : CollisionLayers.player;
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.trigger,
+      layer: CollisionLayers.trigger,
+      mask: who,
+    );
+    // Invisible by design, so no fixture is reported.
+    context.mechanisms.add(
+      TriggerVolume(
+        name: entity.name,
+        target: target,
+        collider: collider,
+        once: entity.flag('once', orElse: true),
+      ),
+    );
   }
 }
 
@@ -386,6 +585,7 @@ final class EntityRegistry {
     const KeyKind(),
     const DoorKind(),
     const LiftKind(),
+    const PlatformKind(),
     const ButtonKind(),
     const TriggerKind(),
     const NoteKind(),

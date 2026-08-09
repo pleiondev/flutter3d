@@ -1,21 +1,64 @@
+import 'package:vector_math/vector_math.dart';
+
 import '../actors/monster.dart';
 import '../actors/monster_system.dart';
+import '../physics/collider.dart';
 import '../physics/collision_world.dart';
+import '../world/mechanism.dart';
+import 'level.dart';
+
+/// A piece of level geometry that an entity brought with it.
+///
+/// Doors, lifts, platforms, buttons and keys all place a box that the player
+/// has to be able to see. The simulation places it; something has to draw it;
+/// and the two must not be the same code, or the game engine ends up importing
+/// the renderer. So the engine reports a fixture and the application decides
+/// what a fixture looks like.
+final class Fixture {
+  Fixture({
+    required this.entity,
+    required this.collider,
+    required Vector3 size,
+    required this.material,
+    this.mechanism,
+  }) : size = size.clone();
+
+  /// What the document said, for anything the application wants that the
+  /// engine did not think to pass on.
+  final EntityDef entity;
+
+  /// The body in the world. Its `position` is where to draw, and it keeps
+  /// moving after this is reported — that is the whole point of a lift.
+  final Collider collider;
+
+  final Vector3 size;
+
+  /// Name of an entry in the level's materials.
+  final String material;
+
+  /// What runs it, when anything does. Null for scenery.
+  final Mechanism? mechanism;
+
+  Vector3 get position => collider.position;
+}
 
 /// What an entity is given when it is asked to become real.
 ///
-/// Grows a field per system as the game does — pickups, doors and triggers will
-/// each add one. A context rather than a long parameter list because every
-/// [EntityKind.spawn] takes the same set and most kinds use one of it.
+/// Grows a field per system as the game does. A context rather than a long
+/// parameter list because every [EntityKind.spawn] takes the same set and most
+/// kinds use one of it.
 final class SpawnContext {
   SpawnContext({
     required this.world,
     required this.monsters,
+    required this.mechanisms,
     this.onMonsterSpawned,
+    this.onFixture,
   });
 
   final CollisionWorld world;
   final MonsterSystem monsters;
+  final MechanismWorld mechanisms;
 
   /// Told about each monster as it appears.
   ///
@@ -24,4 +67,30 @@ final class SpawnContext {
   /// it a callback rather than having the spawner build one is what stops the
   /// game engine from needing the renderer.
   final void Function(Monster monster)? onMonsterSpawned;
+
+  /// Told about each box an entity placed. See [Fixture].
+  final void Function(Fixture fixture)? onFixture;
+
+  /// Reports a fixture, reading its size and material off the entity.
+  ///
+  /// On the context rather than at each call site so the five kinds that place
+  /// a box cannot disagree about which property holds the material.
+  void reveal(
+    EntityDef entity,
+    Collider collider, {
+    Mechanism? mechanism,
+    Vector3? size,
+  }) {
+    final hook = onFixture;
+    if (hook == null) return;
+    hook(
+      Fixture(
+        entity: entity,
+        collider: collider,
+        size: size ?? entity.vector('size') ?? Vector3.all(1.0),
+        material: entity.string('material') ?? 'default',
+        mechanism: mechanism,
+      ),
+    );
+  }
 }

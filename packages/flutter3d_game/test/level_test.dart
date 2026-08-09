@@ -178,6 +178,7 @@ void main() {
             properties: <String, Object?>{
               'key': 'red',
               'travel': <double>[0.0, 4.0, 0.0],
+              'size': <double>[2.0, 4.0, 0.3],
             },
           ),
           EntityDef(

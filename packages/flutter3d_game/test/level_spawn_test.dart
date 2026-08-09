@@ -40,6 +40,7 @@ Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
     SpawnContext(
       world: world,
       monsters: monsters,
+      mechanisms: MechanismWorld(world),
       onMonsterSpawned: seen.add,
     ),
   );
@@ -205,7 +206,11 @@ void main() {
       );
 
       level.spawnInto(
-        SpawnContext(world: world, monsters: monsters),
+        SpawnContext(
+          world: world,
+          monsters: monsters,
+          mechanisms: MechanismWorld(world),
+        ),
         registry: EntityRegistry(<EntityKind>[const PlayerSpawnKind()]),
       );
 

@@ -12,6 +12,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/effects.dart';
 import 'src/level_scene.dart';
+import 'src/fixture_visuals.dart';
 import 'src/monster_visuals.dart';
 import 'src/weapon_view.dart';
 
@@ -130,6 +131,16 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _right = Vector3.zero();
   final Vector3 _wish = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
+
+  MechanismWorld? _mechanisms;
+  FixtureVisuals? _fixtureVisuals;
+
+  /// What the player is carrying. Stage 9's inventory will take this over.
+  final KeyRing _keys = KeyRing();
+
+  /// The last thing the level said, and how long it has left on screen.
+  String _message = '';
+  double _messageFor = 0.0;
   final Vector3 _muzzle = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
@@ -172,6 +183,8 @@ class _GameScreenState extends State<GameScreen>
         projectiles: projectiles,
       );
       final visuals = MonsterVisuals(loaded.scene);
+      final mechanisms = MechanismWorld(loaded.collision);
+      final fixtures = FixtureVisuals(loaded.scene, loaded.level.materials);
 
       // The level's entities become actors. Which entity becomes what is the
       // entity kind's business, in flutter3d_game; all the application supplies
@@ -181,7 +194,9 @@ class _GameScreenState extends State<GameScreen>
         SpawnContext(
           world: loaded.collision,
           monsters: monsters,
+          mechanisms: mechanisms,
           onMonsterSpawned: visuals.add,
+          onFixture: fixtures.add,
         ),
       );
       final body = CharacterController(
@@ -190,6 +205,9 @@ class _GameScreenState extends State<GameScreen>
         // player's feet go, which is the only place an author can see.
         position: (start?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0),
       );
+      // What the player is carrying hangs off their collider, so a locked door
+      // can read it without the physics knowing that keys exist.
+      body.collider.userData = _keys;
 
       if (!mounted) return;
       setState(() {
@@ -198,6 +216,8 @@ class _GameScreenState extends State<GameScreen>
         _projectiles = projectiles;
         _monsters = monsters;
         _monsterVisuals = visuals;
+        _mechanisms = mechanisms;
+        _fixtureVisuals = fixtures;
         _shot = WeaponShot(
           world: loaded.collision,
           hitscan: hitscan,
@@ -242,6 +262,7 @@ class _GameScreenState extends State<GameScreen>
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
     _monsterVisuals?.sync();
+    _fixtureVisuals?.sync();
     setState(() {});
   }
 
@@ -272,6 +293,13 @@ class _GameScreenState extends State<GameScreen>
 
     if (_input.pressed(GameAction.jump)) body.requestJump();
 
+    // Doors and lifts move first, and the world is re-indexed before the player
+    // sweeps against them: a lift indexed one step late is a lift you can walk
+    // through, and one that has not moved yet cannot carry you.
+    final mechanisms = _mechanisms;
+    mechanisms?.step(dt);
+    loaded.collision.reindex();
+
     body.step(
       dt,
       wishDirection: _wish,
@@ -280,6 +308,12 @@ class _GameScreenState extends State<GameScreen>
 
     loaded.collision.update();
     loaded.collision.clearKinematicDeltas();
+
+    if (mechanisms != null) {
+      if (_input.pressed(GameAction.use)) _use(body, mechanisms);
+      _collectMessages(mechanisms);
+    }
+    if (_messageFor > 0.0) _messageFor = math.max(0.0, _messageFor - dt);
 
     _updateWeapon(dt, body);
 
@@ -320,6 +354,50 @@ class _GameScreenState extends State<GameScreen>
     _particles.step(dt);
 
     _smoothedPosition.push(body.position);
+  }
+
+  /// A hand on whatever the crosshair is pointing at.
+  ///
+  /// A ray rather than a proximity test, so two buttons on the same wall are
+  /// separately pressable and so the answer matches what the player believes
+  /// they are aiming at.
+  void _use(CharacterController body, MechanismWorld mechanisms) {
+    _eye
+      ..setFrom(body.position)
+      ..y += _eyeOffset;
+    _aim.setValues(
+      -math.sin(_yaw) * math.cos(_pitch),
+      math.sin(_pitch),
+      -math.cos(_yaw) * math.cos(_pitch),
+    );
+
+    final target = mechanisms.underCrosshair(
+      _eye,
+      _aim,
+      ignore: body.collider,
+    );
+    if (target == null) return;
+    _say(target.activate(mechanisms.activationBy(body.collider)).message);
+  }
+
+  /// Anything the level said to the player during the physics step.
+  ///
+  /// A trigger fires from inside the collision dispatch, where there is nobody
+  /// to return an outcome to, so it parks one and this collects it.
+  void _collectMessages(MechanismWorld mechanisms) {
+    for (final mechanism in mechanisms.all) {
+      if (mechanism is TriggerVolume) {
+        _say(mechanism.takeOutcome()?.message);
+      } else if (mechanism is KeyPickup && mechanism.justTaken) {
+        _say('Picked up the ${mechanism.colour} key.');
+      }
+    }
+  }
+
+  void _say(String? message) {
+    if (message == null) return;
+    _message = message;
+    _messageFor = 3.0;
   }
 
   /// Firing, and the hands that hold the weapon.
@@ -504,6 +582,9 @@ class _GameScreenState extends State<GameScreen>
                 health: _playerHealth,
                 kills: _kills,
                 monstersLeft: _monsters?.aliveCount ?? 0,
+                message: _message,
+                messageOpacity: (_messageFor / 0.6).clamp(0.0, 1.0),
+                keys: _keys.keys,
               ),
             ],
           ),
@@ -593,6 +674,13 @@ class _ImagePainter extends CustomPainter {
   bool shouldRepaint(_ImagePainter oldDelegate) => true;
 }
 
+/// The colours the HUD draws a carried key in.
+const Map<String, Color> _keyPips = <String, Color>{
+  'blue': Color(0xFF3A6BF2),
+  'red': Color(0xFFE52E29),
+  'yellow': Color(0xFFF2D133),
+};
+
 class _Hud extends StatelessWidget {
   const _Hud({
     required this.captured,
@@ -608,6 +696,9 @@ class _Hud extends StatelessWidget {
     required this.health,
     required this.kills,
     required this.monstersLeft,
+    required this.message,
+    required this.messageOpacity,
+    required this.keys,
   });
 
   final bool captured;
@@ -628,6 +719,15 @@ class _Hud extends StatelessWidget {
   final Health health;
   final int kills;
   final int monstersLeft;
+
+  /// The last thing the level said — a locked door, a key collected.
+  final String message;
+
+  /// Fades over the last part of the message's life rather than vanishing.
+  final double messageOpacity;
+
+  /// What the player is carrying, drawn as coloured pips.
+  final Set<String> keys;
 
   @override
   Widget build(BuildContext context) {
@@ -747,6 +847,51 @@ class _Hud extends StatelessWidget {
             ),
           ),
         ),
+        // Above the crosshair rather than at the bottom of the screen: it
+        // answers something the player just did, and their eyes are here.
+        if (messageOpacity > 0.0 && message.isNotEmpty)
+          Align(
+            alignment: const Alignment(0.0, -0.35),
+            child: Opacity(
+              opacity: messageOpacity,
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Color(0xFFF2E4C8),
+                  fontSize: 17.0,
+                  shadows: <Shadow>[Shadow(blurRadius: 6.0)],
+                ),
+              ),
+            ),
+          ),
+
+        if (keys.isNotEmpty)
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 84.0),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (final key in keys)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: SizedBox(
+                        width: 14.0,
+                        height: 22.0,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: _keyPips[key] ?? Colors.white70,
+                            borderRadius: BorderRadius.circular(3.0),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
         if (!captured)
           const Align(
             alignment: Alignment.bottomCenter,
@@ -754,7 +899,7 @@ class _Hud extends StatelessWidget {
               padding: EdgeInsets.all(24.0),
               child: Text(
                 'Click to look around  ·  WASD to move  ·  Space to jump  ·  '
-                'Shift to sprint  ·  Esc to release the pointer',
+                'E to use  ·  Esc to release the pointer',
                 style: TextStyle(color: Colors.white54),
               ),
             ),

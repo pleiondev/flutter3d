@@ -85,6 +85,9 @@ final class CollisionWorld {
   /// Colliders that ask to be told what they touch.
   final List<Collider> _reporters = <Collider>[];
 
+  /// Scratch copy of [_reporters], walked while callbacks run.
+  final List<Collider> _reporting = <Collider>[];
+
   /// Pairs overlapping as of the last [update], so the next one can tell a
   /// start from a continuation from an end.
   Set<int> _overlapping = <int>{};
@@ -108,6 +111,7 @@ final class CollisionWorld {
 
   /// Adds a collider and returns it, so the call can be inlined into a field.
   Collider add(Collider collider) {
+    collider.world = this;
     collider.refreshBounds();
     _ids[collider] = _nextId++;
 
@@ -121,6 +125,28 @@ final class CollisionWorld {
     return collider;
   }
 
+  /// Keeps the reporter list in step with a collider whose listener changed.
+  ///
+  /// Called by [Collider]'s listener setter. See the note there: a listener
+  /// attached after the collider joined the world is the normal case.
+  void refreshReporter(Collider collider) {
+    if (collider.listener != null) {
+      if (!_reporters.contains(collider)) _reporters.add(collider);
+    } else {
+      _reporters.remove(collider);
+    }
+  }
+
+  /// Removes [collider] once the current step's callbacks have finished.
+  ///
+  /// [remove] renumbers the very lists the overlap dispatch is walking, and the
+  /// grid holds indices into them. A pickup collecting itself does exactly that
+  /// from inside a callback, which is common enough to deserve a safe door
+  /// rather than a warning in a doc comment.
+  void removeLater(Collider collider) => _pendingRemoval.add(collider);
+
+  final List<Collider> _pendingRemoval = <Collider>[];
+
   /// Convenience for level geometry, which is authored as centre plus size.
   Collider addBox(Vector3 centre, Vector3 size, {Object? userData}) => add(
         Collider(
@@ -131,6 +157,7 @@ final class CollisionWorld {
       );
 
   void remove(Collider collider) {
+    collider.world = null;
     _movers.remove(collider);
     _reporters.remove(collider);
     if (_statics.remove(collider)) _reindexStatics();
@@ -148,6 +175,7 @@ final class CollisionWorld {
     _nextOverlapping.clear();
     _pairA.clear();
     _pairB.clear();
+    _pendingRemoval.clear();
     _nextId = 0;
   }
 
@@ -155,9 +183,23 @@ final class CollisionWorld {
   ///
   /// Called once per simulation step, after everything has moved. Before, and a
   /// trigger reports where things were rather than where they are.
+  /// Re-indexes everything that moves, without firing any callbacks.
+  ///
+  /// Separate from [update] because a step has two moving halves: the doors and
+  /// lifts go first, and the character controller has to sweep against where
+  /// they are now rather than where they were last step — a lift indexed one
+  /// step late is a lift a fast player can pass through.
+  void reindex() => _rebuildMoverGrid();
+
   void update() {
     _rebuildMoverGrid();
     _dispatchOverlaps();
+    if (_pendingRemoval.isNotEmpty) {
+      for (final collider in _pendingRemoval) {
+        remove(collider);
+      }
+      _pendingRemoval.clear();
+    }
   }
 
   /// Clears the per-step motion of every kinematic body.
@@ -191,7 +233,14 @@ final class CollisionWorld {
   void _dispatchOverlaps() {
     _nextOverlapping.clear();
 
-    for (final reporter in _reporters) {
+    // Over a copy, because a callback is allowed to attach or detach a
+    // listener — a key that has just been collected does — and that would
+    // otherwise be a modification of the list being walked.
+    _reporting
+      ..clear()
+      ..addAll(_reporters);
+
+    for (final reporter in _reporting) {
       final min = reporter.bounds.min;
       final max = reporter.bounds.max;
       _staticGrid.forEachInBox(min, max, (int i) {

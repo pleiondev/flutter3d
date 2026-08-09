@@ -1,6 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
 import 'collision_shape.dart';
+import 'collision_world.dart';
 
 /// How a collider takes part in the world.
 ///
@@ -72,9 +73,13 @@ final class Collider {
     this.kind = ColliderKind.static,
     this.layer = CollisionLayers.world,
     this.mask = CollisionLayers.all,
-    this.listener,
+    CollisionListener? listener,
     this.userData,
-  }) : position = position?.clone() ?? Vector3.zero();
+  }) : position = position?.clone() ?? Vector3.zero() {
+    // Through the field rather than the setter: there is no world to notify
+    // yet, and the setter would be a call into nothing.
+    _listener = listener;
+  }
 
   CollisionShape shape;
 
@@ -89,11 +94,30 @@ final class Collider {
   /// Which layers this collider tests against.
   int mask;
 
+  /// The world this collider is in, once it has been added to one.
+  ///
+  /// Assigned by [CollisionWorld.add] and cleared by its remove. Public only
+  /// because the two are in different files.
+  CollisionWorld? world;
+
+  CollisionListener? _listener;
+
   /// Told what this collider touches, if anything wants to know.
   ///
   /// Null for the overwhelming majority — every brush in the level — and the
   /// world only walks colliders that have one, so silence is free.
-  CollisionListener? listener;
+  CollisionListener? get listener => _listener;
+
+  /// Attaching one after the collider is already in the world has to be heard.
+  ///
+  /// It is the normal case, not the exception: a mechanism wraps a collider the
+  /// level reader placed a moment earlier, and before this was a setter that
+  /// trigger never fired and nothing said so.
+  set listener(CollisionListener? value) {
+    if (identical(_listener, value)) return;
+    _listener = value;
+    world?.refreshReporter(this);
+  }
 
   /// Whatever the game wants to find its way back to: a monster, a pickup, the
   /// definition of the door this collider belongs to.
