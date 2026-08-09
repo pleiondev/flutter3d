@@ -27,6 +27,10 @@ generator: the mirror variant's tangents come from a real exporter, so comparing
 against them is comparing against the rest of the ecosystem rather than against
 our own derivation.
 
+The files in `f3d/` are those same models converted by `tool/convert_asset.dart`
+into the engine's own container. They are derived works of the sources above and
+carry the same licences.
+
 **Check the licences in the upstream repositories before redistributing any of
 this.** They are not reproduced here because the Khronos files carry different
 licences per model, and the teapot's has to be checked separately.

@@ -32,3 +32,5 @@ flutter:
     - assets/samples/
     - assets/samples/cube/
     - assets/samples/animated_cube/
+    # Produced by tool/convert_asset.dart; see README.
+    - assets/samples/f3d/

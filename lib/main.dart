@@ -77,6 +77,13 @@ final List<SceneSource> kSources = <SceneSource>[
   ),
   // The Utah teapot: positions and faces only, so its normals are generated.
   const ModelFileSource('obj: Teapot', 'assets/samples/teapot.obj'),
+  // The same three models through the engine's own container. They exist next
+  // to their sources on purpose: switching between "obj: Teapot" and
+  // "f3d: Teapot" should show the same picture, and the load time in the panel
+  // below is the whole argument for the format.
+  const ModelFileSource('f3d: Teapot', 'assets/samples/f3d/teapot.f3d'),
+  const ModelFileSource('f3d: Textured', 'assets/samples/f3d/BoxTextured.f3d'),
+  const ModelFileSource('f3d: Animated', 'assets/samples/f3d/BoxAnimated.f3d'),
 ];
 
 /// Surface of revolution from an arbitrary profile: a vase silhouette.

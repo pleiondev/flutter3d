@@ -413,8 +413,13 @@ choose an engine.
 - [ ] **P1** Loading in an **`Isolate`**: JSON parsing, image decoding, decompression — all off
       the UI thread, handed over via `TransferableTypedData`. Otherwise loading janks.
 - [ ] **P1** An asset cache with ref counting, load cancellation, progress.
-- [ ] **P2** **Our own binary scene format** (flatbuffers, like `.fsceneb`) + an offline converter:
-      zero-parse loading instead of parsing glTF at runtime.
+- [x] **P2** **Our own binary scene format** (flatbuffers, like `.fsceneb`) + an offline converter:
+      zero-parse loading instead of parsing glTF at runtime. `.f3d`, written by hand rather than
+      with flatbuffers — the schema is small and fixed, and the dependency would buy nothing the
+      section directory does not. Vertex and index arrays are stored exactly as `MeshData` holds
+      them, so the loader hands out views over the file bytes instead of copies. Measured on the
+      teapot: **4.54 ms as OBJ against 1.1 us as `.f3d`**, and the two render pixel for pixel
+      identically.
 - [ ] **P2** Textures: mip chains, sRGB flags, KTX2 → ⚠️ find out whether master has compressed
       `PixelFormat`s; if not — transcoding to RGBA8 and honest memory accounting.
 - [ ] **P2** HDR/EXR for environment maps, equirect → cubemap conversion.

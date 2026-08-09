@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../geometry/geometry.dart';
+import 'f3d/f3d.dart';
 import 'gltf/gltf.dart';
 import 'obj/obj.dart';
 
@@ -114,6 +115,9 @@ enum ModelFormat {
   auto,
   gltf,
   obj,
+
+  /// The engine's own container, produced by `tool/convert_asset.dart`.
+  f3d,
 }
 
 /// Everything a decode needs, in one sendable object.
@@ -247,6 +251,11 @@ Future<ModelDocument> decodeModelBytes(
 
   final Future<ModelDocument> decoded;
   switch (format) {
+    case ModelFormat.f3d:
+      // Synchronous and essentially free: the header is read and everything
+      // else becomes a view over these bytes when it is asked for.
+      decoded = Future<ModelDocument>.value(F3dDocument.parse(bytes));
+
     case ModelFormat.obj:
       decoded = ObjLoader(
         layout: request.layout,
@@ -269,6 +278,7 @@ ModelFormat _resolveFormat(ModelLoadRequest request, Uint8List bytes) {
   if (request.format != ModelFormat.auto) return request.format;
 
   final name = request.source.fileName.toLowerCase();
+  if (name.endsWith('.f3d')) return ModelFormat.f3d;
   if (name.endsWith('.obj')) return ModelFormat.obj;
   if (name.endsWith('.gltf') || name.endsWith('.glb')) return ModelFormat.gltf;
 
@@ -277,6 +287,8 @@ ModelFormat _resolveFormat(ModelLoadRequest request, Uint8List bytes) {
 
 /// Guesses a format from the leading bytes.
 ModelFormat sniffModelFormat(Uint8List bytes) {
+  if (isF3dFile(bytes)) return ModelFormat.f3d;
+
   // 'glTF' little-endian magic marks a GLB container.
   if (bytes.length >= 4 &&
       bytes[0] == 0x67 &&

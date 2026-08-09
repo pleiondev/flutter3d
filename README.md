@@ -12,6 +12,10 @@ What works today:
   profile (the "vase"); shapes are values (`Shape`), not static methods;
 - six **switchable lighting models**, each its own pre-built fragment shader:
   Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon, Normals;
+- **`.f3d`**, the engine's own container: an offline converter does the decoding
+  once and the loader hands out typed-data views over the file, which takes the
+  teapot from 4.54 ms as OBJ to 1.1 us — with the two renders identical pixel
+  for pixel;
 - **a BVH** over world bounds, shared by culling and picking and rebuilt only
   when something moves, plus **LOD groups** that switch by screen coverage;
 - **directional shadows**: the pass is a render view whose camera is the light,
@@ -52,9 +56,9 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 382 tests — geometry, projection, scene, sorting, debug draw, intersections,
-  raycasting, animation, lighting, tangents, render targets, BVH, LOD, glTF and
-  OBJ — all without a GPU.
+- 400 tests — geometry, projection, scene, sorting, debug draw, intersections,
+  raycasting, animation, lighting, tangents, render targets, BVH, LOD, glTF, OBJ
+  and `.f3d` — all without a GPU.
 
 ## Running
 
@@ -162,6 +166,39 @@ The sample models in `assets/samples/` are the official Khronos
 cover all three ways of storing the data. See
 [assets/samples/ATTRIBUTION.md](assets/samples/ATTRIBUTION.md).
 
+## The `.f3d` container
+
+`docs/FFI-analysis.md` measured the decoders and found the format matters far
+more than the language: the same geometry is about 360x slower to load as OBJ
+text than as a binary buffer, and native code does not close that. `.f3d` moves
+the parse off the device entirely.
+
+```bash
+dart run tool/convert_asset.dart assets/samples/teapot.obj \
+  -o assets/samples/f3d/teapot.f3d
+```
+
+Vertex and index arrays are stored exactly as `MeshData` holds them, so loading
+builds `Float32List.view`s over the file rather than copies — every blob entry
+is 4-byte aligned precisely so those views are legal. A section directory rather
+than fixed header fields, so a reader skips a kind it does not know and the
+version only has to change when an existing record does.
+
+It slots in without touching anything: `F3dDocument` is a `ModelDocument`, so
+`ModelAsset.fromDocument`, the resource cache and instancing are all unchanged —
+which is what that abstraction was introduced for. The converter re-reads what it
+wrote and compares it against the source before reporting success.
+
+| teapot | load |
+|---|---|
+| OBJ (parse, dedup, smooth normals) | 4.54 ms |
+| `.f3d`, every array touched | 1.1 us |
+
+The file is larger than its source — 102 KB against 69 KB for the teapot —
+because indices stay 32-bit and nothing is compressed. That is the trade the
+format is making: narrowing indices or deflating the blob would reintroduce the
+per-load work it exists to remove.
+
 ## Pitfalls already hit
 
 None of these are project setup — they are conditions without which Flutter GPU
@@ -206,14 +243,15 @@ shaders/
   flutter3d.shaderbundle.json   bundle manifest
 tool/build_shaders.sh           calls impellerc directly, no Native Assets
 tool/bench/bench.dart           the AOT benchmark behind docs/FFI-analysis.md
+tool/convert_asset.dart         glTF / GLB / OBJ -> .f3d, run offline
 lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
 lib/src/engine/animation/       clips, tracks, sampling, the player
 lib/src/engine/math/            ray intersections, allocation-free
 lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
-lib/src/engine/assets/          glTF and OBJ decoders, isolate loading, cache
+lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
-test/                           382 tests, all runnable without a GPU
+test/                           400 tests, all runnable without a GPU
 ```
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing
