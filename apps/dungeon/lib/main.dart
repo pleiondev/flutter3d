@@ -55,14 +55,20 @@ class _GameScreenState extends State<GameScreen>
   /// being defined.
   static const double _pitchLimit = math.pi / 2.0 - 0.01;
 
-  static const double _walkSpeed = 6.0;
-  static const double _sprintSpeed = 10.0;
-  static const double _eyeHeight = 1.7;
 
   final InputState _input = InputState();
   late final DesktopInput _devices;
   late final GameLoop _loop;
   late final Ticker _ticker;
+
+  /// The same room as the scene, in the shape the simulation understands.
+  ///
+  /// Built alongside the meshes rather than derived from them: a renderer mesh
+  /// is triangles and a collider is a brush, and keeping one authored list that
+  /// produces both is what stops the two from drifting apart. When the level
+  /// format arrives it will be that list.
+  final CollisionWorld _collision = CollisionWorld();
+  late final CharacterController _body;
 
   final Scene _scene = Scene();
   final CameraNode _camera = CameraNode(name: 'player');
@@ -70,8 +76,9 @@ class _GameScreenState extends State<GameScreen>
   Renderer? _renderer;
   Object? _initError;
 
-  /// The player's eye position, as the simulation knows it.
-  final Vector3 _position = Vector3(0.0, _eyeHeight, 6.0);
+  /// How far the eye sits above the centre of the player's box.
+  static const double _eyeOffset = 0.7;
+
   final InterpolatedVector3 _smoothedPosition = InterpolatedVector3();
 
   double _yaw = 0.0;
@@ -85,6 +92,7 @@ class _GameScreenState extends State<GameScreen>
   // easiest way to hand the collector work it does not need.
   final Vector3 _forward = Vector3.zero();
   final Vector3 _right = Vector3.zero();
+  final Vector3 _wish = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
 
@@ -99,9 +107,14 @@ class _GameScreenState extends State<GameScreen>
       drainLook: _devices.drainLook,
     );
 
-    _smoothedPosition.jumpTo(_position);
     _view = RenderView(camera: _camera);
     _buildRoom();
+
+    _body = CharacterController(
+      world: _collision,
+      position: Vector3(0.0, 0.95, 6.0),
+    );
+    _smoothedPosition.jumpTo(_body.position);
 
     try {
       _renderer = Renderer.create(
@@ -134,21 +147,43 @@ class _GameScreenState extends State<GameScreen>
       roughness: 0.85,
     );
 
-    final floor = GpuMesh.upload(
-      CuboidShape(size: Vector3(40.0, 0.5, 40.0)).build(),
-    );
+    final floorSize = Vector3(40.0, 0.5, 40.0);
+    final floorAt = Vector3(0.0, -0.25, 0.0);
     _scene.add(
-      MeshNode(floor, stone, name: 'floor')..setPosition(0.0, -0.25, 0.0),
+      MeshNode(GpuMesh.upload(CuboidShape(size: floorSize).build()), stone,
+          name: 'floor')
+        ..setPositionFrom(floorAt),
     );
+    _collision.addBox(floorAt, floorSize);
 
-    final pillar = GpuMesh.upload(
-      CuboidShape(size: Vector3(1.5, 4.0, 1.5)).build(),
-    );
+    // One mesh, eight nodes: the geometry is uploaded once and instanced by
+    // reference, which is all the instancing flutter_gpu offers.
+    final pillarSize = Vector3(1.5, 4.0, 1.5);
+    final pillarMesh = GpuMesh.upload(CuboidShape(size: pillarSize).build());
     for (var i = 0; i < 8; i++) {
       final angle = i / 8.0 * 2.0 * math.pi;
+      final at = Vector3(math.cos(angle) * 9.0, 2.0, math.sin(angle) * 9.0);
       _scene.add(
-        MeshNode(pillar, stone, name: 'pillar$i')
-          ..setPosition(math.cos(angle) * 9.0, 2.0, math.sin(angle) * 9.0),
+        MeshNode(pillarMesh, stone, name: 'pillar$i')..setPositionFrom(at),
+      );
+      _collision.addBox(at, pillarSize);
+    }
+
+    // Something to climb, so the step-up and the jump are reachable without a
+    // level: a short flight of stairs and the ledge they lead to.
+    final stepMesh = GpuMesh.upload(
+      CuboidShape(size: Vector3(4.0, 0.3, 1.2)).build(),
+    );
+    for (var i = 0; i < 5; i++) {
+      final at = Vector3(0.0, 0.15 + i * 0.3, -3.0 - i * 1.2);
+      _scene.add(
+        MeshNode(stepMesh, stone, name: 'step$i')..setPositionFrom(at),
+      );
+      // The collider is a solid block down to the floor, not a floating slab:
+      // a stair with a gap under it is a stair the player can fall into.
+      _collision.addBox(
+        Vector3(at.x, (0.3 + i * 0.3) / 2.0, at.z),
+        Vector3(4.0, 0.3 + i * 0.3, 1.2),
       );
     }
 
@@ -196,22 +231,32 @@ class _GameScreenState extends State<GameScreen>
     _pitch = (_pitch - _input.lookDelta.y * _lookSensitivity)
         .clamp(-_pitchLimit, _pitchLimit);
 
-    final speed = _input.held(GameAction.sprint) ? _sprintSpeed : _walkSpeed;
-    final axis = _input.moveAxis;
-
     // Movement follows the yaw only. Walking forward while looking at the floor
     // must not drive the player into it — that is what a fly camera does, and
-    // it is not what a first-person one should.
+    // not what a first-person one should.
+    final axis = _input.moveAxis;
     final sin = math.sin(_yaw);
     final cos = math.cos(_yaw);
     _forward.setValues(-sin, 0.0, -cos);
     _right.setValues(cos, 0.0, -sin);
+    _wish.setValues(
+      _forward.x * axis.y + _right.x * axis.x,
+      0.0,
+      _forward.z * axis.y + _right.z * axis.x,
+    );
 
-    _position
-      ..x += (_forward.x * axis.y + _right.x * axis.x) * speed * dt
-      ..z += (_forward.z * axis.y + _right.z * axis.x) * speed * dt;
+    if (_input.pressed(GameAction.jump)) _body.requestJump();
 
-    _smoothedPosition.push(_position);
+    _body.step(
+      dt,
+      wishDirection: _wish,
+      sprint: _input.held(GameAction.sprint),
+    );
+
+    _collision.update();
+    _collision.clearKinematicDeltas();
+
+    _smoothedPosition.push(_body.position);
   }
 
   @override
@@ -263,7 +308,8 @@ class _GameScreenState extends State<GameScreen>
                 fps: _fps,
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,
-                position: _position,
+                position: _body.position,
+                grounded: _body.isGrounded,
               ),
             ],
           ),
@@ -279,6 +325,7 @@ class _GameScreenState extends State<GameScreen>
   /// show the same place and then jump.
   void _placeCamera() {
     _smoothedPosition.read(_loop.alpha, _eye);
+    _eye.y += _eyeOffset;
 
     final cosPitch = math.cos(_pitch);
     _target
@@ -353,6 +400,7 @@ class _Hud extends StatelessWidget {
     required this.steps,
     required this.dropped,
     required this.position,
+    required this.grounded,
   });
 
   final bool captured;
@@ -360,6 +408,7 @@ class _Hud extends StatelessWidget {
   final int steps;
   final int dropped;
   final Vector3 position;
+  final bool grounded;
 
   @override
   Widget build(BuildContext context) {
@@ -394,7 +443,9 @@ class _Hud extends StatelessWidget {
                 Text('fps ${fps.toStringAsFixed(0)}   '
                     'steps this frame $steps   dropped $dropped'),
                 Text('x ${position.x.toStringAsFixed(1)}  '
-                    'z ${position.z.toStringAsFixed(1)}'),
+                    'y ${position.y.toStringAsFixed(1)}  '
+                    'z ${position.z.toStringAsFixed(1)}  '
+                    '${grounded ? 'grounded' : 'airborne'}'),
               ],
             ),
           ),
@@ -405,8 +456,8 @@ class _Hud extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(24.0),
               child: Text(
-                'Click to look around  ·  WASD to move  ·  Shift to sprint  ·  '
-                'Esc to release the pointer',
+                'Click to look around  ·  WASD to move  ·  Space to jump  ·  '
+                'Shift to sprint  ·  Esc to release the pointer',
                 style: TextStyle(color: Colors.white54),
               ),
             ),

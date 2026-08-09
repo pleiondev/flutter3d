@@ -1,0 +1,604 @@
+import 'dart:math' as math;
+
+import 'package:flutter3d_game/src/physics/character_controller.dart';
+import 'package:flutter3d_game/src/physics/collider.dart';
+import 'package:flutter3d_game/src/physics/collision_shape.dart';
+import 'package:flutter3d_game/src/physics/collision_world.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
+
+const double _dt = 1.0 / 60.0;
+
+/// Half the player: 0.7 m across, 1.8 m tall.
+final Vector3 _playerHalf = Vector3(0.35, 0.9, 0.35);
+
+/// A floor at y = 0 with walls around it.
+CollisionWorld _room({double size = 20.0, bool walls = true}) {
+  final world = CollisionWorld();
+  world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(size, 1.0, size));
+  if (walls) {
+    final half = size / 2.0;
+    world.addBox(Vector3(half, 2.0, 0.0), Vector3(1.0, 4.0, size));
+    world.addBox(Vector3(-half, 2.0, 0.0), Vector3(1.0, 4.0, size));
+    world.addBox(Vector3(0.0, 2.0, half), Vector3(size, 4.0, 1.0));
+    world.addBox(Vector3(0.0, 2.0, -half), Vector3(size, 4.0, 1.0));
+  }
+  return world;
+}
+
+CharacterController _player(CollisionWorld world, {Vector3? at}) =>
+    CharacterController(
+      world: world,
+      shape: CollisionBox(_playerHalf),
+      position: at ?? Vector3(0.0, 0.9, 0.0),
+    );
+
+/// Runs [steps] steps, walking in [direction].
+void _walk(
+  CharacterController player,
+  int steps, {
+  Vector3? direction,
+  bool sprint = false,
+}) {
+  final wish = direction ?? Vector3.zero();
+  for (var i = 0; i < steps; i++) {
+    player.step(_dt, wishDirection: wish, sprint: sprint);
+    player.world.update();
+  }
+}
+
+void main() {
+  group('walking', () {
+    test('settles onto the floor and stays there', () {
+      final world = _room();
+      final player = _player(world, at: Vector3(0.0, 3.0, 0.0));
+
+      _walk(player, 120);
+
+      expect(player.isGrounded, isTrue);
+      // The box is 1.8 m tall, so its centre rests at 0.9 above the floor.
+      expect(player.position.y, closeTo(0.9, 0.02));
+    });
+
+    test('walks forward and gets somewhere', () {
+      final world = _room();
+      final player = _player(world);
+      _walk(player, 30);
+
+      _walk(player, 60, direction: Vector3(0.0, 0.0, -1.0));
+
+      expect(player.position.z, lessThan(-3.0));
+      expect(player.position.x, closeTo(0.0, 1e-6));
+    });
+
+    test('stops at a wall instead of passing through it', () {
+      final world = _room(size: 10.0);
+      final player = _player(world);
+      _walk(player, 30);
+
+      _walk(player, 300, direction: Vector3(0.0, 0.0, -1.0), sprint: true);
+
+      // The inner face of the far wall is at z = -4.5; the player's half-depth
+      // keeps their centre 0.35 short of it.
+      expect(player.position.z, greaterThan(-4.9));
+      expect(player.position.z, lessThan(-4.0));
+    });
+
+    test('slides along a wall met at an angle', () {
+      final world = _room(size: 10.0);
+      final player = _player(world);
+      _walk(player, 30);
+
+      final start = player.position.x;
+      // Into the far wall at 45 degrees: blocked in z, free in x.
+      _walk(player, 120, direction: Vector3(1.0, 0.0, -1.0)..normalize());
+
+      expect(player.position.x, greaterThan(start + 2.0));
+    });
+
+    test('a corner neither traps nor ejects', () {
+      final world = _room(size: 10.0);
+      final player = _player(world);
+      _walk(player, 30);
+
+      _walk(player, 400, direction: Vector3(1.0, 0.0, -1.0)..normalize());
+
+      // Wedged into the corner and still inside the room.
+      expect(player.position.x, lessThan(4.9));
+      expect(player.position.z, greaterThan(-4.9));
+      expect(player.position.x, greaterThan(3.5));
+      expect(player.position.z, lessThan(-3.5));
+    });
+
+    test('a gap narrower than the player does not let them through', () {
+      final world = _room();
+      // Two blocks leaving a 0.5 m slot, against a 0.7 m player.
+      world.addBox(Vector3(1.0, 2.0, -3.0), Vector3(1.5, 4.0, 1.0));
+      world.addBox(Vector3(-1.0, 2.0, -3.0), Vector3(1.5, 4.0, 1.0));
+
+      final player = _player(world);
+      _walk(player, 30);
+      _walk(player, 300, direction: Vector3(0.0, 0.0, -1.0), sprint: true);
+
+      expect(player.position.z, greaterThan(-2.5));
+    });
+
+    test('diagonal movement is not faster than straight movement', () {
+      final world = _room(size: 200.0, walls: false);
+      final straight = _player(world);
+      _walk(straight, 30);
+      _walk(straight, 120, direction: Vector3(0.0, 0.0, -1.0));
+      final straightDistance = straight.position.z.abs();
+
+      final diagonal = _player(world, at: Vector3(50.0, 0.9, 0.0));
+      _walk(diagonal, 30);
+      _walk(diagonal, 120, direction: Vector3(1.0, 0.0, -1.0)..normalize());
+      final dx = diagonal.position.x - 50.0;
+      final dz = diagonal.position.z;
+      final diagonalDistance = math.sqrt(dx * dx + dz * dz);
+
+      expect(diagonalDistance, closeTo(straightDistance, 0.1));
+    });
+
+    test('sprinting is faster than walking', () {
+      final world = _room(size: 200.0, walls: false);
+      final walker = _player(world);
+      _walk(walker, 30);
+      _walk(walker, 120, direction: Vector3(0.0, 0.0, -1.0));
+
+      final runner = _player(world, at: Vector3(50.0, 0.9, 0.0));
+      _walk(runner, 30);
+      _walk(runner, 120, direction: Vector3(0.0, 0.0, -1.0), sprint: true);
+
+      expect(runner.position.z.abs(), greaterThan(walker.position.z.abs() + 3));
+    });
+  });
+
+  group('inertia', () {
+    test('speed builds up rather than appearing at once', () {
+      final world = _room(size: 200.0, walls: false);
+      final player = _player(world);
+      _walk(player, 30);
+
+      player.step(_dt, wishDirection: Vector3(0.0, 0.0, -1.0));
+      final afterOne = player.velocity.z.abs();
+
+      _walk(player, 30, direction: Vector3(0.0, 0.0, -1.0));
+      final atSpeed = player.velocity.z.abs();
+
+      expect(afterOne, lessThan(atSpeed * 0.5));
+      expect(atSpeed, closeTo(6.0, 0.2));
+    });
+
+    test('letting go brings the player to a stop', () {
+      final world = _room(size: 200.0, walls: false);
+      final player = _player(world);
+      _walk(player, 30);
+      _walk(player, 60, direction: Vector3(0.0, 0.0, -1.0));
+
+      _walk(player, 60);
+
+      expect(player.velocity.x, closeTo(0.0, 1e-6));
+      expect(player.velocity.z, closeTo(0.0, 1e-6));
+    });
+
+    test('control in the air is weaker than on the ground', () {
+      final world = _room(size: 200.0, walls: false);
+
+      final grounded = _player(world);
+      _walk(grounded, 30);
+      grounded.step(_dt, wishDirection: Vector3(1.0, 0.0, 0.0));
+      final groundGain = grounded.velocity.x;
+
+      final airborne = _player(world, at: Vector3(50.0, 20.0, 0.0));
+      airborne.step(_dt, wishDirection: Vector3.zero());
+      airborne.step(_dt, wishDirection: Vector3(1.0, 0.0, 0.0));
+      final airGain = airborne.velocity.x;
+
+      expect(airGain, greaterThan(0.0));
+      expect(airGain, lessThan(groundGain));
+    });
+  });
+
+  group('falling', () {
+    test('a long drop does not pass through the floor', () {
+      // The point of sweeping rather than stepping: from this height the last
+      // step before impact covers half a metre.
+      final world = _room(size: 40.0, walls: false);
+      final player = _player(world, at: Vector3(0.0, 60.0, 0.0));
+
+      _walk(player, 600);
+
+      expect(player.position.y, closeTo(0.9, 0.02));
+      expect(player.isGrounded, isTrue);
+    });
+
+    test('falling speed is capped', () {
+      final world = CollisionWorld();
+      final player = _player(world, at: Vector3(0.0, 0.0, 0.0));
+
+      _walk(player, 600);
+
+      expect(player.velocity.y, greaterThanOrEqualTo(-55.0));
+    });
+  });
+
+  group('stairs', () {
+    CollisionWorld stairsWorld(double height) {
+      final world = _room(size: 40.0, walls: false);
+      world.addBox(
+        Vector3(0.0, height / 2.0, -3.0),
+        Vector3(6.0, height, 2.0),
+      );
+      return world;
+    }
+
+    test('a low step is walked over', () {
+      final world = stairsWorld(0.3);
+      final player = _player(world);
+      _walk(player, 30);
+
+      // Thirty-five steps at walking pace stops in the middle of the ledge,
+      // which spans z from -4 to -2. Running longer walks off the far side and
+      // measures the drop instead of the climb.
+      _walk(player, 35, direction: Vector3(0.0, 0.0, -1.0));
+
+      expect(player.position.z, lessThan(-2.5));
+      expect(player.position.y, closeTo(1.2, 0.05));
+      expect(player.isGrounded, isTrue);
+    });
+
+    test('a step taller than the limit is a wall', () {
+      final world = stairsWorld(0.6);
+      final player = _player(world);
+      _walk(player, 30);
+
+      _walk(player, 180, direction: Vector3(0.0, 0.0, -1.0));
+
+      expect(player.position.z, greaterThan(-2.0));
+      expect(player.position.y, closeTo(0.9, 0.05));
+    });
+
+    test('stepping up does not fire when there is no headroom', () {
+      final world = stairsWorld(0.3);
+      // A ceiling low enough that standing on the step would not fit.
+      world.addBox(Vector3(0.0, 2.05, -3.0), Vector3(6.0, 0.5, 2.0));
+
+      final player = _player(world);
+      _walk(player, 30);
+      _walk(player, 180, direction: Vector3(0.0, 0.0, -1.0));
+
+      expect(player.position.z, greaterThan(-2.0));
+    });
+  });
+
+  group('jumping', () {
+    test('a jump leaves the ground', () {
+      final world = _room(size: 40.0, walls: false);
+      final player = _player(world);
+      _walk(player, 30);
+
+      player.requestJump();
+      _walk(player, 10);
+
+      expect(player.position.y, greaterThan(1.4));
+      expect(player.isGrounded, isFalse);
+    });
+
+    test('and comes back down', () {
+      final world = _room(size: 40.0, walls: false);
+      final player = _player(world);
+      _walk(player, 30);
+
+      player.requestJump();
+      _walk(player, 200);
+
+      expect(player.position.y, closeTo(0.9, 0.02));
+      expect(player.isGrounded, isTrue);
+    });
+
+    test('there is no second jump in mid-air', () {
+      final world = _room(size: 40.0, walls: false);
+      final player = _player(world);
+      _walk(player, 30);
+
+      player.requestJump();
+      _walk(player, 15);
+      final apexBefore = player.position.y;
+
+      player.requestJump();
+      _walk(player, 2);
+
+      // Still rising or falling under gravity, not launched again.
+      expect(player.velocity.y, lessThan(8.0));
+      expect(player.position.y, lessThan(apexBefore + 0.5));
+    });
+
+    test('coyote time lets a jump work just after leaving an edge', () {
+      final world = CollisionWorld();
+      // A ledge ending at z = 0.
+      world.addBox(Vector3(0.0, -0.5, 2.0), Vector3(6.0, 1.0, 4.0));
+
+      final player = _player(world, at: Vector3(0.0, 0.9, 0.5));
+      _walk(player, 30);
+      expect(player.isGrounded, isTrue);
+
+      // Walk off the end, then ask to jump a few steps later — inside the
+      // coyote window but well after the ground was lost.
+      _walk(player, 12, direction: Vector3(0.0, 0.0, -1.0));
+      expect(player.isGrounded, isFalse);
+
+      player.requestJump();
+      final before = player.velocity.y;
+      _walk(player, 1);
+
+      expect(player.velocity.y, greaterThan(before));
+      expect(player.velocity.y, greaterThan(5.0));
+    });
+
+    test('the window closes, so it is not a free jump forever', () {
+      final world = CollisionWorld();
+      world.addBox(Vector3(0.0, -0.5, 2.0), Vector3(6.0, 1.0, 4.0));
+
+      final player = _player(world, at: Vector3(0.0, 0.9, 0.5));
+      _walk(player, 30);
+      _walk(player, 40, direction: Vector3(0.0, 0.0, -1.0));
+
+      player.requestJump();
+      _walk(player, 1);
+
+      expect(player.velocity.y, lessThan(0.0));
+    });
+
+    test('a jump asked for just before landing still happens', () {
+      final world = _room(size: 40.0, walls: false);
+      // A tenth of a metre up, which is about five steps of falling — inside
+      // the buffer, and far enough that the request lands while airborne.
+      final player = _player(world, at: Vector3(0.0, 1.0, 0.0));
+
+      _walk(player, 1);
+      expect(player.isGrounded, isFalse);
+
+      player.requestJump();
+      _walk(player, 12);
+
+      expect(player.position.y, greaterThan(1.5));
+    });
+
+    test('a jump asked for too early is forgotten, not stored', () {
+      final world = _room(size: 40.0, walls: false);
+      final player = _player(world, at: Vector3(0.0, 6.0, 0.0));
+
+      player.requestJump();
+      // Long enough for the buffer to lapse well before the landing.
+      _walk(player, 120);
+
+      expect(player.isGrounded, isTrue);
+      expect(player.position.y, closeTo(0.9, 0.02));
+    });
+
+    test('a jump into a low ceiling stops without sticking', () {
+      final world = _room(size: 40.0, walls: false);
+      world.addBox(Vector3(0.0, 2.4, 0.0), Vector3(6.0, 0.4, 6.0));
+
+      final player = _player(world);
+      _walk(player, 30);
+      player.requestJump();
+      _walk(player, 8);
+
+      // The ceiling's underside is at 2.2, so the centre cannot pass 1.3.
+      expect(player.position.y, lessThan(1.35));
+
+      // And the player comes back down rather than hanging there.
+      _walk(player, 120);
+      expect(player.position.y, closeTo(0.9, 0.02));
+      expect(player.isGrounded, isTrue);
+    });
+  });
+
+  group('moving platforms', () {
+    test('a rising platform lifts its passenger', () {
+      final world = CollisionWorld();
+      final platform = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 0.5, 2.0)),
+          position: Vector3(0.0, -0.5, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+
+      final player = _player(world, at: Vector3(0.0, 0.9, 0.0));
+      _walk(player, 20);
+      expect(player.isGrounded, isTrue);
+      expect(player.groundBody, same(platform));
+
+      final startY = player.position.y;
+      for (var i = 0; i < 60; i++) {
+        platform.moveTo(platform.position + Vector3(0.0, 0.02, 0.0));
+        player.step(_dt, wishDirection: Vector3.zero());
+        world.update();
+        world.clearKinematicDeltas();
+      }
+
+      expect(player.position.y, closeTo(startY + 1.2, 0.05));
+    });
+
+    test('a sideways platform carries its passenger', () {
+      final world = CollisionWorld();
+      final platform = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 0.5, 2.0)),
+          position: Vector3(0.0, -0.5, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+
+      final player = _player(world, at: Vector3(0.0, 0.9, 0.0));
+      _walk(player, 20);
+
+      for (var i = 0; i < 60; i++) {
+        platform.moveTo(platform.position + Vector3(0.03, 0.0, 0.0));
+        player.step(_dt, wishDirection: Vector3.zero());
+        world.update();
+        world.clearKinematicDeltas();
+      }
+
+      // Carried, and still on the platform rather than left behind its edge.
+      expect(player.position.x, closeTo(1.8, 0.1));
+      expect(player.isGrounded, isTrue);
+    });
+
+    test('a descending platform does not leave the player behind', () {
+      final world = CollisionWorld();
+      final platform = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 0.5, 2.0)),
+          position: Vector3(0.0, 9.5, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+
+      final player = _player(world, at: Vector3(0.0, 10.9, 0.0));
+      _walk(player, 20);
+
+      for (var i = 0; i < 120; i++) {
+        platform.moveTo(platform.position + Vector3(0.0, -0.04, 0.0));
+        player.step(_dt, wishDirection: Vector3.zero());
+        world.update();
+        world.clearKinematicDeltas();
+      }
+
+      // Riding it down, not floating above where it used to be.
+      expect(player.position.y - platform.position.y, closeTo(1.4, 0.1));
+    });
+
+    test('a platform closing on the player does not push them through', () {
+      final world = _room(size: 20.0, walls: false);
+      final ceiling = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(3.0, 0.5, 3.0)),
+          position: Vector3(0.0, 6.0, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+
+      final player = _player(world);
+      _walk(player, 20);
+
+      for (var i = 0; i < 200; i++) {
+        ceiling.moveTo(ceiling.position + Vector3(0.0, -0.03, 0.0));
+        player.step(_dt, wishDirection: Vector3.zero());
+        world.update();
+        world.clearKinematicDeltas();
+      }
+
+      // Squashed against the floor, and above it. Being pushed through would
+      // put the player under the level, which is unrecoverable.
+      expect(player.position.y, greaterThan(0.0));
+    });
+  });
+
+  group('the stress test', () {
+    test('a thousand runs never end inside geometry', () {
+      // Point tests find the failures somebody thought of. This finds the ones
+      // nobody did: the wedge that ejects, the corner that swallows, the seam
+      // between two brushes that a sweep slips through. It is the single most
+      // valuable test in this file.
+      final world = _room(size: 30.0);
+
+      // Pillars, steps and a low ceiling, to give the sweep awkward company.
+      for (var i = 0; i < 12; i++) {
+        final angle = i / 12.0 * 2.0 * math.pi;
+        world.addBox(
+          Vector3(math.cos(angle) * 8.0, 2.0, math.sin(angle) * 8.0),
+          Vector3(1.2, 4.0, 1.2),
+        );
+      }
+      for (var i = 0; i < 5; i++) {
+        world.addBox(
+          Vector3(0.0, 0.15 + i * 0.3, -2.0 - i * 1.2),
+          Vector3(4.0, 0.3 + i * 0.6, 1.2),
+        );
+      }
+      world.addBox(Vector3(4.0, 2.3, 4.0), Vector3(5.0, 0.4, 5.0));
+
+      final random = math.Random(20260809);
+      final probe = <Collider>[];
+      var worstIntrusion = 0.0;
+
+      for (var run = 0; run < 1000; run++) {
+        final player = _player(
+          world,
+          at: Vector3(
+            (random.nextDouble() - 0.5) * 24.0,
+            1.0 + random.nextDouble() * 6.0,
+            (random.nextDouble() - 0.5) * 24.0,
+          ),
+        );
+
+        var angle = random.nextDouble() * 2.0 * math.pi;
+        for (var i = 0; i < 90; i++) {
+          // Turn now and then, so runs do not all end pressed against one wall.
+          if (i % 15 == 0) angle += (random.nextDouble() - 0.5) * 2.0;
+          if (random.nextDouble() < 0.05) player.requestJump();
+
+          player.step(
+            _dt,
+            wishDirection: Vector3(math.cos(angle), 0.0, math.sin(angle)),
+            sprint: random.nextDouble() < 0.5,
+          );
+          world.update();
+        }
+
+        // Inside the room, on the right side of the floor.
+        expect(
+          player.position.y,
+          greaterThan(-0.5),
+          reason: 'run $run fell through the floor',
+        );
+        expect(
+          player.position.x.abs(),
+          lessThan(15.5),
+          reason: 'run $run escaped through a wall',
+        );
+        expect(
+          player.position.z.abs(),
+          lessThan(15.5),
+          reason: 'run $run escaped through a wall',
+        );
+
+        // And not embedded in a brush. A little intrusion is inevitable — the
+        // controller sits a millimetre off every surface it touches — so the
+        // bar is that nothing is *deeply* inside.
+        world.overlap(
+          CollisionBox(_playerHalf * 0.9),
+          player.position,
+          probe,
+          ignore: player.collider,
+          includeTriggers: false,
+        );
+        if (probe.isNotEmpty) {
+          for (final other in probe) {
+            final overlapX = (_playerHalf.x * 0.9 + other.shape.boundsHalfExtents.x) -
+                (player.position.x - other.position.x).abs();
+            final overlapZ = (_playerHalf.z * 0.9 + other.shape.boundsHalfExtents.z) -
+                (player.position.z - other.position.z).abs();
+            final overlapY = (_playerHalf.y * 0.9 + other.shape.boundsHalfExtents.y) -
+                (player.position.y - other.position.y).abs();
+            final shallowest = math.min(overlapX, math.min(overlapY, overlapZ));
+            if (shallowest > worstIntrusion) worstIntrusion = shallowest;
+          }
+        }
+
+        world.remove(player.collider);
+      }
+
+      expect(
+        worstIntrusion,
+        lessThan(0.05),
+        reason: 'a run ended ${worstIntrusion.toStringAsFixed(3)} m inside a '
+            'brush, which is deep enough to be a bug rather than skin width',
+      );
+    });
+  });
+}

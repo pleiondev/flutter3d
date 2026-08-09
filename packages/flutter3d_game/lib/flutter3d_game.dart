@@ -18,3 +18,8 @@ export 'src/input/input_state.dart';
 export 'src/loop/fixed_step.dart';
 export 'src/loop/game_loop.dart';
 export 'src/loop/interpolated.dart';
+export 'src/physics/character_controller.dart';
+export 'src/physics/collider.dart';
+export 'src/physics/collision_shape.dart';
+export 'src/physics/collision_world.dart';
+export 'src/physics/spatial_grid.dart';
