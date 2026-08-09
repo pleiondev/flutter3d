@@ -14,6 +14,7 @@ library;
 
 export 'src/combat/hitscan.dart';
 export 'src/combat/weapon.dart';
+export 'src/combat/weapon_behaviour.dart';
 export 'src/input/desktop_input.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
@@ -22,7 +23,9 @@ export 'src/loop/game_loop.dart';
 export 'src/level/brush_geometry.dart';
 export 'src/level/json_reader.dart';
 export 'src/level/level.dart';
+export 'src/level/entity_kind.dart';
 export 'src/level/level_collision.dart';
+export 'src/level/level_issue.dart';
 export 'src/level/level_validator.dart';
 export 'src/loop/interpolated.dart';
 export 'src/physics/character_controller.dart';

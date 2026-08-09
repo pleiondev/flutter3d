@@ -51,7 +51,7 @@ final class LevelLoader {
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
     // twenty minutes in is worse than not starting.
-    const validator = LevelValidator();
+    final validator = LevelValidator();
     validator.assertValid(level);
 
     final scene = Scene();

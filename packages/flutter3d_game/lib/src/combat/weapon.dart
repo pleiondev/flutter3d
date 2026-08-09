@@ -1,3 +1,5 @@
+import 'weapon_behaviour.dart';
+
 /// What a weapon spends when it fires.
 ///
 /// Separate counters rather than one pool, which is the decision that makes
@@ -13,19 +15,6 @@ enum AmmoType {
   rockets,
 }
 
-/// How a shot reaches its target.
-enum WeaponKind {
-  /// The ray arrives the instant the trigger does.
-  hitscan,
-
-  /// A projectile with a flight time and a blast radius, which the player and
-  /// the monsters can both dodge.
-  projectile,
-
-  /// A hitscan with a very short range, and the only weapon that costs nothing.
-  melee,
-}
-
 /// Everything about a weapon that does not change while it is being fired.
 ///
 /// A record of numbers rather than a class per weapon. Every one of these is
@@ -35,7 +24,7 @@ enum WeaponKind {
 final class WeaponDef {
   const WeaponDef({
     required this.name,
-    required this.kind,
+    required this.behaviour,
     required this.ammo,
     required this.damage,
     required this.shotsPerSecond,
@@ -51,7 +40,11 @@ final class WeaponDef {
   });
 
   final String name;
-  final WeaponKind kind;
+
+  /// How a shot is delivered. See [WeaponBehaviour] for why this is an object
+  /// and the numbers below are not.
+  final WeaponBehaviour behaviour;
+
   final AmmoType ammo;
 
   /// Damage of a single ray at point-blank range.
@@ -116,7 +109,7 @@ abstract final class Weapons {
   /// a dead end.
   static const WeaponDef fists = WeaponDef(
     name: 'Fists',
-    kind: WeaponKind.melee,
+    behaviour: MeleeBehaviour(),
     ammo: AmmoType.none,
     damage: 20.0,
     shotsPerSecond: 2.0,
@@ -126,7 +119,7 @@ abstract final class Weapons {
 
   static const WeaponDef pistol = WeaponDef(
     name: 'Pistol',
-    kind: WeaponKind.hitscan,
+    behaviour: HitscanBehaviour(),
     ammo: AmmoType.bullets,
     damage: 14.0,
     shotsPerSecond: 4.0,
@@ -139,7 +132,7 @@ abstract final class Weapons {
   /// Eight pellets, and all of the reason to close the distance.
   static const WeaponDef shotgun = WeaponDef(
     name: 'Shotgun',
-    kind: WeaponKind.hitscan,
+    behaviour: HitscanBehaviour(),
     ammo: AmmoType.shells,
     damage: 11.0,
     shotsPerSecond: 1.4,
@@ -154,7 +147,7 @@ abstract final class Weapons {
 
   static const WeaponDef rocketLauncher = WeaponDef(
     name: 'Rocket Launcher',
-    kind: WeaponKind.projectile,
+    behaviour: ProjectileBehaviour(),
     ammo: AmmoType.rockets,
     damage: 90.0,
     shotsPerSecond: 0.9,

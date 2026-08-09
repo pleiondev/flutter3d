@@ -1,0 +1,177 @@
+import 'dart:math' as math;
+
+import 'package:vector_math/vector_math.dart';
+
+import '../physics/collider.dart';
+import '../physics/collision_shape.dart';
+import '../physics/collision_world.dart';
+import 'hitscan.dart';
+import 'weapon.dart';
+
+/// One shot, from where it starts to what it reached.
+///
+/// Reused between shots rather than made fresh: a held automatic weapon fires
+/// several times a second and this sits on the simulation step.
+final class WeaponShot {
+  WeaponShot({required this.world, required this.hitscan});
+
+  final CollisionWorld world;
+  final Hitscan hitscan;
+
+  late WeaponDef weapon;
+  final Vector3 origin = Vector3.zero();
+  final Vector3 aim = Vector3.zero();
+
+  /// The shooter, so a weapon does not hit the body holding it. The muzzle is
+  /// inside that body.
+  Collider? shooter;
+
+  /// Filled by the behaviour. Empty when nothing was reached, and for a
+  /// projectile, which lands later.
+  final List<ShotHit> hits = <ShotHit>[];
+
+  void begin(WeaponDef weapon, Vector3 origin, Vector3 aim, {Collider? shooter}) {
+    this.weapon = weapon;
+    this.origin.setFrom(origin);
+    this.aim.setFrom(aim);
+    this.shooter = shooter;
+    hits.clear();
+  }
+}
+
+/// How a weapon delivers a shot that has already been paid for.
+///
+/// A hierarchy rather than a `kind` field the caller switches on. The three
+/// ways a shot arrives have almost nothing in common — one traces rays, one
+/// sweeps an arc, one launches something with a flight time — and every place
+/// that fired a weapon would otherwise repeat the same three-way branch. The
+/// firing code now says `weapon.behaviour.deliver(shot)` and knows nothing.
+///
+/// Note what stayed data: [WeaponDef] is still a record of numbers. Damage,
+/// rate and spread get adjusted by feel hundreds of times, and putting them in
+/// subclasses would mean a rebuild per tweak and a class per gun. Behaviour is
+/// polymorphic; tuning is not.
+sealed class WeaponBehaviour {
+  const WeaponBehaviour();
+
+  void deliver(WeaponShot shot);
+}
+
+/// Rays, arriving the instant the trigger does.
+final class HitscanBehaviour extends WeaponBehaviour {
+  const HitscanBehaviour();
+
+  @override
+  void deliver(WeaponShot shot) {
+    shot.hits.addAll(
+      shot.hitscan.fire(
+        shot.weapon,
+        shot.origin,
+        shot.aim,
+        ignore: shot.shooter,
+      ),
+    );
+  }
+}
+
+/// A swing: everything close enough and roughly in front.
+///
+/// Not a short ray, which is what this was before it had its own class. A ray
+/// misses a monster standing beside the player's shoulder, and a punch should
+/// not — the reach of a swing is an arc, and an arc is what a player expects to
+/// connect with.
+final class MeleeBehaviour extends WeaponBehaviour {
+  const MeleeBehaviour({this.arcDegrees = 70.0});
+
+  /// Full width of the arc the swing covers.
+  final double arcDegrees;
+
+  @override
+  void deliver(WeaponShot shot) {
+    final weapon = shot.weapon;
+    final reach = weapon.range;
+    final forward = shot.aim.normalized();
+
+    // Centred half a reach ahead, so the sphere covers the arm's length rather
+    // than a bubble around the player.
+    final centre = Vector3(
+      shot.origin.x + forward.x * reach * 0.5,
+      shot.origin.y + forward.y * reach * 0.5,
+      shot.origin.z + forward.z * reach * 0.5,
+    );
+
+    final candidates = <Collider>[];
+    shot.world.overlap(
+      CollisionSphere(reach * 0.5),
+      centre,
+      candidates,
+      ignore: shot.shooter,
+      includeTriggers: false,
+    );
+
+    final minimumCosine = math.cos(arcDegrees * 0.5 * math.pi / 180.0);
+    final toTarget = Vector3.zero();
+
+    for (final target in candidates) {
+      toTarget
+        ..setFrom(target.position)
+        ..sub(shot.origin);
+      final distance = toTarget.length;
+      if (distance > reach || distance <= 1e-6) continue;
+
+      toTarget.scale(1.0 / distance);
+      if (toTarget.dot(forward) < minimumCosine) continue;
+
+      // A swing does not stop at a wall the way a ray does, but it must not
+      // reach through one either.
+      if (_blocked(shot, forward, target, distance)) continue;
+
+      shot.hits.add(
+        ShotHit(
+          collider: target,
+          point: target.position,
+          normal: -toTarget,
+          distance: distance,
+          damage: weapon.damageAt(distance),
+        ),
+      );
+    }
+  }
+
+  bool _blocked(
+    WeaponShot shot,
+    Vector3 forward,
+    Collider target,
+    double distance,
+  ) {
+    final hit = RayHit();
+    final direction = (target.position - shot.origin)..normalize();
+    if (!shot.world.raycast(
+      shot.origin,
+      direction,
+      distance,
+      hit,
+      ignore: shot.shooter,
+      mask: CollisionLayers.world,
+    )) {
+      return false;
+    }
+    return hit.distance < distance - 1e-3;
+  }
+}
+
+/// Something with a flight time, which the target can move out of the way of.
+///
+/// Deliberately does nothing yet. The shot is still paid for — the ammunition
+/// is spent and the weapon recoils — so what the player sees is honest while
+/// the projectile itself is being built. It is the one behaviour whose effect
+/// is not immediate, which is exactly why it needs to be its own class rather
+/// than an early return in the middle of the firing code.
+final class ProjectileBehaviour extends WeaponBehaviour {
+  const ProjectileBehaviour();
+
+  @override
+  void deliver(WeaponShot shot) {
+    // Stage six: spawn the projectile into the world here.
+  }
+}

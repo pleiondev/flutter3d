@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter3d_game/src/level/brush_geometry.dart';
 import 'package:flutter3d_game/src/level/level.dart';
+import 'package:flutter3d_game/src/level/entity_kind.dart';
 import 'package:flutter3d_game/src/level/level_collision.dart';
 import 'package:flutter3d_game/src/level/level_validator.dart';
 import 'package:flutter3d_game/src/physics/collision_world.dart';
@@ -121,7 +122,7 @@ void main() {
   });
 
   group('the validator', () {
-    List<String> errorsOf(Level level) => const LevelValidator()
+    List<String> errorsOf(Level level) => LevelValidator()
         .validate(level)
         .where((LevelIssue i) => i.isError)
         .map((LevelIssue i) => i.message)
@@ -174,7 +175,10 @@ void main() {
           EntityDef(type: EntityTypes.playerSpawn),
           EntityDef(
             type: EntityTypes.door,
-            properties: <String, Object?>{'key': 'red'},
+            properties: <String, Object?>{
+              'key': 'red',
+              'travel': <double>[0.0, 4.0, 0.0],
+            },
           ),
           EntityDef(
             type: EntityTypes.key,
@@ -184,6 +188,80 @@ void main() {
       );
 
       expect(errorsOf(level), isEmpty);
+    });
+
+    test('catches a door with nowhere to open to', () {
+      // The same rule as a lift, and it belongs to the door rather than to the
+      // validator — which is the whole point of the kinds owning their checks.
+      final level = Level(
+        brushes: _valid().brushes,
+        entities: <EntityDef>[
+          EntityDef(type: EntityTypes.playerSpawn),
+          EntityDef(type: EntityTypes.door),
+        ],
+      );
+
+      expect(errorsOf(level).join(), contains('travel'));
+    });
+
+    test('each kind owns its own rules', () {
+      // One entity of every kind, each missing exactly what it needs, so the
+      // registry is exercised rather than a handful of favourites.
+      final level = Level(
+        brushes: _valid().brushes,
+        entities: <EntityDef>[
+          EntityDef(type: EntityTypes.playerSpawn),
+          EntityDef(type: EntityTypes.monster),
+          EntityDef(type: EntityTypes.pickup),
+          EntityDef(type: EntityTypes.key),
+          EntityDef(type: EntityTypes.note),
+          EntityDef(type: EntityTypes.trigger),
+        ],
+      );
+
+      final messages = errorsOf(level).join('\n');
+
+      expect(messages, contains('"kind"'));
+      expect(messages, contains('"gives"'));
+      expect(messages, contains('"color"'));
+      expect(messages, contains('"text"'));
+      expect(messages, contains('"size"'));
+    });
+
+    test('a monster of an unknown kind is refused', () {
+      final level = Level(
+        brushes: _valid().brushes,
+        entities: <EntityDef>[
+          EntityDef(type: EntityTypes.playerSpawn),
+          EntityDef(
+            type: EntityTypes.monster,
+            properties: <String, Object?>{'kind': 'wyvern'},
+          ),
+        ],
+      );
+
+      expect(errorsOf(level).join(), contains('wyvern'));
+    });
+
+    test('a registry that knows fewer kinds refuses the rest', () {
+      // What lets a different game reuse the package with its own entities,
+      // and what lets a test narrow the set deliberately.
+      final registry = EntityRegistry(<EntityKind>[const PlayerSpawnKind()]);
+      final level = Level(
+        brushes: _valid().brushes,
+        entities: <EntityDef>[
+          EntityDef(type: EntityTypes.playerSpawn),
+          EntityDef(type: EntityTypes.torch),
+        ],
+      );
+
+      final errors = LevelValidator(registry: registry)
+          .validate(level)
+          .where((LevelIssue i) => i.isError)
+          .map((LevelIssue i) => i.message)
+          .join();
+
+      expect(errors, contains('torch'));
     });
 
     test('catches a reference to a name nothing has', () {
@@ -277,7 +355,7 @@ void main() {
         Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3(2.0, 2.0, 2.0)),
       );
 
-      final issues = const LevelValidator().validate(level);
+      final issues = LevelValidator().validate(level);
 
       expect(issues.where((LevelIssue i) => i.isError), isEmpty);
       expect(
@@ -294,7 +372,7 @@ void main() {
       );
 
       expect(
-        const LevelValidator()
+        LevelValidator()
             .validate(level)
             .map((LevelIssue i) => i.message)
             .join(),
@@ -306,7 +384,7 @@ void main() {
       final level = Level(brushes: _valid().brushes);
 
       expect(
-        () => const LevelValidator().assertValid(level),
+        () => LevelValidator().assertValid(level),
         throwsA(
           isA<LevelFormatException>().having(
             (LevelFormatException e) => e.message,
@@ -321,7 +399,7 @@ void main() {
       final level = _valid();
       level.entities.removeWhere((EntityDef e) => e.type == EntityTypes.exit);
 
-      expect(() => const LevelValidator().assertValid(level), returnsNormally);
+      expect(() => LevelValidator().assertValid(level), returnsNormally);
     });
   });
 

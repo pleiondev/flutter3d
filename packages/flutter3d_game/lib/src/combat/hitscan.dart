@@ -6,9 +6,12 @@ import '../physics/collider.dart';
 import '../physics/collision_world.dart';
 import 'weapon.dart';
 
-/// One ray that arrived somewhere.
-final class HitscanHit {
-  HitscanHit({
+/// One thing a shot reached.
+///
+/// Named for the shot rather than for the ray, because a melee swing produces
+/// these as well and it does not cast one.
+final class ShotHit {
+  ShotHit({
     required this.collider,
     required Vector3 point,
     required Vector3 normal,
@@ -69,7 +72,7 @@ final class Hitscan {
   ///
   /// [aim] need not be normalised. [ignore] keeps a shooter from hitting
   /// themselves, which matters because the muzzle is inside their own collider.
-  List<HitscanHit> fire(
+  List<ShotHit> fire(
     WeaponDef weapon,
     Vector3 origin,
     Vector3 aim, {
@@ -79,7 +82,7 @@ final class Hitscan {
     final forward = aim.normalized();
     _basisFrom(forward);
 
-    final hits = <HitscanHit>[];
+    final hits = <ShotHit>[];
     for (var i = 0; i < weapon.rayCount; i++) {
       _aimRay(forward, weapon, i);
       hits.add(_castOne(weapon, origin, ignore, mask));
@@ -92,7 +95,7 @@ final class Hitscan {
   /// Summed per target rather than per ray, because that is what applying it
   /// needs: eight pellets in the same monster is one death, and telling the
   /// health system eight times invites eight death animations.
-  static Map<Collider, double> damageByTarget(List<HitscanHit> hits) {
+  static Map<Collider, double> damageByTarget(List<ShotHit> hits) {
     final totals = <Collider, double>{};
     for (final hit in hits) {
       final collider = hit.collider;
@@ -161,7 +164,7 @@ final class Hitscan {
       ..z += _right.z * right + _up.z * up;
   }
 
-  HitscanHit _castOne(
+  ShotHit _castOne(
     WeaponDef weapon,
     Vector3 origin,
     Collider? ignore,
@@ -183,7 +186,7 @@ final class Hitscan {
         ..setFrom(_direction)
         ..scale(weapon.range)
         ..add(origin);
-      return HitscanHit(
+      return ShotHit(
         collider: null,
         point: _endPoint,
         normal: -_direction,
@@ -192,7 +195,7 @@ final class Hitscan {
       );
     }
 
-    return HitscanHit(
+    return ShotHit(
       collider: _hit.collider,
       point: _hit.point,
       normal: _hit.normal,

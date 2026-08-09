@@ -72,10 +72,10 @@ class _GameScreenState extends State<GameScreen>
 
   final Arsenal _arsenal = Arsenal(startingSlot: 1);
   final WeaponView _weaponView = WeaponView();
-  Hitscan? _hitscan;
+  WeaponShot? _shot;
 
   /// The last shot's hits, for the impact markers the debug overlay draws.
-  final List<HitscanHit> _lastShot = <HitscanHit>[];
+  final List<ShotHit> _lastShot = <ShotHit>[];
   double _hitFlash = 0.0;
 
   final CameraNode _camera = CameraNode(name: 'player');
@@ -147,7 +147,7 @@ class _GameScreenState extends State<GameScreen>
       setState(() {
         _loaded = loaded;
         _body = body;
-        _hitscan = hitscan;
+        _shot = WeaponShot(world: loaded.collision, hitscan: hitscan);
         _yaw = start?.yaw ?? 0.0;
         _smoothedPosition.jumpTo(body.position);
         // Loading blocked the ticker for a couple of seconds, and all of that
@@ -264,18 +264,12 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _fire(CharacterController body) {
-    final hitscan = _hitscan;
-    if (hitscan == null) return;
+    final shot = _shot;
+    if (shot == null) return;
 
     final weapon = _arsenal.fire();
     if (weapon == null) return;
-
     _weaponView.recoil();
-    if (weapon.kind == WeaponKind.projectile) {
-      // Rockets arrive in the next stage; the shot is still spent, so the
-      // ammunition and the recoil are already honest.
-      return;
-    }
 
     // From the eye, not from the muzzle. The muzzle is off to one side, and a
     // shot that starts there misses what the crosshair is on whenever the
@@ -289,12 +283,15 @@ class _GameScreenState extends State<GameScreen>
       -math.cos(_yaw) * math.cos(_pitch),
     );
 
+    // No branch on the kind of weapon. Rays, swings and rockets each know how
+    // they arrive; this only has to say where the shot came from.
+    shot.begin(weapon, _eye, _aim, shooter: body.collider);
+    weapon.behaviour.deliver(shot);
+
     _lastShot
       ..clear()
-      ..addAll(
-        hitscan.fire(weapon, _eye, _aim, ignore: body.collider),
-      );
-    if (_lastShot.any((HitscanHit h) => h.struckSomething)) _hitFlash = 1.0;
+      ..addAll(shot.hits);
+    if (_lastShot.any((ShotHit h) => h.struckSomething)) _hitFlash = 1.0;
   }
 
   @override
