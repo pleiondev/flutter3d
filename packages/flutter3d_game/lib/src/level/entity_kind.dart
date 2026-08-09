@@ -4,6 +4,7 @@ import '../actors/monster.dart';
 import '../physics/collider.dart';
 import '../physics/collision_shape.dart';
 import '../world/gift.dart';
+import '../world/light_fixture.dart';
 import '../world/mover.dart';
 import '../world/signals.dart';
 import 'level.dart';
@@ -236,6 +237,8 @@ abstract final class EntityTypes {
   static const String note = 'note';
   static const String exit = 'exit';
   static const String torch = 'torch';
+  static const String lamp = 'lamp';
+  static const String window = 'window';
 }
 
 // MARK: - The kinds
@@ -361,7 +364,7 @@ final class PickupKind extends EntityKind {
     );
     context.reveal(
       entity,
-      collider,
+      collider: collider,
       mechanism: pickup,
       size: entity.vector('size') ?? defaultSize,
     );
@@ -403,7 +406,7 @@ final class KeyKind extends EntityKind {
     );
     context.reveal(
       entity,
-      collider,
+      collider: collider,
       mechanism: pickup,
       size: entity.vector('size') ?? defaultSize,
     );
@@ -435,7 +438,7 @@ final class DoorKind extends EntityKind {
         key: entity.string('key'),
       ),
     );
-    context.reveal(entity, collider, mechanism: door);
+    context.reveal(entity, collider: collider, mechanism: door);
   }
 }
 
@@ -462,7 +465,7 @@ final class LiftKind extends EntityKind {
         wait: entity.number('wait') ?? Lift.defaultWait,
       ),
     );
-    context.reveal(entity, collider, mechanism: lift);
+    context.reveal(entity, collider: collider, mechanism: lift);
   }
 }
 
@@ -492,7 +495,7 @@ final class PlatformKind extends EntityKind {
     );
     // So a row of them does not move as one slab.
     platform.offsetBy(entity.number('phase') ?? 0.0);
-    context.reveal(entity, collider, mechanism: platform);
+    context.reveal(entity, collider: collider, mechanism: platform);
   }
 }
 
@@ -531,7 +534,7 @@ final class ButtonKind extends EntityKind {
     );
     context.reveal(
       entity,
-      collider,
+      collider: collider,
       mechanism: button,
       size: entity.vector('size') ?? defaultSize,
     );
@@ -594,8 +597,97 @@ final class ExitKind extends EntityKind {
   }
 }
 
-final class TorchKind extends EntityKind {
+/// Anything that gives off light and can be seen doing it.
+///
+/// One class for the three, because a torch, a lamp and a stained window
+/// differ in what they look like and how they flicker — and both of those are
+/// data. What they *do* is identical: own a light, and vary it.
+abstract base class LightFixtureKind extends EntityKind {
+  const LightFixtureKind(super.type);
+
+  /// How this kind behaves when the document does not say.
+  LightBehaviour get defaultBehaviour;
+
+  Vector3 get defaultSize;
+
+  @override
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final light = entity.string('light');
+    if (light == null) return;
+    for (final candidate in scope.level.lights) {
+      if (candidate.name == light) return;
+    }
+    out.add(
+      LevelIssue(
+        LevelIssueSeverity.error,
+        'drives the light "$light", which this level does not define',
+        where: scope.describe(entity),
+      ),
+    );
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final fixture = context.mechanisms.add(
+      LightFixture(
+        name: entity.name,
+        light: entity.string('light'),
+        behaviour: _behaviourFor(entity),
+        // From the position, so a row of torches never pulses in unison and
+        // an author never has to remember to stagger them by hand.
+        seed: entity.number('phase') ??
+            (entity.position.x * 0.37 + entity.position.z * 0.11) % 1.0,
+        enabled: entity.flag('on', orElse: true),
+      ),
+    );
+    // No collider: this is something to look at, not something to walk into.
+    context.reveal(
+      entity,
+      mechanism: fixture,
+      size: entity.vector('size') ?? defaultSize,
+    );
+  }
+
+  LightBehaviour _behaviourFor(EntityDef entity) {
+    final depth = entity.number('flicker');
+    if (depth == null) return defaultBehaviour;
+    if (depth <= 0.0) return const SteadyLight();
+    return FlameFlicker(depth: depth, rate: entity.number('rate') ?? 7.0);
+  }
+}
+
+/// Fire in a bracket.
+final class TorchKind extends LightFixtureKind {
   const TorchKind() : super(EntityTypes.torch);
+
+  @override
+  LightBehaviour get defaultBehaviour => const FlameFlicker();
+
+  @override
+  Vector3 get defaultSize => Vector3(0.22, 0.5, 0.22);
+}
+
+/// Something hanging and steady.
+final class LampKind extends LightFixtureKind {
+  const LampKind() : super(EntityTypes.lamp);
+
+  @override
+  LightBehaviour get defaultBehaviour => const SteadyLight();
+
+  @override
+  Vector3 get defaultSize => Vector3(0.34, 0.34, 0.34);
+}
+
+/// A lit pane in a wall. Flat by default, and the level says which way it
+/// faces with `yaw`.
+final class WindowKind extends LightFixtureKind {
+  const WindowKind() : super(EntityTypes.window);
+
+  @override
+  LightBehaviour get defaultBehaviour => const SteadyLight();
+
+  @override
+  Vector3 get defaultSize => Vector3(1.4, 2.2, 0.12);
 }
 
 /// The kinds a build knows about, by name.
@@ -623,6 +715,8 @@ final class EntityRegistry {
     const NoteKind(),
     const ExitKind(),
     const TorchKind(),
+    const LampKind(),
+    const WindowKind(),
   ]);
 
   final Map<String, EntityKind> _byType;

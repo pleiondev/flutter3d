@@ -13,6 +13,40 @@ import 'package:vector_math/vector_math.dart';
 /// are what the bloom pass picks up, and an explosion that does not bloom looks
 /// like an orange sticker.
 abstract final class Effects {
+  /// A torch flame: small, short-lived, rising, orange into dark red.
+  ///
+  /// Emitted continuously rather than in bursts — see
+  /// [ParticleSystem.emitFor]. This is what makes a torch a torch; the iron
+  /// around it is only a bracket. A cone would be a cone however orange it was
+  /// painted, which is what the first attempt at this was.
+  static final ParticleEffect flame = ParticleEffect(
+    count: 1,
+    // Short and slow, so the particles stay in a handful and overlap. The
+    // first attempt used a long life and a wide spread, and sixteen live
+    // particles at that size are a scattering of dots — which is exactly what
+    // it looked like. Fire reads as fire when the quads pile up: additive
+    // blending turns the overlap into a bright core, and the core is the part
+    // the eye calls flame.
+    lifetime: const Range(0.20, 0.40),
+    size: const Range(0.10, 0.19),
+    color: Vector4(1.0, 0.62, 0.22, 1.0),
+    emitter: const ConeEmitter(
+      halfAngleDegrees: 10.0,
+      speed: Range(0.22, 0.55),
+    ),
+    affectors: <ParticleAffector>[
+      // Upward, because hot air is the whole shape of a flame.
+      const ParticleGravity(1.1),
+      const ParticleDrag(2.6),
+      ParticleColorOverLife(
+        Vector4(1.0, 0.72, 0.30, 1.0),
+        Vector4(0.55, 0.08, 0.02, 1.0),
+      ),
+      const ParticleFade(startsAt: 0.35),
+      const ParticleSizeOverLife(from: 1.0, to: 0.25),
+    ],
+  );
+
   /// The core of a rocket blast: fast, bright, brief.
   static final ParticleEffect explosionCore = ParticleEffect(
     count: 90,

@@ -93,22 +93,22 @@
   ],
 
   "lights": [
-    { "type": "point", "at": [0, 3.2, 8], "color": [1.0, 0.68, 0.34], "intensity": 22, "range": 14, "name": "entry_torch" },
-    { "type": "point", "at": [0, 3.2, -6], "color": [1.0, 0.68, 0.34], "intensity": 16, "range": 11 },
-    { "type": "point", "at": [-6, 3.2, -18], "color": [1.0, 0.70, 0.36], "intensity": 24, "range": 16, "castsShadow": true },
-    { "type": "point", "at": [6, 3.2, -28], "color": [0.55, 0.75, 1.0], "intensity": 20, "range": 16 },
-    { "type": "point", "at": [13, 3.2, 4], "color": [1.0, 0.66, 0.30], "intensity": 14, "range": 9 },
-    { "type": "point", "at": [8.15, 4.6, -28], "color": [1.0, 0.72, 0.38], "intensity": 15, "range": 10 },
+    { "type": "point", "at": [-6.0, 2.9, 8], "color": [1.0, 0.68, 0.34], "intensity": 6.5, "range": 13, "name": "entry_torch" },
+    { "type": "point", "at": [-2.0, 2.9, -6], "color": [1.0, 0.68, 0.34], "intensity": 5.0, "range": 11, "name": "corridor_torch" },
+    { "type": "point", "at": [-9.0, 2.9, -18], "color": [1.0, 0.70, 0.36], "intensity": 7.0, "range": 15, "castsShadow": true, "name": "pillar_torch" },
+    { "type": "point", "at": [6, 3.2, -28], "color": [0.55, 0.75, 1.0], "intensity": 20, "range": 16, "name": "cold_window" },
+    { "type": "point", "at": [13, 2.9, 2.6], "color": [1.0, 0.66, 0.30], "intensity": 5.0, "range": 9, "name": "passage_torch" },
+    { "type": "point", "at": [8.15, 4.6, -28], "color": [1.0, 0.72, 0.38], "intensity": 15, "range": 10, "name": "gallery_lamp" },
     { "type": "directional", "at": [0, 12, 0], "direction": [0.3, -1.0, 0.2], "color": [0.5, 0.58, 0.78], "intensity": 0.25 }
   ],
 
   "entities": [
     { "type": "player_spawn", "at": [0, 1.0, 10], "yaw": 0 },
 
-    { "type": "torch", "at": [0, 3.2, 8] },
-    { "type": "torch", "at": [0, 3.2, -6] },
-    { "type": "torch", "at": [-6, 3.2, -18] },
-    { "type": "torch", "at": [13, 3.2, 4] },
+    { "type": "torch", "at": [-6.35, 2.6, 8], "yaw": -1.5708, "light": "entry_torch" },
+    { "type": "torch", "at": [-2.35, 2.6, -6], "yaw": -1.5708, "light": "corridor_torch" },
+    { "type": "torch", "at": [-9.35, 2.6, -18], "yaw": -1.5708, "light": "pillar_torch" },
+    { "type": "torch", "at": [13, 2.6, 2.15], "yaw": 3.14159, "light": "passage_torch" },
 
     { "type": "key", "at": [14, 0.9, 4], "color": "iron", "name": "iron_key",
       "model": "assets/models/key.glb", "material": "keymetal",
@@ -143,7 +143,12 @@
     { "type": "pickup", "at": [8, 0.8, -16], "gives": "shells", "amount": 8 },
     { "type": "pickup", "at": [8.15, 4.0, -28], "gives": "rockets", "amount": 4 },
 
-    { "type": "torch", "at": [8.15, 4.6, -28] },
+    { "type": "lamp", "at": [8.15, 4.5, -28], "light": "gallery_lamp",
+      "color": [1.0, 0.78, 0.42] },
+
+    { "type": "window", "at": [9.42, 3.2, -28], "yaw": 0,
+      "light": "cold_window", "size": [0.15, 2.4, 1.6],
+      "color": [0.55, 0.78, 1.0], "glow": 4.0 },
 
     { "type": "exit", "at": [0, 2.4, -32], "name": "way_down" }
   ]

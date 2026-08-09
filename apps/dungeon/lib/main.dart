@@ -145,6 +145,7 @@ class _GameScreenState extends State<GameScreen>
   // Scratch for the occlusion ray, which runs once per audible source per
   // frame and must not allocate.
   final Vector3 _sound = Vector3.zero();
+  final Vector3 _flameAt = Vector3.zero();
   final RayHit _soundRay = RayHit();
 
   /// Wall-clock seconds since the game started, for anything that only has to
@@ -285,7 +286,9 @@ class _GameScreenState extends State<GameScreen>
       final visuals = MonsterVisuals(loaded.scene);
       final mechanisms = MechanismWorld(loaded.collision);
       final fixtures = FixtureVisuals(loaded.scene, loaded)
-        ..fallbackAlbedo = _renderer?.fallbackAlbedo;
+        ..fallbackAlbedo = _renderer?.fallbackAlbedo
+        // Before spawning, so a torch can find the light it drives.
+        ..bindLights();
 
       // The level's entities become actors. Which entity becomes what is the
       // entity kind's business, in flutter3d_game; all the application supplies
@@ -462,6 +465,24 @@ class _GameScreenState extends State<GameScreen>
           ..clear()
           ..addAll(projectiles.detonations);
         _hitFlash = 1.0;
+      }
+    }
+
+    // Every torch, every step. The rate is per second and the system keeps
+    // each source's fractional remainder, so the fire looks the same on a
+    // 60 Hz display and a 120 Hz one.
+    final fixtures = _fixtureVisuals;
+    if (fixtures != null) {
+      for (final entry in fixtures.flames.entries) {
+        final fixture = entry.key;
+        if (!fixture.enabled) continue;
+        _particles.emitFor(
+          fixture,
+          Effects.flame,
+          fixtures.flamePointOf(entry.value, _flameAt),
+          dt,
+          perSecond: 150.0 * fixture.brightness,
+        );
       }
     }
 
@@ -737,6 +758,7 @@ class _GameScreenState extends State<GameScreen>
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,
                 voices: _audio.voiceCount,
+                particles: _particles.aliveCount,
                 position: body.position,
                 grounded: body.isGrounded,
                 weapon: _arsenal.current,
@@ -854,6 +876,7 @@ class _Hud extends StatelessWidget {
     required this.steps,
     required this.dropped,
     required this.voices,
+    required this.particles,
     required this.position,
     required this.grounded,
     required this.weapon,
@@ -879,6 +902,10 @@ class _Hud extends StatelessWidget {
   /// Sounds actually playing. Zero with no audio device, and the only thing on
   /// screen that says whether the mixer is doing anything at all.
   final int voices;
+
+  /// Particles alive. The same job the voice count does for sound: the only
+  /// number that separates "never emitted" from "emitted and not drawn".
+  final int particles;
   final Vector3 position;
   final bool grounded;
   final WeaponDef weapon;
@@ -949,7 +976,7 @@ class _Hud extends StatelessWidget {
               children: <Widget>[
                 Text('fps ${fps.toStringAsFixed(0)}   '
                     'steps this frame $steps   dropped $dropped   '
-                    'voices $voices'),
+                    'voices $voices   particles $particles'),
                 Text('x ${position.x.toStringAsFixed(1)}  '
                     'y ${position.y.toStringAsFixed(1)}  '
                     'z ${position.z.toStringAsFixed(1)}  '

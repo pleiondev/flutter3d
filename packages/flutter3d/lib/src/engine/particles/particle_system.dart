@@ -91,12 +91,61 @@ final class ParticleSystem {
     return count;
   }
 
+  /// Keeps [effect] emitting at [origin], at [perSecond] particles a second.
+  ///
+  /// [key] identifies the source — a torch, a smoking wreck — so each keeps its
+  /// own fractional remainder. Without that, a rate below one particle per
+  /// frame rounds to zero every frame and the flame never lights; and rounding
+  /// up instead would tie the rate to the frame rate, so a fast machine would
+  /// burn brighter than a slow one.
+  ///
+  /// This is what a flame is. A cone is a cone however orange it is painted.
+  int emitFor(
+    Object key,
+    ParticleEffect effect,
+    Vector3 origin,
+    double dt, {
+    required double perSecond,
+    Vector3? direction,
+  }) {
+    if (perSecond <= 0.0 || dt <= 0.0) return 0;
+    final owed = (_owed[key] ?? 0.0) + perSecond * dt;
+    final whole = owed.floor();
+    _owed[key] = owed - whole;
+    if (whole <= 0) return 0;
+
+    var emitted = 0;
+    for (var i = 0; i < whole; i++) {
+      emitted += _emitOne(effect, origin, direction);
+    }
+    return emitted;
+  }
+
+  /// Forgets a source's remainder, so a torch that is put out and relit does
+  /// not owe particles from before.
+  void stopEmitting(Object key) => _owed.remove(key);
+
+  final Map<Object, double> _owed = <Object, double>{};
+
   /// Emits one burst of [effect] at [origin].
   ///
   /// [direction] matters only to emitters that use it; it is normalised here so
   /// callers can pass a surface normal or a velocity without thinking about it.
   ///
   /// Returns how many particles were actually emitted.
+  int _emitOne(ParticleEffect effect, Vector3 origin, Vector3? direction) {
+    final axis = direction == null || direction.length2 < 1e-12
+        ? Vector3(0.0, 1.0, 0.0)
+        : direction.normalized();
+    final taken = _take(0);
+    if (taken == null) {
+      _dropped++;
+      return 0;
+    }
+    _initialise(taken.$1, effect, origin, axis);
+    return 1;
+  }
+
   int burst(ParticleEffect effect, Vector3 origin, {Vector3? direction}) {
     final axis = direction == null || direction.length2 < 1e-12
         ? Vector3(0.0, 1.0, 0.0)

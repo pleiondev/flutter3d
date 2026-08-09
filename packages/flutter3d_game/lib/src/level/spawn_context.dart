@@ -17,19 +17,27 @@ import 'level.dart';
 final class Fixture {
   Fixture({
     required this.entity,
-    required this.collider,
     required Vector3 size,
     required this.material,
+    this.collider,
+    Vector3? at,
     this.mechanism,
-  }) : size = size.clone();
+  })  : size = size.clone(),
+        _at = (at ?? collider?.position ?? Vector3.zero()).clone();
 
   /// What the document said, for anything the application wants that the
   /// engine did not think to pass on.
   final EntityDef entity;
 
-  /// The body in the world. Its `position` is where to draw, and it keeps
-  /// moving after this is reported — that is the whole point of a lift.
-  final Collider collider;
+  /// The body in the world, when there is one.
+  ///
+  /// Null for anything that is only looked at — a torch bracket, a stained
+  /// window. Giving those a collider so the field could stay non-null would
+  /// mean shapes in the broadphase that nothing ever tests, and a player
+  /// catching on the scenery.
+  final Collider? collider;
+
+  final Vector3 _at;
 
   final Vector3 size;
 
@@ -39,7 +47,9 @@ final class Fixture {
   /// What runs it, when anything does. Null for scenery.
   final Mechanism? mechanism;
 
-  Vector3 get position => collider.position;
+  /// Where to draw. Follows the collider when there is one, because that keeps
+  /// moving after this is reported — which is the whole point of a lift.
+  Vector3 get position => collider?.position ?? _at;
 }
 
 /// What an entity is given when it is asked to become real.
@@ -76,8 +86,8 @@ final class SpawnContext {
   /// On the context rather than at each call site so the five kinds that place
   /// a box cannot disagree about which property holds the material.
   void reveal(
-    EntityDef entity,
-    Collider collider, {
+    EntityDef entity, {
+    Collider? collider,
     Mechanism? mechanism,
     Vector3? size,
   }) {
@@ -87,6 +97,7 @@ final class SpawnContext {
       Fixture(
         entity: entity,
         collider: collider,
+        at: entity.position,
         size: size ?? entity.vector('size') ?? Vector3.all(1.0),
         material: entity.string('material') ?? 'default',
         mechanism: mechanism,

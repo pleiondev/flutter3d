@@ -35,6 +35,7 @@ export 'src/level/spawn_context.dart';
 export 'src/world/gift.dart';
 export 'src/world/inventory.dart';
 export 'src/world/key_ring.dart';
+export 'src/world/light_fixture.dart';
 export 'src/world/mechanism.dart';
 export 'src/world/mover.dart';
 export 'src/world/signals.dart';
