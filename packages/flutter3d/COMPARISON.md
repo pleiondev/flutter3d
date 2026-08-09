@@ -300,3 +300,86 @@ maps, narrower on platforms, and dormant — created 2026-07-17, last pushed
 2026-07-24, 45 commits. Read it for the animation controller and the
 diagnostics overlay, and note that between the three engines **nobody else
 shadows a point light**.
+
+## 8. The consolidated plan: best of three, and what "better" has to mean
+
+### First, a definition, because the goal is unfalsifiable without one
+
+"Better than all of them" cannot mean better on every axis. `flutter_scene` is
+four times our size and written by the author of the platform layer;
+`glint_engine` shipped a physics stack with ragdolls and vehicles that we have
+no answer to at all. Matching every row of three feature tables is how a small
+engine spends five years arriving second.
+
+It can mean this, which is checkable:
+
+> For a game with dynamic light in enclosed spaces, on stable Flutter,
+> flutter3d is the best choice available — and on the lighting itself, no other
+> Flutter engine is close.
+
+Four claims fall out of that, each either true today or reachable below:
+
+1. **More shadowed point lights than anyone.** Trivially first: the other two
+   have none. The bar to hold is *many*, not *four*.
+2. **The only Flutter engine with volumetric light from a local source.** Their
+   god rays are sun-only by construction.
+3. **The only one that runs on a pinned stable toolchain.**
+4. **Not embarrassing anywhere else** — animation, physics, audio and
+   diagnostics good enough that nobody rejects the engine over them.
+
+Claims 1–3 are the moat and get built. Claim 4 is a floor, and the cheapest way
+to reach a floor is to take what three engines have already proven.
+
+### What to take, from whom, in order
+
+**Phase A — the moat.** Nothing here exists elsewhere; every item reuses the
+cube atlas.
+
+| | Take | From | Effort |
+|---|---|---|---|
+| A1 | Shadow-atlas allocator: slots by size class, lights by screen size, a light keeps its slot across frames, `NONE`/`THISFRAME`/`REALTIME` update modes | PlayCanvas | 1–2 w |
+| A2 | Shadow filtering: rotated Poisson, `ShadowCasterFaces`, split depth/normal bias — then PCSS | flutter_scene | 1–2 w |
+| A3 | Volumetric light marched against the cube atlas | nobody — ours | 2–4 w |
+| A4 | Runtime lightmapper: direct + ambient bake, seam dilation, filters | PlayCanvas | 3–6 w |
+| A5 | Area lights (LTC), because a torch is a volume | PlayCanvas | 1–2 w |
+
+Also from `flutter_scene`'s `DirectionalShadowCache`, applied to A1 rather than
+copied wholesale: **amortise re-bakes at a bounded count per frame, and key the
+cache on a content signature.** That is the part that stops a hitch when several
+lights enter a room at once, and it is the failure mode A1 walks into otherwise.
+
+**Phase B — the floor, by integration and never by implementation.**
+
+| | Take | From | Effort |
+|---|---|---|---|
+| B1 | Physics as a separate backend package, Rapier first | flutter_scene's *shape* (`flutter_scene_rapier`); `glint_engine` proves Box3D works too | 2–4 w |
+| B2 | Audio backend, SoLoud or miniaudio | `glint_engine` — theirs is published and working, while `flutter_scene`'s is not | 1–3 w |
+
+Note the asymmetry worth exploiting: on audio, `flutter_scene` has engine code
+and **no published backend**. Shipping audio is a place we can arrive first.
+
+**Phase C — cheap, and disproportionate.**
+
+| | Take | From | Effort |
+|---|---|---|---|
+| C1 | Diagnostics overlay: FPS, frame time, draw calls, triangles | `glint_engine` | days |
+| C2 | Morph targets | PlayCanvas | ~1 w — stops glTF expressions vanishing silently on import |
+| C3 | Animation state machine: layers, bone masks, events, root motion | `glint_engine` (30 KB of Dart); PlayCanvas for the blend-tree shapes | ~2 w |
+| C4 | Instancing | flutter_scene | when draw calls are *measured* to be the limit |
+
+**Phase D — architecture, when it hurts and not before.** The render graph with
+a blackboard (flutter_scene) to replace the plugin seam; static batching
+(PlayCanvas `batch-manager`) for rooms of distinct props that will never
+instance; depth prepass and light culling (flutter_scene).
+
+### What we refuse, and why refusing is the plan
+
+- **Web** — a second backend, and a dungeon does not need one.
+- **Mips their way** — costs the stable channel, which is claim 3. Go without,
+  and spike a manual chain. Lightmaps do not need them.
+- **Material DSL, Gaussian splats, a scene format, gizmos without an editor
+  decision** — catch-up moves, each one a quarter spent arriving second.
+
+Every refusal above is a quarter bought for Phase A. That is the whole trade,
+and the reason the plan can be finished by a small team: **A+B+C is roughly two
+to four months, and it is what makes all four claims true at once.**
