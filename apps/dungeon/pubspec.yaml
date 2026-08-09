@@ -17,6 +17,10 @@ dependencies:
   flutter3d:
     path: ../../packages/flutter3d
 
+  # Sound. Depends on neither the renderer nor the game engine.
+  flutter3d_audio:
+    path: ../../packages/flutter3d_audio
+
   # Simulation and input.
   flutter3d_game:
     path: ../../packages/flutter3d_game
@@ -35,3 +39,4 @@ flutter:
     - assets/levels/
     - assets/textures/
     - assets/models/
+    - assets/sounds/

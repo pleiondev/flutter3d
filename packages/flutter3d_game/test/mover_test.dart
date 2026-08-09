@@ -24,6 +24,8 @@ Collider _box(CollisionWorld world, Vector3 at, Vector3 size) => world.add(
     );
 
 void main() {
+  _removalTests();
+
   group('a door', () {
     test('starts closed and stays closed until asked', () {
       final w = _world();
@@ -326,6 +328,107 @@ void main() {
 
       expect(door.state, MoverState.closed);
       expect(door.collider.position, Vector3(1.0, 2.0, 3.0));
+    });
+  });
+}
+
+/// Removing a collider renumbers the grid that indexes it.
+///
+/// This is the bug that killed the game loop: a collected pickup removed
+/// itself, and the next query — an occlusion raycast in the same step — walked
+/// a grid still holding indices into the longer list and read past its end.
+/// The exception fired every frame, which took the input with it.
+void _removalTests() {
+  group('removing a collider', () {
+    test('leaves the broadphase safe to query at once', () {
+      final world = CollisionWorld();
+      final movers = <Collider>[
+        for (var i = 0; i < 12; i++)
+          world.add(
+            Collider(
+              shape: CollisionBox(Vector3.all(0.5)),
+              position: Vector3(i.toDouble(), 0.0, 0.0),
+              kind: ColliderKind.kinematic,
+            ),
+          ),
+      ];
+      world.update();
+
+      // The first one, so every remaining index shifts.
+      world.remove(movers.first);
+
+      final hit = RayHit();
+      expect(
+        () => world.raycast(
+          Vector3(-5.0, 0.0, 0.0),
+          Vector3(1.0, 0.0, 0.0),
+          40.0,
+          hit,
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('and the same for an overlap query', () {
+      final world = CollisionWorld();
+      final movers = <Collider>[
+        for (var i = 0; i < 12; i++)
+          world.add(
+            Collider(
+              shape: CollisionBox(Vector3.all(0.5)),
+              position: Vector3(i.toDouble(), 0.0, 0.0),
+              kind: ColliderKind.trigger,
+            ),
+          ),
+      ];
+      world.update();
+      world.remove(movers[3]);
+
+      final found = <Collider>[];
+      expect(
+        () => world.overlap(CollisionBox(Vector3.all(20.0)), Vector3.zero(), found),
+        returnsNormally,
+      );
+      expect(found, isNot(contains(movers[3])));
+    });
+
+    test('a pickup collecting itself does not break the next query', () {
+      // The shape of the real failure, end to end: removal is deferred out of
+      // the collision callback, drained inside update(), and something queries
+      // afterwards in the same step.
+      final world = CollisionWorld();
+      for (var i = 0; i < 8; i++) {
+        world.add(
+          Collider(
+            shape: CollisionBox(Vector3.all(0.4)),
+            position: Vector3(i.toDouble(), 0.0, 4.0),
+            kind: ColliderKind.trigger,
+          ),
+        );
+      }
+      final collected = world.add(
+        Collider(
+          shape: CollisionBox(Vector3.all(0.4)),
+          position: Vector3.zero(),
+          kind: ColliderKind.trigger,
+        ),
+      );
+      world.update();
+
+      world.removeLater(collected);
+      world.update();
+
+      final hit = RayHit();
+      expect(
+        () => world.raycast(
+          Vector3(0.0, 0.0, -8.0),
+          Vector3(0.0, 0.0, 1.0),
+          30.0,
+          hit,
+          includeTriggers: true,
+        ),
+        returnsNormally,
+      );
     });
   });
 }

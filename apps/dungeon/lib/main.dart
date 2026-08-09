@@ -12,8 +12,11 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/effects.dart';
 import 'src/level_scene.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart';
+
 import 'src/fixture_visuals.dart';
 import 'src/monster_visuals.dart';
+import 'src/sounds.dart';
 import 'src/weapon_view.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
@@ -139,9 +142,25 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _wish = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
+  // Scratch for the occlusion ray, which runs once per audible source per
+  // frame and must not allocate.
+  final Vector3 _sound = Vector3.zero();
+  final RayHit _soundRay = RayHit();
+
   /// Wall-clock seconds since the game started, for anything that only has to
   /// look alive — a turning pickup, a flickering torch.
   double _elapsed = 0.0;
+
+  /// The mixer. Built with the silent backend so a build that cannot open an
+  /// audio device still runs — and replaced with the real one once SoLoud is
+  /// up, which is asynchronous and must not hold up the first frame.
+  AudioScene _audio = AudioScene(backend: SilentBackend());
+  final AudioListener _ears = AudioListener();
+  SoLoudBackend? _soloud;
+
+  /// Held while a mover is travelling, stopped when it arrives. A one-shot
+  /// would be a stone slab that grinds for exactly as long as the sample.
+  final Map<Mover, SoundEmitter> _moverVoices = <Mover, SoundEmitter>{};
 
   MechanismWorld? _mechanisms;
   FixtureVisuals? _fixtureVisuals;
@@ -184,8 +203,73 @@ class _GameScreenState extends State<GameScreen>
       ..addPlugin(_weaponView.plugin);
 
     _ticker = createTicker(_onTick)..start();
+    unawaited(_openAudio());
     unawaited(_loadLevel());
   }
+
+  /// Starts SoLoud and swaps it in behind the mixer.
+  ///
+  /// Failing is allowed and is not fatal: a machine with no audio device, or a
+  /// CI runner, keeps the silent backend and plays the game.
+  Future<void> _openAudio() async {
+    final backend = SoLoudBackend();
+    try {
+      await backend.open();
+    } catch (error) {
+      debugPrint('audio: could not start SoLoud: $error');
+      return;
+    }
+    if (!mounted) return;
+    _soloud = backend;
+    _audio = AudioScene(
+      backend: backend,
+      // The walls belong to the physics; the mixer must not learn about them.
+      // A wall between halves the sound rather than killing it, because a
+      // monster you cannot hear at all is a monster that teleports.
+      occlusion: _occlusionBetween,
+    );
+    await _audio.preload(Sounds.all);
+    _startAmbience();
+  }
+
+  /// How much of a sound survives the trip from [from] to [to].
+  double _occlusionBetween(Vector3 from, Vector3 to) {
+    final loaded = _loaded;
+    if (loaded == null) return 1.0;
+    _sound
+      ..setFrom(to)
+      ..sub(from);
+    final distance = _sound.length;
+    if (distance < 1e-3) return 1.0;
+    _sound.scale(1.0 / distance);
+    final blocked = loaded.collision.raycast(
+      from,
+      _sound,
+      distance,
+      _soundRay,
+      mask: CollisionLayers.world,
+    );
+    return blocked ? 0.35 : 1.0;
+  }
+
+  /// The torches, which run for as long as the level does.
+  ///
+  /// Called from both ends of a race: the audio device and the level load in
+  /// parallel and either can finish first. Whichever is second starts the
+  /// ambience, and the flag keeps them from starting it twice — the first
+  /// version only called this from the audio side, and since the level takes
+  /// seconds longer, the torches never lit.
+  void _startAmbience() {
+    if (_ambienceStarted) return;
+    final loaded = _loaded;
+    if (loaded == null || _soloud == null) return;
+    _ambienceStarted = true;
+    for (final torch in loaded.level.ofType(EntityTypes.torch)) {
+      _audio.play(Sounds.torch, torch.position);
+    }
+  }
+
+  bool _ambienceStarted = false;
 
   Future<void> _loadLevel() async {
     try {
@@ -250,6 +334,8 @@ class _GameScreenState extends State<GameScreen>
         _loop.clock.reset();
       });
 
+      _startAmbience();
+
       for (final issue in loaded.issues) {
         debugPrint('level: $issue');
       }
@@ -261,6 +347,8 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
+    _audio.stopAll();
+    unawaited(_soloud?.dispose());
     _ticker.dispose();
     _devices.dispose();
     super.dispose();
@@ -333,6 +421,7 @@ class _GameScreenState extends State<GameScreen>
     }
     if (_messageFor > 0.0) _messageFor = math.max(0.0, _messageFor - dt);
 
+    _hearMechanisms();
     _inventory.step(dt);
     for (final power in _inventory.expired) {
       _say('$power has run out.');
@@ -356,6 +445,7 @@ class _GameScreenState extends State<GameScreen>
       for (final dead in monsters.died) {
         _kills++;
         _particles.burst(Effects.impactSparks, dead.position);
+        _audio.play(Sounds.monsterDie, dead.position);
       }
     }
 
@@ -376,6 +466,15 @@ class _GameScreenState extends State<GameScreen>
     }
 
     _particles.step(dt);
+
+    // Last, so every source has already moved this step. The listener is the
+    // simulated eye rather than the interpolated one: the mix should follow
+    // the game's idea of where the player is, not the renderer's.
+    _eye
+      ..setFrom(body.position)
+      ..y += _eyeOffset;
+    _ears.aimAt(_eye, _yaw);
+    _audio.update(_ears);
 
     _smoothedPosition.push(body.position);
   }
@@ -401,7 +500,9 @@ class _GameScreenState extends State<GameScreen>
       ignore: body.collider,
     );
     if (target == null) return;
-    _say(target.activate(mechanisms.activationBy(body.collider)).message);
+    final outcome = target.activate(mechanisms.activationBy(body.collider));
+    if (outcome is Refused) _audio.play(Sounds.locked, _eye);
+    _say(outcome.message);
   }
 
   /// Anything the level said to the player during the physics step.
@@ -413,7 +514,39 @@ class _GameScreenState extends State<GameScreen>
       if (mechanism is TriggerVolume) {
         _say(mechanism.takeOutcome()?.message);
       } else if (mechanism is Pickup && mechanism.justTaken) {
+        _audio.play(Sounds.pickup, mechanism.collider.position);
         _say(mechanism.message);
+      }
+    }
+  }
+
+  /// Grinding stone while a mover travels, and a thud when it stops.
+  ///
+  /// Diffed against what was sounding last step rather than driven by events,
+  /// because a mover has no events — it has a position that changes, and the
+  /// only honest question to ask it is whether it is moving now.
+  void _hearMechanisms() {
+    final mechanisms = _mechanisms;
+    if (mechanisms == null) return;
+
+    for (final mechanism in mechanisms.all) {
+      if (mechanism is! Mover) continue;
+      final voice = _moverVoices[mechanism];
+
+      if (mechanism.isMoving) {
+        if (voice == null) {
+          _moverVoices[mechanism] =
+              _audio.play(Sounds.stoneMove, mechanism.collider.position);
+        } else {
+          voice.position.setFrom(mechanism.collider.position);
+        }
+        continue;
+      }
+
+      if (voice != null) {
+        voice.stop();
+        _moverVoices.remove(mechanism);
+        _audio.play(Sounds.stoneStop, mechanism.collider.position);
       }
     }
   }
@@ -485,6 +618,14 @@ class _GameScreenState extends State<GameScreen>
     // they arrive; this only has to say where the shot came from.
     shot.begin(weapon, _eye, _aim, shooter: body.collider);
     weapon.behaviour.deliver(shot);
+
+    // At the eye rather than at the muzzle, for the same reason the shot
+    // starts there: a sound half a metre to one side pans audibly wrong when
+    // the player is against a wall.
+    _audio.play(
+      weapon.ammo == AmmoType.shells ? Sounds.shotgun : Sounds.pistol,
+      _eye,
+    );
 
     _lastShot
       ..clear()
@@ -595,6 +736,7 @@ class _GameScreenState extends State<GameScreen>
                 fps: _fps,
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,
+                voices: _audio.voiceCount,
                 position: body.position,
                 grounded: body.isGrounded,
                 weapon: _arsenal.current,
@@ -711,6 +853,7 @@ class _Hud extends StatelessWidget {
     required this.fps,
     required this.steps,
     required this.dropped,
+    required this.voices,
     required this.position,
     required this.grounded,
     required this.weapon,
@@ -732,6 +875,10 @@ class _Hud extends StatelessWidget {
   final double fps;
   final int steps;
   final int dropped;
+
+  /// Sounds actually playing. Zero with no audio device, and the only thing on
+  /// screen that says whether the mixer is doing anything at all.
+  final int voices;
   final Vector3 position;
   final bool grounded;
   final WeaponDef weapon;
@@ -801,7 +948,8 @@ class _Hud extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text('fps ${fps.toStringAsFixed(0)}   '
-                    'steps this frame $steps   dropped $dropped'),
+                    'steps this frame $steps   dropped $dropped   '
+                    'voices $voices'),
                 Text('x ${position.x.toStringAsFixed(1)}  '
                     'y ${position.y.toStringAsFixed(1)}  '
                     'z ${position.z.toStringAsFixed(1)}  '

@@ -158,10 +158,20 @@ final class CollisionWorld {
 
   void remove(Collider collider) {
     collider.world = null;
-    _movers.remove(collider);
     _reporters.remove(collider);
-    if (_statics.remove(collider)) _reindexStatics();
     _ids.remove(collider);
+
+    // Both grids hold indices into their list, so removing from either
+    // renumbers every entry after it. Re-indexing here rather than leaving it
+    // until the next update is not tidiness: a query made in between walks the
+    // stale index and reads past the end of the list.
+    //
+    // That is exactly what happened. A collected pickup removed itself, and
+    // the occlusion raycast the audio mixer runs later in the same step threw
+    // RangeError — every frame, which killed the game loop and with it the
+    // input. Nothing had queried between a removal and an update before.
+    if (_movers.remove(collider)) _rebuildMoverGrid();
+    if (_statics.remove(collider)) _reindexStatics();
   }
 
   void clear() {
