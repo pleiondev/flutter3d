@@ -12,6 +12,10 @@ What works today:
   profile (the "vase"); shapes are values (`Shape`), not static methods;
 - six **switchable lighting models**, each its own pre-built fragment shader:
   Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon, Normals;
+- **directional shadows**: the pass is a render view whose camera is the light,
+  with an orthographic volume fitted to the scene, linear depth in a colour
+  target because depth textures cannot be sampled, front-face culling, PCF 3x3
+  and both a depth bias and a normal offset;
 - **an HDR pipeline**: the scene renders into `r16g16b16a16Float`, and tone
   mapping, exposure and the sRGB encode happen in a composite pass — which is
   what lets **bloom** exist at all, built from a chain of half-size targets
@@ -179,6 +183,7 @@ either does not start or silently renders nothing. Worth keeping to hand.
 | A texture is bound but the shader has no such slot | The compiler drops a sampler whose result never reaches the output, exactly as it does an unused uniform block. A model that samples a map and then ignores the value — Lambert reading metallic-roughness — ends up without the slot. `tool/build_shaders.sh` prints the compiled binding table so the metadata can be checked against it |
 | `A command encoder is already encoding to this command buffer` | Metal allows one open encoder per command buffer, and flutter_gpu has no way to end a `RenderPass`. A multi-pass frame needs a **command buffer per pass**, submitted in order — buffers on the same queue execute in submission order, so that is also how the passes get sequenced |
 | The background washes out after moving to an HDR target | The clear colour is authored display-referred, but the scene target holds linear light and the composite pass encodes on the way out. Convert the clear to linear or it goes through the encode twice |
+| Shadows look right but toggling them changes nothing | Check the setting actually reaches `RenderSettings`. A control wired to the panel but not to the renderer looks completely convincing, and the way to find out is to capture the same frame with the feature on and off and diff the two — a zero difference is the whole answer |
 | A draw is submitted, the counter goes up, nothing appears | There is **no non-indexed draw**. `draw()` with only a vertex buffer bound succeeds and renders nothing. Bind an index buffer even when the indices are the identity `0, 1, 2, …` sequence — the debug line overlay keeps one in a device buffer that only grows |
 | `PathAccessException … Operation not permitted` when writing a file | macOS Flutter apps are sandboxed. Anything outside `~/Library/Containers/<bundle id>/Data` is refused, so frame captures resolve relative paths against the app's own temp directory |
 
@@ -192,6 +197,8 @@ shaders/
   lib/surface.glsl              the material and lighting interface shared by models
   lib/material_maps.glsl        the texture maps, included only by shaders that sample them
   lighting/*.frag               one shader per lighting model, plus debug_line.frag
+  lighting/shadow_depth.frag    the shadow pass: depth, nothing else
+  lib/shadow.glsl               PCF lookup, included only by models that shadow
   post/*.frag                   bloom chain and the composite pass
   post/fullscreen.vert          the one triangle every post pass draws
   flutter3d.shaderbundle.json   bundle manifest

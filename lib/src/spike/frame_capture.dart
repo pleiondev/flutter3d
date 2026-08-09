@@ -72,6 +72,7 @@ final class FrameCapture {
         '${frame.pipelineSwitches} pipeline switches, ${frame.culled} culled, '
         '${frame.lights} lights (${frame.lightsDropped} dropped), '
         '${frame.pipelines} pipelines, '
+        '${frame.shadowCasters} shadow casters, '
         '${frame.debugLines} debug lines, ${frame.submitMicros} us submit');
     unawaited(_write(frame.image));
   }
@@ -176,6 +177,14 @@ Set<String> startupLightsFromEnvironment() {
   }
   return (yaw: yaw, pitch: pitch);
 }
+
+/// Whether shadow mapping starts switched on.
+///
+/// Capturing the same frame with and without it and diffing the two is the only
+/// way to measure a shadow rather than judge one: the difference image is the
+/// shadow, exactly.
+bool startupShadowsFromEnvironment() =>
+    const bool.fromEnvironment('FLUTTER3D_SHADOWS', defaultValue: true);
 
 /// Whether the demo's turntable spin is on.
 ///

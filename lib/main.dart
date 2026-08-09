@@ -1,16 +1,20 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
-import 'package:vector_math/vector_math.dart' show Aabb3, Vector2, Vector3;
+import 'package:vector_math/vector_math.dart'
+    show Aabb3, Vector2, Vector3, Vector4;
 
 import 'src/engine/animation/animation.dart';
 import 'src/engine/assets/model_asset.dart';
 import 'src/engine/assets/resource_cache.dart';
 import 'src/engine/geometry/geometry.dart';
+import 'src/engine/gpu/gpu_mesh.dart';
 import 'src/engine/render/debug_draw.dart';
 import 'src/engine/render/lighting_model.dart';
+import 'src/engine/render/material.dart' as engine;
 import 'src/engine/render/procedural_texture.dart';
 import 'src/engine/render/render_view.dart';
 import 'src/engine/render/renderer.dart';
@@ -130,9 +134,14 @@ class _SpikePageState extends State<SpikePage>
   late final Scene _scene;
   late final SceneNode _modelPivot;
   late final CameraNode _camera;
+  late final LightNode _sun;
   late final LightNode _light;
   late final LightNode _fill;
   late final LightNode _spot;
+
+  /// A plane under the model, so the shadow has somewhere to land.
+  late final MeshNode _ground;
+  bool _showGround = true;
   late final OrbitController _orbit;
   late final RenderView _view;
 
@@ -167,6 +176,8 @@ class _SpikePageState extends State<SpikePage>
   bool _culling = true;
   DebugDrawOptions _debug = debugDrawFromEnvironment();
   BloomSettings _bloom = const BloomSettings();
+  ShadowSettings _shadows =
+      ShadowSettings(enabled: startupShadowsFromEnvironment());
   FrameResult? _lastFrame;
 
   /// Set only when `--dart-define=FLUTTER3D_CAPTURE=...` asked for a PNG.
@@ -193,6 +204,36 @@ class _SpikePageState extends State<SpikePage>
     // A pivot the model hangs under, so "spin" animates the scene rather than
     // being baked into the renderer.
     _modelPivot = _scene.add(SceneNode(name: 'model pivot'));
+
+    // Added before the camera's key light so it is the first directional in the
+    // registry, and therefore the one that casts. A shadow from a
+    // camera-parented light would swing with the orbit, which makes it useless
+    // for judging whether the pass is right.
+    _sun = LightNode(
+      type: LightType.directional,
+      color: Vector3(1.0, 0.95, 0.85),
+      intensity: 1.6,
+      name: 'sun',
+    );
+    _scene.add(_sun);
+    _sun.setLocalForward(Vector3(-0.4, -1.0, -0.35));
+
+    _ground = MeshNode(
+      // Uploaded, not a CpuMesh: this one is drawn, and the renderer refuses
+      // geometry that never reached the GPU rather than skipping it quietly.
+      GpuMesh.upload(const PlaneShape().build()),
+      engine.Material(
+        lighting: LightingModel.pbr,
+        // Mid grey, not white: a white floor under a lit model saturates and
+        // the shadow lands on a surface with no headroom to darken.
+        baseColor: Vector4(0.45, 0.45, 0.47, 1.0),
+        roughness: 0.9,
+      ),
+      name: 'ground',
+    );
+    // Receives shadows without casting one: a plane's own back face in the
+    // shadow map would fight the surface it is meant to darken.
+    _ground.castsShadow = false;
 
     _camera = _scene.add(CameraNode(name: 'main camera'));
 
@@ -408,7 +449,14 @@ class _SpikePageState extends State<SpikePage>
 
       // Frame the newly placed model, and tie the depth range to it so small
       // models do not z-fight.
+      // The ground is sized from the model, so it must not be in the bounds the
+      // model is measured by — nor in the ones the camera frames, or every
+      // scene would be viewed from far enough away to fit a floor six times its
+      // width.
+      _ground.removeFromParent();
       final bounds = _scene.computeBounds();
+      _placeGround(bounds);
+
       _orbit.frameBounds(bounds);
       // After framing, because frameBounds sets the distance but leaves the
       // angles alone — a capture that names an angle has to keep it.
@@ -422,6 +470,26 @@ class _SpikePageState extends State<SpikePage>
       _orbit.syncProjectionDepth(_camera);
       _placeSceneLights(bounds);
     });
+  }
+
+  /// Sits the ground plane just under the model and scales it to suit.
+  ///
+  /// Recomputed per model because the scenes range from a one-unit cube to a
+  /// two-hundred-unit wall, and a fixed plane would either be invisible or fill
+  /// the frame.
+  void _placeGround(Aabb3 bounds) {
+    _ground.removeFromParent();
+    if (!_showGround || !bounds.min.x.isFinite) return;
+    if (!bounds.min.x.isFinite) return;
+
+    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final extent = (bounds.max - bounds.min)..scale(0.5);
+    final radius = math.max(extent.length, 1e-3);
+
+    _scene.add(_ground);
+    _ground
+      ..setPosition(centre.x, bounds.min.y - radius * 0.02, centre.z)
+      ..setScale(radius * 3.0, 1.0, radius * 3.0);
   }
 
   /// Puts the point and spot lights at a sensible distance for this model.
@@ -536,6 +604,12 @@ class _SpikePageState extends State<SpikePage>
                             backfaceCulling: _culling,
                             debug: _debug,
                             highlighted: _selection,
+                            bloom: _bloom,
+                            shadows: _shadows,
+                            // The normals view is not light, so the display
+                            // transform would corrupt it: a normal encoded as
+                            // RGB has no business being rolled off or exposed.
+                            tonemap: _lighting != LightingModel.normals,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;
@@ -584,10 +658,18 @@ class _SpikePageState extends State<SpikePage>
                     onCulling: (v) => setState(() => _culling = v),
                     debug: _debug,
                     onDebug: (v) => setState(() => _debug = v),
-                    lights: <LightNode>[_light, _fill, _spot],
+                    lights: <LightNode>[_sun, _light, _fill, _spot],
                     onLightsChanged: () => setState(() {}),
                     bloom: _bloom,
                     onBloom: (v) => setState(() => _bloom = v),
+                    shadows: _shadows,
+                    onShadows: (v) => setState(() => _shadows = v),
+                    ground: _showGround,
+                    onGround: (v) => setState(() {
+                      _showGround = v;
+                      _ground.removeFromParent();
+                      _placeGround(_scene.computeBounds());
+                    }),
                     uiMicros: _uiMicros,
                     rasterMicros: _rasterMicros,
                     pick: _pickDescription,
@@ -708,6 +790,10 @@ class _Controls extends StatelessWidget {
     required this.onLightsChanged,
     required this.bloom,
     required this.onBloom,
+    required this.shadows,
+    required this.onShadows,
+    required this.ground,
+    required this.onGround,
     required this.uiMicros,
     required this.rasterMicros,
     required this.pick,
@@ -752,6 +838,12 @@ class _Controls extends StatelessWidget {
 
   final BloomSettings bloom;
   final ValueChanged<BloomSettings> onBloom;
+
+  final ShadowSettings shadows;
+  final ValueChanged<ShadowSettings> onShadows;
+
+  final bool ground;
+  final ValueChanged<bool> onGround;
   final int uiMicros;
   final int rasterMicros;
 
@@ -906,6 +998,51 @@ class _Controls extends StatelessWidget {
                     onLightsChanged();
                   },
                 ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          _Label('Shadows', textTheme),
+          Row(
+            children: <Widget>[
+              FilterChip(
+                label: const Text('Shadows'),
+                selected: shadows.enabled,
+                onSelected: (v) => onShadows(shadows.copyWith(enabled: v)),
+              ),
+              const SizedBox(width: 8),
+              FilterChip(
+                label: const Text('Ground'),
+                selected: ground,
+                onSelected: onGround,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _Slider(
+                  label: 'Strength',
+                  value: shadows.strength,
+                  enabled: shadows.enabled,
+                  onChanged: (v) => onShadows(shadows.copyWith(strength: v)),
+                ),
+              ),
+              Expanded(
+                child: _Slider(
+                  label: 'Bias',
+                  value: shadows.bias,
+                  max: 0.01,
+                  enabled: shadows.enabled,
+                  onChanged: (v) => onShadows(shadows.copyWith(bias: v)),
+                ),
+              ),
+              Expanded(
+                child: _Slider(
+                  label: 'Normal offset',
+                  value: shadows.normalOffset,
+                  max: 0.2,
+                  enabled: shadows.enabled,
+                  onChanged: (v) =>
+                      onShadows(shadows.copyWith(normalOffset: v)),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 6),

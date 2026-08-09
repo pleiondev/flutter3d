@@ -339,8 +339,11 @@ choose an engine.
 - [ ] **P1** **IBL**: irradiance (SH9 or a small cubemap) + a prefiltered specular cubemap (GGX
       across mip levels) + a BRDF LUT. Prefiltering is done with render passes into mip levels,
       since there is no compute. ⚠️ Requires render-to-mip-level on master.
-- [ ] **P1** Shadow maps for directional light (one map → CSM later), PCF filtering, bias/normal
-      offset.
+- [x] **P1** Shadow maps for directional light (one map → CSM later), PCF filtering, bias/normal
+      offset. All of it, except that it is one map rather than a cascade. Depth goes into a
+      **colour** target — there is no way to sample a depth texture through flutter_gpu — and the
+      shadow camera is orthographic, which is what makes `gl_FragCoord.z` a linear distance worth
+      comparing.
 - [ ] **P2** **A shadow atlas** (all lights in one texture — there are no texture arrays).
 - [ ] **P2** Cascaded shadow maps, cube shadows for point lights, spot shadows.
 - [ ] **P2** SSAO/GTAO, contact shadows, ambient occlusion from maps.

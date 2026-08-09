@@ -8,6 +8,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import '../gpu/gpu_mesh.dart';
 import '../gpu/render_target_pool.dart';
+import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
@@ -35,6 +36,7 @@ const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
+const String _kShadowTextureSlot = 'shadow_texture';
 const String _kPostSourceSlot = 'source_texture';
 const String _kSceneTextureSlot = 'scene_texture';
 const String _kBloomTextureSlot = 'bloom_texture';
@@ -50,6 +52,7 @@ final class RenderSettings {
     this.highlighted = const <SceneNode>[],
     this.tonemap = true,
     this.bloom = const BloomSettings(),
+    this.shadows = const ShadowSettings(),
   });
 
   final double specular;
@@ -80,6 +83,8 @@ final class RenderSettings {
 
   final BloomSettings bloom;
 
+  final ShadowSettings shadows;
+
   RenderSettings copyWith({
     double? specular,
     double? exposure,
@@ -89,6 +94,7 @@ final class RenderSettings {
     List<SceneNode>? highlighted,
     bool? tonemap,
     BloomSettings? bloom,
+    ShadowSettings? shadows,
   }) =>
       RenderSettings(
         specular: specular ?? this.specular,
@@ -99,6 +105,61 @@ final class RenderSettings {
         highlighted: highlighted ?? this.highlighted,
         tonemap: tonemap ?? this.tonemap,
         bloom: bloom ?? this.bloom,
+        shadows: shadows ?? this.shadows,
+      );
+}
+
+/// Directional shadow mapping settings.
+final class ShadowSettings {
+  const ShadowSettings({
+    this.enabled = true,
+    this.resolution = 2048,
+    this.bias = 0.0015,
+    this.normalOffset = 0.02,
+    this.strength = 1.0,
+    this.depthPadding = 1.2,
+  });
+
+  final bool enabled;
+
+  /// Edge length of the shadow map. One map, not a cascade: cascades are a
+  /// second problem, and a single map fitted to the scene is enough to show
+  /// whether the pass works at all.
+  final int resolution;
+
+  /// Depth bias, in the shadow camera's normalized depth. Fights the acne that
+  /// comes from a surface being sampled at a slightly different depth than it
+  /// was rendered at.
+  final double bias;
+
+  /// How far along the surface normal the sample point moves before being
+  /// projected, in world units. Fixes the acne a depth bias cannot, because that
+  /// error scales with the surface's slope rather than with depth.
+  final double normalOffset;
+
+  /// How dark a fully shadowed fragment gets, from 0 to 1.
+  final double strength;
+
+  /// How much room to leave around the scene bounds along the light's axis, as
+  /// a multiplier. A caster just outside the fitted volume would otherwise be
+  /// clipped out of the map and stop casting.
+  final double depthPadding;
+
+  ShadowSettings copyWith({
+    bool? enabled,
+    int? resolution,
+    double? bias,
+    double? normalOffset,
+    double? strength,
+    double? depthPadding,
+  }) =>
+      ShadowSettings(
+        enabled: enabled ?? this.enabled,
+        resolution: resolution ?? this.resolution,
+        bias: bias ?? this.bias,
+        normalOffset: normalOffset ?? this.normalOffset,
+        strength: strength ?? this.strength,
+        depthPadding: depthPadding ?? this.depthPadding,
       );
 }
 
@@ -165,6 +226,7 @@ final class FrameResult {
     required this.lights,
     required this.lightsDropped,
     required this.pipelines,
+    required this.shadowCasters,
   });
 
   final ui.Image image;
@@ -206,6 +268,9 @@ final class FrameResult {
   /// belonged. With no runtime shader compilation, that is not a slow path —
   /// it is a wrong one.
   final int pipelines;
+
+  /// Meshes drawn into the shadow map, zero when the pass did not run.
+  final int shadowCasters;
 }
 
 /// Draws a [Scene] through one or more [RenderView]s.
@@ -329,6 +394,7 @@ final class Renderer {
   /// bandwidth of every post-processing read.
   static const gpu.PixelFormat hdrFormat = gpu.PixelFormat.r16g16b16a16Float;
 
+  gpu.RenderPipeline? _shadowPipeline;
   gpu.RenderPipeline? _bloomThresholdPipeline;
   gpu.RenderPipeline? _bloomDownsamplePipeline;
   gpu.RenderPipeline? _bloomUpsamplePipeline;
@@ -336,6 +402,14 @@ final class Renderer {
 
   /// Positions and UVs of the one triangle every full-screen pass draws.
   gpu.DeviceBuffer? _fullscreenVertices;
+
+  /// World space to the shadow camera's clip space, rebuilt each frame the
+  /// light or the scene moves.
+  final vm.Matrix4 _shadowMatrix = vm.Matrix4.identity();
+  final Float32List _shadowParams = Float32List(4);
+  gpu.Texture? _shadowMap;
+  int _shadowResolution = 0;
+  int _shadowCasters = 0;
 
   final Float32List _bloomParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
@@ -460,6 +534,213 @@ final class Renderer {
 
     _targetWidth = width;
     _targetHeight = height;
+  }
+
+  /// Index of the first directional light in the packed buffer, or -1.
+  ///
+  /// Only a directional light casts today: it is the one whose shadow volume is
+  /// a box rather than a frustum or a cube, so it needs neither cascades nor six
+  /// faces to be useful.
+  int _firstDirectionalIndex() {
+    for (var i = 0; i < lights.count; i++) {
+      if (lights.positions[i * 4 + 3] == ShaderLightType.directional) return i;
+    }
+    return -1;
+  }
+
+  /// Renders the scene from the light's point of view into a depth map.
+  ///
+  /// A shadow pass is a render view whose camera happens to be a light — which
+  /// is exactly what `RenderView` was shaped for — so the only new machinery is
+  /// fitting an orthographic volume to the scene and a fragment shader that
+  /// writes depth and nothing else.
+  ///
+  /// Returns false when there is nothing to shadow, leaving [_shadowParams] at
+  /// zero strength so the lighting shaders skip the lookup entirely.
+  bool _renderShadowMap({
+    required gpu.HostBuffer host,
+    required Scene scene,
+    required ShadowSettings settings,
+    required int casterIndex,
+  }) {
+    _shadowParams[3] = 0.0;
+    _shadowCasters = 0;
+    if (!settings.enabled || settings.strength <= 0.0) return false;
+    if (casterIndex < 0) return false;
+
+    final bounds = scene.computeBounds();
+    if (!bounds.min.x.isFinite) return false;
+
+    final centre = (bounds.min + bounds.max)..scale(0.5);
+    final radius = ((bounds.max - bounds.min)..scale(0.5)).length;
+    if (radius <= 0.0) return false;
+
+    // The light's aim, taken from the packed buffer so the pass sees the same
+    // direction the shading does.
+    final aim = vm.Vector3(
+      lights.directions[casterIndex * 4],
+      lights.directions[casterIndex * 4 + 1],
+      lights.directions[casterIndex * 4 + 2],
+    );
+    if (aim.length2 < 1e-12) return false;
+    aim.normalize();
+
+    // Back the camera off along the light's axis by the scene radius, then give
+    // the volume the same depth again on the far side. An ortho volume fitted
+    // exactly to the bounds would clip the casters at its own near plane.
+    final padding = math.max(settings.depthPadding, 1.0);
+    final distance = radius * padding;
+    final eye = centre - aim.scaled(distance);
+
+    // Any up vector that is not parallel to the aim will do; the choice only
+    // rotates the map, and a rotated map shadows identically.
+    final up = aim.y.abs() > 0.99
+        ? vm.Vector3(0.0, 0.0, 1.0)
+        : vm.Vector3(0.0, 1.0, 0.0);
+    final view = _lookAt(eye, centre, up);
+
+    final projection = OrthographicProjection(
+      height: radius * 2.0 * padding,
+      near: 0.01,
+      far: distance + radius * padding,
+    ).toMatrix(1.0);
+
+    _shadowMatrix
+      ..setFrom(projection)
+      ..multiply(view);
+
+    final resolution = settings.resolution.clamp(256, 4096);
+    if (_shadowMap == null || _shadowResolution != resolution) {
+      // Sampled by the lighting pass, so devicePrivate rather than transient.
+      _shadowMap = gpu.gpuContext.createTexture(
+        gpu.StorageMode.devicePrivate,
+        resolution,
+        resolution,
+        format: hdrFormat,
+        enableRenderTargetUsage: true,
+        enableShaderReadUsage: true,
+      );
+      _shadowResolution = resolution;
+    }
+
+    final depth = targetPool.acquire(
+      RenderTargetSpec(
+        width: resolution,
+        height: resolution,
+        format: gpu.gpuContext.defaultDepthStencilFormat,
+        storageMode: gpu.StorageMode.deviceTransient,
+      ),
+    );
+
+    developer.Timeline.startSync('Renderer.shadowPass');
+    final commandBuffer = gpu.gpuContext.createCommandBuffer();
+    final pass = commandBuffer.createRenderPass(
+      gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(
+          texture: _shadowMap!,
+          // Cleared to the far plane, so anything the pass does not draw reads
+          // as "nothing between here and the light".
+          clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+          storeAction: gpu.StoreAction.store,
+        ),
+        depthStencilAttachment: gpu.DepthStencilAttachment(
+          texture: depth,
+          depthClearValue: 1.0,
+        ),
+      ),
+    );
+
+    pass.setViewport(
+      gpu.Viewport(x: 0, y: 0, width: resolution, height: resolution),
+    );
+    pass.setScissor(
+      gpu.Scissor(x: 0, y: 0, width: resolution, height: resolution),
+    );
+    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+    pass.setDepthWriteEnable(true);
+    pass.setDepthCompareOperation(gpu.CompareFunction.less);
+    pass.setColorBlendEnable(false);
+    // Front faces culled, so the depth stored is the back of each caster. That
+    // moves the comparison surface away from the lit face and removes most of
+    // the acne before bias and normal offset have to deal with any.
+    pass.setCullMode(gpu.CullMode.frontFace);
+
+    final shadowShader = library['ShadowDepth'];
+    if (shadowShader == null) {
+      developer.Timeline.finishSync();
+      targetPool.release(depth);
+      return false;
+    }
+    pass.bindPipeline(
+      _shadowPipeline ??=
+          gpu.gpuContext.createRenderPipeline(vertexShader, shadowShader),
+    );
+
+    _shadowCasters = 0;
+    final meshes = scene.meshes;
+    final mvp = vm.Matrix4.identity();
+    for (var i = 0; i < meshes.length; i++) {
+      final node = meshes[i];
+      if (!node.visibleInHierarchy) continue;
+      if (!node.castsShadow) continue;
+      final mesh = node.mesh;
+      if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+
+      pass.setWindingOrder(
+        node.worldIsMirrored
+            ? gpu.WindingOrder.clockwise
+            : gpu.WindingOrder.counterClockwise,
+      );
+      pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
+      pass.bindIndexBuffer(mesh.indexView, mesh.indexType, mesh.indexCount);
+
+      mvp
+        ..setFrom(_shadowMatrix)
+        ..multiply(node.worldMatrix);
+      _bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
+        'mvp': mvp.storage,
+        'model': node.worldMatrix.storage,
+        'normal_matrix': node.worldNormalMatrix.storage,
+      });
+      pass.draw();
+      _shadowCasters++;
+    }
+
+    commandBuffer.submit();
+    developer.Timeline.finishSync();
+
+    _releaseAfterFrame(depth);
+
+    _shadowParams[0] = 1.0 / resolution;
+    _shadowParams[1] = settings.bias;
+    _shadowParams[2] = settings.normalOffset;
+    _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
+    return true;
+  }
+
+  /// A right-handed look-at, which `vector_math` does not offer in the form the
+  /// engine's `[0, 1]` depth convention needs.
+  static vm.Matrix4 _lookAt(vm.Vector3 eye, vm.Vector3 target, vm.Vector3 up) {
+    final forward = (target - eye)..normalize();
+    final right = forward.cross(up)..normalize();
+    final trueUp = right.cross(forward);
+
+    final view = vm.Matrix4.identity();
+    view.setEntry(0, 0, right.x);
+    view.setEntry(0, 1, right.y);
+    view.setEntry(0, 2, right.z);
+    view.setEntry(1, 0, trueUp.x);
+    view.setEntry(1, 1, trueUp.y);
+    view.setEntry(1, 2, trueUp.z);
+    // The camera looks down its own -Z, so the third row is the negated
+    // forward axis.
+    view.setEntry(2, 0, -forward.x);
+    view.setEntry(2, 1, -forward.y);
+    view.setEntry(2, 2, -forward.z);
+    view.setEntry(0, 3, -right.dot(eye));
+    view.setEntry(1, 3, -trueUp.dot(eye));
+    view.setEntry(2, 3, forward.dot(eye));
+    return view;
   }
 
   /// The one triangle every full-screen pass draws, uploaded once.
@@ -801,6 +1082,20 @@ final class Renderer {
     final commandBuffer = gpu.gpuContext.createCommandBuffer();
     final pass = commandBuffer.createRenderPass(renderTarget);
 
+    // Lights are gathered once up front now, because the shadow pass needs the
+    // caster before any view is drawn — and the packed buffer is per frame, not
+    // per view.
+    lights.gather(scene.lights);
+    if (lights.count == 0) lights.useDefaultLight();
+    final lightOverflowCount = lights.overflow;
+    final shadowCaster = _firstDirectionalIndex();
+    final hasShadows = _renderShadowMap(
+      host: host,
+      scene: scene,
+      settings: settings.shadows,
+      casterIndex: shadowCaster,
+    );
+
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
@@ -859,13 +1154,7 @@ final class Renderer {
 
       camera.readWorldPosition(cameraPosition);
 
-      // Every visible light, packed once per view rather than per draw. The
-      // count is a uniform, so switching a light off shortens the shader's loop
-      // without touching the pipeline — which is the whole point of the array,
-      // given there is no runtime shader compilation to fall back on.
-      lights.gather(scene.lights);
-      if (lights.count == 0) lights.useDefaultLight();
-      lightOverflow = lights.overflow;
+      lightOverflow = lightOverflowCount;
 
       _cameraData[0] = cameraPosition.x;
       _cameraData[1] = cameraPosition.y;
@@ -968,6 +1257,7 @@ final class Renderer {
 
             _frameParams[0] = settings.exposure;
             _frameParams[1] = lights.count.toDouble();
+            _frameParams[2] = hasShadows ? shadowCaster.toDouble() : -1.0;
 
             _bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
               // Whole arrays written from their reflected base offset. Impeller
@@ -984,6 +1274,8 @@ final class Renderer {
               'material': _materialData,
               'material2': _material2Data,
               'frame_params': _frameParams,
+              'shadow_params': _shadowParams,
+              'shadow_matrix': _shadowMatrix.storage,
             });
           }
 
@@ -1020,6 +1312,18 @@ final class Renderer {
               _kEmissiveTextureSlot,
               material.emissiveTexture ?? fallbackAlbedo,
               material.emissiveSampler,
+            );
+          }
+          if (material.lighting.usesShadowMap) {
+            _bindTexture(
+              pass,
+              fragmentShader,
+              _kShadowTextureSlot,
+              // With shadows off the slot still has to be satisfied, and a white
+              // texture reads as "nothing between here and the light" — which is
+              // also what the zero strength above already guarantees.
+              hasShadows ? _shadowMap! : fallbackAlbedo,
+              _clampSampler,
             );
           }
           if (material.lighting.usesMetallicRoughnessMap) {
@@ -1094,6 +1398,7 @@ final class Renderer {
       lights: lights.count,
       lightsDropped: lightOverflow,
       pipelines: _pipelineCache.length,
+      shadowCasters: _shadowCasters,
     );
   }
 

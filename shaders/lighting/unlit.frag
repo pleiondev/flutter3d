@@ -11,6 +11,13 @@ vec3 ShadeLight(Surface s, LightSample light) {
   return s.albedo;
 }
 
+// Never called either, and deliberately not routed through shadow.glsl: an
+// unlit shader that declared the shadow sampler would lose it to the optimizer
+// and leave the engine binding a slot Metal does not have.
+float LightVisibility(Surface s, LightSample light, int index) {
+  return 1.0;
+}
+
 void main() {
   Surface s = ReadSurface();
   // The albedo is already linear, and an unlit surface is best

@@ -18,6 +18,13 @@ final class MeshNode extends SceneNode {
   MeshGeometry mesh;
   Material material;
 
+  /// Whether this node is drawn into the shadow map.
+  ///
+  /// Separate from [visible] because the two questions differ: a ground plane
+  /// should receive shadows without casting one, and anything that follows the
+  /// camera has no business in a light's view at all.
+  bool castsShadow = true;
+
   /// Skips frustum culling for this node.
   ///
   /// Worth setting on anything that follows the camera, such as a skybox, whose

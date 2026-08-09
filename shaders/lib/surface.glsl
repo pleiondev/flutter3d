@@ -59,9 +59,17 @@ uniform FragInfo {
   /// scale, z: occlusion strength, w: emissive strength.
   vec4 material2;
 
-  /// x: exposure, y: active light count. The rest is reserved so adding a
-  /// frame-wide parameter does not change the offsets of anything already here.
+  /// x: exposure, y: active light count, z: index of the shadow-casting light.
+  /// w is reserved so adding a frame-wide parameter does not change the offsets
+  /// of anything already here.
   vec4 frame_params;
+
+  /// x: one texel of the shadow map, y: depth bias, z: normal offset,
+  /// w: strength, zero when shadows are off.
+  vec4 shadow_params;
+
+  /// World space to the shadow camera's clip space.
+  mat4 shadow_matrix;
 }
 frag_info;
 
@@ -205,6 +213,15 @@ LightSample SampleLight(int index, Surface s) {
   return light;
 }
 
+/// How much of light [index] reaches this fragment, defined by each fragment
+/// shader.
+///
+/// A prototype rather than a call into shadow.glsl, because the models that
+/// sample no shadow map must not declare its sampler — the compiler would drop
+/// the slot and leave the engine binding one that is not there. A lit model
+/// returns `ShadowFactor(...)`; an unlit one returns 1.
+float LightVisibility(Surface s, LightSample light, int index);
+
 /// A model's per-light term, defined by each fragment shader.
 ///
 /// A prototype here and the definition in the model is what lets the loop below
@@ -224,7 +241,9 @@ vec3 AccumulateLights(Surface s) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    total += ShadeLight(s, light) * light.radiance * light.n_dot_l;
+    float visibility = LightVisibility(s, light, i);
+    if (visibility <= 0.0) continue;
+    total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
 
   return total;

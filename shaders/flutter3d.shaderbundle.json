@@ -58,5 +58,9 @@
   "MrtProbe": {
     "type": "fragment",
     "file": "shaders/post/mrt_probe.frag"
+  },
+  "ShadowDepth": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_depth.frag"
   }
 }

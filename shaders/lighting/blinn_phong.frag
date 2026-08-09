@@ -6,6 +6,11 @@
 // engines shipped, and it stays useful for stylised looks where a controllable
 // highlight matters more than correctness.
 #include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+float LightVisibility(Surface s, LightSample light, int index) {
+  return ShadowFactor(s, light, index);
+}
 
 vec3 ShadeLight(Surface s, LightSample light) {
   // Map perceptual roughness onto a Phong exponent. The mapping is arbitrary;

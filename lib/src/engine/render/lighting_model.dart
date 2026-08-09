@@ -59,6 +59,13 @@ enum LightingModel {
   /// unlit or debug model applies any.
   final bool usesMaterialMaps;
 
+  /// Whether the shader samples `shadow_texture`.
+  ///
+  /// The same set as [usesMaterialMaps] today — every lit model shadows and no
+  /// debug model does — but kept separate because the two answer different
+  /// questions and will diverge the moment an unlit-but-shadowed model exists.
+  bool get usesShadowMap => usesMaterialMaps;
+
   /// Whether the shader samples `metallic_roughness_texture`.
   ///
   /// Separate from [usesMaterialMaps] because Lambert is purely diffuse: it has

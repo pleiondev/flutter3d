@@ -4,6 +4,11 @@
 // the reference point for judging whether the fancier models are worth their
 // cost on a given target.
 #include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
+
+float LightVisibility(Surface s, LightSample light, int index) {
+  return ShadowFactor(s, light, index);
+}
 
 vec3 ShadeLight(Surface s, LightSample light) {
   // The radiance and the N.L factor are applied by AccumulateLights, so the

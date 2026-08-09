@@ -9,6 +9,7 @@
 // levels, and flutter_gpu on the stable channel exposes none. The ambient term
 // below is a flat stand-in, which is exactly the gap IBL would fill.
 #include <lib/material_maps.glsl>
+#include <lib/shadow.glsl>
 
 float D_GGX(float n_dot_h, float alpha) {
   float a = n_dot_h * alpha;
@@ -26,6 +27,10 @@ float V_SmithGGXCorrelated(float n_dot_v, float n_dot_l, float alpha) {
 vec3 F_Schlick(vec3 f0, float v_dot_h) {
   float f = pow(1.0 - v_dot_h, 5.0);
   return f0 + (vec3(1.0) - f0) * f;
+}
+
+float LightVisibility(Surface s, LightSample light, int index) {
+  return ShadowFactor(s, light, index);
 }
 
 vec3 ShadeLight(Surface s, LightSample light) {
