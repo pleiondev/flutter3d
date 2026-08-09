@@ -5,6 +5,7 @@ import '../physics/collision_shape.dart';
 import '../physics/collision_world.dart';
 import 'level.dart';
 import 'level_validator.dart';
+import 'spawn_context.dart';
 
 /// Building the physical side of a level.
 ///
@@ -31,6 +32,20 @@ extension LevelCollision on Level {
           userData: brush,
         ),
       );
+    }
+  }
+
+  /// Turns every entity into whatever its kind says it is.
+  ///
+  /// Beside [addTo] because the two are the same job on the two halves of a
+  /// level: the brushes become colliders, and the entities become actors. An
+  /// unknown type is skipped rather than fatal — the validator has already
+  /// refused the level if it mattered, and a tool loading a broken document to
+  /// repair it should still see everything it can.
+  void spawnInto(SpawnContext context, {EntityRegistry? registry}) {
+    final kinds = registry ?? EntityRegistry.standard;
+    for (final entity in entities) {
+      kinds[entity.type]?.spawn(entity, context);
     }
   }
 

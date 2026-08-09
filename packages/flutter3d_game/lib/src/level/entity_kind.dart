@@ -1,5 +1,9 @@
+import 'package:vector_math/vector_math.dart';
+
+import '../actors/monster.dart';
 import 'level.dart';
 import 'level_issue.dart';
+import 'spawn_context.dart';
 
 /// Everything one kind of level entity knows about itself.
 ///
@@ -16,9 +20,10 @@ import 'level_issue.dart';
 /// rather than asking what the kind is. Adding a twelfth means writing one
 /// class and registering it, and the compiler names every duty it still owes.
 ///
-/// Only [validate] exists today. Spawning arrives with the monsters and the
-/// pickups; there is no point declaring an abstract method for it now, since a
-/// signature invented before its first caller is a signature that gets changed.
+/// Two duties so far: checking an entity, and turning it into something that
+/// exists. Both are the kind's own business, which is the whole reason this is
+/// a hierarchy — the validator and the spawner each walk the entity list once
+/// and ask, instead of each carrying its own switch over the same names.
 abstract base class EntityKind {
   const EntityKind(this.type);
 
@@ -31,6 +36,13 @@ abstract base class EntityKind {
   /// of them, and an editor has to be able to load a broken level in order to
   /// fix it.
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {}
+
+  /// Brings this entity into the world.
+  ///
+  /// Does nothing by default, which is right for the kinds that are pure data
+  /// — a spawn point is a coordinate somebody reads, and a torch is a light the
+  /// level already carries.
+  void spawn(EntityDef entity, SpawnContext context) {}
 
   /// Reports that a named reference does not resolve.
   ///
@@ -179,6 +191,24 @@ final class PlayerSpawnKind extends EntityKind {
 
 final class MonsterKind extends EntityKind {
   const MonsterKind() : super(EntityTypes.monster);
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final def = Monsters.byName[entity.string('kind')];
+    // Already an error from validate, and a level with errors does not load —
+    // but a tool can spawn from a broken document deliberately, and crashing
+    // on it would be the wrong answer.
+    if (def == null) return;
+
+    final monster = context.monsters.spawn(
+      def,
+      // Authored where the feet go, which is the only place an author can see;
+      // the body is positioned by its centre.
+      entity.position + Vector3(0.0, def.height / 2.0, 0.0),
+      yaw: entity.yaw,
+    );
+    context.onMonsterSpawned?.call(monster);
+  }
 
   /// The roster. A monster naming something else spawns nothing, so it is an
   /// error rather than a shrug.

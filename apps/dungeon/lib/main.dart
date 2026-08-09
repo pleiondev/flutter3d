@@ -12,6 +12,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/effects.dart';
 import 'src/level_scene.dart';
+import 'src/monster_visuals.dart';
 import 'src/weapon_view.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
@@ -88,6 +89,12 @@ class _GameScreenState extends State<GameScreen>
   final WeaponView _weaponView = WeaponView();
   WeaponShot? _shot;
   ProjectileSystem? _projectiles;
+  MonsterSystem? _monsters;
+  MonsterVisuals? _monsterVisuals;
+
+  /// The player's own hide. Armour arrives with the pickups.
+  final Health _playerHealth = Health(100.0);
+  int _kills = 0;
 
   /// Explosions from the last step, for the effects to catch up with.
   final List<Detonation> _blasts = <Detonation>[];
@@ -95,6 +102,10 @@ class _GameScreenState extends State<GameScreen>
   /// The last shot's hits, for the impact markers the debug overlay draws.
   final List<ShotHit> _lastShot = <ShotHit>[];
   double _hitFlash = 0.0;
+
+  /// Fades after the player is hurt. Red rather than the crosshair's white,
+  /// because taking damage and dealing it must never look alike.
+  double _painFlash = 0.0;
 
   final CameraNode _camera = CameraNode(name: 'player');
   late final RenderView _view;
@@ -156,6 +167,23 @@ class _GameScreenState extends State<GameScreen>
 
       final hitscan = Hitscan(world: loaded.collision);
       final projectiles = ProjectileSystem(world: loaded.collision);
+      final monsters = MonsterSystem(
+        world: loaded.collision,
+        projectiles: projectiles,
+      );
+      final visuals = MonsterVisuals(loaded.scene);
+
+      // The level's entities become actors. Which entity becomes what is the
+      // entity kind's business, in flutter3d_game; all the application supplies
+      // is what they look like, which is the one thing the simulation cannot
+      // know.
+      loaded.level.spawnInto(
+        SpawnContext(
+          world: loaded.collision,
+          monsters: monsters,
+          onMonsterSpawned: visuals.add,
+        ),
+      );
       final body = CharacterController(
         world: loaded.collision,
         // Lifted by half the body height: a spawn is authored where the
@@ -168,6 +196,8 @@ class _GameScreenState extends State<GameScreen>
         _loaded = loaded;
         _body = body;
         _projectiles = projectiles;
+        _monsters = monsters;
+        _monsterVisuals = visuals;
         _shot = WeaponShot(
           world: loaded.collision,
           hitscan: hitscan,
@@ -209,6 +239,9 @@ class _GameScreenState extends State<GameScreen>
     if (dt > 0.0) _fps = _fps * 0.9 + (1.0 / dt) * 0.1;
 
     _steps = _loop.advance(dt);
+    // Once a frame, not once a step: this is display, and the simulation does
+    // not care where the capsules are.
+    _monsterVisuals?.sync();
     setState(() {});
   }
 
@@ -252,13 +285,29 @@ class _GameScreenState extends State<GameScreen>
 
     // After the weapon, so a rocket fired this step is not moved until the
     // next one — otherwise it starts the game already a step down the corridor.
+    final monsters = _monsters;
+    if (monsters != null && _playerHealth.isAlive) {
+      _eye
+        ..setFrom(body.position)
+        ..y += _eyeOffset;
+      monsters.step(dt, playerEye: _eye, playerCollider: body.collider);
+      if (monsters.playerDamageThisStep > 0.0) {
+        _playerHealth.damage(monsters.playerDamageThisStep);
+        _painFlash = 1.0;
+      }
+      for (final dead in monsters.died) {
+        _kills++;
+        _particles.burst(Effects.impactSparks, dead.position);
+      }
+    }
+
     final projectiles = _projectiles;
     if (projectiles != null) {
       projectiles.step(dt);
       for (final blast in projectiles.detonations) {
         _particles.burst(Effects.explosionCore, blast.position);
         _particles.burst(Effects.explosionEmbers, blast.position);
-        // Damage lands here once there is anything with health to take it.
+        _applyBlast(blast, monsters);
       }
       if (projectiles.detonations.isNotEmpty) {
         _blasts
@@ -277,6 +326,7 @@ class _GameScreenState extends State<GameScreen>
   void _updateWeapon(double dt, CharacterController body) {
     _arsenal.advanceTime(dt);
     if (_hitFlash > 0.0) _hitFlash = math.max(0.0, _hitFlash - dt * 4.0);
+    if (_painFlash > 0.0) _painFlash = math.max(0.0, _painFlash - dt * 1.6);
 
     final slot = _input.weaponRequest;
     if (slot != null && _arsenal.selectSlot(slot)) {
@@ -339,6 +389,16 @@ class _GameScreenState extends State<GameScreen>
       ..addAll(shot.hits);
     if (_lastShot.any((ShotHit h) => h.struckSomething)) _hitFlash = 1.0;
 
+    // Pellets landing in the same monster are summed before they are applied,
+    // or eight of them are eight deaths.
+    final monsters = _monsters;
+    if (monsters != null) {
+      for (final entry in Hitscan.damageByTarget(_lastShot).entries) {
+        final monster = entry.key.userData;
+        if (monster is Monster) monsters.hurt(monster, entry.value);
+      }
+    }
+
     // Where the muzzle actually is, unlike where the shot came from: the flare
     // is the one thing that should sit at the barrel rather than at the eye.
     _muzzle
@@ -352,6 +412,21 @@ class _GameScreenState extends State<GameScreen>
       if (!hit.struckSomething) continue;
       _particles.burst(Effects.impactSparks, hit.point, direction: hit.normal);
       _particles.burst(Effects.impactDust, hit.point, direction: hit.normal);
+    }
+  }
+
+  /// Splits an explosion between the monsters and the player.
+  void _applyBlast(Detonation blast, MonsterSystem? monsters) {
+    for (final entry in blast.damage.entries) {
+      final target = entry.key.userData;
+      if (target is Monster) {
+        monsters?.hurt(target, entry.value);
+      } else if (entry.key.layer == CollisionLayers.player) {
+        // Own goal included: a rocket at your own feet hurts, which is the
+        // price of the launcher being the best weapon in the game up close.
+        _playerHealth.damage(entry.value);
+        _painFlash = 1.0;
+      }
     }
   }
 
@@ -425,6 +500,10 @@ class _GameScreenState extends State<GameScreen>
                 weapon: _arsenal.current,
                 ammo: _arsenal.currentAmmo,
                 hitFlash: _hitFlash,
+                painFlash: _painFlash,
+                health: _playerHealth,
+                kills: _kills,
+                monstersLeft: _monsters?.aliveCount ?? 0,
               ),
             ],
           ),
@@ -525,6 +604,10 @@ class _Hud extends StatelessWidget {
     required this.weapon,
     required this.ammo,
     required this.hitFlash,
+    required this.painFlash,
+    required this.health,
+    required this.kills,
+    required this.monstersLeft,
   });
 
   final bool captured;
@@ -540,6 +623,11 @@ class _Hud extends StatelessWidget {
 
   /// Fades from one to zero after a shot connected.
   final double hitFlash;
+
+  final double painFlash;
+  final Health health;
+  final int kills;
+  final int monstersLeft;
 
   @override
   Widget build(BuildContext context) {
@@ -582,6 +670,57 @@ class _Hud extends StatelessWidget {
                     'y ${position.y.toStringAsFixed(1)}  '
                     'z ${position.z.toStringAsFixed(1)}  '
                     '${grounded ? 'grounded' : 'airborne'}'),
+              ],
+            ),
+          ),
+        ),
+        // A red wash on being hurt. Drawn under everything else so the numbers
+        // stay legible exactly when they matter most.
+        if (painFlash > 0.0)
+          IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  radius: 1.1,
+                  colors: <Color>[
+                    const Color(0x00FF2A18),
+                    Color.lerp(
+                      const Color(0x00FF2A18),
+                      const Color(0xAAFF2A18),
+                      painFlash,
+                    )!,
+                  ],
+                ),
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        Positioned(
+          left: 20.0,
+          bottom: 18.0,
+          child: DefaultTextStyle(
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22.0,
+              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text('HEALTH',
+                    style: TextStyle(color: Colors.white54, fontSize: 12.0)),
+                Text(
+                  health.isAlive ? '${health.current.round()}' : 'DEAD',
+                  style: TextStyle(
+                    color: health.current > 30.0
+                        ? Colors.white
+                        : const Color(0xFFFF6B5A),
+                    fontSize: 22.0,
+                  ),
+                ),
+                Text('kills $kills   left $monstersLeft',
+                    style: const TextStyle(
+                        color: Colors.white38, fontSize: 11.0)),
               ],
             ),
           ),
