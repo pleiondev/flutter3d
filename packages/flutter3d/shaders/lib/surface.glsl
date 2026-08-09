@@ -289,7 +289,12 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   vec2 ndc = clip.xy / clip.w;
   if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) return 1.0;
 
-  vec2 uv = ndc * 0.5 + 0.5;
+  // v is flipped, the same way the directional map does it: the texture's
+  // origin is at the top, where row zero of the render target is. Getting this
+  // wrong does not tilt the shadow — it makes the top row of faces read the
+  // bottom row, so a whole region compares against an unrelated distance and
+  // comes out as a black slab.
+  vec2 uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
   vec2 tile = vec2(float(face - (face / 3) * 3), float(face / 3));
   uv = (uv + tile) * vec2(1.0 / 3.0, 0.5);
 
