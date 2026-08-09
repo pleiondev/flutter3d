@@ -2,8 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Off in debug; Release.entitlements keeps it on.
+
+	     Golden rendering needs a GPU, so it cannot run under `flutter test`,
+	     which is headless. It runs as the real app instead, reading reference
+	     images from test/goldens/ and writing failures back beside them — and a
+	     sandboxed app can touch neither. The alternative was shipping the
+	     references as bundle assets, which puts test data in the product and
+	     still leaves no way to record a new one. -->
 	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<false/>
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
 	<key>com.apple.security.network.server</key>

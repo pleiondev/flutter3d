@@ -20,6 +20,7 @@ import 'src/engine/render/render_view.dart';
 import 'src/engine/render/renderer.dart';
 import 'src/engine/scene/scene_graph.dart';
 import 'src/spike/frame_capture.dart';
+import 'src/spike/golden_runner.dart';
 import 'src/spike/orbit_gestures.dart';
 import 'src/spike/scene_source.dart';
 
@@ -158,7 +159,7 @@ class _SpikePageState extends State<SpikePage>
 
   /// A plane under the model, so the shadow has somewhere to land.
   late final MeshNode _ground;
-  bool _showGround = true;
+  bool _showGround = GoldenRunner.fromEnvironment()?.scene.ground ?? true;
   late final OrbitController _orbit;
   late final RenderView _view;
 
@@ -183,22 +184,34 @@ class _SpikePageState extends State<SpikePage>
   /// rather than an absolute time — that is what lets speed and ping-pong work.
   Duration _lastTick = Duration.zero;
 
-  LightingModel _lighting = LightingModel.pbr;
+  LightingModel _lighting =
+      GoldenRunner.fromEnvironment()?.scene.lighting ?? LightingModel.pbr;
   double _roughness = 0.35;
   double _metallic = 0.0;
   double _specular = 1.0;
   double _exposure = 1.6;
   bool _wireframe = false;
-  bool _spinning = startupSpinFromEnvironment();
+  // A golden must not move between the frame it is recorded on and the frame it
+  // is compared on, so the turntable is off for every scene.
+  bool _spinning =
+      GoldenRunner.fromEnvironment() == null && startupSpinFromEnvironment();
   bool _culling = true;
-  DebugDrawOptions _debug = debugDrawFromEnvironment();
-  BloomSettings _bloom = const BloomSettings();
-  ShadowSettings _shadows =
-      ShadowSettings(enabled: startupShadowsFromEnvironment());
+  DebugDrawOptions _debug =
+      GoldenRunner.fromEnvironment()?.scene.debug ?? debugDrawFromEnvironment();
+  BloomSettings _bloom = BloomSettings(
+    enabled: GoldenRunner.fromEnvironment()?.scene.bloom ?? true,
+  );
+  ShadowSettings _shadows = ShadowSettings(
+    enabled: GoldenRunner.fromEnvironment()?.scene.shadows ??
+        startupShadowsFromEnvironment(),
+  );
   FrameResult? _lastFrame;
 
   /// Set only when `--dart-define=FLUTTER3D_CAPTURE=...` asked for a PNG.
   final FrameCapture? _capture = FrameCapture.fromEnvironment();
+
+  /// Set only when `--dart-define=FLUTTER3D_GOLDEN=...` named a scene.
+  final GoldenRunner? _golden = GoldenRunner.fromEnvironment();
 
   /// Reused across taps: picking allocates nothing per cast, and the result
   /// object is owned by the caster.
@@ -304,7 +317,7 @@ class _SpikePageState extends State<SpikePage>
       ..add(_fill)
       ..add(_spot);
 
-    final enabled = startupLightsFromEnvironment();
+    final enabled = _golden?.scene.lights ?? startupLightsFromEnvironment();
     if (enabled.isNotEmpty) {
       for (final light in <LightNode>[_light, _fill, _spot]) {
         light.visible = enabled.contains(light.name?.toLowerCase());
@@ -387,7 +400,9 @@ class _SpikePageState extends State<SpikePage>
   /// Matched case-insensitively on a substring so a capture command can say
   /// `teapot` instead of quoting the full chip label.
   int _startupSourceIndex() {
-    final wanted = startupSourceFromEnvironment().trim().toLowerCase();
+    final wanted = (_golden?.scene.source ?? startupSourceFromEnvironment())
+        .trim()
+        .toLowerCase();
     if (wanted.isEmpty) return 0;
     for (var i = 0; i < kSources.length; i++) {
       if (kSources[i].label.toLowerCase().contains(wanted)) return i;
@@ -465,7 +480,8 @@ class _SpikePageState extends State<SpikePage>
 
       // An animated model plays by default: a viewer that loads a clip and then
       // shows a still frame looks broken. A capture can pin it instead.
-      final frozen = startupAnimationTimeFromEnvironment();
+      final frozen =
+          _golden?.scene.animationTime ?? startupAnimationTimeFromEnvironment();
       if (frozen != null) {
         instance.player
           ?..play()
@@ -498,7 +514,10 @@ class _SpikePageState extends State<SpikePage>
       _orbit.frameBounds(bounds);
       // After framing, because frameBounds sets the distance but leaves the
       // angles alone — a capture that names an angle has to keep it.
-      final orbit = startupOrbitFromEnvironment();
+      final golden = _golden?.scene;
+      final orbit = golden != null
+          ? (yaw: golden.yaw, pitch: golden.pitch)
+          : startupOrbitFromEnvironment();
       if (orbit != null) {
         _orbit
           ..yaw = orbit.yaw
@@ -742,6 +761,7 @@ class SceneSurface extends StatelessWidget {
     required this.view,
     required this.settings,
     required this.onFrame,
+    this.fixedSize,
   });
 
   final Renderer renderer;
@@ -749,6 +769,13 @@ class SceneSurface extends StatelessWidget {
   final RenderView view;
   final RenderSettings settings;
   final ValueChanged<FrameResult> onFrame;
+
+  /// Renders at this size instead of the widget's, in physical pixels.
+  ///
+  /// Only the golden path uses it: a reference image recorded on one window and
+  /// compared on another would fail for a reason that has nothing to do with
+  /// the renderer.
+  final Size? fixedSize;
 
   @override
   Widget build(BuildContext context) {
@@ -758,8 +785,12 @@ class SceneSurface extends StatelessWidget {
       builder: (context, constraints) {
         // Render at physical resolution: sizing the target in logical pixels
         // would make the result soft on any HiDPI display.
-        final width = (constraints.maxWidth * dpr).round().clamp(1, 8192);
-        final height = (constraints.maxHeight * dpr).round().clamp(1, 8192);
+        final width = fixedSize != null
+            ? fixedSize!.width.round()
+            : (constraints.maxWidth * dpr).round().clamp(1, 8192);
+        final height = fixedSize != null
+            ? fixedSize!.height.round()
+            : (constraints.maxHeight * dpr).round().clamp(1, 8192);
 
         final frame = renderer.render(
           width: width,
