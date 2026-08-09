@@ -12,6 +12,9 @@
 /// The application is where this meets the renderer.
 library;
 
+export 'src/actors/health.dart';
+export 'src/actors/monster.dart';
+export 'src/actors/monster_system.dart';
 export 'src/combat/blast.dart';
 export 'src/combat/hitscan.dart';
 export 'src/combat/projectile.dart';

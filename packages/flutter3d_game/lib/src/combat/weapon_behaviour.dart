@@ -116,6 +116,13 @@ final class MeleeBehaviour extends WeaponBehaviour {
 
     final minimumCosine = math.cos(arcDegrees * 0.5 * math.pi / 180.0);
     final toTarget = Vector3.zero();
+    // The arc is horizontal, so the cone test ignores height. Measuring it in
+    // three dimensions from the swinger's eye rejects anything shorter than
+    // them: the direction to a crouching target's centre points downwards, out
+    // of a cone aimed level. Distance still counts all three axes.
+    final flatForward = Vector3(forward.x, 0.0, forward.z);
+    if (flatForward.length2 > 1e-9) flatForward.normalize();
+    final flatToTarget = Vector3.zero();
 
     for (final target in candidates) {
       toTarget
@@ -125,7 +132,11 @@ final class MeleeBehaviour extends WeaponBehaviour {
       if (distance > reach || distance <= 1e-6) continue;
 
       toTarget.scale(1.0 / distance);
-      if (toTarget.dot(forward) < minimumCosine) continue;
+      flatToTarget.setValues(toTarget.x, 0.0, toTarget.z);
+      if (flatToTarget.length2 > 1e-9) {
+        flatToTarget.normalize();
+        if (flatToTarget.dot(flatForward) < minimumCosine) continue;
+      }
 
       // A swing does not stop at a wall the way a ray does, but it must not
       // reach through one either.

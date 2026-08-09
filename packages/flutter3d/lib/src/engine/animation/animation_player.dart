@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
@@ -54,6 +55,23 @@ final class AnimationPlayer {
 
   int _clipIndex = -1;
   double _time = 0.0;
+
+  // A crossfade keeps the clip being left over playing while the new one comes
+  // in. Cutting straight to the new pose is what makes a monster look as though
+  // it teleported between animations, and it is most obvious exactly when it
+  // matters: the moment something is shot and switches from walking to
+  // flinching.
+  int _fadingFrom = -1;
+  double _fadeFromTime = 0.0;
+  double _fadeRemaining = 0.0;
+  double _fadeDuration = 0.0;
+
+  /// Tracks of the outgoing clip, by node and path, so the matching one can be
+  /// found without searching the list per track per frame.
+  Map<int, AnimationTrack>? _fadeFromTracks;
+
+  Float32List _fadeSample = Float32List(4);
+  final Quaternion _fadeQuaternion = Quaternion.identity();
   bool _playing = false;
   bool _reversing = false;
 
@@ -68,6 +86,103 @@ final class AnimationPlayer {
   final Quaternion _quaternion = Quaternion.identity();
 
   bool get isPlaying => _playing;
+
+  /// Whether a crossfade is in progress.
+  bool get isCrossFading => _fadingFrom >= 0;
+
+  /// How far the crossfade has come, from 0 (all the old clip) to 1 (all the
+  /// new one).
+  double get fadeWeight {
+    if (_fadingFrom < 0 || _fadeDuration <= 0.0) return 1.0;
+    final done = 1.0 - _fadeRemaining / _fadeDuration;
+    return done < 0.0 ? 0.0 : (done > 1.0 ? 1.0 : done);
+  }
+
+  /// Switches to [index], blending out of whatever is playing.
+  ///
+  /// A tenth to a fifth of a second is the useful range: shorter reads as a cut
+  /// and longer makes a reaction feel late. Fading to the clip already playing
+  /// is ignored rather than restarting it, so a state machine can ask every
+  /// step without stuttering.
+  void crossFadeTo(int index, {double duration = 0.15}) {
+    if (index < 0 || index >= clips.length) return;
+    if (index == _clipIndex && _playing) return;
+
+    if (duration > 0.0 && _clipIndex >= 0 && _clipIndex < clips.length) {
+      _fadingFrom = _clipIndex;
+      _fadeFromTime = _time;
+      _fadeDuration = duration;
+      _fadeRemaining = duration;
+      _fadeFromTracks = <int, AnimationTrack>{
+        for (final track in clips[_clipIndex].tracks) _trackKey(track): track,
+      };
+    } else {
+      _cancelFade();
+    }
+
+    _clipIndex = index;
+    _time = 0.0;
+    _playing = true;
+    _reversing = false;
+  }
+
+  /// Fades to the clip called [name], if there is one.
+  bool crossFadeToNamed(String name, {double duration = 0.15}) {
+    for (var i = 0; i < clips.length; i++) {
+      if (clips[i].name != name) continue;
+      crossFadeTo(i, duration: duration);
+      return true;
+    }
+    return false;
+  }
+
+  void _cancelFade() {
+    _fadingFrom = -1;
+    _fadeFromTracks = null;
+    _fadeRemaining = 0.0;
+    _fadeDuration = 0.0;
+  }
+
+  static double _mix(double from, double to, double t) =>
+      from + (to - from) * t;
+
+  /// Shortest-arc interpolation between two rotations.
+  ///
+  /// The sign flip is the part that matters: a quaternion and its negation are
+  /// the same rotation, so without choosing the closer of the two, half of all
+  /// blends spin the long way.
+  static Quaternion _slerp(Quaternion from, Quaternion to, double t) {
+    var dot = from.x * to.x + from.y * to.y + from.z * to.z + from.w * to.w;
+    var sign = 1.0;
+    if (dot < 0.0) {
+      dot = -dot;
+      sign = -1.0;
+    }
+
+    double scaleFrom;
+    double scaleTo;
+    if (dot > 0.9995) {
+      // Nearly identical: the arc is so short that a straight line is closer
+      // than the trigonometry's own error.
+      scaleFrom = 1.0 - t;
+      scaleTo = t;
+    } else {
+      final theta = math.acos(dot);
+      final sinTheta = math.sin(theta);
+      scaleFrom = math.sin((1.0 - t) * theta) / sinTheta;
+      scaleTo = math.sin(t * theta) / sinTheta;
+    }
+
+    return Quaternion(
+      scaleFrom * from.x + scaleTo * sign * to.x,
+      scaleFrom * from.y + scaleTo * sign * to.y,
+      scaleFrom * from.z + scaleTo * sign * to.z,
+      scaleFrom * from.w + scaleTo * sign * to.w,
+    )..normalize();
+  }
+
+  static int _trackKey(AnimationTrack track) =>
+      track.nodeIndex * AnimationPath.values.length + track.path.index;
 
   bool get hasClips => clips.isNotEmpty;
 
@@ -142,6 +257,17 @@ final class AnimationPlayer {
   /// Takes a delta rather than an absolute time so the caller can drive it from
   /// a `Ticker`, a fixed step, or a scrubber without the player caring which.
   void update(double deltaSeconds) {
+    if (_fadingFrom >= 0) {
+      // The clip being left keeps playing while it fades, which is the whole
+      // difference between a crossfade and a dissolve to a frozen pose.
+      _fadeFromTime += deltaSeconds * speed;
+      final outgoing = clips[_fadingFrom].duration;
+      if (outgoing > 0.0) _fadeFromTime %= outgoing;
+
+      _fadeRemaining -= deltaSeconds;
+      if (_fadeRemaining <= 0.0) _cancelFade();
+    }
+
     if (!_playing || clip == null) return;
 
     final length = duration;
@@ -202,9 +328,34 @@ final class AnimationPlayer {
       }
       track.sample(_time, _sample);
 
+      // During a crossfade, mix in the same joint's track from the clip being
+      // left. A joint the outgoing clip did not animate simply arrives at its
+      // new value, which is right: there is nothing to blend from.
+      final weight = fadeWeight;
+      // Written out rather than as a conditional expression: `a ? b?[c] : d`
+      // parses as a nullable type in Dart and fails to compile.
+      AnimationTrack? previous;
+      if (weight < 1.0) {
+        previous = _fadeFromTracks?[_trackKey(track)];
+      }
+      if (previous != null) {
+        if (_fadeSample.length < previous.componentCount) {
+          _fadeSample = Float32List(previous.componentCount);
+        }
+        previous.sample(_fadeFromTime, _fadeSample);
+      }
+
       switch (track.path) {
         case AnimationPath.translation:
-          node.setPosition(_sample[0], _sample[1], _sample[2]);
+          if (previous == null) {
+            node.setPosition(_sample[0], _sample[1], _sample[2]);
+          } else {
+            node.setPosition(
+              _mix(_fadeSample[0], _sample[0], weight),
+              _mix(_fadeSample[1], _sample[1], weight),
+              _mix(_fadeSample[2], _sample[2], weight),
+            );
+          }
 
         case AnimationPath.rotation:
           // glTF stores quaternions xyzw, which is the order this constructor
@@ -215,10 +366,33 @@ final class AnimationPlayer {
             _sample[2],
             _sample[3],
           );
+          if (previous != null) {
+            _fadeQuaternion.setValues(
+              _fadeSample[0],
+              _fadeSample[1],
+              _fadeSample[2],
+              _fadeSample[3],
+            );
+            // Slerp, not a component lerp: blending quaternions linearly and
+            // renormalising takes the long way round whenever the two are more
+            // than a quarter turn apart, which is exactly what a hurt reaction
+            // is.
+            _quaternion.setFrom(
+              _slerp(_fadeQuaternion, _quaternion, weight),
+            );
+          }
           node.setRotation(_quaternion);
 
         case AnimationPath.scale:
-          node.setScale(_sample[0], _sample[1], _sample[2]);
+          if (previous == null) {
+            node.setScale(_sample[0], _sample[1], _sample[2]);
+          } else {
+            node.setScale(
+              _mix(_fadeSample[0], _sample[0], weight),
+              _mix(_fadeSample[1], _sample[1], weight),
+              _mix(_fadeSample[2], _sample[2], weight),
+            );
+          }
 
         case AnimationPath.weights:
           // Morph targets are not implemented; the track is decoded and carried

@@ -86,7 +86,7 @@ final class MovementTuning {
 final class CharacterController {
   CharacterController({
     required this.world,
-    CollisionBox? shape,
+    CollisionShape? shape,
     Vector3? position,
     this.tuning = const MovementTuning(),
     int layer = CollisionLayers.player,
@@ -107,15 +107,19 @@ final class CharacterController {
 
   final CollisionWorld world;
 
-  /// The player's collision volume. A box rather than a capsule: sweeps run
-  /// against bounds anyway, so a capsule would cost the same and buy nothing.
-  final CollisionBox shape;
+  /// The body's collision volume.
+  ///
+  /// Any shape: sweeping runs against bounds whatever it is, so the choice
+  /// costs nothing here and matters elsewhere. The player is a box because
+  /// nothing tests exact overlap against them; a monster is a capsule because
+  /// a melee swing and a blast both do, and those are exact.
+  final CollisionShape shape;
 
   /// This body's entry in the world, kept in step with [position].
   late final Collider collider;
 
-  /// Half the player's box: radius in X and Z, half the height in Y.
-  Vector3 get halfExtents => shape.halfExtents;
+  /// Half the body's bounding box: radius in X and Z, half the height in Y.
+  Vector3 get halfExtents => shape.boundsHalfExtents;
 
   final MovementTuning tuning;
 
@@ -281,6 +285,28 @@ final class CharacterController {
 
     velocity.x += _wish.x * add;
     velocity.z += _wish.z * add;
+
+    // Then clamp the total, which the step above does not.
+    //
+    // Acceleration is capped along the requested direction, and that alone is
+    // not enough once a wall is involved: sliding strips one component out of
+    // the velocity, so the projection onto the wish direction falls, so the
+    // body is allowed to accelerate again — and again. A monster with a stated
+    // speed of 5.4 was measured doing 6.7 along a wall, and the same arithmetic
+    // lets a player wall-strafe faster than they can sprint.
+    //
+    // Only on the ground. In the air the projection cap is what gives a jump
+    // its feel, and clamping there would make mid-air control mushy for the
+    // sake of an exploit that needs a surface to work.
+    if (!_grounded) return;
+    final speed = math.sqrt(
+      velocity.x * velocity.x + velocity.z * velocity.z,
+    );
+    if (speed > requested && speed > 1e-6) {
+      final scale = requested / speed;
+      velocity.x *= scale;
+      velocity.z *= scale;
+    }
   }
 
   void _applyGravity(double dt) {
