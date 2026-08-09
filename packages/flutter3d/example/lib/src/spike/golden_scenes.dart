@@ -251,6 +251,22 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     pointShadow: true,
   ),
 
+  // The lit view of a point shadow — the only scene that reads the cube atlas
+  // rather than displaying it.
+  //
+  // Both atlas goldens show the map itself, so between them they pinned every
+  // line that writes a face and not one that samples it: the slot lookup, the
+  // face pick, the v flip and the tile inset were all unpinned while looking
+  // thoroughly covered. One light rather than four, because four fill in each
+  // other's shadows and leave nothing to read.
+  const GoldenScene(
+    name: 'cube-shadow-lit',
+    source: 'Teapot',
+    bloom: false,
+    lights: <String>{'fill light'},
+    pointShadow: true,
+  ),
+
   // Four casters, four rows. The single-caster golden above passes whether the
   // atlas holds one row or four, so it said nothing while three of the four
   // rows were being cleared away; this scene is the one that fails when they
