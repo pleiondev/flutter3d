@@ -40,6 +40,19 @@ final class MeshNode extends SceneNode {
   /// camera has no business in a light's view at all.
   bool castsShadow = true;
 
+  /// Whether this caster never moves.
+  ///
+  /// A dungeon's walls do not, and their contribution to a point light's cube
+  /// map can be rendered once at load instead of six times a frame. Everything
+  /// else — a monster, a door, a pickup that spins — has to be redrawn, so the
+  /// two are kept in separate maps and the shader takes whichever occluder is
+  /// nearer.
+  ///
+  /// False by default, which is the safe way round: a mover wrongly marked
+  /// static leaves its shadow behind when it moves, and that is a bug nobody
+  /// looks for. A static thing wrongly left dynamic merely costs a redraw.
+  bool shadowIsStatic = false;
+
   /// Skips frustum culling for this node.
   ///
   /// Worth setting on anything that follows the camera, such as a skybox, whose

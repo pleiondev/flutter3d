@@ -90,7 +90,10 @@ final class LevelLoader {
             name: surface.material,
           ),
           name: surface.material,
-        ),
+        )
+          // Brushes are the level: they never move, so their shadow is baked
+          // once rather than redrawn six times a frame.
+          ..shadowIsStatic = true,
       );
     }
 

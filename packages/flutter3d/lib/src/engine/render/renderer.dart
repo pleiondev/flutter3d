@@ -825,6 +825,7 @@ final class Renderer implements PluginServices {
     required ShadowSettings settings,
     required vm.Vector3 position,
     required double range,
+    required bool static,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (range <= 0.0) return false;
@@ -839,6 +840,14 @@ final class Renderer implements PluginServices {
     final width = tile * 3;
     final height = tile * 2;
     if (_cubeShadow == null || _cubeShadowTile != tile) {
+      _cubeShadowStatic = gpu.gpuContext.createTexture(
+        gpu.StorageMode.devicePrivate,
+        width,
+        height,
+        format: hdrFormat,
+        enableRenderTargetUsage: true,
+        enableShaderReadUsage: true,
+      );
       _cubeShadow = gpu.gpuContext.createTexture(
         gpu.StorageMode.devicePrivate,
         width,
@@ -848,6 +857,7 @@ final class Renderer implements PluginServices {
         enableShaderReadUsage: true,
       );
       _cubeShadowTile = tile;
+      _staticShadowBaked = false;
     }
 
     final depth = targetPool.acquire(
@@ -864,7 +874,7 @@ final class Renderer implements PluginServices {
     final pass = commandBuffer.createRenderPass(
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
-          texture: _cubeShadow!,
+          texture: static ? _cubeShadowStatic! : _cubeShadow!,
           // Cleared to the far end: anything no face drew reads as "nothing
           // between the light and the range", which is the right default for
           // a direction with no caster in it.
@@ -923,6 +933,10 @@ final class Renderer implements PluginServices {
 
       for (final node in scene.meshes) {
         if (!node.visibleInHierarchy || !node.castsShadow) continue;
+        // One pass draws the things that never move, the other the things that
+        // do. Splitting them is the whole point: the walls are baked once and
+        // only a spinning pickup, a monster or a door is redrawn.
+        if (node.shadowIsStatic != static) continue;
         final mesh = node.mesh;
         if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
         // Static geometry only for now: a skinned caster needs the skinned
@@ -982,6 +996,8 @@ final class Renderer implements PluginServices {
 
   gpu.RenderPipeline? _cubeShadowPipeline;
   gpu.Texture? _cubeShadow;
+  gpu.Texture? _cubeShadowStatic;
+  bool _staticShadowBaked = false;
   int _cubeShadowTile = 0;
   final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
@@ -1638,6 +1654,13 @@ final class Renderer implements PluginServices {
         _cubeShadow ?? fallbackAlbedo,
         _clampSampler,
       );
+      _bindTexture(
+        pass,
+        fragmentShader,
+        'point_shadow_static_texture',
+        _cubeShadowStatic ?? fallbackAlbedo,
+        _clampSampler,
+      );
 
       bindUniformBlock(pass, host, fragmentShader, _kFogInfoBlock, {
         'fog': _fogData,
@@ -1884,14 +1907,33 @@ final class Renderer implements PluginServices {
     final range = point == null
         ? 0.0
         : (point.range > 0.0 ? point.range : 20.0);
-    if (point != null &&
+    if (point != null) {
+      // The walls once, and only if they have not been done: six views of the
+      // level's whole geometry is a load-time cost, not a per-frame one.
+      if (!_staticShadowBaked) {
         _renderCubeShadow(
           host: host,
           scene: scene,
           settings: settings.shadows,
           position: _cubePosition,
           range: range,
-        )) {
+          static: true,
+        );
+        _staticShadowBaked = true;
+      }
+
+      // And everything that moves, every frame. A pickup that spins would
+      // otherwise leave its shadow behind in the orientation it was baked in.
+      _renderCubeShadow(
+        host: host,
+        scene: scene,
+        settings: settings.shadows,
+        position: _cubePosition,
+        range: range,
+        static: false,
+      );
+    }
+    if (point != null) {
       _cubeShadowLight = lights.packed.indexOf(point);
       _pointShadowLight[0] = _cubePosition.x;
       _pointShadowLight[1] = _cubePosition.y;

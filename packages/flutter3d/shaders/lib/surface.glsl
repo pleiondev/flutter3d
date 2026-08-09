@@ -237,6 +237,14 @@ vec3 ShadeLight(Surface s, LightSample light);
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
 
+/// The same atlas for the things that never move, rendered once at load.
+///
+/// Two maps rather than one because a dungeon's walls can be baked and a
+/// spinning pickup cannot, and there is no way to draw into part of a texture
+/// without redrawing the rest of it. Sampling both and keeping the nearer
+/// occluder costs one extra read and saves six views of the level every frame.
+uniform sampler2D point_shadow_static_texture;
+
 uniform PointShadow {
   /// The same six view-projections the atlas was rendered with.
   ///
@@ -298,8 +306,12 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   vec2 tile = vec2(float(face - (face / 3) * 3), float(face / 3));
   uv = (uv + tile) * vec2(1.0 / 3.0, 0.5);
 
-  float stored = texture(point_shadow_texture, uv).r * range;
-  // Nothing was drawn in that direction, so nothing is in the way.
+  // Whichever is nearer occludes: a wall in front of a monster shadows, and so
+  // does a monster in front of a wall.
+  float stored = min(texture(point_shadow_texture, uv).r,
+                     texture(point_shadow_static_texture, uv).r) *
+      range;
+  // Nothing was drawn in that direction by either, so nothing is in the way.
   if (stored >= range * 0.999) return 1.0;
 
   return distance - point_shadow.params.y > stored ? 1.0 - strength : 1.0;
