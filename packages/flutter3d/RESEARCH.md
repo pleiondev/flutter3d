@@ -501,6 +501,7 @@ assumptions.
 |---|---|---|
 | Compressed formats (ASTC/BC/ETC2) | **No.** Exactly 16 `PixelFormat` values, all uncompressed | `lib/src/formats.dart:36` |
 | `instanceCount` in `draw()` | **No.** `void draw()` takes no parameters at all | `lib/src/render_pass.dart:450` |
+| Fewer attachments than fragment outputs | **Tolerated.** A pipeline whose fragment stage declares `layout(location = 1) out` renders correctly into a `RenderTarget` with one colour attachment; the extra output is discarded. Verified by adding the surface output to all six lighting shaders and re-running the goldens: 12/12 pixel-identical with the scene pass still single-attachment. This is what lets a G-buffer be switched on per frame rather than needing a second set of shaders | `shaders/lib/color.glsl` |
 | MRT | **Present, and verified at runtime**: two attachments each receive their own fragment output. Structurally, `RenderTarget.colorAttachments` is a `List` and `setColorBlendEnable` accepts a `colorAttachmentIndex` | `lib/src/render_pass.dart:222,240,354` |
 | Render-to-mip-level | **There are no mips at all.** `Texture` has no `mipCount`, `overwrite()` writes only the base level, and there is only `getBaseMipLevelSizeInBytes()` | `lib/src/texture.dart:82,96` |
 

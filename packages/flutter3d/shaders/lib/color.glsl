@@ -27,6 +27,32 @@ in vec4 v_color;
 
 out vec4 frag_color;
 
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, window-space depth in a.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See RESEARCH.md.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+#endif
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+void WriteSurfaceGeometry() {
+#ifndef F3D_NO_SURFACE_BUFFER
+  frag_surface = vec4(normalize(v_normal) * 0.5 + 0.5, gl_FragCoord.z);
+#endif
+}
+
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
 /// in linear space; skipping this is what makes naive renderers look muddy.
 vec3 SrgbToLinear(vec3 srgb) {
@@ -57,6 +83,7 @@ vec3 LinearToSrgb(vec3 linear) {
 /// of the display transform as the tone map.
 void WriteSurface(vec3 linearColor, float alpha) {
   frag_color = vec4(linearColor, alpha);
+  WriteSurfaceGeometry();
 }
 
 /// Writes a value that is already display-referred.
@@ -68,6 +95,7 @@ void WriteSurface(vec3 linearColor, float alpha) {
 /// `RenderSettings.tonemap` is for.
 void WriteDisplayColor(vec3 displayColor, float alpha) {
   frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry();
 }
 
 #endif  // COLOR_GLSL_
