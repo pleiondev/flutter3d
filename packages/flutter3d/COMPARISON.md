@@ -12,9 +12,13 @@ that pins it is named.
 
 **flutter_scene is the broader engine today.** It ships roughly 250 Dart files
 against our 62 (~15.7k lines here), and it has whole subsystems we do not have
-at all: physics, audio, a web backend, compressed textures, mipmaps, IBL, and a
+at all: physics, a web backend, compressed textures, mipmaps, IBL, and a
 post-processing stack several effects deep. A comparison that put us ahead on
 breadth would be a comparison of the wrong thing.
+
+**But none of it runs on the stable channel.** Their README states the
+requirement plainly, and it reframes every row below: breadth you cannot pin a
+toolchain to is not the same kind of asset as breadth you can. See §4.
 
 **What we have instead is depth in one direction they have not gone**, and it
 is not a small one: we shadow every light type, they shadow two of three. For a
@@ -27,7 +31,8 @@ rest.
 
 | Capability | flutter3d | flutter_scene | How this was checked |
 |---|---|---|---|
-| **Point-light shadows** | **Yes.** Cube atlas, six 90° faces per light, four lights per frame, one pass | **No — not at any quality.** `PointLight` takes `intensity`, `range`, `falloffExponent` and nothing else; there is no `castsShadow` on it. Only `DirectionalLight` and `SpotLight` have shadow parameters | `src/light.dart:387` (theirs); `cube-shadow`, `cube-shadow-many` goldens (ours) |
+| **Runs on the stable channel** | **Yes.** Flutter 3.44.6 stable, no channel switch and no experimental flags. `flutter_gpu` ships inside the stable SDK at `bin/cache/pkg/flutter_gpu` (RESEARCH.md §4), and `tool/build_shaders.sh` calls `impellerc` directly rather than going through Native Assets | **No.** Their README: Flutter GPU "hasn't shipped to the stable channel yet, so Flutter Scene requires the Flutter master channel", specifically a build from 2026-06-09 or later. Their `pubspec.yaml` lower bound says stable only so pub.dev can score the package, and they say so — it is "looser than the real requirement". Plus a one-time `flutter config --enable-dart-data-assets` | their README §Requirements, lines 81 and 83 |
+| **Point-light shadows** | **Yes.** Cube atlas, six 90° faces per light, four lights per frame, one pass | **No — not at any quality.** `PointLight` takes `intensity`, `range`, `falloffExponent` and nothing else; there is no `castsShadow` on it | Said outright in their own README: "Directional, point, and spot lights. **Directional and spot lights cast shadows**" (line 90), and confirmed in `src/light.dart:387` and `render/punctual_lights.dart`, which carries `spotShadow*` fields and no point equivalent. Ours: `cube-shadow`, `cube-shadow-lit`, `cube-shadow-many` goldens |
 | **Radial-distance cube faces** | Faces store distance/range, not clip depth, so no seam at a face boundary | n/a — no cube shadows to seam | `shaders/lighting/shadow_distance.frag` |
 | **Static/dynamic shadow split for point lights** | Two atlases, walls baked once at load, movers redrawn per frame, shader takes `min` | They have the same idea, but only for **directional cascades** (`shadowStatic` + `DirectionalShadowCache`). Spot and point get nothing | `src/render/shadow_cache.dart` (theirs) |
 | **Model formats** | glTF/GLB, OBJ, and our own `.f3d` binary with a writer | glTF/GLB and their own `.fscene`. No OBJ | `lib/src/engine/assets/` vs `src/importer/` |
@@ -61,9 +66,9 @@ Grouped by what it would cost us, not by their file layout.
 
 | Missing | Theirs | Why it bites |
 |---|---|---|
-| **Physics** | `src/physics/` — rigid bodies, colliders, joints, character controller, queries, events | We have a ground probe that lets a passenger sink into a moving platform. That is a symptom of not having this |
-| **Audio** | `src/audio/` — engine, buses, 3D sources, attenuation, listener, velocity (Doppler) | A dungeon with no sound is a demo |
-| **Compressed textures + mipmaps** | `src/texture/` — KTX2, ASTC/BC1/BC3/ETC2 transcode, `mipmap.dart` | RESEARCH.md §7 records that this channel has no mips at all. They built the chain themselves. Ours minification-aliases and we have no prefiltered specular |
+| **Physics** | `src/physics/` is the engine-side API; the backends are **separate published packages**, `flutter_scene_rapier` (prebuilt native binaries and a wasm module) and `flutter_scene_box3d` | We have a ground probe that lets a passenger sink into a moving platform. That is a symptom of not having this. Note the shape of their answer — an integration, not an implementation. It is the right shape and we should copy it |
+| **Audio** | `src/audio/` exists in the engine, but **no backend is published**: `flutter_scene_soloud` and `flutter_scene_fmod` are both marked "Not yet published" in their README | Smaller gap than it looks — their users cannot have this today either. A dungeon still needs sound |
+| **Compressed textures + mipmaps** | `src/texture/` — KTX2, ASTC/BC1/BC3/ETC2 transcode, `mipmap.dart` | The catch is in §4: their mip chain is what **forces them onto master**, since render-to-mip-level landed there on 2026-06-09. Copying their route costs us the stable channel, which is the more valuable of the two |
 | **Web** | `src/gpu/web/` — a complete second backend | We are macOS/Impeller-only in practice |
 
 ### Visible quality gap
@@ -133,29 +138,63 @@ green field.
 - **Our own physics and audio.** These are disqualifiers — no game ships without
   them — but writing them spends the differentiation budget on ground where
   there is none to gain. Integrate instead: **physics 2–4 weeks, audio 1–3
-  weeks** to bind and wire, against months to author.
+  weeks** to bind and wire, against months to author. They reached the same
+  conclusion: their physics is `flutter_scene_rapier` / `flutter_scene_box3d`
+  as separate packages, and their audio backends (SoLoud, FMOD) are the same
+  shape — still unpublished, so on audio nobody has shipped anything yet.
 - **Material DSL, Gaussian splats, a scene format.** Catch-up moves by
   definition.
 
-### The one breadth item we still have to take
+### Mipmaps: the question that turned out to be a trap
 
-**Mipmaps and a compressed texture format** — 3–6 weeks, with an unknown to
-resolve first. Everything minification-aliases without them, and prefiltered
-specular (hence step 4) is gated on them. RESEARCH.md §7 records that this
-channel has no mip chain at all, yet they ship `mipmap.dart`, `mipmap_async.dart`
-and transcoders for ASTC/BC1/BC3/ETC2. **Read how they did it before planning
-the work** — it could be much cheaper or much dearer than it looks, and that
-answer changes the order of everything after it.
+This was written up as "the one breadth item we have to take — read how they did
+it first". Reading it changed the answer.
+
+How they did it is **leave the stable channel**. Their README names the date:
+0.19.0 needs a master build from 2026-06-09 or later, "which is when
+render-to-mip-level Flutter GPU support landed". The mip chain is not a thing
+they built around the platform; it is the thing that put them on master.
+
+So the item is not "3–6 weeks of texture work". It is a choice:
+
+1. **Mips their way** — move to master, gain the texture pipeline, lose stable.
+2. **Mips the hard way** — a chain as separate textures with explicit LOD
+   selection in the shader. Unknown cost, no reference implementation, and
+   worth a spike before it is worth an estimate.
+3. **No mips** — accept minification aliasing, mitigate with texture authoring
+   and anisotropy where the sampler allows, and give up prefiltered specular.
+   Note that step 4's lightmaps do **not** need it, which is a point in their
+   favour over probes.
+
+**Recommend 3 now and a spike on 2**, and do not take 1. Everything below says
+why.
 
 ### Positioning
 
 Not "a 3D engine for Flutter" — that fight is lost — but **an engine for games
-with dynamic light in enclosed spaces**. We are first there and the gap widens
-on its own.
+with dynamic light in enclosed spaces, on stable Flutter**.
 
-One asset worth naming: we have **a real game driving the engine**.
-`flutter_scene` is an engine in search of games. Every feature here is checked
-against a product, which is how three defects surfaced in a single sitting.
+That last clause may be the most valuable thing in this document, and it was
+found in their README rather than their source. They cannot ship on stable:
+Flutter GPU is not there yet, and their own text calls the stable lower bound in
+their `pubspec.yaml` "looser than the real requirement" — present so pub.dev can
+score the package. Anyone shipping a product reads "requires the master channel"
+as "cannot pin a toolchain", and for a studio that is close to disqualifying.
+
+We are on 3.44.6 stable with no channel switch and no experimental flags, and
+that is not luck: `tool/build_shaders.sh` calls `impellerc` directly precisely
+because the packaged path wanted Native Assets, and we use no mips at all. The
+same two decisions that make us smaller are what make us shippable today.
+
+It follows that **staying on stable is a feature to defend, not an accident to
+outgrow**. Anything that would force a channel move — mips their way, most of
+all — has to pay for the loss, and the price is high.
+
+Two more assets worth naming. We have **a real game driving the engine**;
+`flutter_scene` is an engine in search of games, and every feature here is
+checked against a product, which is how four defects surfaced in a single
+sitting. And they are **pre-1.0 with breaking changes in minor releases**, by
+their own statement — stability is ours to claim if we choose to.
 
 ## 5. State of the shadow work
 
