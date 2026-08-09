@@ -1,0 +1,98 @@
+/// A live voice, as the backend sees it.
+///
+/// Opaque on purpose: the mixer holds it and hands it back, and has no
+/// business knowing whether it is a SoLoud handle or an index into a list.
+typedef VoiceId = Object;
+
+/// What actually makes noise.
+///
+/// An interface because the mixing is worth testing and an audio device is not
+/// something a test can have — and because the backend is the part most likely
+/// to be replaced, having already been chosen twice.
+abstract interface class AudioBackend {
+  /// Reads an asset so that [start] does not have to wait.
+  Future<void> preload(String asset);
+
+  /// Begins a voice, or null when the backend refused.
+  ///
+  /// [pan] runs from -1 (hard left) through 0 to 1 (hard right).
+  VoiceId? start(
+    String asset, {
+    required double gain,
+    required double pan,
+    required bool loop,
+  });
+
+  void update(VoiceId voice, {required double gain, required double pan});
+
+  void stop(VoiceId voice);
+
+  /// False once a one-shot has run out, so the mixer can forget it.
+  bool isAlive(VoiceId voice);
+}
+
+/// A backend that makes no sound and records everything.
+///
+/// Not only for tests: a build with no audio device, a headless capture, or a
+/// player who has turned sound off should all take this path rather than a
+/// branch at every call site.
+final class SilentBackend implements AudioBackend {
+  final List<String> preloaded = <String>[];
+  final List<SilentVoice> started = <SilentVoice>[];
+
+  /// Voices still running, in start order.
+  List<SilentVoice> get live =>
+      started.where((SilentVoice v) => v.alive).toList(growable: false);
+
+  int _next = 0;
+
+  @override
+  Future<void> preload(String asset) async => preloaded.add(asset);
+
+  @override
+  VoiceId? start(
+    String asset, {
+    required double gain,
+    required double pan,
+    required bool loop,
+  }) {
+    final voice = SilentVoice(_next++, asset, gain, pan, loop);
+    started.add(voice);
+    return voice;
+  }
+
+  @override
+  void update(VoiceId voice, {required double gain, required double pan}) {
+    final live = voice as SilentVoice;
+    live
+      ..gain = gain
+      ..pan = pan;
+    live.updates++;
+  }
+
+  @override
+  void stop(VoiceId voice) => (voice as SilentVoice).alive = false;
+
+  @override
+  bool isAlive(VoiceId voice) => (voice as SilentVoice).alive;
+
+  /// Ends a one-shot, the way a real backend would when the file runs out.
+  void finish(VoiceId voice) => (voice as SilentVoice).alive = false;
+}
+
+/// One recorded voice. Public because a test reads it, and a type a test has
+/// to reach for is part of the interface whether or not it looks like one.
+final class SilentVoice {
+  SilentVoice(this.id, this.asset, this.gain, this.pan, this.loop);
+
+  final int id;
+  final String asset;
+  double gain;
+  double pan;
+  final bool loop;
+  bool alive = true;
+  int updates = 0;
+
+  @override
+  String toString() => 'voice($asset, gain: $gain, pan: $pan)';
+}

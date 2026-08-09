@@ -12,6 +12,7 @@ environment:
 workspace:
   - packages/flutter3d
   - packages/flutter3d/example
+  - packages/flutter3d_audio
   - packages/flutter3d_game
   - packages/mouse_capture
   - packages/mouse_capture/example
