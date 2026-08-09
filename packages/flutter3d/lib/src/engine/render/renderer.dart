@@ -1461,7 +1461,7 @@ final class Renderer implements PluginServices {
     final renderTarget = gpu.RenderTarget(
       colorAttachments: <gpu.ColorAttachment>[
         colorAttachment,
-        if (surfaceAttachment != null) surfaceAttachment,
+        ?surfaceAttachment,
       ],
       depthStencilAttachment: gpu.DepthStencilAttachment(
         texture: _depthStencil!,
