@@ -374,6 +374,10 @@ choose an engine.
       static half of a point light's shadow can be rendered once at load rather
       than every frame, leaving only monsters and doors to redraw. That may cut
       the whole thing to nearly free, and it is the first thing to try.
+      **First question answered:** a mid-pass viewport change does take effect —
+      two casters drawn into two halves of one map give two images. So the cost
+      is one pass per light with sixfold vertex work, not six passes. What is
+      left is the face selection in the shader and the static-bake question.
 - [ ] **P2** SSAO/GTAO, contact shadows, ambient occlusion from maps.
 - [ ] **P3** Light probes, lightmaps, IBL shadows (as in Babylon 8), volumetric light / god rays.
 - [ ] **P3** Area lights (LTC), light cookies.
@@ -518,6 +522,7 @@ assumptions.
 |---|---|---|
 | Compressed formats (ASTC/BC/ETC2) | **No.** Exactly 16 `PixelFormat` values, all uncompressed | `lib/src/formats.dart:36` |
 | `instanceCount` in `draw()` | **No.** `void draw()` takes no parameters at all | `lib/src/render_pass.dart:450` |
+| Changing the viewport part way through a pass | **Works.** `setViewport` and `setScissor` are pass state, and a second set followed by more draws lands where the second viewport says. Verified by drawing the casters twice into the left and right halves of one shadow map: two teapots, one per half. This is what makes point-light shadows affordable — six cube faces are six viewport changes and six draws inside **one** pass into an atlas, not six passes | `shaders/…`, spike reverted; `shadow-map` golden shows the map |
 | Fewer attachments than fragment outputs | **Tolerated.** A pipeline whose fragment stage declares `layout(location = 1) out` renders correctly into a `RenderTarget` with one colour attachment; the extra output is discarded. Verified by adding the surface output to all six lighting shaders and re-running the goldens: 12/12 pixel-identical with the scene pass still single-attachment. This is what lets a G-buffer be switched on per frame rather than needing a second set of shaders | `shaders/lib/color.glsl` |
 | Resolving a normal buffer under MSAA | **Meaningless at edges, and measurable.** Averaging octahedrally encoded normals across a silhouette produces a code that is not the code of any normal, so edge pixels jitter between runs. The `surface-buffer` golden sits right on its tolerance because of it: 0.296% of pixels against a 0.200% limit, worst channel 74, all on edges. Anything sampling the surface buffer has to either run without MSAA or read the unresolved attachment | `shaders/lib/color.glsl` |
 | MRT | **Present, and verified at runtime**: two attachments each receive their own fragment output. Structurally, `RenderTarget.colorAttachments` is a `List` and `setColorBlendEnable` accepts a `colorAttachmentIndex` | `lib/src/render_pass.dart:222,240,354` |

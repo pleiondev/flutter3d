@@ -130,6 +130,7 @@ final class RenderSettings {
     this.shadows = const ShadowSettings(),
     this.surfaceBuffer = false,
     this.showSurfaceBuffer = false,
+    this.showShadowMap = false,
     this.reflections = const ReflectionSettings(),
     this.fog = const FogSettings(),
   });
@@ -188,6 +189,13 @@ final class RenderSettings {
   final ReflectionSettings reflections;
 
   final FogSettings fog;
+
+  /// Composites the shadow map instead of the scene.
+  ///
+  /// A shadow map is the one buffer in the renderer that nothing has ever
+  /// shown. It is about to hold a cube atlas, and an atlas whose contents
+  /// nobody can look at is an atlas whose layout nobody can check.
+  final bool showShadowMap;
 
   /// Whether the scene pass should write the surface buffer at all.
   bool get needsSurfaceBuffer =>
@@ -908,6 +916,7 @@ final class Renderer implements PluginServices {
     _shadowCasters = 0;
     final meshes = scene.meshes;
     final mvp = vm.Matrix4.identity();
+
     for (var i = 0; i < meshes.length; i++) {
       final node = meshes[i];
       if (!node.visibleInHierarchy) continue;
@@ -1975,10 +1984,11 @@ final class Renderer implements PluginServices {
     pass.setDepthCompareOperation(gpu.CompareFunction.always);
 
     final showingSurface = settings.showSurfaceBuffer;
-    _compositeParams[0] = showingSurface ? 1.0 : settings.exposure;
-    _compositeParams[1] =
-        showingSurface || bloom == null ? 0.0 : settings.bloom.intensity;
-    _compositeParams[2] = showingSurface || !settings.tonemap ? 0.0 : 1.0;
+    final showingShadow = settings.showShadowMap && _shadowMap != null;
+    final raw = showingSurface || showingShadow;
+    _compositeParams[0] = raw ? 1.0 : settings.exposure;
+    _compositeParams[1] = raw || bloom == null ? 0.0 : settings.bloom.intensity;
+    _compositeParams[2] = raw || !settings.tonemap ? 0.0 : 1.0;
 
     pass.bindPipeline(
       _postPipeline(_compositePipeline, compositeShader,
@@ -1990,7 +2000,9 @@ final class Renderer implements PluginServices {
       pass,
       compositeShader,
       _kSceneTextureSlot,
-      showingSurface ? (_surfaceColor ?? scene) : scene,
+      showingShadow
+          ? _shadowMap!
+          : (showingSurface ? (_surfaceColor ?? scene) : scene),
       _clampSampler,
     );
     // With bloom off there is still a sampler to satisfy, and the scene itself

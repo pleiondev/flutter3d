@@ -26,6 +26,7 @@ final class GoldenScene {
     this.particles = false,
     this.viewModel = false,
     this.surfaceBuffer = false,
+    this.shadowMap = false,
   });
 
   /// File name, without an extension, under `test/goldens/`.
@@ -40,6 +41,9 @@ final class GoldenScene {
   /// Shows the scene pass's second attachment — world-space normal in rgb,
   /// depth in alpha — instead of the lit image.
   final bool surfaceBuffer;
+
+  /// Shows the shadow map instead of the lit image.
+  final bool shadowMap;
 
   /// Matched against a model chip label by substring, as `FLUTTER3D_SOURCE` is.
   final String source;
@@ -203,6 +207,15 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     bloom: false,
     ground: false,
     surfaceBuffer: true,
+  ),
+  // The shadow map itself, which nothing had ever shown. Needed because the
+  // map is about to hold a cube atlas, and an atlas nobody can look at is an
+  // atlas whose layout nobody can check.
+  const GoldenScene(
+    name: 'shadow-map',
+    source: 'Teapot',
+    bloom: false,
+    shadowMap: true,
   ),
 ];
 

@@ -209,6 +209,9 @@ class _SpikePageState extends State<SpikePage>
   final bool _showSurfaceBuffer =
       GoldenRunner.fromEnvironment()?.scene.surfaceBuffer ?? false;
 
+  final bool _showShadowMap =
+      GoldenRunner.fromEnvironment()?.scene.shadowMap ?? false;
+
   BloomSettings _bloom = BloomSettings(
     enabled: GoldenRunner.fromEnvironment()?.scene.bloom ?? true,
   );
@@ -727,6 +730,7 @@ class _SpikePageState extends State<SpikePage>
                             // RGB has no business being rolled off or exposed.
                             tonemap: _lighting != LightingModel.normals,
                             showSurfaceBuffer: _showSurfaceBuffer,
+                            showShadowMap: _showShadowMap,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;
