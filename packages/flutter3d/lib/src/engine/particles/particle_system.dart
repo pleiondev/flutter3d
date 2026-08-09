@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'particle.dart';
+import 'light_emitter.dart';
 import 'particle_affector.dart';
 import 'particle_emitter.dart';
 
@@ -109,6 +110,8 @@ final class ParticleSystem {
     Vector3? direction,
   }) {
     if (perSecond <= 0.0 || dt <= 0.0) return 0;
+    // Only what asked to be measured. See [LightEmitter].
+    if (key is LightEmitter) _emitters.add(key);
     final owed = (_owed[key] ?? 0.0) + perSecond * dt;
     final whole = owed.floor();
     _owed[key] = owed - whole;
@@ -116,14 +119,19 @@ final class ParticleSystem {
 
     var emitted = 0;
     for (var i = 0; i < whole; i++) {
-      emitted += _emitOne(effect, origin, direction);
+      emitted += _emitOne(effect, origin, direction, key);
     }
     return emitted;
   }
 
   /// Forgets a source's remainder, so a torch that is put out and relit does
   /// not owe particles from before.
-  void stopEmitting(Object key) => _owed.remove(key);
+  void stopEmitting(Object key) {
+    _owed.remove(key);
+    if (key is LightEmitter) _emitters.remove(key);
+  }
+
+  final Set<LightEmitter> _emitters = <LightEmitter>{};
 
   final Map<Object, double> _owed = <Object, double>{};
 
@@ -133,7 +141,12 @@ final class ParticleSystem {
   /// callers can pass a surface normal or a velocity without thinking about it.
   ///
   /// Returns how many particles were actually emitted.
-  int _emitOne(ParticleEffect effect, Vector3 origin, Vector3? direction) {
+  int _emitOne(
+    ParticleEffect effect,
+    Vector3 origin,
+    Vector3? direction,
+    Object? source,
+  ) {
     final axis = direction == null || direction.length2 < 1e-12
         ? Vector3(0.0, 1.0, 0.0)
         : direction.normalized();
@@ -143,6 +156,7 @@ final class ParticleSystem {
       return 0;
     }
     _initialise(taken.$1, effect, origin, axis);
+    taken.$1.source = source;
     return 1;
   }
 
@@ -198,6 +212,10 @@ final class ParticleSystem {
   void step(double dt) {
     if (dt <= 0.0) return;
 
+    for (final emitter in _emitters) {
+      emitter.glow.beginStep();
+    }
+
     for (final particle in _pool) {
       if (!particle.alive) continue;
 
@@ -215,6 +233,13 @@ final class ParticleSystem {
         ..x += particle.velocity.x * dt
         ..y += particle.velocity.y * dt
         ..z += particle.velocity.z * dt;
+
+      final source = particle.source;
+      if (source is LightEmitter) source.glow.accumulate(particle);
+    }
+
+    for (final emitter in _emitters) {
+      emitter.glow.endStep(dt);
     }
   }
 
@@ -295,3 +320,5 @@ final class ParticleSystem {
     return written;
   }
 }
+
+

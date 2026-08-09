@@ -146,6 +146,15 @@ class _GameScreenState extends State<GameScreen>
   // frame and must not allocate.
   final Vector3 _sound = Vector3.zero();
   final Vector3 _flameAt = Vector3.zero();
+
+  /// What [Effects.flame] settles at with a torch burning steadily.
+  ///
+  /// Measured from the running game rather than derived — 0.24 to 0.30 with
+  /// forty-odd particles alive — because the number depends on the effect's
+  /// sizes, alphas and lifetimes in a way that is not worth deriving and would
+  /// be wrong the moment any of them changed. The spread around it is the
+  /// flicker, and it is the fire's own rather than a sine's.
+  static const double _flamePower = 0.34;
   final RayHit _soundRay = RayHit();
 
   /// Wall-clock seconds since the game started, for anything that only has to
@@ -475,14 +484,24 @@ class _GameScreenState extends State<GameScreen>
     if (fixtures != null) {
       for (final entry in fixtures.flames.entries) {
         final fixture = entry.key;
+        final fire = entry.value;
         if (!fixture.enabled) continue;
+        // A steady rate, not one modulated by brightness. The flicker is
+        // supposed to come out of the fire, and feeding brightness back into
+        // the emission rate would make it come out of itself.
         _particles.emitFor(
-          fixture,
+          fire,
           Effects.flame,
-          fixtures.flamePointOf(entry.value, _flameAt),
+          fixtures.flamePointOf(fire, _flameAt),
           dt,
-          perSecond: 150.0 * fixture.brightness,
+          perSecond: 150.0,
         );
+
+        // And the light is what the fire measures, not a sine running
+        // alongside it. Divided by the power a healthy flame settles at, so
+        // the fixture sees a fraction and the level's own intensity stays the
+        // thing that decides how bright a torch is.
+        fixture.measure(fire.glow.power / _flamePower);
       }
     }
 

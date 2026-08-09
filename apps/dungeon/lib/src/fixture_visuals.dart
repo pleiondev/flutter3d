@@ -186,7 +186,7 @@ final class FixtureVisuals {
         // cup's own world position, read every frame rather than recomputed
         // from the yaw — a second copy of the placement is a second chance to
         // put the fire inside the wall, which is what the first version did.
-        _flames[mechanism] = cup;
+        _flames[mechanism] = TorchFire(cup);
     }
 
     _pieces.add(_Piece(fixture, holder));
@@ -202,18 +202,18 @@ final class FixtureVisuals {
 
   final Map<String, GpuMesh> _meshes = <String, GpuMesh>{};
 
-  /// The cup each torch's fire comes out of.
-  final Map<LightFixture, SceneNode> _flames = <LightFixture, SceneNode>{};
+  /// The fire of each torch: where it comes out, and what it is worth.
+  final Map<LightFixture, TorchFire> _flames = <LightFixture, TorchFire>{};
 
-  /// Every torch that wants particles, and the node to emit from.
-  Map<LightFixture, SceneNode> get flames => _flames;
+  /// Every torch that wants particles.
+  Map<LightFixture, TorchFire> get flames => _flames;
 
   /// Just above the rim, in world space.
   ///
   /// From the node's own transform, so the fire is wherever the cup ended up
   /// however the level turned it.
-  Vector3 flamePointOf(SceneNode cup, Vector3 out) {
-    final world = cup.worldMatrix;
+  Vector3 flamePointOf(TorchFire fire, Vector3 out) {
+    final world = fire.cup.worldMatrix;
     out.setValues(world.entry(0, 3), world.entry(1, 3), world.entry(2, 3));
     return out..y += 0.07;
   }
@@ -366,4 +366,19 @@ final class _Piece {
 
   final Fixture fixture;
   final SceneNode node;
+}
+
+
+/// One torch's fire.
+///
+/// A [LightEmitter], so the particle system measures it — and the object the
+/// emission is keyed on, which means the thing that burns and the thing that
+/// is measured are the same thing rather than two that have to be kept in
+/// step.
+final class TorchFire with LightEmitter {
+  TorchFire(this.cup);
+
+  /// The node the flame rises from, read every frame so the fire is wherever
+  /// the mesh ended up.
+  final SceneNode cup;
 }

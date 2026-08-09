@@ -36,6 +36,10 @@ final class Particle {
   /// determinism.
   double seed = 0.0;
 
+  /// What emitted this, for anything that wants to measure a fire rather than
+  /// guess at it. Null for a burst that nobody keyed.
+  Object? source;
+
   /// What happens to this particle each step.
   ///
   /// Held here rather than in a map from particle to affectors: the pool is

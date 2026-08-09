@@ -97,11 +97,32 @@ final class LightFixture extends Mechanism {
   double get brightness => _brightness;
   double _brightness = 1.0;
 
+  /// True once something has measured this fixture's fire.
+  ///
+  /// A fixture whose light comes from particles must not also run a
+  /// [LightBehaviour]: two generators of the same number disagree eventually,
+  /// and the disagreement looks like a flame burning while its light is out.
+  /// So [measure] takes over, and [behaviour] is left for the fixtures that
+  /// have nothing to measure — a lamp, a pulsing crystal.
+  bool get isMeasured => _measured;
+  bool _measured = false;
+
+  /// Reports what this fixture's fire actually amounts to, from 0 to 1.
+  ///
+  /// Called every step by whatever owns the particles. The flicker of a real
+  /// flame is the randomness of its own burning, so a light driven from here
+  /// needs no wobble added to it.
+  void measure(double fraction) {
+    _measured = true;
+    _brightness = enabled ? fraction.clamp(0.0, 1.0) : 0.0;
+  }
+
   double _time = 0.0;
 
   @override
   void step(double dt) {
     _time += dt;
+    if (_measured) return;
     _brightness = enabled ? behaviour.at(_time, seed).clamp(0.0, 1.0) : 0.0;
   }
 

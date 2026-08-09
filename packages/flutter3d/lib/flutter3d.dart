@@ -45,6 +45,7 @@ export 'src/engine/gpu/texture_upload.dart';
 export 'src/engine/particles/particle.dart';
 export 'src/engine/particles/particle_affector.dart';
 export 'src/engine/particles/particle_emitter.dart';
+export 'src/engine/particles/light_emitter.dart';
 export 'src/engine/particles/particle_plugin.dart';
 export 'src/engine/particles/particle_system.dart';
 
