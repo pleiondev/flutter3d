@@ -357,6 +357,23 @@ choose an engine.
       comparing.
 - [ ] **P2** **A shadow atlas** (all lights in one texture — there are no texture arrays).
 - [ ] **P2** Cascaded shadow maps, cube shadows for point lights, spot shadows.
+      **Spike notes, before anyone designs around a guess.** Every light in the
+      crypt is a point light and none of them shadow, which is why a key lying on
+      the floor casts nothing and why a torch lights the far side of a wall. The
+      obvious cost estimate — six faces per light, five lights, thirty passes a
+      frame — is wrong, and wrong in the helpful direction: `setViewport` and
+      `setScissor` are pass *state*, not properties of the target, so six cube
+      faces can be six viewport changes and six draws inside **one** pass into
+      one atlas. The vertex work is still six times over, but the pass overhead
+      is paid once. Two questions remain, and both are cheap to answer: whether
+      a mid-pass viewport change actually takes effect on this backend (draw the
+      scene into two halves of one texture and look), and whether the shader can
+      pick a face from the light-to-fragment direction with plain UV arithmetic
+      — which it should, since there are no texture arrays to want.
+      The third question is not technical: a dungeon's walls never move, so the
+      static half of a point light's shadow can be rendered once at load rather
+      than every frame, leaving only monsters and doors to redraw. That may cut
+      the whole thing to nearly free, and it is the first thing to try.
 - [ ] **P2** SSAO/GTAO, contact shadows, ambient occlusion from maps.
 - [ ] **P3** Light probes, lightmaps, IBL shadows (as in Babylon 8), volumetric light / god rays.
 - [ ] **P3** Area lights (LTC), light cookies.
