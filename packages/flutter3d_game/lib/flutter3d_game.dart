@@ -12,6 +12,8 @@
 /// The application is where this meets the renderer.
 library;
 
+export 'src/combat/hitscan.dart';
+export 'src/combat/weapon.dart';
 export 'src/input/desktop_input.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
