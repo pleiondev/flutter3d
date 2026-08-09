@@ -53,6 +53,13 @@ final class LightBuffer {
   final Float32List directions = Float32List(maxLights * 4);
   final Float32List cones = Float32List(maxLights * 4);
 
+  /// The nodes behind the packed slots, in slot order.
+  ///
+  /// Needed because a shadow belongs to a light, and the shader knows lights
+  /// only by their index here. Without this the renderer can build a shadow
+  /// map and then be unable to say which light it is for.
+  final List<LightNode> packed = <LightNode>[];
+
   int _count = 0;
   int _overflow = 0;
 
@@ -75,6 +82,7 @@ final class LightBuffer {
   void gather(List<LightNode> lights) {
     _count = 0;
     _overflow = 0;
+    packed.clear();
 
     for (var i = 0; i < lights.length; i++) {
       final light = lights[i];
@@ -86,6 +94,7 @@ final class LightBuffer {
         continue;
       }
 
+      packed.add(light);
       final slot = _count * 4;
       light.readDirection(_direction);
       light.readWorldPosition(_position);

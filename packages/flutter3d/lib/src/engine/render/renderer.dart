@@ -916,6 +916,10 @@ final class Renderer implements PluginServices {
       _cubeMatrix
         ..setFrom(projection)
         ..multiply(view);
+      // Kept so the lighting projects with exactly what drew the face. See the
+      // note in surface.glsl: deriving cube coordinates there instead would be
+      // the same decision made twice, and the two would disagree on one face.
+      _cubeFaceMatrices.setRange(face * 16, face * 16 + 16, _cubeMatrix.storage);
 
       for (final node in scene.meshes) {
         if (!node.visibleInHierarchy || !node.castsShadow) continue;
@@ -967,6 +971,14 @@ final class Renderer implements PluginServices {
     }
     return null;
   }
+
+  final Float32List _cubeFaceMatrices = Float32List(16 * 6);
+  final Float32List _pointShadowParams = Float32List(4);
+  final Float32List _pointShadowLight = Float32List(4);
+  final vm.Vector3 _cubePosition = vm.Vector3.zero();
+
+  /// Index of the light the atlas belongs to, or -1.
+  int _cubeShadowLight = -1;
 
   gpu.RenderPipeline? _cubeShadowPipeline;
   gpu.Texture? _cubeShadow;
@@ -1610,6 +1622,23 @@ final class Renderer implements PluginServices {
       _fogData[1] = fog.resolvedColor.y;
       _fogData[2] = fog.resolvedColor.z;
       _fogData[3] = fog.density;
+      _pointShadowParams[0] = _cubeShadowLight.toDouble();
+      _pointShadowParams[1] = 0.08;
+      _pointShadowParams[2] =
+          _cubeShadowLight < 0 ? 0.0 : settings.shadows.strength;
+      bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
+        'faces': _cubeFaceMatrices,
+        'light': _pointShadowLight,
+        'params': _pointShadowParams,
+      });
+      _bindTexture(
+        pass,
+        fragmentShader,
+        'point_shadow_texture',
+        _cubeShadow ?? fallbackAlbedo,
+        _clampSampler,
+      );
+
       bindUniformBlock(pass, host, fragmentShader, _kFogInfoBlock, {
         'fog': _fogData,
         'eye': _cameraData,
@@ -1849,15 +1878,25 @@ final class Renderer implements PluginServices {
     // One light, deliberately: six faces of geometry is the price, and the
     // question of how many lights can afford it is the next thing to measure
     // rather than guess.
+    _cubeShadowLight = -1;
     final point = _firstShadowingPointLight(scene);
-    if (point != null) {
-      _renderCubeShadow(
-        host: host,
-        scene: scene,
-        settings: settings.shadows,
-        position: point.worldMatrix.getTranslation(),
-        range: point.range > 0.0 ? point.range : 20.0,
-      );
+    if (point != null) point.readWorldPosition(_cubePosition);
+    final range = point == null
+        ? 0.0
+        : (point.range > 0.0 ? point.range : 20.0);
+    if (point != null &&
+        _renderCubeShadow(
+          host: host,
+          scene: scene,
+          settings: settings.shadows,
+          position: _cubePosition,
+          range: range,
+        )) {
+      _cubeShadowLight = lights.packed.indexOf(point);
+      _pointShadowLight[0] = _cubePosition.x;
+      _pointShadowLight[1] = _cubePosition.y;
+      _pointShadowLight[2] = _cubePosition.z;
+      _pointShadowLight[3] = range;
     }
 
     final ordered = List<RenderView>.of(views)

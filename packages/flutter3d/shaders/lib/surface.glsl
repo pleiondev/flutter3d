@@ -233,6 +233,73 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+/// The cube atlas: three tiles across, two down, each a ninety-degree view
+/// from a point light, each storing radial distance normalised by range.
+uniform sampler2D point_shadow_texture;
+
+uniform PointShadow {
+  /// The same six view-projections the atlas was rendered with.
+  ///
+  /// Passed rather than reconstructed. Deriving cube face coordinates here
+  /// would be a second implementation of a decision the renderer already made,
+  /// and the two would disagree about handedness or up vectors on some face
+  /// and nowhere else — which shows as one face of every shadow being wrong.
+  mat4 faces[6];
+
+  /// xyz: the light's world position. w: its range.
+  vec4 light;
+
+  /// x: index of the light this belongs to, negative when there is none.
+  /// y: distance bias in metres. z: strength. w unused.
+  vec4 params;
+}
+point_shadow;
+
+/// How lit [world] is by the point light that owns the cube atlas.
+///
+/// One, fully lit, when this is not that light or the atlas has nothing to say.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  if (point_shadow.params.x < 0.0) return 1.0;
+  if (lightIndex != int(point_shadow.params.x + 0.5)) return 1.0;
+  float strength = point_shadow.params.z;
+  if (strength <= 0.0) return 1.0;
+
+  // Offset along the normal before measuring, for the same reason the
+  // directional map does it: the error is proportional to slope, not depth.
+  vec3 origin = world + normal * point_shadow.params.y;
+  vec3 toFragment = origin - point_shadow.light.xyz;
+  float distance = length(toFragment);
+  float range = max(point_shadow.light.w, 1e-4);
+  if (distance >= range) return 1.0;
+
+  // The dominant axis picks the face, in the order the renderer wrote them:
+  // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom.
+  vec3 a = abs(toFragment);
+  int face;
+  if (a.x >= a.y && a.x >= a.z) {
+    face = toFragment.x > 0.0 ? 0 : 1;
+  } else if (a.y >= a.z) {
+    face = toFragment.y > 0.0 ? 2 : 3;
+  } else {
+    face = toFragment.z > 0.0 ? 4 : 5;
+  }
+
+  vec4 clip = point_shadow.faces[face] * vec4(origin, 1.0);
+  if (clip.w <= 0.0) return 1.0;
+  vec2 ndc = clip.xy / clip.w;
+  if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) return 1.0;
+
+  vec2 uv = ndc * 0.5 + 0.5;
+  vec2 tile = vec2(float(face - (face / 3) * 3), float(face / 3));
+  uv = (uv + tile) * vec2(1.0 / 3.0, 0.5);
+
+  float stored = texture(point_shadow_texture, uv).r * range;
+  // Nothing was drawn in that direction, so nothing is in the way.
+  if (stored >= range * 0.999) return 1.0;
+
+  return distance - point_shadow.params.y > stored ? 1.0 - strength : 1.0;
+}
+
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
   int count = LightCount();
@@ -241,7 +308,8 @@ vec3 AccumulateLights(Surface s) {
     if (i >= count) break;
     LightSample light = SampleLight(i, s);
     if (light.n_dot_l <= 0.0) continue;
-    float visibility = LightVisibility(s, light, i);
+    float visibility = LightVisibility(s, light, i) *
+        PointShadowFactor(v_world_position, s.n, i);
     if (visibility <= 0.0) continue;
     total += ShadeLight(s, light) * light.radiance * light.n_dot_l * visibility;
   }
