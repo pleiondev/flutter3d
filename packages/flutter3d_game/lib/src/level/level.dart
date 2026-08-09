@@ -84,9 +84,11 @@ final class LevelMaterial {
     this.metallic = 0.0,
     this.emissive = 0.0,
 
-    /// How many times a texture repeats per metre, once there are textures.
-    /// Held now because the UV generator already needs it.
+    /// How many times a texture repeats per metre.
     this.texelsPerMetre = 1.0,
+    this.albedo,
+    this.normal,
+    this.orm,
   }) : baseColor = baseColor ?? Vector4(0.5, 0.5, 0.5, 1.0);
 
   final Vector4 baseColor;
@@ -94,6 +96,27 @@ final class LevelMaterial {
   final double metallic;
   final double emissive;
   final double texelsPerMetre;
+
+  /// Asset path of the base colour map, relative to the game's assets.
+  ///
+  /// Null means the material is a flat [baseColor], which stays useful: a
+  /// blocked-out room wants to be grey before it wants to be stone, and a
+  /// level that will not load because an artist has not drawn the wall yet is
+  /// a level nobody can play-test.
+  final String? albedo;
+
+  /// Tangent-space normal map, OpenGL convention — green points up.
+  final String? normal;
+
+  /// glTF's packing: occlusion in red, roughness in green, metallic in blue.
+  ///
+  /// One file rather than three because it is one sampler rather than three,
+  /// and because the three are authored together and would otherwise be three
+  /// chances to ship a mismatched set.
+  final String? orm;
+
+  /// Whether anything here has to be loaded from disk.
+  bool get hasMaps => albedo != null || normal != null || orm != null;
 
   factory LevelMaterial.fromJson(Map<String, Object?> json) => LevelMaterial(
         baseColor: json.vector4(
@@ -104,6 +127,9 @@ final class LevelMaterial {
         metallic: json.numberOr('metallic', 0.0),
         emissive: json.numberOr('emissive', 0.0),
         texelsPerMetre: json.numberOr('texelsPerMetre', 1.0),
+        albedo: json.text('albedo'),
+        normal: json.text('normal'),
+        orm: json.text('orm'),
       );
 
   Map<String, Object?> toJson() => <String, Object?>{
@@ -112,6 +138,9 @@ final class LevelMaterial {
         if (metallic != 0.0) 'metallic': metallic,
         if (emissive != 0.0) 'emissive': emissive,
         if (texelsPerMetre != 1.0) 'texelsPerMetre': texelsPerMetre,
+        if (albedo != null) 'albedo': albedo,
+        if (normal != null) 'normal': normal,
+        if (orm != null) 'orm': orm,
       };
 }
 

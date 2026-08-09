@@ -1,7 +1,8 @@
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
+
+import 'level_scene.dart';
 
 /// What the doors, lifts, platforms, buttons and keys look like.
 ///
@@ -10,25 +11,26 @@ import 'package:vector_math/vector_math.dart';
 /// collider is. It is the whole of the application's side of stage 8, which is
 /// the point: the simulation never learns that meshes exist.
 final class FixtureVisuals {
-  FixtureVisuals(this.scene, this.materials);
+  FixtureVisuals(this.scene, this.level);
 
   final Scene scene;
 
-  /// The level's palette, so a door authored as `stone` matches the wall it
-  /// sits in rather than being whatever colour this file felt like.
-  final Map<String, LevelMaterial> materials;
+  /// The loaded level, for its palette and its already-uploaded maps: a door
+  /// authored as `stone` should be the same stone as the wall it sits in, down
+  /// to sharing the texture object rather than a second copy of the file.
+  final LoadedLevel level;
 
   final List<_Piece> _pieces = <_Piece>[];
 
   void add(Fixture fixture) {
-    final source = materials[fixture.material] ?? _fallbackFor(fixture);
+    final source = level.level.materials[fixture.material] ??
+        _fallbackFor(fixture);
     final node = MeshNode(
       GpuMesh.upload(CuboidShape(size: fixture.size).build()),
-      engine.Material(
+      LevelLoader.materialFrom(
+        source,
+        level.materialTextures,
         name: fixture.material,
-        baseColor: source.baseColor,
-        roughness: source.roughness,
-        metallic: source.metallic,
       ),
       name: fixture.entity.name ?? fixture.entity.type,
     )..setPositionFrom(fixture.position);

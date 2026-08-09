@@ -5,10 +5,41 @@
   "fogDensity": 0.035,
 
   "materials": {
-    "floor": { "baseColor": [0.30, 0.29, 0.26, 1.0], "roughness": 0.9 },
-    "wall": { "baseColor": [0.38, 0.36, 0.32, 1.0], "roughness": 0.85 },
-    "ceiling": { "baseColor": [0.16, 0.15, 0.14, 1.0], "roughness": 0.95 },
-    "stone": { "baseColor": [0.42, 0.40, 0.35, 1.0], "roughness": 0.8 }
+    "floor": {
+      "baseColor": [0.62, 0.60, 0.56, 1.0], "roughness": 0.9,
+      "texelsPerMetre": 0.5,
+      "albedo": "assets/textures/floor_albedo.jpg",
+      "normal": "assets/textures/floor_normal.png",
+      "orm": "assets/textures/floor_orm.png"
+    },
+    "wall": {
+      "baseColor": [0.70, 0.66, 0.60, 1.0], "roughness": 0.85,
+      "texelsPerMetre": 0.4,
+      "albedo": "assets/textures/wall_albedo.jpg",
+      "normal": "assets/textures/wall_normal.png",
+      "orm": "assets/textures/wall_orm.png"
+    },
+    "ceiling": {
+      "baseColor": [0.34, 0.32, 0.30, 1.0], "roughness": 0.95,
+      "texelsPerMetre": 0.35,
+      "albedo": "assets/textures/ceiling_albedo.jpg",
+      "normal": "assets/textures/ceiling_normal.png",
+      "orm": "assets/textures/ceiling_orm.png"
+    },
+    "stone": {
+      "baseColor": [0.68, 0.65, 0.60, 1.0], "roughness": 0.8,
+      "texelsPerMetre": 0.7,
+      "albedo": "assets/textures/stone_albedo.jpg",
+      "normal": "assets/textures/stone_normal.png",
+      "orm": "assets/textures/stone_orm.png"
+    },
+    "iron": {
+      "baseColor": [0.72, 0.70, 0.68, 1.0], "roughness": 0.6,
+      "texelsPerMetre": 1.2,
+      "albedo": "assets/textures/metal_albedo.jpg",
+      "normal": "assets/textures/metal_normal.png",
+      "orm": "assets/textures/metal_orm.png"
+    }
   },
 
   "brushes": [
@@ -77,14 +108,14 @@
 
     { "type": "door", "at": [0, 2.5, -13], "name": "crypt_door", "key": "iron",
       "size": [4, 5, 1], "travel": [0, 4.4, 0], "speed": 2.2, "wait": 4,
-      "material": "stone" },
+      "material": "iron" },
 
     { "type": "trigger", "at": [0, 1.5, -11.4], "size": [4, 3, 2],
       "target": "crypt_door", "once": false },
 
     { "type": "lift", "at": [8.15, 0.25, -15.0], "size": [2.6, 0.5, 3],
       "travel": [0, 3, 0], "speed": 1.5, "wait": 5, "name": "gallery_lift",
-      "material": "stone" },
+      "material": "iron" },
 
     { "type": "button", "at": [9.35, 1.5, -15.0], "size": [0.25, 0.7, 0.7],
       "target": "gallery_lift" },

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 
@@ -19,7 +21,8 @@ final class LoadedLevel {
     required this.collision,
     required this.issues,
     required this.drawCallCount,
-  });
+    Map<String, gpu.Texture?>? materialTextures,
+  }) : materialTextures = materialTextures ?? const <String, gpu.Texture?>{};
 
   final Level level;
   final Scene scene;
@@ -31,6 +34,12 @@ final class LoadedLevel {
 
   /// One per material, which is what the brush geometry merges down to.
   final int drawCallCount;
+
+  /// Every map this level loaded, by asset path.
+  ///
+  /// Kept so anything built after the load — a door, a lift — can be given the
+  /// same texture object rather than uploading a second copy of the same file.
+  final Map<String, gpu.Texture?> materialTextures;
 }
 
 /// Reads a level asset and turns it into something playable.
@@ -58,17 +67,27 @@ final class LevelLoader {
     final collision = CollisionWorld();
     level.addTo(collision);
 
+    // Every map the level names, loaded once and shared. A wall texture used
+    // by four surfaces is one upload, not four — and the cache belongs to this
+    // load rather than to the process, so two levels never share a GPU
+    // resource that one of them will outlive.
+    final textures = <String, gpu.Texture?>{};
+    for (final source in level.materials.values) {
+      for (final path in <String?>[source.albedo, source.normal, source.orm]) {
+        if (path == null || textures.containsKey(path)) continue;
+        textures[path] = await _upload(path);
+      }
+    }
+
     final surfaces = const BrushGeometry().build(level);
     for (final surface in surfaces) {
-      final source = level.materials[surface.material] ?? LevelMaterial();
       scene.add(
         MeshNode(
           GpuMesh.upload(_toMeshData(surface)),
-          Material(
+          LevelLoader.materialFrom(
+            level.materials[surface.material] ?? LevelMaterial(),
+            textures,
             name: surface.material,
-            baseColor: source.baseColor,
-            roughness: source.roughness,
-            metallic: source.metallic,
           ),
           name: surface.material,
         ),
@@ -85,8 +104,68 @@ final class LevelLoader {
       collision: collision,
       issues: validator.validate(level),
       drawCallCount: surfaces.length,
+      materialTextures: textures,
     );
   }
+
+  /// Builds an engine material from a level material and the loaded maps.
+  ///
+  /// A free function rather than a method on either type: [LevelMaterial] lives
+  /// in the game package, which must not know that textures exist, and
+  /// [Material] lives in the renderer, which must not know that levels do. This
+  /// is the seam, and it is the only place that knows both.
+  static Material materialFrom(
+    LevelMaterial source,
+    Map<String, gpu.Texture?> textures, {
+    String? name,
+  }) {
+    final material = Material(
+      name: name,
+      baseColor: source.baseColor,
+      roughness: source.roughness,
+      metallic: source.metallic,
+    );
+    if (!source.hasMaps) return material;
+
+    material
+      ..albedo = textures[source.albedo]
+      ..normal = textures[source.normal]
+      // The same image in both slots. glTF packs occlusion, roughness and
+      // metallic into one texture; the renderer reads red from the occlusion
+      // slot and green and blue from the metallic-roughness slot, so binding
+      // it twice is not waste — it is what the two slots are for.
+      ..metallicRoughness = textures[source.orm]
+      ..occlusion = textures[source.orm]
+      ..albedoSampler = _tiling
+      ..normalSampler = _tiling
+      ..metallicRoughnessSampler = _tiling
+      ..occlusionSampler = _tiling;
+    return material;
+  }
+
+  static Future<gpu.Texture?> _upload(String path) async {
+    try {
+      final bytes = await rootBundle.load(path);
+      return await uploadEncodedImage(bytes.buffer.asUint8List());
+    } catch (error) {
+      // A missing texture leaves the material flat rather than stopping the
+      // level. Losing a wall texture should not cost the play-test.
+      debugPrint('level: could not load "$path": $error');
+      return null;
+    }
+  }
+
+  /// Repeat, not clamp.
+  ///
+  /// A wall fourteen metres wide at half a metre per tile has texture
+  /// coordinates running from zero to twenty-eight, and clamping would stretch
+  /// the atlas's last texel across the whole thing.
+  static final gpu.SamplerOptions _tiling = gpu.SamplerOptions(
+    minFilter: gpu.MinMagFilter.linear,
+    magFilter: gpu.MinMagFilter.linear,
+    widthAddressMode: gpu.SamplerAddressMode.repeat,
+    heightAddressMode: gpu.SamplerAddressMode.repeat,
+  );
 
   /// Interleaves the level package's plain arrays into the engine's layout.
   ///

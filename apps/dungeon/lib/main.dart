@@ -184,7 +184,7 @@ class _GameScreenState extends State<GameScreen>
       );
       final visuals = MonsterVisuals(loaded.scene);
       final mechanisms = MechanismWorld(loaded.collision);
-      final fixtures = FixtureVisuals(loaded.scene, loaded.level.materials);
+      final fixtures = FixtureVisuals(loaded.scene, loaded);
 
       // The level's entities become actors. Which entity becomes what is the
       // entity kind's business, in flutter3d_game; all the application supplies
