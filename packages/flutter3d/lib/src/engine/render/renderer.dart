@@ -20,6 +20,7 @@ import 'material.dart';
 import 'render_list.dart';
 import 'render_plugin.dart';
 import 'render_view.dart';
+import 'shadow_slots.dart';
 
 /// Uniform-block names as seen by shader reflection.
 ///
@@ -1014,9 +1015,13 @@ final class Renderer implements PluginServices {
   /// How many point lights may have a cube map at once.
   ///
   /// Four, because the atlas is one texture and a row of six tiles per light
-  /// at a usable size is already a large one. A fifth torch in a room goes
-  /// unshadowed rather than evicting one that might be nearer — which torch
-  /// matters is a level's judgement, not the renderer's.
+  /// at a usable size is already a large one.
+  ///
+  /// A limit on how many lights are shadowed *at the same moment*, not on how
+  /// many a level may hold: [ShadowSlotAllocator] hands the rows to whichever
+  /// four matter most from where the camera is, and takes them back when they
+  /// stop mattering. It used to be the first four in scene order, which meant a
+  /// level with five torches had one that could never cast a shadow anywhere.
   static const int kShadowedLights = 4;
 
   final Float32List _cubeFaceMatrices = Float32List(16 * 6 * kShadowedLights);
@@ -1031,6 +1036,62 @@ final class Renderer implements PluginServices {
   int _cubeShadowLight = -1;
 
   final vm.Vector3 _cubePosition = vm.Vector3.zero();
+
+  final ShadowSlotAllocator _shadowSlotAllocator =
+      ShadowSlotAllocator(slotCount: kShadowedLights);
+  final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
+  final vm.Vector3 _shadowEye = vm.Vector3.zero();
+
+  /// Builds this frame's list of lights asking for an atlas row.
+  ///
+  /// Relevance is measured from the view drawn first — the main camera. A row
+  /// chosen for a rear-view mirror would be a row spent on a shadow nobody is
+  /// looking at.
+  void _collectShadowCandidates(Scene scene, List<RenderView> views) {
+    _shadowCandidates.clear();
+    if (views.isEmpty) return;
+
+    var primary = views.first;
+    for (final view in views) {
+      if (view.priority < primary.priority) primary = view;
+    }
+    primary.camera.readWorldPosition(_shadowEye);
+
+    for (final light in scene.lights) {
+      if (light.type != LightType.point || !light.castsShadow) continue;
+      if (!light.visibleInHierarchy || light.intensity <= 0.0) continue;
+
+      light.readWorldPosition(_cubePosition);
+      final range = light.range > 0.0 ? light.range : 20.0;
+      final distance = _cubePosition.distanceTo(_shadowEye);
+
+      // Angular size: how large the lit sphere looks from the camera. The same
+      // rule PlayCanvas sorts by, and the reason a torch at the far end of a
+      // corridor yields to one in this room. Clamped away from zero so a light
+      // the camera is standing inside scores high rather than dividing by it.
+      final priority = range / math.max(distance, 0.05);
+
+      _shadowCandidates.add(ShadowCandidate(
+        light: light,
+        priority: priority,
+        bakeKey: _bakeKeyFor(_cubePosition, range),
+      ));
+    }
+  }
+
+  /// A signature of what a static bake of this light would capture.
+  ///
+  /// Quantised to a centimetre, because a light that drifts by a hair has not
+  /// invalidated its view of the walls and re-baking on floating-point noise
+  /// would mean re-baking every frame — which is the whole cost the split
+  /// exists to avoid.
+  static int _bakeKeyFor(vm.Vector3 position, double range) {
+    var hash = 17;
+    for (final value in <double>[position.x, position.y, position.z, range]) {
+      hash = hash * 31 + (value * 100.0).round();
+    }
+    return hash;
+  }
 
   gpu.RenderPipeline? _cubeShadowPipeline;
   gpu.Texture? _cubeShadow;
@@ -1945,40 +2006,46 @@ final class Renderer implements PluginServices {
       casterIndex: shadowCaster,
     );
 
-    // Up to four point lights get a row of the atlas each, in the order they
-    // appear. In order rather than by importance because "which torch matters
-    // most" is a level's judgement, not the renderer's, and a fifth simply
-    // goes unshadowed rather than evicting one.
-    for (var i = 0; i < _shadowSlots.length; i++) {
-      _shadowSlots[i] = -1.0;
-    }
+    // Which point lights get a row of the atlas, decided by relevance rather
+    // than by the order they happen to sit in the scene list. Four is now a
+    // limit on how many can be shadowed *at once*, not on how many a level may
+    // contain: a fifth torch takes a row as soon as it matters more than one of
+    // the four, and gives it back when it stops.
     //
     // Every row is decided before any of the atlas is drawn, because one pass
     // draws all of them: a pass per light would clear the rows already there.
+    _collectShadowCandidates(scene, views);
+    final assignment = _shadowSlotAllocator.assign(_shadowCandidates);
+
+    for (var i = 0; i < _shadowSlots.length; i++) {
+      _shadowSlots[i] = -1.0;
+    }
     var slot = 0;
-    for (final light in scene.lights) {
-      if (slot >= kShadowedLights) break;
-      if (light.type != LightType.point || !light.castsShadow) continue;
-      final index = lights.packed.indexOf(light);
+    for (var row = 0; row < assignment.owners.length; row++) {
+      final owner = assignment.owners[row];
+      if (owner is! LightNode) continue;
+      final index = lights.packed.indexOf(owner);
       if (index < 0) continue;
 
-      light.readWorldPosition(_cubePosition);
-      _cubeLightData[slot * 4] = _cubePosition.x;
-      _cubeLightData[slot * 4 + 1] = _cubePosition.y;
-      _cubeLightData[slot * 4 + 2] = _cubePosition.z;
-      _cubeLightData[slot * 4 + 3] = light.range > 0.0 ? light.range : 20.0;
+      owner.readWorldPosition(_cubePosition);
+      _cubeLightData[row * 4] = _cubePosition.x;
+      _cubeLightData[row * 4 + 1] = _cubePosition.y;
+      _cubeLightData[row * 4 + 2] = _cubePosition.z;
+      _cubeLightData[row * 4 + 3] = owner.range > 0.0 ? owner.range : 20.0;
       // Which atlas row this light's shader index should read.
-      _shadowSlots[index * 4] = slot.toDouble();
-      slot++;
+      _shadowSlots[index * 4] = row.toDouble();
+      slot = math.max(slot, row + 1);
     }
     _cubeShadowLight = slot > 0 ? slot : -1;
 
     if (slot > 0 && settings.shadows.enabled && settings.shadows.strength > 0) {
       _ensureCubeAtlas(settings.shadows.resolution.clamp(128, 1024));
 
-      // The walls once. Six views of the level's geometry per light is a
-      // load-time cost, and the bake survives until the atlas is reallocated.
-      if (!_staticShadowBaked) {
+      // Every occupied row, not just the one that changed hands — a pass clears
+      // its whole colour attachment, so redrawing one row erases the rest. The
+      // allocator earns this back by changing at most one row per frame and
+      // only for a light that clearly deserves it.
+      if (assignment.staticDirty || !_staticShadowBaked) {
         _renderCubeShadow(
           host: host,
           scene: scene,
@@ -1987,6 +2054,9 @@ final class Renderer implements PluginServices {
           slotCount: slot,
         );
         _staticShadowBaked = true;
+        // After drawing, not after deciding: a flag cleared by the decision
+        // would promise walls that a skipped pass never drew.
+        _shadowSlotAllocator.recordStaticBake();
       }
 
       // And everything that moves, every frame. A pickup that spins would
