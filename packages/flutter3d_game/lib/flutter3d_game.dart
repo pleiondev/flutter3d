@@ -12,7 +12,9 @@
 /// The application is where this meets the renderer.
 library;
 
+export 'src/combat/blast.dart';
 export 'src/combat/hitscan.dart';
+export 'src/combat/projectile.dart';
 export 'src/combat/weapon.dart';
 export 'src/combat/weapon_behaviour.dart';
 export 'src/input/desktop_input.dart';

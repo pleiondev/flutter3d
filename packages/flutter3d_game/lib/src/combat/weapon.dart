@@ -1,3 +1,4 @@
+import 'blast.dart';
 import 'weapon_behaviour.dart';
 
 /// What a weapon spends when it fires.
@@ -37,6 +38,9 @@ final class WeaponDef {
     this.falloffEnd = 0.0,
     this.minimumDamageFraction = 0.25,
     this.knockback = 0.0,
+    this.projectileSpeed = 0.0,
+    this.splashRadius = 0.0,
+    this.splashMinimumFraction = 0.0,
   });
 
   final String name;
@@ -77,6 +81,29 @@ final class WeaponDef {
 
   /// Impulse applied to what is hit, along the ray.
   final double knockback;
+
+  /// Metres per second, for a weapon that launches something.
+  ///
+  /// Finite and fairly slow on purpose: a projectile the target can see coming
+  /// and step out of is the whole difference between a rocket launcher and a
+  /// very loud rifle.
+  final double projectileSpeed;
+
+  /// How far the explosion reaches. Zero for anything that does not explode.
+  final double splashRadius;
+
+  /// Fraction of the damage still delivered at the edge of the blast.
+  final double splashMinimumFraction;
+
+  /// The explosion this weapon produces, or null if it makes none.
+  Blast? get blast => splashRadius <= 0.0
+      ? null
+      : Blast(
+          radius: splashRadius,
+          damage: damage,
+          minimumFraction: splashMinimumFraction,
+          knockback: knockback,
+        );
 
   /// Seconds between shots.
   Duration get cooldown => Duration(
@@ -153,6 +180,9 @@ abstract final class Weapons {
     shotsPerSecond: 0.9,
     range: 200.0,
     knockback: 9.0,
+    projectileSpeed: 34.0,
+    splashRadius: 4.5,
+    splashMinimumFraction: 0.15,
   );
 
   /// In keyboard order: slot n is `all[n]`.

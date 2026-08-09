@@ -6,6 +6,7 @@ import '../physics/collider.dart';
 import '../physics/collision_shape.dart';
 import '../physics/collision_world.dart';
 import 'hitscan.dart';
+import 'projectile.dart';
 import 'weapon.dart';
 
 /// One shot, from where it starts to what it reached.
@@ -13,10 +14,14 @@ import 'weapon.dart';
 /// Reused between shots rather than made fresh: a held automatic weapon fires
 /// several times a second and this sits on the simulation step.
 final class WeaponShot {
-  WeaponShot({required this.world, required this.hitscan});
+  WeaponShot({required this.world, required this.hitscan, this.projectiles});
 
   final CollisionWorld world;
   final Hitscan hitscan;
+
+  /// Where launched things go. Null in a world that has none — a test of the
+  /// firing rules does not need a projectile system to exist.
+  ProjectileSystem? projectiles;
 
   late WeaponDef weapon;
   final Vector3 origin = Vector3.zero();
@@ -162,16 +167,25 @@ final class MeleeBehaviour extends WeaponBehaviour {
 
 /// Something with a flight time, which the target can move out of the way of.
 ///
-/// Deliberately does nothing yet. The shot is still paid for — the ammunition
-/// is spent and the weapon recoils — so what the player sees is honest while
-/// the projectile itself is being built. It is the one behaviour whose effect
-/// is not immediate, which is exactly why it needs to be its own class rather
-/// than an early return in the middle of the firing code.
+/// The one behaviour whose effect is not immediate, which is exactly why it
+/// needs to be its own class rather than an early return in the middle of the
+/// firing code: [WeaponShot.hits] stays empty and the damage arrives later,
+/// through the projectile system, from wherever the rocket ends up.
 final class ProjectileBehaviour extends WeaponBehaviour {
   const ProjectileBehaviour();
 
   @override
   void deliver(WeaponShot shot) {
-    // Stage six: spawn the projectile into the world here.
+    final system = shot.projectiles;
+    final blast = shot.weapon.blast;
+    if (system == null || blast == null) return;
+
+    system.spawn(
+      position: shot.origin,
+      direction: shot.aim,
+      speed: shot.weapon.projectileSpeed,
+      blast: blast,
+      owner: shot.shooter,
+    );
   }
 }

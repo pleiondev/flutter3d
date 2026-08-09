@@ -73,6 +73,10 @@ class _GameScreenState extends State<GameScreen>
   final Arsenal _arsenal = Arsenal(startingSlot: 1);
   final WeaponView _weaponView = WeaponView();
   WeaponShot? _shot;
+  ProjectileSystem? _projectiles;
+
+  /// Explosions from the last step, for the effects to catch up with.
+  final List<Detonation> _blasts = <Detonation>[];
 
   /// The last shot's hits, for the impact markers the debug overlay draws.
   final List<ShotHit> _lastShot = <ShotHit>[];
@@ -136,6 +140,7 @@ class _GameScreenState extends State<GameScreen>
       final start = loaded.level.playerStart;
 
       final hitscan = Hitscan(world: loaded.collision);
+      final projectiles = ProjectileSystem(world: loaded.collision);
       final body = CharacterController(
         world: loaded.collision,
         // Lifted by half the body height: a spawn is authored where the
@@ -147,7 +152,12 @@ class _GameScreenState extends State<GameScreen>
       setState(() {
         _loaded = loaded;
         _body = body;
-        _shot = WeaponShot(world: loaded.collision, hitscan: hitscan);
+        _projectiles = projectiles;
+        _shot = WeaponShot(
+          world: loaded.collision,
+          hitscan: hitscan,
+          projectiles: projectiles,
+        );
         _yaw = start?.yaw ?? 0.0;
         _smoothedPosition.jumpTo(body.position);
         // Loading blocked the ticker for a couple of seconds, and all of that
@@ -224,6 +234,21 @@ class _GameScreenState extends State<GameScreen>
     loaded.collision.clearKinematicDeltas();
 
     _updateWeapon(dt, body);
+
+    // After the weapon, so a rocket fired this step is not moved until the
+    // next one — otherwise it starts the game already a step down the corridor.
+    final projectiles = _projectiles;
+    if (projectiles != null) {
+      projectiles.step(dt);
+      if (projectiles.detonations.isNotEmpty) {
+        _blasts
+          ..clear()
+          ..addAll(projectiles.detonations);
+        // Damage lands here once there is anything with health to take it.
+        _hitFlash = 1.0;
+      }
+    }
+
     _smoothedPosition.push(body.position);
   }
 
