@@ -11,6 +11,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/level_scene.dart';
+import 'src/weapon_view.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.
@@ -69,6 +70,14 @@ class _GameScreenState extends State<GameScreen>
   LoadedLevel? _loaded;
   CharacterController? _body;
 
+  final Arsenal _arsenal = Arsenal(startingSlot: 1);
+  final WeaponView _weaponView = WeaponView();
+  Hitscan? _hitscan;
+
+  /// The last shot's hits, for the impact markers the debug overlay draws.
+  final List<HitscanHit> _lastShot = <HitscanHit>[];
+  double _hitFlash = 0.0;
+
   final CameraNode _camera = CameraNode(name: 'player');
   late final RenderView _view;
   Renderer? _renderer;
@@ -91,6 +100,7 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _forward = Vector3.zero();
   final Vector3 _right = Vector3.zero();
   final Vector3 _wish = Vector3.zero();
+  final Vector3 _aim = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
 
@@ -125,6 +135,7 @@ class _GameScreenState extends State<GameScreen>
       final loaded = await const LevelLoader().load(_levelAsset);
       final start = loaded.level.playerStart;
 
+      final hitscan = Hitscan(world: loaded.collision);
       final body = CharacterController(
         world: loaded.collision,
         // Lifted by half the body height: a spawn is authored where the
@@ -136,6 +147,7 @@ class _GameScreenState extends State<GameScreen>
       setState(() {
         _loaded = loaded;
         _body = body;
+        _hitscan = hitscan;
         _yaw = start?.yaw ?? 0.0;
         _smoothedPosition.jumpTo(body.position);
         // Loading blocked the ticker for a couple of seconds, and all of that
@@ -211,7 +223,78 @@ class _GameScreenState extends State<GameScreen>
     loaded.collision.update();
     loaded.collision.clearKinematicDeltas();
 
+    _updateWeapon(dt, body);
     _smoothedPosition.push(body.position);
+  }
+
+  /// Firing, and the hands that hold the weapon.
+  void _updateWeapon(double dt, CharacterController body) {
+    _arsenal.advanceTime(dt);
+    if (_hitFlash > 0.0) _hitFlash = math.max(0.0, _hitFlash - dt * 4.0);
+
+    final slot = _input.weaponRequest;
+    if (slot != null && _arsenal.selectSlot(slot)) {
+      _weaponView.selectWeapon(_arsenal.current);
+    }
+
+    final wants = _arsenal.wantsToFire(
+      held: _input.held(GameAction.fire),
+      pressed: _input.pressed(GameAction.fire),
+    );
+    if (wants) _fire(body);
+
+    // Only when the trigger is idle: switching weapons out from under a player
+    // who is mid-burst because one shot emptied the magazine is worse than
+    // letting them notice.
+    if (!_input.held(GameAction.fire)) {
+      final before = _arsenal.current.name;
+      _arsenal.fallBackIfEmpty();
+      if (_arsenal.current.name != before) {
+        _weaponView.selectWeapon(_arsenal.current);
+      }
+    }
+
+    _weaponView.step(
+      dt,
+      speed: math.sqrt(
+        body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z,
+      ),
+      grounded: body.isGrounded,
+    );
+  }
+
+  void _fire(CharacterController body) {
+    final hitscan = _hitscan;
+    if (hitscan == null) return;
+
+    final weapon = _arsenal.fire();
+    if (weapon == null) return;
+
+    _weaponView.recoil();
+    if (weapon.kind == WeaponKind.projectile) {
+      // Rockets arrive in the next stage; the shot is still spent, so the
+      // ammunition and the recoil are already honest.
+      return;
+    }
+
+    // From the eye, not from the muzzle. The muzzle is off to one side, and a
+    // shot that starts there misses what the crosshair is on whenever the
+    // player is close to a wall — the classic corner-shooting bug.
+    _eye
+      ..setFrom(body.position)
+      ..y += _eyeOffset;
+    _aim.setValues(
+      -math.sin(_yaw) * math.cos(_pitch),
+      math.sin(_pitch),
+      -math.cos(_yaw) * math.cos(_pitch),
+    );
+
+    _lastShot
+      ..clear()
+      ..addAll(
+        hitscan.fire(weapon, _eye, _aim, ignore: body.collider),
+      );
+    if (_lastShot.any((HitscanHit h) => h.struckSomething)) _hitFlash = 1.0;
   }
 
   @override
@@ -270,6 +353,7 @@ class _GameScreenState extends State<GameScreen>
                 renderer: renderer,
                 scene: loaded.scene,
                 view: _view,
+                viewModel: _weaponView.pass,
                 onBeforeFrame: _placeCamera,
               ),
               _Hud(
@@ -279,6 +363,9 @@ class _GameScreenState extends State<GameScreen>
                 dropped: _loop.clock.droppedSteps,
                 position: body.position,
                 grounded: body.isGrounded,
+                weapon: _arsenal.current,
+                ammo: _arsenal.currentAmmo,
+                hitFlash: _hitFlash,
               ),
             ],
           ),
@@ -314,12 +401,14 @@ class _SceneSurface extends StatelessWidget {
     required this.renderer,
     required this.scene,
     required this.view,
+    required this.viewModel,
     required this.onBeforeFrame,
   });
 
   final Renderer renderer;
   final Scene scene;
   final RenderView view;
+  final ViewModelPass viewModel;
   final VoidCallback onBeforeFrame;
 
   @override
@@ -333,6 +422,7 @@ class _SceneSurface extends StatelessWidget {
           height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
           scene: scene,
           views: <RenderView>[view],
+          viewModel: viewModel,
         );
         return CustomPaint(
           painter: _ImagePainter(frame.image),
@@ -370,6 +460,9 @@ class _Hud extends StatelessWidget {
     required this.dropped,
     required this.position,
     required this.grounded,
+    required this.weapon,
+    required this.ammo,
+    required this.hitFlash,
   });
 
   final bool captured;
@@ -378,20 +471,32 @@ class _Hud extends StatelessWidget {
   final int dropped;
   final Vector3 position;
   final bool grounded;
+  final WeaponDef weapon;
+
+  /// Negative when the weapon needs none.
+  final int ammo;
+
+  /// Fades from one to zero after a shot connected.
+  final double hitFlash;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: <Widget>[
-        // The crosshair. Nothing shoots yet; it is here because without it the
-        // sensitivity is impossible to judge.
-        const Center(
+        // The crosshair, which turns red the moment a shot connects. A hit
+        // marker is the cheapest feedback in a shooter and the one players
+        // notice the absence of.
+        Center(
           child: SizedBox(
-            width: 5.0,
-            height: 5.0,
+            width: 5.0 + hitFlash * 4.0,
+            height: 5.0 + hitFlash * 4.0,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white70,
+                color: Color.lerp(
+                  Colors.white70,
+                  const Color(0xFFFF5B4A),
+                  hitFlash,
+                ),
                 shape: BoxShape.circle,
               ),
             ),
@@ -415,6 +520,28 @@ class _Hud extends StatelessWidget {
                     'y ${position.y.toStringAsFixed(1)}  '
                     'z ${position.z.toStringAsFixed(1)}  '
                     '${grounded ? 'grounded' : 'airborne'}'),
+              ],
+            ),
+          ),
+        ),
+        Positioned(
+          right: 20.0,
+          bottom: 18.0,
+          child: DefaultTextStyle(
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22.0,
+              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: <Widget>[
+                Text(weapon.name.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12.0,
+                    )),
+                Text(ammo < 0 ? '∞' : '$ammo'),
               ],
             ),
           ),

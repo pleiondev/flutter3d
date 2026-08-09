@@ -10,6 +10,7 @@ import '../gpu/gpu_mesh.dart';
 import '../gpu/render_target_pool.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
+import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import 'debug_draw.dart';
@@ -283,6 +284,41 @@ final class FrameResult {
 /// Still not a frame graph: one pass, one target, no post-processing. What it does
 /// have is the structure the rest depends on — a scene it does not own, views it
 /// does not assume, a culled and sorted render list, and a pipeline cache.
+/// A scene drawn on top of the world, through its own camera.
+///
+/// The first-person weapon, and nothing else so far. It cannot simply be a
+/// second [RenderView]: every view shares one depth buffer, so a weapon held
+/// close to the eye would be buried the moment the player walked up to a wall.
+/// Its own pass with the depth cleared is what puts it reliably in front.
+///
+/// A narrow field of view comes with it, and is the point rather than a detail.
+/// The main camera is wide enough to see a room, and a model rendered at that
+/// angle a few centimetres from the eye is grotesquely distorted at the edges.
+final class ViewModelPass {
+  ViewModelPass({required this.scene, required this.camera});
+
+  /// Holds only what is in the player's hands. Kept apart from the world so
+  /// culling, picking and the shadow pass never see it.
+  final Scene scene;
+
+  /// Usually around 55 degrees against the world camera's 90.
+  final CameraNode camera;
+}
+
+/// Pipeline binding state and counters carried across the draws of one pass.
+///
+/// A small mutable object rather than locals, because [Renderer._encodeNode]
+/// needs to both read and update them and Dart has no out parameters. Reset per
+/// pass: a freshly created pass has nothing bound, so carrying the state across
+/// one would skip a bind that is actually needed.
+final class _PassState {
+  LightingModel? boundPipeline;
+  bool? boundSkinned;
+  int drawCalls = 0;
+  int pipelineSwitches = 0;
+  int skinnedDraws = 0;
+}
+
 final class Renderer {
   Renderer._({
     required this.library,
@@ -434,6 +470,16 @@ final class Renderer {
   int _shadowResolution = 0;
   int _shadowCasters = 0;
 
+  final vm.Vector3 _viewModelCamera = vm.Vector3.zero();
+
+  /// Depth for the view-model pass, made on demand.
+  ///
+  /// Lazily rather than alongside the scene's targets, because most frames of
+  /// most applications never draw one and a full-size depth buffer is megabytes
+  /// nobody asked for.
+  gpu.Texture? _viewModelDepth;
+  int _viewModelDepthWidth = 0;
+  int _viewModelDepthHeight = 0;
   final Float32List _bloomParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
 
@@ -1075,12 +1121,328 @@ final class Renderer {
   /// Views share a single render pass and clear: viewports do not overlap in the
   /// split-screen case, and one pass is both cheaper and simpler than a pass per
   /// view. Views are drawn in ascending priority, as in PlayCanvas.
+  /// Encodes one mesh node into an open pass.
+  ///
+  /// Extracted so the view-model pass draws through exactly the same code as
+  /// the scene. The alternative was a second copy of the material binding, and
+  /// that binding is where the phantom-sampler trap lives: a shader that never
+  /// reads a texture has no slot for it, and binding one anyway is a native
+  /// crash rather than a no-op. Two copies of that would eventually disagree,
+  /// and the disagreement would arrive as a segfault with no Dart stack.
+  void _encodeNode({
+    required gpu.RenderPass pass,
+    required gpu.HostBuffer host,
+    required MeshNode node,
+    required Scene scene,
+    required RenderSettings settings,
+    required vm.Matrix4 viewProjection,
+    required bool hasShadows,
+    required int shadowCaster,
+    required _PassState state,
+  }) {
+      final mesh = node.mesh;
+      // The scene deals in MeshGeometry so that culling and picking need no
+      // device; only here does it matter that the geometry actually reached
+      // the GPU. A CPU-only mesh in a drawn scene is a bug in the caller,
+      // not something to skip quietly.
+      if (mesh is! GpuMesh) {
+        throw StateError(
+          'MeshNode "${node.name}" holds ${mesh.runtimeType}, which has no '
+          'GPU buffers. Upload it with GpuMesh.upload before drawing it.',
+        );
+      }
+      final material = node.material;
+
+      final skeleton = node.skeleton;
+      final skinned = skeleton != null;
+      if (state.boundPipeline != material.lighting || state.boundSkinned != skinned) {
+        pass.bindPipeline(
+          _pipelineFor(material.lighting, skinned: skinned),
+        );
+        state.boundPipeline = material.lighting;
+        state.boundSkinned = skinned;
+        state.pipelineSwitches++;
+      }
+
+      // Both matrices are cached on the node and keyed on its transform
+      // version, so a static object costs nothing here.
+      final modelMatrix = node.worldMatrix;
+      final normalMatrix = node.worldNormalMatrix;
+
+      pass.setWindingOrder(
+        node.worldIsMirrored
+            ? gpu.WindingOrder.clockwise
+            : gpu.WindingOrder.counterClockwise,
+      );
+      final cull = settings.backfaceCulling &&
+          !settings.wireframe &&
+          !material.doubleSided;
+      pass.setCullMode(cull ? gpu.CullMode.backFace : gpu.CullMode.none);
+
+      final blend = material.alphaMode == MaterialAlphaMode.blend;
+      pass.setColorBlendEnable(blend);
+      if (blend) {
+        pass.setColorBlendEquation(gpu.ColorBlendEquation());
+        // Transparent surfaces must not occlude what is behind them.
+        pass.setDepthWriteEnable(false);
+      } else {
+        pass.setDepthWriteEnable(true);
+      }
+
+      pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
+      pass.bindIndexBuffer(
+        mesh.indexView,
+        mesh.indexType,
+        mesh.indexCount,
+      );
+
+      final activeVertexShader =
+          skinned ? skinnedVertexShader : vertexShader;
+      _bindUniformBlock(pass, host, activeVertexShader, _kFrameInfoBlock, {
+        'mvp': (viewProjection * modelMatrix).storage,
+        'model': modelMatrix.storage,
+        'normal_matrix': normalMatrix.storage,
+      });
+
+      if (skeleton != null) {
+        // Recomputed here rather than by the caller: the matrices depend on
+        // the mesh node's own world transform, which is exactly what the
+        // renderer is holding at this point.
+        skeleton.update(modelMatrix);
+        _bindUniformBlock(
+          pass,
+          host,
+          skinnedVertexShader,
+          _kSkinInfoBlock,
+          {'joint_matrices': skeleton.matrices},
+        );
+        state.skinnedDraws++;
+      }
+
+      final fragmentShader = _fragmentShaderFor(material.lighting);
+
+      // Gated on model metadata, not reflection: a shader that only DECLARES
+      // FragInfo still reports it with a non-zero size while the compiled
+      // function binds no buffer, and binding that segfaults inside Metal.
+      if (material.lighting.usesFragInfo) {
+        _baseColorData[0] = material.baseColor.x;
+        _baseColorData[1] = material.baseColor.y;
+        _baseColorData[2] = material.baseColor.z;
+        _baseColorData[3] = material.baseColor.w;
+
+        _emissiveData[0] = material.emissive.x;
+        _emissiveData[1] = material.emissive.y;
+        _emissiveData[2] = material.emissive.z;
+
+        _materialData[0] = material.metallic;
+        _materialData[1] = material.roughness;
+        _materialData[2] = scene.ambientIntensity;
+        _materialData[3] = settings.specular;
+
+        // A negative cutoff means "not masked". The shader compares against
+        // it directly, so encoding the mode in the value keeps a branch and
+        // a separate flag out of the uniform block.
+        _material2Data[0] = material.alphaMode == MaterialAlphaMode.mask
+            ? material.alphaCutoff
+            : -1.0;
+        _material2Data[1] = material.normalScale;
+        _material2Data[2] = material.occlusionStrength;
+        _material2Data[3] = material.emissiveStrength;
+
+        _frameParams[0] = settings.exposure;
+        _frameParams[1] = lights.count.toDouble();
+        _frameParams[2] = hasShadows ? shadowCaster.toDouble() : -1.0;
+
+        _bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
+          // Whole arrays written from their reflected base offset. Impeller
+          // reflects the array, not its elements — `lights[0]` comes back
+          // null — but the std140 stride for a vec4 array is a flat 16
+          // bytes, so a contiguous write lands each element correctly.
+          'light_position': lights.positions,
+          'light_color': lights.colors,
+          'light_direction': lights.directions,
+          'light_cone': lights.cones,
+          'base_color': _baseColorData,
+          'emissive': _emissiveData,
+          'camera_position': _cameraData,
+          'material': _materialData,
+          'material2': _material2Data,
+          'frame_params': _frameParams,
+          'shadow_params': _shadowParams,
+          'shadow_matrix': _shadowMatrix.storage,
+        });
+      }
+
+      // Bound strictly according to the model's declared slots. The
+      // compiler drops a sampler the shader never reads, and binding one
+      // Metal does not have is a native crash rather than a no-op.
+      if (material.lighting.usesAlbedoTexture) {
+        _bindTexture(
+          pass,
+          fragmentShader,
+          _kAlbedoTextureSlot,
+          material.albedo ?? fallbackAlbedo,
+          material.albedoSampler,
+        );
+      }
+      if (material.lighting.usesMaterialMaps) {
+        _bindTexture(
+          pass,
+          fragmentShader,
+          _kNormalTextureSlot,
+          material.normal ?? fallbackNormal,
+          material.normalSampler,
+        );
+        _bindTexture(
+          pass,
+          fragmentShader,
+          _kOcclusionTextureSlot,
+          material.occlusion ?? fallbackAlbedo,
+          material.occlusionSampler,
+        );
+        _bindTexture(
+          pass,
+          fragmentShader,
+          _kEmissiveTextureSlot,
+          material.emissiveTexture ?? fallbackAlbedo,
+          material.emissiveSampler,
+        );
+      }
+      if (material.lighting.usesShadowMap) {
+        _bindTexture(
+          pass,
+          fragmentShader,
+          _kShadowTextureSlot,
+          // With shadows off the slot still has to be satisfied, and a white
+          // texture reads as "nothing between here and the light" — which is
+          // also what the zero strength above already guarantees.
+          hasShadows ? _shadowMap! : fallbackAlbedo,
+          _clampSampler,
+        );
+      }
+      if (material.lighting.usesMetallicRoughnessMap) {
+        _bindTexture(
+          pass,
+          fragmentShader,
+          _kMetallicRoughnessTextureSlot,
+          material.metallicRoughness ?? fallbackAlbedo,
+          material.metallicRoughnessSampler,
+        );
+      }
+
+      pass.draw();
+      state.drawCalls++;
+  }
+
+  gpu.Texture _viewModelDepthFor(int width, int height) {
+    if (_viewModelDepth != null &&
+        _viewModelDepthWidth == width &&
+        _viewModelDepthHeight == height) {
+      return _viewModelDepth!;
+    }
+    _viewModelDepth = gpu.gpuContext.createTexture(
+      gpu.StorageMode.deviceTransient,
+      width,
+      height,
+      format: gpu.gpuContext.defaultDepthStencilFormat,
+    );
+    _viewModelDepthWidth = width;
+    _viewModelDepthHeight = height;
+    return _viewModelDepth!;
+  }
+
+  /// Draws the first-person view model over the finished scene.
+  ///
+  /// Its own command buffer, because Metal allows one open encoder per buffer
+  /// and flutter_gpu offers no way to end a pass — the same rule that already
+  /// governs the shadow and post passes.
+  ///
+  /// The colour attachment loads rather than clears, so the scene survives; the
+  /// depth attachment clears, which is the whole reason this is a separate pass.
+  void _encodeViewModel({
+    required ViewModelPass pass,
+    required gpu.HostBuffer host,
+    required RenderSettings settings,
+    required _PassState state,
+    required int width,
+    required int height,
+    required gpu.Texture hdr,
+  }) {
+    if (pass.scene.meshes.isEmpty) return;
+    developer.Timeline.startSync('Renderer.viewModel');
+
+    // Straight into the resolved target, without MSAA, whatever the scene
+    // used. Loading a multisampled attachment would mean loading the resolved
+    // image back into it, which the API does not offer — and a weapon is a
+    // handful of large, close triangles whose silhouette is mostly off screen,
+    // the one case where the resolve buys least.
+    final target = gpu.RenderTarget.singleColor(
+      gpu.ColorAttachment(texture: hdr, loadAction: gpu.LoadAction.load),
+      depthStencilAttachment: gpu.DepthStencilAttachment(
+        // Its own depth, not the scene's: attachments in one target must agree
+        // on sample count, and the scene's is four-sample whenever MSAA is on.
+        texture: _viewModelDepthFor(width, height),
+        // Cleared, so nothing in the world can occlude what is in the player's
+        // hands.
+        depthClearValue: 1.0,
+      ),
+    );
+
+    final buffer = gpu.gpuContext.createCommandBuffer();
+    final encoder = buffer.createRenderPass(target);
+
+    encoder
+      ..setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height))
+      ..setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height))
+      ..setDepthWriteEnable(true)
+      ..setDepthCompareOperation(gpu.CompareFunction.less)
+      ..setPrimitiveType(gpu.PrimitiveType.triangle);
+
+    // Nothing is bound in a new pass, so the state has to forget what the
+    // scene pass left it believing.
+    state
+      ..boundPipeline = null
+      ..boundSkinned = null;
+
+    final aspect = height == 0 ? 1.0 : width / height;
+    final viewProjection = pass.camera.viewProjection(aspect);
+    pass.camera.readWorldPosition(_viewModelCamera);
+    _cameraData[0] = _viewModelCamera.x;
+    _cameraData[1] = _viewModelCamera.y;
+    _cameraData[2] = _viewModelCamera.z;
+
+    for (final node in pass.scene.meshes) {
+      // The whole chain, not just the node: a view model hides the weapons it
+      // is not holding by switching off their shared parent, and testing only
+      // the leaf draws every weapon at once.
+      if (!node.visibleInHierarchy) continue;
+      _encodeNode(
+        pass: encoder,
+        host: host,
+        node: node,
+        scene: pass.scene,
+        settings: settings,
+        viewProjection: viewProjection,
+        // No shadow map: a weapon lit by the world's sun through a shadow
+        // matrix built for the world's camera would be shadowed by geometry it
+        // is nowhere near.
+        hasShadows: false,
+        shadowCaster: -1,
+        state: state,
+      );
+    }
+
+    buffer.submit();
+    developer.Timeline.finishSync();
+  }
+
   FrameResult render({
     required int width,
     required int height,
     required Scene scene,
     required List<RenderView> views,
     RenderSettings settings = const RenderSettings(),
+    ViewModelPass? viewModel,
   }) {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
@@ -1149,14 +1511,10 @@ final class Renderer {
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
-    var drawCalls = 0;
+    final passState = _PassState();
     var culled = 0;
-    var pipelineSwitches = 0;
     var debugLines = 0;
     var lightOverflow = 0;
-    var skinnedDraws = 0;
-    LightingModel? boundPipeline;
-    bool? boundSkinned;
 
     final cameraPosition = vm.Vector3.zero();
 
@@ -1218,200 +1576,18 @@ final class Renderer {
         _renderList.transparent,
       ]) {
         for (var i = 0; i < indices.length; i++) {
-          final item = _renderList.itemAt(indices[i]);
-          final node = item.requireNode;
-          final mesh = node.mesh;
-          // The scene deals in MeshGeometry so that culling and picking need no
-          // device; only here does it matter that the geometry actually reached
-          // the GPU. A CPU-only mesh in a drawn scene is a bug in the caller,
-          // not something to skip quietly.
-          if (mesh is! GpuMesh) {
-            throw StateError(
-              'MeshNode "${node.name}" holds ${mesh.runtimeType}, which has no '
-              'GPU buffers. Upload it with GpuMesh.upload before drawing it.',
-            );
-          }
-          final material = node.material;
-
-          final skeleton = node.skeleton;
-          final skinned = skeleton != null;
-          if (boundPipeline != material.lighting || boundSkinned != skinned) {
-            pass.bindPipeline(
-              _pipelineFor(material.lighting, skinned: skinned),
-            );
-            boundPipeline = material.lighting;
-            boundSkinned = skinned;
-            pipelineSwitches++;
-          }
-
-          // Both matrices are cached on the node and keyed on its transform
-          // version, so a static object costs nothing here.
-          final modelMatrix = node.worldMatrix;
-          final normalMatrix = node.worldNormalMatrix;
-
-          pass.setWindingOrder(
-            node.worldIsMirrored
-                ? gpu.WindingOrder.clockwise
-                : gpu.WindingOrder.counterClockwise,
+          final node = _renderList.itemAt(indices[i]).requireNode;
+          _encodeNode(
+            pass: pass,
+            host: host,
+            node: node,
+            scene: scene,
+            settings: settings,
+            viewProjection: viewProjection,
+            hasShadows: hasShadows,
+            shadowCaster: shadowCaster,
+            state: passState,
           );
-          final cull = settings.backfaceCulling &&
-              !settings.wireframe &&
-              !material.doubleSided;
-          pass.setCullMode(cull ? gpu.CullMode.backFace : gpu.CullMode.none);
-
-          final blend = material.alphaMode == MaterialAlphaMode.blend;
-          pass.setColorBlendEnable(blend);
-          if (blend) {
-            pass.setColorBlendEquation(gpu.ColorBlendEquation());
-            // Transparent surfaces must not occlude what is behind them.
-            pass.setDepthWriteEnable(false);
-          } else {
-            pass.setDepthWriteEnable(true);
-          }
-
-          pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
-          pass.bindIndexBuffer(
-            mesh.indexView,
-            mesh.indexType,
-            mesh.indexCount,
-          );
-
-          final activeVertexShader =
-              skinned ? skinnedVertexShader : vertexShader;
-          _bindUniformBlock(pass, host, activeVertexShader, _kFrameInfoBlock, {
-            'mvp': (viewProjection * modelMatrix).storage,
-            'model': modelMatrix.storage,
-            'normal_matrix': normalMatrix.storage,
-          });
-
-          if (skeleton != null) {
-            // Recomputed here rather than by the caller: the matrices depend on
-            // the mesh node's own world transform, which is exactly what the
-            // renderer is holding at this point.
-            skeleton.update(modelMatrix);
-            _bindUniformBlock(
-              pass,
-              host,
-              skinnedVertexShader,
-              _kSkinInfoBlock,
-              {'joint_matrices': skeleton.matrices},
-            );
-            skinnedDraws++;
-          }
-
-          final fragmentShader = _fragmentShaderFor(material.lighting);
-
-          // Gated on model metadata, not reflection: a shader that only DECLARES
-          // FragInfo still reports it with a non-zero size while the compiled
-          // function binds no buffer, and binding that segfaults inside Metal.
-          if (material.lighting.usesFragInfo) {
-            _baseColorData[0] = material.baseColor.x;
-            _baseColorData[1] = material.baseColor.y;
-            _baseColorData[2] = material.baseColor.z;
-            _baseColorData[3] = material.baseColor.w;
-
-            _emissiveData[0] = material.emissive.x;
-            _emissiveData[1] = material.emissive.y;
-            _emissiveData[2] = material.emissive.z;
-
-            _materialData[0] = material.metallic;
-            _materialData[1] = material.roughness;
-            _materialData[2] = scene.ambientIntensity;
-            _materialData[3] = settings.specular;
-
-            // A negative cutoff means "not masked". The shader compares against
-            // it directly, so encoding the mode in the value keeps a branch and
-            // a separate flag out of the uniform block.
-            _material2Data[0] = material.alphaMode == MaterialAlphaMode.mask
-                ? material.alphaCutoff
-                : -1.0;
-            _material2Data[1] = material.normalScale;
-            _material2Data[2] = material.occlusionStrength;
-            _material2Data[3] = material.emissiveStrength;
-
-            _frameParams[0] = settings.exposure;
-            _frameParams[1] = lights.count.toDouble();
-            _frameParams[2] = hasShadows ? shadowCaster.toDouble() : -1.0;
-
-            _bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
-              // Whole arrays written from their reflected base offset. Impeller
-              // reflects the array, not its elements — `lights[0]` comes back
-              // null — but the std140 stride for a vec4 array is a flat 16
-              // bytes, so a contiguous write lands each element correctly.
-              'light_position': lights.positions,
-              'light_color': lights.colors,
-              'light_direction': lights.directions,
-              'light_cone': lights.cones,
-              'base_color': _baseColorData,
-              'emissive': _emissiveData,
-              'camera_position': _cameraData,
-              'material': _materialData,
-              'material2': _material2Data,
-              'frame_params': _frameParams,
-              'shadow_params': _shadowParams,
-              'shadow_matrix': _shadowMatrix.storage,
-            });
-          }
-
-          // Bound strictly according to the model's declared slots. The
-          // compiler drops a sampler the shader never reads, and binding one
-          // Metal does not have is a native crash rather than a no-op.
-          if (material.lighting.usesAlbedoTexture) {
-            _bindTexture(
-              pass,
-              fragmentShader,
-              _kAlbedoTextureSlot,
-              material.albedo ?? fallbackAlbedo,
-              material.albedoSampler,
-            );
-          }
-          if (material.lighting.usesMaterialMaps) {
-            _bindTexture(
-              pass,
-              fragmentShader,
-              _kNormalTextureSlot,
-              material.normal ?? fallbackNormal,
-              material.normalSampler,
-            );
-            _bindTexture(
-              pass,
-              fragmentShader,
-              _kOcclusionTextureSlot,
-              material.occlusion ?? fallbackAlbedo,
-              material.occlusionSampler,
-            );
-            _bindTexture(
-              pass,
-              fragmentShader,
-              _kEmissiveTextureSlot,
-              material.emissiveTexture ?? fallbackAlbedo,
-              material.emissiveSampler,
-            );
-          }
-          if (material.lighting.usesShadowMap) {
-            _bindTexture(
-              pass,
-              fragmentShader,
-              _kShadowTextureSlot,
-              // With shadows off the slot still has to be satisfied, and a white
-              // texture reads as "nothing between here and the light" — which is
-              // also what the zero strength above already guarantees.
-              hasShadows ? _shadowMap! : fallbackAlbedo,
-              _clampSampler,
-            );
-          }
-          if (material.lighting.usesMetallicRoughnessMap) {
-            _bindTexture(
-              pass,
-              fragmentShader,
-              _kMetallicRoughnessTextureSlot,
-              material.metallicRoughness ?? fallbackAlbedo,
-              material.metallicRoughnessSampler,
-            );
-          }
-
-          pass.draw();
-          drawCalls++;
         }
       }
       developer.Timeline.finishSync();
@@ -1429,6 +1605,18 @@ final class Renderer {
     commandBuffer.submit();
     stopwatch.stop();
     developer.Timeline.finishSync();
+
+    if (viewModel != null) {
+      _encodeViewModel(
+        pass: viewModel,
+        host: host,
+        settings: settings,
+        state: passState,
+        width: width,
+        height: height,
+        hdr: hdr,
+      );
+    }
 
     final bloom = _renderBloom(
       host: host,
@@ -1453,7 +1641,7 @@ final class Renderer {
 
     debugLines += overlayLines;
     // The composite is a draw, and so is each overlay batch.
-    drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
+    passState.drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
 
     if (bloom != null) _releaseAfterFrame(bloom);
 
@@ -1465,15 +1653,15 @@ final class Renderer {
       image: image,
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: stopwatch.elapsedMicroseconds,
-      drawCalls: drawCalls,
+      drawCalls: passState.drawCalls,
       culled: culled,
-      pipelineSwitches: pipelineSwitches,
+      pipelineSwitches: passState.pipelineSwitches,
       debugLines: debugLines,
       lights: lights.count,
       lightsDropped: lightOverflow,
       pipelines: _pipelineCache.length,
       shadowCasters: _shadowCasters,
-      skinnedDraws: skinnedDraws,
+      skinnedDraws: passState.skinnedDraws,
     );
   }
 

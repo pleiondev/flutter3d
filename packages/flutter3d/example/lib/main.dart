@@ -158,6 +158,9 @@ class _SpikePageState extends State<SpikePage>
   /// A plane under the model, so the shadow has somewhere to land.
   late final MeshNode _ground;
   bool _showGround = GoldenRunner.fromEnvironment()?.scene.ground ?? true;
+
+  /// Set when the ground was wanted but the scene could not be measured yet.
+  bool _groundPending = false;
   late final OrbitController _orbit;
   late final RenderView _view;
 
@@ -544,7 +547,21 @@ class _SpikePageState extends State<SpikePage>
   /// the frame.
   void _placeGround(Aabb3 bounds) {
     _ground.removeFromParent();
-    if (!_showGround || !bounds.min.x.isFinite) return;
+    if (!_showGround) {
+      _groundPending = false;
+      return;
+    }
+    if (!bounds.min.x.isFinite) {
+      // Nothing measurable yet. A skinned mesh has no world bounds until its
+      // skeleton has been posed, and the pose happens during the first draw —
+      // so a rigged model installed here measures as empty and, before this
+      // flag existed, silently never got a floor at all. Which floor a frame
+      // had then depended on load timing, and the golden for the rigged figure
+      // failed about one run in three.
+      _groundPending = true;
+      return;
+    }
+    _groundPending = false;
     if (!bounds.min.x.isFinite) return;
 
     final centre = (bounds.min + bounds.max)..scale(0.5);
@@ -687,6 +704,12 @@ class _SpikePageState extends State<SpikePage>
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;
+                            if (_groundPending) {
+                              // Retried rather than given up on. By now the
+                              // first draw has posed any skeleton, so the
+                              // bounds are real.
+                              _placeGround(_scene.computeBounds());
+                            }
                             _capture?.offer(frame);
                             // Missing this was why the first recording run
                             // never finished: the scene's settings were being

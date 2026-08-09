@@ -119,6 +119,14 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
 
   // A posed rig at a fixed clip time, which is the only way an animated model
   // is comparable at all.
+  //
+  // No ground, and that is the fix for a flake rather than a preference. The
+  // demo sizes its floor from the scene's bounds, and a skinned mesh has no
+  // bounds until its skeleton has been posed — which happens during the first
+  // draw. So the floor came out a different size depending on whether the
+  // measurement landed before or after, and this golden failed about one run in
+  // three on a difference that had nothing to do with skinning. Ground and
+  // shadow are what shadow-teapot is for; this scene tests one thing.
   const GoldenScene(
     name: 'skinned-figure',
     source: 'skin: Figure',
@@ -126,6 +134,7 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     yaw: 0.6,
     pitch: 0.25,
     bloom: false,
+    ground: false,
   ),
 
   // The debug overlay, which is otherwise never exercised by anything automatic.
