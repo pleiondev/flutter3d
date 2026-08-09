@@ -374,6 +374,15 @@ choose an engine.
       static half of a point light's shadow can be rendered once at load rather
       than every frame, leaving only monsters and doors to redraw. That may cut
       the whole thing to nearly free, and it is the first thing to try.
+      **Verified working.** Standing beside the casting torch, its bracket,
+      angled shaft and cup throw a shadow of exactly their own shape onto the
+      wall behind, with the flame above still bright. The chain that got there
+      was: viewport moves mid-pass, so six faces cost one pass; faces store
+      radial distance, because depth is per-face and seams at every boundary;
+      the shader is handed the same six matrices that drew them, so there is no
+      second derivation to disagree; and the black slab was a single sign on the
+      v axis. What remains is scale — the atlas belongs to one light, and the
+      other five torches still light the far side of their walls.
       **Second finding, from looking:** with the atlas sampled, a torch casts a
       black slab across the floor rather than the shape of the thing in front of
       it. A shadow that is a wide band instead of a silhouette means a whole
