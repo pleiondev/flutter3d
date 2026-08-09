@@ -100,8 +100,11 @@ final class FogSettings {
   /// transform, and an sRGB value here reads as a fog too bright at the near
   /// end and too dark at the far one.
   ///
-  /// Null takes the default, which is a very dark violet — the colour an
-  /// unlit stone room tends toward.
+  /// Null takes the default, which is a neutral dark grey. Neutral on
+  /// purpose: fog replaces the surface colour entirely at distance, so any
+  /// tint in it becomes the colour of everything far away — and a tint that
+  /// looks subtle in a swatch does not look subtle when it is the whole far
+  /// end of a corridor.
   final vm.Vector3? color;
 
   vm.Vector3 get resolvedColor => color ?? _defaultColor;
@@ -111,7 +114,7 @@ final class FogSettings {
 
   bool get enabled => density > 0.0;
 
-  static final vm.Vector3 _defaultColor = vm.Vector3(0.05, 0.04, 0.06);
+  static final vm.Vector3 _defaultColor = vm.Vector3(0.05, 0.05, 0.05);
 }
 
 final class RenderSettings {

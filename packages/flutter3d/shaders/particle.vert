@@ -24,8 +24,13 @@ particle_info;
 out vec4 v_color;
 out vec2 v_uv;
 
+/// Carried so the fragment stage can be fogged. A particle knows where it is
+/// only here; the quad's own coordinates say nothing about the world.
+out vec3 v_world_position;
+
 void main() {
   v_color = color;
   v_uv = texcoord;
+  v_world_position = position;
   gl_Position = particle_info.view_projection * vec4(position, 1.0);
 }

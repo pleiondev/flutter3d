@@ -19,8 +19,21 @@
 
 in vec4 v_color;
 in vec2 v_uv;
+in vec3 v_world_position;
 
 out vec4 frag_color;
+
+/// The same block the lit shaders use, declared again because this shader
+/// shares none of their headers — it has a different vertex layout and none of
+/// their varyings.
+uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space.
+  vec4 eye;
+}
+fog_info;
 
 void main() {
   // Distance from the middle of the quad, where the corners sit at 1.
@@ -33,5 +46,18 @@ void main() {
   float falloff = 1.0 - smoothstep(0.0, 1.0, radius);
   float intensity = falloff * falloff;
 
-  frag_color = vec4(v_color.rgb * v_color.a * intensity, 1.0);
+  // Fog on an additive particle is attenuation, not a mix. Blending toward
+  // the fog colour would make a distant flame *add* fog to the wall behind it
+  // and come out brighter than the wall it is supposed to be fading into;
+  // multiplying toward zero is what "further away contributes less" means when
+  // the destination is only ever added to.
+  float fogged = 1.0;
+  if (fog_info.fog.w > 0.0) {
+    fogged = clamp(
+        exp(-fog_info.fog.w * distance(v_world_position, fog_info.eye.xyz)),
+        0.0,
+        1.0);
+  }
+
+  frag_color = vec4(v_color.rgb * v_color.a * intensity * fogged, 1.0);
 }

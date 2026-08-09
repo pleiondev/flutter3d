@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
 // `Material` exists in both flutter/material.dart and flutter3d; the level
 // loader is the only place that builds one, so it is hidden here.
@@ -146,6 +147,19 @@ class _GameScreenState extends State<GameScreen>
   // frame and must not allocate.
   final Vector3 _sound = Vector3.zero();
   final Vector3 _flameAt = Vector3.zero();
+
+  /// Toggled by F, and also on its own every two seconds while
+  /// [_fogAlternates] is set.
+  ///
+  /// The automatic half is there because three attempts at an A/B were spoiled
+  /// by a synthetic keystroke not reaching the window. A measurement that
+  /// depends on the window manager cooperating is not a measurement; one that
+  /// depends only on the clock is.
+  bool _fogOn = true;
+
+  /// Off in normal play. Turned on for a measurement.
+  static const bool _fogAlternates =
+      bool.fromEnvironment('DUNGEON_FOG_AB');
 
   /// What [Effects.flame] settles at with a torch burning steadily.
   ///
@@ -376,6 +390,10 @@ class _GameScreenState extends State<GameScreen>
     if (dt > 0.0) _fps = _fps * 0.9 + (1.0 / dt) * 0.1;
 
     _elapsed += dt;
+    if (_fogAlternates) {
+      final phase = (_elapsed / 2.0).floor().isEven;
+      if (phase != _fogOn) _fogOn = phase;
+    }
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
@@ -752,7 +770,16 @@ class _GameScreenState extends State<GameScreen>
       backgroundColor: Colors.black,
       body: Focus(
         autofocus: true,
-        onKeyEvent: (_, KeyEvent event) => _devices.handleKeyEvent(event),
+        onKeyEvent: (_, KeyEvent event) {
+          // F toggles the fog in place. A before-and-after has to come from
+          // one process at one camera position, which is exactly what the
+          // measurement I threw away did not have.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyF) {
+            setState(() => _fogOn = !_fogOn);
+          }
+          return _devices.handleKeyEvent(event);
+        },
         child: Listener(
           onPointerDown: (_) {
             if (_devices.isCaptured) {
@@ -771,7 +798,7 @@ class _GameScreenState extends State<GameScreen>
                 view: _view,
                 fog: FogSettings(
                   color: loaded.level.fogColor,
-                  density: loaded.level.fogDensity,
+                  density: _fogOn ? loaded.level.fogDensity : 0.0,
                 ),
                 onBeforeFrame: _placeCamera,
               ),

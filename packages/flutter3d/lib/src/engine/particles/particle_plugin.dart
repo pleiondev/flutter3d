@@ -125,6 +125,27 @@ final class ParticlePlugin extends RenderPlugin {
       <String, Float32List>{'view_projection': viewProjection.storage},
     );
 
+    // Fog is attenuation here rather than a mix — see the fragment shader.
+    // Without it a distant flame stays vivid against a wall that has faded
+    // into the murk, which is the one place a viewer notices fog is missing.
+    final fog = frame.settings.fog;
+    final colour = fog.resolvedColor;
+    _fog[0] = colour.x;
+    _fog[1] = colour.y;
+    _fog[2] = colour.z;
+    _fog[3] = fog.density;
+    view.camera.readWorldPosition(_eye);
+    _eyeData[0] = _eye.x;
+    _eyeData[1] = _eye.y;
+    _eyeData[2] = _eye.z;
+    frame.services.bindUniformBlock(
+      pass,
+      frame.host,
+      fragmentShader,
+      'FogInfo',
+      <String, Float32List>{'fog': _fog, 'eye': _eyeData},
+    );
+
     pass.draw();
     frame.state.drawCalls++;
 
@@ -153,6 +174,9 @@ final class ParticlePlugin extends RenderPlugin {
 
   final Set<String> _missing = <String>{};
 
+  final Float32List _fog = Float32List(4);
+  final Float32List _eyeData = Float32List(4);
+  final vm.Vector3 _eye = vm.Vector3.zero();
   gpu.RenderPipeline? _pipeline;
   Float32List? _vertices;
   Uint32List? _indices;

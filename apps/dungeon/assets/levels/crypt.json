@@ -1,7 +1,7 @@
 {
   "version": 1,
   "name": "The Lower Crypt",
-  "fogColor": [0.03, 0.028, 0.04],
+  "fogColor": [0.034, 0.034, 0.034],
   "fogDensity": 0.035,
 
   "materials": {
