@@ -1,0 +1,24 @@
+name: flutter3d_example
+description: "The engine's own demo: a model browser with every lighting model, shadows, bloom, skinning and the debug overlay."
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_gpu:
+    sdk: flutter
+  flutter3d:
+    path: ../
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

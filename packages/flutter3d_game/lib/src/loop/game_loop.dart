@@ -1,0 +1,73 @@
+import 'package:vector_math/vector_math.dart';
+
+import '../input/input_state.dart';
+import 'fixed_step.dart';
+
+/// Ties the clock, the input and the simulation into one call per frame.
+///
+/// Small enough to inline at the call site, and deliberately not inlined: the
+/// order of the four things it does is the part that is easy to get wrong, and
+/// every place that drives a simulation would otherwise have to get it right
+/// again.
+///
+/// Free of Flutter on purpose, like the rest of `lib/src/game/` — the only
+/// device-specific piece, draining accumulated view movement, arrives as a
+/// callback.
+final class GameLoop {
+  GameLoop({
+    required this.input,
+    required this.onStep,
+    FixedStep? clock,
+    this.drainLook,
+  }) : clock = clock ?? FixedStep();
+
+  final FixedStep clock;
+  final InputState input;
+
+  /// Runs one step of simulated time.
+  final void Function(double dt) onStep;
+
+  /// Takes view movement accumulated since the last call and writes it to the
+  /// argument, leaving its own accumulator empty.
+  ///
+  /// A callback rather than a dependency so this file needs neither the mouse
+  /// capture plugin nor a touch widget, and so a test can supply motion without
+  /// either.
+  final void Function(Vector2 out)? drainLook;
+
+  final Vector2 _look = Vector2.zero();
+
+  /// How far through the current step the next frame should draw.
+  double get alpha => clock.alpha;
+
+  /// Advances by [dt] real seconds and returns how many steps ran.
+  int advance(double dt) {
+    final steps = clock.advance(dt);
+    if (steps == 0) {
+      // Nothing is drained. On a display faster than the simulation most frames
+      // run no step at all, and taking the mouse motion here would throw it
+      // away — the accumulator on the other side of [drainLook] is the right
+      // place for it to wait.
+      return 0;
+    }
+
+    _look.setZero();
+    drainLook?.call(_look);
+
+    // View movement is spread across the steps rather than given to the first.
+    // It happened over the whole frame, and handing it all to one step makes a
+    // frame that ran three steps turn the camera in a single jerk.
+    final perStep = 1.0 / steps;
+    final lookX = _look.x * perStep;
+    final lookY = _look.y * perStep;
+
+    for (var i = 0; i < steps; i++) {
+      input.addLook(lookX, lookY);
+      input.beginStep();
+      onStep(clock.stepSeconds);
+      input.endStep();
+    }
+
+    return steps;
+  }
+}

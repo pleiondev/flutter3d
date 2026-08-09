@@ -1,43 +1,18 @@
-name: flutter3d
-description: "A 3D engine spike on Flutter GPU."
+name: flutter3d_workspace
+description: "Repository root. Holds no code — only the list of packages."
 publish_to: 'none'
 
-version: 1.0.0+1
-
+# A pub workspace, so one `flutter pub get` resolves every package against a
+# single lock file. Four packages that depend on each other by path would
+# otherwise drift apart at the first version bump, and the drift only shows up
+# as an unbuildable checkout on another machine.
 environment:
   sdk: ^3.12.2
 
-dependencies:
-  flutter:
-    sdk: flutter
-
-  # The low-level graphics API. It lives in bin/cache/pkg/flutter_gpu.
-  flutter_gpu:
-    sdk: flutter
-
-  vector_math: ^2.2.0
-
-  # Relative mouse deltas, which Flutter offers on no desktop platform. Kept as
-  # a package rather than folded into the app because it knows nothing about the
-  # engine or the game, and can be lifted out whole.
-  mouse_capture:
-    path: packages/mouse_capture
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^6.0.0
-
-flutter:
-  uses-material-design: true
-
-  assets:
-    # Built by tool/build_shaders.sh through impellerc.
-    - build/shaders/flutter3d.shaderbundle
-    # The official Khronos test models (glTF-Sample-Assets).
-    - assets/samples/
-    - assets/samples/cube/
-    - assets/samples/animated_cube/
-    # Produced by tool/convert_asset.dart; see README.
-    - assets/samples/f3d/
-    - assets/samples/simple_skin/
+workspace:
+  - packages/flutter3d
+  - packages/flutter3d/example
+  - packages/flutter3d_game
+  - packages/mouse_capture
+  - packages/mouse_capture/example
+  - apps/dungeon

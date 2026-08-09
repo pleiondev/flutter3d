@@ -1,0 +1,44 @@
+name: flutter3d
+description: "A 3D engine on Flutter GPU: scene graph, glTF/OBJ/.f3d loading, PBR, shadows, bloom, skinning."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The low-level graphics API. It lives in bin/cache/pkg/flutter_gpu.
+  flutter_gpu:
+    sdk: flutter
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  assets:
+    # Built by tool/build_shaders.sh through impellerc. Generated, so it is not
+    # in the repository — a checkout has to run the script before the first run,
+    # and again after every SDK change, because the bundle format is tied to the
+    # Flutter version.
+    - assets/shaders/flutter3d.shaderbundle
+
+    # The official Khronos test models (glTF-Sample-Assets), which the decoders
+    # are verified against and the example browses.
+    #
+    # Declared by this package rather than by the example, because the tests
+    # read them from disk and moving them would split one set of fixtures in
+    # two. The cost is that an application depending on flutter3d bundles them
+    # as well; worth revisiting when the game's bundle size starts to matter.
+    - assets/samples/
+    - assets/samples/cube/
+    - assets/samples/animated_cube/
+    - assets/samples/f3d/
+    - assets/samples/simple_skin/

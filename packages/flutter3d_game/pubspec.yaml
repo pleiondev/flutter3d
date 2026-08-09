@@ -1,0 +1,29 @@
+name: flutter3d_game
+description: "The game layer on top of flutter3d: a fixed timestep, device-independent input, collisions, levels and AI."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Relative mouse deltas, which Flutter offers on no desktop platform.
+  mouse_capture:
+    path: ../mouse_capture
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# Deliberately no dependency on flutter3d. Simulation, input and collision have
+# nothing to say about how a frame is drawn, and keeping the two apart is what
+# lets all of this be tested without a GPU — the same rule that already holds
+# for the engine's own geometry and scene layers. The application is where the
+# two meet.
