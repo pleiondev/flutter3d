@@ -23,10 +23,18 @@ final class GoldenScene {
     this.debug = const DebugDrawOptions(),
     this.width = 480,
     this.height = 360,
+    this.particles = false,
+    this.viewModel = false,
   });
 
   /// File name, without an extension, under `test/goldens/`.
   final String name;
+
+  /// Draws a fixed burst inside the scene pass. See [GoldenExtras].
+  final bool particles;
+
+  /// Draws a held box over the finished scene, in its own pass.
+  final bool viewModel;
 
   /// Matched against a model chip label by substring, as `FLUTTER3D_SOURCE` is.
   final String source;
@@ -145,6 +153,34 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     bloom: false,
     ground: false,
     debug: DebugDrawOptions(bounds: true, axes: true, lightGizmos: true),
+  ),
+  // The particle plugin, which the plugin seam moved out of the renderer and
+  // which nothing automatic had drawn since. A fixed seed and a whole number
+  // of fixed steps, so the burst is the same burst every run.
+  //
+  // Bloom on, because half of what particles are for is feeding it: additive
+  // quads in the HDR target are what makes a burst read as light rather than
+  // as orange confetti.
+  const GoldenScene(
+    name: 'particles-burst',
+    source: 'Cube',
+    shadows: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+    particles: true,
+  ),
+
+  // The view model plugin, in its own pass over the finished scene. The held
+  // box sits where the world's depth would clip it if the stage were wrong,
+  // which is the half of this that a picture can actually prove.
+  const GoldenScene(
+    name: 'view-model-overlay',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    viewModel: true,
   ),
 ];
 

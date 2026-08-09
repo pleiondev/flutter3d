@@ -10,6 +10,7 @@ import 'package:vector_math/vector_math.dart'
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/flutter3d.dart' as engine;
 import 'src/spike/frame_capture.dart';
+import 'src/spike/golden_extras.dart';
 import 'src/spike/golden_runner.dart';
 import 'src/spike/orbit_gestures.dart';
 import 'src/spike/scene_source.dart';
@@ -345,6 +346,21 @@ class _SpikePageState extends State<SpikePage>
     } catch (error, stack) {
       _initError = error;
       _initStack = stack;
+    }
+
+    // What a golden draws besides the world. Registered here rather than per
+    // frame, because a plugin is a property of the renderer now — and built
+    // from GoldenExtras, where every input is fixed, because a reference image
+    // of a random burst compares against nothing.
+    final goldenScene = _golden?.scene;
+    final renderer = _renderer;
+    if (goldenScene != null && renderer != null) {
+      if (goldenScene.particles) {
+        renderer.addPlugin(ParticlePlugin(GoldenExtras.burst()));
+      }
+      if (goldenScene.viewModel) {
+        renderer.addPlugin(GoldenExtras.viewModel());
+      }
     }
 
     _assets = ResourceCache<String, ModelAsset>(

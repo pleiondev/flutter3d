@@ -1,6 +1,8 @@
 import 'dart:developer' as developer;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
+
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
@@ -55,9 +57,12 @@ final class ParticlePlugin extends RenderPlugin {
       return;
     }
 
-    final library = frame.services.library;
-    final vertexShader = library['ParticleVertex'];
-    final fragmentShader = library['ParticleFragment'];
+    // The fragment stage is called 'Particle', not 'ParticleFragment'. That is
+    // worth a comment because guessing it wrong is invisible: the lookup
+    // returns null, the plugin draws nothing, and the frame is merely a frame
+    // without particles in it. The golden caught it; nothing else would have.
+    final vertexShader = _shader(frame, 'ParticleVertex');
+    final fragmentShader = _shader(frame, 'Particle');
     if (vertexShader == null || fragmentShader == null) {
       developer.Timeline.finishSync();
       return;
@@ -128,6 +133,25 @@ final class ParticlePlugin extends RenderPlugin {
     frame.state.invalidatePipeline();
     developer.Timeline.finishSync();
   }
+
+  /// Looks a stage up, and complains once if it is missing.
+  ///
+  /// Once rather than every frame, because sixty identical lines a second is
+  /// how a real message gets scrolled away — and silently is how this bug
+  /// survived being written in the first place.
+  gpu.Shader? _shader(PluginFrame frame, String name) {
+    final shader = frame.services.library[name];
+    if (shader == null && _missing.add(name)) {
+      assert(() {
+        debugPrint('ParticlePlugin: the shader bundle has no "$name"; '
+            'no particles will be drawn.');
+        return true;
+      }());
+    }
+    return shader;
+  }
+
+  final Set<String> _missing = <String>{};
 
   gpu.RenderPipeline? _pipeline;
   Float32List? _vertices;
