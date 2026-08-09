@@ -93,6 +93,11 @@ final List<SceneSource> kSources = <SceneSource>[
   const ModelFileSource('f3d: Textured', '$_samples/f3d/BoxTextured.f3d'),
   const ModelFileSource('f3d: Animated', '$_samples/f3d/BoxAnimated.f3d'),
   const ModelFileSource('f3d: Rigged', '$_samples/f3d/RiggedFigure.f3d'),
+
+  // Not a conformance asset: a generated model with a base colour, a
+  // metallic-roughness map, a normal map and no tangents of its own, which is
+  // the combination the material pipeline is least often exercised against.
+  const ModelFileSource('maps: Chest', 'assets/models/fantasy_chest.glb'),
 ];
 
 /// Surface of revolution from an arbitrary profile: a vase silhouette.

@@ -664,6 +664,46 @@ frame.
 
 ---
 
+## 7. Mip levels: verified absent, and what replaces them
+
+Checked against the SDK rather than assumed, because the answer decides whether
+texture level of detail is a renderer feature or an asset one.
+
+`GpuContext.createTexture` takes no mip-level count — width, height, format,
+sample count, texture type and three usage flags, and nothing else.
+`Texture.overwrite` writes **only the base level**: it computes
+`getBaseMipLevelSizeInBytes()` and throws when the source does not match it
+exactly. `SamplerOptions` does carry `MipFilter { nearest, linear }`, which
+reads like support and is not: with a one-level texture there is nothing for it
+to filter between.
+
+So a texture cannot be minified properly on this channel. Two consequences,
+both visible rather than theoretical:
+
+- **Memory.** A 4096² texture is 64 MB of RGBA8 with no compressed formats to
+  fall back on. The sample chest arrived with three of them — roughly 270 MB
+  for one prop.
+- **Aliasing.** A surface sampled far below its texture's resolution shimmers,
+  and there is no coarser level to fall to.
+
+**What is done instead.** `LodGroup.forMaterials` builds a level-of-detail
+group from one mesh and several materials, so a distant object samples a
+smaller *texture* where it cannot sample a smaller *level*. It is per object
+rather than per pixel — a floor running to the horizon still aliases — but it
+covers the common case, which is a prop holding a four-thousand-pixel texture
+while occupying thirty pixels of screen.
+
+And it exposed a real defect: nothing had ever called `LodGroup.select`. The
+feature was written and tested in isolation and never driven, so every group
+sat on its finest level for ever. The renderer now selects once per view,
+before the render list is built, since the choice changes which nodes are
+visible.
+
+Render-to-mip-level is reported on master; taking it means leaving 3.44.6,
+which the shader bundle format is tied to.
+
+---
+
 ## Sources
 
 - [flutter_gpu library — Dart API](https://api.flutter.dev/flutter/flutter_gpu/)

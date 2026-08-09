@@ -1,7 +1,10 @@
 import 'dart:math' as math;
 
+import '../render/material.dart';
 import 'camera_node.dart';
+import '../geometry/mesh_geometry.dart';
 import 'mesh_node.dart';
+import 'scene.dart';
 import 'scene_node.dart';
 
 /// One level of detail: a mesh and the screen size below which it takes over.
@@ -46,8 +49,57 @@ final class LodGroup extends SceneNode {
     _apply(0);
   }
 
+  /// Builds a group from one mesh drawn with several materials.
+  ///
+  /// The case this exists for is texture level of detail. flutter_gpu on this
+  /// channel cannot create a texture with mip levels — `createTexture` takes no
+  /// level count and `Texture.overwrite` writes only the base — so a distant
+  /// object cannot be made to sample a smaller image the usual way. What it can
+  /// do is sample a smaller *texture*, and that is a different material on the
+  /// same geometry.
+  ///
+  /// It does not fix minification within one surface: a floor running to the
+  /// horizon still aliases, because the choice is per object and not per pixel.
+  /// What it does fix is the common case — a prop that is a thousand pixels
+  /// across when the player is next to it and thirty when they are not, holding
+  /// a four-thousand-pixel texture the whole time.
+  ///
+  /// Materials run finest first, matching [levels].
+  factory LodGroup.forMaterials({
+    required MeshGeometry mesh,
+    required List<Material> materials,
+    required List<double> maxScreenFractions,
+    String? name,
+  }) {
+    if (materials.length != maxScreenFractions.length) {
+      throw ArgumentError(
+        'materials (${materials.length}) and maxScreenFractions '
+        '(${maxScreenFractions.length}) must have the same length: each '
+        'material is the one used below its own threshold.',
+      );
+    }
+    return LodGroup(
+      name: name,
+      levels: <LodLevel>[
+        for (var i = 0; i < materials.length; i++)
+          LodLevel(
+            // The same geometry object in every level, so the GPU buffers are
+            // uploaded once however many texture sets there are.
+            node: MeshNode(mesh, materials[i], name: '${name ?? 'lod'}$i'),
+            maxScreenFraction: maxScreenFractions[i],
+          ),
+      ],
+    );
+  }
+
   final List<LodLevel> _levels;
   int _active = -1;
+
+  @override
+  void onAttachedToScene(Scene scene) => scene.registerLodGroup(this);
+
+  @override
+  void onDetachedFromScene(Scene scene) => scene.unregisterLodGroup(this);
 
   List<LodLevel> get levels => List<LodLevel>.unmodifiable(_levels);
 

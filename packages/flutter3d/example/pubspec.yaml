@@ -25,3 +25,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    # Models that belong to the demo rather than to the engine. The engine's own
+    # samples are Khronos conformance assets and are declared by the package,
+    # because its tests read them; this is here to exercise the material maps
+    # against something that was not authored for a test.
+    - assets/models/

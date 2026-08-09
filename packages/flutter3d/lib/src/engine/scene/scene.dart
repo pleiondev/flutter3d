@@ -2,6 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'camera_node.dart';
 import 'light_node.dart';
+import 'lod_group.dart';
 import 'mesh_node.dart';
 import 'scene_node.dart';
 
@@ -30,12 +31,22 @@ final class Scene {
   final List<LightNode> _lights = <LightNode>[];
   final List<CameraNode> _cameras = <CameraNode>[];
 
+  /// Level-of-detail groups, so something can drive their selection.
+  ///
+  /// A flat registry like the others, and for the same reason: the renderer
+  /// has to visit every one of these each frame, and walking the tree to find
+  /// them would make the cost of a LOD proportional to the size of the scene
+  /// rather than to the number of LODs.
+  final List<LodGroup> _lodGroups = <LodGroup>[];
+
   /// Everything drawable currently in the scene, in attachment order.
   List<MeshNode> get meshes => _meshes;
 
   List<LightNode> get lights => _lights;
 
   List<CameraNode> get cameras => _cameras;
+
+  List<LodGroup> get lodGroups => _lodGroups;
 
   /// Ambient light applied where no direct light reaches. A placeholder for
   /// image-based lighting, which needs mip levels flutter_gpu does not have yet.
@@ -62,6 +73,10 @@ final class Scene {
   void registerCamera(CameraNode node) => _cameras.add(node);
 
   void unregisterCamera(CameraNode node) => _cameras.remove(node);
+
+  void registerLodGroup(LodGroup node) => _lodGroups.add(node);
+
+  void unregisterLodGroup(LodGroup node) => _lodGroups.remove(node);
 
   /// First light of the given type, or null.
   ///

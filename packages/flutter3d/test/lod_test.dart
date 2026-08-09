@@ -163,4 +163,103 @@ void main() {
       }
     });
   });
+
+  group('the scene knows its LOD groups', () {
+    test('a group registers itself when it joins a scene', () {
+      // Without this nothing can drive selection, which is exactly the state
+      // the feature shipped in: written, tested, and never actually run,
+      // because select() had no caller and every group sat on its finest level
+      // for ever.
+      final harness = build();
+
+      expect(harness.scene.lodGroups, contains(harness.group));
+    });
+
+    test('and unregisters when it leaves', () {
+      final harness = build();
+      harness.group.removeFromParent();
+
+      expect(harness.scene.lodGroups, isEmpty);
+    });
+
+    test('two groups both appear', () {
+      final harness = build();
+      final second = LodGroup(
+        name: 'barrel',
+        levels: <LodLevel>[
+          LodLevel(node: level('near'), maxScreenFraction: 1.0),
+          LodLevel(node: level('far'), maxScreenFraction: 0.1),
+        ],
+      );
+      harness.scene.add(second);
+
+      expect(harness.scene.lodGroups, hasLength(2));
+    });
+  });
+
+  group('a group built from materials', () {
+    Material tinted(double value) =>
+        Material(baseColor: Vector4(value, value, value, 1.0));
+
+    test('shares one geometry across every level', () {
+      // The whole point: a texture LOD should upload its buffers once however
+      // many texture sets it has.
+      final mesh = CpuMesh(CuboidShape().build());
+      final group = LodGroup.forMaterials(
+        mesh: mesh,
+        materials: <Material>[tinted(1.0), tinted(0.5)],
+        maxScreenFractions: <double>[1.0, 0.15],
+        name: 'chest',
+      );
+
+      expect(group.levels, hasLength(2));
+      for (final level in group.levels) {
+        expect(identical(level.node.mesh, mesh), isTrue);
+      }
+    });
+
+    test('each level carries its own material', () {
+      final group = LodGroup.forMaterials(
+        mesh: CpuMesh(CuboidShape().build()),
+        materials: <Material>[tinted(1.0), tinted(0.25)],
+        maxScreenFractions: <double>[1.0, 0.15],
+      );
+
+      expect(group.levels[0].node.material.baseColor.x, 1.0);
+      expect(group.levels[1].node.material.baseColor.x, 0.25);
+    });
+
+    test('the coarse material takes over as the object shrinks', () {
+      final scene = Scene();
+      final group = LodGroup.forMaterials(
+        mesh: CpuMesh(CuboidShape().build()),
+        materials: <Material>[tinted(1.0), tinted(0.25)],
+        maxScreenFractions: <double>[1.0, 0.15],
+      );
+      scene.add(group);
+
+      final camera = scene.add(CameraNode())
+        ..projection = const PerspectiveProjection(fovYRadians: math.pi / 2);
+
+      camera.setPosition(0.0, 0.0, 1.5);
+      camera.lookAt(Vector3.zero());
+      expect(group.select(camera), 0);
+
+      camera.setPosition(0.0, 0.0, 40.0);
+      camera.lookAt(Vector3.zero());
+      expect(group.select(camera), 1);
+      expect(group.activeNode.material.baseColor.x, 0.25);
+    });
+
+    test('mismatched lists are refused rather than silently truncated', () {
+      expect(
+        () => LodGroup.forMaterials(
+          mesh: CpuMesh(CuboidShape().build()),
+          materials: <Material>[tinted(1.0), tinted(0.5)],
+          maxScreenFractions: <double>[1.0],
+        ),
+        throwsArgumentError,
+      );
+    });
+  });
 }

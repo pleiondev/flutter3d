@@ -1666,6 +1666,19 @@ final class Renderer {
       final aspect = vw / vh;
       final viewMatrix = camera.viewMatrix;
       final viewProjection = camera.viewProjection(aspect);
+
+      // Before the render list is built, because choosing a level changes which
+      // nodes are visible and the list is built from what is.
+      //
+      // Driven here rather than left to the application, which is the fix for a
+      // feature that was written, tested and then never actually ran: nothing
+      // called select(), so every LOD group sat on its finest level for ever
+      // and the whole thing was decoration.
+      developer.Timeline.startSync('LodGroup.select');
+      for (final group in scene.lodGroups) {
+        group.select(camera);
+      }
+      developer.Timeline.finishSync();
       final frustum = vm.Frustum.matrix(viewProjection);
 
       final visibleBefore = scene.meshes.length;
