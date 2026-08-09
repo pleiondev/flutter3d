@@ -1,0 +1,5 @@
+
+
+# Written beside a reference when a golden fails, to be compared and
+# discarded. One was committed once; that is what this line is for.
+test/goldens/*.actual.png

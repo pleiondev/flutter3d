@@ -315,6 +315,7 @@ final class Renderer implements PluginServices {
     required this.msaaEnabled,
   });
 
+  @override
   final gpu.ShaderLibrary library;
 
   /// What draws alongside the world.
