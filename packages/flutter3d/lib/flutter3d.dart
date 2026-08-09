@@ -41,6 +41,12 @@ export 'src/engine/gpu/gpu_mesh.dart';
 export 'src/engine/gpu/render_target_pool.dart';
 export 'src/engine/gpu/texture_upload.dart';
 
+// Particles: a pooled simulation and the recipes that drive it.
+export 'src/engine/particles/particle.dart';
+export 'src/engine/particles/particle_affector.dart';
+export 'src/engine/particles/particle_emitter.dart';
+export 'src/engine/particles/particle_system.dart';
+
 // Maths that the scene layer needs and that is worth having on its own.
 export 'src/engine/math/intersections.dart';
 

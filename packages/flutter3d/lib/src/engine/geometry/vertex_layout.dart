@@ -49,6 +49,18 @@ final class VertexLayout {
   static const VertexLayout positionColor = VertexLayout([position, color]);
 
   static const VertexLayout positionNormal = VertexLayout([position, normal]);
+
+  /// What a particle quad carries: where it is, what colour, and where in the
+  /// sprite this corner sits.
+  ///
+  /// A third layout means a third vertex shader, because flutter_gpu reads the
+  /// layout off the shader's `in` declarations. That is the same constraint
+  /// that forced a separate stage for debug lines and for skinning.
+  static const VertexLayout positionColorTexcoord = VertexLayout([
+    position,
+    color,
+    texcoord,
+  ]);
   static const VertexLayout positionNormalTexcoord = VertexLayout([
     position,
     normal,

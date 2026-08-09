@@ -66,5 +66,13 @@
   "MeshSkinnedVertex": {
     "type": "vertex",
     "file": "shaders/mesh_skinned.vert"
+  },
+  "ParticleVertex": {
+    "type": "vertex",
+    "file": "shaders/particle.vert"
+  },
+  "Particle": {
+    "type": "fragment",
+    "file": "shaders/lighting/particle.frag"
   }
 }

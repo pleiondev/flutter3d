@@ -10,6 +10,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/effects.dart';
 import 'src/level_scene.dart';
 import 'src/weapon_view.dart';
 
@@ -70,7 +71,20 @@ class _GameScreenState extends State<GameScreen>
   LoadedLevel? _loaded;
   CharacterController? _body;
 
-  final Arsenal _arsenal = Arsenal(startingSlot: 1);
+  /// Everything, loaded. Pickups arrive in a later stage and will replace
+  /// this; until they do, a launcher nobody can find is a launcher nobody can
+  /// test.
+  final Arsenal _arsenal = Arsenal(
+    owned: <WeaponDef>[...Weapons.all],
+    ammo: <AmmoType, int>{
+      AmmoType.bullets: 90,
+      AmmoType.shells: 30,
+      AmmoType.rockets: 12,
+    },
+    startingSlot: 1,
+  );
+
+  final ParticleSystem _particles = ParticleSystem(capacity: 3000);
   final WeaponView _weaponView = WeaponView();
   WeaponShot? _shot;
   ProjectileSystem? _projectiles;
@@ -105,6 +119,7 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _right = Vector3.zero();
   final Vector3 _wish = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
+  final Vector3 _muzzle = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
 
@@ -240,14 +255,20 @@ class _GameScreenState extends State<GameScreen>
     final projectiles = _projectiles;
     if (projectiles != null) {
       projectiles.step(dt);
+      for (final blast in projectiles.detonations) {
+        _particles.burst(Effects.explosionCore, blast.position);
+        _particles.burst(Effects.explosionEmbers, blast.position);
+        // Damage lands here once there is anything with health to take it.
+      }
       if (projectiles.detonations.isNotEmpty) {
         _blasts
           ..clear()
           ..addAll(projectiles.detonations);
-        // Damage lands here once there is anything with health to take it.
         _hitFlash = 1.0;
       }
     }
+
+    _particles.step(dt);
 
     _smoothedPosition.push(body.position);
   }
@@ -317,6 +338,21 @@ class _GameScreenState extends State<GameScreen>
       ..clear()
       ..addAll(shot.hits);
     if (_lastShot.any((ShotHit h) => h.struckSomething)) _hitFlash = 1.0;
+
+    // Where the muzzle actually is, unlike where the shot came from: the flare
+    // is the one thing that should sit at the barrel rather than at the eye.
+    _muzzle
+      ..setFrom(_eye)
+      ..x += _aim.x * 0.6 - math.cos(_yaw) * 0.18
+      ..y += _aim.y * 0.6 - 0.12
+      ..z += _aim.z * 0.6 + math.sin(_yaw) * 0.18;
+    _particles.burst(Effects.muzzleFlash, _muzzle, direction: _aim);
+
+    for (final hit in _lastShot) {
+      if (!hit.struckSomething) continue;
+      _particles.burst(Effects.impactSparks, hit.point, direction: hit.normal);
+      _particles.burst(Effects.impactDust, hit.point, direction: hit.normal);
+    }
   }
 
   @override
@@ -376,6 +412,7 @@ class _GameScreenState extends State<GameScreen>
                 scene: loaded.scene,
                 view: _view,
                 viewModel: _weaponView.pass,
+                particles: _particles,
                 onBeforeFrame: _placeCamera,
               ),
               _Hud(
@@ -424,6 +461,7 @@ class _SceneSurface extends StatelessWidget {
     required this.scene,
     required this.view,
     required this.viewModel,
+    required this.particles,
     required this.onBeforeFrame,
   });
 
@@ -431,6 +469,7 @@ class _SceneSurface extends StatelessWidget {
   final Scene scene;
   final RenderView view;
   final ViewModelPass viewModel;
+  final ParticleSystem particles;
   final VoidCallback onBeforeFrame;
 
   @override
@@ -445,6 +484,7 @@ class _SceneSurface extends StatelessWidget {
           scene: scene,
           views: <RenderView>[view],
           viewModel: viewModel,
+          particles: particles,
         );
         return CustomPaint(
           painter: _ImagePainter(frame.image),

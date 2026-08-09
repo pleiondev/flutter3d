@@ -10,6 +10,7 @@ import '../gpu/gpu_mesh.dart';
 import '../gpu/render_target_pool.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
+import '../particles/particle_system.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
@@ -28,6 +29,7 @@ import 'render_view.dart';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kLineInfoBlock = 'LineInfo';
+const String _kParticleInfoBlock = 'ParticleInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
@@ -325,6 +327,8 @@ final class Renderer {
     required this.vertexShader,
     required this.skinnedVertexShader,
     required this.debugLineVertexShader,
+    required this.particleVertexShader,
+    required this.particleFragmentShader,
     required this.debugLineFragmentShader,
     required this.fullscreenVertexShader,
     required this.bloomThresholdShader,
@@ -350,6 +354,8 @@ final class Renderer {
   /// the line buffer has a different vertex layout, and flutter_gpu takes the
   /// layout from the shader's `in` declarations.
   final gpu.Shader debugLineVertexShader;
+  final gpu.Shader particleVertexShader;
+  final gpu.Shader particleFragmentShader;
   final gpu.Shader debugLineFragmentShader;
 
   /// The post-processing stages. All of them share one vertex shader, because a
@@ -472,6 +478,12 @@ final class Renderer {
 
   final vm.Vector3 _viewModelCamera = vm.Vector3.zero();
 
+  gpu.RenderPipeline? _particlePipeline;
+  Float32List? _particleVertices;
+  Uint32List? _particleIndices;
+  final vm.Vector3 _cameraRight = vm.Vector3.zero();
+  final vm.Vector3 _cameraUp = vm.Vector3.zero();
+
   /// Depth for the view-model pass, made on demand.
   ///
   /// Lazily rather than alongside the scene's targets, because most frames of
@@ -508,6 +520,8 @@ final class Renderer {
       vertexShader: require('MeshVertex'),
       skinnedVertexShader: require('MeshSkinnedVertex'),
       debugLineVertexShader: require('DebugLineVertex'),
+      particleVertexShader: require('ParticleVertex'),
+      particleFragmentShader: require('Particle'),
       debugLineFragmentShader: require('DebugLine'),
       fullscreenVertexShader: require('FullscreenVertex'),
       bloomThresholdShader: require('BloomThreshold'),
@@ -1436,6 +1450,112 @@ final class Renderer {
     developer.Timeline.finishSync();
   }
 
+  /// Draws every live particle as one batch of camera-facing quads.
+  ///
+  /// Inside the scene pass rather than after it, so particles are depth-tested
+  /// against the world — a spark behind a pillar has to be hidden by it — and
+  /// so they land in the HDR target where the bloom can pick the bright ones
+  /// up, which is most of what makes an explosion read as light.
+  ///
+  /// Depth write is off and blending is additive. Additive is what removes the
+  /// need to sort: addition is commutative, so a thousand particles in one
+  /// unsorted batch composite correctly, and one draw call covers all of them.
+  void _encodeParticles({
+    required gpu.RenderPass pass,
+    required gpu.HostBuffer host,
+    required ParticleSystem particles,
+    required RenderView view,
+    required vm.Matrix4 viewProjection,
+    required _PassState state,
+  }) {
+    if (particles.aliveCount == 0) return;
+    developer.Timeline.startSync('Renderer.particles');
+
+    final capacity = particles.capacity;
+    final vertices = _particleVertices ??=
+        Float32List(capacity * ParticleSystem.floatsPerParticle);
+    final indices = _particleIndices ??= Uint32List(capacity * 6);
+
+    // The camera's right and up in world space, which is what turns a point
+    // into a quad that faces the viewer. Read off the view matrix's rows rather
+    // than recomputed from angles the renderer does not have.
+    final world = view.camera.worldMatrix;
+    _cameraRight.setValues(world.entry(0, 0), world.entry(1, 0), world.entry(2, 0));
+    _cameraUp.setValues(world.entry(0, 1), world.entry(1, 1), world.entry(2, 1));
+
+    final written = particles.writeQuads(
+      _cameraRight,
+      _cameraUp,
+      vertices,
+      indices,
+    );
+    if (written == 0) {
+      developer.Timeline.finishSync();
+      return;
+    }
+
+    // The mesh draws left their own pipeline and buffers bound, and this one
+    // has a different vertex layout.
+    pass.clearBindings();
+    pass.bindPipeline(
+      _particlePipeline ??= gpu.gpuContext.createRenderPipeline(
+        particleVertexShader,
+        particleFragmentShader,
+      ),
+    );
+    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+    pass.setPolygonMode(gpu.PolygonMode.fill);
+    // A quad seen from behind is still a quad; culling one would make half the
+    // particles vanish depending on which way the camera turned.
+    pass.setCullMode(gpu.CullMode.none);
+    pass.setColorBlendEnable(true);
+    pass.setColorBlendEquation(
+      gpu.ColorBlendEquation(
+        colorBlendOperation: gpu.BlendOperation.add,
+        sourceColorBlendFactor: gpu.BlendFactor.one,
+        destinationColorBlendFactor: gpu.BlendFactor.one,
+        alphaBlendOperation: gpu.BlendOperation.add,
+        sourceAlphaBlendFactor: gpu.BlendFactor.one,
+        destinationAlphaBlendFactor: gpu.BlendFactor.one,
+      ),
+    );
+    // Tested against the world, but never written: particles must not occlude
+    // each other, and with additive blending they have no business trying.
+    pass.setDepthWriteEnable(false);
+    pass.setDepthCompareOperation(gpu.CompareFunction.less);
+
+    final vertexCount = written * 4;
+    final indexCount = written * 6;
+    pass.bindVertexBuffer(
+      host.emplace(
+        ByteData.sublistView(
+          vertices,
+          0,
+          written * ParticleSystem.floatsPerParticle,
+        ),
+      ),
+      vertexCount,
+    );
+    pass.bindIndexBuffer(
+      host.emplace(ByteData.sublistView(indices, 0, indexCount)),
+      gpu.IndexType.int32,
+      indexCount,
+    );
+    _bindUniformBlock(pass, host, particleVertexShader, _kParticleInfoBlock, {
+      'view_projection': viewProjection.storage,
+    });
+
+    pass.draw();
+    state.drawCalls++;
+
+    // The pipeline tracker describes the mesh pipelines only, and this pass
+    // just replaced whatever it thought was bound.
+    state
+      ..boundPipeline = null
+      ..boundSkinned = null;
+    developer.Timeline.finishSync();
+  }
+
   FrameResult render({
     required int width,
     required int height,
@@ -1443,6 +1563,7 @@ final class Renderer {
     required List<RenderView> views,
     RenderSettings settings = const RenderSettings(),
     ViewModelPass? viewModel,
+    ParticleSystem? particles,
   }) {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
@@ -1591,6 +1712,17 @@ final class Renderer {
         }
       }
       developer.Timeline.finishSync();
+
+      if (particles != null) {
+        _encodeParticles(
+          pass: pass,
+          host: host,
+          particles: particles,
+          view: view,
+          viewProjection: viewProjection,
+          state: passState,
+        );
+      }
 
       // The debug overlay is deliberately NOT drawn here. Anything written into
       // the HDR target is scene light: it would be tone mapped, and a bright
