@@ -819,47 +819,64 @@ final class Renderer implements PluginServices {
   /// The faces store radial distance from the light, normalised by its range,
   /// rather than clip depth — see shadow_distance.frag for why a cube cannot
   /// use depth without showing a seam at every face boundary.
+  /// Allocates the two cube atlases, or reallocates them when the tile size
+  /// changed.
+  ///
+  /// Hoisted out of [_renderCubeShadow] because the static bake is skipped once
+  /// it has run: if the allocation lived inside the pass, a resolution change
+  /// would drop the baked walls and only the dynamic call would notice, leaving
+  /// the static atlas blank for the rest of the run.
+  void _ensureCubeAtlas(int tile) {
+    if (_cubeShadow != null && _cubeShadowTile == tile) return;
+    // A six-by-four grid of square tiles: the face across, the light down.
+    // Square because a ninety-degree frustum is square, and any other aspect
+    // would stretch one axis of every face.
+    final width = tile * 6;
+    final height = tile * kShadowedLights;
+    _cubeShadowStatic = gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: hdrFormat,
+      enableRenderTargetUsage: true,
+      enableShaderReadUsage: true,
+    );
+    _cubeShadow = gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: hdrFormat,
+      enableRenderTargetUsage: true,
+      enableShaderReadUsage: true,
+    );
+    _cubeShadowTile = tile;
+    _staticShadowBaked = false;
+  }
+
+  /// Draws [slotCount] lights' cube faces into one atlas, in one pass.
+  ///
+  /// Every row at once, and not one call per light, because a pass clears its
+  /// whole colour attachment: viewport and scissor bound where the rasteriser
+  /// may write, but the load action does not honour either. A call per light
+  /// therefore wiped the rows already drawn and left only the last one — four
+  /// lights rendered and one cast a shadow. The lights are read from
+  /// [_cubeLightData], which the frame fills before any of the atlas is drawn.
   bool _renderCubeShadow({
     required gpu.HostBuffer host,
     required Scene scene,
     required ShadowSettings settings,
-    required vm.Vector3 position,
-    required double range,
     required bool static,
-    required int slot,
+    required int slotCount,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
-    if (range <= 0.0) return false;
+    if (slotCount <= 0) return false;
 
     final shader = library['ShadowDistance'];
     if (shader == null) return false;
 
-    // A three-by-two grid of square tiles. Square because a ninety-degree
-    // frustum is square, and any other aspect would stretch one axis of every
-    // face.
-    final tile = settings.resolution.clamp(128, 1024);
+    final tile = _cubeShadowTile;
     final width = tile * 6;
     final height = tile * kShadowedLights;
-    if (_cubeShadow == null || _cubeShadowTile != tile) {
-      _cubeShadowStatic = gpu.gpuContext.createTexture(
-        gpu.StorageMode.devicePrivate,
-        width,
-        height,
-        format: hdrFormat,
-        enableRenderTargetUsage: true,
-        enableShaderReadUsage: true,
-      );
-      _cubeShadow = gpu.gpuContext.createTexture(
-        gpu.StorageMode.devicePrivate,
-        width,
-        height,
-        format: hdrFormat,
-        enableRenderTargetUsage: true,
-        enableShaderReadUsage: true,
-      );
-      _cubeShadowTile = tile;
-      _staticShadowBaked = false;
-    }
 
     final depth = targetPool.acquire(
       RenderTargetSpec(
@@ -895,83 +912,96 @@ final class Renderer implements PluginServices {
     pass.setColorBlendEnable(false);
     pass.setCullMode(gpu.CullMode.frontFace);
 
-    _cubeLight[0] = position.x;
-    _cubeLight[1] = position.y;
-    _cubeLight[2] = position.z;
-    _cubeLight[3] = range;
-
-    final projection = PerspectiveProjection(
-      fovYRadians: math.pi / 2,
-      near: 0.05,
-      far: range,
-    ).toMatrix(1.0);
     final mvp = vm.Matrix4.identity();
+    final position = vm.Vector3.zero();
     var drawn = 0;
 
-    for (var face = 0; face < _cubeFaces.length; face++) {
-      // A row of six per light: the face across, the light down.
-      pass.setViewport(gpu.Viewport(
-        x: face * tile,
-        y: slot * tile,
-        width: tile,
-        height: tile,
-      ));
-      pass.setScissor(gpu.Scissor(
-        x: face * tile,
-        y: slot * tile,
-        width: tile,
-        height: tile,
-      ));
+    for (var slot = 0; slot < slotCount; slot++) {
+      position.setValues(
+        _cubeLightData[slot * 4],
+        _cubeLightData[slot * 4 + 1],
+        _cubeLightData[slot * 4 + 2],
+      );
+      final range = _cubeLightData[slot * 4 + 3];
+      if (range <= 0.0) continue;
 
-      final (aim, up) = _cubeFaces[face];
-      final view = _lookAt(position, position + aim, up);
-      _cubeMatrix
-        ..setFrom(projection)
-        ..multiply(view);
-      // Kept so the lighting projects with exactly what drew the face. See the
-      // note in surface.glsl: deriving cube coordinates there instead would be
-      // the same decision made twice, and the two would disagree on one face.
-      final at = (slot * 6 + face) * 16;
-      _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
+      _cubeLight[0] = position.x;
+      _cubeLight[1] = position.y;
+      _cubeLight[2] = position.z;
+      _cubeLight[3] = range;
 
-      for (final node in scene.meshes) {
-        if (!node.visibleInHierarchy || !node.castsShadow) continue;
-        // One pass draws the things that never move, the other the things that
-        // do. Splitting them is the whole point: the walls are baked once and
-        // only a spinning pickup, a monster or a door is redrawn.
-        if (node.shadowIsStatic != static) continue;
-        final mesh = node.mesh;
-        if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
-        // Static geometry only for now: a skinned caster needs the skinned
-        // vertex stage, and a monster's shadow is worth less than getting the
-        // walls right first.
-        if (node.skeleton != null) continue;
+      final projection = PerspectiveProjection(
+        fovYRadians: math.pi / 2,
+        near: 0.05,
+        far: range,
+      ).toMatrix(1.0);
 
-        pass.bindPipeline(
-          _cubeShadowPipeline ??=
-              gpu.gpuContext.createRenderPipeline(vertexShader, shader),
-        );
-        pass.setWindingOrder(
-          node.worldIsMirrored
-              ? gpu.WindingOrder.clockwise
-              : gpu.WindingOrder.counterClockwise,
-        );
-        pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
-        pass.bindIndexBuffer(mesh.indexView, mesh.indexType, mesh.indexCount);
+      for (var face = 0; face < _cubeFaces.length; face++) {
+        // A row of six per light: the face across, the light down.
+        pass.setViewport(gpu.Viewport(
+          x: face * tile,
+          y: slot * tile,
+          width: tile,
+          height: tile,
+        ));
+        pass.setScissor(gpu.Scissor(
+          x: face * tile,
+          y: slot * tile,
+          width: tile,
+          height: tile,
+        ));
 
-        mvp
-          ..setFrom(_cubeMatrix)
-          ..multiply(node.worldMatrix);
-        bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
-          'mvp': mvp.storage,
-          'model': node.worldMatrix.storage,
-          'normal_matrix': node.worldNormalMatrix.storage,
-        });
-        bindUniformBlock(pass, host, shader, 'ShadowLight', {
-          'light': _cubeLight,
-        });
-        pass.draw();
-        drawn++;
+        final (aim, up) = _cubeFaces[face];
+        final view = _lookAt(position, position + aim, up);
+        _cubeMatrix
+          ..setFrom(projection)
+          ..multiply(view);
+        // Kept so the lighting projects with exactly what drew the face. See
+        // the note in surface.glsl: deriving cube coordinates there instead
+        // would be the same decision made twice, and the two would disagree on
+        // one face.
+        final at = (slot * 6 + face) * 16;
+        _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
+
+        for (final node in scene.meshes) {
+          if (!node.visibleInHierarchy || !node.castsShadow) continue;
+          // One atlas holds the things that never move, the other the things
+          // that do. Splitting them is the whole point: the walls are baked
+          // once and only a spinning pickup, a monster or a door is redrawn.
+          if (node.shadowIsStatic != static) continue;
+          final mesh = node.mesh;
+          if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+          // Static geometry only for now: a skinned caster needs the skinned
+          // vertex stage, and a monster's shadow is worth less than getting the
+          // walls right first.
+          if (node.skeleton != null) continue;
+
+          pass.bindPipeline(
+            _cubeShadowPipeline ??=
+                gpu.gpuContext.createRenderPipeline(vertexShader, shader),
+          );
+          pass.setWindingOrder(
+            node.worldIsMirrored
+                ? gpu.WindingOrder.clockwise
+                : gpu.WindingOrder.counterClockwise,
+          );
+          pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
+          pass.bindIndexBuffer(mesh.indexView, mesh.indexType, mesh.indexCount);
+
+          mvp
+            ..setFrom(_cubeMatrix)
+            ..multiply(node.worldMatrix);
+          bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
+            'mvp': mvp.storage,
+            'model': node.worldMatrix.storage,
+            'normal_matrix': node.worldNormalMatrix.storage,
+          });
+          bindUniformBlock(pass, host, shader, 'ShadowLight', {
+            'light': _cubeLight,
+          });
+          pass.draw();
+          drawn++;
+        }
       }
     }
 
@@ -1913,6 +1943,9 @@ final class Renderer implements PluginServices {
     for (var i = 0; i < _shadowSlots.length; i++) {
       _shadowSlots[i] = -1.0;
     }
+    //
+    // Every row is decided before any of the atlas is drawn, because one pass
+    // draws all of them: a pass per light would clear the rows already there.
     var slot = 0;
     for (final light in scene.lights) {
       if (slot >= kShadowedLights) break;
@@ -1921,19 +1954,30 @@ final class Renderer implements PluginServices {
       if (index < 0) continue;
 
       light.readWorldPosition(_cubePosition);
-      final range = light.range > 0.0 ? light.range : 20.0;
+      _cubeLightData[slot * 4] = _cubePosition.x;
+      _cubeLightData[slot * 4 + 1] = _cubePosition.y;
+      _cubeLightData[slot * 4 + 2] = _cubePosition.z;
+      _cubeLightData[slot * 4 + 3] = light.range > 0.0 ? light.range : 20.0;
+      // Which atlas row this light's shader index should read.
+      _shadowSlots[index * 4] = slot.toDouble();
+      slot++;
+    }
+    _cubeShadowLight = slot > 0 ? slot : -1;
 
-      // The walls once. Six views of the level's geometry is a load-time cost.
+    if (slot > 0 && settings.shadows.enabled && settings.shadows.strength > 0) {
+      _ensureCubeAtlas(settings.shadows.resolution.clamp(128, 1024));
+
+      // The walls once. Six views of the level's geometry per light is a
+      // load-time cost, and the bake survives until the atlas is reallocated.
       if (!_staticShadowBaked) {
         _renderCubeShadow(
           host: host,
           scene: scene,
           settings: settings.shadows,
-          position: _cubePosition,
-          range: range,
           static: true,
-          slot: slot,
+          slotCount: slot,
         );
+        _staticShadowBaked = true;
       }
 
       // And everything that moves, every frame. A pickup that spins would
@@ -1942,22 +1986,10 @@ final class Renderer implements PluginServices {
         host: host,
         scene: scene,
         settings: settings.shadows,
-        position: _cubePosition,
-        range: range,
         static: false,
-        slot: slot,
+        slotCount: slot,
       );
-
-      _cubeLightData[slot * 4] = _cubePosition.x;
-      _cubeLightData[slot * 4 + 1] = _cubePosition.y;
-      _cubeLightData[slot * 4 + 2] = _cubePosition.z;
-      _cubeLightData[slot * 4 + 3] = range;
-      // Which atlas row this light's shader index should read.
-      _shadowSlots[index * 4] = slot.toDouble();
-      slot++;
     }
-    _staticShadowBaked = _staticShadowBaked || slot > 0;
-    _cubeShadowLight = slot > 0 ? 0 : -1;
 
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
