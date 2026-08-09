@@ -58,6 +58,7 @@ final class ReflectionSettings {
     this.stride = 0.18,
     this.thickness = 0.006,
     this.intensity = 0.7,
+    this.debugOnly = false,
   });
 
   final bool enabled;
@@ -76,6 +77,14 @@ final class ReflectionSettings {
   final double thickness;
 
   final double intensity;
+
+  /// Shows only what the march found, on black.
+  ///
+  /// Added because a reflection added to a lit scene is indistinguishable from
+  /// a specular highlight, and I mistook one for the other: a streak on a wet
+  /// floor turned out to be the point light, and the reflection was
+  /// contributing nothing at all.
+  final bool debugOnly;
 }
 
 final class RenderSettings {
@@ -1838,6 +1847,7 @@ final class Renderer implements PluginServices {
     _reflectionParams[3] = options.intensity;
     _reflectionScreen[0] = 1.0 / width;
     _reflectionScreen[1] = 1.0 / height;
+    _reflectionScreen[3] = options.debugOnly ? 1.0 : 0.0;
 
     _reflectionCameraData[0] = _reflectionCamera.x;
     _reflectionCameraData[1] = _reflectionCamera.y;

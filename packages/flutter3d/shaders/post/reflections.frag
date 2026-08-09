@@ -34,7 +34,8 @@ uniform ReflectionInfo {
   vec4 camera;
   /// x: steps. y: stride in world metres. z: thickness. w: intensity.
   vec4 params;
-  /// x: 1/width, y: 1/height, z: roughness cutoff, w: fade start (0..1).
+  /// x: 1/width, y: 1/height, z: unused, w: 1 to show only what the march
+  /// found, which is the only way to see whether it found anything.
   vec4 screen;
 }
 reflection_info;
@@ -63,8 +64,11 @@ void main() {
 
   // Nothing was drawn here: the buffer is cleared to zero and a zero alpha is
   // the sky, not a surface at the near plane.
+  bool debugOnly = reflection_info.screen.w > 0.5;
+  vec3 background = debugOnly ? vec3(0.0) : scene;
+
   if (surface.a <= 0.0) {
-    frag_color = vec4(scene, 1.0);
+    frag_color = vec4(background, 1.0);
     return;
   }
 
@@ -76,7 +80,7 @@ void main() {
   // never sampled widely enough to blur.
   float polish = 1.0 - smoothstep(0.18, 0.45, roughness);
   if (polish <= 0.0) {
-    frag_color = vec4(scene, 1.0);
+    frag_color = vec4(background, 1.0);
     return;
   }
   vec3 position = WorldAt(v_uv, surface.a);
@@ -86,7 +90,7 @@ void main() {
   // surface it started from.
   float facing = dot(normal, toEye);
   if (facing <= 0.05) {
-    frag_color = vec4(scene, 1.0);
+    frag_color = vec4(background, 1.0);
     return;
   }
 
@@ -141,7 +145,6 @@ void main() {
   // Grazing angles reflect more, straight-on less: the Fresnel term, minus the
   // parts that need a material.
   float fresnel = pow(1.0 - facing, 4.0);
-  frag_color =
-      vec4(scene + hitColor * hit * intensity * polish * (0.15 + 0.85 * fresnel),
-           1.0);
+  vec3 reflection = hitColor * hit * intensity * polish * (0.15 + 0.85 * fresnel);
+  frag_color = vec4(debugOnly ? reflection : scene + reflection, 1.0);
 }
