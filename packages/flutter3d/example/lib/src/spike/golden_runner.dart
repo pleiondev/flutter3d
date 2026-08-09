@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:path/path.dart' as p;
+
 import 'package:flutter3d/flutter3d.dart';
 import 'golden_scenes.dart';
 
@@ -53,12 +55,25 @@ final class GoldenRunner {
       exit(2);
     }
 
-    const directory =
-        String.fromEnvironment('FLUTTER3D_GOLDEN_DIR', defaultValue: 'test/goldens');
+    const configured =
+        String.fromEnvironment('FLUTTER3D_GOLDEN_DIR', defaultValue: '');
+    if (configured.isEmpty || !p.isAbsolute(configured)) {
+      // Not a default worth guessing at. A macOS application bundle runs with
+      // its working directory set to the root of the filesystem, so a relative
+      // path here resolves somewhere unwritable and the failure arrives as a
+      // permission error three seconds into a render.
+      stderr.writeln(
+        'FLUTTER3D_GOLDEN_DIR must be an absolute path to the reference '
+        'directory. tool/golden.sh passes one; a bare `flutter run` has to be '
+        'given it by hand.',
+      );
+      exit(2);
+    }
+
     return GoldenRunner._(
       scene,
       update: const bool.fromEnvironment('FLUTTER3D_GOLDEN_UPDATE'),
-      directory: directory,
+      directory: configured,
     );
   }
 

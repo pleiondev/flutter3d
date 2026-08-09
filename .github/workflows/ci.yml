@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  analyze-and-test:
+    name: Analyze and test
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Pinned, not "stable". The shader bundle format is tied to the SDK
+          # version, so a floating channel would break the build on somebody
+          # else's release schedule — and it would look like our regression.
+          flutter-version: 3.44.6
+          channel: stable
+
+      # One resolve for the whole workspace.
+      - run: flutter pub get
+
+      # The bundle is generated and gitignored, and the analyzer complains
+      # about a declared asset that does not exist, so it is built before
+      # anything looks at the tree.
+      - name: Build the shader bundle
+        run: packages/flutter3d/tool/build_shaders.sh
+
+      - run: flutter analyze
+
+      - name: Test every package
+        run: |
+          set -e
+          for package in packages/flutter3d packages/flutter3d_game packages/mouse_capture; do
+            echo "── $package"
+            (cd "$package" && flutter test)
+          done
+
+  benchmark:
+    name: AOT benchmark compiles
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+      - run: flutter pub get
+
+      # Not for the numbers — a shared runner's timings are noise — but because
+      # compiling it is the only automatic check that the GPU-free layers really
+      # are GPU-free. It imports geometry, assets and the scene graph from a
+      # plain Dart entry point, which cannot link against dart:ui at all, so a
+      # stray dependency fails here and nowhere else.
+      - name: Compile the benchmark
+        run: |
+          DART="$(dirname "$(command -v flutter)")/cache/dart-sdk/bin/dart"
+          cd packages/flutter3d
+          "$DART" compile exe tool/bench/bench.dart -o /tmp/bench
+
+  goldens:
+    name: Golden renders
+    # Manual only. These need a working Metal device: the runner renders every
+    # scene through Flutter GPU as a real application, and a hosted macOS image
+    # gives a paravirtualised GPU whose output does not match a physical one
+    # pixel for pixel. Recording a second set of references for it would mean
+    # maintaining two, and the second set would guard nothing the first does
+    # not.
+    #
+    # So this job exists to be run deliberately, on a self-hosted machine, and
+    # the routine check stays a local `packages/flutter3d/tool/golden.sh`.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: [self-hosted, macOS]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.6
+          channel: stable
+      - run: flutter pub get
+      - run: packages/flutter3d/tool/build_shaders.sh
+      - run: packages/flutter3d/tool/golden.sh
+
+      - name: Upload the frames that differed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: packages/flutter3d/test/goldens/*.actual.png

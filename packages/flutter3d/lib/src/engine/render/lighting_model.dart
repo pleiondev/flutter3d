@@ -17,7 +17,7 @@
 /// of what each entry point actually kept. When this metadata and that table
 /// disagree, the table is right.
 enum LightingModel {
-  unlit('Unlit', 'Unlit', usesMaterialMaps: false),
+  unlit('Unlit', 'Unlit', usesMaterialMaps: false, usesMetallicRoughnessMap: false),
   lambert('Lambert', 'Lambert', usesMetallicRoughnessMap: false),
   blinnPhong('Blinn-Phong', 'BlinnPhong'),
   pbr('PBR (GGX)', 'Pbr'),
@@ -38,7 +38,14 @@ enum LightingModel {
     this.usesAlbedoTexture = true,
     this.usesMaterialMaps = true,
     this.usesMetallicRoughnessMap = true,
-  });
+  }) : assert(
+          !usesMetallicRoughnessMap || usesMaterialMaps,
+          'the metallic-roughness map is one of the material maps, so a model '
+          'that samples no maps cannot sample it either. Getting this pair '
+          'wrong is not a warning at run time: the renderer binds a texture '
+          'the compiled shader has no slot for, and the bind fails. Unlit sat '
+          'in exactly that state until a golden caught it.',
+        );
 
   /// Shown in the UI.
   final String label;

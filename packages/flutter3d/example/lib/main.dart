@@ -489,6 +489,16 @@ class _SpikePageState extends State<SpikePage>
         instance.player?.play();
       }
 
+      // Every material a newly loaded model brought with it arrives on the
+      // engine default, which is PBR. Pushing the chosen model onto them here
+      // rather than only from the control panel is what makes the lighting
+      // switchable at all from outside the UI — and its absence is why five of
+      // the six lighting goldens recorded byte-identical PBR images and then
+      // passed against each other's references.
+      for (final mesh in _scene.meshes) {
+        mesh.material.lighting = _lighting;
+      }
+
       // Show what the model actually uses, so the numbers on the sliders are not
       // a lie the moment a new model loads. A file with no materials at all — the
       // teapot, for instance — lands on the engine defaults, which is exactly the
@@ -652,6 +662,15 @@ class _SpikePageState extends State<SpikePage>
                           renderer: renderer,
                           scene: _scene,
                           view: _view,
+                          // A golden renders at a size it names, or the
+                          // reference depends on the window it was recorded on
+                          // and no two machines agree.
+                          fixedSize: _golden == null
+                              ? null
+                              : Size(
+                                  _golden.scene.width.toDouble(),
+                                  _golden.scene.height.toDouble(),
+                                ),
                           settings: RenderSettings(
                             specular: _specular,
                             exposure: _exposure,
@@ -669,6 +688,11 @@ class _SpikePageState extends State<SpikePage>
                           onFrame: (frame) {
                             _lastFrame = frame;
                             _capture?.offer(frame);
+                            // Missing this was why the first recording run
+                            // never finished: the scene's settings were being
+                            // applied, but nothing counted frames, so the app
+                            // simply ran for ever.
+                            _golden?.offer(frame);
                           },
                         ),
                       ),
@@ -800,7 +824,10 @@ class SceneSurface extends StatelessWidget {
         onFrame(frame);
 
         return CustomPaint(
-          painter: _ImagePainter(frame.image),
+          painter: _ImagePainter(
+            frame.image,
+            preserveAspect: fixedSize != null,
+          ),
           size: Size(constraints.maxWidth, constraints.maxHeight),
         );
       },
@@ -809,16 +836,48 @@ class SceneSurface extends StatelessWidget {
 }
 
 class _ImagePainter extends CustomPainter {
-  _ImagePainter(this.image);
+  _ImagePainter(this.image, {this.preserveAspect = false});
 
   final ui.Image image;
 
+  /// Whether to letterbox rather than stretch.
+  ///
+  /// Only the golden path needs it, and it needs it badly: a golden renders at
+  /// a size it names, so the frame is 4:3 while the window is not, and
+  /// stretching one into the other shows a visibly squashed model on screen
+  /// while the recorded file is perfectly correct. Anybody watching a recording
+  /// run would reasonably conclude the renderer was broken.
+  final bool preserveAspect;
+
   @override
   void paint(Canvas canvas, Size size) {
+    final source = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
+
+    var destination = Rect.fromLTWH(0, 0, size.width, size.height);
+    if (preserveAspect) {
+      final scale = math.min(
+        size.width / image.width,
+        size.height / image.height,
+      );
+      final w = image.width * scale;
+      final h = image.height * scale;
+      destination = Rect.fromLTWH(
+        (size.width - w) / 2.0,
+        (size.height - h) / 2.0,
+        w,
+        h,
+      );
+    }
+
     canvas.drawImageRect(
       image,
-      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
-      Rect.fromLTWH(0, 0, size.width, size.height),
+      source,
+      destination,
       Paint()..filterQuality = FilterQuality.none,
     );
   }
