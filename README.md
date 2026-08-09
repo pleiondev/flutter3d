@@ -233,6 +233,8 @@ either does not start or silently renders nothing. Worth keeping to hand.
 | Shadows look right but toggling them changes nothing | Check the setting actually reaches `RenderSettings`. A control wired to the panel but not to the renderer looks completely convincing, and the way to find out is to capture the same frame with the feature on and off and diff the two — a zero difference is the whole answer |
 | A draw is submitted, the counter goes up, nothing appears | There is **no non-indexed draw**. `draw()` with only a vertex buffer bound succeeds and renders nothing. Bind an index buffer even when the indices are the identity `0, 1, 2, …` sequence — the debug line overlay keeps one in a device buffer that only grows |
 | `PathAccessException … Operation not permitted` when writing a file | macOS Flutter apps are sandboxed. Anything outside `~/Library/Containers/<bundle id>/Data` is refused, so frame captures resolve relative paths against the app's own temp directory |
+| The view stops turning when the cursor reaches the edge of the window | Flutter exposes no pointer lock on any desktop platform. `packages/mouse_capture` supplies it on macOS by turning off the association between the physical mouse and the on-screen cursor, which leaves `mouseMoved` events arriving with their deltas while the cursor stays put |
+| No cursor anywhere after a hot restart | A plugin holding the pointer outlives the Dart isolate, because the engine's registrar owns it. The Dart side comes back remembering nothing, so nothing asks for the cursor back. `MouseCapture` issues a reset on construction for exactly this |
 
 ## Layout
 
@@ -260,6 +262,7 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
+packages/mouse_capture/         relative mouse deltas; knows nothing about the engine
 test/                           424 tests, all runnable without a GPU
 ```
 

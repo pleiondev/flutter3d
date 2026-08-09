@@ -1,0 +1,25 @@
+name: mouse_capture
+description: "Locks the mouse pointer in place and reports its motion as relative deltas, which Flutter itself does not offer on any desktop platform."
+version: 0.1.0
+publish_to: 'none'
+repository: https://github.com/dzolotov/flutter3d
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      macos:
+        pluginClass: MouseCapturePlugin

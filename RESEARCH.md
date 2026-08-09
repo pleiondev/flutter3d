@@ -618,6 +618,52 @@ What remains unverified: a benchmark of draw calls and GC pauses at 10k transfor
 
 ---
 
+## 6. Pointer capture, which the framework does not provide
+
+Recorded here because it is a gap in Flutter rather than in `flutter_gpu`, and
+because a first-person camera is impossible without closing it: the cursor
+reaches the edge of the window and the view stops turning. The framework exposes
+no pointer lock on **any** desktop platform, and the request for one
+([flutter/flutter#134652](https://github.com/flutter/flutter/issues/134652)) is
+open.
+
+**What works on macOS.** Turning off the association between the physical mouse
+and the on-screen cursor —
+`CGAssociateMouseAndMouseCursorPosition(0)` — freezes the cursor while
+`mouseMoved` events keep arriving with their deltas intact. Hide the cursor with
+`NSCursor.hide()`, read `event.deltaX/deltaY` from a local `NSEvent` monitor, and
+that is the whole mechanism. Warping the cursor back to a fixed point every frame
+also works, but it fights the window server and shows as jitter, so it is a
+fallback and not the design.
+
+This was not guesswork: [helgoboss/pointer_lock](https://github.com/helgoboss/pointer_lock)
+(MIT, unpublished on pub.dev) already does it this way across four platforms, and
+is where the technique came from. Our own `packages/mouse_capture` exists because
+three of its gaps matter to a game — no observer for focus loss, so Cmd+Tab
+strands the cursor system-wide; one platform-channel message per mouse event at a
+1000 Hz polling rate; and no `isSupported`, which a build targeting mobile needs.
+
+**Two traps worth naming.**
+
+*The cursor outlives the Dart isolate.* A plugin is owned by the engine's
+registrar, so a hot restart while the pointer is captured leaves the native side
+still holding it with nothing left that remembers to ask for it back — no cursor,
+and no way to recover except quitting. The fix is a `reset` issued on
+construction, and it only works because the native side keeps its own flag: hide
+and unhide are counted, so unhiding without having hidden would leave the count
+negative and quietly break the next hide.
+
+*Focus loss must release, not pause.* Anything else leaves a hidden cursor over
+another application's window. Both `NSApplication.didResignActive` and
+`NSWindow.didResignKey` are needed — the first fires on Cmd+Tab, the second when
+another window of the same app takes focus.
+
+**Not yet measured**: whether one channel message per mouse event is visible in a
+frame profile. If it is, the fix is to accumulate natively and flush once per
+frame.
+
+---
+
 ## Sources
 
 - [flutter_gpu library — Dart API](https://api.flutter.dev/flutter/flutter_gpu/)
@@ -634,3 +680,5 @@ What remains unverified: a benchmark of draw calls and GC pauses at 10k transfor
 - [Clustered Lighting — PlayCanvas Developer Site](https://developer.playcanvas.com/user-manual/graphics/lighting/clustered-lighting/)
 - [PlayCanvas Engine](https://playcanvas.com/products/engine)
 - [[Impeller] Support compute passes/shaders — flutter/flutter#109346](https://github.com/flutter/flutter/issues/109346)
+- [Flutter should support capturing the mouse pointer — flutter/flutter#134652](https://github.com/flutter/flutter/issues/134652)
+- [helgoboss/pointer_lock — GitHub](https://github.com/helgoboss/pointer_lock)

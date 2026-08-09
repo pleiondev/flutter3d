@@ -17,6 +17,12 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # Relative mouse deltas, which Flutter offers on no desktop platform. Kept as
+  # a package rather than folded into the app because it knows nothing about the
+  # engine or the game, and can be lifted out whole.
+  mouse_capture:
+    path: packages/mouse_capture
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
