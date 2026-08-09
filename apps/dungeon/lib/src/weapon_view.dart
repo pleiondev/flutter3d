@@ -72,7 +72,13 @@ final class WeaponView {
   double _bobOffset = 0.0;
   double _recoil = 0.0;
 
-  ViewModelPass get pass => ViewModelPass(scene: _scene, camera: _camera);
+  /// The plugin that draws the weapon over the finished scene.
+  ///
+  /// Built once and registered with the renderer, rather than handed in with
+  /// every frame: what draws is now a property of the renderer, not an
+  /// argument to a call.
+  late final ViewModelPlugin plugin =
+      ViewModelPlugin(scene: _scene, camera: _camera);
 
   void _buildWeapons() {
     _scene.add(_holder);

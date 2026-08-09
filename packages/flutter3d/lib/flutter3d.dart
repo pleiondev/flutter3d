@@ -45,6 +45,7 @@ export 'src/engine/gpu/texture_upload.dart';
 export 'src/engine/particles/particle.dart';
 export 'src/engine/particles/particle_affector.dart';
 export 'src/engine/particles/particle_emitter.dart';
+export 'src/engine/particles/particle_plugin.dart';
 export 'src/engine/particles/particle_system.dart';
 
 // Maths that the scene layer needs and that is worth having on its own.
@@ -57,8 +58,10 @@ export 'src/engine/render/lighting_model.dart';
 export 'src/engine/render/material.dart';
 export 'src/engine/render/procedural_texture.dart';
 export 'src/engine/render/render_list.dart';
+export 'src/engine/render/render_plugin.dart';
 export 'src/engine/render/render_view.dart';
 export 'src/engine/render/renderer.dart';
+export 'src/engine/render/view_model_plugin.dart';
 
 // The scene graph and everything that walks it.
 export 'src/engine/scene/bvh.dart';

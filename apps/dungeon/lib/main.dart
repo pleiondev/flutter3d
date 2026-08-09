@@ -175,6 +175,14 @@ class _GameScreenState extends State<GameScreen>
       _initError = error;
     }
 
+    // What draws alongside the world is registered rather than passed in each
+    // frame. Particles inside the scene pass so they are lit and bloomed and
+    // hidden by walls; the weapon over the top of it, sharing no depth with a
+    // world that would otherwise slice the barrel off in every doorway.
+    _renderer
+      ?..addPlugin(ParticlePlugin(_particles))
+      ..addPlugin(_weaponView.plugin);
+
     _ticker = createTicker(_onTick)..start();
     unawaited(_loadLevel());
   }
@@ -580,8 +588,6 @@ class _GameScreenState extends State<GameScreen>
                 renderer: renderer,
                 scene: loaded.scene,
                 view: _view,
-                viewModel: _weaponView.pass,
-                particles: _particles,
                 onBeforeFrame: _placeCamera,
               ),
               _Hud(
@@ -644,16 +650,12 @@ class _SceneSurface extends StatelessWidget {
     required this.renderer,
     required this.scene,
     required this.view,
-    required this.viewModel,
-    required this.particles,
     required this.onBeforeFrame,
   });
 
   final Renderer renderer;
   final Scene scene;
   final RenderView view;
-  final ViewModelPass viewModel;
-  final ParticleSystem particles;
   final VoidCallback onBeforeFrame;
 
   @override
@@ -667,8 +669,6 @@ class _SceneSurface extends StatelessWidget {
           height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
           scene: scene,
           views: <RenderView>[view],
-          viewModel: viewModel,
-          particles: particles,
         );
         return CustomPaint(
           painter: _ImagePainter(frame.image),

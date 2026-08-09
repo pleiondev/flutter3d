@@ -10,7 +10,6 @@ import '../gpu/gpu_mesh.dart';
 import '../gpu/render_target_pool.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
-import '../particles/particle_system.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
@@ -18,6 +17,7 @@ import 'debug_draw.dart';
 import 'lighting_model.dart';
 import 'material.dart';
 import 'render_list.dart';
+import 'render_plugin.dart';
 import 'render_view.dart';
 
 /// Uniform-block names as seen by shader reflection.
@@ -29,7 +29,6 @@ import 'render_view.dart';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kLineInfoBlock = 'LineInfo';
-const String _kParticleInfoBlock = 'ParticleInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
@@ -296,32 +295,7 @@ final class FrameResult {
 /// A narrow field of view comes with it, and is the point rather than a detail.
 /// The main camera is wide enough to see a room, and a model rendered at that
 /// angle a few centimetres from the eye is grotesquely distorted at the edges.
-final class ViewModelPass {
-  ViewModelPass({required this.scene, required this.camera});
-
-  /// Holds only what is in the player's hands. Kept apart from the world so
-  /// culling, picking and the shadow pass never see it.
-  final Scene scene;
-
-  /// Usually around 55 degrees against the world camera's 90.
-  final CameraNode camera;
-}
-
-/// Pipeline binding state and counters carried across the draws of one pass.
-///
-/// A small mutable object rather than locals, because [Renderer._encodeNode]
-/// needs to both read and update them and Dart has no out parameters. Reset per
-/// pass: a freshly created pass has nothing bound, so carrying the state across
-/// one would skip a bind that is actually needed.
-final class _PassState {
-  LightingModel? boundPipeline;
-  bool? boundSkinned;
-  int drawCalls = 0;
-  int pipelineSwitches = 0;
-  int skinnedDraws = 0;
-}
-
-final class Renderer {
+final class Renderer implements PluginServices {
   Renderer._({
     required this.library,
     required this.vertexShader,
@@ -342,6 +316,19 @@ final class Renderer {
   });
 
   final gpu.ShaderLibrary library;
+
+  /// What draws alongside the world.
+  ///
+  /// A registry rather than a parameter per feature. `render()` grew one for
+  /// the weapon view model and another for the particles, and fog, decals and
+  /// a debug overlay would each have added a third — a parameter list is a
+  /// registry with no ordering and nothing an application can add to.
+  final PluginRegistry plugins = PluginRegistry();
+
+  T addPlugin<T extends RenderPlugin>(T plugin) => plugins.add(plugin);
+
+  bool removePlugin(RenderPlugin plugin) => plugins.remove(plugin);
+
   final gpu.Shader vertexShader;
 
   /// The skinned vertex stage. A separate shader because joints and weights are
@@ -476,22 +463,13 @@ final class Renderer {
   int _shadowResolution = 0;
   int _shadowCasters = 0;
 
-  final vm.Vector3 _viewModelCamera = vm.Vector3.zero();
 
-  gpu.RenderPipeline? _particlePipeline;
-  Float32List? _particleVertices;
-  Uint32List? _particleIndices;
-  final vm.Vector3 _cameraRight = vm.Vector3.zero();
-  final vm.Vector3 _cameraUp = vm.Vector3.zero();
 
   /// Depth for the view-model pass, made on demand.
   ///
   /// Lazily rather than alongside the scene's targets, because most frames of
   /// most applications never draw one and a full-size depth buffer is megabytes
   /// nobody asked for.
-  gpu.Texture? _viewModelDepth;
-  int _viewModelDepthWidth = 0;
-  int _viewModelDepthHeight = 0;
   final Float32List _bloomParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
 
@@ -801,14 +779,14 @@ final class Renderer {
         ..setFrom(_shadowMatrix)
         ..multiply(node.worldMatrix);
       final stage = skinned ? skinnedVertexShader : vertexShader;
-      _bindUniformBlock(pass, host, stage, _kFrameInfoBlock, {
+      bindUniformBlock(pass, host, stage, _kFrameInfoBlock, {
         'mvp': mvp.storage,
         'model': node.worldMatrix.storage,
         'normal_matrix': node.worldNormalMatrix.storage,
       });
       if (skeleton != null) {
         skeleton.update(node.worldMatrix);
-        _bindUniformBlock(pass, host, skinnedVertexShader, _kSkinInfoBlock, {
+        bindUniformBlock(pass, host, skinnedVertexShader, _kSkinInfoBlock, {
           'joint_matrices': skeleton.matrices,
         });
       }
@@ -939,7 +917,7 @@ final class Renderer {
       _bindTexture(pass, fragment, slot, texture, _clampSampler);
     });
 
-    _bindUniformBlock(pass, host, fragment, uniformBlock, {
+    bindUniformBlock(pass, host, fragment, uniformBlock, {
       uniformMember: uniformData,
     });
 
@@ -1093,7 +1071,7 @@ final class Renderer {
       source,
       _clampSampler,
     );
-    _bindUniformBlock(pass, host, bloomUpsampleShader, _kBloomInfoBlock, {
+    bindUniformBlock(pass, host, bloomUpsampleShader, _kBloomInfoBlock, {
       'params': _bloomParams,
     });
     pass.draw();
@@ -1106,7 +1084,8 @@ final class Renderer {
   /// Members the shader never reads are dropped from the reflected block, so they
   /// are skipped rather than treated as errors: the unlit model legitimately has
   /// no `light_direction`.
-  bool _bindUniformBlock(
+  @override
+  bool bindUniformBlock(
     gpu.RenderPass pass,
     gpu.HostBuffer host,
     gpu.Shader shader,
@@ -1152,7 +1131,7 @@ final class Renderer {
     required vm.Matrix4 viewProjection,
     required bool hasShadows,
     required int shadowCaster,
-    required _PassState state,
+    required FramePassState state,
   }) {
       final mesh = node.mesh;
       // The scene deals in MeshGeometry so that culling and picking need no
@@ -1212,7 +1191,7 @@ final class Renderer {
 
       final activeVertexShader =
           skinned ? skinnedVertexShader : vertexShader;
-      _bindUniformBlock(pass, host, activeVertexShader, _kFrameInfoBlock, {
+      bindUniformBlock(pass, host, activeVertexShader, _kFrameInfoBlock, {
         'mvp': (viewProjection * modelMatrix).storage,
         'model': modelMatrix.storage,
         'normal_matrix': normalMatrix.storage,
@@ -1223,7 +1202,7 @@ final class Renderer {
         // the mesh node's own world transform, which is exactly what the
         // renderer is holding at this point.
         skeleton.update(modelMatrix);
-        _bindUniformBlock(
+        bindUniformBlock(
           pass,
           host,
           skinnedVertexShader,
@@ -1267,7 +1246,7 @@ final class Renderer {
         _frameParams[1] = lights.count.toDouble();
         _frameParams[2] = hasShadows ? shadowCaster.toDouble() : -1.0;
 
-        _bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
+        bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
           // Whole arrays written from their reflected base offset. Impeller
           // reflects the array, not its elements — `lights[0]` comes back
           // null — but the std140 stride for a vec4 array is a flat 16
@@ -1348,212 +1327,47 @@ final class Renderer {
       state.drawCalls++;
   }
 
-  gpu.Texture _viewModelDepthFor(int width, int height) {
-    if (_viewModelDepth != null &&
-        _viewModelDepthWidth == width &&
-        _viewModelDepthHeight == height) {
-      return _viewModelDepth!;
-    }
-    _viewModelDepth = gpu.gpuContext.createTexture(
-      gpu.StorageMode.deviceTransient,
-      width,
-      height,
-      format: gpu.gpuContext.defaultDepthStencilFormat,
-    );
-    _viewModelDepthWidth = width;
-    _viewModelDepthHeight = height;
-    return _viewModelDepth!;
-  }
-
-  /// Draws the first-person view model over the finished scene.
+  /// Draws every visible mesh of [scene], as the world is drawn.
   ///
-  /// Its own command buffer, because Metal allows one open encoder per buffer
-  /// and flutter_gpu offers no way to end a pass — the same rule that already
-  /// governs the shadow and post passes.
+  /// The loop the view model pass used to own, lifted onto the plugin
+  /// interface so anything wanting ordinary geometry in an unordinary place
+  /// gets materials, skinning and lighting for free rather than growing a
+  /// second copy of them.
   ///
-  /// The colour attachment loads rather than clears, so the scene survives; the
-  /// depth attachment clears, which is the whole reason this is a separate pass.
-  void _encodeViewModel({
-    required ViewModelPass pass,
+  /// The whole chain is tested, not just the node: a view model hides the
+  /// weapons it is not holding by switching off their shared parent, and
+  /// testing only the leaf draws every weapon at once.
+  @override
+  void encodeScene({
+    required gpu.RenderPass pass,
     required gpu.HostBuffer host,
+    required Scene scene,
+    required vm.Matrix4 viewProjection,
+    required vm.Vector3 cameraPosition,
     required RenderSettings settings,
-    required _PassState state,
-    required int width,
-    required int height,
-    required gpu.Texture hdr,
+    required FramePassState state,
   }) {
-    if (pass.scene.meshes.isEmpty) return;
-    developer.Timeline.startSync('Renderer.viewModel');
+    _cameraData[0] = cameraPosition.x;
+    _cameraData[1] = cameraPosition.y;
+    _cameraData[2] = cameraPosition.z;
 
-    // Straight into the resolved target, without MSAA, whatever the scene
-    // used. Loading a multisampled attachment would mean loading the resolved
-    // image back into it, which the API does not offer — and a weapon is a
-    // handful of large, close triangles whose silhouette is mostly off screen,
-    // the one case where the resolve buys least.
-    final target = gpu.RenderTarget.singleColor(
-      gpu.ColorAttachment(texture: hdr, loadAction: gpu.LoadAction.load),
-      depthStencilAttachment: gpu.DepthStencilAttachment(
-        // Its own depth, not the scene's: attachments in one target must agree
-        // on sample count, and the scene's is four-sample whenever MSAA is on.
-        texture: _viewModelDepthFor(width, height),
-        // Cleared, so nothing in the world can occlude what is in the player's
-        // hands.
-        depthClearValue: 1.0,
-      ),
-    );
-
-    final buffer = gpu.gpuContext.createCommandBuffer();
-    final encoder = buffer.createRenderPass(target);
-
-    encoder
-      ..setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height))
-      ..setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height))
-      ..setDepthWriteEnable(true)
-      ..setDepthCompareOperation(gpu.CompareFunction.less)
-      ..setPrimitiveType(gpu.PrimitiveType.triangle);
-
-    // Nothing is bound in a new pass, so the state has to forget what the
-    // scene pass left it believing.
-    state
-      ..boundPipeline = null
-      ..boundSkinned = null;
-
-    final aspect = height == 0 ? 1.0 : width / height;
-    final viewProjection = pass.camera.viewProjection(aspect);
-    pass.camera.readWorldPosition(_viewModelCamera);
-    _cameraData[0] = _viewModelCamera.x;
-    _cameraData[1] = _viewModelCamera.y;
-    _cameraData[2] = _viewModelCamera.z;
-
-    for (final node in pass.scene.meshes) {
-      // The whole chain, not just the node: a view model hides the weapons it
-      // is not holding by switching off their shared parent, and testing only
-      // the leaf draws every weapon at once.
+    for (final node in scene.meshes) {
       if (!node.visibleInHierarchy) continue;
       _encodeNode(
-        pass: encoder,
+        pass: pass,
         host: host,
         node: node,
-        scene: pass.scene,
+        scene: scene,
         settings: settings,
         viewProjection: viewProjection,
-        // No shadow map: a weapon lit by the world's sun through a shadow
-        // matrix built for the world's camera would be shadowed by geometry it
+        // No shadow map: geometry lit by the world's sun through a shadow
+        // matrix built for the world's camera would be shadowed by things it
         // is nowhere near.
         hasShadows: false,
         shadowCaster: -1,
         state: state,
       );
     }
-
-    buffer.submit();
-    developer.Timeline.finishSync();
-  }
-
-  /// Draws every live particle as one batch of camera-facing quads.
-  ///
-  /// Inside the scene pass rather than after it, so particles are depth-tested
-  /// against the world — a spark behind a pillar has to be hidden by it — and
-  /// so they land in the HDR target where the bloom can pick the bright ones
-  /// up, which is most of what makes an explosion read as light.
-  ///
-  /// Depth write is off and blending is additive. Additive is what removes the
-  /// need to sort: addition is commutative, so a thousand particles in one
-  /// unsorted batch composite correctly, and one draw call covers all of them.
-  void _encodeParticles({
-    required gpu.RenderPass pass,
-    required gpu.HostBuffer host,
-    required ParticleSystem particles,
-    required RenderView view,
-    required vm.Matrix4 viewProjection,
-    required _PassState state,
-  }) {
-    if (particles.aliveCount == 0) return;
-    developer.Timeline.startSync('Renderer.particles');
-
-    final capacity = particles.capacity;
-    final vertices = _particleVertices ??=
-        Float32List(capacity * ParticleSystem.floatsPerParticle);
-    final indices = _particleIndices ??= Uint32List(capacity * 6);
-
-    // The camera's right and up in world space, which is what turns a point
-    // into a quad that faces the viewer. Read off the view matrix's rows rather
-    // than recomputed from angles the renderer does not have.
-    final world = view.camera.worldMatrix;
-    _cameraRight.setValues(world.entry(0, 0), world.entry(1, 0), world.entry(2, 0));
-    _cameraUp.setValues(world.entry(0, 1), world.entry(1, 1), world.entry(2, 1));
-
-    final written = particles.writeQuads(
-      _cameraRight,
-      _cameraUp,
-      vertices,
-      indices,
-    );
-    if (written == 0) {
-      developer.Timeline.finishSync();
-      return;
-    }
-
-    // The mesh draws left their own pipeline and buffers bound, and this one
-    // has a different vertex layout.
-    pass.clearBindings();
-    pass.bindPipeline(
-      _particlePipeline ??= gpu.gpuContext.createRenderPipeline(
-        particleVertexShader,
-        particleFragmentShader,
-      ),
-    );
-    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
-    pass.setPolygonMode(gpu.PolygonMode.fill);
-    // A quad seen from behind is still a quad; culling one would make half the
-    // particles vanish depending on which way the camera turned.
-    pass.setCullMode(gpu.CullMode.none);
-    pass.setColorBlendEnable(true);
-    pass.setColorBlendEquation(
-      gpu.ColorBlendEquation(
-        colorBlendOperation: gpu.BlendOperation.add,
-        sourceColorBlendFactor: gpu.BlendFactor.one,
-        destinationColorBlendFactor: gpu.BlendFactor.one,
-        alphaBlendOperation: gpu.BlendOperation.add,
-        sourceAlphaBlendFactor: gpu.BlendFactor.one,
-        destinationAlphaBlendFactor: gpu.BlendFactor.one,
-      ),
-    );
-    // Tested against the world, but never written: particles must not occlude
-    // each other, and with additive blending they have no business trying.
-    pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(gpu.CompareFunction.less);
-
-    final vertexCount = written * 4;
-    final indexCount = written * 6;
-    pass.bindVertexBuffer(
-      host.emplace(
-        ByteData.sublistView(
-          vertices,
-          0,
-          written * ParticleSystem.floatsPerParticle,
-        ),
-      ),
-      vertexCount,
-    );
-    pass.bindIndexBuffer(
-      host.emplace(ByteData.sublistView(indices, 0, indexCount)),
-      gpu.IndexType.int32,
-      indexCount,
-    );
-    _bindUniformBlock(pass, host, particleVertexShader, _kParticleInfoBlock, {
-      'view_projection': viewProjection.storage,
-    });
-
-    pass.draw();
-    state.drawCalls++;
-
-    // The pipeline tracker describes the mesh pipelines only, and this pass
-    // just replaced whatever it thought was bound.
-    state
-      ..boundPipeline = null
-      ..boundSkinned = null;
-    developer.Timeline.finishSync();
   }
 
   FrameResult render({
@@ -1562,8 +1376,6 @@ final class Renderer {
     required Scene scene,
     required List<RenderView> views,
     RenderSettings settings = const RenderSettings(),
-    ViewModelPass? viewModel,
-    ParticleSystem? particles,
   }) {
     if (views.isEmpty) {
       throw ArgumentError('At least one RenderView is required.');
@@ -1632,7 +1444,7 @@ final class Renderer {
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
-    final passState = _PassState();
+    final passState = FramePassState();
     var culled = 0;
     var debugLines = 0;
     var lightOverflow = 0;
@@ -1726,14 +1538,19 @@ final class Renderer {
       }
       developer.Timeline.finishSync();
 
-      if (particles != null) {
-        _encodeParticles(
-          pass: pass,
-          host: host,
-          particles: particles,
-          view: view,
-          viewProjection: viewProjection,
-          state: passState,
+      for (final plugin in plugins.forStage(RenderStage.inScene)) {
+        plugin.encode(
+          PluginFrame(
+            pass: pass,
+            host: host,
+            services: this,
+            state: passState,
+            settings: settings,
+            width: width,
+            height: height,
+            view: view,
+            viewProjection: viewProjection,
+          ),
         );
       }
 
@@ -1751,15 +1568,21 @@ final class Renderer {
     stopwatch.stop();
     developer.Timeline.finishSync();
 
-    if (viewModel != null) {
-      _encodeViewModel(
-        pass: viewModel,
-        host: host,
-        settings: settings,
-        state: passState,
-        width: width,
-        height: height,
-        hdr: hdr,
+    for (final plugin in plugins.forStage(RenderStage.overlayScene)) {
+      plugin.encode(
+        PluginFrame(
+          // A stage that owns its pass builds its own; this is the scene pass
+          // it draws over, handed on so a plugin that only wants to append to
+          // the world's pass still can.
+          pass: pass,
+          host: host,
+          services: this,
+          state: passState,
+          settings: settings,
+          width: width,
+          height: height,
+          sceneColor: hdr,
+        ),
       );
     }
 
@@ -1874,7 +1697,7 @@ final class Renderer {
       bloom ?? scene,
       _clampSampler,
     );
-    _bindUniformBlock(pass, host, compositeShader, _kCompositeInfoBlock, {
+    bindUniformBlock(pass, host, compositeShader, _kCompositeInfoBlock, {
       'params': _compositeParams,
     });
     pass.draw();
@@ -2084,7 +1907,7 @@ final class Renderer {
       gpu.IndexType.int32,
       vertexCount,
     );
-    _bindUniformBlock(pass, host, debugLineVertexShader, _kLineInfoBlock, {
+    bindUniformBlock(pass, host, debugLineVertexShader, _kLineInfoBlock, {
       'view_projection': viewProjection.storage,
     });
 
