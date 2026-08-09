@@ -132,6 +132,7 @@ final class ModelSurface {
     required this.mesh,
     Matrix4? transform,
     this.materialIndex,
+    this.skinIndex,
     this.flipWinding = false,
     this.name,
   }) : transform = transform ?? Matrix4.identity();
@@ -142,6 +143,12 @@ final class ModelSurface {
   final Matrix4 transform;
 
   final int? materialIndex;
+
+  /// Index into [ModelDocument.skins], when this surface is skinned.
+  ///
+  /// On the surface rather than the node because that is where glTF puts it and
+  /// where it belongs: two nodes can draw the same mesh with different skins.
+  final int? skinIndex;
 
   /// True when [transform] mirrors, i.e. has a negative determinant.
   ///
@@ -195,6 +202,50 @@ final class ModelNode {
       '${children.length} children, ${surfaces.length} surfaces)';
 }
 
+/// A skeleton: which nodes are joints, and how each undoes the bind pose.
+///
+/// Indices into [ModelDocument.nodes], because a joint *is* a node — glTF says
+/// so, and it is what makes an animation clip drive a skeleton without the two
+/// features knowing about each other. The player writes node transforms; the
+/// skin reads them.
+final class ModelSkin {
+  ModelSkin({
+    required this.joints,
+    required this.inverseBindMatrices,
+    this.skeletonRoot,
+    this.name,
+  }) {
+    if (inverseBindMatrices.length != joints.length) {
+      throw ArgumentError(
+        'Skin "${name ?? 'unnamed'}" has ${joints.length} joints but '
+        '${inverseBindMatrices.length} inverse bind matrices.',
+      );
+    }
+  }
+
+  final String? name;
+
+  /// Node indices, in the order the vertex attribute addresses them.
+  final List<int> joints;
+
+  /// One per joint: the transform that takes a vertex from model space into
+  /// that joint's local space at bind time.
+  ///
+  /// Without it a joint's world transform would move the mesh by the joint's
+  /// *absolute* placement rather than by how far it has moved since binding, so
+  /// the model would fly apart the moment it was posed.
+  final List<Matrix4> inverseBindMatrices;
+
+  /// The node the skeleton hangs from, when the file names one.
+  final int? skeletonRoot;
+
+  int get jointCount => joints.length;
+
+  @override
+  String toString() =>
+      'ModelSkin(${name ?? 'unnamed'}, ${joints.length} joints)';
+}
+
 /// A decoded model, whatever format it came from.
 ///
 /// The seam between decoders and the rest of the engine: glTF and OBJ both
@@ -237,6 +288,9 @@ abstract class ModelDocument {
 
   /// Clips that drive [nodes]. Empty for formats that carry no animation.
   List<AnimationClip> get animations => const <AnimationClip>[];
+
+  /// Skeletons. Empty for formats that carry no skinning.
+  List<ModelSkin> get skins => const <ModelSkin>[];
 
   /// Non-fatal findings from decoding: ignored extensions, skipped primitives,
   /// unresolved references. Surfaced rather than logged so callers can decide

@@ -4,6 +4,7 @@ import '../geometry/mesh_geometry.dart';
 import '../render/material.dart';
 import 'scene.dart';
 import 'scene_node.dart';
+import 'skeleton.dart';
 
 /// A node that draws a mesh.
 ///
@@ -17,6 +18,20 @@ final class MeshNode extends SceneNode {
 
   MeshGeometry mesh;
   Material material;
+
+  /// The skeleton deforming this mesh, when it is skinned.
+  ///
+  /// Null for the overwhelming majority of meshes, and the renderer branches on
+  /// it to pick the skinned vertex shader — the layout and the shader are one
+  /// decision, so a mesh either has both or neither.
+  Skeleton? skeleton;
+
+  /// How far the surface reaches from its joints, in world units.
+  ///
+  /// Used to pad the skinned bounds. Zero would cull a character by the box
+  /// around its bones, clipping the mesh hanging off them; measured from the
+  /// bind pose at instantiation, so it costs nothing per frame.
+  double skinReach = 0.0;
 
   /// Whether this node is drawn into the shadow map.
   ///
@@ -43,6 +58,9 @@ final class MeshNode extends SceneNode {
   /// matrix is the only thing that invalidates them, its version is the whole
   /// cache key.
   int _boundsVersion = -1;
+
+  /// The skeleton pose the cached bounds were computed from, for skinned meshes.
+  int _poseVersion = -1;
   MeshGeometry? _boundsMesh;
 
   /// World-space axis-aligned bounds, recomputed only when the transform changes.
@@ -94,6 +112,27 @@ final class MeshNode extends SceneNode {
   }
 
   void _refreshBounds() {
+    final skin = skeleton;
+    if (skin != null) {
+      // A skinned mesh's own bounds describe the bind pose, which is not where
+      // the animation has put it. The joints are, so cull against those.
+      final stamp = skin.poseVersion;
+      if (stamp == _poseVersion && mesh == _boundsMesh) return;
+      _poseVersion = stamp;
+      _boundsMesh = mesh;
+
+      final bounds = skin.computeBounds(reach: skinReach);
+      _worldBounds.min.setFrom(bounds.min);
+      _worldBounds.max.setFrom(bounds.max);
+      _boundsCentre
+        ..setFrom(bounds.min)
+        ..add(bounds.max)
+        ..scale(0.5);
+      _boundsRadius = ((bounds.max - bounds.min)..scale(0.5)).length;
+      _mirrored = worldMatrix.determinant() < 0.0;
+      return;
+    }
+
     final version = worldVersion;
     if (version == _boundsVersion && mesh == _boundsMesh) return;
 

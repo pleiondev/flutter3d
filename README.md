@@ -12,6 +12,10 @@ What works today:
   profile (the "vase"); shapes are values (`Shape`), not static methods;
 - six **switchable lighting models**, each its own pre-built fragment shader:
   Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon, Normals;
+- **skinning**: glTF skins decoded into a `Skeleton` of ordinary scene nodes, a
+  separate skinned vertex stage with 64 joint matrices in a uniform array, four
+  weights a vertex, and bounds taken from the posed skeleton rather than the
+  bind pose;
 - **`.f3d`**, the engine's own container: an offline converter does the decoding
   once and the loader hands out typed-data views over the file, which takes the
   teapot from 4.54 ms as OBJ to 1.1 us — with the two renders identical pixel
@@ -56,9 +60,9 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 400 tests — geometry, projection, scene, sorting, debug draw, intersections,
-  raycasting, animation, lighting, tangents, render targets, BVH, LOD, glTF, OBJ
-  and `.f3d` — all without a GPU.
+- 424 tests — geometry, projection, scene, sorting, debug draw, intersections,
+  raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
+  glTF, OBJ and `.f3d` — all without a GPU.
 
 ## Running
 
@@ -87,14 +91,17 @@ flutter run -d macos \
   --dart-define=FLUTTER3D_DEBUG_DRAW=bounds,normals,lights,axes,frusta \
   --dart-define=FLUTTER3D_SOURCE=teapot \
   --dart-define=FLUTTER3D_SPIN=false \
-  --dart-define="FLUTTER3D_LIGHTS=key light,spot light"
+  --dart-define="FLUTTER3D_LIGHTS=key light,spot light" \
+  --dart-define=FLUTTER3D_ANIM_TIME=0.75
 ```
 
 A relative capture path lands in the app's sandbox temp directory, and the run
 prints the absolute path along with the frame's draw, pipeline, light, cull and
 debug-line counts. `FLUTTER3D_SOURCE` matches a model chip by substring;
 `FLUTTER3D_SPIN=false` stops the turntable so two captures differ only by what
-is being tested; `FLUTTER3D_LIGHTS` names which lights start switched on.
+is being tested; `FLUTTER3D_LIGHTS` names which lights start switched on; `FLUTTER3D_ANIM_TIME`
+freezes any clip at a given second, without which two captures of an animated
+model are not comparable — a format that loads faster starts playing sooner.
 
 ## Loading models
 
@@ -152,10 +159,11 @@ What is supported:
 | Materials | metal-rough, all texture slots, alphaMode/cutoff, doubleSided, `KHR_materials_unlit`, `KHR_materials_emissive_strength` |
 | Mirroring transforms | detected from the determinant's sign; the winding order is flipped per instance |
 | Node hierarchy | kept index-aligned with the file, transform-only nodes included, because animation channels address nodes by index |
+| Skins | `joints`, `inverseBindMatrices`, `skeleton`, and JOINTS_0/WEIGHTS_0; a primitive with joint attributes gets the skinned vertex layout, chosen from the data rather than from the caller |
 | Animations | all samplers and channels; `STEP`, `LINEAR` and `CUBICSPLINE`; translation, rotation, scale and weights (weights decoded but not applied) |
 
-Not there: skinning, morph targets, cameras, Draco and meshopt (reported in
-`warnings`), KTX2, TEXCOORD_1 and up.
+Not there: morph targets, cameras, Draco and meshopt (reported in `warnings`),
+KTX2, TEXCOORD_1 and up.
 
 Non-fatal decoding problems land in `warnings` and are surfaced in the UI — a
 skipped primitive or an ignored extension explains a model that looks odd but
@@ -231,6 +239,7 @@ either does not start or silently renders nothing. Worth keeping to hand.
 ```
 shaders/
   mesh.vert                     vertex shader (this is what defines the vertex layout!)
+  mesh_skinned.vert             the skinned stage: a second layout is a second shader
   debug_line.vert               vertex shader for the debug overlay's own layout
   lib/color.glsl                colour space, varyings and output, no uniforms
   lib/surface.glsl              the material and lighting interface shared by models
@@ -251,7 +260,7 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 lib/src/spike/                  demo glue and the frame capture hook
-test/                           400 tests, all runnable without a GPU
+test/                           424 tests, all runnable without a GPU
 ```
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing

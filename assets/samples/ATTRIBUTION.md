@@ -8,6 +8,7 @@ chosen to cover the different loading paths.
 | `Box.glb`, `BoxTextured.glb`, `BoxVertexColors.glb`, `Triangle.gltf`, `cube/Cube.gltf` + `cube/Cube.bin` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
 | `BoxAnimated.glb`, `InterpolationTest.glb`, `animated_cube/AnimatedCube.gltf` + `.bin` + `_BaseColor.png` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
 | `NormalTangentTest.glb`, `NormalTangentMirrorTest.glb` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
+| `RiggedSimple.glb`, `RiggedFigure.glb`, `simple_skin/SimpleSkin.gltf` | [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets) |
 | `teapot.obj` | [mauricelam/Teapot](https://github.com/mauricelam/Teapot) — the Utah teapot |
 
 Why these specifically: between them they cover all three ways glTF can carry its

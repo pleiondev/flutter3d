@@ -14,5 +14,6 @@ export 'mesh_node.dart';
 export 'raycaster.dart';
 export 'scene.dart';
 export 'scene_spheres.dart';
+export 'skeleton.dart';
 export 'scene_node.dart';
 export 'orbit_controller.dart';

@@ -62,5 +62,9 @@
   "ShadowDepth": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_depth.frag"
+  },
+  "MeshSkinnedVertex": {
+    "type": "vertex",
+    "file": "shaders/mesh_skinned.vert"
   }
 }

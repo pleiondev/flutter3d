@@ -290,7 +290,9 @@ choose an engine.
       grid. Built on the `Shape` abstraction, plus `LatheShape`.
 - [ ] **P1** Utilities: normal recomputation, tangent generation (mandatory for normal maps),
       vertex welding/deduplication, merge, flip, AABB/sphere computation.
-- [ ] **P1** Skinning: bone matrices in a uniform buffer (mind the size limit!) or in a texture.
+- [x] **P1** Skinning: bone matrices in a uniform buffer (mind the size limit!) or in a texture.
+      A uniform array of 64 `mat4`, since the spike proved arrays survive Impeller — the texture
+      fallback was never needed. Four weights a vertex, renormalized in the shader.
 - [ ] **P1** Instancing: per-instance attributes in a separate vertex buffer
       (⚠️ check whether `draw()` has `instanceCount` on master).
 - [ ] **P2** Morph targets (positions/normals, weights).
@@ -396,7 +398,11 @@ choose an engine.
       done.
 - [x] **P1** `AnimationPlayer`: play/pause/seek/loop/speed, bound to frame time. Wrap modes are
       once / loop / ping-pong, and playback takes a delta so the caller chooses the clock.
-- [ ] **P1** `Skeleton` + joint hierarchy, inverse bind matrices, application to skinning.
+- [x] **P1** `Skeleton` + joint hierarchy, inverse bind matrices, application to skinning. Joints
+      are ordinary `SceneNode`s, which is what keeps skinning and animation independent: the
+      player writes joint transforms and the skin reads them, neither containing a line about the
+      other. Bounds come from the posed skeleton rather than the bind-pose mesh, or a moving
+      character would be culled by a box it left several frames ago.
 - [ ] **P2** Blending: layers, crossfade, additive, per-bone masks.
 - [ ] **P2** Morph target weights in animation.
 - [ ] **P3** IK (two-bone, FABRIK, look-at), a state machine / blend tree, retargeting.

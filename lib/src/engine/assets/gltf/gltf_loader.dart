@@ -104,12 +104,23 @@ enum GltfPrimitiveMode {
 final class GltfLoader {
   GltfLoader({
     this.layout = VertexLayout.standard,
+    this.skinnedLayout = VertexLayout.skinned,
     this.generateFlatNormalsWhenMissing = true,
   });
 
   /// Target vertex layout. Attributes the layout does not declare are skipped
   /// during decode instead of being read and thrown away.
   final VertexLayout layout;
+
+  /// Used instead of [layout] for a primitive that carries JOINTS_0 and
+  /// WEIGHTS_0.
+  ///
+  /// Chosen per primitive rather than per file: eight extra floats on every
+  /// vertex of a static mesh is a third of its size for nothing, and the
+  /// renderer picks its vertex stage from the same fact — a mesh either has
+  /// skinning attributes and takes the skinned pipeline, or it does not.
+
+  final VertexLayout skinnedLayout;
 
   /// glTF says a primitive without NORMAL must be shaded flat. Flat shading
   /// needs per-face normals, which forces the mesh to be de-indexed. Set false
@@ -133,6 +144,7 @@ final class GltfLoader {
     final materials = _decodeMaterials(json, warnings);
     final graph = _decodeScene(json, reader, warnings);
     final animations = _decodeAnimations(json, reader, graph.nodes, warnings);
+    final skins = _decodeSkins(json, reader, graph.nodes.length, warnings);
 
     return GltfAsset(
       surfaces: graph.surfaces,
@@ -142,6 +154,7 @@ final class GltfLoader {
       nodes: graph.nodes,
       roots: graph.roots,
       animations: animations,
+      skins: skins,
     );
   }
 
@@ -222,6 +235,7 @@ final class GltfLoader {
       final node = nodes[nodeIndex];
       final world = parentTransform * _localTransform(node);
 
+      final skinIndex = _asInt(node['skin']);
       final meshIndex = _asInt(node['mesh']);
       if (meshIndex != null && meshIndex >= 0 && meshIndex < meshes.length) {
         final primitives = meshCache.putIfAbsent(
@@ -239,9 +253,16 @@ final class GltfLoader {
             ModelSurface(
               name: nodeName is String ? nodeName : null,
               mesh: primitive.mesh,
-              transform: world.clone(),
+              // A skinned surface's vertices are already in the skin's own
+              // space, so the node transform must NOT be baked in — the joints
+              // place it. Baking it applies the node's placement twice, which
+              // looks like a model launched away from its skeleton.
+              transform: skinIndex == null
+                  ? world.clone()
+                  : Matrix4.identity(),
               materialIndex: primitive.materialIndex,
-              flipWinding: mirrored,
+              skinIndex: skinIndex,
+              flipWinding: skinIndex == null && mirrored,
             ),
           );
         }
@@ -303,6 +324,86 @@ final class GltfLoader {
       scale: scale,
       children: _intList(node['children']),
     );
+  }
+
+  // -------------------------------------------------------------------- skins
+
+  /// Decodes `skins` into engine skeletons.
+  ///
+  /// Joints are node indices, which is what makes skinning and animation
+  /// independent: the player writes node transforms and the skin reads them, so
+  /// neither feature has to know the other exists.
+  List<ModelSkin> _decodeSkins(
+    Map<String, Object?> json,
+    GltfAccessorReader reader,
+    int nodeCount,
+    List<String> warnings,
+  ) {
+    final skins = _mapList(json['skins']);
+    if (skins.isEmpty) return const <ModelSkin>[];
+
+    final result = <ModelSkin>[];
+    for (var i = 0; i < skins.length; i++) {
+      final skin = skins[i];
+      final label = 'skins[$i]';
+      final joints = _intList(skin['joints']);
+
+      if (joints.isEmpty) {
+        warnings.add('$label has no joints; skipped.');
+        continue;
+      }
+      final outOfRange = joints.where((j) => j < 0 || j >= nodeCount);
+      if (outOfRange.isNotEmpty) {
+        warnings.add(
+          '$label names joints ${outOfRange.join(', ')}, which are not nodes; '
+          'skipped.',
+        );
+        continue;
+      }
+
+      // The spec allows the matrices to be absent, meaning every one is
+      // identity — a skeleton already at the origin in bind pose.
+      final accessor = _asInt(skin['inverseBindMatrices']);
+      final matrices = <Matrix4>[];
+      if (accessor == null) {
+        for (var j = 0; j < joints.length; j++) {
+          matrices.add(Matrix4.identity());
+        }
+      } else {
+        final floats = reader.readAsFloats(accessor);
+        if (floats.length < joints.length * 16) {
+          warnings.add(
+            '$label has ${joints.length} joints but only '
+            '${floats.length ~/ 16} inverse bind matrices; skipped.',
+          );
+          continue;
+        }
+        for (var j = 0; j < joints.length; j++) {
+          // Column-major in the file and column-major in vector_math, so the
+          // sixteen floats go straight in.
+          final storage = Float32List(16);
+          for (var e = 0; e < 16; e++) {
+            storage[e] = floats[j * 16 + e];
+          }
+          matrices.add(Matrix4.fromFloat32List(storage));
+        }
+      }
+
+      final skeleton = _asInt(skin['skeleton']);
+      final name = skin['name'];
+      result.add(
+        ModelSkin(
+          name: name is String ? name : null,
+          joints: joints,
+          inverseBindMatrices: matrices,
+          skeletonRoot:
+              skeleton != null && skeleton >= 0 && skeleton < nodeCount
+                  ? skeleton
+                  : null,
+        ),
+      );
+    }
+    return result;
   }
 
   // ---------------------------------------------------------------- animation
@@ -566,10 +667,18 @@ final class GltfLoader {
     final vertexCount = reader.countOf(positionAccessor);
     if (vertexCount == 0) return null;
 
-    final wantsNormal = layout.has(VertexLayout.normal);
-    final wantsTexcoord = layout.has(VertexLayout.texcoord);
-    final wantsTangent = layout.has(VertexLayout.tangent);
-    final wantsColor = layout.has(VertexLayout.color);
+    // A primitive with joint attributes is a skinned mesh, whichever node ends
+    // up drawing it, so the layout follows the data rather than the caller.
+    final hasSkinAttributes = attributes['JOINTS_0'] != null &&
+        attributes['WEIGHTS_0'] != null;
+    final primitiveLayout =
+        hasSkinAttributes && skinnedLayout.isSkinned ? skinnedLayout : layout;
+
+    final wantsNormal = primitiveLayout.has(VertexLayout.normal);
+    final wantsTexcoord = primitiveLayout.has(VertexLayout.texcoord);
+    final wantsTangent = primitiveLayout.has(VertexLayout.tangent);
+    final wantsColor = primitiveLayout.has(VertexLayout.color);
+    final wantsSkinning = primitiveLayout.isSkinned;
 
     Float32List? normals;
     final normalAccessor = _asInt(attributes['NORMAL']);
@@ -595,6 +704,28 @@ final class GltfLoader {
     if (wantsColor && colorAccessor != null) {
       colors = reader.readAsFloats(colorAccessor);
       colorComponents = reader.typeOf(colorAccessor).componentCount;
+    }
+
+    Uint32List? joints;
+    Float32List? weights;
+    if (wantsSkinning) {
+      final jointAccessor = _asInt(attributes['JOINTS_0']);
+      final weightAccessor = _asInt(attributes['WEIGHTS_0']);
+      // Joints are read as integers, not floats: the accessor is an unsigned
+      // byte or short, and running it through the normalization path would turn
+      // joint 3 of 200 into 0.015.
+      if (jointAccessor != null) joints = reader.readAsUint32(jointAccessor);
+      if (weightAccessor != null) {
+        weights = reader.readAsFloats(weightAccessor);
+      }
+      if ((joints == null) != (weights == null)) {
+        warnings.add(
+          '$label has only one of JOINTS_0 and WEIGHTS_0; both are needed to '
+          'skin, so the primitive was left rigid.',
+        );
+        joints = null;
+        weights = null;
+      }
     }
 
     // Indices are optional; without them vertices are consumed in order.
@@ -626,7 +757,7 @@ final class GltfLoader {
         wantsNormal && normals == null && generateFlatNormalsWhenMissing;
 
     final builder = MeshBuilder(
-      layout,
+      primitiveLayout,
       reserveVertices: needsFlatNormals ? indices.length : vertexCount,
       reserveIndices: indices.length,
     );
@@ -636,6 +767,8 @@ final class GltfLoader {
     final texcoord = Vector2.zero();
     final tangent = Vector4(0.0, 0.0, 0.0, 1.0);
     final color = Vector4(1.0, 1.0, 1.0, 1.0);
+    final jointIndices = Vector4.zero();
+    final jointWeights = Vector4(1.0, 0.0, 0.0, 0.0);
 
     void readVertex(int source) {
       final p = source * 3;
@@ -667,6 +800,21 @@ final class GltfLoader {
           colors[c + 1],
           colors[c + 2],
           colorComponents == 4 ? colors[c + 3] : 1.0,
+        );
+      }
+      if (joints != null && weights != null) {
+        final j = source * 4;
+        jointIndices.setValues(
+          joints[j].toDouble(),
+          joints[j + 1].toDouble(),
+          joints[j + 2].toDouble(),
+          joints[j + 3].toDouble(),
+        );
+        jointWeights.setValues(
+          weights[j],
+          weights[j + 1],
+          weights[j + 2],
+          weights[j + 3],
         );
       }
     }
@@ -710,6 +858,8 @@ final class GltfLoader {
             texcoord: texcoord,
             tangent: tangent,
             color: color,
+            joints: jointIndices,
+            weights: jointWeights,
           );
         }
         builder.addTriangle(base, base + 1, base + 2);
@@ -728,6 +878,8 @@ final class GltfLoader {
           texcoord: texcoord,
           tangent: tangent,
           color: color,
+          joints: jointIndices,
+          weights: jointWeights,
         );
       }
       for (var i = 0; i < indices.length; i += 3) {
@@ -743,7 +895,7 @@ final class GltfLoader {
     // generator writes the neutral frame, which is what the vertices already
     // hold.
     if (wantsTangent && tangents == null) {
-      mesh = mesh.withGeneratedTangents(target: layout);
+      mesh = mesh.withGeneratedTangents(target: primitiveLayout);
     }
 
     return _DecodedPrimitive(mesh: mesh, materialIndex: materialIndex);

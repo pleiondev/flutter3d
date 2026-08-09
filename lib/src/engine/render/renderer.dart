@@ -27,6 +27,7 @@ import 'render_view.dart';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kLineInfoBlock = 'LineInfo';
+const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
 
@@ -227,6 +228,7 @@ final class FrameResult {
     required this.lightsDropped,
     required this.pipelines,
     required this.shadowCasters,
+    required this.skinnedDraws,
   });
 
   final ui.Image image;
@@ -271,6 +273,9 @@ final class FrameResult {
 
   /// Meshes drawn into the shadow map, zero when the pass did not run.
   final int shadowCasters;
+
+  /// Draws that went through the skinned vertex stage.
+  final int skinnedDraws;
 }
 
 /// Draws a [Scene] through one or more [RenderView]s.
@@ -282,6 +287,7 @@ final class Renderer {
   Renderer._({
     required this.library,
     required this.vertexShader,
+    required this.skinnedVertexShader,
     required this.debugLineVertexShader,
     required this.debugLineFragmentShader,
     required this.fullscreenVertexShader,
@@ -297,6 +303,12 @@ final class Renderer {
 
   final gpu.ShaderLibrary library;
   final gpu.Shader vertexShader;
+
+  /// The skinned vertex stage. A separate shader because joints and weights are
+  /// vertex attributes, and flutter_gpu takes the layout from the `in`
+  /// declarations — so a skinned mesh cannot share a shader with a static one
+  /// however similar the body is.
+  final gpu.Shader skinnedVertexShader;
 
   /// The debug overlay's own stage pair. Separate from the mesh shaders because
   /// the line buffer has a different vertex layout, and flutter_gpu takes the
@@ -368,8 +380,13 @@ final class Renderer {
   gpu.DeviceBuffer? _debugIndexBuffer;
   int _debugIndexCapacity = 0;
 
-  /// Pipelines keyed by fragment shader; creating one compiles and links state
-  /// on the backend, far too expensive to repeat per frame.
+  /// Pipelines keyed by both stages; creating one compiles and links state on
+  /// the backend, far too expensive to repeat per frame.
+  ///
+  /// Keyed on the pair rather than the fragment shader alone, because skinning
+  /// added a second vertex stage: with only the fragment name as the key, a
+  /// skinned draw would be handed the static pipeline the first PBR draw built,
+  /// and the vertex layouts do not match.
   final Map<String, gpu.RenderPipeline> _pipelineCache =
       <String, gpu.RenderPipeline>{};
 
@@ -395,6 +412,7 @@ final class Renderer {
   static const gpu.PixelFormat hdrFormat = gpu.PixelFormat.r16g16b16a16Float;
 
   gpu.RenderPipeline? _shadowPipeline;
+  gpu.RenderPipeline? _skinnedShadowPipeline;
   gpu.RenderPipeline? _bloomThresholdPipeline;
   gpu.RenderPipeline? _bloomDownsamplePipeline;
   gpu.RenderPipeline? _bloomUpsamplePipeline;
@@ -437,6 +455,7 @@ final class Renderer {
     return Renderer._(
       library: library,
       vertexShader: require('MeshVertex'),
+      skinnedVertexShader: require('MeshSkinnedVertex'),
       debugLineVertexShader: require('DebugLineVertex'),
       debugLineFragmentShader: require('DebugLine'),
       fullscreenVertexShader: require('FullscreenVertex'),
@@ -469,11 +488,11 @@ final class Renderer {
     });
   }
 
-  gpu.RenderPipeline _pipelineFor(LightingModel model) {
+  gpu.RenderPipeline _pipelineFor(LightingModel model, {required bool skinned}) {
     return _pipelineCache.putIfAbsent(
-      model.shaderName,
+      skinned ? 'skinned/${model.shaderName}' : model.shaderName,
       () => gpu.gpuContext.createRenderPipeline(
-        vertexShader,
+        skinned ? skinnedVertexShader : vertexShader,
         _fragmentShaderFor(model),
       ),
     );
@@ -671,10 +690,12 @@ final class Renderer {
       targetPool.release(depth);
       return false;
     }
-    pass.bindPipeline(
-      _shadowPipeline ??=
-          gpu.gpuContext.createRenderPipeline(vertexShader, shadowShader),
-    );
+    // Two pipelines, for the same reason the main pass has two: a skinned mesh
+    // has a different vertex layout, so it needs the skinned stage here too.
+    // Drawing it with the static one would read joints and weights as position
+    // and normal — and skipping skinned casters instead would mean a character
+    // that walks around without a shadow.
+    bool? boundSkinned;
 
     _shadowCasters = 0;
     final meshes = scene.meshes;
@@ -685,6 +706,23 @@ final class Renderer {
       if (!node.castsShadow) continue;
       final mesh = node.mesh;
       if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+
+      final skeleton = node.skeleton;
+      final skinned = skeleton != null;
+      if (boundSkinned != skinned) {
+        pass.bindPipeline(
+          skinned
+              ? (_skinnedShadowPipeline ??= gpu.gpuContext.createRenderPipeline(
+                  skinnedVertexShader,
+                  shadowShader,
+                ))
+              : (_shadowPipeline ??= gpu.gpuContext.createRenderPipeline(
+                  vertexShader,
+                  shadowShader,
+                )),
+        );
+        boundSkinned = skinned;
+      }
 
       pass.setWindingOrder(
         node.worldIsMirrored
@@ -697,11 +735,18 @@ final class Renderer {
       mvp
         ..setFrom(_shadowMatrix)
         ..multiply(node.worldMatrix);
-      _bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
+      final stage = skinned ? skinnedVertexShader : vertexShader;
+      _bindUniformBlock(pass, host, stage, _kFrameInfoBlock, {
         'mvp': mvp.storage,
         'model': node.worldMatrix.storage,
         'normal_matrix': node.worldNormalMatrix.storage,
       });
+      if (skeleton != null) {
+        skeleton.update(node.worldMatrix);
+        _bindUniformBlock(pass, host, skinnedVertexShader, _kSkinInfoBlock, {
+          'joint_matrices': skeleton.matrices,
+        });
+      }
       pass.draw();
       _shadowCasters++;
     }
@@ -1104,7 +1149,9 @@ final class Renderer {
     var pipelineSwitches = 0;
     var debugLines = 0;
     var lightOverflow = 0;
+    var skinnedDraws = 0;
     LightingModel? boundPipeline;
+    bool? boundSkinned;
 
     final cameraPosition = vm.Vector3.zero();
 
@@ -1181,9 +1228,14 @@ final class Renderer {
           }
           final material = node.material;
 
-          if (boundPipeline != material.lighting) {
-            pass.bindPipeline(_pipelineFor(material.lighting));
+          final skeleton = node.skeleton;
+          final skinned = skeleton != null;
+          if (boundPipeline != material.lighting || boundSkinned != skinned) {
+            pass.bindPipeline(
+              _pipelineFor(material.lighting, skinned: skinned),
+            );
             boundPipeline = material.lighting;
+            boundSkinned = skinned;
             pipelineSwitches++;
           }
 
@@ -1219,11 +1271,28 @@ final class Renderer {
             mesh.indexCount,
           );
 
-          _bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
+          final activeVertexShader =
+              skinned ? skinnedVertexShader : vertexShader;
+          _bindUniformBlock(pass, host, activeVertexShader, _kFrameInfoBlock, {
             'mvp': (viewProjection * modelMatrix).storage,
             'model': modelMatrix.storage,
             'normal_matrix': normalMatrix.storage,
           });
+
+          if (skeleton != null) {
+            // Recomputed here rather than by the caller: the matrices depend on
+            // the mesh node's own world transform, which is exactly what the
+            // renderer is holding at this point.
+            skeleton.update(modelMatrix);
+            _bindUniformBlock(
+              pass,
+              host,
+              skinnedVertexShader,
+              _kSkinInfoBlock,
+              {'joint_matrices': skeleton.matrices},
+            );
+            skinnedDraws++;
+          }
 
           final fragmentShader = _fragmentShaderFor(material.lighting);
 
@@ -1399,6 +1468,7 @@ final class Renderer {
       lightsDropped: lightOverflow,
       pipelines: _pipelineCache.length,
       shadowCasters: _shadowCasters,
+      skinnedDraws: skinnedDraws,
     );
   }
 

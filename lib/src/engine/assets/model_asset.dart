@@ -10,6 +10,7 @@ import '../render/material.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
+import '../scene/skeleton.dart';
 import 'model_document.dart';
 
 /// One drawable piece of a model: geometry, appearance, and where it sits
@@ -20,6 +21,7 @@ final class ModelPart {
     required this.material,
     Matrix4? transform,
     this.name,
+    this.skinIndex,
     this.flipWinding = false,
   }) : transform = transform ?? Matrix4.identity();
 
@@ -27,6 +29,10 @@ final class ModelPart {
   final Material material;
   final Matrix4 transform;
   final String? name;
+
+  /// Index into [ModelAsset.skins], when this part is skinned.
+  final int? skinIndex;
+
   final bool flipWinding;
 }
 
@@ -41,6 +47,7 @@ final class ModelInstance {
     required this.root,
     required this.nodes,
     required this.meshes,
+    required this.skeletons,
     required this.player,
   });
 
@@ -51,6 +58,10 @@ final class ModelInstance {
   final List<SceneNode> nodes;
 
   final List<MeshNode> meshes;
+
+  /// Skeletons bound to this instance's own nodes, so two copies of a rigged
+  /// model pose independently.
+  final List<Skeleton> skeletons;
 
   /// Null when the model carries no clips.
   final AnimationPlayer? player;
@@ -70,6 +81,7 @@ final class ModelAsset {
     required this.localBounds,
     List<ModelNode>? nodes,
     List<int>? roots,
+    this.skins = const <ModelSkin>[],
     this.clips = const <AnimationClip>[],
     this.warnings = const <String>[],
     this.name,
@@ -90,6 +102,9 @@ final class ModelAsset {
 
   final List<AnimationClip> clips;
 
+  /// Skeletons, index-aligned with what the decoder produced.
+  final List<ModelSkin> skins;
+
   /// Bounds in the model's own space, for framing a camera before anything is
   /// instantiated.
   final Aabb3 localBounds;
@@ -98,6 +113,8 @@ final class ModelAsset {
   final String? name;
 
   bool get isAnimated => clips.isNotEmpty;
+
+  bool get isSkinned => skins.isNotEmpty;
 
   static List<ModelNode> _flatNodesFor(List<ModelPart> parts) {
     final translation = Vector3.zero();
@@ -156,6 +173,9 @@ final class ModelAsset {
     final created = List<SceneNode?>.filled(nodes.length, null);
     final meshNodes = <MeshNode>[];
     final materials = <Material, Material>{};
+    // Skeletons are attached after the walk: a joint may be created later than
+    // the mesh that references it, so binding as we go would capture nulls.
+    final pendingSkins = <(MeshNode, int)>[];
 
     Material materialFor(Material source) => shareMaterials
         ? source
@@ -196,11 +216,26 @@ final class ModelAsset {
         );
         node.add(mesh);
         meshNodes.add(mesh);
+        if (part.skinIndex != null) pendingSkins.add((mesh, part.skinIndex!));
       }
 
       for (final child in model.children.reversed) {
         if (child >= 0 && child < nodes.length) pending.add((child, node));
       }
+    }
+
+    final skeletons = <Skeleton>[];
+    for (final (mesh, skinIndex) in pendingSkins) {
+      final skeleton = _buildSkeleton(skins[skinIndex], created);
+      if (skeleton == null) continue;
+      mesh
+        ..skeleton = skeleton
+        // Measured from the bind pose once, not per frame: it is how far the
+        // surface reaches from its bones, and that does not change as the model
+        // moves. Without it a character is culled by the box around its
+        // skeleton and clips as it leans.
+        ..skinReach = mesh.mesh.boundingRadius;
+      skeletons.add(skeleton);
     }
 
     return ModelInstance(
@@ -209,12 +244,40 @@ final class ModelAsset {
         for (var i = 0; i < created.length; i++) created[i] ?? root,
       ],
       meshes: meshNodes,
+      skeletons: skeletons,
       player: clips.isEmpty
           ? null
           : AnimationPlayer(
               clips: clips,
               targets: List<AnimationTarget?>.of(created),
             ),
+    );
+  }
+
+  /// Binds a decoded skin to the nodes this instance created.
+  ///
+  /// Returns null when a joint is missing, which can only happen if the
+  /// hierarchy did not reach it — a skeleton with a hole would silently collapse
+  /// part of the mesh to the origin, and no skeleton at all leaves the mesh in
+  /// its bind pose, which is the more debuggable failure.
+  static Skeleton? _buildSkeleton(ModelSkin skin, List<SceneNode?> created) {
+    final joints = <SceneNode>[];
+    for (final index in skin.joints) {
+      if (index < 0 || index >= created.length) return null;
+      final node = created[index];
+      if (node == null) return null;
+      joints.add(node);
+    }
+    if (joints.length > Skeleton.maxJoints) return null;
+
+    final rootIndex = skin.skeletonRoot;
+    return Skeleton(
+      name: skin.name,
+      joints: joints,
+      inverseBindMatrices: skin.inverseBindMatrices,
+      skeletonRoot: rootIndex != null && rootIndex < created.length
+          ? created[rootIndex]
+          : null,
     );
   }
 
@@ -321,6 +384,7 @@ final class ModelAsset {
           material: material,
           transform: surface.transform,
           name: surface.name,
+          skinIndex: surface.skinIndex,
           flipWinding: surface.flipWinding,
         ),
       );
@@ -331,6 +395,7 @@ final class ModelAsset {
       parts: parts,
       nodes: document.nodes,
       roots: document.roots,
+      skins: document.skins,
       clips: document.animations,
       localBounds: document.computeBounds(),
       warnings: warnings,

@@ -15,6 +15,7 @@ final class GltfAsset extends ModelDocument {
     required this.nodes,
     required this.roots,
     this.animations = const <AnimationClip>[],
+    this.skins = const <ModelSkin>[],
   });
 
   @override
@@ -39,6 +40,9 @@ final class GltfAsset extends ModelDocument {
 
   @override
   final List<AnimationClip> animations;
+
+  @override
+  final List<ModelSkin> skins;
 
   @override
   String toString() => 'GltfAsset(${surfaces.length} surfaces, $vertexCount '

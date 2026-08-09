@@ -82,6 +82,7 @@ abstract final class F3dSection {
   static const int warnings = 11;
   static const int strings = 12;
   static const int blob = 13;
+  static const int skins = 14;
 }
 
 /// Fixed record sizes, in bytes. All multiples of four.
@@ -97,7 +98,10 @@ abstract final class F3dRecord {
   static const int mesh = 24;
 
   /// u32 meshIndex, i32 materialIndex, u32 nameOffset, u32 nameLength,
-  /// u32 flipWinding, f32[16] transform
+  /// u32 flags, f32[16] transform
+  ///
+  /// `flags` is bit 0 for flipWinding and the rest for the skin index plus one,
+  /// so zero means "no skin".
   static const int surface = 84;
 
   /// See the writer; 132 bytes of scalars plus five texture bindings.
@@ -121,6 +125,10 @@ abstract final class F3dRecord {
 
   /// u32 offset, u32 length into the strings section
   static const int warning = 8;
+
+  /// u32 nameOffset, u32 nameLength, u32 jointOffset, u32 jointCount,
+  /// u32 matrixOffset, i32 skeletonRoot
+  static const int skin = 24;
 
   /// One texture binding inside a material: i32 imageIndex, u32 texCoordSet,
   /// u32 samplingFlags

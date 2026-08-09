@@ -34,3 +34,4 @@ flutter:
     - assets/samples/animated_cube/
     # Produced by tool/convert_asset.dart; see README.
     - assets/samples/f3d/
+    - assets/samples/simple_skin/

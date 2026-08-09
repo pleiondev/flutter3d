@@ -32,6 +32,17 @@ final class VertexLayout {
   static const VertexAttribute tangent = VertexAttribute('tangent', 4);
   static const VertexAttribute color = VertexAttribute('color', 4);
 
+  /// Up to four joint indices, held as floats.
+  ///
+  /// Floats rather than integers because the vertex buffer is one interleaved
+  /// block of them and flutter_gpu has no attribute descriptors to say
+  /// otherwise. A float32 represents every integer up to 2^24 exactly, so a
+  /// joint index is never approximated.
+  static const VertexAttribute joints = VertexAttribute('joints', 4);
+
+  /// Influence of each of the four joints; the shader normalizes the sum.
+  static const VertexAttribute weights = VertexAttribute('weights', 4);
+
   static const VertexLayout positionOnly = VertexLayout([position]);
 
   /// The debug line layout, matching shaders/debug_line.vert.
@@ -65,6 +76,28 @@ final class VertexLayout {
     tangent,
     color,
   ]);
+
+  /// [standard] plus the two skinning attributes.
+  ///
+  /// A second layout rather than eight more floats on every vertex. The layout
+  /// is structural — flutter_gpu reads it off the vertex shader's `in`
+  /// declarations — so this is inseparable from being a second vertex shader,
+  /// and that permutation has to exist anyway: a static shader that declared
+  /// the joint matrices without reading them is the phantom-uniform trap all
+  /// over again. Paying 96 bytes a vertex on a static mesh to avoid the
+  /// permutation would be the worse trade.
+  static const VertexLayout skinned = VertexLayout([
+    position,
+    normal,
+    texcoord,
+    tangent,
+    color,
+    joints,
+    weights,
+  ]);
+
+  /// Whether this layout carries skinning attributes.
+  bool get isSkinned => has(joints) && has(weights);
 
   int get floatsPerVertex {
     var total = 0;

@@ -72,6 +72,7 @@ final class FrameCapture {
         '${frame.pipelineSwitches} pipeline switches, ${frame.culled} culled, '
         '${frame.lights} lights (${frame.lightsDropped} dropped), '
         '${frame.pipelines} pipelines, '
+        '${frame.skinnedDraws} skinned draws, '
         '${frame.shadowCasters} shadow casters, '
         '${frame.debugLines} debug lines, ${frame.submitMicros} us submit');
     unawaited(_write(frame.image));
@@ -176,6 +177,23 @@ Set<String> startupLightsFromEnvironment() {
     return null;
   }
   return (yaw: yaw, pitch: pitch);
+}
+
+/// Freezes any animation clip at this time in seconds, or null to let it play.
+///
+/// Two captures of an animated model are only comparable if the clip is at the
+/// same place in both, and frame number does not guarantee that — a format that
+/// loads faster starts playing sooner. Pinning the clip time is what makes an
+/// animated model a golden-testable thing at all.
+double? startupAnimationTimeFromEnvironment() {
+  const spec = String.fromEnvironment('FLUTTER3D_ANIM_TIME');
+  if (spec.trim().isEmpty) return null;
+  final value = double.tryParse(spec.trim());
+  if (value == null) {
+    stderr.writeln('FLUTTER3D_ANIM_TIME: "$spec" is not a number');
+    return null;
+  }
+  return value;
 }
 
 /// Whether shadow mapping starts switched on.

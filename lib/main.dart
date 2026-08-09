@@ -81,9 +81,19 @@ final List<SceneSource> kSources = <SceneSource>[
   // to their sources on purpose: switching between "obj: Teapot" and
   // "f3d: Teapot" should show the same picture, and the load time in the panel
   // below is the whole argument for the format.
+  // Rigged: the mesh is deformed by a skeleton the animation drives, which is
+  // two features meeting — the player writes joint transforms and the skin
+  // reads them, neither knowing about the other.
+  const ModelFileSource('skin: Simple', 'assets/samples/RiggedSimple.glb'),
+  const ModelFileSource('skin: Figure', 'assets/samples/RiggedFigure.glb'),
+  const ModelFileSource(
+    'skin: SimpleSkin',
+    'assets/samples/simple_skin/SimpleSkin.gltf',
+  ),
   const ModelFileSource('f3d: Teapot', 'assets/samples/f3d/teapot.f3d'),
   const ModelFileSource('f3d: Textured', 'assets/samples/f3d/BoxTextured.f3d'),
   const ModelFileSource('f3d: Animated', 'assets/samples/f3d/BoxAnimated.f3d'),
+  const ModelFileSource('f3d: Rigged', 'assets/samples/f3d/RiggedFigure.f3d'),
 ];
 
 /// Surface of revolution from an arbitrary profile: a vase silhouette.
@@ -454,8 +464,16 @@ class _SpikePageState extends State<SpikePage>
       _asset = asset;
 
       // An animated model plays by default: a viewer that loads a clip and then
-      // shows a still frame looks broken.
-      instance.player?.play();
+      // shows a still frame looks broken. A capture can pin it instead.
+      final frozen = startupAnimationTimeFromEnvironment();
+      if (frozen != null) {
+        instance.player
+          ?..play()
+          ..pause()
+          ..seek(frozen);
+      } else {
+        instance.player?.play();
+      }
 
       // Show what the model actually uses, so the numbers on the sliders are not
       // a lie the moment a new model loads. A file with no materials at all — the

@@ -41,6 +41,32 @@ final class _FakeDocument extends ModelDocument {
   final List<AnimationClip> animations = const <AnimationClip>[];
 }
 
+/// A document that also carries skins, for the packed-field checks.
+final class _FakeSkinnedDocument extends ModelDocument {
+  _FakeSkinnedDocument({required this.surfaces});
+
+  @override
+  final List<ModelSurface> surfaces;
+  @override
+  final List<SurfaceMaterial> materials = const <SurfaceMaterial>[];
+  @override
+  final List<EncodedImage> images = const <EncodedImage>[];
+  @override
+  final List<String> warnings = const <String>[];
+  @override
+  final List<AnimationClip> animations = const <AnimationClip>[];
+
+  @override
+  List<ModelSkin> get skins => <ModelSkin>[
+        for (var i = 0; i < 3; i++)
+          ModelSkin(
+            name: 'skin$i',
+            joints: const <int>[0],
+            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+          ),
+      ];
+}
+
 MeshData triangle({Vector4? colour}) {
   final builder = MeshBuilder(VertexLayout.standard);
   final a = builder.addVertex(
@@ -391,6 +417,74 @@ void main() {
       expect(document.materials, isEmpty);
       expect(document.nodes, isEmpty);
       expect(document.computeBounds().min.x.isFinite, isTrue);
+    });
+  });
+
+  group('skinning survives the container', () {
+    test('a rigged model keeps its skin, joints and bind matrices', () async {
+      final source = await GltfLoader().load(readSample('RiggedFigure.glb'));
+      final reloaded = roundTrip(source);
+
+      expect(source.skins, hasLength(1));
+      expect(reloaded.skins, hasLength(1));
+
+      final a = source.skins.single;
+      final b = reloaded.skins.single;
+      expect(b.name, a.name);
+      expect(b.joints, orderedEquals(a.joints));
+      expect(b.skeletonRoot, a.skeletonRoot);
+      expect(b.inverseBindMatrices, hasLength(a.inverseBindMatrices.length));
+
+      for (var j = 0; j < a.inverseBindMatrices.length; j++) {
+        expect(
+          b.inverseBindMatrices[j].storage,
+          orderedEquals(a.inverseBindMatrices[j].storage),
+          reason: 'inverse bind matrix $j differs',
+        );
+      }
+    });
+
+    test('the surface still points at its skin', () async {
+      final source = await GltfLoader().load(readSample('RiggedSimple.glb'));
+      final reloaded = roundTrip(source);
+      expect(reloaded.surfaces.single.skinIndex,
+          source.surfaces.single.skinIndex);
+    });
+
+    test('the skinned vertex layout survives', () async {
+      final source = await GltfLoader().load(readSample('RiggedFigure.glb'));
+      final reloaded = roundTrip(source);
+
+      expect(reloaded.surfaces.single.mesh.layout.isSkinned, isTrue);
+      expect(
+        reloaded.surfaces.single.mesh.vertices,
+        orderedEquals(source.surfaces.single.mesh.vertices),
+      );
+    });
+
+    test('a static surface still reports no skin', () async {
+      // The skin index shares a field with the winding flag, so "no skin" has
+      // to survive the packing as null rather than as joint zero.
+      final source = await GltfLoader().load(readSample('Box.glb'));
+      final reloaded = roundTrip(source);
+      expect(reloaded.skins, isEmpty);
+      expect(reloaded.surfaces.single.skinIndex, isNull);
+    });
+
+    test('flip winding and a skin index coexist in the packed field', () {
+      final document = roundTrip(
+        _FakeSkinnedDocument(
+          surfaces: <ModelSurface>[
+            ModelSurface(
+              mesh: triangle(),
+              flipWinding: true,
+              skinIndex: 2,
+            ),
+          ],
+        ),
+      );
+      expect(document.surfaces.single.flipWinding, isTrue);
+      expect(document.surfaces.single.skinIndex, 2);
     });
   });
 

@@ -9,6 +9,18 @@ import 'vertex_layout.dart';
 /// that changes nothing.
 final Vector4 kNeutralColor = Vector4(1.0, 1.0, 1.0, 1.0);
 
+/// Every vertex bound to joint zero.
+///
+/// Paired with [kNeutralWeights], this leaves a vertex following the first
+/// joint rigidly, which is what an unrigged vertex in a skinned mesh should do.
+final Vector4 kNeutralJoints = Vector4(0.0, 0.0, 0.0, 0.0);
+
+/// All the influence on the first joint.
+///
+/// Not all zeros: weights that sum to zero collapse the vertex to the origin,
+/// so a mesh missing WEIGHTS_0 would implode rather than simply not deform.
+final Vector4 kNeutralWeights = Vector4(1.0, 0.0, 0.0, 0.0);
+
 /// A unit tangent along +X with a positive bitangent sign.
 ///
 /// Arbitrary in direction — any unit vector would do for a mesh with no UVs —
@@ -254,6 +266,10 @@ final class MeshData {
     if (attribute.name == VertexLayout.tangent.name) {
       return const <double>[1.0, 0.0, 0.0, 1.0];
     }
+    if (attribute.name == VertexLayout.weights.name) {
+      return const <double>[1.0, 0.0, 0.0, 0.0];
+    }
+    // Joints default to zero, which is already what an unwritten slot holds.
     return null;
   }
 
@@ -491,7 +507,9 @@ final class MeshBuilder {
         _normalOffset = layout.floatOffsetOf(VertexLayout.normal.name),
         _texcoordOffset = layout.floatOffsetOf(VertexLayout.texcoord.name),
         _tangentOffset = layout.floatOffsetOf(VertexLayout.tangent.name),
-        _colorOffset = layout.floatOffsetOf(VertexLayout.color.name) {
+        _colorOffset = layout.floatOffsetOf(VertexLayout.color.name),
+        _jointsOffset = layout.floatOffsetOf(VertexLayout.joints.name),
+        _weightsOffset = layout.floatOffsetOf(VertexLayout.weights.name) {
     _vertices = Float32List(
       math.max(1, reserveVertices) * layout.floatsPerVertex,
     );
@@ -505,6 +523,8 @@ final class MeshBuilder {
   final int _texcoordOffset;
   final int _tangentOffset;
   final int _colorOffset;
+  final int _jointsOffset;
+  final int _weightsOffset;
 
   late Float32List _vertices;
   late Uint32List _indices;
@@ -531,6 +551,8 @@ final class MeshBuilder {
     Vector2? texcoord,
     Vector4? tangent,
     Vector4? color,
+    Vector4? joints,
+    Vector4? weights,
   }) {
     if (_vertexFloats + _floatsPerVertex > _vertices.length) {
       _vertices = _growFloats(_vertices, _vertexFloats + _floatsPerVertex);
@@ -564,6 +586,20 @@ final class MeshBuilder {
       _vertices[base + _colorOffset + 1] = c.y;
       _vertices[base + _colorOffset + 2] = c.z;
       _vertices[base + _colorOffset + 3] = c.w;
+    }
+    if (_jointsOffset >= 0) {
+      final j = joints ?? kNeutralJoints;
+      _vertices[base + _jointsOffset] = j.x;
+      _vertices[base + _jointsOffset + 1] = j.y;
+      _vertices[base + _jointsOffset + 2] = j.z;
+      _vertices[base + _jointsOffset + 3] = j.w;
+    }
+    if (_weightsOffset >= 0) {
+      final w = weights ?? kNeutralWeights;
+      _vertices[base + _weightsOffset] = w.x;
+      _vertices[base + _weightsOffset + 1] = w.y;
+      _vertices[base + _weightsOffset + 2] = w.z;
+      _vertices[base + _weightsOffset + 3] = w.w;
     }
 
     _vertexFloats += _floatsPerVertex;

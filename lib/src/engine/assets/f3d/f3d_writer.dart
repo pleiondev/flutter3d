@@ -49,6 +49,7 @@ final class F3dWriter {
     final (animationTable, trackTable, animationCount, trackCount) =
         _writeAnimations();
     final warningTable = _writeWarnings();
+    final skinTable = _writeSkins();
     final layoutTable = _writeLayouts();
 
     final sections = <(int kind, Uint8List data, int count)>[
@@ -63,6 +64,7 @@ final class F3dWriter {
       (F3dSection.animations, animationTable, animationCount),
       (F3dSection.tracks, trackTable, trackCount),
       (F3dSection.warnings, warningTable, document.warnings.length),
+      (F3dSection.skins, skinTable, document.skins.length),
       (F3dSection.strings, _strings.toBytes(), 0),
       (F3dSection.blob, _blob.toBytes(), 0),
     ];
@@ -224,7 +226,15 @@ final class F3dWriter {
       view.setInt32(o + 4, surface.materialIndex ?? -1, Endian.little);
       view.setUint32(o + 8, nameOffset, Endian.little);
       view.setUint32(o + 12, nameLength, Endian.little);
-      view.setUint32(o + 16, surface.flipWinding ? 1 : 0, Endian.little);
+      // The skin index rides in the flip-winding slot's upper bits: a surface
+      // is at most one of skinned or mirrored in practice, but packing rather
+      // than widening the record keeps every existing offset where it was, so
+      // a reader of the previous version still finds the transform.
+      view.setUint32(
+        o + 16,
+        (surface.flipWinding ? 1 : 0) | ((surface.skinIndex ?? -1) + 1) << 1,
+        Endian.little,
+      );
 
       // Column-major, matching vector_math's storage, so the reader can copy
       // straight into a Matrix4 without transposing.
@@ -435,6 +445,39 @@ final class F3dWriter {
     }
 
     return (animationTable, trackRecords.toBytes(), clips.length, trackCount);
+  }
+
+  // -------------------------------------------------------------------- skins
+
+  Uint8List _writeSkins() {
+    final table = Uint8List(document.skins.length * F3dRecord.skin);
+    final view = ByteData.view(table.buffer);
+
+    for (var i = 0; i < document.skins.length; i++) {
+      final skin = document.skins[i];
+      final (nameOffset, nameLength) = _string(skin.name);
+      final jointOffset = _blobAppend(Int32List.fromList(skin.joints));
+
+      // Flattened into one array rather than written matrix by matrix, so the
+      // reader can view the lot and slice it, the way it does vertex data.
+      final matrices = Float32List(skin.inverseBindMatrices.length * 16);
+      for (var j = 0; j < skin.inverseBindMatrices.length; j++) {
+        final storage = skin.inverseBindMatrices[j].storage;
+        for (var e = 0; e < 16; e++) {
+          matrices[j * 16 + e] = storage[e];
+        }
+      }
+      final matrixOffset = _blobAppend(matrices);
+
+      final o = i * F3dRecord.skin;
+      view.setUint32(o, nameOffset, Endian.little);
+      view.setUint32(o + 4, nameLength, Endian.little);
+      view.setUint32(o + 8, jointOffset, Endian.little);
+      view.setUint32(o + 12, skin.joints.length, Endian.little);
+      view.setUint32(o + 16, matrixOffset, Endian.little);
+      view.setInt32(o + 20, skin.skeletonRoot ?? -1, Endian.little);
+    }
+    return table;
   }
 
   // ----------------------------------------------------------------- warnings

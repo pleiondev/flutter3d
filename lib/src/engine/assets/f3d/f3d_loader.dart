@@ -261,7 +261,11 @@ final class F3dDocument extends ModelDocument {
               _view.getUint32(o + 8, Endian.little),
               _view.getUint32(o + 12, Endian.little),
             ),
-            flipWinding: _view.getUint32(o + 16, Endian.little) != 0,
+            flipWinding: _view.getUint32(o + 16, Endian.little) & 1 != 0,
+            skinIndex: () {
+              final packed = _view.getUint32(o + 16, Endian.little) >> 1;
+              return packed == 0 ? null : packed - 1;
+            }(),
             transform: Matrix4.fromFloat32List(storage),
           );
         }(),
@@ -532,6 +536,45 @@ final class F3dDocument extends ModelDocument {
         _view.getUint32(o + 28, Endian.little),
       ),
     );
+  }
+
+  // -------------------------------------------------------------------- skins
+
+  @override
+  late final List<ModelSkin> skins = _readSkins();
+
+  List<ModelSkin> _readSkins() {
+    final table = _section(F3dSection.skins);
+    return <ModelSkin>[
+      for (var i = 0; i < table.count; i++)
+        () {
+          final o = _recordOffset(F3dSection.skins, i, F3dRecord.skin);
+          final jointCount = _view.getUint32(o + 12, Endian.little);
+          final matrices = _floats(
+            _view.getUint32(o + 16, Endian.little),
+            jointCount * 16,
+          );
+          final root = _view.getInt32(o + 20, Endian.little);
+
+          return ModelSkin(
+            name: _string(
+              _view.getUint32(o, Endian.little),
+              _view.getUint32(o + 4, Endian.little),
+            ),
+            joints: _int32s(
+              _view.getUint32(o + 8, Endian.little),
+              jointCount,
+            ).toList(),
+            inverseBindMatrices: <Matrix4>[
+              for (var j = 0; j < jointCount; j++)
+                Matrix4.fromFloat32List(
+                  Float32List.sublistView(matrices, j * 16, j * 16 + 16),
+                ),
+            ],
+            skeletonRoot: root < 0 ? null : root,
+          );
+        }(),
+    ];
   }
 
   // ----------------------------------------------------------------- warnings
