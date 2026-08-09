@@ -1,5 +1,6 @@
 import '../physics/collider.dart';
-import 'key_ring.dart';
+import 'gift.dart';
+import 'inventory.dart';
 import 'mechanism.dart';
 
 /// A panel on a wall that fires its target when the player presses use.
@@ -78,16 +79,22 @@ final class TriggerVolume extends Signal with CollisionListener {
   ActivationOutcome activate(Activation by) => fire(by);
 }
 
-/// A key lying on the floor, waiting to be walked over.
+/// Something on the floor, waiting to be walked over.
 ///
 /// Not a [Signal] — it switches nothing on, it changes what the player is
-/// carrying, which is the one thing a locked door reads. Stage 9 generalises
-/// this into pickups; until then a door with a lock needs a key to exist.
-final class KeyPickup extends Mechanism with CollisionListener {
-  KeyPickup({
+/// carrying. What it gives is a [Gift], so adding a new kind of pickup is a
+/// gift class rather than a branch in here.
+///
+/// A pickup that cannot be used is refused and stays put. That is the rule a
+/// medkit at full health depends on, and getting it wrong is the difference
+/// between a level that rewards coming back and one that quietly eats things.
+final class Pickup extends Mechanism with CollisionListener {
+  Pickup({
     super.name,
-    required this.colour,
+    required this.gift,
+    required this.amount,
     required this.collider,
+    this.detail,
   }) {
     collider
       ..kind = ColliderKind.trigger
@@ -95,29 +102,38 @@ final class KeyPickup extends Mechanism with CollisionListener {
       ..listener = this;
   }
 
-  /// Which lock it opens.
-  final String colour;
+  final Gift gift;
+
+  /// How much, in whatever unit the gift counts in — points, rounds, seconds.
+  final double amount;
+
+  /// The one extra word some gifts need: a key's colour.
+  final String? detail;
 
   final Collider collider;
 
   bool _taken = false;
   bool get isTaken => _taken;
 
-  /// True on the step it was picked up, so the game can say so once.
+  /// True on the step it was collected, so the game can say so once.
   bool justTaken = false;
+
+  /// What to tell the player about it, valid on the step it was taken.
+  String? message;
 
   @override
   ActivationOutcome activate(Activation by) {
     if (_taken) return const NothingToDo();
     final holder = by.by?.userData;
-    if (holder is! KeyRing) return const NothingToDo();
-    if (!holder.take(colour)) return const NothingToDo();
+    if (holder is! Inventory) return const NothingToDo();
+    if (!gift.grantTo(holder, amount, detail)) return const NothingToDo();
 
     _taken = true;
     justTaken = true;
-    // Out of the world entirely rather than merely disabled: a collected key
-    // that still reports overlaps is a key that keeps announcing itself. After
-    // the step, because this runs from inside the overlap dispatch.
+    message = gift.announce(amount, detail);
+    // Out of the world entirely rather than merely disabled: a collected
+    // pickup that still reports overlaps keeps announcing itself. After the
+    // step, because this runs from inside the overlap dispatch.
     world.collisions.removeLater(collider);
     return const Activated();
   }
@@ -125,6 +141,13 @@ final class KeyPickup extends Mechanism with CollisionListener {
   @override
   void onCollisionStart(Collider self, Collider other) {
     activate(world.activationBy(other));
+  }
+
+  /// Still overlapping, and still worth trying: a medkit refused at full health
+  /// should be collected the moment the player is hurt while standing on it.
+  @override
+  void onCollision(Collider self, Collider other) {
+    if (!_taken) activate(world.activationBy(other));
   }
 
   @override

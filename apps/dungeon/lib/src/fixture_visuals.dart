@@ -132,9 +132,9 @@ final class FixtureVisuals {
   /// something you press.
   LevelMaterial _fallbackFor(Fixture fixture) {
     final mechanism = fixture.mechanism;
-    if (mechanism is KeyPickup) {
+    if (mechanism is Pickup) {
       return LevelMaterial(
-        baseColor: _keyColours[mechanism.colour] ?? Vector4(0.8, 0.8, 0.2, 1.0),
+        baseColor: _keyColours[mechanism.detail] ?? Vector4(0.8, 0.8, 0.2, 1.0),
         roughness: 0.25,
         metallic: 0.6,
       );
@@ -163,7 +163,7 @@ final class FixtureVisuals {
   void sync(double elapsed) {
     for (final piece in _pieces) {
       final mechanism = piece.fixture.mechanism;
-      if (mechanism is KeyPickup && mechanism.isTaken) {
+      if (mechanism is Pickup && mechanism.isTaken) {
         piece.node.visible = false;
         continue;
       }
@@ -172,7 +172,7 @@ final class FixtureVisuals {
       // A pickup turns. It is the oldest trick in the genre and it works for
       // the same reason it always did: a thing that moves in a still room is
       // a thing the player walks over to.
-      if (mechanism is KeyPickup) {
+      if (mechanism is Pickup) {
         piece.node.setRotation(
           Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), elapsed * 1.4),
         );

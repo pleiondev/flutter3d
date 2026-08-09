@@ -76,14 +76,21 @@ class _GameScreenState extends State<GameScreen>
   /// Everything, loaded. Pickups arrive in a later stage and will replace
   /// this; until they do, a launcher nobody can find is a launcher nobody can
   /// test.
-  final Arsenal _arsenal = Arsenal(
-    owned: <WeaponDef>[...Weapons.all],
-    ammo: <AmmoType, int>{
-      AmmoType.bullets: 90,
-      AmmoType.shells: 30,
-      AmmoType.rockets: 12,
-    },
-    startingSlot: 1,
+  /// Everything the player is carrying: health, armour, weapons, ammunition,
+  /// keys and whatever power-up is running. One object rather than four fields,
+  /// so a pickup has somewhere to give something to and the HUD has one thing
+  /// to read — and so it can hang off the player's collider, which is how a
+  /// locked door asks what the body in front of it holds.
+  final Inventory _inventory = Inventory(
+    arsenal: Arsenal(
+      owned: <WeaponDef>[...Weapons.all],
+      ammo: <AmmoType, int>{
+        AmmoType.bullets: 90,
+        AmmoType.shells: 30,
+        AmmoType.rockets: 12,
+      },
+      startingSlot: 1,
+    ),
   );
 
   final ParticleSystem _particles = ParticleSystem(capacity: 3000);
@@ -93,8 +100,8 @@ class _GameScreenState extends State<GameScreen>
   MonsterSystem? _monsters;
   MonsterVisuals? _monsterVisuals;
 
-  /// The player's own hide. Armour arrives with the pickups.
-  final Health _playerHealth = Health(100.0);
+  Arsenal get _arsenal => _inventory.arsenal;
+  Health get _playerHealth => _inventory.health;
   int _kills = 0;
 
   /// Explosions from the last step, for the effects to catch up with.
@@ -138,9 +145,6 @@ class _GameScreenState extends State<GameScreen>
 
   MechanismWorld? _mechanisms;
   FixtureVisuals? _fixtureVisuals;
-
-  /// What the player is carrying. Stage 9's inventory will take this over.
-  final KeyRing _keys = KeyRing();
 
   /// The last thing the level said, and how long it has left on screen.
   String _message = '';
@@ -212,7 +216,7 @@ class _GameScreenState extends State<GameScreen>
       );
       // What the player is carrying hangs off their collider, so a locked door
       // can read it without the physics knowing that keys exist.
-      body.collider.userData = _keys;
+      body.collider.userData = _inventory;
 
       if (!mounted) return;
       setState(() {
@@ -321,6 +325,12 @@ class _GameScreenState extends State<GameScreen>
     }
     if (_messageFor > 0.0) _messageFor = math.max(0.0, _messageFor - dt);
 
+    _inventory.step(dt);
+    for (final power in _inventory.expired) {
+      _say('$power has run out.');
+    }
+    _inventory.expired.clear();
+
     _updateWeapon(dt, body);
 
     // After the weapon, so a rocket fired this step is not moved until the
@@ -332,7 +342,7 @@ class _GameScreenState extends State<GameScreen>
         ..y += _eyeOffset;
       monsters.step(dt, playerEye: _eye, playerCollider: body.collider);
       if (monsters.playerDamageThisStep > 0.0) {
-        _playerHealth.damage(monsters.playerDamageThisStep);
+        _inventory.damage(monsters.playerDamageThisStep);
         _painFlash = 1.0;
       }
       for (final dead in monsters.died) {
@@ -394,8 +404,8 @@ class _GameScreenState extends State<GameScreen>
     for (final mechanism in mechanisms.all) {
       if (mechanism is TriggerVolume) {
         _say(mechanism.takeOutcome()?.message);
-      } else if (mechanism is KeyPickup && mechanism.justTaken) {
-        _say('Picked up the ${mechanism.colour} key.');
+      } else if (mechanism is Pickup && mechanism.justTaken) {
+        _say(mechanism.message);
       }
     }
   }
@@ -508,7 +518,7 @@ class _GameScreenState extends State<GameScreen>
       } else if (entry.key.layer == CollisionLayers.player) {
         // Own goal included: a rocket at your own feet hurts, which is the
         // price of the launcher being the best weapon in the game up close.
-        _playerHealth.damage(entry.value);
+        _inventory.damage(entry.value);
         _painFlash = 1.0;
       }
     }
@@ -582,7 +592,7 @@ class _GameScreenState extends State<GameScreen>
                 position: body.position,
                 grounded: body.isGrounded,
                 weapon: _arsenal.current,
-                ammo: _arsenal.currentAmmo,
+
                 hitFlash: _hitFlash,
                 painFlash: _painFlash,
                 health: _playerHealth,
@@ -590,7 +600,15 @@ class _GameScreenState extends State<GameScreen>
                 monstersLeft: _monsters?.aliveCount ?? 0,
                 message: _message,
                 messageOpacity: (_messageFor / 0.6).clamp(0.0, 1.0),
-                keys: _keys.keys,
+                keys: _inventory.keys,
+                armour: _playerHealth.armour,
+                ammo: _arsenal.currentAmmo,
+                pouches: <AmmoType, int>{
+                  for (final type in AmmoType.values)
+                    if (type != AmmoType.none)
+                      type: _arsenal.ammoOf(type),
+                },
+                powers: _inventory.powers,
               ),
             ],
           ),
@@ -705,6 +723,9 @@ class _Hud extends StatelessWidget {
     required this.message,
     required this.messageOpacity,
     required this.keys,
+    required this.armour,
+    required this.pouches,
+    required this.powers,
   });
 
   final bool captured;
@@ -734,6 +755,15 @@ class _Hud extends StatelessWidget {
 
   /// What the player is carrying, drawn as coloured pips.
   final Set<String> keys;
+
+  final double armour;
+
+  /// Every pouch, not only the one in use: a player deciding whether to switch
+  /// needs to see what switching would cost.
+  final Map<AmmoType, int> pouches;
+
+  /// Seconds left on whatever is running.
+  final Map<String, double> powers;
 
   @override
   Widget build(BuildContext context) {
@@ -868,6 +898,78 @@ class _Hud extends StatelessWidget {
                   shadows: <Shadow>[Shadow(blurRadius: 6.0)],
                 ),
               ),
+            ),
+          ),
+
+        // Armour beside health, in the corner the eye already goes to.
+        if (armour > 0.0)
+          Align(
+            alignment: Alignment.bottomLeft,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 132.0, bottom: 24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Text('ARMOUR',
+                      style: TextStyle(color: Colors.white38, fontSize: 12.0)),
+                  Text(
+                    '${armour.round()}',
+                    style: const TextStyle(
+                      color: Color(0xFF8FC6E8),
+                      fontSize: 34.0,
+                      fontWeight: FontWeight.w300,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+        // Every pouch, the one in use picked out. A row of small numbers
+        // rather than four labelled lines: it is glanced at, not read.
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 24.0, bottom: 84.0),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (final entry in pouches.entries)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 14.0),
+                    child: Text(
+                      '${entry.key.name.substring(0, 3).toUpperCase()} '
+                      '${entry.value}',
+                      style: TextStyle(
+                        color: entry.key == weapon.ammo
+                            ? Colors.white
+                            : Colors.white30,
+                        fontSize: 13.0,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+
+        if (powers.isNotEmpty)
+          Align(
+            alignment: const Alignment(0.0, -0.75),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                for (final power in powers.entries)
+                  Text(
+                    '${power.key.toUpperCase()}  ${power.value.ceil()}',
+                    style: const TextStyle(
+                      color: Color(0xFFE8D48F),
+                      fontSize: 15.0,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+              ],
             ),
           ),
 

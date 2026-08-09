@@ -3,6 +3,7 @@ import 'package:vector_math/vector_math.dart';
 import '../actors/monster.dart';
 import '../physics/collider.dart';
 import '../physics/collision_shape.dart';
+import '../world/gift.dart';
 import '../world/mover.dart';
 import '../world/signals.dart';
 import 'level.dart';
@@ -296,16 +297,12 @@ final class MonsterKind extends EntityKind {
 final class PickupKind extends EntityKind {
   const PickupKind() : super(EntityTypes.pickup);
 
-  static const Set<String> gives = <String>{
-    'health',
-    'armour',
-    'bullets',
-    'shells',
-    'rockets',
-    'invulnerability',
-    'berserk',
-    'map',
-  };
+  /// A panel of light on the floor, roughly the size of what it represents.
+  static final Vector3 defaultSize = Vector3(0.45, 0.45, 0.45);
+
+  /// What a document may ask for, taken from the registry rather than listed
+  /// again here: two lists of the same names is one list too many.
+  static Iterable<String> get gives => GiftRegistry.standard.names;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -320,7 +317,7 @@ final class PickupKind extends EntityKind {
       );
       return;
     }
-    if (!gives.contains(what)) {
+    if (!GiftRegistry.standard.knows(what)) {
       out.add(
         LevelIssue(
           LevelIssueSeverity.error,
@@ -339,6 +336,35 @@ final class PickupKind extends EntityKind {
         ),
       );
     }
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final gift = GiftRegistry.standard[entity.string('gives') ?? ''];
+    if (gift == null) return;
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.trigger,
+      layer: CollisionLayers.pickup,
+      mask: CollisionLayers.player,
+      fallbackSize: defaultSize,
+    );
+    final pickup = context.mechanisms.add(
+      Pickup(
+        name: entity.name,
+        gift: gift,
+        amount: entity.number('amount') ?? gift.defaultAmount,
+        detail: entity.string('color'),
+        collider: collider,
+      ),
+    );
+    context.reveal(
+      entity,
+      collider,
+      mechanism: pickup,
+      size: entity.vector('size') ?? defaultSize,
+    );
   }
 }
 
@@ -367,7 +393,13 @@ final class KeyKind extends EntityKind {
       fallbackSize: defaultSize,
     );
     final pickup = context.mechanisms.add(
-      KeyPickup(name: entity.name, colour: colour, collider: collider),
+      Pickup(
+        name: entity.name,
+        gift: const KeyGift(),
+        amount: 1.0,
+        detail: colour,
+        collider: collider,
+      ),
     );
     context.reveal(
       entity,

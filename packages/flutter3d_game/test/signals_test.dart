@@ -29,8 +29,9 @@ Collider _volume(CollisionWorld world, Vector3 at, [double size = 2.0]) =>
       ),
     );
 
-/// A body that can walk about and carry keys.
-Collider _player(CollisionWorld world, Vector3 at, {KeyRing? keys}) => world.add(
+/// A body that can walk about and carry things.
+Collider _player(CollisionWorld world, Vector3 at, {Inventory? carrying}) =>
+    world.add(
       Collider(
         shape: CollisionCapsule(radius: 0.35, halfHeight: 0.55),
         position: at,
@@ -38,7 +39,7 @@ Collider _player(CollisionWorld world, Vector3 at, {KeyRing? keys}) => world.add
         // static grid pointing at where it used to be.
         kind: ColliderKind.kinematic,
         layer: CollisionLayers.player,
-        userData: keys,
+        userData: carrying,
       ),
     );
 
@@ -58,6 +59,15 @@ Door _door(({MechanismWorld mechanisms, CollisionWorld world}) w, String name,
         wait: 0.0,
         key: key,
       ),
+    );
+
+/// A blue key lying at [at].
+Pickup _key(({MechanismWorld mechanisms, CollisionWorld world}) w, Vector3 at) =>
+    Pickup(
+      gift: const KeyGift(),
+      amount: 1.0,
+      detail: 'blue',
+      collider: _volume(w.world, at, 0.6),
     );
 
 void main() {
@@ -185,14 +195,14 @@ void main() {
         ),
       );
 
-      final empty = _player(w.world, Vector3(0.0, 1.0, 0.0), keys: KeyRing());
+      final empty = _player(w.world, Vector3(0.0, 1.0, 0.0), carrying: Inventory());
       _run(w.mechanisms, 0.5);
       expect(door.state, MoverState.closed);
       expect(trigger.takeOutcome(), isA<Refused>());
 
       w.world.remove(empty);
-      final ring = KeyRing()..take('blue');
-      _player(w.world, Vector3(0.0, 1.0, 0.0), keys: ring);
+      final carrying = Inventory()..keyRing.take('blue');
+      _player(w.world, Vector3(0.0, 1.0, 0.0), carrying: carrying);
       _run(w.mechanisms, 1.0);
 
       expect(door.state, MoverState.open);
@@ -246,35 +256,28 @@ void main() {
   group('a key', () {
     test('is picked up by walking over it, once', () {
       final w = _world();
-      final ring = KeyRing();
+      final carrying = Inventory();
       final key = w.mechanisms.add(
-        KeyPickup(
-          colour: 'blue',
-          collider: _volume(w.world, Vector3(0.0, 0.5, 0.0), 0.6),
-        ),
+        _key(w, Vector3(0.0, 0.5, 0.0)),
       );
 
-      final player = _player(w.world, Vector3(0.0, 0.9, 4.0), keys: ring);
+      final player =
+          _player(w.world, Vector3(0.0, 0.9, 4.0), carrying: carrying);
       _run(w.mechanisms, 0.2);
-      expect(ring.has('blue'), isFalse);
+      expect(carrying.keyRing.has('blue'), isFalse);
 
       player.moveTo(Vector3(0.0, 0.9, 0.0));
       _run(w.mechanisms, 0.1);
 
-      expect(ring.has('blue'), isTrue);
+      expect(carrying.keyRing.has('blue'), isTrue);
       expect(key.isTaken, isTrue);
     });
 
     test('and stops being in the world once it is taken', () {
       final w = _world();
-      final ring = KeyRing();
-      final key = w.mechanisms.add(
-        KeyPickup(
-          colour: 'blue',
-          collider: _volume(w.world, Vector3(0.0, 0.9, 0.0), 0.6),
-        ),
-      );
-      _player(w.world, Vector3(0.0, 0.9, 0.0), keys: ring);
+      final carrying = Inventory();
+      final key = w.mechanisms.add(_key(w, Vector3(0.0, 0.9, 0.0)));
+      _player(w.world, Vector3(0.0, 0.9, 0.0), carrying: carrying);
       _run(w.mechanisms, 0.2);
       expect(key.isTaken, isTrue);
 
@@ -291,15 +294,11 @@ void main() {
       // The whole point, end to end: the key on the floor, the ring in the
       // player's pocket, and the lock that reads it.
       final w = _world();
-      final ring = KeyRing();
+      final carrying = Inventory();
       final door = _door(w, 'gate', key: 'blue');
-      w.mechanisms.add(
-        KeyPickup(
-          colour: 'blue',
-          collider: _volume(w.world, Vector3(0.0, 0.9, 0.0), 0.6),
-        ),
-      );
-      final player = _player(w.world, Vector3(0.0, 0.9, 6.0), keys: ring);
+      w.mechanisms.add(_key(w, Vector3(0.0, 0.9, 0.0)));
+      final player =
+          _player(w.world, Vector3(0.0, 0.9, 6.0), carrying: carrying);
 
       expect(door.activate(w.mechanisms.activationBy(player)), isA<Refused>());
 
