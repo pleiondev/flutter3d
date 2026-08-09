@@ -11,9 +11,13 @@
 //
 // The surface buffer is what makes it possible at all: a forward renderer
 // throws its normals away inside the fragment shader, and there is nothing to
-// reflect against without them. rgb is the world-space normal, a is window
-// depth — depth is here rather than in a depth texture because flutter_gpu
-// cannot sample one.
+// reflect against without them. rg is the world-space normal, octahedrally
+// encoded; b is perceptual roughness; a is window depth — depth is here rather
+// than in a depth texture because flutter_gpu cannot sample one.
+//
+// Roughness is why the normal is squeezed into two channels. Without it the
+// shader reflects off rough stone as readily as off a wet floor, which is what
+// the first version did: the walls of the crypt lit up and the floor did not.
 precision highp float;
 
 in vec2 v_uv;
@@ -35,6 +39,15 @@ uniform ReflectionInfo {
 }
 reflection_info;
 
+vec3 DecodeOctahedral(vec2 e) {
+  e = e * 2.0 - 1.0;
+  vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+  float t = max(-n.z, 0.0);
+  n.x += n.x >= 0.0 ? -t : t;
+  n.y += n.y >= 0.0 ? -t : t;
+  return normalize(n);
+}
+
 /// World position of the pixel at [uv] with window depth [depth].
 vec3 WorldAt(vec2 uv, float depth) {
   // Depth runs 0..1 here rather than -1..1: Impeller is Metal-like, and using
@@ -55,7 +68,17 @@ void main() {
     return;
   }
 
-  vec3 normal = normalize(surface.rgb * 2.0 - 1.0);
+  vec3 normal = DecodeOctahedral(surface.rg);
+  float roughness = surface.b;
+
+  // Rough surfaces scatter: a sharp screen-space reflection off one is a lie,
+  // and the honest thing is to stop rather than to blur something that was
+  // never sampled widely enough to blur.
+  float polish = 1.0 - smoothstep(0.18, 0.45, roughness);
+  if (polish <= 0.0) {
+    frag_color = vec4(scene, 1.0);
+    return;
+  }
   vec3 position = WorldAt(v_uv, surface.a);
   vec3 toEye = normalize(reflection_info.camera.xyz - position);
 
@@ -119,5 +142,6 @@ void main() {
   // parts that need a material.
   float fresnel = pow(1.0 - facing, 4.0);
   frag_color =
-      vec4(scene + hitColor * hit * intensity * (0.15 + 0.85 * fresnel), 1.0);
+      vec4(scene + hitColor * hit * intensity * polish * (0.15 + 0.85 * fresnel),
+           1.0);
 }

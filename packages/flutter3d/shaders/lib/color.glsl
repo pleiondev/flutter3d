@@ -42,14 +42,34 @@ out vec4 frag_color;
 layout(location = 1) out vec4 frag_surface;
 #endif
 
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
 /// Called from the same place that writes colour, so a surface cannot be lit
 /// into the frame without also describing itself — which is the failure that
 /// leaves a screen-space effect reflecting whatever was in the buffer before.
-void WriteSurfaceGeometry() {
+///
+/// rg: octahedral normal. b: perceptual roughness. a: window depth.
+void WriteSurfaceGeometry(float roughness) {
 #ifndef F3D_NO_SURFACE_BUFFER
-  frag_surface = vec4(normalize(v_normal) * 0.5 + 0.5, gl_FragCoord.z);
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
 #endif
 }
 
@@ -81,9 +101,17 @@ vec3 LinearToSrgb(vec3 linear) {
 ///
 /// Exposure moved with them, for the same reason: it belongs on the same side
 /// of the display transform as the tone map.
-void WriteSurface(vec3 linearColor, float alpha) {
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
   frag_color = vec4(linearColor, alpha);
-  WriteSurfaceGeometry();
+  WriteSurfaceGeometry(roughness);
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
 }
 
 /// Writes a value that is already display-referred.
@@ -95,7 +123,7 @@ void WriteSurface(vec3 linearColor, float alpha) {
 /// `RenderSettings.tonemap` is for.
 void WriteDisplayColor(vec3 displayColor, float alpha) {
   frag_color = vec4(SrgbToLinear(displayColor), alpha);
-  WriteSurfaceGeometry();
+  WriteSurfaceGeometry(1.0);
 }
 
 #endif  // COLOR_GLSL_
