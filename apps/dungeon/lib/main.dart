@@ -769,6 +769,10 @@ class _GameScreenState extends State<GameScreen>
                 renderer: renderer,
                 scene: loaded.scene,
                 view: _view,
+                fog: FogSettings(
+                  color: loaded.level.fogColor,
+                  density: loaded.level.fogDensity,
+                ),
                 onBeforeFrame: _placeCamera,
               ),
               _Hud(
@@ -833,12 +837,14 @@ class _SceneSurface extends StatelessWidget {
     required this.renderer,
     required this.scene,
     required this.view,
+    required this.fog,
     required this.onBeforeFrame,
   });
 
   final Renderer renderer;
   final Scene scene;
   final RenderView view;
+  final FogSettings fog;
   final VoidCallback onBeforeFrame;
 
   @override
@@ -852,11 +858,21 @@ class _SceneSurface extends StatelessWidget {
           height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
           scene: scene,
           views: <RenderView>[view],
-          settings: const RenderSettings(
+          settings: RenderSettings(
             // Off until the surface buffer carries roughness. Without it the
             // shader reflects off rough stone as readily as off a wet floor,
             // and the walls light up instead of the floor.
-            reflections: ReflectionSettings(enabled: true, intensity: 0.6),
+            // Off. The march tests only the front-most depth, so a ray that
+            // passes behind a wall counts as hitting it and picks up whatever
+            // is drawn at that pixel — a highlight straight through solid
+            // stone. The thickness bound was meant to stop that, but depth is
+            // compressed at distance and 0.006 spans metres of world out
+            // there. It needs a view-space test, not a depth-space one.
+            reflections: const ReflectionSettings(),
+            // Straight from the document. A crypt without fog is a crypt with
+            // a visible far wall, and the far wall is the thing an author
+            // least wants seen.
+            fog: fog,
           ),
         );
         return CustomPaint(

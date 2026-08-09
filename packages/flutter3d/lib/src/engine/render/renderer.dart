@@ -29,6 +29,7 @@ import 'render_view.dart';
 const String _kReflectionInfoBlock = 'ReflectionInfo';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
+const String _kFogInfoBlock = 'FogInfo';
 const String _kLineInfoBlock = 'LineInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
@@ -87,6 +88,32 @@ final class ReflectionSettings {
   final bool debugOnly;
 }
 
+/// Distance fog.
+///
+/// Exponential per metre, which is what the level format already stores. A
+/// linear fog has a visible plane where it begins, and a dungeon corridor is
+/// exactly where that shows.
+final class FogSettings {
+  const FogSettings({this.color, this.density = 0.0});
+
+  /// Linear, not sRGB: it is mixed with scene light before the display
+  /// transform, and an sRGB value here reads as a fog too bright at the near
+  /// end and too dark at the far one.
+  ///
+  /// Null takes the default, which is a very dark violet — the colour an
+  /// unlit stone room tends toward.
+  final vm.Vector3? color;
+
+  vm.Vector3 get resolvedColor => color ?? _defaultColor;
+
+  /// Per metre. Zero is no fog, and costs a compare in the shader.
+  final double density;
+
+  bool get enabled => density > 0.0;
+
+  static final vm.Vector3 _defaultColor = vm.Vector3(0.05, 0.04, 0.06);
+}
+
 final class RenderSettings {
   const RenderSettings({
     this.specular = 1.0,
@@ -101,6 +128,7 @@ final class RenderSettings {
     this.surfaceBuffer = false,
     this.showSurfaceBuffer = false,
     this.reflections = const ReflectionSettings(),
+    this.fog = const FogSettings(),
   });
 
   final double specular;
@@ -155,6 +183,8 @@ final class RenderSettings {
   final bool showSurfaceBuffer;
 
   final ReflectionSettings reflections;
+
+  final FogSettings fog;
 
   /// Whether the scene pass should write the surface buffer at all.
   bool get needsSurfaceBuffer =>
@@ -472,6 +502,7 @@ final class Renderer implements PluginServices {
   // Uniform scratch, reused rather than rebuilt per draw. Writing a fresh
   // Float32List for every member of every draw is precisely the allocation
   // pattern the render list was shaped to avoid.
+  final Float32List _fogData = Float32List(4);
   final Float32List _cameraData = Float32List(4);
   final Float32List _baseColorData = Float32List(4);
   final Float32List _emissiveData = Float32List(4);
@@ -1376,6 +1407,19 @@ final class Renderer implements PluginServices {
         _frameParams[0] = settings.exposure;
         _frameParams[1] = lights.count.toDouble();
         _frameParams[2] = hasShadows ? shadowCaster.toDouble() : -1.0;
+
+      // Its own block, bound beside FragInfo rather than folded into it. See
+      // the note in color.glsl: appending to a block six shaders share moves
+      // offsets nobody expected to move.
+      final fog = settings.fog;
+      _fogData[0] = fog.resolvedColor.x;
+      _fogData[1] = fog.resolvedColor.y;
+      _fogData[2] = fog.resolvedColor.z;
+      _fogData[3] = fog.density;
+      bindUniformBlock(pass, host, fragmentShader, _kFogInfoBlock, {
+        'fog': _fogData,
+        'eye': _cameraData,
+      });
 
         bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
           // Whole arrays written from their reflected base offset. Impeller

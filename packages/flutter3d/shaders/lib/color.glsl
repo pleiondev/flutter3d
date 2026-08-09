@@ -73,6 +73,33 @@ void WriteSurfaceGeometry(float roughness) {
 #endif
 }
 
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
+/// not touching any of that.
+uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling.
+  vec4 eye;
+}
+fog_info;
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+vec3 ApplyFog(vec3 color) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = distance(v_world_position, fog_info.eye.xyz);
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+}
+
 /// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
 /// in linear space; skipping this is what makes naive renderers look muddy.
 vec3 SrgbToLinear(vec3 srgb) {
@@ -102,7 +129,7 @@ vec3 LinearToSrgb(vec3 linear) {
 /// Exposure moved with them, for the same reason: it belongs on the same side
 /// of the display transform as the tone map.
 void WriteSurface(vec3 linearColor, float alpha, float roughness) {
-  frag_color = vec4(linearColor, alpha);
+  frag_color = vec4(ApplyFog(linearColor), alpha);
   WriteSurfaceGeometry(roughness);
 }
 

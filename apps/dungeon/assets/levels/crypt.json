@@ -6,7 +6,7 @@
 
   "materials": {
     "floor": {
-      "baseColor": [0.62, 0.60, 0.56, 1.0], "roughness": 0.3,
+      "baseColor": [0.62, 0.60, 0.56, 1.0], "roughness": 0.9,
       "texelsPerMetre": 0.5,
       "albedo": "assets/textures/floor_albedo.jpg",
       "normal": "assets/textures/floor_normal.png",
