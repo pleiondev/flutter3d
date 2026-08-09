@@ -18,6 +18,9 @@
 // It includes lib/color.glsl for the varying declarations and the output, not
 // for the colour helpers: a fragment shader whose inputs disagree with the
 // vertex shader's outputs does not link, and mesh.vert emits all five.
+// One attachment, not two: this pass writes a shadow map, and the surface
+// buffer belongs to the scene pass.
+#define F3D_NO_SURFACE_BUFFER
 #include <lib/color.glsl>
 
 void main() {

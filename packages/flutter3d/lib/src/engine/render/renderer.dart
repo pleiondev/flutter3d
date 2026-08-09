@@ -26,6 +26,7 @@ import 'render_view.dart';
 /// `uniform FrameInfo { ... } frame_info;` is looked up as `FrameInfo`. Using
 /// the variable name instead is not an error at bind time — it just reflects as
 /// a missing block, which surfaces much later as "no uniform block named ...".
+const String _kReflectionInfoBlock = 'ReflectionInfo';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kLineInfoBlock = 'LineInfo';
@@ -45,6 +46,47 @@ const String _kSceneTextureSlot = 'scene_texture';
 const String _kBloomTextureSlot = 'bloom_texture';
 
 /// Scene-wide shading knobs that are not per-material.
+/// Screen-space reflections.
+///
+/// Off by default: it costs a full-screen pass and the surface buffer that
+/// feeds it, and a level lit by torches in a stone corridor gains less from it
+/// than a wet floor would.
+final class ReflectionSettings {
+  const ReflectionSettings({
+    this.enabled = false,
+    this.steps = 24,
+    this.stride = 0.18,
+    this.thickness = 0.006,
+    this.intensity = 0.7,
+    this.debugOnly = false,
+  });
+
+  final bool enabled;
+
+  /// March steps. The shader's loop is bounded at 64 whatever this says,
+  /// because a loop a uniform can lengthen without limit is a hang.
+  final int steps;
+
+  /// World metres between samples. Longer reaches further and steps over thin
+  /// geometry; shorter is accurate and stops sooner.
+  final double stride;
+
+  /// How thick a surface is assumed to be, in window depth. Without an upper
+  /// bound on the depth difference, a ray passing in front of a distant wall
+  /// counts as hitting it.
+  final double thickness;
+
+  final double intensity;
+
+  /// Shows only what the march found, on black.
+  ///
+  /// Added because a reflection added to a lit scene is indistinguishable from
+  /// a specular highlight, and I mistook one for the other: a streak on a wet
+  /// floor turned out to be the point light, and the reflection was
+  /// contributing nothing at all.
+  final bool debugOnly;
+}
+
 final class RenderSettings {
   const RenderSettings({
     this.specular = 1.0,
@@ -56,6 +98,9 @@ final class RenderSettings {
     this.tonemap = true,
     this.bloom = const BloomSettings(),
     this.shadows = const ShadowSettings(),
+    this.surfaceBuffer = false,
+    this.showSurfaceBuffer = false,
+    this.reflections = const ReflectionSettings(),
   });
 
   final double specular;
@@ -87,6 +132,33 @@ final class RenderSettings {
   final BloomSettings bloom;
 
   final ShadowSettings shadows;
+
+  /// Whether the scene pass writes its second attachment: world-space normal
+  /// and depth, for a screen-space effect to read.
+  ///
+  /// Off by default because it costs a store per pixel and nothing reads it
+  /// unless asked. The shaders write it either way — a pipeline may declare
+  /// more outputs than its target has attachments — so this is purely whether
+  /// anybody is listening.
+  final bool surfaceBuffer;
+
+  /// Composites the surface buffer instead of the scene.
+  ///
+  /// The only way to find out whether the normals in it are right side up
+  /// before something starts reflecting off them. Tone mapping and exposure
+  /// are skipped for it: a normal encoded as a colour is not a light value,
+  /// and a tone curve applied to one turns a wrong answer into a plausible
+  /// picture.
+  ///
+  /// Implies [surfaceBuffer]; asking to see a buffer nobody filled would show
+  /// whatever was in the texture last.
+  final bool showSurfaceBuffer;
+
+  final ReflectionSettings reflections;
+
+  /// Whether the scene pass should write the surface buffer at all.
+  bool get needsSurfaceBuffer =>
+      surfaceBuffer || showSurfaceBuffer || reflections.enabled;
 
   RenderSettings copyWith({
     double? specular,
@@ -309,6 +381,7 @@ final class Renderer implements PluginServices {
     required this.bloomDownsampleShader,
     required this.bloomUpsampleShader,
     required this.compositeShader,
+    required this.reflectionShader,
     required this.fallbackAlbedo,
     required this.fallbackNormal,
     required this.transients,
@@ -353,6 +426,9 @@ final class Renderer implements PluginServices {
   final gpu.Shader bloomDownsampleShader;
   final gpu.Shader bloomUpsampleShader;
   final gpu.Shader compositeShader;
+
+  /// The screen-space reflection pass.
+  final gpu.Shader reflectionShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -439,7 +515,20 @@ final class Renderer implements PluginServices {
   gpu.Texture? _hdrColor;
   gpu.Texture? _hdrMsaa;
   gpu.Texture? _ldrColor;
+  gpu.RenderPipeline? _reflectionPipeline;
+  final Float32List _reflectionParams = Float32List(4);
+  final Float32List _reflectionScreen = Float32List(4);
+  final Float32List _reflectionCameraData = Float32List(4);
+  final vm.Vector3 _reflectionCamera = vm.Vector3.zero();
+  gpu.Texture? _reflectionColor;
+  gpu.Texture? _surfaceColor;
+  gpu.Texture? _surfaceMsaa;
   gpu.Texture? _depthStencil;
+
+  /// A one-sample depth, for the frames that switch multisampling off because
+  /// they want the surface buffer. Attachments in one target must agree on
+  /// sample count, so a four-sample depth cannot sit beside a resolved colour.
+  gpu.Texture? _depthStencilSingle;
 
   /// The HDR format, chosen once. Half floats rather than full: the extra range
   /// of `r32g32b32a32Float` buys nothing for light values and doubles the
@@ -507,6 +596,7 @@ final class Renderer implements PluginServices {
       bloomDownsampleShader: require('BloomDownsample'),
       bloomUpsampleShader: require('BloomUpsample'),
       compositeShader: require('Composite'),
+      reflectionShader: require('Reflections'),
       fallbackAlbedo: fallbackAlbedo,
       fallbackNormal: fallbackNormal,
       transients: List<gpu.HostBuffer>.generate(
@@ -583,6 +673,37 @@ final class Renderer implements PluginServices {
       enableShaderReadUsage: true,
     );
 
+    // The surface buffer: world-space normal and depth, for whatever runs after
+    // the scene. Allocated with the rest rather than on demand, because a
+    // resize is the only moment any of this is allowed to be reallocated and a
+    // buffer that appears mid-session would be the one that is the wrong size.
+    _surfaceColor = gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: hdrFormat,
+      enableRenderTargetUsage: true,
+      enableShaderReadUsage: true,
+    );
+    _reflectionColor = gpu.gpuContext.createTexture(
+      gpu.StorageMode.devicePrivate,
+      width,
+      height,
+      format: hdrFormat,
+      enableRenderTargetUsage: true,
+      enableShaderReadUsage: true,
+    );
+
+    _surfaceMsaa = msaaEnabled
+        ? gpu.gpuContext.createTexture(
+            gpu.StorageMode.deviceTransient,
+            width,
+            height,
+            format: hdrFormat,
+            sampleCount: 4,
+          )
+        : null;
+
     _depthStencil = gpu.gpuContext.createTexture(
       gpu.StorageMode.deviceTransient,
       width,
@@ -590,6 +711,15 @@ final class Renderer implements PluginServices {
       format: gpu.gpuContext.defaultDepthStencilFormat,
       sampleCount: sampleCount,
     );
+
+    _depthStencilSingle = msaaEnabled
+        ? gpu.gpuContext.createTexture(
+            gpu.StorageMode.deviceTransient,
+            width,
+            height,
+            format: gpu.gpuContext.defaultDepthStencilFormat,
+          )
+        : null;
 
     // Every pooled spec is keyed on size, so after a resize none of them can
     // ever match again.
@@ -1389,7 +1519,19 @@ final class Renderer implements PluginServices {
     _ensureTargets(width, height);
 
     final hdr = _hdrColor!;
-    final msaa = _hdrMsaa;
+
+    // No multisampling while the surface buffer is wanted, and that is a
+    // correctness matter rather than a budget one. Attachments in one target
+    // must agree on sample count, so the surface buffer would be resolved by
+    // averaging — and the average of two octahedrally encoded normals is not
+    // the encoding of any normal. Every silhouette pixel would decode to a
+    // direction belonging to neither face, which a reflection shows as a
+    // fringe of wrong angles along every edge.
+    //
+    // A golden caught this before any reflection did: surface-buffer sat just
+    // outside its tolerance, every differing pixel on an edge, and which
+    // pixels differed changed between runs.
+    final msaa = settings.needsSurfaceBuffer ? null : _hdrMsaa;
     // The clear colour is authored the way a colour picker shows it, but the
     // scene target holds linear light and the composite pass encodes on the way
     // out. Clearing with the sRGB value directly would send it through the
@@ -1405,10 +1547,33 @@ final class Renderer implements PluginServices {
             clearValue: clear,
           );
 
-    final renderTarget = gpu.RenderTarget.singleColor(
-      colorAttachment,
+    // Attached only when something wants it. A pipeline may declare more
+    // outputs than the target has attachments — the extra is discarded — so
+    // the shaders write the surface unconditionally and this decides whether
+    // anyone is listening. See RESEARCH.md.
+    final surface = settings.needsSurfaceBuffer ? _surfaceColor : null;
+    final surfaceAttachment = surface == null
+        ? null
+        : (msaa == null
+            ? gpu.ColorAttachment(
+                texture: surface,
+                clearValue: vm.Vector4.zero(),
+              )
+            : gpu.ColorAttachment(
+                texture: _surfaceMsaa!,
+                resolveTexture: surface,
+                storeAction: gpu.StoreAction.multisampleResolve,
+                clearValue: vm.Vector4.zero(),
+              ));
+
+    final renderTarget = gpu.RenderTarget(
+      colorAttachments: <gpu.ColorAttachment>[
+        colorAttachment,
+        ?surfaceAttachment,
+      ],
       depthStencilAttachment: gpu.DepthStencilAttachment(
-        texture: _depthStencil!,
+        texture: msaa == null ? (_depthStencilSingle ?? _depthStencil!)
+            : _depthStencil!,
         // Standard depth: clear to the far plane, nearer fragments win.
         depthClearValue: 1.0,
       ),
@@ -1587,9 +1752,21 @@ final class Renderer implements PluginServices {
       );
     }
 
-    final bloom = _renderBloom(
+    // Before bloom, because a reflection is scene light and the bloom should
+    // pick up a bright one — a reflected torch that does not glow reads as a
+    // sticker on the floor.
+    final lit = _encodeReflections(
       host: host,
       scene: hdr,
+      settings: settings,
+      view: views.first,
+      width: width,
+      height: height,
+    );
+
+    final bloom = _renderBloom(
+      host: host,
+      scene: lit,
       settings: settings.bloom,
     );
 
@@ -1598,7 +1775,7 @@ final class Renderer implements PluginServices {
     final overlayLines = _encodeComposite(
       host: host,
       target: ldr,
-      scene: hdr,
+      scene: lit,
       bloom: bloom,
       sceneGraph: scene,
       views: ordered,
@@ -1641,6 +1818,85 @@ final class Renderer implements PluginServices {
   /// open is free, while a second one would reload the attachment.
   ///
   /// Returns the number of overlay line segments drawn.
+  /// Adds screen-space reflections, returning the texture the rest of the
+  /// chain should treat as the scene.
+  ///
+  /// Its own target rather than in place: the pass samples the scene while it
+  /// writes, and a texture cannot be both. Returns [scene] untouched when the
+  /// effect is off, so the chain downstream never branches.
+  gpu.Texture _encodeReflections({
+    required gpu.HostBuffer host,
+    required gpu.Texture scene,
+    required RenderSettings settings,
+    required RenderView view,
+    required int width,
+    required int height,
+  }) {
+    final surface = _surfaceColor;
+    if (!settings.reflections.enabled || surface == null) return scene;
+    developer.Timeline.startSync('Renderer.reflections');
+
+    final target = _reflectionColor!;
+    final commandBuffer = gpu.gpuContext.createCommandBuffer();
+    final pass = commandBuffer.createRenderPass(
+      gpu.RenderTarget.singleColor(
+        gpu.ColorAttachment(
+          texture: target,
+          loadAction: gpu.LoadAction.dontCare,
+          storeAction: gpu.StoreAction.store,
+        ),
+      ),
+    );
+
+    pass.setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height));
+    pass.setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height));
+    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
+    pass.setCullMode(gpu.CullMode.none);
+    pass.setColorBlendEnable(false);
+    pass.setDepthWriteEnable(false);
+    pass.setDepthCompareOperation(gpu.CompareFunction.always);
+    pass.bindPipeline(
+      _postPipeline(_reflectionPipeline, reflectionShader,
+          (p) => _reflectionPipeline = p),
+    );
+    pass.bindVertexBuffer(_fullscreenTriangle, 3);
+    pass.bindIndexBuffer(_identityIndices(3), gpu.IndexType.int32, 3);
+
+    final aspect = height == 0 ? 1.0 : width / height;
+    final viewProjection = view.camera.viewProjection(aspect);
+    final inverse = vm.Matrix4.copy(viewProjection)..invert();
+    view.camera.readWorldPosition(_reflectionCamera);
+
+    final options = settings.reflections;
+    _reflectionParams[0] = options.steps.toDouble();
+    _reflectionParams[1] = options.stride;
+    _reflectionParams[2] = options.thickness;
+    _reflectionParams[3] = options.intensity;
+    _reflectionScreen[0] = 1.0 / width;
+    _reflectionScreen[1] = 1.0 / height;
+    _reflectionScreen[3] = options.debugOnly ? 1.0 : 0.0;
+
+    _reflectionCameraData[0] = _reflectionCamera.x;
+    _reflectionCameraData[1] = _reflectionCamera.y;
+    _reflectionCameraData[2] = _reflectionCamera.z;
+
+    bindUniformBlock(pass, host, reflectionShader, _kReflectionInfoBlock, {
+      'view_projection': viewProjection.storage,
+      'inverse_view_projection': inverse.storage,
+      'camera': _reflectionCameraData,
+      'params': _reflectionParams,
+      'screen': _reflectionScreen,
+    });
+    _bindTexture(pass, reflectionShader, 'scene_texture', scene, _clampSampler);
+    _bindTexture(
+        pass, reflectionShader, 'surface_texture', surface, _clampSampler);
+
+    pass.draw();
+    commandBuffer.submit();
+    developer.Timeline.finishSync();
+    return target;
+  }
+
   int _encodeComposite({
     required gpu.HostBuffer host,
     required gpu.Texture target,
@@ -1671,9 +1927,11 @@ final class Renderer implements PluginServices {
     pass.setDepthWriteEnable(false);
     pass.setDepthCompareOperation(gpu.CompareFunction.always);
 
-    _compositeParams[0] = settings.exposure;
-    _compositeParams[1] = bloom == null ? 0.0 : settings.bloom.intensity;
-    _compositeParams[2] = settings.tonemap ? 1.0 : 0.0;
+    final showingSurface = settings.showSurfaceBuffer;
+    _compositeParams[0] = showingSurface ? 1.0 : settings.exposure;
+    _compositeParams[1] =
+        showingSurface || bloom == null ? 0.0 : settings.bloom.intensity;
+    _compositeParams[2] = showingSurface || !settings.tonemap ? 0.0 : 1.0;
 
     pass.bindPipeline(
       _postPipeline(_compositePipeline, compositeShader,
@@ -1685,7 +1943,7 @@ final class Renderer implements PluginServices {
       pass,
       compositeShader,
       _kSceneTextureSlot,
-      scene,
+      showingSurface ? (_surfaceColor ?? scene) : scene,
       _clampSampler,
     );
     // With bloom off there is still a sampler to satisfy, and the scene itself
