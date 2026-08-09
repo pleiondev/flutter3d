@@ -239,3 +239,64 @@ while the upper body plays its own clip through a mask".
   exists; morph targets, which are cheap and stop data disappearing on import.
 - **Later or never:** gizmos, tied to the editor decision; static batching, once
   draw calls are measured to be the limit and not before.
+
+## 7. glint_engine, the third entrant
+
+`glint_engine` 0.2.0 (`kiddo4/glint`), published 2026-07-23. This is what the
+handoff had recorded from memory as "glide-engine" — a name that returns nothing
+anywhere, which is why the first check reported the project did not exist.
+
+**A measurement correction, since it nearly became a false accusation.** A first
+pass counted 16 files and 95 KB and made the feature list below look impossible
+for one week's work. The path filter had missed the repository's root `lib/`.
+The real figures: **71 `.dart` files, 640 KB, of which `lib/` is 27 files and
+429 KB** — roughly 11k lines, the same order as ours. It is a real engine.
+Structured monolithically, though: `glb.dart` at 55 KB, `game_view.dart` at 53
+KB, and the whole renderer in `first_light.dart` at 36 KB.
+
+### On our axis it is the weakest of the three
+
+| | flutter3d | flutter_scene | glint_engine |
+|---|---|---|---|
+| Directional shadows | yes | yes, cascaded | yes |
+| Spot shadows | no | yes | **no** |
+| Point shadows | **yes** | no | no |
+
+Their game view offers "translucent blob shadows" besides — a decal under the
+model, which is what an engine reaches for when its shadow system does not cover
+things that move.
+
+### Where it is behind on fundamentals
+
+- **No normal or ORM maps.** Their own FAQ, under "Model renders but looks
+  wrong": Glint reads base-colour textures and factors, "but normal/ORM maps and
+  Draco compression are not supported yet". For a PBR renderer that is more
+  basic than anything on our gap list; our normal mapping is pinned by a golden.
+- Embedded textures decoded at 1024 px maximum, to protect mobile memory.
+- No morph targets, no web, no Windows, no Linux. On Android **emulators the app
+  aborts natively** — Impeller falls back to OpenGLES, which Flutter GPU does
+  not support, and they note there is no Dart-level way to detect it.
+- Depends on `flutter_gpu_shaders` and build hooks, so it wants the experimental
+  Native Assets feature — the one `tool/build_shaders.sh` exists to avoid. On
+  "runs on stable with no experimental flags" we are ahead of both engines.
+
+### Where it is ahead, and worth reading
+
+- **Animation state machines** — additive and override layers, bone masks,
+  events, root motion, crossfades. This is exactly the gap §6 attributed to
+  PlayCanvas alone, and it is closed here in Dart, inside a 30 KB file. Useful
+  evidence that the feature is a fortnight, not a quarter.
+- **Deterministic physics** — rollback snapshots, repeatable replay, state
+  digests, a mixed stress harness.
+- **Shader graphs** — typed JSON with cycle and type validation, compiled
+  offline through Impeller.
+- **A diagnostics overlay** — FPS, frame time, draw calls, triangles. Cheap, and
+  we have nothing like it.
+
+### What to conclude
+
+Not a threat today: weaker than `flutter_scene` on our axis, missing normal
+maps, narrower on platforms, and dormant — created 2026-07-17, last pushed
+2026-07-24, 45 commits. Read it for the animation controller and the
+diagnostics overlay, and note that between the three engines **nobody else
+shadows a point light**.
