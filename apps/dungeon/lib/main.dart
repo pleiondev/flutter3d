@@ -852,6 +852,12 @@ class _SceneSurface extends StatelessWidget {
           height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
           scene: scene,
           views: <RenderView>[view],
+          settings: const RenderSettings(
+            // Off until the surface buffer carries roughness. Without it the
+            // shader reflects off rough stone as readily as off a wet floor,
+            // and the walls light up instead of the floor.
+            reflections: ReflectionSettings(intensity: 0.5),
+          ),
         );
         return CustomPaint(
           painter: _ImagePainter(frame.image),

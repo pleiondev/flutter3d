@@ -74,5 +74,9 @@
   "Particle": {
     "type": "fragment",
     "file": "shaders/lighting/particle.frag"
+  },
+  "Reflections": {
+    "type": "fragment",
+    "file": "shaders/post/reflections.frag"
   }
 }
