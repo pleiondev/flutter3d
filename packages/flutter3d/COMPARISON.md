@@ -110,7 +110,7 @@ features but **one foundation and three things built on it**. The cube atlas is
 the foundation, and they do not have it. Until they build it, none of the steps
 below are available to them at any price.
 
-### The four steps
+### The steps
 
 Each reuses the atlas, so each one raises the cost of catching up rather than
 just adding to a list.
@@ -120,7 +120,8 @@ just adding to a list.
 | 1 | **Many shadowed lights.** Slot allocator replacing the hard four: lights sorted by screen size, slots by size, a light keeps its slot across frames, bakes amortised at one per frame. PlayCanvas's model, already read | **1–2 weeks** — atlas, slot table and static/dynamic split all exist; the new work is selection and slot persistence | Dozens of shadowed torches instead of four. Their clustered `light_culling.dart` cannot substitute: clustering without point shadows still leaves the point lights shadowless |
 | 2 | **Shadow quality.** Take their spot filtering — rotated Poisson, `ShadowCasterFaces`, split depth/normal bias — then PCSS so a torch's shadow softens with distance | **1–2 weeks** — mostly shader and parameters; PCSS adds a blocker-search tap | Converts "we have point shadows and they do not" into "our point shadows are good", which is the far harder claim to catch |
 | 3 | **Volumetric light from a torch.** Ray march sampling the same cube atlas: dusty shafts, correctly occluded | **2–4 weeks** — new pass, dithered march, half-res plus upsample for cost | The visual signature. Uncopyable without steps 0–1 first; their god rays are structurally sun-only |
-| 4 | **Baked interior irradiance** (probes / irradiance volumes) | **4–8 weeks**, and the riskiest — bake tooling, placement, runtime sampling | Their IBL is environment lighting, which is to say outdoors. An interior needs this or a PBR render never looks finished |
+| 4 | **Baked interior light.** Lightmaps rather than probes — see §6: PlayCanvas bakes them at **runtime**, so there is no asset pipeline or editor to build first | **3–6 weeks**, revised down from 4–8: the design is readable rather than inventable, and runtime baking removes the tooling half of the job | Their IBL is environment lighting, which is to say outdoors. An interior needs this or a PBR render never looks finished |
+| 5 | **Area lights (LTC).** A torch is a small glowing volume, not a point | **1–2 weeks** — LTC is table-driven; PlayCanvas ships the tables | Soft falloff and a correctly stretched highlight. With light-emitting particles already here, it is the natural end of the same thread. They have punctual lights only |
 
 Estimates are rough — call them ±50% — and assume one engineer who already
 knows this code. They are sized against what is already here, not against a
@@ -167,3 +168,35 @@ Unlit, which kept none of it and failed the bind.
 
 A note on how all four hid: the goldens were run only for the scenes judged
 affected. Every one of these was found by running the whole suite once.
+
+## 6. What PlayCanvas has that neither of us does
+
+A third engine is worth reading precisely where the two of us agree by
+omission — a gap both have is more likely to be an unsolved problem than a
+solved one nobody needed. Checked against `playcanvas/engine` `main` and the
+`flutter_scene` tree; every key below returns **nothing at all** on their side.
+
+| From PlayCanvas | Size there | flutter_scene | Worth to us |
+|---|---|---|---|
+| **Runtime lightmapper** — `src/framework/lightmapper/`: direct and ambient bake, seam dilation, filters | 20 files | none | **Highest.** This is step 4, with a working design to read instead of invent. Baking at runtime is the part that matters: no asset pipeline and no editor have to exist first |
+| **Anim state graph** — `src/framework/anim/`: 1D / 2D-cartesian / 2D-directional / direct blend trees, transitions, layers, masks | 29 files | see below | The practical gap for any game with a character |
+| **Area lights (LTC)** — `src/scene/area-light-luts.js` | tables shipped | punctual only | Step 5. A torch is a small glowing volume, and it reads as one |
+| **Morph targets** — `morph-target.js`, `morph-instance.js`, shader chunks | 7 files | none | Cheap, and it stops a silent loss: glTF carries morph targets, so without support a model imports with its expressions quietly gone |
+| **Gizmos** — `src/extras/gizmo/`: translate, rotate, scale, with shapes and shaders | 18 files | none | Only if in-app authoring is ever decided on — but then it is weeks of work already done |
+| **Static batching** — `src/scene/batching/`: merges the geometry of *different* meshes | 8 files | instancing only | When draw calls become the limit. Their `instance_batching.dart` groups draws sharing one geometry and material; a room of a hundred distinct props does not instance, but it does merge |
+
+**On animation, a correction worth keeping.** `flutter_scene` *does* blend:
+clips carry weights, the player normalises them and blends into the bound
+nodes. What it has no layer for is the controller above that — states,
+parameter-driven transitions, blend trees, per-bone masks. The difference is
+between crossfading two clips by hand and "locomotion blends on movement speed
+while the upper body plays its own clip through a mask".
+
+### Ordering
+
+- **On our axis, take now:** the lightmapper and area lights. Both strengthen
+  exactly where we already lead, and both are absent from the competitor.
+- **Take when the game needs it:** the anim state graph, once a character
+  exists; morph targets, which are cheap and stop data disappearing on import.
+- **Later or never:** gizmos, tied to the editor decision; static batching, once
+  draw calls are measured to be the limit and not before.
