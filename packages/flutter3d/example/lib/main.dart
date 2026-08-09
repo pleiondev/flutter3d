@@ -159,6 +159,9 @@ class _SpikePageState extends State<SpikePage>
   late final LightNode _sun;
   late final LightNode _light;
   late final LightNode _fill;
+
+  /// Additional shadow-casting point lights, only for the multi-row golden.
+  final List<LightNode> _extraPoints = <LightNode>[];
   late final LightNode _spot;
 
   /// A plane under the model, so the shadow has somewhere to land.
@@ -333,6 +336,22 @@ class _SpikePageState extends State<SpikePage>
     _scene
       ..add(_fill)
       ..add(_spot);
+
+    // Extra point casters for the golden that checks more than one atlas row.
+    // Placed in _placeSceneLights with the others, since the distance that
+    // suits a model depends on its bounds.
+    final extras = _golden?.scene.extraPointShadows ?? 0;
+    for (var i = 0; i < extras; i++) {
+      final light = LightNode(
+        type: LightType.point,
+        color: Vector3(1.0, 0.72, 0.4),
+        intensity: 4.0,
+        name: 'extra point $i',
+        castsShadow: true,
+      );
+      _extraPoints.add(light);
+      _scene.add(light);
+    }
 
     final enabled = _golden?.scene.lights ?? startupLightsFromEnvironment();
     if (enabled.isNotEmpty) {
@@ -625,6 +644,21 @@ class _SpikePageState extends State<SpikePage>
     _fill
       ..intensity = 1.0 * distance * distance
       ..range = distance * 6.0;
+
+    // Spread around the model on a circle, each at a different height, so no
+    // two rows of the atlas hold the same view. Identical placements would
+    // make four rows indistinguishable and the golden would pass on one again.
+    for (var i = 0; i < _extraPoints.length; i++) {
+      final angle = (i + 1) * math.pi * 2.0 / (_extraPoints.length + 1);
+      _extraPoints[i]
+        ..setPosition(
+          centre.x + math.cos(angle) * distance,
+          centre.y + distance * (0.2 + 0.3 * i),
+          centre.z + math.sin(angle) * distance,
+        )
+        ..intensity = 1.0 * distance * distance
+        ..range = distance * 6.0;
+    }
 
     _spot.setPosition(
       centre.x + distance * 0.4,

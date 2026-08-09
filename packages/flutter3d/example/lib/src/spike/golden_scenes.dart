@@ -28,6 +28,7 @@ final class GoldenScene {
     this.surfaceBuffer = false,
     this.shadowMap = false,
     this.pointShadow = false,
+    this.extraPointShadows = 0,
   });
 
   /// File name, without an extension, under `test/goldens/`.
@@ -49,6 +50,15 @@ final class GoldenScene {
   /// Makes the scene's first point light a shadow caster, so the cube atlas
   /// has something in it.
   final bool pointShadow;
+
+  /// Extra shadow-casting point lights added around the model, so more than one
+  /// row of the atlas is occupied.
+  ///
+  /// One caster cannot show whether the rows are drawn or read independently —
+  /// with a single row every layout bug looks like a working shadow. That is
+  /// exactly what hid a pass-per-light clearing the whole atlas and leaving
+  /// only the last row.
+  final int extraPointShadows;
 
   /// Matched against a model chip label by substring, as `FLUTTER3D_SOURCE` is.
   final String source;
@@ -223,17 +233,41 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     shadowMap: true,
   ),
 
-  // The point light's cube atlas: three tiles across, two down, each a
-  // ninety-degree view from the light. Pinned because the layout is a decision
+  // The point light's cube atlas: six tiles across, four down, each a
+  // ninety-degree view from a light. Pinned because the layout is a decision
   // written twice — once in the renderer's face list and once in the shader's
   // face selection — and a golden is what stops the two from drifting.
+  //
+  // The fill light must be ON, and this is the whole reason to say so here: the
+  // caster mark is set on it, but the light set switched it off, so no atlas
+  // was ever allocated and the composite fell back to the directional map. The
+  // golden recorded that instead and passed on it for as long as it existed.
   const GoldenScene(
     name: 'cube-shadow',
     source: 'Teapot',
     bloom: false,
-    lights: <String>{'key light'},
+    lights: <String>{'key light', 'fill light'},
     shadowMap: true,
     pointShadow: true,
+  ),
+
+  // Four casters, four rows. The single-caster golden above passes whether the
+  // atlas holds one row or four, so it said nothing while three of the four
+  // rows were being cleared away; this scene is the one that fails when they
+  // are.
+  //
+  // The atlas rather than the lit image, because four lights around a model
+  // fill in each other's shadows — the lit view of a three-row loss is a
+  // slightly darker picture, which is exactly the kind of difference a person
+  // talks themselves into accepting. Occupied rows are countable.
+  const GoldenScene(
+    name: 'cube-shadow-many',
+    source: 'Teapot',
+    bloom: false,
+    lights: <String>{'key light', 'fill light'},
+    shadowMap: true,
+    pointShadow: true,
+    extraPointShadows: 3,
   ),
 ];
 
