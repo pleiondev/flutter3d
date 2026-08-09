@@ -856,10 +856,7 @@ class _SceneSurface extends StatelessWidget {
             // Off until the surface buffer carries roughness. Without it the
             // shader reflects off rough stone as readily as off a wet floor,
             // and the walls light up instead of the floor.
-            // Off. The march finds almost nothing here — see the commit that
-            // added debugOnly — and a reflection nobody can see is a
-            // full-screen pass nobody should pay for.
-            reflections: ReflectionSettings(intensity: 0.5),
+            reflections: ReflectionSettings(enabled: true, intensity: 0.6),
           ),
         );
         return CustomPaint(

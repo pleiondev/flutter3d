@@ -525,6 +525,11 @@ final class Renderer implements PluginServices {
   gpu.Texture? _surfaceMsaa;
   gpu.Texture? _depthStencil;
 
+  /// A one-sample depth, for the frames that switch multisampling off because
+  /// they want the surface buffer. Attachments in one target must agree on
+  /// sample count, so a four-sample depth cannot sit beside a resolved colour.
+  gpu.Texture? _depthStencilSingle;
+
   /// The HDR format, chosen once. Half floats rather than full: the extra range
   /// of `r32g32b32a32Float` buys nothing for light values and doubles the
   /// bandwidth of every post-processing read.
@@ -706,6 +711,15 @@ final class Renderer implements PluginServices {
       format: gpu.gpuContext.defaultDepthStencilFormat,
       sampleCount: sampleCount,
     );
+
+    _depthStencilSingle = msaaEnabled
+        ? gpu.gpuContext.createTexture(
+            gpu.StorageMode.deviceTransient,
+            width,
+            height,
+            format: gpu.gpuContext.defaultDepthStencilFormat,
+          )
+        : null;
 
     // Every pooled spec is keyed on size, so after a resize none of them can
     // ever match again.
@@ -1505,7 +1519,19 @@ final class Renderer implements PluginServices {
     _ensureTargets(width, height);
 
     final hdr = _hdrColor!;
-    final msaa = _hdrMsaa;
+
+    // No multisampling while the surface buffer is wanted, and that is a
+    // correctness matter rather than a budget one. Attachments in one target
+    // must agree on sample count, so the surface buffer would be resolved by
+    // averaging — and the average of two octahedrally encoded normals is not
+    // the encoding of any normal. Every silhouette pixel would decode to a
+    // direction belonging to neither face, which a reflection shows as a
+    // fringe of wrong angles along every edge.
+    //
+    // A golden caught this before any reflection did: surface-buffer sat just
+    // outside its tolerance, every differing pixel on an edge, and which
+    // pixels differed changed between runs.
+    final msaa = settings.needsSurfaceBuffer ? null : _hdrMsaa;
     // The clear colour is authored the way a colour picker shows it, but the
     // scene target holds linear light and the composite pass encodes on the way
     // out. Clearing with the sRGB value directly would send it through the
@@ -1546,7 +1572,8 @@ final class Renderer implements PluginServices {
         ?surfaceAttachment,
       ],
       depthStencilAttachment: gpu.DepthStencilAttachment(
-        texture: _depthStencil!,
+        texture: msaa == null ? (_depthStencilSingle ?? _depthStencil!)
+            : _depthStencil!,
         // Standard depth: clear to the far plane, nearer fragments win.
         depthClearValue: 1.0,
       ),
