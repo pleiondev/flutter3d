@@ -209,14 +209,23 @@ class _SpikePageState extends State<SpikePage>
     // registry, and therefore the one that casts. A shadow from a
     // camera-parented light would swing with the orbit, which makes it useless
     // for judging whether the pass is right.
+    // The dominant source, and the only one that casts. It has to out-light the
+    // other three put together, or its shadow is a few percent of the total and
+    // reads as nothing — which is exactly what happened when it was set to 1.6
+    // against a combined 17.
     _sun = LightNode(
       type: LightType.directional,
       color: Vector3(1.0, 0.95, 0.85),
-      intensity: 1.6,
+      intensity: 4.0,
       name: 'sun',
     );
     _scene.add(_sun);
-    _sun.setLocalForward(Vector3(-0.4, -1.0, -0.35));
+    // Low and oblique, roughly 30 degrees above the horizon. A sun overhead
+    // drops the shadow directly under the object, where the object itself
+    // covers it — the shadow is still being cast, it is just never visible. An
+    // oblique sun throws it out to the side, which is the only reason to have a
+    // ground plane in the demo at all.
+    _sun.setLocalForward(Vector3(-0.85, -0.5, -0.2));
 
     _ground = MeshNode(
       // Uploaded, not a CpuMesh: this one is drawn, and the renderer refuses
@@ -244,6 +253,10 @@ class _SpikePageState extends State<SpikePage>
     _light = LightNode(
       type: LightType.directional,
       color: Vector3(1.0, 0.97, 0.92),
+      // Dim, because a light parented to the camera is a headlight: it fills in
+      // every shadow the viewer can see, which is the one place a shadow needs
+      // to survive. It earns its keep as a fill, not as a key.
+      intensity: 0.35,
       name: 'key light',
     );
     _camera.add(_light);
@@ -510,7 +523,7 @@ class _SpikePageState extends State<SpikePage>
     // Intensity is photometric-ish: with inverse-square falloff it has to grow
     // with the square of the distance to keep the same brightness on the model.
     _fill
-      ..intensity = 4.0 * distance * distance
+      ..intensity = 1.0 * distance * distance
       ..range = distance * 6.0;
 
     _spot.setPosition(
@@ -520,7 +533,7 @@ class _SpikePageState extends State<SpikePage>
     );
     _spot
       ..lookAt(centre)
-      ..intensity = 12.0 * distance * distance
+      ..intensity = 2.5 * distance * distance
       ..range = distance * 6.0;
   }
 
