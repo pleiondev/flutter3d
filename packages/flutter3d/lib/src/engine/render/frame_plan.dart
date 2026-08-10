@@ -1,13 +1,28 @@
-/// The frame this engine actually draws, written as a graph.
+/// The frame this engine draws, written as a graph, plus the names it draws it
+/// from.
 ///
-/// Not yet what executes it — `render()` still runs the sequence by hand. This
-/// is the blueprint the migration moves onto, and writing it first is
-/// deliberate: it answers "can the graph express this frame at all" before any
-/// of the frame is restructured, which is a question worth failing cheaply.
+/// [FrameResourceIds] is what the engine uses; [describeFrame] below is what
+/// the engine was checked against while it moved onto the graph. Writing the
+/// description first was deliberate: it answered "can the graph express this
+/// frame at all" before any of the frame was restructured, and it found four
+/// gaps in the model — the optional read among them — none of which the graph's
+/// own tests could have shown.
 ///
-/// It is production code rather than a test fixture because the migration will
-/// consume it, and because a description of the frame that lives only in a test
-/// drifts from the frame within a release.
+/// **[describeFrame] is now a fixture, not production code.** Nothing in
+/// `render()` consults it: the scene, the directional shadow map, reflections,
+/// bloom and the composite are real nodes, and the question it used to answer
+/// for the renderer — whether the surface buffer is wanted — is now asked of
+/// the compiled graph the frame is actually running, because only that can see
+/// a read declared by somebody else's node.
+///
+/// It is kept, and kept here rather than moved into `test/`, for two reasons
+/// with a shelf life. It still describes the one pair of passes the migration
+/// has not reached, the cube atlas, so it is the only place "shadows come
+/// before the scene" is asserted without a device. And it is the standing
+/// cross-check on `RenderSettings.needsSurfaceBuffer`, which is public API and
+/// hand-computed. When the atlas becomes two nodes, the real graph covers
+/// everything this describes and [describeFrame] and [PlannedPass] should go
+/// with it, leaving [FrameResourceIds] behind.
 library;
 
 import 'frame_graph.dart';
@@ -38,11 +53,11 @@ abstract final class FrameResourceIds {
   static const ResourceId frame = ResourceId('frame');
 }
 
-/// A pass in the frame, with nothing to execute yet.
+/// A pass in the frame, with nothing to execute.
 ///
-/// The migration replaces these with real [RenderNode]s one at a time; until
-/// then the plan is a shape to check against, and a node with no body is the
-/// honest way to write a shape.
+/// The migration replaces these with real `RenderNode`s one at a time; all but
+/// the cube atlas are replaced. Until that one is, the plan is a shape to check
+/// against, and a node with no body is the honest way to write a shape.
 final class PlannedPass extends FrameGraphNode {
   const PlannedPass(
     this.name, {
@@ -70,6 +85,10 @@ final class PlannedPass extends FrameGraphNode {
 /// parameters rather than a `RenderSettings` argument so this stays free of
 /// everything else that class holds, and so a test can walk the combinations
 /// without building one.
+///
+/// The renderer builds the same shape out of real nodes — see
+/// `Renderer._compileFrameGraph`, which registers them in this order and asks
+/// for the same outputs.
 CompiledFrameGraph describeFrame({
   bool directionalShadows = true,
   bool pointShadows = true,

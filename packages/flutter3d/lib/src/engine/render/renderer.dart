@@ -219,28 +219,25 @@ final class RenderSettings {
   final bool showPointShadowDebug;
 
   /// Whether the scene pass should write the surface buffer at all.
-  /// Whether the scene pass should write the surface buffer at all.
   ///
   /// Three flags OR-ed by hand, which is the shape the frame graph exists to
   /// replace: it is a dependency between passes written as a boolean, and it
   /// has to be edited every time a feature learns to read the buffer. The
   /// graph answers the same question by asking whether any surviving pass
-  /// declares a read — see [describeFrame] and [CompiledFrameGraph.isRead],
-  /// which `render()` now uses. Kept because it is public API and because the
-  /// two agreeing is worth being able to check.
+  /// declares a read — [CompiledFrameGraph.isConsumed], which the scene node
+  /// now asks of the graph the frame is actually running. Kept because it is
+  /// public API, and because the two agreeing is worth being able to check:
+  /// `test/frame_plan_test.dart` walks every combination.
+  ///
+  /// It cannot be the answer the renderer uses, because a setting cannot see
+  /// the frame. Whether the buffer is wanted depends on what a *node* declared
+  /// — an application's own node reading it is invisible from here — and the
+  /// only thing that knows is the compiled graph.
   bool get needsSurfaceBuffer =>
       surfaceBuffer ||
       showSurfaceBuffer ||
       showPointShadowDebug ||
       reflections.enabled;
-
-  /// The same question, asked of the frame graph.
-  bool get surfaceBufferIsRead => describeFrame(
-        reflections: reflections.enabled,
-        bloom: bloom.enabled,
-        showSurfaceBuffer: showSurfaceBuffer || showPointShadowDebug,
-        explicitSurfaceBuffer: surfaceBuffer,
-      ).isConsumed(FrameResourceIds.surfaceBuffer);
 
   RenderSettings copyWith({
     double? specular,
@@ -1432,26 +1429,45 @@ final class Renderer implements RenderServices {
   final List<int?> _faceSignatures = <int?>[];
   final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
 
-  /// The post chain, ordered by what each pass declares.
+  /// The frame, ordered by what each pass declares.
   ///
   /// Built per frame because the set depends on settings and on what the
   /// application registered, and because a node holds this frame's arguments.
-  /// The scene and the shadow passes are not nodes yet, so the lit colour and
-  /// the surface buffer are external here — produced above by code rather than
-  /// by a node.
   ///
   /// The frame asks for one thing, the finished image, and everything that runs
   /// is what that turned out to need. Bloom switched off is a node the graph
-  /// culls on its way back from the output, not a branch anybody wrote.
-  CompiledFrameGraph _compilePostGraph(
+  /// culls on its way back from the output, not a branch anybody wrote — and
+  /// the same is now true of the directional shadow map, which runs because the
+  /// scene said it would sample one.
+  ///
+  /// Registration order is the version chain, so it is the order the frame used
+  /// to be written in: shadows, the scene, the application's overlays,
+  /// reflections, bloom, the composite. What the graph derives is the *run*
+  /// order, and it derives it from the reads and writes rather than from this
+  /// list — but two passes with no dependency between them keep the order they
+  /// were registered in, which is what makes the frame reproducible enough to
+  /// hold a golden against.
+  CompiledFrameGraph _compileFrameGraph(
     RenderView view,
-    RenderSettings s,
-    _BloomNode bloom,
-    _CompositeNode composite,
-  ) {
+    RenderSettings s, {
+    required _ShadowMapNode shadow,
+    required _SceneNode scene,
+    required _BloomNode bloom,
+    required _CompositeNode composite,
+  }) {
     final graph = FrameGraph()
-      ..addExternal(FrameResourceIds.hdrColour)
-      ..addExternal(FrameResourceIds.surfaceBuffer);
+      // The cube atlases are still produced outside the graph — they become two
+      // nodes in the next step — and the scene declares optional reads of them,
+      // so the names have to be known. `hdr_colour` and `surface_buffer` were
+      // here for exactly this reason until this step; the scene writes them now.
+      ..addExternal(FrameResourceIds.cubeShadow)
+      ..addExternal(FrameResourceIds.cubeShadowStatic)
+      // First, and registered whether or not it has anything to draw, for the
+      // reason bloom is: a name has to be *known* for a read of it to compile.
+      // Unregistering it when shadows are off would make the scene's optional
+      // read conditional too, which moves the branch rather than deleting it.
+      ..addNode(shadow)
+      ..addNode(scene);
 
     for (final node in nodes.all) {
       graph.addNode(node);
@@ -1473,9 +1489,14 @@ final class Renderer implements RenderServices {
       ..addNode(bloom)
       ..addNode(composite);
 
-    return graph.compile(
-      outputs: const <ResourceId>[FrameResourceIds.frame],
-    );
+    return graph.compile(outputs: <ResourceId>[
+      FrameResourceIds.frame,
+      // An application that asked for the surface buffer is a consumer no node
+      // declares, so it is a frame output. Without this, `surfaceBuffer` on its
+      // own would leave the buffer unread, the scene would not attach it, and
+      // the application would read whatever the texture held last.
+      if (s.surfaceBuffer) FrameResourceIds.surfaceBuffer,
+    ]);
   }
 
   /// A signature of what a static bake of this light would capture.
@@ -1505,14 +1526,25 @@ final class Renderer implements RenderServices {
   final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
 
+  /// Draws the directional light's shadow map, and says whether it drew one.
+  ///
+  /// The frame's own resources are handed in for the depth attachment, which is
+  /// scratch: no other pass names it, it must not go back to the pool while the
+  /// command buffer that wrote it is in flight, and [FrameResources.transient]
+  /// is where that deferral is now automatic rather than remembered at each
+  /// call site. The colour target is the opposite case and stays a renderer
+  /// field — see [_ShadowMapNode].
+  ///
+  /// [_shadowParams] and [_shadowCasters] are zeroed by the frame rather than
+  /// here, because a pass the graph culled never runs and would otherwise leave
+  /// last frame's numbers standing.
   bool _renderShadowMap({
     required gpu.HostBuffer host,
+    required FrameResources resources,
     required Scene scene,
     required ShadowSettings settings,
     required int casterIndex,
   }) {
-    _shadowParams[3] = 0.0;
-    _shadowCasters = 0;
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (casterIndex < 0) return false;
 
@@ -1571,7 +1603,7 @@ final class Renderer implements RenderServices {
       _shadowResolution = resolution;
     }
 
-    final depth = targetPool.acquire(
+    final depth = resources.transient(
       RenderTargetSpec(
         width: resolution,
         height: resolution,
@@ -1616,7 +1648,6 @@ final class Renderer implements RenderServices {
     final shadowShader = library['ShadowDepth'];
     if (shadowShader == null) {
       developer.Timeline.finishSync();
-      targetPool.release(depth);
       return false;
     }
     // Two pipelines, for the same reason the main pass has two: a skinned mesh
@@ -1683,8 +1714,6 @@ final class Renderer implements RenderServices {
 
     commandBuffer.submit();
     developer.Timeline.finishSync();
-
-    _releaseAfterFrame(depth);
 
     _shadowParams[0] = 1.0 / resolution;
     _shadowParams[1] = settings.bias;
@@ -2317,10 +2346,10 @@ final class Renderer implements RenderServices {
 
   /// Draws the world into the HDR target, and submits it.
   ///
-  /// Extracted ahead of becoming a frame-graph node, and extracted first so
-  /// that the move is verifiable on its own: this changes no behaviour, so the
-  /// goldens have to match byte for byte, and a refactor that moves the picture
-  /// moved something else too.
+  /// The body of [_SceneNode], extracted before the node existed so that the
+  /// move was verifiable on its own: it changed no behaviour, so the goldens had
+  /// to match byte for byte, and a refactor that moves the picture moved
+  /// something else too.
   ///
   /// It owns the render target, the command buffer and the pass, which is what
   /// a node has to own. Ordering against the shadow passes is by *submission* —
@@ -2328,6 +2357,10 @@ final class Renderer implements RenderServices {
   /// queue runs buffers in the order they were submitted. That is the fact that
   /// makes the graph cheap to adopt here: it has to derive a submission order,
   /// not take over how passes are built.
+  ///
+  /// [surfaceIsRead] is the graph's answer about the frame that is running, not
+  /// a setting: it decides both whether the second attachment is present and
+  /// whether the pass may multisample, and those two must agree.
   ///
   ///
   /// [contributors] are handed in rather than looked up. A node that reaches
@@ -2349,6 +2382,7 @@ final class Renderer implements RenderServices {
     required FramePassState passState,
     required int lightOverflowCount,
     required List<PassContributor> contributors,
+    required bool surfaceIsRead,
   }) {
     final hdr = _hdrColor!;
     var culled = 0;
@@ -2365,7 +2399,7 @@ final class Renderer implements RenderServices {
     // A golden caught this before any reflection did: surface-buffer sat just
     // outside its tolerance, every differing pixel on an edge, and which
     // pixels differed changed between runs.
-    final msaa = settings.surfaceBufferIsRead ? null : _hdrMsaa;
+    final msaa = surfaceIsRead ? null : _hdrMsaa;
     // The clear colour is authored the way a colour picker shows it, but the
     // scene target holds linear light and the composite pass encodes on the way
     // out. Clearing with the sRGB value directly would send it through the
@@ -2385,7 +2419,7 @@ final class Renderer implements RenderServices {
     // outputs than the target has attachments — the extra is discarded — so
     // the shaders write the surface unconditionally and this decides whether
     // anyone is listening. See RESEARCH.md.
-    final surface = settings.surfaceBufferIsRead ? _surfaceColor : null;
+    final surface = surfaceIsRead ? _surfaceColor : null;
     final surfaceAttachment = surface == null
         ? null
         : (msaa == null
@@ -2561,8 +2595,6 @@ final class Renderer implements RenderServices {
     final frameClock = Stopwatch()..start();
     _ensureTargets(width, height);
 
-    final hdr = _hdrColor!;
-
     final host = transients[_frameIndex % _kFramesInFlight];
     // This slot's textures were handed back a full ring ago, so the GPU is done
     // with them; the same reasoning that governs the host buffers.
@@ -2582,12 +2614,14 @@ final class Renderer implements RenderServices {
     if (lights.count == 0) lights.useDefaultLight();
     final lightOverflowCount = lights.overflow;
     final shadowCaster = _firstDirectionalIndex();
-    final hasShadows = _renderShadowMap(
-      host: host,
-      scene: scene,
-      settings: settings.shadows,
-      casterIndex: shadowCaster,
-    );
+
+    // Zeroed by the frame rather than by the pass, because the pass may not
+    // run. `_renderShadowMap` cleared these on its way out of every early
+    // return; a node the graph culls has no way out to clear them on, and last
+    // frame's strength left standing would shadow a scene whose shadows were
+    // just switched off.
+    _shadowParams[3] = 0.0;
+    _shadowCasters = 0;
 
     // Which point lights get a row of the atlas, decided by relevance rather
     // than by the order they happen to sit in the scene list. Four is now a
@@ -2666,77 +2700,70 @@ final class Renderer implements RenderServices {
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
-    // Reflections, the overlays, bloom and the composite, ordered by what each
-    // declares rather than by where it sits in this method. The scene and the
-    // shadow passes have not moved yet, so `hdr_colour` is external here —
-    // produced by code below rather than by a node.
+    // The whole frame after the cube atlas, ordered by what each pass declares
+    // rather than by where it sits in this method: the shadow map, the world,
+    // the application's overlays, reflections, bloom and the composite. Only
+    // the cube atlas above is still written by hand, and it is the next step.
     //
-    // The composite holds this frame's views the way reflections holds its own,
-    // because the overlay batch it draws after the tone map needs them and
-    // `NodeFrame` carries neither a scene nor a viewport.
+    // Which does move the directional map after the atlas in submission order,
+    // where it used to come first. Nothing reads either before the scene, they
+    // write different textures, and their depth attachments cannot collide in
+    // the pool — one is `resolution` square and the other is six tiles by four.
+    //
+    // The scene and the composite hold this frame's views the way reflections
+    // holds its own, because neither the view loop nor the overlay batch after
+    // the tone map can be derived from `NodeFrame`, which carries neither a
+    // scene nor a viewport.
+    final shadowNode = _ShadowMapNode(
+      this,
+      scene: scene,
+      settings: settings.shadows,
+      casterIndex: shadowCaster,
+    );
+    final sceneNode = _SceneNode(
+      this,
+      scene: scene,
+      ordered: ordered,
+      contributors: contributors.active.toList(growable: false),
+      shadowCaster: shadowCaster,
+      lightOverflow: lightOverflowCount,
+    );
     final bloomNode = _BloomNode(this, settings.bloom);
     final compositeNode = _CompositeNode(this, scene, ordered, settings);
-    final postGraph =
-        _compilePostGraph(views.first, settings, bloomNode, compositeNode);
+    final frameGraph = _compileFrameGraph(
+      views.first,
+      settings,
+      shadow: shadowNode,
+      scene: sceneNode,
+      bloom: bloomNode,
+      composite: compositeNode,
+    );
 
     final passState = FramePassState();
 
-    final scenePass = _encodeScene(
-      host: host,
-      scene: scene,
-      ordered: ordered,
-      settings: settings,
-      width: width,
-      height: height,
-      hasShadows: hasShadows,
-      shadowCaster: shadowCaster,
-      passState: passState,
-      lightOverflowCount: lightOverflowCount,
-      contributors: contributors.active.toList(growable: false),
-    );
-    final culled = scenePass.culled;
-    var debugLines = scenePass.debugLines;
-    final lightOverflow = scenePass.lightOverflow;
-
-    // Ordered by the frame graph rather than by the registry. This stage is a
-    // real node — it runs after the scene's command buffer is submitted and
-    // builds its own pass — so it is the one that could move first.
-    //
-    // Every overlay reads the scene colour and writes it back, so the graph
-    // chains them in registration order, which is what the registry did. The
-    // point is not that the order changed; it is that it is now derived from
-    // what each pass says it touches, and that culling and diagnostics come
-    // with it.
-    //
-    // `inScene` has not moved and cannot yet: both stages draw into the *same*
-    // pass, so they are contributions to a node rather than nodes, and the
-    // graph has no word for that. That is the first thing the migration found,
-    // and it is the next piece of design rather than a line to force here.
-    // The frame's own resources, and the first thing to use them: the graph
-    // names the lit scene and each version of it, this holds the texture behind
-    // each. The scene's own colour is version zero, handed in rather than
-    // allocated; reflections produce a second one and the graph binds it. The
-    // finished image is handed in too, but by the composite rather than here —
-    // it is that node's output, and version zero of `frame` is nothing at all.
+    // The frame's own resources: the graph names the lit scene and each version
+    // of it, this holds the texture behind each. Nothing is handed in here any
+    // more — the scene provides its colour and its surface buffer, reflections
+    // provide the second colour, the composite provides the finished image, and
+    // each of them does it from inside the node that produced it. What is left
+    // in this method is the one thing the graph allocates for itself.
     final resources = FrameResources(
       source: _DeferredTextureSource(this),
-      graph: postGraph,
+      graph: frameGraph,
       frameWidth: width,
       frameHeight: height,
     )
-      // The first thing the graph allocates for itself. Half the frame, in the
-      // same HDR format, which is what the chain's top level has always been.
+      // Half the frame, in the same HDR format, which is what the bloom chain's
+      // top level has always been.
       ..declare(const ResourceDesc(
         id: FrameResourceIds.bloom,
         format: hdrFormat,
         size: FrameFraction(2),
-      ))
-      ..provide(FrameResourceIds.hdrColour, hdr)
-      ..provide(FrameResourceIds.surfaceBuffer, _surfaceColor ?? hdr);
+      ));
 
-    for (var i = 0; i < postGraph.order.length; i++) {
+    for (var i = 0; i < frameGraph.order.length; i++) {
       resources.beginNode(i);
-      (postGraph.order[i] as RenderNode).execute(
+      (frameGraph.order[i] as RenderNode).execute(
         NodeFrame(
           host: host,
           resources: resources,
@@ -2745,16 +2772,22 @@ final class Renderer implements RenderServices {
           settings: settings,
           width: width,
           height: height,
-          sceneColor: resources.texture(FrameResourceIds.hdrColour),
+          // `tryTexture`, because the scene runs first and there is no scene
+          // colour until it has drawn one. A node that draws over the world
+          // already has to handle that — the view model returns early — and
+          // asking for a texture nobody has produced would allocate one from a
+          // description that does not exist.
+          sceneColor: resources.tryTexture(FrameResourceIds.hdrColour),
         ),
       );
       resources.endNode(i);
     }
 
-    // Out of the node rather than out of the call, which is the shape of every
-    // one of these: the frame reports what its passes counted. The draws
+    // Out of the nodes rather than out of the calls, which is the shape of
+    // every one of these: the frame reports what its passes counted. The draws
     // themselves went into `passState` where they happened.
-    debugLines += compositeNode.overlayLines;
+    final scenePass = sceneNode.result!;
+    final debugLines = scenePass.debugLines + compositeNode.overlayLines;
 
     final image = _ldrColor!.asImage();
     frameClock.stop();
@@ -2765,11 +2798,11 @@ final class Renderer implements RenderServices {
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
       drawCalls: passState.drawCalls,
-      culled: culled,
+      culled: scenePass.culled,
       pipelineSwitches: passState.pipelineSwitches,
       debugLines: debugLines,
       lights: lights.count,
-      lightsDropped: lightOverflow,
+      lightsDropped: scenePass.lightOverflow,
       pipelines: _pipelineCache.length,
       shadowCasters: _shadowCasters,
       skinnedDraws: passState.skinnedDraws,
@@ -3223,6 +3256,189 @@ final class _DeferredTextureSource implements FrameTextureSource {
 
   @override
   void release(gpu.Texture texture) => _renderer._releaseAfterFrame(texture);
+}
+
+/// The directional light's shadow map, as a graph node.
+///
+/// The pass that had to move first, and the reason the scene moved with it:
+/// a shadow map must be drawn before the scene that samples it, and until the
+/// scene was a node there was nothing for the graph to order it against.
+///
+/// `shadow_map` is **external, not pooled**, and that is deliberate rather than
+/// unfinished. [Renderer._shadowMap] outlives the frame and is `devicePrivate`
+/// because the lighting pass samples it from a *later* command buffer; a pooled
+/// target handed back at the end of this node would be lent to somebody else
+/// while the scene was still reading it. So the node declares the write and
+/// [FrameResources.provide]s the renderer's own texture, exactly as the
+/// composite does with the finished image. What it does allocate — the depth
+/// attachment — is scratch, and goes through [FrameResources.transient].
+///
+/// It is registered whether or not it will draw, and switched off through
+/// [isActive]. Leaving it out would make `shadow_map` an unknown name and the
+/// scene's optional read of it a compile error, which is the branch moved
+/// rather than deleted — the same shape as bloom.
+///
+/// The texture is provided only when the pass actually drew, which is how the
+/// scene finds out. `_renderShadowMap` gives up on a scene with no bounds or a
+/// missing shader, and neither of those is knowable at compile; a node that
+/// provided regardless would tell the scene there was a shadow map when the
+/// texture still held the last frame that had one.
+final class _ShadowMapNode extends RenderNode {
+  _ShadowMapNode(
+    this._renderer, {
+    required this.scene,
+    required this.settings,
+    required this.casterIndex,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final ShadowSettings settings;
+
+  /// Which light in the packed buffer casts, or -1 for none.
+  final int casterIndex;
+
+  @override
+  String get name => 'directional shadows';
+
+  @override
+  bool get isActive =>
+      settings.enabled && settings.strength > 0.0 && casterIndex >= 0;
+
+  @override
+  List<ResourceId> get writes =>
+      const <ResourceId>[FrameResourceIds.shadowMap];
+
+  @override
+  void execute(NodeFrame frame) {
+    final drew = _renderer._renderShadowMap(
+      host: frame.host,
+      resources: frame.resources,
+      scene: scene,
+      settings: settings,
+      casterIndex: casterIndex,
+    );
+    if (!drew) return;
+    frame.resources.provide(
+      FrameResourceIds.shadowMap,
+      // Non-null once the pass has drawn: it allocates the map before it opens
+      // the render target.
+      _renderer._shadowMap!,
+    );
+  }
+}
+
+/// The world, as a graph node — the pass everything else is ordered around.
+///
+/// It writes `hdr_colour` and `surface_buffer`, which is what took those two
+/// names off [FrameGraph.addExternal]: the frame no longer hands the graph a
+/// lit scene produced by code beside it. And it *optionally* reads the three
+/// shadow maps, which is what lets anything be ordered before it at all.
+///
+/// Optional rather than hard, and the distinction is the whole reason
+/// [FrameGraphNode.optionalReads] exists: a hard read would cull the scene the
+/// moment shadows were switched off, and no read at all would cull the shadow
+/// passes instead, since nothing would want what they produce.
+///
+/// `cube_shadow` and `cube_shadow_static` are declared here already even though
+/// nothing on the graph writes them yet — they are external until the atlas
+/// becomes two nodes, and this is the socket those nodes plug into.
+///
+/// Unlike [_ReflectionsNode], which is single-view by construction, this draws
+/// **every** ordered view in one pass. A viewport per view, one command buffer,
+/// one submit — which is why the views are held here rather than derived from
+/// [NodeFrame], and why the node cannot be split per view without splitting the
+/// pass with it.
+final class _SceneNode extends RenderNode {
+  _SceneNode(
+    this._renderer, {
+    required this.scene,
+    required this.ordered,
+    required this.contributors,
+    required this.shadowCaster,
+    required this.lightOverflow,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+
+  /// Every view, by priority — all of them drawn by this one pass.
+  final List<RenderView> ordered;
+
+  /// Handed in rather than looked up, so a node somebody else supplies can be
+  /// given its own set. See [Renderer._encodeScene].
+  final List<PassContributor> contributors;
+
+  final int shadowCaster;
+  final int lightOverflow;
+
+  /// What the pass counted, for the frame's own report.
+  _ScenePass? result;
+
+  @override
+  String get name => 'scene';
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+        FrameResourceIds.shadowMap,
+        FrameResourceIds.cubeShadow,
+        FrameResourceIds.cubeShadowStatic,
+      ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[
+        FrameResourceIds.hdrColour,
+        FrameResourceIds.surfaceBuffer,
+      ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final resources = frame.resources;
+
+    // Asked of the frame that is running, not of a description of one, and not
+    // of a setting: whether the buffer is wanted depends on what some *node*
+    // declared, and an application's own node reading it is invisible to
+    // `RenderSettings`. It decides both whether the second attachment is
+    // present and whether the pass may multisample — attachments in one target
+    // must agree on sample count — so a wrong answer here is silent.
+    final surfaceIsRead =
+        resources.graph.isConsumed(FrameResourceIds.surfaceBuffer);
+
+    // Null when the shadow node was culled, and null when it ran and gave up.
+    // The same shape as the composite asking for the glow: an absent texture is
+    // a fact the graph derived, not a flag this pass was handed.
+    final shadowMap = resources.tryTexture(FrameResourceIds.shadowMap);
+
+    // Before the draw, and in place: the pass writes into the renderer's own
+    // targets rather than into anything the pool lent it, so the version it
+    // produces stands on a texture nobody may hand back.
+    final hdr = _renderer._hdrColor!;
+    resources.provide(FrameResourceIds.hdrColour, hdr);
+    if (surfaceIsRead) {
+      // Only when it was attached. Binding the texture behind the name when
+      // nothing filled it would offer a reader last frame's picture, which is
+      // exactly the failure `showSurfaceBuffer` was written to catch.
+      resources.provide(
+        FrameResourceIds.surfaceBuffer,
+        _renderer._surfaceColor ?? hdr,
+      );
+    }
+
+    result = _renderer._encodeScene(
+      host: frame.host,
+      scene: scene,
+      ordered: ordered,
+      settings: frame.settings,
+      width: frame.width,
+      height: frame.height,
+      hasShadows: shadowMap != null,
+      shadowCaster: shadowCaster,
+      passState: frame.state,
+      lightOverflowCount: lightOverflow,
+      contributors: contributors,
+      surfaceIsRead: surfaceIsRead,
+    );
+  }
 }
 
 /// Screen-space reflections, as a graph node.
