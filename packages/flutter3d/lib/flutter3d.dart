@@ -36,6 +36,14 @@ export 'src/engine/assets/resource_cache.dart';
 // Geometry: CPU-side meshes and the shapes that generate them.
 export 'src/engine/geometry/geometry.dart';
 
+// The engine's own vocabulary for graphics state — formats, storage modes,
+// blend and depth state, sampler descriptions. Deliberately free of
+// `flutter_gpu`: a consumer describing a render target or a sampler names these
+// and nothing below them. `src/engine/gpu/gpu_formats.dart` is the only place
+// they are translated.
+export 'src/engine/graphics/formats.dart';
+export 'src/engine/graphics/sampler.dart';
+
 // GPU resources.
 export 'src/engine/gpu/gpu_mesh.dart';
 export 'src/engine/gpu/render_target_pool.dart';

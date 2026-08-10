@@ -7,16 +7,16 @@
 /// bugs live in the decisions, and the decisions are next door where a test can
 /// reach them.
 ///
-/// It names `gpu.PixelFormat` rather than inventing a format enum of its own.
-/// Web is a goal and a second backend would want that abstraction, but there is
-/// no second backend to design it against yet, and a seam drawn without one is
-/// almost always drawn in the wrong place. When web arrives, this file is where
-/// it goes.
+/// A resource is described in the engine's own vocabulary — `TextureFormat`,
+/// `StorageMode` from `graphics/formats.dart` — so that declaring one does not
+/// mean naming a flutter_gpu type. The translation happens where the texture is
+/// actually created, in `RenderTargetPool`.
 library;
 
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import '../gpu/render_target_pool.dart';
+import '../graphics/formats.dart';
 import 'frame_graph.dart';
 
 /// How large a resource is, relative to the frame or in its own right.
@@ -85,18 +85,18 @@ final class ResourceDesc {
     required this.format,
     this.size = const FrameFraction(),
     this.sampleCount = 1,
-    this.storageMode = gpu.StorageMode.devicePrivate,
+    this.storageMode = StorageMode.devicePrivate,
   });
 
   final ResourceId id;
-  final gpu.PixelFormat format;
+  final TextureFormat format;
   final ResourceSize size;
   final int sampleCount;
 
   /// `deviceTransient` is tile memory: cheaper, and unreadable afterwards. A
   /// resource another node declares a read on must not be transient, which is
   /// a rule the graph could check and does not yet.
-  final gpu.StorageMode storageMode;
+  final StorageMode storageMode;
 
   RenderTargetSpec resolve(int frameWidth, int frameHeight) {
     final (width, height) = size.resolve(frameWidth, frameHeight);

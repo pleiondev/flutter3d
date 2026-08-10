@@ -2,6 +2,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart';
 
 import '../geometry/geometry.dart';
+import '../graphics/formats.dart';
 
 /// GPU-resident counterpart of a [MeshData].
 ///
@@ -30,7 +31,7 @@ final class GpuMesh implements MeshGeometry {
   @override
   final int indexCount;
 
-  final gpu.IndexType indexType;
+  final IndexType indexType;
 
   /// Object-space bounds, kept for culling and for framing the camera.
   @override
@@ -55,7 +56,7 @@ final class GpuMesh implements MeshGeometry {
       indexBuffer: gpu.gpuContext.createDeviceBufferWithCopy(packed.bytes),
       vertexCount: mesh.vertexCount,
       indexCount: packed.count,
-      indexType: packed.is16Bit ? gpu.IndexType.int16 : gpu.IndexType.int32,
+      indexType: packed.is16Bit ? IndexType.int16 : IndexType.int32,
       bounds: mesh.computeBounds(),
       source: keepSourceData ? mesh : null,
     );

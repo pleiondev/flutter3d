@@ -1,5 +1,8 @@
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
+import '../graphics/formats.dart';
+import 'gpu_formats.dart';
+
 /// What makes two render targets interchangeable.
 ///
 /// A value type so it can be a map key: the pool's whole job is to answer "have
@@ -10,17 +13,17 @@ final class RenderTargetSpec {
     required this.height,
     required this.format,
     this.sampleCount = 1,
-    this.storageMode = gpu.StorageMode.devicePrivate,
+    this.storageMode = StorageMode.devicePrivate,
   });
 
   final int width;
   final int height;
-  final gpu.PixelFormat format;
+  final TextureFormat format;
   final int sampleCount;
 
   /// `deviceTransient` is tile memory: cheaper, but cannot be sampled or loaded
   /// from, which rules it out for anything the next pass reads.
-  final gpu.StorageMode storageMode;
+  final StorageMode storageMode;
 
   RenderTargetSpec scaled(int divisor) => RenderTargetSpec(
         // Never below one pixel: a bloom chain taken far enough would otherwise
@@ -92,16 +95,16 @@ final class RenderTargetPool {
     }
 
     final texture = gpu.gpuContext.createTexture(
-      spec.storageMode,
+      spec.storageMode.toGpu(),
       spec.width,
       spec.height,
-      format: spec.format,
+      format: spec.format.toGpu(),
       sampleCount: spec.sampleCount,
       enableRenderTargetUsage: true,
       // Transient textures live in tile memory and cannot be sampled, so asking
       // for shader read on one is a contradiction the driver would have to
       // resolve for us.
-      enableShaderReadUsage: spec.storageMode != gpu.StorageMode.deviceTransient,
+      enableShaderReadUsage: spec.storageMode != StorageMode.deviceTransient,
     );
     _created++;
     _lent[texture] = spec;

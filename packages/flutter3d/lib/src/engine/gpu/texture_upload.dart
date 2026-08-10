@@ -4,6 +4,9 @@ import 'dart:ui' as ui;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import '../assets/model_document.dart';
+import '../graphics/formats.dart';
+import '../graphics/sampler.dart';
+import 'gpu_formats.dart';
 
 /// Decodes an encoded image (PNG, JPEG, …) and uploads it as a GPU texture.
 ///
@@ -42,11 +45,11 @@ Future<gpu.Texture?> uploadEncodedImage(Uint8List encoded) async {
     if (data == null) return null;
 
     final texture = gpu.gpuContext.createTexture(
-      gpu.StorageMode.hostVisible,
+      StorageMode.hostVisible.toGpu(),
       image.width,
       image.height,
-      format: gpu.PixelFormat.r8g8b8a8UNormInt,
-      coordinateSystem: gpu.TextureCoordinateSystem.uploadFromHost,
+      format: TextureFormat.r8g8b8a8UNormInt.toGpu(),
+      coordinateSystem: TextureCoordinateSystem.uploadFromHost.toGpu(),
     );
 
     // overwrite() demands exactly the base mip size and throws otherwise, so a
@@ -61,22 +64,20 @@ Future<gpu.Texture?> uploadEncodedImage(Uint8List encoded) async {
   }
 }
 
-/// Maps decoded sampling settings onto flutter_gpu sampler options.
+/// Maps decoded sampling settings onto the engine's sampler description.
 ///
 /// Mip filtering is dropped: assets almost always request mipmapped
-/// minification, and flutter_gpu has no mip levels to filter between.
-gpu.SamplerOptions samplerOptionsFor(TextureSampling info) {
-  gpu.SamplerAddressMode address(TextureWrap wrap) => switch (wrap) {
-        TextureWrap.repeat => gpu.SamplerAddressMode.repeat,
-        TextureWrap.clampToEdge => gpu.SamplerAddressMode.clampToEdge,
-        TextureWrap.mirroredRepeat => gpu.SamplerAddressMode.mirror,
+/// minification, and there are no mip levels to filter between.
+SamplerOptions samplerOptionsFor(TextureSampling info) {
+  SamplerAddressMode address(TextureWrap wrap) => switch (wrap) {
+        TextureWrap.repeat => SamplerAddressMode.repeat,
+        TextureWrap.clampToEdge => SamplerAddressMode.clampToEdge,
+        TextureWrap.mirroredRepeat => SamplerAddressMode.mirror,
       };
 
-  return gpu.SamplerOptions(
-    minFilter:
-        info.minLinear ? gpu.MinMagFilter.linear : gpu.MinMagFilter.nearest,
-    magFilter:
-        info.magLinear ? gpu.MinMagFilter.linear : gpu.MinMagFilter.nearest,
+  return SamplerOptions(
+    minFilter: info.minLinear ? MinMagFilter.linear : MinMagFilter.nearest,
+    magFilter: info.magLinear ? MinMagFilter.linear : MinMagFilter.nearest,
     widthAddressMode: address(info.wrapS),
     heightAddressMode: address(info.wrapT),
   );

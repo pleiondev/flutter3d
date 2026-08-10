@@ -1,13 +1,13 @@
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter3d/src/engine/gpu/render_target_pool.dart';
+import 'package:flutter3d/src/engine/graphics/formats.dart';
 
 void main() {
   const base = RenderTargetSpec(
     width: 1920,
     height: 1080,
-    format: gpu.PixelFormat.r16g16b16a16Float,
+    format: TextureFormat.r16g16b16a16Float,
   );
 
   group('what makes two targets interchangeable', () {
@@ -15,7 +15,7 @@ void main() {
       const other = RenderTargetSpec(
         width: 1920,
         height: 1080,
-        format: gpu.PixelFormat.r16g16b16a16Float,
+        format: TextureFormat.r16g16b16a16Float,
       );
       expect(other, base);
       expect(other.hashCode, base.hashCode);
@@ -28,7 +28,7 @@ void main() {
         const RenderTargetSpec(
           width: 1920,
           height: 1081,
-          format: gpu.PixelFormat.r16g16b16a16Float,
+          format: TextureFormat.r16g16b16a16Float,
         ),
         isNot(base),
       );
@@ -36,7 +36,7 @@ void main() {
         const RenderTargetSpec(
           width: 1920,
           height: 1080,
-          format: gpu.PixelFormat.r8g8b8a8UNormInt,
+          format: TextureFormat.r8g8b8a8UNormInt,
         ),
         isNot(base),
       );
@@ -44,7 +44,7 @@ void main() {
         const RenderTargetSpec(
           width: 1920,
           height: 1080,
-          format: gpu.PixelFormat.r16g16b16a16Float,
+          format: TextureFormat.r16g16b16a16Float,
           sampleCount: 4,
         ),
         isNot(base),
@@ -53,8 +53,8 @@ void main() {
         const RenderTargetSpec(
           width: 1920,
           height: 1080,
-          format: gpu.PixelFormat.r16g16b16a16Float,
-          storageMode: gpu.StorageMode.deviceTransient,
+          format: TextureFormat.r16g16b16a16Float,
+          storageMode: StorageMode.deviceTransient,
         ),
         isNot(base),
       );
@@ -88,7 +88,7 @@ void main() {
       const odd = RenderTargetSpec(
         width: 1601,
         height: 541,
-        format: gpu.PixelFormat.r16g16b16a16Float,
+        format: TextureFormat.r16g16b16a16Float,
       );
       expect(odd.scaled(2).width, 800);
       expect(odd.scaled(2).height, 270);

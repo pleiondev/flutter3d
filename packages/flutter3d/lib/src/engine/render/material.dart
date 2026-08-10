@@ -1,6 +1,7 @@
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart';
 
+import '../graphics/sampler.dart';
 import 'lighting_model.dart';
 
 /// How a material treats the alpha channel, mirroring glTF's `alphaMode`.
@@ -56,7 +57,7 @@ final class Material {
   double roughness;
 
   gpu.Texture? albedo;
-  gpu.SamplerOptions? albedoSampler;
+  SamplerOptions? albedoSampler;
 
   /// Tangent-space normal map. Null means the geometric normal is used.
   ///
@@ -66,24 +67,24 @@ final class Material {
   /// two places; a neutral texel is right by construction, and the branch it
   /// would have cost is worth more than the sample.
   gpu.Texture? normal;
-  gpu.SamplerOptions? normalSampler;
+  SamplerOptions? normalSampler;
 
   /// Scales the tangent-space xy of the normal map, per glTF's `normalScale`.
   double normalScale;
 
   /// glTF's ORM packing: roughness in green, metallic in blue.
   gpu.Texture? metallicRoughness;
-  gpu.SamplerOptions? metallicRoughnessSampler;
+  SamplerOptions? metallicRoughnessSampler;
 
   /// Ambient occlusion in red.
   gpu.Texture? occlusion;
-  gpu.SamplerOptions? occlusionSampler;
+  SamplerOptions? occlusionSampler;
 
   /// How much of the occlusion map to apply, from 0 (ignore) to 1 (in full).
   double occlusionStrength;
 
   gpu.Texture? emissiveTexture;
-  gpu.SamplerOptions? emissiveSampler;
+  SamplerOptions? emissiveSampler;
 
   /// Linear emissive factor, multiplied by the emissive map. Black by default,
   /// so a material with a map but no factor emits nothing — which is what glTF

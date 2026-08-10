@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../gpu/gpu_formats.dart';
+import '../graphics/formats.dart';
 import '../render/pass_contributor.dart';
 import 'particle_system.dart';
 
@@ -77,26 +79,26 @@ final class ParticleContributor extends PassContributor {
         fragmentShader,
       ),
     );
-    pass.setPrimitiveType(gpu.PrimitiveType.triangle);
-    pass.setPolygonMode(gpu.PolygonMode.fill);
+    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
+    pass.setPolygonMode(PolygonMode.fill.toGpu());
     // A quad seen from behind is still a quad; culling one would make half the
     // particles vanish depending on which way the camera turned.
-    pass.setCullMode(gpu.CullMode.none);
+    pass.setCullMode(CullMode.none.toGpu());
     pass.setColorBlendEnable(true);
     pass.setColorBlendEquation(
       gpu.ColorBlendEquation(
-        colorBlendOperation: gpu.BlendOperation.add,
-        sourceColorBlendFactor: gpu.BlendFactor.one,
-        destinationColorBlendFactor: gpu.BlendFactor.one,
-        alphaBlendOperation: gpu.BlendOperation.add,
-        sourceAlphaBlendFactor: gpu.BlendFactor.one,
-        destinationAlphaBlendFactor: gpu.BlendFactor.one,
+        colorBlendOperation: BlendOperation.add.toGpu(),
+        sourceColorBlendFactor: BlendFactor.one.toGpu(),
+        destinationColorBlendFactor: BlendFactor.one.toGpu(),
+        alphaBlendOperation: BlendOperation.add.toGpu(),
+        sourceAlphaBlendFactor: BlendFactor.one.toGpu(),
+        destinationAlphaBlendFactor: BlendFactor.one.toGpu(),
       ),
     );
     // Tested against the world, but never written: particles must not occlude
     // each other, and with additive blending they have no business trying.
     pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(gpu.CompareFunction.less);
+    pass.setDepthCompareOperation(CompareFunction.less.toGpu());
 
     final vertexCount = written * 4;
     final indexCount = written * 6;
@@ -112,7 +114,7 @@ final class ParticleContributor extends PassContributor {
     );
     pass.bindIndexBuffer(
       frame.host.emplace(ByteData.sublistView(indices, 0, indexCount)),
-      gpu.IndexType.int32,
+      IndexType.int32.toGpu(),
       indexCount,
     );
     frame.services.bindUniformBlock(

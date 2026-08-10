@@ -5,6 +5,7 @@ import '../animation/animation.dart';
 import '../geometry/geometry.dart';
 import '../gpu/gpu_mesh.dart';
 import '../gpu/texture_upload.dart';
+import '../graphics/sampler.dart';
 import '../render/lighting_model.dart';
 import '../render/material.dart';
 import '../scene/mesh_node.dart';
@@ -412,7 +413,7 @@ final class ModelAsset {
     /// A slot the file does not declare comes back null and the renderer binds
     /// a neutral texture instead, which is why nothing here has to record
     /// "this material has no normal map".
-    Future<(gpu.Texture?, gpu.SamplerOptions?)> resolve(
+    Future<(gpu.Texture?, SamplerOptions?)> resolve(
       TextureBinding? binding,
     ) async {
       if (binding == null) return (null, null);

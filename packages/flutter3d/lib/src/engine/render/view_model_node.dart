@@ -3,6 +3,8 @@ import 'dart:developer' as developer;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../gpu/gpu_formats.dart';
+import '../graphics/formats.dart';
 import '../scene/camera_node.dart';
 import '../scene/scene.dart';
 import 'frame_graph.dart';
@@ -77,7 +79,7 @@ final class ViewModelNode extends RenderNode {
     // handful of large, close triangles whose silhouette is mostly off screen,
     // the one case where the resolve buys least.
     final target = gpu.RenderTarget.singleColor(
-      gpu.ColorAttachment(texture: hdr, loadAction: gpu.LoadAction.load),
+      gpu.ColorAttachment(texture: hdr, loadAction: LoadAction.load.toGpu()),
       depthStencilAttachment: gpu.DepthStencilAttachment(
         // Its own depth, not the scene's: attachments in one target must agree
         // on sample count, and the scene's is four-sample whenever MSAA is on.
@@ -95,8 +97,8 @@ final class ViewModelNode extends RenderNode {
       ..setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height))
       ..setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height))
       ..setDepthWriteEnable(true)
-      ..setDepthCompareOperation(gpu.CompareFunction.less)
-      ..setPrimitiveType(gpu.PrimitiveType.triangle);
+      ..setDepthCompareOperation(CompareFunction.less.toGpu())
+      ..setPrimitiveType(PrimitiveType.triangle.toGpu());
 
     // Nothing is bound in a new pass, so the state has to forget what the
     // scene pass left it believing.
@@ -133,7 +135,7 @@ final class ViewModelNode extends RenderNode {
       return _depth!;
     }
     _depth = gpu.gpuContext.createTexture(
-      gpu.StorageMode.deviceTransient,
+      StorageMode.deviceTransient.toGpu(),
       width,
       height,
       format: gpu.gpuContext.defaultDepthStencilFormat,

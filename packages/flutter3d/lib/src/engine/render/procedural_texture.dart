@@ -3,6 +3,9 @@ import 'dart:typed_data';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart';
 
+import '../gpu/gpu_formats.dart';
+import '../graphics/formats.dart';
+
 /// A texture generated in code.
 ///
 /// An abstraction rather than a set of free functions returning [ByteData], so
@@ -21,12 +24,12 @@ abstract class ProceduralTexture {
   /// Uploads the pixels as a host-visible GPU texture.
   gpu.Texture upload() {
     final texture = gpu.gpuContext.createTexture(
-      gpu.StorageMode.hostVisible,
+      StorageMode.hostVisible.toGpu(),
       size,
       size,
-      format: gpu.PixelFormat.r8g8b8a8UNormInt,
+      format: TextureFormat.r8g8b8a8UNormInt.toGpu(),
       // The data is uploaded from the host, so use the host coordinate system.
-      coordinateSystem: gpu.TextureCoordinateSystem.uploadFromHost,
+      coordinateSystem: TextureCoordinateSystem.uploadFromHost.toGpu(),
     );
     texture.overwrite(encode());
     return texture;

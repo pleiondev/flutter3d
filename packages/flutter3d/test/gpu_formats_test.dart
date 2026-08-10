@@ -1,0 +1,337 @@
+/// Proves the enum translation, value by value.
+///
+/// The hazard this exists for: a wrong mapping compiles, runs, and renders
+/// wrong only for the values a scene happens to use. The goldens cover the
+/// values the twenty-three scenes exercise and nothing else — `BlendFactor` has
+/// fifteen members and the engine draws with two of them — so a mistake in the
+/// other thirteen would be found by a user rather than by us.
+///
+/// Three claims, and it takes all three:
+///
+///  1. **Each value lands on the flutter_gpu value of the same name.** This is
+///     the one that matters. "Distinct" would happily accept a swapped
+///     `frontFace` / `backFace` pair, and swapping those is exactly the mistake
+///     a hand-written mapping makes.
+///  2. **The two enums have the same number of values.** The analyser already
+///     refuses a mapping that misses one of *ours* — every switch in
+///     `gpu_formats.dart` is an expression with no `default`. This covers the
+///     other direction: flutter_gpu gaining a value we have not mirrored.
+///  3. **The round trip is identity**, wherever a reverse mapping exists.
+///
+/// It runs off-device. The enums are const and flutter_gpu's `SamplerOptions`
+/// is a plain Dart object, so nothing here needs a GPU context — the same
+/// property `render_target_spec_test.dart` and `composite_mix_test.dart` rely
+/// on.
+library;
+
+import 'package:flutter_gpu/gpu.dart' as gpu;
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:flutter3d/src/engine/gpu/gpu_formats.dart';
+import 'package:flutter3d/src/engine/graphics/formats.dart';
+import 'package:flutter3d/src/engine/graphics/sampler.dart';
+
+/// Checks one enum's forward mapping against flutter_gpu's values.
+///
+/// [toGpu] is passed as a function rather than looked up, because the mapping
+/// under test is the thing being pinned and reaching it through anything
+/// clever would let the test agree with a bug.
+void checkForward<E extends Enum, G extends Enum>(
+  String name,
+  List<E> ours,
+  List<G> theirs,
+  G Function(E) toGpu,
+) {
+  group(name, () {
+    test('has exactly the values flutter_gpu has', () {
+      expect(
+        ours.length,
+        theirs.length,
+        reason: '$name: flutter_gpu has ${theirs.length} values and this '
+            'engine has ${ours.length}. Adding or dropping one silently is '
+            'how the two stop meaning the same thing.',
+      );
+      expect(ours.map((e) => e.name), theirs.map((e) => e.name));
+    });
+
+    test('every value maps to the flutter_gpu value of the same name', () {
+      for (final value in ours) {
+        expect(
+          toGpu(value).name,
+          value.name,
+          reason: '$name.${value.name} maps to ${toGpu(value).name}',
+        );
+      }
+    });
+
+    test('no two values map to the same one', () {
+      final seen = <G, E>{};
+      for (final value in ours) {
+        final mapped = toGpu(value);
+        expect(
+          seen[mapped],
+          isNull,
+          reason: '$name.${value.name} and $name.${seen[mapped]?.name} both '
+              'map to ${mapped.name}',
+        );
+        seen[mapped] = value;
+      }
+    });
+  });
+}
+
+/// Checks that a value survives a trip through flutter_gpu and back.
+void checkRoundTrip<E extends Enum, G extends Enum>(
+  String name,
+  List<E> ours,
+  List<G> theirs,
+  G Function(E) toGpu,
+  E Function(G) toEngine,
+) {
+  group('$name round trip', () {
+    test('ours -> flutter_gpu -> ours is identity', () {
+      for (final value in ours) {
+        expect(toEngine(toGpu(value)), value);
+      }
+    });
+
+    test('flutter_gpu -> ours -> flutter_gpu is identity', () {
+      for (final value in theirs) {
+        expect(toGpu(toEngine(value)), value);
+      }
+    });
+  });
+}
+
+void main() {
+  // -- Resource description --------------------------------------------------
+
+  checkForward(
+    'StorageMode',
+    StorageMode.values,
+    gpu.StorageMode.values,
+    (v) => v.toGpu(),
+  );
+  checkRoundTrip(
+    'StorageMode',
+    StorageMode.values,
+    gpu.StorageMode.values,
+    (v) => v.toGpu(),
+    (v) => v.toEngine(),
+  );
+
+  // The one type whose *name* differs from flutter_gpu's, because `dart:ui`
+  // already exports a `PixelFormat`. The value names are identical, which is
+  // what keeps the check below meaningful.
+  checkForward(
+    'TextureFormat',
+    TextureFormat.values,
+    gpu.PixelFormat.values,
+    (v) => v.toGpu(),
+  );
+  checkRoundTrip(
+    'TextureFormat',
+    TextureFormat.values,
+    gpu.PixelFormat.values,
+    (v) => v.toGpu(),
+    (v) => v.toEngine(),
+  );
+
+  checkForward(
+    'TextureCoordinateSystem',
+    TextureCoordinateSystem.values,
+    gpu.TextureCoordinateSystem.values,
+    (v) => v.toGpu(),
+  );
+  checkRoundTrip(
+    'TextureCoordinateSystem',
+    TextureCoordinateSystem.values,
+    gpu.TextureCoordinateSystem.values,
+    (v) => v.toGpu(),
+    (v) => v.toEngine(),
+  );
+
+  // -- Geometry --------------------------------------------------------------
+
+  checkForward(
+    'IndexType',
+    IndexType.values,
+    gpu.IndexType.values,
+    (v) => v.toGpu(),
+  );
+  checkRoundTrip(
+    'IndexType',
+    IndexType.values,
+    gpu.IndexType.values,
+    (v) => v.toGpu(),
+    (v) => v.toEngine(),
+  );
+
+  // -- Sampling --------------------------------------------------------------
+
+  checkForward(
+    'MinMagFilter',
+    MinMagFilter.values,
+    gpu.MinMagFilter.values,
+    (v) => v.toGpu(),
+  );
+  checkRoundTrip(
+    'MinMagFilter',
+    MinMagFilter.values,
+    gpu.MinMagFilter.values,
+    (v) => v.toGpu(),
+    (v) => v.toEngine(),
+  );
+
+  checkForward(
+    'MipFilter',
+    MipFilter.values,
+    gpu.MipFilter.values,
+    (v) => v.toGpu(),
+  );
+  checkRoundTrip(
+    'MipFilter',
+    MipFilter.values,
+    gpu.MipFilter.values,
+    (v) => v.toGpu(),
+    (v) => v.toEngine(),
+  );
+
+  checkForward(
+    'SamplerAddressMode',
+    SamplerAddressMode.values,
+    gpu.SamplerAddressMode.values,
+    (v) => v.toGpu(),
+  );
+  checkRoundTrip(
+    'SamplerAddressMode',
+    SamplerAddressMode.values,
+    gpu.SamplerAddressMode.values,
+    (v) => v.toGpu(),
+    (v) => v.toEngine(),
+  );
+
+  // -- Pass and pipeline state -----------------------------------------------
+  //
+  // Write-only in this engine, so there is no reverse mapping to round-trip.
+
+  checkForward(
+    'LoadAction',
+    LoadAction.values,
+    gpu.LoadAction.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'StoreAction',
+    StoreAction.values,
+    gpu.StoreAction.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'PrimitiveType',
+    PrimitiveType.values,
+    gpu.PrimitiveType.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'CullMode',
+    CullMode.values,
+    gpu.CullMode.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'WindingOrder',
+    WindingOrder.values,
+    gpu.WindingOrder.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'PolygonMode',
+    PolygonMode.values,
+    gpu.PolygonMode.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'CompareFunction',
+    CompareFunction.values,
+    gpu.CompareFunction.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'BlendFactor',
+    BlendFactor.values,
+    gpu.BlendFactor.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'BlendOperation',
+    BlendOperation.values,
+    gpu.BlendOperation.values,
+    (v) => v.toGpu(),
+  );
+
+  group('SamplerOptions', () {
+    test('every field is carried across, and none is crossed with another', () {
+      // Deliberately asymmetric in every axis, so a mapping that swapped min
+      // for mag, or width for height, could not produce the same answer.
+      const ours = SamplerOptions(
+        minFilter: MinMagFilter.linear,
+        magFilter: MinMagFilter.nearest,
+        mipFilter: MipFilter.linear,
+        widthAddressMode: SamplerAddressMode.repeat,
+        heightAddressMode: SamplerAddressMode.mirror,
+      );
+
+      final theirs = ours.toGpu();
+      expect(theirs.minFilter, gpu.MinMagFilter.linear);
+      expect(theirs.magFilter, gpu.MinMagFilter.nearest);
+      expect(theirs.mipFilter, gpu.MipFilter.linear);
+      expect(theirs.widthAddressMode, gpu.SamplerAddressMode.repeat);
+      expect(theirs.heightAddressMode, gpu.SamplerAddressMode.mirror);
+
+      expect(theirs.toEngine(), ours);
+    });
+
+    test('the defaults are flutter_gpu\'s defaults', () {
+      // A different default would be a silent behaviour change at every call
+      // site that leaves a field out.
+      final defaults = gpu.SamplerOptions().toEngine();
+      expect(defaults, const SamplerOptions());
+    });
+
+    test('the named samplers say what they are named after', () {
+      expect(SamplerOptions.linearRepeat.minFilter, MinMagFilter.linear);
+      expect(SamplerOptions.linearRepeat.magFilter, MinMagFilter.linear);
+      expect(
+        SamplerOptions.linearRepeat.widthAddressMode,
+        SamplerAddressMode.repeat,
+      );
+      expect(
+        SamplerOptions.linearRepeat.heightAddressMode,
+        SamplerAddressMode.repeat,
+      );
+
+      expect(SamplerOptions.linearClamp.minFilter, MinMagFilter.linear);
+      expect(SamplerOptions.linearClamp.magFilter, MinMagFilter.linear);
+      expect(
+        SamplerOptions.linearClamp.widthAddressMode,
+        SamplerAddressMode.clampToEdge,
+      );
+      expect(
+        SamplerOptions.linearClamp.heightAddressMode,
+        SamplerAddressMode.clampToEdge,
+      );
+    });
+
+    test('equal descriptions share one flutter_gpu object', () {
+      // The point of the value equality: `bindTexture` runs several times per
+      // draw, and there are hundreds of draws in a frame.
+      const a = SamplerOptions(minFilter: MinMagFilter.linear);
+      const b = SamplerOptions(minFilter: MinMagFilter.linear);
+      expect(identical(a.toGpu(), b.toGpu()), isTrue);
+
+      const c = SamplerOptions(minFilter: MinMagFilter.nearest);
+      expect(identical(a.toGpu(), c.toGpu()), isFalse);
+    });
+  });
+}
