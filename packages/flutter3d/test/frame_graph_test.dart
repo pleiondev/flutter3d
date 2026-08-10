@@ -379,6 +379,164 @@ void main() {
     });
   });
 
+  group('versions', () {
+    test('each write makes a new version and a read binds to the current one',
+        () {
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('first',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('second',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[colour]);
+
+      // Zero is what the engine handed in; each pass consumes one version and
+      // produces the next, which is what "read-modify-write" means.
+      expect(compiled.readVersionOf(0, colour), 0);
+      expect(compiled.writeVersionOf(0, colour), 1);
+      expect(compiled.readVersionOf(1, colour), 1);
+      expect(compiled.writeVersionOf(1, colour), 2);
+      expect(compiled.currentVersionOf(colour), 2);
+    });
+
+    test('a resource nobody writes stays at the version it arrived with', () {
+      final graph = FrameGraph()
+        ..addExternal(depth)
+        ..addNode(const TestNode('reads it',
+            reads: <ResourceId>[depth], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.currentVersionOf(depth), 0);
+      expect(compiled.readVersionOf(0, depth), 0);
+      expect(compiled.writeVersionOf(0, depth), isNull);
+    });
+
+    test('an old version goes back while the new one is still live', () {
+      // The whole point of the exercise. Reflections read the lit scene and
+      // write a second texture; the first can go to the pool as soon as they
+      // are done with it, even though the name is very much still in use.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('reflections',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('bloom',
+            reads: <ResourceId>[colour], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[colour, bloom],
+            writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order),
+          <String>['reflections', 'bloom', 'composite']);
+      expect(compiled.retiredAfter(0),
+          <ResourceVersion>[ResourceVersion(colour, 0)]);
+      expect(compiled.retiredAfter(2),
+          contains(ResourceVersion(colour, 1)));
+    });
+
+    test('a reader between two writers is bound to the earlier version', () {
+      // Unversioned this was a cycle, and not an obvious one: "depend on every
+      // writer" made the pass in the middle depend on the second writer, which
+      // already depended on it. The name is one resource; the two textures
+      // behind it are not.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('first', writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('between',
+            reads: <ResourceId>[colour], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('second',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('present',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order),
+          <String>['first', 'between', 'second', 'present']);
+      expect(compiled.readVersionOf(1, colour), 1);
+      expect(compiled.readVersionOf(3, colour), 2);
+    });
+
+    test('a consumer registered before its producer reads the last version',
+        () {
+      // Registration order decides versions; it does not decide run order, and
+      // a consumer declared first is the ordinary case. It means "the resource
+      // as the frame finally leaves it".
+      final graph = FrameGraph()
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('first', writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('second',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['first', 'second', 'composite']);
+      expect(compiled.readVersionOf(2, colour), 2);
+    });
+
+    test('a pass that is switched off does not consume a version', () {
+      // If it did, every pass after it in a chain would be bound to a version
+      // nobody produces — and switching one optional effect off would cull the
+      // whole rest of the chain.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('off',
+            reads: <ResourceId>[colour],
+            writes: <ResourceId>[colour],
+            isActive: false))
+        ..addNode(const TestNode('after',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[colour]);
+
+      expect(names(compiled.order), <String>['after']);
+      expect(compiled.readVersionOf(0, colour), 0);
+      expect(compiled.writeVersionOf(0, colour), 1);
+    });
+
+    test('the output is the newest version anybody actually produced', () {
+      // The last writer starves, so the frame's output is what the writer
+      // before it left — not nothing at all.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('kept',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('starved',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('bloom',
+            writes: <ResourceId>[bloom], isActive: false));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['kept']);
+      expect(names(compiled.culled), containsAll(<String>['starved', 'bloom']));
+    });
+
+    test('releasedAfter names a resource once however many versions died', () {
+      // Both versions of the colour die with the one pass that touched it, and
+      // the unversioned view is what a caller counting names wants.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('overlay',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[colour]);
+
+      expect(
+        compiled.retiredAfter(0),
+        unorderedEquals(<ResourceVersion>[
+          ResourceVersion(colour, 0),
+          ResourceVersion(colour, 1),
+        ]),
+      );
+      expect(compiled.releasedAfter(0), <ResourceId>[colour]);
+      expect(compiled.lastUseOf(colour), 0);
+    });
+  });
+
   test('a chain of read-modify-write nodes is not a loop', () {
     // Two overlays compositing onto one colour each read it and write it back.
     // "Depend on every writer" makes them depend on each other; the order is

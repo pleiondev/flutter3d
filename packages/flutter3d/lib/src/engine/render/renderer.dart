@@ -1443,7 +1443,11 @@ final class Renderer implements RenderServices {
   /// application registered, and because a node holds this frame's arguments.
   /// The scene and the shadow passes are not nodes yet, so the lit colour is
   /// external here — produced above by code rather than by a node.
-  CompiledFrameGraph _compilePostGraph(RenderView view, RenderSettings s) {
+  CompiledFrameGraph _compilePostGraph(
+    RenderView view,
+    RenderSettings s,
+    _BloomNode bloom,
+  ) {
     final graph = FrameGraph()
       ..addExternal(FrameResourceIds.hdrColour)
       ..addExternal(FrameResourceIds.surfaceBuffer);
@@ -1454,9 +1458,20 @@ final class Renderer implements RenderServices {
     if (s.reflections.enabled) {
       graph.addNode(_ReflectionsNode(this, view));
     }
+    // Last, so it reads the scene as everything before it left it — the
+    // registration order *is* the version chain, and bloom wants the end of it.
+    graph.addNode(bloom);
 
     return graph.compile(
-      outputs: const <ResourceId>[FrameResourceIds.hdrColour],
+      // The glow is a frame output rather than something a node reads, because
+      // the pass that reads it — the composite — is not a node yet. Registering
+      // bloom whether or not it is switched on keeps the name known, so asking
+      // for it is never an error; with the node inactive nothing produces it
+      // and the graph culls the whole thing.
+      outputs: const <ResourceId>[
+        FrameResourceIds.hdrColour,
+        FrameResourceIds.bloom,
+      ],
     );
   }
 
@@ -1803,15 +1818,21 @@ final class Renderer implements RenderServices {
     heightAddressMode: gpu.SamplerAddressMode.clampToEdge,
   );
 
-  /// Builds the bloom chain and returns its top level, or null when bloom is
-  /// off. Any intermediate levels are returned to the pool.
-  gpu.Texture? _renderBloom({
+  /// Builds the bloom chain into [top], the texture the graph allocated for
+  /// `FrameResourceIds.bloom`.
+  ///
+  /// Everything below the top is scratch that no other pass will ever name, so
+  /// it comes from [FrameResources.transient] rather than from the pool
+  /// directly. That is not tidiness: the upsample command buffers that read
+  /// those levels are still in flight when this method returns, and handing
+  /// them straight back let the pool lend one out while the GPU was reading it.
+  void _renderBloom({
     required gpu.HostBuffer host,
+    required FrameResources resources,
     required gpu.Texture scene,
+    required gpu.Texture top,
     required BloomSettings settings,
   }) {
-    if (!settings.enabled || settings.intensity <= 0.0) return null;
-
     final levels = settings.levels.clamp(1, 8);
     final chain = <gpu.Texture>[];
 
@@ -1832,7 +1853,7 @@ final class Renderer implements RenderServices {
         break;
       }
 
-      final target = targetPool.acquire(spec);
+      final target = level == 0 ? top : resources.transient(spec);
       _bloomParams[0] = 1.0 / sourceWidth;
       _bloomParams[1] = 1.0 / sourceHeight;
       _bloomParams[2] = level == 0 ? settings.threshold : 0.0;
@@ -1880,12 +1901,6 @@ final class Renderer implements RenderServices {
       );
     }
     developer.Timeline.finishSync();
-
-    // Everything below the top is scratch.
-    for (var level = 1; level < chain.length; level++) {
-      targetPool.release(chain[level]);
-    }
-    return chain.isEmpty ? null : chain.first;
   }
 
   /// The upsample step, which differs from every other post pass by blending
@@ -2645,11 +2660,12 @@ final class Renderer implements RenderServices {
       }
     }
 
-    // Reflections, the overlays and everything after them, ordered by what
-    // each declares rather than by where it sits in this method. The scene and
-    // the shadow passes have not moved yet, so `hdr_colour` is external here —
-    // produced by code above rather than by a node.
-    final postGraph = _compilePostGraph(views.first, settings);
+    // Reflections, the overlays, bloom and everything after them, ordered by
+    // what each declares rather than by where it sits in this method. The scene
+    // and the shadow passes have not moved yet, so `hdr_colour` is external
+    // here — produced by code above rather than by a node.
+    final bloomNode = _BloomNode(this, settings.bloom);
+    final postGraph = _compilePostGraph(views.first, settings, bloomNode);
 
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
@@ -2688,19 +2704,28 @@ final class Renderer implements RenderServices {
     // graph has no word for that. That is the first thing the migration found,
     // and it is the next piece of design rather than a line to force here.
     // The frame's own resources, and the first thing to use them: the graph
-    // names the lit scene, this holds whichever texture is currently behind
-    // that name. Reflections move it; see [FrameResources.rebind].
+    // names the lit scene and each version of it, this holds the texture behind
+    // each. The scene's own colour is version zero, handed in rather than
+    // allocated; reflections produce a second one and the graph binds it.
     final resources = FrameResources(
       source: _DeferredTextureSource(this),
       graph: postGraph,
       frameWidth: width,
       frameHeight: height,
     )
+      // The first thing the graph allocates for itself. Half the frame, in the
+      // same HDR format, which is what the chain's top level has always been.
+      ..declare(const ResourceDesc(
+        id: FrameResourceIds.bloom,
+        format: hdrFormat,
+        size: FrameFraction(2),
+      ))
       ..provide(FrameResourceIds.hdrColour, hdr)
       ..provide(FrameResourceIds.surfaceBuffer, _surfaceColor ?? hdr)
       ..provide(FrameResourceIds.frame, _ldrColor!);
 
     for (var i = 0; i < postGraph.order.length; i++) {
+      resources.beginNode(i);
       (postGraph.order[i] as RenderNode).execute(
         NodeFrame(
           host: host,
@@ -2719,11 +2744,13 @@ final class Renderer implements RenderServices {
     // The lit scene, whichever texture that turned out to be.
     final lit = resources.texture(FrameResourceIds.hdrColour);
 
-    final bloom = _renderBloom(
-      host: host,
-      scene: lit,
-      settings: settings.bloom,
-    );
+    // Null when the bloom node was culled. The composite is not a node yet, so
+    // the glow comes out of the node that drew it rather than out of an
+    // optional read — which is what step two of the migration replaces this
+    // with. Its texture is already retired, and therefore already queued for
+    // the pool a full ring of frames from now, so reading it here is safe for
+    // exactly the reason the deferral exists.
+    final bloom = bloomNode.result;
 
     developer.Timeline.startSync('Renderer.composite');
     final ldr = _ldrColor!;
@@ -2743,8 +2770,6 @@ final class Renderer implements RenderServices {
     debugLines += overlayLines;
     // The composite is a draw, and so is each overlay batch.
     passState.drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
-
-    if (bloom != null) _releaseAfterFrame(bloom);
 
     final image = ldr.asImage();
     frameClock.stop();
@@ -2766,13 +2791,6 @@ final class Renderer implements RenderServices {
     );
   }
 
-  /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.
-  ///
-  /// One pass for both because the overlay has to land on the finished image
-  /// but must not be a separate render target — and because keeping the pass
-  /// open is free, while a second one would reload the attachment.
-  ///
-  /// Returns the number of overlay line segments drawn.
   /// Adds screen-space reflections, returning the texture the rest of the
   /// chain should treat as the scene.
   ///
@@ -2852,6 +2870,13 @@ final class Renderer implements RenderServices {
     return target;
   }
 
+  /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.
+  ///
+  /// One pass for both because the overlay has to land on the finished image
+  /// but must not be a separate render target — and because keeping the pass
+  /// open is free, while a second one would reload the attachment.
+  ///
+  /// Returns the number of overlay line segments drawn.
   int _encodeComposite({
     required gpu.HostBuffer host,
     required gpu.Texture target,
@@ -3245,9 +3270,59 @@ final class _ReflectionsNode extends RenderNode {
       height: frame.height,
     );
     // The pass produced a *different* texture rather than editing the one it
-    // was given, so the name has to follow the result. See
-    // [FrameResources.rebind].
-    frame.resources.rebind(FrameResourceIds.hdrColour, lit);
+    // was given — it samples the scene while it writes, and a texture cannot be
+    // both — so the version it wrote has to be told which texture it is. The
+    // one it read keeps its own, and every reader registered after this point
+    // is already bound to the new one.
+    frame.resources.provide(FrameResourceIds.hdrColour, lit);
+  }
+}
+
+/// The bloom pyramid, as a graph node.
+///
+/// The first pass in the frame whose output the graph **allocates**: everything
+/// before it was handed a texture the renderer already owned. `bloom` is
+/// declared as half the frame in the HDR format, the chain's top level is that
+/// texture, and the levels below it are scratch — see
+/// [FrameResources.transient].
+///
+/// Switching bloom off is [isActive], not a null return: nothing produces the
+/// glow, so the node is culled and costs no pass, no texture and no branch.
+final class _BloomNode extends RenderNode {
+  _BloomNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final BloomSettings _settings;
+
+  /// The top of the chain, once it has been drawn.
+  ///
+  /// The composite is not a node yet and cannot read the glow through the
+  /// graph, so it comes back out this way until step two moves it.
+  gpu.Texture? result;
+
+  @override
+  String get name => 'bloom';
+
+  @override
+  bool get isActive => _settings.enabled && _settings.intensity > 0.0;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.bloom];
+
+  @override
+  void execute(NodeFrame frame) {
+    final top = frame.resources.texture(FrameResourceIds.bloom);
+    _renderer._renderBloom(
+      host: frame.host,
+      resources: frame.resources,
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      top: top,
+      settings: _settings,
+    );
+    result = top;
   }
 }
 

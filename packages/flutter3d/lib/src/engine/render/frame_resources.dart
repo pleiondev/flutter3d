@@ -133,8 +133,13 @@ final class ImmediateTextureSource implements FrameTextureSource {
 ///
 /// Acquired on first use rather than up front, so a node the graph culled costs
 /// no texture at all — the saving the culling promised, actually taken. And
-/// released the moment [CompiledFrameGraph.releasedAfter] says nothing else
+/// released the moment [CompiledFrameGraph.retiredAfter] says nothing else
 /// wants them, which is what lets two passes that never overlap share one.
+///
+/// Keyed on [ResourceVersion] rather than on the name, which is the difference
+/// between a chain that works and a leak. A pass that writes the resource it
+/// read produces a second texture under the same name; keyed on the name, the
+/// first one is simply forgotten and never handed back.
 final class FrameResources {
   FrameResources({
     required this.source,
@@ -149,71 +154,130 @@ final class FrameResources {
   final int frameHeight;
 
   final Map<String, ResourceDesc> _declared = <String, ResourceDesc>{};
-  final Map<String, gpu.Texture> _live = <String, gpu.Texture>{};
-  final Set<String> _external = <String>{};
+  final Map<ResourceVersion, gpu.Texture> _live =
+      <ResourceVersion, gpu.Texture>{};
+  final Set<ResourceVersion> _external = <ResourceVersion>{};
+
+  /// Scratch the node running right now asked for, freed when it ends.
+  final List<gpu.Texture> _scratch = <gpu.Texture>[];
+
+  /// Which node is running, as an index into [CompiledFrameGraph.order], or -1
+  /// between nodes.
+  ///
+  /// Versions are what a node sees rather than what the frame currently holds:
+  /// the pass that reads `hdr_colour` and writes it back has to be handed two
+  /// different textures under one name, and which two depends on where in the
+  /// order it sits.
+  int _node = -1;
 
   /// Says how to make [desc.id] if anything asks for it.
   void declare(ResourceDesc desc) => _declared[desc.id.name] = desc;
 
   /// Hands in a texture the engine owns — the swapchain image, the frame's
-  /// colour target. Never released here, because it was never acquired here.
+  /// colour target, or a long-lived buffer a node writes into rather than
+  /// allocating. Never released here, because it was never acquired here.
+  ///
+  /// Called between nodes it binds the frame's *input*, version zero. Called
+  /// from inside a node it binds that node's output, which is how a pass that
+  /// produces a texture of its own — reflections into the renderer's own
+  /// target — puts its result behind the name the next reader will use.
   void provide(ResourceId id, gpu.Texture texture) {
-    _live[id.name] = texture;
-    _external.add(id.name);
+    final key = ResourceVersion(id, _writeVersionFor(id));
+    _live[key] = texture;
+    _external.add(key);
   }
 
-  /// The texture for [id], acquiring it on first ask.
+  /// The texture for [id] as the running node sees it, acquiring it on first
+  /// ask.
+  ///
+  /// A node that reads [id] gets the version it consumes; a node that only
+  /// writes it gets the version it produces, which is the first pooled
+  /// allocation this layer performs for anybody. A node that does both gets its
+  /// input, and hands its output back with [provide].
   gpu.Texture texture(ResourceId id) {
-    final existing = _live[id.name];
+    final key = ResourceVersion(id, _versionFor(id));
+    final existing = _live[key];
     if (existing != null) return existing;
 
     final desc = _declared[id.name];
     if (desc == null) {
       throw FrameGraphError(
-        'a pass asked for "$id", which is neither declared nor provided. The '
+        'a pass asked for "$key", which is neither declared nor provided. The '
         'graph accepted it because some node writes it — this is the other '
         'half of that promise, and the two are declared in different places',
       );
     }
 
     final texture = source.acquire(desc.resolve(frameWidth, frameHeight));
-    _live[id.name] = texture;
+    _live[key] = texture;
     return texture;
   }
 
-  /// Points [id] at a different texture from here on.
+  /// The texture behind [id], or null when no surviving node produced one.
   ///
-  /// The graph tracks logical resources; this tracks which texture currently
-  /// holds each. They come apart whenever a pass that *modifies* a resource
-  /// writes its result somewhere else — screen-space reflections read the lit
-  /// scene and produce a second texture rather than editing the first, and
-  /// every ping-pong effect does the same. The name has to keep meaning "the
-  /// lit scene" while the texture behind it changes.
+  /// What a reader that can do without asks. Never allocates: a culled effect
+  /// must cost nothing, and a caller that wants a texture regardless wants
+  /// [texture].
+  gpu.Texture? tryTexture(ResourceId id) =>
+      _live[ResourceVersion(id, _versionFor(id))];
+
+  /// A texture for the running node's own working storage.
   ///
-  /// A real frame graph answers this with versioning: each write makes a new
-  /// version and a reader gets whichever is current at its position. That is
-  /// the better answer and it is a change to the scheduler — the one part
-  /// already carrying thirty-one tests and due to be frozen once the migration
-  /// lands. Rebinding gets the same result for a chain, costs nothing, and
-  /// stays out of the scheduler; versioning can replace it later without any
-  /// caller noticing.
-  ///
-  /// The texture that was there is **not** released: it may be the frame's own
-  /// colour target, which this layer never owned.
-  void rebind(ResourceId id, gpu.Texture texture) {
-    _live[id.name] = texture;
-    // Whatever is behind the name now, this layer did not acquire it, so it
-    // must not hand it back either.
-    _external.add(id.name);
+  /// Everything below the top of a bloom chain is this: real GPU memory that no
+  /// other pass will ever name, so the graph has nothing to say about it — but
+  /// it must still come from the frame's own source, because a pass hands its
+  /// scratch back while the command buffers that read it are in flight. Doing
+  /// that through [FrameTextureSource] is what makes the deferral automatic
+  /// rather than something each call site has to remember.
+  gpu.Texture transient(RenderTargetSpec spec) {
+    final texture = source.acquire(spec);
+    _scratch.add(texture);
+    return texture;
   }
 
-  /// Hands back whatever the node at [index] was the last to touch.
-  void endNode(int index) {
-    for (final id in graph.releasedAfter(index)) {
-      if (_external.contains(id.name)) continue;
-      final texture = _live.remove(id.name);
-      if (texture != null) source.release(texture);
+  /// Says which node is about to run, so [texture] can answer in its terms.
+  ///
+  /// And settles what a pass that reads a resource and writes it back produces,
+  /// which is the common case and must not need saying: it drew **into the
+  /// texture it was given**, so the new version starts out behind the same one.
+  /// An overlay draws over the scene in place; only a pass that cannot — one
+  /// that samples what it writes, like reflections — produces a second texture,
+  /// and that one says so with [provide].
+  void beginNode(int index) {
+    _node = index;
+    for (final id in graph.writtenBy(index)) {
+      final written = graph.writeVersionOf(index, id);
+      final read = graph.readVersionOf(index, id);
+      if (written == null || read == null) continue;
+      final from = ResourceVersion(id, read);
+      final texture = _live[from];
+      if (texture == null) continue;
+      final target = ResourceVersion(id, written);
+      _live[target] = texture;
+      // Whoever owns the texture still owns it. Losing this is how the frame's
+      // own colour target would end up handed to the pool.
+      if (_external.contains(from)) _external.add(target);
     }
+  }
+
+  /// Hands back whatever the node at [index] was the last to touch, and all of
+  /// its scratch.
+  void endNode(int index) {
+    for (final key in graph.retiredAfter(index)) {
+      if (_external.contains(key)) continue;
+      final texture = _live.remove(key);
+      if (texture == null) continue;
+      // A later version of the same name may still be this very texture — an
+      // in-place pass produced no new one — and it goes back when the last
+      // version standing on it does, not when the first one retires.
+      if (_live.values.any((other) => identical(other, texture))) continue;
+      source.release(texture);
+    }
+    for (final texture in _scratch) {
+      source.release(texture);
+    }
+    _scratch.clear();
+    _node = -1;
   }
 
   /// Hands back anything still held, for a frame that ended early.
@@ -222,10 +286,47 @@ final class FrameResources {
   /// other way to learn they are free. Without this a failing frame leaks one
   /// set of targets per attempt.
   void releaseAll() {
+    // By identity rather than by version, because two versions of one name can
+    // stand on the same texture when a pass modified it in place, and handing
+    // one texture back twice corrupts the pool's idea of what it has lent.
+    final given = <gpu.Texture>[];
     for (final entry in _live.entries) {
       if (_external.contains(entry.key)) continue;
+      if (given.any((other) => identical(other, entry.value))) continue;
+      given.add(entry.value);
       source.release(entry.value);
     }
-    _live.removeWhere((name, _) => !_external.contains(name));
+    _live.removeWhere((key, _) => !_external.contains(key));
+    for (final texture in _scratch) {
+      source.release(texture);
+    }
+    _scratch.clear();
   }
+
+  /// Which version of [id] the running node reads, writes, or — for a name it
+  /// never declared — finds lying around.
+  ///
+  /// The undeclared case is the newest version anything has actually put a
+  /// texture behind, which is what "the resource, right now" used to mean
+  /// before there were versions. It is also all that can be said about a node
+  /// that never told the graph it wanted this resource: a node that cares
+  /// declares a read, and then gets exactly the version it was ordered after.
+  int _versionFor(ResourceId id) {
+    if (_node >= 0) {
+      final read = graph.readVersionOf(_node, id);
+      if (read != null) return read;
+      final written = graph.writeVersionOf(_node, id);
+      if (written != null) return written;
+    }
+    var version = graph.currentVersionOf(id);
+    while (version > 0 && !_live.containsKey(ResourceVersion(id, version))) {
+      version--;
+    }
+    return version;
+  }
+
+  /// Which version a [provide] binds. Zero outside a node: that is the frame's
+  /// own texture, handed in before anything has run.
+  int _writeVersionFor(ResourceId id) =>
+      _node < 0 ? 0 : graph.writeVersionOf(_node, id) ?? 0;
 }
