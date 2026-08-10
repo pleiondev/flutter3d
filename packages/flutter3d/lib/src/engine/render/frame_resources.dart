@@ -1,22 +1,28 @@
 /// Turning a graph's declared resources into actual textures.
 ///
-/// Its own file, and the only part of the frame graph that knows what a GPU is.
+/// Its own file, and the part of the frame graph that owns textures.
 /// `frame_graph.dart` decides *what* runs, in what order, and when a texture
 /// stops being needed — all of it arithmetic, all of it unit-tested. This is
 /// the thin layer that acts on those answers, and it is thin on purpose: the
 /// bugs live in the decisions, and the decisions are next door where a test can
 /// reach them.
 ///
-/// A resource is described in the engine's own vocabulary — `TextureFormat`,
-/// `StorageMode` from `graphics/formats.dart` — so that declaring one does not
-/// mean naming a flutter_gpu type. The translation happens where the texture is
-/// actually created, in `RenderTargetPool`.
+/// **No backend import, and that is now checked.** A resource is described in
+/// the engine's own vocabulary — `TextureFormat` and `StorageMode` from
+/// `graphics/formats.dart` — and what comes back is a [TextureHandle], which
+/// carries a texture's description without carrying flutter_gpu's type for it.
+/// The translation happens where the texture is actually created, in
+/// `gpu/gpu_texture.dart`.
+///
+/// The thinness was, until that handle existed, unfalsifiable: the release
+/// rules below could only be checked by reading them or by a golden image
+/// noticing a frame later, because nothing here could be constructed off a
+/// device. `test/frame_resources_test.dart` is what the handle bought.
 library;
 
-import 'package:flutter_gpu/gpu.dart' as gpu;
-
-import '../gpu/render_target_pool.dart';
 import '../graphics/formats.dart';
+import '../graphics/render_target_pool.dart';
+import '../graphics/texture.dart';
 import 'frame_graph.dart';
 
 /// How large a resource is, relative to the frame or in its own right.
@@ -124,10 +130,10 @@ final class ResourceDesc {
 /// passes were read closely enough to notice, which is the argument for
 /// reading working code before replacing it.
 abstract interface class FrameTextureSource {
-  gpu.Texture acquire(RenderTargetSpec spec);
+  TextureHandle acquire(RenderTargetSpec spec);
 
   /// Gives a texture up. The implementation decides *when* it is safe to reuse.
-  void release(gpu.Texture texture);
+  void release(TextureHandle texture);
 }
 
 /// A source that returns textures to the pool at once.
@@ -140,10 +146,10 @@ final class ImmediateTextureSource implements FrameTextureSource {
   final RenderTargetPool pool;
 
   @override
-  gpu.Texture acquire(RenderTargetSpec spec) => pool.acquire(spec);
+  TextureHandle acquire(RenderTargetSpec spec) => pool.acquire(spec);
 
   @override
-  void release(gpu.Texture texture) => pool.release(texture);
+  void release(TextureHandle texture) => pool.release(texture);
 }
 
 /// The textures a frame's nodes read and write, acquired late and released
@@ -172,12 +178,12 @@ final class FrameResources {
   final int frameHeight;
 
   final Map<String, ResourceDesc> _declared = <String, ResourceDesc>{};
-  final Map<ResourceVersion, gpu.Texture> _live =
-      <ResourceVersion, gpu.Texture>{};
+  final Map<ResourceVersion, TextureHandle> _live =
+      <ResourceVersion, TextureHandle>{};
   final Set<ResourceVersion> _external = <ResourceVersion>{};
 
   /// Scratch the node running right now asked for, freed when it ends.
-  final List<gpu.Texture> _scratch = <gpu.Texture>[];
+  final List<TextureHandle> _scratch = <TextureHandle>[];
 
   /// Which node is running, as an index into [CompiledFrameGraph.order], or -1
   /// between nodes.
@@ -205,7 +211,7 @@ final class FrameResources {
   /// node declared, and a second way of saying it here is a second knob that
   /// can disagree with the first. What the declaration changes is when the call
   /// is *required* — see [endNode] — and what [originOf] tells a reader.
-  void provide(ResourceId id, gpu.Texture texture) {
+  void provide(ResourceId id, TextureHandle texture) {
     final key = ResourceVersion(id, _writeVersionFor(id));
     _live[key] = texture;
     _external.add(key);
@@ -218,7 +224,7 @@ final class FrameResources {
   /// writes it gets the version it produces, which is the first pooled
   /// allocation this layer performs for anybody. A node that does both gets its
   /// input, and hands its output back with [provide].
-  gpu.Texture texture(ResourceId id) {
+  TextureHandle texture(ResourceId id) {
     final key = ResourceVersion(id, _versionFor(id));
     final existing = _live[key];
     if (existing != null) return existing;
@@ -244,7 +250,7 @@ final class FrameResources {
   /// [texture].
   ///
   /// A texture here does **not** mean this frame drew one — see [originOf].
-  gpu.Texture? tryTexture(ResourceId id) =>
+  TextureHandle? tryTexture(ResourceId id) =>
       _live[ResourceVersion(id, _versionFor(id))];
 
   /// Whether the texture [tryTexture] would hand back was drawn this frame or
@@ -271,7 +277,7 @@ final class FrameResources {
   /// scratch back while the command buffers that read it are in flight. Doing
   /// that through [FrameTextureSource] is what makes the deferral automatic
   /// rather than something each call site has to remember.
-  gpu.Texture transient(RenderTargetSpec spec) {
+  TextureHandle transient(RenderTargetSpec spec) {
     final texture = source.acquire(spec);
     _scratch.add(texture);
     return texture;
@@ -350,7 +356,7 @@ final class FrameResources {
     // By identity rather than by version, because two versions of one name can
     // stand on the same texture when a pass modified it in place, and handing
     // one texture back twice corrupts the pool's idea of what it has lent.
-    final given = <gpu.Texture>[];
+    final given = <TextureHandle>[];
     for (final entry in _live.entries) {
       if (_external.contains(entry.key)) continue;
       if (given.any((other) => identical(other, entry.value))) continue;

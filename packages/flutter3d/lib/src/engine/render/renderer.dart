@@ -8,9 +8,11 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import '../gpu/gpu_formats.dart';
 import '../gpu/gpu_mesh.dart';
-import '../gpu/render_target_pool.dart';
+import '../gpu/gpu_texture.dart';
 import '../graphics/formats.dart';
+import '../graphics/render_target_pool.dart';
 import '../graphics/sampler.dart';
+import '../graphics/texture.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
@@ -679,10 +681,10 @@ final class Renderer implements RenderServices {
   /// "no texture" has to be a neutral texture rather than an absent binding.
   /// White is also neutral for the ORM, occlusion and emissive slots: it
   /// multiplies each factor by one, so the same texture serves all four.
-  final gpu.Texture fallbackAlbedo;
+  final TextureHandle fallbackAlbedo;
 
   /// 1x1 (0.5, 0.5, 1.0): the tangent-space normal that perturbs nothing.
-  final gpu.Texture fallbackNormal;
+  final TextureHandle fallbackNormal;
 
   final bool msaaEnabled;
 
@@ -748,7 +750,9 @@ final class Renderer implements RenderServices {
   final Map<String, gpu.Shader> _fragmentShaders = <String, gpu.Shader>{};
 
   /// Textures reused across frames and across bloom levels.
-  final RenderTargetPool targetPool = RenderTargetPool();
+  final RenderTargetPool targetPool = RenderTargetPool(
+    const GpuTextureAllocator(),
+  );
 
   int _targetWidth = 0;
   int _targetHeight = 0;
@@ -756,23 +760,23 @@ final class Renderer implements RenderServices {
   /// The scene, in linear light with no upper bound. Everything post-processing
   /// does depends on values above display white surviving this far, which is
   /// exactly what the old 8-bit target threw away.
-  gpu.Texture? _hdrColor;
-  gpu.Texture? _hdrMsaa;
-  gpu.Texture? _ldrColor;
+  TextureHandle? _hdrColor;
+  TextureHandle? _hdrMsaa;
+  TextureHandle? _ldrColor;
   gpu.RenderPipeline? _reflectionPipeline;
   final Float32List _reflectionParams = Float32List(4);
   final Float32List _reflectionScreen = Float32List(4);
   final Float32List _reflectionCameraData = Float32List(4);
   final vm.Vector3 _reflectionCamera = vm.Vector3.zero();
-  gpu.Texture? _reflectionColor;
-  gpu.Texture? _surfaceColor;
-  gpu.Texture? _surfaceMsaa;
-  gpu.Texture? _depthStencil;
+  TextureHandle? _reflectionColor;
+  TextureHandle? _surfaceColor;
+  TextureHandle? _surfaceMsaa;
+  TextureHandle? _depthStencil;
 
   /// A one-sample depth, for the frames that switch multisampling off because
   /// they want the surface buffer. Attachments in one target must agree on
   /// sample count, so a four-sample depth cannot sit beside a resolved colour.
-  gpu.Texture? _depthStencilSingle;
+  TextureHandle? _depthStencilSingle;
 
   /// The HDR format, chosen once. Half floats rather than full: the extra range
   /// of `r32g32b32a32Float` buys nothing for light values and doubles the
@@ -793,7 +797,7 @@ final class Renderer implements RenderServices {
   /// light or the scene moves.
   final vm.Matrix4 _shadowMatrix = vm.Matrix4.identity();
   final Float32List _shadowParams = Float32List(4);
-  gpu.Texture? _shadowMap;
+  TextureHandle? _shadowMap;
   int _shadowResolution = 0;
   int _shadowCasters = 0;
 
@@ -808,8 +812,8 @@ final class Renderer implements RenderServices {
   final Float32List _compositeParams = Float32List(4);
 
   factory Renderer.create({
-    required gpu.Texture fallbackAlbedo,
-    required gpu.Texture fallbackNormal,
+    required TextureHandle fallbackAlbedo,
+    required TextureHandle fallbackNormal,
   }) {
     final library = gpu.ShaderLibrary.fromAsset(bundleAsset);
     if (library == null) {
@@ -883,23 +887,21 @@ final class Renderer implements RenderServices {
 
     // The scene target is sampled by the composite pass, so it has to be
     // devicePrivate rather than transient — tile memory cannot be read back.
-    _hdrColor = gpu.gpuContext.createTexture(
-      StorageMode.devicePrivate.toGpu(),
+    _hdrColor = createGpuTexture(
+      StorageMode.devicePrivate,
       width,
       height,
-      format: hdrFormat.toGpu(),
-      enableRenderTargetUsage: true,
-      enableShaderReadUsage: true,
+      format: hdrFormat,
     );
 
     if (msaaEnabled) {
       // deviceTransient is tile memory: more bandwidth, less memory. Right for
       // intermediates like the MSAA and depth attachments, never read back.
-      _hdrMsaa = gpu.gpuContext.createTexture(
-        StorageMode.deviceTransient.toGpu(),
+      _hdrMsaa = createGpuTexture(
+        StorageMode.deviceTransient,
         width,
         height,
-        format: hdrFormat.toGpu(),
+        format: hdrFormat,
         sampleCount: 4,
       );
     } else {
@@ -908,60 +910,54 @@ final class Renderer implements RenderServices {
 
     // The final image is 8-bit and display-referred; it is what becomes the
     // ui.Image, so there is nothing to gain from more precision here.
-    _ldrColor = gpu.gpuContext.createTexture(
-      StorageMode.devicePrivate.toGpu(),
+    _ldrColor = createGpuTexture(
+      StorageMode.devicePrivate,
       width,
       height,
-      format: gpu.gpuContext.defaultColorFormat,
-      enableRenderTargetUsage: true,
-      enableShaderReadUsage: true,
+      format: defaultColorFormat,
     );
 
     // The surface buffer: world-space normal and depth, for whatever runs after
     // the scene. Allocated with the rest rather than on demand, because a
     // resize is the only moment any of this is allowed to be reallocated and a
     // buffer that appears mid-session would be the one that is the wrong size.
-    _surfaceColor = gpu.gpuContext.createTexture(
-      StorageMode.devicePrivate.toGpu(),
+    _surfaceColor = createGpuTexture(
+      StorageMode.devicePrivate,
       width,
       height,
-      format: hdrFormat.toGpu(),
-      enableRenderTargetUsage: true,
-      enableShaderReadUsage: true,
+      format: hdrFormat,
     );
-    _reflectionColor = gpu.gpuContext.createTexture(
-      StorageMode.devicePrivate.toGpu(),
+    _reflectionColor = createGpuTexture(
+      StorageMode.devicePrivate,
       width,
       height,
-      format: hdrFormat.toGpu(),
-      enableRenderTargetUsage: true,
-      enableShaderReadUsage: true,
+      format: hdrFormat,
     );
 
     _surfaceMsaa = msaaEnabled
-        ? gpu.gpuContext.createTexture(
-            StorageMode.deviceTransient.toGpu(),
+        ? createGpuTexture(
+            StorageMode.deviceTransient,
             width,
             height,
-            format: hdrFormat.toGpu(),
+            format: hdrFormat,
             sampleCount: 4,
           )
         : null;
 
-    _depthStencil = gpu.gpuContext.createTexture(
-      StorageMode.deviceTransient.toGpu(),
+    _depthStencil = createGpuTexture(
+      StorageMode.deviceTransient,
       width,
       height,
-      format: gpu.gpuContext.defaultDepthStencilFormat,
+      format: defaultDepthStencilFormat,
       sampleCount: sampleCount,
     );
 
     _depthStencilSingle = msaaEnabled
-        ? gpu.gpuContext.createTexture(
-            StorageMode.deviceTransient.toGpu(),
+        ? createGpuTexture(
+            StorageMode.deviceTransient,
             width,
             height,
-            format: gpu.gpuContext.defaultDepthStencilFormat,
+            format: defaultDepthStencilFormat,
           )
         : null;
 
@@ -1047,21 +1043,17 @@ final class Renderer implements RenderServices {
     // would stretch one axis of every face.
     final width = tile * 6;
     final height = tile * kShadowedLights;
-    _cubeShadowStatic = gpu.gpuContext.createTexture(
-      StorageMode.devicePrivate.toGpu(),
+    _cubeShadowStatic = createGpuTexture(
+      StorageMode.devicePrivate,
       width,
       height,
-      format: hdrFormat.toGpu(),
-      enableRenderTargetUsage: true,
-      enableShaderReadUsage: true,
+      format: hdrFormat,
     );
-    _cubeShadow = gpu.gpuContext.createTexture(
-      StorageMode.devicePrivate.toGpu(),
+    _cubeShadow = createGpuTexture(
+      StorageMode.devicePrivate,
       width,
       height,
-      format: hdrFormat.toGpu(),
-      enableRenderTargetUsage: true,
-      enableShaderReadUsage: true,
+      format: hdrFormat,
     );
     _cubeShadowTile = tile;
     _staticShadowBaked = false;
@@ -1119,7 +1111,7 @@ final class Renderer implements RenderServices {
       RenderTargetSpec(
         width: width,
         height: height,
-        format: gpu.gpuContext.defaultDepthStencilFormat.toEngine(),
+        format: defaultDepthStencilFormat,
         storageMode: StorageMode.deviceTransient,
       ),
     );
@@ -1129,7 +1121,7 @@ final class Renderer implements RenderServices {
     final pass = commandBuffer.createRenderPass(
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
-          texture: static ? _cubeShadowStatic! : _cubeShadow!,
+          texture: (static ? _cubeShadowStatic! : _cubeShadow!).gpuTexture,
           // Loaded, not cleared, and each tile reset by drawing over it.
           //
           // A clear covers the whole attachment however the viewport is set,
@@ -1151,7 +1143,7 @@ final class Renderer implements RenderServices {
           storeAction: StoreAction.store.toGpu(),
         ),
         depthStencilAttachment: gpu.DepthStencilAttachment(
-          texture: depth,
+          texture: depth.gpuTexture,
           depthClearValue: 1.0,
         ),
       ),
@@ -1570,8 +1562,8 @@ final class Renderer implements RenderServices {
   /// Whether each atlas has been cleared since it was allocated.
   bool _cubeShadowCleared = false;
   bool _cubeShadowStaticCleared = false;
-  gpu.Texture? _cubeShadow;
-  gpu.Texture? _cubeShadowStatic;
+  TextureHandle? _cubeShadow;
+  TextureHandle? _cubeShadowStatic;
   bool _staticShadowBaked = false;
   int _cubeShadowTile = 0;
   final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
@@ -1643,13 +1635,11 @@ final class Renderer implements RenderServices {
     final resolution = settings.resolution.clamp(256, 4096);
     if (_shadowMap == null || _shadowResolution != resolution) {
       // Sampled by the lighting pass, so devicePrivate rather than transient.
-      _shadowMap = gpu.gpuContext.createTexture(
-        StorageMode.devicePrivate.toGpu(),
+      _shadowMap = createGpuTexture(
+        StorageMode.devicePrivate,
         resolution,
         resolution,
-        format: hdrFormat.toGpu(),
-        enableRenderTargetUsage: true,
-        enableShaderReadUsage: true,
+        format: hdrFormat,
       );
       _shadowResolution = resolution;
     }
@@ -1658,7 +1648,7 @@ final class Renderer implements RenderServices {
       RenderTargetSpec(
         width: resolution,
         height: resolution,
-        format: gpu.gpuContext.defaultDepthStencilFormat.toEngine(),
+        format: defaultDepthStencilFormat,
         storageMode: StorageMode.deviceTransient,
       ),
     );
@@ -1668,14 +1658,14 @@ final class Renderer implements RenderServices {
     final pass = commandBuffer.createRenderPass(
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
-          texture: _shadowMap!,
+          texture: _shadowMap!.gpuTexture,
           // Cleared to the far plane, so anything the pass does not draw reads
           // as "nothing between here and the light".
           clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
           storeAction: StoreAction.store.toGpu(),
         ),
         depthStencilAttachment: gpu.DepthStencilAttachment(
-          texture: depth,
+          texture: depth.gpuTexture,
           depthClearValue: 1.0,
         ),
       ),
@@ -1844,10 +1834,10 @@ final class Renderer implements RenderServices {
   /// written once and parameterized.
   void _drawFullscreen({
     required gpu.HostBuffer host,
-    required gpu.Texture target,
+    required TextureHandle target,
     required gpu.RenderPipeline pipeline,
     required gpu.Shader fragment,
-    required Map<String, gpu.Texture> textures,
+    required Map<String, TextureHandle> textures,
     required String uniformBlock,
     required Float32List uniformData,
     required String uniformMember,
@@ -1860,7 +1850,7 @@ final class Renderer implements RenderServices {
     final pass = commandBuffer.createRenderPass(
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
-          texture: target,
+          texture: target.gpuTexture,
           // Nothing under a full-screen pass survives it, so clearing is both
           // correct and cheaper than loading the previous contents.
           loadAction: LoadAction.dontCare.toGpu(),
@@ -1912,16 +1902,16 @@ final class Renderer implements RenderServices {
   void _renderBloom({
     required gpu.HostBuffer host,
     required FrameResources resources,
-    required gpu.Texture scene,
-    required gpu.Texture top,
+    required TextureHandle scene,
+    required TextureHandle top,
     required BloomSettings settings,
   }) {
     final levels = settings.levels.clamp(1, 8);
-    final chain = <gpu.Texture>[];
+    final chain = <TextureHandle>[];
 
     var sourceWidth = scene.width;
     var sourceHeight = scene.height;
-    gpu.Texture source = scene;
+    TextureHandle source = scene;
 
     developer.Timeline.startSync('Bloom.downsample');
     for (var level = 0; level < levels; level++) {
@@ -1952,7 +1942,7 @@ final class Renderer implements RenderServices {
             : _postPipeline(_bloomDownsamplePipeline, bloomDownsampleShader,
                 (p) => _bloomDownsamplePipeline = p),
         fragment: isFirst ? bloomThresholdShader : bloomDownsampleShader,
-        textures: <String, gpu.Texture>{_kPostSourceSlot: source},
+        textures: <String, TextureHandle>{_kPostSourceSlot: source},
         uniformBlock: _kBloomInfoBlock,
         uniformData: _bloomParams,
         uniformMember: 'params',
@@ -1990,14 +1980,14 @@ final class Renderer implements RenderServices {
   /// rather than replacing.
   void _drawFullscreenAdditive({
     required gpu.HostBuffer host,
-    required gpu.Texture target,
-    required gpu.Texture source,
+    required TextureHandle target,
+    required TextureHandle source,
   }) {
     final commandBuffer = gpu.gpuContext.createCommandBuffer();
     final pass = commandBuffer.createRenderPass(
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
-          texture: target,
+          texture: target.gpuTexture,
           // Load, not clear: the point is to add to what the downsample left.
           loadAction: LoadAction.load.toGpu(),
           storeAction: StoreAction.store.toGpu(),
@@ -2475,10 +2465,10 @@ final class Renderer implements RenderServices {
     final clear = _srgbToLinear(ordered.first.clearColor);
 
     final colorAttachment = msaa == null
-        ? gpu.ColorAttachment(texture: hdr, clearValue: clear)
+        ? gpu.ColorAttachment(texture: hdr.gpuTexture, clearValue: clear)
         : gpu.ColorAttachment(
-            texture: msaa,
-            resolveTexture: hdr,
+            texture: msaa.gpuTexture,
+            resolveTexture: hdr.gpuTexture,
             storeAction: StoreAction.multisampleResolve.toGpu(),
             clearValue: clear,
           );
@@ -2492,12 +2482,12 @@ final class Renderer implements RenderServices {
         ? null
         : (msaa == null
             ? gpu.ColorAttachment(
-                texture: surface,
+                texture: surface.gpuTexture,
                 clearValue: vm.Vector4.zero(),
               )
             : gpu.ColorAttachment(
-                texture: _surfaceMsaa!,
-                resolveTexture: surface,
+                texture: _surfaceMsaa!.gpuTexture,
+                resolveTexture: surface.gpuTexture,
                 storeAction: StoreAction.multisampleResolve.toGpu(),
                 clearValue: vm.Vector4.zero(),
               ));
@@ -2508,8 +2498,10 @@ final class Renderer implements RenderServices {
         ?surfaceAttachment,
       ],
       depthStencilAttachment: gpu.DepthStencilAttachment(
-        texture: msaa == null ? (_depthStencilSingle ?? _depthStencil!)
-            : _depthStencil!,
+        texture: (msaa == null
+                ? (_depthStencilSingle ?? _depthStencil!)
+                : _depthStencil!)
+            .gpuTexture,
         // Standard depth: clear to the far plane, nearer fragments win.
         depthClearValue: 1.0,
       ),
@@ -2848,7 +2840,7 @@ final class Renderer implements RenderServices {
     final scenePass = sceneNode.result!;
     final debugLines = scenePass.debugLines + compositeNode.overlayLines;
 
-    final image = _ldrColor!.asImage();
+    final image = _ldrColor!.gpuTexture.asImage();
     frameClock.stop();
     developer.Timeline.finishSync();
 
@@ -2874,9 +2866,9 @@ final class Renderer implements RenderServices {
   /// Its own target rather than in place: the pass samples the scene while it
   /// writes, and a texture cannot be both. Returns [scene] untouched when the
   /// effect is off, so the chain downstream never branches.
-  gpu.Texture _encodeReflections({
+  TextureHandle _encodeReflections({
     required gpu.HostBuffer host,
-    required gpu.Texture scene,
+    required TextureHandle scene,
     required RenderSettings settings,
     required RenderView view,
     required int width,
@@ -2891,7 +2883,7 @@ final class Renderer implements RenderServices {
     final pass = commandBuffer.createRenderPass(
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
-          texture: target,
+          texture: target.gpuTexture,
           loadAction: LoadAction.dontCare.toGpu(),
           storeAction: StoreAction.store.toGpu(),
         ),
@@ -2956,11 +2948,11 @@ final class Renderer implements RenderServices {
   /// Returns the number of overlay line segments drawn.
   int _encodeComposite({
     required gpu.HostBuffer host,
-    required gpu.Texture target,
-    required gpu.Texture scene,
-    required gpu.Texture? bloom,
-    required gpu.Texture? surface,
-    required gpu.Texture? shadowView,
+    required TextureHandle target,
+    required TextureHandle scene,
+    required TextureHandle? bloom,
+    required TextureHandle? surface,
+    required TextureHandle? shadowView,
     required Scene sceneGraph,
     required List<RenderView> views,
     required RenderSettings settings,
@@ -2971,7 +2963,7 @@ final class Renderer implements RenderServices {
     final pass = commandBuffer.createRenderPass(
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
-          texture: target,
+          texture: target.gpuTexture,
           loadAction: LoadAction.dontCare.toGpu(),
           storeAction: StoreAction.store.toGpu(),
         ),
@@ -3086,13 +3078,11 @@ final class Renderer implements RenderServices {
     if (probe == null) return 'MRT probe: the bundle has no MrtProbe entry.';
 
     const size = 4;
-    gpu.Texture makeTarget() => gpu.gpuContext.createTexture(
-          StorageMode.devicePrivate.toGpu(),
+    TextureHandle makeTarget() => createGpuTexture(
+          StorageMode.devicePrivate,
           size,
           size,
-          format: gpu.gpuContext.defaultColorFormat,
-          enableRenderTargetUsage: true,
-          enableShaderReadUsage: true,
+          format: defaultColorFormat,
         );
 
     final first = makeTarget();
@@ -3104,12 +3094,12 @@ final class Renderer implements RenderServices {
         gpu.RenderTarget(
           colorAttachments: <gpu.ColorAttachment>[
             gpu.ColorAttachment(
-              texture: first,
+              texture: first.gpuTexture,
               clearValue: vm.Vector4.zero(),
               storeAction: StoreAction.store.toGpu(),
             ),
             gpu.ColorAttachment(
-              texture: second,
+              texture: second.gpuTexture,
               clearValue: vm.Vector4.zero(),
               storeAction: StoreAction.store.toGpu(),
             ),
@@ -3138,8 +3128,8 @@ final class Renderer implements RenderServices {
 
       // asImage plus toByteData is the only readback path available: there is
       // no buffer readback in flutter_gpu at all.
-      final a = await first.asImage().toByteData();
-      final b = await second.asImage().toByteData();
+      final a = await first.gpuTexture.asImage().toByteData();
+      final b = await second.gpuTexture.asImage().toByteData();
       if (a == null || b == null) return 'MRT probe: readback returned nothing.';
 
       String describe(ByteData data) =>
@@ -3177,12 +3167,12 @@ final class Renderer implements RenderServices {
   /// of a frame can still be in flight. Reusing it immediately produces the same
   /// class of bug the host-buffer ring exists to prevent — flicker under load,
   /// not a crash — so releases wait out the frames in flight.
-  void _releaseAfterFrame(gpu.Texture texture) {
+  void _releaseAfterFrame(TextureHandle texture) {
     _pendingRelease[_frameIndex % _kFramesInFlight].add(texture);
   }
 
-  final List<List<gpu.Texture>> _pendingRelease = List<List<gpu.Texture>>
-      .generate(_kFramesInFlight, (_) => <gpu.Texture>[]);
+  final List<List<TextureHandle>> _pendingRelease = List<List<TextureHandle>>
+      .generate(_kFramesInFlight, (_) => <TextureHandle>[]);
 
   /// Builds and submits the debug overlay for one view. Returns false when there
   /// was nothing to draw.
@@ -3255,12 +3245,21 @@ final class Renderer implements RenderServices {
     gpu.RenderPass pass,
     gpu.Shader shader,
     String slot,
-    gpu.Texture texture,
+    TextureHandle texture,
     SamplerOptions? sampler,
   ) {
+    // Tile memory cannot be sampled, and the backend's own assertion for this
+    // fires from inside `bindTexture` with no idea which slot or which pass.
+    // The handle carries the storage mode, so the engine can say it here, where
+    // the slot name is in scope and the message names the mistake.
+    assert(
+      texture.storageMode != StorageMode.deviceTransient,
+      'the "$slot" slot was handed a deviceTransient texture, which lives in '
+      'tile memory and can only ever be an attachment',
+    );
     pass.bindTexture(
       shader.getUniformSlot(slot),
-      texture,
+      texture.gpuTexture,
       sampler: (sampler ?? _defaultSampler).toGpu(),
     );
   }
@@ -3303,11 +3302,11 @@ final class _DeferredTextureSource implements FrameTextureSource {
   final Renderer _renderer;
 
   @override
-  gpu.Texture acquire(RenderTargetSpec spec) =>
+  TextureHandle acquire(RenderTargetSpec spec) =>
       _renderer.targetPool.acquire(spec);
 
   @override
-  void release(gpu.Texture texture) => _renderer._releaseAfterFrame(texture);
+  void release(TextureHandle texture) => _renderer._releaseAfterFrame(texture);
 }
 
 /// The baked half of the point-light atlas, as a graph node.

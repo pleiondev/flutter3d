@@ -1,4 +1,3 @@
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation.dart';
@@ -6,6 +5,7 @@ import '../geometry/geometry.dart';
 import '../gpu/gpu_mesh.dart';
 import '../gpu/texture_upload.dart';
 import '../graphics/sampler.dart';
+import '../graphics/texture.dart';
 import '../render/lighting_model.dart';
 import '../render/material.dart';
 import '../scene/mesh_node.dart';
@@ -332,7 +332,7 @@ final class ModelAsset {
   /// format means writing a decoder, not touching this.
   static Future<ModelAsset> fromDocument(
     ModelDocument document, {
-    required gpu.Texture fallbackAlbedo,
+    required TextureHandle fallbackAlbedo,
     LightingModel lighting = LightingModel.pbr,
     String? name,
   }) async {
@@ -341,10 +341,10 @@ final class ModelAsset {
     // Surfaces may share a MeshData, and materials may share an image; upload
     // each distinct one once.
     final meshCache = <MeshData, GpuMesh>{};
-    final textureCache = <int, gpu.Texture?>{};
+    final textureCache = <int, TextureHandle?>{};
     final materialCache = <int, Material>{};
 
-    Future<gpu.Texture?> textureFor(int imageIndex) async {
+    Future<TextureHandle?> textureFor(int imageIndex) async {
       if (imageIndex < 0 || imageIndex >= document.images.length) return null;
       if (textureCache.containsKey(imageIndex)) return textureCache[imageIndex];
 
@@ -406,14 +406,14 @@ final class ModelAsset {
   static Future<Material> _convertMaterial(
     SurfaceMaterial source, {
     required LightingModel lighting,
-    required Future<gpu.Texture?> Function(int) textureFor,
+    required Future<TextureHandle?> Function(int) textureFor,
   }) async {
     /// Resolves one texture slot, returning both the image and its sampler.
     ///
     /// A slot the file does not declare comes back null and the renderer binds
     /// a neutral texture instead, which is why nothing here has to record
     /// "this material has no normal map".
-    Future<(gpu.Texture?, SamplerOptions?)> resolve(
+    Future<(TextureHandle?, SamplerOptions?)> resolve(
       TextureBinding? binding,
     ) async {
       if (binding == null) return (null, null);

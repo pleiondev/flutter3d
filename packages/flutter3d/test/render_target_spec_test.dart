@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter3d/src/engine/gpu/render_target_pool.dart';
+import 'package:flutter3d/src/engine/graphics/render_target_pool.dart';
 import 'package:flutter3d/src/engine/graphics/formats.dart';
 
 void main() {

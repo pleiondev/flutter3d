@@ -4,7 +4,9 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../gpu/gpu_formats.dart';
+import '../gpu/gpu_texture.dart';
 import '../graphics/formats.dart';
+import '../graphics/texture.dart';
 import '../scene/camera_node.dart';
 import '../scene/scene.dart';
 import 'frame_graph.dart';
@@ -79,11 +81,14 @@ final class ViewModelNode extends RenderNode {
     // handful of large, close triangles whose silhouette is mostly off screen,
     // the one case where the resolve buys least.
     final target = gpu.RenderTarget.singleColor(
-      gpu.ColorAttachment(texture: hdr, loadAction: LoadAction.load.toGpu()),
+      gpu.ColorAttachment(
+        texture: hdr.gpuTexture,
+        loadAction: LoadAction.load.toGpu(),
+      ),
       depthStencilAttachment: gpu.DepthStencilAttachment(
         // Its own depth, not the scene's: attachments in one target must agree
         // on sample count, and the scene's is four-sample whenever MSAA is on.
-        texture: _depthFor(width, height),
+        texture: _depthFor(width, height).gpuTexture,
         // Cleared, so nothing in the world can occlude what is in the player's
         // hands.
         depthClearValue: 1.0,
@@ -130,22 +135,22 @@ final class ViewModelNode extends RenderNode {
     developer.Timeline.finishSync();
   }
 
-  gpu.Texture _depthFor(int width, int height) {
+  TextureHandle _depthFor(int width, int height) {
     if (_depth != null && _depthWidth == width && _depthHeight == height) {
       return _depth!;
     }
-    _depth = gpu.gpuContext.createTexture(
-      StorageMode.deviceTransient.toGpu(),
+    _depth = createGpuTexture(
+      StorageMode.deviceTransient,
       width,
       height,
-      format: gpu.gpuContext.defaultDepthStencilFormat,
+      format: defaultDepthStencilFormat,
     );
     _depthWidth = width;
     _depthHeight = height;
     return _depth!;
   }
 
-  gpu.Texture? _depth;
+  TextureHandle? _depth;
   int _depthWidth = 0;
   int _depthHeight = 0;
   final vm.Vector3 _cameraPosition = vm.Vector3.zero();

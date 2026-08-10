@@ -1,7 +1,7 @@
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter3d/src/engine/gpu/render_target_pool.dart';
+import 'package:flutter3d/src/engine/graphics/render_target_pool.dart';
+import 'package:flutter3d/src/engine/graphics/texture.dart';
 import 'package:flutter3d/src/engine/render/composite_mix.dart';
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/frame_plan.dart';
@@ -18,11 +18,11 @@ final class _NoTextures implements FrameTextureSource {
   const _NoTextures();
 
   @override
-  gpu.Texture acquire(RenderTargetSpec spec) =>
+  TextureHandle acquire(RenderTargetSpec spec) =>
       throw StateError('tryTexture must never acquire');
 
   @override
-  void release(gpu.Texture texture) =>
+  void release(TextureHandle texture) =>
       throw StateError('nothing was acquired, so nothing can be released');
 }
 

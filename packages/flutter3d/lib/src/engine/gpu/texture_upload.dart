@@ -1,12 +1,11 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter_gpu/gpu.dart' as gpu;
-
 import '../assets/model_document.dart';
 import '../graphics/formats.dart';
 import '../graphics/sampler.dart';
-import 'gpu_formats.dart';
+import '../graphics/texture.dart';
+import 'gpu_texture.dart';
 
 /// Decodes an encoded image (PNG, JPEG, …) and uploads it as a GPU texture.
 ///
@@ -21,7 +20,7 @@ import 'gpu_formats.dart';
 ///    PNG was.
 ///  * There are no mip levels, so minified surfaces alias. Nothing here can fix
 ///    that; it needs render-to-mip-level support.
-Future<gpu.Texture?> uploadEncodedImage(Uint8List encoded) async {
+Future<TextureHandle?> uploadEncodedImage(Uint8List encoded) async {
   if (encoded.isEmpty) return null;
 
   final ui.Codec codec;
@@ -44,20 +43,22 @@ Future<gpu.Texture?> uploadEncodedImage(Uint8List encoded) async {
     );
     if (data == null) return null;
 
-    final texture = gpu.gpuContext.createTexture(
-      StorageMode.hostVisible.toGpu(),
+    final texture = createGpuTexture(
+      StorageMode.hostVisible,
       image.width,
       image.height,
-      format: TextureFormat.r8g8b8a8UNormInt.toGpu(),
-      coordinateSystem: TextureCoordinateSystem.uploadFromHost.toGpu(),
+      format: TextureFormat.r8g8b8a8UNormInt,
+      coordinateSystem: TextureCoordinateSystem.uploadFromHost,
     );
 
     // overwrite() demands exactly the base mip size and throws otherwise, so a
-    // mismatch here means the decoder disagreed about dimensions.
-    final expected = texture.getBaseMipLevelSizeInBytes();
+    // mismatch here means the decoder disagreed about dimensions. Bytes per
+    // texel is a backend question, so this is one of the few places that
+    // reaches through the handle for something other than a bind.
+    final expected = texture.gpuTexture.getBaseMipLevelSizeInBytes();
     if (data.lengthInBytes != expected) return null;
 
-    texture.overwrite(data);
+    texture.gpuTexture.overwrite(data);
     return texture;
   } finally {
     image.dispose();

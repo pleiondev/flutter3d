@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart'
     show Aabb3, Vector2, Vector3, Vector4;
 
@@ -150,8 +149,8 @@ class _SpikePageState extends State<SpikePage>
   Object? _initError;
   StackTrace? _initStack;
 
-  gpu.Texture? _fallbackAlbedo;
-  gpu.Texture? _checkerAlbedo;
+  TextureHandle? _fallbackAlbedo;
+  TextureHandle? _checkerAlbedo;
 
   late final Scene _scene;
   late final SceneNode _modelPivot;

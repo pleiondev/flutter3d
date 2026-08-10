@@ -16,6 +16,7 @@ library;
 
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
+import '../graphics/texture.dart';
 import 'frame_graph.dart';
 import 'frame_resources.dart';
 import 'pass_contributor.dart';
@@ -60,7 +61,7 @@ final class NodeFrame {
   final int height;
 
   /// The HDR target the scene was drawn into.
-  final gpu.Texture? sceneColor;
+  final TextureHandle? sceneColor;
 }
 
 /// Something that declares what it touches, owns a pass, and draws it.

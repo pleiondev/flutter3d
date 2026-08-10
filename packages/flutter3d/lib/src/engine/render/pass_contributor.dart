@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../graphics/texture.dart';
 import '../scene/scene.dart';
 import 'lighting_model.dart';
 import 'renderer.dart';
@@ -63,7 +64,7 @@ final class SceneShadows {
   /// Null is not "shadows are off" — it is the honest answer for a frame whose
   /// shadow pass gave up, and binding a texture regardless would offer the last
   /// frame that had one.
-  final gpu.Texture? directional;
+  final TextureHandle? directional;
 
   /// Which light in the packed buffer [directional] was drawn for; -1 for none.
   final int casterIndex;
@@ -73,8 +74,8 @@ final class SceneShadows {
   /// Unlike [directional] these are maintained across frames — see
   /// `FrameGraphNode.keeps` — so a texture here may hold pixels an earlier
   /// frame drew, deliberately, and is exactly as valid to sample for it.
-  final gpu.Texture? point;
-  final gpu.Texture? pointStatic;
+  final TextureHandle? point;
+  final TextureHandle? pointStatic;
 }
 
 /// What the renderer lends a contributor or a node.

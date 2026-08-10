@@ -1,7 +1,15 @@
-import 'package:flutter_gpu/gpu.dart' as gpu;
+/// Reuse of render targets, and the description that makes two interchangeable.
+///
+/// In `graphics/` rather than in `gpu/` since the pool stopped creating
+/// textures itself. Everything here is arithmetic over [TextureHandle] and a
+/// map lookup, and the one line that needed a device — `createTexture` — is now
+/// [TextureAllocator], supplied from outside. That is what makes the pool
+/// unit-testable, and being in this directory is what keeps it that way:
+/// `test/graphics_is_backend_free_test.dart` fails on the first backend import.
+library;
 
-import '../graphics/formats.dart';
-import 'gpu_formats.dart';
+import 'formats.dart';
+import 'texture.dart';
 
 /// What makes two render targets interchangeable.
 ///
@@ -15,6 +23,21 @@ final class RenderTargetSpec {
     this.sampleCount = 1,
     this.storageMode = StorageMode.devicePrivate,
   });
+
+  /// The description a texture already carries, read back off it.
+  ///
+  /// The pool records what it lent out as handles and derives the spec from
+  /// them rather than remembering it alongside. One fact in one place: a
+  /// remembered spec that disagreed with the texture would put a target back in
+  /// the wrong free list, and the next acquirer would be handed the wrong size
+  /// with nothing to say so.
+  factory RenderTargetSpec.of(TextureHandle texture) => RenderTargetSpec(
+        width: texture.width,
+        height: texture.height,
+        format: texture.format,
+        sampleCount: texture.sampleCount,
+        storageMode: texture.storageMode,
+      );
 
   final int width;
   final int height;
@@ -54,6 +77,17 @@ final class RenderTargetSpec {
       'x$sampleCount, ${storageMode.name})';
 }
 
+/// Makes a texture. The one thing a pool cannot do on its own.
+///
+/// Injected rather than imported so the pool holds no backend at all. There is
+/// exactly one implementation that talks to a device — `GpuTextureAllocator` in
+/// `gpu/gpu_texture.dart` — and any number of counting fakes in tests.
+abstract interface class TextureAllocator {
+  /// A brand-new texture matching [spec], with the single [TextureHandle] that
+  /// will ever stand for it.
+  TextureHandle createTexture(RenderTargetSpec spec);
+}
+
 /// Reuses textures across frames, keyed by what makes them interchangeable.
 ///
 /// Without this a bloom chain allocates a texture per level per frame — five or
@@ -65,10 +99,19 @@ final class RenderTargetSpec {
 /// released within a frame, so the pool only has to track which of the textures
 /// it already owns are currently lent out.
 final class RenderTargetPool {
-  final Map<RenderTargetSpec, List<gpu.Texture>> _free =
-      <RenderTargetSpec, List<gpu.Texture>>{};
-  final Map<gpu.Texture, RenderTargetSpec> _lent =
-      <gpu.Texture, RenderTargetSpec>{};
+  RenderTargetPool(this.allocator);
+
+  final TextureAllocator allocator;
+
+  final Map<RenderTargetSpec, List<TextureHandle>> _free =
+      <RenderTargetSpec, List<TextureHandle>>{};
+
+  /// What is currently out on loan, by identity.
+  ///
+  /// A [Set] and not a list, and identity is the whole reason it works:
+  /// [TextureHandle] has no value equality, so two interchangeable targets —
+  /// same size, same format, therefore equal descriptions — remain two entries.
+  final Set<TextureHandle> _lent = <TextureHandle>{};
 
   int _created = 0;
 
@@ -86,28 +129,17 @@ final class RenderTargetPool {
   }
 
   /// A texture matching [spec], reused when one is free.
-  gpu.Texture acquire(RenderTargetSpec spec) {
+  TextureHandle acquire(RenderTargetSpec spec) {
     final free = _free[spec];
     if (free != null && free.isNotEmpty) {
       final texture = free.removeLast();
-      _lent[texture] = spec;
+      _lent.add(texture);
       return texture;
     }
 
-    final texture = gpu.gpuContext.createTexture(
-      spec.storageMode.toGpu(),
-      spec.width,
-      spec.height,
-      format: spec.format.toGpu(),
-      sampleCount: spec.sampleCount,
-      enableRenderTargetUsage: true,
-      // Transient textures live in tile memory and cannot be sampled, so asking
-      // for shader read on one is a contradiction the driver would have to
-      // resolve for us.
-      enableShaderReadUsage: spec.storageMode != StorageMode.deviceTransient,
-    );
+    final texture = allocator.createTexture(spec);
     _created++;
-    _lent[texture] = spec;
+    _lent.add(texture);
     return texture;
   }
 
@@ -115,12 +147,11 @@ final class RenderTargetPool {
   ///
   /// Releasing something the pool never lent out is a bug in the caller, not
   /// something to absorb: it means two owners think they hold the same target.
-  void release(gpu.Texture texture) {
-    final spec = _lent.remove(texture);
-    if (spec == null) {
+  void release(TextureHandle texture) {
+    if (!_lent.remove(texture)) {
       throw StateError('Released a texture this pool does not own.');
     }
-    (_free[spec] ??= <gpu.Texture>[]).add(texture);
+    (_free[RenderTargetSpec.of(texture)] ??= <TextureHandle>[]).add(texture);
   }
 
   /// Drops every pooled texture, keeping the ones still lent out.

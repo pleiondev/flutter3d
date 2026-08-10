@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 
@@ -21,8 +20,8 @@ final class LoadedLevel {
     required this.collision,
     required this.issues,
     required this.drawCallCount,
-    Map<String, gpu.Texture?>? materialTextures,
-  }) : materialTextures = materialTextures ?? const <String, gpu.Texture?>{};
+    Map<String, TextureHandle?>? materialTextures,
+  }) : materialTextures = materialTextures ?? const <String, TextureHandle?>{};
 
   final Level level;
   final Scene scene;
@@ -39,7 +38,7 @@ final class LoadedLevel {
   ///
   /// Kept so anything built after the load — a door, a lift — can be given the
   /// same texture object rather than uploading a second copy of the same file.
-  final Map<String, gpu.Texture?> materialTextures;
+  final Map<String, TextureHandle?> materialTextures;
 }
 
 /// Reads a level asset and turns it into something playable.
@@ -76,7 +75,7 @@ final class LevelLoader {
     // by four surfaces is one upload, not four — and the cache belongs to this
     // load rather than to the process, so two levels never share a GPU
     // resource that one of them will outlive.
-    final textures = <String, gpu.Texture?>{};
+    final textures = <String, TextureHandle?>{};
     for (final source in level.materials.values) {
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
@@ -124,7 +123,7 @@ final class LevelLoader {
   /// is the seam, and it is the only place that knows both.
   static Material materialFrom(
     LevelMaterial source,
-    Map<String, gpu.Texture?> textures, {
+    Map<String, TextureHandle?> textures, {
     String? name,
   }) {
     final material = Material(
@@ -151,7 +150,7 @@ final class LevelLoader {
     return material;
   }
 
-  static Future<gpu.Texture?> _upload(String path) async {
+  static Future<TextureHandle?> _upload(String path) async {
     try {
       final bytes = await rootBundle.load(path);
       return await uploadEncodedImage(bytes.buffer.asUint8List());
@@ -168,12 +167,7 @@ final class LevelLoader {
   /// A wall fourteen metres wide at half a metre per tile has texture
   /// coordinates running from zero to twenty-eight, and clamping would stretch
   /// the atlas's last texel across the whole thing.
-  static final gpu.SamplerOptions _tiling = gpu.SamplerOptions(
-    minFilter: gpu.MinMagFilter.linear,
-    magFilter: gpu.MinMagFilter.linear,
-    widthAddressMode: gpu.SamplerAddressMode.repeat,
-    heightAddressMode: gpu.SamplerAddressMode.repeat,
-  );
+  static const SamplerOptions _tiling = SamplerOptions.linearRepeat;
 
   /// Interleaves the level package's plain arrays into the engine's layout.
   ///

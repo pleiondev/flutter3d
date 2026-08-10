@@ -42,11 +42,16 @@ export 'src/engine/geometry/geometry.dart';
 // and nothing below them. `src/engine/gpu/gpu_formats.dart` is the only place
 // they are translated.
 export 'src/engine/graphics/formats.dart';
+export 'src/engine/graphics/render_target_pool.dart';
 export 'src/engine/graphics/sampler.dart';
+export 'src/engine/graphics/texture.dart';
 
-// GPU resources.
+// GPU resources. `gpu_texture.dart` is the seam itself: it makes a
+// `TextureHandle`, and it is the only way back to the flutter_gpu texture
+// inside one — which an extension writing its own render pass needs and
+// nothing else does.
 export 'src/engine/gpu/gpu_mesh.dart';
-export 'src/engine/gpu/render_target_pool.dart';
+export 'src/engine/gpu/gpu_texture.dart';
 export 'src/engine/gpu/texture_upload.dart';
 
 // Particles: a pooled simulation and the recipes that drive it.

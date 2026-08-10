@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -126,7 +125,7 @@ final class FixtureVisuals {
   ///
   /// Wanted only because the model loader insists on one; every model here has
   /// its material replaced immediately afterwards.
-  gpu.Texture? fallbackAlbedo;
+  TextureHandle? fallbackAlbedo;
 
   /// The level's lights, by name, so a fixture can dim the one it owns.
   final Map<String, LightNode> _lights = <String, LightNode>{};

@@ -1,5 +1,3 @@
-import 'package:flutter_gpu/gpu.dart' as gpu;
-
 import 'package:flutter3d/flutter3d.dart';
 
 /// Something the demo can display: a procedural shape or a model file.
@@ -10,8 +8,8 @@ sealed class SceneSource {
   final String label;
 
   Future<ModelAsset> load({
-    required gpu.Texture fallbackAlbedo,
-    required gpu.Texture checkerAlbedo,
+    required TextureHandle fallbackAlbedo,
+    required TextureHandle checkerAlbedo,
   });
 }
 
@@ -27,8 +25,8 @@ final class ProceduralSource extends SceneSource {
 
   @override
   Future<ModelAsset> load({
-    required gpu.Texture fallbackAlbedo,
-    required gpu.Texture checkerAlbedo,
+    required TextureHandle fallbackAlbedo,
+    required TextureHandle checkerAlbedo,
   }) async {
     // Generation is fast enough to stay on the UI isolate: a 33k-vertex sphere
     // builds in 0.9 ms, and shipping the result to another isolate would cost
@@ -58,8 +56,8 @@ final class ModelFileSource extends SceneSource {
 
   @override
   Future<ModelAsset> load({
-    required gpu.Texture fallbackAlbedo,
-    required gpu.Texture checkerAlbedo,
+    required TextureHandle fallbackAlbedo,
+    required TextureHandle checkerAlbedo,
   }) async {
     final document = await decodeModelInIsolate(
       ModelLoadRequest(
