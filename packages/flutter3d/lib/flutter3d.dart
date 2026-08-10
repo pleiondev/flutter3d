@@ -63,6 +63,7 @@ export 'src/engine/render/render_node.dart';
 export 'src/engine/render/render_plugin.dart';
 export 'src/engine/render/render_view.dart';
 export 'src/engine/render/frame_graph.dart';
+export 'src/engine/render/frame_plan.dart';
 export 'src/engine/render/frame_resources.dart';
 export 'src/engine/render/shadow_slots.dart';
 export 'src/engine/render/renderer.dart';

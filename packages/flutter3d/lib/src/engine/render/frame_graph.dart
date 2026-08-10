@@ -28,7 +28,26 @@ abstract base class FrameGraphNode {
   String get name;
 
   /// What this node needs to have been produced before it runs.
+  ///
+  /// A read that nothing produces this frame starves the node: it is culled,
+  /// and so is anything that only fed it. That is right for a composite that
+  /// cannot work without a colour, and wrong for everything in [optionalReads].
   List<ResourceId> get reads => const <ResourceId>[];
+
+  /// What this node will sample if the frame happens to produce it.
+  ///
+  /// The distinction the first real frame description forced. The scene samples
+  /// shadow maps, but a scene culled because shadows were switched off would
+  /// draw nothing at all — so it cannot be a [reads]. Yet leaving the maps
+  /// undeclared culls the shadow passes instead, since nothing would want what
+  /// they produce. Both readings of "reads" are wrong and the missing word is
+  /// this one.
+  ///
+  /// An optional read orders the node after the producer and keeps that
+  /// producer alive, and never starves the node when the producer is absent.
+  /// The shader already works this way: it looks up an atlas row and treats
+  /// "no row" as a value rather than as a failure.
+  List<ResourceId> get optionalReads => const <ResourceId>[];
 
   /// What this node produces. A node that writes nothing is only kept if
   /// something explicitly asks for it — see [FrameGraph.compile].
@@ -54,7 +73,8 @@ final class FrameGraphError extends Error {
 /// resource has to stay alive.
 final class CompiledFrameGraph {
   const CompiledFrameGraph(
-    this._lastUse, {
+    this._lastUse,
+    this._readers, {
     required this.order,
     required this.culled,
   });
@@ -70,6 +90,7 @@ final class CompiledFrameGraph {
   final List<FrameGraphNode> culled;
 
   final Map<String, int> _lastUse;
+  final Set<String> _readers;
 
   /// The last position in [order] that touches [id], or null if nothing does.
   ///
@@ -84,6 +105,18 @@ final class CompiledFrameGraph {
   /// Resources this frame touches at all, in no particular order.
   Iterable<ResourceId> get resources =>
       _lastUse.keys.map((name) => ResourceId(name));
+
+  /// Whether any pass that survived reads [id].
+  ///
+  /// What replaces a hand-computed `needsSurfaceBuffer`. A producer can always
+  /// declare that it *can* write something and let this decide whether it is
+  /// worth attaching: with no reader the resource is never asked for, so
+  /// [FrameResources] never allocates it and the write costs nothing.
+  ///
+  /// The alternative — a conditional write — cannot be expressed by a graph
+  /// where reads are validated, and trying to model it that way is what this
+  /// method was written to replace.
+  bool isRead(ResourceId id) => _readers.contains(id.name);
 
   /// What can go back to the pool once the node at [index] has run.
   ///
@@ -150,7 +183,7 @@ final class FrameGraph {
     }
 
     for (final node in _nodes) {
-      for (final id in node.reads) {
+      for (final id in <ResourceId>[...node.reads, ...node.optionalReads]) {
         if (known.contains(id.name)) continue;
         throw FrameGraphError(
           '"${node.name}" reads "$id", which nothing writes and which is not '
@@ -191,6 +224,8 @@ final class FrameGraph {
           break;
         }
       }
+      // optionalReads deliberately do not appear here: an absent one is the
+      // frame saying "not this time", not a reason to drop the pass.
     }
 
     final writers = <String, List<int>>{};
@@ -205,14 +240,23 @@ final class FrameGraph {
     final edges = List<Set<int>>.generate(active.length, (_) => <int>{});
     for (var i = 0; i < active.length; i++) {
       if (!runnable[i]) continue;
-      for (final id in active[i].reads) {
+      final alsoWrites = <String>{
+        for (final id in active[i].writes) id.name,
+      };
+      for (final id in <ResourceId>[
+        ...active[i].reads,
+        ...active[i].optionalReads,
+      ]) {
+        // A node that reads a resource it also writes is a link in a chain,
+        // not a consumer of one: two overlays compositing onto the same colour
+        // each read it and write it back, and "depend on every writer" makes
+        // them depend on each other. Their order is the registration order the
+        // write rule below already imposes, so the read adds nothing.
+        if (alsoWrites.contains(id.name)) continue;
         for (final w in writers[id.name] ?? const <int>[]) {
-          // Every writer of what this node reads, wherever it was registered —
-          // a consumer declared before its producer is the ordinary case and
-          // deriving the order is the whole point. Only the node itself is
-          // excluded: read-modify-write on one resource is how anything
-          // accumulates into a target, and a self-edge would report it as a
-          // loop.
+          // For anything else, every writer wherever it was registered: a
+          // consumer declared before its producer is the ordinary case and
+          // deriving that order is the whole point.
           if (w != i) edges[i].add(w);
         }
       }
@@ -263,7 +307,10 @@ final class FrameGraph {
 
     final lastUse = <String, int>{};
     for (var i = 0; i < order.length; i++) {
-      for (final id in order[i].reads) {
+      for (final id in <ResourceId>[
+        ...order[i].reads,
+        ...order[i].optionalReads,
+      ]) {
         lastUse[id.name] = i;
       }
       for (final id in order[i].writes) {
@@ -271,7 +318,14 @@ final class FrameGraph {
       }
     }
 
-    return CompiledFrameGraph(lastUse, order: order, culled: culled);
+    final readers = <String>{
+      for (final node in order) ...<String>[
+        for (final id in node.reads) id.name,
+        for (final id in node.optionalReads) id.name,
+      ],
+    };
+
+    return CompiledFrameGraph(lastUse, readers, order: order, culled: culled);
   }
 
   /// Everything the requested outputs actually depend on.

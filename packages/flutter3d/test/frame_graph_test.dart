@@ -12,6 +12,7 @@ final class TestNode extends FrameGraphNode {
   const TestNode(
     this.name, {
     this.reads = const <ResourceId>[],
+    this.optionalReads = const <ResourceId>[],
     this.writes = const <ResourceId>[],
     this.isActive = true,
   });
@@ -20,6 +21,8 @@ final class TestNode extends FrameGraphNode {
   final String name;
   @override
   final List<ResourceId> reads;
+  @override
+  final List<ResourceId> optionalReads;
   @override
   final List<ResourceId> writes;
   @override
@@ -321,6 +324,74 @@ void main() {
       expect(released, unorderedEquals(compiled.resources.toList()));
       expect(released.toSet().length, released.length);
     });
+  });
+
+  group('optional reads', () {
+    test('an optional read keeps its producer alive', () {
+      // Without this the shadow passes are culled: nothing declares a hard
+      // read on a shadow map, so nothing wants what they produce.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('shadows', writes: <ResourceId>[depth]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[depth],
+            writes: <ResourceId>[final_]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['shadows', 'scene']);
+    });
+
+    test('an absent optional read does not starve the node', () {
+      // And with this the scene survives shadows being switched off, which a
+      // hard read would not allow: it would take the world with it.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('shadows',
+            writes: <ResourceId>[depth], isActive: false))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[depth],
+            writes: <ResourceId>[final_]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['scene']);
+    });
+
+    test('an optional read of a name nothing writes is still an error', () {
+      // Optional is about this frame, not about spelling.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[bloom],
+            writes: <ResourceId>[final_]));
+
+      expect(() => graph.compile(outputs: <ResourceId>[final_]),
+          throwsA(isA<FrameGraphError>()));
+    });
+
+    test('an optional read counts as a read for isRead and for lifetime', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('shadows', writes: <ResourceId>[depth]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[depth],
+            writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.isRead(depth), isTrue);
+      expect(compiled.lastUseOf(depth), 1);
+    });
+  });
+
+  test('a chain of read-modify-write nodes is not a loop', () {
+    // Two overlays compositing onto one colour each read it and write it back.
+    // "Depend on every writer" makes them depend on each other; the order is
+    // the registration order the write rule already imposes.
+    final graph = FrameGraph()
+      ..addExternal(colour)
+      ..addNode(const TestNode('first',
+          reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
+      ..addNode(const TestNode('second',
+          reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+    expect(names(graph.compile(outputs: <ResourceId>[colour]).order),
+        <String>['first', 'second']);
   });
 
   test('an empty graph asking for an external resource is not an error', () {
