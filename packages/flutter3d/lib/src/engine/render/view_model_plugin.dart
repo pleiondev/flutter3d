@@ -5,7 +5,9 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/camera_node.dart';
 import '../scene/scene.dart';
-import 'render_plugin.dart';
+import 'frame_graph.dart';
+import 'frame_plan.dart';
+import 'render_node.dart';
 
 /// Draws the first-person view model over the finished scene.
 ///
@@ -13,10 +15,10 @@ import 'render_plugin.dart';
 /// and flutter_gpu offers no way to end a pass — the same rule that already
 /// governs the shadow and post passes.
 ///
-/// [RenderStage.overlayScene] rather than in the scene pass, and that is the
+/// its own pass rather than the scene pass, and that is the
 /// whole reason the stage exists: a weapon held at arm's length shares no
 /// depth with the world, or every doorway would slice the barrel off.
-final class ViewModelPlugin extends RenderPlugin {
+final class ViewModelPlugin extends RenderNode {
   ViewModelPlugin({required this.scene, required this.camera});
 
   /// Holds only what is in the player's hands. Kept apart from the world so
@@ -27,13 +29,21 @@ final class ViewModelPlugin extends RenderPlugin {
   CameraNode camera;
 
   @override
-  RenderStage get stage => RenderStage.overlayScene;
+  String get name => 'view model';
+
+  /// Reads the finished scene and draws over it, which is a read and a write of
+  /// the same resource — a link in the chain rather than a consumer of one.
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
 
   @override
   bool get isActive => scene.meshes.isNotEmpty;
 
   @override
-  void encode(PluginFrame frame) {
+  void execute(NodeFrame frame) {
     final hdr = frame.sceneColor;
     if (hdr == null) return;
     developer.Timeline.startSync('ViewModelPlugin.encode');

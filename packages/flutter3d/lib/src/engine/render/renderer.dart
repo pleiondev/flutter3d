@@ -623,11 +623,19 @@ final class Renderer implements PluginServices {
   /// the weapon view model and another for the particles, and fog, decals and
   /// a debug overlay would each have added a third — a parameter list is a
   /// registry with no ordering and nothing an application can add to.
-  final PluginRegistry plugins = PluginRegistry();
+  /// Things that draw inside the scene's pass.
+  final ContributorRegistry contributors = ContributorRegistry();
 
-  T addPlugin<T extends RenderPlugin>(T plugin) => plugins.add(plugin);
+  /// Things that own a pass of their own.
+  final RenderNodeRegistry nodes = RenderNodeRegistry();
 
-  bool removePlugin(RenderPlugin plugin) => plugins.remove(plugin);
+  T addContributor<T extends PassContributor>(T c) => contributors.add(c);
+
+  T addNode<T extends RenderNode>(T node) => nodes.add(node);
+
+  bool removeContributor(PassContributor c) => contributors.remove(c);
+
+  bool removeNode(RenderNode node) => nodes.remove(node);
 
   final gpu.Shader vertexShader;
 
@@ -1428,28 +1436,26 @@ final class Renderer implements PluginServices {
   /// is a handful of nodes; if that ever shows up in a profile it is a cache
   /// keyed on the registry's contents, not a reason to keep the ordering by
   /// hand.
-  List<RenderPlugin> _orderedOverlays() {
-    final overlays =
-        plugins.forStage(RenderStage.overlayScene).toList(growable: false);
-    if (overlays.isEmpty) return const <RenderPlugin>[];
+  /// This frame's nodes, in the order the graph derives.
+  ///
+  /// Rebuilt per frame because the set can change between frames and the cost
+  /// is a handful of nodes; if that ever shows up in a profile it is a cache
+  /// keyed on the registry's contents, not a reason to keep the ordering by
+  /// hand.
+  List<RenderNode> _orderedNodes() {
+    final registered = nodes.all;
+    if (registered.isEmpty) return const <RenderNode>[];
 
-    const sceneColour = ResourceId('scene_colour');
-    final graph = FrameGraph()..addExternal(sceneColour);
-    for (var i = 0; i < overlays.length; i++) {
-      graph.addNode(PluginNode(
-        overlays[i],
-        // Indexed because two overlays of one type are legitimate and node
-        // names have to tell them apart.
-        name: 'overlay $i ${overlays[i].runtimeType}',
-        reads: const <ResourceId>[sceneColour],
-        writes: const <ResourceId>[sceneColour],
-      ));
+    final graph = FrameGraph()..addExternal(FrameResourceIds.hdrColour);
+    for (final node in registered) {
+      graph.addNode(node);
     }
 
-    return <RenderPlugin>[
-      for (final node in graph.compile(outputs: const <ResourceId>[sceneColour])
+    return <RenderNode>[
+      for (final node in graph
+          .compile(outputs: const <ResourceId>[FrameResourceIds.hdrColour])
           .order)
-        (node as PluginNode).plugin,
+        node as RenderNode,
     ];
   }
 
@@ -2304,9 +2310,6 @@ final class Renderer implements PluginServices {
   /// makes the graph cheap to adopt here: it has to derive a submission order,
   /// not take over how passes are built.
   ///
-  /// Returns the pass because the overlay stage is still handed it. It should
-  /// not be — see the note there — and it stops being handed on once `inScene`
-  /// becomes a contributor to this node.
   ///
   /// [contributors] are handed in rather than looked up. A node that reaches
   /// into a global registry cannot be a node somebody else supplies, which is
@@ -2327,7 +2330,7 @@ final class Renderer implements PluginServices {
     required int shadowCaster,
     required FramePassState passState,
     required int lightOverflowCount,
-    required List<RenderPlugin> contributors,
+    required List<PassContributor> contributors,
   }) {
     final hdr = _hdrColor!;
     var culled = 0;
@@ -2487,7 +2490,7 @@ final class Renderer implements PluginServices {
 
       for (final plugin in contributors) {
         plugin.encode(
-          PluginFrame(
+          ContributorFrame(
             pass: pass,
             host: host,
             services: this,
@@ -2516,7 +2519,6 @@ final class Renderer implements PluginServices {
     developer.Timeline.finishSync();
 
     return _ScenePass(
-      pass: pass,
       culled: culled,
       debugLines: debugLines,
       lightOverflow: lightOverflow,
@@ -2659,10 +2661,8 @@ final class Renderer implements PluginServices {
       shadowCaster: shadowCaster,
       passState: passState,
       lightOverflowCount: lightOverflowCount,
-      contributors:
-          plugins.forStage(RenderStage.inScene).toList(growable: false),
+      contributors: contributors.active.toList(growable: false),
     );
-    final pass = scenePass.pass;
     final culled = scenePass.culled;
     var debugLines = scenePass.debugLines;
     final lightOverflow = scenePass.lightOverflow;
@@ -2681,21 +2681,9 @@ final class Renderer implements PluginServices {
     // pass, so they are contributions to a node rather than nodes, and the
     // graph has no word for that. That is the first thing the migration found,
     // and it is the next piece of design rather than a line to force here.
-    for (final plugin in _orderedOverlays()) {
-      plugin.encode(
-        PluginFrame(
-          // The scene pass, and by this point its command buffer has already
-          // been submitted a few lines above — so an overlay **cannot** encode
-          // into it and must build its own. The previous comment here invited
-          // exactly that, which no plugin has taken up: the view model builds
-          // its own pass and the particle system is an `inScene` stage, where
-          // the invitation is legitimate. It is handed on only so a plugin can
-          // read the pass state it has to leave consistent.
-          //
-          // The field goes away for this stage when `inScene` becomes a
-          // contributor to a scene node, which is where "append to the world's
-          // pass" is the only thing it can mean.
-          pass: pass,
+    for (final node in _orderedNodes()) {
+      node.execute(
+        NodeFrame(
           host: host,
           services: this,
           state: passState,
@@ -3189,14 +3177,12 @@ final class Renderer implements PluginServices {
 /// What [Renderer._encodeScene] hands back to the frame.
 final class _ScenePass {
   const _ScenePass({
-    required this.pass,
     required this.culled,
     required this.debugLines,
     required this.lightOverflow,
     required this.submitMicros,
   });
 
-  final gpu.RenderPass pass;
   final int culled;
   final int debugLines;
   final int lightOverflow;

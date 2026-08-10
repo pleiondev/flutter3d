@@ -11,7 +11,7 @@ import 'particle_system.dart';
 
 /// Draws every live particle as one batch of camera-facing quads.
 ///
-/// [RenderStage.inScene] rather than after it, so particles are depth-tested
+/// inside the scene pass rather than after it, so particles are depth-tested
 /// against the world — a spark behind a pillar has to be hidden by it — and so
 /// they land in the HDR target where the bloom can pick the bright ones up,
 /// which is most of what makes an explosion read as light.
@@ -19,21 +19,19 @@ import 'particle_system.dart';
 /// Depth write is off and blending is additive. Additive is what removes the
 /// need to sort: addition is commutative, so a thousand particles in one
 /// unsorted batch composite correctly, and one draw call covers all of them.
-final class ParticlePlugin extends RenderPlugin {
+final class ParticlePlugin extends PassContributor {
   ParticlePlugin(this.particles);
 
   final ParticleSystem particles;
 
   static const String _infoBlock = 'ParticleInfo';
 
-  @override
-  RenderStage get stage => RenderStage.inScene;
 
   @override
   bool get isActive => particles.aliveCount > 0;
 
   @override
-  void encode(PluginFrame frame) {
+  void encode(ContributorFrame frame) {
     final view = frame.view;
     final viewProjection = frame.viewProjection;
     if (view == null || viewProjection == null) return;
@@ -160,7 +158,7 @@ final class ParticlePlugin extends RenderPlugin {
   /// Once rather than every frame, because sixty identical lines a second is
   /// how a real message gets scrolled away — and silently is how this bug
   /// survived being written in the first place.
-  gpu.Shader? _shader(PluginFrame frame, String name) {
+  gpu.Shader? _shader(ContributorFrame frame, String name) {
     final shader = frame.services.library[name];
     if (shader == null && _missing.add(name)) {
       assert(() {

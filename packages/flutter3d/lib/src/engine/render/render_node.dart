@@ -1,23 +1,59 @@
-/// A frame-graph node that actually draws something.
+/// A frame-graph node that owns a pass and draws something.
 ///
 /// Split from [FrameGraphNode] so the scheduling half stays free of GPU types:
 /// `frame_graph.dart` works out the order, the culling and the lifetimes with
-/// no device in sight and twenty-two unit tests to show for it, and this is
+/// no device in sight and thirty-one unit tests to show for it, and this is
 /// where that meets a render pass.
 ///
-/// The context is [PluginFrame] rather than something invented for the
-/// occasion. It was shaped by two real clients — the particle system and the
-/// weapon view model — and an argument list that already survived contact with
-/// both is a better starting point than one designed from the outside. The
-/// same reasoning kept `CommandEncoder` out of this step: it is in the plan,
-/// but abstracting over a command buffer before a second backend exists to
-/// check the abstraction against is how a seam ends up in the wrong place.
+/// A node **owns** its pass, which is the difference between it and a
+/// [PassContributor]. A contributor is handed a pass and draws into it; a node
+/// builds its own, so handing it one would be meaningless — and for a while it
+/// was worse than meaningless, because the overlay stage was handed the scene's
+/// pass after that pass's command buffer had already been submitted.
+///
+/// That is why [NodeFrame] carries no pass. It is not an omission.
 library;
 
-import 'render_plugin.dart';
-import 'frame_graph.dart';
+import 'package:flutter_gpu/gpu.dart' as gpu;
 
-/// Something that declares what it touches and then draws it.
+import 'frame_graph.dart';
+import 'render_plugin.dart';
+import 'renderer.dart';
+
+/// Everything a node is given to build its pass from.
+///
+/// No pass, deliberately — see the note on [RenderNode]. The scene's colour is
+/// here instead, because a node that draws over the world needs to read what
+/// the world came out as, and that is a resource rather than a pass.
+final class NodeFrame {
+  NodeFrame({
+    required this.host,
+    required this.services,
+    required this.state,
+    required this.settings,
+    required this.width,
+    required this.height,
+    this.sceneColor,
+  });
+
+  final gpu.HostBuffer host;
+  final PluginServices services;
+
+  /// Counters the whole frame shares. A node that binds its own pipeline must
+  /// say so through [FramePassState.invalidatePipeline], or the next thing
+  /// drawn will trust a stale answer.
+  final FramePassState state;
+
+  final RenderSettings settings;
+
+  final int width;
+  final int height;
+
+  /// The HDR target the scene was drawn into.
+  final gpu.Texture? sceneColor;
+}
+
+/// Something that declares what it touches, owns a pass, and draws it.
 abstract base class RenderNode extends FrameGraphNode {
   const RenderNode();
 
@@ -26,39 +62,27 @@ abstract base class RenderNode extends FrameGraphNode {
   /// Called only if the graph kept it: a node whose outputs nobody reads is
   /// never asked, which is the difference between an effect that is switched
   /// off and an effect that costs a pass and is then discarded.
-  void execute(PluginFrame frame);
+  void execute(NodeFrame frame);
 }
 
-/// Adapts an existing [RenderPlugin] to a graph node.
+/// The nodes a renderer runs, and the order it runs them in.
 ///
-/// The bridge for the migration rather than a permanent fixture. Everything on
-/// the old seam moves across one at a time, and until a thing has moved it can
-/// still be scheduled — otherwise the migration is one commit that changes
-/// every pass at once, which is the commit where a regression hides.
-///
-/// [reads] and [writes] have to be supplied here because a plugin never
-/// declared them; that is the whole difference between the two, and it is why
-/// the adapter cannot be automatic.
-final class PluginNode extends RenderNode {
-  const PluginNode(
-    this.plugin, {
-    required this.name,
-    this.reads = const <ResourceId>[],
-    this.writes = const <ResourceId>[],
-  });
+/// Ordering is derived by the frame graph from what each node declares, not by
+/// a priority number — that is the whole reason the graph exists. This holds
+/// the set; `Renderer` compiles it.
+final class RenderNodeRegistry {
+  final List<RenderNode> _nodes = <RenderNode>[];
 
-  final RenderPlugin plugin;
+  List<RenderNode> get all => List<RenderNode>.unmodifiable(_nodes);
 
-  @override
-  final String name;
-  @override
-  final List<ResourceId> reads;
-  @override
-  final List<ResourceId> writes;
+  int get length => _nodes.length;
 
-  @override
-  bool get isActive => plugin.isActive;
+  T add<T extends RenderNode>(T node) {
+    _nodes.add(node);
+    return node;
+  }
 
-  @override
-  void execute(PluginFrame frame) => plugin.encode(frame);
+  bool remove(RenderNode node) => _nodes.remove(node);
+
+  void clear() => _nodes.clear();
 }

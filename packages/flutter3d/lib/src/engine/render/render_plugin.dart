@@ -32,22 +32,7 @@ final class FramePassState {
   }
 }
 
-/// Where in the frame a plugin draws.
-///
-/// The two are not a preference. Anything written into the HDR target is scene
-/// light: it is tone mapped and it bleeds into the bloom, which is right for a
-/// spark and wrong for a gizmo. And anything sharing the world's depth buffer
-/// is clipped by the world, which is right for a spark and fatal for a weapon
-/// held at arm's length.
-enum RenderStage {
-  /// Inside the scene's HDR pass, alongside the world, once per view.
-  inScene,
-
-  /// Its own pass over the finished scene, before the post chain.
-  overlayScene,
-}
-
-/// What the renderer lends a plugin.
+/// What the renderer lends a contributor or a node.
 ///
 /// Narrow on purpose. A plugin needs the shaders it was compiled against, a
 /// way to fill a uniform block without reimplementing the reflection dance,
@@ -89,14 +74,15 @@ abstract interface class PluginServices {
   });
 }
 
-/// Everything a plugin is given to encode with.
+/// Everything something drawing **into someone else's pass** is given.
 ///
-/// A record of the arguments the renderer's own encoders already take, rather
-/// than an invented interface: the point of the seam is that particles and the
-/// weapon view model move onto it unchanged, and an argument list that does
-/// not fit them is the wrong argument list.
-final class PluginFrame {
-  PluginFrame({
+/// It carries a pass, and that is the whole distinction: a contributor draws
+/// into a pass it did not make, so it must be handed one. A node owns its pass
+/// and therefore creates one, which is why it takes [NodeFrame] instead. The
+/// two were one type until the scene pass was extracted and the difference
+/// stopped being expressible.
+final class ContributorFrame {
+  ContributorFrame({
     required this.pass,
     required this.host,
     required this.services,
@@ -106,15 +92,9 @@ final class PluginFrame {
     required this.height,
     this.view,
     this.viewProjection,
-    this.sceneColor,
   });
 
-  /// The scene's pass.
-  ///
-  /// For [RenderStage.inScene] this is the pass being built and drawing into
-  /// it is the point. For [RenderStage.overlayScene] the command buffer behind
-  /// it has already been submitted, so encoding into it does nothing and such
-  /// a plugin must create its own — the weapon view model does.
+  /// The pass being built. Drawing into it is the point.
   final gpu.RenderPass pass;
   final gpu.HostBuffer host;
   final PluginServices services;
@@ -124,63 +104,60 @@ final class PluginFrame {
   final int width;
   final int height;
 
-  /// The view being drawn. Null for [RenderStage.overlayScene], which is
-  /// encoded once for the frame rather than once per view.
+  /// The view being drawn.
   final RenderView? view;
   final vm.Matrix4? viewProjection;
-
-  /// The HDR target the scene was drawn into, for a stage that owns its pass.
-  final gpu.Texture? sceneColor;
 }
 
-/// Something that draws into a frame without the renderer knowing what it is.
+/// Something that draws inside a pass it does not own.
 ///
 /// The seam exists because `render()` was growing a parameter per feature —
 /// first the weapon view model, then the particles — and positional audio,
 /// decals and a fog volume would each have added another. A parameter list is
 /// a registry with no ordering and no way for an application to add to it.
 ///
-/// Modelled on Flame's components: the engine owns the loop and the plugin
-/// owns what it draws. Unlike Flame, the stage is declared rather than implied
-/// by tree position, because in 3D *when* something is drawn decides whether
-/// it is lit, clipped and bloomed — and that is too important to infer.
-abstract base class RenderPlugin {
-  const RenderPlugin();
+/// Modelled on Flame's components: the engine owns the loop and the
+/// contributor owns what it draws. What it does *not* have any more is a
+/// stage, because the two stages turned out to be two different things. A
+/// contributor draws into the scene's pass, before it is submitted. Anything
+/// that wanted its own pass was never a contributor at all — it is a
+/// [RenderNode], and the weapon view model has moved.
+abstract base class PassContributor {
+  const PassContributor();
 
-  RenderStage get stage;
-
-  /// Lower encodes first, within a stage. Ties keep registration order.
+  /// Lower encodes first. Ties keep registration order.
   int get order => 0;
 
   /// Whether there is anything to draw this frame. Checked before [encode] so
-  /// a plugin with nothing to say costs no pass setup.
+  /// a contributor with nothing to say costs no pass setup.
   bool get isActive => true;
 
-  void encode(PluginFrame frame);
+  void encode(ContributorFrame frame);
 }
 
-/// The set of plugins a renderer draws, and the order it draws them in.
+/// The contributors a renderer draws, and the order it draws them in.
 ///
 /// Its own class rather than three fields on [Renderer] because ordering is
 /// the whole substance of a registry and the only part worth testing — and
 /// testing it through the renderer would need a GPU context to ask a question
 /// that is pure list arithmetic.
-final class PluginRegistry {
-  final List<RenderPlugin> _plugins = <RenderPlugin>[];
-  List<RenderPlugin> _ordered = const <RenderPlugin>[];
+final class ContributorRegistry {
+  final List<PassContributor> _plugins = <PassContributor>[];
+  List<PassContributor> _ordered = const <PassContributor>[];
 
   /// Registration order, which is not drawing order — see [forStage].
-  List<RenderPlugin> get all => List<RenderPlugin>.unmodifiable(_plugins);
+  List<PassContributor> get all =>
+      List<PassContributor>.unmodifiable(_plugins);
 
   int get length => _plugins.length;
 
-  T add<T extends RenderPlugin>(T plugin) {
+  T add<T extends PassContributor>(T plugin) {
     _plugins.add(plugin);
     _reorder();
     return plugin;
   }
 
-  bool remove(RenderPlugin plugin) {
+  bool remove(PassContributor plugin) {
     final removed = _plugins.remove(plugin);
     if (removed) _reorder();
     return removed;
@@ -188,16 +165,16 @@ final class PluginRegistry {
 
   void clear() {
     _plugins.clear();
-    _ordered = const <RenderPlugin>[];
+    _ordered = const <PassContributor>[];
   }
 
-  /// Everything active in [stage], in drawing order.
+  /// Everything active, in drawing order.
   ///
-  /// [RenderPlugin.isActive] is asked here rather than by the caller so a
-  /// plugin with nothing to say this frame costs no pass setup.
-  Iterable<RenderPlugin> forStage(RenderStage stage) sync* {
+  /// [PassContributor.isActive] is asked here rather than by the caller so a
+  /// contributor with nothing to say this frame costs no pass setup.
+  Iterable<PassContributor> get active sync* {
     for (final plugin in _ordered) {
-      if (plugin.stage == stage && plugin.isActive) yield plugin;
+      if (plugin.isActive) yield plugin;
     }
   }
 
@@ -207,7 +184,8 @@ final class PluginRegistry {
     // application can actually control. Recomputed on change rather than per
     // frame: the set moves once at startup and the frame runs sixty times a
     // second.
-    _ordered = List<RenderPlugin>.of(_plugins)
-      ..sort((RenderPlugin a, RenderPlugin b) => a.order.compareTo(b.order));
+    _ordered = List<PassContributor>.of(_plugins)
+      ..sort((PassContributor a, PassContributor b) =>
+          a.order.compareTo(b.order));
   }
 }

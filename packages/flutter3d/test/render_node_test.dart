@@ -2,76 +2,77 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/render_node.dart';
-import 'package:flutter3d/src/engine/render/render_plugin.dart';
 
-/// A plugin that records whether it was asked to draw.
+/// A node that throws if it is ever asked to draw.
 ///
-/// Encoding needs a render pass, so `encode` cannot run without a device — but
-/// *whether the graph asks* is scheduling, and that is exactly what these
-/// tests are about. The body never runs; only the decision to call it does.
-final class SpyPlugin extends RenderPlugin {
-  SpyPlugin({this.isActive = true});
+/// Drawing needs a device, so the body cannot run here — but *whether the graph
+/// asks* is scheduling, which is the whole subject. A node that throws makes
+/// "it was not asked" an assertion rather than an assumption.
+final class ThrowingNode extends RenderNode {
+  const ThrowingNode(this.name,
+      {this.reads = const <ResourceId>[],
+      this.writes = const <ResourceId>[],
+      this.isActive = true});
 
+  @override
+  final String name;
+  @override
+  final List<ResourceId> reads;
+  @override
+  final List<ResourceId> writes;
   @override
   final bool isActive;
 
   @override
-  RenderStage get stage => RenderStage.inScene;
-
-  @override
-  void encode(PluginFrame frame) =>
+  void execute(NodeFrame frame) =>
       throw StateError('a culled node must never be asked to draw');
 }
 
 const ResourceId colour = ResourceId('colour');
-const ResourceId sparks = ResourceId('sparks');
+const ResourceId overlay = ResourceId('overlay');
 const ResourceId unwanted = ResourceId('unwanted');
 
 void main() {
-  test('an adapted plugin schedules like any other node', () {
+  test('a node that reads and writes the colour is a link in the chain', () {
+    // Which is what every overlay is: it reads the finished scene and draws
+    // over it. Two of them must not come out as depending on each other.
     final graph = FrameGraph()
       ..addExternal(colour)
-      ..addNode(PluginNode(SpyPlugin(),
-          name: 'particles',
-          reads: const <ResourceId>[colour],
-          writes: const <ResourceId>[sparks]));
+      ..addNode(const ThrowingNode('first',
+          reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
+      ..addNode(const ThrowingNode('second',
+          reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
 
-    final compiled = graph.compile(outputs: const <ResourceId>[sparks]);
+    final compiled = graph.compile(outputs: const <ResourceId>[colour]);
 
-    expect(compiled.order.map((n) => n.name), <String>['particles']);
+    expect(compiled.order.map((n) => n.name), <String>['first', 'second']);
   });
 
-  test('an inactive plugin is inactive as a node', () {
-    // The old seam asked `isActive` per frame to skip pass setup. The graph
-    // asks it once and then culls whatever only fed it, which is strictly more
-    // than the plugin could do for itself.
+  test('an inactive node takes its consumers with it', () {
     final graph = FrameGraph()
       ..addExternal(colour)
-      ..addNode(PluginNode(SpyPlugin(isActive: false),
-          name: 'particles',
-          reads: const <ResourceId>[colour],
-          writes: const <ResourceId>[sparks]))
-      ..addNode(PluginNode(SpyPlugin(),
-          name: 'reads sparks',
-          reads: const <ResourceId>[sparks],
-          writes: const <ResourceId>[unwanted]));
+      ..addNode(const ThrowingNode('off',
+          reads: <ResourceId>[colour],
+          writes: <ResourceId>[overlay],
+          isActive: false))
+      ..addNode(const ThrowingNode('reads it',
+          reads: <ResourceId>[overlay], writes: <ResourceId>[unwanted]));
 
     final compiled = graph.compile(outputs: const <ResourceId>[colour]);
 
     expect(compiled.order, isEmpty);
     expect(compiled.culled.map((n) => n.name),
-        containsAll(<String>['particles', 'reads sparks']));
+        containsAll(<String>['off', 'reads it']));
   });
 
   test('a node nothing wants is never asked to draw', () {
-    // SpyPlugin.encode throws if it is ever called. Nothing here can call it,
-    // because the graph left the node out of the order entirely — which is the
-    // assertion: culling decides *before* a pass is set up, not after one has
-    // been set up and discarded.
+    // ThrowingNode.execute throws. Nothing can call it, because the graph left
+    // it out of the order — culling decides before a pass is set up, not after
+    // one has been set up and discarded.
     final graph = FrameGraph()
       ..addExternal(colour)
-      ..addNode(PluginNode(SpyPlugin(),
-          name: 'ignored', writes: const <ResourceId>[unwanted]));
+      ..addNode(const ThrowingNode('ignored',
+          writes: <ResourceId>[unwanted]));
 
     final compiled = graph.compile(outputs: const <ResourceId>[colour]);
 
