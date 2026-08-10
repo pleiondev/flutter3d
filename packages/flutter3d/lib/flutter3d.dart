@@ -61,6 +61,7 @@ export 'src/engine/render/procedural_texture.dart';
 export 'src/engine/render/render_list.dart';
 export 'src/engine/render/render_plugin.dart';
 export 'src/engine/render/render_view.dart';
+export 'src/engine/render/frame_graph.dart';
 export 'src/engine/render/shadow_slots.dart';
 export 'src/engine/render/renderer.dart';
 export 'src/engine/render/view_model_plugin.dart';
