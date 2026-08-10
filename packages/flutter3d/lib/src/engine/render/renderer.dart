@@ -263,6 +263,8 @@ final class ShadowSettings {
     this.pointBias = 0.08,
     this.pointNormalOffset = 0.02,
     this.pointSoftness = 4.0,
+    this.pointLightRadius = 0.0,
+    this.pointMaxSoftness = 16.0,
     this.casterFaces = ShadowCasterFaces.back,
   });
 
@@ -291,9 +293,51 @@ final class ShadowSettings {
   /// of 2.5 texels moved 69 pixels of the frame and 20 texels moved 4861. The
   /// first is invisible and the second smears a contact shadow, so the default
   /// sits between them, at about the width flutter_scene gives a spot. This is
-  /// a fixed radius, not a contact-hardening one — a penumbra that widens with
-  /// distance from the caster is what PCSS is for, and that is a later step.
+  /// a fixed radius, and with contact hardening on it becomes the *floor* on
+  /// the width rather than the whole story: it is then only how sharp a
+  /// contact edge is allowed to get.
   final double pointSoftness;
+
+  /// The emitter's own radius, in metres. Zero uses a fixed kernel instead.
+  ///
+  /// **Off by default, because it does not work yet, and the cause is not yet
+  /// known.** The estimate collapses to [pointSoftness] almost everywhere:
+  /// raising this from 0.05 to 0.6 — twelve times — moves twenty pixels of the
+  /// frame, where the width should scale with it directly.
+  ///
+  /// Two explanations were written down and both were measured wrong, which is
+  /// worth recording so they are not proposed again:
+  ///
+  /// * *The blocker search finds the receiver's own floor.* No: the atlas holds
+  ///   the caster only. `cube-shadow` shows one teapot silhouette and no
+  ///   ground, because a single-sided floor is culled by [casterFaces].
+  /// * *Second-depth recording defeats it* — PCSS wants the distance to the
+  ///   near side of a blocker and [ShadowCasterFaces.back] records the far one,
+  ///   which would shrink `receiver - blocker` for any thick body. Plausible,
+  ///   and false: switching to [ShadowCasterFaces.front] moves 99 pixels
+  ///   against the fixed kernel, the same as before.
+  ///
+  /// Both were inferred from the finished picture, which is the wrong
+  /// instrument — the number that matters is inside the shader and nothing
+  /// shows it. The next step is a debug view that paints the blocker distance
+  /// and the estimated width, in the way `showShadowMap` paints the atlas, so
+  /// this is one run rather than another five.
+  ///
+  /// This is what makes a shadow sharp where its caster meets the floor and
+  /// soft a metre away, which one radius cannot be. A point light is a point
+  /// only in the maths; a torch flame is about ten centimetres across, and that
+  /// width is exactly what decides how fast its shadows spread.
+  ///
+  /// It costs a second set of taps — a search for what is blocking, before the
+  /// filter that softens it — so it is a real expense rather than free realism.
+  final double pointLightRadius;
+
+  /// The widest a penumbra may get, in texels of one cube face.
+  ///
+  /// Two jobs: it stops a blocker close to the light from spreading a shadow
+  /// across the whole room, and it sets how far the blocker search reaches,
+  /// since a blocker beyond the widest allowed penumbra cannot widen anything.
+  final double pointMaxSoftness;
 
   /// Which side of a caster the cube pass records.
   final ShadowCasterFaces casterFaces;
@@ -330,7 +374,18 @@ final class ShadowSettings {
     double? normalOffset,
     double? strength,
     double? depthPadding,
+    double? pointBias,
+    double? pointNormalOffset,
+    double? pointSoftness,
+    double? pointLightRadius,
+    double? pointMaxSoftness,
+    ShadowCasterFaces? casterFaces,
   }) =>
+      // Every field, and that is not bookkeeping. This method already dropped
+      // the point-shadow settings on the floor: `settingsFrom` calls it once a
+      // frame, so anything not listed here was silently reset to its default
+      // and no amount of setting it would have had any effect. The same shape
+      // of bug once meant a torch marked as a caster cast nothing.
       ShadowSettings(
         enabled: enabled ?? this.enabled,
         resolution: resolution ?? this.resolution,
@@ -338,6 +393,12 @@ final class ShadowSettings {
         normalOffset: normalOffset ?? this.normalOffset,
         strength: strength ?? this.strength,
         depthPadding: depthPadding ?? this.depthPadding,
+        pointBias: pointBias ?? this.pointBias,
+        pointNormalOffset: pointNormalOffset ?? this.pointNormalOffset,
+        pointSoftness: pointSoftness ?? this.pointSoftness,
+        pointLightRadius: pointLightRadius ?? this.pointLightRadius,
+        pointMaxSoftness: pointMaxSoftness ?? this.pointMaxSoftness,
+        casterFaces: casterFaces ?? this.casterFaces,
       );
 }
 
@@ -1979,6 +2040,10 @@ final class Renderer implements PluginServices {
         // penumbra keeps its width when the atlas resolution changes.
         _pointShadowParams2[0] =
             math.max(settings.shadows.pointSoftness, 0.0) * texel;
+        _pointShadowParams2[1] =
+            math.max(settings.shadows.pointLightRadius, 0.0);
+        _pointShadowParams2[2] =
+            math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
         bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
           'faces': _cubeFaceMatrices,
           'lights': _cubeLightData,

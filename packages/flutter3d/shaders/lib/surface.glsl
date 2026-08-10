@@ -268,8 +268,10 @@ uniform PointShadow {
   /// z: strength. w: normal offset in metres.
   vec4 params;
 
-  /// x: kernel radius in tile-local uv; zero collapses to a hard edge.
-  /// y, z, w unused.
+  /// x: smallest kernel radius in tile-local uv, and the fixed radius used
+  /// when contact hardening is off. y: the light's own radius in metres; zero
+  /// turns contact hardening off. z: largest kernel radius in tile-local uv.
+  /// w unused.
   vec4 params2;
 }
 point_shadow;
@@ -300,18 +302,71 @@ vec2 PointShadowDiskTap(int i) {
 /// is held inside its own tile individually. Clamping the centre and then
 /// offsetting would let the outer taps walk straight out of the tile and read a
 /// distance measured from a different face, or a different light.
-float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
-                     float receiver) {
+float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   float inset = point_shadow.params.x;
   vec2 local = clamp(uv + offset, inset, 1.0 - inset);
   vec2 atlas = (local + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
-  float stored = min(texture(point_shadow_texture, atlas).r,
-                     texture(point_shadow_static_texture, atlas).r) * range;
+  return min(texture(point_shadow_texture, atlas).r,
+             texture(point_shadow_static_texture, atlas).r) * range;
+}
+
+float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
+                     float receiver) {
+  float stored = PointShadowDistance(uv, offset, tile, range);
   // Nothing was drawn in that direction by either, so nothing is in the way.
   if (stored >= range * 0.999) return 1.0;
   return receiver > stored ? 0.0 : 1.0;
+}
+
+/// The disk point for tap [i], rotated by [ca]/[sa] and scaled to [radius].
+vec2 PointShadowOffset(int i, float ca, float sa, float radius) {
+  vec2 p = PointShadowDiskTap(i);
+  return vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca) * radius;
+}
+
+/// How wide the penumbra should be here, in tile-local uv.
+///
+/// Contact hardening, and the reason a fixed kernel looks wrong: a shadow is
+/// sharp where its caster touches the floor and soft a metre away, and one
+/// radius for both makes the contact mushy or the distant edge hard.
+///
+/// The similar-triangles estimate is the standard one — a light of radius `L`
+/// with a blocker at `b` and a receiver at `r` throws a penumbra `L * (r - b) /
+/// b` wide at the receiver. Converting that to tile uv is exact rather than
+/// tuned, because a face is a ninety degree frustum: at distance `r` from the
+/// light the face spans `2 * r` in world units across the full `0..1` of uv,
+/// so a world width `w` is `w / (2 * r)` of a tile.
+///
+/// The blocker search runs at the **widest** penumbra allowed, since a blocker
+/// outside that circle cannot widen the result anyway, and searching narrower
+/// would miss the very blockers that make an edge soft.
+float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
+                          float ca, float sa) {
+  float lightRadius = point_shadow.params2.y;
+  float minRadius = point_shadow.params2.x;
+  float maxRadius = point_shadow.params2.z;
+  if (lightRadius <= 0.0) return minRadius;
+
+  float sum = 0.0;
+  float count = 0.0;
+  for (int i = 0; i < 8; i++) {
+    float stored =
+        PointShadowDistance(uv, PointShadowOffset(i, ca, sa, maxRadius), tile,
+                            range);
+    if (stored >= range * 0.999) continue;
+    if (stored >= receiver) continue;
+    sum += stored;
+    count += 1.0;
+  }
+  // Nothing in front of this fragment anywhere in the search: fully lit, and
+  // the caller can skip the filter entirely.
+  if (count < 0.5) return -1.0;
+
+  float blocker = max(sum / count, 1e-4);
+  float world = lightRadius * max(receiver - blocker, 0.0) / blocker;
+  return clamp(world / (2.0 * receiver), minRadius, maxRadius);
 }
 
 /// How lit [world] is by the point light that owns the cube atlas.
@@ -370,23 +425,26 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   vec2 tile = vec2(float(face), float(slot));
 
   float receiver = distance - point_shadow.params.y;
-  float radius = point_shadow.params2.x;
 
-  // A centre tap plus a disk, rotated per fragment. The rotation is what turns
-  // eight samples into a soft edge rather than eight visible copies of the
+  // One rotation, shared by the blocker search and the filter. Per fragment,
+  // so eight samples read as a soft edge rather than as eight copies of the
   // silhouette: without it every fragment along an edge tests the same eight
-  // directions and the pattern reads as a repeated shape.
+  // directions and the pattern shows.
+  float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+                                            vec2(0.06711056, 0.00583715))));
+  float angle = noise * 6.28318530718;
+  float ca = cos(angle);
+  float sa = sin(angle);
+
+  float radius = PointShadowPenumbra(uv, tile, range, receiver, ca, sa);
+  // The search found nothing between here and the light.
+  if (radius < 0.0) return 1.0;
+
   float lit = PointShadowTap(uv, vec2(0.0), tile, range, receiver);
   if (radius > 0.0) {
-    float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
-                                              vec2(0.06711056, 0.00583715))));
-    float angle = noise * 6.28318530718;
-    float ca = cos(angle);
-    float sa = sin(angle);
     for (int i = 0; i < 8; i++) {
-      vec2 p = PointShadowDiskTap(i);
-      vec2 offset = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca) * radius;
-      lit += PointShadowTap(uv, offset, tile, range, receiver);
+      lit += PointShadowTap(uv, PointShadowOffset(i, ca, sa, radius), tile,
+                            range, receiver);
     }
     lit *= 1.0 / 9.0;
   }
