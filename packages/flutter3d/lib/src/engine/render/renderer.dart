@@ -2290,25 +2290,39 @@ final class Renderer implements PluginServices {
     }
   }
 
-  FrameResult render({
+  /// Draws the world into the HDR target, and submits it.
+  ///
+  /// Extracted ahead of becoming a frame-graph node, and extracted first so
+  /// that the move is verifiable on its own: this changes no behaviour, so the
+  /// goldens have to match byte for byte, and a refactor that moves the picture
+  /// moved something else too.
+  ///
+  /// It owns the render target, the command buffer and the pass, which is what
+  /// a node has to own. Ordering against the shadow passes is by *submission* —
+  /// they build and submit their own command buffers before this one, and the
+  /// queue runs buffers in the order they were submitted. That is the fact that
+  /// makes the graph cheap to adopt here: it has to derive a submission order,
+  /// not take over how passes are built.
+  ///
+  /// Returns the pass because the overlay stage is still handed it. It should
+  /// not be — see the note there — and it stops being handed on once `inScene`
+  /// becomes a contributor to this node.
+  _ScenePass _encodeScene({
+    required gpu.HostBuffer host,
+    required Scene scene,
+    required List<RenderView> ordered,
+    required RenderSettings settings,
     required int width,
     required int height,
-    required Scene scene,
-    required List<RenderView> views,
-    RenderSettings settings = const RenderSettings(),
+    required bool hasShadows,
+    required int shadowCaster,
+    required FramePassState passState,
+    required int lightOverflowCount,
   }) {
-    if (views.isEmpty) {
-      throw ArgumentError('At least one RenderView is required.');
-    }
-    // Timeline markers, not print statements: the phases below are only
-    // meaningful next to Flutter's own build and raster spans, and only in
-    // profile or release, where the debug interpreter is not the bottleneck.
-    developer.Timeline.startSync('Renderer.render');
-    final frameClock = Stopwatch()..start();
-    _ensureTargets(width, height);
-
     final hdr = _hdrColor!;
-
+    var culled = 0;
+    var debugLines = 0;
+    var lightOverflow = 0;
     // No multisampling while the surface buffer is wanted, and that is a
     // correctness matter rather than a budget one. Attachments in one target
     // must agree on sample count, so the surface buffer would be resolved by
@@ -2325,7 +2339,7 @@ final class Renderer implements PluginServices {
     // scene target holds linear light and the composite pass encodes on the way
     // out. Clearing with the sRGB value directly would send it through the
     // encode twice and wash the background out.
-    final clear = _srgbToLinear(views.first.clearColor);
+    final clear = _srgbToLinear(ordered.first.clearColor);
 
     final colorAttachment = msaa == null
         ? gpu.ColorAttachment(texture: hdr, clearValue: clear)
@@ -2368,115 +2382,9 @@ final class Renderer implements PluginServices {
       ),
     );
 
-    final host = transients[_frameIndex % _kFramesInFlight];
-    // This slot's textures were handed back a full ring ago, so the GPU is done
-    // with them; the same reasoning that governs the host buffers.
-    final expired = _pendingRelease[_frameIndex % _kFramesInFlight];
-    for (final texture in expired) {
-      targetPool.release(texture);
-    }
-    expired.clear();
-    _frameIndex++;
-    host.reset();
 
     final commandBuffer = gpu.gpuContext.createCommandBuffer();
     final pass = commandBuffer.createRenderPass(renderTarget);
-
-    // Lights are gathered once up front now, because the shadow pass needs the
-    // caster before any view is drawn — and the packed buffer is per frame, not
-    // per view.
-    lights.gather(scene.lights);
-    if (lights.count == 0) lights.useDefaultLight();
-    final lightOverflowCount = lights.overflow;
-    final shadowCaster = _firstDirectionalIndex();
-    final hasShadows = _renderShadowMap(
-      host: host,
-      scene: scene,
-      settings: settings.shadows,
-      casterIndex: shadowCaster,
-    );
-
-    // Which point lights get a row of the atlas, decided by relevance rather
-    // than by the order they happen to sit in the scene list. Four is now a
-    // limit on how many can be shadowed *at once*, not on how many a level may
-    // contain: a fifth torch takes a row as soon as it matters more than one of
-    // the four, and gives it back when it stops.
-    //
-    // Every row is decided before any of the atlas is drawn, because one pass
-    // draws all of them: a pass per light would clear the rows already there.
-    _collectShadowCandidates(scene, views);
-    final assignment = _shadowSlotAllocator.assign(_shadowCandidates);
-
-    for (var i = 0; i < _shadowSlots.length; i++) {
-      _shadowSlots[i] = -1.0;
-    }
-    var slot = 0;
-    for (var row = 0; row < assignment.owners.length; row++) {
-      final owner = assignment.owners[row];
-      if (owner is! LightNode) continue;
-      final index = lights.packed.indexOf(owner);
-      if (index < 0) continue;
-
-      owner.readWorldPosition(_cubePosition);
-      _cubeLightData[row * 4] = _cubePosition.x;
-      _cubeLightData[row * 4 + 1] = _cubePosition.y;
-      _cubeLightData[row * 4 + 2] = _cubePosition.z;
-      _cubeLightData[row * 4 + 3] = owner.range > 0.0 ? owner.range : 20.0;
-      // Which atlas row this light's shader index should read.
-      _shadowSlots[index * 4] = row.toDouble();
-      slot = math.max(slot, row + 1);
-    }
-    _cubeShadowLight = slot > 0 ? slot : -1;
-
-    if (slot > 0 && settings.shadows.enabled && settings.shadows.strength > 0) {
-      _ensureCubeAtlas(settings.shadows.resolution.clamp(128, 1024));
-
-      // Every occupied row, not just the one that changed hands — a pass clears
-      // its whole colour attachment, so redrawing one row erases the rest. The
-      // allocator earns this back by changing at most one row per frame and
-      // only for a light that clearly deserves it.
-      if (assignment.staticDirty || !_staticShadowBaked) {
-        _renderCubeShadow(
-          host: host,
-          scene: scene,
-          settings: settings.shadows,
-          static: true,
-          slotCount: slot,
-        );
-        _staticShadowBaked = true;
-        // After drawing, not after deciding: a flag cleared by the decision
-        // would promise walls that a skipped pass never drew.
-        _shadowSlotAllocator.recordStaticBake();
-      }
-
-      // And everything that moves — but only the faces where what moves has
-      // actually changed. Most frames most casters are standing still, and a
-      // face whose picture would come out the same is a face worth leaving
-      // alone. This is only safe because a tile can be reset by drawing rather
-      // than by clearing the whole atlas.
-      final scheduled = _shadowFaceScheduler
-          .select(_computeFaceSignatures(scene, slot))
-          .toSet();
-      if (scheduled.isNotEmpty) {
-        _renderCubeShadow(
-          host: host,
-          scene: scene,
-          settings: settings.shadows,
-          static: false,
-          slotCount: slot,
-          tiles: scheduled,
-        );
-        _shadowFaceScheduler.recordDrawn();
-      }
-    }
-
-    final ordered = List<RenderView>.of(views)
-      ..sort((a, b) => a.priority.compareTo(b.priority));
-
-    final passState = FramePassState();
-    var culled = 0;
-    var debugLines = 0;
-    var lightOverflow = 0;
 
     final cameraPosition = vm.Vector3.zero();
 
@@ -2597,6 +2505,156 @@ final class Renderer implements PluginServices {
     stopwatch.stop();
     developer.Timeline.finishSync();
 
+    return _ScenePass(
+      pass: pass,
+      culled: culled,
+      debugLines: debugLines,
+      lightOverflow: lightOverflow,
+      submitMicros: stopwatch.elapsedMicroseconds,
+    );
+  }
+
+  FrameResult render({
+    required int width,
+    required int height,
+    required Scene scene,
+    required List<RenderView> views,
+    RenderSettings settings = const RenderSettings(),
+  }) {
+    if (views.isEmpty) {
+      throw ArgumentError('At least one RenderView is required.');
+    }
+    // Timeline markers, not print statements: the phases below are only
+    // meaningful next to Flutter's own build and raster spans, and only in
+    // profile or release, where the debug interpreter is not the bottleneck.
+    developer.Timeline.startSync('Renderer.render');
+    final frameClock = Stopwatch()..start();
+    _ensureTargets(width, height);
+
+    final hdr = _hdrColor!;
+
+    final host = transients[_frameIndex % _kFramesInFlight];
+    // This slot's textures were handed back a full ring ago, so the GPU is done
+    // with them; the same reasoning that governs the host buffers.
+    final expired = _pendingRelease[_frameIndex % _kFramesInFlight];
+    for (final texture in expired) {
+      targetPool.release(texture);
+    }
+    expired.clear();
+    _frameIndex++;
+    host.reset();
+
+
+    // Lights are gathered once up front now, because the shadow pass needs the
+    // caster before any view is drawn — and the packed buffer is per frame, not
+    // per view.
+    lights.gather(scene.lights);
+    if (lights.count == 0) lights.useDefaultLight();
+    final lightOverflowCount = lights.overflow;
+    final shadowCaster = _firstDirectionalIndex();
+    final hasShadows = _renderShadowMap(
+      host: host,
+      scene: scene,
+      settings: settings.shadows,
+      casterIndex: shadowCaster,
+    );
+
+    // Which point lights get a row of the atlas, decided by relevance rather
+    // than by the order they happen to sit in the scene list. Four is now a
+    // limit on how many can be shadowed *at once*, not on how many a level may
+    // contain: a fifth torch takes a row as soon as it matters more than one of
+    // the four, and gives it back when it stops.
+    //
+    // Every row is decided before any of the atlas is drawn, because one pass
+    // draws all of them: a pass per light would clear the rows already there.
+    _collectShadowCandidates(scene, views);
+    final assignment = _shadowSlotAllocator.assign(_shadowCandidates);
+
+    for (var i = 0; i < _shadowSlots.length; i++) {
+      _shadowSlots[i] = -1.0;
+    }
+    var slot = 0;
+    for (var row = 0; row < assignment.owners.length; row++) {
+      final owner = assignment.owners[row];
+      if (owner is! LightNode) continue;
+      final index = lights.packed.indexOf(owner);
+      if (index < 0) continue;
+
+      owner.readWorldPosition(_cubePosition);
+      _cubeLightData[row * 4] = _cubePosition.x;
+      _cubeLightData[row * 4 + 1] = _cubePosition.y;
+      _cubeLightData[row * 4 + 2] = _cubePosition.z;
+      _cubeLightData[row * 4 + 3] = owner.range > 0.0 ? owner.range : 20.0;
+      // Which atlas row this light's shader index should read.
+      _shadowSlots[index * 4] = row.toDouble();
+      slot = math.max(slot, row + 1);
+    }
+    _cubeShadowLight = slot > 0 ? slot : -1;
+
+    if (slot > 0 && settings.shadows.enabled && settings.shadows.strength > 0) {
+      _ensureCubeAtlas(settings.shadows.resolution.clamp(128, 1024));
+
+      // Every occupied row, not just the one that changed hands — a pass clears
+      // its whole colour attachment, so redrawing one row erases the rest. The
+      // allocator earns this back by changing at most one row per frame and
+      // only for a light that clearly deserves it.
+      if (assignment.staticDirty || !_staticShadowBaked) {
+        _renderCubeShadow(
+          host: host,
+          scene: scene,
+          settings: settings.shadows,
+          static: true,
+          slotCount: slot,
+        );
+        _staticShadowBaked = true;
+        // After drawing, not after deciding: a flag cleared by the decision
+        // would promise walls that a skipped pass never drew.
+        _shadowSlotAllocator.recordStaticBake();
+      }
+
+      // And everything that moves — but only the faces where what moves has
+      // actually changed. Most frames most casters are standing still, and a
+      // face whose picture would come out the same is a face worth leaving
+      // alone. This is only safe because a tile can be reset by drawing rather
+      // than by clearing the whole atlas.
+      final scheduled = _shadowFaceScheduler
+          .select(_computeFaceSignatures(scene, slot))
+          .toSet();
+      if (scheduled.isNotEmpty) {
+        _renderCubeShadow(
+          host: host,
+          scene: scene,
+          settings: settings.shadows,
+          static: false,
+          slotCount: slot,
+          tiles: scheduled,
+        );
+        _shadowFaceScheduler.recordDrawn();
+      }
+    }
+
+    final ordered = List<RenderView>.of(views)
+      ..sort((a, b) => a.priority.compareTo(b.priority));
+
+    final passState = FramePassState();
+
+    final scenePass = _encodeScene(
+      host: host,
+      scene: scene,
+      ordered: ordered,
+      settings: settings,
+      width: width,
+      height: height,
+      hasShadows: hasShadows,
+      shadowCaster: shadowCaster,
+      passState: passState,
+      lightOverflowCount: lightOverflowCount,
+    );
+    final pass = scenePass.pass;
+    final culled = scenePass.culled;
+    var debugLines = scenePass.debugLines;
+    final lightOverflow = scenePass.lightOverflow;
+
     // Ordered by the frame graph rather than by the registry. This stage is a
     // real node — it runs after the scene's command buffer is submitted and
     // builds its own pass — so it is the one that could move first.
@@ -2683,7 +2741,7 @@ final class Renderer implements PluginServices {
     return FrameResult(
       image: image,
       cpuMicros: frameClock.elapsedMicroseconds,
-      submitMicros: stopwatch.elapsedMicroseconds,
+      submitMicros: scenePass.submitMicros,
       drawCalls: passState.drawCalls,
       culled: culled,
       pipelineSwitches: passState.pipelineSwitches,
@@ -3114,4 +3172,21 @@ final class Renderer implements PluginServices {
       lengthInBytes: count * 4,
     );
   }
+}
+
+/// What [Renderer._encodeScene] hands back to the frame.
+final class _ScenePass {
+  const _ScenePass({
+    required this.pass,
+    required this.culled,
+    required this.debugLines,
+    required this.lightOverflow,
+    required this.submitMicros,
+  });
+
+  final gpu.RenderPass pass;
+  final int culled;
+  final int debugLines;
+  final int lightOverflow;
+  final int submitMicros;
 }
