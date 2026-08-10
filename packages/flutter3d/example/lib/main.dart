@@ -565,6 +565,25 @@ class _SpikePageState extends State<SpikePage>
         _metallic = first.metallic;
       }
 
+      // Measure the model in its rest pose, whatever the pivot happens to be
+      // holding right now.
+      //
+      // The floor, the camera distance and the scene lights are all derived
+      // from these bounds, once, here — on whichever build the asynchronous
+      // load happened to finish on. `cube-shadow-mover` turns the pivot a
+      // little on every build, so the bounds it was measured by used to be a
+      // function of how long the load took, and the whole frame moved with
+      // them. Measured: the load normally lands on build 3 and the camera sits
+      // at 13.994; delayed by 400 ms it lands on build 14, the camera goes to
+      // 15.884, and 9878 of 172800 pixels disagree with the reference — 5.7%
+      // against a 0.2% limit. It is a race that this machine simply keeps
+      // winning the same way.
+      //
+      // Zeroing the pivot makes the measurement a function of the model
+      // instead. Nothing else reads the pivot in this method, and the next
+      // build puts the turn straight back — see the mover block in build().
+      _modelPivot.setRotationYawPitchRoll(0.0, 0.0, 0.0);
+
       // Frame the newly placed model, and tie the depth range to it so small
       // models do not z-fight.
       // The ground is sized from the model, so it must not be in the bounds the
@@ -801,6 +820,11 @@ class _SpikePageState extends State<SpikePage>
                               // Retried rather than given up on. By now the
                               // first draw has posed any skeleton, so the
                               // bounds are real.
+                              //
+                              // In the rest pose, for the same reason as at the
+                              // load site above: which frame the measurement
+                              // lands on must not decide how big the floor is.
+                              _modelPivot.setRotationYawPitchRoll(0.0, 0.0, 0.0);
                               _placeGround(_scene.computeBounds());
                             }
                             _capture?.offer(frame);
