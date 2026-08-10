@@ -14,6 +14,7 @@ import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
 import '../scene/scene_node.dart';
+import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'lighting_model.dart';
 import 'material.dart';
@@ -1431,22 +1432,22 @@ final class Renderer implements RenderServices {
   final List<int?> _faceSignatures = <int?>[];
   final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
 
-  /// This frame's overlay plugins, in the order the graph derives.
-  ///
-  /// Rebuilt per frame because the set can change between frames and the cost
-  /// is a handful of nodes; if that ever shows up in a profile it is a cache
-  /// keyed on the registry's contents, not a reason to keep the ordering by
-  /// hand.
-  /// The passes after the scene, ordered by what each declares.
+  /// The post chain, ordered by what each pass declares.
   ///
   /// Built per frame because the set depends on settings and on what the
   /// application registered, and because a node holds this frame's arguments.
-  /// The scene and the shadow passes are not nodes yet, so the lit colour is
-  /// external here — produced above by code rather than by a node.
+  /// The scene and the shadow passes are not nodes yet, so the lit colour and
+  /// the surface buffer are external here — produced above by code rather than
+  /// by a node.
+  ///
+  /// The frame asks for one thing, the finished image, and everything that runs
+  /// is what that turned out to need. Bloom switched off is a node the graph
+  /// culls on its way back from the output, not a branch anybody wrote.
   CompiledFrameGraph _compilePostGraph(
     RenderView view,
     RenderSettings s,
     _BloomNode bloom,
+    _CompositeNode composite,
   ) {
     final graph = FrameGraph()
       ..addExternal(FrameResourceIds.hdrColour)
@@ -1458,20 +1459,22 @@ final class Renderer implements RenderServices {
     if (s.reflections.enabled) {
       graph.addNode(_ReflectionsNode(this, view));
     }
-    // Last, so it reads the scene as everything before it left it — the
-    // registration order *is* the version chain, and bloom wants the end of it.
-    graph.addNode(bloom);
+    // Then bloom, so it reads the scene as everything before it left it — the
+    // registration order *is* the version chain — and the composite last, so it
+    // reads the end of that chain and the glow taken from it.
+    //
+    // Bloom is registered whether or not it is switched on, which is not the
+    // `if` this step removed. A name has to be *known* for a read of it to
+    // compile, and the composite reads the glow; leaving the node out when the
+    // setting is off would make that read conditional too, which is the branch
+    // moved rather than deleted. Registered and inactive, nothing produces the
+    // glow, the graph culls the node, and the optional read comes back null.
+    graph
+      ..addNode(bloom)
+      ..addNode(composite);
 
     return graph.compile(
-      // The glow is a frame output rather than something a node reads, because
-      // the pass that reads it — the composite — is not a node yet. Registering
-      // bloom whether or not it is switched on keeps the name known, so asking
-      // for it is never an error; with the node inactive nothing produces it
-      // and the graph culls the whole thing.
-      outputs: const <ResourceId>[
-        FrameResourceIds.hdrColour,
-        FrameResourceIds.bloom,
-      ],
+      outputs: const <ResourceId>[FrameResourceIds.frame],
     );
   }
 
@@ -2660,15 +2663,21 @@ final class Renderer implements RenderServices {
       }
     }
 
-    // Reflections, the overlays, bloom and everything after them, ordered by
-    // what each declares rather than by where it sits in this method. The scene
-    // and the shadow passes have not moved yet, so `hdr_colour` is external
-    // here — produced by code above rather than by a node.
-    final bloomNode = _BloomNode(this, settings.bloom);
-    final postGraph = _compilePostGraph(views.first, settings, bloomNode);
-
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
+
+    // Reflections, the overlays, bloom and the composite, ordered by what each
+    // declares rather than by where it sits in this method. The scene and the
+    // shadow passes have not moved yet, so `hdr_colour` is external here —
+    // produced by code below rather than by a node.
+    //
+    // The composite holds this frame's views the way reflections holds its own,
+    // because the overlay batch it draws after the tone map needs them and
+    // `NodeFrame` carries neither a scene nor a viewport.
+    final bloomNode = _BloomNode(this, settings.bloom);
+    final compositeNode = _CompositeNode(this, scene, ordered, settings);
+    final postGraph =
+        _compilePostGraph(views.first, settings, bloomNode, compositeNode);
 
     final passState = FramePassState();
 
@@ -2706,7 +2715,9 @@ final class Renderer implements RenderServices {
     // The frame's own resources, and the first thing to use them: the graph
     // names the lit scene and each version of it, this holds the texture behind
     // each. The scene's own colour is version zero, handed in rather than
-    // allocated; reflections produce a second one and the graph binds it.
+    // allocated; reflections produce a second one and the graph binds it. The
+    // finished image is handed in too, but by the composite rather than here —
+    // it is that node's output, and version zero of `frame` is nothing at all.
     final resources = FrameResources(
       source: _DeferredTextureSource(this),
       graph: postGraph,
@@ -2721,8 +2732,7 @@ final class Renderer implements RenderServices {
         size: FrameFraction(2),
       ))
       ..provide(FrameResourceIds.hdrColour, hdr)
-      ..provide(FrameResourceIds.surfaceBuffer, _surfaceColor ?? hdr)
-      ..provide(FrameResourceIds.frame, _ldrColor!);
+      ..provide(FrameResourceIds.surfaceBuffer, _surfaceColor ?? hdr);
 
     for (var i = 0; i < postGraph.order.length; i++) {
       resources.beginNode(i);
@@ -2741,37 +2751,12 @@ final class Renderer implements RenderServices {
       resources.endNode(i);
     }
 
-    // The lit scene, whichever texture that turned out to be.
-    final lit = resources.texture(FrameResourceIds.hdrColour);
+    // Out of the node rather than out of the call, which is the shape of every
+    // one of these: the frame reports what its passes counted. The draws
+    // themselves went into `passState` where they happened.
+    debugLines += compositeNode.overlayLines;
 
-    // Null when the bloom node was culled. The composite is not a node yet, so
-    // the glow comes out of the node that drew it rather than out of an
-    // optional read — which is what step two of the migration replaces this
-    // with. Its texture is already retired, and therefore already queued for
-    // the pool a full ring of frames from now, so reading it here is safe for
-    // exactly the reason the deferral exists.
-    final bloom = bloomNode.result;
-
-    developer.Timeline.startSync('Renderer.composite');
-    final ldr = _ldrColor!;
-    final overlayLines = _encodeComposite(
-      host: host,
-      target: ldr,
-      scene: lit,
-      bloom: bloom,
-      sceneGraph: scene,
-      views: ordered,
-      settings: settings,
-      width: width,
-      height: height,
-    );
-    developer.Timeline.finishSync();
-
-    debugLines += overlayLines;
-    // The composite is a draw, and so is each overlay batch.
-    passState.drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
-
-    final image = ldr.asImage();
+    final image = _ldrColor!.asImage();
     frameClock.stop();
     developer.Timeline.finishSync();
 
@@ -2882,6 +2867,7 @@ final class Renderer implements RenderServices {
     required gpu.Texture target,
     required gpu.Texture scene,
     required gpu.Texture? bloom,
+    required gpu.Texture? surface,
     required Scene sceneGraph,
     required List<RenderView> views,
     required RenderSettings settings,
@@ -2907,18 +2893,22 @@ final class Renderer implements RenderServices {
     pass.setDepthWriteEnable(false);
     pass.setDepthCompareOperation(gpu.CompareFunction.always);
 
-    // The debug picture rides in the surface buffer rather than in an
-    // attachment of its own, so asking for it is asking to see that buffer.
-    final showingSurface =
-        settings.showSurfaceBuffer || settings.showPointShadowDebug;
     // The cube atlas when there is one, because that is the map anybody
     // debugging shadows now wants to see.
     final shadowView = _cubeShadow ?? _shadowMap;
-    final showingShadow = settings.showShadowMap && shadowView != null;
-    final raw = showingSurface || showingShadow;
-    _compositeParams[0] = raw ? 1.0 : settings.exposure;
-    _compositeParams[1] = raw || bloom == null ? 0.0 : settings.bloom.intensity;
-    _compositeParams[2] = raw || !settings.tonemap ? 0.0 : 1.0;
+    final mix = CompositeMix(
+      showSurfaceBuffer: settings.showSurfaceBuffer,
+      showPointShadowDebug: settings.showPointShadowDebug,
+      showShadowMap: settings.showShadowMap,
+      hasShadowView: shadowView != null,
+      hasGlow: bloom != null,
+      exposure: settings.exposure,
+      bloomIntensity: settings.bloom.intensity,
+      tonemap: settings.tonemap,
+    );
+    _compositeParams[0] = mix.exposure;
+    _compositeParams[1] = mix.bloomIntensity;
+    _compositeParams[2] = mix.tonemap;
 
     pass.bindPipeline(
       _postPipeline(_compositePipeline, compositeShader,
@@ -2930,19 +2920,25 @@ final class Renderer implements RenderServices {
       pass,
       compositeShader,
       _kSceneTextureSlot,
-      showingShadow
-          ? shadowView
-          : (showingSurface ? (_surfaceColor ?? scene) : scene),
+      switch (mix.view) {
+        // Non-null by construction: [CompositeMix] only picks these when it was
+        // told the texture exists.
+        CompositeView.shadowMap => shadowView!,
+        CompositeView.surfaceBuffer => surface ?? scene,
+        CompositeView.scene => scene,
+      },
       _clampSampler,
     );
-    // With bloom off there is still a sampler to satisfy, and the scene itself
-    // is the cheapest texture to hand it — the intensity above is zero, so its
-    // contribution is multiplied out.
+    // With bloom culled there is still a sampler to satisfy, and the scene
+    // itself is the cheapest texture to hand it — [CompositeMix] set the
+    // intensity to zero for exactly this case, so its contribution is
+    // multiplied out. The two knobs come from one object because nothing in the
+    // shader would notice them disagreeing.
     _bindTexture(
       pass,
       compositeShader,
       _kBloomTextureSlot,
-      bloom ?? scene,
+      mix.usesGlow ? bloom! : scene,
       _clampSampler,
     );
     bindUniformBlock(pass, host, compositeShader, _kCompositeInfoBlock, {
@@ -3294,12 +3290,6 @@ final class _BloomNode extends RenderNode {
   final Renderer _renderer;
   final BloomSettings _settings;
 
-  /// The top of the chain, once it has been drawn.
-  ///
-  /// The composite is not a node yet and cannot read the glow through the
-  /// graph, so it comes back out this way until step two moves it.
-  gpu.Texture? result;
-
   @override
   String get name => 'bloom';
 
@@ -3314,15 +3304,88 @@ final class _BloomNode extends RenderNode {
 
   @override
   void execute(NodeFrame frame) {
-    final top = frame.resources.texture(FrameResourceIds.bloom);
     _renderer._renderBloom(
       host: frame.host,
       resources: frame.resources,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
-      top: top,
+      top: frame.resources.texture(FrameResourceIds.bloom),
       settings: _settings,
     );
-    result = top;
+  }
+}
+
+/// Tone map, sRGB and the debug overlay, as a graph node — the end of the post
+/// chain and the only pass that writes what is shown.
+///
+/// It reads the lit scene, which is a hard read: a composite with no colour has
+/// nothing to say. The glow and the surface buffer are **optional**, and that
+/// is what this step was for. Bloom switched off is a culled node whose output
+/// nobody produced, so [FrameResources.tryTexture] answers null and the pass
+/// binds its stand-in — which is a fact the graph derived rather than a flag
+/// the composite was handed.
+///
+/// `frame` is external: the finished image goes into the renderer's own
+/// `_ldrColor`, which outlives the frame and is what becomes the `ui.Image`. So
+/// the node [FrameResources.provide]s its output instead of allocating one,
+/// exactly as reflections does with its own target.
+///
+/// It holds the frame's scene and views the way [_ReflectionsNode] holds its
+/// view. The overlay batch after the tone map needs both, it draws into the
+/// same open pass — a second pass would reload the attachment — and [NodeFrame]
+/// carries neither.
+final class _CompositeNode extends RenderNode {
+  _CompositeNode(this._renderer, this._scene, this._views, this._settings);
+
+  final Renderer _renderer;
+  final Scene _scene;
+  final List<RenderView> _views;
+  final RenderSettings _settings;
+
+  /// How many overlay line segments the pass drew, for the frame's counters.
+  int overlayLines = 0;
+
+  @override
+  String get name => 'composite';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get optionalReads => <ResourceId>[
+        FrameResourceIds.bloom,
+        // Only when it is going to show it. An unconditional read would make
+        // the buffer look wanted on every frame, and what wants it is what
+        // decides whether the scene pass attaches it at all.
+        if (_settings.showSurfaceBuffer || _settings.showPointShadowDebug)
+          FrameResourceIds.surfaceBuffer,
+      ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
+
+  @override
+  void execute(NodeFrame frame) {
+    developer.Timeline.startSync('Renderer.composite');
+    final target = _renderer._ldrColor!;
+    // The renderer's texture, not the pool's, so the name is bound rather than
+    // allocated. Before the draw, so anything reading `frame` after this node
+    // finds the picture rather than nothing.
+    frame.resources.provide(FrameResourceIds.frame, target);
+    overlayLines = _renderer._encodeComposite(
+      host: frame.host,
+      target: target,
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      bloom: frame.resources.tryTexture(FrameResourceIds.bloom),
+      surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
+      sceneGraph: _scene,
+      views: _views,
+      settings: frame.settings,
+      width: frame.width,
+      height: frame.height,
+    );
+    // The composite is a draw, and so is the overlay batch.
+    frame.state.drawCalls += 1 + (overlayLines > 0 ? 1 : 0);
+    developer.Timeline.finishSync();
   }
 }
 
