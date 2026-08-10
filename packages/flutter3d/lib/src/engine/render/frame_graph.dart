@@ -95,9 +95,40 @@ abstract base class FrameGraphNode {
   /// "no row" as a value rather than as a failure.
   List<ResourceId> get optionalReads => const <ResourceId>[];
 
-  /// What this node produces. A node that writes nothing is only kept if
-  /// something explicitly asks for it — see [FrameGraph.compile].
+  /// What this node produces, fresh, this frame.
+  ///
+  /// A node that writes nothing is only kept if something explicitly asks for
+  /// it — see [FrameGraph.compile]. A write is a promise about *this* frame:
+  /// nothing was there before the node ran, and what is there afterwards is
+  /// what the node drew.
   List<ResourceId> get writes => const <ResourceId>[];
+
+  /// What this node **maintains** across frames rather than producing fresh.
+  ///
+  /// The distinction the point-light atlas forced, and it is a different
+  /// promise from [writes] rather than a weaker one. The directional shadow map
+  /// is redrawn from nothing every frame, so a frame in which that pass gave up
+  /// has no map at all and a reader must be told so. The cube atlas is a
+  /// running total: it is *loaded* rather than cleared, a tile is blanked by
+  /// drawing over it, and a tile the scheduler left out deliberately holds the
+  /// picture an earlier frame put there. Most frames it draws nothing, and the
+  /// pixels still stand for exactly what the scene is about to sample.
+  ///
+  /// Declared as a write, that was a half-truth on every frame the pass skipped
+  /// — and versioning could not fix it, because versions chain *within* a
+  /// frame and this resource is read-modify-write *across* them.
+  ///
+  /// For scheduling it behaves exactly like a write: it produces the next
+  /// version of the name, orders readers after it, and takes the node with it
+  /// when [isActive] is false — an atlas nobody is maintaining is an atlas
+  /// nobody should sample. What it adds is a promise the graph enforces from
+  /// the other end: a maintained resource is bound **whether or not the node
+  /// drew**, and a consumer can ask which of the two it got through
+  /// `FrameResources.originOf`.
+  ///
+  /// A name may not appear in both [writes] and [keeps]: the two say opposite
+  /// things about the same pixels, and [FrameGraph.compile] rejects it.
+  List<ResourceId> get keeps => const <ResourceId>[];
 
   /// Whether there is anything to do this frame.
   ///
@@ -122,7 +153,8 @@ final class CompiledFrameGraph {
     this._lastUse,
     this._readers,
     this._bindings,
-    this._current, {
+    this._current,
+    this._kept, {
     required this.order,
     required this.culled,
     required this.outputs,
@@ -142,6 +174,14 @@ final class CompiledFrameGraph {
   final Set<String> _readers;
   final List<_NodeBindings> _bindings;
   final Map<String, int> _current;
+
+  /// Every version some node declared it [FrameGraphNode.keeps] rather than
+  /// writes.
+  ///
+  /// A version rather than a name, so that a frame where one node maintains a
+  /// resource and a later one redraws it outright can still tell the two apart
+  /// — and so the answer needs no search for whoever produced it.
+  final Set<ResourceVersion> _kept;
 
   /// The last position in [order] that touches [id], or null if nothing does.
   ///
@@ -183,8 +223,32 @@ final class CompiledFrameGraph {
       _bindings[index].writes[id.name];
 
   /// What the node at [index] writes, in the order it declared them.
+  ///
+  /// Maintained resources are here too: for everything that follows from
+  /// producing a version — ordering, lifetime, which texture a name stands on —
+  /// a keep *is* a write, and only the promise about the pixels differs.
   Iterable<ResourceId> writtenBy(int index) =>
       _bindings[index].writes.keys.map((name) => ResourceId(name));
+
+  /// What the node at [index] maintains across frames.
+  ///
+  /// A subset of [writtenBy]. What the resource layer checks the node against
+  /// when it finishes: a maintained resource that is not bound is a node that
+  /// broke its half of the promise, and the alternative to catching it here is
+  /// a reader three passes later finding nothing and quietly doing without.
+  Iterable<ResourceId> keptBy(int index) => <ResourceId>[
+        for (final entry in _bindings[index].writes.entries)
+          if (isKeptVersion(ResourceVersion(ResourceId(entry.key), entry.value)))
+            ResourceId(entry.key),
+      ];
+
+  /// Whether [version] is maintained across frames rather than drawn by this
+  /// one.
+  ///
+  /// The question `tryTexture` alone could never answer: a bound texture used
+  /// to mean only "some node put a texture here", and a consumer had no way to
+  /// tell a picture this frame drew from one an earlier frame left.
+  bool isKeptVersion(ResourceVersion version) => _kept.contains(version);
 
   /// The newest version of [id] the whole frame produces; zero when no node
   /// writes it and the engine's own texture is all there is.
@@ -289,8 +353,20 @@ final class FrameGraph {
     // a feature somebody switched off, and those must not report the same way.
     final known = <String>{..._external};
     for (final node in _nodes) {
-      for (final id in node.writes) {
+      for (final id in <ResourceId>[...node.writes, ...node.keeps]) {
         known.add(id.name);
+      }
+      // Two opposite promises about one name. Checked here rather than trusted,
+      // because the reader that would suffer is in another package and the
+      // symptom — a texture that is sometimes this frame's and sometimes not —
+      // is the kind that gets diagnosed as a driver problem.
+      for (final id in node.keeps) {
+        if (!node.writes.any((w) => w.name == id.name)) continue;
+        throw FrameGraphError(
+          '"${node.name}" both writes and keeps "$id". A write says the pixels '
+          'are this frame\'s and a keep says they may not be; one name cannot '
+          'mean both',
+        );
       }
     }
 
@@ -325,6 +401,7 @@ final class FrameGraph {
     final reads = <Map<String, int>>[];
     final hardReads = <Map<String, int>>[];
     final writes = <Map<String, int>>[];
+    final kept = <ResourceVersion>{};
     for (final node in active) {
       final read = <String, int>{};
       final hard = <String, int>{};
@@ -340,11 +417,23 @@ final class FrameGraph {
       // produces v+1, which is what "read-modify-write" means and what the
       // edge rule used to approximate with a special case for a node reading
       // what it also writes.
+      //
+      // Keeps are versioned exactly like writes, and deliberately in the same
+      // pass: a maintained resource is still produced by the node that
+      // maintains it, so a reader binds to that version and is ordered after
+      // it. Only the promise about the pixels differs, and that is recorded
+      // beside the version rather than changing how it is assigned.
       final write = <String, int>{};
       for (final id in node.writes) {
         final version = (current[id.name] ?? 0) + 1;
         current[id.name] = version;
         write[id.name] = version;
+      }
+      for (final id in node.keeps) {
+        final version = (current[id.name] ?? 0) + 1;
+        current[id.name] = version;
+        write[id.name] = version;
+        kept.add(ResourceVersion(id, version));
       }
       reads.add(read);
       hardReads.add(hard);
@@ -458,10 +547,10 @@ final class FrameGraph {
       if (keep.contains(i)) visit(i);
     }
 
-    final kept = order.toSet();
+    final survived = order.toSet();
     final culled = <FrameGraphNode>[
       for (final node in _nodes)
-        if (!kept.contains(node)) node,
+        if (!survived.contains(node)) node,
     ];
 
     final bindings = <_NodeBindings>[];
@@ -492,6 +581,7 @@ final class FrameGraph {
       readers,
       bindings,
       current,
+      kept,
       order: order,
       culled: culled,
       outputs: List<ResourceId>.unmodifiable(outputs),

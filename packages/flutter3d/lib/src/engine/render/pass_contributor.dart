@@ -32,6 +32,51 @@ final class FramePassState {
   }
 }
 
+/// The shadow textures one scene draw samples, as the frame answered for them.
+///
+/// It exists to close a hole in the declaration model. The shadow samplers are
+/// bound deep inside the renderer's mesh encoder, and **two** graph nodes reach
+/// that code: the scene, which declares it reads the maps, and anything drawing
+/// ordinary geometry somewhere unordinary through [RenderServices.encodeScene]
+/// — the first-person view model is the one that ships. So there was no single
+/// node whose declaration could be asked at the binding, and the encoder took
+/// the atlas out of a renderer field instead. A node sampled a resource it
+/// never declared, and every extension calling `encodeScene` inherited that.
+///
+/// Now the *caller* answers, out of the resources of the frame it was handed,
+/// and what it can answer is bounded by what it declared a read of. Which
+/// shadows a draw gets is therefore a decision at the call site, where it can be
+/// read, rather than a field lookup two thousand lines away.
+final class SceneShadows {
+  const SceneShadows({
+    this.directional,
+    this.point,
+    this.pointStatic,
+    this.casterIndex = -1,
+  });
+
+  /// Nothing to sample: every surface is lit as if unoccluded.
+  static const SceneShadows none = SceneShadows();
+
+  /// The directional light's map, or null when this frame drew none.
+  ///
+  /// Null is not "shadows are off" — it is the honest answer for a frame whose
+  /// shadow pass gave up, and binding a texture regardless would offer the last
+  /// frame that had one.
+  final gpu.Texture? directional;
+
+  /// Which light in the packed buffer [directional] was drawn for; -1 for none.
+  final int casterIndex;
+
+  /// The point-light atlases: what moves, and what was baked once.
+  ///
+  /// Unlike [directional] these are maintained across frames — see
+  /// `FrameGraphNode.keeps` — so a texture here may hold pixels an earlier
+  /// frame drew, deliberately, and is exactly as valid to sample for it.
+  final gpu.Texture? point;
+  final gpu.Texture? pointStatic;
+}
+
 /// What the renderer lends a contributor or a node.
 ///
 /// Narrow on purpose. A plugin needs the shaders it was compiled against, a
@@ -63,6 +108,13 @@ abstract interface class RenderServices {
   /// For a plugin whose content is ordinary geometry in an unordinary place —
   /// a first person weapon, a portal's far side — so it inherits materials,
   /// skinning and lighting instead of growing a second copy of them.
+  ///
+  /// [shadows] is required and has no default, which is the point of it: what
+  /// a draw samples is now something the caller states out of the frame it
+  /// declared, rather than something this method reaches for. [SceneShadows.none]
+  /// is the way to say "none", and saying it is cheap; not being able to say
+  /// anything at all is what left the view model sampling an atlas it had never
+  /// declared.
   void encodeScene({
     required gpu.RenderPass pass,
     required gpu.HostBuffer host,
@@ -71,6 +123,7 @@ abstract interface class RenderServices {
     required vm.Vector3 cameraPosition,
     required RenderSettings settings,
     required FramePassState state,
+    required SceneShadows shadows,
   });
 }
 
@@ -145,7 +198,7 @@ final class ContributorRegistry {
   final List<PassContributor> _plugins = <PassContributor>[];
   List<PassContributor> _ordered = const <PassContributor>[];
 
-  /// Registration order, which is not drawing order — see [forStage].
+  /// Registration order, which is not drawing order — see [active].
   List<PassContributor> get all =>
       List<PassContributor>.unmodifiable(_plugins);
 

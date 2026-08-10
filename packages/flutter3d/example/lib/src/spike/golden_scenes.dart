@@ -230,6 +230,33 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
     viewModel: true,
   ),
+  // The view model *with point shadows on*, which no scene had ever combined.
+  //
+  // The gap this closes is not in the picture but in the declaration model. The
+  // atlas is bound deep inside the renderer's node encoder, which two graph
+  // nodes reach — the scene, which declares it reads the atlas, and this one,
+  // which reaches it through `RenderServices.encodeScene`. `view-model-overlay`
+  // runs with shadows off, so nothing automatic drew a weapon that samples the
+  // atlas at all, and passing the wrong texture down that path would have shown
+  // up first in a shipped game.
+  //
+  // The held box is deliberately placed on the far side of the world cube from
+  // the point light, so the face turned towards the light is *inside* the
+  // cube's shadow. That is not decoration: it was checked by breaking it. With
+  // the atlas replaced by the white fallback on this path — the exact
+  // regression a previous attempt at the fix would have shipped — the box's
+  // shadowed face lights up and **4335 of 172800 pixels** differ. A scene where
+  // the weapon happened to stand clear of every shadow would have passed either
+  // way and pinned nothing.
+  const GoldenScene(
+    name: 'view-model-point-shadow',
+    source: 'Cube',
+    bloom: false,
+    ground: false,
+    lights: <String>{'fill light'},
+    pointShadow: true,
+    viewModel: true,
+  ),
   // The surface buffer, which nothing samples yet and which therefore nobody
   // had looked at. A picture of it is the only way to find out whether the
   // normals are right side up before an effect starts reflecting off them —

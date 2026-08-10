@@ -14,6 +14,7 @@ final class TestNode extends FrameGraphNode {
     this.reads = const <ResourceId>[],
     this.optionalReads = const <ResourceId>[],
     this.writes = const <ResourceId>[],
+    this.keeps = const <ResourceId>[],
     this.isActive = true,
   });
 
@@ -25,6 +26,8 @@ final class TestNode extends FrameGraphNode {
   final List<ResourceId> optionalReads;
   @override
   final List<ResourceId> writes;
+  @override
+  final List<ResourceId> keeps;
   @override
   final bool isActive;
 }
@@ -557,5 +560,130 @@ void main() {
     final graph = FrameGraph()..addExternal(colour);
 
     expect(graph.compile(outputs: <ResourceId>[colour]).order, isEmpty);
+  });
+
+  // A resource whose content survives the frame that produced it. The point
+  // light atlas is the real one: it is loaded rather than cleared, most frames
+  // it draws nothing, and the pixels an earlier frame left are what the next
+  // scene samples. Declared as a write that was a half-truth on every frame the
+  // pass skipped.
+  group('resources kept across frames', () {
+    const atlas = ResourceId('atlas');
+
+    test('a keep orders its readers exactly as a write would', () {
+      // The scheduling half is deliberately unchanged: a keep produces the next
+      // version of the name, so the reader binds to it and is ordered after the
+      // node that maintains it. Anything else would have made "maintained"
+      // mean "unordered".
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['atlas', 'scene']);
+      expect(compiled.readVersionOf(1, atlas), 1);
+      expect(compiled.writeVersionOf(0, atlas), 1);
+    });
+
+    test('what is kept and what is written are told apart by version', () {
+      // The whole point. Both nodes bind a texture; only one of them is
+      // claiming the pixels are this frame's.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('map', writes: <ResourceId>[depth]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas, depth],
+            writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.isKeptVersion(const ResourceVersion(atlas, 1)), isTrue);
+      expect(compiled.isKeptVersion(const ResourceVersion(depth, 1)), isFalse);
+      expect(compiled.keptBy(0), <ResourceId>[atlas]);
+      expect(compiled.keptBy(1), isEmpty);
+    });
+
+    test('a kept resource is a written one everywhere else', () {
+      // Lifetime, release and the in-place aliasing all key on "this node
+      // produced a version of this name", and a keep has to be one of those or
+      // the texture would never be handed anything.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('scene',
+            reads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.writtenBy(0), <ResourceId>[atlas]);
+      expect(compiled.isRead(atlas), isTrue);
+      expect(compiled.lastUseOf(atlas), 1);
+    });
+
+    test('a keeper nobody wants is culled like any other producer', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('scene', writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['scene']);
+      expect(names(compiled.culled), <String>['atlas']);
+    });
+
+    test('nothing is kept by a node that is switched off', () {
+      // Shadows off is the case. An atlas nobody is maintaining is an atlas
+      // nobody may sample, however many pixels the texture still holds — which
+      // is why an inactive keeper produces no version rather than offering the
+      // last frame's.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas',
+            keeps: <ResourceId>[atlas], isActive: false))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['scene']);
+      expect(compiled.isKeptVersion(const ResourceVersion(atlas, 1)), isFalse);
+      expect(compiled.keptBy(0), isEmpty);
+    });
+
+    test('a hard reader of an unmaintained resource is starved', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas',
+            keeps: <ResourceId>[atlas], isActive: false))
+        ..addNode(const TestNode('scene',
+            reads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      expect(graph.compile(outputs: <ResourceId>[final_]).order, isEmpty);
+    });
+
+    test('one name cannot be both written and kept', () {
+      // Two opposite promises about the same pixels. The reader that would
+      // suffer is in another package, and a texture that is sometimes this
+      // frame's and sometimes not is the kind of symptom that gets blamed on a
+      // driver.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('confused',
+            writes: <ResourceId>[atlas], keeps: <ResourceId>[atlas]));
+
+      expect(
+        () => graph.compile(outputs: <ResourceId>[atlas]),
+        throwsA(isA<FrameGraphError>()),
+      );
+    });
+
+    test('a keep makes the name known, so a read of it compiles', () {
+      // The same rule writes have: a name nothing produces is a build error,
+      // and a resource that is only ever maintained must still satisfy it.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      expect(() => graph.compile(outputs: <ResourceId>[final_]), returnsNormally);
+    });
   });
 }

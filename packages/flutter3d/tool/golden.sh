@@ -152,12 +152,14 @@ for scene in "${SCENES[@]}"; do
   # `flutter run` reports 0 when the app exits cleanly and non-zero otherwise,
   # but it also prints the app's own message, which is where the verdict is.
   if grep -q "GOLDEN $scene: \(PASS\|recorded\)" "$log"; then
-    # The verdict is printed even when it passes, and that is not noise. The
-    # threshold allows 0.2% of pixels to differ, so "ok" covers everything from
-    # a byte-identical frame to one that is 0.199% wrong and about to break —
-    # two scenes sat at 0.178% and 0.100% for a whole session behind that word.
-    # A count is a measurement; "ok" is a comparison against a number nobody
-    # sees.
+    # The verdict is printed even when it passes, and that is not noise. It
+    # used to be the only defence: the threshold allowed 0.2% of pixels to
+    # differ, so "ok" covered everything from a byte-identical frame to one
+    # that was 0.199% wrong and about to break — two scenes sat at 0.178% and
+    # 0.100% for a whole session behind that word. The pixel threshold is zero
+    # now, so "ok" means zero differing pixels; the count is printed anyway,
+    # because the worst channel delta beside it is the one number that still
+    # moves and the only warning that the hardware is drifting.
     sed -n "s/^GOLDEN $scene: //p" "$log" | head -1 | sed 's/^/ok  /'
     pass=$((pass + 1))
   else

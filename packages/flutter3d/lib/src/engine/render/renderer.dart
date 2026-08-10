@@ -2088,8 +2088,7 @@ final class Renderer implements RenderServices {
     required Scene scene,
     required RenderSettings settings,
     required vm.Matrix4 viewProjection,
-    required bool hasShadows,
-    required int shadowCaster,
+    required SceneShadows shadows,
     required FramePassState state,
   }) {
       final mesh = node.mesh;
@@ -2203,7 +2202,8 @@ final class Renderer implements RenderServices {
 
         _frameParams[0] = settings.exposure;
         _frameParams[1] = lights.count.toDouble();
-        _frameParams[2] = hasShadows ? shadowCaster.toDouble() : -1.0;
+        _frameParams[2] =
+            shadows.directional == null ? -1.0 : shadows.casterIndex.toDouble();
 
       // Its own block, bound beside FragInfo rather than folded into it. See
       // the note in color.glsl: appending to a block six shaders share moves
@@ -2246,21 +2246,22 @@ final class Renderer implements RenderServices {
           pass,
           fragmentShader,
           'point_shadow_texture',
-          // The renderer's own field rather than the frame's answer, and this
-          // is the one place in the migrated frame where that is still true.
-          // Two nodes reach this code — the scene and the view model, through
-          // `encodeScene` — and only one of them declares a read of the atlas,
-          // so there is no single node whose `tryTexture` could be asked here.
+          // Whatever the caller was given by the frame, not the renderer's own
+          // field. Two nodes reach this code — the scene and the view model,
+          // through `encodeScene` — so there is no single node whose
+          // `tryTexture` could be asked *here*; each of them declares its own
+          // read and answers with [SceneShadows], which is why that type exists.
+          //
           // White where there is no atlas, which reads as "nothing between here
           // and the light", the same answer an unoccupied row gives.
-          _cubeShadow ?? fallbackAlbedo,
+          shadows.point ?? fallbackAlbedo,
           _clampSampler,
         );
         _bindTexture(
           pass,
           fragmentShader,
           'point_shadow_static_texture',
-          _cubeShadowStatic ?? fallbackAlbedo,
+          shadows.pointStatic ?? fallbackAlbedo,
           _clampSampler,
         );
       }
@@ -2333,7 +2334,7 @@ final class Renderer implements RenderServices {
           // With shadows off the slot still has to be satisfied, and a white
           // texture reads as "nothing between here and the light" — which is
           // also what the zero strength above already guarantees.
-          hasShadows ? _shadowMap! : fallbackAlbedo,
+          shadows.directional ?? fallbackAlbedo,
           _clampSampler,
         );
       }
@@ -2370,6 +2371,7 @@ final class Renderer implements RenderServices {
     required vm.Vector3 cameraPosition,
     required RenderSettings settings,
     required FramePassState state,
+    required SceneShadows shadows,
   }) {
     _cameraData[0] = cameraPosition.x;
     _cameraData[1] = cameraPosition.y;
@@ -2384,11 +2386,12 @@ final class Renderer implements RenderServices {
         scene: scene,
         settings: settings,
         viewProjection: viewProjection,
-        // No shadow map: geometry lit by the world's sun through a shadow
-        // matrix built for the world's camera would be shadowed by things it
-        // is nowhere near.
-        hasShadows: false,
-        shadowCaster: -1,
+        // Whatever the caller declared and passed, unexamined. This method used
+        // to decide for its caller — no directional map, and the atlas taken
+        // from a renderer field — and both halves of that were wrong in the
+        // same way: a node's inputs were being chosen somewhere the node could
+        // not see, so no declaration could be checked against them.
+        shadows: shadows,
         state: state,
       );
     }
@@ -2412,13 +2415,13 @@ final class Renderer implements RenderServices {
   /// a setting: it decides both whether the second attachment is present and
   /// whether the pass may multisample, and those two must agree.
   ///
-  /// The cube atlases are the exception, and deliberately so: they are bound
-  /// deep in [_encodeNode], which the view model reaches through
-  /// [RenderServices.encodeScene] from a node of its own. Two nodes, one
-  /// binding site, and only one of them declares the read — so the texture is
-  /// taken from the renderer's field there rather than from either node's view
-  /// of the frame. See the note at the binding.
-  ///
+  /// [shadows] is the same shape of answer: every map this pass samples, taken
+  /// from the frame by the node that declared it and handed down rather than
+  /// looked up here. The atlases used to be the exception — bound deep in
+  /// [_encodeNode] straight out of a renderer field, because the view model
+  /// reaches that same code through [RenderServices.encodeScene] and only one
+  /// of the two callers declared the read. Two nodes and one binding site is
+  /// still true; what changed is that each of them now answers for itself.
   ///
   /// [contributors] are handed in rather than looked up. A node that reaches
   /// into a global registry cannot be a node somebody else supplies, which is
@@ -2434,8 +2437,7 @@ final class Renderer implements RenderServices {
     required RenderSettings settings,
     required int width,
     required int height,
-    required bool hasShadows,
-    required int shadowCaster,
+    required SceneShadows shadows,
     required FramePassState passState,
     required int lightOverflowCount,
     required List<PassContributor> contributors,
@@ -2589,8 +2591,7 @@ final class Renderer implements RenderServices {
             scene: scene,
             settings: settings,
             viewProjection: viewProjection,
-            hasShadows: hasShadows,
-            shadowCaster: shadowCaster,
+            shadows: shadows,
             state: passState,
           );
         }
@@ -2796,26 +2797,40 @@ final class Renderer implements RenderServices {
         size: FrameFraction(2),
       ));
 
-    for (var i = 0; i < frameGraph.order.length; i++) {
-      resources.beginNode(i);
-      (frameGraph.order[i] as RenderNode).execute(
-        NodeFrame(
-          host: host,
-          resources: resources,
-          services: this,
-          state: passState,
-          settings: settings,
-          width: width,
-          height: height,
-          // `tryTexture`, because the scene runs first and there is no scene
-          // colour until it has drawn one. A node that draws over the world
-          // already has to handle that — the view model returns early — and
-          // asking for a texture nobody has produced would allocate one from a
-          // description that does not exist.
-          sceneColor: resources.tryTexture(FrameResourceIds.hdrColour),
-        ),
-      );
-      resources.endNode(i);
+    // A pass that throws leaves the frame's textures lent out, and the pool has
+    // no other way to learn they are free — one set of targets per attempt, and
+    // a frame that fails tends to fail again next frame. [releaseAll] was
+    // written for this and had no caller; it has one now, and the throw the
+    // resource layer raises when a node breaks its `keeps` promise is the first
+    // thing likely to use it.
+    try {
+      for (var i = 0; i < frameGraph.order.length; i++) {
+        resources.beginNode(i);
+        (frameGraph.order[i] as RenderNode).execute(
+          NodeFrame(
+            host: host,
+            resources: resources,
+            services: this,
+            state: passState,
+            settings: settings,
+            width: width,
+            height: height,
+            // `tryTexture`, because the scene runs first and there is no scene
+            // colour until it has drawn one. A node that draws over the world
+            // already has to handle that — the view model returns early — and
+            // asking for a texture nobody has produced would allocate one from
+            // a description that does not exist.
+            sceneColor: resources.tryTexture(FrameResourceIds.hdrColour),
+          ),
+        );
+        resources.endNode(i);
+      }
+    } catch (_) {
+      // Only on the way out. On the ordinary path every version has already
+      // retired at the node that last used it, and releasing again from here
+      // would hand one texture back twice.
+      resources.releaseAll();
+      rethrow;
     }
 
     // Out of the nodes rather than out of the calls, which is the shape of
@@ -2936,6 +2951,7 @@ final class Renderer implements RenderServices {
     required gpu.Texture scene,
     required gpu.Texture? bloom,
     required gpu.Texture? surface,
+    required gpu.Texture? shadowView,
     required Scene sceneGraph,
     required List<RenderView> views,
     required RenderSettings settings,
@@ -2961,9 +2977,6 @@ final class Renderer implements RenderServices {
     pass.setDepthWriteEnable(false);
     pass.setDepthCompareOperation(gpu.CompareFunction.always);
 
-    // The cube atlas when there is one, because that is the map anybody
-    // debugging shadows now wants to see.
-    final shadowView = _cubeShadow ?? _shadowMap;
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
       showPointShadowDebug: settings.showPointShadowDebug,
@@ -3314,13 +3327,17 @@ final class _DeferredTextureSource implements FrameTextureSource {
 /// either would come into every frame having drawn nothing and never stop
 /// re-baking.
 ///
-/// **The texture is provided whether or not this frame drew into it**, which is
-/// the opposite of [_ShadowMapNode] and follows from the same reasoning. The
-/// directional map is redrawn from nothing every frame, so a frame that did not
-/// draw has no map. An atlas is a running total: most frames it draws nothing
-/// at all and the pixels still stand for exactly what the scene is about to
-/// sample. What "produced this frame" means is a property of the pass, not of
-/// the graph, and the graph is right not to have an opinion.
+/// **The atlas is declared as [FrameGraphNode.keeps] rather than as a write**,
+/// which is the opposite of [_ShadowMapNode] and the reason that distinction
+/// exists at all. The directional map is redrawn from nothing every frame, so a
+/// frame that did not draw has no map and a reader must be told so. An atlas is
+/// a running total: most frames it draws nothing and the pixels still stand for
+/// exactly what the scene is about to sample. Declared as a write that was a
+/// half-truth on every frame the pass skipped — and versioning cannot mend it,
+/// because versions chain within a frame and this resource is read-modify-write
+/// across them. The texture is therefore provided whether or not this frame
+/// drew into it, and the graph now holds the node to that rather than trusting
+/// this paragraph.
 ///
 /// **[Renderer._ensureCubeAtlas] is called from here rather than from the
 /// frame**, and from the dynamic node too. It is idempotent, so the second call
@@ -3355,8 +3372,10 @@ final class _CubeShadowStaticNode extends RenderNode {
   bool get isActive =>
       settings.enabled && settings.strength > 0.0 && slotCount > 0;
 
+  /// Maintained, not written: the bake is valid for many frames and this node
+  /// runs on most of them without touching a pixel.
   @override
-  List<ResourceId> get writes =>
+  List<ResourceId> get keeps =>
       const <ResourceId>[FrameResourceIds.cubeShadowStatic];
 
   @override
@@ -3432,8 +3451,10 @@ final class _CubeShadowNode extends RenderNode {
   bool get isActive =>
       settings.enabled && settings.strength > 0.0 && slotCount > 0;
 
+  /// The one resource in the frame that literally carries pixels between
+  /// frames, and the reason [FrameGraphNode.keeps] exists.
   @override
-  List<ResourceId> get writes =>
+  List<ResourceId> get keeps =>
       const <ResourceId>[FrameResourceIds.cubeShadow];
 
   @override
@@ -3490,11 +3511,16 @@ final class _CubeShadowNode extends RenderNode {
 /// scene's optional read of it a compile error, which is the branch moved
 /// rather than deleted — the same shape as bloom.
 ///
-/// The texture is provided only when the pass actually drew, which is how the
-/// scene finds out. `_renderShadowMap` gives up on a scene with no bounds or a
+/// It **writes**, where the atlas nodes beside it keep, and that is the whole
+/// content of the distinction: the map is redrawn from nothing every frame, so
+/// the texture is provided only when the pass actually drew and the scene finds
+/// out by asking. `_renderShadowMap` gives up on a scene with no bounds or a
 /// missing shader, and neither of those is knowable at compile; a node that
 /// provided regardless would tell the scene there was a shadow map when the
-/// texture still held the last frame that had one.
+/// texture still held the last frame that had one. That the texture is
+/// long-lived is a fact about who allocates it and says nothing about whose
+/// frame the pixels belong to — the two questions are orthogonal, and only the
+/// second one is [FrameGraphNode.keeps].
 final class _ShadowMapNode extends RenderNode {
   _ShadowMapNode(
     this._renderer, {
@@ -3617,10 +3643,29 @@ final class _SceneNode extends RenderNode {
     final surfaceIsRead =
         resources.graph.isConsumed(FrameResourceIds.surfaceBuffer);
 
-    // Null when the shadow node was culled, and null when it ran and gave up.
-    // The same shape as the composite asking for the glow: an absent texture is
-    // a fact the graph derived, not a flag this pass was handed.
-    final shadowMap = resources.tryTexture(FrameResourceIds.shadowMap);
+    // Every map this pass samples, taken from the frame rather than from the
+    // renderer, and every one of them is declared above. The directional map is
+    // null when the shadow node was culled *and* when it ran and gave up — an
+    // absent texture is a fact the graph derived, not a flag this pass was
+    // handed. The two atlases are maintained rather than drawn, so a texture
+    // here is valid to sample whether or not this frame touched a pixel of it;
+    // that difference is now in their declaration and not in a comment.
+    final shadows = SceneShadows(
+      // Only a map this frame drew, and the asymmetry with the two atlases
+      // below is the point of asking. The matrix a directional map is sampled
+      // through is [Renderer._shadowMatrix], one field rewritten every frame —
+      // so pixels from an earlier frame would be projected through this frame's
+      // matrix and land somewhere else entirely. The atlas has no such problem
+      // because `_cubeFaceMatrices` is deliberately kept in step with its tiles,
+      // which is exactly what lets it be kept and this not be.
+      directional:
+          resources.originOf(FrameResourceIds.shadowMap) == ResourceOrigin.drawn
+              ? resources.tryTexture(FrameResourceIds.shadowMap)
+              : null,
+      casterIndex: shadowCaster,
+      point: resources.tryTexture(FrameResourceIds.cubeShadow),
+      pointStatic: resources.tryTexture(FrameResourceIds.cubeShadowStatic),
+    );
 
     // Before the draw, and in place: the pass writes into the renderer's own
     // targets rather than into anything the pool lent it, so the version it
@@ -3644,8 +3689,7 @@ final class _SceneNode extends RenderNode {
       settings: frame.settings,
       width: frame.width,
       height: frame.height,
-      hasShadows: shadowMap != null,
-      shadowCaster: shadowCaster,
+      shadows: shadows,
       passState: frame.state,
       lightOverflowCount: lightOverflow,
       contributors: contributors,
@@ -3787,6 +3831,16 @@ final class _CompositeNode extends RenderNode {
         // decides whether the scene pass attaches it at all.
         if (_settings.showSurfaceBuffer || _settings.showPointShadowDebug)
           FrameResourceIds.surfaceBuffer,
+        // The same rule for the shadow view. This pass can put a shadow map on
+        // the screen instead of the lit image, and it used to reach into the
+        // renderer's own fields for it — the second half of the hole the view
+        // model had, and the same fix: declare the read, then ask the frame.
+        // The atlas is preferred where there is one, because that is the map
+        // anybody debugging shadows wants to see.
+        if (_settings.showShadowMap) ...<ResourceId>[
+          FrameResourceIds.cubeShadow,
+          FrameResourceIds.shadowMap,
+        ],
       ];
 
   @override
@@ -3806,6 +3860,11 @@ final class _CompositeNode extends RenderNode {
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       bloom: frame.resources.tryTexture(FrameResourceIds.bloom),
       surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
+      // Null unless this frame declared the read above, which is what makes
+      // `showShadowMap` fall back to the lit image rather than to whatever a
+      // renderer field happened to be holding.
+      shadowView: frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
+          frame.resources.tryTexture(FrameResourceIds.shadowMap),
       sceneGraph: _scene,
       views: _views,
       settings: frame.settings,

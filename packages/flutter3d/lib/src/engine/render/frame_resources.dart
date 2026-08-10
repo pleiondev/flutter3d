@@ -60,6 +60,24 @@ final class AbsolutePixels extends ResourceSize {
   (int, int) resolve(int frameWidth, int frameHeight) => (width, height);
 }
 
+/// Where the pixels behind a bound resource came from.
+///
+/// [FrameResources.tryTexture] answers "is there a texture", which used to be
+/// the only question available and is not the same question. A shadow map that
+/// was not drawn this frame and a shadow atlas that deliberately holds an
+/// earlier frame's pixels both come back as a texture, and they mean opposite
+/// things: the first is stale and must not be sampled, the second is exactly
+/// what the sampler is for. See [FrameGraphNode.keeps].
+enum ResourceOrigin {
+  /// A node drew it during this frame. Absent means nothing produced it, and a
+  /// reader that can do without has to.
+  drawn,
+
+  /// A node maintains it across frames. It is valid to sample, and some or all
+  /// of it predates this frame — deliberately.
+  kept,
+}
+
 /// What a node is asking for when it writes a resource.
 final class ResourceDesc {
   const ResourceDesc({
@@ -181,6 +199,12 @@ final class FrameResources {
   /// from inside a node it binds that node's output, which is how a pass that
   /// produces a texture of its own — reflections into the renderer's own
   /// target — puts its result behind the name the next reader will use.
+  ///
+  /// The same call for a written and for a maintained resource, and
+  /// deliberately so: which of the two it is was already settled by what the
+  /// node declared, and a second way of saying it here is a second knob that
+  /// can disagree with the first. What the declaration changes is when the call
+  /// is *required* — see [endNode] — and what [originOf] tells a reader.
   void provide(ResourceId id, gpu.Texture texture) {
     final key = ResourceVersion(id, _writeVersionFor(id));
     _live[key] = texture;
@@ -218,8 +242,26 @@ final class FrameResources {
   /// What a reader that can do without asks. Never allocates: a culled effect
   /// must cost nothing, and a caller that wants a texture regardless wants
   /// [texture].
+  ///
+  /// A texture here does **not** mean this frame drew one — see [originOf].
   gpu.Texture? tryTexture(ResourceId id) =>
       _live[ResourceVersion(id, _versionFor(id))];
+
+  /// Whether the texture [tryTexture] would hand back was drawn this frame or
+  /// is maintained across frames; null when there is no texture at all.
+  ///
+  /// The other half of [tryTexture], and the reason the two are separate calls:
+  /// a consumer that only needs something to sample takes the texture and stops
+  /// there, and one whose answer depends on how old the pixels are — a temporal
+  /// effect, a debug overlay, anything accumulating — can ask without the
+  /// producer having to tell it out of band.
+  ResourceOrigin? originOf(ResourceId id) {
+    final key = ResourceVersion(id, _versionFor(id));
+    if (!_live.containsKey(key)) return null;
+    return graph.isKeptVersion(key)
+        ? ResourceOrigin.kept
+        : ResourceOrigin.drawn;
+  }
 
   /// A texture for the running node's own working storage.
   ///
@@ -262,7 +304,26 @@ final class FrameResources {
 
   /// Hands back whatever the node at [index] was the last to touch, and all of
   /// its scratch.
+  ///
+  /// It also holds the node to the promise a [FrameGraphNode.keeps] makes. A
+  /// maintained resource must be bound whether or not the node drew anything —
+  /// that is the whole difference between keeping and writing — and a node that
+  /// provides it only on the frames it drew has silently turned it back into a
+  /// write. Caught here, naming the node, rather than as a reader finding
+  /// nothing several passes later and doing without.
   void endNode(int index) {
+    for (final id in graph.keptBy(index)) {
+      final version = graph.writeVersionOf(index, id);
+      if (version == null) continue;
+      if (_live.containsKey(ResourceVersion(id, version))) continue;
+      throw FrameGraphError(
+        '"${graph.order[index].name}" declares that it keeps "${id.name}" and '
+        'left it unbound. A maintained resource is provided on every frame the '
+        'node runs, drawn into or not — that a frame which drew nothing still '
+        'has something worth sampling is the whole of what keeping means. A '
+        'resource that is only there when the pass drew is a write',
+      );
+    }
     for (final key in graph.retiredAfter(index)) {
       if (_external.contains(key)) continue;
       final texture = _live.remove(key);

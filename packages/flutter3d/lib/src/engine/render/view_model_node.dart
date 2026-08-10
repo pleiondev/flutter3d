@@ -7,6 +7,7 @@ import '../scene/camera_node.dart';
 import '../scene/scene.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
+import 'pass_contributor.dart';
 import 'render_node.dart';
 
 /// Draws the first-person view model over the finished scene.
@@ -35,6 +36,25 @@ final class ViewModelNode extends RenderNode {
   /// the same resource — a link in the chain rather than a consumer of one.
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  /// The point-light atlases, because a weapon held in a shadowed room is in
+  /// shadow, and this pass draws through the same mesh encoder as the world.
+  ///
+  /// Undeclared until now, and it still worked — which is precisely the
+  /// problem. The encoder reached into a renderer field for the atlas, so this
+  /// node sampled a resource it had never asked for, was never ordered against
+  /// its producer, and would have kept "working" if that producer had moved.
+  /// Optional rather than hard for the reason the scene's are: a hard read
+  /// would take the weapon off the screen the moment shadows were switched off.
+  ///
+  /// The directional map is deliberately absent. A view model is drawn with its
+  /// own camera and its own near volume, and the world's shadow matrix would
+  /// shadow it with things it is nowhere near.
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+        FrameResourceIds.cubeShadow,
+        FrameResourceIds.cubeShadowStatic,
+      ];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
@@ -93,6 +113,15 @@ final class ViewModelNode extends RenderNode {
       cameraPosition: _cameraPosition,
       settings: frame.settings,
       state: frame.state,
+      // Answered here, from this node's own view of the frame, which is what
+      // the declaration above is for. `tryTexture` resolves against what this
+      // node reads, so an atlas it had not declared would come back as nothing
+      // to sample rather than as a texture found lying about.
+      shadows: SceneShadows(
+        point: frame.resources.tryTexture(FrameResourceIds.cubeShadow),
+        pointStatic:
+            frame.resources.tryTexture(FrameResourceIds.cubeShadowStatic),
+      ),
     );
 
     buffer.submit();

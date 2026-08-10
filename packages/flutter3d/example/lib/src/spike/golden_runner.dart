@@ -29,13 +29,27 @@ final class GoldenRunner {
 
   /// Fraction of pixels allowed to differ beyond [channelTolerance].
   ///
-  /// Not zero, and not because exactness would be nice to have. MSAA resolve
-  /// order and the driver's own floating-point choices move a handful of edge
-  /// pixels between runs on the same machine, so an exact comparison flakes —
-  /// and a flaky golden gets disabled, which is worse than a loose one.
-  static const double pixelTolerance = 0.002;
+  /// **Zero**, and it was not always. It stood at 0.002 — 345 pixels of this
+  /// frame — on the argument that MSAA resolve order and the driver's own
+  /// floating-point choices move a handful of edge pixels between runs. The
+  /// measurement says otherwise: every scene has reported *0 of 172800*
+  /// differing since the composite became a node, so the slack was never
+  /// absorbing driver noise. It was absorbing changes, and it absorbed a real
+  /// shader change for two commits before anybody read a count.
+  ///
+  /// What the driver's noise actually moves is [channelTolerance], not this.
+  /// `surface-buffer` regularly reports a worst channel of 3 while differing in
+  /// no pixels at all — a value under the channel limit is not a differing
+  /// pixel, so the count stays zero and the run stays honest. That is the knob
+  /// that pays for hardware variance, and it stays where it is.
+  static const double pixelTolerance = 0.0;
 
   /// How far one channel may move before a pixel counts as different.
+  ///
+  /// This is where driver variance is paid for, and why [pixelTolerance] does
+  /// not have to. Eight is comfortably above the worst any scene has shown
+  /// (three, on the surface buffer) and far below anything a person would call
+  /// a change in the picture.
   static const int channelTolerance = 8;
 
   int _seen = 0;
