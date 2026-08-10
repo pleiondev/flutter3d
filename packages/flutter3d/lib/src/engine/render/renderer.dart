@@ -2614,9 +2614,17 @@ final class Renderer implements PluginServices {
     for (final plugin in _orderedOverlays()) {
       plugin.encode(
         PluginFrame(
-          // A stage that owns its pass builds its own; this is the scene pass
-          // it draws over, handed on so a plugin that only wants to append to
-          // the world's pass still can.
+          // The scene pass, and by this point its command buffer has already
+          // been submitted a few lines above — so an overlay **cannot** encode
+          // into it and must build its own. The previous comment here invited
+          // exactly that, which no plugin has taken up: the view model builds
+          // its own pass and the particle system is an `inScene` stage, where
+          // the invitation is legitimate. It is handed on only so a plugin can
+          // read the pass state it has to leave consistent.
+          //
+          // The field goes away for this stage when `inScene` becomes a
+          // contributor to a scene node, which is where "append to the world's
+          // pass" is the only thing it can mean.
           pass: pass,
           host: host,
           services: this,

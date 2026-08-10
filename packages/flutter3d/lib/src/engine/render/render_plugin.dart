@@ -109,6 +109,12 @@ final class PluginFrame {
     this.sceneColor,
   });
 
+  /// The scene's pass.
+  ///
+  /// For [RenderStage.inScene] this is the pass being built and drawing into
+  /// it is the point. For [RenderStage.overlayScene] the command buffer behind
+  /// it has already been submitted, so encoding into it does nothing and such
+  /// a plugin must create its own — the weapon view model does.
   final gpu.RenderPass pass;
   final gpu.HostBuffer host;
   final PluginServices services;
