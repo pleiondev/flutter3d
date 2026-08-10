@@ -388,7 +388,7 @@ class _SpikePageState extends State<SpikePage>
     final renderer = _renderer;
     if (goldenScene != null && renderer != null) {
       if (goldenScene.particles) {
-        renderer.addContributor(ParticlePlugin(GoldenExtras.burst()));
+        renderer.addContributor(ParticleContributor(GoldenExtras.burst()));
       }
       if (goldenScene.viewModel) {
         renderer.addNode(GoldenExtras.viewModel());

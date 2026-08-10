@@ -17,7 +17,7 @@ library;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import 'frame_graph.dart';
-import 'render_plugin.dart';
+import 'pass_contributor.dart';
 import 'renderer.dart';
 
 /// Everything a node is given to build its pass from.
@@ -37,7 +37,7 @@ final class NodeFrame {
   });
 
   final gpu.HostBuffer host;
-  final PluginServices services;
+  final RenderServices services;
 
   /// Counters the whole frame shares. A node that binds its own pipeline must
   /// say so through [FramePassState.invalidatePipeline], or the next thing

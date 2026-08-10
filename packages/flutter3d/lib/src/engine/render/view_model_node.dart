@@ -18,8 +18,8 @@ import 'render_node.dart';
 /// its own pass rather than the scene pass, and that is the
 /// whole reason the stage exists: a weapon held at arm's length shares no
 /// depth with the world, or every doorway would slice the barrel off.
-final class ViewModelPlugin extends RenderNode {
-  ViewModelPlugin({required this.scene, required this.camera});
+final class ViewModelNode extends RenderNode {
+  ViewModelNode({required this.scene, required this.camera});
 
   /// Holds only what is in the player's hands. Kept apart from the world so
   /// culling, picking and the shadow pass never see it.
@@ -46,7 +46,7 @@ final class ViewModelPlugin extends RenderNode {
   void execute(NodeFrame frame) {
     final hdr = frame.sceneColor;
     if (hdr == null) return;
-    developer.Timeline.startSync('ViewModelPlugin.encode');
+    developer.Timeline.startSync('ViewModelNode.encode');
 
     final width = frame.width;
     final height = frame.height;

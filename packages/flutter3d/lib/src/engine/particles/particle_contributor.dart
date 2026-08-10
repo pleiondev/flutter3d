@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../render/render_plugin.dart';
+import '../render/pass_contributor.dart';
 import 'particle_system.dart';
 
 /// Draws every live particle as one batch of camera-facing quads.
@@ -19,8 +19,8 @@ import 'particle_system.dart';
 /// Depth write is off and blending is additive. Additive is what removes the
 /// need to sort: addition is commutative, so a thousand particles in one
 /// unsorted batch composite correctly, and one draw call covers all of them.
-final class ParticlePlugin extends PassContributor {
-  ParticlePlugin(this.particles);
+final class ParticleContributor extends PassContributor {
+  ParticleContributor(this.particles);
 
   final ParticleSystem particles;
 
@@ -35,7 +35,7 @@ final class ParticlePlugin extends PassContributor {
     final view = frame.view;
     final viewProjection = frame.viewProjection;
     if (view == null || viewProjection == null) return;
-    developer.Timeline.startSync('ParticlePlugin.encode');
+    developer.Timeline.startSync('ParticleContributor.encode');
 
     final capacity = particles.capacity;
     final vertices = _vertices ??=
@@ -162,7 +162,7 @@ final class ParticlePlugin extends PassContributor {
     final shader = frame.services.library[name];
     if (shader == null && _missing.add(name)) {
       assert(() {
-        debugPrint('ParticlePlugin: the shader bundle has no "$name"; '
+        debugPrint('ParticleContributor: the shader bundle has no "$name"; '
             'no particles will be drawn.');
         return true;
       }());

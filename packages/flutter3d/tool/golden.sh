@@ -63,6 +63,19 @@ failed_scenes=()
 for scene in "${SCENES[@]}"; do
   printf '%-28s' "$scene"
 
+  # A scene whose application outlives its `flutter run` stalls the next one:
+  # macOS finds the app already open, the new launch never gets a window, and
+  # the script waits on a child that will not report. It looks exactly like a
+  # hung harness and is not one — it cost four stalls in a single session
+  # before the leftover process was noticed.
+  #
+  # Reaped *before* each scene rather than after, because the straggler may
+  # also predate this run entirely. The cost is real and worth stating: an
+  # example app opened by hand for debugging is indistinguishable from a
+  # leftover and gets killed too. The suite launches and drives that app
+  # anyway, so it already needed it to itself.
+  pkill -f 'flutter3d.app/Contents/MacOS/flutter3d' 2>/dev/null || true
+
   # `flutter run` stays attached and forwards the app's exit code, so the
   # script can simply read it. Output is captured and only shown on failure,
   # because a passing run prints a page of Flutter tooling noise.

@@ -67,7 +67,7 @@ abstract final class GoldenExtras {
   /// A plain box rather than a weapon, because what is being tested is that
   /// the overlay stage draws at all and is not clipped by the world — and a
   /// box placed deliberately inside the model proves the second half.
-  static ViewModelPlugin viewModel() {
+  static ViewModelNode viewModel() {
     final scene = Scene();
     final camera = CameraNode(
       // Narrower than the world camera, the way a real view model is.
@@ -85,6 +85,6 @@ abstract final class GoldenExtras {
         name: 'held',
       )..setPosition(0.32, -0.26, -0.9),
     );
-    return ViewModelPlugin(scene: scene, camera: camera);
+    return ViewModelNode(scene: scene, camera: camera);
   }
 }

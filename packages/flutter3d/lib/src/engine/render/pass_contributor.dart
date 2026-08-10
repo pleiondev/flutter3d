@@ -41,7 +41,7 @@ final class FramePassState {
 ///
 /// An interface rather than the [Renderer] class so a plugin cannot reach past
 /// what it was offered, and so a test can drive one without a GPU context.
-abstract interface class PluginServices {
+abstract interface class RenderServices {
   /// The compiled shader bundle, for a plugin building its own pipeline.
   gpu.ShaderLibrary get library;
 
@@ -97,7 +97,7 @@ final class ContributorFrame {
   /// The pass being built. Drawing into it is the point.
   final gpu.RenderPass pass;
   final gpu.HostBuffer host;
-  final PluginServices services;
+  final RenderServices services;
   final FramePassState state;
   final RenderSettings settings;
 

@@ -21,7 +21,7 @@ import 'render_list.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'render_node.dart';
-import 'render_plugin.dart';
+import 'pass_contributor.dart';
 import 'render_view.dart';
 import 'shadow_slots.dart';
 
@@ -593,7 +593,7 @@ final class FrameResult {
 /// A narrow field of view comes with it, and is the point rather than a detail.
 /// The main camera is wide enough to see a room, and a model rendered at that
 /// angle a few centimetres from the eye is grotesquely distorted at the edges.
-final class Renderer implements PluginServices {
+final class Renderer implements RenderServices {
   Renderer._({
     required this.library,
     required this.vertexShader,
@@ -2316,9 +2316,8 @@ final class Renderer implements PluginServices {
   /// the whole point of the extension model — and the distinction it makes is
   /// the one the migration keeps running into: a contributor draws *into* this
   /// pass, so it takes the pass as an argument, while a node *owns* one and
-  /// therefore cannot be handed one. `PluginFrame` is a contributor's context;
-  /// it was never a node's, which is why wrapping this method in a
-  /// `RenderNode.execute(PluginFrame)` does not fit and should not be forced.
+  /// therefore cannot be handed one. That is why there are two contexts:
+  /// `ContributorFrame` carries a pass and `NodeFrame` does not.
   _ScenePass _encodeScene({
     required gpu.HostBuffer host,
     required Scene scene,

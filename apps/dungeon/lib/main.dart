@@ -223,7 +223,7 @@ class _GameScreenState extends State<GameScreen>
     // hidden by walls; the weapon over the top of it, sharing no depth with a
     // world that would otherwise slice the barrel off in every doorway.
     _renderer
-      ?..addContributor(ParticlePlugin(_particles))
+      ?..addContributor(ParticleContributor(_particles))
       ..addNode(_weaponView.plugin);
 
     _ticker = createTicker(_onTick)..start();
