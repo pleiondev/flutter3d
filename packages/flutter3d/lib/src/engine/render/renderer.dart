@@ -133,6 +133,7 @@ final class RenderSettings {
     this.surfaceBuffer = false,
     this.showSurfaceBuffer = false,
     this.showShadowMap = false,
+    this.showPointShadowDebug = false,
     this.reflections = const ReflectionSettings(),
     this.fog = const FogSettings(),
   });
@@ -199,9 +200,25 @@ final class RenderSettings {
   /// nobody can look at is an atlas whose layout nobody can check.
   final bool showShadowMap;
 
+  /// Paints the point shadow's penumbra estimate into the surface buffer, and
+  /// shows that instead of the lit image.
+  ///
+  /// Red: the penumbra width, against the widest allowed. Green: how far the
+  /// blocker was, against the light's range. Blue: the search found nothing.
+  ///
+  /// It exists because two explanations for a broken contact-hardening estimate
+  /// were argued from the finished picture and both turned out wrong. The
+  /// quantity that settles it never leaves the shader, and nothing displayed
+  /// it — so the debugging was five runs of guessing where it should have been
+  /// one run of looking.
+  final bool showPointShadowDebug;
+
   /// Whether the scene pass should write the surface buffer at all.
   bool get needsSurfaceBuffer =>
-      surfaceBuffer || showSurfaceBuffer || reflections.enabled;
+      surfaceBuffer ||
+      showSurfaceBuffer ||
+      showPointShadowDebug ||
+      reflections.enabled;
 
   RenderSettings copyWith({
     double? specular,
@@ -317,11 +334,36 @@ final class ShadowSettings {
   ///   and false: switching to [ShadowCasterFaces.front] moves 99 pixels
   ///   against the fixed kernel, the same as before.
   ///
-  /// Both were inferred from the finished picture, which is the wrong
-  /// instrument — the number that matters is inside the shader and nothing
-  /// shows it. The next step is a debug view that paints the blocker distance
-  /// and the estimated width, in the way `showShadowMap` paints the atlas, so
-  /// this is one run rather than another five.
+  /// * *The ceiling pins it* — [pointMaxSoftness] clamps the estimate, so two
+  ///   light radii could both be resting on the same maximum. Also false:
+  ///   raising the ceiling from 16 to 64 texels moves 102 pixels.
+  ///
+  /// [RenderSettings.showPointShadowDebug] settled it, and the answer is that
+  /// there was no collapse. Measured off the debug picture — in linear space,
+  /// which is a correction in itself, since the surface buffer is linear and
+  /// the composite writes sRGB — the radius spans 4 to 16 texels across the
+  /// shadow, a quarter of the fragments at the floor and the rest spread above
+  /// it. That is contact hardening doing its job.
+  ///
+  /// The premise was wrong instead. Widening the kernel in this scene moves
+  /// about a hundred pixels whatever drives it: a *fixed* kernel tripled from
+  /// 4 to 12 texels moves 110, contact hardening against a fixed 4 moves 96,
+  /// and the ceiling raised fourfold moves 102. One early measurement said
+  /// 4861 for a fixed 2.5 against 20 and every careful repeat since contradicts
+  /// it; treat that number as suspect rather than as the target.
+  ///
+  /// `cube-shadow-gap` was then built for the one condition still missing — a
+  /// caster well clear of the floor, where a penumbra has room to open — and it
+  /// answers 27 pixels, less than the on-floor scene. So the premise itself was
+  /// the error, and it is a matter of scale rather than of correctness: a face
+  /// is 1024 texels across ninety degrees, the shadow covers a small part of
+  /// the screen, and a few texels of extra blur in that map is worth about a
+  /// pixel of softening on screen. Nothing was ever going to move thousands.
+  ///
+  /// Left off, then, because a second set of taps buys about a pixel at this
+  /// map resolution — an honest cost/benefit, not a defect. It earns its place
+  /// when a face covers less of the world per texel, or when the emitter is
+  /// genuinely large; both are worth measuring before switching it on.
   ///
   /// This is what makes a shadow sharp where its caster meets the floor and
   /// soft a metre away, which one radius cannot be. A point light is a point
@@ -2044,6 +2086,7 @@ final class Renderer implements PluginServices {
             math.max(settings.shadows.pointLightRadius, 0.0);
         _pointShadowParams2[2] =
             math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
+        _pointShadowParams2[3] = settings.showPointShadowDebug ? 1.0 : 0.0;
         bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
           'faces': _cubeFaceMatrices,
           'lights': _cubeLightData,
@@ -2696,7 +2739,10 @@ final class Renderer implements PluginServices {
     pass.setDepthWriteEnable(false);
     pass.setDepthCompareOperation(gpu.CompareFunction.always);
 
-    final showingSurface = settings.showSurfaceBuffer;
+    // The debug picture rides in the surface buffer rather than in an
+    // attachment of its own, so asking for it is asking to see that buffer.
+    final showingSurface =
+        settings.showSurfaceBuffer || settings.showPointShadowDebug;
     // The cube atlas when there is one, because that is the map anybody
     // debugging shadows now wants to see.
     final shadowView = _cubeShadow ?? _shadowMap;

@@ -271,7 +271,8 @@ uniform PointShadow {
   /// x: smallest kernel radius in tile-local uv, and the fixed radius used
   /// when contact hardening is off. y: the light's own radius in metres; zero
   /// turns contact hardening off. z: largest kernel radius in tile-local uv.
-  /// w unused.
+  /// w: non-zero paints the penumbra estimate into the surface buffer instead
+  /// of shading with it.
   vec4 params2;
 }
 point_shadow;
@@ -343,11 +344,13 @@ vec2 PointShadowOffset(int i, float ca, float sa, float radius) {
 /// outside that circle cannot widen the result anyway, and searching narrower
 /// would miss the very blockers that make an edge soft.
 float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
-                          float ca, float sa) {
+                          float ca, float sa, out float blockerOut) {
+  blockerOut = -1.0;
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
   float maxRadius = point_shadow.params2.z;
   if (lightRadius <= 0.0) return minRadius;
+
 
   float sum = 0.0;
   float count = 0.0;
@@ -365,6 +368,7 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   if (count < 0.5) return -1.0;
 
   float blocker = max(sum / count, 1e-4);
+  blockerOut = blocker;
   float world = lightRadius * max(receiver - blocker, 0.0) / blocker;
   return clamp(world / (2.0 * receiver), minRadius, maxRadius);
 }
@@ -391,8 +395,15 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float toLightLength = max(length(toLight), 1e-6);
   float nDotL = max(dot(normal, toLight / toLightLength), 0.15);
   float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
-  vec3 origin =
-      world + normal * (point_shadow.params.w + point_shadow.params2.x * slope);
+  // Both terms are metres. The slope term used to be the kernel radius, which
+  // is a fraction of a tile — a unit error copied across from flutter_scene,
+  // where the softness it borrows genuinely is the right quantity for their
+  // map. Here it meant widening the kernel also lifted the sample off the
+  // surface, by up to ten centimetres at the wider settings, so the softening
+  // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
+  // where the kernel alone moves thousands. It is what made contact hardening
+  // look inert, and it was hiding in a comparison rather than in the estimate.
+  vec3 origin = world + normal * point_shadow.params.w * (1.0 + slope);
   vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
   float range = max(point_shadow.lights[slot].w, 1e-4);
@@ -436,7 +447,27 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float ca = cos(angle);
   float sa = sin(angle);
 
-  float radius = PointShadowPenumbra(uv, tile, range, receiver, ca, sa);
+  float blocker = -1.0;
+  float radius =
+      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, blocker);
+
+  // The debug channel, and the reason it exists: two explanations for why the
+  // estimate collapses were argued from the finished picture and both were
+  // wrong, because the number that decides it never leaves this function.
+  //
+  // Red is how wide the penumbra came out, against the widest allowed. Green
+  // is how far away the blocker was, against the light's range. Blue marks
+  // the fragments where the search found nothing at all — which is a different
+  // answer from "found something very close", and telling those two apart is
+  // most of the question.
+  if (point_shadow.params2.w > 0.5) {
+    g_debug_surface_on = true;
+    g_debug_surface = radius < 0.0
+        ? vec3(0.0, 0.0, 1.0)
+        : vec3(clamp(radius / max(point_shadow.params2.z, 1e-6), 0.0, 1.0),
+               clamp(blocker / range, 0.0, 1.0), 0.0);
+  }
+
   // The search found nothing between here and the light.
   if (radius < 0.0) return 1.0;
 

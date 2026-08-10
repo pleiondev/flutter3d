@@ -30,6 +30,7 @@ final class GoldenScene {
     this.pointShadow = false,
     this.extraPointShadows = 0,
     this.moverFrames = 0,
+    this.groundDrop = 0.0,
   });
 
   /// File name, without an extension, under `test/goldens/`.
@@ -51,6 +52,17 @@ final class GoldenScene {
   /// Makes the scene's first point light a shadow caster, so the cube atlas
   /// has something in it.
   final bool pointShadow;
+
+  /// How far to lower the ground below the model, in model radii.
+  ///
+  /// The ground moves rather than the model, because everything else in the
+  /// scene is placed from the scene's bounds — lifting the model would carry
+  /// the floor and the lights up with it and change nothing.
+  ///
+  /// A caster sitting on the floor has nowhere for a penumbra to widen, which
+  /// is why every shadow scene here answered the same way however the filter
+  /// was set. Contact hardening cannot be judged without a gap to harden over.
+  final double groundDrop;
 
   /// Frames to turn the model for before holding it still, or zero to leave it
   /// where it is.
@@ -317,6 +329,22 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     lights: <String>{'fill light'},
     pointShadow: true,
     moverFrames: 60,
+  ),
+
+  // A caster well clear of the floor, which no other scene has.
+  //
+  // Every shadow golden until now put the model on the ground, so the gap
+  // between caster and receiver was near zero everywhere and the penumbra had
+  // no room to open. That is why widening the filter moved about a hundred
+  // pixels whatever drove it, and why contact hardening could not be told
+  // apart from a fixed kernel: there was no contact to harden against.
+  const GoldenScene(
+    name: 'cube-shadow-gap',
+    source: 'Teapot',
+    bloom: false,
+    lights: <String>{'fill light'},
+    pointShadow: true,
+    groundDrop: 2.5,
   ),
 
   // Six casters for four rows, which is the case the allocator exists for.

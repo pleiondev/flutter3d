@@ -59,6 +59,16 @@ vec2 EncodeOctahedral(vec3 n) {
   return e * 0.5 + 0.5;
 }
 
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
 /// Records the geometry of this fragment for whatever runs after the scene.
 ///
 /// Called from the same place that writes colour, so a surface cannot be lit
@@ -68,6 +78,13 @@ vec2 EncodeOctahedral(vec3 n) {
 /// rg: octahedral normal. b: perceptual roughness. a: window depth.
 void WriteSurfaceGeometry(float roughness) {
 #ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
+    return;
+  }
   frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
                       clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
 #endif
