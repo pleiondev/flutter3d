@@ -24,14 +24,29 @@ jobs:
       # One resolve for the whole workspace.
       - run: flutter pub get
 
-      # The bundle is generated and gitignored, and the analyzer complains
-      # about a declared asset that does not exist, so it is built before
-      # anything looks at the tree.
-      - name: Build the shader bundle
-        run: packages/flutter3d/tool/build_shaders.sh
+      # Bundles are generated and gitignored, and the analyzer complains about a
+      # declared asset that does not exist, so they are built before anything
+      # looks at the tree.
+      #
+      # Every package that ships shaders, not just flutter3d: one bundle per
+      # extension is the packaging model, and a hardcoded single call meant the
+      # first extension to arrive failed CI on `flutter analyze` — an error
+      # about a missing asset, pointing at nothing that had changed. Discovering
+      # the scripts keeps the workflow out of the way of adding a package.
+      - name: Build every shader bundle
+        run: |
+          set -e
+          shopt -s nullglob
+          for script in packages/*/tool/build_shaders.sh; do
+            echo "── $script"
+            "$script"
+          done
 
       - run: flutter analyze
 
+      # Still an explicit list: which packages are gated is a decision, not
+      # something to infer from a directory listing. Add a line when a package
+      # is meant to be gated.
       - name: Test every package
         run: |
           set -e
