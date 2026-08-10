@@ -25,6 +25,12 @@ dependencies:
   flutter3d_game:
     path: ../../packages/flutter3d_game
 
+  # Where the two meet: level geometry to mesh nodes, an actor to its visual,
+  # a weapon to a view model. What is left in this app is the content those
+  # take as arguments.
+  flutter3d_bridge:
+    path: ../../packages/flutter3d_bridge
+
   vector_math: ^2.2.0
 
 dev_dependencies:

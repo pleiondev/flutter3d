@@ -9,7 +9,7 @@
 /// press swallowed at a low frame rate. None of those are visible in a
 /// screenshot, and all of them are reachable from a plain unit test.
 ///
-/// The application is where this meets the renderer.
+/// `flutter3d_bridge` is where this meets the renderer.
 library;
 
 export 'src/actors/health.dart';

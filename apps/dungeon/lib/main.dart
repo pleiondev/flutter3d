@@ -5,20 +5,22 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
-// `Material` exists in both flutter/material.dart and flutter3d; the level
-// loader is the only place that builds one, so it is hidden here.
+// `Material` exists in both flutter/material.dart and flutter3d. This file
+// wants Flutter's, for the widgets; the files under `src/` that build the
+// engine's do not import flutter/material.dart at all and so need no such
+// dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-import 'src/effects.dart';
-import 'src/level_scene.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 
-import 'src/fixture_visuals.dart';
-import 'src/monster_visuals.dart';
+import 'src/effects.dart';
+import 'src/fixture_looks.dart';
+import 'src/monster_looks.dart';
 import 'src/sounds.dart';
-import 'src/weapon_view.dart';
+import 'src/weapon_models.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.
@@ -98,7 +100,12 @@ class _GameScreenState extends State<GameScreen>
   );
 
   final ParticleSystem _particles = ParticleSystem(capacity: 3000);
-  final WeaponView _weaponView = WeaponView();
+  /// The pistol, not the fists: the game starts with both, and a shooter that
+  /// opens on empty hands looks unfinished.
+  final WeaponView _weaponView = WeaponView(
+    models: dungeonWeaponModels(),
+    initial: Weapons.pistol,
+  );
   WeaponShot? _shot;
   ProjectileSystem? _projectiles;
   MonsterSystem? _monsters;
@@ -306,9 +313,16 @@ class _GameScreenState extends State<GameScreen>
         world: loaded.collision,
         projectiles: projectiles,
       );
-      final visuals = MonsterVisuals(loaded.scene);
+      final visuals = MonsterVisuals(
+        loaded.scene,
+        appearance: const DungeonMonsters(),
+      );
       final mechanisms = MechanismWorld(loaded.collision);
-      final fixtures = FixtureVisuals(loaded.scene, loaded)
+      final fixtures = FixtureVisuals(
+        loaded.scene,
+        loaded,
+        appearance: const DungeonFixtures(),
+      )
         ..fallbackAlbedo = _renderer?.fallbackAlbedo
         // Before spawning, so a torch can find the light it drives.
         ..bindLights();
@@ -510,7 +524,7 @@ class _GameScreenState extends State<GameScreen>
         _particles.emitFor(
           fire,
           Effects.flame,
-          fixtures.flamePointOf(fire, _flameAt),
+          fire.originInto(_flameAt),
           dt,
           perSecond: 150.0,
         );

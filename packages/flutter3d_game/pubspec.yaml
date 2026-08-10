@@ -25,5 +25,5 @@ dev_dependencies:
 # Deliberately no dependency on flutter3d. Simulation, input and collision have
 # nothing to say about how a frame is drawn, and keeping the two apart is what
 # lets all of this be tested without a GPU — the same rule that already holds
-# for the engine's own geometry and scene layers. The application is where the
-# two meet.
+# for the engine's own geometry and scene layers. `flutter3d_bridge` is where
+# the two meet, and it depends on this package rather than the other way round.

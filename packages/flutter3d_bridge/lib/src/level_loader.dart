@@ -44,10 +44,15 @@ final class LoadedLevel {
 
 /// Reads a level asset and turns it into something playable.
 ///
-/// The only place `flutter3d` and `flutter3d_game` meet. Everything above it is
-/// simulation and everything below is rendering, and the whole bridge is the
-/// interleaving in [_toMeshData] — about twenty lines, which is the price of
-/// keeping the two packages independent and worth paying.
+/// The oldest half of the bridge, and still the clearest statement of what the
+/// bridge is for: everything above it is simulation and everything below is
+/// rendering, and the whole binding is the interleaving in [_toMeshData] —
+/// about twenty lines, which is the price of keeping the two packages
+/// independent and worth paying.
+///
+/// Nothing here knows what game it is loading. A level is brushes, materials,
+/// lights and entities; which entity means what is the game's business, and it
+/// is settled elsewhere.
 final class LevelLoader {
   const LevelLoader();
 

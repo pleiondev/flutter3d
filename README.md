@@ -9,6 +9,8 @@ built from both.
 |---|---|
 | [`packages/flutter3d`](packages/flutter3d) | The renderer: scene graph, glTF/OBJ/`.f3d` loading, six lighting models, shadows, bloom, skinning, BVH culling, picking. [README](packages/flutter3d/README.md), [RESEARCH](packages/flutter3d/RESEARCH.md) |
 | [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, and input that has forgotten which device it came from |
+| [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a weapon to a view model |
+| [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/mouse_capture`](packages/mouse_capture) | Relative mouse deltas, which Flutter offers on no desktop platform |
 | [`apps/dungeon`](apps/dungeon) | The game |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
@@ -18,8 +20,9 @@ most of it does not depend on Flutter at all — simulation, input and collision
 have nothing to say about how a frame is drawn. That is what lets the parts
 which fail quietly (a collision that passes through a wall once in a thousand
 steps, a jump that is a different height on a faster monitor, a press swallowed
-at a low frame rate) be reached from a plain unit test. The application is where
-the renderer and the simulation meet.
+at a low frame rate) be reached from a plain unit test. `flutter3d_bridge` is
+the one package allowed to depend on both, and it is where the renderer and the
+simulation meet; the application supplies only what a dungeon looks like.
 
 ## Running
 

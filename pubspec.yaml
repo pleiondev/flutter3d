@@ -3,9 +3,9 @@ description: "Repository root. Holds no code — only the list of packages."
 publish_to: 'none'
 
 # A pub workspace, so one `flutter pub get` resolves every package against a
-# single lock file. Four packages that depend on each other by path would
-# otherwise drift apart at the first version bump, and the drift only shows up
-# as an unbuildable checkout on another machine.
+# single lock file. Packages that depend on each other by path would otherwise
+# drift apart at the first version bump, and the drift only shows up as an
+# unbuildable checkout on another machine.
 environment:
   sdk: ^3.12.2
 
@@ -13,6 +13,7 @@ workspace:
   - packages/flutter3d
   - packages/flutter3d/example
   - packages/flutter3d_audio
+  - packages/flutter3d_bridge
   - packages/flutter3d_game
   - packages/mouse_capture
   - packages/mouse_capture/example

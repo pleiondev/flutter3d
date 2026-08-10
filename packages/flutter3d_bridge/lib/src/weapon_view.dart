@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -15,8 +14,18 @@ import 'package:vector_math/vector_math.dart';
 /// The narrow field of view is not a detail either. The world camera is wide
 /// enough to take in a room; a model rendered at that angle this close has its
 /// edges stretched into something that reads as a bug.
+///
+/// What the weapons look like is not here. The game hands in one node per
+/// weapon name; this owns the rig around them — the scene, the camera, the
+/// lighting, the holder, the bob and the recoil.
 final class WeaponView {
-  WeaponView() {
+  /// [models] is one root node per [WeaponDef.name]. Each is parented to the
+  /// holder and hidden; [initial] is the one shown first.
+  ///
+  /// A map rather than a builder callback because the nodes are built once and
+  /// the bridge has nothing to add to their construction — it only needs to own
+  /// where they hang.
+  WeaponView({required Map<String, SceneNode> models, WeaponDef? initial}) {
     _scene.add(
       LightNode(
         color: Vector3(1.0, 0.92, 0.82),
@@ -45,10 +54,13 @@ final class WeaponView {
       far: 10.0,
     );
 
-    _buildWeapons();
-    // The pistol, not the fists: the game starts with both, and a shooter
-    // that opens on empty hands looks unfinished.
-    _show(1);
+    _scene.add(_holder);
+    for (final entry in models.entries) {
+      _byWeapon[entry.key] = entry.value..visible = false;
+      _holder.add(entry.value);
+    }
+
+    if (initial != null) selectWeapon(initial);
   }
 
   static const double _bobSpeed = 9.5;
@@ -80,76 +92,7 @@ final class WeaponView {
   late final ViewModelNode plugin =
       ViewModelNode(scene: _scene, camera: _camera);
 
-  void _buildWeapons() {
-    _scene.add(_holder);
-
-    // Procedural blocks, because there is no weapon art yet. Deliberately not
-    // a placeholder cube each: distinguishable silhouettes are what make the
-    // switch readable, which is the only thing this view has to do before the
-    // models arrive.
-    // Two of them, because one block in the corner of the screen reads as a
-    // stray object rather than as a pair of hands.
-    _byWeapon[Weapons.fists.name] = _assemble(<_Part>[
-      _Part(Vector3(0.03, 0.0, 0.0), Vector3(0.13, 0.11, 0.16), _skin),
-      _Part(Vector3(-0.26, -0.05, 0.05), Vector3(0.13, 0.11, 0.16), _skin),
-    ]);
-    _byWeapon[Weapons.pistol.name] = _assemble(<_Part>[
-      _Part(Vector3(0.0, 0.0, -0.08), Vector3(0.052, 0.070, 0.25), _metal),
-      _Part(Vector3(0.0, -0.09, 0.04), Vector3(0.048, 0.115, 0.085), _grip),
-    ]);
-    _byWeapon[Weapons.shotgun.name] = _assemble(<_Part>[
-      _Part(Vector3(0.0, 0.01, -0.20), Vector3(0.065, 0.065, 0.46), _metal),
-      _Part(Vector3(0.0, -0.06, 0.10), Vector3(0.055, 0.098, 0.19), _grip),
-      _Part(Vector3(0.0, -0.06, -0.16), Vector3(0.062, 0.055, 0.14), _grip),
-    ]);
-    _byWeapon[Weapons.rocketLauncher.name] = _assemble(<_Part>[
-      _Part(Vector3(0.0, 0.03, -0.24), Vector3(0.110, 0.110, 0.54), _metal),
-      _Part(Vector3(0.0, -0.08, 0.06), Vector3(0.055, 0.110, 0.13), _grip),
-      _Part(Vector3(0.0, 0.13, -0.10), Vector3(0.039, 0.047, 0.18), _grip),
-    ]);
-  }
-
-  // Not actually metallic, despite the name and despite being a gun barrel.
-  // A metallic surface reflects its surroundings and has almost no diffuse
-  // response, so with no environment map to reflect it renders very nearly
-  // black — which is exactly how the first version looked. Image-based lighting
-  // would fix it properly and is out of reach on this channel, since it needs
-  // mip levels. A dark dielectric reads as gunmetal and costs nothing.
-  static final engine.Material _metal = engine.Material(
-    baseColor: Vector4(0.30, 0.31, 0.34, 1.0),
-    roughness: 0.45,
-  );
-  static final engine.Material _grip = engine.Material(
-    baseColor: Vector4(0.29, 0.21, 0.16, 1.0),
-    roughness: 0.75,
-  );
-  static final engine.Material _skin = engine.Material(
-    baseColor: Vector4(0.52, 0.36, 0.28, 1.0),
-    roughness: 0.7,
-  );
-
-  SceneNode _assemble(List<_Part> parts) {
-    final root = SceneNode()..visible = false;
-    _holder.add(root);
-    for (final part in parts) {
-      root.add(
-        MeshNode(
-          GpuMesh.upload(CuboidShape(size: part.size).build()),
-          part.material,
-        )..setPositionFrom(part.offset),
-      );
-    }
-    return root;
-  }
-
-  /// Shows the weapon in [slot] and hides the rest.
-  void _show(int slot) {
-    final wanted = Weapons.all[slot.clamp(0, Weapons.all.length - 1)].name;
-    for (final entry in _byWeapon.entries) {
-      entry.value.visible = entry.key == wanted;
-    }
-  }
-
+  /// Shows [weapon]'s model and hides the rest.
   void selectWeapon(WeaponDef weapon) {
     for (final entry in _byWeapon.entries) {
       entry.value.visible = entry.key == weapon.name;
@@ -191,12 +134,4 @@ final class WeaponView {
       Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), _recoil * 0.22),
     );
   }
-}
-
-final class _Part {
-  _Part(this.offset, this.size, this.material);
-
-  final Vector3 offset;
-  final Vector3 size;
-  final engine.Material material;
 }
