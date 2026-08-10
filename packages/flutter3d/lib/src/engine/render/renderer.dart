@@ -228,6 +228,30 @@ final class RenderSettings {
 }
 
 /// Directional shadow mapping settings.
+/// Which faces of a caster are drawn into a shadow map.
+///
+/// The two ways a shadow map fails are opposites, and this picks which one to
+/// risk. Recording the light-facing side means a lit surface is compared
+/// against its own depth and shows acne; recording the far side moves the
+/// recorded surface inside the solid, which cures the acne and instead lets a
+/// thin caster's shadow detach from it.
+enum ShadowCasterFaces {
+  /// Draw the faces turned towards the light. The general-purpose choice, and
+  /// what flutter_scene defaults to; acne is held off by the biases.
+  front,
+
+  /// Draw the faces turned away — "second depth". For solid, closed geometry
+  /// this removes acne outright, since the recorded distance is the far wall of
+  /// the body and the bias hides inside it. This engine's cube pass has always
+  /// done this without saying so, which suits a dungeon of blocky brushes.
+  back,
+
+  /// Draw both. Records the nearest surface as [front] does for closed bodies,
+  /// but also catches a one-sided wall or an open shell, which the other two
+  /// see straight through.
+  both,
+}
+
 final class ShadowSettings {
   const ShadowSettings({
     this.enabled = true,
@@ -236,7 +260,43 @@ final class ShadowSettings {
     this.normalOffset = 0.02,
     this.strength = 1.0,
     this.depthPadding = 1.2,
+    this.pointBias = 0.08,
+    this.pointNormalOffset = 0.02,
+    this.pointSoftness = 4.0,
+    this.casterFaces = ShadowCasterFaces.back,
   });
+
+  /// Distance bias for a point light's cube map, in **metres**.
+  ///
+  /// Metres rather than normalised depth because the cube faces store radial
+  /// distance, not clip depth — see shadow_distance.frag for why they have to.
+  final double pointBias;
+
+  /// How far along the normal a cube-map sample moves before being projected,
+  /// in metres, before the slope term is added.
+  final double pointNormalOffset;
+
+  /// Penumbra width for a point light, as a radius in texels of one cube face.
+  ///
+  /// Zero collapses the kernel to a single tap and a hard edge.
+  ///
+  /// Texels, not a fraction of the tile, so a penumbra keeps its width when the
+  /// atlas resolution changes. The first value tried here was 0.9, which looked
+  /// like a reasonable "small" default and did nothing at all: a face is 1024
+  /// texels across, so every tap in the disk landed in the same texel as the
+  /// centre and returned the same answer. 62 pixels of the whole frame moved.
+  /// A kernel measured in texels has to be wider than one.
+  ///
+  /// Four is measured rather than judged: against an unfiltered edge, a radius
+  /// of 2.5 texels moved 69 pixels of the frame and 20 texels moved 4861. The
+  /// first is invisible and the second smears a contact shadow, so the default
+  /// sits between them, at about the width flutter_scene gives a spot. This is
+  /// a fixed radius, not a contact-hardening one — a penumbra that widens with
+  /// distance from the caster is what PCSS is for, and that is a later step.
+  final double pointSoftness;
+
+  /// Which side of a caster the cube pass records.
+  final ShadowCasterFaces casterFaces;
 
   final bool enabled;
 
@@ -937,7 +997,16 @@ final class Renderer implements PluginServices {
     pass.setDepthWriteEnable(true);
     pass.setDepthCompareOperation(gpu.CompareFunction.less);
     pass.setColorBlendEnable(false);
-    pass.setCullMode(gpu.CullMode.frontFace);
+    final casterCull = switch (settings.casterFaces) {
+      // Culling the front faces is what leaves the back ones drawn, and the
+      // other way about. The enum is named after what ends up *recorded*
+      // rather than after what is culled, which is the way round that reads
+      // correctly at a call site.
+      ShadowCasterFaces.front => gpu.CullMode.backFace,
+      ShadowCasterFaces.back => gpu.CullMode.frontFace,
+      ShadowCasterFaces.both => gpu.CullMode.none,
+    };
+    pass.setCullMode(casterCull);
 
     final mvp = vm.Matrix4.identity();
     final position = vm.Vector3.zero();
@@ -1008,7 +1077,7 @@ final class Renderer implements PluginServices {
 
         pass.setDepthWriteEnable(true);
         pass.setDepthCompareOperation(gpu.CompareFunction.less);
-        pass.setCullMode(gpu.CullMode.frontFace);
+        pass.setCullMode(casterCull);
 
         for (final node in scene.meshes) {
           if (!node.visibleInHierarchy || !node.castsShadow) continue;
@@ -1082,6 +1151,7 @@ final class Renderer implements PluginServices {
   final Float32List _shadowSlots = Float32List(4 * LightBuffer.maxLights);
 
   final Float32List _pointShadowParams = Float32List(4);
+  final Float32List _pointShadowParams2 = Float32List(4);
 
   /// Number of atlas rows in use, or -1 when none are.
   int _cubeShadowLight = -1;
@@ -1897,18 +1967,24 @@ final class Renderer implements PluginServices {
       // all three of these — and binding a block the compiled shader does not
       // have is a native failure, not a no-op.
       if (material.lighting.usesPointShadow) {
-        // Half a texel, in tile-local uv: what the shader holds its sample
-        // inside the tile by, so a bilinear tap cannot reach the next face.
-        _pointShadowParams[0] =
-            _cubeShadowTile > 0 ? 0.5 / _cubeShadowTile : 0.0;
-        _pointShadowParams[1] = 0.08;
+        // Half a texel, in tile-local uv: what every tap is held inside its
+        // tile by, so none of them can reach the next face along.
+        final texel = _cubeShadowTile > 0 ? 1.0 / _cubeShadowTile : 0.0;
+        _pointShadowParams[0] = texel * 0.5;
+        _pointShadowParams[1] = settings.shadows.pointBias;
         _pointShadowParams[2] =
             _cubeShadowLight < 0 ? 0.0 : settings.shadows.strength;
+        _pointShadowParams[3] = settings.shadows.pointNormalOffset;
+        // Softness is authored in texels and spent in tile-local uv, so a
+        // penumbra keeps its width when the atlas resolution changes.
+        _pointShadowParams2[0] =
+            math.max(settings.shadows.pointSoftness, 0.0) * texel;
         bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
           'faces': _cubeFaceMatrices,
           'lights': _cubeLightData,
           'slots': _shadowSlots,
           'params': _pointShadowParams,
+          'params2': _pointShadowParams2,
         });
         _bindTexture(
           pass,

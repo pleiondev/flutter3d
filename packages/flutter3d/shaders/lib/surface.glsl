@@ -265,10 +265,54 @@ uniform PointShadow {
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
-  /// z: strength. w unused.
+  /// z: strength. w: normal offset in metres.
   vec4 params;
+
+  /// x: kernel radius in tile-local uv; zero collapses to a hard edge.
+  /// y, z, w unused.
+  vec4 params2;
 }
 point_shadow;
+
+/// Eight points on a Poisson disk, the same set flutter_scene filters its
+/// cascades with.
+///
+/// A disk rather than a grid because a grid of taps on a straight shadow edge
+/// lands every sample on the same side at once, and the edge steps between
+/// kernel widths instead of sliding. Eight rather than sixteen because every
+/// tap here reads **two** atlases — the static walls and the movers — so the
+/// cost is doubled before it is counted.
+vec2 PointShadowDiskTap(int i) {
+  if (i == 0) return vec2(-0.94201624, -0.39906216);
+  if (i == 1) return vec2(0.94558609, -0.76890725);
+  if (i == 2) return vec2(-0.09418410, -0.92938870);
+  if (i == 3) return vec2(0.34495938, 0.29387760);
+  if (i == 4) return vec2(-0.91588581, 0.45771432);
+  if (i == 5) return vec2(-0.81544232, -0.87912464);
+  if (i == 6) return vec2(-0.38277543, 0.27676845);
+  return vec2(0.97484398, 0.75648379);
+}
+
+/// One comparison against the atlas, at [uv] offset within the tile.
+///
+/// The clamp is applied **after** the offset, not before, and that is the whole
+/// reason a kernel can be widened here without touching anything else: each tap
+/// is held inside its own tile individually. Clamping the centre and then
+/// offsetting would let the outer taps walk straight out of the tile and read a
+/// distance measured from a different face, or a different light.
+float PointShadowTap(vec2 uv, vec2 offset, vec2 tile, float range,
+                     float receiver) {
+  float inset = point_shadow.params.x;
+  vec2 local = clamp(uv + offset, inset, 1.0 - inset);
+  vec2 atlas = (local + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
+  // Whichever is nearer occludes: a wall in front of a monster shadows, and so
+  // does a monster in front of a wall.
+  float stored = min(texture(point_shadow_texture, atlas).r,
+                     texture(point_shadow_static_texture, atlas).r) * range;
+  // Nothing was drawn in that direction by either, so nothing is in the way.
+  if (stored >= range * 0.999) return 1.0;
+  return receiver > stored ? 0.0 : 1.0;
+}
 
 /// How lit [world] is by the point light that owns the cube atlas.
 ///
@@ -279,9 +323,21 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float strength = point_shadow.params.z;
   if (strength <= 0.0) return 1.0;
 
-  // Offset along the normal before measuring, for the same reason the
-  // directional map does it: the error is proportional to slope, not depth.
-  vec3 origin = world + normal * point_shadow.params.y;
+  // Offset along the normal before measuring, and scaled by how steeply the
+  // surface leans away from the light.
+  //
+  // A soft kernel on a tilted surface straddles a depth gradient: the taps at
+  // one end of the disk are further from the light than the fragment itself,
+  // so a flat offset that clears the surface head-on leaves acne at a grazing
+  // angle. The slope term lifts the whole kernel clear instead, and is capped
+  // because it runs away as the surface turns edge-on to the light — an
+  // uncapped lift detaches the shadow from its caster.
+  vec3 toLight = point_shadow.lights[slot].xyz - world;
+  float toLightLength = max(length(toLight), 1e-6);
+  float nDotL = max(dot(normal, toLight / toLightLength), 0.15);
+  float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+  vec3 origin =
+      world + normal * (point_shadow.params.w + point_shadow.params2.x * slope);
   vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
   float range = max(point_shadow.lights[slot].w, 1e-4);
@@ -310,35 +366,34 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // bottom row, so a whole region compares against an unrelated distance and
   // comes out as a black slab.
   vec2 uv = vec2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5);
-  // Held half a texel inside the tile, because the fetch below is bilinear and
-  // an atlas has a different face — or a different light — on the other side of
-  // every edge. Without this, a fragment at the very edge of a face blends its
-  // occluder distance with one measured from somewhere else entirely, and the
-  // seam is worst exactly where the face boundaries are. PlayCanvas insets the
-  // scissor and flutter_scene insets the sample; either end works, and this is
-  // the end that costs nothing to render.
-  //
-  // Clamping rather than rejecting: a fragment beyond the tile edge belongs to
-  // the neighbouring face, which the dominant-axis test above already picked,
-  // so this only bites on the boundary itself.
-  //
-  // Half a texel is the right figure for one bilinear fetch and no more. Adding
-  // a PCF kernel here means growing it to the kernel's radius plus a half, or
-  // the outer taps start reading across again.
-  uv = clamp(uv, point_shadow.params.x, 1.0 - point_shadow.params.x);
   // The face across, the light down: six tiles wide, four tall.
   vec2 tile = vec2(float(face), float(slot));
-  uv = (uv + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
 
-  // Whichever is nearer occludes: a wall in front of a monster shadows, and so
-  // does a monster in front of a wall.
-  float stored = min(texture(point_shadow_texture, uv).r,
-                     texture(point_shadow_static_texture, uv).r) *
-      range;
-  // Nothing was drawn in that direction by either, so nothing is in the way.
-  if (stored >= range * 0.999) return 1.0;
+  float receiver = distance - point_shadow.params.y;
+  float radius = point_shadow.params2.x;
 
-  return distance - point_shadow.params.y > stored ? 1.0 - strength : 1.0;
+  // A centre tap plus a disk, rotated per fragment. The rotation is what turns
+  // eight samples into a soft edge rather than eight visible copies of the
+  // silhouette: without it every fragment along an edge tests the same eight
+  // directions and the pattern reads as a repeated shape.
+  float lit = PointShadowTap(uv, vec2(0.0), tile, range, receiver);
+  if (radius > 0.0) {
+    float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
+                                              vec2(0.06711056, 0.00583715))));
+    float angle = noise * 6.28318530718;
+    float ca = cos(angle);
+    float sa = sin(angle);
+    for (int i = 0; i < 8; i++) {
+      vec2 p = PointShadowDiskTap(i);
+      vec2 offset = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca) * radius;
+      lit += PointShadowTap(uv, offset, tile, range, receiver);
+    }
+    lit *= 1.0 / 9.0;
+  }
+
+  // Strength lerps towards fully lit, so the control is "how dark", not "how
+  // much of the kernel" — the same convention the directional map uses.
+  return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
 
 vec3 AccumulateLights(Surface s) {
