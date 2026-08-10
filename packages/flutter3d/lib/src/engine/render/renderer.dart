@@ -226,13 +226,20 @@ final class RenderSettings {
   /// graph answers the same question by asking whether any surviving pass
   /// declares a read — [CompiledFrameGraph.isConsumed], which the scene node
   /// now asks of the graph the frame is actually running. Kept because it is
-  /// public API, and because the two agreeing is worth being able to check:
-  /// `test/frame_plan_test.dart` walks every combination.
+  /// public API.
   ///
   /// It cannot be the answer the renderer uses, because a setting cannot see
   /// the frame. Whether the buffer is wanted depends on what a *node* declared
   /// — an application's own node reading it is invisible from here — and the
   /// only thing that knows is the compiled graph.
+  ///
+  /// So the two are allowed to disagree, and the disagreement is one-sided: an
+  /// application that registers a node reading the buffer gets it, and this
+  /// getter still says false. There was a test walking all sixteen combinations
+  /// of the flags for agreement; it went with the frame description it was
+  /// written against, because it could only ever have compared this against a
+  /// model of the built-in passes, which is the half of the question that was
+  /// never in doubt.
   bool get needsSurfaceBuffer =>
       surfaceBuffer ||
       showSurfaceBuffer ||
@@ -1017,7 +1024,20 @@ final class Renderer implements RenderServices {
   /// it has run: if the allocation lived inside the pass, a resolution change
   /// would drop the baked walls and only the dynamic call would notice, leaving
   /// the static atlas blank for the rest of the run.
-  void _ensureCubeAtlas(int tile) {
+  ///
+  /// **The one legal way to drop these two textures.** Every claim anybody
+  /// holds about their contents is invalidated here, in one place and in one
+  /// step: the tile size, whether the walls are baked, whether either texture
+  /// holds defined pixels at all, and both schedulers' memory of what they last
+  /// drew. A second route to reallocation would have to repeat all six, and the
+  /// one it forgot would be a stale tile that only shows when a light stops
+  /// moving.
+  ///
+  /// Called by both atlas nodes rather than by the frame, and idempotent so
+  /// that costs nothing: each of them needs the texture before it can draw, and
+  /// neither may assume the other ran. See [_CubeShadowStaticNode].
+  void _ensureCubeAtlas(ShadowSettings settings) {
+    final tile = settings.resolution.clamp(128, 1024);
     if (_cubeShadow != null && _cubeShadowTile == tile) return;
     // A six-by-four grid of square tiles: the face across, the light down.
     // Square because a ninety-degree frustum is square, and any other aspect
@@ -1056,8 +1076,19 @@ final class Renderer implements RenderServices {
   /// therefore wiped the rows already drawn and left only the last one — four
   /// lights rendered and one cast a shadow. The lights are read from
   /// [_cubeLightData], which the frame fills before any of the atlas is drawn.
+  ///
+  /// The colour attachment is a renderer field and stays one — see
+  /// [_CubeShadowStaticNode] for why neither atlas can be pooled. The depth
+  /// attachment is the opposite case: nothing names it, nothing reads it, and
+  /// it goes through [FrameResources.transient] so the release is deferred by
+  /// the frame ring. It used to go straight back to the pool after `submit`,
+  /// which handed the very same texture to the *other* atlas pass while the
+  /// first one's command buffer was still in flight — the two passes have
+  /// identical depth specs, so the pool could not have handed back anything
+  /// else.
   bool _renderCubeShadow({
     required gpu.HostBuffer host,
+    required FrameResources resources,
     required Scene scene,
     required ShadowSettings settings,
     required bool static,
@@ -1081,7 +1112,7 @@ final class Renderer implements RenderServices {
     final width = tile * 6;
     final height = tile * kShadowedLights;
 
-    final depth = targetPool.acquire(
+    final depth = resources.transient(
       RenderTargetSpec(
         width: width,
         height: height,
@@ -1252,7 +1283,6 @@ final class Renderer implements RenderServices {
     }
 
     commandBuffer.submit();
-    targetPool.release(depth);
     if (static) {
       _cubeShadowStaticCleared = true;
     } else {
@@ -1437,11 +1467,16 @@ final class Renderer implements RenderServices {
   /// The frame asks for one thing, the finished image, and everything that runs
   /// is what that turned out to need. Bloom switched off is a node the graph
   /// culls on its way back from the output, not a branch anybody wrote — and
-  /// the same is now true of the directional shadow map, which runs because the
-  /// scene said it would sample one.
+  /// the same is now true of every shadow pass, which run because the scene
+  /// said it would sample what they produce.
+  ///
+  /// **Nothing is external any more.** Every name this frame uses is written by
+  /// a node registered here, which is what the migration was for: the last two
+  /// were the cube atlases, and [FrameGraph.addExternal] now has no caller in
+  /// the engine at all.
   ///
   /// Registration order is the version chain, so it is the order the frame used
-  /// to be written in: shadows, the scene, the application's overlays,
+  /// to be written in: the shadow passes, the scene, the application's overlays,
   /// reflections, bloom, the composite. What the graph derives is the *run*
   /// order, and it derives it from the reads and writes rather than from this
   /// list — but two passes with no dependency between them keep the order they
@@ -1450,22 +1485,30 @@ final class Renderer implements RenderServices {
   CompiledFrameGraph _compileFrameGraph(
     RenderView view,
     RenderSettings s, {
+    required _CubeShadowStaticNode cubeStatic,
+    required _CubeShadowNode cube,
     required _ShadowMapNode shadow,
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
   }) {
     final graph = FrameGraph()
-      // The cube atlases are still produced outside the graph — they become two
-      // nodes in the next step — and the scene declares optional reads of them,
-      // so the names have to be known. `hdr_colour` and `surface_buffer` were
-      // here for exactly this reason until this step; the scene writes them now.
-      ..addExternal(FrameResourceIds.cubeShadow)
-      ..addExternal(FrameResourceIds.cubeShadowStatic)
-      // First, and registered whether or not it has anything to draw, for the
-      // reason bloom is: a name has to be *known* for a read of it to compile.
-      // Unregistering it when shadows are off would make the scene's optional
-      // read conditional too, which moves the branch rather than deleting it.
+      // The atlas before the directional map, which is the order they were
+      // submitted in before either was a node. Nothing derives it — they write
+      // different textures and neither reads the other — so registration order
+      // decides, and keeping the old one is what makes this step a pure
+      // restructuring with nothing left to explain if a golden moves.
+      //
+      // The static bake first, because that is the order the frame checked the
+      // two gates in when it ran them by hand: the bake, then the schedule.
+      //
+      // All four are registered whether or not they have anything to draw, for
+      // the reason bloom is: a name has to be *known* for a read of it to
+      // compile. Unregistering one when shadows are off would make the scene's
+      // optional read conditional too, which moves the branch rather than
+      // deleting it.
+      ..addNode(cubeStatic)
+      ..addNode(cube)
       ..addNode(shadow)
       ..addNode(scene);
 
@@ -2203,6 +2246,13 @@ final class Renderer implements RenderServices {
           pass,
           fragmentShader,
           'point_shadow_texture',
+          // The renderer's own field rather than the frame's answer, and this
+          // is the one place in the migrated frame where that is still true.
+          // Two nodes reach this code — the scene and the view model, through
+          // `encodeScene` — and only one of them declares a read of the atlas,
+          // so there is no single node whose `tryTexture` could be asked here.
+          // White where there is no atlas, which reads as "nothing between here
+          // and the light", the same answer an unoccupied row gives.
           _cubeShadow ?? fallbackAlbedo,
           _clampSampler,
         );
@@ -2361,6 +2411,13 @@ final class Renderer implements RenderServices {
   /// [surfaceIsRead] is the graph's answer about the frame that is running, not
   /// a setting: it decides both whether the second attachment is present and
   /// whether the pass may multisample, and those two must agree.
+  ///
+  /// The cube atlases are the exception, and deliberately so: they are bound
+  /// deep in [_encodeNode], which the view model reaches through
+  /// [RenderServices.encodeScene] from a node of its own. Two nodes, one
+  /// binding site, and only one of them declares the read — so the texture is
+  /// taken from the renderer's field there rather than from either node's view
+  /// of the frame. See the note at the binding.
   ///
   ///
   /// [contributors] are handed in rather than looked up. A node that reaches
@@ -2653,67 +2710,43 @@ final class Renderer implements RenderServices {
       _shadowSlots[index * 4] = row.toDouble();
       slot = math.max(slot, row + 1);
     }
+    // Which rows are occupied, and therefore whether the atlas is worth
+    // drawing at all. Decided here rather than inside either atlas node,
+    // because it is what the *frame* knows — both nodes are asked whether they
+    // are active before either one runs.
     _cubeShadowLight = slot > 0 ? slot : -1;
-
-    if (slot > 0 && settings.shadows.enabled && settings.shadows.strength > 0) {
-      _ensureCubeAtlas(settings.shadows.resolution.clamp(128, 1024));
-
-      // Every occupied row, not just the one that changed hands — a pass clears
-      // its whole colour attachment, so redrawing one row erases the rest. The
-      // allocator earns this back by changing at most one row per frame and
-      // only for a light that clearly deserves it.
-      if (assignment.staticDirty || !_staticShadowBaked) {
-        _renderCubeShadow(
-          host: host,
-          scene: scene,
-          settings: settings.shadows,
-          static: true,
-          slotCount: slot,
-        );
-        _staticShadowBaked = true;
-        // After drawing, not after deciding: a flag cleared by the decision
-        // would promise walls that a skipped pass never drew.
-        _shadowSlotAllocator.recordStaticBake();
-      }
-
-      // And everything that moves — but only the faces where what moves has
-      // actually changed. Most frames most casters are standing still, and a
-      // face whose picture would come out the same is a face worth leaving
-      // alone. This is only safe because a tile can be reset by drawing rather
-      // than by clearing the whole atlas.
-      final scheduled = _shadowFaceScheduler
-          .select(_computeFaceSignatures(scene, slot))
-          .toSet();
-      if (scheduled.isNotEmpty) {
-        _renderCubeShadow(
-          host: host,
-          scene: scene,
-          settings: settings.shadows,
-          static: false,
-          slotCount: slot,
-          tiles: scheduled,
-        );
-        _shadowFaceScheduler.recordDrawn();
-      }
-    }
 
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
-    // The whole frame after the cube atlas, ordered by what each pass declares
-    // rather than by where it sits in this method: the shadow map, the world,
-    // the application's overlays, reflections, bloom and the composite. Only
-    // the cube atlas above is still written by hand, and it is the next step.
-    //
-    // Which does move the directional map after the atlas in submission order,
-    // where it used to come first. Nothing reads either before the scene, they
-    // write different textures, and their depth attachments cannot collide in
-    // the pool — one is `resolution` square and the other is six tiles by four.
+    // The whole frame, ordered by what each pass declares rather than by where
+    // it sits in this method: the cube atlas, the shadow map, the world, the
+    // application's overlays, reflections, bloom and the composite. Nothing is
+    // left drawing outside the graph.
     //
     // The scene and the composite hold this frame's views the way reflections
     // holds its own, because neither the view loop nor the overlay batch after
     // the tone map can be derived from `NodeFrame`, which carries neither a
     // scene nor a viewport.
+    //
+    // The atlas nodes hold this frame's row count and the allocator's verdict
+    // on the bake for the same reason, and they take the allocator and the
+    // scheduler by reference rather than owning them: nodes are rebuilt every
+    // frame, and one that owned either would forget what it had drawn and
+    // re-bake for ever.
+    final cubeStaticNode = _CubeShadowStaticNode(
+      this,
+      scene: scene,
+      settings: settings.shadows,
+      slotCount: slot,
+      staticDirty: assignment.staticDirty,
+    );
+    final cubeNode = _CubeShadowNode(
+      this,
+      scene: scene,
+      settings: settings.shadows,
+      slotCount: slot,
+    );
     final shadowNode = _ShadowMapNode(
       this,
       scene: scene,
@@ -2733,6 +2766,8 @@ final class Renderer implements RenderServices {
     final frameGraph = _compileFrameGraph(
       views.first,
       settings,
+      cubeStatic: cubeStaticNode,
+      cube: cubeNode,
       shadow: shadowNode,
       scene: sceneNode,
       bloom: bloomNode,
@@ -3258,6 +3293,183 @@ final class _DeferredTextureSource implements FrameTextureSource {
   void release(gpu.Texture texture) => _renderer._releaseAfterFrame(texture);
 }
 
+/// The baked half of the point-light atlas, as a graph node.
+///
+/// The hardest client the graph has, and the pair of nodes the core API was
+/// meant to be judged against. Four things about them are unlike every other
+/// pass in the frame, and each is what a mechanical migration would have got
+/// wrong.
+///
+/// **Both atlases are external and must stay external.** `cube_shadow_static`
+/// is written once and read for many frames; a pooled texture handed back at
+/// the end of this node would be lent to somebody else and
+/// [ShadowSlotAllocator]'s record of which lights it holds would be an
+/// assertion about a picture that no longer exists. `cube_shadow` is worse: it
+/// is *loaded* rather than cleared, tiles are blanked by drawing over them, and
+/// a tile the scheduler left out deliberately keeps last frame's pixels.
+/// [ShadowFaceScheduler] makes a claim per tile about one specific texture.
+///
+/// **Neither node owns the allocator or the scheduler.** They are renderer
+/// fields taken by reference. Nodes are rebuilt every frame — a node that owned
+/// either would come into every frame having drawn nothing and never stop
+/// re-baking.
+///
+/// **The texture is provided whether or not this frame drew into it**, which is
+/// the opposite of [_ShadowMapNode] and follows from the same reasoning. The
+/// directional map is redrawn from nothing every frame, so a frame that did not
+/// draw has no map. An atlas is a running total: most frames it draws nothing
+/// at all and the pixels still stand for exactly what the scene is about to
+/// sample. What "produced this frame" means is a property of the pass, not of
+/// the graph, and the graph is right not to have an opinion.
+///
+/// **[Renderer._ensureCubeAtlas] is called from here rather than from the
+/// frame**, and from the dynamic node too. It is idempotent, so the second call
+/// costs a comparison; what it buys is that neither node has to assume the
+/// other ran. The one thing the graph could not express in this step is that
+/// two nodes share a prologue: there is no word for "before either of these",
+/// so it is written twice and made cheap instead.
+final class _CubeShadowStaticNode extends RenderNode {
+  _CubeShadowStaticNode(
+    this._renderer, {
+    required this.scene,
+    required this.settings,
+    required this.slotCount,
+    required this.staticDirty,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final ShadowSettings settings;
+
+  /// How many atlas rows are occupied this frame; zero for none.
+  final int slotCount;
+
+  /// The allocator's verdict: a row changed hands, or its owner moved far
+  /// enough that the walls baked for it are walls seen from somewhere else.
+  final bool staticDirty;
+
+  @override
+  String get name => 'point shadows (static)';
+
+  @override
+  bool get isActive =>
+      settings.enabled && settings.strength > 0.0 && slotCount > 0;
+
+  @override
+  List<ResourceId> get writes =>
+      const <ResourceId>[FrameResourceIds.cubeShadowStatic];
+
+  @override
+  void execute(NodeFrame frame) {
+    _renderer._ensureCubeAtlas(settings);
+
+    // Every occupied row, not just the one that changed hands — a pass clears
+    // its whole colour attachment, so redrawing one row erases the rest. The
+    // allocator earns this back by changing at most one row per frame and only
+    // for a light that clearly deserves it.
+    //
+    // `!_staticShadowBaked` is the other half, and it is how a reallocated
+    // atlas gets its walls back: `_ensureCubeAtlas` clears the flag, so the
+    // very next run of this node bakes whatever the new texture needs.
+    if (staticDirty || !_renderer._staticShadowBaked) {
+      _renderer._renderCubeShadow(
+        host: frame.host,
+        resources: frame.resources,
+        scene: scene,
+        settings: settings,
+        static: true,
+        slotCount: slotCount,
+      );
+      _renderer._staticShadowBaked = true;
+      // After drawing, not after deciding: a flag cleared by the decision would
+      // promise walls that a skipped pass never drew.
+      _renderer._shadowSlotAllocator.recordStaticBake();
+    }
+
+    // Non-null: `_ensureCubeAtlas` above allocated it if it did not exist.
+    frame.resources.provide(
+      FrameResourceIds.cubeShadowStatic,
+      _renderer._cubeShadowStatic!,
+    );
+  }
+}
+
+/// The moving half of the point-light atlas, as a graph node.
+///
+/// Everything on [_CubeShadowStaticNode] applies here; this is the one that
+/// actually carries pixels between frames. It redraws only the tiles whose
+/// contents would come out different, and a tile it leaves alone keeps what it
+/// held — which is only safe because a tile is blanked by *drawing* over it
+/// rather than by clearing an attachment the viewport does not bound.
+///
+/// A separate node from the bake rather than one node writing both names,
+/// because they run on completely different schedules: the bake fires when a
+/// row changes hands, and this one fires when something moves. One node would
+/// have had to be active whenever either was, and the profiler would have shown
+/// one pass where the frame has two.
+///
+/// The schedule is chosen *inside* [execute] and not by the frame, and the
+/// order matters: `_ensureCubeAtlas` may have thrown the texture away and reset
+/// the scheduler, and a selection made before that would be a list of tiles
+/// chosen against a texture that no longer exists.
+final class _CubeShadowNode extends RenderNode {
+  _CubeShadowNode(
+    this._renderer, {
+    required this.scene,
+    required this.settings,
+    required this.slotCount,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final ShadowSettings settings;
+  final int slotCount;
+
+  @override
+  String get name => 'point shadows';
+
+  @override
+  bool get isActive =>
+      settings.enabled && settings.strength > 0.0 && slotCount > 0;
+
+  @override
+  List<ResourceId> get writes =>
+      const <ResourceId>[FrameResourceIds.cubeShadow];
+
+  @override
+  void execute(NodeFrame frame) {
+    _renderer._ensureCubeAtlas(settings);
+
+    // Only the faces where what moves has actually changed. Most frames most
+    // casters are standing still, and a face whose picture would come out the
+    // same is a face worth leaving alone.
+    final scheduled = _renderer._shadowFaceScheduler
+        .select(_renderer._computeFaceSignatures(scene, slotCount))
+        .toSet();
+    if (scheduled.isNotEmpty) {
+      _renderer._renderCubeShadow(
+        host: frame.host,
+        resources: frame.resources,
+        scene: scene,
+        settings: settings,
+        static: false,
+        slotCount: slotCount,
+        tiles: scheduled,
+      );
+      _renderer._shadowFaceScheduler.recordDrawn();
+    }
+
+    // Even when nothing was drawn. The tiles hold the pictures earlier frames
+    // put there, and `_cubeFaceMatrices` holds the matrices that drew them —
+    // the two are kept in step precisely so that a frame which draws nothing
+    // still has an atlas worth sampling.
+    frame.resources.provide(
+      FrameResourceIds.cubeShadow,
+      _renderer._cubeShadow!,
+    );
+  }
+}
+
 /// The directional light's shadow map, as a graph node.
 ///
 /// The pass that had to move first, and the reason the scene moved with it:
@@ -3340,9 +3552,10 @@ final class _ShadowMapNode extends RenderNode {
 /// moment shadows were switched off, and no read at all would cull the shadow
 /// passes instead, since nothing would want what they produce.
 ///
-/// `cube_shadow` and `cube_shadow_static` are declared here already even though
-/// nothing on the graph writes them yet — they are external until the atlas
-/// becomes two nodes, and this is the socket those nodes plug into.
+/// All three shadow textures are now written by nodes: `shadow_map` by
+/// [_ShadowMapNode] and the two atlases by [_CubeShadowStaticNode] and
+/// [_CubeShadowNode]. Nothing about this node changed when they arrived, which
+/// is the argument for the socket having been the right shape.
 ///
 /// Unlike [_ReflectionsNode], which is single-view by construction, this draws
 /// **every** ordered view in one pass. A viewport per view, one command buffer,
