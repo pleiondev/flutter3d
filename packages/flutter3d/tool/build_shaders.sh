@@ -24,6 +24,14 @@
 #                          included, in that order. A package that always needs
 #                          the same extra root lists it in shaders/includes.txt
 #                          instead, so the script still runs with no arguments.
+#     -P, --package-include NAME
+#                          `#include <…>` root belonging to another PACKAGE,
+#                          resolved through .dart_tool/package_config.json.
+#                          Use this, not -I, for anything outside your own
+#                          package: a relative path only works while the
+#                          dependency comes from a path, and breaks the day it
+#                          comes from the pub cache. `NAME:subdir` picks a
+#                          subdirectory other than shaders/.
 #         --platform NAME  host artifact directory under
 #                          bin/cache/artifacts/engine (default: detected)
 #
@@ -39,6 +47,7 @@ MANIFEST=""
 OUT=""
 PLATFORM=""
 EXTRA_INCLUDES=()
+PACKAGE_INCLUDES=()
 
 die() { echo "$*" >&2; exit 1; }
 
@@ -48,16 +57,23 @@ while [[ $# -gt 0 ]]; do
     -m|--manifest) MANIFEST="${2:?--manifest needs a path}"; shift 2 ;;
     -o|--out)      OUT="${2:?--out needs a path}"; shift 2 ;;
     -I|--include)  EXTRA_INCLUDES+=("${2:?--include needs a directory}"); shift 2 ;;
+    -P|--package-include)
+                   PACKAGE_INCLUDES+=("${2:?--package-include needs a package name}"); shift 2 ;;
     --platform)    PLATFORM="${2:?--platform needs a name}"; shift 2 ;;
-    -h|--help)     sed -n '2,34p' "$0"; exit 0 ;;
+    -h|--help)     sed -n '2,38p' "$0"; exit 0 ;;
     *)             die "unknown argument: $1 (try --help)" ;;
   esac
 done
 
+# Where this copy of the script lives, resolved before the `cd` below because
+# `$0` may be relative. package_root.dart sits beside it, and a copy of this
+# script in another package finds its own neighbour rather than flutter3d's.
+SCRIPT_HOME="$(cd "$(dirname "$0")" && pwd)"
+
 # The package root defaults to the script's parent, which is what makes a
 # verbatim copy of this file work in another package with no arguments.
 if [[ -z "$PACKAGE" ]]; then
-  PACKAGE="$(cd "$(dirname "$0")/.." && pwd)"
+  PACKAGE="$(cd "$SCRIPT_HOME/.." && pwd)"
 else
   PACKAGE="$(cd "$PACKAGE" && pwd)" || die "no such package directory"
 fi
@@ -130,10 +146,16 @@ fi
 mkdir -p "$(dirname "$OUT")"
 
 # A package that needs a foreign include root records it in
-# shaders/includes.txt, one path per line, relative to the package root. That
-# keeps the invocation argument-free, which is what lets CI build every
-# package's bundle with one loop over `packages/*/tool/build_shaders.sh`
-# instead of a hand-maintained table of flags.
+# shaders/includes.txt, one entry per line. That keeps the invocation
+# argument-free, which is what lets CI build every package's bundle with one
+# loop over `packages/*/tool/build_shaders.sh` instead of a hand-maintained
+# table of flags.
+#
+# An entry is a PACKAGE NAME unless it starts with `.` or `/`, in which case it
+# is a literal path. Package names are the right default: a relative path to a
+# dependency only works while that dependency comes from a path, and an
+# extension installed from pub sits in the cache, where no relative path from
+# the consumer reaches it.
 if [[ -f shaders/includes.txt ]]; then
   while IFS= read -r line; do
     line="${line%%#*}"
@@ -141,14 +163,38 @@ if [[ -f shaders/includes.txt ]]; then
     # quotes and backslashes out of a path that legitimately contains them.
     line="${line#"${line%%[![:space:]]*}"}"
     line="${line%"${line##*[![:space:]]}"}"
-    [[ -n "$line" ]] && EXTRA_INCLUDES+=("$line")
+    [[ -z "$line" ]] && continue
+    case "$line" in
+      .*|/*) EXTRA_INCLUDES+=("$line") ;;
+      *)     PACKAGE_INCLUDES+=("$line") ;;
+    esac
   done < shaders/includes.txt
 fi
+
+# Resolved through package_config.json, which is the only mapping pub
+# guarantees across path, git and hosted dependencies alike. The SDK's own Dart
+# runs it: `rootUri` is a URI — relative for a path dependency, absolute and
+# percent-encoded for the cache — and Uri.resolve implements those rules where
+# shell string-mangling would only approximate them.
+DART="$SDK/bin/cache/dart-sdk/bin/dart"
+RESOLVED_INCLUDES=()
+for entry in ${PACKAGE_INCLUDES+"${PACKAGE_INCLUDES[@]}"}; do
+  name="${entry%%:*}"
+  subdir="shaders"
+  [[ "$entry" == *:* ]] && subdir="${entry#*:}"
+  root="$("$DART" "$SCRIPT_HOME/package_root.dart" "$name" --from "$PACKAGE")" ||
+    die "cannot resolve package '$name'. Is it a dependency, and has 'flutter pub get' run?"
+  RESOLVED_INCLUDES+=("$root/$subdir")
+done
 
 INCLUDES=(--include=shaders)
 for dir in "${EXTRA_INCLUDES[@]}"; do
   [[ -d "$dir" ]] || die "include directory not found: $dir"
   INCLUDES+=("--include=$(cd "$dir" && pwd)")
+done
+for dir in ${RESOLVED_INCLUDES+"${RESOLVED_INCLUDES[@]}"}; do
+  [[ -d "$dir" ]] || die "resolved include directory not found: $dir"
+  INCLUDES+=("--include=$dir")
 done
 INCLUDES+=("--include=$SHADER_LIB")
 
