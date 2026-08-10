@@ -82,5 +82,13 @@
   "ShadowDistance": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance.frag"
+  },
+  "ShadowTileReset": {
+    "type": "fragment",
+    "file": "shaders/lighting/shadow_tile_reset.frag"
+  },
+  "ShadowTileResetVertex": {
+    "type": "vertex",
+    "file": "shaders/lighting/shadow_tile_reset.vert"
   }
 }

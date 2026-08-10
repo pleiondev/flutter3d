@@ -852,6 +852,9 @@ final class Renderer implements PluginServices {
     );
     _cubeShadowTile = tile;
     _staticShadowBaked = false;
+    _cubeShadowCleared = false;
+    _cubeShadowStaticCleared = false;
+    _shadowSlotAllocator.reset();
   }
 
   /// Draws [slotCount] lights' cube faces into one atlas, in one pass.
@@ -874,6 +877,13 @@ final class Renderer implements PluginServices {
 
     final shader = library['ShadowDistance'];
     if (shader == null) return false;
+    final resetShader = library['ShadowTileReset'];
+    final resetVertexShader = library['ShadowTileResetVertex'];
+    if (resetShader == null || resetVertexShader == null) return false;
+
+    // Whether this atlas already holds defined pixels. False exactly once per
+    // texture, right after it is allocated.
+    final cleared = static ? _cubeShadowStaticCleared : _cubeShadowCleared;
 
     final tile = _cubeShadowTile;
     final width = tile * 6;
@@ -894,9 +904,23 @@ final class Renderer implements PluginServices {
       gpu.RenderTarget.singleColor(
         gpu.ColorAttachment(
           texture: static ? _cubeShadowStatic! : _cubeShadow!,
-          // Cleared to the far end: anything no face drew reads as "nothing
-          // between the light and the range", which is the right default for
-          // a direction with no caster in it.
+          // Loaded, not cleared, and each tile reset by drawing over it.
+          //
+          // A clear covers the whole attachment however the viewport is set,
+          // so a pass that clears can only ever refresh every tile — which is
+          // exactly the constraint that has to go before a face can be
+          // refreshed on its own schedule. A draw is bounded by the viewport;
+          // a clear is not. See shadow_tile_reset.frag.
+          //
+          // Except once, into a freshly allocated texture, where a clear is
+          // still the right tool: `devicePrivate` contents start undefined, and
+          // rows nobody owns are never written by anything afterwards. Shading
+          // would not care — the slot table never points at an unowned row —
+          // but `showShadowMap` composites the raw atlas, so leaving them
+          // undefined puts uninitialised memory in the one view used to check
+          // this subsystem. That is how it was caught: `cube-shadow` has one
+          // occupied row of four and 75% of its pixels changed.
+          loadAction: cleared ? gpu.LoadAction.load : gpu.LoadAction.clear,
           clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
           storeAction: gpu.StoreAction.store,
         ),
@@ -951,6 +975,24 @@ final class Renderer implements PluginServices {
           width: tile,
           height: tile,
         ));
+
+        // Blank this tile before drawing into it, since the pass no longer
+        // clears. Depth is still cleared attachment-wide by the pass, so this
+        // only has to write colour — and must not touch depth, or it would
+        // occlude the casters that follow it.
+        pass.setDepthWriteEnable(false);
+        pass.setDepthCompareOperation(gpu.CompareFunction.always);
+        pass.setCullMode(gpu.CullMode.none);
+        pass.bindPipeline(_cubeShadowResetPipeline ??=
+            gpu.gpuContext.createRenderPipeline(
+                resetVertexShader, resetShader));
+        pass.bindVertexBuffer(_fullscreenTriangle, 3);
+        pass.bindIndexBuffer(_identityIndices(3), gpu.IndexType.int32, 3);
+        pass.draw();
+
+        pass.setDepthWriteEnable(true);
+        pass.setDepthCompareOperation(gpu.CompareFunction.less);
+        pass.setCullMode(gpu.CullMode.frontFace);
 
         final (aim, up) = _cubeFaces[face];
         final view = _lookAt(position, position + aim, up);
@@ -1008,6 +1050,11 @@ final class Renderer implements PluginServices {
 
     commandBuffer.submit();
     targetPool.release(depth);
+    if (static) {
+      _cubeShadowStaticCleared = true;
+    } else {
+      _cubeShadowCleared = true;
+    }
     developer.Timeline.finishSync();
     return drawn > 0;
   }
@@ -1094,6 +1141,11 @@ final class Renderer implements PluginServices {
   }
 
   gpu.RenderPipeline? _cubeShadowPipeline;
+  gpu.RenderPipeline? _cubeShadowResetPipeline;
+
+  /// Whether each atlas has been cleared since it was allocated.
+  bool _cubeShadowCleared = false;
+  bool _cubeShadowStaticCleared = false;
   gpu.Texture? _cubeShadow;
   gpu.Texture? _cubeShadowStatic;
   bool _staticShadowBaked = false;
