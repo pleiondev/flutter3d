@@ -2307,6 +2307,15 @@ final class Renderer implements PluginServices {
   /// Returns the pass because the overlay stage is still handed it. It should
   /// not be — see the note there — and it stops being handed on once `inScene`
   /// becomes a contributor to this node.
+  ///
+  /// [contributors] are handed in rather than looked up. A node that reaches
+  /// into a global registry cannot be a node somebody else supplies, which is
+  /// the whole point of the extension model — and the distinction it makes is
+  /// the one the migration keeps running into: a contributor draws *into* this
+  /// pass, so it takes the pass as an argument, while a node *owns* one and
+  /// therefore cannot be handed one. `PluginFrame` is a contributor's context;
+  /// it was never a node's, which is why wrapping this method in a
+  /// `RenderNode.execute(PluginFrame)` does not fit and should not be forced.
   _ScenePass _encodeScene({
     required gpu.HostBuffer host,
     required Scene scene,
@@ -2318,6 +2327,7 @@ final class Renderer implements PluginServices {
     required int shadowCaster,
     required FramePassState passState,
     required int lightOverflowCount,
+    required List<RenderPlugin> contributors,
   }) {
     final hdr = _hdrColor!;
     var culled = 0;
@@ -2475,7 +2485,7 @@ final class Renderer implements PluginServices {
       }
       developer.Timeline.finishSync();
 
-      for (final plugin in plugins.forStage(RenderStage.inScene)) {
+      for (final plugin in contributors) {
         plugin.encode(
           PluginFrame(
             pass: pass,
@@ -2649,6 +2659,8 @@ final class Renderer implements PluginServices {
       shadowCaster: shadowCaster,
       passState: passState,
       lightOverflowCount: lightOverflowCount,
+      contributors:
+          plugins.forStage(RenderStage.inScene).toList(growable: false),
     );
     final pass = scenePass.pass;
     final culled = scenePass.culled;
