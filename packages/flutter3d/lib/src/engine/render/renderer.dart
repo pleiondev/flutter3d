@@ -19,6 +19,7 @@ import 'lighting_model.dart';
 import 'material.dart';
 import 'render_list.dart';
 import 'frame_graph.dart';
+import 'frame_plan.dart';
 import 'render_node.dart';
 import 'render_plugin.dart';
 import 'render_view.dart';
@@ -216,11 +217,28 @@ final class RenderSettings {
   final bool showPointShadowDebug;
 
   /// Whether the scene pass should write the surface buffer at all.
+  /// Whether the scene pass should write the surface buffer at all.
+  ///
+  /// Three flags OR-ed by hand, which is the shape the frame graph exists to
+  /// replace: it is a dependency between passes written as a boolean, and it
+  /// has to be edited every time a feature learns to read the buffer. The
+  /// graph answers the same question by asking whether any surviving pass
+  /// declares a read — see [describeFrame] and [CompiledFrameGraph.isRead],
+  /// which `render()` now uses. Kept because it is public API and because the
+  /// two agreeing is worth being able to check.
   bool get needsSurfaceBuffer =>
       surfaceBuffer ||
       showSurfaceBuffer ||
       showPointShadowDebug ||
       reflections.enabled;
+
+  /// The same question, asked of the frame graph.
+  bool get surfaceBufferIsRead => describeFrame(
+        reflections: reflections.enabled,
+        bloom: bloom.enabled,
+        showSurfaceBuffer: showSurfaceBuffer || showPointShadowDebug,
+        explicitSurfaceBuffer: surfaceBuffer,
+      ).isConsumed(FrameResourceIds.surfaceBuffer);
 
   RenderSettings copyWith({
     double? specular,
@@ -2302,7 +2320,7 @@ final class Renderer implements PluginServices {
     // A golden caught this before any reflection did: surface-buffer sat just
     // outside its tolerance, every differing pixel on an edge, and which
     // pixels differed changed between runs.
-    final msaa = settings.needsSurfaceBuffer ? null : _hdrMsaa;
+    final msaa = settings.surfaceBufferIsRead ? null : _hdrMsaa;
     // The clear colour is authored the way a colour picker shows it, but the
     // scene target holds linear light and the composite pass encodes on the way
     // out. Clearing with the sRGB value directly would send it through the
@@ -2322,7 +2340,7 @@ final class Renderer implements PluginServices {
     // outputs than the target has attachments — the extra is discarded — so
     // the shaders write the surface unconditionally and this decides whether
     // anyone is listening. See RESEARCH.md.
-    final surface = settings.needsSurfaceBuffer ? _surfaceColor : null;
+    final surface = settings.surfaceBufferIsRead ? _surfaceColor : null;
     final surfaceAttachment = surface == null
         ? null
         : (msaa == null

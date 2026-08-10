@@ -77,6 +77,7 @@ final class CompiledFrameGraph {
     this._readers, {
     required this.order,
     required this.culled,
+    required this.outputs,
   });
 
   /// Nodes to execute, earliest first.
@@ -105,6 +106,19 @@ final class CompiledFrameGraph {
   /// Resources this frame touches at all, in no particular order.
   Iterable<ResourceId> get resources =>
       _lastUse.keys.map((name) => ResourceId(name));
+
+  /// What the frame was asked to produce.
+  final List<ResourceId> outputs;
+
+  /// Whether anything consumes [id] — a surviving pass, or the caller.
+  ///
+  /// The question a producer actually wants answered before it allocates. A
+  /// resource read by no pass but requested as a frame output still has to
+  /// exist: an application reading the surface buffer is a consumer the graph
+  /// cannot see, and expressing it as a sink node does not work, because a node
+  /// that writes nothing is unreachable from the outputs and is culled.
+  bool isConsumed(ResourceId id) =>
+      isRead(id) || outputs.any((o) => o.name == id.name);
 
   /// Whether any pass that survived reads [id].
   ///
@@ -325,7 +339,13 @@ final class FrameGraph {
       ],
     };
 
-    return CompiledFrameGraph(lastUse, readers, order: order, culled: culled);
+    return CompiledFrameGraph(
+      lastUse,
+      readers,
+      order: order,
+      culled: culled,
+      outputs: List<ResourceId>.unmodifiable(outputs),
+    );
   }
 
   /// Everything the requested outputs actually depend on.

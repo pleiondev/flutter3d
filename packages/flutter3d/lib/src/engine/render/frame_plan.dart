@@ -76,6 +76,8 @@ CompiledFrameGraph describeFrame({
   bool reflections = false,
   bool bloom = true,
   int overlays = 0,
+  bool showSurfaceBuffer = false,
+  bool explicitSurfaceBuffer = false,
 }) {
   final graph = FrameGraph();
 
@@ -149,12 +151,26 @@ CompiledFrameGraph describeFrame({
   // off the composite still has to run, and with bloom on the bloom pass has
   // to survive. It already treats a missing glow the way the shader does, as
   // an intensity of zero.
-  graph.addNode(const PlannedPass(
+  //
+  // It reads the surface buffer when it is showing it instead of the scene,
+  // which is a debug view and still a reader.
+  graph.addNode(PlannedPass(
     'composite',
-    reads: <ResourceId>[FrameResourceIds.hdrColour],
-    optionalReads: <ResourceId>[FrameResourceIds.bloom],
-    writes: <ResourceId>[FrameResourceIds.frame],
+    reads: const <ResourceId>[FrameResourceIds.hdrColour],
+    optionalReads: <ResourceId>[
+      FrameResourceIds.bloom,
+      if (showSurfaceBuffer) FrameResourceIds.surfaceBuffer,
+    ],
+    writes: const <ResourceId>[FrameResourceIds.frame],
   ));
 
-  return graph.compile(outputs: const <ResourceId>[FrameResourceIds.frame]);
+  // An application that asked for the surface buffer is a consumer the graph
+  // cannot see, so it is a frame output rather than a pass. Writing it as a
+  // sink node does not work: a node that writes nothing is unreachable from
+  // the outputs and gets culled, which the exhaustive agreement test caught
+  // before any of this reached a pixel.
+  return graph.compile(outputs: <ResourceId>[
+    FrameResourceIds.frame,
+    if (explicitSurfaceBuffer) FrameResourceIds.surfaceBuffer,
+  ]);
 }

@@ -18,6 +18,8 @@ void main() {
         overlays: overlays,
       ).order.map((n) => n.name).toList();
 
+  surfaceBufferAgreementTests();
+
   test('the default frame comes out in the order the renderer runs today', () {
     // The check that matters before anything is moved: the graph, given only
     // what each pass touches, arrives at the sequence `render()` currently
@@ -82,9 +84,10 @@ void main() {
       // What `RenderSettings.needsSurfaceBuffer` computes by hand from three
       // flags today. The scene always declares the write; whether a texture is
       // ever asked for is decided by whether a surviving pass reads it.
-      expect(describeFrame().isRead(FrameResourceIds.surfaceBuffer), isFalse);
+      expect(describeFrame().isConsumed(FrameResourceIds.surfaceBuffer), isFalse);
       expect(
-        describeFrame(reflections: true).isRead(FrameResourceIds.surfaceBuffer),
+        describeFrame(reflections: true)
+            .isConsumed(FrameResourceIds.surfaceBuffer),
         isTrue,
       );
     });
@@ -97,5 +100,37 @@ void main() {
       );
       expect(result, <String>['scene', 'composite']);
     });
+  });
+}
+
+/// The plan's answer and the hand-computed one must agree on every
+/// combination, because the renderer now asks the plan and the old getter is
+/// still public API. Four booleans is sixteen cases and they are free to walk,
+/// which is a better argument than picking two and hoping.
+void surfaceBufferAgreementTests() {
+  test('the graph agrees with the flag it replaces, on every combination', () {
+    for (final surfaceBuffer in <bool>[false, true]) {
+      for (final showSurfaceBuffer in <bool>[false, true]) {
+        for (final showPointShadowDebug in <bool>[false, true]) {
+          for (final reflections in <bool>[false, true]) {
+            final byHand = surfaceBuffer ||
+                showSurfaceBuffer ||
+                showPointShadowDebug ||
+                reflections;
+            final byGraph = describeFrame(
+              reflections: reflections,
+              showSurfaceBuffer: showSurfaceBuffer || showPointShadowDebug,
+              explicitSurfaceBuffer: surfaceBuffer,
+            ).isConsumed(FrameResourceIds.surfaceBuffer);
+
+            expect(byGraph, byHand,
+                reason: 'surfaceBuffer=$surfaceBuffer '
+                    'showSurfaceBuffer=$showSurfaceBuffer '
+                    'showPointShadowDebug=$showPointShadowDebug '
+                    'reflections=$reflections');
+          }
+        }
+      }
+    }
   });
 }
