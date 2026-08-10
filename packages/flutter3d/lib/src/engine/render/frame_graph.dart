@@ -50,9 +50,14 @@ final class FrameGraphError extends Error {
   String toString() => 'FrameGraphError: $message';
 }
 
-/// The result: the nodes to run, in order, and what was dropped.
+/// The result: the nodes to run, in order, what was dropped, and how long each
+/// resource has to stay alive.
 final class CompiledFrameGraph {
-  const CompiledFrameGraph({required this.order, required this.culled});
+  const CompiledFrameGraph(
+    this._lastUse, {
+    required this.order,
+    required this.culled,
+  });
 
   /// Nodes to execute, earliest first.
   final List<FrameGraphNode> order;
@@ -63,6 +68,22 @@ final class CompiledFrameGraph {
   /// answerable. A pass that silently stops running is the kind of thing that
   /// gets debugged twice.
   final List<FrameGraphNode> culled;
+
+  final Map<String, int> _lastUse;
+
+  /// The last position in [order] that touches [id], or null if nothing does.
+  ///
+  /// What a texture can be handed back after. Computed here, where the order
+  /// is already known, rather than by the allocator — it is the same arithmetic
+  /// and this is the half that can be tested without a device.
+  ///
+  /// Two passes that never overlap can then share one texture, which is the
+  /// difference between a bloom chain costing five targets and costing two.
+  int? lastUseOf(ResourceId id) => _lastUse[id.name];
+
+  /// Resources this frame touches at all, in no particular order.
+  Iterable<ResourceId> get resources =>
+      _lastUse.keys.map((name) => ResourceId(name));
 }
 
 /// Collects nodes, then works out the frame.
@@ -228,7 +249,17 @@ final class FrameGraph {
         if (!kept.contains(node)) node,
     ];
 
-    return CompiledFrameGraph(order: order, culled: culled);
+    final lastUse = <String, int>{};
+    for (var i = 0; i < order.length; i++) {
+      for (final id in order[i].reads) {
+        lastUse[id.name] = i;
+      }
+      for (final id in order[i].writes) {
+        lastUse[id.name] = i;
+      }
+    }
+
+    return CompiledFrameGraph(lastUse, order: order, culled: culled);
   }
 
   /// Everything the requested outputs actually depend on.

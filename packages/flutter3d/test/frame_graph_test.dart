@@ -222,6 +222,56 @@ void main() {
     });
   });
 
+  group('resource lifetime', () {
+    test('a resource is last used by the last node that touches it', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('write', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('read',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.lastUseOf(bloom), 1);
+      expect(compiled.lastUseOf(final_), 1);
+    });
+
+    test('a resource nothing touches has no lifetime', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('a', writes: <ResourceId>[final_]));
+
+      expect(graph.compile(outputs: <ResourceId>[final_]).lastUseOf(bloom),
+          isNull);
+    });
+
+    test('a culled node does not extend a lifetime', () {
+      // The point of computing this at all: a texture handed back as early as
+      // it can be is a texture the next pass can reuse. A pass that does not
+      // run must not hold one open.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('write', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('wanted',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('ignored',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[depth]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['write', 'wanted']);
+      expect(compiled.lastUseOf(bloom), 1);
+      expect(compiled.resources, isNot(contains(depth)));
+    });
+
+    test('the resource list is what the frame actually touches', () {
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('a',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      expect(graph.compile(outputs: <ResourceId>[final_]).resources,
+          unorderedEquals(<ResourceId>[colour, final_]));
+    });
+  });
+
   test('an empty graph asking for an external resource is not an error', () {
     // The frame that draws nothing but the clear.
     final graph = FrameGraph()..addExternal(colour);
