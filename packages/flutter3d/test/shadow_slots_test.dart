@@ -238,6 +238,8 @@ void main() {
     });
   });
 
+  schedulerTests();
+
   test('no slots at all is not an error', () {
     // The atlas is allocated lazily, so a frame can ask before there is
     // anywhere to put anything.
@@ -248,5 +250,93 @@ void main() {
 
     expect(result.owners, isEmpty);
     expect(result.staticDirty, isFalse);
+  });
+}
+
+void schedulerTests() {
+  group('face scheduling', () {
+    test('a tile never drawn is always selected', () {
+      final scheduler = ShadowFaceScheduler(tileCount: 3);
+      expect(scheduler.select(<int?>[1, 2, 3]), <int>[0, 1, 2]);
+    });
+
+    test('a tile whose contents did not change is left alone', () {
+      final scheduler = ShadowFaceScheduler(tileCount: 3);
+      scheduler.select(<int?>[1, 2, 3]);
+      scheduler.recordDrawn();
+
+      expect(scheduler.select(<int?>[1, 2, 3]), isEmpty);
+    });
+
+    test('only the tile that changed is selected', () {
+      final scheduler = ShadowFaceScheduler(tileCount: 3);
+      scheduler.select(<int?>[1, 2, 3]);
+      scheduler.recordDrawn();
+
+      expect(scheduler.select(<int?>[1, 99, 3]), <int>[1]);
+    });
+
+    test('an unused tile is never selected', () {
+      final scheduler = ShadowFaceScheduler(tileCount: 3);
+      expect(scheduler.select(<int?>[1, null, 3]), <int>[0, 2]);
+    });
+
+    test('deciding does not mark a tile drawn; only recording does', () {
+      final scheduler = ShadowFaceScheduler(tileCount: 2);
+      scheduler.select(<int?>[1, 2]);
+
+      expect(scheduler.select(<int?>[1, 2]), <int>[0, 1],
+          reason: 'a frame can decide and then skip the pass');
+    });
+
+    test('a tile that becomes empty is still redrawn once', () {
+      // The case that makes "skip what did not change" safe: when the last
+      // caster leaves a face, the face still holds its silhouette until
+      // something draws over it.
+      final scheduler = ShadowFaceScheduler(tileCount: 1);
+      scheduler.select(<int?>[42]);
+      scheduler.recordDrawn();
+
+      expect(scheduler.select(<int?>[0]), <int>[0]);
+    });
+
+    group('with a budget', () {
+      test('no more than the budget is selected', () {
+        final scheduler = ShadowFaceScheduler(tileCount: 6, budget: 2);
+        expect(scheduler.select(<int?>[1, 2, 3, 4, 5, 6]).length, 2);
+      });
+
+      test('the tiles left over get their turn next', () {
+        // Starvation is the failure mode: without a moving cursor the first
+        // tiles take every frame's budget and the last light never updates.
+        final scheduler = ShadowFaceScheduler(tileCount: 6, budget: 2);
+        final seen = <int>{};
+        for (var frame = 0; frame < 3; frame++) {
+          final selected = scheduler.select(<int?>[1, 2, 3, 4, 5, 6]);
+          seen.addAll(selected);
+          scheduler.recordDrawn();
+        }
+        expect(seen, <int>{0, 1, 2, 3, 4, 5});
+      });
+
+      test('a budget larger than the work selects only the work', () {
+        final scheduler = ShadowFaceScheduler(tileCount: 2, budget: 9);
+        expect(scheduler.select(<int?>[1, 2]).length, 2);
+      });
+    });
+
+    test('reset forgets what was drawn', () {
+      final scheduler = ShadowFaceScheduler(tileCount: 2);
+      scheduler.select(<int?>[1, 2]);
+      scheduler.recordDrawn();
+      scheduler.reset();
+
+      expect(scheduler.select(<int?>[1, 2]), <int>[0, 1]);
+    });
+
+    test('no tiles at all is not an error', () {
+      final scheduler = ShadowFaceScheduler(tileCount: 0);
+      expect(scheduler.select(<int?>[]), isEmpty);
+    });
   });
 }

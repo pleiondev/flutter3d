@@ -162,6 +162,9 @@ class _SpikePageState extends State<SpikePage>
 
   /// Additional shadow-casting point lights, only for the multi-row golden.
   final List<LightNode> _extraPoints = <LightNode>[];
+
+  /// Frames elapsed, for the golden whose caster has to move. See build().
+  int _moverFrame = 0;
   late final LightNode _spot;
 
   /// A plane under the model, so the shadow has somewhere to land.
@@ -723,6 +726,18 @@ class _SpikePageState extends State<SpikePage>
     final seconds = _elapsed.inMicroseconds / Duration.microsecondsPerSecond;
     if (_spinning) {
       _modelPivot.setRotationYawPitchRoll(seconds * 0.7, 0.0, 0.0);
+    }
+
+    // A caster that moves, for the golden that has to prove a moving shadow
+    // follows it. Driven by a frame count and then held still, not by the
+    // clock: a golden must be identical on the frame it is compared on, which
+    // is why the turntable above is off for every scene. Counting frames and
+    // stopping well before the capture gives motion *and* a settled pose, so
+    // the atlas must have been redrawn after the opening one.
+    if (_golden?.scene.moverFrames case final int frames when frames > 0) {
+      _moverFrame++;
+      final held = _moverFrame < frames ? _moverFrame : frames;
+      _modelPivot.setRotationYawPitchRoll(held * 0.02, 0.0, 0.0);
     }
 
     // The model's own clips advance on the same clock. A delta rather than the

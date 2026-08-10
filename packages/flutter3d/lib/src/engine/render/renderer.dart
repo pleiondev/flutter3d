@@ -855,6 +855,7 @@ final class Renderer implements PluginServices {
     _cubeShadowCleared = false;
     _cubeShadowStaticCleared = false;
     _shadowSlotAllocator.reset();
+    _shadowFaceScheduler.reset();
   }
 
   /// Draws [slotCount] lights' cube faces into one atlas, in one pass.
@@ -871,6 +872,7 @@ final class Renderer implements PluginServices {
     required ShadowSettings settings,
     required bool static,
     required int slotCount,
+    Set<int>? tiles,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (slotCount <= 0) return false;
@@ -962,6 +964,20 @@ final class Renderer implements PluginServices {
       ).toMatrix(1.0);
 
       for (var face = 0; face < _cubeFaces.length; face++) {
+        // The matrix is recorded for every face, drawn or not: the shading
+        // projects through it whatever this frame chose to redraw, and a face
+        // left out of the schedule still holds a picture that has to be read
+        // with the matrix that made it.
+        final (faceAim, faceUp) = _cubeFaces[face];
+        final faceView = _lookAt(position, position + faceAim, faceUp);
+        _cubeMatrix
+          ..setFrom(projection)
+          ..multiply(faceView);
+        final at = (slot * 6 + face) * 16;
+        _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
+
+        if (tiles != null && !tiles.contains(slot * 6 + face)) continue;
+
         // A row of six per light: the face across, the light down.
         pass.setViewport(gpu.Viewport(
           x: face * tile,
@@ -993,18 +1009,6 @@ final class Renderer implements PluginServices {
         pass.setDepthWriteEnable(true);
         pass.setDepthCompareOperation(gpu.CompareFunction.less);
         pass.setCullMode(gpu.CullMode.frontFace);
-
-        final (aim, up) = _cubeFaces[face];
-        final view = _lookAt(position, position + aim, up);
-        _cubeMatrix
-          ..setFrom(projection)
-          ..multiply(view);
-        // Kept so the lighting projects with exactly what drew the face. See
-        // the note in surface.glsl: deriving cube coordinates there instead
-        // would be the same decision made twice, and the two would disagree on
-        // one face.
-        final at = (slot * 6 + face) * 16;
-        _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
 
         for (final node in scene.meshes) {
           if (!node.visibleInHierarchy || !node.castsShadow) continue;
@@ -1086,6 +1090,8 @@ final class Renderer implements PluginServices {
 
   final ShadowSlotAllocator _shadowSlotAllocator =
       ShadowSlotAllocator(slotCount: kShadowedLights);
+  final ShadowFaceScheduler _shadowFaceScheduler =
+      ShadowFaceScheduler(tileCount: kShadowedLights * 6);
   final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
   final vm.Vector3 _shadowEye = vm.Vector3.zero();
 
@@ -1125,6 +1131,103 @@ final class Renderer implements PluginServices {
       ));
     }
   }
+
+  /// What each tile of the dynamic atlas would hold if it were drawn now.
+  ///
+  /// One entry per tile, `slot * 6 + face`, or null where the row is unused.
+  /// Two tiles with the same signature would draw the same picture, which is
+  /// what lets [ShadowFaceScheduler] leave one alone.
+  ///
+  /// Conservative on purpose: a caster is folded into every face whose ninety
+  /// degree frustum its bounding sphere might touch, widened by the sphere's
+  /// angular radius. Naming one face too many costs a redraw of something that
+  /// did not change; naming one too few leaves a stale shadow on screen, and
+  /// those are not the same mistake.
+  List<int?> _computeFaceSignatures(Scene scene, int slotCount) {
+    const int faces = 6;
+    // The half-angle from a face's axis to its corner: a ninety degree square
+    // frustum reaches 45 degrees at the edge and atan(sqrt(2)) at the corner.
+    const double faceHalfAngle = 0.9553166;
+
+    _faceSignatures.length = kShadowedLights * faces;
+    for (var i = 0; i < _faceSignatures.length; i++) {
+      _faceSignatures[i] = null;
+    }
+
+    for (var slot = 0; slot < slotCount; slot++) {
+      final range = _cubeLightData[slot * 4 + 3];
+      if (range <= 0.0) continue;
+      _cubePosition.setValues(
+        _cubeLightData[slot * 4],
+        _cubeLightData[slot * 4 + 1],
+        _cubeLightData[slot * 4 + 2],
+      );
+      // The light's own placement is part of every one of its faces: move the
+      // light and every face of that row draws something different.
+      final base = _bakeKeyFor(_cubePosition, range);
+      for (var face = 0; face < faces; face++) {
+        _faceSignatures[slot * faces + face] = base;
+      }
+
+      for (final node in scene.meshes) {
+        if (!node.visibleInHierarchy || !node.castsShadow) continue;
+        if (node.shadowIsStatic) continue;
+        final mesh = node.mesh;
+        if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+        if (node.skeleton != null) continue;
+
+        final radius = node.worldBoundsRadius;
+        _shadowToCaster
+          ..setFrom(node.worldBoundsCentre)
+          ..sub(_cubePosition);
+        final distance = _shadowToCaster.length;
+        if (distance - radius > range) continue;
+
+        final hash = _casterKeyFor(node);
+        if (distance <= radius || distance < 1e-6) {
+          // The light is inside the caster's sphere, so it may show on any
+          // face. No direction to test against.
+          for (var face = 0; face < faces; face++) {
+            final at = slot * faces + face;
+            _faceSignatures[at] = _mix(_faceSignatures[at]!, hash);
+          }
+          continue;
+        }
+
+        _shadowToCaster.scale(1.0 / distance);
+        final limit =
+            faceHalfAngle + math.asin((radius / distance).clamp(0.0, 1.0));
+        final cosLimit = limit >= math.pi ? -1.0 : math.cos(limit);
+        for (var face = 0; face < faces; face++) {
+          final (aim, _) = _cubeFaces[face];
+          if (_shadowToCaster.dot(aim) < cosLimit) continue;
+          final at = slot * faces + face;
+          _faceSignatures[at] = _mix(_faceSignatures[at]!, hash);
+        }
+      }
+    }
+    return _faceSignatures;
+  }
+
+  /// A caster's contribution to a signature: which node, and where it is.
+  ///
+  /// The whole world matrix, not just the position — the spinning pickup that
+  /// forced the static/dynamic split in the first place changes its silhouette
+  /// without moving its centre, and a signature that missed that would freeze
+  /// its shadow in one pose.
+  static int _casterKeyFor(MeshNode node) {
+    var hash = identityHashCode(node);
+    final m = node.worldMatrix.storage;
+    for (var i = 0; i < 16; i++) {
+      hash = _mix(hash, (m[i] * 1000.0).round());
+    }
+    return hash;
+  }
+
+  static int _mix(int hash, int value) => (hash * 31 + value) & 0x3FFFFFFF;
+
+  final List<int?> _faceSignatures = <int?>[];
+  final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
 
   /// A signature of what a static bake of this light would capture.
   ///
@@ -2111,15 +2214,25 @@ final class Renderer implements PluginServices {
         _shadowSlotAllocator.recordStaticBake();
       }
 
-      // And everything that moves, every frame. A pickup that spins would
-      // otherwise leave its shadow behind in the pose it was baked in.
-      _renderCubeShadow(
-        host: host,
-        scene: scene,
-        settings: settings.shadows,
-        static: false,
-        slotCount: slot,
-      );
+      // And everything that moves — but only the faces where what moves has
+      // actually changed. Most frames most casters are standing still, and a
+      // face whose picture would come out the same is a face worth leaving
+      // alone. This is only safe because a tile can be reset by drawing rather
+      // than by clearing the whole atlas.
+      final scheduled = _shadowFaceScheduler
+          .select(_computeFaceSignatures(scene, slot))
+          .toSet();
+      if (scheduled.isNotEmpty) {
+        _renderCubeShadow(
+          host: host,
+          scene: scene,
+          settings: settings.shadows,
+          static: false,
+          slotCount: slot,
+          tiles: scheduled,
+        );
+        _shadowFaceScheduler.recordDrawn();
+      }
     }
 
     final ordered = List<RenderView>.of(views)

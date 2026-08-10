@@ -29,6 +29,7 @@ final class GoldenScene {
     this.shadowMap = false,
     this.pointShadow = false,
     this.extraPointShadows = 0,
+    this.moverFrames = 0,
   });
 
   /// File name, without an extension, under `test/goldens/`.
@@ -50,6 +51,17 @@ final class GoldenScene {
   /// Makes the scene's first point light a shadow caster, so the cube atlas
   /// has something in it.
   final bool pointShadow;
+
+  /// Frames to turn the model for before holding it still, or zero to leave it
+  /// where it is.
+  ///
+  /// The only motion any golden has. Every scene otherwise freezes the
+  /// turntable, because a golden must render the same on the frame it is
+  /// compared on as on the frame it was recorded — which also meant no golden
+  /// could show a shadow tracking anything, and the atlas only refreshes faces
+  /// whose contents changed. Counting frames rather than reading the clock
+  /// keeps it reproducible; stopping well before the capture keeps it still.
+  final int moverFrames;
 
   /// Extra shadow-casting point lights added around the model, so more than one
   /// row of the atlas is occupied.
@@ -284,6 +296,27 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     shadowMap: true,
     pointShadow: true,
     extraPointShadows: 3,
+  ),
+
+  // A caster that has moved, which nothing else here has.
+  //
+  // Every other scene freezes the turntable so the recorded frame and the
+  // compared frame match, and the consequence went unnoticed: no golden could
+  // show a shadow following anything. That mattered the moment the atlas
+  // started skipping faces whose contents had not changed — a scheduler that
+  // never refreshed anything would leave the opening pose's shadow on the
+  // ground and every static golden would still pass.
+  //
+  // The model turns for sixty frames and then holds, so the capture at frame
+  // ninety is settled, and the shadow on the floor has to be the shadow of the
+  // pose it settled into.
+  const GoldenScene(
+    name: 'cube-shadow-mover',
+    source: 'Teapot',
+    bloom: false,
+    lights: <String>{'fill light'},
+    pointShadow: true,
+    moverFrames: 60,
   ),
 
   // Six casters for four rows, which is the case the allocator exists for.
