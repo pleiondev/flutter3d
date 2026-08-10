@@ -84,6 +84,18 @@ final class CompiledFrameGraph {
   /// Resources this frame touches at all, in no particular order.
   Iterable<ResourceId> get resources =>
       _lastUse.keys.map((name) => ResourceId(name));
+
+  /// What can go back to the pool once the node at [index] has run.
+  ///
+  /// The counterpart of [lastUseOf], and the form the allocator actually wants:
+  /// it walks the order and asks after each step rather than searching for a
+  /// resource's last reader itself. Deliberately still pure — the release
+  /// *decision* is arithmetic and the release *call* touches a device, and
+  /// keeping them apart is what makes the decision testable.
+  List<ResourceId> releasedAfter(int index) => <ResourceId>[
+        for (final entry in _lastUse.entries)
+          if (entry.value == index) ResourceId(entry.key),
+      ];
 }
 
 /// Collects nodes, then works out the frame.

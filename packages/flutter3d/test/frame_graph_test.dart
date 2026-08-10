@@ -272,6 +272,57 @@ void main() {
     });
   });
 
+  group('the release schedule', () {
+    test('releasedAfter names what that step was the last to touch', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('write', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('read',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.releasedAfter(0), isEmpty);
+      expect(compiled.releasedAfter(1),
+          unorderedEquals(<ResourceId>[bloom, final_]));
+    });
+
+    test('an intermediate is released before the frame ends', () {
+      // The saving this exists for: the bloom target goes back to the pool
+      // after the composite reads it, not at the end of the frame, so the next
+      // pass can be handed the same texture.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('bloom', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('present',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.releasedAfter(1), <ResourceId>[bloom]);
+      expect(compiled.releasedAfter(2),
+          unorderedEquals(<ResourceId>[colour, final_]));
+    });
+
+    test('every resource is released exactly once', () {
+      final graph = FrameGraph()
+        ..addExternal(depth)
+        ..addNode(const TestNode('a',
+            reads: <ResourceId>[depth], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('b',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+      final released = <ResourceId>[
+        for (var i = 0; i < compiled.order.length; i++)
+          ...compiled.releasedAfter(i),
+      ];
+
+      expect(released, unorderedEquals(compiled.resources.toList()));
+      expect(released.toSet().length, released.length);
+    });
+  });
+
   test('an empty graph asking for an external resource is not an error', () {
     // The frame that draws nothing but the clear.
     final graph = FrameGraph()..addExternal(colour);
