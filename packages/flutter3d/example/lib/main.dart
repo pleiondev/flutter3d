@@ -371,6 +371,7 @@ class _SpikePageState extends State<SpikePage>
       _fallbackAlbedo = fallback;
       _checkerAlbedo = checker;
       _renderer = Renderer.create(
+        device: GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset),
         fallbackAlbedo: fallback,
         fallbackNormal: SolidColorTexture.flatNormal.upload(),
       );

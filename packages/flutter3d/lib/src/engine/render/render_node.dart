@@ -14,8 +14,7 @@
 /// That is why [NodeFrame] carries no pass. It is not an omission.
 library;
 
-import 'package:flutter_gpu/gpu.dart' as gpu;
-
+import '../graphics/graphics_device.dart';
 import '../graphics/texture.dart';
 import 'frame_graph.dart';
 import 'frame_resources.dart';
@@ -29,7 +28,7 @@ import 'renderer.dart';
 /// the world came out as, and that is a resource rather than a pass.
 final class NodeFrame {
   NodeFrame({
-    required this.host,
+    required this.device,
     required this.resources,
     required this.services,
     required this.state,
@@ -39,7 +38,14 @@ final class NodeFrame {
     this.sceneColor,
   });
 
-  final gpu.HostBuffer host;
+  /// The backend, which is how a node opens the pass it owns.
+  ///
+  /// Where the pass itself would be if a node were a contributor. It arrives as
+  /// a value rather than being reached for, which is what makes a node's
+  /// drawing assertable by a test: hand it a recording device and the pass it
+  /// built, its attachments and its draws are all readable with no GPU in the
+  /// room. See `test/node_encoding_test.dart`.
+  final GraphicsDevice device;
 
   /// The textures behind this frame's declared resources.
   ///

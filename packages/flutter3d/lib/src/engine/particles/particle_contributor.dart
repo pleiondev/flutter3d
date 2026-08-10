@@ -3,11 +3,11 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../gpu/gpu_formats.dart';
+import '../graphics/command_encoder.dart';
 import '../graphics/formats.dart';
+import '../graphics/shader.dart';
 import '../render/pass_contributor.dart';
 import 'particle_system.dart';
 
@@ -68,58 +68,41 @@ final class ParticleContributor extends PassContributor {
       return;
     }
 
-    final pass = frame.pass;
+    final encoder = frame.encoder;
 
     // The mesh draws left their own pipeline and buffers bound, and this one
     // has a different vertex layout.
-    pass.clearBindings();
-    pass.bindPipeline(
-      _pipeline ??= gpu.gpuContext.createRenderPipeline(
-        vertexShader,
-        fragmentShader,
-      ),
+    encoder.clearBindings();
+    encoder.bindPipeline(
+      _pipeline ??= frame.device.createPipeline(vertexShader, fragmentShader),
     );
-    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-    pass.setPolygonMode(PolygonMode.fill.toGpu());
+    encoder.setPrimitiveType(PrimitiveType.triangle);
+    encoder.setPolygonMode(PolygonMode.fill);
     // A quad seen from behind is still a quad; culling one would make half the
     // particles vanish depending on which way the camera turned.
-    pass.setCullMode(CullMode.none.toGpu());
-    pass.setColorBlendEnable(true);
-    pass.setColorBlendEquation(
-      gpu.ColorBlendEquation(
-        colorBlendOperation: BlendOperation.add.toGpu(),
-        sourceColorBlendFactor: BlendFactor.one.toGpu(),
-        destinationColorBlendFactor: BlendFactor.one.toGpu(),
-        alphaBlendOperation: BlendOperation.add.toGpu(),
-        sourceAlphaBlendFactor: BlendFactor.one.toGpu(),
-        destinationAlphaBlendFactor: BlendFactor.one.toGpu(),
-      ),
-    );
+    encoder.setCullMode(CullMode.none);
+    encoder.setBlend(BlendState.additive);
     // Tested against the world, but never written: particles must not occlude
     // each other, and with additive blending they have no business trying.
-    pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(CompareFunction.less.toGpu());
+    encoder.setDepthWrite(false);
+    encoder.setDepthCompare(CompareFunction.less);
 
     final vertexCount = written * 4;
     final indexCount = written * 6;
-    pass.bindVertexBuffer(
-      frame.host.emplace(
-        ByteData.sublistView(
-          vertices,
-          0,
-          written * ParticleSystem.floatsPerParticle,
-        ),
+    encoder.bindVertexData(
+      ByteData.sublistView(
+        vertices,
+        0,
+        written * ParticleSystem.floatsPerParticle,
       ),
       vertexCount,
     );
-    pass.bindIndexBuffer(
-      frame.host.emplace(ByteData.sublistView(indices, 0, indexCount)),
-      IndexType.int32.toGpu(),
+    encoder.bindIndexData(
+      ByteData.sublistView(indices, 0, indexCount),
+      IndexType.int32,
       indexCount,
     );
-    frame.services.bindUniformBlock(
-      pass,
-      frame.host,
+    encoder.bindUniformBlock(
       vertexShader,
       _infoBlock,
       <String, Float32List>{'view_projection': viewProjection.storage},
@@ -138,15 +121,13 @@ final class ParticleContributor extends PassContributor {
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
-    frame.services.bindUniformBlock(
-      pass,
-      frame.host,
+    encoder.bindUniformBlock(
       fragmentShader,
       'FogInfo',
       <String, Float32List>{'fog': _fog, 'eye': _eyeData},
     );
 
-    pass.draw();
+    encoder.draw();
     frame.state.drawCalls++;
 
     // The pipeline tracker describes the mesh pipelines only, and this pass
@@ -160,8 +141,8 @@ final class ParticleContributor extends PassContributor {
   /// Once rather than every frame, because sixty identical lines a second is
   /// how a real message gets scrolled away — and silently is how this bug
   /// survived being written in the first place.
-  gpu.Shader? _shader(ContributorFrame frame, String name) {
-    final shader = frame.services.library[name];
+  ShaderHandle? _shader(ContributorFrame frame, String name) {
+    final shader = frame.device.shaders[name];
     if (shader == null && _missing.add(name)) {
       assert(() {
         debugPrint('ParticleContributor: the shader bundle has no "$name"; '
@@ -177,7 +158,7 @@ final class ParticleContributor extends PassContributor {
   final Float32List _fog = Float32List(4);
   final Float32List _eyeData = Float32List(4);
   final vm.Vector3 _eye = vm.Vector3.zero();
-  gpu.RenderPipeline? _pipeline;
+  PipelineHandle? _pipeline;
   Float32List? _vertices;
   Uint32List? _indices;
   final vm.Vector3 _right = vm.Vector3.zero();

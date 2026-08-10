@@ -3,15 +3,16 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../gpu/gpu_formats.dart';
-import '../gpu/gpu_mesh.dart';
-import '../gpu/gpu_texture.dart';
+import '../graphics/command_encoder.dart';
 import '../graphics/formats.dart';
+import '../geometry/mesh_geometry.dart';
+import '../graphics/geometry_buffer.dart';
+import '../graphics/graphics_device.dart';
 import '../graphics/render_target_pool.dart';
 import '../graphics/sampler.dart';
+import '../graphics/shader.dart';
 import '../graphics/texture.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
@@ -27,6 +28,7 @@ import 'render_list.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
+import 'render_backend.dart';
 import 'render_node.dart';
 import 'pass_contributor.dart';
 import 'render_view.dart';
@@ -606,7 +608,7 @@ final class FrameResult {
 /// angle a few centimetres from the eye is grotesquely distorted at the edges.
 final class Renderer implements RenderServices {
   Renderer._({
-    required this.library,
+    required this.device,
     required this.vertexShader,
     required this.skinnedVertexShader,
     required this.debugLineVertexShader,
@@ -621,12 +623,19 @@ final class Renderer implements RenderServices {
     required this.reflectionShader,
     required this.fallbackAlbedo,
     required this.fallbackNormal,
-    required this.transients,
     required this.msaaEnabled,
-  });
+  }) : targetPool = RenderTargetPool(device);
 
-  @override
-  final gpu.ShaderLibrary library;
+  /// The backend, injected rather than reached for.
+  ///
+  /// The renderer names no graphics API at all: it holds one of these and hands
+  /// the narrower [GraphicsDevice] view of it to every node and contributor. A
+  /// second backend is a second implementation of this and nothing else, and a
+  /// **fake** one is what makes a node's drawing testable off a device.
+  final RenderBackend device;
+
+  /// The bundle's stages, for anything looking one up by name.
+  ShaderLibrary get shaders => device.shaders;
 
   /// What draws alongside the world.
   ///
@@ -648,32 +657,32 @@ final class Renderer implements RenderServices {
 
   bool removeNode(RenderNode node) => nodes.remove(node);
 
-  final gpu.Shader vertexShader;
+  final ShaderHandle vertexShader;
 
   /// The skinned vertex stage. A separate shader because joints and weights are
   /// vertex attributes, and flutter_gpu takes the layout from the `in`
   /// declarations — so a skinned mesh cannot share a shader with a static one
   /// however similar the body is.
-  final gpu.Shader skinnedVertexShader;
+  final ShaderHandle skinnedVertexShader;
 
   /// The debug overlay's own stage pair. Separate from the mesh shaders because
   /// the line buffer has a different vertex layout, and flutter_gpu takes the
   /// layout from the shader's `in` declarations.
-  final gpu.Shader debugLineVertexShader;
-  final gpu.Shader particleVertexShader;
-  final gpu.Shader particleFragmentShader;
-  final gpu.Shader debugLineFragmentShader;
+  final ShaderHandle debugLineVertexShader;
+  final ShaderHandle particleVertexShader;
+  final ShaderHandle particleFragmentShader;
+  final ShaderHandle debugLineFragmentShader;
 
   /// The post-processing stages. All of them share one vertex shader, because a
   /// full-screen pass differs only in its fragment work.
-  final gpu.Shader fullscreenVertexShader;
-  final gpu.Shader bloomThresholdShader;
-  final gpu.Shader bloomDownsampleShader;
-  final gpu.Shader bloomUpsampleShader;
-  final gpu.Shader compositeShader;
+  final ShaderHandle fullscreenVertexShader;
+  final ShaderHandle bloomThresholdShader;
+  final ShaderHandle bloomDownsampleShader;
+  final ShaderHandle bloomUpsampleShader;
+  final ShaderHandle compositeShader;
 
   /// The screen-space reflection pass.
-  final gpu.Shader reflectionShader;
+  final ShaderHandle reflectionShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -688,13 +697,13 @@ final class Renderer implements RenderServices {
 
   final bool msaaEnabled;
 
-  /// Per-frame uniform allocators, rotated rather than reset in place.
+  /// Which slot of the deferred-release ring this frame retires.
   ///
-  /// `CommandBuffer.submit` is asynchronous. Resetting a [gpu.HostBuffer] right
-  /// after submit rewinds a bump allocator the GPU may still be reading, so the
-  /// next frame overwrites live uniforms. The symptom is flickering under load,
-  /// not a crash, which makes it hard to attribute.
-  final List<gpu.HostBuffer> transients;
+  /// The per-frame uniform allocators used to be rotated here too. They belong
+  /// to the backend now — where a uniform's bytes live until the GPU has read
+  /// them is a property of the API, not of the engine — and
+  /// `GraphicsDevice.beginFrame` rotates them. The ring length is the same fact
+  /// twice, which is why it is named once here and once there.
   int _frameIndex = 0;
 
   static const int _kFramesInFlight = 3;
@@ -725,7 +734,7 @@ final class Renderer implements RenderServices {
   final Float32List _material2Data = Float32List(4);
   final Float32List _frameParams = Float32List(4);
 
-  gpu.RenderPipeline? _debugLinePipeline;
+  PipelineHandle? _debugLinePipeline;
 
   /// A 0, 1, 2, … index buffer for the debug overlay.
   ///
@@ -734,7 +743,7 @@ final class Renderer implements RenderServices {
   /// and there is no non-indexed entry point in the API. Keeping the identity
   /// sequence in a device buffer that only grows means the cost is one upload
   /// when the overlay gets bigger, not one per frame.
-  gpu.DeviceBuffer? _debugIndexBuffer;
+  GeometryBuffer? _debugIndexBuffer;
   int _debugIndexCapacity = 0;
 
   /// Pipelines keyed by both stages; creating one compiles and links state on
@@ -744,15 +753,16 @@ final class Renderer implements RenderServices {
   /// added a second vertex stage: with only the fragment name as the key, a
   /// skinned draw would be handed the static pipeline the first PBR draw built,
   /// and the vertex layouts do not match.
-  final Map<String, gpu.RenderPipeline> _pipelineCache =
-      <String, gpu.RenderPipeline>{};
+  final Map<String, PipelineHandle> _pipelineCache =
+      <String, PipelineHandle>{};
 
-  final Map<String, gpu.Shader> _fragmentShaders = <String, gpu.Shader>{};
+  final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
 
   /// Textures reused across frames and across bloom levels.
-  final RenderTargetPool targetPool = RenderTargetPool(
-    const GpuTextureAllocator(),
-  );
+  ///
+  /// The device is the allocator: one rule for every texture in the engine,
+  /// and no second way to make one.
+  final RenderTargetPool targetPool;
 
   int _targetWidth = 0;
   int _targetHeight = 0;
@@ -763,7 +773,7 @@ final class Renderer implements RenderServices {
   TextureHandle? _hdrColor;
   TextureHandle? _hdrMsaa;
   TextureHandle? _ldrColor;
-  gpu.RenderPipeline? _reflectionPipeline;
+  PipelineHandle? _reflectionPipeline;
   final Float32List _reflectionParams = Float32List(4);
   final Float32List _reflectionScreen = Float32List(4);
   final Float32List _reflectionCameraData = Float32List(4);
@@ -783,15 +793,15 @@ final class Renderer implements RenderServices {
   /// bandwidth of every post-processing read.
   static const TextureFormat hdrFormat = TextureFormat.r16g16b16a16Float;
 
-  gpu.RenderPipeline? _shadowPipeline;
-  gpu.RenderPipeline? _skinnedShadowPipeline;
-  gpu.RenderPipeline? _bloomThresholdPipeline;
-  gpu.RenderPipeline? _bloomDownsamplePipeline;
-  gpu.RenderPipeline? _bloomUpsamplePipeline;
-  gpu.RenderPipeline? _compositePipeline;
+  PipelineHandle? _shadowPipeline;
+  PipelineHandle? _skinnedShadowPipeline;
+  PipelineHandle? _bloomThresholdPipeline;
+  PipelineHandle? _bloomDownsamplePipeline;
+  PipelineHandle? _bloomUpsamplePipeline;
+  PipelineHandle? _compositePipeline;
 
   /// Positions and UVs of the one triangle every full-screen pass draws.
-  gpu.DeviceBuffer? _fullscreenVertices;
+  GeometryBuffer? _fullscreenVertices;
 
   /// World space to the shadow camera's clip space, rebuilt each frame the
   /// light or the scene moves.
@@ -811,15 +821,20 @@ final class Renderer implements RenderServices {
   final Float32List _bloomParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
 
+  /// Builds a renderer on [device].
+  ///
+  /// The backend arrives as a value rather than being reached for, which is the
+  /// whole of how a second one will be selected: an application constructs
+  /// `GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset)` and hands it
+  /// over. A compile-time choice could not be faked, and a fake is the only way
+  /// anything below this line is ever exercised without a GPU.
   factory Renderer.create({
+    required RenderBackend device,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
   }) {
-    final library = gpu.ShaderLibrary.fromAsset(bundleAsset);
-    if (library == null) {
-      throw StateError('Failed to load the shader bundle: $bundleAsset');
-    }
-    gpu.Shader require(String name) {
+    final library = device.shaders;
+    ShaderHandle require(String name) {
       final shader = library[name];
       if (shader == null) {
         throw StateError(
@@ -832,7 +847,7 @@ final class Renderer implements RenderServices {
     }
 
     return Renderer._(
-      library: library,
+      device: device,
       vertexShader: require('MeshVertex'),
       skinnedVertexShader: require('MeshSkinnedVertex'),
       debugLineVertexShader: require('DebugLineVertex'),
@@ -847,19 +862,15 @@ final class Renderer implements RenderServices {
       reflectionShader: require('Reflections'),
       fallbackAlbedo: fallbackAlbedo,
       fallbackNormal: fallbackNormal,
-      transients: List<gpu.HostBuffer>.generate(
-        _kFramesInFlight,
-        (_) => gpu.gpuContext.createHostBuffer(),
-      ),
-      msaaEnabled: gpu.gpuContext.doesSupportOffscreenMSAA,
+      msaaEnabled: device.supportsOffscreenMsaa,
     );
   }
 
   int get pipelineCount => _pipelineCache.length;
 
-  gpu.Shader _fragmentShaderFor(LightingModel model) {
+  ShaderHandle _fragmentShaderFor(LightingModel model) {
     return _fragmentShaders.putIfAbsent(model.shaderName, () {
-      final shader = library[model.shaderName];
+      final shader = shaders[model.shaderName];
       if (shader == null) {
         throw StateError(
           'The bundle has no "${model.shaderName}" fragment shader. '
@@ -870,10 +881,10 @@ final class Renderer implements RenderServices {
     });
   }
 
-  gpu.RenderPipeline _pipelineFor(LightingModel model, {required bool skinned}) {
+  PipelineHandle _pipelineFor(LightingModel model, {required bool skinned}) {
     return _pipelineCache.putIfAbsent(
       skinned ? 'skinned/${model.shaderName}' : model.shaderName,
-      () => gpu.gpuContext.createRenderPipeline(
+      () => device.createPipeline(
         skinned ? skinnedVertexShader : vertexShader,
         _fragmentShaderFor(model),
       ),
@@ -885,80 +896,55 @@ final class Renderer implements RenderServices {
 
     final sampleCount = msaaEnabled ? 4 : 1;
 
+    // Straight from the device rather than through the pool: these live for as
+    // long as the window keeps its size, and the pool is for what is acquired
+    // and released within a frame.
+    TextureHandle make(
+      StorageMode storageMode,
+      TextureFormat format, {
+      int sampleCount = 1,
+    }) =>
+        device.createTexture(RenderTargetSpec(
+          width: width,
+          height: height,
+          format: format,
+          sampleCount: sampleCount,
+          storageMode: storageMode,
+        ));
+
     // The scene target is sampled by the composite pass, so it has to be
     // devicePrivate rather than transient — tile memory cannot be read back.
-    _hdrColor = createGpuTexture(
-      StorageMode.devicePrivate,
-      width,
-      height,
-      format: hdrFormat,
-    );
+    _hdrColor = make(StorageMode.devicePrivate, hdrFormat);
 
-    if (msaaEnabled) {
-      // deviceTransient is tile memory: more bandwidth, less memory. Right for
-      // intermediates like the MSAA and depth attachments, never read back.
-      _hdrMsaa = createGpuTexture(
-        StorageMode.deviceTransient,
-        width,
-        height,
-        format: hdrFormat,
-        sampleCount: 4,
-      );
-    } else {
-      _hdrMsaa = null;
-    }
+    // deviceTransient is tile memory: more bandwidth, less memory. Right for
+    // intermediates like the MSAA and depth attachments, never read back.
+    _hdrMsaa = msaaEnabled
+        ? make(StorageMode.deviceTransient, hdrFormat, sampleCount: 4)
+        : null;
 
     // The final image is 8-bit and display-referred; it is what becomes the
     // ui.Image, so there is nothing to gain from more precision here.
-    _ldrColor = createGpuTexture(
-      StorageMode.devicePrivate,
-      width,
-      height,
-      format: defaultColorFormat,
-    );
+    _ldrColor = make(StorageMode.devicePrivate, device.defaultColorFormat);
 
     // The surface buffer: world-space normal and depth, for whatever runs after
     // the scene. Allocated with the rest rather than on demand, because a
     // resize is the only moment any of this is allowed to be reallocated and a
     // buffer that appears mid-session would be the one that is the wrong size.
-    _surfaceColor = createGpuTexture(
-      StorageMode.devicePrivate,
-      width,
-      height,
-      format: hdrFormat,
-    );
-    _reflectionColor = createGpuTexture(
-      StorageMode.devicePrivate,
-      width,
-      height,
-      format: hdrFormat,
-    );
+    _surfaceColor = make(StorageMode.devicePrivate, hdrFormat);
+    _reflectionColor = make(StorageMode.devicePrivate, hdrFormat);
 
     _surfaceMsaa = msaaEnabled
-        ? createGpuTexture(
-            StorageMode.deviceTransient,
-            width,
-            height,
-            format: hdrFormat,
-            sampleCount: 4,
-          )
+        ? make(StorageMode.deviceTransient, hdrFormat, sampleCount: 4)
         : null;
 
-    _depthStencil = createGpuTexture(
+    _depthStencil = make(
       StorageMode.deviceTransient,
-      width,
-      height,
-      format: defaultDepthStencilFormat,
+      device.defaultDepthStencilFormat,
       sampleCount: sampleCount,
     );
 
     _depthStencilSingle = msaaEnabled
-        ? createGpuTexture(
-            StorageMode.deviceTransient,
-            width,
-            height,
-            format: defaultDepthStencilFormat,
-          )
+        ? make(StorageMode.deviceTransient, device.defaultDepthStencilFormat)
         : null;
 
     // Every pooled spec is keyed on size, so after a resize none of them can
@@ -1043,18 +1029,13 @@ final class Renderer implements RenderServices {
     // would stretch one axis of every face.
     final width = tile * 6;
     final height = tile * kShadowedLights;
-    _cubeShadowStatic = createGpuTexture(
-      StorageMode.devicePrivate,
-      width,
-      height,
+    final spec = RenderTargetSpec(
+      width: width,
+      height: height,
       format: hdrFormat,
     );
-    _cubeShadow = createGpuTexture(
-      StorageMode.devicePrivate,
-      width,
-      height,
-      format: hdrFormat,
-    );
+    _cubeShadowStatic = device.createTexture(spec);
+    _cubeShadow = device.createTexture(spec);
     _cubeShadowTile = tile;
     _staticShadowBaked = false;
     _cubeShadowCleared = false;
@@ -1082,7 +1063,6 @@ final class Renderer implements RenderServices {
   /// identical depth specs, so the pool could not have handed back anything
   /// else.
   bool _renderCubeShadow({
-    required gpu.HostBuffer host,
     required FrameResources resources,
     required Scene scene,
     required ShadowSettings settings,
@@ -1093,10 +1073,10 @@ final class Renderer implements RenderServices {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (slotCount <= 0) return false;
 
-    final shader = library['ShadowDistance'];
+    final shader = shaders['ShadowDistance'];
     if (shader == null) return false;
-    final resetShader = library['ShadowTileReset'];
-    final resetVertexShader = library['ShadowTileResetVertex'];
+    final resetShader = shaders['ShadowTileReset'];
+    final resetVertexShader = shaders['ShadowTileResetVertex'];
     if (resetShader == null || resetVertexShader == null) return false;
 
     // Whether this atlas already holds defined pixels. False exactly once per
@@ -1111,17 +1091,16 @@ final class Renderer implements RenderServices {
       RenderTargetSpec(
         width: width,
         height: height,
-        format: defaultDepthStencilFormat,
+        format: device.defaultDepthStencilFormat,
         storageMode: StorageMode.deviceTransient,
       ),
     );
 
     developer.Timeline.startSync('Renderer.cubeShadow');
-    final commandBuffer = gpu.gpuContext.createCommandBuffer();
-    final pass = commandBuffer.createRenderPass(
-      gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(
-          texture: (static ? _cubeShadowStatic! : _cubeShadow!).gpuTexture,
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: static ? _cubeShadowStatic! : _cubeShadow!,
           // Loaded, not cleared, and each tile reset by drawing over it.
           //
           // A clear covers the whole attachment however the viewport is set,
@@ -1138,21 +1117,17 @@ final class Renderer implements RenderServices {
           // undefined puts uninitialised memory in the one view used to check
           // this subsystem. That is how it was caught: `cube-shadow` has one
           // occupied row of four and 75% of its pixels changed.
-          loadAction: (cleared ? LoadAction.load : LoadAction.clear).toGpu(),
+          loadAction: cleared ? LoadAction.load : LoadAction.clear,
           clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
-          storeAction: StoreAction.store.toGpu(),
         ),
-        depthStencilAttachment: gpu.DepthStencilAttachment(
-          texture: depth.gpuTexture,
-          depthClearValue: 1.0,
-        ),
-      ),
-    );
+      ],
+      depth: DepthTarget(texture: depth),
+    ));
 
-    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-    pass.setDepthWriteEnable(true);
-    pass.setDepthCompareOperation(CompareFunction.less.toGpu());
-    pass.setColorBlendEnable(false);
+    pass.setPrimitiveType(PrimitiveType.triangle);
+    pass.setDepthWrite(true);
+    pass.setDepthCompare(CompareFunction.less);
+    pass.setBlend(null);
     final casterCull = switch (settings.casterFaces) {
       // Culling the front faces is what leaves the back ones drawn, and the
       // other way about. The enum is named after what ends up *recorded*
@@ -1162,7 +1137,7 @@ final class Renderer implements RenderServices {
       ShadowCasterFaces.back => CullMode.frontFace,
       ShadowCasterFaces.both => CullMode.none,
     };
-    pass.setCullMode(casterCull.toGpu());
+    pass.setCullMode(casterCull);
 
     final mvp = vm.Matrix4.identity();
     final position = vm.Vector3.zero();
@@ -1204,36 +1179,31 @@ final class Renderer implements RenderServices {
         if (tiles != null && !tiles.contains(slot * 6 + face)) continue;
 
         // A row of six per light: the face across, the light down.
-        pass.setViewport(gpu.Viewport(
+        final tileRect = ScreenRect(
           x: face * tile,
           y: slot * tile,
           width: tile,
           height: tile,
-        ));
-        pass.setScissor(gpu.Scissor(
-          x: face * tile,
-          y: slot * tile,
-          width: tile,
-          height: tile,
-        ));
+        );
+        pass.setViewport(tileRect);
+        pass.setScissor(tileRect);
 
         // Blank this tile before drawing into it, since the pass no longer
         // clears. Depth is still cleared attachment-wide by the pass, so this
         // only has to write colour — and must not touch depth, or it would
         // occlude the casters that follow it.
-        pass.setDepthWriteEnable(false);
-        pass.setDepthCompareOperation(CompareFunction.always.toGpu());
-        pass.setCullMode(CullMode.none.toGpu());
+        pass.setDepthWrite(false);
+        pass.setDepthCompare(CompareFunction.always);
+        pass.setCullMode(CullMode.none);
         pass.bindPipeline(_cubeShadowResetPipeline ??=
-            gpu.gpuContext.createRenderPipeline(
-                resetVertexShader, resetShader));
+            device.createPipeline(resetVertexShader, resetShader));
         pass.bindVertexBuffer(_fullscreenTriangle, 3);
-        pass.bindIndexBuffer(_identityIndices(3), IndexType.int32.toGpu(), 3);
+        pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
         pass.draw();
 
-        pass.setDepthWriteEnable(true);
-        pass.setDepthCompareOperation(CompareFunction.less.toGpu());
-        pass.setCullMode(casterCull.toGpu());
+        pass.setDepthWrite(true);
+        pass.setDepthCompare(CompareFunction.less);
+        pass.setCullMode(casterCull);
 
         for (final node in scene.meshes) {
           if (!node.visibleInHierarchy || !node.castsShadow) continue;
@@ -1242,38 +1212,36 @@ final class Renderer implements RenderServices {
           // once and only a spinning pickup, a monster or a door is redrawn.
           if (node.shadowIsStatic != static) continue;
           final mesh = node.mesh;
-          if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+          if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
           // Static geometry only for now: a skinned caster needs the skinned
           // vertex stage, and a monster's shadow is worth less than getting the
           // walls right first.
           if (node.skeleton != null) continue;
 
           pass.bindPipeline(
-            _cubeShadowPipeline ??=
-                gpu.gpuContext.createRenderPipeline(vertexShader, shader),
+            _cubeShadowPipeline ??= device.createPipeline(vertexShader, shader),
           );
           pass.setWindingOrder(
-            (node.worldIsMirrored
-                    ? WindingOrder.clockwise
-                    : WindingOrder.counterClockwise)
-                .toGpu(),
+            node.worldIsMirrored
+                ? WindingOrder.clockwise
+                : WindingOrder.counterClockwise,
           );
-          pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
+          pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
           pass.bindIndexBuffer(
-            mesh.indexView,
-            mesh.indexType.toGpu(),
+            mesh.indices,
+            mesh.indexType,
             mesh.indexCount,
           );
 
           mvp
             ..setFrom(_cubeMatrix)
             ..multiply(node.worldMatrix);
-          bindUniformBlock(pass, host, vertexShader, _kFrameInfoBlock, {
+          pass.bindUniformBlock(vertexShader, _kFrameInfoBlock, {
             'mvp': mvp.storage,
             'model': node.worldMatrix.storage,
             'normal_matrix': node.worldNormalMatrix.storage,
           });
-          bindUniformBlock(pass, host, shader, 'ShadowLight', {
+          pass.bindUniformBlock(shader, 'ShadowLight', {
             'light': _cubeLight,
           });
           pass.draw();
@@ -1282,7 +1250,7 @@ final class Renderer implements RenderServices {
       }
     }
 
-    commandBuffer.submit();
+    pass.submit();
     if (static) {
       _cubeShadowStaticCleared = true;
     } else {
@@ -1403,7 +1371,7 @@ final class Renderer implements RenderServices {
         if (!node.visibleInHierarchy || !node.castsShadow) continue;
         if (node.shadowIsStatic) continue;
         final mesh = node.mesh;
-        if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+        if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
         if (node.skeleton != null) continue;
 
         final radius = node.worldBoundsRadius;
@@ -1556,8 +1524,8 @@ final class Renderer implements RenderServices {
     return hash;
   }
 
-  gpu.RenderPipeline? _cubeShadowPipeline;
-  gpu.RenderPipeline? _cubeShadowResetPipeline;
+  PipelineHandle? _cubeShadowPipeline;
+  PipelineHandle? _cubeShadowResetPipeline;
 
   /// Whether each atlas has been cleared since it was allocated.
   bool _cubeShadowCleared = false;
@@ -1582,7 +1550,6 @@ final class Renderer implements RenderServices {
   /// here, because a pass the graph culled never runs and would otherwise leave
   /// last frame's numbers standing.
   bool _renderShadowMap({
-    required gpu.HostBuffer host,
     required FrameResources resources,
     required Scene scene,
     required ShadowSettings settings,
@@ -1635,12 +1602,11 @@ final class Renderer implements RenderServices {
     final resolution = settings.resolution.clamp(256, 4096);
     if (_shadowMap == null || _shadowResolution != resolution) {
       // Sampled by the lighting pass, so devicePrivate rather than transient.
-      _shadowMap = createGpuTexture(
-        StorageMode.devicePrivate,
-        resolution,
-        resolution,
+      _shadowMap = device.createTexture(RenderTargetSpec(
+        width: resolution,
+        height: resolution,
         format: hdrFormat,
-      );
+      ));
       _shadowResolution = resolution;
     }
 
@@ -1648,45 +1614,37 @@ final class Renderer implements RenderServices {
       RenderTargetSpec(
         width: resolution,
         height: resolution,
-        format: defaultDepthStencilFormat,
+        format: device.defaultDepthStencilFormat,
         storageMode: StorageMode.deviceTransient,
       ),
     );
 
     developer.Timeline.startSync('Renderer.shadowPass');
-    final commandBuffer = gpu.gpuContext.createCommandBuffer();
-    final pass = commandBuffer.createRenderPass(
-      gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(
-          texture: _shadowMap!.gpuTexture,
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: _shadowMap!,
           // Cleared to the far plane, so anything the pass does not draw reads
           // as "nothing between here and the light".
           clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
-          storeAction: StoreAction.store.toGpu(),
         ),
-        depthStencilAttachment: gpu.DepthStencilAttachment(
-          texture: depth.gpuTexture,
-          depthClearValue: 1.0,
-        ),
-      ),
-    );
+      ],
+      depth: DepthTarget(texture: depth),
+    ));
 
-    pass.setViewport(
-      gpu.Viewport(x: 0, y: 0, width: resolution, height: resolution),
-    );
-    pass.setScissor(
-      gpu.Scissor(x: 0, y: 0, width: resolution, height: resolution),
-    );
-    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-    pass.setDepthWriteEnable(true);
-    pass.setDepthCompareOperation(CompareFunction.less.toGpu());
-    pass.setColorBlendEnable(false);
+    final full = ScreenRect(width: resolution, height: resolution);
+    pass.setViewport(full);
+    pass.setScissor(full);
+    pass.setPrimitiveType(PrimitiveType.triangle);
+    pass.setDepthWrite(true);
+    pass.setDepthCompare(CompareFunction.less);
+    pass.setBlend(null);
     // Front faces culled, so the depth stored is the back of each caster. That
     // moves the comparison surface away from the lit face and removes most of
     // the acne before bias and normal offset have to deal with any.
-    pass.setCullMode(CullMode.frontFace.toGpu());
+    pass.setCullMode(CullMode.frontFace);
 
-    final shadowShader = library['ShadowDepth'];
+    final shadowShader = shaders['ShadowDepth'];
     if (shadowShader == null) {
       developer.Timeline.finishSync();
       return false;
@@ -1707,18 +1665,18 @@ final class Renderer implements RenderServices {
       if (!node.visibleInHierarchy) continue;
       if (!node.castsShadow) continue;
       final mesh = node.mesh;
-      if (mesh is! GpuMesh || mesh.indexCount == 0) continue;
+      if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
 
       final skeleton = node.skeleton;
       final skinned = skeleton != null;
       if (boundSkinned != skinned) {
         pass.bindPipeline(
           skinned
-              ? (_skinnedShadowPipeline ??= gpu.gpuContext.createRenderPipeline(
+              ? (_skinnedShadowPipeline ??= device.createPipeline(
                   skinnedVertexShader,
                   shadowShader,
                 ))
-              : (_shadowPipeline ??= gpu.gpuContext.createRenderPipeline(
+              : (_shadowPipeline ??= device.createPipeline(
                   vertexShader,
                   shadowShader,
                 )),
@@ -1727,15 +1685,14 @@ final class Renderer implements RenderServices {
       }
 
       pass.setWindingOrder(
-        (node.worldIsMirrored
-                ? WindingOrder.clockwise
-                : WindingOrder.counterClockwise)
-            .toGpu(),
+        node.worldIsMirrored
+            ? WindingOrder.clockwise
+            : WindingOrder.counterClockwise,
       );
-      pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
+      pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
       pass.bindIndexBuffer(
-        mesh.indexView,
-        mesh.indexType.toGpu(),
+        mesh.indices,
+        mesh.indexType,
         mesh.indexCount,
       );
 
@@ -1743,14 +1700,14 @@ final class Renderer implements RenderServices {
         ..setFrom(_shadowMatrix)
         ..multiply(node.worldMatrix);
       final stage = skinned ? skinnedVertexShader : vertexShader;
-      bindUniformBlock(pass, host, stage, _kFrameInfoBlock, {
+      pass.bindUniformBlock(stage, _kFrameInfoBlock, {
         'mvp': mvp.storage,
         'model': node.worldMatrix.storage,
         'normal_matrix': node.worldNormalMatrix.storage,
       });
       if (skeleton != null) {
         skeleton.update(node.worldMatrix);
-        bindUniformBlock(pass, host, skinnedVertexShader, _kSkinInfoBlock, {
+        pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
           'joint_matrices': skeleton.matrices,
         });
       }
@@ -1758,7 +1715,7 @@ final class Renderer implements RenderServices {
       _shadowCasters++;
     }
 
-    commandBuffer.submit();
+    pass.submit();
     developer.Timeline.finishSync();
 
     _shadowParams[0] = 1.0 / resolution;
@@ -1799,30 +1756,22 @@ final class Renderer implements RenderServices {
   /// rasterizes the 2x2 fragment quads along it twice. The UVs are authored so
   /// that NDC +1 in Y maps to texture row zero, matching where Metal puts the
   /// origin of a render target.
-  gpu.BufferView get _fullscreenTriangle {
-    final buffer = _fullscreenVertices ??=
-        gpu.gpuContext.createDeviceBufferWithCopy(
-      Float32List.fromList(<double>[
-        -1.0, -1.0, 0.0, 1.0, //
-        3.0, -1.0, 2.0, 1.0, //
-        -1.0, 3.0, 0.0, -1.0, //
-      ]).buffer.asByteData(),
-    );
-    return gpu.BufferView(
-      buffer,
-      offsetInBytes: 0,
-      lengthInBytes: buffer.sizeInBytes,
-    );
-  }
+  GeometryBuffer get _fullscreenTriangle => _fullscreenVertices ??=
+      device.uploadGeometry(
+        Float32List.fromList(<double>[
+          -1.0, -1.0, 0.0, 1.0, //
+          3.0, -1.0, 2.0, 1.0, //
+          -1.0, 3.0, 0.0, -1.0, //
+        ]).buffer.asByteData(),
+      );
 
-  gpu.RenderPipeline _postPipeline(
-    gpu.RenderPipeline? cached,
-    gpu.Shader fragment,
-    void Function(gpu.RenderPipeline) store,
+  PipelineHandle _postPipeline(
+    PipelineHandle? cached,
+    ShaderHandle fragment,
+    void Function(PipelineHandle) store,
   ) {
     if (cached != null) return cached;
-    final pipeline =
-        gpu.gpuContext.createRenderPipeline(fullscreenVertexShader, fragment);
+    final pipeline = device.createPipeline(fullscreenVertexShader, fragment);
     store(pipeline);
     return pipeline;
   }
@@ -1833,58 +1782,52 @@ final class Renderer implements RenderServices {
   /// texture, write a small uniform block, draw three vertices — so it is
   /// written once and parameterized.
   void _drawFullscreen({
-    required gpu.HostBuffer host,
     required TextureHandle target,
-    required gpu.RenderPipeline pipeline,
-    required gpu.Shader fragment,
+    required PipelineHandle pipeline,
+    required ShaderHandle fragment,
     required Map<String, TextureHandle> textures,
     required String uniformBlock,
     required Float32List uniformData,
     required String uniformMember,
   }) {
-    // One command buffer per pass, because Metal allows a single encoder open
-    // at a time and flutter_gpu offers no way to end one. Buffers submitted to
-    // the same queue execute in submission order, which is the ordering these
+    // One encoder per pass, because Metal allows a single encoder open at a
+    // time and flutter_gpu offers no way to end one. Passes submitted to the
+    // same queue execute in submission order, which is the ordering these
     // passes need.
-    final commandBuffer = gpu.gpuContext.createCommandBuffer();
-    final pass = commandBuffer.createRenderPass(
-      gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(
-          texture: target.gpuTexture,
-          // Nothing under a full-screen pass survives it, so clearing is both
-          // correct and cheaper than loading the previous contents.
-          loadAction: LoadAction.dontCare.toGpu(),
-          storeAction: StoreAction.store.toGpu(),
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          // Nothing under a full-screen pass survives it, so discarding what
+          // was there is both correct and cheaper than loading it.
+          loadAction: LoadAction.dontCare,
         ),
-      ),
-    );
+      ],
+    ));
 
-    pass.setViewport(
-      gpu.Viewport(x: 0, y: 0, width: target.width, height: target.height),
-    );
-    pass.setScissor(
-      gpu.Scissor(x: 0, y: 0, width: target.width, height: target.height),
-    );
-    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-    pass.setCullMode(CullMode.none.toGpu());
-    pass.setColorBlendEnable(false);
-    pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(CompareFunction.always.toGpu());
+    final full = ScreenRect.of(target);
+    pass.setViewport(full);
+    pass.setScissor(full);
+    pass.setPrimitiveType(PrimitiveType.triangle);
+    pass.setCullMode(CullMode.none);
+    pass.setBlend(null);
+    pass.setDepthWrite(false);
+    pass.setDepthCompare(CompareFunction.always);
 
     pass.bindPipeline(pipeline);
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
-    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32.toGpu(), 3);
+    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
     textures.forEach((slot, texture) {
-      _bindTexture(pass, fragment, slot, texture, _clampSampler);
+      pass.bindTexture(fragment, slot, texture, sampler: _clampSampler);
     });
 
-    bindUniformBlock(pass, host, fragment, uniformBlock, {
+    pass.bindUniformBlock(fragment, uniformBlock, {
       uniformMember: uniformData,
     });
 
     pass.draw();
-    commandBuffer.submit();
+    pass.submit();
   }
 
   /// Clamped and linear: a post pass reading outside the source would otherwise
@@ -1900,7 +1843,6 @@ final class Renderer implements RenderServices {
   /// those levels are still in flight when this method returns, and handing
   /// them straight back let the pool lend one out while the GPU was reading it.
   void _renderBloom({
-    required gpu.HostBuffer host,
     required FrameResources resources,
     required TextureHandle scene,
     required TextureHandle top,
@@ -1934,7 +1876,6 @@ final class Renderer implements RenderServices {
 
       final isFirst = level == 0;
       _drawFullscreen(
-        host: host,
         target: target,
         pipeline: isFirst
             ? _postPipeline(_bloomThresholdPipeline, bloomThresholdShader,
@@ -1967,11 +1908,7 @@ final class Renderer implements RenderServices {
       _bloomParams[2] = settings.filterRadius;
       _bloomParams[3] = 0.0;
 
-      _drawFullscreenAdditive(
-        host: host,
-        target: into,
-        source: from,
-      );
+      _drawFullscreenAdditive(target: into, source: from);
     }
     developer.Timeline.finishSync();
   }
@@ -1979,91 +1916,45 @@ final class Renderer implements RenderServices {
   /// The upsample step, which differs from every other post pass by blending
   /// rather than replacing.
   void _drawFullscreenAdditive({
-    required gpu.HostBuffer host,
     required TextureHandle target,
     required TextureHandle source,
   }) {
-    final commandBuffer = gpu.gpuContext.createCommandBuffer();
-    final pass = commandBuffer.createRenderPass(
-      gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(
-          texture: target.gpuTexture,
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
           // Load, not clear: the point is to add to what the downsample left.
-          loadAction: LoadAction.load.toGpu(),
-          storeAction: StoreAction.store.toGpu(),
+          loadAction: LoadAction.load,
         ),
-      ),
-    );
+      ],
+    ));
 
-    pass.setViewport(
-      gpu.Viewport(x: 0, y: 0, width: target.width, height: target.height),
-    );
-    pass.setScissor(
-      gpu.Scissor(x: 0, y: 0, width: target.width, height: target.height),
-    );
-    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-    pass.setCullMode(CullMode.none.toGpu());
-    pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(CompareFunction.always.toGpu());
-    pass.setColorBlendEnable(true);
-    pass.setColorBlendEquation(
-      gpu.ColorBlendEquation(
-        sourceColorBlendFactor: BlendFactor.one.toGpu(),
-        destinationColorBlendFactor: BlendFactor.one.toGpu(),
-        sourceAlphaBlendFactor: BlendFactor.one.toGpu(),
-        destinationAlphaBlendFactor: BlendFactor.one.toGpu(),
-      ),
-    );
+    final full = ScreenRect.of(target);
+    pass.setViewport(full);
+    pass.setScissor(full);
+    pass.setPrimitiveType(PrimitiveType.triangle);
+    pass.setCullMode(CullMode.none);
+    pass.setDepthWrite(false);
+    pass.setDepthCompare(CompareFunction.always);
+    pass.setBlend(BlendState.additive);
 
     pass.bindPipeline(
       _postPipeline(_bloomUpsamplePipeline, bloomUpsampleShader,
           (p) => _bloomUpsamplePipeline = p),
     );
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
-    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32.toGpu(), 3);
-    _bindTexture(
-      pass,
+    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
+    pass.bindTexture(
       bloomUpsampleShader,
       _kPostSourceSlot,
       source,
-      _clampSampler,
+      sampler: _clampSampler,
     );
-    bindUniformBlock(pass, host, bloomUpsampleShader, _kBloomInfoBlock, {
+    pass.bindUniformBlock(bloomUpsampleShader, _kBloomInfoBlock, {
       'params': _bloomParams,
     });
     pass.draw();
-    commandBuffer.submit();
-  }
-
-  /// Writes a uniform block using shader reflection, then binds it. Returns false
-  /// when the shader has no such block.
-  ///
-  /// Members the shader never reads are dropped from the reflected block, so they
-  /// are skipped rather than treated as errors: the unlit model legitimately has
-  /// no `light_direction`.
-  @override
-  bool bindUniformBlock(
-    gpu.RenderPass pass,
-    gpu.HostBuffer host,
-    gpu.Shader shader,
-    String blockName,
-    Map<String, Float32List> members,
-  ) {
-    final slot = shader.getUniformSlot(blockName);
-    final size = slot.sizeInBytes;
-    if (size == null || size == 0) return false;
-
-    final data = ByteData(size);
-    members.forEach((name, values) {
-      final offset = slot.getMemberOffsetInBytes(name);
-      if (offset == null) return;
-      for (var i = 0; i < values.length; i++) {
-        data.setFloat32(offset + i * 4, values[i], Endian.host);
-      }
-    });
-
-    pass.bindUniform(slot, host.emplace(data));
-    return true;
+    pass.submit();
   }
 
   /// Renders every view into one target and returns the composited image.
@@ -2080,8 +1971,7 @@ final class Renderer implements RenderServices {
   /// crash rather than a no-op. Two copies of that would eventually disagree,
   /// and the disagreement would arrive as a segfault with no Dart stack.
   void _encodeNode({
-    required gpu.RenderPass pass,
-    required gpu.HostBuffer host,
+    required PassEncoder encoder,
     required MeshNode node,
     required Scene scene,
     required RenderSettings settings,
@@ -2094,7 +1984,7 @@ final class Renderer implements RenderServices {
       // device; only here does it matter that the geometry actually reached
       // the GPU. A CPU-only mesh in a drawn scene is a bug in the caller,
       // not something to skip quietly.
-      if (mesh is! GpuMesh) {
+      if (mesh is! DrawableGeometry) {
         throw StateError(
           'MeshNode "${node.name}" holds ${mesh.runtimeType}, which has no '
           'GPU buffers. Upload it with GpuMesh.upload before drawing it.',
@@ -2105,7 +1995,7 @@ final class Renderer implements RenderServices {
       final skeleton = node.skeleton;
       final skinned = skeleton != null;
       if (state.boundPipeline != material.lighting || state.boundSkinned != skinned) {
-        pass.bindPipeline(
+        encoder.bindPipeline(
           _pipelineFor(material.lighting, skinned: skinned),
         );
         state.boundPipeline = material.lighting;
@@ -2118,37 +2008,31 @@ final class Renderer implements RenderServices {
       final modelMatrix = node.worldMatrix;
       final normalMatrix = node.worldNormalMatrix;
 
-      pass.setWindingOrder(
-        (node.worldIsMirrored
-                ? WindingOrder.clockwise
-                : WindingOrder.counterClockwise)
-            .toGpu(),
+      encoder.setWindingOrder(
+        node.worldIsMirrored
+            ? WindingOrder.clockwise
+            : WindingOrder.counterClockwise,
       );
       final cull = settings.backfaceCulling &&
           !settings.wireframe &&
           !material.doubleSided;
-      pass.setCullMode((cull ? CullMode.backFace : CullMode.none).toGpu());
+      encoder.setCullMode(cull ? CullMode.backFace : CullMode.none);
 
       final blend = material.alphaMode == MaterialAlphaMode.blend;
-      pass.setColorBlendEnable(blend);
-      if (blend) {
-        pass.setColorBlendEquation(gpu.ColorBlendEquation());
-        // Transparent surfaces must not occlude what is behind them.
-        pass.setDepthWriteEnable(false);
-      } else {
-        pass.setDepthWriteEnable(true);
-      }
+      encoder.setBlend(blend ? BlendState.alphaBlend : null);
+      // Transparent surfaces must not occlude what is behind them.
+      encoder.setDepthWrite(!blend);
 
-      pass.bindVertexBuffer(mesh.vertexView, mesh.vertexCount);
-      pass.bindIndexBuffer(
-        mesh.indexView,
-        mesh.indexType.toGpu(),
+      encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
+      encoder.bindIndexBuffer(
+        mesh.indices,
+        mesh.indexType,
         mesh.indexCount,
       );
 
       final activeVertexShader =
           skinned ? skinnedVertexShader : vertexShader;
-      bindUniformBlock(pass, host, activeVertexShader, _kFrameInfoBlock, {
+      encoder.bindUniformBlock(activeVertexShader, _kFrameInfoBlock, {
         'mvp': (viewProjection * modelMatrix).storage,
         'model': modelMatrix.storage,
         'normal_matrix': normalMatrix.storage,
@@ -2159,9 +2043,7 @@ final class Renderer implements RenderServices {
         // the mesh node's own world transform, which is exactly what the
         // renderer is holding at this point.
         skeleton.update(modelMatrix);
-        bindUniformBlock(
-          pass,
-          host,
+        encoder.bindUniformBlock(
           skinnedVertexShader,
           _kSkinInfoBlock,
           {'joint_matrices': skeleton.matrices},
@@ -2234,15 +2116,14 @@ final class Renderer implements RenderServices {
         _pointShadowParams2[2] =
             math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
         _pointShadowParams2[3] = settings.showPointShadowDebug ? 1.0 : 0.0;
-        bindUniformBlock(pass, host, fragmentShader, 'PointShadow', {
+        encoder.bindUniformBlock(fragmentShader, 'PointShadow', {
           'faces': _cubeFaceMatrices,
           'lights': _cubeLightData,
           'slots': _shadowSlots,
           'params': _pointShadowParams,
           'params2': _pointShadowParams2,
         });
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           'point_shadow_texture',
           // Whatever the caller was given by the frame, not the renderer's own
@@ -2254,23 +2135,22 @@ final class Renderer implements RenderServices {
           // White where there is no atlas, which reads as "nothing between here
           // and the light", the same answer an unoccupied row gives.
           shadows.point ?? fallbackAlbedo,
-          _clampSampler,
+          sampler: _clampSampler,
         );
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           'point_shadow_static_texture',
           shadows.pointStatic ?? fallbackAlbedo,
-          _clampSampler,
+          sampler: _clampSampler,
         );
       }
 
-      bindUniformBlock(pass, host, fragmentShader, _kFogInfoBlock, {
+      encoder.bindUniformBlock(fragmentShader, _kFogInfoBlock, {
         'fog': _fogData,
         'eye': _cameraData,
       });
 
-        bindUniformBlock(pass, host, fragmentShader, _kFragInfoBlock, {
+        encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
           // Whole arrays written from their reflected base offset. Impeller
           // reflects the array, not its elements — `lights[0]` comes back
           // null — but the std140 stride for a vec4 array is a flat 16
@@ -2294,60 +2174,54 @@ final class Renderer implements RenderServices {
       // compiler drops a sampler the shader never reads, and binding one
       // Metal does not have is a native crash rather than a no-op.
       if (material.lighting.usesAlbedoTexture) {
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           _kAlbedoTextureSlot,
           material.albedo ?? fallbackAlbedo,
-          material.albedoSampler,
+          sampler: material.albedoSampler,
         );
       }
       if (material.lighting.usesMaterialMaps) {
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           _kNormalTextureSlot,
           material.normal ?? fallbackNormal,
-          material.normalSampler,
+          sampler: material.normalSampler,
         );
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           _kOcclusionTextureSlot,
           material.occlusion ?? fallbackAlbedo,
-          material.occlusionSampler,
+          sampler: material.occlusionSampler,
         );
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           _kEmissiveTextureSlot,
           material.emissiveTexture ?? fallbackAlbedo,
-          material.emissiveSampler,
+          sampler: material.emissiveSampler,
         );
       }
       if (material.lighting.usesShadowMap) {
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           _kShadowTextureSlot,
           // With shadows off the slot still has to be satisfied, and a white
           // texture reads as "nothing between here and the light" — which is
           // also what the zero strength above already guarantees.
           shadows.directional ?? fallbackAlbedo,
-          _clampSampler,
+          sampler: _clampSampler,
         );
       }
       if (material.lighting.usesMetallicRoughnessMap) {
-        _bindTexture(
-          pass,
+        encoder.bindTexture(
           fragmentShader,
           _kMetallicRoughnessTextureSlot,
           material.metallicRoughness ?? fallbackAlbedo,
-          material.metallicRoughnessSampler,
+          sampler: material.metallicRoughnessSampler,
         );
       }
 
-      pass.draw();
+      encoder.draw();
       state.drawCalls++;
   }
 
@@ -2363,8 +2237,7 @@ final class Renderer implements RenderServices {
   /// testing only the leaf draws every weapon at once.
   @override
   void encodeScene({
-    required gpu.RenderPass pass,
-    required gpu.HostBuffer host,
+    required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
     required vm.Vector3 cameraPosition,
@@ -2379,8 +2252,7 @@ final class Renderer implements RenderServices {
     for (final node in scene.meshes) {
       if (!node.visibleInHierarchy) continue;
       _encodeNode(
-        pass: pass,
-        host: host,
+        encoder: encoder,
         node: node,
         scene: scene,
         settings: settings,
@@ -2430,7 +2302,6 @@ final class Renderer implements RenderServices {
   /// therefore cannot be handed one. That is why there are two contexts:
   /// `ContributorFrame` carries a pass and `NodeFrame` does not.
   _ScenePass _encodeScene({
-    required gpu.HostBuffer host,
     required Scene scene,
     required List<RenderView> ordered,
     required RenderSettings settings,
@@ -2465,11 +2336,11 @@ final class Renderer implements RenderServices {
     final clear = _srgbToLinear(ordered.first.clearColor);
 
     final colorAttachment = msaa == null
-        ? gpu.ColorAttachment(texture: hdr.gpuTexture, clearValue: clear)
-        : gpu.ColorAttachment(
-            texture: msaa.gpuTexture,
-            resolveTexture: hdr.gpuTexture,
-            storeAction: StoreAction.multisampleResolve.toGpu(),
+        ? ColorTarget(texture: hdr, clearValue: clear)
+        : ColorTarget(
+            texture: msaa,
+            resolveTexture: hdr,
+            storeAction: StoreAction.multisampleResolve,
             clearValue: clear,
           );
 
@@ -2481,35 +2352,26 @@ final class Renderer implements RenderServices {
     final surfaceAttachment = surface == null
         ? null
         : (msaa == null
-            ? gpu.ColorAttachment(
-                texture: surface.gpuTexture,
+            ? ColorTarget(
+                texture: surface,
                 clearValue: vm.Vector4.zero(),
               )
-            : gpu.ColorAttachment(
-                texture: _surfaceMsaa!.gpuTexture,
-                resolveTexture: surface.gpuTexture,
-                storeAction: StoreAction.multisampleResolve.toGpu(),
+            : ColorTarget(
+                texture: _surfaceMsaa!,
+                resolveTexture: surface,
+                storeAction: StoreAction.multisampleResolve,
                 clearValue: vm.Vector4.zero(),
               ));
 
-    final renderTarget = gpu.RenderTarget(
-      colorAttachments: <gpu.ColorAttachment>[
-        colorAttachment,
-        ?surfaceAttachment,
-      ],
-      depthStencilAttachment: gpu.DepthStencilAttachment(
-        texture: (msaa == null
-                ? (_depthStencilSingle ?? _depthStencil!)
-                : _depthStencil!)
-            .gpuTexture,
-        // Standard depth: clear to the far plane, nearer fragments win.
-        depthClearValue: 1.0,
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[colorAttachment, ?surfaceAttachment],
+      // Standard depth: clear to the far plane, nearer fragments win.
+      depth: DepthTarget(
+        texture: msaa == null
+            ? (_depthStencilSingle ?? _depthStencil!)
+            : _depthStencil!,
       ),
-    );
-
-
-    final commandBuffer = gpu.gpuContext.createCommandBuffer();
-    final pass = commandBuffer.createRenderPass(renderTarget);
+    ));
 
     final cameraPosition = vm.Vector3.zero();
 
@@ -2520,11 +2382,11 @@ final class Renderer implements RenderServices {
       //
       // Viewport and scissor are set explicitly because both default to a
       // zero-sized rect, and nothing in the API complains about drawing into one.
-      pass.setDepthWriteEnable(true);
-      pass.setDepthCompareOperation(CompareFunction.less.toGpu());
-      pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
+      pass.setDepthWrite(true);
+      pass.setDepthCompare(CompareFunction.less);
+      pass.setPrimitiveType(PrimitiveType.triangle);
       pass.setPolygonMode(
-        (settings.wireframe ? PolygonMode.line : PolygonMode.fill).toGpu(),
+        settings.wireframe ? PolygonMode.line : PolygonMode.fill,
       );
 
       final fraction = view.viewportFraction;
@@ -2533,8 +2395,9 @@ final class Renderer implements RenderServices {
       final vw = math.max(1, (fraction.width * width).round());
       final vh = math.max(1, (fraction.height * height).round());
 
-      pass.setViewport(gpu.Viewport(x: vx, y: vy, width: vw, height: vh));
-      pass.setScissor(gpu.Scissor(x: vx, y: vy, width: vw, height: vh));
+      final viewRect = ScreenRect(x: vx, y: vy, width: vw, height: vh);
+      pass.setViewport(viewRect);
+      pass.setScissor(viewRect);
 
       final camera = view.camera;
       final aspect = vw / vh;
@@ -2586,8 +2449,7 @@ final class Renderer implements RenderServices {
         for (var i = 0; i < indices.length; i++) {
           final node = _renderList.itemAt(indices[i]).requireNode;
           _encodeNode(
-            pass: pass,
-            host: host,
+            encoder: pass,
             node: node,
             scene: scene,
             settings: settings,
@@ -2602,8 +2464,8 @@ final class Renderer implements RenderServices {
       for (final plugin in contributors) {
         plugin.encode(
           ContributorFrame(
-            pass: pass,
-            host: host,
+            encoder: pass,
+            device: device,
             services: this,
             state: passState,
             settings: settings,
@@ -2625,7 +2487,7 @@ final class Renderer implements RenderServices {
     // orders command buffers by submission.
     developer.Timeline.startSync('CommandBuffer.submit');
     final stopwatch = Stopwatch()..start();
-    commandBuffer.submit();
+    pass.submit();
     stopwatch.stop();
     developer.Timeline.finishSync();
 
@@ -2654,16 +2516,19 @@ final class Renderer implements RenderServices {
     final frameClock = Stopwatch()..start();
     _ensureTargets(width, height);
 
-    final host = transients[_frameIndex % _kFramesInFlight];
+    // Rotates whatever the backend keeps per frame — on flutter_gpu, the ring
+    // of uniform allocators. Before anything is encoded, and never in the
+    // middle of one.
+    device.beginFrame();
+
     // This slot's textures were handed back a full ring ago, so the GPU is done
-    // with them; the same reasoning that governs the host buffers.
+    // with them; the same reasoning that governs the backend's own ring.
     final expired = _pendingRelease[_frameIndex % _kFramesInFlight];
     for (final texture in expired) {
       targetPool.release(texture);
     }
     expired.clear();
     _frameIndex++;
-    host.reset();
 
 
     // Lights are gathered once up front now, because the shadow pass needs the
@@ -2809,7 +2674,7 @@ final class Renderer implements RenderServices {
         resources.beginNode(i);
         (frameGraph.order[i] as RenderNode).execute(
           NodeFrame(
-            host: host,
+            device: device,
             resources: resources,
             services: this,
             state: passState,
@@ -2840,7 +2705,7 @@ final class Renderer implements RenderServices {
     final scenePass = sceneNode.result!;
     final debugLines = scenePass.debugLines + compositeNode.overlayLines;
 
-    final image = _ldrColor!.gpuTexture.asImage();
+    final image = device.imageOf(_ldrColor!);
     frameClock.stop();
     developer.Timeline.finishSync();
 
@@ -2867,7 +2732,6 @@ final class Renderer implements RenderServices {
   /// writes, and a texture cannot be both. Returns [scene] untouched when the
   /// effect is off, so the chain downstream never branches.
   TextureHandle _encodeReflections({
-    required gpu.HostBuffer host,
     required TextureHandle scene,
     required RenderSettings settings,
     required RenderView view,
@@ -2879,30 +2743,26 @@ final class Renderer implements RenderServices {
     developer.Timeline.startSync('Renderer.reflections');
 
     final target = _reflectionColor!;
-    final commandBuffer = gpu.gpuContext.createCommandBuffer();
-    final pass = commandBuffer.createRenderPass(
-      gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(
-          texture: target.gpuTexture,
-          loadAction: LoadAction.dontCare.toGpu(),
-          storeAction: StoreAction.store.toGpu(),
-        ),
-      ),
-    );
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(texture: target, loadAction: LoadAction.dontCare),
+      ],
+    ));
 
-    pass.setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height));
-    pass.setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height));
-    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-    pass.setCullMode(CullMode.none.toGpu());
-    pass.setColorBlendEnable(false);
-    pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(CompareFunction.always.toGpu());
+    final full = ScreenRect(width: width, height: height);
+    pass.setViewport(full);
+    pass.setScissor(full);
+    pass.setPrimitiveType(PrimitiveType.triangle);
+    pass.setCullMode(CullMode.none);
+    pass.setBlend(null);
+    pass.setDepthWrite(false);
+    pass.setDepthCompare(CompareFunction.always);
     pass.bindPipeline(
       _postPipeline(_reflectionPipeline, reflectionShader,
           (p) => _reflectionPipeline = p),
     );
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
-    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32.toGpu(), 3);
+    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
     final aspect = height == 0 ? 1.0 : width / height;
     final viewProjection = view.camera.viewProjection(aspect);
@@ -2922,19 +2782,20 @@ final class Renderer implements RenderServices {
     _reflectionCameraData[1] = _reflectionCamera.y;
     _reflectionCameraData[2] = _reflectionCamera.z;
 
-    bindUniformBlock(pass, host, reflectionShader, _kReflectionInfoBlock, {
+    pass.bindUniformBlock(reflectionShader, _kReflectionInfoBlock, {
       'view_projection': viewProjection.storage,
       'inverse_view_projection': inverse.storage,
       'camera': _reflectionCameraData,
       'params': _reflectionParams,
       'screen': _reflectionScreen,
     });
-    _bindTexture(pass, reflectionShader, 'scene_texture', scene, _clampSampler);
-    _bindTexture(
-        pass, reflectionShader, 'surface_texture', surface, _clampSampler);
+    pass.bindTexture(reflectionShader, 'scene_texture', scene,
+        sampler: _clampSampler);
+    pass.bindTexture(reflectionShader, 'surface_texture', surface,
+        sampler: _clampSampler);
 
     pass.draw();
-    commandBuffer.submit();
+    pass.submit();
     developer.Timeline.finishSync();
     return target;
   }
@@ -2947,7 +2808,6 @@ final class Renderer implements RenderServices {
   ///
   /// Returns the number of overlay line segments drawn.
   int _encodeComposite({
-    required gpu.HostBuffer host,
     required TextureHandle target,
     required TextureHandle scene,
     required TextureHandle? bloom,
@@ -2959,24 +2819,20 @@ final class Renderer implements RenderServices {
     required int width,
     required int height,
   }) {
-    final commandBuffer = gpu.gpuContext.createCommandBuffer();
-    final pass = commandBuffer.createRenderPass(
-      gpu.RenderTarget.singleColor(
-        gpu.ColorAttachment(
-          texture: target.gpuTexture,
-          loadAction: LoadAction.dontCare.toGpu(),
-          storeAction: StoreAction.store.toGpu(),
-        ),
-      ),
-    );
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(texture: target, loadAction: LoadAction.dontCare),
+      ],
+    ));
 
-    pass.setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height));
-    pass.setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height));
-    pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-    pass.setCullMode(CullMode.none.toGpu());
-    pass.setColorBlendEnable(false);
-    pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(CompareFunction.always.toGpu());
+    final full = ScreenRect(width: width, height: height);
+    pass.setViewport(full);
+    pass.setScissor(full);
+    pass.setPrimitiveType(PrimitiveType.triangle);
+    pass.setCullMode(CullMode.none);
+    pass.setBlend(null);
+    pass.setDepthWrite(false);
+    pass.setDepthCompare(CompareFunction.always);
 
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
@@ -2997,9 +2853,8 @@ final class Renderer implements RenderServices {
           (p) => _compositePipeline = p),
     );
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
-    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32.toGpu(), 3);
-    _bindTexture(
-      pass,
+    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
+    pass.bindTexture(
       compositeShader,
       _kSceneTextureSlot,
       switch (mix.view) {
@@ -3009,27 +2864,26 @@ final class Renderer implements RenderServices {
         CompositeView.surfaceBuffer => surface ?? scene,
         CompositeView.scene => scene,
       },
-      _clampSampler,
+      sampler: _clampSampler,
     );
     // With bloom culled there is still a sampler to satisfy, and the scene
     // itself is the cheapest texture to hand it — [CompositeMix] set the
     // intensity to zero for exactly this case, so its contribution is
     // multiplied out. The two knobs come from one object because nothing in the
     // shader would notice them disagreeing.
-    _bindTexture(
-      pass,
+    pass.bindTexture(
       compositeShader,
       _kBloomTextureSlot,
       mix.usesGlow ? bloom! : scene,
-      _clampSampler,
+      sampler: _clampSampler,
     );
-    bindUniformBlock(pass, host, compositeShader, _kCompositeInfoBlock, {
+    pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, {
       'params': _compositeParams,
     });
     pass.draw();
 
     if (!settings.debug.anyEnabled && settings.highlighted.isEmpty) {
-      commandBuffer.submit();
+      pass.submit();
       return 0;
     }
 
@@ -3038,8 +2892,10 @@ final class Renderer implements RenderServices {
       final fraction = view.viewportFraction;
       final vw = math.max(1, (fraction.width * width).round());
       final vh = math.max(1, (fraction.height * height).round());
+      // The viewport alone, inside a scissor that already covers the whole
+      // frame: the overlay is clipped by the pass, not by the view.
       pass.setViewport(
-        gpu.Viewport(
+        ScreenRect(
           x: (fraction.x * width).round(),
           y: (fraction.y * height).round(),
           width: vw,
@@ -3048,8 +2904,7 @@ final class Renderer implements RenderServices {
       );
 
       if (_encodeDebugLines(
-        pass: pass,
-        host: host,
+        encoder: pass,
         scene: sceneGraph,
         view: view,
         viewProjection: view.camera.viewProjection(vw / vh),
@@ -3059,7 +2914,7 @@ final class Renderer implements RenderServices {
         lines += debugDraw.lineCount;
       }
     }
-    commandBuffer.submit();
+    pass.submit();
     return lines;
   }
 
@@ -3074,62 +2929,47 @@ final class Renderer implements RenderServices {
   /// Returns a human-readable verdict. Costs two 4x4 textures and one draw, and
   /// is only called when asked for.
   Future<String> probeMultipleRenderTargets() async {
-    final probe = library['MrtProbe'];
+    final probe = shaders['MrtProbe'];
     if (probe == null) return 'MRT probe: the bundle has no MrtProbe entry.';
 
     const size = 4;
-    TextureHandle makeTarget() => createGpuTexture(
-          StorageMode.devicePrivate,
-          size,
-          size,
-          format: defaultColorFormat,
-        );
+    TextureHandle makeTarget() => device.createTexture(RenderTargetSpec(
+          width: size,
+          height: size,
+          format: device.defaultColorFormat,
+        ));
 
     final first = makeTarget();
     final second = makeTarget();
 
     try {
-      final commandBuffer = gpu.gpuContext.createCommandBuffer();
-      final pass = commandBuffer.createRenderPass(
-        gpu.RenderTarget(
-          colorAttachments: <gpu.ColorAttachment>[
-            gpu.ColorAttachment(
-              texture: first.gpuTexture,
-              clearValue: vm.Vector4.zero(),
-              storeAction: StoreAction.store.toGpu(),
-            ),
-            gpu.ColorAttachment(
-              texture: second.gpuTexture,
-              clearValue: vm.Vector4.zero(),
-              storeAction: StoreAction.store.toGpu(),
-            ),
-          ],
-        ),
-      );
+      final pass = device.beginRenderPass(RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(texture: first, clearValue: vm.Vector4.zero()),
+          ColorTarget(texture: second, clearValue: vm.Vector4.zero()),
+        ],
+      ));
 
-      pass.setViewport(
-        gpu.Viewport(x: 0, y: 0, width: size, height: size),
-      );
-      pass.setScissor(gpu.Scissor(x: 0, y: 0, width: size, height: size));
-      pass.setPrimitiveType(PrimitiveType.triangle.toGpu());
-      pass.setCullMode(CullMode.none.toGpu());
-      pass.setColorBlendEnable(false);
-      pass.setColorBlendEnable(false, colorAttachmentIndex: 1);
-      pass.setDepthWriteEnable(false);
-      pass.setDepthCompareOperation(CompareFunction.always.toGpu());
+      final full = ScreenRect(width: size, height: size);
+      pass.setViewport(full);
+      pass.setScissor(full);
+      pass.setPrimitiveType(PrimitiveType.triangle);
+      pass.setCullMode(CullMode.none);
+      pass.setBlend(null);
+      pass.setBlend(null, attachment: 1);
+      pass.setDepthWrite(false);
+      pass.setDepthCompare(CompareFunction.always);
 
-      pass.bindPipeline(
-        gpu.gpuContext.createRenderPipeline(fullscreenVertexShader, probe),
-      );
+      pass.bindPipeline(device.createPipeline(fullscreenVertexShader, probe));
       pass.bindVertexBuffer(_fullscreenTriangle, 3);
-      pass.bindIndexBuffer(_identityIndices(3), IndexType.int32.toGpu(), 3);
+      pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
       pass.draw();
-      commandBuffer.submit();
+      pass.submit();
 
       // asImage plus toByteData is the only readback path available: there is
       // no buffer readback in flutter_gpu at all.
-      final a = await first.gpuTexture.asImage().toByteData();
-      final b = await second.gpuTexture.asImage().toByteData();
+      final a = await device.imageOf(first).toByteData();
+      final b = await device.imageOf(second).toByteData();
       if (a == null || b == null) return 'MRT probe: readback returned nothing.';
 
       String describe(ByteData data) =>
@@ -3181,8 +3021,7 @@ final class Renderer implements RenderServices {
   /// the per-frame host buffer, so switching it on costs one buffer write and one
   /// draw call no matter how much it shows.
   bool _encodeDebugLines({
-    required gpu.RenderPass pass,
-    required gpu.HostBuffer host,
+    required PassEncoder encoder,
     required Scene scene,
     required RenderView view,
     required vm.Matrix4 viewProjection,
@@ -3207,68 +3046,42 @@ final class Renderer implements RenderServices {
     developer.Timeline.startSync('DebugDraw.encode');
     // The mesh draws left an index buffer bound; this draw is non-indexed, and
     // a stale index buffer would make it read triangle indices as line vertices.
-    pass.clearBindings();
+    encoder.clearBindings();
 
-    pass.bindPipeline(
-      _debugLinePipeline ??= gpu.gpuContext.createRenderPipeline(
+    encoder.bindPipeline(
+      _debugLinePipeline ??= device.createPipeline(
         debugLineVertexShader,
         debugLineFragmentShader,
       ),
     );
-    pass.setPrimitiveType(PrimitiveType.line.toGpu());
-    pass.setPolygonMode(PolygonMode.fill.toGpu());
-    pass.setCullMode(CullMode.none.toGpu());
-    pass.setColorBlendEnable(false);
+    encoder.setPrimitiveType(PrimitiveType.line);
+    encoder.setPolygonMode(PolygonMode.fill);
+    encoder.setCullMode(CullMode.none);
+    encoder.setBlend(null);
     // Drawn on top of the scene: a bounding box that disappears inside the very
     // object it bounds is not much of a diagnostic.
-    pass.setDepthWriteEnable(false);
-    pass.setDepthCompareOperation(CompareFunction.always.toGpu());
+    encoder.setDepthWrite(false);
+    encoder.setDepthCompare(CompareFunction.always);
 
     final vertexCount = debugDraw.vertexCount;
-    pass.bindVertexBuffer(host.emplace(debugDraw.vertexBytes), vertexCount);
-    pass.bindIndexBuffer(
+    encoder.bindVertexData(debugDraw.vertexBytes, vertexCount);
+    encoder.bindIndexBuffer(
       _identityIndices(vertexCount),
-      IndexType.int32.toGpu(),
+      IndexType.int32,
       vertexCount,
     );
-    bindUniformBlock(pass, host, debugLineVertexShader, _kLineInfoBlock, {
+    encoder.bindUniformBlock(debugLineVertexShader, _kLineInfoBlock, {
       'view_projection': viewProjection.storage,
     });
 
-    pass.draw();
+    encoder.draw();
     developer.Timeline.finishSync();
     return true;
   }
 
-  /// Binds one texture slot, defaulting the sampler to linear-repeat.
-  void _bindTexture(
-    gpu.RenderPass pass,
-    gpu.Shader shader,
-    String slot,
-    TextureHandle texture,
-    SamplerOptions? sampler,
-  ) {
-    // Tile memory cannot be sampled, and the backend's own assertion for this
-    // fires from inside `bindTexture` with no idea which slot or which pass.
-    // The handle carries the storage mode, so the engine can say it here, where
-    // the slot name is in scope and the message names the mistake.
-    assert(
-      texture.storageMode != StorageMode.deviceTransient,
-      'the "$slot" slot was handed a deviceTransient texture, which lives in '
-      'tile memory and can only ever be an attachment',
-    );
-    pass.bindTexture(
-      shader.getUniformSlot(slot),
-      texture.gpuTexture,
-      sampler: (sampler ?? _defaultSampler).toGpu(),
-    );
-  }
-
-  static const SamplerOptions _defaultSampler = SamplerOptions.linearRepeat;
-
   /// A view over the identity index sequence, growing the backing buffer when
   /// the overlay outgrows it.
-  gpu.BufferView _identityIndices(int count) {
+  GeometryBuffer _identityIndices(int count) {
     if (count > _debugIndexCapacity) {
       var capacity = math.max(_debugIndexCapacity * 2, 1024);
       while (capacity < count) {
@@ -3278,16 +3091,10 @@ final class Renderer implements RenderServices {
       for (var i = 0; i < capacity; i++) {
         indices[i] = i;
       }
-      _debugIndexBuffer = gpu.gpuContext.createDeviceBufferWithCopy(
-        indices.buffer.asByteData(),
-      );
+      _debugIndexBuffer = device.uploadGeometry(indices.buffer.asByteData());
       _debugIndexCapacity = capacity;
     }
-    return gpu.BufferView(
-      _debugIndexBuffer!,
-      offsetInBytes: 0,
-      lengthInBytes: count * 4,
-    );
+    return _debugIndexBuffer!.slice(length: count * 4);
   }
 }
 
@@ -3395,7 +3202,6 @@ final class _CubeShadowStaticNode extends RenderNode {
     // very next run of this node bakes whatever the new texture needs.
     if (staticDirty || !_renderer._staticShadowBaked) {
       _renderer._renderCubeShadow(
-        host: frame.host,
         resources: frame.resources,
         scene: scene,
         settings: settings,
@@ -3472,7 +3278,6 @@ final class _CubeShadowNode extends RenderNode {
         .toSet();
     if (scheduled.isNotEmpty) {
       _renderer._renderCubeShadow(
-        host: frame.host,
         resources: frame.resources,
         scene: scene,
         settings: settings,
@@ -3553,7 +3358,6 @@ final class _ShadowMapNode extends RenderNode {
   @override
   void execute(NodeFrame frame) {
     final drew = _renderer._renderShadowMap(
-      host: frame.host,
       resources: frame.resources,
       scene: scene,
       settings: settings,
@@ -3686,7 +3490,6 @@ final class _SceneNode extends RenderNode {
     }
 
     result = _renderer._encodeScene(
-      host: frame.host,
       scene: scene,
       ordered: ordered,
       settings: frame.settings,
@@ -3734,7 +3537,6 @@ final class _ReflectionsNode extends RenderNode {
   @override
   void execute(NodeFrame frame) {
     final lit = _renderer._encodeReflections(
-      host: frame.host,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       settings: frame.settings,
       view: _view,
@@ -3781,7 +3583,6 @@ final class _BloomNode extends RenderNode {
   @override
   void execute(NodeFrame frame) {
     _renderer._renderBloom(
-      host: frame.host,
       resources: frame.resources,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       top: frame.resources.texture(FrameResourceIds.bloom),
@@ -3858,7 +3659,6 @@ final class _CompositeNode extends RenderNode {
     // finds the picture rather than nothing.
     frame.resources.provide(FrameResourceIds.frame, target);
     overlayLines = _renderer._encodeComposite(
-      host: frame.host,
       target: target,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       bloom: frame.resources.tryTexture(FrameResourceIds.bloom),

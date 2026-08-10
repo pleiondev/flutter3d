@@ -1,11 +1,11 @@
 import 'dart:developer' as developer;
 
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../gpu/gpu_formats.dart';
-import '../gpu/gpu_texture.dart';
+import '../graphics/command_encoder.dart';
 import '../graphics/formats.dart';
+import '../graphics/graphics_device.dart';
+import '../graphics/render_target_pool.dart';
 import '../graphics/texture.dart';
 import '../scene/camera_node.dart';
 import '../scene/scene.dart';
@@ -80,30 +80,26 @@ final class ViewModelNode extends RenderNode {
     // image back into it, which the API does not offer — and a weapon is a
     // handful of large, close triangles whose silhouette is mostly off screen,
     // the one case where the resolve buys least.
-    final target = gpu.RenderTarget.singleColor(
-      gpu.ColorAttachment(
-        texture: hdr.gpuTexture,
-        loadAction: LoadAction.load.toGpu(),
-      ),
-      depthStencilAttachment: gpu.DepthStencilAttachment(
+    final encoder = frame.device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(texture: hdr, loadAction: LoadAction.load),
+        ],
         // Its own depth, not the scene's: attachments in one target must agree
         // on sample count, and the scene's is four-sample whenever MSAA is on.
-        texture: _depthFor(width, height).gpuTexture,
         // Cleared, so nothing in the world can occlude what is in the player's
         // hands.
-        depthClearValue: 1.0,
+        depth: DepthTarget(texture: _depthFor(frame.device, width, height)),
       ),
     );
 
-    final buffer = gpu.gpuContext.createCommandBuffer();
-    final encoder = buffer.createRenderPass(target);
-
+    final full = ScreenRect(width: width, height: height);
     encoder
-      ..setViewport(gpu.Viewport(x: 0, y: 0, width: width, height: height))
-      ..setScissor(gpu.Scissor(x: 0, y: 0, width: width, height: height))
-      ..setDepthWriteEnable(true)
-      ..setDepthCompareOperation(CompareFunction.less.toGpu())
-      ..setPrimitiveType(PrimitiveType.triangle.toGpu());
+      ..setViewport(full)
+      ..setScissor(full)
+      ..setDepthWrite(true)
+      ..setDepthCompare(CompareFunction.less)
+      ..setPrimitiveType(PrimitiveType.triangle);
 
     // Nothing is bound in a new pass, so the state has to forget what the
     // scene pass left it believing.
@@ -113,8 +109,7 @@ final class ViewModelNode extends RenderNode {
     camera.readWorldPosition(_cameraPosition);
 
     frame.services.encodeScene(
-      pass: encoder,
-      host: frame.host,
+      encoder: encoder,
       scene: scene,
       viewProjection: camera.viewProjection(aspect),
       cameraPosition: _cameraPosition,
@@ -131,20 +126,25 @@ final class ViewModelNode extends RenderNode {
       ),
     );
 
-    buffer.submit();
+    encoder.submit();
     developer.Timeline.finishSync();
   }
 
-  TextureHandle _depthFor(int width, int height) {
+  /// The pass's own depth buffer, made on demand and kept until the size
+  /// changes.
+  ///
+  /// From the device it was handed rather than from a global, which is what
+  /// lets this node run against a fake.
+  TextureHandle _depthFor(GraphicsDevice device, int width, int height) {
     if (_depth != null && _depthWidth == width && _depthHeight == height) {
       return _depth!;
     }
-    _depth = createGpuTexture(
-      StorageMode.deviceTransient,
-      width,
-      height,
-      format: defaultDepthStencilFormat,
-    );
+    _depth = device.createTexture(RenderTargetSpec(
+      width: width,
+      height: height,
+      format: device.defaultDepthStencilFormat,
+      storageMode: StorageMode.deviceTransient,
+    ));
     _depthWidth = width;
     _depthHeight = height;
     return _depth!;

@@ -3,6 +3,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../geometry/geometry.dart';
 import '../graphics/formats.dart';
+import '../graphics/geometry_buffer.dart';
 
 /// GPU-resident counterpart of a [MeshData].
 ///
@@ -11,7 +12,7 @@ import '../graphics/formats.dart';
 /// dropping the last reference to a [GpuMesh] is what frees it. Real resource
 /// lifetime management (ref counting, deferred release while the GPU may still
 /// be reading) belongs in the RHI layer, not here.
-final class GpuMesh implements MeshGeometry {
+final class GpuMesh implements MeshGeometry, DrawableGeometry {
   GpuMesh._({
     required this.vertexBuffer,
     required this.indexBuffer,
@@ -31,6 +32,7 @@ final class GpuMesh implements MeshGeometry {
   @override
   final int indexCount;
 
+  @override
   final IndexType indexType;
 
   /// Object-space bounds, kept for culling and for framing the camera.
@@ -69,14 +71,21 @@ final class GpuMesh implements MeshGeometry {
     return extent.length;
   }
 
-  gpu.BufferView get vertexView => gpu.BufferView(
-        vertexBuffer,
+  /// This mesh's vertices, as the encoder takes them.
+  ///
+  /// A [GeometryBuffer] rather than the backend's own view type, so that the
+  /// renderer's draw loop names no backend at all — it asks a mesh for
+  /// [DrawableGeometry] and gets these.
+  @override
+  GeometryBuffer get vertices => GeometryBuffer(
+        backend: vertexBuffer,
         offsetInBytes: 0,
         lengthInBytes: vertexBuffer.sizeInBytes,
       );
 
-  gpu.BufferView get indexView => gpu.BufferView(
-        indexBuffer,
+  @override
+  GeometryBuffer get indices => GeometryBuffer(
+        backend: indexBuffer,
         offsetInBytes: 0,
         lengthInBytes: indexBuffer.sizeInBytes,
       );

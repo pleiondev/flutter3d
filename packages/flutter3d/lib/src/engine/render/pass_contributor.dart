@@ -1,8 +1,7 @@
-import 'dart:typed_data';
-
-import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
+import '../graphics/command_encoder.dart';
+import '../graphics/graphics_device.dart';
 import '../graphics/texture.dart';
 import '../scene/scene.dart';
 import 'lighting_model.dart';
@@ -80,30 +79,16 @@ final class SceneShadows {
 
 /// What the renderer lends a contributor or a node.
 ///
-/// Narrow on purpose. A plugin needs the shaders it was compiled against, a
-/// way to fill a uniform block without reimplementing the reflection dance,
-/// and — for anything drawing meshes rather than its own vertex format — the
-/// renderer's own node encoder. Everything else it brings itself.
+/// One method, and that is the whole of it now. It used to carry two more —
+/// the shader bundle and a uniform-block writer — and both were really
+/// questions for the *backend*: a bundle is where a `ShaderHandle` comes from,
+/// and how a uniform block reaches the GPU is a lifetime rule of one API. They
+/// live on [GraphicsDevice] and `CommandEncoder` respectively, so what is left
+/// here is the one thing only the renderer can answer.
 ///
 /// An interface rather than the [Renderer] class so a plugin cannot reach past
 /// what it was offered, and so a test can drive one without a GPU context.
 abstract interface class RenderServices {
-  /// The compiled shader bundle, for a plugin building its own pipeline.
-  gpu.ShaderLibrary get library;
-
-  /// Fills [blockName] from [members] and binds it.
-  ///
-  /// False when the block does not exist or reflects as empty, which is the
-  /// phantom-binding trap: the compiler drops a block nothing reads, and
-  /// binding it anyway takes the process down with no Dart stack.
-  bool bindUniformBlock(
-    gpu.RenderPass pass,
-    gpu.HostBuffer host,
-    gpu.Shader shader,
-    String blockName,
-    Map<String, Float32List> members,
-  );
-
   /// Draws every visible mesh of [scene], as the renderer draws the world.
   ///
   /// For a plugin whose content is ordinary geometry in an unordinary place —
@@ -117,8 +102,7 @@ abstract interface class RenderServices {
   /// anything at all is what left the view model sampling an atlas it had never
   /// declared.
   void encodeScene({
-    required gpu.RenderPass pass,
-    required gpu.HostBuffer host,
+    required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
     required vm.Vector3 cameraPosition,
@@ -137,8 +121,8 @@ abstract interface class RenderServices {
 /// stopped being expressible.
 final class ContributorFrame {
   ContributorFrame({
-    required this.pass,
-    required this.host,
+    required this.encoder,
+    required this.device,
     required this.services,
     required this.state,
     required this.settings,
@@ -149,8 +133,17 @@ final class ContributorFrame {
   });
 
   /// The pass being built. Drawing into it is the point.
-  final gpu.RenderPass pass;
-  final gpu.HostBuffer host;
+  ///
+  /// A [PassEncoder] and not a `CommandEncoder`, so it cannot be submitted:
+  /// this pass belongs to whoever opened it, and a contributor that ended it
+  /// would take every draw after its own with it. That distinction used to be a
+  /// comment.
+  final PassEncoder encoder;
+
+  /// The backend, for a contributor that builds its own pipeline out of the
+  /// bundle's stages. Passed as a value; there is no global to reach for.
+  final GraphicsDevice device;
+
   final RenderServices services;
   final FramePassState state;
   final RenderSettings settings;

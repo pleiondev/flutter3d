@@ -1,5 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
+import '../graphics/formats.dart';
+import '../graphics/geometry_buffer.dart';
 import 'mesh_data.dart';
 
 /// What the scene needs to know about a mesh, without knowing where it lives.
@@ -31,6 +33,30 @@ abstract interface class MeshGeometry {
 
   /// Radius of the sphere around the bounds centre, used to frame a camera.
   double get boundingRadius;
+}
+
+/// A mesh that has reached the device and can therefore be drawn.
+///
+/// A subtype of [MeshGeometry] rather than a separate interface, which is not
+/// bookkeeping: the renderer's draw loops hold a [MeshGeometry] and ask whether
+/// it is drawable, and Dart promotes an `is` test only towards a subtype.
+///
+/// It exists so that the renderer names no backend for the sake of one `is`
+/// check. It used to test for `GpuMesh` — the flutter_gpu class — which meant
+/// the engine's central draw loop knew which backend it was on, and would have
+/// gone on knowing when the backend became a package of its own.
+///
+/// Nothing here is CPU-readable: the buffers are opaque handles, and
+/// [MeshGeometry.source] is still where triangles come from when anything needs
+/// them.
+abstract interface class DrawableGeometry implements MeshGeometry {
+  /// Interleaved vertex attributes, in the layout the vertex stage declares.
+  GeometryBuffer get vertices;
+
+  GeometryBuffer get indices;
+
+  /// The width of one index. Chosen at upload from the vertex count.
+  IndexType get indexType;
 }
 
 /// A mesh that lives only on the CPU.

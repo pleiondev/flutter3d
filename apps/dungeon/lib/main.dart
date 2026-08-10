@@ -218,6 +218,7 @@ class _GameScreenState extends State<GameScreen>
 
     try {
       _renderer = Renderer.create(
+        device: GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset),
         fallbackAlbedo: SolidColorTexture.white.upload(),
         fallbackNormal: SolidColorTexture.flatNormal.upload(),
       );
