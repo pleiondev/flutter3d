@@ -17,6 +17,7 @@ library;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import 'frame_graph.dart';
+import 'frame_resources.dart';
 import 'pass_contributor.dart';
 import 'renderer.dart';
 
@@ -28,6 +29,7 @@ import 'renderer.dart';
 final class NodeFrame {
   NodeFrame({
     required this.host,
+    required this.resources,
     required this.services,
     required this.state,
     required this.settings,
@@ -37,6 +39,14 @@ final class NodeFrame {
   });
 
   final gpu.HostBuffer host;
+
+  /// The textures behind this frame's declared resources.
+  ///
+  /// Handed in rather than held by the node, which is not a style choice: the
+  /// node has to exist before the graph can be compiled, and the resources
+  /// cannot exist until it is. A node that stored them could not be built.
+  final FrameResources resources;
+
   final RenderServices services;
 
   /// Counters the whole frame shares. A node that binds its own pipeline must

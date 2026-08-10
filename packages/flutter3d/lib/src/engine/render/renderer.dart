@@ -20,6 +20,7 @@ import 'material.dart';
 import 'render_list.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
+import 'frame_resources.dart';
 import 'render_node.dart';
 import 'pass_contributor.dart';
 import 'render_view.dart';
@@ -1436,27 +1437,27 @@ final class Renderer implements RenderServices {
   /// is a handful of nodes; if that ever shows up in a profile it is a cache
   /// keyed on the registry's contents, not a reason to keep the ordering by
   /// hand.
-  /// This frame's nodes, in the order the graph derives.
+  /// The passes after the scene, ordered by what each declares.
   ///
-  /// Rebuilt per frame because the set can change between frames and the cost
-  /// is a handful of nodes; if that ever shows up in a profile it is a cache
-  /// keyed on the registry's contents, not a reason to keep the ordering by
-  /// hand.
-  List<RenderNode> _orderedNodes() {
-    final registered = nodes.all;
-    if (registered.isEmpty) return const <RenderNode>[];
+  /// Built per frame because the set depends on settings and on what the
+  /// application registered, and because a node holds this frame's arguments.
+  /// The scene and the shadow passes are not nodes yet, so the lit colour is
+  /// external here — produced above by code rather than by a node.
+  CompiledFrameGraph _compilePostGraph(RenderView view, RenderSettings s) {
+    final graph = FrameGraph()
+      ..addExternal(FrameResourceIds.hdrColour)
+      ..addExternal(FrameResourceIds.surfaceBuffer);
 
-    final graph = FrameGraph()..addExternal(FrameResourceIds.hdrColour);
-    for (final node in registered) {
+    for (final node in nodes.all) {
       graph.addNode(node);
     }
+    if (s.reflections.enabled) {
+      graph.addNode(_ReflectionsNode(this, view));
+    }
 
-    return <RenderNode>[
-      for (final node in graph
-          .compile(outputs: const <ResourceId>[FrameResourceIds.hdrColour])
-          .order)
-        node as RenderNode,
-    ];
+    return graph.compile(
+      outputs: const <ResourceId>[FrameResourceIds.hdrColour],
+    );
   }
 
   /// A signature of what a static bake of this light would capture.
@@ -2644,6 +2645,12 @@ final class Renderer implements RenderServices {
       }
     }
 
+    // Reflections, the overlays and everything after them, ordered by what
+    // each declares rather than by where it sits in this method. The scene and
+    // the shadow passes have not moved yet, so `hdr_colour` is external here —
+    // produced by code above rather than by a node.
+    final postGraph = _compilePostGraph(views.first, settings);
+
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
@@ -2680,31 +2687,37 @@ final class Renderer implements RenderServices {
     // pass, so they are contributions to a node rather than nodes, and the
     // graph has no word for that. That is the first thing the migration found,
     // and it is the next piece of design rather than a line to force here.
-    for (final node in _orderedNodes()) {
-      node.execute(
+    // The frame's own resources, and the first thing to use them: the graph
+    // names the lit scene, this holds whichever texture is currently behind
+    // that name. Reflections move it; see [FrameResources.rebind].
+    final resources = FrameResources(
+      source: _DeferredTextureSource(this),
+      graph: postGraph,
+      frameWidth: width,
+      frameHeight: height,
+    )
+      ..provide(FrameResourceIds.hdrColour, hdr)
+      ..provide(FrameResourceIds.surfaceBuffer, _surfaceColor ?? hdr)
+      ..provide(FrameResourceIds.frame, _ldrColor!);
+
+    for (var i = 0; i < postGraph.order.length; i++) {
+      (postGraph.order[i] as RenderNode).execute(
         NodeFrame(
           host: host,
+          resources: resources,
           services: this,
           state: passState,
           settings: settings,
           width: width,
           height: height,
-          sceneColor: hdr,
+          sceneColor: resources.texture(FrameResourceIds.hdrColour),
         ),
       );
+      resources.endNode(i);
     }
 
-    // Before bloom, because a reflection is scene light and the bloom should
-    // pick up a bright one — a reflected torch that does not glow reads as a
-    // sticker on the floor.
-    final lit = _encodeReflections(
-      host: host,
-      scene: hdr,
-      settings: settings,
-      view: views.first,
-      width: width,
-      height: height,
-    );
+    // The lit scene, whichever texture that turned out to be.
+    final lit = resources.texture(FrameResourceIds.hdrColour);
 
     final bloom = _renderBloom(
       host: host,
@@ -3170,6 +3183,71 @@ final class Renderer implements RenderServices {
       offsetInBytes: 0,
       lengthInBytes: count * 4,
     );
+  }
+}
+
+/// Textures for a frame, from the pool, released a ring of frames later.
+///
+/// The deferring is the point — see [FrameTextureSource]. Handing a texture
+/// straight back while the GPU is still reading it is a defect that shows up
+/// as an intermittent wrong picture and never as an error.
+final class _DeferredTextureSource implements FrameTextureSource {
+  const _DeferredTextureSource(this._renderer);
+
+  final Renderer _renderer;
+
+  @override
+  gpu.Texture acquire(RenderTargetSpec spec) =>
+      _renderer.targetPool.acquire(spec);
+
+  @override
+  void release(gpu.Texture texture) => _renderer._releaseAfterFrame(texture);
+}
+
+/// Screen-space reflections, as a graph node.
+///
+/// Internal rather than something an application registers: it is one of the
+/// engine's own passes, and the migration is moving them onto the same
+/// interface an extension uses. If the interface cannot carry the engine's own
+/// work it will not carry anybody else's either.
+///
+/// It reads the lit scene and writes it back — a link in the chain, not a
+/// consumer of one — and it reads the surface buffer, which is what makes the
+/// buffer get attached at all. That read is the whole of what
+/// `RenderSettings.needsSurfaceBuffer` used to compute by hand.
+final class _ReflectionsNode extends RenderNode {
+  _ReflectionsNode(this._renderer, this._view);
+
+  final Renderer _renderer;
+  final RenderView _view;
+
+  @override
+  String get name => 'reflections';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+        FrameResourceIds.hdrColour,
+        FrameResourceIds.surfaceBuffer,
+      ];
+
+  @override
+  List<ResourceId> get writes =>
+      const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {
+    final lit = _renderer._encodeReflections(
+      host: frame.host,
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+      settings: frame.settings,
+      view: _view,
+      width: frame.width,
+      height: frame.height,
+    );
+    // The pass produced a *different* texture rather than editing the one it
+    // was given, so the name has to follow the result. See
+    // [FrameResources.rebind].
+    frame.resources.rebind(FrameResourceIds.hdrColour, lit);
   }
 }
 

@@ -181,6 +181,32 @@ final class FrameResources {
     return texture;
   }
 
+  /// Points [id] at a different texture from here on.
+  ///
+  /// The graph tracks logical resources; this tracks which texture currently
+  /// holds each. They come apart whenever a pass that *modifies* a resource
+  /// writes its result somewhere else — screen-space reflections read the lit
+  /// scene and produce a second texture rather than editing the first, and
+  /// every ping-pong effect does the same. The name has to keep meaning "the
+  /// lit scene" while the texture behind it changes.
+  ///
+  /// A real frame graph answers this with versioning: each write makes a new
+  /// version and a reader gets whichever is current at its position. That is
+  /// the better answer and it is a change to the scheduler — the one part
+  /// already carrying thirty-one tests and due to be frozen once the migration
+  /// lands. Rebinding gets the same result for a chain, costs nothing, and
+  /// stays out of the scheduler; versioning can replace it later without any
+  /// caller noticing.
+  ///
+  /// The texture that was there is **not** released: it may be the frame's own
+  /// colour target, which this layer never owned.
+  void rebind(ResourceId id, gpu.Texture texture) {
+    _live[id.name] = texture;
+    // Whatever is behind the name now, this layer did not acquire it, so it
+    // must not hand it back either.
+    _external.add(id.name);
+  }
+
   /// Hands back whatever the node at [index] was the last to touch.
   void endNode(int index) {
     for (final id in graph.releasedAfter(index)) {
