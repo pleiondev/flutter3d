@@ -18,6 +18,8 @@ import 'debug_draw.dart';
 import 'lighting_model.dart';
 import 'material.dart';
 import 'render_list.dart';
+import 'frame_graph.dart';
+import 'render_node.dart';
 import 'render_plugin.dart';
 import 'render_view.dart';
 import 'shadow_slots.dart';
@@ -1402,6 +1404,37 @@ final class Renderer implements PluginServices {
   final List<int?> _faceSignatures = <int?>[];
   final vm.Vector3 _shadowToCaster = vm.Vector3.zero();
 
+  /// This frame's overlay plugins, in the order the graph derives.
+  ///
+  /// Rebuilt per frame because the set can change between frames and the cost
+  /// is a handful of nodes; if that ever shows up in a profile it is a cache
+  /// keyed on the registry's contents, not a reason to keep the ordering by
+  /// hand.
+  List<RenderPlugin> _orderedOverlays() {
+    final overlays =
+        plugins.forStage(RenderStage.overlayScene).toList(growable: false);
+    if (overlays.isEmpty) return const <RenderPlugin>[];
+
+    const sceneColour = ResourceId('scene_colour');
+    final graph = FrameGraph()..addExternal(sceneColour);
+    for (var i = 0; i < overlays.length; i++) {
+      graph.addNode(PluginNode(
+        overlays[i],
+        // Indexed because two overlays of one type are legitimate and node
+        // names have to tell them apart.
+        name: 'overlay $i ${overlays[i].runtimeType}',
+        reads: const <ResourceId>[sceneColour],
+        writes: const <ResourceId>[sceneColour],
+      ));
+    }
+
+    return <RenderPlugin>[
+      for (final node in graph.compile(outputs: const <ResourceId>[sceneColour])
+          .order)
+        (node as PluginNode).plugin,
+    ];
+  }
+
   /// A signature of what a static bake of this light would capture.
   ///
   /// Quantised to a centimetre, because a light that drifts by a hair has not
@@ -2546,7 +2579,21 @@ final class Renderer implements PluginServices {
     stopwatch.stop();
     developer.Timeline.finishSync();
 
-    for (final plugin in plugins.forStage(RenderStage.overlayScene)) {
+    // Ordered by the frame graph rather than by the registry. This stage is a
+    // real node — it runs after the scene's command buffer is submitted and
+    // builds its own pass — so it is the one that could move first.
+    //
+    // Every overlay reads the scene colour and writes it back, so the graph
+    // chains them in registration order, which is what the registry did. The
+    // point is not that the order changed; it is that it is now derived from
+    // what each pass says it touches, and that culling and diagnostics come
+    // with it.
+    //
+    // `inScene` has not moved and cannot yet: both stages draw into the *same*
+    // pass, so they are contributions to a node rather than nodes, and the
+    // graph has no word for that. That is the first thing the migration found,
+    // and it is the next piece of design rather than a line to force here.
+    for (final plugin in _orderedOverlays()) {
       plugin.encode(
         PluginFrame(
           // A stage that owns its pass builds its own; this is the scene pass
