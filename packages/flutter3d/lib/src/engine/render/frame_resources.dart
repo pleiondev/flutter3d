@@ -92,6 +92,42 @@ final class ResourceDesc {
   }
 }
 
+/// Where a frame's textures come from, and where they go back to.
+///
+/// An interface rather than a [RenderTargetPool] because **a texture cannot go
+/// straight back to the pool when the last pass stops reading it.** The GPU is
+/// still working through this frame's command buffers; handing the texture
+/// back immediately lets the pool lend it to the next acquirer while the
+/// hardware is reading it, and the result is an intermittent wrong picture —
+/// the hardest kind of defect to trace back to its cause.
+///
+/// The renderer already knew this and defers releases by a full ring of frames
+/// in flight. [FrameResources] released straight to the pool until the shadow
+/// passes were read closely enough to notice, which is the argument for
+/// reading working code before replacing it.
+abstract interface class FrameTextureSource {
+  gpu.Texture acquire(RenderTargetSpec spec);
+
+  /// Gives a texture up. The implementation decides *when* it is safe to reuse.
+  void release(gpu.Texture texture);
+}
+
+/// A source that returns textures to the pool at once.
+///
+/// For tests and for anything that is not inside a frame in flight. Using this
+/// from a renderer is the bug described on [FrameTextureSource].
+final class ImmediateTextureSource implements FrameTextureSource {
+  const ImmediateTextureSource(this.pool);
+
+  final RenderTargetPool pool;
+
+  @override
+  gpu.Texture acquire(RenderTargetSpec spec) => pool.acquire(spec);
+
+  @override
+  void release(gpu.Texture texture) => pool.release(texture);
+}
+
 /// The textures a frame's nodes read and write, acquired late and released
 /// early.
 ///
@@ -101,13 +137,13 @@ final class ResourceDesc {
 /// wants them, which is what lets two passes that never overlap share one.
 final class FrameResources {
   FrameResources({
-    required this.pool,
+    required this.source,
     required this.graph,
     required this.frameWidth,
     required this.frameHeight,
   });
 
-  final RenderTargetPool pool;
+  final FrameTextureSource source;
   final CompiledFrameGraph graph;
   final int frameWidth;
   final int frameHeight;
@@ -140,7 +176,7 @@ final class FrameResources {
       );
     }
 
-    final texture = pool.acquire(desc.resolve(frameWidth, frameHeight));
+    final texture = source.acquire(desc.resolve(frameWidth, frameHeight));
     _live[id.name] = texture;
     return texture;
   }
@@ -150,7 +186,7 @@ final class FrameResources {
     for (final id in graph.releasedAfter(index)) {
       if (_external.contains(id.name)) continue;
       final texture = _live.remove(id.name);
-      if (texture != null) pool.release(texture);
+      if (texture != null) source.release(texture);
     }
   }
 
@@ -162,7 +198,7 @@ final class FrameResources {
   void releaseAll() {
     for (final entry in _live.entries) {
       if (_external.contains(entry.key)) continue;
-      pool.release(entry.value);
+      source.release(entry.value);
     }
     _live.removeWhere((name, _) => !_external.contains(name));
   }
