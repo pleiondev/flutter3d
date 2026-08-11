@@ -709,13 +709,6 @@ final class Renderer implements RenderServices {
 
   static const int _kFramesInFlight = 3;
 
-  /// Package-qualified, because the bundle belongs to `flutter3d` rather than
-  /// to whichever application is running. The prefix is how Flutter addresses a
-  /// dependency's assets, and it is the same string from inside this package's
-  /// own example as from an application that merely depends on it.
-  static const String bundleAsset =
-      'packages/flutter3d/assets/shaders/flutter3d.shaderbundle';
-
   final RenderList _renderList = RenderList();
 
   /// Reused across frames, so a steady overlay allocates nothing.
@@ -826,9 +819,13 @@ final class Renderer implements RenderServices {
   ///
   /// The backend arrives as a value rather than being reached for, which is the
   /// whole of how a second one will be selected: an application constructs
-  /// `GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset)` and hands it
-  /// over. A compile-time choice could not be faked, and a fake is the only way
-  /// anything below this line is ever exercised without a GPU.
+  /// `GpuRenderBackend.create()` and hands it over. A compile-time choice could
+  /// not be faked, and a fake is the only way anything below this line is ever
+  /// exercised without a GPU.
+  ///
+  /// Which shaders it must contain is this package's business and is stated by
+  /// name — see [LightingModel.shaderName] and the `require` calls below. Where
+  /// those shaders come from, and in what format, is the backend's.
   factory Renderer.create({
     required GraphicsDevice device,
     required TextureHandle fallbackAlbedo,
@@ -839,9 +836,9 @@ final class Renderer implements RenderServices {
       final shader = library[name];
       if (shader == null) {
         throw StateError(
-          'The bundle has no "$name" entry. Check '
-          'shaders/flutter3d.shaderbundle.json and rebuild with '
-          'tool/build_shaders.sh.',
+          'The bundle has no "$name" entry. Check the backend\'s bundle '
+          'manifest and rebuild it — for flutter3d_gpu that is '
+          'shaders/flutter3d.shaderbundle.json and tool/build_shaders.sh.',
         );
       }
       return shader;

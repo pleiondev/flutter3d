@@ -131,7 +131,7 @@ void main() {
       // being guarded, and a guard that skips itself when the thing is missing
       // guards nothing.
       expect(
-        _builtBundles().containsKey('flutter3d'),
+        _builtBundles().containsKey('flutter3d_gpu'),
         isTrue,
         reason: 'Run packages/flutter3d/tool/build_shaders.sh. The bundle is '
             'gitignored, so a fresh checkout or worktree does not have one.',
@@ -155,7 +155,7 @@ void main() {
     test('reads entry points out of a real bundle', () {
       // Pins that the scan above is looking at something. A regex that matched
       // nothing would make the collision test pass for the wrong reason.
-      final engine = _builtBundles()['flutter3d'];
+      final engine = _builtBundles()['flutter3d_gpu'];
       expect(engine, isNotNull);
       final names = entryPointsIn(engine!);
       expect(names, contains('pbr_fragment_main'));

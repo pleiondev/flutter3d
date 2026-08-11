@@ -50,8 +50,13 @@ enum LightingModel {
   /// Shown in the UI.
   final String label;
 
-  /// Entry name inside the shader bundle, matching
-  /// shaders/flutter3d.shaderbundle.json.
+  /// Entry name inside whichever bundle the backend supplied.
+  ///
+  /// This is the contract the engine cannot abstract away: it names shaders,
+  /// and every backend must ship a bundle containing them under these names.
+  /// For `flutter3d_gpu` they are listed in that package's
+  /// `shaders/flutter3d.shaderbundle.json`; a second backend needs its own set
+  /// answering to the same names.
   final String shaderName;
 
   /// Whether the shader reads the `FragInfo` uniform block.

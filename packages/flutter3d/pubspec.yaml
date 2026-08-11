@@ -25,30 +25,13 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# A note on `shaders/`, which is deliberately NOT listed under `flutter.assets`
-# below.
-#
-# `shaders/lib/*.glsl` are build-time inputs for an extension package: its
-# materials write `#include <lib/color.glsl>`, and impellerc satisfies that from
-# `<flutter3d>/shaders` as an include root. So they have to reach a consumer that
-# installed flutter3d from pub — but as *files in the package directory*, not as
-# Flutter assets. Declaring them as assets would copy GLSL source text into every
-# shipping application's bundle, where nothing would ever read it: by the time
-# the app runs, the only artefact that matters is the compiled .shaderbundle.
-#
-# Nothing extra is needed to ship them. `pub publish` uploads every file in the
-# package that git tracks and .gitignore does not exclude, and `shaders/` is
-# checked in — confirmed against `flutter pub publish --dry-run`, which lists
-# shaders/lib/{color,material_maps,shadow,surface}.glsl. The only way to lose
-# them is to add an exclusion; test/shader_include_test.dart is the guard.
+# The shader bundle is NOT here any more. It is `impellerc` output — an
+# artefact only one backend can read — so it ships with that backend, in
+# `flutter3d_gpu`. This package names the shaders it wants by entry point
+# (see `LightingModel.shaderName`) and lets whichever backend is wired in
+# supply them.
 flutter:
   assets:
-    # Built by tool/build_shaders.sh through impellerc. Generated, so it is not
-    # in the repository — a checkout has to run the script before the first run,
-    # and again after every SDK change, because the bundle format is tied to the
-    # Flutter version.
-    - assets/shaders/flutter3d.shaderbundle
-
     # The official Khronos test models (glTF-Sample-Assets), which the decoders
     # are verified against and the example browses.
     #

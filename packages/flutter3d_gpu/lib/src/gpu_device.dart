@@ -28,7 +28,7 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// Throws when the bundle is missing, which is the right moment to fail: a
   /// renderer without its shaders cannot draw anything, and the alternative is
   /// a black screen with a null somewhere.
-  factory GpuRenderBackend.create({required String bundleAsset}) {
+  factory GpuRenderBackend.create({String bundleAsset = defaultBundleAsset}) {
     final library = gpu.ShaderLibrary.fromAsset(bundleAsset);
     if (library == null) {
       throw StateError('Failed to load the shader bundle: $bundleAsset');
@@ -47,6 +47,19 @@ final class GpuRenderBackend implements GraphicsDevice {
       ),
     );
   }
+
+  /// The bundle this package ships, package-qualified.
+  ///
+  /// It lives here rather than on `Renderer` because it is `impellerc` output:
+  /// an artefact only this backend can read, built by this package's
+  /// `tool/build_shaders.sh` from this package's `shaders/`. The engine names
+  /// the shaders it wants by entry point and does not know what compiled them.
+  ///
+  /// The `packages/<name>/` prefix is how Flutter addresses a dependency's
+  /// assets, and it is the same string from inside this package as from an
+  /// application that merely depends on it.
+  static const String defaultBundleAsset =
+      'packages/flutter3d_gpu/assets/shaders/flutter3d.shaderbundle';
 
   static const int _kFramesInFlight = 3;
 

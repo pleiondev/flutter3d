@@ -227,7 +227,7 @@ class _GameScreenState extends State<GameScreen>
     // there is nothing further to set up.
     final GpuRenderBackend device;
     try {
-      device = GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset);
+      device = GpuRenderBackend.create();
     } catch (error) {
       _initError = error;
       return;

@@ -258,7 +258,7 @@ class _SpikePageState extends State<SpikePage>
     // it lands in the same place and `build` shows the same panel.
     final GpuRenderBackend device;
     try {
-      device = GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset);
+      device = GpuRenderBackend.create();
     } catch (error, stack) {
       _initError = error;
       _initStack = stack;
