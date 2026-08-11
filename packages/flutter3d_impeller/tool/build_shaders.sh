@@ -70,10 +70,27 @@ done
 # script in another package finds its own neighbour rather than flutter3d's.
 SCRIPT_HOME="$(cd "$(dirname "$0")" && pwd)"
 
-# The package root defaults to the script's parent, which is what makes a
-# verbatim copy of this file work in another package with no arguments.
+# Two roots, and they stopped being the same thing when a second backend
+# appeared. OWNER is the package whose bundle this is — the compiled artifact is
+# impellerc output and belongs to the backend that reads it. SOURCE is where the
+# GLSL and the manifest live, which is now a package of its own, because the
+# shading is the engine's and every backend compiles the same text.
+#
+# A package naming another in tool/sources.txt gets its sources from there and
+# still writes its bundle into itself, which is what keeps the invocation
+# argument-free and CI's one-loop-over-packages discovery working.
+SDK_DART="$(cd "$(dirname "$(command -v flutter)")/.." && pwd)/bin/cache/dart-sdk/bin/dart"
+OWNER="$(cd "$SCRIPT_HOME/.." && pwd)"
 if [[ -z "$PACKAGE" ]]; then
-  PACKAGE="$(cd "$SCRIPT_HOME/.." && pwd)"
+  PACKAGE="$OWNER"
+  if [[ -f "$SCRIPT_HOME/sources.txt" ]]; then
+    name="$(sed 's/#.*//' "$SCRIPT_HOME/sources.txt" | tr -d '[:space:]')"
+    if [[ -n "$name" ]]; then
+      PACKAGE="$("$SDK_DART" "$SCRIPT_HOME/package_root.dart" "$name" \
+        --from "$OWNER")" ||
+        die "cannot resolve source package '$name' — has 'flutter pub get' run?"
+    fi
+  fi
 else
   PACKAGE="$(cd "$PACKAGE" && pwd)" || die "no such package directory"
 fi
@@ -141,7 +158,8 @@ fi
 # cannot live in build/, which Flutter owns and clears.
 if [[ -z "$OUT" ]]; then
   STEM="$(basename "$MANIFEST" .shaderbundle.json)"
-  OUT="assets/shaders/$STEM.shaderbundle"
+  # Against OWNER: the bundle is the backend's, even when the GLSL is not.
+  OUT="$OWNER/assets/shaders/$STEM.shaderbundle"
 fi
 mkdir -p "$(dirname "$OUT")"
 
