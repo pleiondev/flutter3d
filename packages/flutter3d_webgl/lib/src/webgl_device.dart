@@ -106,7 +106,19 @@ final class WebGlDevice implements GraphicsDevice {
     final canvas = web.document.createElement('canvas') as web.HTMLCanvasElement
       ..width = width
       ..height = height;
-    final gl = canvas.getContext('webgl2') as web.WebGL2RenderingContext?;
+    // preserveDrawingBuffer, because this engine does not drive the browser's
+    // frame loop. A WebGL canvas is cleared as soon as the browser composites
+    // it, so a frame rendered once — a golden, a still, anything not inside a
+    // requestAnimationFrame — has already been wiped by the time Flutter shows
+    // the platform view. The result is a black rectangle with no error
+    // anywhere, which is how this was found: every check passed and nothing
+    // appeared.
+    //
+    // It costs a copy per composite on some drivers. A frame the user cannot
+    // see costs more.
+    final attributes = web.WebGLContextAttributes(preserveDrawingBuffer: true);
+    final gl =
+        canvas.getContext('webgl2', attributes) as web.WebGL2RenderingContext?;
     if (gl == null) return null;
     return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources));
   }
