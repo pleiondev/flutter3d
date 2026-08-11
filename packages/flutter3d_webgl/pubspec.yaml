@@ -1,0 +1,30 @@
+name: flutter3d_webgl
+description: "A WebGL2 backend for flutter3d: the second implementation of flutter3d_hal, and the one that tells us whether the HAL is a seam or a description of Impeller."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+
+# Depends on the HAL and on nothing else of ours — in particular **not** on
+# `flutter3d`, and not on `flutter3d_gpu`. That is the property the split was
+# for: writing a backend means implementing `flutter3d_hal`, not understanding
+# the renderer.
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter3d_hal:
+    path: ../flutter3d_hal
+
+  # Browser APIs through static JS interop. `dart:html` and `dart:web_gl` are
+  # the legacy path and are not available under Wasm.
+  web: ^1.1.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
