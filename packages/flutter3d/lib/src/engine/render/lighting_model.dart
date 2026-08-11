@@ -54,7 +54,7 @@ enum LightingModel {
   ///
   /// This is the contract the engine cannot abstract away: it names shaders,
   /// and every backend must ship a bundle containing them under these names.
-  /// For `flutter3d_gpu` they are listed in that package's
+  /// For `flutter3d_impeller` they are listed in that package's
   /// `shaders/flutter3d.shaderbundle.json`; a second backend needs its own set
   /// answering to the same names.
   final String shaderName;

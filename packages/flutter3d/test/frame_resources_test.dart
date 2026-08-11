@@ -18,7 +18,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/frame_resources.dart';
 
@@ -770,6 +770,81 @@ void main() {
               .having((e) => e.message, 'message', contains('colour')),
         ),
       );
+    });
+
+    test('a node reading a resource it never declared is refused', () {
+      // The scene writes the colour and the composite declares a read of it.
+      // A third node that declares nothing would once have been handed the
+      // latest version anything had put a texture behind — ordered after
+      // nobody, and correct only by the accident of running late enough.
+      //
+      // The frame itself still gets that fallback, and must: its own reads
+      // have no node to declare them. Breaking the path on purpose showed
+      // exactly one caller and it was the frame, which is why the rule is
+      // "not from inside a node" rather than "never".
+      final graph = compile(
+        const <FrameGraphNode>[
+          _Pass('scene', writes: <ResourceId>[colour]),
+          // Writes something the frame asks for, so the graph keeps it. A node
+          // writing nothing is culled, and a culled node's index belongs to
+          // whoever took its place — which is how the first draft of this test
+          // ended up asserting about the composite.
+          _Pass('nosy', writes: <ResourceId>[bloom]),
+          _Pass('composite',
+              reads: <ResourceId>[colour], writes: <ResourceId>[frame]),
+        ],
+        outputs: const <ResourceId>[frame, bloom],
+      );
+      final resources = resourcesFor(
+        graph,
+        _CountingSource(),
+        declare: const <ResourceDesc>[colourDesc],
+      );
+
+      resources.beginNode(0);
+      final drawn = resources.texture(colour);
+      resources.endNode(0);
+
+      // The frame, outside any node, still sees it. This is the case the
+      // fallback exists for and the reason the rule is "not from inside a
+      // node" rather than "never".
+      expect(identical(resources.tryTexture(colour), drawn), isTrue);
+
+      resources.beginNode(1);
+      expect(
+        () => resources.tryTexture(colour),
+        throwsA(
+          isA<FrameGraphError>().having(
+              (e) => e.message, 'message', contains('without declaring')),
+        ),
+        reason: 'the nosy node declared neither a read nor a write',
+      );
+      resources.endNode(1);
+    });
+
+    test('an optional read whose producer was culled answers null, not an error',
+        () {
+      // The distinction the first version of the rule got wrong. A node that
+      // declared the read is entitled to ask, and when nothing surviving writes
+      // the name the honest answer is "nothing" — that is what optionalReads is
+      // for. Asking the node's declarations rather than its resolved bindings
+      // is what tells the two apart, because a culled producer is precisely
+      // what leaves the binding missing.
+      final graph = compile(
+        const <FrameGraphNode>[
+          _Pass('atlas', keeps: <ResourceId>[atlas], isActive: false),
+          _Pass('scene',
+              optionalReads: <ResourceId>[atlas],
+              writes: <ResourceId>[frame]),
+        ],
+        outputs: const <ResourceId>[frame],
+      );
+      final resources = resourcesFor(graph, _CountingSource());
+
+      final scene = graph.order.indexWhere((node) => node.name == 'scene');
+      resources.beginNode(scene);
+      expect(resources.tryTexture(atlas), isNull);
+      resources.endNode(scene);
     });
   });
 

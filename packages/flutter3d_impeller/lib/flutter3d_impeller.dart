@@ -1,4 +1,4 @@
-/// `flutter_gpu` as an implementation of `flutter3d_hal`.
+/// `flutter_gpu` as an implementation of `flutter3d_graphics`.
 ///
 /// An application constructs [GpuRenderBackend] and hands it to
 /// `Renderer.create`. Nothing else in the stack names `flutter_gpu`, which is

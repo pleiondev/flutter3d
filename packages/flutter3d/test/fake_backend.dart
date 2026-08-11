@@ -16,7 +16,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 
 /// One thing recorded into a pass, in order.
 ///
@@ -210,11 +210,20 @@ final class FakeShaderLibrary implements ShaderLibrary {
 
 /// A device that records rather than draws.
 final class FakeBackend implements GraphicsDevice {
-  FakeBackend({Set<String> missingShaders = const <String>{}})
-      : shaders = FakeShaderLibrary(missing: missingShaders);
+  FakeBackend({
+    Set<String> missingShaders = const <String>{},
+    this.supportsWireframe = true,
+  }) : shaders = FakeShaderLibrary(missing: missingShaders);
 
   @override
   final FakeShaderLibrary shaders;
+
+  /// Settable, because the interesting case is the backend that says no —
+  /// OpenGL ES has no `glPolygonMode`, and the engine is supposed to decline
+  /// its own wireframe setting rather than let the request reach a backend
+  /// that would refuse it mid-frame.
+  @override
+  final bool supportsWireframe;
 
   /// Every pass ever opened, in the order it was opened.
   final List<FakePass> passes = <FakePass>[];

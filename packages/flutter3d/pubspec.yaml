@@ -13,10 +13,10 @@ dependencies:
 
   # The graphics vocabulary this package is written against. **Not** a
   # backend: `flutter3d` names no graphics API at all, which is what lets an
-  # application choose one — `flutter3d_gpu` today — and what would let a WebGL
+  # application choose one — `flutter3d_impeller` today — and what would let a WebGL
   # backend exist without touching the engine.
-  flutter3d_hal:
-    path: ../flutter3d_hal
+  flutter3d_graphics:
+    path: ../flutter3d_graphics
 
   vector_math: ^2.2.0
 
@@ -27,7 +27,7 @@ dev_dependencies:
 
 # The shader bundle is NOT here any more. It is `impellerc` output — an
 # artefact only one backend can read — so it ships with that backend, in
-# `flutter3d_gpu`. This package names the shaders it wants by entry point
+# `flutter3d_impeller`. This package names the shaders it wants by entry point
 # (see `LightingModel.shaderName`) and lets whichever backend is wired in
 # supply them.
 flutter:

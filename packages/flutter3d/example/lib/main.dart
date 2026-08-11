@@ -6,7 +6,7 @@ import 'package:vector_math/vector_math.dart'
     show Aabb3, Vector2, Vector3, Vector4;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_gpu/flutter3d_gpu.dart';
+import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter3d/flutter3d.dart' as engine;
 import 'src/spike/frame_capture.dart';
 import 'src/spike/golden_extras.dart';

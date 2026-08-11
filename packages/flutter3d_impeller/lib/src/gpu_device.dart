@@ -11,7 +11,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'gpu_formats.dart';
 import 'gpu_texture.dart';
 
@@ -59,7 +59,7 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// assets, and it is the same string from inside this package as from an
   /// application that merely depends on it.
   static const String defaultBundleAsset =
-      'packages/flutter3d_gpu/assets/shaders/flutter3d.shaderbundle';
+      'packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle';
 
   static const int _kFramesInFlight = 3;
 
@@ -84,6 +84,10 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   @override
   bool get supportsOffscreenMsaa => gpu.gpuContext.doesSupportOffscreenMSAA;
+
+  @override
+  // Impeller exposes glPolygonMode's equivalent, so the request goes through.
+  bool get supportsWireframe => true;
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec) => createGpuTexture(

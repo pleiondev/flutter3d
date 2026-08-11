@@ -4,7 +4,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart' as vm;
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import '../geometry/mesh_geometry.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
@@ -837,7 +837,7 @@ final class Renderer implements RenderServices {
       if (shader == null) {
         throw StateError(
           'The bundle has no "$name" entry. Check the backend\'s bundle '
-          'manifest and rebuild it — for flutter3d_gpu that is '
+          'manifest and rebuild it — for flutter3d_impeller that is '
           'shaders/flutter3d.shaderbundle.json and tool/build_shaders.sh.',
         );
       }
@@ -2384,9 +2384,13 @@ final class Renderer implements RenderServices {
       pass.setDepthWrite(true);
       pass.setDepthCompare(CompareFunction.less);
       pass.setPrimitiveType(PrimitiveType.triangle);
-      pass.setPolygonMode(
-        settings.wireframe ? PolygonMode.line : PolygonMode.fill,
-      );
+      // Asked, not assumed. A backend without glPolygonMode — OpenGL ES has
+      // none — refuses the request rather than filling the triangles instead,
+      // and a refusal mid-frame is a crash where a declined setting is a
+      // picture. Wireframe there needs line primitives from an index buffer
+      // built for it, which is geometry work and not a backend's to invent.
+      final wireframe = settings.wireframe && device.supportsWireframe;
+      pass.setPolygonMode(wireframe ? PolygonMode.line : PolygonMode.fill);
 
       final fraction = view.viewportFraction;
       final vx = (fraction.x * width).round();
@@ -2680,12 +2684,19 @@ final class Renderer implements RenderServices {
             settings: settings,
             width: width,
             height: height,
-            // `tryTexture`, because the scene runs first and there is no scene
-            // colour until it has drawn one. A node that draws over the world
-            // already has to handle that — the view model returns early — and
-            // asking for a texture nobody has produced would allocate one from
-            // a description that does not exist.
-            sceneColor: resources.tryTexture(FrameResourceIds.hdrColour),
+            // Only for a node that asked for it. This convenience used to hand
+            // the scene colour to every node in the frame, including the shadow
+            // passes that run before one exists and never wanted it — a read
+            // the graph was never told about, ordered against nothing. It was
+            // invisible until an undeclared read became an error.
+            //
+            // Still `tryTexture` for the nodes that did declare it: the scene
+            // runs first and a node drawing over the world has to cope with
+            // there being nothing yet. The view model returns early.
+            sceneColor:
+                frameGraph.readVersionOf(i, FrameResourceIds.hdrColour) == null
+                    ? null
+                    : resources.tryTexture(FrameResourceIds.hdrColour),
           ),
         );
         resources.endNode(i);
@@ -3633,8 +3644,7 @@ final class _CompositeNode extends RenderNode {
         // Only when it is going to show it. An unconditional read would make
         // the buffer look wanted on every frame, and what wants it is what
         // decides whether the scene pass attaches it at all.
-        if (_settings.showSurfaceBuffer || _settings.showPointShadowDebug)
-          FrameResourceIds.surfaceBuffer,
+        if (_showsSurface) FrameResourceIds.surfaceBuffer,
         // The same rule for the shadow view. This pass can put a shadow map on
         // the screen instead of the lit image, and it used to reach into the
         // renderer's own fields for it — the second half of the hole the view
@@ -3650,6 +3660,16 @@ final class _CompositeNode extends RenderNode {
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
 
+  /// Whether this frame will put the surface buffer on the screen.
+  ///
+  /// One predicate, read by the declaration above and by the fetch below,
+  /// because they have to agree: declaring the read on some frames and asking
+  /// for it on all of them is asking for something the graph was never told
+  /// about. That mismatch was silent until a node reading an undeclared name
+  /// became an error, and then it was every frame of every scene.
+  bool get _showsSurface =>
+      _settings.showSurfaceBuffer || _settings.showPointShadowDebug;
+
   @override
   void execute(NodeFrame frame) {
     developer.Timeline.startSync('Renderer.composite');
@@ -3662,12 +3682,19 @@ final class _CompositeNode extends RenderNode {
       target: target,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       bloom: frame.resources.tryTexture(FrameResourceIds.bloom),
-      surface: frame.resources.tryTexture(FrameResourceIds.surfaceBuffer),
-      // Null unless this frame declared the read above, which is what makes
-      // `showShadowMap` fall back to the lit image rather than to whatever a
-      // renderer field happened to be holding.
-      shadowView: frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
-          frame.resources.tryTexture(FrameResourceIds.shadowMap),
+      surface: _showsSurface
+          ? frame.resources.tryTexture(FrameResourceIds.surfaceBuffer)
+          : null,
+      // Null unless this frame declared the read above — and now the code says
+      // so rather than only the comment. The declaration is conditional on
+      // `showShadowMap`, so the fetch has to be too: asking on every frame is
+      // asking for something the graph was told about on almost none of them.
+      // That is what makes the setting fall back to the lit image instead of to
+      // whatever a renderer field happened to be holding.
+      shadowView: _settings.showShadowMap
+          ? frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
+              frame.resources.tryTexture(FrameResourceIds.shadowMap)
+          : null,
       sceneGraph: _scene,
       views: _views,
       settings: frame.settings,

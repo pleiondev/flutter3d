@@ -4,8 +4,8 @@
 /// Everything a consumer needs is exported here. The layout behind it is not
 /// arbitrary and is worth knowing before reaching past this file:
 ///
-/// - **This package names no graphics API.** It depends on `flutter3d_hal` and
-///   nothing below it, so an application chooses a backend — `flutter3d_gpu`
+/// - **This package names no graphics API.** It depends on `flutter3d_graphics` and
+///   nothing below it, so an application chooses a backend — `flutter3d_impeller`
 ///   today — and hands it to `Renderer.create`. That is checked, not intended:
 ///   `test/backend_is_contained_test.dart`.
 /// - `geometry`, `scene`, `assets` and `render/key_sort` need no device at all,
@@ -42,7 +42,7 @@ export 'src/engine/assets/texture_upload.dart';
 // Geometry: CPU-side meshes and the shapes that generate them.
 export 'src/engine/geometry/geometry.dart';
 
-// The graphics vocabulary, re-exported from `flutter3d_hal`.
+// The graphics vocabulary, re-exported from `flutter3d_graphics`.
 //
 // Re-exported rather than left for a consumer to depend on separately, because
 // these names are all over this package's own API — a `Material` holds
@@ -51,10 +51,10 @@ export 'src/engine/geometry/geometry.dart';
 // this package handed them.
 //
 // The backend is deliberately **not** re-exported. An application picks one and
-// depends on it by name: `flutter3d_gpu` today, a second one beside it later.
+// depends on it by name: `flutter3d_impeller` today, a second one beside it later.
 // That choice is the one thing that must stay visible in an application's
 // pubspec.
-export 'package:flutter3d_hal/flutter3d_hal.dart';
+export 'package:flutter3d_graphics/flutter3d_graphics.dart';
 
 // Particles: a pooled simulation and the recipes that drive it.
 export 'src/engine/particles/particle.dart';

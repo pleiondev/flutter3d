@@ -20,7 +20,7 @@
 /// device. `test/frame_resources_test.dart` is what the handle bought.
 library;
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'frame_graph.dart';
 
 /// How large a resource is, relative to the frame or in its own right.
@@ -382,6 +382,35 @@ final class FrameResources {
       if (read != null) return read;
       final written = graph.writeVersionOf(_node, id);
       if (written != null) return written;
+    }
+    // Only the frame itself reaches here, and that is now enforced. A node
+    // that declared neither a read nor a write of this name is asking for
+    // something it never told the graph it wanted: it would be handed whatever
+    // happened to be lying around, ordered after nothing, and the declarations
+    // would be advice rather than a contract.
+    //
+    // Measured before it was forbidden. Breaking this path on purpose named
+    // exactly one caller — `cube_shadow`, read at node -1 — and that is the
+    // frame, whose reads have no node to declare them.
+    if (_node >= 0) {
+      // Declared, but its producer was culled — an optional read of a resource
+      // no surviving node writes. That is the case optionalReads exists for,
+      // and the answer is "nothing", not an error. Asked of the node's own
+      // declarations rather than of its resolved bindings, because a binding
+      // is exactly what a culled producer leaves missing.
+      final node = _node < graph.order.length ? graph.order[_node] : null;
+      final declared = node != null &&
+          (node.reads.any((other) => other.name == id.name) ||
+              node.optionalReads.any((other) => other.name == id.name) ||
+              node.writes.any((other) => other.name == id.name) ||
+              node.keeps.any((other) => other.name == id.name));
+      if (!declared) {
+        throw FrameGraphError(
+          'node ${node?.name ?? _node} asked for "${id.name}" without '
+          'declaring it. Add it to reads or optionalReads.',
+        );
+      }
+      return graph.currentVersionOf(id);
     }
     var version = graph.currentVersionOf(id);
     while (version > 0 && !_live.containsKey(ResourceVersion(id, version))) {

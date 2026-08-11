@@ -8,10 +8,10 @@
 ///
 /// What that buys is not tidiness. `flutter3d` can be compiled for a target
 /// `flutter_gpu` does not support, and a second backend is a package beside
-/// `flutter3d_gpu` rather than an edit to the renderer. Neither is true of an
+/// `flutter3d_impeller` rather than an edit to the renderer. Neither is true of an
 /// engine that contains its backend, however neatly.
 ///
-/// The complement lives in `flutter3d_hal/test/no_backend_test.dart`: the
+/// The complement lives in `flutter3d_graphics/test/no_backend_test.dart`: the
 /// vocabulary may not reach a backend either.
 ///
 /// Deliberately a file scan. The rule is textual, and a scan says which file
@@ -64,16 +64,16 @@ void main() {
       isEmpty,
       reason: 'these name flutter_gpu, which this package must not know '
           'exists. Whatever they need belongs on GraphicsDevice or '
-          'CommandEncoder in flutter3d_hal, with the backend implementing it',
+          'CommandEncoder in flutter3d_graphics, with the backend implementing it',
     );
   });
 
   test('nor does it depend on a backend package', () {
-    // The import scan above would miss this: depending on `flutter3d_gpu` and
+    // The import scan above would miss this: depending on `flutter3d_impeller` and
     // using it through the umbrella library names no backend textually, and
     // would still weld the engine to one.
     final pubspec = File('pubspec.yaml').readAsStringSync();
-    for (final forbidden in <String>['flutter_gpu', 'flutter3d_gpu']) {
+    for (final forbidden in <String>['flutter_gpu', 'flutter3d_impeller']) {
       expect(
         pubspec.contains('\n  $forbidden:'),
         isFalse,
@@ -82,7 +82,7 @@ void main() {
       );
     }
     expect(
-      pubspec.contains('flutter3d_hal:'),
+      pubspec.contains('flutter3d_graphics:'),
       isTrue,
       reason: 'a scan that finds nothing proves nothing: if the HAL dependency '
           'is gone, this package is not written against anything and the two '

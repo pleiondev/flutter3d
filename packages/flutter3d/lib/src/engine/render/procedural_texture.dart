@@ -2,7 +2,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 
 /// A texture generated in code.
 ///

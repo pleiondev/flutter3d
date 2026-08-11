@@ -2,7 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation.dart';
 import '../geometry/geometry.dart';
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'texture_upload.dart';
 import '../render/lighting_model.dart';
 import '../render/material.dart';

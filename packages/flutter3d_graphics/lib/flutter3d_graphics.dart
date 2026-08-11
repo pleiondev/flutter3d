@@ -2,14 +2,14 @@
 ///
 /// **Nothing here names a graphics API.** That is the entire content of this
 /// package: it is what a backend implements and what the engine talks to, so
-/// that neither has to know about the other. `flutter3d_gpu` implements it over
+/// that neither has to know about the other. `flutter3d_impeller` implements it over
 /// `flutter_gpu`; a WebGL2 backend would implement it beside that, and the
 /// engine would not change.
 ///
 /// Two rules hold it in shape, and both are checked rather than intended:
 ///
 ///  * no `flutter_gpu` import anywhere in this package, ever —
-///    `flutter3d_hal/test/no_backend_test.dart`;
+///    `flutter3d_graphics/test/no_backend_test.dart`;
 ///  * no `dart:ui` either, apart from one member on [GraphicsDevice] that has
 ///    to name it. The reason is written where the exception is.
 ///

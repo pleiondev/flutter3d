@@ -9,7 +9,7 @@ library;
 
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'gpu_formats.dart';
 
 /// Creates a flutter_gpu texture together with the single handle that will ever

@@ -1,11 +1,11 @@
-name: flutter3d_hal
+name: flutter3d_graphics
 description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API."
 version: 0.1.0
 publish_to: 'none'
 resolution: workspace
 
 # Its own package, and that is the whole point of it. A backend implements this
-# and nothing else: `flutter3d_gpu` depends on it, `flutter3d` depends on it,
+# and nothing else: `flutter3d_impeller` depends on it, `flutter3d` depends on it,
 # and neither depends on the other. Before the split this lived inside the
 # engine, so writing a second backend meant depending on the scene graph, the
 # asset loaders and the frame graph to get at eight files.

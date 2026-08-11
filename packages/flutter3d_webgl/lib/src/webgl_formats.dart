@@ -1,6 +1,6 @@
 /// Translation between the engine's vocabulary and WebGL2's constants.
 ///
-/// The counterpart to `flutter3d_gpu`'s `gpu_formats.dart`, and written to the
+/// The counterpart to `flutter3d_impeller`'s `gpu_formats.dart`, and written to the
 /// same rule: one `switch` per enum, no `default`, so a value added to the HAL
 /// is a compile error here rather than a wrong picture on one backend only.
 ///
@@ -9,7 +9,7 @@
 /// compiles, it runs, and it renders wrong only for the scenes that use it.
 library;
 
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:web/web.dart' as web;
 
 /// The comparison function, as `gl.depthFunc` wants it.

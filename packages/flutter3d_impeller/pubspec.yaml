@@ -1,5 +1,5 @@
-name: flutter3d_gpu
-description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hal, and the only place in the stack that names a graphics API."
+name: flutter3d_impeller
+description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_graphics, and the only place in the stack that names a graphics API."
 version: 0.1.0
 publish_to: 'none'
 resolution: workspace
@@ -7,7 +7,7 @@ resolution: workspace
 # Depends on the HAL and on nothing else of ours — in particular **not** on
 # `flutter3d`. That is what makes it a backend rather than a part of the engine,
 # and it is the property a second backend needs: writing one means implementing
-# `flutter3d_hal`, not understanding the renderer.
+# `flutter3d_graphics`, not understanding the renderer.
 environment:
   sdk: ^3.12.2
 
@@ -19,8 +19,8 @@ dependencies:
   flutter_gpu:
     sdk: flutter
 
-  flutter3d_hal:
-    path: ../flutter3d_hal
+  flutter3d_graphics:
+    path: ../flutter3d_graphics
 
   vector_math: ^2.2.0
 
@@ -34,7 +34,7 @@ dev_dependencies:
 #
 # `shaders/lib/*.glsl` are build-time inputs for an extension package: its
 # materials write `#include <lib/color.glsl>`, and impellerc satisfies that from
-# `<flutter3d_gpu>/shaders` as an include root. So they have to reach a consumer
+# `<flutter3d_impeller>/shaders` as an include root. So they have to reach a consumer
 # that installed this package from pub — but as *files in the package
 # directory*, not as Flutter assets. Declaring them as assets would copy GLSL
 # source text into every shipping application's bundle, where nothing would ever

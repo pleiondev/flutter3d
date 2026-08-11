@@ -11,7 +11,7 @@
 /// GPU in the room.
 ///
 /// The other half of the rule lives in
-/// `flutter3d_gpu/test/texture_handle_identity_test.dart`: in the backend,
+/// `flutter3d_impeller/test/texture_handle_identity_test.dart`: in the backend,
 /// exactly one file may construct one, because one texture must never acquire
 /// two handles.
 library;

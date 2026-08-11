@@ -52,10 +52,10 @@ fi
 mkdir -p "$GOLDEN_DIR"
 
 # The bundle belongs to the backend package now: it is impellerc output, and
-# only flutter3d_gpu can read it.
-BUNDLE="$PACKAGE_DIR/../flutter3d_gpu/assets/shaders/flutter3d.shaderbundle"
+# only flutter3d_impeller can read it.
+BUNDLE="$PACKAGE_DIR/../flutter3d_impeller/assets/shaders/flutter3d.shaderbundle"
 if [[ ! -f "$BUNDLE" ]]; then
-  echo "shader bundle missing; run ../flutter3d_gpu/tool/build_shaders.sh" >&2
+  echo "shader bundle missing; run ../flutter3d_impeller/tool/build_shaders.sh" >&2
   exit 2
 fi
 

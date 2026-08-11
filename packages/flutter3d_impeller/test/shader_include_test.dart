@@ -128,11 +128,11 @@ void main() {
     });
 
     test('resolves this package to a directory that has the headers', () {
-      // `flutter3d_gpu`, not `flutter3d`: the headers are impellerc GLSL and
+      // `flutter3d_impeller`, not `flutter3d`: the headers are impellerc GLSL and
       // moved here with the bundle they are compiled into. An extension writing
       // shaders for this backend includes them through this package name.
       final config = findPackageConfig(_package.path)!;
-      final root = packageRoot(config, 'flutter3d_gpu');
+      final root = packageRoot(config, 'flutter3d_impeller');
       expect(File('$root/shaders/lib/color.glsl').existsSync(), isTrue);
     });
 

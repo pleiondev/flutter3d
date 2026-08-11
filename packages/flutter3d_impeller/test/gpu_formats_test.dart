@@ -27,8 +27,8 @@ library;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter3d_gpu/flutter3d_gpu.dart';
-import 'package:flutter3d_hal/flutter3d_hal.dart';
+import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 
 /// Checks one enum's forward mapping against flutter_gpu's values.
 ///

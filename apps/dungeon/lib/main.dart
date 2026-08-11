@@ -9,7 +9,7 @@ import 'package:flutter/scheduler.dart';
 // engine's do not import flutter/material.dart at all and so need no such
 // dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_gpu/flutter3d_gpu.dart';
+import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;

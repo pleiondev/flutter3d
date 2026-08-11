@@ -11,8 +11,8 @@ environment:
 
 workspace:
   - packages/flutter3d
-  - packages/flutter3d_hal
-  - packages/flutter3d_gpu
+  - packages/flutter3d_graphics
+  - packages/flutter3d_impeller
   - packages/flutter3d_webgl
   - packages/flutter3d_webgl/example
   - packages/flutter3d/example

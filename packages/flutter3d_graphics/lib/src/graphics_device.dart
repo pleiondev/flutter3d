@@ -43,6 +43,18 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Whether a multisampled offscreen target is available at all.
   bool get supportsOffscreenMsaa;
 
+  /// Whether [PolygonMode.line] can be drawn.
+  ///
+  /// False on OpenGL ES, which has no `glPolygonMode` — wireframe there means
+  /// drawing line primitives from an index buffer built for the purpose, which
+  /// is a decision for whoever owns the geometry and not a substitution a
+  /// backend may make on its own.
+  ///
+  /// Ask before requesting it. A backend that cannot draw it refuses loudly
+  /// rather than filling the triangles instead, because a silent substitution
+  /// here looks exactly like the wireframe setting having no effect.
+  bool get supportsWireframe;
+
   /// The compiled bundle this device was built with.
   ///
   /// On the device rather than on `RenderServices` because it is a property of

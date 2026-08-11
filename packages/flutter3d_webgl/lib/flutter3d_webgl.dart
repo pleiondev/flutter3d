@@ -1,4 +1,4 @@
-/// WebGL2 as an implementation of `flutter3d_hal`.
+/// WebGL2 as an implementation of `flutter3d_graphics`.
 ///
 /// The second backend. Its value is not only that it runs on the web: it is the
 /// first thing that can tell us whether the HAL is a seam or a description of
