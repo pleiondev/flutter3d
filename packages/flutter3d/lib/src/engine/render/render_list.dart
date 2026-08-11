@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'packed_keys.dart';
 import '../scene/bvh.dart';
 import '../scene/scene_spheres.dart';
 import '../scene/mesh_node.dart';
@@ -73,9 +74,7 @@ final class RenderList {
 
   /// Packed key-plus-index entries, and the alternate buffer radix passes need.
   /// Reused between frames so sorting allocates nothing.
-  Int64List _sortBuffer = Int64List(128);
-  Int64List _sortScratch = Int64List(128);
-  final Uint32List _histogram = Uint32List(256);
+  final PackedKeys _keys = PackedKeys();
 
   int get length => _used;
 
@@ -186,29 +185,22 @@ final class RenderList {
     final count = indices.length;
     if (mode == SortMode.none || count < 2) return;
 
-    if (count > _sortBuffer.length) {
-      var capacity = _sortBuffer.length;
-      while (capacity < count) {
-        capacity *= 2;
-      }
-      _sortBuffer = Int64List(capacity);
-      _sortScratch = Int64List(capacity);
-    }
+    _keys.ensure(count);
 
-    // One packed integer per draw: the sort key in the high bits, the draw's slot
-    // in the low bits. Sorting the packed values directly avoids the comparator
-    // closure and the double indirection that made this the most expensive step
-    // in the frame.
-    final buffer = _sortBuffer;
+    // One key per draw, carrying the draw's slot as its payload. Sorting these
+    // directly avoids the comparator closure and the double indirection that
+    // made this the most expensive step in the frame. How a key and its payload
+    // are stored differs by platform — see packed_keys.dart — and this loop is
+    // the same either way.
     for (var i = 0; i < count; i++) {
       final index = indices[i];
-      buffer[i] = (_sortKey(_pool[index], mode) << kPayloadBits) | index;
+      _keys.setEntry(i, _sortKey(_pool[index], mode), index);
     }
 
-    sortPackedKeys(buffer, _sortScratch, count, counts: _histogram);
+    _keys.sort(count);
 
     for (var i = 0; i < count; i++) {
-      indices[i] = buffer[i] & kPayloadMask;
+      indices[i] = _keys.payloadAt(i);
     }
   }
 
@@ -238,28 +230,52 @@ final class RenderList {
         final materialId = materialIds.idOf(material, limit: 0x7FFF) & 0x7FFF;
         // Depth is the least significant term here and only serves early-z, so
         // 14 bits of range is ample even though it saturates past 256 units.
-        return (bucket << 35) |
-            (pipeline << 29) |
-            (materialId << 14) |
+        return bucket * _b35 +
+            pipeline * _b29 +
+            materialId * _b14 +
             _quantize(item.viewDepth, 64.0, 14, invert: false);
 
       case SortMode.frontToBack:
-        return (bucket << 35) | _quantize(item.viewDepth, 1024.0, 35, invert: false);
+        return bucket * _b35 +
+            _quantize(item.viewDepth, 1024.0, 35, invert: false);
 
       case SortMode.backToFront:
-        return (bucket << 35) | _quantize(item.viewDepth, 1024.0, 35, invert: true);
+        return bucket * _b35 +
+            _quantize(item.viewDepth, 1024.0, 35, invert: true);
 
       case SortMode.manual:
-        return bucket << 35;
+        return bucket * _b35;
 
       case SortMode.none:
         return 0;
     }
   }
 
+  // Multiplied by a power of two rather than shifted, and added rather than
+  // or-ed. Both look like the long way round and are the only portable one:
+  // JavaScript's bitwise operators are 32-bit, so `bucket << 35` is not a wide
+  // shift there, it is a wrong number — and `|` above 32 bits is wrong the same
+  // way. The fields do not overlap by construction, so addition is exactly
+  // or-ing, and the products are exact on both platforms because the whole key
+  // is kSortKeyBits wide and that fits a double.
+  //
+  // Written as constants because `1 << 35` is itself the bug being avoided.
+  static const int _b14 = 16384;
+  static const int _b29 = 536870912;
+  static const int _b35 = 34359738368;
+
+  /// Two to the [bits], for widths a shift cannot express on the web.
+  static int _pow2(int bits) {
+    var value = 1;
+    for (var i = 0; i < bits; i++) {
+      value *= 2;
+    }
+    return value;
+  }
+
   /// Quantizes a view depth into [bits] bits, optionally reversed for far-to-near.
   int _quantize(double depth, double scale, int bits, {required bool invert}) {
-    final limit = (1 << bits) - 1;
+    final limit = _pow2(bits) - 1;
     var scaled = (depth * scale).round();
     if (scaled < 0) scaled = 0;
     if (scaled > limit) scaled = limit;
