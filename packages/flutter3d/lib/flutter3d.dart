@@ -32,6 +32,7 @@ export 'src/engine/assets/model_document.dart';
 export 'src/engine/assets/model_loader.dart';
 export 'src/engine/assets/obj/obj.dart';
 export 'src/engine/assets/resource_cache.dart';
+export 'src/engine/assets/texture_upload.dart';
 
 // Geometry: CPU-side meshes and the shapes that generate them.
 export 'src/engine/geometry/geometry.dart';
@@ -55,9 +56,7 @@ export 'src/engine/graphics/texture.dart';
 // above this line is written against `graphics/` and would work as well
 // against a second backend beside it.
 export 'src/engine/gpu/gpu_device.dart';
-export 'src/engine/gpu/gpu_mesh.dart';
 export 'src/engine/gpu/gpu_texture.dart';
-export 'src/engine/gpu/texture_upload.dart';
 
 // Particles: a pooled simulation and the recipes that drive it.
 export 'src/engine/particles/particle.dart';
@@ -77,7 +76,6 @@ export 'src/engine/render/lighting_model.dart';
 export 'src/engine/render/material.dart';
 export 'src/engine/render/procedural_texture.dart';
 export 'src/engine/render/render_list.dart';
-export 'src/engine/render/render_backend.dart';
 export 'src/engine/render/render_node.dart';
 export 'src/engine/render/pass_contributor.dart';
 export 'src/engine/render/render_view.dart';

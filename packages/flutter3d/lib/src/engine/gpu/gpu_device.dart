@@ -16,17 +16,17 @@ import '../graphics/geometry_buffer.dart';
 import '../graphics/render_target_pool.dart';
 import '../graphics/sampler.dart';
 import '../graphics/shader.dart';
+import '../graphics/graphics_device.dart';
 import '../graphics/texture.dart';
-import '../render/render_backend.dart';
 import 'gpu_formats.dart';
 import 'gpu_texture.dart';
 
-/// flutter_gpu as a [RenderBackend].
+/// flutter_gpu as a [GraphicsDevice].
 ///
 /// Construct one and hand it to `Renderer.create`. Nothing else in the engine
 /// names flutter_gpu, which is what makes the import graph a property somebody
 /// can check: `test/backend_is_contained_test.dart` scans for it.
-final class GpuRenderBackend implements RenderBackend {
+final class GpuRenderBackend implements GraphicsDevice {
   GpuRenderBackend._(this._library, this._transients);
 
   /// Loads [bundleAsset] and builds a backend around the running context.
@@ -109,6 +109,36 @@ final class GpuRenderBackend implements RenderBackend {
       offsetInBytes: 0,
       lengthInBytes: buffer.sizeInBytes,
     );
+  }
+
+  @override
+  TextureHandle? createTextureFromPixels({
+    required int width,
+    required int height,
+    required TextureFormat format,
+    required ByteData pixels,
+  }) {
+    final texture = createGpuTexture(
+      // Host-visible and origin-at-the-bottom, because these bytes come from
+      // the CPU. Both are consequences of *how the texture is filled* rather
+      // than of what it is for, which is why neither is a parameter above.
+      StorageMode.hostVisible,
+      width,
+      height,
+      format: format,
+      coordinateSystem: TextureCoordinateSystem.uploadFromHost,
+    );
+
+    // `overwrite` demands exactly the base mip size and throws otherwise, so
+    // asking first turns a mismatch into a null the caller can handle. Bytes
+    // per texel is a backend question — padding and alignment are the device's
+    // — which is precisely why this check cannot live above the seam.
+    if (pixels.lengthInBytes !=
+        texture.gpuTexture.getBaseMipLevelSizeInBytes()) {
+      return null;
+    }
+    texture.gpuTexture.overwrite(pixels);
+    return texture;
   }
 
   @override

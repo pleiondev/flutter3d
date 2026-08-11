@@ -8,6 +8,7 @@ sealed class SceneSource {
   final String label;
 
   Future<ModelAsset> load({
+    required GraphicsDevice device,
     required TextureHandle fallbackAlbedo,
     required TextureHandle checkerAlbedo,
   });
@@ -25,6 +26,7 @@ final class ProceduralSource extends SceneSource {
 
   @override
   Future<ModelAsset> load({
+    required GraphicsDevice device,
     required TextureHandle fallbackAlbedo,
     required TextureHandle checkerAlbedo,
   }) async {
@@ -32,6 +34,7 @@ final class ProceduralSource extends SceneSource {
     // builds in 0.9 ms, and shipping the result to another isolate would cost
     // more in copying than the work itself.
     return ModelAsset.fromMesh(
+      device,
       shape.build(),
       name: label,
       // Checkerboard rather than flat white: a procedural shape with no material
@@ -56,6 +59,7 @@ final class ModelFileSource extends SceneSource {
 
   @override
   Future<ModelAsset> load({
+    required GraphicsDevice device,
     required TextureHandle fallbackAlbedo,
     required TextureHandle checkerAlbedo,
   }) async {
@@ -70,6 +74,7 @@ final class ModelFileSource extends SceneSource {
     // context that created them.
     return ModelAsset.fromDocument(
       document,
+      device: device,
       fallbackAlbedo: fallbackAlbedo,
       name: label,
     );

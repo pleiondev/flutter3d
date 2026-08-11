@@ -2,8 +2,8 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
-import '../gpu/gpu_texture.dart';
 import '../graphics/formats.dart';
+import '../graphics/graphics_device.dart';
 import '../graphics/texture.dart';
 
 /// A texture generated in code.
@@ -21,18 +21,22 @@ abstract class ProceduralTexture {
   /// RGBA8 pixels, row-major from the top-left.
   ByteData encode();
 
-  /// Uploads the pixels as a host-visible GPU texture.
-  TextureHandle upload() {
-    final texture = createGpuTexture(
-      StorageMode.hostVisible,
-      size,
-      size,
+  /// Uploads the pixels through [device].
+  ///
+  /// The device is an argument rather than a global, which is what took the
+  /// last backend import out of `render/`. Storage mode and origin are not
+  /// parameters: they are consequences of filling a texture from the CPU, and
+  /// the backend decides them.
+  TextureHandle upload(GraphicsDevice device) {
+    // Non-null by construction: [encode] is documented to return `size` by
+    // `size` RGBA8 texels, so a null here would mean this class contradicted
+    // itself rather than that an input was bad.
+    return device.createTextureFromPixels(
+      width: size,
+      height: size,
       format: TextureFormat.r8g8b8a8UNormInt,
-      // The data is uploaded from the host, so use the host coordinate system.
-      coordinateSystem: TextureCoordinateSystem.uploadFromHost,
-    );
-    texture.gpuTexture.overwrite(encode());
-    return texture;
+      pixels: encode(),
+    )!;
   }
 }
 

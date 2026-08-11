@@ -28,7 +28,6 @@ import 'render_list.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
-import 'render_backend.dart';
 import 'render_node.dart';
 import 'pass_contributor.dart';
 import 'render_view.dart';
@@ -632,7 +631,7 @@ final class Renderer implements RenderServices {
   /// the narrower [GraphicsDevice] view of it to every node and contributor. A
   /// second backend is a second implementation of this and nothing else, and a
   /// **fake** one is what makes a node's drawing testable off a device.
-  final RenderBackend device;
+  final GraphicsDevice device;
 
   /// The bundle's stages, for anything looking one up by name.
   ShaderLibrary get shaders => device.shaders;
@@ -829,7 +828,7 @@ final class Renderer implements RenderServices {
   /// over. A compile-time choice could not be faked, and a fake is the only way
   /// anything below this line is ever exercised without a GPU.
   factory Renderer.create({
-    required RenderBackend device,
+    required GraphicsDevice device,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
   }) {
@@ -1987,7 +1986,7 @@ final class Renderer implements RenderServices {
       if (mesh is! DrawableGeometry) {
         throw StateError(
           'MeshNode "${node.name}" holds ${mesh.runtimeType}, which has no '
-          'GPU buffers. Upload it with GpuMesh.upload before drawing it.',
+          'GPU buffers. Upload it with DeviceMesh.upload before drawing it.',
         );
       }
       final material = node.material;

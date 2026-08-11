@@ -14,13 +14,18 @@
 /// Deliberately a file scan. The set is small, the rule is textual, and a scan
 /// says which file broke it.
 ///
-/// The second test here is the weaker half of the same boundary, and it is
-/// written down because the difference is easy to miss. Not naming
-/// `flutter_gpu` is not the same as not *depending* on `gpu/`: three files in
-/// the core still import that directory, so the backend cannot yet be lifted
-/// into a package of its own. Every one of them wants the same missing thing —
-/// a way to get CPU data onto the device — which is the next seam, not this
-/// one. An allowlist keeps that a known list of three rather than a habit.
+/// The second test here is the same boundary stated as a dependency rather
+/// than as a name, and the difference is easy to miss: not *naming*
+/// `flutter_gpu` is not the same as not *depending* on `gpu/`. Three core files
+/// did — `model_asset.dart`, `texture_upload.dart` and `procedural_texture.dart`
+/// — all for the same missing thing, a way to get CPU data onto the device.
+/// They reached `gpuContext`, a global, which is the one shape of dependency
+/// that cannot be satisfied from another package.
+///
+/// **That list is empty now**, and the allowlist below is kept at zero
+/// deliberately. It is not bookkeeping: it is the difference between a backend
+/// that can be lifted into its own package by moving a directory, and one that
+/// has to be rewritten because the core reaches into it.
 library;
 
 import 'dart:io';
@@ -30,22 +35,18 @@ import 'package:flutter_test/flutter_test.dart';
 /// The one directory allowed to name a graphics API.
 const String _backendDir = 'lib/src/engine/gpu/';
 
-/// Core files that still reach into `gpu/`, and what each one wants.
+/// Core files allowed to reach into `gpu/`, and why each one is.
 ///
-/// All three are *content upload* — vertices, indices, pixels — which is a
-/// different seam from encoding a pass and was deliberately left for later. The
-/// encoder took the drawing side: nothing here is on the path of a draw.
+/// **Empty, and worth keeping empty.** Content upload — vertices, indices,
+/// pixels — was the last thing here, and it now goes through
+/// `GraphicsDevice.uploadGeometry` and `createTextureFromPixels` like
+/// everything else. `GpuMesh` became `DeviceMesh` in `geometry/`, because
+/// nothing about a mesh was backend-specific once its buffers were handles.
 ///
-/// The list may shrink. It may not grow without somebody deciding to, which is
-/// the whole point of writing it here instead of in a commit message.
-const Map<String, String> _mayReachBackend = <String, String>{
-  'lib/src/engine/assets/model_asset.dart':
-      'GpuMesh.upload and the texture upload path — a decoded model has to '
-          'reach the device, and GraphicsDevice has no way to put it there yet',
-  'lib/src/engine/render/procedural_texture.dart':
-      'createGpuTexture plus Texture.overwrite, to upload generated pixels — '
-          'the same missing seam, for textures rather than meshes',
-};
+/// An entry here is a claim that some core file cannot be written against
+/// `graphics/`. Adding one should feel like a decision, which is why it is a
+/// map with reasons rather than a list of paths.
+const Map<String, String> _mayReachBackend = <String, String>{};
 
 void main() {
   test('only gpu/ imports flutter_gpu', () {

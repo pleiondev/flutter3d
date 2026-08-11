@@ -2,8 +2,8 @@ import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation.dart';
 import '../geometry/geometry.dart';
-import '../gpu/gpu_mesh.dart';
-import '../gpu/texture_upload.dart';
+import '../graphics/graphics_device.dart';
+import 'texture_upload.dart';
 import '../graphics/sampler.dart';
 import '../graphics/texture.dart';
 import '../render/lighting_model.dart';
@@ -26,7 +26,7 @@ final class ModelPart {
     this.flipWinding = false,
   }) : transform = transform ?? Matrix4.identity();
 
-  final GpuMesh mesh;
+  final DeviceMesh mesh;
   final Material material;
   final Matrix4 transform;
   final String? name;
@@ -310,11 +310,12 @@ final class ModelAsset {
 
   /// Wraps a single procedurally generated mesh.
   factory ModelAsset.fromMesh(
+    GraphicsDevice device,
     MeshData mesh, {
     Material? material,
     String? name,
   }) {
-    final uploaded = GpuMesh.upload(mesh);
+    final uploaded = DeviceMesh.upload(device, mesh);
     return ModelAsset(
       name: name,
       parts: <ModelPart>[
@@ -332,6 +333,7 @@ final class ModelAsset {
   /// format means writing a decoder, not touching this.
   static Future<ModelAsset> fromDocument(
     ModelDocument document, {
+    required GraphicsDevice device,
     required TextureHandle fallbackAlbedo,
     LightingModel lighting = LightingModel.pbr,
     String? name,
@@ -340,7 +342,7 @@ final class ModelAsset {
 
     // Surfaces may share a MeshData, and materials may share an image; upload
     // each distinct one once.
-    final meshCache = <MeshData, GpuMesh>{};
+    final meshCache = <MeshData, DeviceMesh>{};
     final textureCache = <int, TextureHandle?>{};
     final materialCache = <int, Material>{};
 
@@ -349,7 +351,7 @@ final class ModelAsset {
       if (textureCache.containsKey(imageIndex)) return textureCache[imageIndex];
 
       final uploaded =
-          await uploadEncodedImage(document.images[imageIndex].bytes);
+          await uploadEncodedImage(device, document.images[imageIndex].bytes);
       if (uploaded == null) {
         warnings.add(
           'images[$imageIndex] could not be decoded; the material falls back to '
@@ -364,7 +366,7 @@ final class ModelAsset {
     for (final surface in document.surfaces) {
       final mesh = meshCache.putIfAbsent(
         surface.mesh,
-        () => GpuMesh.upload(surface.mesh),
+        () => DeviceMesh.upload(device, surface.mesh),
       );
 
       final index = surface.materialIndex;

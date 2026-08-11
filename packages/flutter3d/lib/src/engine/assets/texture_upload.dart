@@ -1,26 +1,35 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import '../assets/model_document.dart';
 import '../graphics/formats.dart';
+import '../graphics/graphics_device.dart';
 import '../graphics/sampler.dart';
 import '../graphics/texture.dart';
-import 'gpu_texture.dart';
+import 'model_document.dart';
 
-/// Decodes an encoded image (PNG, JPEG, …) and uploads it as a GPU texture.
+/// Decodes an encoded image (PNG, JPEG, …) and uploads it through [device].
 ///
-/// Decoding goes through `dart:ui`, which is why it lives here rather than in
-/// the glTF layer: keeping the parser free of `dart:ui` is what lets it be unit
-/// tested without a Flutter binding.
+/// Decoding goes through `dart:ui`, which is why this sits beside the decoders
+/// rather than in the glTF layer: keeping the parser free of `dart:ui` is what
+/// lets it be unit tested without a Flutter binding.
 ///
-/// Two flutter_gpu limitations shape this:
+/// It used to live in the backend directory, because uploading needed the
+/// flutter_gpu context. Nothing about decoding a PNG was ever backend-specific;
+/// what was, was one call, and that call is now
+/// [GraphicsDevice.createTextureFromPixels].
+///
+/// Two limitations of the current backend shape this, and neither is expressed
+/// in the seam because neither is a decision anybody makes:
 ///
 ///  * There are no compressed pixel formats, so everything lands as RGBA8. A
 ///    2048² texture costs 16 MB of device memory regardless of how small its
 ///    PNG was.
 ///  * There are no mip levels, so minified surfaces alias. Nothing here can fix
 ///    that; it needs render-to-mip-level support.
-Future<TextureHandle?> uploadEncodedImage(Uint8List encoded) async {
+Future<TextureHandle?> uploadEncodedImage(
+  GraphicsDevice device,
+  Uint8List encoded,
+) async {
   if (encoded.isEmpty) return null;
 
   final ui.Codec codec;
@@ -43,23 +52,15 @@ Future<TextureHandle?> uploadEncodedImage(Uint8List encoded) async {
     );
     if (data == null) return null;
 
-    final texture = createGpuTexture(
-      StorageMode.hostVisible,
-      image.width,
-      image.height,
+    // Null when the decoder and the device disagree about how many bytes that
+    // image is — which degrades to "no texture" rather than taking the whole
+    // model down with it. The size the device wants is the device's to know.
+    return device.createTextureFromPixels(
+      width: image.width,
+      height: image.height,
       format: TextureFormat.r8g8b8a8UNormInt,
-      coordinateSystem: TextureCoordinateSystem.uploadFromHost,
+      pixels: data,
     );
-
-    // overwrite() demands exactly the base mip size and throws otherwise, so a
-    // mismatch here means the decoder disagreed about dimensions. Bytes per
-    // texel is a backend question, so this is one of the few places that
-    // reaches through the handle for something other than a bind.
-    final expected = texture.gpuTexture.getBaseMipLevelSizeInBytes();
-    if (data.lengthInBytes != expected) return null;
-
-    texture.gpuTexture.overwrite(data);
-    return texture;
   } finally {
     image.dispose();
   }

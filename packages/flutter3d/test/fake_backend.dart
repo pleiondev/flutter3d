@@ -13,6 +13,7 @@
 library;
 
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter3d/src/engine/graphics/command_encoder.dart';
 import 'package:flutter3d/src/engine/graphics/formats.dart';
@@ -252,6 +253,26 @@ final class FakeBackend implements GraphicsDevice {
     );
   }
 
+  /// Pixel uploads, in order, so a test can assert what reached the device.
+  final List<RenderTargetSpec> uploadedTextures = <RenderTargetSpec>[];
+
+  @override
+  TextureHandle? createTextureFromPixels({
+    required int width,
+    required int height,
+    required TextureFormat format,
+    required ByteData pixels,
+  }) {
+    final spec = RenderTargetSpec(
+      width: width,
+      height: height,
+      format: format,
+      storageMode: StorageMode.hostVisible,
+    );
+    uploadedTextures.add(spec);
+    return createTexture(spec);
+  }
+
   @override
   PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment) =>
       PipelineHandle(
@@ -268,6 +289,15 @@ final class FakeBackend implements GraphicsDevice {
 
   @override
   void beginFrame() => frames++;
+
+  /// There is no image without a device, and pretending otherwise would be
+  /// worse than refusing: a test that got a blank `ui.Image` back could assert
+  /// something about a frame that was never drawn. Nothing under test here
+  /// reaches this — only `Renderer.render` does, at the very end.
+  @override
+  ui.Image imageOf(TextureHandle texture) => throw UnsupportedError(
+        'FakeBackend draws nothing, so there is no image of $texture',
+      );
 
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {

@@ -24,6 +24,25 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+/// Files inside `graphics/` allowed to name `dart:ui`, and why.
+///
+/// The `flutter_gpu` half of the rule has no exceptions and never will — that
+/// is the whole reason the directory exists. The `dart:ui` half is narrower
+/// than it first looked: it is there to stop Flutter's vocabulary leaking into
+/// the engine's, and `PixelFormat` is the collision it was written for, already
+/// handled by naming ours [TextureFormat].
+///
+/// Handing back a finished frame is different. Every backend has to answer it,
+/// so a device that could not would not be a usable device. It sat on a second
+/// interface in `render/` for one release to preserve the blanket ban, and that
+/// cost more than it saved: it made the backend depend on the engine, so
+/// implementing a device meant importing the scene graph.
+const Map<String, String> _mayUseDartUi = <String, String>{
+  'graphics_device.dart':
+      'GraphicsDevice.imageOf returns the finished frame, which every backend '
+          'must be able to produce and only dart:ui can name',
+};
+
 /// Files outside `graphics/` held to the same rule, and why each one is.
 const Map<String, String> _alsoBackendFree = <String, String>{
   'lib/src/engine/render/frame_resources.dart':
@@ -31,15 +50,25 @@ const Map<String, String> _alsoBackendFree = <String, String>{
 };
 
 void _check(File file, {String? because}) {
+  final allowsDartUi = _mayUseDartUi.containsKey(file.uri.pathSegments.last);
   for (final line in file.readAsLinesSync()) {
     final trimmed = line.trim();
     if (!trimmed.startsWith('import ') && !trimmed.startsWith('export ')) {
       continue;
     }
     expect(
-      trimmed.contains('flutter_gpu') || trimmed.contains('dart:ui'),
+      trimmed.contains('flutter_gpu'),
       isFalse,
       reason: '${file.path} reaches a backend: $trimmed'
+          '${because == null ? '' : ' — $because'}',
+    );
+    if (allowsDartUi) continue;
+    expect(
+      trimmed.contains('dart:ui'),
+      isFalse,
+      reason: '${file.path} reaches dart:ui: $trimmed — the engine\'s '
+          'vocabulary is its own. If this is genuinely something every backend '
+          'must answer, name it in _mayUseDartUi with the reason'
           '${because == null ? '' : ' — $because'}',
     );
   }

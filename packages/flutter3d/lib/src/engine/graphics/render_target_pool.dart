@@ -79,9 +79,9 @@ final class RenderTargetSpec {
 
 /// Makes a texture. The one thing a pool cannot do on its own.
 ///
-/// Injected rather than imported so the pool holds no backend at all. There is
-/// exactly one implementation that talks to a device — `GpuTextureAllocator` in
-/// `gpu/gpu_texture.dart` — and any number of counting fakes in tests.
+/// Injected rather than imported so the pool holds no backend at all. Every
+/// [GraphicsDevice] is one, which is what makes texture creation a single rule
+/// across the engine — and any number of counting fakes in tests.
 abstract interface class TextureAllocator {
   /// A brand-new texture matching [spec], with the single [TextureHandle] that
   /// will ever stand for it.

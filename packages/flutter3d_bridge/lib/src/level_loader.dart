@@ -55,7 +55,10 @@ final class LoadedLevel {
 final class LevelLoader {
   const LevelLoader();
 
-  Future<LoadedLevel> load(String assetPath) async {
+  Future<LoadedLevel> load(
+    String assetPath, {
+    required GraphicsDevice device,
+  }) async {
     final text = await rootBundle.loadString(assetPath);
     final level = Level.fromJson(
       jsonDecode(text) as Map<String, Object?>,
@@ -79,7 +82,7 @@ final class LevelLoader {
     for (final source in level.materials.values) {
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
-        textures[path] = await _upload(path);
+        textures[path] = await _upload(device, path);
       }
     }
 
@@ -87,7 +90,7 @@ final class LevelLoader {
     for (final surface in surfaces) {
       scene.add(
         MeshNode(
-          GpuMesh.upload(_toMeshData(surface)),
+          DeviceMesh.upload(device, _toMeshData(surface)),
           LevelLoader.materialFrom(
             level.materials[surface.material] ?? LevelMaterial(),
             textures,
@@ -150,10 +153,13 @@ final class LevelLoader {
     return material;
   }
 
-  static Future<TextureHandle?> _upload(String path) async {
+  static Future<TextureHandle?> _upload(
+    GraphicsDevice device,
+    String path,
+  ) async {
     try {
       final bytes = await rootBundle.load(path);
-      return await uploadEncodedImage(bytes.buffer.asUint8List());
+      return await uploadEncodedImage(device, bytes.buffer.asUint8List());
     } catch (error) {
       // A missing texture leaves the material flat rather than stopping the
       // level. Losing a wall texture should not cost the play-test.

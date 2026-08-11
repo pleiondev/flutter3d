@@ -11,24 +11,24 @@ import 'package:vector_math/vector_math.dart';
 ///
 /// The rig around them — the scene, the camera at 55 degrees, the bob and the
 /// recoil — is the bridge's. Only the shapes are here.
-Map<String, SceneNode> dungeonWeaponModels() {
+Map<String, SceneNode> dungeonWeaponModels(GraphicsDevice device) {
   return <String, SceneNode>{
     // Two blocks for the fists, because one block in the corner of the screen
     // reads as a stray object rather than as a pair of hands.
-    Weapons.fists.name: _assemble(<_Part>[
+    Weapons.fists.name: _assemble(device, <_Part>[
       _Part(Vector3(0.03, 0.0, 0.0), Vector3(0.13, 0.11, 0.16), _skin),
       _Part(Vector3(-0.26, -0.05, 0.05), Vector3(0.13, 0.11, 0.16), _skin),
     ]),
-    Weapons.pistol.name: _assemble(<_Part>[
+    Weapons.pistol.name: _assemble(device, <_Part>[
       _Part(Vector3(0.0, 0.0, -0.08), Vector3(0.052, 0.070, 0.25), _metal),
       _Part(Vector3(0.0, -0.09, 0.04), Vector3(0.048, 0.115, 0.085), _grip),
     ]),
-    Weapons.shotgun.name: _assemble(<_Part>[
+    Weapons.shotgun.name: _assemble(device, <_Part>[
       _Part(Vector3(0.0, 0.01, -0.20), Vector3(0.065, 0.065, 0.46), _metal),
       _Part(Vector3(0.0, -0.06, 0.10), Vector3(0.055, 0.098, 0.19), _grip),
       _Part(Vector3(0.0, -0.06, -0.16), Vector3(0.062, 0.055, 0.14), _grip),
     ]),
-    Weapons.rocketLauncher.name: _assemble(<_Part>[
+    Weapons.rocketLauncher.name: _assemble(device, <_Part>[
       _Part(Vector3(0.0, 0.03, -0.24), Vector3(0.110, 0.110, 0.54), _metal),
       _Part(Vector3(0.0, -0.08, 0.06), Vector3(0.055, 0.110, 0.13), _grip),
       _Part(Vector3(0.0, 0.13, -0.10), Vector3(0.039, 0.047, 0.18), _grip),
@@ -55,12 +55,12 @@ final Material _skin = Material(
   roughness: 0.7,
 );
 
-SceneNode _assemble(List<_Part> parts) {
+SceneNode _assemble(GraphicsDevice device, List<_Part> parts) {
   final root = SceneNode();
   for (final part in parts) {
     root.add(
       MeshNode(
-        GpuMesh.upload(CuboidShape(size: part.size).build()),
+        DeviceMesh.upload(device, CuboidShape(size: part.size).build()),
         part.material,
       )..setPositionFrom(part.offset),
     );

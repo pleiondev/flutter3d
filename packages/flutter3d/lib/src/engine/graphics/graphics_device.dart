@@ -5,12 +5,14 @@
 library;
 
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'command_encoder.dart';
 import 'formats.dart';
 import 'geometry_buffer.dart';
 import 'render_target_pool.dart';
 import 'shader.dart';
+import 'texture.dart';
 
 /// Everything the engine needs a graphics backend for.
 ///
@@ -56,10 +58,30 @@ abstract interface class GraphicsDevice implements TextureAllocator {
 
   /// Uploads geometry that will outlive the frame.
   ///
-  /// For the two buffers the renderer keeps: the full-screen triangle, and the
-  /// identity index sequence the debug overlay draws through. Per-frame
-  /// geometry does not come here — see `PassEncoder.bindVertexData`.
+  /// Every mesh in the engine comes through here, plus the two buffers the
+  /// renderer keeps: the full-screen triangle and the identity index sequence
+  /// the debug overlay draws through. Per-frame geometry does not — see
+  /// `PassEncoder.bindVertexData`.
   GeometryBuffer uploadGeometry(ByteData bytes);
+
+  /// Creates a texture already holding [pixels].
+  ///
+  /// One call rather than create-then-write, because that is what the engine
+  /// means every time: a procedural texture and a decoded PNG are both "make me
+  /// a texture out of these bytes", and a two-step version would leave a window
+  /// in which a texture exists holding nothing. Whether the backend needs a
+  /// staging copy, a particular storage mode or a flipped origin to get the
+  /// bytes there is its own business.
+  ///
+  /// Null when [pixels] is not the size the device wants for a texture of that
+  /// description — which is how a decoder that disagreed about the dimensions
+  /// degrades to "no texture" rather than taking the whole model down.
+  TextureHandle? createTextureFromPixels({
+    required int width,
+    required int height,
+    required TextureFormat format,
+    required ByteData pixels,
+  });
 
   /// Tells the backend a new frame is starting.
   ///
@@ -75,4 +97,24 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   ///
   /// The returned encoder must be submitted; see [CommandEncoder.submit].
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor);
+
+  /// The texture as a Flutter image — the finished frame, handed back.
+  ///
+  /// The one member here that names `dart:ui`, and it earns the exception:
+  /// producing something Flutter can composite is a question **every** backend
+  /// in this engine has to answer, so leaving it out would mean the interface
+  /// did not describe a usable device.
+  ///
+  /// It lived on a second interface for exactly one release — `RenderBackend`,
+  /// in `render/` — purely so that `graphics/` could keep a blanket ban on
+  /// `dart:ui`. The cost of that was worse than the rule it protected: it made
+  /// the *backend* depend on the *engine*, so a second backend would have had
+  /// to pull in the scene graph and the asset loaders to implement a device.
+  /// The ban exists to keep flutter_gpu's vocabulary out; `ui.Image` behind an
+  /// `as ui` prefix is not that.
+  ///
+  /// Also the engine's only readback path — there is no buffer readback in
+  /// flutter_gpu at all, so anything wanting to *look* at what a pass wrote
+  /// goes through `ui.Image.toByteData`. The MRT probe is the one caller.
+  ui.Image imageOf(TextureHandle texture);
 }

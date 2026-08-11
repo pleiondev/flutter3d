@@ -100,7 +100,15 @@ abstract interface class FixtureAppearance {
 /// this never learns what the game's fixtures are called: the shapes come from
 /// a [FixtureAppearance].
 final class FixtureVisuals {
-  FixtureVisuals(this.scene, this.level, {required this.appearance});
+  FixtureVisuals(
+    this.scene,
+    this.level, {
+    required this.appearance,
+    required this.device,
+  }) : meshes = SharedMeshes(device);
+
+  /// The backend everything here uploads through.
+  final GraphicsDevice device;
 
   final Scene scene;
 
@@ -136,7 +144,7 @@ final class FixtureVisuals {
   final Map<LightFixture, Material> _glowing = <LightFixture, Material>{};
 
   /// One uploaded mesh per distinct shape, shared with the game's silhouettes.
-  final SharedMeshes meshes = SharedMeshes();
+  final SharedMeshes meshes;
 
   /// Learns where the level's named lights are. Called once, after the scene
   /// is built.
@@ -288,7 +296,9 @@ final class FixtureVisuals {
       );
       return ModelAsset.fromDocument(
         document,
-        fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(),
+        device: device,
+        fallbackAlbedo:
+            fallbackAlbedo ?? SolidColorTexture.white.upload(device),
         name: path,
       );
     } catch (error) {

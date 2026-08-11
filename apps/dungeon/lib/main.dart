@@ -102,10 +102,11 @@ class _GameScreenState extends State<GameScreen>
   final ParticleSystem _particles = ParticleSystem(capacity: 3000);
   /// The pistol, not the fists: the game starts with both, and a shooter that
   /// opens on empty hands looks unfinished.
-  final WeaponView _weaponView = WeaponView(
-    models: dungeonWeaponModels(),
-    initial: Weapons.pistol,
-  );
+  /// Assigned in `initState`, once there is a device to upload its models to.
+  ///
+  /// A field initializer used to do it, back when a mesh could reach the
+  /// graphics context on its own. Nothing can now, which is the point.
+  late final WeaponView _weaponView;
   WeaponShot? _shot;
   ProjectileSystem? _projectiles;
   MonsterSystem? _monsters;
@@ -130,6 +131,10 @@ class _GameScreenState extends State<GameScreen>
   late final RenderView _view;
   Renderer? _renderer;
   Object? _initError;
+
+  /// The backend. Everything that uploads anything needs it, so it outlives
+  /// `initState` as a field rather than being rebuilt where it is wanted.
+  GpuRenderBackend? _device;
 
   /// How far the eye sits above the centre of the player's box.
   static const double _eyeOffset = 0.7;
@@ -216,11 +221,29 @@ class _GameScreenState extends State<GameScreen>
 
     _view = RenderView(camera: _camera);
 
+    // The device first, because the weapon models and the fallback textures are
+    // uploaded through it. A failure here is the same failure as a missing
+    // shader bundle — `_renderer` stays null and `build` shows the panel — so
+    // there is nothing further to set up.
+    final GpuRenderBackend device;
+    try {
+      device = GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset);
+    } catch (error) {
+      _initError = error;
+      return;
+    }
+    _device = device;
+
+    _weaponView = WeaponView(
+      models: dungeonWeaponModels(device),
+      initial: Weapons.pistol,
+    );
+
     try {
       _renderer = Renderer.create(
-        device: GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset),
-        fallbackAlbedo: SolidColorTexture.white.upload(),
-        fallbackNormal: SolidColorTexture.flatNormal.upload(),
+        device: device,
+        fallbackAlbedo: SolidColorTexture.white.upload(device),
+        fallbackNormal: SolidColorTexture.flatNormal.upload(device),
       );
     } catch (error) {
       _initError = error;
@@ -305,7 +328,8 @@ class _GameScreenState extends State<GameScreen>
 
   Future<void> _loadLevel() async {
     try {
-      final loaded = await const LevelLoader().load(_levelAsset);
+      final loaded =
+          await const LevelLoader().load(_levelAsset, device: _device!);
       final start = loaded.level.playerStart;
 
       final hitscan = Hitscan(world: loaded.collision);
@@ -317,12 +341,14 @@ class _GameScreenState extends State<GameScreen>
       final visuals = MonsterVisuals(
         loaded.scene,
         appearance: const DungeonMonsters(),
+        device: _device!,
       );
       final mechanisms = MechanismWorld(loaded.collision);
       final fixtures = FixtureVisuals(
         loaded.scene,
         loaded,
         appearance: const DungeonFixtures(),
+        device: _device!,
       )
         ..fallbackAlbedo = _renderer?.fallbackAlbedo
         // Before spawning, so a torch can find the light it drives.

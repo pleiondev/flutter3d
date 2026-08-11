@@ -28,14 +28,18 @@ abstract interface class MonsterAppearance {
 /// instancing flutter_gpu offers. What colour they are is a [MonsterAppearance];
 /// this owns the shape, the placement and the death pose.
 final class MonsterVisuals {
-  MonsterVisuals(this.scene, {required this.appearance});
+  MonsterVisuals(
+    this.scene, {
+    required this.appearance,
+    required GraphicsDevice device,
+  }) : _meshes = SharedMeshes(device);
 
   final Scene scene;
 
   /// The game's half: one material per monster and per state.
   final MonsterAppearance appearance;
 
-  final SharedMeshes _meshes = SharedMeshes();
+  final SharedMeshes _meshes;
   final Map<Monster, MeshNode> _nodes = <Monster, MeshNode>{};
 
   void add(Monster monster) {

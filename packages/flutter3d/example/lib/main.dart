@@ -146,6 +146,9 @@ class SpikePage extends StatefulWidget {
 class _SpikePageState extends State<SpikePage>
     with SingleTickerProviderStateMixin {
   Renderer? _renderer;
+
+  /// Kept because the asset loader needs one long after `initState`.
+  GpuRenderBackend? _device;
   Object? _initError;
   StackTrace? _initStack;
 
@@ -248,6 +251,21 @@ class _SpikePageState extends State<SpikePage>
   void initState() {
     super.initState();
 
+    // The backend, before anything that needs one. It used to be built inline
+    // at `Renderer.create`, which was fine while meshes and textures reached a
+    // global to upload themselves; now that they take a device, it has to exist
+    // first. A failure here is the same failure as a missing shader bundle, so
+    // it lands in the same place and `build` shows the same panel.
+    final GpuRenderBackend device;
+    try {
+      device = GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset);
+    } catch (error, stack) {
+      _initError = error;
+      _initStack = stack;
+      return;
+    }
+    _device = device;
+
     _scene = Scene(name: 'demo');
 
     // A pivot the model hangs under, so "spin" animates the scene rather than
@@ -279,7 +297,7 @@ class _SpikePageState extends State<SpikePage>
     _ground = MeshNode(
       // Uploaded, not a CpuMesh: this one is drawn, and the renderer refuses
       // geometry that never reached the GPU rather than skipping it quietly.
-      GpuMesh.upload(const PlaneShape().build()),
+      DeviceMesh.upload(device, const PlaneShape().build()),
       engine.Material(
         lighting: LightingModel.pbr,
         // Mid grey, not white: a white floor under a lit model saturates and
@@ -366,14 +384,14 @@ class _SpikePageState extends State<SpikePage>
     _view = RenderView(camera: _camera);
 
     try {
-      final fallback = SolidColorTexture.white.upload();
-      final checker = const CheckerboardTexture().upload();
+      final fallback = SolidColorTexture.white.upload(device);
+      final checker = const CheckerboardTexture().upload(device);
       _fallbackAlbedo = fallback;
       _checkerAlbedo = checker;
       _renderer = Renderer.create(
-        device: GpuRenderBackend.create(bundleAsset: Renderer.bundleAsset),
+        device: device,
         fallbackAlbedo: fallback,
-        fallbackNormal: SolidColorTexture.flatNormal.upload(),
+        fallbackNormal: SolidColorTexture.flatNormal.upload(device),
       );
     } catch (error, stack) {
       _initError = error;
@@ -391,7 +409,7 @@ class _SpikePageState extends State<SpikePage>
         renderer.addContributor(ParticleContributor(GoldenExtras.burst()));
       }
       if (goldenScene.viewModel) {
-        renderer.addNode(GoldenExtras.viewModel());
+        renderer.addNode(GoldenExtras.viewModel(device));
       }
     }
 
@@ -399,6 +417,7 @@ class _SpikePageState extends State<SpikePage>
       load: (label) {
         final source = kSources.firstWhere((s) => s.label == label);
         return source.load(
+          device: _device!,
           fallbackAlbedo: _fallbackAlbedo!,
           checkerAlbedo: _checkerAlbedo!,
         );

@@ -67,7 +67,7 @@ abstract final class GoldenExtras {
   /// A plain box rather than a weapon, because what is being tested is that
   /// the overlay stage draws at all and is not clipped by the world — and a
   /// box placed deliberately inside the model proves the second half.
-  static ViewModelNode viewModel() {
+  static ViewModelNode viewModel(GraphicsDevice device) {
     final scene = Scene();
     final camera = CameraNode(
       // Narrower than the world camera, the way a real view model is.
@@ -76,7 +76,10 @@ abstract final class GoldenExtras {
     scene.add(camera);
     scene.add(
       MeshNode(
-        GpuMesh.upload(CuboidShape(size: Vector3(0.34, 0.2, 0.7)).build()),
+        DeviceMesh.upload(
+          device,
+          CuboidShape(size: Vector3(0.34, 0.2, 0.7)).build(),
+        ),
         Material(
           name: 'view model',
           baseColor: Vector4(0.85, 0.30, 0.22, 1.0),

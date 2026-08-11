@@ -10,7 +10,6 @@ library;
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import '../graphics/formats.dart';
-import '../graphics/render_target_pool.dart';
 import '../graphics/texture.dart';
 import 'gpu_formats.dart';
 
@@ -80,26 +79,4 @@ extension GpuTextureHandle on TextureHandle {
   /// backend's — which is the right failure: it means a texture crossed from
   /// one backend into another's pass, and there is no picture to salvage.
   gpu.Texture get gpuTexture => backend as gpu.Texture;
-}
-
-/// A [TextureAllocator] that goes to the device.
-///
-/// What `RenderTargetPool` is given in a real application. A test gives it a
-/// fake instead and the pool cannot tell the difference, which is the entire
-/// reason the allocator is an argument.
-final class GpuTextureAllocator implements TextureAllocator {
-  const GpuTextureAllocator();
-
-  @override
-  TextureHandle createTexture(RenderTargetSpec spec) => createGpuTexture(
-        spec.storageMode,
-        spec.width,
-        spec.height,
-        format: spec.format,
-        sampleCount: spec.sampleCount,
-        // Transient textures live in tile memory and cannot be sampled, so
-        // asking for shader read on one is a contradiction the driver would
-        // have to resolve for us.
-        enableShaderReadUsage: spec.storageMode != StorageMode.deviceTransient,
-      );
 }
