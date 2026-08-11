@@ -274,8 +274,17 @@ final class FakeBackend implements GraphicsDevice {
         name: '${vertex.name}+${fragment.name}',
       );
 
+  /// Recorded with its usage, because a backend exists that cannot change its
+  /// mind about one later.
+  final List<GeometryUsage> uploads = <GeometryUsage>[];
+
   @override
-  GeometryBuffer uploadGeometry(ByteData bytes) => GeometryBuffer(
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
+    uploads.add(usage);
+    return _geometry(bytes);
+  }
+
+  GeometryBuffer _geometry(ByteData bytes) => GeometryBuffer(
         backend: 'uploaded ${_serial++}',
         offsetInBytes: 0,
         lengthInBytes: bytes.lengthInBytes,

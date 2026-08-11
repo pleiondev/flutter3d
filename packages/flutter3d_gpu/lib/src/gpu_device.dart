@@ -108,8 +108,15 @@ final class GpuRenderBackend implements GraphicsDevice {
         name: '${vertex.name}+${fragment.name}',
       );
 
+  /// [usage] is ignored here, and that is not laziness.
+  ///
+  /// A flutter_gpu `DeviceBuffer` is untyped: the same buffer can be bound as
+  /// vertices in one draw and as indices in the next. The parameter exists
+  /// because WebGL cannot do that — it binds a buffer to its target for life —
+  /// and a contract that let one backend infer what the other must be told
+  /// would be a contract only one backend could implement.
   @override
-  GeometryBuffer uploadGeometry(ByteData bytes) {
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
     final buffer = gpu.gpuContext.createDeviceBufferWithCopy(bytes);
     return GeometryBuffer(
       backend: buffer,

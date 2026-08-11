@@ -98,8 +98,9 @@ final class DeviceMesh implements DrawableGeometry {
   }) {
     final packed = mesh.packIndices();
     return DeviceMesh._(
-      vertices: device.uploadGeometry(mesh.vertexBytes),
-      indices: device.uploadGeometry(packed.bytes),
+      vertices: device.uploadGeometry(
+          mesh.vertexBytes, GeometryUsage.vertices),
+      indices: device.uploadGeometry(packed.bytes, GeometryUsage.indices),
       vertexCount: mesh.vertexCount,
       indexCount: packed.count,
       indexType: packed.is16Bit ? IndexType.int16 : IndexType.int32,

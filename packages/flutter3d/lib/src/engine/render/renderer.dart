@@ -1761,6 +1761,7 @@ final class Renderer implements RenderServices {
           3.0, -1.0, 2.0, 1.0, //
           -1.0, 3.0, 0.0, -1.0, //
         ]).buffer.asByteData(),
+        GeometryUsage.vertices,
       );
 
   PipelineHandle _postPipeline(
@@ -3089,7 +3090,8 @@ final class Renderer implements RenderServices {
       for (var i = 0; i < capacity; i++) {
         indices[i] = i;
       }
-      _debugIndexBuffer = device.uploadGeometry(indices.buffer.asByteData());
+      _debugIndexBuffer = device.uploadGeometry(
+          indices.buffer.asByteData(), GeometryUsage.indices);
       _debugIndexCapacity = capacity;
     }
     return _debugIndexBuffer!.slice(length: count * 4);

@@ -5,6 +5,28 @@
 /// `test/graphics_is_backend_free_test.dart` enforces it.
 library;
 
+/// What a buffer will be bound as.
+///
+/// **Not a hint.** One backend cannot infer it and cannot change its mind:
+/// WebGL binds a buffer to its target for life, so a buffer uploaded as
+/// vertices can never afterwards be bound as indices — the attempt is an
+/// `INVALID_OPERATION`, the draw is dropped, and the frame comes back the clear
+/// colour with nothing logged anywhere.
+///
+/// flutter_gpu has no such split: a `DeviceBuffer` is untyped and a
+/// `BufferView` binds either way, which is why the contract went without this
+/// until a second backend was written against it. The engine has always known
+/// which it was uploading, so saying so costs a word at each call site.
+enum GeometryUsage {
+  /// Interleaved vertex attributes.
+  vertices,
+
+  /// Indices, of the width the draw will name.
+  ///
+  /// Plural to stay clear of `Enum.index`, which every enum already has.
+  indices,
+}
+
 /// A range of device memory holding vertices or indices.
 ///
 /// The engine only ever does two things with one: bind the whole of a mesh's

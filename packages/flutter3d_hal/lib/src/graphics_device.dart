@@ -63,7 +63,10 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// renderer keeps: the full-screen triangle and the identity index sequence
   /// the debug overlay draws through. Per-frame geometry does not — see
   /// `PassEncoder.bindVertexData`.
-  GeometryBuffer uploadGeometry(ByteData bytes);
+  ///
+  /// [usage] is required and cannot be defaulted; see [GeometryUsage] for the
+  /// backend that binds a buffer to its target permanently.
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage);
 
   /// Creates a texture already holding [pixels].
   ///
