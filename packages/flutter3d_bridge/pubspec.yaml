@@ -10,8 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_gpu:
-    sdk: flutter
 
   # Both halves, which is the entire point of this package existing.
   flutter3d:

@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter3d/src/engine/graphics/render_target_pool.dart';
-import 'package:flutter3d/src/engine/graphics/formats.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 
 void main() {
   const base = RenderTargetSpec(

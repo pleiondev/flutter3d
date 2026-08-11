@@ -1,19 +1,24 @@
-/// A 3D engine on Flutter GPU.
+/// A 3D engine, written against a graphics vocabulary rather than a graphics
+/// API.
 ///
 /// Everything a consumer needs is exported here. The layout behind it is not
 /// arbitrary and is worth knowing before reaching past this file:
 ///
-/// - `geometry`, `scene`, `assets` and `render/key_sort` do not import
-///   `flutter_gpu`. That is a property held on purpose, because it is what lets
-///   bounds, culling, framing, picking, decoding and sorting be unit tested
-///   without a device — and it is checked by the console benchmark, which could
-///   not compile at all if the rule were broken.
-/// - `gpu` and the renderer are the only parts that need a device.
+/// - **This package names no graphics API.** It depends on `flutter3d_hal` and
+///   nothing below it, so an application chooses a backend — `flutter3d_gpu`
+///   today — and hands it to `Renderer.create`. That is checked, not intended:
+///   `test/backend_is_contained_test.dart`.
+/// - `geometry`, `scene`, `assets` and `render/key_sort` need no device at all,
+///   which is what lets bounds, culling, framing, picking, decoding and sorting
+///   be unit tested without one.
 ///
-/// The shader bundle is an asset of this package, so a consuming application
-/// gets it without declaring anything, but it must still be built:
-/// `packages/flutter3d/tool/build_shaders.sh`, and again after every Flutter SDK
-/// change, because the bundle format is tied to the SDK version.
+/// The shader bundle is still an asset of *this* package, and that is a known
+/// wrinkle rather than a decision: it is `impellerc` output, so it belongs with
+/// the backend that can read it. The GLSL it is built from is shared. Moving it
+/// is a question about where shader sources live, which is worth answering on
+/// its own rather than as a side effect of the package split.
+/// `packages/flutter3d/tool/build_shaders.sh` builds it, and it has to be
+/// rebuilt after every Flutter SDK change.
 library;
 
 // Animation: clips, tracks, sampling, playback.
@@ -37,26 +42,19 @@ export 'src/engine/assets/texture_upload.dart';
 // Geometry: CPU-side meshes and the shapes that generate them.
 export 'src/engine/geometry/geometry.dart';
 
-// The engine's own vocabulary for graphics state — formats, storage modes,
-// blend and depth state, sampler descriptions. Deliberately free of
-// `flutter_gpu`: a consumer describing a render target or a sampler names these
-// and nothing below them. `src/engine/gpu/gpu_formats.dart` is the only place
-// they are translated.
-export 'src/engine/graphics/command_encoder.dart';
-export 'src/engine/graphics/formats.dart';
-export 'src/engine/graphics/geometry_buffer.dart';
-export 'src/engine/graphics/graphics_device.dart';
-export 'src/engine/graphics/render_target_pool.dart';
-export 'src/engine/graphics/sampler.dart';
-export 'src/engine/graphics/shader.dart';
-export 'src/engine/graphics/texture.dart';
-
-// GPU resources, and the flutter_gpu backend itself. `gpu_device.dart` is what
-// an application constructs and hands to `Renderer.create`; everything else
-// above this line is written against `graphics/` and would work as well
-// against a second backend beside it.
-export 'src/engine/gpu/gpu_device.dart';
-export 'src/engine/gpu/gpu_texture.dart';
+// The graphics vocabulary, re-exported from `flutter3d_hal`.
+//
+// Re-exported rather than left for a consumer to depend on separately, because
+// these names are all over this package's own API — a `Material` holds
+// `SamplerOptions`, a `RenderNode` is handed a `GraphicsDevice` — and a
+// consumer should not have to add a dependency to spell the type of something
+// this package handed them.
+//
+// The backend is deliberately **not** re-exported. An application picks one and
+// depends on it by name: `flutter3d_gpu` today, a second one beside it later.
+// That choice is the one thing that must stay visible in an application's
+// pubspec.
+export 'package:flutter3d_hal/flutter3d_hal.dart';
 
 // Particles: a pooled simulation and the recipes that drive it.
 export 'src/engine/particles/particle.dart';

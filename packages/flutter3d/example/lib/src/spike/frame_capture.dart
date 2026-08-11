@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter3d/flutter3d.dart';
+
+import 'png.dart';
 
 /// Writes one rendered frame to a PNG and quits.
 ///
@@ -59,7 +60,7 @@ final class FrameCapture {
   }
 
   /// Called once per rendered frame. Writes and exits on the chosen frame.
-  void offer(FrameResult frame) {
+  void offer(GraphicsDevice device, FrameResult frame) {
     if (_done) return;
     if (++_seen < atFrame) return;
     _done = true;
@@ -74,19 +75,24 @@ final class FrameCapture {
         '${frame.skinnedDraws} skinned draws, '
         '${frame.shadowCasters} shadow casters, '
         '${frame.debugLines} debug lines, ${frame.submitMicros} us submit');
-    unawaited(_write(frame.image));
+    unawaited(_write(device, frame.frame));
   }
 
-  Future<void> _write(ui.Image image) async {
+  Future<void> _write(GraphicsDevice device, TextureHandle frame) async {
     try {
-      final data = await image.toByteData(format: ui.ImageByteFormat.png);
-      if (data == null) {
+      final pixels = await device.readPixels(frame);
+      if (pixels == null) {
+        stderr.writeln('frame capture: the frame read back as nothing');
+        exit(2);
+      }
+      final png = await encodePng(pixels, frame.width, frame.height);
+      if (png == null) {
         stderr.writeln('frame capture: the image encoded to nothing');
         exit(2);
       }
-      await File(path).writeAsBytes(data.buffer.asUint8List());
-      stdout.writeln('frame capture: wrote $path (${image.width}x'
-          '${image.height})');
+      await File(path).writeAsBytes(png);
+      stdout.writeln('frame capture: wrote $path (${frame.width}x'
+          '${frame.height})');
       exit(0);
     } catch (error) {
       stderr.writeln('frame capture failed: $error');

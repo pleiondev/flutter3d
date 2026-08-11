@@ -11,9 +11,12 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The low-level graphics API. It lives in bin/cache/pkg/flutter_gpu.
-  flutter_gpu:
-    sdk: flutter
+  # The graphics vocabulary this package is written against. **Not** a
+  # backend: `flutter3d` names no graphics API at all, which is what lets an
+  # application choose one — `flutter3d_gpu` today — and what would let a WebGL
+  # backend exist without touching the engine.
+  flutter3d_hal:
+    path: ../flutter3d_hal
 
   vector_math: ^2.2.0
 

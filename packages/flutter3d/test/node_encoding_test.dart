@@ -22,10 +22,7 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'package:flutter3d/src/engine/geometry/mesh_geometry.dart';
 import 'package:flutter3d/src/engine/geometry/primitive_shapes.dart';
-import 'package:flutter3d/src/engine/graphics/command_encoder.dart';
-import 'package:flutter3d/src/engine/graphics/formats.dart';
-import 'package:flutter3d/src/engine/graphics/render_target_pool.dart';
-import 'package:flutter3d/src/engine/graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import 'package:flutter3d/src/engine/particles/particle.dart';
 import 'package:flutter3d/src/engine/particles/particle_contributor.dart';
 import 'package:flutter3d/src/engine/particles/particle_emitter.dart';

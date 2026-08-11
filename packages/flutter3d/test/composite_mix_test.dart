@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter3d/src/engine/graphics/render_target_pool.dart';
-import 'package:flutter3d/src/engine/graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import 'package:flutter3d/src/engine/render/composite_mix.dart';
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/frame_plan.dart';

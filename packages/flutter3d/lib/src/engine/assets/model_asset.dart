@@ -2,10 +2,8 @@ import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation.dart';
 import '../geometry/geometry.dart';
-import '../graphics/graphics_device.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import 'texture_upload.dart';
-import '../graphics/sampler.dart';
-import '../graphics/texture.dart';
 import '../render/lighting_model.dart';
 import '../render/material.dart';
 import '../scene/mesh_node.dart';

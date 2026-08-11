@@ -20,9 +20,7 @@
 /// device. `test/frame_resources_test.dart` is what the handle bought.
 library;
 
-import '../graphics/formats.dart';
-import '../graphics/render_target_pool.dart';
-import '../graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import 'frame_graph.dart';
 
 /// How large a resource is, relative to the frame or in its own right.

@@ -2,11 +2,7 @@ import 'dart:developer' as developer;
 
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../graphics/command_encoder.dart';
-import '../graphics/formats.dart';
-import '../graphics/graphics_device.dart';
-import '../graphics/render_target_pool.dart';
-import '../graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import '../scene/camera_node.dart';
 import '../scene/scene.dart';
 import 'frame_graph.dart';

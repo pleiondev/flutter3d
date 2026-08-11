@@ -13,16 +13,10 @@
 library;
 
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
-import 'package:flutter3d/src/engine/graphics/command_encoder.dart';
-import 'package:flutter3d/src/engine/graphics/formats.dart';
-import 'package:flutter3d/src/engine/graphics/geometry_buffer.dart';
-import 'package:flutter3d/src/engine/graphics/graphics_device.dart';
-import 'package:flutter3d/src/engine/graphics/render_target_pool.dart';
-import 'package:flutter3d/src/engine/graphics/sampler.dart';
-import 'package:flutter3d/src/engine/graphics/shader.dart';
-import 'package:flutter3d/src/engine/graphics/texture.dart';
+import 'package:flutter/widgets.dart';
+
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 
 /// One thing recorded into a pass, in order.
 ///
@@ -290,14 +284,25 @@ final class FakeBackend implements GraphicsDevice {
   @override
   void beginFrame() => frames++;
 
-  /// There is no image without a device, and pretending otherwise would be
-  /// worse than refusing: a test that got a blank `ui.Image` back could assert
-  /// something about a frame that was never drawn. Nothing under test here
-  /// reaches this — only `Renderer.render` does, at the very end.
+  /// Nothing was drawn, so there is nothing to show, and pretending otherwise
+  /// would be worse than refusing: a test handed a blank widget could assert
+  /// something about a frame that never existed. Nothing under test here
+  /// reaches this — only an application does, once per frame.
   @override
-  ui.Image imageOf(TextureHandle texture) => throw UnsupportedError(
-        'FakeBackend draws nothing, so there is no image of $texture',
+  Widget present(
+    TextureHandle frame, {
+    BoxFit fit = BoxFit.fill,
+    FilterQuality quality = FilterQuality.none,
+  }) =>
+      throw UnsupportedError(
+        'FakeBackend draws nothing, so there is nothing to present of $frame',
       );
+
+  /// Null, which is a legitimate answer rather than a refusal: it is what a
+  /// real device says about a texture whose pixels cannot be read.
+  @override
+  Future<ByteData?> readPixels(TextureHandle texture) =>
+      Future<ByteData?>.value();
 
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {

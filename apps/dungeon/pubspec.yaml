@@ -10,8 +10,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_gpu:
-    sdk: flutter
+  # The backend. Named here on purpose: this is the one line an application
+  # changes to run on a different graphics API.
+  flutter3d_gpu:
+    path: ../../packages/flutter3d_gpu
 
   # Rendering.
   flutter3d:

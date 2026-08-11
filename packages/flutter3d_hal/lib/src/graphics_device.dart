@@ -1,11 +1,12 @@
 /// The backend, as a value.
 ///
-/// **Nothing in `graphics/` may import `flutter_gpu`** —
-/// `test/graphics_is_backend_free_test.dart` enforces it.
+/// **Nothing in this package may import `flutter_gpu`** —
+/// `test/no_backend_test.dart` enforces it.
 library;
 
 import 'dart:typed_data';
-import 'dart:ui' as ui;
+
+import 'package:flutter/widgets.dart';
 
 import 'command_encoder.dart';
 import 'formats.dart';
@@ -98,23 +99,58 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// The returned encoder must be submitted; see [CommandEncoder.submit].
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor);
 
-  /// The texture as a Flutter image — the finished frame, handed back.
+  /// A widget that shows the finished frame.
   ///
-  /// The one member here that names `dart:ui`, and it earns the exception:
-  /// producing something Flutter can composite is a question **every** backend
-  /// in this engine has to answer, so leaving it out would mean the interface
-  /// did not describe a usable device.
+  /// **This used to be `ui.Image imageOf(...)`, and that was an Impeller shape
+  /// wearing a neutral name.** On flutter_gpu a texture becomes a `ui.Image`
+  /// for free — `Texture.asImage()` hands Flutter the same GPU allocation — so
+  /// "the frame is an image" looked like a fact about rendering rather than
+  /// about one API.
   ///
-  /// It lived on a second interface for exactly one release — `RenderBackend`,
-  /// in `render/` — purely so that `graphics/` could keep a blanket ban on
-  /// `dart:ui`. The cost of that was worse than the rule it protected: it made
-  /// the *backend* depend on the *engine*, so a second backend would have had
-  /// to pull in the scene graph and the asset loaders to implement a device.
-  /// The ban exists to keep flutter_gpu's vocabulary out; `ui.Image` behind an
-  /// `as ui` prefix is not that.
+  /// It is not. A WebGL2 backend has no such path: the only route to a
+  /// `ui.Image` is `readPixels` into CPU memory and `decodeImageFromPixels`
+  /// back onto the GPU. Measured at the golden suite's own 480x360, that is
+  /// 17.7 ms per frame against a 16.7 ms budget for the whole frame, and
+  /// `readPixels` is 347 us of it — the cost is putting the pixels *back*. A
+  /// contract that demands an image demands that round trip, so it does not
+  /// describe a renderer on that backend at all.
   ///
-  /// Also the engine's only readback path — there is no buffer readback in
-  /// flutter_gpu at all, so anything wanting to *look* at what a pass wrote
-  /// goes through `ui.Image.toByteData`. The MRT probe is the one caller.
-  ui.Image imageOf(TextureHandle texture);
+  /// What both backends can do is produce something Flutter will show:
+  /// flutter_gpu wraps its image, and a WebGL2 backend hands over the canvas it
+  /// drew into, composited by the browser. So the contract asks for the widget
+  /// and lets each answer in its own way.
+  ///
+  /// The cost of the honesty, stated once: on a backend that presents a
+  /// platform view, the frame is composited by something other than Flutter,
+  /// so it cannot be arbitrarily transformed, blended or layered by the widget
+  /// tree the way an image can. [fit] is the part of that which every caller
+  /// actually used, and it is offered because both can honour it.
+  /// [quality] defaults to none because a rendered frame is already at the
+  /// resolution it will be shown at, and smoothing one is a way to lose detail
+  /// the renderer just paid for. It is a parameter rather than a constant only
+  /// because the letterboxed golden window scales.
+  Widget present(
+    TextureHandle frame, {
+    BoxFit fit = BoxFit.fill,
+    FilterQuality quality = FilterQuality.none,
+  });
+
+  /// The texture's pixels: **premultiplied** RGBA8, row-major from the
+  /// top-left.
+  ///
+  /// One layout, named, because the only thing anybody does with these is
+  /// compare them against pixels that came from somewhere else — and two sides
+  /// of a comparison that disagree about premultiplication differ on every
+  /// translucent texel while looking identical on screen.
+  ///
+  /// Separate from [present] because it is a different question with a
+  /// different cost. Presenting happens every frame and must be nearly free;
+  /// reading back happens when something wants to *look* at what a pass wrote —
+  /// the golden suite comparing a frame, the MRT probe checking that a second
+  /// attachment was honoured — and is affordable on both backends precisely
+  /// because it stops at CPU memory.
+  ///
+  /// Null when the texture cannot be read: `deviceTransient` lives in tile
+  /// memory, and there is nothing there to read once the pass has ended.
+  Future<ByteData?> readPixels(TextureHandle texture);
 }

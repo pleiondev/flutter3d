@@ -1,0 +1,30 @@
+name: flutter3d_gpu
+description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hal, and the only place in the stack that names a graphics API."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+
+# Depends on the HAL and on nothing else of ours — in particular **not** on
+# `flutter3d`. That is what makes it a backend rather than a part of the engine,
+# and it is the property a second backend needs: writing one means implementing
+# `flutter3d_hal`, not understanding the renderer.
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The low-level graphics API. It lives in bin/cache/pkg/flutter_gpu.
+  flutter_gpu:
+    sdk: flutter
+
+  flutter3d_hal:
+    path: ../flutter3d_hal
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +9,7 @@ import 'package:flutter/scheduler.dart';
 // engine's do not import flutter/material.dart at all and so need no such
 // dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
+import 'package:flutter3d_gpu/flutter3d_gpu.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -943,33 +943,15 @@ class _SceneSurface extends StatelessWidget {
             fog: fog,
           ),
         );
-        return CustomPaint(
-          painter: _ImagePainter(frame.image),
-          size: Size(constraints.maxWidth, constraints.maxHeight),
-        );
+        // From the device rather than painted from an image: a backend whose
+        // frame is composited elsewhere has no image to paint, and `present` is
+        // the one answer both can give.
+        return renderer.device.present(frame.frame);
       },
     );
   }
 }
 
-class _ImagePainter extends CustomPainter {
-  const _ImagePainter(this.image);
-
-  final ui.Image image;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawImageRect(
-      image,
-      Rect.fromLTWH(0.0, 0.0, image.width.toDouble(), image.height.toDouble()),
-      Offset.zero & size,
-      Paint(),
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ImagePainter oldDelegate) => true;
-}
 
 /// The colours the HUD draws a carried key in.
 const Map<String, Color> _keyPips = <String, Color>{

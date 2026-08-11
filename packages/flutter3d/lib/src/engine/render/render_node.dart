@@ -14,8 +14,7 @@
 /// That is why [NodeFrame] carries no pass. It is not an omission.
 library;
 
-import '../graphics/graphics_device.dart';
-import '../graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import 'frame_graph.dart';
 import 'frame_resources.dart';
 import 'pass_contributor.dart';

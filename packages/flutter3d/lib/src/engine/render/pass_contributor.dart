@@ -1,8 +1,6 @@
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../graphics/command_encoder.dart';
-import '../graphics/graphics_device.dart';
-import '../graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import '../scene/scene.dart';
 import 'lighting_model.dart';
 import 'renderer.dart';

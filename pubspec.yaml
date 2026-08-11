@@ -11,6 +11,8 @@ environment:
 
 workspace:
   - packages/flutter3d
+  - packages/flutter3d_hal
+  - packages/flutter3d_gpu
   - packages/flutter3d/example
   - packages/flutter3d_audio
   - packages/flutter3d_bridge

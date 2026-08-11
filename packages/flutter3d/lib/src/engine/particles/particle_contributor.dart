@@ -5,9 +5,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../graphics/command_encoder.dart';
-import '../graphics/formats.dart';
-import '../graphics/shader.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import '../render/pass_contributor.dart';
 import 'particle_system.dart';
 

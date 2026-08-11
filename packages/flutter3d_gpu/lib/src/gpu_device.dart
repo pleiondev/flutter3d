@@ -8,16 +8,10 @@ library;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
-import '../graphics/command_encoder.dart';
-import '../graphics/formats.dart';
-import '../graphics/geometry_buffer.dart';
-import '../graphics/render_target_pool.dart';
-import '../graphics/sampler.dart';
-import '../graphics/shader.dart';
-import '../graphics/graphics_device.dart';
-import '../graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import 'gpu_formats.dart';
 import 'gpu_texture.dart';
 
@@ -157,7 +151,36 @@ final class GpuRenderBackend implements GraphicsDevice {
   }
 
   @override
-  ui.Image imageOf(TextureHandle texture) => texture.gpuTexture.asImage();
+  Widget present(
+    TextureHandle frame, {
+    BoxFit fit = BoxFit.fill,
+    FilterQuality quality = FilterQuality.none,
+  }) =>
+      // `asImage` is the cheap half of Impeller: the image is the same GPU
+      // allocation the pass wrote, not a copy, so presenting costs a widget and
+      // nothing else. That this is free here is exactly why the contract used
+      // to say `ui.Image` — and exactly why saying so was a mistake.
+      RawImage(
+        image: frame.gpuTexture.asImage(),
+        fit: fit,
+        filterQuality: quality,
+      );
+
+  @override
+  Future<ByteData?> readPixels(TextureHandle texture) {
+    // Tile memory holds nothing once the pass has ended, and the backend's own
+    // failure for this is unhelpful. Say it here, where the caller is in scope.
+    if (texture.storageMode == StorageMode.deviceTransient) {
+      return Future<ByteData?>.value();
+    }
+    // Premultiplied, which is what `rawRgba` means and what the reference PNGs
+    // are decoded as. The two sides of a golden comparison must agree, and the
+    // engine's own output is opaque, so this is the layout with no conversion
+    // anywhere in the path.
+    return texture.gpuTexture
+        .asImage()
+        .toByteData(format: ui.ImageByteFormat.rawRgba);
+  }
 
   static gpu.RenderTarget _toRenderTarget(RenderPassDescriptor descriptor) =>
       gpu.RenderTarget(

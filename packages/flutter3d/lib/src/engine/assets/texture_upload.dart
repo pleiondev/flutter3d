@@ -1,10 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import '../graphics/formats.dart';
-import '../graphics/graphics_device.dart';
-import '../graphics/sampler.dart';
-import '../graphics/texture.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import 'model_document.dart';
 
 /// Decodes an encoded image (PNG, JPEG, …) and uploads it through [device].

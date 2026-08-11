@@ -6,6 +6,8 @@ import 'dart:ui' as ui;
 import 'package:path/path.dart' as p;
 
 import 'package:flutter3d/flutter3d.dart';
+
+import 'png.dart';
 import 'golden_scenes.dart';
 
 /// Renders one [GoldenScene] and compares it against a stored reference.
@@ -98,28 +100,29 @@ final class GoldenRunner {
   /// "after everything is ready" rather than a specific moment.
   static const int captureFrame = 90;
 
-  void offer(FrameResult frame) {
+  void offer(GraphicsDevice device, FrameResult frame) {
     if (_done) return;
     if (++_seen < captureFrame) return;
     _done = true;
-    unawaited(_run(frame));
+    unawaited(_run(device, frame));
   }
 
-  Future<void> _run(FrameResult frame) async {
+  Future<void> _run(GraphicsDevice device, FrameResult frame) async {
     try {
-      final image = frame.image;
-      if (image.width != scene.width || image.height != scene.height) {
+      // Off the handle, not off an image: the texture carries its own
+      // description, so this no longer needs the frame to have been turned
+      // into something Flutter can draw before it can be measured.
+      final target = frame.frame;
+      if (target.width != scene.width || target.height != scene.height) {
         stderr.writeln(
-          'GOLDEN ${scene.name}: rendered ${image.width}x${image.height}, '
+          'GOLDEN ${scene.name}: rendered ${target.width}x${target.height}, '
           'expected ${scene.width}x${scene.height}. The golden path must fix '
           'the render size, or the result depends on the window.',
         );
         exit(1);
       }
 
-      final actual = await image.toByteData(
-        format: ui.ImageByteFormat.rawRgba,
-      );
+      final actual = await device.readPixels(target);
       if (actual == null) {
         stderr.writeln('GOLDEN ${scene.name}: the frame read back as nothing.');
         exit(1);
@@ -128,9 +131,9 @@ final class GoldenRunner {
       final reference = File('$directory/${scene.name}.png');
 
       if (update) {
-        final png = await image.toByteData(format: ui.ImageByteFormat.png);
+        final png = await encodePng(actual, target.width, target.height);
         reference.parent.createSync(recursive: true);
-        reference.writeAsBytesSync(png!.buffer.asUint8List());
+        reference.writeAsBytesSync(png!);
         stdout.writeln('GOLDEN ${scene.name}: recorded ${reference.path}');
         exit(0);
       }
@@ -159,8 +162,8 @@ final class GoldenRunner {
       // opened side by side. A number alone does not say whether the lighting
       // shifted or the model moved.
       final actualPath = '$directory/${scene.name}.actual.png';
-      final png = await image.toByteData(format: ui.ImageByteFormat.png);
-      File(actualPath).writeAsBytesSync(png!.buffer.asUint8List());
+      final png = await encodePng(actual, target.width, target.height);
+      File(actualPath).writeAsBytesSync(png!);
 
       stderr.writeln(
         'GOLDEN ${scene.name}: FAIL — ${result.differing} of ${result.total} '

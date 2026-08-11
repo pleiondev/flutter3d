@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -7,6 +6,7 @@ import 'package:vector_math/vector_math.dart'
     show Aabb3, Vector2, Vector3, Vector4;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_gpu/flutter3d_gpu.dart';
 import 'package:flutter3d/flutter3d.dart' as engine;
 import 'src/spike/frame_capture.dart';
 import 'src/spike/golden_extras.dart';
@@ -846,12 +846,12 @@ class _SpikePageState extends State<SpikePage>
                               _modelPivot.setRotationYawPitchRoll(0.0, 0.0, 0.0);
                               _placeGround(_scene.computeBounds());
                             }
-                            _capture?.offer(frame);
+                            _capture?.offer(renderer.device, frame);
                             // Missing this was why the first recording run
                             // never finished: the scene's settings were being
                             // applied, but nothing counted frames, so the app
                             // simply ran for ever.
-                            _golden?.offer(frame);
+                            _golden?.offer(renderer.device, frame);
                           },
                         ),
                       ),
@@ -982,69 +982,25 @@ class SceneSurface extends StatelessWidget {
         );
         onFrame(frame);
 
-        return CustomPaint(
-          painter: _ImagePainter(
-            frame.image,
-            preserveAspect: fixedSize != null,
-          ),
-          size: Size(constraints.maxWidth, constraints.maxHeight),
+        // From the device, not painted from an image. A backend that composites
+        // its frame elsewhere — a browser canvas — has no image to paint, and
+        // `present` is the one thing both can answer.
+        //
+        // `contain` letterboxes rather than stretching, and only the golden
+        // path needs it: a golden renders at a size it names, so the frame is
+        // 4:3 while the window is not. Stretching one into the other shows a
+        // visibly squashed model on screen while the recorded file is perfectly
+        // correct, and anybody watching a recording run would reasonably
+        // conclude the renderer was broken.
+        return renderer.device.present(
+          frame.frame,
+          fit: fixedSize != null ? BoxFit.contain : BoxFit.fill,
         );
       },
     );
   }
 }
 
-class _ImagePainter extends CustomPainter {
-  _ImagePainter(this.image, {this.preserveAspect = false});
-
-  final ui.Image image;
-
-  /// Whether to letterbox rather than stretch.
-  ///
-  /// Only the golden path needs it, and it needs it badly: a golden renders at
-  /// a size it names, so the frame is 4:3 while the window is not, and
-  /// stretching one into the other shows a visibly squashed model on screen
-  /// while the recorded file is perfectly correct. Anybody watching a recording
-  /// run would reasonably conclude the renderer was broken.
-  final bool preserveAspect;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final source = Rect.fromLTWH(
-      0,
-      0,
-      image.width.toDouble(),
-      image.height.toDouble(),
-    );
-
-    var destination = Rect.fromLTWH(0, 0, size.width, size.height);
-    if (preserveAspect) {
-      final scale = math.min(
-        size.width / image.width,
-        size.height / image.height,
-      );
-      final w = image.width * scale;
-      final h = image.height * scale;
-      destination = Rect.fromLTWH(
-        (size.width - w) / 2.0,
-        (size.height - h) / 2.0,
-        w,
-        h,
-      );
-    }
-
-    canvas.drawImageRect(
-      image,
-      source,
-      destination,
-      Paint()..filterQuality = FilterQuality.none,
-    );
-  }
-
-  // The image is a new object every frame, so always repaint.
-  @override
-  bool shouldRepaint(_ImagePainter oldDelegate) => true;
-}
 
 class _Controls extends StatelessWidget {
   const _Controls({

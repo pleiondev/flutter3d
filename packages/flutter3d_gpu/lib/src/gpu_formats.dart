@@ -31,8 +31,7 @@ library;
 
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
-import '../graphics/formats.dart';
-import '../graphics/sampler.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 
 // -- Resource description ---------------------------------------------------
 

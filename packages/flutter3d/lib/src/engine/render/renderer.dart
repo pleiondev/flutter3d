@@ -1,19 +1,11 @@
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 
 import 'package:vector_math/vector_math.dart' as vm;
 
-import '../graphics/command_encoder.dart';
-import '../graphics/formats.dart';
+import 'package:flutter3d_hal/flutter3d_hal.dart';
 import '../geometry/mesh_geometry.dart';
-import '../graphics/geometry_buffer.dart';
-import '../graphics/graphics_device.dart';
-import '../graphics/render_target_pool.dart';
-import '../graphics/sampler.dart';
-import '../graphics/shader.dart';
-import '../graphics/texture.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
@@ -529,7 +521,7 @@ final class BloomSettings {
 /// One rendered frame.
 final class FrameResult {
   const FrameResult({
-    required this.image,
+    required this.frame,
     required this.cpuMicros,
     required this.submitMicros,
     required this.drawCalls,
@@ -543,7 +535,17 @@ final class FrameResult {
     required this.skinnedDraws,
   });
 
-  final ui.Image image;
+  /// The texture the frame was drawn into.
+  ///
+  /// A handle and not a `ui.Image`, which is the whole of the change: an image
+  /// is what *one* backend can produce for free, and asking every backend for
+  /// one costs a GPU->CPU->GPU round trip on any that cannot. Show it with
+  /// `GraphicsDevice.present`, read it with `GraphicsDevice.readPixels`, and
+  /// let the backend decide which of those is cheap.
+  ///
+  /// It is the renderer's own target and is reused every frame, so it is valid
+  /// until the next [Renderer.render] and not beyond.
+  final TextureHandle frame;
 
   /// Wall-clock time spent inside [Renderer.render], submit included.
   ///
@@ -2704,12 +2706,12 @@ final class Renderer implements RenderServices {
     final scenePass = sceneNode.result!;
     final debugLines = scenePass.debugLines + compositeNode.overlayLines;
 
-    final image = device.imageOf(_ldrColor!);
+    final frame = _ldrColor!;
     frameClock.stop();
     developer.Timeline.finishSync();
 
     return FrameResult(
-      image: image,
+      frame: frame,
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
       drawCalls: passState.drawCalls,
@@ -2967,8 +2969,8 @@ final class Renderer implements RenderServices {
 
       // asImage plus toByteData is the only readback path available: there is
       // no buffer readback in flutter_gpu at all.
-      final a = await device.imageOf(first).toByteData();
-      final b = await device.imageOf(second).toByteData();
+      final a = await device.readPixels(first);
+      final b = await device.readPixels(second);
       if (a == null || b == null) return 'MRT probe: readback returned nothing.';
 
       String describe(ByteData data) =>
