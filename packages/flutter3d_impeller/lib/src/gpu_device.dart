@@ -83,7 +83,6 @@ final class GpuRenderBackend implements GraphicsDevice {
       gpu.gpuContext.defaultDepthStencilFormat.toEngine();
 
   @override
-  @override
   // Impeller runs on Metal and Vulkan conventions.
   FramebufferOrigin get framebufferOrigin => FramebufferOrigin.topLeft;
 
@@ -317,6 +316,36 @@ final class _GpuCommandEncoder implements CommandEncoder {
   void setWindingOrder(WindingOrder order) =>
       _pass.setWindingOrder(order.toGpu());
 
+  /// **`false` does not work, and the reason is not here.**
+  ///
+  /// `flutter_gpu`'s native setter ignores its argument and writes the literal
+  /// `true`, so this call can only ever switch depth writes *on*:
+  ///
+  /// ```cpp
+  /// // bin/cache/pkg/flutter_gpu/render_pass.cc:538
+  /// void InternalFlutterGpu_RenderPass_SetDepthWriteEnable(
+  ///     flutter::gpu::RenderPass* wrapper,
+  ///     bool enable) {
+  ///   auto& depth = wrapper->GetDepthAttachmentDescriptor();
+  ///   depth.depth_write_enabled = true;
+  /// }
+  /// ```
+  ///
+  /// Verified against the SDK this repository builds with (3.44.6). Passing the
+  /// flag through correctly, which is what this line does, is therefore not
+  /// enough and nothing on the Dart side can be.
+  ///
+  /// What it costs: the particle pass asks for depth writes off so that
+  /// additive particles do not occlude each other, and on this backend they do
+  /// — a burst comes out about three percent dimmer than it should, and eight
+  /// particles stacked at one point draw as one. The `particle-stack` golden is
+  /// the minimal reproduction and will change when this is fixed upstream; it
+  /// is deliberately recorded showing the wrong picture.
+  ///
+  /// A fresh `RenderPass` starts with writes off, so the real fix is for a pass
+  /// that needs them off never to ask for them on — which for particles means
+  /// their own pass rather than a contribution to the scene's. That is an
+  /// engine change rather than a backend one.
   @override
   void setDepthWrite(bool enabled) => _pass.setDepthWriteEnable(enabled);
 

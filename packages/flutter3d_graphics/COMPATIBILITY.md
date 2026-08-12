@@ -86,6 +86,17 @@ the wrong thing.
   life, and a buffer uploaded as vertices can never be bound as indices; the
   attempt is an `INVALID_OPERATION`, the draw is dropped, and the frame comes
   back the clear colour with nothing logged.
+- **`setDepthWrite(false)` means depth writes are off** — and one backend
+  cannot honour it. `flutter_gpu`'s native setter ignores its argument and
+  assigns `true` (`bin/cache/pkg/flutter_gpu/render_pass.cc:538`, SDK 3.44.6),
+  so on Impeller depth writes can be switched on and never off. Additive
+  particles, which ask for it so they do not occlude each other, occlude each
+  other there: eight stacked at one point draw as one, and a burst comes out
+  about three percent dim. `particle-stack` is the minimal reproduction and is
+  recorded showing the wrong picture on purpose, so it changes when this is
+  fixed. A fresh pass starts with writes off, so the fix is for a pass that
+  needs them off never to ask for them on — an engine change, not a backend
+  one.
 - **Ask before requesting what a backend may not have.** `supportsWireframe`,
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`. A backend refuses loudly rather than substituting
