@@ -13,6 +13,10 @@ dependencies:
   # changes to run on a different graphics API.
   flutter3d_impeller:
     path: ../../flutter3d_impeller
+  # cpu_main.dart runs the same engine on the software backend, which is the
+  # only way to see what it costs and whether it looks right while it moves.
+  flutter3d_cpu:
+    path: ../../flutter3d_cpu
   # conformance_main.dart runs the backend checks that cannot be a test on this
   # backend. A real dependency rather than a dev one, because it is imported by
   # an entry point rather than by a test.
