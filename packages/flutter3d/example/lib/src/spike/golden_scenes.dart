@@ -219,6 +219,65 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     particles: true,
   ),
 
+  // The same burst with bloom off, and it exists to split one number in two.
+  //
+  // `particles-burst` is the widest disagreement between the software backend
+  // and Impeller — nearly five percent — and bloom sits between the additive
+  // quads and the picture, spreading any difference in what was accumulated
+  // into soft blobs several times their size. So the frame cannot say whether
+  // the accumulation differs or the post chain does.
+  //
+  // With bloom off, it can. The same split `pointShadowMap` makes for the cube
+  // atlas, and for the same reason: one number could not say which half was
+  // wrong.
+  // The particle scene with no particles in it: the control. If this agrees at
+  // the suite's usual floor then whatever `particles-plain` disagrees about is
+  // the particles, and if it does not then the disagreement was never theirs.
+  const GoldenScene(
+    name: 'particles-none',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+  ),
+
+  // Eight quads stacked at one point: addition alone. See stackedParticles.
+  const GoldenScene(
+    name: 'particle-stack',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+    particles: true,
+  ),
+
+  // One particle, so a disagreement has one cause. See GoldenExtras.oneParticle.
+  const GoldenScene(
+    name: 'particle-one',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+    particles: true,
+  ),
+
+  const GoldenScene(
+    name: 'particles-plain',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+    particles: true,
+  ),
+
   // The view model plugin, in its own pass over the finished scene. The held
   // box sits where the world's depth would clip it if the stage were wrong,
   // which is the half of this that a picture can actually prove.

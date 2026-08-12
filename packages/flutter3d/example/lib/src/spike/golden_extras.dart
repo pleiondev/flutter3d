@@ -62,6 +62,45 @@ abstract final class GoldenExtras {
     return particles;
   }
 
+  /// One particle, at rest, at a stated place and size.
+  ///
+  /// The burst has 220 quads overlapping in a field dense enough that "the
+  /// nearest bright pixel in the other image is six away" finds a neighbour
+  /// rather than the same particle — which is how three attempts to say
+  /// whether the two backends draw the same particles produced three numbers
+  /// and no answer. One particle has no neighbour to be confused with.
+  ///
+  /// No affectors, no warm-up and no randomness that matters: whatever the two
+  /// backends do with a single camera-facing quad, they do it here where the
+  /// difference can only be its position, its size or its brightness.
+  static ParticleSystem oneParticle({int count = 1}) {
+    final particles = ParticleSystem(
+      capacity: 8,
+      random: math.Random(seed),
+    );
+    particles.burst(
+      ParticleEffect(
+        count: count,
+        lifetime: const Range(10.0, 10.0),
+        size: const Range(0.8, 0.8),
+        color: Vector4(1.0, 0.72, 0.30, 1.0),
+        emitter: const SphereEmitter(speed: Range(0.0, 0.0)),
+      ),
+      Vector3(0.0, 0.6, 1.6),
+    );
+    return particles;
+  }
+
+  /// Eight particles in exactly the same place, which is the only thing
+  /// `particle-one` leaves untested.
+  ///
+  /// One quad matches Impeller everywhere. Two hundred and twenty overlapping
+  /// ones are five percent apart. Between those two facts sits addition — the
+  /// same fragment written eight times into an HDR target, which is half-float
+  /// on the hardware backends and float32 here. Stacked at one point with no
+  /// spread, nothing else can differ.
+  static ParticleSystem stackedParticles() => oneParticle(count: 8);
+
   /// A stand-in for something held in the player's hands.
   ///
   /// A plain box rather than a weapon, because what is being tested is that
