@@ -25,6 +25,10 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # The behaviour flutter3d_graphics requires, as tests this backend runs
+  # against itself. See flutter3d_conformance.
+  flutter3d_conformance:
+    path: ../flutter3d_conformance
   # For the tests only: engine_frame_test drives the real Renderer through this
   # backend, which is the one thing this package exists to make possible and so
   # the one thing worth testing. A dev dependency, so nothing a consumer builds

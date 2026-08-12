@@ -7,7 +7,6 @@ import '../scene/camera_node.dart';
 import '../scene/scene.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
-import 'pass_contributor.dart';
 import 'render_node.dart';
 
 /// Draws the first-person view model over the finished scene.
@@ -105,21 +104,16 @@ final class ViewModelNode extends RenderNode {
     camera.readWorldPosition(_cameraPosition);
 
     frame.services.encodeScene(
+      frame: frame,
       encoder: encoder,
       scene: scene,
-      viewProjection: camera.viewProjection(aspect),
+      // Through toDepthRange, like every other projection in the frame. This
+      // was the one that was not, so the weapon was drawn in the engine's
+      // depth convention on a backend that does not use it — right on one and
+      // silently compressed into half the depth buffer on the other.
+      viewProjection:
+          toDepthRange(camera.viewProjection(aspect), frame.device.depthRange),
       cameraPosition: _cameraPosition,
-      settings: frame.settings,
-      state: frame.state,
-      // Answered here, from this node's own view of the frame, which is what
-      // the declaration above is for. `tryTexture` resolves against what this
-      // node reads, so an atlas it had not declared would come back as nothing
-      // to sample rather than as a texture found lying about.
-      shadows: SceneShadows(
-        point: frame.resources.tryTexture(FrameResourceIds.cubeShadow),
-        pointStatic:
-            frame.resources.tryTexture(FrameResourceIds.cubeShadowStatic),
-      ),
     );
 
     encoder.submit();

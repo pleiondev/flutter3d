@@ -56,17 +56,18 @@ final class _RecordingServices implements RenderServices {
 
   @override
   void encodeScene({
+    required NodeFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
     required vm.Vector3 cameraPosition,
-    required RenderSettings settings,
-    required FramePassState state,
-    required SceneShadows shadows,
+    int casterIndex = -1,
   }) {
     this.encoder = encoder;
     this.scene = scene;
-    this.shadows.add(shadows);
+    // Derived the way the real one does, so a test still sees what the node
+    // would actually have been given rather than what it chose to pass.
+    shadows.add(SceneShadows.from(frame, casterIndex: casterIndex));
     viewProjections.add(viewProjection);
   }
 }

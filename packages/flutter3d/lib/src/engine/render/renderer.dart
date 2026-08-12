@@ -2281,14 +2281,20 @@ final class Renderer implements RenderServices {
   /// testing only the leaf draws every weapon at once.
   @override
   void encodeScene({
+    required NodeFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
     required vm.Vector3 cameraPosition,
-    required RenderSettings settings,
-    required FramePassState state,
-    required SceneShadows shadows,
+    int casterIndex = -1,
   }) {
+    // Assembled here, from what the calling node declared, rather than handed
+    // in. A caller that forgot produced a pass lit as though nothing shadowed
+    // it, and nothing on this side could tell the difference.
+    final settings = frame.settings;
+    final state = frame.state;
+    final shadows = SceneShadows.from(frame, casterIndex: casterIndex);
+
     _cameraData[0] = cameraPosition.x;
     _cameraData[1] = cameraPosition.y;
     _cameraData[2] = cameraPosition.z;
@@ -3532,22 +3538,10 @@ final class _SceneNode extends RenderNode {
     // handed. The two atlases are maintained rather than drawn, so a texture
     // here is valid to sample whether or not this frame touched a pixel of it;
     // that difference is now in their declaration and not in a comment.
-    final shadows = SceneShadows(
-      // Only a map this frame drew, and the asymmetry with the two atlases
-      // below is the point of asking. The matrix a directional map is sampled
-      // through is [Renderer._shadowMatrix], one field rewritten every frame —
-      // so pixels from an earlier frame would be projected through this frame's
-      // matrix and land somewhere else entirely. The atlas has no such problem
-      // because `_cubeFaceMatrices` is deliberately kept in step with its tiles,
-      // which is exactly what lets it be kept and this not be.
-      directional:
-          resources.originOf(FrameResourceIds.shadowMap) == ResourceOrigin.drawn
-              ? resources.tryTexture(FrameResourceIds.shadowMap)
-              : null,
-      casterIndex: shadowCaster,
-      point: resources.tryTexture(FrameResourceIds.cubeShadow),
-      pointStatic: resources.tryTexture(FrameResourceIds.cubeShadowStatic),
-    );
+    // One place, shared with the view model. Both need the same rule and both
+    // used to write it out; the copy here was the one with the drawn check, so
+    // the other was quietly missing it.
+    final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
 
     // Before the draw, and in place: the pass writes into the renderer's own
     // targets rather than into anything the pool lent it, so the version it

@@ -306,6 +306,24 @@ final class FrameResources {
     }
   }
 
+  /// Whether the running node declared [id] at all.
+  ///
+  /// Answers a question rather than handing out a texture, which is why it is
+  /// not a way back to the fallback that was just closed. It exists so a bundle
+  /// of optional inputs can be assembled without asking for names this node
+  /// never claimed — asking for one is an error, and deriving a bundle should
+  /// not mean guessing which names are safe to ask about.
+  bool declares(ResourceId id) {
+    if (_node < 0 || _node >= graph.order.length) return false;
+    final node = graph.order[_node];
+    bool named(List<ResourceId> list) =>
+        list.any((other) => other.name == id.name);
+    return named(node.reads) ||
+        named(node.optionalReads) ||
+        named(node.writes) ||
+        named(node.keeps);
+  }
+
   /// Hands back whatever the node at [index] was the last to touch, and all of
   /// its scratch.
   ///

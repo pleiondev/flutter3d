@@ -25,6 +25,10 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # The behaviour flutter3d_graphics requires, as tests this backend runs
+  # against itself. See flutter3d_conformance.
+  flutter3d_conformance:
+    path: ../flutter3d_conformance
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

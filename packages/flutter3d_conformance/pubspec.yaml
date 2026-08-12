@@ -1,0 +1,27 @@
+name: flutter3d_conformance
+description: >-
+  The behaviour a flutter3d_graphics backend has to have, as tests it can run
+  against itself.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # A test library in `dependencies` rather than `dev_dependencies`, which is
+  # deliberate and unusual: this package *is* tests, and the backends that run
+  # them take it as a dev dependency of their own.
+  flutter_test:
+    sdk: flutter
+  flutter3d_graphics:
+    path: ../flutter3d_graphics
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+resolution: workspace

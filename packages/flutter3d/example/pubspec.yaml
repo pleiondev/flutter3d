@@ -13,6 +13,11 @@ dependencies:
   # changes to run on a different graphics API.
   flutter3d_impeller:
     path: ../../flutter3d_impeller
+  # conformance_main.dart runs the backend checks that cannot be a test on this
+  # backend. A real dependency rather than a dev one, because it is imported by
+  # an entry point rather than by a test.
+  flutter3d_conformance:
+    path: ../../flutter3d_conformance
   flutter3d_graphics:
     path: ../../flutter3d_graphics
   # The same application on the web, drawing through the other backend. Only

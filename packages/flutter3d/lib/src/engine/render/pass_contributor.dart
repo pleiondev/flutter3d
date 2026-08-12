@@ -2,7 +2,11 @@ import 'package:vector_math/vector_math.dart' as vm;
 
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import '../scene/scene.dart';
+import 'frame_graph.dart';
+import 'frame_resources.dart';
+import 'frame_plan.dart';
 import 'lighting_model.dart';
+import 'render_node.dart';
 import 'renderer.dart';
 import 'render_view.dart';
 
@@ -56,6 +60,42 @@ final class SceneShadows {
   /// Nothing to sample: every surface is lit as if unoccluded.
   static const SceneShadows none = SceneShadows();
 
+  /// What [frame]'s node declared, and only that.
+  ///
+  /// Built here rather than at each call site, because every caller was writing
+  /// the same three lines and the failure when one forgot was a weapon lit as
+  /// though the room were not. Only the names the node declared are asked for:
+  /// a node that never claimed the atlas gets nothing to sample rather than an
+  /// error, and a node that claimed it gets whatever the frame has.
+  ///
+  /// [casterIndex] is the frame's, not the node's — it says which light the
+  /// directional map belongs to, and a node either has that map or does not.
+  static SceneShadows from(NodeFrame frame, {int casterIndex = -1}) {
+    final resources = frame.resources;
+    TextureHandle? declared(ResourceId id) =>
+        resources.declares(id) ? resources.tryTexture(id) : null;
+
+    // The directional map only if *this frame* drew it, and the asymmetry with
+    // the two atlases is the point of asking. The matrix it is sampled through
+    // is one field rewritten every frame, so pixels from an earlier frame would
+    // be projected through this frame's matrix and land somewhere else
+    // entirely. The atlas has no such problem because its face matrices are
+    // kept in step with its tiles, which is exactly what lets it be kept and
+    // this not be.
+    final drawnDirectional =
+        resources.declares(FrameResourceIds.shadowMap) &&
+            resources.originOf(FrameResourceIds.shadowMap) ==
+                ResourceOrigin.drawn;
+
+    return SceneShadows(
+      directional:
+          drawnDirectional ? resources.tryTexture(FrameResourceIds.shadowMap) : null,
+      point: declared(FrameResourceIds.cubeShadow),
+      pointStatic: declared(FrameResourceIds.cubeShadowStatic),
+      casterIndex: casterIndex,
+    );
+  }
+
   /// The directional light's map, or null when this frame drew none.
   ///
   /// Null is not "shadows are off" — it is the honest answer for a frame whose
@@ -99,14 +139,25 @@ abstract interface class RenderServices {
   /// is the way to say "none", and saying it is cheap; not being able to say
   /// anything at all is what left the view model sampling an atlas it had never
   /// declared.
+  /// Draws [scene] into an open pass.
+  ///
+  /// Takes the [NodeFrame] rather than the settings, the pass state and the
+  /// shadows separately. Those three came off the frame at every call site, and
+  /// the shadows had to be assembled there too — three lines a caller could get
+  /// wrong quietly. Getting them wrong looked like a weapon lit as though the
+  /// room were not, and there was no way for this method to tell.
+  ///
+  /// [viewProjection] stays a parameter because it is the one thing genuinely
+  /// the caller's: the view model draws the same scene through a different
+  /// camera, which is what makes it a separate pass. Build it with
+  /// `toDepthRange`, or it is right on one backend and wrong on the other.
   void encodeScene({
+    required NodeFrame frame,
     required PassEncoder encoder,
     required Scene scene,
     required vm.Matrix4 viewProjection,
     required vm.Vector3 cameraPosition,
-    required RenderSettings settings,
-    required FramePassState state,
-    required SceneShadows shadows,
+    int casterIndex = -1,
   });
 }
 
