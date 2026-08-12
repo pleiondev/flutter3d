@@ -12,6 +12,7 @@ environment:
 workspace:
   - packages/flutter3d
   - packages/flutter3d_conformance
+  - packages/flutter3d_cpu
   - packages/flutter3d_graphics
   - packages/flutter3d_shaders
   - packages/flutter3d_impeller
