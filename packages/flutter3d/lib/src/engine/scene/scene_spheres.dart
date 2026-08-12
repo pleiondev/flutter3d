@@ -5,7 +5,7 @@ import 'mesh_node.dart';
 /// Packs a scene's world bounding spheres for [SceneBvh].
 ///
 /// A free function rather than a method on the tree: the tree indexes spheres
-/// and must stay clear of `MeshNode`, whose material reaches flutter_gpu and
+/// and must stay clear of `MeshNode`, whose material reaches the graphics backend and
 /// through it `dart:ui`. That is not a purity argument — an index that pulls in
 /// `dart:ui` cannot be compiled ahead of time, and ahead-of-time is where its
 /// cost gets measured.

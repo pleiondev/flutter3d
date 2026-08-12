@@ -8,9 +8,9 @@ import 'mesh_data.dart';
 /// The scene graph asks a mesh for three things: how big it is (culling and
 /// framing), whether it has anything to draw, and — for picking and collision —
 /// its triangles. None of that requires a GPU, and stating so in an interface is
-/// what keeps `lib/src/engine/scene/` free of `flutter_gpu`.
+/// what keeps `lib/src/engine/scene/` free of the graphics backend.
 ///
-/// That matters beyond tidiness. A scene layer that imports flutter_gpu can only
+/// That matters beyond tidiness. A scene layer that imports a backend can only
 /// be exercised on a device, so transform composition, culling and raycasting
 /// would all lose their unit tests to a dependency they never use. [DeviceMesh]
 /// implements this; so does [CpuMesh], for geometry that has no reason to be
@@ -26,7 +26,7 @@ abstract interface class MeshGeometry {
   /// The CPU-side geometry, when it is still around.
   ///
   /// Null means "triangles unavailable" — raycasting then falls back to the
-  /// bounding box, and normals cannot be drawn. flutter_gpu has no buffer
+  /// bounding box, and normals cannot be drawn. no backend here has buffer
   /// readback, so this is the only way triangles can be had at all.
   MeshData? get source;
 
@@ -41,7 +41,7 @@ abstract interface class MeshGeometry {
 /// it is drawable, and Dart promotes an `is` test only towards a subtype.
 ///
 /// It exists so that the renderer names no backend for the sake of one `is`
-/// check. It used to test for `GpuMesh` — the flutter_gpu class — which meant
+/// check. It used to test for `GpuMesh` — the backend class — which meant
 /// the engine's central draw loop knew which backend it was on, and would have
 /// gone on knowing when the backend became a package of its own.
 ///
@@ -61,7 +61,7 @@ abstract interface class DrawableGeometry implements MeshGeometry {
 /// A [MeshData] that has been uploaded to a device.
 ///
 /// **In `geometry/`, not in a backend directory, and that is the whole point of
-/// it.** This was `GpuMesh` and it lived beside flutter_gpu, holding two
+/// it.** This was `GpuMesh` and it lived beside the backend, holding two
 /// `gpu.DeviceBuffer`s and calling `gpuContext` — a global — from a static
 /// factory. `assets/model_asset.dart` therefore imported the backend, which is
 /// the single fact that would have turned lifting the backend into its own

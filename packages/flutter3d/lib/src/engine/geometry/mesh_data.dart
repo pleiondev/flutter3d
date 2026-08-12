@@ -38,7 +38,7 @@ final class PackedIndices {
 
 /// CPU-side geometry: interleaved vertices plus indices.
 ///
-/// This layer deliberately knows nothing about flutter_gpu, which keeps it
+/// This layer deliberately knows nothing about any graphics backend, which keeps it
 /// testable without a GPU and portable to another backend.
 final class MeshData {
   MeshData({

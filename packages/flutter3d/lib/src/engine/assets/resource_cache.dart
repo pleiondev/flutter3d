@@ -63,7 +63,7 @@ final class ResourceCache<K, V> {
 
   /// Called when an entry leaves the cache.
   ///
-  /// flutter_gpu has no explicit release for buffers or textures — dropping the
+  /// no backend here has an explicit release for buffers or textures — dropping the
   /// last Dart reference is what frees them — so for GPU resources this is
   /// usually null and eviction works by letting the collector do its job.
   final void Function(V value)? dispose;

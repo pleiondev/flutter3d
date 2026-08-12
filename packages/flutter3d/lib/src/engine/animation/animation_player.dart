@@ -9,7 +9,7 @@ import 'animation_clip.dart';
 ///
 /// An interface rather than `SceneNode` directly, and the direction matters:
 /// the animation layer is reached from the asset decoders, so depending on the
-/// scene graph would drag `Material` — and through it flutter_gpu and
+/// scene graph would drag `Material` — and through it the graphics backend and
 /// `dart:ui` — into everything that merely decodes a glTF file. That is exactly
 /// what stopped `tool/bench/bench.dart` from compiling ahead of time.
 ///

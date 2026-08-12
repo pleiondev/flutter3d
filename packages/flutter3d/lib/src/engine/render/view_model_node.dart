@@ -13,7 +13,7 @@ import 'render_node.dart';
 /// Draws the first-person view model over the finished scene.
 ///
 /// Its own command buffer, because Metal allows one open encoder per buffer
-/// and flutter_gpu offers no way to end a pass — the same rule that already
+/// and the encoder offers no way to end a pass — the same rule that already
 /// governs the shadow and post passes.
 ///
 /// its own pass rather than the scene pass, and that is the

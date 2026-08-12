@@ -9,7 +9,7 @@ import '../scene/camera_node.dart';
 /// renderer does.
 enum SortMode {
   /// Group by pipeline, then material, then near-to-far. The default for opaque
-  /// geometry: it minimises pipeline changes, which on flutter_gpu are the most
+  /// geometry: it minimises pipeline changes, which here are the most
   /// expensive state change there is.
   stateThenDepth,
 

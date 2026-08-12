@@ -93,9 +93,10 @@ final class LightingModel {
   ///
   /// This is the contract the engine cannot abstract away: it names shaders,
   /// and every backend must ship a bundle containing them under these names.
-  /// For `flutter3d_impeller` they are listed in that package's
-  /// `shaders/flutter3d.shaderbundle.json`; a second backend needs its own set
-  /// answering to the same names.
+  /// Every backend package lists them in its own bundle manifest, and a
+  /// backend that answers to a name the engine does not ask for is unused
+  /// weight while one that misses a name the engine does ask for fails at
+  /// `Renderer.create`, which names the missing entry.
   final String shaderName;
 
   /// Whether the shader reads the `FragInfo` uniform block.

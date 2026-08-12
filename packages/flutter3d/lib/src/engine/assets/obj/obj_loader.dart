@@ -27,7 +27,7 @@ enum ObjNormals {
 
 /// Decodes Wavefront OBJ, optionally with its `.mtl` material libraries.
 ///
-/// Like the glTF layer, this depends on neither flutter_gpu, `dart:io` nor
+/// Like the glTF layer, this depends on neither a graphics backend, `dart:io` nor
 /// `dart:ui`: sibling files arrive through an [AssetUriResolver].
 ///
 /// OBJ is a text format with no version and plenty of dialects, so the parser is

@@ -11,7 +11,7 @@ import 'model_document.dart';
 /// lets it be unit tested without a Flutter binding.
 ///
 /// It used to live in the backend directory, because uploading needed the
-/// flutter_gpu context. Nothing about decoding a PNG was ever backend-specific;
+/// backend context. Nothing about decoding a PNG was ever backend-specific;
 /// what was, was one call, and that call is now
 /// [GraphicsDevice.createTextureFromPixels].
 ///

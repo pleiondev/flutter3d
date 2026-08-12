@@ -5,7 +5,7 @@
 /// arbitrary and is worth knowing before reaching past this file:
 ///
 /// - **This package names no graphics API.** It depends on `flutter3d_graphics` and
-///   nothing below it, so an application chooses a backend — `flutter3d_impeller`
+///   nothing below it, so an application chooses a backend package
 ///   today — and hands it to `Renderer.create`. That is checked, not intended:
 ///   `test/backend_is_contained_test.dart`.
 /// - `geometry`, `scene`, `assets` and `render/key_sort` need no device at all,
@@ -13,7 +13,8 @@
 ///   be unit tested without one.
 ///
 /// The shader bundle is still an asset of *this* package, and that is a known
-/// wrinkle rather than a decision: it is `impellerc` output, so it belongs with
+/// wrinkle rather than a decision: a compiled bundle is one backend's output,
+/// so it belongs with
 /// the backend that can read it. The GLSL it is built from is shared. Moving it
 /// is a question about where shader sources live, which is worth answering on
 /// its own rather than as a side effect of the package split.
@@ -51,7 +52,7 @@ export 'src/engine/geometry/geometry.dart';
 // this package handed them.
 //
 // The backend is deliberately **not** re-exported. An application picks one and
-// depends on it by name: `flutter3d_impeller` today, a second one beside it later.
+// depends on one by name; there are two today and room for more.
 // That choice is the one thing that must stay visible in an application's
 // pubspec.
 export 'package:flutter3d_graphics/flutter3d_graphics.dart';

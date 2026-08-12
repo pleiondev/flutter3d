@@ -1,6 +1,6 @@
 /// The `.f3d` container: an offline-converted model that loads without parsing.
 ///
-/// Depends on neither flutter_gpu nor `dart:ui`, like the other decoders, so it
+/// Depends on neither a graphics backend nor `dart:ui`, like the other decoders, so it
 /// works from an isolate and from an ahead-of-time compiled tool.
 library;
 

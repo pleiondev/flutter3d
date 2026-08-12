@@ -24,7 +24,7 @@ import '../math/intersections.dart';
 /// rebuild costs more than the culling it saves.
 ///
 /// It indexes spheres and yields indices, and knows nothing about scene nodes.
-/// That is not abstraction for its own sake: `MeshNode` reaches flutter_gpu
+/// That is not abstraction for its own sake: `MeshNode` reaches the graphics backend
 /// through its material, and a spatial index that dragged `dart:ui` in with it
 /// could not be compiled ahead of time by `tool/bench/bench.dart` — which is
 /// where its cost is actually measured. `sceneSpheres` does the mapping.

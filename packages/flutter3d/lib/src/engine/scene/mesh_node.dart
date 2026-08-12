@@ -9,7 +9,7 @@ import 'skeleton.dart';
 /// A node that draws a mesh.
 ///
 /// The geometry is a [MeshGeometry] rather than a `GpuMesh`, which is what keeps
-/// this whole layer free of flutter_gpu: bounds, culling, framing and picking
+/// this whole layer free of the graphics backend: bounds, culling, framing and picking
 /// need no device, and requiring one would mean none of them could be tested
 /// without a GPU. The renderer is the place that cares whether the geometry has
 /// actually been uploaded.

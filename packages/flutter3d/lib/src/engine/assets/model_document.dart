@@ -27,7 +27,7 @@ final class TextureSampling {
   /// ignored by the renderer — the visible cost is aliasing on minified
   /// surfaces.
   ///
-  /// Not a fact about rendering: flutter_gpu exposes no mip levels, WebGL2 has
+  /// Not a fact about rendering: one backend exposes no mip levels, another has
   /// them. The engine builds none either way today, so the field is carried
   /// rather than acted on, and honouring it would start with asking the device
   /// rather than assuming this.

@@ -1,6 +1,6 @@
 /// Describes a single vertex attribute.
 ///
-/// flutter_gpu has no attribute descriptors: a vertex buffer is bound as one
+/// A vertex buffer is bound as one
 /// opaque blob and the actual layout is taken from the order of `in`
 /// declarations in the vertex shader. The layout is therefore a contract
 /// between shader and CPU-side geometry that nothing validates for us.
@@ -35,7 +35,7 @@ final class VertexLayout {
   /// Up to four joint indices, held as floats.
   ///
   /// Floats rather than integers because the vertex buffer is one interleaved
-  /// block of them and flutter_gpu has no attribute descriptors to say
+  /// block of them and there are no attribute descriptors to say
   /// otherwise. A float32 represents every integer up to 2^24 exactly, so a
   /// joint index is never approximated.
   static const VertexAttribute joints = VertexAttribute('joints', 4);
@@ -53,7 +53,7 @@ final class VertexLayout {
   /// What a particle quad carries: where it is, what colour, and where in the
   /// sprite this corner sits.
   ///
-  /// A third layout means a third vertex shader, because flutter_gpu reads the
+  /// A third layout means a third vertex shader, because a backend reads the
   /// layout off the shader's `in` declarations. That is the same constraint
   /// that forced a separate stage for debug lines and for skinning.
   static const VertexLayout positionColorTexcoord = VertexLayout([
@@ -76,7 +76,7 @@ final class VertexLayout {
   /// What the engine's mesh shader reads: position, normal, UV, tangent, colour.
   ///
   /// One layout for everything rather than a permutation per attribute set. The
-  /// vertex layout is structural — flutter_gpu takes it from the shader's `in`
+  /// vertex layout is structural — it is taken from the shader's `in`
   /// declarations — so a second layout means a second vertex shader and a second
   /// pipeline for every lighting model. At 64 bytes a vertex this costs twice
   /// what position/normal/UV did, which buys normal mapping and vertex colours
@@ -92,7 +92,7 @@ final class VertexLayout {
   /// [standard] plus the two skinning attributes.
   ///
   /// A second layout rather than eight more floats on every vertex. The layout
-  /// is structural — flutter_gpu reads it off the vertex shader's `in`
+  /// is structural — it is read off the vertex shader's `in`
   /// declarations — so this is inseparable from being a second vertex shader,
   /// and that permutation has to exist anyway: a static shader that declared
   /// the joint matrices without reading them is the phantom-uniform trap all

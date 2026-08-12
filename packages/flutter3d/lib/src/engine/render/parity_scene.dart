@@ -2,7 +2,7 @@
 /// thing.
 ///
 /// Not engine functionality — a fixture. It lives in the engine because that is
-/// the only place both an Impeller application and a WebGL test can reach, and
+/// the only place an application on one backend and a test on another can both reach, and
 /// because the alternative is writing the scene twice. Written twice, any
 /// difference in the pictures is as likely to be a difference in the two
 /// transcriptions as a difference in the backends, and the comparison stops

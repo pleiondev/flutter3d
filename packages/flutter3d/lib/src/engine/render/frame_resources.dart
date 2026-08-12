@@ -10,7 +10,7 @@
 /// **No backend import, and that is now checked.** A resource is described in
 /// the engine's own vocabulary — `TextureFormat` and `StorageMode` from
 /// `graphics/formats.dart` — and what comes back is a [TextureHandle], which
-/// carries a texture's description without carrying flutter_gpu's type for it.
+/// carries a texture's description without carrying any backend's type for it.
 /// The translation happens where the texture is actually created, in
 /// `gpu/gpu_texture.dart`.
 ///

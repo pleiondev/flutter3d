@@ -1,6 +1,6 @@
 /// glTF 2.0 and GLB decoding.
 ///
-/// The layer has no dependency on flutter_gpu, `dart:io` or `dart:ui`: external
+/// The layer has no dependency on a graphics backend, `dart:io` or `dart:ui`: external
 /// files arrive through an [AssetUriResolver] callback and images are handed back
 /// still encoded. That is what makes it unit testable without a GPU or a Flutter
 /// binding, and reusable from an isolate.

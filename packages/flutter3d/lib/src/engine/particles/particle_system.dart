@@ -256,7 +256,7 @@ final class ParticleSystem {
   /// Writes camera-facing quads into [vertices] and returns how many particles
   /// were written.
   ///
-  /// Billboarding on the CPU: flutter_gpu has no geometry stage, and the
+  /// Billboarding on the CPU: no backend here has a geometry stage, and the
   /// alternative — four vertices carrying the same centre plus a corner index,
   /// expanded in the vertex shader — moves the same bytes and reconstructs what
   /// is already known here.

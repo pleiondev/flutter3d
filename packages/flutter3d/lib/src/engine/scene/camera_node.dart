@@ -13,10 +13,14 @@ import 'scene_node.dart';
 /// easily got wrong, and keeping it in one polymorphic place means there is no
 /// second copy to drift.
 ///
-/// Every implementation targets a `[0, 1]` NDC depth range, because Impeller runs
-/// on Metal and Vulkan conventions rather than OpenGL's `[-1, 1]`. Feeding an
-/// OpenGL-style matrix to them puts roughly half the view volume behind the near
-/// plane, so the model looks half-eaten or vanishes — with no error reported.
+/// Every implementation targets a `[0, 1]` NDC depth range, which is the Metal
+/// and Vulkan convention rather than OpenGL's `[-1, 1]`. Feeding an OpenGL-style
+/// matrix to a device expecting this one puts roughly half the view volume
+/// behind the near plane, so the model looks half-eaten or vanishes — with no
+/// error reported.
+///
+/// The device is asked which it wants; see [toDepthRange] and
+/// `GraphicsDevice.depthRange`.
 ///
 /// Y is deliberately not flipped. Metal NDC has +Y up while its framebuffer
 /// origin is top-left, which already places row 0 at the top of the texture.
@@ -200,8 +204,8 @@ final class CameraNode extends SceneNode {
 
 /// [projection] expressed for [range].
 ///
-/// Cameras here build for [DepthRange.zeroToOne] — Metal, Vulkan and Impeller
-/// conventions — and this is the one place that changes. Doubling the depth row
+/// Cameras here build for [DepthRange.zeroToOne] — the Metal and Vulkan
+/// convention — and this is the one place that changes. Doubling the depth row
 /// and subtracting w turns near-at-0/far-at-1 into near-at-minus-one/far-at-1,
 /// which is what OpenGL and WebGL clip against.
 ///

@@ -12,7 +12,7 @@ enum MaterialAlphaMode { opaque, mask, blend }
 /// Surface appearance as plain data.
 ///
 /// Materials carry no GPU objects beyond textures: the shader is selected by
-/// [lighting], because flutter_gpu compiles shaders ahead of time and a material
+/// [lighting], because shaders are compiled ahead of time and a material
 /// cannot assemble one at runtime. That makes [lighting] the pipeline key, and
 /// the pipeline the most expensive state change in a pass — which is why it is
 /// the high-order term when the render list is sorted.

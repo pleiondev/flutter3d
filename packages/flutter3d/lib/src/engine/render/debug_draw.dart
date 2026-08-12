@@ -90,7 +90,7 @@ abstract final class DebugColors {
 ///
 /// The buffer is grown by doubling and never released, so a steady overlay
 /// allocates nothing after the first few frames. This class knows nothing about
-/// flutter_gpu, which keeps it testable without a GPU.
+/// the graphics backend, which keeps it testable without a device.
 final class DebugDraw {
   DebugDraw({int reserveLines = 256})
       : _data = Float32List(math.max(1, reserveLines) * floatsPerLine);

@@ -86,7 +86,7 @@ class SolidColorTexture extends ProceduralTexture {
 /// Used for procedural shapes that carry no material of their own, because a flat
 /// colour is exactly where UV mistakes hide.
 ///
-/// One backend's limits, and they are not the same everywhere: flutter_gpu
+/// One backend's limits, and they are not the same everywhere: one
 /// exposes no compressed pixel formats and no mip levels, WebGL2 has both. The
 /// engine uses neither, so this is
 /// plain RGBA8 with a single level. Without mips, minification aliases: visible

@@ -27,7 +27,7 @@ import 'shadow_slots.dart';
 
 /// Uniform-block names as seen by shader reflection.
 ///
-/// Impeller reflects a uniform block under its struct TYPE name, so
+/// A backend may reflect a uniform block under its struct TYPE name, so
 /// `uniform FrameInfo { ... } frame_info;` is looked up as `FrameInfo`. Using
 /// the variable name instead is not an error at bind time — it just reflects as
 /// a missing block, which surfaces much later as "no uniform block named ...".
@@ -494,7 +494,7 @@ final class BloomSettings {
 
   /// How many halvings the chain does. Each one doubles the glow's reach, so
   /// this is the radius control; there is no mip pyramid to lean on because
-  /// flutter_gpu has no mip levels at all.
+  /// this engine builds no mip levels at all.
   final int levels;
 
   /// Tent-filter radius, in source texels, used on the way back up.
@@ -554,7 +554,7 @@ final class FrameResult {
   final int cpuMicros;
 
   /// Wall-clock time inside `CommandBuffer.submit`. Not a GPU timestamp —
-  /// flutter_gpu exposes none — but enough to notice a regression.
+  /// no backend here exposes one — but enough to notice a regression.
   final int submitMicros;
 
   final int drawCalls;
@@ -661,13 +661,13 @@ final class Renderer implements RenderServices {
   final ShaderHandle vertexShader;
 
   /// The skinned vertex stage. A separate shader because joints and weights are
-  /// vertex attributes, and flutter_gpu takes the layout from the `in`
+  /// vertex attributes, and the layout is taken from the `in`
   /// declarations — so a skinned mesh cannot share a shader with a static one
   /// however similar the body is.
   final ShaderHandle skinnedVertexShader;
 
   /// The debug overlay's own stage pair. Separate from the mesh shaders because
-  /// the line buffer has a different vertex layout, and flutter_gpu takes the
+  /// the line buffer has a different vertex layout, and a backend takes the
   /// layout from the shader's `in` declarations.
   final ShaderHandle debugLineVertexShader;
   final ShaderHandle particleVertexShader;
@@ -788,7 +788,7 @@ final class Renderer implements RenderServices {
   /// Asked of the backend rather than fixed here.
   ///
   /// It was a constant, which read as a property of the engine and was a
-  /// property of one backend: the format is renderable on flutter_gpu with
+  /// property of one backend: the format is renderable on one of them with
   /// nothing to enable, and on WebGL2 only because the device requests an
   /// extension when it makes its context. A backend that could not render to it
   /// had no way to say so, and the failure would have been an incomplete
@@ -846,7 +846,7 @@ final class Renderer implements RenderServices {
       if (shader == null) {
         throw StateError(
           'The bundle has no "$name" entry. Check the backend\'s bundle '
-          'manifest and rebuild it — for flutter3d_impeller that is '
+          'manifest and rebuild it. Each backend package keeps its own '
           'shaders/flutter3d.shaderbundle.json and tool/build_shaders.sh.',
         );
       }
@@ -1802,7 +1802,7 @@ final class Renderer implements RenderServices {
     required String uniformMember,
   }) {
     // One encoder per pass, because Metal allows a single encoder open at a
-    // time and flutter_gpu offers no way to end one. Passes submitted to the
+    // time and the encoder offers no way to end one. Passes submitted to the
     // same queue execute in submission order, which is the ordering these
     // passes need.
     final pass = device.beginRenderPass(RenderPassDescriptor(
@@ -2162,7 +2162,7 @@ final class Renderer implements RenderServices {
       });
 
         encoder.bindUniformBlock(fragmentShader, _kFragInfoBlock, {
-          // Whole arrays written from their reflected base offset. Impeller
+          // Whole arrays written from their reflected base offset. A backend
           // reflects the array, not its elements — `lights[0]` comes back
           // null — but the std140 stride for a vec4 array is a flat 16
           // bytes, so a contiguous write lands each element correctly.
@@ -2315,7 +2315,7 @@ final class Renderer implements RenderServices {
   /// The camera's view-projection, in the clip space this backend uses.
   ///
   /// Cameras build for [DepthRange.zeroToOne], which is what Metal, Vulkan and
-  /// Impeller want. A backend on OpenGL conventions gets the same matrix with
+  /// Vulkan want. A backend on OpenGL conventions gets the same matrix with
   /// depth remapped: `z' = 2z - w` turns near-at-0/far-at-1 into
   /// near-at-minus-one/far-at-1.
   ///
@@ -2547,7 +2547,7 @@ final class Renderer implements RenderServices {
     final frameClock = Stopwatch()..start();
     _ensureTargets(width, height);
 
-    // Rotates whatever the backend keeps per frame — on flutter_gpu, the ring
+    // Rotates whatever the backend keeps per frame — on one of them, the ring
     // of uniform allocators. Before anything is encoded, and never in the
     // middle of one.
     device.beginFrame();
@@ -3008,7 +3008,7 @@ final class Renderer implements RenderServices {
       pass.submit();
 
       // asImage plus toByteData is the only readback path available: there is
-      // no buffer readback in flutter_gpu at all.
+      // no buffer readback on this backend at all.
       final a = await device.readPixels(first);
       final b = await device.readPixels(second);
       if (a == null || b == null) return 'MRT probe: readback returned nothing.';

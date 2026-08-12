@@ -213,7 +213,7 @@ final class RenderList {
   /// manual         : bucket:8 |                       0
   /// ```
   ///
-  /// Pipeline outranks material because flutter_gpu builds pipelines ahead of
+  /// Pipeline outranks material because pipelines are built ahead of
   /// time and switching one mid-pass is the costliest state change available.
   /// In a web engine this term would be a nice-to-have; here it is the point.
   ///

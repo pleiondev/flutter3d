@@ -49,7 +49,7 @@ final class Scene {
   List<LodGroup> get lodGroups => _lodGroups;
 
   /// Ambient light applied where no direct light reaches. A placeholder for
-  /// image-based lighting, which needs mip levels flutter_gpu does not have yet.
+  /// image-based lighting, which needs mip levels this engine does not build yet.
   double ambientIntensity = 0.06;
 
   Vector3 ambientColor = Vector3(1.0, 1.0, 1.0);

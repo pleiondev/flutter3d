@@ -139,7 +139,7 @@ final class ModelLoadRequest {
 
 /// Decodes a model on a background isolate.
 ///
-/// The asset layer was kept free of flutter_gpu, `dart:ui` and direct file access
+/// The asset layer was kept free of the graphics backend, `dart:ui` and direct file access
 /// precisely so this would be possible: the decoders are pure Dart and take their
 /// sibling files through a callback.
 ///

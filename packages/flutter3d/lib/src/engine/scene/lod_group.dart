@@ -51,7 +51,7 @@ final class LodGroup extends SceneNode {
 
   /// Builds a group from one mesh drawn with several materials.
   ///
-  /// The case this exists for is texture level of detail. flutter_gpu on this
+  /// The case this exists for is texture level of detail. the engine on this
   /// channel cannot create a texture with mip levels — `createTexture` takes no
   /// level count and `Texture.overwrite` writes only the base — so a distant
   /// object cannot be made to sample a smaller image the usual way. What it can
