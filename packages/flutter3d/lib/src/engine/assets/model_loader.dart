@@ -1,6 +1,8 @@
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -156,6 +158,15 @@ final class ModelLoadRequest {
 /// Sibling files are requested back over a port, so a `.gltf` referencing an
 /// external `.bin` works exactly as it does synchronously.
 Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
+  // The web has no isolates. `dart:isolate` compiles there — it is a stub — so
+  // this fails at run time rather than at build time, with
+  // `ReceivePort.listen` unsupported, several seconds into loading a model.
+  //
+  // Decoding on the main thread instead, which is what the name promises not to
+  // do and the only thing available. A parse that janks is worse than one that
+  // does not; a parse that throws is worse than both.
+  if (kIsWeb) return decodeModel(request);
+
   // An async span, not startSync/finishSync: the read and the isolate round trip
   // both suspend, and a synchronous span would close on the first await and
   // report a fraction of the real cost.

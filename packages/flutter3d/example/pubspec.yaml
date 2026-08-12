@@ -13,6 +13,12 @@ dependencies:
   # changes to run on a different graphics API.
   flutter3d_impeller:
     path: ../../flutter3d_impeller
+  flutter3d_graphics:
+    path: ../../flutter3d_graphics
+  # The same application on the web, drawing through the other backend. Only
+  # src/spike/backend.dart names either of them.
+  flutter3d_webgl:
+    path: ../../flutter3d_webgl
   flutter3d:
     path: ../
   # Only the golden runner needs it, to insist its output directory is

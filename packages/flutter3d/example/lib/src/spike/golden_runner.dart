@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -7,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:flutter3d/flutter3d.dart';
 
+import 'golden_store.dart';
 import 'png.dart';
 import 'golden_scenes.dart';
 
@@ -64,26 +64,31 @@ final class GoldenRunner {
 
     final scene = goldenSceneNamed(name);
     if (scene == null) {
-      stderr.writeln(
+      printLine(
         'FLUTTER3D_GOLDEN: no scene named "$name". Known scenes:\n'
         '${kGoldenScenes.map((s) => '  ${s.name}').join('\n')}',
       );
-      exit(2);
+      finish(2);
     }
 
     const configured =
         String.fromEnvironment('FLUTTER3D_GOLDEN_DIR', defaultValue: '');
-    if (configured.isEmpty || !p.isAbsolute(configured)) {
+    // Only where a directory means something. In a browser the references come
+    // over HTTP from the server that served the page, so there is no path to
+    // validate — and demanding one is how a golden run in a browser ends before
+    // it renders anything.
+    if (needsReferenceDirectory &&
+        (configured.isEmpty || !p.isAbsolute(configured))) {
       // Not a default worth guessing at. A macOS application bundle runs with
       // its working directory set to the root of the filesystem, so a relative
       // path here resolves somewhere unwritable and the failure arrives as a
       // permission error three seconds into a render.
-      stderr.writeln(
+      printLine(
         'FLUTTER3D_GOLDEN_DIR must be an absolute path to the reference '
         'directory. tool/golden.sh passes one; a bare `flutter run` has to be '
         'given it by hand.',
       );
-      exit(2);
+      finish(2);
     }
 
     return GoldenRunner._(
@@ -114,70 +119,68 @@ final class GoldenRunner {
       // into something Flutter can draw before it can be measured.
       final target = frame.frame;
       if (target.width != scene.width || target.height != scene.height) {
-        stderr.writeln(
+        printLine(
           'GOLDEN ${scene.name}: rendered ${target.width}x${target.height}, '
           'expected ${scene.width}x${scene.height}. The golden path must fix '
           'the render size, or the result depends on the window.',
         );
-        exit(1);
+        finish(1);
       }
 
       final actual = await device.readPixels(target);
       if (actual == null) {
-        stderr.writeln('GOLDEN ${scene.name}: the frame read back as nothing.');
-        exit(1);
+        printLine('GOLDEN ${scene.name}: the frame read back as nothing.');
+        finish(1);
       }
-
-      final reference = File('$directory/${scene.name}.png');
 
       if (update) {
         final png = await encodePng(actual, target.width, target.height);
-        reference.parent.createSync(recursive: true);
-        reference.writeAsBytesSync(png!);
-        stdout.writeln('GOLDEN ${scene.name}: recorded ${reference.path}');
-        exit(0);
+        final path = await writeReference(directory, scene.name, png!);
+        printLine('GOLDEN ${scene.name}: recorded $path');
+        finish(0);
       }
 
-      if (!reference.existsSync()) {
-        stderr.writeln(
-          'GOLDEN ${scene.name}: no reference at ${reference.path}. Record one '
-          'with tool/golden.dart --update.',
+      final referenceBytes = await readReference(directory, scene.name);
+      if (referenceBytes == null) {
+        printLine(
+          'GOLDEN ${scene.name}: no reference at '
+          '${describe(directory, scene.name)}. Record one with '
+          'tool/golden.sh --update.',
         );
-        exit(1);
+        finish(1);
       }
 
-      final expected = await _decode(reference.readAsBytesSync());
+      final expected = await _decode(referenceBytes);
       final result = _compare(expected, actual.buffer.asUint8List());
 
       if (result.withinTolerance) {
-        stdout.writeln(
+        printLine(
           'GOLDEN ${scene.name}: PASS '
           '(${result.differing} of ${result.total} pixels differ, worst '
           '${result.worstChannel})',
         );
-        exit(0);
+        finish(0);
       }
 
       // The actual frame is written beside the reference so the two can be
       // opened side by side. A number alone does not say whether the lighting
       // shifted or the model moved.
-      final actualPath = '$directory/${scene.name}.actual.png';
       final png = await encodePng(actual, target.width, target.height);
-      File(actualPath).writeAsBytesSync(png!);
+      final actualPath = await writeActual(directory, scene.name, png!);
 
-      stderr.writeln(
+      printLine(
         'GOLDEN ${scene.name}: FAIL — ${result.differing} of ${result.total} '
         'pixels differ by more than $channelTolerance '
         '(${(result.fraction * 100).toStringAsFixed(3)}%, limit '
         '${(pixelTolerance * 100).toStringAsFixed(3)}%), worst channel delta '
         '${result.worstChannel}.\n'
-        '  expected ${reference.path}\n'
+        '  expected ${describe(directory, scene.name)}\n'
         '  actual   $actualPath',
       );
-      exit(1);
+      finish(1);
     } catch (error, stack) {
-      stderr.writeln('GOLDEN ${scene.name}: threw $error\n$stack');
-      exit(2);
+      printLine('GOLDEN ${scene.name}: threw $error\n$stack');
+      finish(2);
     }
   }
 
@@ -238,4 +241,15 @@ final class _Comparison {
   double get fraction => total == 0 ? 0.0 : differing / total;
 
   bool get withinTolerance => fraction <= GoldenRunner.pixelTolerance;
+}
+
+
+/// Where a golden run says what happened.
+///
+/// `print` rather than stdout/stderr: those are `dart:io`, and this runs in a
+/// browser too. `flutter run` forwards print to the console the harness reads,
+/// so the desktop path is unchanged.
+void printLine(String message) {
+  // ignore: avoid_print
+  print(message);
 }

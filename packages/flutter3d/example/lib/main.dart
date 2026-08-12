@@ -6,12 +6,12 @@ import 'package:vector_math/vector_math.dart'
     show Aabb3, Vector2, Vector3, Vector4;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter3d/flutter3d.dart' as engine;
 import 'src/spike/frame_capture.dart';
 import 'src/spike/golden_extras.dart';
 import 'src/spike/golden_runner.dart';
 import 'src/spike/orbit_gestures.dart';
+import 'src/spike/backend.dart';
 import 'src/spike/scene_source.dart';
 
 void main() => runApp(const Flutter3dApp());
@@ -148,7 +148,7 @@ class _SpikePageState extends State<SpikePage>
   Renderer? _renderer;
 
   /// Kept because the asset loader needs one long after `initState`.
-  GpuRenderBackend? _device;
+  GraphicsDevice? _device;
   Object? _initError;
   StackTrace? _initStack;
 
@@ -256,9 +256,9 @@ class _SpikePageState extends State<SpikePage>
     // global to upload themselves; now that they take a device, it has to exist
     // first. A failure here is the same failure as a missing shader bundle, so
     // it lands in the same place and `build` shows the same panel.
-    final GpuRenderBackend device;
+    final GraphicsDevice device;
     try {
-      device = GpuRenderBackend.create();
+      device = createBackend(width: 480, height: 360);
     } catch (error, stack) {
       _initError = error;
       _initStack = stack;
