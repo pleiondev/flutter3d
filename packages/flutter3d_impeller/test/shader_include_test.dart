@@ -20,7 +20,19 @@ import 'package:flutter_test/flutter_test.dart';
 import '../tool/package_root.dart';
 
 /// `flutter test` runs with the package root as the working directory.
-Directory get _package => Directory.current;
+/// The package the GLSL lives in, which is no longer this one.
+///
+/// The sources moved to `flutter3d_shaders` when a second backend appeared and
+/// they stopped belonging to either. The checks below are still run from here
+/// because this is where the compiled bundle is built, and a header that fails
+/// to ship breaks *this* package's build — but every path they take is over
+/// there now.
+///
+/// Found by these tests failing after the move, which they did because the move
+/// was verified with `flutter analyze` and not with `flutter test`. Analysis
+/// does not open a directory.
+Directory get _package =>
+    Directory('${Directory.current.parent.path}/flutter3d_shaders');
 
 void main() {
   group('shipped shader headers', () {
@@ -128,11 +140,12 @@ void main() {
     });
 
     test('resolves this package to a directory that has the headers', () {
-      // `flutter3d_impeller`, not `flutter3d`: the headers are impellerc GLSL and
-      // moved here with the bundle they are compiled into. An extension writing
-      // shaders for this backend includes them through this package name.
+      // `flutter3d_shaders`. The headers were this package's while it was the
+      // only backend; they belong to neither now, and both compile them. An
+      // extension writing shaders includes them through that package name,
+      // which is also how the build script resolves its include root.
       final config = findPackageConfig(_package.path)!;
-      final root = packageRoot(config, 'flutter3d_impeller');
+      final root = packageRoot(config, 'flutter3d_shaders');
       expect(File('$root/shaders/lib/color.glsl').existsSync(), isTrue);
     });
 
