@@ -252,30 +252,19 @@ void main() {
         // of the texture; and a clear respects the scissor here while the
         // contract says it covers the whole attachment, so three rows of four
         // were never cleared at all.
-        skip: switch (which) {
-          // Much closer than it was — mean 16.2 to 0.95 once the map was drawn
-          // in this backend's clip space — and still outside the limit: one
-          // cell differs by 32 against a limit of 8, at a shadow edge, WebGL
-          // brighter. Plausibly half a texel of PCF over a half-float map at
-          // different precision, and plausible is not measured. Widening the
-          // limit to fit is the move this suite exists to refuse.
-          ParityScene.directionalShadow =>
-            'one edge cell off by 32 against a limit of 8',
-          // The atlas is written correctly now and passes; the lookup into it
-          // is not, so the lit scene still disagrees. That split is what the
-          // pointShadowMap fixture exists for, and it earned its place: one
-          // number could not have said which half was wrong.
-          //
-          // Refuted along the way, so nobody repeats them: float-linear
-          // filtering, std140 array stride, stage linking, and the atlas
-          // texture's size. Two real causes were found and fixed — GL measures
-          // a viewport from the bottom, so the occupied row went to the wrong
-          // end of the texture; and a clear respects the scissor here while the
-          // contract says it covers the whole attachment, so three rows of four
-          // were never cleared at all.
-          ParityScene.pointShadow => 'the atlas is right, the lookup is not',
-          _ => null,
-        });
+        // The atlas is written correctly and passes; the lookup into it is
+        // not, so the lit scene disagrees. That split is what the
+        // pointShadowMap fixture is for, and it earned its place: one number
+        // could not have said which half was wrong.
+        //
+        // Not the sampling convention either — flipping v in the cube lookup
+        // moves this number not at all, where the same flip took the
+        // directional map from a worst cell of 32 to 4. Five explanations
+        // measured and refuted now: float-linear filtering, std140 array
+        // stride, stage linking, atlas texture size, and the v convention.
+        skip: which == ParityScene.pointShadow
+            ? 'the atlas is right, the lookup into it is not'
+            : null);
   }
 }
 

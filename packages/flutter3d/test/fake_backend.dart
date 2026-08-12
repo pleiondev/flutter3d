@@ -228,6 +228,9 @@ final class FakeBackend implements GraphicsDevice {
   /// The engine's own convention, so a fake never exercises the remap. The
   /// backends that need the other one are covered by running them.
   @override
+  FramebufferOrigin get framebufferOrigin => FramebufferOrigin.topLeft;
+
+  @override
   DepthRange get depthRange => DepthRange.zeroToOne;
 
   @override

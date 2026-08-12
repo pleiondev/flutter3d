@@ -40,6 +40,14 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// [TextureFormat.unknown] on a context that has none.
   TextureFormat get defaultDepthStencilFormat;
 
+  /// Where row zero of a render target is.
+  ///
+  /// Asked because a shader sampling a texture the engine drew has to be told:
+  /// see [toFramebufferOrigin]. The engine's own frames are presented and read
+  /// back consistently by each backend, so this is not about the picture — it
+  /// is about the maps the lighting pass looks into.
+  FramebufferOrigin get framebufferOrigin;
+
   /// What this backend's clip space maps depth onto.
   ///
   /// Asked rather than assumed. The engine builds its projections for

@@ -198,3 +198,15 @@ enum DepthRange {
   /// Near at -1, far at 1. OpenGL, WebGL.
   negativeOneToOne,
 }
+
+/// Where a render target's first row of pixels is.
+///
+/// Metal and Impeller put it at the top left; OpenGL and WebGL put it at the
+/// bottom left, and there is no switch for that.
+///
+/// It matters wherever the engine *reads back* what it drew rather than only
+/// showing it. A backend can hide the difference when it presents a frame, and
+/// cannot when a shader samples a texture the engine rendered: a shadow map is
+/// sampled through a matrix, and the matrix has to agree with which end of the
+/// texture row zero is.
+enum FramebufferOrigin { topLeft, bottomLeft }

@@ -221,3 +221,26 @@ Matrix4 toDepthRange(Matrix4 projection, DepthRange range) {
     ..setEntry(2, 3, -1.0)
     ..multiply(projection);
 }
+
+
+/// [projection] adjusted for where [origin] puts row zero.
+///
+/// For sampling a texture the engine rendered, not for drawing into one. A
+/// shader that looks into a shadow map turns clip space into a uv, and that
+/// conversion assumes row zero is at the top — which is true of the texture on
+/// a top-left backend and false on a bottom-left one, where the same geometry
+/// lands mirrored in memory.
+///
+/// Negating y in the matrix the *shader* is given produces the mirrored uv
+/// without the shader knowing which backend it is on. Doing it here rather than
+/// in GLSL keeps one shader for both and keeps the convention in the one place
+/// that already knows it.
+///
+/// Not to be confused with negating y in a matrix used for *drawing*, which
+/// would mirror the picture and reverse triangle orientation with it.
+Matrix4 toFramebufferOrigin(Matrix4 projection, FramebufferOrigin origin) {
+  if (origin == FramebufferOrigin.topLeft) return projection;
+  return Matrix4.identity()
+    ..setEntry(1, 1, -1.0)
+    ..multiply(projection);
+}
