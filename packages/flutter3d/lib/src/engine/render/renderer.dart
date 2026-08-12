@@ -809,6 +809,9 @@ final class Renderer implements RenderServices {
   /// World space to the shadow camera's clip space, rebuilt each frame the
   /// light or the scene moves.
   final vm.Matrix4 _shadowMatrix = vm.Matrix4.identity();
+
+  /// [_shadowMatrix] in the backend's clip space, for drawing the map with.
+  final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
   final Float32List _shadowParams = Float32List(4);
   TextureHandle? _shadowMap;
   int _shadowResolution = 0;
@@ -1186,6 +1189,12 @@ final class Renderer implements RenderServices {
         final at = (slot * 6 + face) * 16;
         _cubeFaceMatrices.setRange(at, at + 16, _cubeMatrix.storage);
 
+        // For drawing, in this backend's clip space. The stored value is a
+        // distance rather than a depth, so the convention cannot corrupt it —
+        // but the depth *test* between casters in a tile runs in clip space,
+        // and the lookup reads the tile through the unremapped matrix above.
+        _cubeDrawMatrix.setFrom(toDepthRange(_cubeMatrix, device.depthRange));
+
         if (tiles != null && !tiles.contains(slot * 6 + face)) continue;
 
         // A row of six per light: the face across, the light down.
@@ -1244,7 +1253,7 @@ final class Renderer implements RenderServices {
           );
 
           mvp
-            ..setFrom(_cubeMatrix)
+            ..setFrom(_cubeDrawMatrix)
             ..multiply(node.worldMatrix);
           pass.bindUniformBlock(vertexShader, _kFrameInfoBlock, {
             'mvp': mvp.storage,
@@ -1545,6 +1554,9 @@ final class Renderer implements RenderServices {
   bool _staticShadowBaked = false;
   int _cubeShadowTile = 0;
   final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
+
+  /// [_cubeMatrix] in the backend's clip space, for drawing a face with.
+  final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
 
   /// Draws the directional light's shadow map, and says whether it drew one.
@@ -1608,6 +1620,20 @@ final class Renderer implements RenderServices {
     _shadowMatrix
       ..setFrom(projection)
       ..multiply(view);
+
+    // The same matrix in the clip space this backend rasterises with, for
+    // *drawing* the map. The shader keeps [_shadowMatrix] itself.
+    //
+    // They have to differ, and the reason is subtle enough to have cost a
+    // session. The shadow pass stores `gl_FragCoord.z`, which is window depth:
+    // on a backend whose NDC depth is already [0, 1] that is the projected z
+    // unchanged, and on one whose NDC is [-1, 1] it is (z + 1) / 2. Draw with
+    // an unremapped matrix on the second and every stored depth lands in
+    // [0.5, 1] while the lighting shader, computing the expected depth from the
+    // unremapped matrix, looks for it in [0, 1]. Nothing compares as occluded
+    // and the frame comes back fully lit — which reads exactly like a shadow
+    // pass that never ran.
+    _shadowDrawMatrix.setFrom(toDepthRange(_shadowMatrix, device.depthRange));
 
     final resolution = settings.resolution.clamp(256, 4096);
     if (_shadowMap == null || _shadowResolution != resolution) {
@@ -1707,7 +1733,7 @@ final class Renderer implements RenderServices {
       );
 
       mvp
-        ..setFrom(_shadowMatrix)
+        ..setFrom(_shadowDrawMatrix)
         ..multiply(node.worldMatrix);
       final stage = skinned ? skinnedVertexShader : vertexShader;
       pass.bindUniformBlock(stage, _kFrameInfoBlock, {

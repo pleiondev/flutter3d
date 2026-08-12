@@ -145,12 +145,32 @@ final class WebGlDevice implements GraphicsDevice {
     // That is exactly how this was found, after the counters were believed
     // once.
     gl.getExtension('EXT_color_buffer_float');
-    return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources));
+
+    // And this one, which is the other half and easy to miss. Rendering *to* a
+    // half-float target is EXT_color_buffer_float; *sampling* one with linear
+    // filtering is OES_texture_float_linear, and without it such a texture is
+    // incomplete — it samples as zero, silently, with no error and no warning.
+    //
+    // The engine's shadow maps are half-float and bound with a linear sampler,
+    // so this is the difference between shadows and no shadows. The frame comes
+    // back fully lit, which reads as "the shadow pass did not run" and is
+    // really "the lookup read nothing".
+    final floatLinear = gl.getExtension('OES_texture_float_linear');
+    return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources))
+      .._floatLinear = floatLinear != null;
   }
 
   final web.WebGL2RenderingContext _gl;
   final web.HTMLCanvasElement _canvas;
   final WebGlShaderLibrary _library;
+
+  /// Whether half-float textures may be filtered linearly here. Diagnostic:
+  /// see the note in [create].
+  bool _floatLinear = false;
+
+  /// Whether this context can sample a half-float texture with linear
+  /// filtering. False makes every shadow map read as zero.
+  bool get supportsFloatLinearFiltering => _floatLinear;
 
   @override
   ShaderLibrary get shaders => _library;

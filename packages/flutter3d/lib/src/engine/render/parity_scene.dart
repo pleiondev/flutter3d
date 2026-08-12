@@ -51,6 +51,14 @@ enum ParityScene {
   /// A bright sphere and bloom on, which is the post chain: threshold,
   /// downsample, upsample, composite.
   bloom,
+
+  /// The cube atlas itself, composited instead of the lit image.
+  ///
+  /// Splits the point-shadow question in two. If the atlas matches and the lit
+  /// scene does not, the pass is right and the lookup is wrong; if the atlas
+  /// does not match, the pass never got that far. One number cannot say which,
+  /// and guessing between them is how an afternoon goes.
+  pointShadowMap,
 }
 
 ({Scene scene, CameraNode camera}) buildParityScene(
@@ -98,7 +106,8 @@ enum ParityScene {
   // floor compares differently for a reason that has nothing to do with the
   // feature under test.
   if (which == ParityScene.directionalShadow ||
-      which == ParityScene.pointShadow) {
+      which == ParityScene.pointShadow ||
+      which == ParityScene.pointShadowMap) {
     scene.root.add(
       MeshNode(
         DeviceMesh.upload(
@@ -139,6 +148,7 @@ enum ParityScene {
       );
 
     case ParityScene.pointShadow:
+    case ParityScene.pointShadowMap:
       scene.root.add(
         LightNode(name: 'lamp', type: LightType.point)
           ..intensity = 12.0
@@ -170,6 +180,13 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
         const RenderSettings(bloom: BloomSettings(enabled: false)),
       ParityScene.bloom => const RenderSettings(
           shadows: ShadowSettings(enabled: false),
+        ),
+      // The atlas on screen instead of the picture. Exposure and tone mapping
+      // are forced off by this path in the compositor, so the comparison is of
+      // the stored distances themselves.
+      ParityScene.pointShadowMap => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          showShadowMap: true,
         ),
     };
 

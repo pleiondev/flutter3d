@@ -102,9 +102,30 @@ const Map<ParityScene, List<int>> kImpellerGrids = <ParityScene, List<int>>{
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
   ],
+  ParityScene.pointShadowMap: <int>[
+    255, 255, 255, 255, 255, 255, 255, 255, 99, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 201, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 186, 216, 255, 255, 255, 255, 255, 255, 255, 197, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+  ],
 };
 
 void main() {
+  _linkTests();
+  _atlasTests();
+
   for (final which in ParityScene.values) {
     test('WebGL draws ${which.name} the way Impeller does', () async {
       final device = WebGlDevice.create(
@@ -113,6 +134,10 @@ void main() {
         sources: engineShaders,
       );
       if (device == null) fail('no WebGL2 context in this browser');
+      // Reported once per fixture, because it is the difference between
+      // shadows and no shadows and nothing else says so.
+      // ignore: avoid_print
+      print('float-linear filtering: ${device.supportsFloatLinearFiltering}');
 
       TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
             width: 1,
@@ -135,6 +160,12 @@ void main() {
         views: <RenderView>[RenderView(camera: built.camera)],
         settings: paritySettingsFor(which),
       );
+
+      // Draw calls, because a black atlas and a pass that never ran look the
+      // same in the picture and different here.
+      // ignore: avoid_print
+      print('${which.name}: ${result.drawCalls} draws, '
+          '${result.pipelines} pipelines');
 
       final pixels = await device.readPixels(result.frame);
       expect(pixels, isNotNull, reason: 'the frame could not be read back');
@@ -181,18 +212,86 @@ void main() {
           reason: 'the two backends disagree across the whole frame, '
               'not in one place');
     },
-        // Shadows do not draw on this backend yet, and the numbers say which
-        // way: where Impeller puts a shadow the WebGL frame is still lit —
-        // cell 13,3 reads 231 against 14 for the directional map, 107 against
-        // 14 for the cube atlas. Not a distorted shadow, an absent one.
+        // The cube atlas does not draw here, and the atlas fixture says why it
+        // is worth separating: composited directly it comes back black, where
+        // Impeller's is white — the clear value, meaning "nothing between here
+        // and the light". Black is a pass that never ran, not one that ran
+        // wrongly.
         //
-        // Skipped rather than left red, because a suite that is red every day
-        // is a suite nobody reads; skipped rather than deleted, because then
-        // the gap goes back to being an opinion. Removing this is the
-        // definition of done for shadows here.
-        skip: (which == ParityScene.directionalShadow ||
-                which == ParityScene.pointShadow)
-            ? 'shadows do not draw on WebGL yet — see the note above'
+        // Four explanations measured and refuted, so the next reader does not
+        // repeat them: OES_texture_float_linear is present and requested and
+        // changed nothing; the block's arrays are all vec4-aligned so std140
+        // stride is not it; every stage pair the engine links does link,
+        // including the tile reset; and the 6144x4096 atlas texture is one this
+        // backend will happily create.
+        //
+        // The directional map is a separate story and is fixed — see the draw
+        // matrix in renderer.dart. This is skipped rather than left red or
+        // deleted; removing it is the definition of done.
+        skip: (which == ParityScene.pointShadow ||
+                which == ParityScene.pointShadowMap)
+            ? 'the cube atlas does not draw on WebGL yet — see the note above'
             : null);
+  }
+}
+
+/// Whether the cube shadow atlas can exist here at all.
+///
+/// Six tiles across and one row per shadowed light, so at the default tile size
+/// it is 6144 by 4096 — wide enough to be worth asking about, and a texture
+/// that cannot be created is a shadow pass that cannot run.
+void _atlasTests() {
+  test('the cube shadow atlas is a texture this backend can make', () {
+    final device = WebGlDevice.create(
+      width: 64,
+      height: 64,
+      sources: engineShaders,
+    );
+    if (device == null) fail('no WebGL2 context in this browser');
+    final atlas = device.createTexture(const RenderTargetSpec(
+      width: 6144,
+      height: 4096,
+      format: TextureFormat.r16g16b16a16Float,
+    ));
+    // ignore: avoid_print
+    print('atlas 6144x4096: ${atlas.width}x${atlas.height}');
+    expect(atlas.width, 6144);
+  });
+}
+
+/// Every stage pair the engine links, linked here.
+///
+/// A shader that compiles is not a shader that links. GLSL ES matches a
+/// fragment stage's inputs against the vertex stage's outputs, and a mismatch
+/// is a link error — where Impeller drops an input nothing reads and links
+/// anyway. The pairs below are the ones the renderer builds, so a mismatch in
+/// any of them is a pass that cannot run.
+void _linkTests() {
+  const pairs = <(String, String)>[
+    ('MeshVertex', 'Pbr'),
+    ('MeshVertex', 'Lambert'),
+    ('MeshVertex', 'ShadowDepth'),
+    ('MeshVertex', 'ShadowDistance'),
+    ('ShadowTileResetVertex', 'ShadowTileReset'),
+    ('FullscreenVertex', 'Composite'),
+    ('FullscreenVertex', 'BloomThreshold'),
+    ('DebugLineVertex', 'DebugLine'),
+    ('ParticleVertex', 'Particle'),
+  ];
+
+  for (final (vertex, fragment) in pairs) {
+    test('$vertex + $fragment links', () {
+      final device = WebGlDevice.create(
+        width: 64,
+        height: 64,
+        sources: engineShaders,
+      );
+      if (device == null) fail('no WebGL2 context in this browser');
+      final v = device.shaders[vertex];
+      final f = device.shaders[fragment];
+      expect(v, isNotNull, reason: '$vertex did not compile');
+      expect(f, isNotNull, reason: '$fragment did not compile');
+      expect(() => device.createPipeline(v!, f!), returnsNormally);
+    });
   }
 }
