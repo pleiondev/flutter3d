@@ -13,7 +13,6 @@
 /// SDK, so `dart run` cannot resolve it. Nothing here asserts anything.
 library;
 
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -68,7 +67,7 @@ void main() {
       final pixels = await device.readPixels(result.frame);
       final file = File('${out.path}/${which.name}.png');
       file.writeAsBytesSync(
-          _png(pixels!.buffer.asUint8List(), _width, _height));
+          encodePng(pixels!.buffer.asUint8List(), _width, _height));
 
       // The time, because it is the one number that separates this backend from
       // the others by orders of magnitude and nothing else here would say so.
@@ -78,55 +77,4 @@ void main() {
           '-> ${file.path}');
     }
   });
-}
-
-/// The smallest PNG that is a real PNG: 8-bit RGBA, one IDAT, zlib from
-/// `dart:io`. Written out rather than taking a dependency, because a package
-/// whose test tooling pulls in an image library for one call is a package with
-/// a heavier dependency graph than its actual job.
-Uint8List _png(Uint8List rgba, int width, int height) {
-  // Filter byte 0 (none) in front of each row, which is what the format wants
-  // and what makes this short.
-  final raw = Uint8List(height * (width * 4 + 1));
-  for (var y = 0; y < height; y++) {
-    raw[y * (width * 4 + 1)] = 0;
-    raw.setRange(y * (width * 4 + 1) + 1, y * (width * 4 + 1) + 1 + width * 4,
-        rgba, y * width * 4);
-  }
-
-  final out = BytesBuilder();
-  out.add(<int>[137, 80, 78, 71, 13, 10, 26, 10]);
-
-  void chunk(String type, List<int> data) {
-    final body = <int>[...ascii.encode(type), ...data];
-    out.add((ByteData(4)..setUint32(0, data.length)).buffer.asUint8List());
-    out.add(body);
-    out.add((ByteData(4)..setUint32(0, _crc32(body))).buffer.asUint8List());
-  }
-
-  final header = ByteData(13)
-    ..setUint32(0, width)
-    ..setUint32(4, height)
-    ..setUint8(8, 8) // bit depth
-    ..setUint8(9, 6); // colour type: RGBA
-  chunk('IHDR', header.buffer.asUint8List());
-  chunk('IDAT', ZLibEncoder().convert(raw));
-  chunk('IEND', const <int>[]);
-  return out.toBytes();
-}
-
-final List<int> _crcTable = List<int>.generate(256, (n) {
-  var c = n;
-  for (var k = 0; k < 8; k++) {
-    c = (c & 1) != 0 ? 0xEDB88320 ^ (c >> 1) : c >> 1;
-  }
-  return c;
-});
-
-int _crc32(List<int> bytes) {
-  var c = 0xFFFFFFFF;
-  for (final byte in bytes) {
-    c = _crcTable[(c ^ byte) & 0xFF] ^ (c >> 8);
-  }
-  return (c ^ 0xFFFFFFFF) & 0xFFFFFFFF;
 }

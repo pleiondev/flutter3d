@@ -9,20 +9,33 @@
 /// what the numbers cannot say at all: how fast it is, and whether it looks
 /// right while it moves.
 ///
-/// The scene is `buildParityScene`, the same fixture the comparison uses, so
-/// what is on screen here is exactly what the grid is checking. A demo with its
-/// own scene would be a third transcription of the same intent, which is the
-/// thing that fixture exists to avoid.
+/// Two scenes, switched with the space bar.
+///
+/// `buildParityScene` is the fixture the comparison grid checks, so what is on
+/// screen in that mode is exactly what the tests assert about — a demo with its
+/// own scene would be a third transcription of one intent, which is the thing
+/// that fixture exists to avoid.
+///
+/// The other is a torus, a cone and a box, and it exists because the fixture
+/// cannot ask the question it asks. Two spheres are convex: every pixel of them
+/// is a single surface, so a depth buffer that did nothing at all would draw
+/// them correctly. A torus occludes itself — the near side of the tube covers
+/// the far side of the same mesh — and the box has flat faces that meet at
+/// hard edges, which is where a normal that is being interpolated when it
+/// should not be shows up immediately.
 library;
 
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/services.dart' show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:vector_math/vector_math.dart' show Vector3;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+
+import 'cpu_shapes_scene.dart';
 
 /// Small on purpose. A software rasteriser costs pixels linearly, and the point
 /// of this entry point is to watch it move rather than to fill a display —
@@ -42,9 +55,15 @@ class CpuApp extends StatefulWidget {
 class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
   late final CpuDevice _device;
   late final Renderer _renderer;
-  late final Scene _scene;
-  late final CameraNode _camera;
   late final Ticker _ticker;
+  late Scene _scene;
+  late CameraNode _camera;
+
+  /// False for the two spheres the grid checks, true for the shapes that can
+  /// fail in ways two spheres cannot.
+  bool _shapes = false;
+
+  final FocusNode _focus = FocusNode();
 
   Widget? _frame;
   double _angle = 0.0;
@@ -68,11 +87,16 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
       fallbackAlbedo: _texel(255, 255, 255),
       fallbackNormal: _texel(128, 128, 255),
     );
-    final built = buildParityScene(_device, which: ParityScene.plain);
+    _load();
+    _ticker = createTicker(_tick)..start();
+  }
+
+  void _load() {
+    final built = _shapes
+        ? buildShapesScene(_device)
+        : buildParityScene(_device, which: ParityScene.plain);
     _scene = built.scene;
     _camera = built.camera;
-
-    _ticker = createTicker(_tick)..start();
   }
 
   void _tick(Duration elapsed) {
@@ -83,7 +107,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
     const radius = 4.2;
     _camera
       ..setPosition(radius * math.sin(_angle), 0.4, radius * math.cos(_angle))
-      ..lookAt(Vector3(0.0, 0.2, 0.0));
+      ..lookAt(Vector3(0.0, _shapes ? 0.0 : 0.2, 0.0));
 
     final started = DateTime.now();
     final result = _renderer.render(
@@ -112,13 +136,26 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
   @override
   void dispose() {
     _ticker.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
+        home: KeyboardListener(
+          focusNode: _focus,
+          autofocus: true,
+          onKeyEvent: (KeyEvent event) {
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.space) {
+              setState(() {
+                _shapes = !_shapes;
+                _load();
+              });
+            }
+          },
+          child: Scaffold(
           backgroundColor: const Color(0xFF141414),
           body: Stack(
             children: <Widget>[
@@ -127,7 +164,8 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
                 left: 16,
                 top: 16,
                 child: Text(
-                  'flutter3d_cpu — no GPU\n'
+                  'flutter3d_cpu — no GPU  ·  space to switch\n'
+                  '${_shapes ? 'torus, cone, box' : 'the parity fixture'}\n'
                   '$_width x $_height\n'
                   '${_smoothed.toStringAsFixed(1)} ms/frame '
                   '(${_smoothed <= 0 ? 0 : (1000 / _smoothed).round()} fps)',
@@ -140,6 +178,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
                 ),
               ),
             ],
+          ),
           ),
         ),
       );
