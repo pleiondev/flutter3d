@@ -57,30 +57,36 @@ class _ParityAppState extends State<ParityApp> {
         fallbackNormal: flat,
       );
 
-      final built = buildParityScene(device);
-      final result = renderer.render(
-        width: kParityWidth,
-        height: kParityHeight,
-        scene: built.scene,
-        views: <RenderView>[RenderView(camera: built.camera)],
-        settings: kParitySettings,
-      );
+      // Every fixture in one run, because recording them one at a time is how
+      // two of them end up drawn by different versions of the engine.
+      final buffer = StringBuffer();
+      for (final which in ParityScene.values) {
+        final built = buildParityScene(device, which: which);
+        final result = renderer.render(
+          width: kParityWidth,
+          height: kParityHeight,
+          scene: built.scene,
+          views: <RenderView>[RenderView(camera: built.camera)],
+          settings: paritySettingsFor(which),
+        );
 
-      final pixels = await device.readPixels(result.frame);
-      if (pixels == null) {
-        setState(() => _report = 'the frame could not be read back');
-        return;
-      }
-      final grid = parityGrid(
-        pixels.buffer.asUint8List(),
-        kParityWidth,
-        kParityHeight,
-      );
+        final pixels = await device.readPixels(result.frame);
+        if (pixels == null) {
+          buffer.writeln('${which.name}: the frame could not be read back');
+          continue;
+        }
+        final grid = parityGrid(
+          pixels.buffer.asUint8List(),
+          kParityWidth,
+          kParityHeight,
+        );
 
-      final buffer = StringBuffer('PARITY GRID (paste into the WebGL test)\n');
-      for (var row = 0; row < kParityGrid; row++) {
-        final slice = grid.sublist(row * kParityGrid, (row + 1) * kParityGrid);
-        buffer.writeln('  ${slice.join(', ')},');
+        buffer.writeln("  ParityScene.${which.name}: <int>[");
+        for (var row = 0; row < kParityGrid; row++) {
+          final slice = grid.sublist(row * kParityGrid, (row + 1) * kParityGrid);
+          buffer.writeln('    ${slice.join(', ')},');
+        }
+        buffer.writeln('  ],');
       }
       // ignore: avoid_print
       print(buffer);

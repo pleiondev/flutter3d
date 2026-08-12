@@ -29,7 +29,34 @@ import '../../../flutter3d.dart';
 ///
 /// Returns the scene and the camera to view it through; the caller supplies the
 /// renderer, because that is the part that differs.
-({Scene scene, CameraNode camera}) buildParityScene(GraphicsDevice device) {
+/// Which of the engine's features a comparison scene exercises.
+///
+/// One fixture per feature rather than one that does everything, because a
+/// grid that disagrees tells you *that* the backends differ and a fixture tells
+/// you *where*. Shadows and bloom in the same picture would have made "the
+/// atlas is wrong" and "the glow is wrong" the same number.
+enum ParityScene {
+  /// Two lit spheres. Shading, geometry, uniforms — the smallest thing that can
+  /// disagree.
+  plain,
+
+  /// The same, with a directional shadow onto a floor. The shadow pass, its
+  /// map, and the lighting shader's lookup into it.
+  directionalShadow,
+
+  /// A point light with the cube atlas, which is six faces per light and the
+  /// most machinery of anything here.
+  pointShadow,
+
+  /// A bright sphere and bloom on, which is the post chain: threshold,
+  /// downsample, upsample, composite.
+  bloom,
+}
+
+({Scene scene, CameraNode camera}) buildParityScene(
+  GraphicsDevice device, {
+  ParityScene which = ParityScene.plain,
+}) {
   final scene = Scene(name: 'parity');
 
   final big = DeviceMesh.upload(
@@ -67,13 +94,59 @@ import '../../../flutter3d.dart';
     )..setPosition(1.1, 1.0, 0.4),
   );
 
-  // Above and slightly to the right, so the lit side of both spheres is up.
-  scene.root.add(
-    LightNode(name: 'key', type: LightType.directional)
-      ..intensity = 3.5
-      ..setPosition(1.5, 3.0, 2.0)
-      ..lookAt(Vector3.zero()),
-  );
+  // A floor for anything that casts, and only then: an unlit scene with a
+  // floor compares differently for a reason that has nothing to do with the
+  // feature under test.
+  if (which == ParityScene.directionalShadow ||
+      which == ParityScene.pointShadow) {
+    scene.root.add(
+      MeshNode(
+        DeviceMesh.upload(
+          device,
+          const PlaneShape(width: 8.0, depth: 8.0).build(),
+        ),
+        Material(
+          name: 'floor',
+          baseColor: Vector4(0.55, 0.55, 0.6, 1.0),
+          lighting: LightingModel.lambert,
+        ),
+        name: 'floor',
+      )..setPosition(0.0, -1.4, 0.0),
+    );
+  }
+
+  switch (which) {
+    case ParityScene.plain:
+    case ParityScene.bloom:
+      // Above and to the right, so the lit side of both spheres is up.
+      scene.root.add(
+        LightNode(name: 'key', type: LightType.directional)
+          ..intensity = 3.5
+          ..setPosition(1.5, 3.0, 2.0)
+          ..lookAt(Vector3.zero()),
+      );
+
+    case ParityScene.directionalShadow:
+      // Oblique rather than overhead. A sun straight above drops the shadow
+      // under the sphere, where the sphere covers it — still cast, never seen,
+      // and a comparison that cannot see it cannot disagree about it.
+      scene.root.add(
+        LightNode(name: 'sun', type: LightType.directional)
+          ..intensity = 4.0
+          ..castsShadow = true
+          ..setPosition(2.5, 3.0, 1.5)
+          ..lookAt(Vector3.zero()),
+      );
+
+    case ParityScene.pointShadow:
+      scene.root.add(
+        LightNode(name: 'lamp', type: LightType.point)
+          ..intensity = 12.0
+          ..range = 12.0
+          ..castsShadow = true
+          ..setPosition(2.2, 2.6, 1.8),
+      );
+  }
 
   final camera = CameraNode(name: 'eye')
     ..setPosition(0.0, 0.4, 4.2)
@@ -83,11 +156,22 @@ import '../../../flutter3d.dart';
   return (scene: scene, camera: camera);
 }
 
-/// The settings both runs use. Bloom off, so the comparison is of shading
-/// rather than of a post chain the two backends implement with different
-/// numbers of passes.
-const RenderSettings kParitySettings =
-    RenderSettings(bloom: BloomSettings(enabled: false), shadows: ShadowSettings(enabled: false));
+/// The settings each fixture is drawn with.
+///
+/// Everything not under test is switched off, so a scene that disagrees says
+/// which feature disagreed. A fixture with shadows *and* bloom would report one
+/// number for two questions.
+RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
+      ParityScene.plain => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          shadows: ShadowSettings(enabled: false),
+        ),
+      ParityScene.directionalShadow || ParityScene.pointShadow =>
+        const RenderSettings(bloom: BloomSettings(enabled: false)),
+      ParityScene.bloom => const RenderSettings(
+          shadows: ShadowSettings(enabled: false),
+        ),
+    };
 
 /// Width and height both runs render at.
 const int kParityWidth = 256;
