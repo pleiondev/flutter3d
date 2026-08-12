@@ -12,6 +12,7 @@
 /// drives an application for twelve minutes.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -87,9 +88,11 @@ final class CpuDevice implements GraphicsDevice {
   bool get supportsOffscreenMsaa => false;
 
   @override
-  // A software rasteriser could draw lines, and does not yet. Answering true
-  // and filling the triangles would be the silent substitution the contract
-  // exists to forbid.
+  // Line *primitives* are drawn — debug geometry arrives as those. Wireframe
+  // is a different request: it asks for triangles to be drawn as their edges,
+  // which means clipping and joining edges this rasteriser has no path for.
+  // Answering true and filling them instead would be the silent substitution
+  // the contract exists to forbid.
   bool get supportsWireframe => false;
 
   @override
@@ -414,8 +417,15 @@ final class CpuEncoder implements CommandEncoder {
     final pipeline = _pipeline;
     final vertices = _vertices;
     if (pipeline == null || vertices == null) return;
-    if (_primitive != PrimitiveType.triangle) return;
     if (_descriptor.colors.isEmpty) return;
+    if (_primitive != PrimitiveType.triangle &&
+        _primitive != PrimitiveType.line) {
+      throw UnsupportedError(
+        'this backend rasterises triangles and lines. $_primitive would have '
+        'to be drawn as something else, and drawing a primitive as a '
+        'different one is how a picture comes back plausible and wrong.',
+      );
+    }
 
     final target = _descriptor.colors.first.texture.backend as CpuTexture;
     final view = _viewport ??
@@ -435,12 +445,16 @@ final class CpuEncoder implements CommandEncoder {
     ];
     final attributes = Float32List(stride);
 
-    final triangles = _indices != null ? _indexCount ~/ 3 : _vertexCount ~/ 3;
-    for (var t = 0; t < triangles; t++) {
-      for (var corner = 0; corner < 3; corner++) {
+    final perPrimitive = _primitive == PrimitiveType.line ? 2 : 3;
+    final count = _indices != null
+        ? _indexCount ~/ perPrimitive
+        : _vertexCount ~/ perPrimitive;
+
+    for (var t = 0; t < count; t++) {
+      for (var corner = 0; corner < perPrimitive; corner++) {
         final vertex = _indices != null
-            ? _indexAt(t * 3 + corner)
-            : t * 3 + corner;
+            ? _indexAt(t * perPrimitive + corner)
+            : t * perPrimitive + corner;
         final base = vertex * stride;
         if (base + stride > floats.length) return;
         for (var f = 0; f < stride; f++) {
@@ -448,7 +462,97 @@ final class CpuEncoder implements CommandEncoder {
         }
         clip[corner] = pipeline.vertex.run(attributes, bindings, varyings[corner]);
       }
-      _rasterise(pipeline, target, view, clip, varyings, varyingCount, bindings);
+      if (perPrimitive == 2) {
+        _rasteriseLine(
+            pipeline, target, view, clip, varyings, varyingCount, bindings);
+      } else {
+        _rasterise(
+            pipeline, target, view, clip, varyings, varyingCount, bindings);
+      }
+    }
+  }
+
+  /// One line, a pixel wide.
+  ///
+  /// Bresenham on the window-space endpoints, with depth and the varyings
+  /// interpolated along the run. Width is one and there is no cap or join:
+  /// `PrimitiveType.line` in this engine draws debug geometry — bounds, axes,
+  /// light gizmos — and a wide line would have to invent a joining rule that
+  /// nothing here specifies.
+  ///
+  /// Deliberately separate from the triangle path rather than a degenerate
+  /// case of it. A zero-area triangle has no barycentric coordinates, so the
+  /// shared version would divide by zero and the clever fix for that is where
+  /// a rasteriser stops being readable.
+  void _rasteriseLine(
+    _CpuPipeline pipeline,
+    CpuTexture target,
+    ScreenRect view,
+    List<Vector4> clip,
+    List<Float32List> varyings,
+    int varyingCount,
+    ShaderBindings bindings,
+  ) {
+    for (var i = 0; i < 2; i++) {
+      if (clip[i].w <= 1e-6) return;
+    }
+
+    final sx = <double>[0, 0];
+    final sy = <double>[0, 0];
+    final sz = <double>[0, 0];
+    final invW = <double>[0, 0];
+    for (var i = 0; i < 2; i++) {
+      invW[i] = 1.0 / clip[i].w;
+      sx[i] = view.x + (clip[i].x * invW[i] * 0.5 + 0.5) * view.width;
+      sy[i] = view.y + (0.5 - clip[i].y * invW[i] * 0.5) * view.height;
+      sz[i] = clip[i].z * invW[i];
+    }
+
+    final dx = sx[1] - sx[0];
+    final dy = sy[1] - sy[0];
+    final steps = math.max(dx.abs(), dy.abs()).ceil();
+    if (steps <= 0) return;
+
+    final depth = _depthTarget?.depthBuffer();
+    final interpolated = Float32List(varyingCount);
+    final context = FragmentContext();
+    final scissor = _scissor;
+
+    for (var step = 0; step <= steps; step++) {
+      final t = step / steps;
+      final x = (sx[0] + dx * t).floor();
+      final y = (sy[0] + dy * t).floor();
+      if (x < 0 || y < 0 || x >= target.width || y >= target.height) continue;
+      if (scissor != null &&
+          (x < scissor.x ||
+              y < scissor.y ||
+              x >= scissor.x + scissor.width ||
+              y >= scissor.y + scissor.height)) {
+        continue;
+      }
+
+      final z = sz[0] + (sz[1] - sz[0]) * t;
+      final index = y * target.width + x;
+      if (depth != null && !_depthPasses(z, depth[index])) continue;
+
+      final iw = invW[0] + (invW[1] - invW[0]) * t;
+      for (var v = 0; v < varyingCount; v++) {
+        interpolated[v] =
+            (varyings[0][v] * invW[0] * (1 - t) + varyings[1][v] * invW[1] * t) /
+                iw;
+      }
+
+      context.coord.setValues(x + 0.5, y + 0.5, z, iw);
+      context.surface = null;
+      final colour = pipeline.fragment.run(interpolated, bindings, context);
+      if (colour == null) continue;
+
+      final at = index * 4;
+      target.pixels[at] = colour.x;
+      target.pixels[at + 1] = colour.y;
+      target.pixels[at + 2] = colour.z;
+      target.pixels[at + 3] = colour.w;
+      if (depth != null && _depthWrite) depth[index] = z;
     }
   }
 
@@ -500,6 +604,40 @@ final class CpuEncoder implements CommandEncoder {
     if (_cull == CullMode.backFace && !frontFacing) return;
     if (_cull == CullMode.frontFace && frontFacing) return;
 
+    // Wound so the interior is where every edge function is positive, which
+    // the fill rule below depends on. Done after culling, which is what needs
+    // the original winding.
+    if (area < 0) {
+      final t = sx[1]; sx[1] = sx[2]; sx[2] = t;
+      final ty = sy[1]; sy[1] = sy[2]; sy[2] = ty;
+      final tz = sz[1]; sz[1] = sz[2]; sz[2] = tz;
+      final tw = invW[1]; invW[1] = invW[2]; invW[2] = tw;
+      final tv = varyings[1]; varyings[1] = varyings[2]; varyings[2] = tv;
+      area = -area;
+    }
+
+    // The top-left fill rule: a pixel centre landing exactly on a shared edge
+    // belongs to one of the two triangles rather than to both.
+    //
+    // Here because it is the correct rule and costs nothing, **not** because
+    // it fixed anything. It was written to explain the particle burst, which
+    // is drawn as additive quads and came out five percent brighter than
+    // Impeller's — double coverage along every quad's diagonal was the obvious
+    // culprit, since opaque geometry hides it and additive blending does not.
+    // The rule changed the picture by exactly zero pixels. With floating-point
+    // window coordinates a pixel centre essentially never lands on an edge, so
+    // the case the rule governs did not arise. The burst is still unexplained.
+    //
+    // In window space, where y runs down and the interior is w > 0: a
+    // horizontal edge is a *top* edge when the interior lies below it, which
+    // is when it runs left to right; any edge running upwards is a *left*
+    // edge. Those two include their zeros, everything else excludes them.
+    bool topLeft(double ax, double ay, double bx, double by) =>
+        (ay == by && bx > ax) || by < ay;
+    final fill0 = topLeft(sx[0], sy[0], sx[1], sy[1]);
+    final fill1 = topLeft(sx[1], sy[1], sx[2], sy[2]);
+    final fill2 = topLeft(sx[2], sy[2], sx[0], sy[0]);
+
     final clipRect = _scissor;
     var minX = sx.reduce((a, b) => a < b ? a : b).floor();
     var maxX = sx.reduce((a, b) => a > b ? a : b).ceil();
@@ -526,14 +664,15 @@ final class CpuEncoder implements CommandEncoder {
       for (var x = minX; x <= maxX; x++) {
         final px = x + 0.5;
         final py = y + 0.5;
-        var w0 = (sx[1] - sx[0]) * (py - sy[0]) - (sy[1] - sy[0]) * (px - sx[0]);
-        var w1 = (sx[2] - sx[1]) * (py - sy[1]) - (sy[2] - sy[1]) * (px - sx[1]);
-        var w2 = (sx[0] - sx[2]) * (py - sy[2]) - (sy[0] - sy[2]) * (px - sx[2]);
-        if (area > 0) {
-          if (w0 < 0 || w1 < 0 || w2 < 0) continue;
-        } else {
-          if (w0 > 0 || w1 > 0 || w2 > 0) continue;
-        }
+        final w0 =
+            (sx[1] - sx[0]) * (py - sy[0]) - (sy[1] - sy[0]) * (px - sx[0]);
+        final w1 =
+            (sx[2] - sx[1]) * (py - sy[1]) - (sy[2] - sy[1]) * (px - sx[1]);
+        final w2 =
+            (sx[0] - sx[2]) * (py - sy[2]) - (sy[0] - sy[2]) * (px - sx[2]);
+        if (w0 < 0 || (w0 == 0 && !fill0)) continue;
+        if (w1 < 0 || (w1 == 0 && !fill1)) continue;
+        if (w2 < 0 || (w2 == 0 && !fill2)) continue;
 
         // Barycentric, named for the corner each weight belongs to rather than
         // for the edge it came from — the two are rotated by one, which is a

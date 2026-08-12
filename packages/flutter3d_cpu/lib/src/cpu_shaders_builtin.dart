@@ -1,15 +1,15 @@
 /// The engine's shaders, written in Dart.
 ///
-/// Every name the engine asks for is answered, and a handful are answered
-/// properly. The rest throw when used rather than drawing something plausible:
-/// a backend that quietly substitutes is the failure mode this whole project
-/// keeps finding, and one that admits it cannot do a thing is worth more than
-/// one that draws grey where the picture should be lit.
+/// All twenty-four of them: both mesh stages, six lighting models, the two
+/// shadow passes and the atlas tile reset, three bloom stages, the composite,
+/// reflections, debug lines, particles and the MRT probe. The demo application
+/// runs end to end on this backend, and eleven of its twelve golden scenes
+/// land between 0.15% and 0.46% of the pictures Impeller recorded — most of
+/// which is the multisampling this backend says it has none of.
 ///
-/// Implemented for real: the mesh vertex stage, Unlit, Lambert, the fullscreen
-/// triangle and the composite. Between them they draw a lit scene and tone map
-/// it, which is the `plain` parity fixture — the smallest thing that can be
-/// compared against another backend and mean something.
+/// `kUnimplementedCpuVertexShaders` and its fragment twin are empty and stay
+/// in place: they are what a stage is added to when the engine grows one, and
+/// a test fails until it is either written or listed.
 ///
 /// **Transcribed from the GLSL, not invented.** The first version of this file
 /// was written from memory of what a renderer's uniforms are usually called,
@@ -1089,6 +1089,282 @@ final class ShadowTileResetVertexShader implements CpuVertexShader {
   }
 }
 
+/// `mesh_skinned.vert`: the mesh stage with a joint blend in front of it.
+///
+/// The skinned layout is the standard one with joints and weights appended, so
+/// the first sixteen floats are read at the same offsets as `mesh.vert` reads
+/// them.
+final class MeshSkinnedVertexShader implements CpuVertexShader {
+  const MeshSkinnedVertexShader();
+
+  static const int _joints = 16; // vec4
+  static const int _weights = 20; // vec4
+
+  @override
+  int get varyingCount => _meshVaryings;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    // The weights are renormalised rather than trusted: an exporter that
+    // writes three of four and leaves the fourth at zero is common, and a
+    // total below one shrinks the vertex towards the origin.
+    var total = a[_weights] + a[_weights + 1] + a[_weights + 2] + a[_weights + 3];
+    final w = total > 1e-5
+        ? <double>[
+            a[_weights] / total,
+            a[_weights + 1] / total,
+            a[_weights + 2] / total,
+            a[_weights + 3] / total,
+          ]
+        : <double>[1.0, 0.0, 0.0, 0.0];
+
+    final skin = Matrix4.zero();
+    for (var i = 0; i < 4; i++) {
+      if (w[i] == 0.0) continue;
+      final joint = bindings.mat4('SkinInfo', 'joint_matrices',
+          at: a[_joints + i].toInt());
+      for (var e = 0; e < 16; e++) {
+        skin[e] = skin[e] + joint[e] * w[i];
+      }
+    }
+
+    final model = bindings.mat4('FrameInfo', 'model');
+    final mvp = bindings.mat4('FrameInfo', 'mvp');
+    final normalMatrix = bindings.mat4('FrameInfo', 'normal_matrix');
+
+    final local = Vector4(a[_position], a[_position + 1], a[_position + 2], 1.0);
+    final skinned = skin * local;
+    final world = model * skinned;
+    out[_vWorld] = world.x;
+    out[_vWorld + 1] = world.y;
+    out[_vWorld + 2] = world.z;
+
+    final skinRotation = skin.getRotation();
+    final n = normalMatrix.getRotation() *
+        (skinRotation * Vector3(a[_normal], a[_normal + 1], a[_normal + 2]));
+    out[_vNormal] = n.x;
+    out[_vNormal + 1] = n.y;
+    out[_vNormal + 2] = n.z;
+
+    out[_vUv] = a[_texcoord];
+    out[_vUv + 1] = a[_texcoord + 1];
+    for (var i = 0; i < 4; i++) {
+      out[_vColour + i] = a[_colour + i];
+    }
+
+    final t = model.getRotation() *
+        (skinRotation *
+            Vector3(a[_tangent], a[_tangent + 1], a[_tangent + 2]));
+    out[_vTangent] = t.x;
+    out[_vTangent + 1] = t.y;
+    out[_vTangent + 2] = t.z;
+    out[_vTangent + 3] = a[_tangent + 3];
+
+    return mvp * skinned;
+  }
+}
+
+/// `debug_line.vert`: position and colour, through one matrix.
+final class DebugLineVertexShader implements CpuVertexShader {
+  const DebugLineVertexShader();
+
+  @override
+  int get varyingCount => 4;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    for (var i = 0; i < 4; i++) {
+      out[i] = a[3 + i];
+    }
+    return bindings.mat4('LineInfo', 'view_projection') *
+        Vector4(a[0], a[1], a[2], 1.0);
+  }
+}
+
+/// `debug_line.frag`: the colour, unchanged.
+final class DebugLineShader implements CpuFragmentShader {
+  const DebugLineShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) =>
+      Vector4(v[0], v[1], v[2], v[3]);
+}
+
+/// `particle.vert`: a billboard corner, and the world position for the fog.
+final class ParticleVertexShader implements CpuVertexShader {
+  const ParticleVertexShader();
+
+  @override
+  int get varyingCount => 9;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    for (var i = 0; i < 4; i++) {
+      out[i] = a[3 + i];
+    }
+    out[4] = a[7];
+    out[5] = a[8];
+    out[6] = a[0];
+    out[7] = a[1];
+    out[8] = a[2];
+    return bindings.mat4('ParticleInfo', 'view_projection') *
+        Vector4(a[0], a[1], a[2], 1.0);
+  }
+}
+
+/// `particle.frag`: a radial falloff, premultiplied, fogged.
+final class ParticleShader implements CpuFragmentShader {
+  const ParticleShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final cx = v[4] * 2.0 - 1.0;
+    final cy = v[5] * 2.0 - 1.0;
+    final radius = math.sqrt(cx * cx + cy * cy);
+    final falloff = 1.0 - _smoothstep(0.0, 1.0, radius);
+    final intensity = falloff * falloff;
+
+    var fogged = 1.0;
+    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+    if (fog.w > 0.0) {
+      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+      final d = (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z))
+          .length;
+      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
+    }
+
+    final scale = v[3] * intensity * fogged;
+    // Alpha one with the colour premultiplied: these draw additively, so the
+    // alpha channel is not what decides how much of them lands.
+    return Vector4(v[0] * scale, v[1] * scale, v[2] * scale, 1.0);
+  }
+}
+
+/// `DecodeOctahedral`, the inverse of what the surface buffer stored.
+Vector3 _decodeOctahedral(double ex, double ey) {
+  final x = ex * 2.0 - 1.0;
+  final y = ey * 2.0 - 1.0;
+  final n = Vector3(x, y, 1.0 - x.abs() - y.abs());
+  final t = math.max(-n.z, 0.0);
+  n.x += n.x >= 0.0 ? -t : t;
+  n.y += n.y >= 0.0 ? -t : t;
+  return n..normalize();
+}
+
+/// `reflections.frag`: screen-space reflections, marched against the surface
+/// buffer.
+///
+/// Transcribed including the part that looks wrong: the ray's screen position
+/// is `ndc.xy * 0.5 + 0.5` with **no v flip**, where the shadow lookups do
+/// flip. Reproducing it exactly is the job here — if the two conventions
+/// genuinely disagree that is a finding about the engine, and it is not one a
+/// backend gets to decide by quietly picking the other one.
+final class ReflectionsShader implements CpuFragmentShader {
+  const ReflectionsShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final sceneMap = b.textures['scene_texture'];
+    final surfaceMap = b.textures['surface_texture'];
+    if (sceneMap == null || surfaceMap == null) {
+      return Vector4(0.0, 0.0, 0.0, 1.0);
+    }
+    final u = v[0];
+    final w = v[1];
+
+    final surface = surfaceMap.sample(u, w);
+    final sampled = sceneMap.sample(u, w);
+    final scene = Vector3(sampled.x, sampled.y, sampled.z);
+
+    final screen = b.vec4('ReflectionInfo', 'screen', Vector4.zero());
+    final debugOnly = screen.w > 0.5;
+    final background = debugOnly ? Vector3.zero() : scene;
+
+    Vector4 done(Vector3 rgb) => Vector4(rgb.x, rgb.y, rgb.z, 1.0);
+
+    if (surface.w <= 0.0) return done(background);
+
+    final normal = _decodeOctahedral(surface.x, surface.y);
+    final roughness = surface.z;
+    final polish = 1.0 - _smoothstep(0.18, 0.45, roughness);
+    if (polish <= 0.0) return done(background);
+
+    final inverse = b.mat4('ReflectionInfo', 'inverse_view_projection');
+    final ndc = Vector4(u * 2.0 - 1.0, w * 2.0 - 1.0, surface.w, 1.0);
+    final worldH = inverse * ndc;
+    final position =
+        Vector3(worldH.x, worldH.y, worldH.z)..scale(1.0 / worldH.w);
+
+    final camera = b.vec4('ReflectionInfo', 'camera', Vector4.zero());
+    final toEye = (Vector3(camera.x, camera.y, camera.z) - position)
+      ..normalize();
+    final facing = normal.dot(toEye);
+    if (facing <= 0.05) return done(background);
+
+    // reflect(-toEye, normal)
+    final incident = -toEye;
+    final ray = incident - normal * (2.0 * incident.dot(normal));
+
+    final params = b.vec4('ReflectionInfo', 'params', Vector4.zero());
+    final steps = params.x.toInt();
+    final stride = params.y;
+    final thickness = params.z;
+    final intensity = params.w;
+
+    final viewProjection = b.mat4('ReflectionInfo', 'view_projection');
+    final march = position + normal * 0.02 + ray * stride;
+    var hitColour = Vector3.zero();
+    var hit = 0.0;
+
+    // Sixty-four is the shader's own ceiling, and it is a real one: GLSL needs
+    // a constant bound. Kept so the two loops end in the same place.
+    for (var i = 0; i < 64; i++) {
+      if (i >= steps) break;
+      final clip = viewProjection * Vector4(march.x, march.y, march.z, 1.0);
+      if (clip.w <= 0.0) break;
+      final nx = clip.x / clip.w;
+      final ny = clip.y / clip.w;
+      final nz = clip.z / clip.w;
+      final su = nx * 0.5 + 0.5;
+      final sv = ny * 0.5 + 0.5;
+      if (su < 0.0 || su > 1.0 || sv < 0.0 || sv > 1.0) break;
+
+      final sceneDepth = surfaceMap.sample(su, sv).w;
+      if (sceneDepth > 0.0) {
+        final difference = nz - sceneDepth;
+        if (difference > 0.0 && difference < thickness) {
+          final tex = sceneMap.sample(su, sv);
+          hitColour = Vector3(tex.x, tex.y, tex.z);
+          final border = 1.0 -
+              math.max((su * 2.0 - 1.0).abs(), (sv * 2.0 - 1.0).abs());
+          hit = _smoothstep(0.0, 0.15, border);
+          break;
+        }
+      }
+      march.add(ray * stride);
+    }
+
+    final fresnel = math.pow(1.0 - facing, 4.0).toDouble();
+    final reflection =
+        hitColour * (hit * intensity * polish * (0.15 + 0.85 * fresnel));
+    return done(debugOnly ? reflection : scene + reflection);
+  }
+}
+
+/// `mrt_probe.frag`: two constants into two attachments.
+///
+/// It exists to answer whether a backend writes the second target at all, so
+/// there is nothing to get right here except writing both.
+final class MrtProbeShader implements CpuFragmentShader {
+  const MrtProbeShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    c.surface = Vector4(0.75, 0.5, 0.25, 1.0);
+    return Vector4(0.25, 0.5, 0.75, 1.0);
+  }
+}
+
 /// A stage that exists so the name resolves and fails if anybody draws with it.
 ///
 /// The conformance suite asks that every entry point the engine names is
@@ -1120,19 +1396,10 @@ final class _Unimplemented implements CpuVertexShader, CpuFragmentShader {
 /// name on it really does refuse — so implementing one means deleting it here,
 /// and the test fails until that is done. A stub that quietly stopped being a
 /// stub is exactly the drift this list exists to prevent.
-const List<String> kUnimplementedCpuVertexShaders = <String>[
-    'MeshSkinnedVertex',
-    'DebugLineVertex',
-    'ParticleVertex',
-  ];
+const List<String> kUnimplementedCpuVertexShaders = <String>[];
 
 /// The fragment half of [kUnimplementedCpuVertexShaders].
-const List<String> kUnimplementedCpuFragmentShaders = <String>[
-    'DebugLine',
-    'Particle',
-          'Reflections',
-    'MrtProbe',
-  ];
+const List<String> kUnimplementedCpuFragmentShaders = <String>[];
 
 /// Every stage, by the name the engine uses.
 Map<String, CpuStage> builtinCpuShaders() {
@@ -1148,6 +1415,13 @@ Map<String, CpuStage> builtinCpuShaders() {
     'BloomThreshold': const CpuStage.fragment(BloomThresholdShader()),
     'BloomDownsample': const CpuStage.fragment(BloomDownsampleShader()),
     'BloomUpsample': const CpuStage.fragment(BloomUpsampleShader()),
+    'MeshSkinnedVertex': const CpuStage.vertex(MeshSkinnedVertexShader()),
+    'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
+    'DebugLine': const CpuStage.fragment(DebugLineShader()),
+    'ParticleVertex': const CpuStage.vertex(ParticleVertexShader()),
+    'Particle': const CpuStage.fragment(ParticleShader()),
+    'Reflections': const CpuStage.fragment(ReflectionsShader()),
+    'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
