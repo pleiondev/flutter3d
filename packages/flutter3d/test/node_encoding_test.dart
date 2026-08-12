@@ -129,7 +129,11 @@ void main() {
         graph: compiled,
         frameWidth: 320,
         frameHeight: 200,
-      );
+      )
+        // As the frame does before it runs a node. Without it the node's reads
+        // arrive from outside any node, which the resource layer no longer
+        // allows — and used to allow only because this test asked it to.
+        ..beginNode(0);
       return NodeFrame(
         device: device,
         resources: resources,

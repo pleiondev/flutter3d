@@ -383,22 +383,30 @@ final class FrameResources {
       final written = graph.writeVersionOf(_node, id);
       if (written != null) return written;
     }
-    // Only the frame itself reaches here, and that is now enforced. A node
-    // that declared neither a read nor a write of this name is asking for
-    // something it never told the graph it wanted: it would be handed whatever
-    // happened to be lying around, ordered after nothing, and the declarations
-    // would be advice rather than a contract.
+    // Nothing legitimate reaches here any more, and that is the point.
     //
-    // Measured before it was forbidden. Breaking this path on purpose named
-    // exactly one caller — `cube_shadow`, read at node -1 — and that is the
-    // frame, whose reads have no node to declare them.
-    if (_node >= 0) {
+    // A node that declared neither a read nor a write of this name is asking
+    // for something it never told the graph it wanted: it would be handed
+    // whatever happened to be lying around, ordered after nothing, and the
+    // declarations would be advice rather than a contract.
+    //
+    // There used to be an exception for reads from outside any node — the
+    // frame's own — and closing it was a measurement rather than a decision.
+    // Breaking the path on purpose named only tests, which built a node's frame
+    // without entering the node first. The engine enters one before every read.
+    // An API hole kept open for the convenience of tests is the wrong way round.
+    {
       // Declared, but its producer was culled — an optional read of a resource
       // no surviving node writes. That is the case optionalReads exists for,
       // and the answer is "nothing", not an error. Asked of the node's own
       // declarations rather than of its resolved bindings, because a binding
       // is exactly what a culled producer leaves missing.
-      final node = _node < graph.order.length ? graph.order[_node] : null;
+      // Both bounds. A read from outside any node arrives as -1, and checking
+      // only the upper one turned a clear message into a RangeError from inside
+      // the resource layer.
+      final node = _node >= 0 && _node < graph.order.length
+          ? graph.order[_node]
+          : null;
       final declared = node != null &&
           (node.reads.any((other) => other.name == id.name) ||
               node.optionalReads.any((other) => other.name == id.name) ||
@@ -406,17 +414,15 @@ final class FrameResources {
               node.keeps.any((other) => other.name == id.name));
       if (!declared) {
         throw FrameGraphError(
-          'node ${node?.name ?? _node} asked for "${id.name}" without '
-          'declaring it. Add it to reads or optionalReads.',
+          _node < 0
+              ? 'something outside any node asked for "${id.name}". Every read '
+                  'belongs to a node, and the node has to declare it.'
+              : 'node ${node?.name ?? _node} asked for "${id.name}" without '
+                  'declaring it. Add it to reads or optionalReads.',
         );
       }
       return graph.currentVersionOf(id);
     }
-    var version = graph.currentVersionOf(id);
-    while (version > 0 && !_live.containsKey(ResourceVersion(id, version))) {
-      version--;
-    }
-    return version;
   }
 
   /// Which version a [provide] binds. Zero outside a node: that is the frame's

@@ -40,10 +40,22 @@ abstract interface class MeshGeometry {
 /// bookkeeping: the renderer's draw loops hold a [MeshGeometry] and ask whether
 /// it is drawable, and Dart promotes an `is` test only towards a subtype.
 ///
-/// It exists so that the renderer names no backend for the sake of one `is`
-/// check. It used to test for `GpuMesh` — the backend class — which meant
-/// the engine's central draw loop knew which backend it was on, and would have
-/// gone on knowing when the backend became a package of its own.
+/// **Kept at the freeze, and for a different reason than it was created with.**
+/// It was introduced so the renderer would not name a backend for the sake of
+/// one `is` check — it used to test for `GpuMesh`, the backend class. That
+/// reason expired when [DeviceMesh] moved into this package: testing for it
+/// would name no backend either.
+///
+/// What it still does is name the distinction the four `is` checks in the draw
+/// loops actually make. [MeshGeometry] has two implementations and only one of
+/// them can be drawn: geometry that reached the device, and geometry that is
+/// triangles in Dart memory. A check against the concrete class would ask "is
+/// it this one" where the loop means "can this be drawn", and those come apart
+/// the first time there is a second drawable kind.
+///
+/// One implementation today, which is why it was on the freeze list at all. The
+/// argument for keeping it is the second implementation of its *parent*, not a
+/// hypothetical second implementation of itself.
 ///
 /// Nothing here is CPU-readable: the buffers are opaque handles, and
 /// [MeshGeometry.source] is still where triangles come from when anything needs

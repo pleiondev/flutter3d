@@ -805,10 +805,18 @@ void main() {
       final drawn = resources.texture(colour);
       resources.endNode(0);
 
-      // The frame, outside any node, still sees it. This is the case the
-      // fallback exists for and the reason the rule is "not from inside a
-      // node" rather than "never".
-      expect(identical(resources.tryTexture(colour), drawn), isTrue);
+      // Reading from outside any node is refused too, and used not to be.
+      // The exception existed for "the frame's own reads" — and breaking it on
+      // purpose named only tests that had built a node's frame without
+      // entering the node. The engine enters one before every read, so the
+      // exception was open for the convenience of tests, which is the wrong way
+      // round. `drawn` is what the node saw; nothing outside can ask for it.
+      expect(drawn, isNotNull);
+      expect(
+        () => resources.tryTexture(colour),
+        throwsA(isA<FrameGraphError>().having(
+            (e) => e.message, 'message', contains('outside any node'))),
+      );
 
       resources.beginNode(1);
       expect(
