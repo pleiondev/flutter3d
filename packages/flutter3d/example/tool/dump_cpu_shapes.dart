@@ -17,8 +17,11 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 
 import 'package:flutter3d_example/cpu_shapes_scene.dart';
 
-const int _width = 512;
-const int _height = 384;
+/// From the environment rather than a --dart-define: a define is folded at
+/// compile time and `flutter test` does not pass one through to the test's own
+/// compilation, which is a thing worth finding out once.
+final int _width = int.parse(Platform.environment['CPU_W'] ?? '512');
+final int _height = int.parse(Platform.environment['CPU_H'] ?? '384');
 
 void main() {
   test('draw the shapes', () async {

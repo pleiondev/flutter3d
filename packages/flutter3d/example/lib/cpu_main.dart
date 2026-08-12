@@ -40,8 +40,12 @@ import 'cpu_shapes_scene.dart';
 /// Small on purpose. A software rasteriser costs pixels linearly, and the point
 /// of this entry point is to watch it move rather than to fill a display —
 /// `BoxFit.contain` scales it up to whatever the window is.
-const int _width = 320;
-const int _height = 240;
+/// Overridable so a release run can be asked what a real window costs:
+///
+///     flutter run --release -d macos -t lib/cpu_main.dart \
+///       --dart-define=cpuWidth=960 --dart-define=cpuHeight=720
+const int _width = int.fromEnvironment('cpuWidth', defaultValue: 320);
+const int _height = int.fromEnvironment('cpuHeight', defaultValue: 240);
 
 void main() => runApp(const CpuApp());
 
@@ -124,6 +128,14 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
       _smoothed = _frames == 0 ? ms : _smoothed * 0.9 + ms * 0.1;
       _frames++;
     });
+    // Printed as well as shown, so a release run can be measured from a log
+    // rather than from a photograph of a screen.
+    if (_frames % 60 == 0) {
+      // ignore: avoid_print
+      print('cpu ${_width}x$_height: ${_smoothed.toStringAsFixed(1)} ms/frame '
+          '(${(1000 / _smoothed).round()} fps), '
+          '${_shapes ? 'shapes' : 'parity'}');
+    }
   }
 
   TextureHandle _texel(int r, int g, int b) => _device.createTextureFromPixels(
