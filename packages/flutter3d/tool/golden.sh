@@ -8,6 +8,17 @@
 #   tool/golden.sh              compare every scene against its reference
 #   tool/golden.sh --update     record them instead
 #   tool/golden.sh shadow-teapot        just that one
+#   tool/golden.sh --cpu        draw them with the software backend instead
+#
+# --cpu draws the same scenes through flutter3d_cpu and compares against that
+# backend's own references, in packages/flutter3d_cpu/test/goldens. Its own,
+# not Impeller's: the software rasteriser has no multisampling, so it cannot
+# reproduce these pictures byte for byte and a shared reference set would need
+# a tolerance, which is a threshold that stops watching. Held to zero against
+# itself, it answers "did this backend change"; the cross-backend question —
+# "do the two draw the same picture" — is a plain test over the two committed
+# reference sets, in flutter3d_cpu/test/cross_backend_test.dart, and needs no
+# device at all.
 #
 # IMPORTANT: the shader bundle format is tied to the Flutter version, so
 # references recorded on one SDK will not match another. Re-record after an
@@ -21,11 +32,13 @@ GOLDEN_DIR="$PACKAGE_DIR/test/goldens"
 EXAMPLE_DIR="$PACKAGE_DIR/example"
 
 UPDATE=false
+CPU=false
 SCENES=()
 
 for arg in "$@"; do
   case "$arg" in
     --update) UPDATE=true ;;
+    --cpu) CPU=true ;;
     -*) echo "unknown option: $arg" >&2; exit 2 ;;
     *) SCENES+=("$arg") ;;
   esac
@@ -49,10 +62,18 @@ if [[ ${#SCENES[@]} -eq 0 ]]; then
   done
 fi
 
+BACKEND_DEFINE=()
+if [[ "$CPU" == true ]]; then
+  GOLDEN_DIR="$PACKAGE_DIR/../flutter3d_cpu/test/goldens"
+  BACKEND_DEFINE=(--dart-define=cpuBackend=true)
+fi
+
 mkdir -p "$GOLDEN_DIR"
 
 # The bundle belongs to the backend package now: it is impellerc output, and
-# only flutter3d_impeller can read it.
+# only flutter3d_impeller can read it. Still required under --cpu: the
+# application links both backends, and Flutter fails a declared asset that is
+# missing whichever one draws.
 BUNDLE="$PACKAGE_DIR/../flutter3d_impeller/assets/shaders/flutter3d.shaderbundle"
 if [[ ! -f "$BUNDLE" ]]; then
   echo "shader bundle missing; run ../flutter3d_impeller/tool/build_shaders.sh" >&2
@@ -104,6 +125,7 @@ run_scene() {
 
   (
     cd "$EXAMPLE_DIR" && exec flutter run -d macos --debug \
+      ${BACKEND_DEFINE[@]+"${BACKEND_DEFINE[@]}"} \
       --dart-define=FLUTTER3D_GOLDEN="$scene" \
       --dart-define=FLUTTER3D_GOLDEN_DIR="$GOLDEN_DIR" \
       --dart-define=FLUTTER3D_GOLDEN_UPDATE="$UPDATE"

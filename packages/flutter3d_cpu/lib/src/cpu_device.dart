@@ -564,6 +564,24 @@ final class CpuEncoder implements CommandEncoder {
       ? _indices!.getUint16(i * 2, Endian.little)
       : _indices!.getUint32(i * 4, Endian.little);
 
+  /// Smallest `w` a vertex may have and still be divided by.
+  static const double _nearEpsilon = 1e-5;
+
+  /// Clips against the near plane and rasterises what survives.
+  ///
+  /// The earlier version of this dropped any triangle with a vertex behind the
+  /// eye, with a comment saying nothing needed a clipper yet. Something did:
+  /// `cube-shadow-gap` widens its ground plane to five and a half radii —
+  /// every other scene uses three — so one corner of it crosses behind the
+  /// camera, both of its triangles were discarded, and the golden came back a
+  /// teapot floating in black with no floor and no shadow under it. The
+  /// picture did not look like a clipping bug. It looked like the ground had
+  /// not been added to the scene.
+  ///
+  /// Sutherland-Hodgman against `w = _nearEpsilon`, which is the only plane
+  /// worth clipping here: the others merely waste fragments the scissor and
+  /// the bounding box already reject, while this one divides by a number at or
+  /// below zero and turns the projection inside out.
   void _rasterise(
     _CpuPipeline pipeline,
     CpuTexture target,
@@ -573,13 +591,68 @@ final class CpuEncoder implements CommandEncoder {
     int varyingCount,
     ShaderBindings bindings,
   ) {
-    // No clipping against the near plane: a triangle with any vertex behind the
-    // eye is dropped whole. Crude, and honest about it — the alternative is a
-    // clipper, and nothing here yet needs one.
+    var behind = 0;
     for (final c in clip) {
-      if (c.w <= 1e-6) return;
+      if (c.w <= _nearEpsilon) behind++;
+    }
+    if (behind == 3) return;
+    if (behind == 0) {
+      _rasteriseTriangle(
+          pipeline, target, view, clip, varyings, varyingCount, bindings);
+      return;
     }
 
+    final poly = <Vector4>[];
+    final polyVaryings = <Float32List>[];
+    for (var i = 0; i < 3; i++) {
+      final j = (i + 1) % 3;
+      final a = clip[i];
+      final b = clip[j];
+      final aIn = a.w > _nearEpsilon;
+      final bIn = b.w > _nearEpsilon;
+      if (aIn) {
+        poly.add(a);
+        polyVaryings.add(varyings[i]);
+      }
+      if (aIn != bIn) {
+        // Where the edge crosses the plane. Linear in clip space, which is
+        // where it is genuinely linear — interpolating after the divide is the
+        // classic way to get a seam that moves as the camera does.
+        final t = (_nearEpsilon - a.w) / (b.w - a.w);
+        poly.add(a + (b - a) * t);
+        final cut = Float32List(varyingCount);
+        for (var k = 0; k < varyingCount; k++) {
+          cut[k] = varyings[i][k] + (varyings[j][k] - varyings[i][k]) * t;
+        }
+        polyVaryings.add(cut);
+      }
+    }
+    if (poly.length < 3) return;
+
+    // A fan from the first vertex. Clipping one plane off a triangle leaves
+    // three or four corners, so this is one triangle or two.
+    for (var i = 1; i + 1 < poly.length; i++) {
+      _rasteriseTriangle(
+        pipeline,
+        target,
+        view,
+        <Vector4>[poly[0], poly[i], poly[i + 1]],
+        <Float32List>[polyVaryings[0], polyVaryings[i], polyVaryings[i + 1]],
+        varyingCount,
+        bindings,
+      );
+    }
+  }
+
+  void _rasteriseTriangle(
+    _CpuPipeline pipeline,
+    CpuTexture target,
+    ScreenRect view,
+    List<Vector4> clip,
+    List<Float32List> varyings,
+    int varyingCount,
+    ShaderBindings bindings,
+  ) {
     final sx = <double>[0, 0, 0];
     final sy = <double>[0, 0, 0];
     final sz = <double>[0, 0, 0];
