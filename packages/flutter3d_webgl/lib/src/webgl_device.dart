@@ -566,7 +566,10 @@ final class WebGlDevice implements GraphicsDevice {
 /// The HAL survives this because it never promised buffering; it promised that
 /// passes execute in submission order, and both honour that.
 final class WebGlEncoder implements CommandEncoder {
-  WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor) {
+  WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
+      : _targetHeight = descriptor.colors.isNotEmpty
+            ? descriptor.colors.first.texture.height
+            : (descriptor.depth?.texture.height ?? 0) {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
 
@@ -581,6 +584,17 @@ final class WebGlEncoder implements CommandEncoder {
       _sources.add(color.texture);
     }
     _gl.drawBuffers(buffers.map((int b) => b.toJS).toList().toJS);
+
+    // A clear covers the whole attachment, whatever the scissor says. That is
+    // the contract the HAL states and the one this engine relies on — the
+    // shadow atlas clears once and then draws tile by tile — and GL does not
+    // give it for free: clearBufferfv respects SCISSOR_TEST, which this backend
+    // leaves enabled, so the clear covered whichever tile the previous pass had
+    // set and left the rest of the atlas as it was allocated.
+    //
+    // The symptom was one white row out of four, and shadows that read as
+    // absent because the lookup landed in memory nobody had written.
+    _gl.disable(web.WebGLRenderingContext.SCISSOR_TEST);
 
     final depth = descriptor.depth;
     if (depth != null) {
@@ -628,6 +642,10 @@ final class WebGlEncoder implements CommandEncoder {
       );
     }
 
+    // Back on, because everything after this is a draw and the engine sets a
+    // scissor per tile.
+    _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
+
     _gl.enable(web.WebGLRenderingContext.DEPTH_TEST);
     _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
   }
@@ -635,6 +653,10 @@ final class WebGlEncoder implements CommandEncoder {
   final WebGlDevice _device;
   final web.WebGL2RenderingContext _gl;
   late final web.WebGLFramebuffer? _framebuffer;
+
+  /// The attachment's height, for turning top-left rectangles into GL's
+  /// bottom-left ones. See [_flipY].
+  final int _targetHeight;
 
   final List<TextureHandle?> _resolves = <TextureHandle?>[];
   final List<TextureHandle> _sources = <TextureHandle>[];
@@ -648,11 +670,26 @@ final class WebGlEncoder implements CommandEncoder {
 
   @override
   void setViewport(ScreenRect rect) =>
-      _gl.viewport(rect.x, rect.y, rect.width, rect.height);
+      _gl.viewport(rect.x, _flipY(rect), rect.width, rect.height);
 
   @override
   void setScissor(ScreenRect rect) =>
-      _gl.scissor(rect.x, rect.y, rect.width, rect.height);
+      _gl.scissor(rect.x, _flipY(rect), rect.width, rect.height);
+
+  /// A rectangle's y measured from the bottom, which is where GL measures.
+  ///
+  /// The engine states rectangles from the top left, matching where row zero of
+  /// its render targets is. GL puts the origin of a framebuffer at the bottom
+  /// left, so a rectangle handed over unchanged lands mirrored about the
+  /// target's middle.
+  ///
+  /// Invisible for a viewport covering the whole target, which is every pass in
+  /// the frame except one — and that one is the point-light atlas, six tiles
+  /// across and a row per light, drawn a tile at a time. The occupied row went
+  /// to the bottom of the texture while the lookup read the top, so the shadows
+  /// were absent rather than wrong, and the atlas composited to a picture with
+  /// content in the wrong half.
+  int _flipY(ScreenRect rect) => _targetHeight - rect.y - rect.height;
 
   @override
   void setPrimitiveType(PrimitiveType type) =>
