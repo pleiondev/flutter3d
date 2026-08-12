@@ -20,6 +20,9 @@ dependencies:
   flutter3d_graphics:
     path: ../flutter3d_graphics
   vector_math: ^2.2.0
+  # The list of entry points a bundle must answer to.
+  flutter3d_shaders:
+    path: ../flutter3d_shaders
 
 dev_dependencies:
   flutter_lints: ^6.0.0

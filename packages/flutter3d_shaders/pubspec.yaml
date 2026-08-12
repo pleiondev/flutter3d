@@ -3,7 +3,9 @@ description: The engine's shader sources, in GLSL, for every backend to compile.
 version: 0.1.0
 publish_to: 'none'
 
-# No Dart and no dependencies, deliberately. This package is source text: the
+# Almost no Dart: one list, and the reason it is here rather than nowhere is
+# that a backend has to be checkable against it. This package is source text —
+# the
 # lighting models, the shadow lookup, the post chain. What each backend does
 # with it differs — impellerc compiles it ahead of time into a bundle, WebGL
 # translates it to GLSL ES 3.00 and compiles it in the browser — but what a
@@ -13,5 +15,14 @@ publish_to: 'none'
 # exactly how long that was the right place for it.
 environment:
   sdk: ^3.10.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
 
 resolution: workspace

@@ -22,6 +22,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_shaders/flutter3d_shaders.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:flutter_test/flutter_test.dart' show test;
 
@@ -88,6 +89,9 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
       (name: 'a clear covers the whole attachment', run: _clearCoversAll),
       (name: 'uploaded pixels keep their row order', run: _rowOrder),
       (name: 'a buffer is uploaded for its declared use', run: _geometryUsage),
+      (name: 'the bundle answers to every name the engine asks for',
+          run: _shaderNames),
+      (name: 'a stage pair the engine links does link', run: _linking),
     ];
 
 
@@ -221,4 +225,61 @@ Future<void> _geometryUsage(GraphicsDevice device) async {
   final bytes = ByteData(64);
   device.uploadGeometry(bytes, GeometryUsage.vertices);
   device.uploadGeometry(bytes, GeometryUsage.indices);
+}
+
+Future<void> _shaderNames(GraphicsDevice device) async {
+  // The one requirement GraphicsDevice cannot express. The engine asks a
+  // library for entry points by name, so a backend written from the interface
+  // alone compiles, runs, and draws nothing — and the frame that comes back is
+  // empty for a reason nothing reports.
+  //
+  // Named individually rather than counted: "seventeen of twenty-three" sends
+  // somebody to diff two lists by hand.
+  final missing = <String>[];
+  for (final shader in kRequiredShaders) {
+    if (device.shaders[shader.name] == null) missing.add(shader.name);
+  }
+  require(
+      missing.isEmpty,
+      'the bundle has no ${missing.join(', ')}. Every backend ships its own '
+      'bundle and every bundle answers to the same names; see '
+      'package:flutter3d_shaders.');
+}
+
+Future<void> _linking(GraphicsDevice device) async {
+  // Compiling is not linking. A stage pair can hold two shaders that each
+  // compile and refuse to link together, and the one that fails is not the one
+  // that looks wrong.
+  //
+  // Measured rather than assumed, because the obvious version of this claim is
+  // false: a fragment input that is *declared and never read* links fine even
+  // with no matching vertex output — the compiler drops it. What does fail is
+  // an input the fragment stage actually reads and the vertex stage never
+  // writes. Checked by making exactly that mutation and watching this fail.
+  //
+  // The pairs the engine actually builds, not every combination: a bundle is
+  // allowed to hold stages that are never linked together.
+  const pairs = <(String, String)>[
+    ('MeshVertex', 'Pbr'),
+    ('MeshVertex', 'ShadowDepth'),
+    ('MeshVertex', 'ShadowDistance'),
+    ('MeshSkinnedVertex', 'Pbr'),
+    ('ShadowTileResetVertex', 'ShadowTileReset'),
+    ('FullscreenVertex', 'Composite'),
+    ('DebugLineVertex', 'DebugLine'),
+    ('ParticleVertex', 'Particle'),
+  ];
+
+  for (final (vertexName, fragmentName) in pairs) {
+    final vertex = device.shaders[vertexName];
+    final fragment = device.shaders[fragmentName];
+    require(vertex != null && fragment != null,
+        '$vertexName + $fragmentName: one of the stages is missing');
+    try {
+      device.createPipeline(vertex!, fragment!);
+    } catch (error) {
+      throw ConformanceFailure('$vertexName + $fragmentName does not link: '
+          '$error');
+    }
+  }
 }
