@@ -15,7 +15,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;

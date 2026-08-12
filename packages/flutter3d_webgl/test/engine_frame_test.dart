@@ -19,10 +19,8 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
@@ -122,20 +120,7 @@ void main() {
         reason: 'red should dominate green at the centre');
     expect(bytes[cx], greaterThan(bytes[cx + 2]),
         reason: 'red should dominate blue at the centre');
-  },
-      // The backend does not draw an engine frame yet. Both passes are issued
-      // and neither raises a GL error, and the result is uniformly transparent
-      // black — alpha zero everywhere, so nothing was written to the target at
-      // all rather than written wrongly. Not the MSAA resolve: forcing the
-      // surface buffer on, which takes the multisampled path out, changes
-      // nothing.
-      //
-      // Skipped rather than deleted, and skipped rather than left red, because
-      // this is the definition of done for this package: remove the skip when
-      // it passes. It is also the reason the console saying "2 draws, no GL
-      // error" was believed once and should not be again — draw counts are not
-      // pixels.
-      skip: 'WebGL backend draws no pixels yet; see the note above');
+  });
 }
 
 Renderer _renderer(WebGlDevice device) {

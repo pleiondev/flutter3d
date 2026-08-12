@@ -25,6 +25,12 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # For the tests only: engine_frame_test drives the real Renderer through this
+  # backend, which is the one thing this package exists to make possible and so
+  # the one thing worth testing. A dev dependency, so nothing a consumer builds
+  # picks up the engine because the backend was installed.
+  flutter3d:
+    path: ../flutter3d
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

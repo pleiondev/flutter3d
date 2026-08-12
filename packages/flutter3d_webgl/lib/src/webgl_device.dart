@@ -120,6 +120,18 @@ final class WebGlDevice implements GraphicsDevice {
     final gl =
         canvas.getContext('webgl2', attributes) as web.WebGL2RenderingContext?;
     if (gl == null) return null;
+
+    // WebGL2 accepts RGBA16F as a *texture* format out of the box and refuses
+    // to *render* to it: half-float colour is not renderable until this
+    // extension is asked for. The engine's whole scene pass targets RGBA16F —
+    // it renders in linear HDR and tone maps at the end — so without this every
+    // framebuffer it builds is incomplete, every draw into one is dropped, and
+    // no error is raised anywhere. The frame comes back transparent black and
+    // the draw counters all say the right numbers.
+    //
+    // That is exactly how this was found, after the counters were believed
+    // once.
+    gl.getExtension('EXT_color_buffer_float');
     return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources));
   }
 
@@ -477,6 +489,21 @@ final class WebGlEncoder implements CommandEncoder {
       _gl.depthMask(true);
       _gl.clearDepth(depth.clearValue);
       _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
+    }
+
+    // Checked, not assumed. An incomplete framebuffer is not an error in
+    // OpenGL: every draw against it is silently discarded, which is a whole
+    // frame of work producing nothing and no way to tell from inside the
+    // engine. The status word is worth more than the discovery.
+    final status = _device.debugFramebufferStatus();
+    if (status != 'complete') {
+      throw StateError(
+        'render pass target is not drawable: $status. '
+        '${descriptor.colors.length} colour attachment(s)'
+        '${descriptor.depth != null ? ' and a depth attachment' : ''}. '
+        'A format the engine renders to may not be colour-renderable here — '
+        'RGBA16F needs EXT_color_buffer_float.',
+      );
     }
 
     for (var i = 0; i < descriptor.colors.length; i++) {

@@ -37,6 +37,11 @@ dependencies:
     path: ../
   flutter3d_graphics:
     path: ../../flutter3d_graphics
+  # scene_main.dart drives the engine itself through this backend, which is the
+  # point of the example. main.dart, the HAL harness beside it, needs none of
+  # this — it drives the interface alone.
+  flutter3d:
+    path: ../../flutter3d
 
   vector_math: ^2.2.0
 
