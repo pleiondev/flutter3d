@@ -863,7 +863,30 @@ final class WebGlEncoder implements CommandEncoder {
     final data = Float32List(block.sizeInBytes ~/ 4);
     members.forEach((String name, Float32List values) {
       final offset = block.offsets[name];
-      if (offset == null) return;
+      if (offset == null) {
+        // Loud, because silence here is indistinguishable from working. A
+        // member the caller wrote and the block does not have leaves zeros in
+        // its place, and zeros are a plausible value for most of them — a
+        // shadow strength of zero is a scene with no shadows and no error.
+        //
+        // Not the same as a *block* that is missing, which is an ordinary thing
+        // the contract allows: a compiler drops a whole block nothing reads.
+        // Having the block and not the member means the two ends disagree about
+        // its shape, and that is worth stopping for.
+        throw StateError(
+          'uniform block "$blockName" has no member "$name". It has: '
+          '${block.offsets.keys.join(', ')}. The engine and the shader '
+          'disagree about this block.',
+        );
+      }
+      if (offset ~/ 4 + values.length > data.length) {
+        throw StateError(
+          'uniform block "$blockName" member "$name" wants '
+          '${values.length} floats at offset ${offset ~/ 4}, past the block\'s '
+          '${data.length}. std140 pads array elements to sixteen bytes; a '
+          'tightly packed array of scalars will overrun exactly like this.',
+        );
+      }
       data.setRange(offset ~/ 4, offset ~/ 4 + values.length, values);
     });
 

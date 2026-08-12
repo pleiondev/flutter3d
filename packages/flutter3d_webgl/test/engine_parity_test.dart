@@ -187,7 +187,17 @@ void main() {
             '${mine.sublist(15 * kParityGrid, 15 * kParityGrid + 8)}');
       }
 
-      final reference = kImpellerGrids[which]!;
+      final reference0 = kImpellerGrids[which]!;
+      if (which == ParityScene.pointShadowMap) {
+        // How much of the atlas is *not* the clear colour. A map that cleared
+        // and never drew is uniformly white, and against a reference whose
+        // occluders are small that still averages close at this resolution.
+        int dark(List<int> g) => g.where((v) => v < 200).length;
+        // ignore: avoid_print
+        print('atlas cells below 200 — webgl ${dark(mine)}, '
+            'impeller ${dark(reference0)}');
+      }
+      final reference = reference0;
       expect(mine.length, reference.length);
 
       var worst = 0;
@@ -262,6 +272,16 @@ void main() {
         // directional map from a worst cell of 32 to 4. Five explanations
         // measured and refuted now: float-linear filtering, std140 array
         // stride, stage linking, atlas texture size, and the v convention.
+        // The atlas is drawn and drawn correctly — it has occluders, in the
+        // same cells as Impeller's — and the lookup into it still returns lit
+        // everywhere. The lit floor is uniformly brighter rather than shadowed
+        // in the wrong place, which is an absent lookup and not a misaimed one.
+        //
+        // Six explanations measured and refuted, so nobody walks the circle:
+        // float-linear filtering; std140 array stride; stage linking; atlas
+        // texture size; the v convention (flipping it fixes the directional map
+        // and moves this not at all); and a silently dropped uniform member,
+        // which is now an error rather than a silence and does not fire here.
         skip: which == ParityScene.pointShadow
             ? 'the atlas is right, the lookup into it is not'
             : null);
