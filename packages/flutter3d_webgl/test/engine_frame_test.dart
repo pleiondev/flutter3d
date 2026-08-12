@@ -120,6 +120,29 @@ void main() {
         reason: 'red should dominate green at the centre');
     expect(bytes[cx], greaterThan(bytes[cx + 2]),
         reason: 'red should dominate blue at the centre');
+
+    // The light is above and to the right, so the sphere's upper half is lit
+    // and its lower half is not.
+    //
+    // Every assertion above survives a vertically mirrored frame — a brighter
+    // centre and a dominant red are both true upside down — and the presenting
+    // blit was mirrored for exactly as long as nothing asked. It took someone
+    // looking at the picture and saying the light came from below.
+    var upper = 0;
+    var lower = 0;
+    for (var y = 0; y < _height; y++) {
+      for (var x = 0; x < _width; x++) {
+        final v = bytes[(y * _width + x) * 4];
+        if (y < _height ~/ 2) {
+          upper += v;
+        } else {
+          lower += v;
+        }
+      }
+    }
+    expect(upper, greaterThan(lower),
+        reason: 'the light is above, so row 0 is the lit side — '
+            'the frame is upside down');
   });
 }
 

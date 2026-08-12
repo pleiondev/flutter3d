@@ -116,7 +116,20 @@ final class WebGlDevice implements GraphicsDevice {
     //
     // It costs a copy per composite on some drivers. A frame the user cannot
     // see costs more.
-    final attributes = web.WebGLContextAttributes(preserveDrawingBuffer: true);
+    // antialias: false, because the canvas is a blit target and nothing else.
+    // A WebGL context is antialiased by default, which makes its default
+    // framebuffer multisampled — and blitting into a multisampled draw buffer
+    // is INVALID_OPERATION, so the presenting blit failed on every frame while
+    // the frame itself was drawn perfectly well. Nothing else reported it: the
+    // error sat in the queue, the canvas stayed black, and every counter in the
+    // engine read correctly.
+    //
+    // Losing nothing by it either. The engine resolves its own MSAA offscreen;
+    // this surface only receives the finished picture.
+    final attributes = web.WebGLContextAttributes(
+      preserveDrawingBuffer: true,
+      antialias: false,
+    );
     final gl =
         canvas.getContext('webgl2', attributes) as web.WebGL2RenderingContext?;
     if (gl == null) return null;
@@ -331,18 +344,74 @@ final class WebGlDevice implements GraphicsDevice {
     return type;
   }
 
+  /// The error the last blit to the canvas raised, or zero. Diagnostic only.
+  int lastBlitError = 0;
+
+  /// What the canvas holds, for when it holds nothing and should not.
+  ///
+  /// Reads back the default framebuffer — the thing the browser composites —
+  /// rather than the texture the engine drew into. The two are different
+  /// claims, and telling them apart is the whole difficulty here: a frame can
+  /// be drawn correctly and still never reach the screen.
+  String debugCanvasState() {
+    _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, null);
+    final pixels = Uint8List(4 * 4 * 4);
+    final js = pixels.toJS;
+    _gl.readPixels(
+      _canvas.width ~/ 2 - 2,
+      _canvas.height ~/ 2 - 2,
+      4,
+      4,
+      web.WebGLRenderingContext.RGBA,
+      web.WebGLRenderingContext.UNSIGNED_BYTE,
+      js,
+    );
+    final read = (js.toDart).sublist(0, 16);
+    final error = _gl.getError();
+    final nonZero = read.where((int b) => b != 0).length;
+    return 'canvas ${_canvas.width}x${_canvas.height} '
+        'attached=${_canvas.isConnected} '
+        'centre=${read.take(4).toList()} nonzero=$nonZero/16 '
+        'blitError=$lastBlitError readError=$error';
+  }
+
   void _blitToCanvas(TextureHandle frame) {
     final source = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, source);
     _attach(web.WebGL2RenderingContext.READ_FRAMEBUFFER,
         web.WebGLRenderingContext.COLOR_ATTACHMENT0, frame);
+    final status =
+        _gl.checkFramebufferStatus(web.WebGL2RenderingContext.READ_FRAMEBUFFER);
+    if (status != web.WebGLRenderingContext.FRAMEBUFFER_COMPLETE) {
+      throw StateError(
+        'the frame cannot be read for presenting: ${debugFramebufferStatus()}',
+      );
+    }
     _gl.bindFramebuffer(web.WebGL2RenderingContext.DRAW_FRAMEBUFFER, null);
+
+    // Drained first, so the code below reports this blit rather than whatever
+    // the frame left behind. An error queue is cumulative and getError clears
+    // one entry at a time, which is how a stale error gets blamed on the wrong
+    // call.
+    while (_gl.getError() != 0) {}
+
+    // Flipped, by reading the source rectangle bottom to top. GL puts the
+    // origin of a framebuffer at the bottom left and the engine's frames are
+    // row-major from the top, so a straight blit presents the picture upside
+    // down — which readPixels on this backend already corrects for, and this
+    // path did not.
+    //
+    // Invisible to every pixel assertion written so far, because "the centre is
+    // brighter than the corner" and "red dominates" are both true of a mirrored
+    // frame. It took a person looking at a sphere and saying the light was
+    // coming from below.
     _gl.blitFramebuffer(
-      0, 0, frame.width, frame.height, //
+      0, frame.height, frame.width, 0, //
       0, 0, _canvas.width, _canvas.height, //
       web.WebGLRenderingContext.COLOR_BUFFER_BIT,
       web.WebGLRenderingContext.NEAREST,
     );
+    lastBlitError = _gl.getError();
     _gl.deleteFramebuffer(source);
   }
 
@@ -369,23 +438,22 @@ final class WebGlDevice implements GraphicsDevice {
     );
     _gl.deleteFramebuffer(framebuffer);
 
-    // `readPixels` returns bottom-up: GL's origin is the lower-left corner and
-    // the HAL says row-major from the *top*-left. Flipping here rather than
-    // leaving it to the caller, because a caller cannot tell which way round a
-    // backend handed it pixels — and a golden comparison against a vertically
-    // mirrored frame fails in a way that looks like a rendering bug.
-    return _flipVertically(js.toDart, texture.width, texture.height);
+    // Not flipped, and this is the subtle one. GL's own origin is lower-left,
+    // so the reflex is to flip — but the engine renders with clip space set up
+    // for Impeller, whose framebuffer origin is upper-left, so a frame it drew
+    // already has row 0 at the top of the picture. Flipping would turn a
+    // correct frame upside down.
+    //
+    // The presenting blit does flip, and for the same reason from the other
+    // side: the canvas displays row 0 at the *bottom*, so getting a top-first
+    // image onto it means reading the source rectangle in reverse.
+    //
+    // Established by measurement, not by reasoning about conventions, which is
+    // the only way anybody gets this right: put the light above and check which
+    // half of the returned image is lit.
+    return ByteData.sublistView(js.toDart);
   }
 
-  static ByteData _flipVertically(Uint8List pixels, int width, int height) {
-    final stride = width * 4;
-    final out = Uint8List(pixels.length);
-    for (var row = 0; row < height; row++) {
-      final from = (height - 1 - row) * stride;
-      out.setRange(row * stride, row * stride + stride, pixels, from);
-    }
-    return ByteData.sublistView(out);
-  }
 
   void _attach(int target, int attachment, TextureHandle handle) {
     final backend = handle.backend as WebGlTexture;

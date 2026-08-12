@@ -14,6 +14,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
@@ -28,17 +29,64 @@ class SceneApp extends StatefulWidget {
   State<SceneApp> createState() => _SceneAppState();
 }
 
-class _SceneAppState extends State<SceneApp> {
+class _SceneAppState extends State<SceneApp> with SingleTickerProviderStateMixin {
   static const int _width = 480;
   static const int _height = 360;
 
   String _status = 'starting';
+  String _diagnostic = '';
   Widget? _frame;
+
+  // Kept between frames: building the scene once and redrawing is what a real
+  // application does, and it is also the experiment. The first attempt blitted
+  // once, during the build that returned the view — before the platform view
+  // had put the canvas in the document. Attaching or resizing a canvas resets
+  // its drawing buffer, so the one frame drawn was the one frame thrown away.
+  WebGlDevice? _device;
+  Renderer? _renderer;
+  Scene? _scene;
+  CameraNode? _camera;
+  Ticker? _ticker;
+  double _spin = 0.0;
+  MeshNode? _ball;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _draw());
+  }
+
+  @override
+  void dispose() {
+    _ticker?.dispose();
+    super.dispose();
+  }
+
+  /// Redraws and re-presents. Called every tick, so the canvas holds a frame
+  /// drawn after it was attached rather than before.
+  void _tick(Duration elapsed) {
+    final device = _device;
+    final renderer = _renderer;
+    final scene = _scene;
+    final camera = _camera;
+    if (device == null || renderer == null || scene == null || camera == null) {
+      return;
+    }
+    _spin += 0.02;
+    _ball?.setRotationYawPitchRoll(_spin, 0.0, 0.0);
+    final result = renderer.render(
+      width: _width,
+      height: _height,
+      scene: scene,
+      views: <RenderView>[RenderView(camera: camera)],
+      settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
+    );
+    final view = device.present(result.frame, fit: BoxFit.contain);
+    final state = device.debugCanvasState();
+    setState(() {
+      _frame = view;
+      _diagnostic = state;
+    });
   }
 
   void _draw() {
@@ -90,8 +138,7 @@ class _SceneAppState extends State<SceneApp> {
         device,
         const SphereShape(radius: 1.0, segments: 32, rings: 16).build(),
       );
-      scene.root.add(
-        MeshNode(
+      final ball = MeshNode(
           mesh,
           Material(
             name: 'ball',
@@ -99,8 +146,9 @@ class _SceneAppState extends State<SceneApp> {
             lighting: LightingModel.lambert,
           ),
           name: 'ball',
-        ),
       );
+      scene.root.add(ball);
+      _ball = ball;
       final light = LightNode(name: 'key', type: LightType.directional)
         ..intensity = 3.0;
       light.setPosition(2.0, 3.0, 2.0);
@@ -122,10 +170,17 @@ class _SceneAppState extends State<SceneApp> {
       );
       say('PASS  frame: ${result.drawCalls} draws, ${result.pipelines} pipelines');
 
+      _device = device;
+      _renderer = renderer;
+      _scene = scene;
+      _camera = camera;
       setState(() {
         _status = '$log=== A FRAME WAS DRAWN ===';
         _frame = device.present(result.frame, fit: BoxFit.contain);
       });
+      // From here the canvas is in the document, so every later frame is drawn
+      // into a buffer that survives to be composited.
+      _ticker = createTicker(_tick)..start();
       // ignore: avoid_print
       print('=== A FRAME WAS DRAWN ===');
     } catch (error, stack) {
@@ -151,7 +206,7 @@ class _SceneAppState extends State<SceneApp> {
               Expanded(
                 child: SingleChildScrollView(
                   child: Text(
-                    _status,
+                    '$_status\n$_diagnostic',
                     style: const TextStyle(
                       color: Color(0xFFDDDDDD),
                       fontFamily: 'monospace',
