@@ -177,3 +177,24 @@ enum CompareFunction {
   /// Passes if new_value >= current_value.
   greaterEqual,
 }
+
+/// What a backend's clip space maps depth onto.
+///
+/// Metal and Vulkan put the near plane at 0 and the far plane at 1. OpenGL puts
+/// them at -1 and 1, and WebGL2 has no way to change that — `glClipControl` is
+/// not exposed there.
+///
+/// Not a detail that can be papered over. A projection built for one and fed to
+/// the other does not error: with an OpenGL matrix on Metal roughly half the
+/// view volume lands behind the near plane and the model looks eaten; the other
+/// way round everything still draws, in the correct order, using half the depth
+/// buffer — so it costs precision and shows up as z-fighting on surfaces that
+/// were fine on the other backend. The second is worse to diagnose, because
+/// nothing looks wrong until something does.
+enum DepthRange {
+  /// Near at 0, far at 1. Metal, Vulkan, Impeller.
+  zeroToOne,
+
+  /// Near at -1, far at 1. OpenGL, WebGL.
+  negativeOneToOne,
+}

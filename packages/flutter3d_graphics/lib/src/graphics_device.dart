@@ -40,7 +40,41 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// [TextureFormat.unknown] on a context that has none.
   TextureFormat get defaultDepthStencilFormat;
 
+  /// What this backend's clip space maps depth onto.
+  ///
+  /// Asked rather than assumed. The engine builds its projections for
+  /// [DepthRange.zeroToOne] because that is what it was written against, and
+  /// corrects at the boundary for a backend that says otherwise — which is
+  /// cheaper and far easier to check than a second projection path.
+  DepthRange get depthRange;
+
+  /// The format to render high dynamic range colour into.
+  ///
+  /// The engine renders in linear HDR and tone maps at the end, so it needs a
+  /// colour target with range above one. Which format that is belongs to the
+  /// backend: `RGBA16F` is the obvious answer and is not free everywhere —
+  /// WebGL2 accepts it as a texture format and refuses to render to it until
+  /// `EXT_color_buffer_float` is asked for, which is a thing only a backend can
+  /// know to do.
+  ///
+  /// Asked rather than assumed, because the failure when it is wrong is an
+  /// incomplete framebuffer: every draw silently discarded, no error raised,
+  /// and a frame of transparent black with every counter reporting success.
+  TextureFormat get hdrColorFormat;
+
+  /// Samples to use for multisampled targets, or 1 for none.
+  ///
+  /// One number rather than a boolean, because "does MSAA work" and "how much"
+  /// are different questions and the engine had only been asking the first —
+  /// then hardcoding four. A backend that supports multisampling at a different
+  /// count, or that would rather not, has somewhere to say so.
+  int get preferredSampleCount;
+
   /// Whether a multisampled offscreen target is available at all.
+  ///
+  /// Kept beside [preferredSampleCount] rather than folded into it: a device
+  /// may report a count it can multisample *with* while still being unable to
+  /// give the engine an offscreen target to use it on.
   bool get supportsOffscreenMsaa;
 
   /// Whether [PolygonMode.line] can be drawn.

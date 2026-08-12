@@ -226,7 +226,11 @@ final class RenderList {
 
     switch (mode) {
       case SortMode.stateThenDepth:
-        final pipeline = material.lighting.index & 0x3F;
+        // LightingModel is open, so there is no ordinal to take. See
+        // [LightingModel.pipelineGroup] for why this is not the string's own
+        // hashCode: that is not stable between runs, and an unstable sort key
+        // is an unstable picture.
+        final pipeline = material.lighting.pipelineGroup;
         final materialId = materialIds.idOf(material, limit: 0x7FFF) & 0x7FFF;
         // Depth is the least significant term here and only serves early-z, so
         // 14 bits of range is ample even though it saturates past 256 units.

@@ -129,7 +129,7 @@ final class GoldenScene {
 final List<GoldenScene> kGoldenScenes = <GoldenScene>[
   // One model, every lighting model. The cheapest way to notice that a shader
   // stopped compiling the way it used to.
-  for (final model in LightingModel.values)
+  for (final model in LightingModel.builtIn)
     GoldenScene(
       name: 'lighting-${model.shaderName.toLowerCase()}',
       source: 'Sphere',

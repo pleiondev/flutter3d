@@ -225,6 +225,17 @@ final class FakeBackend implements GraphicsDevice {
   @override
   final bool supportsWireframe;
 
+  /// The engine's own convention, so a fake never exercises the remap. The
+  /// backends that need the other one are covered by running them.
+  @override
+  DepthRange get depthRange => DepthRange.zeroToOne;
+
+  @override
+  TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
+
+  @override
+  int get preferredSampleCount => 4;
+
   /// Every pass ever opened, in the order it was opened.
   final List<FakePass> passes = <FakePass>[];
 

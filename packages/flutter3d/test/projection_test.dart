@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -15,6 +16,7 @@ Vector3 projectToNdc(Matrix4 projection, Vector3 eyePosition) {
 }
 
 void main() {
+  _depthRangeTests();
   const fov = math.pi / 4;
   const near = 0.1;
   const far = 100.0;
@@ -124,6 +126,57 @@ void main() {
 
       final ndc = projectToNdc(broken, Vector3(0.0, 0.0, -near));
       expect(ndc.z, isNot(closeTo(0.0, 1e-3)));
+    });
+  });
+}
+
+void _depthRangeTests() {
+  group('depth range', () {
+    // Cameras build for Metal/Vulkan/Impeller: near at 0, far at 1. GL wants
+    // near at -1. Getting this wrong does not error — it halves the depth
+    // buffer and shows up much later as z-fighting — so it is pinned by the
+    // numbers rather than by inspection.
+    const near = 0.1;
+    const far = 100.0;
+    final projection =
+        const PerspectiveProjection(fovYRadians: 1.0, near: near, far: far)
+            .toMatrix(1.0);
+
+    double ndcZ(Matrix4 m, double viewZ) {
+      // A point on the -Z axis at distance |viewZ|, projected and divided.
+      final clip = m.transform(Vector4(0.0, 0.0, viewZ, 1.0));
+      return clip.z / clip.w;
+    }
+
+    test('the engine convention puts near at 0 and far at 1', () {
+      final m = toDepthRange(projection, DepthRange.zeroToOne);
+      expect(ndcZ(m, -near), closeTo(0.0, 1e-5));
+      expect(ndcZ(m, -far), closeTo(1.0, 1e-5));
+    });
+
+    test('the OpenGL convention puts near at -1 and far at 1', () {
+      final m = toDepthRange(projection, DepthRange.negativeOneToOne);
+      expect(ndcZ(m, -near), closeTo(-1.0, 1e-5));
+      expect(ndcZ(m, -far), closeTo(1.0, 1e-5));
+    });
+
+    test('the remap keeps depth monotonic, which is why order survives it', () {
+      // The reason an uncorrected matrix on GL still draws in the right order,
+      // and therefore the reason nobody notices the lost precision.
+      final m = toDepthRange(projection, DepthRange.negativeOneToOne);
+      var previous = -2.0;
+      for (var d = near; d < far; d *= 1.5) {
+        final z = ndcZ(m, -d);
+        expect(z, greaterThan(previous));
+        previous = z;
+      }
+    });
+
+    test('zeroToOne hands back the same matrix rather than a copy', () {
+      // Nothing depends on identity, but a needless clone every frame for the
+      // backend that needs no correction is the wrong default.
+      expect(identical(toDepthRange(projection, DepthRange.zeroToOne), projection),
+          isTrue);
     });
   });
 }

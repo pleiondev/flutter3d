@@ -170,6 +170,20 @@ final class WebGlDevice implements GraphicsDevice {
   /// multisampled colour and a resolve target, which is exactly a blit, so the
   /// answer is honest.
   @override
+  @override
+  // OpenGL, and WebGL2 exposes no glClipControl to change it.
+  DepthRange get depthRange => DepthRange.negativeOneToOne;
+
+  @override
+  // Renderable here only because EXT_color_buffer_float is requested when the
+  // context is made; see create(). Without it this is a texture format that
+  // silently accepts no draws.
+  TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
+
+  @override
+  int get preferredSampleCount => 4;
+
+  @override
   bool get supportsOffscreenMsaa => true;
 
   @override

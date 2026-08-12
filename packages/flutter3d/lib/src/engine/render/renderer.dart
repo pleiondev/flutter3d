@@ -785,7 +785,16 @@ final class Renderer implements RenderServices {
   /// The HDR format, chosen once. Half floats rather than full: the extra range
   /// of `r32g32b32a32Float` buys nothing for light values and doubles the
   /// bandwidth of every post-processing read.
-  static const TextureFormat hdrFormat = TextureFormat.r16g16b16a16Float;
+  /// Asked of the backend rather than fixed here.
+  ///
+  /// It was a constant, which read as a property of the engine and was a
+  /// property of one backend: the format is renderable on flutter_gpu with
+  /// nothing to enable, and on WebGL2 only because the device requests an
+  /// extension when it makes its context. A backend that could not render to it
+  /// had no way to say so, and the failure would have been an incomplete
+  /// framebuffer — every draw discarded, no error, a black frame and correct
+  /// counters.
+  TextureFormat get hdrFormat => device.hdrColorFormat;
 
   PipelineHandle? _shadowPipeline;
   PipelineHandle? _skinnedShadowPipeline;
@@ -892,7 +901,10 @@ final class Renderer implements RenderServices {
   void _ensureTargets(int width, int height) {
     if (width == _targetWidth && height == _targetHeight) return;
 
-    final sampleCount = msaaEnabled ? 4 : 1;
+    // From the device, not a literal. Four is what these goldens were recorded
+    // with and what both current backends answer; the engine no longer decides
+    // it on their behalf.
+    final sampleCount = msaaEnabled ? device.preferredSampleCount : 1;
 
     // Straight from the device rather than through the pool: these live for as
     // long as the window keeps its size, and the pool is for what is acquired
@@ -917,7 +929,7 @@ final class Renderer implements RenderServices {
     // deviceTransient is tile memory: more bandwidth, less memory. Right for
     // intermediates like the MSAA and depth attachments, never read back.
     _hdrMsaa = msaaEnabled
-        ? make(StorageMode.deviceTransient, hdrFormat, sampleCount: 4)
+        ? make(StorageMode.deviceTransient, hdrFormat, sampleCount: sampleCount)
         : null;
 
     // The final image is 8-bit and display-referred; it is what becomes the
@@ -932,7 +944,7 @@ final class Renderer implements RenderServices {
     _reflectionColor = make(StorageMode.devicePrivate, hdrFormat);
 
     _surfaceMsaa = msaaEnabled
-        ? make(StorageMode.deviceTransient, hdrFormat, sampleCount: 4)
+        ? make(StorageMode.deviceTransient, hdrFormat, sampleCount: sampleCount)
         : null;
 
     _depthStencil = make(
@@ -2300,6 +2312,22 @@ final class Renderer implements RenderServices {
   /// pass, so it takes the pass as an argument, while a node *owns* one and
   /// therefore cannot be handed one. That is why there are two contexts:
   /// `ContributorFrame` carries a pass and `NodeFrame` does not.
+  /// The camera's view-projection, in the clip space this backend uses.
+  ///
+  /// Cameras build for [DepthRange.zeroToOne], which is what Metal, Vulkan and
+  /// Impeller want. A backend on OpenGL conventions gets the same matrix with
+  /// depth remapped: `z' = 2z - w` turns near-at-0/far-at-1 into
+  /// near-at-minus-one/far-at-1.
+  ///
+  /// Corrected here rather than in the camera because a camera does not know
+  /// which device will draw it, and because one boundary is easier to keep
+  /// right than a second projection path. Feeding the uncorrected matrix to GL
+  /// draws everything, in the correct order, in the far half of the depth
+  /// buffer — half the precision, no error anywhere, and z-fighting on surfaces
+  /// that were fine on the other backend.
+  vm.Matrix4 _viewProjection(CameraNode camera, double aspect) =>
+      toDepthRange(camera.viewProjection(aspect), device.depthRange);
+
   _ScenePass _encodeScene({
     required Scene scene,
     required List<RenderView> ordered,
@@ -2405,7 +2433,7 @@ final class Renderer implements RenderServices {
       final camera = view.camera;
       final aspect = vw / vh;
       final viewMatrix = camera.viewMatrix;
-      final viewProjection = camera.viewProjection(aspect);
+      final viewProjection = _viewProjection(camera, aspect);
 
       // Before the render list is built, because choosing a level changes which
       // nodes are visible and the list is built from what is.
@@ -2660,10 +2688,13 @@ final class Renderer implements RenderServices {
     )
       // Half the frame, in the same HDR format, which is what the bloom chain's
       // top level has always been.
-      ..declare(const ResourceDesc(
+      // Not const any more: the format comes from the device, which is the
+      // point — a description of a resource cannot be a compile-time constant
+      // once it depends on which backend is drawing.
+      ..declare(ResourceDesc(
         id: FrameResourceIds.bloom,
         format: hdrFormat,
-        size: FrameFraction(2),
+        size: const FrameFraction(2),
       ));
 
     // A pass that throws leaves the frame's textures lent out, and the pool has
@@ -2775,7 +2806,7 @@ final class Renderer implements RenderServices {
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
     final aspect = height == 0 ? 1.0 : width / height;
-    final viewProjection = view.camera.viewProjection(aspect);
+    final viewProjection = _viewProjection(view.camera, aspect);
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
     view.camera.readWorldPosition(_reflectionCamera);
 
@@ -2917,7 +2948,7 @@ final class Renderer implements RenderServices {
         encoder: pass,
         scene: sceneGraph,
         view: view,
-        viewProjection: view.camera.viewProjection(vw / vh),
+        viewProjection: _viewProjection(view.camera, vw / vh),
         aspect: vw / vh,
         settings: settings,
       )) {

@@ -23,9 +23,14 @@ final class TextureSampling {
   final bool magLinear;
   final bool minLinear;
 
-  /// Assets almost always request mipmapped minification. flutter_gpu has no mip
-  /// levels, so this is recorded and then ignored by the renderer — the visible
-  /// cost is aliasing on minified surfaces.
+  /// Assets almost always request mipmapped minification. Recorded and, so far,
+  /// ignored by the renderer — the visible cost is aliasing on minified
+  /// surfaces.
+  ///
+  /// Not a fact about rendering: flutter_gpu exposes no mip levels, WebGL2 has
+  /// them. The engine builds none either way today, so the field is carried
+  /// rather than acted on, and honouring it would start with asking the device
+  /// rather than assuming this.
   final bool useMipmaps;
 
   final TextureWrap wrapS;

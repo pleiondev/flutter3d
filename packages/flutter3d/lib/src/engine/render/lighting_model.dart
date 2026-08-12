@@ -1,4 +1,17 @@
-/// A lighting model, which on flutter_gpu means one pre-built fragment shader.
+/// A lighting model: one pre-built fragment shader and what the engine may
+/// bind to it.
+///
+/// **A value class rather than an enum, so this list is not closed.** Shaders
+/// are compiled ahead of time, so a material graph cannot be assembled at run
+/// time — but an application that builds its own bundle can add an entry to it
+/// and describe it here, and the renderer will cache a pipeline for it like any
+/// other. What it cannot do is add a shader to a bundle it does not build; that
+/// is the remaining limit, and it belongs to the bundle rather than to this
+/// type.
+///
+/// Two properties used to be derived by comparing against particular constants,
+/// which is the sort of thing that works exactly until somebody adds a seventh
+/// model. They are declared now.
 ///
 /// Shaders are compiled ahead of time into the bundle, so a material graph
 /// cannot be assembled at runtime. Switching models therefore means switching
@@ -16,21 +29,7 @@
 /// The truth is printed by `tool/build_shaders.sh` after every build, as a table
 /// of what each entry point actually kept. When this metadata and that table
 /// disagree, the table is right.
-enum LightingModel {
-  unlit('Unlit', 'Unlit', usesMaterialMaps: false, usesMetallicRoughnessMap: false),
-  lambert('Lambert', 'Lambert', usesMetallicRoughnessMap: false),
-  blinnPhong('Blinn-Phong', 'BlinnPhong'),
-  pbr('PBR (GGX)', 'Pbr'),
-  toon('Toon', 'Toon'),
-  normals(
-    'Normals',
-    'Normals',
-    usesFragInfo: false,
-    usesAlbedoTexture: false,
-    usesMaterialMaps: false,
-    usesMetallicRoughnessMap: false,
-  );
-
+final class LightingModel {
   const LightingModel(
     this.label,
     this.shaderName, {
@@ -38,6 +37,8 @@ enum LightingModel {
     this.usesAlbedoTexture = true,
     this.usesMaterialMaps = true,
     this.usesMetallicRoughnessMap = true,
+    this.usesMaterialParameters = true,
+    this.usesMetallic = false,
   }) : assert(
           !usesMetallicRoughnessMap || usesMaterialMaps,
           'the metallic-roughness map is one of the material maps, so a model '
@@ -46,6 +47,44 @@ enum LightingModel {
           'the compiled shader has no slot for, and the bind fails. Unlit sat '
           'in exactly that state until a golden caught it.',
         );
+
+  static const LightingModel unlit = LightingModel(
+    'Unlit',
+    'Unlit',
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
+  static const LightingModel lambert =
+      LightingModel('Lambert', 'Lambert', usesMetallicRoughnessMap: false);
+  static const LightingModel blinnPhong =
+      LightingModel('Blinn-Phong', 'BlinnPhong');
+  static const LightingModel pbr =
+      LightingModel('PBR (GGX)', 'Pbr', usesMetallic: true);
+  static const LightingModel toon = LightingModel('Toon', 'Toon');
+  static const LightingModel normals = LightingModel(
+    'Normals',
+    'Normals',
+    usesFragInfo: false,
+    usesAlbedoTexture: false,
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
+
+  /// The models this engine ships, in the order a picker should show them.
+  ///
+  /// `builtIn` and not `values`: there is no longer a complete list to have.
+  /// The name says which question it answers — "what came with the engine" —
+  /// rather than implying nothing else can exist.
+  static const List<LightingModel> builtIn = <LightingModel>[
+    unlit,
+    lambert,
+    blinnPhong,
+    pbr,
+    toon,
+    normals,
+  ];
 
   /// Shown in the UI.
   final String label;
@@ -96,10 +135,38 @@ enum LightingModel {
   /// and the engine must not try to bind it.
   final bool usesMetallicRoughnessMap;
 
-  /// Models that ignore the material sliders, so the UI can disable them.
-  bool get usesMaterialParameters =>
-      this != LightingModel.unlit && this != LightingModel.normals;
+  /// Whether the material's numeric parameters reach the shader, so a UI can
+  /// disable the sliders that would do nothing.
+  ///
+  /// Declared rather than derived. It used to read `this != unlit && this !=
+  /// normals`, which was true of the six models that existed and wrong for any
+  /// seventh — a custom model would have been told its own parameters mattered
+  /// because it was not one of two names.
+  final bool usesMaterialParameters;
 
-  /// Only the physical model interprets metallic.
-  bool get usesMetallic => this == LightingModel.pbr;
+  /// A small stable number for grouping draws that share a pipeline.
+  ///
+  /// **Not `shaderName.hashCode`.** Dart does not promise a string's hash is
+  /// the same from one run to the next, and the draw sort uses this — so the
+  /// order two lighting models are drawn in would have varied between runs.
+  /// Two goldens caught it at 25% and 0.6% of their pixels, which is what a
+  /// nondeterministic sort looks like once anything blends.
+  ///
+  /// FNV-1a over the name, folded to six bits, because that is what the key has
+  /// room for. A collision costs one extra pipeline switch and nothing else:
+  /// grouping is an optimisation, and the key is allowed to be approximate
+  /// about it in a way it is not allowed to be unstable about.
+  int get pipelineGroup {
+    var hash = 0x811c9dc5;
+    for (var i = 0; i < shaderName.length; i++) {
+      hash = ((hash ^ shaderName.codeUnitAt(i)) * 0x01000193) & 0xFFFFFFFF;
+    }
+    return hash & 0x3F;
+  }
+
+  /// Whether the shader interprets metallic. Only a physical model does.
+  ///
+  /// Declared for the same reason: `this == pbr` answered a question about the
+  /// shader by checking which constant it happened to be.
+  final bool usesMetallic;
 }

@@ -28,6 +28,7 @@ enum CompositeView {
 ///
 /// Together is the point. The bloom slot is filled whether or not the frame
 /// produced a glow — flutter_gpu crashes natively, with no Dart frame to catch,
+/// and a backend that merely draws the wrong thing is no better,
 /// when a sampler the compiled shader declares goes unbound — so with bloom
 /// culled the pass binds the scene there instead. That stand-in is only
 /// harmless because [bloomIntensity] is zero, and nothing in the shader

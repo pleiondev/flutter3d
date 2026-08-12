@@ -25,6 +25,8 @@ dependencies:
   # absolute — a bundled macOS app runs from the filesystem root.
   path: ^1.9.0
   vector_math: ^2.2.0
+  # golden_store_web.dart fetches references over HTTP.
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:

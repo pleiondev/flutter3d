@@ -66,7 +66,8 @@ final class HitResult {
 ///
 /// Pure maths on top of the scene graph and the geometry layer, with no GPU
 /// involvement — which is both what makes it testable without a device and the
-/// only option available, since flutter_gpu exposes neither compute nor buffer
+/// only option available on the backend this was written against, which exposes
+/// neither compute nor buffer
 /// readback.
 ///
 /// The traversal is deliberately the same shape as culling: a linear pass over

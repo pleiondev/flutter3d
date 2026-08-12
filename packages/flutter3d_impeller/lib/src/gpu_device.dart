@@ -83,6 +83,19 @@ final class GpuRenderBackend implements GraphicsDevice {
       gpu.gpuContext.defaultDepthStencilFormat.toEngine();
 
   @override
+  @override
+  // Impeller runs on Metal and Vulkan conventions.
+  DepthRange get depthRange => DepthRange.zeroToOne;
+
+  @override
+  // Renderable everywhere flutter_gpu runs, with nothing to enable.
+  TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
+
+  @override
+  // Four is what this engine's goldens were recorded with.
+  int get preferredSampleCount => 4;
+
+  @override
   bool get supportsOffscreenMsaa => gpu.gpuContext.doesSupportOffscreenMSAA;
 
   @override

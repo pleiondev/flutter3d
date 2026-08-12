@@ -1123,7 +1123,7 @@ class _Controls extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: <Widget>[
-              for (final m in LightingModel.values)
+              for (final m in LightingModel.builtIn)
                 ChoiceChip(
                   label: Text(m.label),
                   selected: m == lighting,

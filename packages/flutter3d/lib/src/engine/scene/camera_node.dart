@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'scene.dart';
@@ -194,4 +195,25 @@ final class CameraNode extends SceneNode {
 
   @override
   void onDetachedFromScene(Scene scene) => scene.unregisterCamera(this);
+}
+
+
+/// [projection] expressed for [range].
+///
+/// Cameras here build for [DepthRange.zeroToOne] — Metal, Vulkan and Impeller
+/// conventions — and this is the one place that changes. Doubling the depth row
+/// and subtracting w turns near-at-0/far-at-1 into near-at-minus-one/far-at-1,
+/// which is what OpenGL and WebGL clip against.
+///
+/// A function rather than a branch inside the renderer, so it can be checked
+/// without a device. The failure it prevents is not a crash: an uncorrected
+/// matrix on GL draws every object, in the right order, inside the far half of
+/// the depth buffer. Half the precision, nothing reported anywhere, and
+/// z-fighting on surfaces that were fine on the other backend.
+Matrix4 toDepthRange(Matrix4 projection, DepthRange range) {
+  if (range == DepthRange.zeroToOne) return projection;
+  return Matrix4.identity()
+    ..setEntry(2, 2, 2.0)
+    ..setEntry(2, 3, -1.0)
+    ..multiply(projection);
 }

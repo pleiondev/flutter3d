@@ -163,7 +163,21 @@ for scene in "${SCENES[@]}"; do
     # now, so "ok" means zero differing pixels; the count is printed anyway,
     # because the worst channel delta beside it is the one number that still
     # moves and the only warning that the hardware is drifting.
-    sed -n "s/^GOLDEN $scene: //p" "$log" | head -1 | sed 's/^/ok  /'
+    # Not anchored to the start of the line. The application prints its verdict
+    # with `print` — it has to, because dart:io does not exist in a browser and
+    # the same runner serves both — and on desktop Flutter's logger prefixes
+    # that with "flutter: ". An anchored extraction found nothing, so every
+    # scene passed and printed a blank line: the count survived and the numbers
+    # vanished, which is the exact state printing them was meant to end.
+    verdict="$(sed -n "s/^.*GOLDEN $scene: //p" "$log" | head -1)"
+    if [[ -z "$verdict" ]]; then
+      # A pass whose numbers cannot be read is not a pass worth reporting.
+      echo "FAILED (verdict matched but could not be extracted — see $log)"
+      fail=$((fail + 1))
+      failed_scenes+=("$scene")
+      continue
+    fi
+    echo "ok  $verdict"
     pass=$((pass + 1))
   else
     echo "FAILED"
