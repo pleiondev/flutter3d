@@ -59,7 +59,10 @@ final class GoldenRunner {
 
   /// Null unless `FLUTTER3D_GOLDEN` names a scene.
   static GoldenRunner? fromEnvironment() {
-    const name = String.fromEnvironment('FLUTTER3D_GOLDEN');
+    // The URL wins where there is one, so a single web build can be walked
+    // through every scene. Empty everywhere means this is not a golden run.
+    const defined = String.fromEnvironment('FLUTTER3D_GOLDEN');
+    final name = sceneOverride ?? defined;
     if (name.isEmpty) return null;
 
     final scene = goldenSceneNamed(name);
@@ -252,4 +255,7 @@ final class _Comparison {
 void printLine(String message) {
   // ignore: avoid_print
   print(message);
+  // And onto the page, where a browser can show it. See golden_store_web.dart:
+  // print alone does not survive a release web build.
+  reportLine(message);
 }

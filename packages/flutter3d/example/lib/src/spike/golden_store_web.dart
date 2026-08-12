@@ -6,6 +6,40 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
+/// Writes a line where a person and a tool can both read it.
+///
+/// Into the document, not the console. A release web build's `print` does not
+/// reach the browser console reliably, and a verdict nobody can read is the
+/// same as no verdict — which is the failure this suite exists to prevent, and
+/// which it has already had once today in a different disguise.
+void reportLine(String message) {
+  var log = web.document.getElementById('golden-log') as web.HTMLElement?;
+  if (log == null) {
+    log = web.document.createElement('pre') as web.HTMLElement
+      ..id = 'golden-log'
+      ..setAttribute(
+        'style',
+        'position:fixed;left:0;top:0;right:0;z-index:99999;margin:0;'
+        'padding:8px;background:#000;color:#0f0;font:13px monospace;'
+        'white-space:pre-wrap',
+      );
+    web.document.body!.append(log);
+  }
+  log.textContent = '${log.textContent ?? ''}$message\n';
+}
+
+/// The scene named in the page's URL, if any.
+///
+/// A run-time choice here, where the desktop path takes a compile-time define.
+/// The reason is arithmetic: the suite is twenty-three scenes, and rebuilding
+/// the bundle for each is twenty-three dart2js runs to compare twenty-three
+/// pictures. One build and twenty-three navigations is the same information in
+/// a fraction of the time.
+String? get sceneOverride {
+  final name = Uri.base.queryParameters['golden'];
+  return (name == null || name.isEmpty) ? null : name;
+}
+
 /// Whether a run has to be told where the references live.
 ///
 /// False: there is no path here to resolve one against. The references are

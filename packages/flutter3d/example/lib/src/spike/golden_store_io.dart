@@ -4,6 +4,13 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
+/// Nothing extra: the console is where the harness script reads.
+void reportLine(String message) {}
+
+/// No run-time override here: the harness script passes a define per scene and
+/// reads an exit code, which is the shape a shell can drive.
+String? get sceneOverride => null;
+
 /// Whether a run has to be told where the references live.
 ///
 /// True here: a macOS application bundle runs with its working directory at
