@@ -305,6 +305,16 @@ abstract interface class PassEncoder {
   /// binding a slot the compiler dropped is a native crash rather than a no-op,
   /// which is why every call site here is gated on what the material's lighting
   /// model declares.
+  /// A null [sampler] means [SamplerOptions.linearRepeat], not the
+  /// `SamplerOptions` constructor's own defaults.
+  ///
+  /// Stated because it was not. Both hardware backends had chosen
+  /// `linearRepeat` independently, so they agreed and nobody wrote the rule
+  /// down; the third backend read this interface, took the constructor
+  /// defaults — nearest and clamp — and every textured picture it drew had
+  /// hard seams where the others had soft ones. Two percent of every textured
+  /// golden, and it looked like a filtering bug in the new backend rather than
+  /// a question the contract had never answered.
   void bindTexture(
     ShaderHandle shader,
     String slot,

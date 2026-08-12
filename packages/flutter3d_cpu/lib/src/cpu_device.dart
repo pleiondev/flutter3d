@@ -300,7 +300,7 @@ final class CpuEncoder implements CommandEncoder {
 
   final Map<String, Map<String, Float32List>> _blocks =
       <String, Map<String, Float32List>>{};
-  final Map<String, CpuTexture> _textures = <String, CpuTexture>{};
+  final Map<String, BoundTexture> _textures = <String, BoundTexture>{};
 
   @override
   void setViewport(ScreenRect rect) => _viewport = rect;
@@ -385,7 +385,15 @@ final class CpuEncoder implements CommandEncoder {
     TextureHandle texture, {
     SamplerOptions? sampler,
   }) =>
-      _textures[slot] = texture.backend as CpuTexture;
+      // linearRepeat for a null sampler, which is now written down in
+      // `CommandEncoder.bindTexture` — it was not, and this backend picked the
+      // constructor's own defaults instead, nearest and clamped. Both hardware
+      // backends had independently chosen linearRepeat, so the two agreed and
+      // the rule stayed unstated until a third implementation read the
+      // interface and answered differently. It cost two percent of every
+      // textured golden and looked like a rendering bug.
+      _textures[slot] = BoundTexture(texture.backend as CpuTexture,
+          sampler ?? SamplerOptions.linearRepeat);
 
   @override
   void clearBindings() {
@@ -504,6 +512,15 @@ final class CpuEncoder implements CommandEncoder {
 
     final depth = _depthTarget?.depthBuffer();
     final interpolated = Float32List(varyingCount);
+    final context = FragmentContext();
+
+    // The surface buffer, when the pass declared one. Only the second is
+    // handled: the engine opens no pass with a third, and inventing a general
+    // multi-target path for a call site that does not exist would be inventing
+    // the semantics too.
+    final extra = _descriptor.colors.length > 1
+        ? _descriptor.colors[1].texture.backend as CpuTexture
+        : null;
 
     for (var y = minY; y <= maxY; y++) {
       for (var x = minX; x <= maxX; x++) {
@@ -538,8 +555,25 @@ final class CpuEncoder implements CommandEncoder {
               iw;
         }
 
-        final colour = pipeline.fragment.run(interpolated, bindings);
+        // gl_FragCoord: pixel centre, window depth, and 1/w. Rebuilt rather
+        // than reused between fragments, because a stage that kept a reference
+        // to it would see the next fragment's values.
+        context.coord.setValues(px, py, z, iw);
+        context.surface = null;
+        final colour = pipeline.fragment.run(interpolated, bindings, context);
         if (colour == null) continue;
+
+        // Attachment one, when the stage wrote it and the pass has one. Both
+        // conditions matter: the lit models always write it and the shadow
+        // passes never do, and a pass may have a single attachment either way.
+        final surface = context.surface;
+        if (surface != null && extra != null) {
+          final e = index * 4;
+          extra.pixels[e] = surface.x;
+          extra.pixels[e + 1] = surface.y;
+          extra.pixels[e + 2] = surface.z;
+          extra.pixels[e + 3] = surface.w;
+        }
 
         final at = index * 4;
         if (_blend == null) {

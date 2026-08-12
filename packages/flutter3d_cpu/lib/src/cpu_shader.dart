@@ -24,8 +24,8 @@ final class ShaderBindings {
   /// Block name to member name to floats, exactly as the engine wrote them.
   final Map<String, Map<String, Float32List>> blocks;
 
-  /// Sampler slot name to what is bound there.
-  final Map<String, CpuTexture> textures;
+  /// Sampler slot name to what is bound there, with the sampler it came with.
+  final Map<String, BoundTexture> textures;
 
   /// [member] of [block], or null if the engine did not write it.
   ///
@@ -75,25 +75,81 @@ final class CpuTexture {
   Float32List depthBuffer() =>
       depth ??= Float32List(width * height)..fillRange(0, width * height, 1.0);
 
-  /// Bilinear sample, clamped. Every sampler this engine binds is clamped, and
-  /// a repeat mode nothing uses would be a guess about a call site.
+  Vector4 _texel(int px, int py) {
+    final i = (py * width + px) * 4;
+    return Vector4(pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]);
+  }
+}
+
+/// A texture with the sampler it was bound with.
+///
+/// The pair, not the texture alone, because a texture has no filtering or
+/// wrapping of its own — those come from the bind, and the same image is
+/// sampled differently by two shaders in the same frame.
+///
+/// The first version of this backend ignored the sampler entirely and always
+/// filtered bilinearly with clamped edges, on the strength of a comment saying
+/// every sampler the engine binds is clamped. That comment was wrong:
+/// `SamplerOptions.linearRepeat` is documented as the default for material
+/// textures. It cost about a percent and a half of every textured golden, and
+/// it did not look like a sampler bug in the picture — it looked like the
+/// checkerboard was very slightly the wrong size.
+final class BoundTexture {
+  const BoundTexture(this.texture, this.sampler);
+
+  final CpuTexture texture;
+  final SamplerOptions sampler;
+
+  int get width => texture.width;
+  int get height => texture.height;
+  Float32List get pixels => texture.pixels;
+
+  /// One texel address, wrapped or clamped as the sampler says.
+  int _address(int i, int size, SamplerAddressMode mode) => switch (mode) {
+        SamplerAddressMode.repeat => i % size < 0 ? i % size + size : i % size,
+        SamplerAddressMode.clampToEdge => i.clamp(0, size - 1),
+        // Mirror is in the enum and nothing binds it. Refusing beats guessing:
+        // a wrong wrap looks like a texture that is subtly the wrong way round
+        // in one place, which is not something anybody goes looking for.
+        SamplerAddressMode.mirror => throw UnsupportedError(
+            'SamplerAddressMode.mirror is not implemented by this backend'),
+      };
+
+  /// Samples at [u], [v].
+  ///
+  /// The half-texel offset is the part that is easy to get wrong and invisible
+  /// when it is: a texture coordinate addresses texel *centres*, so `u = 0`
+  /// falls on the centre of texel zero and the conversion is `u * size - 0.5`.
+  /// Scaling by `size - 1` instead — which reads just as plausibly — stretches
+  /// the image by half a texel at each edge and shifts every sample. On a
+  /// checkerboard that is a visible seam offset; on a photograph it is
+  /// nothing, which is why it survives.
   Vector4 sample(double u, double v) {
-    final x = (u.clamp(0.0, 1.0) * (width - 1));
-    final y = (v.clamp(0.0, 1.0) * (height - 1));
+    final x = u * width - 0.5;
+    final y = v * height - 0.5;
     final x0 = x.floor();
     final y0 = y.floor();
-    final x1 = (x0 + 1).clamp(0, width - 1);
-    final y1 = (y0 + 1).clamp(0, height - 1);
-    final fx = x - x0;
-    final fy = y - y0;
 
-    Vector4 at(int px, int py) {
-      final i = (py * width + px) * 4;
-      return Vector4(pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]);
+    if (sampler.magFilter == MinMagFilter.nearest) {
+      // Nearest rounds to the containing texel, which is the floor of the
+      // unshifted coordinate rather than of the shifted one.
+      return texture._texel(
+        _address((u * width).floor(), width, sampler.widthAddressMode),
+        _address((v * height).floor(), height, sampler.heightAddressMode),
+      );
     }
 
-    final top = at(x0, y0) * (1 - fx) + at(x1, y0) * fx;
-    final bottom = at(x0, y1) * (1 - fx) + at(x1, y1) * fx;
+    final fx = x - x0;
+    final fy = y - y0;
+    final ax0 = _address(x0, width, sampler.widthAddressMode);
+    final ax1 = _address(x0 + 1, width, sampler.widthAddressMode);
+    final ay0 = _address(y0, height, sampler.heightAddressMode);
+    final ay1 = _address(y0 + 1, height, sampler.heightAddressMode);
+
+    final top = texture._texel(ax0, ay0) * (1 - fx) +
+        texture._texel(ax1, ay0) * fx;
+    final bottom = texture._texel(ax0, ay1) * (1 - fx) +
+        texture._texel(ax1, ay1) * fx;
     return top * (1 - fy) + bottom * fy;
   }
 }
@@ -110,10 +166,36 @@ abstract interface class CpuVertexShader {
       Float32List varyings);
 }
 
+/// Everything a fragment stage gets that is not a varying or a binding.
+///
+/// One object rather than more parameters, because both of the things on it are
+/// per-fragment state that GLSL provides as globals — and because a stage that
+/// grows a third one should not change the signature of the twenty-three that
+/// did not.
+final class FragmentContext {
+  FragmentContext();
+
+  /// `gl_FragCoord`: window x and y, window depth in z, and `1/w` in w.
+  ///
+  /// The depth is what the shadow pass stores, so this is not a diagnostic —
+  /// leaving it out means `ShadowDepth` cannot be written at all.
+  final Vector4 coord = Vector4.zero();
+
+  /// What the stage wrote to attachment one, or null if it wrote nothing.
+  ///
+  /// The engine's lit models write the surface buffer from the same call that
+  /// writes colour, so a surface cannot be lit into the frame without also
+  /// describing itself. A stage that declares `F3D_NO_SURFACE_BUFFER` — the
+  /// shadow passes — leaves this alone, and the device then writes nothing,
+  /// which is the same thing a pass with one attachment does.
+  Vector4? surface;
+}
+
 /// Turns interpolated varyings into a colour.
 abstract interface class CpuFragmentShader {
-  /// Returns linear RGBA. Null discards the fragment.
-  Vector4? run(Float32List varyings, ShaderBindings bindings);
+  /// Returns linear RGBA for attachment zero. Null discards the fragment.
+  Vector4? run(
+      Float32List varyings, ShaderBindings bindings, FragmentContext context);
 }
 
 /// A stage, which is one or the other.

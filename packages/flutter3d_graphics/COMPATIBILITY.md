@@ -74,6 +74,14 @@ the wrong thing.
   exists without a member the caller named is an error, because then the two
   ends disagree about its shape and zeros are a plausible-looking value for
   most of what goes through there.
+- **A null `sampler` means `SamplerOptions.linearRepeat`**, not the
+  `SamplerOptions` constructor's own defaults, which are nearest and clamp. The
+  two hardware backends had each chosen `linearRepeat` and therefore agreed
+  without anybody writing it down. The third read this document, took the
+  constructor defaults, and drew hard seams everywhere the others drew soft
+  ones — two percent of every textured golden, looking exactly like a filtering
+  bug in the new backend rather than like a question the contract had never
+  answered.
 - **`GeometryUsage` is not a hint.** WebGL binds a buffer to its target for
   life, and a buffer uploaded as vertices can never be bound as indices; the
   attempt is an `INVALID_OPERATION`, the draw is dropped, and the frame comes

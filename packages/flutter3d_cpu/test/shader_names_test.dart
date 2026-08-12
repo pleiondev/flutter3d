@@ -34,13 +34,45 @@ void main() {
         reason: 'a stage outlived the shader it stands in for');
   });
 
-  test('a stage that is not written refuses rather than drawing', () {
-    // The property the whole design rests on. A stub that returned black would
-    // produce a picture, and a picture is what everything downstream — the
-    // goldens, the parity grid, a person looking at the screen — treats as
-    // evidence that the pass ran.
-    final pbr = builtinCpuShaders()['Pbr']!.fragment!;
-    expect(() => pbr.run(Float32List(0), const ShaderBindings({}, {})),
-        throwsUnsupportedError);
+  test('every stage on the unimplemented list really does refuse', () {
+    // Named against the list rather than against one shader, because the list
+    // is what makes implementing a stage a two-part change: writing it and
+    // striking it off here. A stub that quietly stopped being a stub, or a
+    // name struck off while still throwing, both fail this.
+    //
+    // A refusal matters more than it sounds. A stub returning black would draw
+    // a picture, and a picture is what everything downstream — the goldens,
+    // the parity grid, a person looking at the screen — reads as evidence that
+    // the pass ran.
+    final stages = builtinCpuShaders();
+    for (final name in kUnimplementedCpuFragmentShaders) {
+      expect(
+          () => stages[name]!.fragment!.run(
+              Float32List(0), const ShaderBindings({}, {}), FragmentContext()),
+          throwsUnsupportedError,
+          reason: '$name is on the unimplemented list and does not refuse');
+    }
+    for (final name in kUnimplementedCpuVertexShaders) {
+      expect(
+          () => stages[name]!.vertex!
+              .run(Float32List(0), const ShaderBindings({}, {}), Float32List(0)),
+          throwsUnsupportedError,
+          reason: '$name is on the unimplemented list and does not refuse');
+    }
+  });
+
+  test('nothing is on the unimplemented list twice or by mistake', () {
+    final unimplemented = <String>{
+      ...kUnimplementedCpuVertexShaders,
+      ...kUnimplementedCpuFragmentShaders,
+    };
+    expect(
+        unimplemented.length,
+        kUnimplementedCpuVertexShaders.length +
+            kUnimplementedCpuFragmentShaders.length,
+        reason: 'a name appears on the list twice');
+    final wanted = kRequiredShaders.map((s) => s.name).toSet();
+    expect(unimplemented.difference(wanted), isEmpty,
+        reason: 'the list names a shader the engine does not ask for');
   });
 }

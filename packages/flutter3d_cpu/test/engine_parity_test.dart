@@ -114,22 +114,23 @@ void main() {
     print('cpu rows 5,8: ${mine.sublist(5 * kParityGrid, 6 * kParityGrid)}\n'
         '              ${mine.sublist(8 * kParityGrid, 9 * kParityGrid)}');
 
-    // Twelve and one. Measured at 9 and 0.56, against WebGL's 3 and 0.04 on
-    // this same fixture — and WebGL compiles the *same GLSL*, where this is a
-    // separate program in another language on a rasteriser with no
-    // multisampling. Nine is where that shows: it is a cell on the sphere's
-    // edge, which is coverage, and every cell away from an edge agrees.
+    // Five and 0.3. Measured at 3 and 0.12 — against WebGL's 3 and 0.04 on the
+    // same fixture, and WebGL compiles the *same GLSL*.
     //
-    // The comment that stood here predicted the two would not compare
-    // numerically at all and asserted only the shape. That prediction was
-    // wrong, and a threshold set where a measurement cannot reach it is a
-    // threshold that has stopped watching — the lesson of two goldens that
-    // sat at 0.178% under a 0.2% limit in this repository for a fortnight.
-    expect(worst, lessThan(12),
+    // It was 9 and 0.56 until the sampler was fixed to address texel centres
+    // rather than scaling by `size - 1`. That was not a texture bug: the
+    // composite resamples the whole frame, so half a texel of offset softened
+    // every pixel of every picture this backend drew, textured or not.
+    //
+    // Twice now this limit has been left where a measurement could no longer
+    // reach it, and both times tightening it was the finding. A threshold far
+    // above the observed value has stopped watching — the lesson of two
+    // goldens that sat at 0.178% under a 0.2% limit here for a fortnight.
+    expect(worst, lessThan(5),
         reason: 'cell ${worstAt ~/ kParityGrid},${worstAt % kParityGrid} '
             'differs by $worst: cpu ${worstAt < 0 ? '-' : mine[worstAt]}, '
             'Impeller ${worstAt < 0 ? '-' : kImpellerPlain[worstAt]}');
-    expect(total / mine.length, lessThan(1.0),
+    expect(total / mine.length, lessThan(0.3),
         reason: 'the two disagree across the whole frame, not at one edge');
 
     // Kept alongside the numbers, because they fail differently. A mirrored
