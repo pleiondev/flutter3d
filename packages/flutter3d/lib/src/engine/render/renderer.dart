@@ -1508,8 +1508,14 @@ final class Renderer implements RenderServices {
       // The atlas before the directional map, which is the order they were
       // submitted in before either was a node. Nothing derives it — they write
       // different textures and neither reads the other — so registration order
-      // decides, and keeping the old one is what makes this step a pure
-      // restructuring with nothing left to explain if a golden moves.
+      // decides.
+      //
+      // **And it does not matter.** Registering the directional map first and
+      // running the whole suite gives all twenty-seven goldens byte-identical.
+      // So this is the old order kept because there is no reason to change it,
+      // not an ordering anything depends on; a reader who needs to move one of
+      // these is not walking into a trap. The paragraph that used to hedge here
+      // was replaced by the run.
       //
       // The static bake first, because that is the order the frame checked the
       // two gates in when it ran them by hand: the bake, then the schedule.
