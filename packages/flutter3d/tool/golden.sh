@@ -94,6 +94,23 @@ APP='flutter3d.app/Contents/MacOS/flutter3d'
 # the errors are that lopsided, pick the side that only wastes time.
 SCENE_TIMEOUT=${FLUTTER3D_SCENE_TIMEOUT:-300}
 
+# The software backend needs longer, and the two heaviest scenes need much
+# longer. cube-shadow-many and cube-shadow-crowded draw six faces per light
+# into 1024-pixel tiles, and a rasteriser written in Dart takes seconds a frame
+# at that size where Impeller takes milliseconds. Both were reported FAILED
+# four runs in a row under the 300 the hardware backend needs; run alone with
+# more patience each renders and passes.
+#
+# Raising the limit rather than shrinking the atlas for this backend, which was
+# the other candidate and is the wrong one: the tile size is a *scene* setting,
+# so a smaller atlas here would draw a different picture and cross-backend
+# comparison of every shadow scene would stop meaning anything. It would also
+# not have helped much — clearing the whole 6144x4096 atlas measures 66ms; the
+# cost is rasterising casters into the tiles, not the atlas itself.
+if [[ "$CPU" == true ]]; then
+  SCENE_TIMEOUT=${FLUTTER3D_SCENE_TIMEOUT:-900}
+fi
+
 # Kills the example app and *waits for it to be gone*.
 #
 # `pkill` only asks. The next launch used to start while the previous process
