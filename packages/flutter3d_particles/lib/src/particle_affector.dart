@@ -75,6 +75,75 @@ final class ParticleWind extends ParticleAffector {
   }
 }
 
+/// Swirls particles through a standing flow field, so a column of smoke curls
+/// instead of rising in a straight line.
+///
+/// ## Why this field and not noise
+///
+/// The usual answer is curl noise: take a gradient-noise potential and
+/// differentiate it, which gives a divergence-free field — one that swirls
+/// without pushing particles together or pulling them apart. Divergence is the
+/// property that matters. A field built by sampling noise directly has it, and
+/// the visible result is particles bunching into clumps and leaving holes,
+/// which reads as a bug in the emitter rather than as wind.
+///
+/// This uses the Arnold–Beltrami–Childress flow, which is divergence-free by
+/// construction and analytic: six trigonometric calls, no gradient table, no
+/// permutation array, and no finite differencing of a noise function at three
+/// offsets. Its streamlines are chaotic, which is the property being bought.
+/// Gradient noise would give a wider range of feature sizes; at the scale a
+/// flame occupies on screen, that difference is not visible and the table is
+/// three hundred lines that have to be identical in the Dart and the GLSL.
+///
+/// ## The field does not move
+///
+/// It is fixed in world space, and particles swirl because they travel through
+/// it. Advancing the field with time would need a clock, and an affector is
+/// handed one particle and a `dt` — accumulating a phase inside [apply] would
+/// advance it once per particle rather than once per step, so a burst of two
+/// hundred would age the field two hundred times faster than a burst of one.
+/// A standing field is also what a fire in a still room looks like: the flame
+/// moves, the draught does not.
+final class ParticleTurbulence extends ParticleAffector {
+  const ParticleTurbulence({
+    this.strength = 2.0,
+    this.scale = 0.6,
+    this.a = 1.0,
+    this.b = 1.0,
+    this.c = 1.0,
+  });
+
+  /// Acceleration applied along the field, in metres per second squared.
+  final double strength;
+
+  /// Spatial frequency: how far a particle travels to cross one cell of the
+  /// flow. Larger values give tighter curls.
+  final double scale;
+
+  /// The three ABC coefficients. Equal values give the symmetric flow; making
+  /// one zero collapses the field into two-dimensional rolls, which is what a
+  /// draught along a corridor looks like.
+  final double a;
+  final double b;
+  final double c;
+
+  @override
+  void apply(Particle particle, double dt) {
+    final x = particle.position.x * scale;
+    final y = particle.position.y * scale;
+    final z = particle.position.z * scale;
+
+    // u = A sin z + C cos y, v = B sin x + A cos z, w = C sin y + B cos x.
+    // Its divergence is identically zero: each component depends only on the
+    // two coordinates it is not differentiated by.
+    final k = strength * dt;
+    particle.velocity
+      ..x += (a * math.sin(z) + c * math.cos(y)) * k
+      ..y += (b * math.sin(x) + a * math.cos(z)) * k
+      ..z += (c * math.sin(y) + b * math.cos(x)) * k;
+  }
+}
+
 /// Moves the colour from one to another across the particle's life.
 final class ParticleColorOverLife extends ParticleAffector {
   ParticleColorOverLife(Vector4 from, Vector4 to)

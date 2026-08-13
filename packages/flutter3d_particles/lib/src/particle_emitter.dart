@@ -99,6 +99,52 @@ final class ConeEmitter extends ParticleEmitter {
   }
 }
 
+/// Anywhere inside a box. Rain over an area, dust in a shaft of light, embers
+/// rising off the whole width of a fire rather than out of one point.
+///
+/// The shape every other emitter here cannot express: a sphere with a radius
+/// gives a shell, a cone gives a point, and a volume that is wider than it is
+/// tall has to be built out of several emitters that then have to be kept in
+/// step with each other.
+final class BoxEmitter extends ParticleEmitter {
+  BoxEmitter({
+    required Vector3 halfExtents,
+    this.speed = const Range(0.0, 0.0),
+    Vector3? along,
+  })  : _halfExtents = halfExtents.clone(),
+        _along = along?.clone();
+
+  final Vector3 _halfExtents;
+
+  /// Fixed direction for the whole box, or null to use the direction the burst
+  /// was fired along.
+  ///
+  /// A box usually wants one: the point of emitting over an area is that every
+  /// particle goes the same way — rain falls down, it does not fall outwards.
+  final Vector3? _along;
+
+  final Range speed;
+
+  @override
+  void emit(
+    Particle particle,
+    Vector3 origin,
+    Vector3 direction,
+    math.Random random,
+  ) {
+    particle.position.setValues(
+      origin.x + (random.nextDouble() * 2.0 - 1.0) * _halfExtents.x,
+      origin.y + (random.nextDouble() * 2.0 - 1.0) * _halfExtents.y,
+      origin.z + (random.nextDouble() * 2.0 - 1.0) * _halfExtents.z,
+    );
+    final along = _along ?? direction;
+    final v = speed.sample(random);
+    particle.velocity
+      ..setFrom(along)
+      ..scale(v);
+  }
+}
+
 /// Straight up, slowly. Smoke and dust.
 final class DriftEmitter extends ParticleEmitter {
   const DriftEmitter({
