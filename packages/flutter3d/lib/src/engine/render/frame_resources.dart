@@ -98,8 +98,8 @@ final class ResourceDesc {
   final int sampleCount;
 
   /// `deviceTransient` is tile memory: cheaper, and unreadable afterwards. A
-  /// resource another node declares a read on must not be transient, which is
-  /// a rule the graph could check and does not yet.
+  /// resource another node declares a read on must not be transient, and
+  /// [FrameResources.declare] now refuses one that is.
   final StorageMode storageMode;
 
   RenderTargetSpec resolve(int frameWidth, int frameHeight) {
@@ -193,7 +193,34 @@ final class FrameResources {
   int _node = -1;
 
   /// Says how to make [desc.id] if anything asks for it.
-  void declare(ResourceDesc desc) => _declared[desc.id.name] = desc;
+  ///
+  /// Refuses a transient resource something declares a read on. `deviceTransient`
+  /// is tile memory: it exists for the duration of the pass that writes it and
+  /// is unreadable afterwards, so a later node's read would sample whatever the
+  /// tile happens to hold. On a tiler that is a wrong picture with nothing
+  /// logged; on a desktop backend that lies about the storage mode it might
+  /// even work, which is worse, because then it works everywhere it is tested
+  /// and fails on the hardware the mode exists for.
+  ///
+  /// The check lives here rather than in `frame_graph.dart` deliberately: that
+  /// file knows nothing about GPUs — no `StorageMode`, no `TextureFormat`, no
+  /// device — and 31 tests exercise it without one. This class is the only
+  /// place that holds both halves, the descriptions and the compiled graph.
+  ///
+  /// Fires never today: every transient allocation goes through [transient],
+  /// which is unnamed by construction and so cannot be read by anyone. It is
+  /// insurance against the next `ResourceDesc` somebody writes.
+  void declare(ResourceDesc desc) {
+    if (desc.storageMode == StorageMode.deviceTransient && graph.isRead(desc.id)) {
+      throw StateError(
+        '"${desc.id.name}" is declared deviceTransient and something reads it. '
+        'Tile memory does not survive the pass that wrote it, so the reader '
+        'would sample whatever is left there. Either drop the storage mode to '
+        'devicePrivate, or stop reading it.',
+      );
+    }
+    _declared[desc.id.name] = desc;
+  }
 
   /// Hands in a texture the engine owns — the swapchain image, the frame's
   /// colour target, or a long-lived buffer a node writes into rather than

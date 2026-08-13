@@ -238,12 +238,30 @@ final class RenderSettings {
   /// written against, because it could only ever have compared this against a
   /// model of the built-in passes, which is the half of the question that was
   /// never in doubt.
+  @Deprecated(
+    'A setting cannot see the frame, so this can only ever be a model of the '
+    'built-in passes. Ask the compiled graph instead: '
+    'CompiledFrameGraph.isConsumed(FrameResourceIds.surfaceBuffer), which is '
+    'what the scene node does. Scheduled for removal.',
+  )
   bool get needsSurfaceBuffer =>
       surfaceBuffer ||
       showSurfaceBuffer ||
       showPointShadowDebug ||
       reflections.enabled;
 
+  /// This one with some fields replaced.
+  ///
+  /// **Every field, and that is the whole point of the test beside it.** Six
+  /// were missing here — `surfaceBuffer`, `showSurfaceBuffer`, `showShadowMap`,
+  /// `showPointShadowDebug`, `reflections` and `fog` — so calling `copyWith` to
+  /// change the exposure silently switched reflections and fog back off and
+  /// turned three debug views off with them. A `copyWith` that drops a field is
+  /// a peculiarly quiet bug: it does exactly what was asked *and* something
+  /// else, and the something else looks like the feature never worked.
+  ///
+  /// `test/render_settings_test.dart` round-trips every field through an
+  /// argument-less call, which is what catches the next one somebody adds.
   RenderSettings copyWith({
     double? specular,
     double? exposure,
@@ -254,6 +272,12 @@ final class RenderSettings {
     bool? tonemap,
     BloomSettings? bloom,
     ShadowSettings? shadows,
+    bool? surfaceBuffer,
+    bool? showSurfaceBuffer,
+    bool? showShadowMap,
+    bool? showPointShadowDebug,
+    ReflectionSettings? reflections,
+    FogSettings? fog,
   }) =>
       RenderSettings(
         specular: specular ?? this.specular,
@@ -265,6 +289,13 @@ final class RenderSettings {
         tonemap: tonemap ?? this.tonemap,
         bloom: bloom ?? this.bloom,
         shadows: shadows ?? this.shadows,
+        surfaceBuffer: surfaceBuffer ?? this.surfaceBuffer,
+        showSurfaceBuffer: showSurfaceBuffer ?? this.showSurfaceBuffer,
+        showShadowMap: showShadowMap ?? this.showShadowMap,
+        showPointShadowDebug:
+            showPointShadowDebug ?? this.showPointShadowDebug,
+        reflections: reflections ?? this.reflections,
+        fog: fog ?? this.fog,
       );
 }
 

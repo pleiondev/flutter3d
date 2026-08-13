@@ -168,6 +168,66 @@ const ResourceDesc bloomDesc = ResourceDesc(
 );
 
 void main() {
+  group('a transient resource may not be read', () {
+    test('declaring one something reads is refused', () {
+      // Tile memory does not survive the pass that wrote it, so the reader
+      // would sample whatever is left in the tile. On a tiler that is a wrong
+      // picture with nothing logged; on a desktop backend that ignores the
+      // storage mode it might even work, which is worse — it would then pass
+      // every test run here and fail on the hardware the mode exists for.
+      final graph = compile(
+        <FrameGraphNode>[
+          const _Pass('writer', writes: <ResourceId>[colour]),
+          // The reader must produce something the frame asks for, or the
+          // graph culls it and there is no reader left to protect.
+          const _Pass('reader',
+              reads: <ResourceId>[colour], writes: <ResourceId>[bloom]),
+        ],
+        outputs: <ResourceId>[bloom],
+      );
+      final resources = FrameResources(
+        source: _CountingSource(),
+        graph: graph,
+        frameWidth: 640,
+        frameHeight: 480,
+      );
+
+      expect(
+        () => resources.declare(const ResourceDesc(
+          id: colour,
+          format: TextureFormat.r16g16b16a16Float,
+          storageMode: StorageMode.deviceTransient,
+        )),
+        throwsA(isA<StateError>()
+            .having((e) => e.message, 'message', contains('colour'))),
+      );
+    });
+
+    test('one nobody reads is allowed', () {
+      // The case the mode exists for: a depth attachment a pass writes and
+      // nothing else ever looks at. Refusing this would make the check useless.
+      final graph = compile(
+        <FrameGraphNode>[const _Pass('writer', writes: <ResourceId>[colour])],
+        outputs: <ResourceId>[colour],
+      );
+      final resources = FrameResources(
+        source: _CountingSource(),
+        graph: graph,
+        frameWidth: 640,
+        frameHeight: 480,
+      );
+
+      expect(
+        () => resources.declare(const ResourceDesc(
+          id: colour,
+          format: TextureFormat.r16g16b16a16Float,
+          storageMode: StorageMode.deviceTransient,
+        )),
+        returnsNormally,
+      );
+    });
+  });
+
   group('a node is held to its keeps', () {
     // The promise `keeps` makes is the one thing about it a schedule cannot
     // enforce: a maintained resource is bound on every frame the node runs,
