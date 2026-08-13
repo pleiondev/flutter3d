@@ -3,6 +3,8 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'particle_random.dart';
+
 import 'particle.dart';
 import 'light_emitter.dart';
 import 'particle_affector.dart';
@@ -70,8 +72,16 @@ final class _Emission {
 }
 
 final class ParticleSystem {
-  ParticleSystem({this.capacity = 2048, math.Random? random})
-      : _random = random ?? math.Random(),
+  /// [seed] makes the whole simulation reproducible: the same seed and the
+  /// same sequence of `advance` calls give byte-identical particles, which is
+  /// what a golden of a burning torch needs.
+  ///
+  /// [random] is still accepted and now only supplies that seed, because a
+  /// `math.Random` cannot be re-seeded and per-particle streams need to be.
+  /// Passing one is deprecated; pass a seed.
+  ParticleSystem({this.capacity = 2048, math.Random? random, int? seed})
+      : _random = ParticleRandom(
+            seed ?? random?.nextInt(0x7FFFFFFF) ?? _defaultSeed),
         _pool = List<Particle>.generate(
           capacity,
           (_) => Particle(),
@@ -84,7 +94,19 @@ final class ParticleSystem {
   final int capacity;
 
   final List<Particle> _pool;
-  final math.Random _random;
+  final ParticleRandom _random;
+
+  /// Distinct per system when nobody says otherwise, so two systems in one
+  /// application do not emit the same burst.
+  static const int _defaultSeed = 0x5EED;
+
+  /// How many particles this system has ever emitted.
+  ///
+  /// The key each particle's random stream is derived from, so a particle's
+  /// values depend on *which emission it is* rather than on how many draws
+  /// anything else has taken. That is what stops adding a property from
+  /// shifting every particle born after it.
+  int _ordinal = 0;
 
   /// How many emissions were refused because the pool was full.
   ///
@@ -323,7 +345,10 @@ final class ParticleSystem {
     Vector3 origin,
     Vector3 axis,
   ) {
+    final ordinal = _ordinal++;
+    _random.reseed(ordinal, ParticleSalt.emitter);
     effect.emitter.emit(particle, origin, axis, _random);
+    _random.reseed(ordinal, ParticleSalt.birth);
     particle
       ..alive = true
       // Cleared, not left. A slot is reused, and [source] is the only field

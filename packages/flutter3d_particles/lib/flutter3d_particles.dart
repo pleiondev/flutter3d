@@ -31,4 +31,5 @@ export 'src/particle.dart';
 export 'src/particle_affector.dart';
 export 'src/particle_contributor.dart';
 export 'src/particle_emitter.dart';
+export 'src/particle_random.dart';
 export 'src/particle_system.dart';

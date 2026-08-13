@@ -215,6 +215,93 @@ void main() {
     });
   });
 
+  group('randomness belongs to the particle', () {
+    List<double> quadsOf(ParticleSystem system) {
+      final vertices =
+          Float32List(system.aliveCount * ParticleSystem.floatsPerParticle);
+      final indices = Uint32List(system.aliveCount * 6);
+      final written = system.writeQuads(
+          Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), vertices, indices);
+      return vertices.sublist(0, written * ParticleSystem.floatsPerParticle);
+    }
+
+    test('the same seed and steps give byte-identical particles', () {
+      // What a golden of a burning torch needs, and what the wall-clock
+      // `emitFor` could never provide.
+      List<double> run() {
+        final system = ParticleSystem(capacity: 128, seed: 4242);
+        system.emit(const _Torchless(),
+            _effect(count: 1, lifetime: const Range.exact(2.0)), Vector3.zero(),
+            perSecond: 40.0);
+        for (var i = 0; i < 30; i++) {
+          system.advance(1 / 60);
+        }
+        return quadsOf(system);
+      }
+
+      expect(run(), run());
+    });
+
+    test('two seeds do not', () {
+      List<double> run(int seed) {
+        final system = ParticleSystem(capacity: 128, seed: seed);
+        system.burst(_effect(count: 20), Vector3.zero());
+        // Stepped, or every particle sits on the origin and the only thing
+        // the seed decided — its direction — has not moved it anywhere yet.
+        system.step(1 / 60);
+        return quadsOf(system);
+      }
+
+      expect(run(1), isNot(run(2)));
+    });
+
+    test('drawing one more number moves one particle, not all of them', () {
+      // The property the per-particle streams exist for. With one shared
+      // generator, an emitter taking an extra draw shifted every particle born
+      // after it — so adding a feature moved every golden with particles in
+      // it, for a reason unrelated to the feature.
+      // A *sampled* size, not an exact one: with `Range.exact` nothing is
+      // drawn for it and the comparison below would hold however the streams
+      // were arranged. The first version of this test made exactly that
+      // mistake and passed against a single shared generator.
+      const spread = Range(0.2, 0.9);
+
+      final plain = ParticleSystem(capacity: 64, seed: 7);
+      plain.burst(
+        _effect(
+          count: 8,
+          size: spread,
+          emitter: const SphereEmitter(speed: Range.exact(1.0)),
+        ),
+        Vector3.zero(),
+      );
+
+      final greedy = ParticleSystem(capacity: 64, seed: 7);
+      greedy.burst(
+        _effect(count: 8, size: spread, emitter: const _GreedyEmitter()),
+        Vector3.zero(),
+      );
+
+      plain.step(1 / 60);
+      greedy.step(1 / 60);
+      final a = quadsOf(plain);
+      final b = quadsOf(greedy);
+      expect(a, hasLength(b.length));
+
+      // Every particle's *lifetime and size* come from the birth stream, which
+      // the emitter's extra draw must not have touched. Sizes are the quad's
+      // half-extent, readable as the spread between two opposite corners.
+      const floats = ParticleSystem.floatsPerParticle;
+      for (var i = 0; i < a.length ~/ floats; i++) {
+        final sizeA = (a[i * floats + 18] - a[i * floats]).abs();
+        final sizeB = (b[i * floats + 18] - b[i * floats]).abs();
+        expect(sizeB, closeTo(sizeA, 1e-6),
+            reason: 'particle \$i changed size because the *emitter* took an '
+                'extra random number');
+      }
+    });
+  });
+
   group('affectors compose', () {
     test('gravity pulls a particle down', () {
       final system = ParticleSystem(capacity: 4, random: math.Random(1));
@@ -573,4 +660,21 @@ class _Torch with LightEmitter {}
 /// A source that is not a light, for keying a standing emission.
 final class _Torchless {
   const _Torchless();
+}
+
+/// An emitter that draws one more number than [SphereEmitter] does.
+///
+/// Stands in for adding a feature: with one shared generator this shifted every
+/// particle born after it.
+final class _GreedyEmitter extends ParticleEmitter {
+  const _GreedyEmitter();
+
+  @override
+  void emit(
+      Particle particle, Vector3 origin, Vector3 direction, math.Random random) {
+    random.nextDouble(); // the extra draw
+    randomDirection(particle.velocity, random);
+    particle.velocity.scale(1.0);
+    particle.position.setFrom(origin);
+  }
 }
