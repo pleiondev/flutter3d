@@ -1,0 +1,28 @@
+# The SDK this repository is built with, pinned where the repository can see it.
+#
+# **The shader bundle format is tied to the Flutter version.** `impellerc` from
+# one SDK produces a bundle another may not read, and a mismatch shows up as a
+# renderer that cannot find its shaders — or worse, as pictures that differ for
+# a reason nobody attributes to the toolchain. `tool/golden.sh` says the same in
+# its header, and every golden in this tree was recorded against the version
+# below.
+#
+# CI has always pinned this, in `.github/workflows/ci.yml`. A local checkout did
+# not: the pin lived in `~/.config/mise/config.toml`, which is per-machine and
+# shared with every other project on it. So the version CI promised and the
+# version a developer got were two different facts that happened to agree.
+#
+# Two things this buys beyond agreement:
+#
+#   - **An SDK upgrade becomes a one-line tracked diff**, which `git revert`
+#     undoes. Before this file it was a global config edit with nothing in the
+#     history to say it happened.
+#   - **A git worktree actually isolates.** Without a repo-local pin, a worktree
+#     inherits the global SDK, so two versions cannot be compared side by side —
+#     which is exactly what an upgrade wants to do first.
+#
+# The URL and version-discovery machinery stays in the global config; only the
+# version belongs here, because only the version is a property of this project.
+[tools]
+flutter = "3.44.6"
+dart = "3.11.5"
