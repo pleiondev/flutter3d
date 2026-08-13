@@ -36,19 +36,19 @@ import 'package:flutter_test/flutter_test.dart';
 /// edge: `normal-mapping` is a grid of tiles and every internal boundary is
 /// one, which is the whole of its one percent.
 ///
-/// Two entries are not multisampling and both are documented where they are
-/// caused:
+/// The particle scenes were the exception and are not any more. They sat at
+/// 4.85% and 10.3% while this backend honoured `setDepthWrite(false)` and
+/// `flutter_gpu` ignored it; mirroring the engine's behaviour deliberately —
+/// see `CpuEncoder.setDepthWrite` — brought `particle-stack` to the same
+/// 0.431% as the scene with no particles in it at all, which is the cube's
+/// silhouette and nothing else. The burst sits a little above that floor
+/// because two hundred and twenty quads have edges of their own.
 ///
-/// - `particle-stack` at 10.3% is `setDepthWriteEnable(false)` doing nothing in
-///   `flutter_gpu` (see `gpu_device.dart`). The software backend is the one
-///   drawing what the engine asked for. This budget should *drop* when the SDK
-///   is fixed, and the number here is what says so.
-/// - `particles-burst` and `particles-plain` at 4.85% are the same defect in a
-///   scene that has two hundred and twenty particles instead of eight.
+/// When the SDK is fixed these three will move and this table is what says so.
 const Map<String, double> _budgets = <String, double>{
-  'particle-stack': 10.4,
-  'particles-burst': 5.0,
-  'particles-plain': 5.0,
+  'particle-stack': 0.50,
+  'particles-burst': 0.70,
+  'particles-plain': 0.70,
   'normal-mapping': 1.1,
   'cube-shadow-mover': 0.55,
   'cube-shadow-lit': 0.55,

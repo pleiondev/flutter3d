@@ -92,11 +92,17 @@ the wrong thing.
   so on Impeller depth writes can be switched on and never off. Additive
   particles, which ask for it so they do not occlude each other, occlude each
   other there: eight stacked at one point draw as one, and a burst comes out
-  about three percent dim. `particle-stack` is the minimal reproduction and is
-  recorded showing the wrong picture on purpose, so it changes when this is
-  fixed. A fresh pass starts with writes off, so the fix is for a pass that
-  needs them off never to ask for them on — an engine change, not a backend
-  one.
+  about three percent dim. A fresh pass starts with writes off, so the fix is
+  for a pass that needs them off never to ask for them on — an engine change,
+  not a backend one.
+
+  **The software backend mirrors this deliberately**, argument and default
+  alike, so that the two draw the same picture: an honest implementation put
+  the particle scenes five to ten percent apart, and a gap that size is loud
+  enough to hide a real regression behind. The mirror is pinned by
+  `flutter3d_cpu/test/depth_write_test.dart`, which is where the reproduction
+  now lives — a picture no longer shows it. Delete that file and make
+  `setDepthWrite` honest again in the same commit the SDK is fixed.
 - **Ask before requesting what a backend may not have.** `supportsWireframe`,
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`. A backend refuses loudly rather than substituting

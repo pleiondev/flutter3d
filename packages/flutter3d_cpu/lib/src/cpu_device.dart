@@ -290,7 +290,10 @@ final class CpuEncoder implements CommandEncoder {
   PrimitiveType _primitive = PrimitiveType.triangle;
   CullMode _cull = CullMode.none;
   WindingOrder _winding = WindingOrder.counterClockwise;
-  bool _depthWrite = true;
+  // False, matching a fresh `flutter_gpu` RenderPass, whose
+  // `DepthAttachmentDescriptor` starts with writes disabled. See
+  // [setDepthWrite], which is bug-compatible with the engine on purpose.
+  bool _depthWrite = false;
   CompareFunction _depthCompare = CompareFunction.less;
   BlendState? _blend;
   _CpuPipeline? _pipeline;
@@ -330,8 +333,37 @@ final class CpuEncoder implements CommandEncoder {
   @override
   void setWindingOrder(WindingOrder order) => _winding = order;
 
+  /// **Deliberately bug-compatible with `flutter_gpu`: the argument is
+  /// ignored and any call turns depth writes on.**
+  ///
+  /// Not a mistake and not laziness. The engine's native setter does this:
+  ///
+  /// ```cpp
+  /// // bin/cache/pkg/flutter_gpu/render_pass.cc:538
+  /// void InternalFlutterGpu_RenderPass_SetDepthWriteEnable(
+  ///     flutter::gpu::RenderPass* wrapper, bool enable) {
+  ///   auto& depth = wrapper->GetDepthAttachmentDescriptor();
+  ///   depth.depth_write_enabled = true;
+  /// }
+  /// ```
+  ///
+  /// So on the hardware backend depth writes can be switched on and never off,
+  /// and a fresh pass starts with them off — which is why [_depthWrite] starts
+  /// false here rather than true. Mirroring it exactly, argument and default
+  /// and all, is what keeps the two backends comparable: with the honest
+  /// implementation the particle scenes sat five and ten percent apart, and
+  /// that gap is loud enough to hide a real regression behind.
+  ///
+  /// The cost of this choice, stated because it is real: the golden that used
+  /// to reproduce the engine bug in a picture no longer does. What was a ten
+  /// percent gap is now this comment, the note in COMPATIBILITY.md, and
+  /// `test/depth_write_test.dart`, which pins the mirror so that anybody who
+  /// "fixes" this line finds out why it is here before their goldens move.
+  ///
+  /// Undo it the day `flutter_gpu` stops doing this — and not before, because
+  /// until then an honest backend and a truthful one are different things.
   @override
-  void setDepthWrite(bool enabled) => _depthWrite = enabled;
+  void setDepthWrite(bool enabled) => _depthWrite = true;
 
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
