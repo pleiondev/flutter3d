@@ -315,13 +315,14 @@ final class ParticleSystem {
       // alive for, not for all of it. Without that, a duration of a tenth of a
       // second at 120 Hz would round up to the whole sub-step it expires in,
       // and a very short emission would be measurably longer than it asked.
+      //
+      // An emission is never seen here with its time already gone: it is
+      // dropped at the end of the sub-step that spends it, and this runs once
+      // per sub-step. So there is no expired case to handle, and a branch for
+      // one would be a branch nothing can reach.
       var slice = h;
       final left = emission.remaining;
       if (left != null) {
-        if (left <= 0.0) {
-          (spent ??= <Object>[]).add(entry.key);
-          continue;
-        }
         if (left < slice) slice = left;
         emission.remaining = left - h;
         if (emission.spent) (spent ??= <Object>[]).add(entry.key);
