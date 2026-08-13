@@ -48,6 +48,19 @@ frame releases by identity, and value equality would quietly break both.
 **Vocabulary.** All sixteen enums in `formats.dart`, plus `SamplerOptions`,
 `RenderTargetSpec`, `TextureAllocator` and `RenderTargetPool`.
 
+`PassState` and the `setState` extension are promised too, with one thing worth
+saying about them: **no backend implements anything for them.** `setState` is an
+extension over `PassEncoder`, statically dispatched, built only from types
+already listed here — so a backend gets it for free and cannot get it wrong.
+They live in this package rather than in the engine for the backend nobody has
+written yet: a Vulkan-shaped one has to accumulate rasteriser state and look a
+pipeline up at `draw()`, and that needs something hashable to accumulate into.
+
+Its fields are optional on purpose, and that is a semantic rather than a
+convenience — see the next section on `setDepthWrite`. Unset means *emit
+nothing*, because what an omitted call means differs per backend and the
+omissions in a pass's sequence are load-bearing.
+
 Value names inside the enums are load-bearing beyond their own package: the
 Impeller backend's translation asserts that each maps to the flutter_gpu value
 of the *same name*, which is what catches a mapping that swapped two entries.

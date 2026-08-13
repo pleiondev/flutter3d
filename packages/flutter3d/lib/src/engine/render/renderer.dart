@@ -1851,6 +1851,39 @@ final class Renderer implements RenderServices {
     return pipeline;
   }
 
+  /// What every full-screen pass sets, minus the rectangle.
+  ///
+  /// Depth out of the way rather than merely unused: a full-screen triangle
+  /// covers everything, so a depth test it did not ask for would decide which
+  /// of its own three vertices survived.
+  ///
+  /// Blending is *off* rather than unmentioned, which is a distinction this
+  /// type exists to keep. On WebGL an unmentioned field inherits whatever the
+  /// last pass left in global GL state, and the pass before a post chain is
+  /// usually the scene, which blends.
+  static const PassState _kFullscreenState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// The same, adding to the target instead of replacing it.
+  ///
+  /// Only the bloom upsample wants this. It used to be a second copy of the
+  /// block above, and the copies had drifted: this one set blending *after*
+  /// depth and the other before. Nothing depended on it — these are
+  /// independent — but it is the reason the two could not be one function with
+  /// a blend argument, and nothing would have noticed if they had been.
+  static const PassState _kFullscreenAdditiveState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    cullMode: CullMode.none,
+    blend: BlendState.additive,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
   /// Runs one full-screen pass into [target].
   ///
   /// Every post stage is the same shape — bind the triangle, bind a source
@@ -1880,14 +1913,10 @@ final class Renderer implements RenderServices {
       ],
     ));
 
-    final full = ScreenRect.of(target);
-    pass.setViewport(full);
-    pass.setScissor(full);
-    pass.setPrimitiveType(PrimitiveType.triangle);
-    pass.setCullMode(CullMode.none);
-    pass.setBlend(null);
-    pass.setDepthWrite(false);
-    pass.setDepthCompare(CompareFunction.always);
+    pass.setState(_kFullscreenState.copyWith(
+      viewport: ScreenRect.of(target),
+      scissor: ScreenRect.of(target),
+    ));
 
     pass.bindPipeline(pipeline);
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
@@ -2004,14 +2033,10 @@ final class Renderer implements RenderServices {
       ],
     ));
 
-    final full = ScreenRect.of(target);
-    pass.setViewport(full);
-    pass.setScissor(full);
-    pass.setPrimitiveType(PrimitiveType.triangle);
-    pass.setCullMode(CullMode.none);
-    pass.setDepthWrite(false);
-    pass.setDepthCompare(CompareFunction.always);
-    pass.setBlend(BlendState.additive);
+    pass.setState(_kFullscreenAdditiveState.copyWith(
+      viewport: ScreenRect.of(target),
+      scissor: ScreenRect.of(target),
+    ));
 
     pass.bindPipeline(
       _postPipeline(_bloomUpsamplePipeline, bloomUpsampleShader,

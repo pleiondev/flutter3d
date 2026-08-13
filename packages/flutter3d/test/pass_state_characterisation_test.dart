@@ -145,7 +145,7 @@ void main() {
     );
   });
 
-  test('bloom adds passes that all set the same full-screen state', () {
+  test('every full-screen pass now sets the same state, in one order', () {
     final passes = renderFrame(
       settings: const RenderSettings(
         bloom: BloomSettings(intensity: 1.0),
@@ -160,19 +160,23 @@ void main() {
       print('  [$i] ${passes[i].join(' | ')}');
     }
 
-    // **The two full-screen paths are not the same sequence, and finding that
-    // out is what this file was written for.**
+    // **The two full-screen paths were not the same sequence, and now they
+    // are.** They differed in the order they set state: the plain one set
+    // blend before depth, the additive one after. Nothing depended on it —
+    // these are independent pieces of pass state, set before any draw, and no
+    // backend's setter reads another's value — but it was the reason the two
+    // could not be one function with a blend argument, and nothing would have
+    // noticed if they had been made one anyway.
     //
-    // `_drawFullscreen` and `_drawFullscreenAdditive` were described as
-    // differing only in blend state and load action. They also differ in the
-    // *order* they set state: the plain one sets blend before depth, the
-    // additive one after. Nothing depends on it — these are independent pieces
-    // of pass state — but it means the two cannot collapse into one call with
-    // a different blend argument without changing one of the sequences, and a
-    // refactor that did so quietly would have had nothing to notice it.
-    //
-    // Recorded rather than fixed. Fixing it is R3's business, and doing it here
-    // would leave this file asserting what it had just changed.
+    // Both now go through `PassState`, which emits in one fixed order, so the
+    // only remaining difference is the blend value. This test changing is the
+    // change being visible; the goldens on two backends are what say it was
+    // safe.
+    List<String> stateOf(int i) => passes[i]
+        .where((c) =>
+            c != 'draw' && !c.startsWith('viewport') && !c.startsWith('scissor'))
+        .toList();
+
     const plain = <String>[
       'primitive triangle',
       'cull none',
@@ -183,25 +187,20 @@ void main() {
     const additive = <String>[
       'primitive triangle',
       'cull none',
+      'blend one/one',
       'depthWrite false',
       'depthCompare always',
-      'blend one/one',
     ];
 
-    // Downsample and threshold: five passes, the plain order.
+    // Threshold and downsample: the plain shape.
     for (var i = 1; i <= 5; i++) {
-      expect(passes[i].where((c) => c != 'draw' && !c.startsWith('viewport') &&
-              !c.startsWith('scissor')).toList(), plain,
-          reason: 'pass \$i is a plain full-screen draw');
+      expect(stateOf(i), plain, reason: 'pass $i is a plain full-screen draw');
     }
-    // Upsample: four passes, the additive order.
+    // Upsample: the same shape, adding instead of replacing.
     for (var i = 6; i <= 9; i++) {
-      expect(passes[i].where((c) => c != 'draw' && !c.startsWith('viewport') &&
-              !c.startsWith('scissor')).toList(), additive,
-          reason: 'pass \$i is an additive full-screen draw');
+      expect(stateOf(i), additive,
+          reason: 'pass $i is an additive full-screen draw');
     }
-    // And the composite is plain again.
-    expect(passes[10].where((c) => c != 'draw' && !c.startsWith('viewport') &&
-            !c.startsWith('scissor')).toList(), plain);
+    expect(stateOf(10), plain, reason: 'and the composite is plain again');
   });
 }

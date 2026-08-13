@@ -23,6 +23,10 @@ export 'src/graphics_device.dart';
 /// Recording a pass — state, bindings, draws.
 export 'src/command_encoder.dart';
 
+// Pass state as one value. No backend implements anything for it — see the
+// file's header for why it is here rather than in the engine.
+export 'src/pass_state.dart';
+
 /// Enums, one per thing a caller has to name.
 export 'src/formats.dart';
 
