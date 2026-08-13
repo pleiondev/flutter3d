@@ -86,6 +86,48 @@ final class RecordedClearBindings extends Recorded {
   const RecordedClearBindings();
 }
 
+/// Rasteriser state, recorded **in sequence** as well as kept as a field.
+///
+/// The fields answer "what was it set to"; these answer "in what order, and
+/// how many times". Those are different questions and only the second one
+/// catches the interesting mistakes. A pass that sets depth write twice, or
+/// sets it after the draw that needed it, or stops setting it at all because a
+/// refactor decided the value was already right, reads identically through the
+/// fields and differently here.
+///
+/// It matters most where state changes *inside* a pass: the cube atlas blanks
+/// each tile with depth write off and compare `always`, then restores both for
+/// the casters. Through the fields that whole loop is one final value.
+final class RecordedPrimitiveType extends Recorded {
+  const RecordedPrimitiveType(this.type);
+  final PrimitiveType type;
+}
+
+final class RecordedPolygonMode extends Recorded {
+  const RecordedPolygonMode(this.mode);
+  final PolygonMode mode;
+}
+
+final class RecordedCullMode extends Recorded {
+  const RecordedCullMode(this.mode);
+  final CullMode mode;
+}
+
+final class RecordedWindingOrder extends Recorded {
+  const RecordedWindingOrder(this.order);
+  final WindingOrder order;
+}
+
+final class RecordedDepthWrite extends Recorded {
+  const RecordedDepthWrite(this.enabled);
+  final bool enabled;
+}
+
+final class RecordedDepthCompare extends Recorded {
+  const RecordedDepthCompare(this.compare);
+  final CompareFunction compare;
+}
+
 /// A pass that was opened, and everything that went into it.
 final class FakePass implements CommandEncoder {
   FakePass(this.descriptor);
@@ -120,22 +162,40 @@ final class FakePass implements CommandEncoder {
   void setScissor(ScreenRect rect) => commands.add(RecordedScissor(rect));
 
   @override
-  void setPrimitiveType(PrimitiveType type) => primitiveType = type;
+  void setPrimitiveType(PrimitiveType type) {
+    primitiveType = type;
+    commands.add(RecordedPrimitiveType(type));
+  }
 
   @override
-  void setPolygonMode(PolygonMode mode) => polygonMode = mode;
+  void setPolygonMode(PolygonMode mode) {
+    polygonMode = mode;
+    commands.add(RecordedPolygonMode(mode));
+  }
 
   @override
-  void setCullMode(CullMode mode) => cullMode = mode;
+  void setCullMode(CullMode mode) {
+    cullMode = mode;
+    commands.add(RecordedCullMode(mode));
+  }
 
   @override
-  void setWindingOrder(WindingOrder order) => windingOrder = order;
+  void setWindingOrder(WindingOrder order) {
+    windingOrder = order;
+    commands.add(RecordedWindingOrder(order));
+  }
 
   @override
-  void setDepthWrite(bool enabled) => depthWrite = enabled;
+  void setDepthWrite(bool enabled) {
+    depthWrite = enabled;
+    commands.add(RecordedDepthWrite(enabled));
+  }
 
   @override
-  void setDepthCompare(CompareFunction compare) => depthCompare = compare;
+  void setDepthCompare(CompareFunction compare) {
+    depthCompare = compare;
+    commands.add(RecordedDepthCompare(compare));
+  }
 
   @override
   void setBlend(BlendState? state, {int attachment = 0}) =>
