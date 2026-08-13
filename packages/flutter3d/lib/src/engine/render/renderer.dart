@@ -1162,10 +1162,6 @@ final class Renderer implements RenderServices {
       depth: DepthTarget(texture: depth),
     ));
 
-    pass.setPrimitiveType(PrimitiveType.triangle);
-    pass.setDepthWrite(true);
-    pass.setDepthCompare(CompareFunction.less);
-    pass.setBlend(null);
     final casterCull = switch (settings.casterFaces) {
       // Culling the front faces is what leaves the back ones drawn, and the
       // other way about. The enum is named after what ends up *recorded*
@@ -1175,7 +1171,8 @@ final class Renderer implements RenderServices {
       ShadowCasterFaces.back => CullMode.frontFace,
       ShadowCasterFaces.both => CullMode.none,
     };
-    pass.setCullMode(casterCull);
+    final casterState = _kShadowCasterState.copyWith(cullMode: casterCull);
+    pass.setState(casterState);
 
     final mvp = vm.Matrix4.identity();
     final position = vm.Vector3.zero();
@@ -1236,18 +1233,14 @@ final class Renderer implements RenderServices {
         // clears. Depth is still cleared attachment-wide by the pass, so this
         // only has to write colour — and must not touch depth, or it would
         // occlude the casters that follow it.
-        pass.setDepthWrite(false);
-        pass.setDepthCompare(CompareFunction.always);
-        pass.setCullMode(CullMode.none);
+        pass.setState(_kShadowTileResetState);
         pass.bindPipeline(_cubeShadowResetPipeline ??=
             device.createPipeline(resetVertexShader, resetShader));
         pass.bindVertexBuffer(_fullscreenTriangle, 3);
         pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
         pass.draw();
 
-        pass.setDepthWrite(true);
-        pass.setDepthCompare(CompareFunction.less);
-        pass.setCullMode(casterCull);
+        pass.setState(casterState);
 
         for (final node in scene.meshes) {
           if (!node.visibleInHierarchy || !node.castsShadow) continue;
@@ -1707,16 +1700,15 @@ final class Renderer implements RenderServices {
     ));
 
     final full = ScreenRect(width: resolution, height: resolution);
-    pass.setViewport(full);
-    pass.setScissor(full);
-    pass.setPrimitiveType(PrimitiveType.triangle);
-    pass.setDepthWrite(true);
-    pass.setDepthCompare(CompareFunction.less);
-    pass.setBlend(null);
-    // Front faces culled, so the depth stored is the back of each caster. That
+    // The same caster state the cube atlas uses, with one difference: front
+    // faces culled, so the depth stored is the *back* of each caster. That
     // moves the comparison surface away from the lit face and removes most of
     // the acne before bias and normal offset have to deal with any.
-    pass.setCullMode(CullMode.frontFace);
+    pass.setState(_kShadowCasterState.copyWith(
+      viewport: full,
+      scissor: full,
+      cullMode: CullMode.frontFace,
+    ));
 
     final shadowShader = shaders['ShadowDepth'];
     if (shadowShader == null) {
@@ -1850,6 +1842,67 @@ final class Renderer implements RenderServices {
     store(pipeline);
     return pipeline;
   }
+
+  /// The diagnostic overlay: lines, on top of everything.
+  ///
+  /// Depth compare `always` rather than merely writing nothing — a bounding box
+  /// that disappears inside the very object it bounds is not much of a
+  /// diagnostic. It is also why the scene pass re-establishes its own state per
+  /// view: this leaves the pass drawing lines.
+  static const PassState _kDebugLineState = PassState(
+    primitiveType: PrimitiveType.line,
+    polygonMode: PolygonMode.fill,
+    cullMode: CullMode.none,
+    blend: null,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
+
+  /// What each view re-establishes at the top of the scene pass.
+  ///
+  /// Per view rather than once, and that is not redundancy: the debug overlay
+  /// at the end of a view leaves the pass drawing lines, so the next view has
+  /// to say it wants triangles again. Compare this with the overlay's own
+  /// state and the reason each of these fields is here is readable in one
+  /// diff.
+  ///
+  /// Blending is deliberately absent: it is per material, decided per mesh a
+  /// few hundred lines down, and mentioning it here would be a value the next
+  /// draw overwrites.
+  static const PassState _kSceneViewState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    depthWrite: true,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// How a caster is drawn into the cube atlas: depth on, nothing blended.
+  ///
+  /// [PassState.cullMode] is filled in per pass from `ShadowCasterFaces`, which
+  /// is the one thing about this that a setting decides.
+  static const PassState _kShadowCasterState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    blend: null,
+    depthWrite: true,
+    depthCompare: CompareFunction.less,
+  );
+
+  /// Blanking one tile of the atlas by drawing over it.
+  ///
+  /// The pass loads rather than clears — clearing is attachment-wide and would
+  /// erase every other light's tiles — so a refreshed tile is reset by drawing,
+  /// and this is the state that draw needs: **depth untouched**, or the reset
+  /// would occlude the casters that follow it into the same tile.
+  ///
+  /// Written as its own named state rather than three calls inside a loop,
+  /// which is where this whole type earns its keep: the alternation between
+  /// this and the caster state is now two names rather than six scattered
+  /// calls, and the `depthWrite: false` that Impeller silently ignores is
+  /// visible as a difference between two values instead of buried in a body.
+  static const PassState _kShadowTileResetState = PassState(
+    cullMode: CullMode.none,
+    depthWrite: false,
+    depthCompare: CompareFunction.always,
+  );
 
   /// What every full-screen pass sets, minus the rectangle.
   ///
@@ -2504,16 +2557,12 @@ final class Renderer implements RenderServices {
       //
       // Viewport and scissor are set explicitly because both default to a
       // zero-sized rect, and nothing in the API complains about drawing into one.
-      pass.setDepthWrite(true);
-      pass.setDepthCompare(CompareFunction.less);
-      pass.setPrimitiveType(PrimitiveType.triangle);
       // Asked, not assumed. A backend without glPolygonMode — OpenGL ES has
       // none — refuses the request rather than filling the triangles instead,
       // and a refusal mid-frame is a crash where a declined setting is a
       // picture. Wireframe there needs line primitives from an index buffer
       // built for it, which is geometry work and not a backend's to invent.
       final wireframe = settings.wireframe && device.supportsWireframe;
-      pass.setPolygonMode(wireframe ? PolygonMode.line : PolygonMode.fill);
 
       final fraction = view.viewportFraction;
       final vx = (fraction.x * width).round();
@@ -2522,8 +2571,11 @@ final class Renderer implements RenderServices {
       final vh = math.max(1, (fraction.height * height).round());
 
       final viewRect = ScreenRect(x: vx, y: vy, width: vw, height: vh);
-      pass.setViewport(viewRect);
-      pass.setScissor(viewRect);
+      pass.setState(_kSceneViewState.copyWith(
+        viewport: viewRect,
+        scissor: viewRect,
+        polygonMode: wireframe ? PolygonMode.line : PolygonMode.fill,
+      ));
 
       final camera = view.camera;
       final aspect = vw / vh;
@@ -2886,13 +2938,7 @@ final class Renderer implements RenderServices {
     ));
 
     final full = ScreenRect(width: width, height: height);
-    pass.setViewport(full);
-    pass.setScissor(full);
-    pass.setPrimitiveType(PrimitiveType.triangle);
-    pass.setCullMode(CullMode.none);
-    pass.setBlend(null);
-    pass.setDepthWrite(false);
-    pass.setDepthCompare(CompareFunction.always);
+    pass.setState(_kFullscreenState.copyWith(viewport: full, scissor: full));
     pass.bindPipeline(
       _postPipeline(_reflectionPipeline, reflectionShader,
           (p) => _reflectionPipeline = p),
@@ -2962,13 +3008,7 @@ final class Renderer implements RenderServices {
     ));
 
     final full = ScreenRect(width: width, height: height);
-    pass.setViewport(full);
-    pass.setScissor(full);
-    pass.setPrimitiveType(PrimitiveType.triangle);
-    pass.setCullMode(CullMode.none);
-    pass.setBlend(null);
-    pass.setDepthWrite(false);
-    pass.setDepthCompare(CompareFunction.always);
+    pass.setState(_kFullscreenState.copyWith(viewport: full, scissor: full));
 
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
@@ -3087,14 +3127,12 @@ final class Renderer implements RenderServices {
       ));
 
       final full = ScreenRect(width: size, height: size);
-      pass.setViewport(full);
-      pass.setScissor(full);
-      pass.setPrimitiveType(PrimitiveType.triangle);
-      pass.setCullMode(CullMode.none);
-      pass.setBlend(null);
+      pass.setState(_kFullscreenState.copyWith(viewport: full, scissor: full));
+      // The second attachment, which is the whole point of this probe. One
+      // `PassState` describes one attachment's blending; a second is a second
+      // call, and inventing a list of them for a diagnostic nothing else needs
+      // would be inventing the semantics of the general case too.
       pass.setBlend(null, attachment: 1);
-      pass.setDepthWrite(false);
-      pass.setDepthCompare(CompareFunction.always);
 
       pass.bindPipeline(device.createPipeline(fullscreenVertexShader, probe));
       pass.bindVertexBuffer(_fullscreenTriangle, 3);
@@ -3190,14 +3228,7 @@ final class Renderer implements RenderServices {
         debugLineFragmentShader,
       ),
     );
-    encoder.setPrimitiveType(PrimitiveType.line);
-    encoder.setPolygonMode(PolygonMode.fill);
-    encoder.setCullMode(CullMode.none);
-    encoder.setBlend(null);
-    // Drawn on top of the scene: a bounding box that disappears inside the very
-    // object it bounds is not much of a diagnostic.
-    encoder.setDepthWrite(false);
-    encoder.setDepthCompare(CompareFunction.always);
+    encoder.setState(_kDebugLineState);
 
     final vertexCount = debugDraw.vertexCount;
     encoder.bindVertexData(debugDraw.vertexBytes, vertexCount);

@@ -61,6 +61,17 @@ final class ViewModelNode extends RenderNode {
   @override
   bool get isActive => scene.meshes.isNotEmpty;
 
+  /// Its own pass, so nothing the scene left is believed.
+  ///
+  /// The weapon is drawn over a finished scene with its own depth buffer, which
+  /// is what stops the world clipping through a model held a few centimetres
+  /// from the camera.
+  static const PassState _kViewModelState = PassState(
+    primitiveType: PrimitiveType.triangle,
+    depthWrite: true,
+    depthCompare: CompareFunction.less,
+  );
+
   @override
   void execute(NodeFrame frame) {
     final hdr = frame.sceneColor;
@@ -89,12 +100,7 @@ final class ViewModelNode extends RenderNode {
     );
 
     final full = ScreenRect(width: width, height: height);
-    encoder
-      ..setViewport(full)
-      ..setScissor(full)
-      ..setDepthWrite(true)
-      ..setDepthCompare(CompareFunction.less)
-      ..setPrimitiveType(PrimitiveType.triangle);
+    encoder.setState(_kViewModelState.copyWith(viewport: full, scissor: full));
 
     // Nothing is bound in a new pass, so the state has to forget what the
     // scene pass left it believing.

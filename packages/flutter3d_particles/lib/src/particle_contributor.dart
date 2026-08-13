@@ -18,6 +18,27 @@ import 'particle_system.dart';
 /// Depth write is off and blending is additive. Additive is what removes the
 /// need to sort: addition is commutative, so a thousand particles in one
 /// unsorted batch composite correctly, and one draw call covers all of them.
+/// How particles are drawn: additive, unculled, depth-tested but never written.
+///
+/// **The depth write is the interesting field, and on two backends it does
+/// nothing.** Particles must not occlude each other — with additive blending
+/// they have no business trying — but `flutter_gpu`'s setter ignores its
+/// argument, so on Impeller and on the software backend that mirrors it, they
+/// do. See `flutter3d_graphics/COMPATIBILITY.md`. Written as a named value
+/// rather than five calls so the request is legible even where it is refused.
+///
+/// A quad seen from behind is still a quad, which is why nothing is culled:
+/// culling would make half the particles vanish depending on which way the
+/// camera turned.
+const PassState _kParticleState = PassState(
+  primitiveType: PrimitiveType.triangle,
+  polygonMode: PolygonMode.fill,
+  cullMode: CullMode.none,
+  blend: BlendState.additive,
+  depthWrite: false,
+  depthCompare: CompareFunction.less,
+);
+
 final class ParticleContributor extends PassContributor {
   ParticleContributor(this.particles);
 
@@ -73,16 +94,7 @@ final class ParticleContributor extends PassContributor {
     encoder.bindPipeline(
       _pipeline ??= frame.device.createPipeline(vertexShader, fragmentShader),
     );
-    encoder.setPrimitiveType(PrimitiveType.triangle);
-    encoder.setPolygonMode(PolygonMode.fill);
-    // A quad seen from behind is still a quad; culling one would make half the
-    // particles vanish depending on which way the camera turned.
-    encoder.setCullMode(CullMode.none);
-    encoder.setBlend(BlendState.additive);
-    // Tested against the world, but never written: particles must not occlude
-    // each other, and with additive blending they have no business trying.
-    encoder.setDepthWrite(false);
-    encoder.setDepthCompare(CompareFunction.less);
+    encoder.setState(_kParticleState);
 
     final vertexCount = written * 4;
     final indexCount = written * 6;

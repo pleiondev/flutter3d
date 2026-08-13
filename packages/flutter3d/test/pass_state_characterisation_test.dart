@@ -115,16 +115,16 @@ void main() {
     expect(
       passes[0],
       <String>[
-        'depthWrite true',
-        'depthCompare less',
-        'primitive triangle',
-        'polygon fill',
         'viewport 64x48@0,0',
         'scissor 64x48@0,0',
+        'primitive triangle',
+        'polygon fill',
+        'depthWrite true',
+        'depthCompare less',
       ],
-      reason: 'the scene pass establishes depth and topology, then the view — '
-          'and the view part repeats per view, because the debug overlay '
-          'leaves the pass drawing lines',
+      reason: 'the whole block repeats per view, because the debug overlay at '
+          'the end of a view leaves the pass drawing lines. Note the absence '
+          'of blending: that is per material and set per mesh',
     );
 
     expect(
