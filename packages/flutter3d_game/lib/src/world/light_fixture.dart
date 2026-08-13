@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:vector_math/vector_math.dart';
+
 import 'mechanism.dart';
 
 /// How a light behaves over time.
@@ -107,14 +109,29 @@ final class LightFixture extends Mechanism {
   bool get isMeasured => _measured;
   bool _measured = false;
 
-  /// Reports what this fixture's fire actually amounts to, from 0 to 1.
+  /// Where the fire actually is, or null if nothing has said.
+  ///
+  /// A flame is not a point and it does not sit still, so the light it casts
+  /// belongs where the particles currently are rather than at the bracket
+  /// holding them. The drift is small — a few centimetres — and it is the
+  /// difference between a light that flickers and one that lives.
+  Vector3? get measuredAt => _measuredAt;
+  Vector3? _measuredAt;
+
+  /// Reports what this fixture's fire actually amounts to, from 0 to 1, and
+  /// optionally where it is.
   ///
   /// Called every step by whatever owns the particles. The flicker of a real
   /// flame is the randomness of its own burning, so a light driven from here
   /// needs no wobble added to it.
-  void measure(double fraction) {
+  ///
+  /// [at] is copied rather than kept: the caller's vector is a live buffer the
+  /// particle system rewrites every step, and holding it would make this
+  /// fixture's idea of where its fire is change underneath whoever is reading.
+  void measure(double fraction, {Vector3? at}) {
     _measured = true;
     _brightness = enabled ? fraction.clamp(0.0, 1.0) : 0.0;
+    if (at != null) (_measuredAt ??= Vector3.zero()).setFrom(at);
   }
 
   double _time = 0.0;

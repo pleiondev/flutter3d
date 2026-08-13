@@ -350,6 +350,12 @@ final class FixtureVisuals {
         final node = name == null ? null : _lights[name];
         if (node != null) {
           node.intensity = (_baseIntensity[node] ?? 0.0) * brightness;
+          // And where it is, not only how bright. The fire is measured from
+          // its own particles, so the light sits where they currently are
+          // rather than at the bracket on the wall. Null until something has
+          // measured it, which is every fixture that is not a fire.
+          final at = mechanism.measuredAt;
+          if (at != null) node.setPositionFrom(at);
         }
       }
     }

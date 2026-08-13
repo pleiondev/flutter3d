@@ -24,6 +24,8 @@ ParticleEffect _effect({
     );
 
 void main() {
+  _glowCentreTests();
+
   group('the pool', () {
     test('a burst does not inherit the previous occupant of its slot', () {
       // The bug this pins: `_initialise` set every field a particle is born
@@ -655,6 +657,96 @@ void main() {
 }
 
 /// A stand-in for something whose particles are its light, like a torch.
+/// Where a glow says its fire is, and when it is entitled to say so.
+///
+/// Split out because `centre` was computed every step for months and read by
+/// nobody, so nothing would have noticed if it had been wrong — and the value
+/// it holds before the first particle exists is the world origin, which is the
+/// one value that must never reach a light.
+void _glowCentreTests() {
+  group('a glow', () {
+    test('does not claim a position before it has seen a particle', () {
+      final system = ParticleSystem(capacity: 64, seed: 3);
+      final torch = _Torch();
+      expect(torch.glow.located, isFalse);
+
+      // A step with nothing emitted must not promote the origin into an
+      // answer. This is the whole guard: a light following an unlocated glow
+      // sits at (0, 0, 0), which in a level is inside something.
+      system.advance(1.0 / 60.0);
+      expect(torch.glow.located, isFalse);
+    });
+
+    test('jumps to the first measurement rather than easing in from nowhere', () {
+      final system = ParticleSystem(capacity: 64, seed: 3);
+      final torch = _Torch();
+      final origin = Vector3(12.0, 3.0, -7.0);
+      system.emit(torch, _effect(count: 1), origin, perSecond: 240.0);
+      system.advance(1.0 / 60.0);
+
+      expect(torch.glow.located, isTrue);
+      // Within the burst's own spread of the emitter, not a tenth of the way
+      // there from the origin — which is what an exponential ease from zero
+      // would give on the first step, and would drag the light across the
+      // level over the following tenth of a second.
+      expect((torch.glow.centre - origin).length, lessThan(1.0),
+          reason: 'the first measurement is taken, not blended with (0, 0, 0)');
+    });
+
+    test('a torch that is put out stops casting light', () {
+      // The bug: `stopEmitting` removed the emitter from the measured set, so
+      // nothing called `beginStep` on its glow again and the glow froze at
+      // whatever it last read. The flame died on screen and the light it cast
+      // stayed at full — a room lit by a torch that is visibly out.
+      //
+      // Found by a test written for something else entirely, which reported a
+      // count of 22 live particles for a system in which everything had died.
+      final system = ParticleSystem(capacity: 256, seed: 11);
+      final torch = _Torch();
+      system.emit(torch, _effect(count: 1, lifetime: const Range.exact(0.1)),
+          Vector3(4.0, 1.0, 0.0), perSecond: 300.0);
+      system.advance(0.5);
+      expect(torch.glow.power, greaterThan(0.0), reason: 'it should be lit');
+
+      system.stopEmitting(torch);
+      for (var i = 0; i < 60; i++) {
+        system.advance(1.0 / 60.0);
+      }
+      expect(torch.glow.count, 0);
+      expect(torch.glow.power, lessThan(1e-4),
+          reason: 'the light outlived the fire that was measured to produce it');
+    });
+
+    test('keeps its last position through a gap with no particles', () {
+      // `count` drops to zero whenever a step catches a gap between particles.
+      // A light that read `count` instead of `located` would snap back to the
+      // origin on those steps and strobe.
+      final system = ParticleSystem(capacity: 64, seed: 3);
+      final torch = _Torch();
+      final origin = Vector3(12.0, 3.0, -7.0);
+      system.emit(torch, _effect(count: 1, lifetime: const Range.exact(0.05)),
+          origin, perSecond: 240.0);
+      system.advance(1.0 / 60.0);
+      final settled = torch.glow.centre.clone();
+
+      system.stopEmitting(torch);
+      for (var i = 0; i < 30; i++) {
+        system.advance(1.0 / 60.0);
+      }
+      expect(torch.glow.count, 0, reason: 'everything should have died');
+      expect(torch.glow.located, isTrue);
+      // Near where it was, and nowhere near the origin. Not exactly where it
+      // was: the last particles kept moving under their own velocity for the
+      // few steps it took them to die, and the centre followed them, which is
+      // correct. The failure being guarded against is a snap back to (0, 0, 0),
+      // which from here would be a jump of fourteen metres.
+      expect((torch.glow.centre - settled).length, lessThan(0.5));
+      expect(torch.glow.centre.length, greaterThan(10.0),
+          reason: 'the centre fell back to the world origin');
+    });
+  });
+}
+
 class _Torch with LightEmitter {}
 
 /// A source that is not a light, for keying a standing emission.

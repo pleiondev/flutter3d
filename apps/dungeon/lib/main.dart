@@ -575,7 +575,13 @@ class _GameScreenState extends State<GameScreen>
         // alongside it. Divided by the power a healthy flame settles at, so
         // the fixture sees a fraction and the level's own intensity stays the
         // thing that decides how bright a torch is.
-        fixture.measure(fire.glow.power / _flamePower);
+        fixture.measure(
+          fire.glow.power / _flamePower,
+          // Only once the glow has seen a particle. Before that its centre is
+          // the world origin, and a torch whose light spends its first frames
+          // inside a wall is worse than one that never moved at all.
+          at: fire.glow.located ? fire.glow.centre : null,
+        );
       }
     }
 

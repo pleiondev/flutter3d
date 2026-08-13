@@ -45,8 +45,24 @@ final class ParticleGlow {
 
   /// Where the fire is, smoothed. A light placed here drifts with the flame
   /// instead of being nailed to the emitter.
+  ///
+  /// Meaningless until [located] is true — see there.
   Vector3 get centre => _centre;
   final Vector3 _centre = Vector3.zero();
+
+  /// Whether [centre] has ever been measured from real particles.
+  ///
+  /// False until the first step that sees one, and the reason it exists rather
+  /// than callers checking [count]: the centre starts at the world origin, so a
+  /// light that followed it before the first particle existed would spend the
+  /// frames before ignition sitting at (0, 0, 0) — usually in a wall, and
+  /// usually while the torch it belongs to is still visibly alight.
+  ///
+  /// [count] is the wrong test for the same reason in reverse: it drops to zero
+  /// whenever a sub-step happens to catch a gap between particles, and a light
+  /// that snapped back to the origin on those frames would strobe.
+  bool get located => _located;
+  bool _located = false;
 
   /// Seconds for the smoothing to catch up most of the way.
   static const double smoothing = 0.09;
@@ -76,9 +92,17 @@ final class ParticleGlow {
     final alpha = 1.0 - math.exp(-dt / smoothing);
     _power += (_rawPower - _power) * alpha;
     if (_count > 0) {
-      _centre.x += (_rawCentre.x - _centre.x) * alpha;
-      _centre.y += (_rawCentre.y - _centre.y) * alpha;
-      _centre.z += (_rawCentre.z - _centre.z) * alpha;
+      if (!_located) {
+        // Jump the first time rather than easing in from the origin, which
+        // would drag the light across the level over the first tenth of a
+        // second — through whatever is in the way.
+        _centre.setFrom(_rawCentre);
+        _located = true;
+      } else {
+        _centre.x += (_rawCentre.x - _centre.x) * alpha;
+        _centre.y += (_rawCentre.y - _centre.y) * alpha;
+        _centre.z += (_rawCentre.z - _centre.z) * alpha;
+      }
     }
   }
 }

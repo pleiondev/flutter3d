@@ -48,15 +48,37 @@ and normal bias. We do 3×3 PCF.
 ## 2. Where we are roughly level
 
 Bloom, fog, tonemapping, MSAA, skeletal animation, glTF import, LOD, BVH
-culling, raycasting, particles, debug drawing, multiple views. Both engines
-have all of it. Ours is smaller and theirs is more configurable; neither is a
-reason to choose one.
+culling, raycasting, debug drawing, multiple views. Both engines have all of it.
+Ours is smaller and theirs is more configurable; neither is a reason to choose
+one.
 
-One genuine difference in kind: we expose a **render-plugin seam**
-(`RenderPlugin`, `RenderStage`) that lets an application inject a pass — the
-view-model overlay is built on it. They solve the same problem with a formal
-**render graph** (`src/render/render_graph.dart`) with a blackboard. Theirs is
-the more serious architecture and we should expect to end up there.
+**Particles used to be on that list and should not have been.** Re-read
+carefully in August 2026, they were clearly ahead: instanced billboards with
+facing modes, mesh particles, textures, keyframed curves and gradients,
+rotation, flipbook, turbulence, a box emitter, explicit durations. Calling that
+"roughly level" was the comfortable reading of a comparison nobody had made
+line by line.
+
+Since then the pool became a dense prefix with O(1) recycling, the simulation
+moved to a fixed sub-step, randomness became a per-particle stream keyed on
+emission ordinal, and curves, gradients, turbulence, a box emitter and
+self-terminating emissions landed. What is still theirs alone is the part that
+needs the renderer: instanced billboards, mesh particles, textures with mips,
+rotation and flipbook. What is still ours alone is particles that emit light —
+zero occurrences of light, emissive or illuminate across all six of their
+particle files.
+
+One genuine difference in kind, and this one also read backwards at first: we
+expose a **render-plugin seam** (`RenderPlugin`, `RenderStage`) that lets an
+application inject a pass — the view-model overlay is built on it. They solve
+the same problem with a formal **render graph**
+(`src/render/render_graph.dart`) with a blackboard, and this document used to
+conclude that theirs was the more serious architecture and we should end up
+there. Read again: their graph is an ordered list executed in insertion order
+plus an untyped blackboard map. Ours declares reads, writes and keeps, derives
+its own order, culls unreached passes, versions resources and derives
+lifetimes, under thirty-one tests and with no GPU type anywhere in it. We are
+ahead, and the earlier conclusion was deference rather than measurement.
 
 ## 3. What they have and we do not
 

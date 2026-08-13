@@ -351,7 +351,9 @@ final class ParticleSystem {
   void stopEmitting(Object key) {
     _owed.remove(key);
     _rates.remove(key);
-    if (key is LightEmitter) _emitters.remove(key);
+    // The emitter stays in `_emitters`. Its particles are still alive and still
+    // casting light, and `step` drops it once they are gone — see the note
+    // there. Removing it here is what used to leave a snuffed torch shining.
   }
 
   /// Simulated seconds per sub-step.
@@ -486,10 +488,40 @@ final class ParticleSystem {
       i++;
     }
 
+    List<LightEmitter>? finished;
     for (final emitter in _emitters) {
       emitter.glow.endStep(dt);
+      // An emitter stops being measured when it has nothing left to measure:
+      // no particles this step, no light still fading, and no standing rate
+      // about to make more.
+      //
+      // **`stopEmitting` deliberately does not do this itself**, and that is
+      // the bug this replaced. Removing the emitter there froze its glow at
+      // whatever it last read, because nothing called `beginStep` on it again
+      // — so a torch that was put out kept casting exactly as much light as it
+      // had while burning, while its flame visibly died. The light has to
+      // follow the particles down, and the particles outlive the rate that
+      // made them.
+      if (emitter.glow.count == 0 &&
+          emitter.glow.power < _glowFloor &&
+          !_rates.containsKey(emitter)) {
+        (finished ??= <LightEmitter>[]).add(emitter);
+      }
+    }
+    if (finished != null) {
+      for (final emitter in finished) {
+        _emitters.remove(emitter);
+      }
     }
   }
+
+  /// Below this a glow is out, and its emitter stops being walked every step.
+  ///
+  /// Needed because the smoothing is exponential and never reaches zero: an
+  /// emitter dropped the instant its last particle died would freeze at a small
+  /// but non-zero power, which is a torch that has gone out still lighting the
+  /// wall behind it — dimly, and forever.
+  static const double _glowFloor = 1e-4;
 
   void clear() {
     for (var i = 0; i < _alive; i++) {
