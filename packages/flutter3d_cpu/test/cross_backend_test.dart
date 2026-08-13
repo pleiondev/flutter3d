@@ -48,6 +48,10 @@ import 'package:flutter_test/flutter_test.dart';
 const Map<String, double> _budgets = <String, double>{
   'particle-stack': 0.50,
   'particles-burst': 0.70,
+  // A pool that has been round several times, which every other particle
+  // fixture is blind to. Slightly above the burst because more of its quads
+  // are near an edge.
+  'particles-recycled': 0.55,
   'particles-plain': 0.70,
   'normal-mapping': 1.1,
   'cube-shadow-mover': 0.55,

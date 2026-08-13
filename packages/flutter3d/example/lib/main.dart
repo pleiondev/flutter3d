@@ -410,6 +410,7 @@ class _SpikePageState extends State<SpikePage>
         renderer.addContributor(ParticleContributor(
           switch (goldenScene.name) {
             'particle-one' => GoldenExtras.oneParticle(),
+            'particles-recycled' => GoldenExtras.recycled(),
             'particle-stack' => GoldenExtras.stackedParticles(),
             _ => GoldenExtras.burst(),
           },

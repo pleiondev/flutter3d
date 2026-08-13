@@ -63,6 +63,53 @@ abstract final class GoldenExtras {
     return particles;
   }
 
+  /// A pool that has been round at least once: particles born, died and had
+  /// their slots reused before the frame is drawn.
+  ///
+  /// **The gap this closes.** Every other particle fixture warms up for less
+  /// than one lifetime, so nothing dies and every slot is still held by its
+  /// first occupant. That made all of them blind to how the pool recycles —
+  /// which went unnoticed until compaction landed and all twenty-seven goldens
+  /// came back byte-identical, where the change was expected to reorder the
+  /// quads and move the picture. It did not reorder anything, because there
+  /// was nothing to reorder.
+  ///
+  /// Here the lifetime is a fifth of the warm-up, so the pool turns over about
+  /// five times. Whatever order the live set ends up in, this is the fixture
+  /// that has an opinion about it.
+  static ParticleSystem recycled() {
+    final particles = ParticleSystem(
+      capacity: 128,
+      random: math.Random(seed),
+    );
+    final short = ParticleEffect(
+      count: 40,
+      lifetime: const Range(0.08, 0.12),
+      size: const Range(0.06, 0.16),
+      color: Vector4(1.0, 0.72, 0.30, 1.0),
+      emitter: const SphereEmitter(speed: Range(2.5, 6.0)),
+      affectors: <ParticleAffector>[
+        const ParticleGravity(-4.0),
+        const ParticleDrag(1.2),
+        const ParticleFade(),
+      ],
+    );
+    // A burst every few steps, so slots are freed and taken repeatedly rather
+    // than once.
+    var t = 0.0;
+    var since = 0.0;
+    while (t < warmUp - 1e-9) {
+      if (since <= 0.0) {
+        particles.burst(short, Vector3(0.0, 0.6, 0.0));
+        since = 0.06;
+      }
+      particles.step(stepSize);
+      since -= stepSize;
+      t += stepSize;
+    }
+    return particles;
+  }
+
   /// One particle, at rest, at a stated place and size.
   ///
   /// The burst has 220 quads overlapping in a field dense enough that "the

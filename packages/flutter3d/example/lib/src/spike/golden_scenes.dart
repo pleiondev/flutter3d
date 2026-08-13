@@ -243,6 +243,20 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     pitch: 0.0,
   ),
 
+  // A pool that has been round several times. See GoldenExtras.recycled: every
+  // other particle fixture warms up for less than one lifetime, so none of them
+  // can see how slots are reused.
+  const GoldenScene(
+    name: 'particles-recycled',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+    particles: true,
+  ),
+
   // Eight quads stacked at one point: addition alone. See stackedParticles.
   const GoldenScene(
     name: 'particle-stack',

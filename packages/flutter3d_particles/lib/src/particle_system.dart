@@ -84,13 +84,36 @@ final class ParticleSystem {
   int get dropped => _dropped;
   int _dropped = 0;
 
-  int get aliveCount {
-    var count = 0;
-    for (final particle in _pool) {
-      if (particle.alive) count++;
-    }
-    return count;
-  }
+  /// Forgets the drop count.
+  ///
+  /// A number that climbs during ordinary play means the cap is wrong; a number
+  /// that never resets means it climbed once, three levels ago, and nobody can
+  /// tell whether it is still climbing.
+  void resetDropped() => _dropped = 0;
+
+  /// How many of [_pool] are alive. **The live ones are always `_pool[0.._alive)`.**
+  ///
+  /// A dense prefix rather than an `alive` flag scanned for. Death swaps the
+  /// dying particle with the last live one, so the prefix stays packed at the
+  /// cost of not preserving emission order — and nothing here depends on that
+  /// order, because these draw additively and addition is commutative.
+  ///
+  /// What it buys, measured rather than assumed: `step`, `writeQuads` and
+  /// `aliveCount` all walked the whole pool, so a big pool holding a small live
+  /// set paid for every empty slot every frame. At the same ~220 live particles,
+  /// raising the capacity from 256 to 3000 cost 9x in `step`, 17x in
+  /// `writeQuads` and 13x in `aliveCount`. That is the scan, not the layout —
+  /// which is why this is a dense prefix and not a rewrite into
+  /// structure-of-arrays. See `tool/bench/particle_bench.dart`.
+  int _alive = 0;
+
+  /// How many are alive, in constant time.
+  ///
+  /// It used to be a scan of the whole pool, and it is called every frame from
+  /// `ParticleContributor.isActive`. At the dungeon's capacity of 3000 with
+  /// about 220 alive that was measured at 2.7us a frame to answer a question
+  /// the system already knew — see `tool/bench/particle_bench.dart`.
+  int get aliveCount => _alive;
 
   /// Keeps [effect] emitting at [origin], at [perSecond] particles a second.
   ///
@@ -150,13 +173,13 @@ final class ParticleSystem {
     final axis = direction == null || direction.length2 < 1e-12
         ? Vector3(0.0, 1.0, 0.0)
         : direction.normalized();
-    final taken = _take(0);
+    final taken = _take();
     if (taken == null) {
       _dropped++;
       return 0;
     }
-    _initialise(taken.$1, effect, origin, axis);
-    taken.$1.source = source;
+    _initialise(taken, effect, origin, axis);
+    taken.source = source;
     return 1;
   }
 
@@ -166,30 +189,24 @@ final class ParticleSystem {
         : direction.normalized();
 
     var emitted = 0;
-    var cursor = 0;
     for (var i = 0; i < effect.count; i++) {
-      final particle = _take(cursor);
+      final particle = _take();
       if (particle == null) {
         _dropped += effect.count - i;
         break;
       }
-      cursor = particle.$2 + 1;
-      _initialise(particle.$1, effect, origin, axis);
+      _initialise(particle, effect, origin, axis);
       emitted++;
     }
     return emitted;
   }
 
-  /// The next free slot at or after [from], with its index.
+  /// The next free slot, or null when the pool is full.
   ///
-  /// The cursor is carried across one burst so emitting two hundred particles
-  /// does not rescan the pool from zero two hundred times.
-  (Particle, int)? _take(int from) {
-    for (var i = from; i < _pool.length; i++) {
-      if (!_pool[i].alive) return (_pool[i], i);
-    }
-    return null;
-  }
+  /// Constant time: the live set is a dense prefix, so the first free slot is
+  /// always the one just past it. This replaced a linear scan carrying a cursor
+  /// across a burst, which was the best that could be done without compaction.
+  Particle? _take() => _alive < _pool.length ? _pool[_alive++] : null;
 
   void _initialise(
     Particle particle,
@@ -223,12 +240,19 @@ final class ParticleSystem {
       emitter.glow.beginStep();
     }
 
-    for (final particle in _pool) {
-      if (!particle.alive) continue;
+    // Not a for-in: a dying particle is swapped with the last live one, and
+    // the one swapped into its slot has not been stepped yet, so the index
+    // must not advance. Walking `_pool` directly would step it twice.
+    var i = 0;
+    while (i < _alive) {
+      final particle = _pool[i];
 
       particle.age += dt;
       if (particle.age >= particle.lifetime) {
         particle.alive = false;
+        _alive--;
+        _pool[i] = _pool[_alive];
+        _pool[_alive] = particle;
         continue;
       }
 
@@ -243,6 +267,7 @@ final class ParticleSystem {
 
       final source = particle.source;
       if (source is LightEmitter) source.glow.accumulate(particle);
+      i++;
     }
 
     for (final emitter in _emitters) {
@@ -251,9 +276,10 @@ final class ParticleSystem {
   }
 
   void clear() {
-    for (final particle in _pool) {
-      particle.alive = false;
+    for (var i = 0; i < _alive; i++) {
+      _pool[i].alive = false;
     }
+    _alive = 0;
   }
 
   /// Floats one particle's quad occupies: four vertices of position, colour and
@@ -281,8 +307,8 @@ final class ParticleSystem {
       indices.length ~/ 6,
     );
 
-    for (final particle in _pool) {
-      if (!particle.alive) continue;
+    for (var i = 0; i < _alive; i++) {
+      final particle = _pool[i];
       if (written >= maxParticles) break;
       if (particle.size <= 0.0 || particle.color.w <= 0.0) continue;
 
