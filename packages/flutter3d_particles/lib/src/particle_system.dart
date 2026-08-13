@@ -41,6 +41,33 @@ final class ParticleEffect {
   final Vector4 color;
 }
 
+/// A standing emission: what, where, how fast, and for how long.
+final class _Emission {
+  _Emission(
+    this.effect,
+    this.origin,
+    this.perSecond,
+    this.direction,
+    this.remaining,
+  );
+
+  final ParticleEffect effect;
+  final Vector3 origin;
+  final double perSecond;
+  final Vector3? direction;
+
+  /// Seconds of emission left, or null to run until stopped.
+  ///
+  /// Counted down in the sub-step rather than in the frame, so an emission that
+  /// should last a quarter of a second emits the same particles whether the
+  /// frame took four milliseconds or forty. That is the same reason the
+  /// accumulator exists.
+  double? remaining;
+
+  /// Whether this emission has run out and should be dropped.
+  bool get spent => remaining != null && remaining! <= 0.0;
+}
+
 /// Every particle in the world, and the one buffer they are drawn from.
 ///
 /// ## One system, not one per effect
@@ -62,15 +89,6 @@ final class ParticleEffect {
 /// whole budget. It is also why smoke here is a dark additive haze rather than
 /// a proper alpha-blended puff: the second needs sorting, and it is not worth a
 /// second pipeline yet.
-/// A standing emission: what, where, and how fast.
-final class _Emission {
-  _Emission(this.effect, this.origin, this.perSecond, this.direction);
-  final ParticleEffect effect;
-  final Vector3 origin;
-  final double perSecond;
-  final Vector3? direction;
-}
-
 final class ParticleSystem {
   /// [seed] makes the whole simulation reproducible: the same seed and the
   /// same sequence of `advance` calls give byte-identical particles, which is
@@ -200,6 +218,8 @@ final class ParticleSystem {
   /// Re-stating a rate replaces the previous one, so calling this every frame —
   /// which is what a game does — is how a torch stays lit, and *not* calling it
   /// is how it goes out.
+  ///
+  /// For an emission that stops itself, see [emitTimed].
   void emit(
     Object key,
     ParticleEffect effect,
@@ -212,7 +232,42 @@ final class ParticleSystem {
       return;
     }
     if (key is LightEmitter) _emitters.add(key);
-    _rates[key] = _Emission(effect, origin.clone(), perSecond, direction);
+    _rates[key] = _Emission(effect, origin.clone(), perSecond, direction, null);
+  }
+
+  /// Emits from [key] for [seconds] and then stops on its own.
+  ///
+  /// The plume of smoke an explosion leaves behind, or the sparks off a wall
+  /// that has just been hit: something that runs for a known time and that
+  /// nobody wants to have to remember to switch off.
+  ///
+  /// **Call this once, not every frame.** That is the whole reason it is a
+  /// separate method from [emit] rather than a `duration` argument on it. The
+  /// two are called in opposite ways — [emit] is re-stated every frame and goes
+  /// out when the caller stops saying it, this one is stated once and goes out
+  /// by itself — and a single method taking both would have to guess which the
+  /// caller meant. It guesses wrong in a way nothing catches: re-stating a
+  /// countdown every frame resets the very clock that was supposed to end it,
+  /// so the emission never stops and the pool fills up. The symptom is every
+  /// other effect in the game quietly losing its particles to the cap.
+  ///
+  /// Calling it again does restart it, which is what re-firing a rocket should
+  /// do.
+  void emitTimed(
+    Object key,
+    ParticleEffect effect,
+    Vector3 origin, {
+    required double perSecond,
+    required double seconds,
+    Vector3? direction,
+  }) {
+    if (perSecond <= 0.0 || seconds <= 0.0) {
+      _rates.remove(key);
+      return;
+    }
+    if (key is LightEmitter) _emitters.add(key);
+    _rates[key] =
+        _Emission(effect, origin.clone(), perSecond, direction, seconds);
   }
 
   /// Advances the simulation by [dt] in fixed sub-steps.
@@ -252,14 +307,41 @@ final class ParticleSystem {
   /// One sub-step's worth of every standing rate.
   void _drainEmitters(double h) {
     if (_rates.isEmpty) return;
+    List<Object>? spent;
     for (final entry in _rates.entries) {
       final emission = entry.value;
-      final owed = (_owed[entry.key] ?? 0.0) + emission.perSecond * h;
+
+      // A timed emission emits for the part of this sub-step it is still
+      // alive for, not for all of it. Without that, a duration of a tenth of a
+      // second at 120 Hz would round up to the whole sub-step it expires in,
+      // and a very short emission would be measurably longer than it asked.
+      var slice = h;
+      final left = emission.remaining;
+      if (left != null) {
+        if (left <= 0.0) {
+          (spent ??= <Object>[]).add(entry.key);
+          continue;
+        }
+        if (left < slice) slice = left;
+        emission.remaining = left - h;
+        if (emission.spent) (spent ??= <Object>[]).add(entry.key);
+      }
+
+      final owed = (_owed[entry.key] ?? 0.0) + emission.perSecond * slice;
       final whole = owed.floor();
       _owed[entry.key] = owed - whole;
       for (var i = 0; i < whole; i++) {
         _emitOne(emission.effect, emission.origin, emission.direction,
             entry.key);
+      }
+    }
+    // Removed after the walk, not during it: mutating the map being iterated
+    // throws, and the throw would land in whichever frame first ran an
+    // emission out — a crash whose trigger is a duration nobody was thinking
+    // about.
+    if (spent != null) {
+      for (final key in spent) {
+        stopEmitting(key);
       }
     }
   }

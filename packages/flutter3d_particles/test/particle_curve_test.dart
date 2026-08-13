@@ -15,6 +15,25 @@ import 'package:vector_math/vector_math.dart';
 /// A particle placed where a test wants it, since nothing here needs a system.
 Particle _at(Vector3 position) => Particle()..position.setFrom(position);
 
+/// An effect whose particles outlive any test about emission, so `aliveCount`
+/// counts what was emitted rather than what has not died yet.
+ParticleEffect _steady() => ParticleEffect(
+      count: 1,
+      emitter: const SphereEmitter(speed: Range.exact(0.0)),
+      lifetime: const Range.exact(1000.0),
+      size: const Range.exact(0.5),
+      color: Vector4(1.0, 1.0, 1.0, 1.0),
+    );
+
+/// Advances [system] in 60 Hz frames, which is how a game calls it.
+void _run(ParticleSystem system, double seconds, {void Function()? each}) {
+  const frame = 1.0 / 60.0;
+  for (var elapsed = 0.0; elapsed < seconds - 1e-9; elapsed += frame) {
+    each?.call();
+    system.advance(frame);
+  }
+}
+
 void main() {
   group('a curve', () {
     test('holds its ends rather than extrapolating past them', () {
@@ -210,6 +229,63 @@ void main() {
       expect(twice.velocity.x, closeTo(once.velocity.x, 1e-12));
       expect(twice.velocity.y, closeTo(once.velocity.y, 1e-12));
       expect(twice.velocity.z, closeTo(once.velocity.z, 1e-12));
+    });
+  });
+
+  group('a timed emission', () {
+    test('stops itself, and a standing one does not', () {
+      final timed = ParticleSystem(capacity: 4096, seed: 1);
+      timed.emitTimed('plume', _steady(), Vector3.zero(),
+          perSecond: 100.0, seconds: 0.5);
+      _run(timed, 2.0);
+      // Half a second at a hundred a second, and then nothing.
+      expect(timed.aliveCount, closeTo(50, 2));
+
+      final standing = ParticleSystem(capacity: 4096, seed: 1);
+      standing.emit('torch', _steady(), Vector3.zero(), perSecond: 100.0);
+      _run(standing, 2.0);
+      expect(standing.aliveCount, greaterThan(150),
+          reason: 'an emission with no duration runs until it is stopped');
+    });
+
+    test('emits for the fraction of a sub-step it is alive for', () {
+      // A duration shorter than one sub-step must not round up to a whole one.
+      // At 120 Hz a sub-step is 8.3 ms, so a 4 ms emission at a thousand a
+      // second is four particles and not eight.
+      final system = ParticleSystem(capacity: 4096, seed: 1);
+      system.emitTimed('spark', _steady(), Vector3.zero(),
+          perSecond: 1000.0, seconds: 0.004);
+      _run(system, 0.5);
+      expect(system.aliveCount, closeTo(4, 1));
+    });
+
+    test('restarting it is a second call, and that is deliberate', () {
+      // Documented behaviour rather than an accident: re-firing a rocket
+      // should restart its trail. It is also why this is not a `duration`
+      // argument on `emit` — that one *is* called every frame, and a countdown
+      // reset every frame never reaches zero.
+      final system = ParticleSystem(capacity: 4096, seed: 1);
+      final effect = _steady();
+      system.emitTimed('plume', effect, Vector3.zero(),
+          perSecond: 100.0, seconds: 0.5);
+      _run(system, 1.0);
+      final first = system.aliveCount;
+
+      system.emitTimed('plume', effect, Vector3.zero(),
+          perSecond: 100.0, seconds: 0.5);
+      _run(system, 1.0);
+      expect(system.aliveCount, greaterThan(first + 40));
+    });
+
+    test('stopEmitting cuts it short', () {
+      final system = ParticleSystem(capacity: 4096, seed: 1);
+      system.emitTimed('plume', _steady(), Vector3.zero(),
+          perSecond: 100.0, seconds: 10.0);
+      _run(system, 0.2);
+      final cut = system.aliveCount;
+      system.stopEmitting('plume');
+      _run(system, 1.0);
+      expect(system.aliveCount, cut);
     });
   });
 
