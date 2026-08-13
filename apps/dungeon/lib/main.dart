@@ -527,6 +527,19 @@ class _GameScreenState extends State<GameScreen>
       for (final blast in projectiles.detonations) {
         _particles.burst(Effects.explosionCore, blast.position);
         _particles.burst(Effects.explosionEmbers, blast.position);
+        // And smoke for a second after the fire is out, from a key that
+        // belongs to this blast alone. A fresh object rather than the
+        // position: two rockets landing in the same doorway are two plumes,
+        // and a key they shared would mean the second restarted the first.
+        // The system drops the emission when it runs out, so a key per blast
+        // does not accumulate.
+        _particles.emitTimed(
+          Object(),
+          Effects.explosionSmoke,
+          blast.position,
+          perSecond: 34.0,
+          seconds: 0.85,
+        );
         _applyBlast(blast, monsters);
       }
       if (projectiles.detonations.isNotEmpty) {
