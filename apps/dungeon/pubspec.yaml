@@ -18,6 +18,8 @@ dependencies:
   # Rendering.
   flutter3d:
     path: ../../packages/flutter3d
+  flutter3d_particles:
+    path: ../../packages/flutter3d_particles
 
   # Sound. Depends on neither the renderer nor the game engine.
   flutter3d_audio:

@@ -57,3 +57,7 @@ app.*.map.json
 
 # Flutter build output in any package, not just the root.
 build/
+
+# Machine-local, and asked to stay out of git.
+HANDOFF.md
+.claude/

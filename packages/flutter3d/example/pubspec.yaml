@@ -30,6 +30,8 @@ dependencies:
     path: ../../flutter3d_webgl
   flutter3d:
     path: ../
+  flutter3d_particles:
+    path: ../../flutter3d_particles
   # Only the golden runner needs it, to insist its output directory is
   # absolute — a bundled macOS app runs from the filesystem root.
   path: ^1.9.0

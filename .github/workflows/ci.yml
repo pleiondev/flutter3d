@@ -50,7 +50,7 @@ jobs:
       - name: Test every package
         run: |
           set -e
-          for package in packages/flutter3d packages/flutter3d_game packages/mouse_capture; do
+          for package in packages/flutter3d packages/flutter3d_particles packages/flutter3d_cpu packages/flutter3d_game packages/mouse_capture; do
             echo "── $package"
             (cd "$package" && flutter test)
           done

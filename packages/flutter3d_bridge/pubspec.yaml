@@ -14,6 +14,8 @@ dependencies:
   # Both halves, which is the entire point of this package existing.
   flutter3d:
     path: ../flutter3d
+  flutter3d_particles:
+    path: ../flutter3d_particles
   flutter3d_game:
     path: ../flutter3d_game
 

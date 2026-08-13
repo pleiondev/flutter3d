@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// The particles and the view model a golden draws, built to be repeatable.

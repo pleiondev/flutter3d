@@ -1,0 +1,30 @@
+name: flutter3d_particles
+description: >-
+  A pooled CPU particle simulation for flutter3d, and the contributor that
+  draws it. Its particles can be a light source, which is the part no other
+  engine on this platform has.
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # For PassContributor and ContributorFrame — a contributor is defined by the
+  # engine and implemented here, which is what makes this an extension rather
+  # than a fork.
+  flutter3d:
+    path: ../flutter3d
+  flutter3d_graphics:
+    path: ../flutter3d_graphics
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+resolution: workspace

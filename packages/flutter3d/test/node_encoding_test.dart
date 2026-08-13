@@ -23,17 +23,12 @@ import 'package:vector_math/vector_math.dart' as vm;
 import 'package:flutter3d/src/engine/geometry/mesh_geometry.dart';
 import 'package:flutter3d/src/engine/geometry/primitive_shapes.dart';
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
-import 'package:flutter3d/src/engine/particles/particle.dart';
-import 'package:flutter3d/src/engine/particles/particle_contributor.dart';
-import 'package:flutter3d/src/engine/particles/particle_emitter.dart';
-import 'package:flutter3d/src/engine/particles/particle_system.dart';
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/frame_plan.dart';
 import 'package:flutter3d/src/engine/render/frame_resources.dart';
 import 'package:flutter3d/src/engine/render/material.dart';
 import 'package:flutter3d/src/engine/render/pass_contributor.dart';
 import 'package:flutter3d/src/engine/render/render_node.dart';
-import 'package:flutter3d/src/engine/render/render_view.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';
 import 'package:flutter3d/src/engine/render/view_model_node.dart';
 import 'package:flutter3d/src/engine/scene/camera_node.dart';
@@ -238,102 +233,4 @@ void main() {
     });
   });
 
-  group('the particle contributor, drawn against a fake pass', () {
-    late FakeBackend device;
-    late FakePass pass;
-    late ParticleSystem particles;
-
-    ContributorFrame frame({FakeBackend? backend}) {
-      final used = backend ?? device;
-      return ContributorFrame(
-        encoder: pass,
-        device: used,
-        services: _RecordingServices(),
-        state: FramePassState(),
-        settings: const RenderSettings(),
-        width: 320,
-        height: 200,
-        view: RenderView(camera: CameraNode()),
-        viewProjection: vm.Matrix4.identity(),
-      );
-    }
-
-    setUp(() {
-      device = FakeBackend();
-      pass = FakePass(const RenderPassDescriptor(colors: <ColorTarget>[]));
-      particles = ParticleSystem(capacity: 64)
-        ..burst(
-          ParticleEffect(
-            count: 8,
-            emitter: const SphereEmitter(),
-            lifetime: const Range.exact(5.0),
-            size: const Range.exact(0.2),
-            color: vm.Vector4(1.0, 0.5, 0.2, 1.0),
-          ),
-          vm.Vector3.zero(),
-        );
-    });
-
-    test('is active only while something is alive', () {
-      expect(ParticleContributor(particles).isActive, isTrue);
-      particles.clear();
-      expect(ParticleContributor(particles).isActive, isFalse);
-    });
-
-    test('blends additively and never writes depth', () {
-      ParticleContributor(particles).encode(frame());
-
-      expect(pass.recordedOf<RecordedBlend>().single.state, BlendState.additive,
-          reason: 'addition is commutative, which is what removes the sort');
-      expect(pass.depthWrite, isFalse,
-          reason: 'particles must not occlude each other');
-      expect(pass.depthCompare, CompareFunction.less,
-          reason: 'but they are still hidden by the world');
-      expect(pass.cullMode, CullMode.none,
-          reason: 'a quad seen from behind is still a quad');
-    });
-
-    test('is one draw of transient geometry, six indices per particle', () {
-      ParticleContributor(particles).encode(frame());
-
-      expect(pass.drawCount, 1,
-          reason: 'one batch, which is the whole point of additive blending');
-      final vertices = pass.recordedOf<RecordedVertices>().single;
-      expect(vertices.transient, isTrue,
-          reason: 'the quads were built this frame; they have no device buffer');
-      final indices = pass.recordedOf<RecordedIndices>().single;
-      expect(indices.count, vertices.count ~/ 4 * 6);
-      expect(indices.type, IndexType.int32);
-    });
-
-    test('clears the bindings the mesh draws left behind', () {
-      ParticleContributor(particles).encode(frame());
-      expect(pass.commands.first, isA<RecordedClearBindings>(),
-          reason: 'the mesh draws left a different vertex layout bound, and '
-              'this must be the first thing the contributor does');
-    });
-
-    test('counts its draw and invalidates the pipeline tracker', () {
-      final f = frame();
-      f.state
-        ..boundSkinned = true
-        ..drawCalls = 5;
-      ParticleContributor(particles).encode(f);
-
-      expect(f.state.drawCalls, 6,
-          reason: 'a contributor that does not count makes the frame '
-              'statistics lie');
-      expect(f.state.boundPipeline, isNull);
-      expect(f.state.boundSkinned, isNull);
-    });
-
-    test('draws nothing at all when the bundle has no particle stage', () {
-      final withoutStages = FakeBackend(missingShaders: <String>{'Particle'});
-      ParticleContributor(particles).encode(frame(backend: withoutStages));
-
-      expect(pass.commands, isEmpty,
-          reason: 'the fragment stage is called "Particle", not '
-              '"ParticleFragment"; guessing it wrong used to be invisible');
-    });
-  });
 }

@@ -57,13 +57,9 @@ export 'src/engine/geometry/geometry.dart';
 // pubspec.
 export 'package:flutter3d_graphics/flutter3d_graphics.dart';
 
-// Particles: a pooled simulation and the recipes that drive it.
-export 'src/engine/particles/particle.dart';
-export 'src/engine/particles/particle_affector.dart';
-export 'src/engine/particles/particle_emitter.dart';
-export 'src/engine/particles/light_emitter.dart';
-export 'src/engine/particles/particle_contributor.dart';
-export 'src/engine/particles/particle_system.dart';
+// Particles are `package:flutter3d_particles` and are named nowhere here.
+// The engine defines what a contributor is; what draws through one is not its
+// business, which is the whole test of the extension model.
 
 // Maths that the scene layer needs and that is worth having on its own.
 export 'src/engine/math/intersections.dart';

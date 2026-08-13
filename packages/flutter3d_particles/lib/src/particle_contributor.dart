@@ -5,8 +5,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'package:vector_math/vector_math.dart' as vm;
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
-import '../render/pass_contributor.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'particle_system.dart';
 
 /// Draws every live particle as one batch of camera-facing quads.

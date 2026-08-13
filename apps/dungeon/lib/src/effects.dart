@@ -1,4 +1,4 @@
-import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// The effects this game triggers, as recipes rather than code.

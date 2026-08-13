@@ -1,11 +1,7 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d/src/engine/particles/particle.dart';
-import 'package:flutter3d/src/engine/particles/particle_affector.dart';
-import 'package:flutter3d/src/engine/particles/light_emitter.dart';
-import 'package:flutter3d/src/engine/particles/particle_emitter.dart';
-import 'package:flutter3d/src/engine/particles/particle_system.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
