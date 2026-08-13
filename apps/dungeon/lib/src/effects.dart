@@ -16,7 +16,7 @@ abstract final class Effects {
   /// A torch flame: small, short-lived, rising, orange into dark red.
   ///
   /// Emitted continuously rather than in bursts — see
-  /// [ParticleSystem.emitFor]. This is what makes a torch a torch; the iron
+  /// [ParticleSystem.emit]. This is what makes a torch a torch; the iron
   /// around it is only a bracket. A cone would be a cone however orange it was
   /// painted, which is what the first attempt at this was.
   static final ParticleEffect flame = ParticleEffect(

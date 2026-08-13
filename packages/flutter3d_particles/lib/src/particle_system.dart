@@ -60,6 +60,15 @@ final class ParticleEffect {
 /// whole budget. It is also why smoke here is a dark additive haze rather than
 /// a proper alpha-blended puff: the second needs sorting, and it is not worth a
 /// second pipeline yet.
+/// A standing emission: what, where, and how fast.
+final class _Emission {
+  _Emission(this.effect, this.origin, this.perSecond, this.direction);
+  final ParticleEffect effect;
+  final Vector3 origin;
+  final double perSecond;
+  final Vector3? direction;
+}
+
 final class ParticleSystem {
   ParticleSystem({this.capacity = 2048, math.Random? random})
       : _random = random ?? math.Random(),
@@ -124,6 +133,16 @@ final class ParticleSystem {
   /// burn brighter than a slow one.
   ///
   /// This is what a flame is. A cone is a cone however orange it is painted.
+  ///
+  /// **Emits immediately, at the frame's own rate**, which is why it is
+  /// deprecated: everything a frame owes is born at the instant the frame
+  /// begins, so a burst at 30 Hz is one fat clump where 120 Hz gives four thin
+  /// ones. The comment above about not tying the rate to the frame rate is
+  /// true of the *count* and was never true of the *shape*.
+  @Deprecated(
+    'Use emit() plus advance(), which spends the rate across fixed sub-steps. '
+    'This emits a whole frame at once, so the result depends on the frame rate.',
+  )
   int emitFor(
     Object key,
     ParticleEffect effect,
@@ -147,12 +166,102 @@ final class ParticleSystem {
     return emitted;
   }
 
+  /// Keeps [effect] emitting from [key] until told otherwise.
+  ///
+  /// The deferred half of [emitFor], and the one [advance] drains. Nothing is
+  /// emitted here: the rate is recorded for this frame and spent inside each
+  /// sub-step, so a burst at 30 Hz is not one fat clump where 120 Hz gives four
+  /// thin ones. That is what [emitFor]'s doc already claimed and could not
+  /// deliver, because it emitted everything the frame owed at the instant the
+  /// frame began.
+  ///
+  /// Re-stating a rate replaces the previous one, so calling this every frame —
+  /// which is what a game does — is how a torch stays lit, and *not* calling it
+  /// is how it goes out.
+  void emit(
+    Object key,
+    ParticleEffect effect,
+    Vector3 origin, {
+    required double perSecond,
+    Vector3? direction,
+  }) {
+    if (perSecond <= 0.0) {
+      _rates.remove(key);
+      return;
+    }
+    if (key is LightEmitter) _emitters.add(key);
+    _rates[key] = _Emission(effect, origin.clone(), perSecond, direction);
+  }
+
+  /// Advances the simulation by [dt] in fixed sub-steps.
+  ///
+  /// **A fixed step, because a variable one is not the same simulation.** Drag
+  /// is exponential and gravity is integrated; run the same effect at 30 Hz and
+  /// at 120 Hz with the frame's own delta and the two diverge visibly — the
+  /// flame is a different shape on a faster machine. The goldens needed this
+  /// before it existed, which is why `golden_extras.dart` hand-rolls its own
+  /// fixed loop.
+  ///
+  /// Emission is drained *inside* the loop, so particles from one frame are
+  /// spread across its sub-steps rather than all born at its first instant.
+  ///
+  /// The remainder below [_stepSize] is left unsimulated rather than scaled
+  /// into the last sub-step: scaling would make the step variable again, which
+  /// is the thing being removed. At eight milliseconds it is not visible, and
+  /// interpolating for render would need a second position buffer to fix
+  /// something nobody can see.
+  void advance(double dt) {
+    if (dt <= 0.0) return;
+    _accumulator += dt;
+
+    // A ceiling on sub-steps, because a debugger pause or a stalled frame hands
+    // this a delta of several seconds and the loop would try to catch up all of
+    // it — which takes longer than the stall did, and never finishes.
+    var steps = 0;
+    while (_accumulator >= _stepSize && steps < _maxSubSteps) {
+      _drainEmitters(_stepSize);
+      step(_stepSize);
+      _accumulator -= _stepSize;
+      steps++;
+    }
+    if (steps >= _maxSubSteps) _accumulator = 0.0;
+  }
+
+  /// One sub-step's worth of every standing rate.
+  void _drainEmitters(double h) {
+    if (_rates.isEmpty) return;
+    for (final entry in _rates.entries) {
+      final emission = entry.value;
+      final owed = (_owed[entry.key] ?? 0.0) + emission.perSecond * h;
+      final whole = owed.floor();
+      _owed[entry.key] = owed - whole;
+      for (var i = 0; i < whole; i++) {
+        _emitOne(emission.effect, emission.origin, emission.direction,
+            entry.key);
+      }
+    }
+  }
+
   /// Forgets a source's remainder, so a torch that is put out and relit does
   /// not owe particles from before.
   void stopEmitting(Object key) {
     _owed.remove(key);
+    _rates.remove(key);
     if (key is LightEmitter) _emitters.remove(key);
   }
+
+  /// Simulated seconds per sub-step.
+  ///
+  /// A hundred and twenty, which is twice the common display rate: fast enough
+  /// that a 60 Hz frame is two whole sub-steps rather than one and a
+  /// remainder, and slow enough that a 30 Hz frame is four rather than eight.
+  static const double _stepSize = 1.0 / 120.0;
+
+  /// Sub-steps one [advance] may take before it gives up and drops the rest.
+  static const int _maxSubSteps = 8;
+
+  double _accumulator = 0.0;
+  final Map<Object, _Emission> _rates = <Object, _Emission>{};
 
   final Set<LightEmitter> _emitters = <LightEmitter>{};
 

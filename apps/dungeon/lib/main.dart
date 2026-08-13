@@ -549,11 +549,12 @@ class _GameScreenState extends State<GameScreen>
         // A steady rate, not one modulated by brightness. The flicker is
         // supposed to come out of the fire, and feeding brightness back into
         // the emission rate would make it come out of itself.
-        _particles.emitFor(
+        // Stated rather than spent: `advance` below drains it across fixed
+        // sub-steps, so the flame has the same shape at 30 Hz as at 120.
+        _particles.emit(
           fire,
           Effects.flame,
           fire.originInto(_flameAt),
-          dt,
           perSecond: 150.0,
         );
 
@@ -565,7 +566,7 @@ class _GameScreenState extends State<GameScreen>
       }
     }
 
-    _particles.step(dt);
+    _particles.advance(dt);
 
     // Last, so every source has already moved this step. The listener is the
     // simulated eye rather than the interpolated one: the mix should follow

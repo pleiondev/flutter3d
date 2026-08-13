@@ -129,6 +129,92 @@ void main() {
     });
   });
 
+  group('a fixed step makes the frame rate stop mattering', () {
+    /// Emits at [perSecond] for one simulated second at [hz], and reports where
+    /// the particles ended up.
+    List<double> runAt(double hz, {double perSecond = 30.0}) {
+      final system = ParticleSystem(capacity: 512, random: math.Random(5));
+      const key = _Torchless();
+      final effect = _effect(
+        count: 1,
+        lifetime: const Range.exact(10.0),
+        emitter: const SphereEmitter(speed: Range.exact(1.0)),
+        affectors: const <ParticleAffector>[ParticleGravity(-10.0)],
+      );
+      system.emit(key, effect, Vector3.zero(), perSecond: perSecond);
+      final dt = 1.0 / hz;
+      for (var i = 0; i < hz.round(); i++) {
+        system.advance(dt);
+      }
+
+      final vertices =
+          Float32List(system.aliveCount * ParticleSystem.floatsPerParticle);
+      final indices = Uint32List(system.aliveCount * 6);
+      final written = system.writeQuads(
+          Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), vertices, indices);
+      // The height of each particle's first corner, sorted, so two runs can be
+      // compared without depending on emission order.
+      final ys = <double>[
+        for (var i = 0; i < written; i++)
+          vertices[i * ParticleSystem.floatsPerParticle + 1],
+      ]..sort();
+      return ys;
+    }
+
+    test('the same number of particles, whatever the frame rate', () {
+      // The count was already frame-rate independent — the fractional
+      // remainder saw to that. This is the half that worked.
+      expect(runAt(30).length, closeTo(runAt(120).length, 1));
+      expect(runAt(60).length, closeTo(runAt(120).length, 1));
+    });
+
+    test('and they are spread the same way, which is the half that did not', () {
+      // A frame's worth of particles used to be born at the instant the frame
+      // began, so at 30 Hz they arrived in four fat clumps a second and at
+      // 120 Hz in sixteen thin ones. Under gravity that shows as the spread of
+      // heights: the clumps land in bands.
+      final slow = runAt(30);
+      final fast = runAt(120);
+
+      double spread(List<double> ys) => ys.last - ys.first;
+      expect(spread(slow), closeTo(spread(fast), 0.05),
+          reason: 'the particles occupy a different depth of column at 30 Hz '
+              'than at 120, which is emission clumping');
+    });
+
+    test('a stopped emitter stops', () {
+      final system = ParticleSystem(capacity: 64, random: math.Random(5));
+      const key = _Torchless();
+      system.emit(key, _effect(count: 1, lifetime: const Range.exact(10.0)),
+          Vector3.zero(), perSecond: 60.0);
+      system.advance(0.5);
+      final lit = system.aliveCount;
+      expect(lit, greaterThan(0));
+
+      system.stopEmitting(key);
+      system.advance(0.5);
+      expect(system.aliveCount, lit,
+          reason: 'nothing new should have been emitted');
+    });
+
+    test('a stalled frame does not try to catch up for ever', () {
+      // A debugger pause hands this several seconds. Simulating all of it takes
+      // longer than the stall did and never finishes.
+      final system = ParticleSystem(capacity: 4096, random: math.Random(5));
+      system.emit(const _Torchless(),
+          _effect(count: 1, lifetime: const Range.exact(10.0)), Vector3.zero(),
+          perSecond: 600.0);
+
+      final watch = Stopwatch()..start();
+      system.advance(30.0);
+      watch.stop();
+
+      expect(system.aliveCount, lessThan(200),
+          reason: 'thirty seconds of emission were simulated rather than '
+              'dropped');
+    });
+  });
+
   group('affectors compose', () {
     test('gravity pulls a particle down', () {
       final system = ParticleSystem(capacity: 4, random: math.Random(1));
@@ -483,3 +569,8 @@ void main() {
 
 /// A stand-in for something whose particles are its light, like a torch.
 class _Torch with LightEmitter {}
+
+/// A source that is not a light, for keying a standing emission.
+final class _Torchless {
+  const _Torchless();
+}
