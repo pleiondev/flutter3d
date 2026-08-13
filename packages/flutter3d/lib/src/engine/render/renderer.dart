@@ -613,8 +613,6 @@ final class Renderer implements RenderServices {
     required this.vertexShader,
     required this.skinnedVertexShader,
     required this.debugLineVertexShader,
-    required this.particleVertexShader,
-    required this.particleFragmentShader,
     required this.debugLineFragmentShader,
     required this.fullscreenVertexShader,
     required this.bloomThresholdShader,
@@ -670,8 +668,6 @@ final class Renderer implements RenderServices {
   /// the line buffer has a different vertex layout, and a backend takes the
   /// layout from the shader's `in` declarations.
   final ShaderHandle debugLineVertexShader;
-  final ShaderHandle particleVertexShader;
-  final ShaderHandle particleFragmentShader;
   final ShaderHandle debugLineFragmentShader;
 
   /// The post-processing stages. All of them share one vertex shader, because a
@@ -861,8 +857,6 @@ final class Renderer implements RenderServices {
       vertexShader: require('MeshVertex'),
       skinnedVertexShader: require('MeshSkinnedVertex'),
       debugLineVertexShader: require('DebugLineVertex'),
-      particleVertexShader: require('ParticleVertex'),
-      particleFragmentShader: require('Particle'),
       debugLineFragmentShader: require('DebugLine'),
       fullscreenVertexShader: require('FullscreenVertex'),
       bloomThresholdShader: require('BloomThreshold'),

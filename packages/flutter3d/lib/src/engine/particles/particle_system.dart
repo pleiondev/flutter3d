@@ -200,6 +200,13 @@ final class ParticleSystem {
     effect.emitter.emit(particle, origin, axis, _random);
     particle
       ..alive = true
+      // Cleared, not left. A slot is reused, and [source] is the only field
+      // here that a *previous* occupant sets and this method did not — so a
+      // burst landing in a slot a torch's flame had just vacated inherited the
+      // torch, and `step` fed the burst's particles into that torch's
+      // [ParticleGlow]. A rocket going off near a wall brightened the torch on
+      // it. [_emitOne] assigns the real source after this returns.
+      ..source = null
       ..age = 0.0
       ..lifetime = effect.lifetime.sample(_random)
       ..birthSize = effect.size.sample(_random)

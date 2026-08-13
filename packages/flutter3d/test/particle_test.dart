@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/particles/particle.dart';
 import 'package:flutter3d/src/engine/particles/particle_affector.dart';
+import 'package:flutter3d/src/engine/particles/light_emitter.dart';
 import 'package:flutter3d/src/engine/particles/particle_emitter.dart';
 import 'package:flutter3d/src/engine/particles/particle_system.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,6 +29,35 @@ ParticleEffect _effect({
 
 void main() {
   group('the pool', () {
+    test('a burst does not inherit the previous occupant of its slot', () {
+      // The bug this pins: `_initialise` set every field a particle is born
+      // with *except* `source`, and `burst` calls only `_initialise`. So a slot
+      // vacated by a torch's flame handed its `LightEmitter` to whatever landed
+      // there next, and `step` accumulated the newcomer into that torch's glow.
+      // In the dungeon a rocket detonating near a wall brightened the torch on
+      // it, which reads as the explosion lighting the room — plausible, and
+      // nothing to do with the light that was actually cast.
+      final system = ParticleSystem(capacity: 4, random: math.Random(1));
+      final torch = _Torch();
+
+      // Fill every slot from the torch, then let them all die.
+      system.emitFor(torch, _effect(count: 1, lifetime: const Range.exact(0.1)),
+          Vector3.zero(), 1.0,
+          perSecond: 40.0);
+      expect(system.aliveCount, 4, reason: 'the pool should be full');
+      system.step(0.2);
+      expect(system.aliveCount, 0);
+
+      // A burst now reuses those slots. Nothing it emits belongs to the torch.
+      system.burst(_effect(count: 4, lifetime: const Range.exact(1.0)),
+          Vector3.zero());
+      torch.glow.beginStep();
+      system.step(1 / 60);
+      expect(torch.glow.count, 0,
+          reason: 'the burst was accumulated into the torch that used to own '
+              'those slots');
+    });
+
     test('a burst emits what it asked for', () {
       final system = ParticleSystem(capacity: 64, random: math.Random(1));
 
@@ -454,3 +484,6 @@ void main() {
     });
   });
 }
+
+/// A stand-in for something whose particles are its light, like a torch.
+class _Torch with LightEmitter {}
