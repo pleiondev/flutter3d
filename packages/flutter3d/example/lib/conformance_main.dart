@@ -38,7 +38,7 @@ class _ConformanceAppState extends State<ConformanceApp> {
       // behind should fail on its own account rather than on the previous
       // check's.
       try {
-        await check.run(GpuRenderBackend.create());
+        await check.run(await GpuRenderBackend.create());
         log.writeln('PASS  ${check.name}');
       } catch (error) {
         failed++;

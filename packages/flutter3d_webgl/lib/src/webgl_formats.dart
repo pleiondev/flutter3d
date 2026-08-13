@@ -105,18 +105,41 @@ int textureFormatToGl(TextureFormat format) => switch (format) {
       TextureFormat.r16g16b16a16Float => web.WebGL2RenderingContext.RGBA16F,
       TextureFormat.d24UnormS8Uint => web.WebGL2RenderingContext.DEPTH24_STENCIL8,
       TextureFormat.d32FloatS8UInt => web.WebGL2RenderingContext.DEPTH32F_STENCIL8,
+      TextureFormat.r32Float => web.WebGL2RenderingContext.R32F,
       // Deliberately unsupported, and loudly. `a8` and `b8g8r8a8` have no sized
-      // internal format in WebGL2 — the byte order is fixed at RGBA — and the
-      // XR formats are Apple's. A backend that quietly substituted RGBA8 for
-      // BGRA8 would swap red and blue in every texture it touched.
+      // internal format in WebGL2 — the byte order is fixed at RGBA. A backend
+      // that quietly substituted RGBA8 for BGRA8 would swap red and blue in
+      // every texture it touched.
+      //
+      // The compressed formats are a different kind of no. WebGL2 reaches them
+      // through extensions and `compressedTexImage2D`, not through
+      // `texStorage2D` with a sized internal format, so there is no number to
+      // return here even where the hardware has the format. Nothing in this
+      // engine allocates one; they exist in the enum because it mirrors
+      // flutter_gpu value for value, and this arm is what keeps that mirror
+      // from being mistaken for support.
       TextureFormat.unknown ||
       TextureFormat.a8UNormInt ||
       TextureFormat.b8g8r8a8UNormInt ||
       TextureFormat.b8g8r8a8UNormIntSRGB ||
-      TextureFormat.b10g10r10XR ||
-      TextureFormat.b10g10r10XRSRGB ||
-      TextureFormat.b10g10r10a10XR ||
-      TextureFormat.s8UInt =>
+      TextureFormat.s8UInt ||
+      TextureFormat.bc1RGBAUNormInt ||
+      TextureFormat.bc1RGBAUNormIntSRGB ||
+      TextureFormat.bc3RGBAUNormInt ||
+      TextureFormat.bc3RGBAUNormIntSRGB ||
+      TextureFormat.bc5RGUNormInt ||
+      TextureFormat.bc7RGBAUNormInt ||
+      TextureFormat.bc7RGBAUNormIntSRGB ||
+      TextureFormat.etc2RGB8UNormInt ||
+      TextureFormat.etc2RGB8UNormIntSRGB ||
+      TextureFormat.etc2RGBA8UNormInt ||
+      TextureFormat.etc2RGBA8UNormIntSRGB ||
+      TextureFormat.astc4x4LDR ||
+      TextureFormat.astc4x4LDRSRGB ||
+      TextureFormat.astc8x8LDR ||
+      TextureFormat.astc8x8LDRSRGB ||
+      TextureFormat.astc4x4HDR ||
+      TextureFormat.astc8x8HDR =>
         throw UnsupportedError(
           'WebGL2 has no sized internal format for TextureFormat.${format.name}. '
           'If the engine needs it, the HAL needs a capability query rather than '

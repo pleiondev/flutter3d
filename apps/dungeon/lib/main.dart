@@ -222,17 +222,32 @@ class _GameScreenState extends State<GameScreen>
 
     _view = RenderView(camera: _camera);
 
+    unawaited(_openGraphics());
+  }
+
+  /// Builds the device and everything that hangs off it.
+  ///
+  /// Asynchronous only because loading the shader bundle is, since flutter_gpu
+  /// 3.47. Nothing else here waits for anything, and the order is the order it
+  /// ran in when `initState` did it directly — the ticker still starts after
+  /// the renderer exists, and the level still loads after the ticker.
+  ///
+  /// `build` is safe in the gap: it returns the panel whenever `_renderer` is
+  /// null, which is exactly the state this leaves behind until it finishes, and
+  /// which is also the state a failure leaves permanently.
+  Future<void> _openGraphics() async {
     // The device first, because the weapon models and the fallback textures are
     // uploaded through it. A failure here is the same failure as a missing
     // shader bundle — `_renderer` stays null and `build` shows the panel — so
     // there is nothing further to set up.
     final GpuRenderBackend device;
     try {
-      device = GpuRenderBackend.create();
+      device = await GpuRenderBackend.create();
     } catch (error) {
-      _initError = error;
+      if (mounted) setState(() => _initError = error);
       return;
     }
+    if (!mounted) return;
     _device = device;
 
     _weaponView = WeaponView(
@@ -240,15 +255,20 @@ class _GameScreenState extends State<GameScreen>
       initial: Weapons.pistol,
     );
 
-    try {
-      _renderer = Renderer.create(
-        device: device,
-        fallbackAlbedo: SolidColorTexture.white.upload(device),
-        fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-      );
-    } catch (error) {
-      _initError = error;
-    }
+    // Inside `setState` because `build` is reading `_renderer` to decide
+    // between the panel and the game, and by this point the first frame has
+    // already been built.
+    setState(() {
+      try {
+        _renderer = Renderer.create(
+          device: device,
+          fallbackAlbedo: SolidColorTexture.white.upload(device),
+          fallbackNormal: SolidColorTexture.flatNormal.upload(device),
+        );
+      } catch (error) {
+        _initError = error;
+      }
+    });
 
     // What draws alongside the world is registered rather than passed in each
     // frame. Particles inside the scene pass so they are lit and bloomed and

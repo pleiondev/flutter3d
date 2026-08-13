@@ -28,8 +28,15 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// Throws when the bundle is missing, which is the right moment to fail: a
   /// renderer without its shaders cannot draw anything, and the alternative is
   /// a black screen with a null somewhere.
-  factory GpuRenderBackend.create({String bundleAsset = defaultBundleAsset}) {
-    final library = gpu.ShaderLibrary.fromAsset(bundleAsset);
+  ///
+  /// **A static method rather than a factory constructor**, because loading the
+  /// bundle became asynchronous in flutter_gpu 3.47 and a factory constructor
+  /// cannot be. The name is kept so every call site reads the same with an
+  /// `await` in front of it.
+  static Future<GpuRenderBackend> create({
+    String bundleAsset = defaultBundleAsset,
+  }) async {
+    final library = await gpu.ShaderLibrary.fromAsset(bundleAsset);
     if (library == null) {
       throw StateError('Failed to load the shader bundle: $bundleAsset');
     }
@@ -152,14 +159,21 @@ final class GpuRenderBackend implements GraphicsDevice {
     required ByteData pixels,
   }) {
     final texture = createGpuTexture(
-      // Host-visible and origin-at-the-bottom, because these bytes come from
-      // the CPU. Both are consequences of *how the texture is filled* rather
-      // than of what it is for, which is why neither is a parameter above.
+      // Host-visible, because these bytes come from the CPU. That is a
+      // consequence of *how the texture is filled* rather than of what it is
+      // for, which is why it is not a parameter above.
+      //
+      // This used to also ask for origin-at-the-bottom, via a
+      // `TextureCoordinateSystem` flutter_gpu deleted in 3.47. It never had an
+      // effect worth the line: the setting was read by the path that turns a
+      // texture into a `ui.Image`, not by a shader sampling one, and the two
+      // backends that have no such concept have always drawn these textures
+      // the same way up — `normal-mapping`, a grid of tiles where a vertical
+      // flip could not hide, sits at 1.1% between them.
       StorageMode.hostVisible,
       width,
       height,
       format: format,
-      coordinateSystem: TextureCoordinateSystem.uploadFromHost,
     );
 
     // `overwrite` demands exactly the base mip size and throws otherwise, so
@@ -374,21 +388,35 @@ final class _GpuCommandEncoder implements CommandEncoder {
   void bindPipeline(PipelineHandle pipeline) =>
       _pass.bindPipeline(pipeline.backend as gpu.RenderPipeline);
 
+  /// How many indices the last index bind described.
+  ///
+  /// flutter_gpu 3.47 moved the counts off the binds and onto the draw. The HAL
+  /// keeps them on the binds — that is where the other two backends put them,
+  /// and where the count is actually known — so this remembers the one the draw
+  /// will need. Zero means nothing has been bound, which [draw] treats as
+  /// nothing to do rather than as an error: the same thing `flutter_gpu` did
+  /// when the count travelled with the binding.
+  int _indexCount = 0;
+
   @override
   void bindVertexBuffer(GeometryBuffer buffer, int vertexCount) =>
-      _pass.bindVertexBuffer(_view(buffer), vertexCount);
+      _pass.bindVertexBuffer(_view(buffer));
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount) =>
-      _pass.bindVertexBuffer(_host.emplace(bytes), vertexCount);
+      _pass.bindVertexBuffer(_host.emplace(bytes));
 
   @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>
-      _pass.bindIndexBuffer(_view(buffer), type.toGpu(), indexCount);
+  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
+    _pass.bindIndexBuffer(_view(buffer), type.toGpu());
+    _indexCount = indexCount;
+  }
 
   @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) =>
-      _pass.bindIndexBuffer(_host.emplace(bytes), type.toGpu(), indexCount);
+  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
+    _pass.bindIndexBuffer(_host.emplace(bytes), type.toGpu());
+    _indexCount = indexCount;
+  }
 
   @override
   bool bindUniformBlock(
@@ -442,10 +470,19 @@ final class _GpuCommandEncoder implements CommandEncoder {
   }
 
   @override
-  void clearBindings() => _pass.clearBindings();
+  void clearBindings() {
+    _pass.clearBindings();
+    // The count is a binding like any other. Leaving it behind would let a
+    // draw after a `clearBindings` inherit the previous mesh's index count,
+    // which is the kind of state leak that draws a plausible wrong picture.
+    _indexCount = 0;
+  }
 
   @override
-  void draw() => _pass.draw();
+  void draw() {
+    if (_indexCount == 0) return;
+    _pass.drawIndexed(_indexCount);
+  }
 
   @override
   void submit() => _buffer.submit();

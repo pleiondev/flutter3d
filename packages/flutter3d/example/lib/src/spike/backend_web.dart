@@ -9,7 +9,13 @@ import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 ///
 /// The size is the canvas the browser will composite. Unlike Impeller, this
 /// backend owns a surface and has to be told how big it is.
-GraphicsDevice createBackend({required int width, required int height}) {
+/// The `Future` is for the Impeller build's benefit, not this one's: a
+/// conditional import picks between the two and they must have one signature.
+/// Nothing here waits.
+Future<GraphicsDevice> createBackend({
+  required int width,
+  required int height,
+}) async {
   final device = WebGlDevice.create(
     width: width,
     height: height,

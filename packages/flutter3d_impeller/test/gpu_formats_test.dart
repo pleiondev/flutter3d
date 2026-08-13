@@ -136,19 +136,9 @@ void main() {
     (v) => v.toEngine(),
   );
 
-  checkForward(
-    'TextureCoordinateSystem',
-    TextureCoordinateSystem.values,
-    gpu.TextureCoordinateSystem.values,
-    (v) => v.toGpu(),
-  );
-  checkRoundTrip(
-    'TextureCoordinateSystem',
-    TextureCoordinateSystem.values,
-    gpu.TextureCoordinateSystem.values,
-    (v) => v.toGpu(),
-    (v) => v.toEngine(),
-  );
+  // `TextureCoordinateSystem` used to be checked here. flutter_gpu 3.47 deleted
+  // the type, so the engine did too — see `gpu_device.createTextureFromPixels`
+  // for why removing it changed no picture.
 
   // -- Geometry --------------------------------------------------------------
 

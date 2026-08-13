@@ -38,7 +38,7 @@ class _ParityAppState extends State<ParityApp> {
 
   Future<void> _run() async {
     try {
-      final device = GpuRenderBackend.create();
+      final device = await GpuRenderBackend.create();
       final white = device.createTextureFromPixels(
         width: 1,
         height: 1,
