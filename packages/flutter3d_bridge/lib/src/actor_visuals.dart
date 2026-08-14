@@ -11,9 +11,14 @@ import 'shared_meshes.dart';
 /// Called every frame with the monster's current state, so a game is free to
 /// answer with a shared material per kind, a brightened one for a monster that
 /// was just hit, or something built on the spot.
-abstract interface class MonsterAppearance {
+abstract interface class ActorAppearance {
   /// The material to draw [monster] with right now.
-  Material materialFor(Monster monster);
+  Material materialFor(Actor actor);
+
+  /// A key that two actors share exactly when they should share one capsule
+  /// mesh. The game's own answer, because the engine has no idea what makes
+  /// two of its actors the same kind of thing.
+  String meshKeyFor(Actor actor);
 }
 
 /// Where the monsters are, and which way they are facing.
@@ -25,10 +30,10 @@ abstract interface class MonsterAppearance {
 /// arrive, the mesh changes here and nothing else does.
 ///
 /// One mesh per kind, uploaded once and shared by every node — the only form of
-/// instancing flutter_gpu offers. What colour they are is a [MonsterAppearance];
+/// instancing flutter_gpu offers. What colour they are is an [ActorAppearance];
 /// this owns the shape, the placement and the death pose.
-final class MonsterVisuals {
-  MonsterVisuals(
+final class ActorVisuals {
+  ActorVisuals(
     this.scene, {
     required this.appearance,
     required GraphicsDevice device,
@@ -37,43 +42,48 @@ final class MonsterVisuals {
   final Scene scene;
 
   /// The game's half: one material per monster and per state.
-  final MonsterAppearance appearance;
+  final ActorAppearance appearance;
 
   final SharedMeshes _meshes;
-  final Map<Monster, MeshNode> _nodes = <Monster, MeshNode>{};
+  final Map<Actor, MeshNode> _nodes = <Actor, MeshNode>{};
 
-  void add(Monster monster) {
-    final def = monster.def;
+  void add(Actor actor) {
+    // Straight off the body, so this works for anything with one. It used to
+    // read a `MonsterDef`, which is how the renderer's bridge came to depend on
+    // a shooter's idea of what walks about in a level.
+    final radius = actor.body.halfExtents.x;
+    final height = actor.body.halfExtents.y * 2.0;
+    final key = appearance.meshKeyFor(actor);
     final mesh = _meshes.shape(
-      'monster:${def.name}',
-      () => CapsuleShape(radius: def.radius, height: def.height),
+      'actor:$key',
+      () => CapsuleShape(radius: radius, height: height),
     );
 
-    final node = MeshNode(mesh, appearance.materialFor(monster), name: def.name);
+    final node = MeshNode(mesh, appearance.materialFor(actor), name: key);
     scene.add(node);
-    _nodes[monster] = node;
+    _nodes[actor] = node;
   }
 
-  /// Moves every node to its monster.
+  /// Moves every node to its actor.
   ///
   /// Called once per frame rather than per simulation step: this is display,
   /// and the simulation does not care where the capsules are.
   void sync() {
     for (final entry in _nodes.entries) {
-      final monster = entry.key;
+      final actor = entry.key;
       final node = entry.value;
-      final position = monster.position;
+      final position = actor.position;
 
-      node.material = appearance.materialFor(monster);
+      node.material = appearance.materialFor(actor);
 
-      if (monster.state == MonsterState.dead) {
+      if (!actor.isAlive) {
         // Laid on its side and sunk, which reads as a corpse without needing a
         // death animation. It stays: an emptied corridor should show what
         // happened in it.
         node
           ..setPosition(
             position.x,
-            position.y - monster.def.height * 0.32,
+            position.y - actor.body.halfExtents.y * 0.64,
             position.z,
           )
           ..setRotation(
@@ -84,7 +94,7 @@ final class MonsterVisuals {
 
       node
         ..setPositionFrom(position)
-        ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), monster.yaw));
+        ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), actor.yaw));
     }
   }
 }

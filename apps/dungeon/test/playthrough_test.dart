@@ -18,6 +18,7 @@ import 'dart:io';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game/sample.dart';
+import 'package:flutter3d_game/shooter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -32,11 +33,20 @@ Level _crypt() => Level.fromJson(
 final class _Game {
   _Game(this.level, {required EntityRegistry registry}) {
     level.addTo(world);
-    monsters = MonsterSystem(world: world, projectiles: projectiles)
+    actors = ActorSystem(world: world)
       ..navigation = Navigation.bake(level, cellSize: 0.25);
+    (registry[ShooterEntities.monster] as MonsterKind?)?.bestiary = Bestiary(
+      actors: actors,
+      shot: WeaponShot(
+        world: world,
+        hitscan: Hitscan(world: world),
+        projectiles: projectiles,
+      ),
+      catalog: Monsters.byName,
+    );
     mechanisms = MechanismWorld(world);
     level.spawnInto(
-      SpawnContext(world: world, monsters: monsters, mechanisms: mechanisms),
+      SpawnContext(world: world, actors: actors, mechanisms: mechanisms),
       registry: registry,
     );
 
@@ -56,7 +66,7 @@ final class _Game {
       collision: world,
       input: input,
       mechanisms: mechanisms,
-      monsters: monsters,
+      actors: actors,
       projectiles: projectiles,
       shot: WeaponShot(
         world: world,
@@ -71,7 +81,7 @@ final class _Game {
   final Level level;
   final CollisionWorld world = CollisionWorld();
   late final ProjectileSystem projectiles = ProjectileSystem(world: world);
-  late final MonsterSystem monsters;
+  late final ActorSystem actors;
   late final MechanismWorld mechanisms;
   late final Player player;
   late final GameSimulation sim;
@@ -198,7 +208,7 @@ void main() {
     expect(game.sim.state, GameState.playing);
     expect(game.mechanisms['crypt_door'], isA<Door>());
     expect(game.mechanisms['way_down'], isA<Exit>());
-    expect(game.monsters.monsters, hasLength(3));
+    expect(game.actors.actors, hasLength(3));
     expect(game.player.isAlive, isTrue);
   });
 
@@ -208,20 +218,11 @@ void main() {
     // measures, and leaving `MonsterKind` out of the registry is also the
     // shortest demonstration that the package has no opinion about whether a
     // game has monsters at all.
-    final registry = EntityRegistry(<EntityKind>[
-      const PlayerSpawnKind(),
-      PickupKind(sampleGifts),
-      const KeyKind(),
-      const DoorKind(),
-      const LiftKind(),
-      const PlatformKind(),
-      const ButtonKind(),
-      const TriggerKind(),
-      const NoteKind(),
-      const ExitKind(),
-      ...sampleLightKinds(),
-    ]);
-    final game = _Game(_crypt(), registry: registry);
+    // `monsters: false` and nothing else: the registry has no `monster` in it,
+    // so the word is not part of the language this level is read in and the
+    // three in the document spawn nothing. The shortest statement of what the
+    // content seam is worth.
+    final game = _Game(_crypt(), registry: sampleRegistry(monsters: false));
 
     final key = game.level.entities
         .firstWhere((EntityDef e) => e.type == EntityTypes.key);

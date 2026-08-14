@@ -56,7 +56,7 @@ for p in packages/*/; do (cd "$p" && flutter test); done
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-1234 tests across thirteen packages, and the only ones that need a GPU are the
+1242 tests across thirteen packages, and the only ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 30 scenes checkable in a headless run.
 

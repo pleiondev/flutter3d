@@ -213,7 +213,7 @@ void main() {
         brushes: _valid().brushes,
         entities: <EntityDef>[
           EntityDef(type: EntityTypes.playerSpawn),
-          EntityDef(type: EntityTypes.monster),
+          EntityDef(type: 'monster'),
           EntityDef(type: EntityTypes.pickup),
           EntityDef(type: EntityTypes.key),
           EntityDef(type: EntityTypes.note),
@@ -236,7 +236,7 @@ void main() {
         entities: <EntityDef>[
           EntityDef(type: EntityTypes.playerSpawn),
           EntityDef(
-            type: EntityTypes.monster,
+            type: 'monster',
             properties: <String, Object?>{'kind': 'wyvern'},
           ),
         ],

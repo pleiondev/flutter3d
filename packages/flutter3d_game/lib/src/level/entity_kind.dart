@@ -1,6 +1,5 @@
 import 'package:vector_math/vector_math.dart';
 
-import '../actors/monster.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import '../world/exit.dart';
 import '../world/gift.dart';
@@ -232,7 +231,6 @@ final class LevelScope {
 /// validator and an editor all spell them the same way.
 abstract final class EntityTypes {
   static const String playerSpawn = 'player_spawn';
-  static const String monster = 'monster';
   static const String pickup = 'pickup';
   static const String key = 'key';
   static const String door = 'door';
@@ -250,78 +248,6 @@ final class PlayerSpawnKind extends EntityKind {
   const PlayerSpawnKind() : super(EntityTypes.playerSpawn);
 }
 
-/// Spawns whatever the game says a monster can be.
-///
-/// **The catalog is given, not reached for.** This class used to read the
-/// global `Monsters.byName`, which meant a level could only contain the three
-/// monsters this repository's own game ships with — and that a second game
-/// would validate its own levels against somebody else's roster. The catalog
-/// is now the one thing that decides both what spawns and what validates, so
-/// the two cannot disagree.
-final class MonsterKind extends EntityKind {
-  const MonsterKind(this.catalog) : super(EntityTypes.monster);
-
-  /// What a `kind` string may name, and what it becomes.
-  final Map<String, MonsterDef> catalog;
-
-  @override
-  void spawn(EntityDef entity, SpawnContext context) {
-    final def = catalog[entity.string('kind')];
-    // Already an error from validate, and a level with errors does not load —
-    // but a tool can spawn from a broken document deliberately, and crashing
-    // on it would be the wrong answer.
-    if (def == null) return;
-
-    final monster = context.monsters.spawn(
-      def,
-      // Authored where the feet go, which is the only place an author can see;
-      // the body is positioned by its centre.
-      entity.position + Vector3(0.0, def.height / 2.0, 0.0),
-      yaw: entity.yaw,
-    );
-    context.onMonsterSpawned?.call(monster);
-  }
-
-  /// What this kind will accept, which is exactly what it can spawn.
-  ///
-  /// It was a second literal set for a while — `{'runner', 'shooter', 'tank'}`
-  /// beside `Monsters.byName` — two lists that had to agree with nothing making
-  /// them. Reading the catalog removes that failure mode rather than testing
-  /// for it: a test asserting two lists agree cannot fail once they are one
-  /// list, which is the wrong artefact.
-  Iterable<String> get kinds => catalog.keys;
-
-  @override
-  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
-    final kind = entity.string('kind');
-    if (kind == null) {
-      out.add(
-        LevelIssue(
-          LevelIssueSeverity.error,
-          'has no "kind", so there is nothing to spawn',
-          where: scope.describe(entity),
-        ),
-      );
-      return;
-    }
-    if (!kinds.contains(kind)) {
-      out.add(
-        LevelIssue(
-          LevelIssueSeverity.error,
-          'is a "$kind", which is not one of ${kinds.join(', ')}',
-          where: scope.describe(entity),
-        ),
-      );
-    }
-  }
-}
-
-/// Something on the floor that gives what the game says it gives.
-///
-/// The registry is given rather than reached for, for the same reason
-/// [MonsterKind]'s catalog is: it decides both what a document may ask for and
-/// what picking it up does, so the two cannot drift, and a game whose pickups
-/// are not this one's can say so.
 final class PickupKind extends EntityKind {
   const PickupKind(this.gifts) : super(EntityTypes.pickup);
 

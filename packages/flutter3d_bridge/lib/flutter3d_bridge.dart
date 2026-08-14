@@ -20,6 +20,6 @@ library;
 
 export 'src/fixture_visuals.dart';
 export 'src/level_loader.dart';
-export 'src/monster_visuals.dart';
+export 'src/actor_visuals.dart';
 export 'src/shared_meshes.dart';
 export 'src/weapon_view.dart';

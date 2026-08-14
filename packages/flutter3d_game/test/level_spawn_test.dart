@@ -4,6 +4,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:flutter3d_game/sample.dart';
+import 'package:flutter3d_game/shooter.dart';
 
 /// A level with one brush to stand on and whatever entities a test wants.
 Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
@@ -27,26 +28,33 @@ Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
       ) as Map<String, Object?>,
     );
 
-({CollisionWorld world, MonsterSystem monsters, List<Monster> seen}) _spawn(
+({CollisionWorld world, ActorSystem actors, List<Actor> seen}) _spawn(
   Level level,
 ) {
   final world = CollisionWorld();
   level.addTo(world);
-  final monsters = MonsterSystem(
-    world: world,
-    projectiles: ProjectileSystem(world: world),
+  final actors = ActorSystem(world: world);
+  final registry = sampleRegistry();
+  (registry[ShooterEntities.monster] as MonsterKind?)?.bestiary = Bestiary(
+    actors: actors,
+    shot: WeaponShot(
+      world: world,
+      hitscan: Hitscan(world: world),
+      projectiles: ProjectileSystem(world: world),
+    ),
+    catalog: Monsters.byName,
   );
-  final seen = <Monster>[];
+  final seen = <Actor>[];
   level.spawnInto(
-    registry: sampleRegistry(),
+    registry: registry,
     SpawnContext(
       world: world,
-      monsters: monsters,
+      actors: actors,
       mechanisms: MechanismWorld(world),
-      onMonsterSpawned: seen.add,
+      onActorSpawned: seen.add,
     ),
   );
-  return (world: world, monsters: monsters, seen: seen);
+  return (world: world, actors: actors, seen: seen);
 }
 
 void main() {
@@ -69,9 +77,9 @@ void main() {
         ]),
       );
 
-      expect(result.monsters.aliveCount, 2);
+      expect(result.actors.aliveCount, 2);
       expect(
-        result.monsters.monsters.map((Monster m) => m.def.name),
+        result.actors.actors.map((Actor a) => (a.brain as ChaseBrain).def.name),
         <String>['runner', 'tank'],
       );
     });
@@ -88,7 +96,7 @@ void main() {
       );
 
       expect(result.seen, hasLength(1));
-      expect(result.seen.single.def.name, 'shooter');
+      expect((result.seen.single.brain as ChaseBrain).def.name, 'shooter');
     });
 
     test('an entity authored at the floor stands on it', () {
@@ -105,8 +113,9 @@ void main() {
         ]),
       );
 
-      final monster = result.monsters.monsters.single;
-      expect(monster.position.y, closeTo(monster.def.height / 2.0, 1e-6));
+      final monster = result.actors.actors.single;
+      expect(monster.position.y,
+          closeTo(monster.body.halfExtents.y, 1e-6));
 
       // And a step of simulation does not drop it, which is what would happen
       // if it had been spawned inside the floor and pushed out.
@@ -118,13 +127,13 @@ void main() {
         layer: CollisionLayers.player,
       );
       for (var i = 0; i < 30; i++) {
-        result.monsters.step(
+        result.actors.step(
           1.0 / 60.0,
-          playerEye: Vector3(0.0, 1.6, 30.0),
-          playerCollider: player,
+          focus: Vector3(0.0, 1.6, 30.0),
+          focusBody: player,
         );
       }
-      expect(monster.position.y, closeTo(monster.def.height / 2.0, 0.05));
+      expect(monster.position.y, closeTo(monster.body.halfExtents.y, 0.05));
     });
 
     test('yaw carries across', () {
@@ -140,7 +149,7 @@ void main() {
         ]),
       );
 
-      expect(result.monsters.monsters.single.yaw, closeTo(1.5, 1e-6));
+      expect(result.actors.actors.single.yaw, closeTo(1.5, 1e-6));
     });
 
     test('kinds with nothing to spawn spawn nothing', () {
@@ -157,7 +166,7 @@ void main() {
         ]),
       );
 
-      expect(result.monsters.aliveCount, 0);
+      expect(result.actors.aliveCount, 0);
       expect(result.seen, isEmpty);
     });
 
@@ -189,7 +198,7 @@ void main() {
         ]),
       );
 
-      expect(result.monsters.aliveCount, 0);
+      expect(result.actors.aliveCount, 0);
     });
 
     test('a registry can be narrowed', () {
@@ -204,21 +213,18 @@ void main() {
       ]);
       final world = CollisionWorld();
       level.addTo(world);
-      final monsters = MonsterSystem(
-        world: world,
-        projectiles: ProjectileSystem(world: world),
-      );
+      final actors = ActorSystem(world: world);
 
       level.spawnInto(
         SpawnContext(
           world: world,
-          monsters: monsters,
+          actors: actors,
           mechanisms: MechanismWorld(world),
         ),
         registry: EntityRegistry(<EntityKind>[const PlayerSpawnKind()]),
       );
 
-      expect(monsters.aliveCount, 0);
+      expect(actors.aliveCount, 0);
     });
   });
 }
@@ -252,11 +258,27 @@ void _anotherGameTests() {
   /// A vocabulary of exactly two words: where the player starts, and what a
   /// monster is. No pickups, no doors, no exit — this game has none, and the
   /// package has no opinion about that.
-  EntityRegistry registryOf(Map<String, MonsterDef> monsters) =>
-      EntityRegistry(<EntityKind>[
-        const PlayerSpawnKind(),
-        MonsterKind(monsters),
-      ]);
+  /// The catalog validates; a bestiary, when there is a world to put anything
+  /// in, is what brings it to life. One object still decides both, which is the
+  /// property this group is about.
+  EntityRegistry registryOf(
+    Map<String, MonsterDef> monsters, {
+    ActorSystem? into,
+  }) {
+    final kind = MonsterKind(monsters);
+    if (into != null) {
+      kind.bestiary = Bestiary(
+        actors: into,
+        shot: WeaponShot(
+          world: into.world,
+          hitscan: Hitscan(world: into.world),
+          projectiles: ProjectileSystem(world: into.world),
+        ),
+        catalog: monsters,
+      );
+    }
+    return EntityRegistry(<EntityKind>[const PlayerSpawnKind(), kind]);
+  }
 
   Level levelWith(String kind) => Level(
         name: 'other',
@@ -266,7 +288,7 @@ void _anotherGameTests() {
         entities: <EntityDef>[
           EntityDef(type: EntityTypes.playerSpawn, position: Vector3.zero()),
           EntityDef(
-            type: EntityTypes.monster,
+            type: ShooterEntities.monster,
             position: Vector3(2, 0, 0),
             properties: <String, Object?>{'kind': kind},
           ),
@@ -336,20 +358,17 @@ void _anotherGameTests() {
       final world = CollisionWorld();
       final level = levelWith('ghost');
       level.addTo(world);
-      final monsters = MonsterSystem(
-        world: world,
-        projectiles: ProjectileSystem(world: world),
-      );
+      final actors = ActorSystem(world: world);
       level.spawnInto(
         SpawnContext(
           world: world,
-          monsters: monsters,
+          actors: actors,
           mechanisms: MechanismWorld(world),
         ),
-        registry: registryOf(<String, MonsterDef>{'ghost': ghost}),
+        registry: registryOf(<String, MonsterDef>{'ghost': ghost}, into: actors),
       );
 
-      expect(monsters.aliveCount, 1);
+      expect(actors.aliveCount, 1);
     });
   });
 }

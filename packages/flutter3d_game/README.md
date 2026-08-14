@@ -24,7 +24,7 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 | `level/` | `Level` format v1, `EntityKind` and its registry, `LevelValidator`, brush→geometry, `SpawnContext` |
 | `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Pickup`, `Exit`, `Rider`, `Gift`, `Inventory`, `LightFixture` |
 | `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
-| `actors/` | `Health`, `MonsterDef`, `MonsterSystem`, `Player` (body, eye, aim), `Damageable` |
+| `actors/` | `Actor` (a body with health), `Brain`, `ActorSystem`, `Health`, `Player`, `Damageable` |
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
 | `ecs/` | `EcsWorld`, `Entity`. Projectiles live here; see below |
 | `save/` | `Snapshot`, `GameRandom` |
@@ -62,6 +62,32 @@ And a third thing, which was a real bug rather than a claim about one: a
 where it is about to be on every step. **No lift in the repository could move
 while anybody rode it.** `Rider` is what tells being carried from being in the
 way.
+
+## Actors, and why there are no monsters here
+
+`Actor` is a body that walks, health that can run out, a facing, and a [Brain]
+that decides. `ActorSystem` steps them, throttles their thinking, turns them,
+routes them round corners with the navigation grid, tests lines of sight,
+applies damage, counts deaths and stops corpses blocking corridors.
+
+**None of it knows what any of them is doing.** That was `Monster` and
+`MonsterSystem`, and the engine therefore knew what an alert pause was, that
+attacking involves a weapon, and that being hurt involves a chance of
+flinching. A platformer has none of those, and the first thing that would have
+happened when one was written is that half the file would have been unusable
+and the other half copied.
+
+The shooter's chase-and-attack machine — six states, `MonsterDef`, the flinch
+roll, `Bestiary`, `MonsterKind` — is in [`lib/shooter.dart`](lib/shooter.dart),
+which **the barrel does not export**. A game imports it by name if it is a
+shooter. `test/actor_test.dart` drives an actor with a fourteen-line patrol
+brain that shares nothing with it, which is what makes the split a fact rather
+than a rename.
+
+The rule is the one `gift.dart` wrote down long before this: a hierarchy rather
+than an enum with a switch, because every job that treats them differently
+grows its own switch over the same names in a different file, and the switches
+drift.
 
 ## Content lives in the game, not here
 

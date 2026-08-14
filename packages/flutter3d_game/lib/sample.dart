@@ -18,7 +18,7 @@ library;
 
 import 'package:vector_math/vector_math.dart';
 
-import 'src/actors/monster.dart';
+import 'shooter.dart';
 import 'src/combat/weapon.dart';
 import 'src/combat/weapon_behaviour.dart';
 import 'src/level/entity_kind.dart';
@@ -215,11 +215,16 @@ List<EntityKind> sampleLightKinds() => <EntityKind>[
 /// Everything above, assembled the way this game's levels expect.
 ///
 /// **An example of composing a vocabulary, not a default.** The package offers
-/// kinds; which of them a game speaks is the game's own answer, and a game with
-/// no monsters simply leaves `MonsterKind` out of this list.
-EntityRegistry sampleRegistry() => EntityRegistry(<EntityKind>[
+/// kinds; which of them a game speaks is the game's own answer.
+///
+/// `monsters: false` is not a convenience — it is the shortest statement of
+/// what the content seam is worth. A game without them gets a registry with no
+/// `monster` in it, and the word stops being part of the language its levels
+/// are written in.
+EntityRegistry sampleRegistry({bool monsters = true}) =>
+    EntityRegistry(<EntityKind>[
       const PlayerSpawnKind(),
-      MonsterKind(Monsters.byName),
+      if (monsters) MonsterKind(Monsters.byName),
       PickupKind(sampleGifts),
       const KeyKind(),
       const DoorKind(),

@@ -4,14 +4,24 @@ import 'package:flutter3d_game/src/actors/damageable.dart';
 import 'package:flutter3d_game/src/actors/health.dart';
 import 'package:flutter3d_game/src/actors/player.dart';
 import 'package:flutter3d_game/src/world/key_ring.dart';
-import 'package:flutter3d_game/src/actors/monster.dart';
-import 'package:flutter3d_game/src/actors/monster_system.dart';
+
+import 'package:flutter3d_game/src/actors/actor.dart';
+import 'package:flutter3d_game/src/actors/actor_system.dart';
+import 'package:flutter3d_game/shooter.dart';
+import 'package:flutter3d_game/src/combat/hitscan.dart';
 import 'package:flutter3d_game/src/combat/projectile.dart';
+import 'package:flutter3d_game/src/combat/weapon_behaviour.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:flutter3d_game/src/physics/layers.dart';
 import 'package:flutter3d_game/sample.dart';
+
+/// What an actor is doing, for a game whose actors are monsters.
+///
+/// The engine hands back an `Actor`; the six states are a `ChaseBrain`'s, and
+/// reading them means saying which game this is. That is the seam working.
+ChaseBrain _mind(Actor actor) => actor.brain as ChaseBrain;
 
 const double _dt = 1.0 / 60.0;
 
@@ -25,7 +35,12 @@ CollisionWorld _room({bool wall = false}) {
   return world;
 }
 
-({MonsterSystem system, Collider player, Vector3 eye}) _harness(
+/// A system with this game's bestiary attached.
+///
+/// The engine builds actors; what makes one of them a monster is a `ChaseBrain`
+/// and a `MonsterDef`, and both of those live in `shooter.dart` now. That is
+/// what this helper says out loud.
+({ActorSystem system, Bestiary bestiary, Collider player, Vector3 eye}) _harness(
   CollisionWorld world, {
   Vector3? playerAt,
   int seed = 1,
@@ -39,11 +54,18 @@ CollisionWorld _room({bool wall = false}) {
     ),
   );
   world.update();
+  final random = math.Random(seed);
+  final system = ActorSystem(world: world, random: random);
   return (
-    system: MonsterSystem(
-      world: world,
-      projectiles: ProjectileSystem(world: world),
-      random: math.Random(seed),
+    system: system,
+    bestiary: Bestiary(
+      actors: system,
+      shot: WeaponShot(
+        world: world,
+        hitscan: Hitscan(world: world, random: random),
+        projectiles: ProjectileSystem(world: world),
+      ),
+      catalog: Monsters.byName,
     ),
     player: player,
     eye: (playerAt ?? Vector3.zero()) + Vector3(0.0, 0.7, 0.0),
@@ -126,11 +148,11 @@ void main() {
     test('a monster with a clear line takes notice', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
-      h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+      h.system.step(_dt, focus: h.eye, focusBody: h.player);
 
-      expect(monster.state, MonsterState.alert);
+      expect(_mind(monster).state, MonsterState.alert);
     });
 
     test('a wall in the way keeps it asleep', () {
@@ -138,25 +160,25 @@ void main() {
       // player they cannot possibly have seen.
       final world = _room(wall: true);
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
       for (var i = 0; i < 60; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
-      expect(monster.state, MonsterState.idle);
+      expect(_mind(monster).state, MonsterState.idle);
     });
 
     test('something too far away is not noticed', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -40.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -40.0));
 
       for (var i = 0; i < 30; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
-      expect(monster.state, MonsterState.idle);
+      expect(_mind(monster).state, MonsterState.idle);
     });
 
     test('being shot wakes it even with no line of sight', () {
@@ -165,12 +187,12 @@ void main() {
       // ambush.
       final world = _room(wall: true);
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
       h.system.hurt(monster, 5.0);
 
-      expect(monster.hasNoticed, isTrue);
-      expect(monster.state, isNot(MonsterState.idle));
+      expect(_mind(monster).hasNoticed, isTrue);
+      expect(_mind(monster).state, isNot(MonsterState.idle));
     });
 
     test('it hesitates before charging', () {
@@ -178,15 +200,15 @@ void main() {
       // turret.
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
-      h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
-      expect(monster.state, MonsterState.alert);
+      h.system.step(_dt, focus: h.eye, focusBody: h.player);
+      expect(_mind(monster).state, MonsterState.alert);
 
       for (var i = 0; i < 30; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
-      expect(monster.state, MonsterState.chase);
+      expect(_mind(monster).state, MonsterState.chase);
     });
   });
 
@@ -194,11 +216,11 @@ void main() {
     test('it closes the distance', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -12.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -12.0));
 
       final before = monster.position.z;
       for (var i = 0; i < 120; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
       expect(monster.position.z, greaterThan(before + 4.0));
@@ -212,13 +234,13 @@ void main() {
       // sliding is possible round its end.
       world.addBox(Vector3(-3.0, 3.0, -6.0), Vector3(12.0, 6.0, 1.0));
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(-3.0, 0.9, -10.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(-3.0, 0.9, -10.0));
       h.system.hurt(monster, 1.0);
 
       final startX = monster.position.x;
       var furthest = 0.0;
       for (var i = 0; i < 180; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
         furthest = math.max(furthest, (monster.position.x - startX).abs());
       }
 
@@ -232,20 +254,20 @@ void main() {
     test('it stops attacking when the player leaves its reach', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.5));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.5));
 
       for (var i = 0; i < 40; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
-      expect(monster.state, MonsterState.attack);
+      expect(_mind(monster).state, MonsterState.attack);
 
       // The player runs away.
       final farEye = Vector3(0.0, 0.7, 20.0);
       for (var i = 0; i < 10; i++) {
-        h.system.step(_dt, playerEye: farEye, playerCollider: h.player);
+        h.system.step(_dt, focus: farEye, focusBody: h.player);
       }
 
-      expect(monster.state, MonsterState.chase);
+      expect(_mind(monster).state, MonsterState.chase);
     });
   });
 
@@ -253,12 +275,12 @@ void main() {
     test('a runner in reach hurts the player', () {
       final world = _room();
       final h = _harness(world);
-      h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
+      h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
 
       var total = 0.0;
       for (var i = 0; i < 120; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
-        total += h.system.playerDamageThisStep;
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
+        total += h.system.damageToFocusThisStep;
       }
 
       expect(total, greaterThan(0.0));
@@ -267,12 +289,12 @@ void main() {
     test('out of reach it does nothing', () {
       final world = _room();
       final h = _harness(world);
-      h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -10.0));
+      h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -10.0));
 
       var total = 0.0;
       for (var i = 0; i < 40; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
-        total += h.system.playerDamageThisStep;
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
+        total += h.system.damageToFocusThisStep;
       }
 
       expect(total, 0.0);
@@ -290,16 +312,21 @@ void main() {
       );
       world.update();
       final projectiles = ProjectileSystem(world: world);
-      final system = MonsterSystem(
-        world: world,
-        projectiles: projectiles,
-        random: math.Random(1),
-      );
-      system.spawn(Monsters.shooter, Vector3(0.0, 0.9, -12.0));
+      final random = math.Random(1);
+      final system = ActorSystem(world: world, random: random);
+      Bestiary(
+        actors: system,
+        shot: WeaponShot(
+          world: world,
+          hitscan: Hitscan(world: world, random: random),
+          projectiles: projectiles,
+        ),
+        catalog: Monsters.byName,
+      ).spawn(Monsters.shooter, Vector3(0.0, 0.9, -12.0));
 
       final eye = Vector3(0.0, 0.7, 0.0);
       for (var i = 0; i < 180; i++) {
-        system.step(_dt, playerEye: eye, playerCollider: player);
+        system.step(_dt, focus: eye, focusBody: player);
       }
 
       expect(projectiles.activeCount + projectiles.detonations.length,
@@ -310,11 +337,11 @@ void main() {
       double damageOver(double seconds, double step) {
         final world = _room();
         final h = _harness(world);
-        h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
+        h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
         var total = 0.0;
         for (var t = 0.0; t < seconds; t += step) {
-          h.system.step(step, playerEye: h.eye, playerCollider: h.player);
-          total += h.system.playerDamageThisStep;
+          h.system.step(step, focus: h.eye, focusBody: h.player);
+          total += h.system.damageToFocusThisStep;
         }
         return total;
       }
@@ -330,7 +357,7 @@ void main() {
     test('enough damage kills it, and only once', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
 
       expect(h.system.hurt(monster, 1000.0), isTrue);
       expect(h.system.hurt(monster, 1000.0), isFalse);
@@ -340,7 +367,7 @@ void main() {
     test('a corpse stops blocking the corridor', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
       h.system.hurt(monster, 1000.0);
 
       expect(monster.body.collider.isSolid, isFalse);
@@ -349,27 +376,27 @@ void main() {
     test('a corpse stops thinking and stops attacking', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
       h.system.hurt(monster, 1000.0);
 
       var total = 0.0;
       for (var i = 0; i < 120; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
-        total += h.system.playerDamageThisStep;
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
+        total += h.system.damageToFocusThisStep;
       }
 
-      expect(monster.state, MonsterState.dead);
+      expect(_mind(monster).state, MonsterState.dead);
       expect(total, 0.0);
     });
 
     test('the dead list covers one step only', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
       h.system.hurt(monster, 1000.0);
 
       expect(h.system.died, hasLength(1));
-      h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+      h.system.step(_dt, focus: h.eye, focusBody: h.player);
       expect(h.system.died, isEmpty);
     });
 
@@ -377,11 +404,11 @@ void main() {
       final world = _room();
       final h = _harness(world);
       for (var i = 0; i < 5; i++) {
-        h.system.spawn(Monsters.runner, Vector3(i * 3.0, 0.9, -8.0));
+        h.bestiary.spawn(Monsters.runner, Vector3(i * 3.0, 0.9, -8.0));
       }
 
       expect(h.system.aliveCount, 5);
-      h.system.hurt(h.system.monsters.first, 1000.0);
+      h.system.hurt(h.system.actors.first, 1000.0);
       expect(h.system.aliveCount, 4);
     });
   });
@@ -392,14 +419,14 @@ void main() {
       // never reaches the player, which makes it the easiest.
       final world = _room();
       final h = _harness(world, seed: 7);
-      final tank = h.system.spawn(Monsters.tank, Vector3(0.0, 0.9, -10.0));
+      final tank = h.bestiary.spawn(Monsters.tank, Vector3(0.0, 0.9, -10.0));
       h.system.hurt(tank, 1.0);
 
       var staggeredSteps = 0;
       for (var i = 0; i < 240; i++) {
         h.system.hurt(tank, 1.0);
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
-        if (tank.state == MonsterState.hurt) staggeredSteps++;
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
+        if (_mind(tank).state == MonsterState.hurt) staggeredSteps++;
       }
 
       // It spent most of the time doing something other than flinching.
@@ -410,11 +437,11 @@ void main() {
     test('a light monster does flinch', () {
       final world = _room();
       final h = _harness(world, seed: 3);
-      final runner = h.system.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final runner = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
       h.system.hurt(runner, 1.0);
 
-      expect(runner.state, MonsterState.hurt);
+      expect(_mind(runner).state, MonsterState.hurt);
     });
   });
 
@@ -424,20 +451,20 @@ void main() {
       // decision, not lose it.
       final world = _room();
       final h = _harness(world);
-      final monster = h.system.spawn(Monsters.shooter, Vector3(0.0, 0.9, -25.0));
+      final monster = h.bestiary.spawn(Monsters.shooter, Vector3(0.0, 0.9, -25.0));
 
       for (var i = 0; i < 40; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
-      expect(monster.state, isNot(MonsterState.idle));
+      expect(_mind(monster).state, isNot(MonsterState.idle));
     });
 
     test('thirty monsters step without complaint', () {
       final world = _room();
       final h = _harness(world);
       for (var i = 0; i < 30; i++) {
-        h.system.spawn(
+        h.bestiary.spawn(
           Monsters.runner,
           Vector3((i % 6) * 2.0 - 6.0, 0.9, -10.0 - (i ~/ 6) * 2.0),
         );
@@ -445,7 +472,7 @@ void main() {
 
       final watch = Stopwatch()..start();
       for (var i = 0; i < 300; i++) {
-        h.system.step(_dt, playerEye: h.eye, playerCollider: h.player);
+        h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
       watch.stop();
 
@@ -472,16 +499,14 @@ void _damageableTests() {
       //
       // Mutation: make `applyDamage` call `health.damage`. Both of these fail.
       final world = CollisionWorld();
-      final monsters = MonsterSystem(
-        world: world,
-        projectiles: ProjectileSystem(world: world),
-      );
-      final monster = monsters.spawn(Monsters.runner, Vector3.zero());
+      final h = _harness(world);
+      final monsters = h.system;
+      final monster = h.bestiary.spawn(Monsters.runner, Vector3.zero());
 
       final died = (monster as Damageable).applyDamage(1000.0);
 
       expect(died, isTrue);
-      expect(monsters.died, <Monster>[monster],
+      expect(monsters.died, <Actor>[monster],
           reason: 'the kill never reached the system that owns it');
       expect(monster.body.collider.kind, ColliderKind.trigger,
           reason: 'the corpse still blocks the corridor');
@@ -489,23 +514,29 @@ void _damageableTests() {
 
     test('surviving a hit is reported too', () {
       final world = CollisionWorld();
-      final monsters = MonsterSystem(
-        world: world,
-        projectiles: ProjectileSystem(world: world),
-      );
-      final monster = monsters.spawn(Monsters.tank, Vector3.zero());
+      final h = _harness(world);
+      final monsters = h.system;
+      final monster = h.bestiary.spawn(Monsters.tank, Vector3.zero());
 
       expect((monster as Damageable).applyDamage(1.0), isFalse);
-      expect(monsters.hurtThisStep.single.monster, monster);
+      expect(monsters.hurtThisStep.single.actor, monster);
     });
 
     test('a monster nothing is running still takes the damage', () {
       // Built by hand, which is what a test does. There is no system to go
       // through and no state machine to run, so the health is the whole of it.
-      final monster = Monster(
-        def: Monsters.runner,
-        world: CollisionWorld(),
-        position: Vector3.zero(),
+      final world = CollisionWorld();
+      final monster = Actor(
+        body: CharacterController(world: world, position: Vector3.zero()),
+        health: Health(Monsters.runner.health),
+        brain: ChaseBrain(
+          def: Monsters.runner,
+          shot: WeaponShot(
+            world: world,
+            hitscan: Hitscan(world: world),
+            projectiles: ProjectileSystem(world: world),
+          ),
+        ),
       );
 
       expect((monster as Damageable).applyDamage(1000.0), isTrue);

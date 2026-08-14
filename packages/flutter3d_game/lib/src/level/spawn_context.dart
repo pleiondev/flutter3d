@@ -1,7 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
-import '../actors/monster.dart';
-import '../actors/monster_system.dart';
+import '../actors/actor.dart';
+import '../actors/actor_system.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import '../world/mechanism.dart';
 import 'level.dart';
@@ -59,23 +59,23 @@ final class Fixture {
 final class SpawnContext {
   SpawnContext({
     required this.world,
-    required this.monsters,
+    required this.actors,
     required this.mechanisms,
-    this.onMonsterSpawned,
+    this.onActorSpawned,
     this.onFixture,
   });
 
   final CollisionWorld world;
-  final MonsterSystem monsters;
+  final ActorSystem actors;
   final MechanismWorld mechanisms;
 
-  /// Told about each monster as it appears.
+  /// Told about each actor as it appears.
   ///
   /// The hook exists because the simulation has no idea what anything looks
   /// like, and the application does: this is where a body gets a mesh. Keeping
   /// it a callback rather than having the spawner build one is what stops the
   /// game engine from needing the renderer.
-  final void Function(Monster monster)? onMonsterSpawned;
+  final void Function(Actor actor)? onActorSpawned;
 
   /// Told about each box an entity placed. See [Fixture].
   final void Function(Fixture fixture)? onFixture;

@@ -15,6 +15,7 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game/sample.dart';
+import 'package:flutter3d_game/shooter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -42,10 +43,15 @@ final class _World {
       world.addBox(wall, Vector3(1.0, 4.0, 40.0));
     }
 
-    monsters = MonsterSystem(
-      world: world,
-      projectiles: projectiles,
-      random: random,
+    actors = ActorSystem(world: world, random: random);
+    bestiary = Bestiary(
+      actors: actors,
+      shot: WeaponShot(
+        world: world,
+        hitscan: Hitscan(world: world, random: random),
+        projectiles: projectiles,
+      ),
+      catalog: Monsters.byName,
     );
     mechanisms = MechanismWorld(world);
 
@@ -103,7 +109,7 @@ final class _World {
       collision: world,
       input: input,
       mechanisms: mechanisms,
-      monsters: monsters,
+      actors: actors,
       projectiles: projectiles,
       shot: WeaponShot(
         world: world,
@@ -116,16 +122,17 @@ final class _World {
 
     // One close enough to be swinging within a second, so attack cooldowns
     // and pain timers are live numbers rather than zeros at every save point.
-    monsters.spawn(Monsters.runner, Vector3(0.0, 0.9, 1.0));
-    monsters.spawn(Monsters.runner, Vector3(-2.0, 0.9, -6.0));
-    monsters.spawn(Monsters.tank, Vector3(4.0, 1.2, -9.0));
+    bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, 1.0));
+    bestiary.spawn(Monsters.runner, Vector3(-2.0, 0.9, -6.0));
+    bestiary.spawn(Monsters.tank, Vector3(4.0, 1.2, -9.0));
     world.update();
   }
 
   final CollisionWorld world = CollisionWorld();
   late final ProjectileSystem projectiles = ProjectileSystem(world: world);
   final GameRandom random;
-  late final MonsterSystem monsters;
+  late final ActorSystem actors;
+  late final Bestiary bestiary;
   late final MechanismWorld mechanisms;
   late final Player player;
   late final GameSimulation sim;
@@ -233,8 +240,8 @@ void main() {
       // Mutation: drop the collider-kind line in `Monster.restore`. Every
       // corpse you walked over becomes solid again on load, and this fails.
       final world = _World();
-      final victim = world.monsters.monsters.first;
-      world.monsters.hurt(victim, 10000.0);
+      final victim = world.actors.actors.first;
+      world.actors.hurt(victim, 10000.0);
       final taken = world.sim.save();
 
       victim.body.collider.kind = ColliderKind.kinematic;

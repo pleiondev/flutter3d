@@ -25,6 +25,7 @@ import 'src/monster_looks.dart';
 import 'src/sounds.dart';
 import 'src/weapon_models.dart';
 import 'package:flutter3d_game/sample.dart';
+import 'package:flutter3d_game/shooter.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.
@@ -121,8 +122,8 @@ class _GameScreenState extends State<GameScreen>
   /// A field initializer used to do it, back when a mesh could reach the
   /// graphics context on its own. Nothing can now, which is the point.
   late final WeaponView _weaponView;
-  MonsterSystem? _monsters;
-  MonsterVisuals? _monsterVisuals;
+  ActorSystem? _actors;
+  ActorVisuals? _actorVisuals;
 
   Arsenal get _arsenal => _inventory.arsenal;
   Health get _playerHealth => _inventory.health;
@@ -367,10 +368,22 @@ class _GameScreenState extends State<GameScreen>
 
       final hitscan = Hitscan(world: loaded.collision);
       final projectiles = ProjectileSystem(world: loaded.collision);
-      final monsters = MonsterSystem(
-        world: loaded.collision,
-        projectiles: projectiles,
+      final actors = ActorSystem(world: loaded.collision);
+      final bestiary = Bestiary(
+        actors: actors,
+        shot: WeaponShot(
+          world: loaded.collision,
+          hitscan: hitscan,
+          projectiles: projectiles,
+        ),
+        catalog: Monsters.byName,
       );
+      // The one registry validates the level and then spawns it, so the two
+      // cannot disagree about what a document may contain. The bestiary is
+      // attached here rather than at construction because it needs a world to
+      // put monsters in, and there is no world until the level has loaded.
+      (_entityKinds[ShooterEntities.monster] as MonsterKind?)?.bestiary =
+          bestiary;
       // Baked from the level's brushes and deliberately not from
       // `loaded.collision`: the collision world holds the doors and the lift,
       // and whichever position they happen to be in at load would be frozen
@@ -386,9 +399,9 @@ class _GameScreenState extends State<GameScreen>
       // twice the bake, both of which are load-time and both of which are
       // small.
       final navIssues = <LevelIssue>[];
-      monsters.navigation =
+      actors.navigation =
           Navigation.bake(loaded.level, cellSize: 0.25, issues: navIssues);
-      final visuals = MonsterVisuals(
+      final visuals = ActorVisuals(
         loaded.scene,
         appearance: const DungeonMonsters(),
         device: _device!,
@@ -415,9 +428,9 @@ class _GameScreenState extends State<GameScreen>
         registry: _entityKinds,
         SpawnContext(
           world: loaded.collision,
-          monsters: monsters,
+          actors: actors,
           mechanisms: mechanisms,
-          onMonsterSpawned: visuals.add,
+          onActorSpawned: visuals.add,
           onFixture: fixtures.add,
         ),
       );
@@ -442,7 +455,7 @@ class _GameScreenState extends State<GameScreen>
         collision: loaded.collision,
         input: _input,
         mechanisms: mechanisms,
-        monsters: monsters,
+        actors: actors,
         projectiles: projectiles,
         shot: WeaponShot(
           world: loaded.collision,
@@ -457,8 +470,8 @@ class _GameScreenState extends State<GameScreen>
         _sim = sim;
         _loaded = loaded;
         _body = body;
-        _monsters = monsters;
-        _monsterVisuals = visuals;
+        _actors = actors;
+        _actorVisuals = visuals;
         _mechanisms = mechanisms;
         _fixtureVisuals = fixtures;
         _player!.yaw = start?.yaw ?? 0.0;
@@ -514,7 +527,7 @@ class _GameScreenState extends State<GameScreen>
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
-    _monsterVisuals?.sync();
+    _actorVisuals?.sync();
     _fixtureVisuals?.sync(_elapsed);
     setState(() {});
   }
@@ -577,7 +590,7 @@ class _GameScreenState extends State<GameScreen>
     }
 
     _showShot(sim);
-    _showMonsters(sim);
+    _showActors(sim);
     _showBlasts(sim);
 
     final body = player.body;
@@ -640,8 +653,8 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  void _showMonsters(GameSimulation sim) {
-    final monsters = sim.monsters;
+  void _showActors(GameSimulation sim) {
+    final monsters = sim.actors;
     if (monsters == null) return;
     for (final dead in monsters.died) {
       _kills++;
@@ -654,7 +667,7 @@ class _GameScreenState extends State<GameScreen>
     // hit that did not land, and every hit screaming is worse than none.
     for (final hurt in monsters.hurtThisStep) {
       if (hurt.staggered) {
-        _audio.play(Sounds.monsterPain, hurt.monster.position);
+        _audio.play(Sounds.monsterPain, hurt.actor.position);
       }
     }
   }
@@ -832,7 +845,7 @@ class _GameScreenState extends State<GameScreen>
                 painFlash: _painFlash,
                 health: _playerHealth,
                 kills: _kills,
-                monstersLeft: _monsters?.aliveCount ?? 0,
+                monstersLeft: _actors?.aliveCount ?? 0,
                 message: _message,
                 messageOpacity: (_messageFor / 0.6).clamp(0.0, 1.0),
                 keys: _inventory.keys,

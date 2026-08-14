@@ -10,8 +10,11 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_game/src/actors/monster_system.dart';
+import 'package:flutter3d_game/src/actors/actor_system.dart';
+import 'package:flutter3d_game/shooter.dart';
+import 'package:flutter3d_game/src/combat/hitscan.dart';
 import 'package:flutter3d_game/src/combat/projectile.dart';
+import 'package:flutter3d_game/src/combat/weapon_behaviour.dart';
 import 'package:flutter3d_game/src/level/level.dart';
 import 'package:flutter3d_game/src/level/level_issue.dart';
 import 'package:flutter3d_game/src/nav/flow_field.dart';
@@ -429,16 +432,21 @@ void main() {
       );
       world.update();
 
-      final system = MonsterSystem(
-        world: world,
-        projectiles: ProjectileSystem(world: world),
-        random: math.Random(7),
+      final system = ActorSystem(world: world, random: math.Random(7));
+      final bestiary = Bestiary(
+        actors: system,
+        shot: WeaponShot(
+          world: world,
+          hitscan: Hitscan(world: world),
+          projectiles: ProjectileSystem(world: world),
+        ),
+        catalog: Monsters.byName,
       );
       if (navigating) {
         system.navigation = Navigation(NavGrid.bake(brushes));
       }
 
-      final monster = system.spawn(Monsters.runner, Vector3(-4.0, 0.9, -8.0));
+      final monster = bestiary.spawn(Monsters.runner, Vector3(-4.0, 0.9, -8.0));
       // It cannot see the player through the wall, and would otherwise stand
       // still for ever. Being shot is how a monster notices someone it could
       // not see — the system says so itself.
@@ -447,7 +455,7 @@ void main() {
       final eye = playerAt + Vector3(0.0, 0.7, 0.0);
       var best = double.infinity;
       for (var i = 0; i < 900; i++) {
-        system.step(_dt, playerEye: eye, playerCollider: player);
+        system.step(_dt, focus: eye, focusBody: player);
         world.update();
         final gap = (monster.position - playerAt).length;
         if (gap < best) best = gap;

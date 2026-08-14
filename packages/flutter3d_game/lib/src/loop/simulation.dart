@@ -45,7 +45,7 @@ import 'package:vector_math/vector_math.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import '../actors/damageable.dart';
-import '../actors/monster_system.dart';
+import '../actors/actor_system.dart';
 import '../actors/player.dart';
 import '../combat/hitscan.dart';
 import '../combat/projectile.dart';
@@ -83,7 +83,7 @@ final class GameSimulation {
     required this.collision,
     required this.input,
     this.mechanisms,
-    this.monsters,
+    this.actors,
     this.projectiles,
     this.shot,
     this.levelNext,
@@ -99,7 +99,7 @@ final class GameSimulation {
   /// rule the entity registry follows — the package offers parts and the game
   /// says which of them it has.
   final MechanismWorld? mechanisms;
-  final MonsterSystem? monsters;
+  final ActorSystem? actors;
   final ProjectileSystem? projectiles;
   final WeaponShot? shot;
 
@@ -224,11 +224,11 @@ final class GameSimulation {
     player.inventory.step(dt);
     if (playing) _weapon(dt);
 
-    final monsters = this.monsters;
-    if (monsters != null && player.isAlive) {
+    final actors = this.actors;
+    if (actors != null && player.isAlive) {
       player.eye(_eye);
-      monsters.step(dt, playerEye: _eye, playerCollider: player.body.collider);
-      _hurtPlayer(monsters.playerDamageThisStep);
+      actors.step(dt, focus: _eye, focusBody: player.body.collider);
+      _hurtPlayer(actors.damageToFocusThisStep);
     }
 
     // After the weapon, so a rocket fired this step is not moved until the
@@ -338,7 +338,7 @@ final class GameSimulation {
         'exitNext': _exitNext,
         'player': player.save(),
         if (random != null) 'random': random!.state,
-        if (monsters != null) 'monsters': monsters!.save(),
+        if (actors != null) 'actors': actors!.save(),
         // Not a line per system any more, for the one system that has moved:
         // `EcsWorld` writes every component on every entity and refuses to
         // write one nobody registered. The hand-written lines above are what
@@ -360,7 +360,7 @@ final class GameSimulation {
     final seed = from['random'];
     if (seed is num && random != null) random!.state = seed.toInt();
 
-    monsters?.restore(from['monsters']);
+    actors?.restore(from['actors']);
     final entities = this.entities;
     final saved = from['entities'];
     if (entities != null && saved is Map) {
