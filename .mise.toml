@@ -23,6 +23,15 @@
 #
 # The URL and version-discovery machinery stays in the global config; only the
 # version belongs here, because only the version is a property of this project.
+#
+# **Dart is deliberately not pinned.** It was, at 3.11.5, and the 3.47 upgrade
+# showed why that was a mistake rather than an omission: Flutter carries its own
+# Dart — 3.13.0 in 3.47 — so the pin quietly became a second answer to a
+# question that already had one. `mise current dart` said 3.11.5 while `dart
+# --version` said 3.13.0, and the line went on looking authoritative.
+#
+# Nothing here wants a standalone Dart in any case. Every script that runs one
+# takes it out of the SDK: `build_shaders.sh` and `tool/bench` both reach
+# `<SDK>/bin/cache/dart-sdk/bin/dart` explicitly, for exactly this reason.
 [tools]
 flutter = "3.47.0"
-dart = "3.11.5"

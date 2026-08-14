@@ -79,7 +79,29 @@ SCRIPT_HOME="$(cd "$(dirname "$0")" && pwd)"
 # A package naming another in tool/sources.txt gets its sources from there and
 # still writes its bundle into itself, which is what keeps the invocation
 # argument-free and CI's one-loop-over-packages discovery working.
-SDK_DART="$(cd "$(dirname "$(command -v flutter)")/.." && pwd)/bin/cache/dart-sdk/bin/dart"
+# Where the SDK is, asked of Flutter rather than guessed from where its
+# executable happens to sit.
+#
+# This used to be `dirname "$(command -v flutter)"/..`, which assumes the thing
+# on PATH lives in <SDK>/bin. That is false the moment anything puts a wrapper
+# there — a mise shim, asdf, fvm — and the failure is not a missing SDK but a
+# plausible wrong path: the script goes looking for impellerc under the version
+# manager's own directory and reports that a *package* cannot be resolved,
+# which points the reader at `pub get` and not at PATH.
+#
+# `--version --machine` is authoritative and costs a second, once. FLUTTER_ROOT
+# short-circuits it, because Flutter sets that for anything it runs itself.
+if [[ -n "${FLUTTER_ROOT:-}" ]]; then
+  SDK="$FLUTTER_ROOT"
+else
+  SDK="$(flutter --version --machine | tr -d ' \n' |
+    sed -n 's/.*"flutterRoot":"\([^"]*\)".*/\1/p')"
+fi
+[[ -n "$SDK" && -d "$SDK" ]] ||
+  die "cannot find the Flutter SDK root. 'flutter --version --machine' did not
+report a flutterRoot, and FLUTTER_ROOT is not set."
+
+SDK_DART="$SDK/bin/cache/dart-sdk/bin/dart"
 OWNER="$(cd "$SCRIPT_HOME/.." && pwd)"
 if [[ -z "$PACKAGE" ]]; then
   PACKAGE="$OWNER"
@@ -96,8 +118,6 @@ else
 fi
 cd "$PACKAGE"
 
-FLUTTER_BIN="$(dirname "$(command -v flutter)")"
-SDK="$(cd "$FLUTTER_BIN/.." && pwd)"
 ARTIFACTS="$SDK/bin/cache/artifacts/engine"
 
 # The host artifact directory is not named after the host architecture: macOS
