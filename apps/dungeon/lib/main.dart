@@ -362,6 +362,7 @@ class _GameScreenState extends State<GameScreen>
         _levelAsset,
         device: _device!,
         registry: _entityKinds,
+        rules: sampleRules(),
       );
       final start = loaded.level.playerStart;
 

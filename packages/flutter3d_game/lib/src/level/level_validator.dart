@@ -22,15 +22,89 @@ export 'level_issue.dart';
 /// what a door needs, or a lift, or a note. What is left is what only a whole
 /// level can answer: that there is exactly one spawn, that no two things share
 /// a name, that the geometry is sane, that something is lit.
+
+/// A whole-level rule a game brings with it.
+///
+/// **Not every game is a shooter, and the validator used to assume one.** It
+/// required exactly one `player_spawn` and warned about a missing `exit`, which
+/// are rules about a genre rather than about the format: a game with several
+/// starting points, or one that ends by a script rather than by walking into a
+/// door, failed a check the engine had no business making.
+///
+/// What is left in the validator is what any level in this format must be true
+/// of whatever the game is — names unique, references resolving, brushes not
+/// degenerate, something to stand on, something to see by. Anything about
+/// *which entities* a level ought to contain arrives here.
+abstract base class LevelRule {
+  const LevelRule();
+
+  void check(Level level, List<LevelIssue> out);
+}
+
+/// There must be exactly this many of a type, no more and no fewer.
+///
+/// The rule a player spawn wants: none and the player starts at the origin,
+/// which is usually inside the floor; two and nothing decides which is used.
+final class ExactlyOne extends LevelRule {
+  const ExactlyOne(this.type, {this.because});
+
+  final String type;
+
+  /// What goes wrong when the count is not one. Worth saying, because "there
+  /// are 2 player_spawn entities" tells an author what and not why.
+  final String? because;
+
+  @override
+  void check(Level level, List<LevelIssue> out) {
+    final count = level.ofType(type).length;
+    if (count == 1) return;
+    out.add(
+      LevelIssue(
+        LevelIssueSeverity.error,
+        count == 0
+            ? 'no $type${because == null ? '' : ': $because'}'
+            : 'there are $count $type entities and nothing decides which is '
+                'used',
+      ),
+    );
+  }
+}
+
+/// There should be at least one of a type, or the level is missing something.
+final class AtLeastOne extends LevelRule {
+  const AtLeastOne(
+    this.type, {
+    this.because,
+    this.severity = LevelIssueSeverity.warning,
+  });
+
+  final String type;
+  final String? because;
+  final LevelIssueSeverity severity;
+
+  @override
+  void check(Level level, List<LevelIssue> out) {
+    if (level.ofType(type).isNotEmpty) return;
+    out.add(
+      LevelIssue(severity, 'no $type${because == null ? '' : ': $because'}'),
+    );
+  }
+}
+
 final class LevelValidator {
   /// [registry] is required, and that is a change worth noticing: it used to
   /// default to a roster that named this repository's own monsters, pickups
   /// and furniture, so a second game silently validated its levels against
   /// somebody else's vocabulary. There is no default a package can give.
-  const LevelValidator({required this.registry});
+  const LevelValidator({required this.registry, this.rules = const <LevelRule>[]});
 
   /// Which entity kinds this build can spawn.
   final EntityRegistry registry;
+
+  /// What this game requires of a level as a whole. Empty is a valid answer:
+  /// the checks below hold for any level in this format, and everything about
+  /// *which* entities a level ought to contain is a game's own business.
+  final List<LevelRule> rules;
 
   List<LevelIssue> validate(Level level) {
     final issues = <LevelIssue>[];
@@ -84,32 +158,8 @@ final class LevelValidator {
   // MARK: - Questions only the whole level can answer
 
   void _checkTheSetOfEntities(Level level, List<LevelIssue> issues) {
-    final spawns = level.ofType(EntityTypes.playerSpawn).length;
-    if (spawns == 0) {
-      issues.add(
-        const LevelIssue(
-          LevelIssueSeverity.error,
-          'no ${EntityTypes.playerSpawn}: the player would start at the origin, '
-          'which is usually inside the floor',
-        ),
-      );
-    } else if (spawns > 1) {
-      issues.add(
-        LevelIssue(
-          LevelIssueSeverity.error,
-          'there are $spawns ${EntityTypes.playerSpawn} entities and nothing '
-          'decides which one is used',
-        ),
-      );
-    }
-
-    if (level.ofType(EntityTypes.exit).isEmpty) {
-      issues.add(
-        const LevelIssue(
-          LevelIssueSeverity.warning,
-          'no ${EntityTypes.exit}: the level cannot be finished',
-        ),
-      );
+    for (final rule in rules) {
+      rule.check(level, issues);
     }
 
     final names = <String, int>{};

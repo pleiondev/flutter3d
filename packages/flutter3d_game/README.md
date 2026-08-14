@@ -51,20 +51,29 @@ not:
 
 ## Content lives in the game, not here
 
-`lib/src/` contains no monsters, no weapons, no pickups and no furniture. The
-catalogs are *given*:
+`lib/src/` contains no monsters, no weapons, no pickups and no furniture — and,
+more to the point, **no opinion about whether a game has any**. The package
+offers kinds; a game composes the vocabulary it speaks:
 
 ```dart
-final kinds = EntityRegistry.forGame(
-  monsters: myMonsters,        // Map<String, MonsterDef>
-  gifts: myGifts,              // GiftRegistry
-  extra: <EntityKind>[...],    // whatever else this game invents
-);
+final kinds = EntityRegistry(<EntityKind>[
+  const PlayerSpawnKind(),
+  const DoorKind(),
+  MonsterKind(myMonsters),   // only if this game has monsters
+  MyOwnKind(),               // and whatever it invents
+]);
 ```
 
 The same registry validates a level and spawns it, so the two cannot disagree
 about what a document may contain. `LevelValidator` and `Level.spawnInto`
 require it — there is no default a package can honestly give.
+
+Rules about a level *as a whole* work the same way. The validator once required
+exactly one `player_spawn` and warned about a missing `exit`; those are a
+shooter's rules, not the format's, so they are `LevelRule`s a game passes in.
+What the validator still checks by itself is true of any level whatever the
+game is: names unique, references resolving, brushes not degenerate, something
+to stand on, something to see by.
 
 `lib/sample.dart` holds the roster this repository's own game uses. It is
 **not** exported from `flutter3d_game.dart`: a game gets none of it unless it

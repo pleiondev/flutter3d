@@ -123,7 +123,7 @@ void main() {
   });
 
   group('the validator', () {
-    List<String> errorsOf(Level level) => LevelValidator(registry: sampleRegistry())
+    List<String> errorsOf(Level level) => LevelValidator(registry: sampleRegistry(), rules: sampleRules())
         .validate(level)
         .where((LevelIssue i) => i.isError)
         .map((LevelIssue i) => i.message)
@@ -357,7 +357,7 @@ void main() {
         Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3(2.0, 2.0, 2.0)),
       );
 
-      final issues = LevelValidator(registry: sampleRegistry()).validate(level);
+      final issues = LevelValidator(registry: sampleRegistry(), rules: sampleRules()).validate(level);
 
       expect(issues.where((LevelIssue i) => i.isError), isEmpty);
       expect(
@@ -374,7 +374,7 @@ void main() {
       );
 
       expect(
-        LevelValidator(registry: sampleRegistry())
+        LevelValidator(registry: sampleRegistry(), rules: sampleRules())
             .validate(level)
             .map((LevelIssue i) => i.message)
             .join(),
@@ -386,7 +386,7 @@ void main() {
       final level = Level(brushes: _valid().brushes);
 
       expect(
-        () => LevelValidator(registry: sampleRegistry()).assertValid(level),
+        () => LevelValidator(registry: sampleRegistry(), rules: sampleRules()).assertValid(level),
         throwsA(
           isA<LevelFormatException>().having(
             (LevelFormatException e) => e.message,
@@ -401,7 +401,7 @@ void main() {
       final level = _valid();
       level.entities.removeWhere((EntityDef e) => e.type == EntityTypes.exit);
 
-      expect(() => LevelValidator(registry: sampleRegistry()).assertValid(level), returnsNormally);
+      expect(() => LevelValidator(registry: sampleRegistry(), rules: sampleRules()).assertValid(level), returnsNormally);
     });
   });
 

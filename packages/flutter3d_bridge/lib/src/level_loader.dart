@@ -64,6 +64,7 @@ final class LevelLoader {
     String assetPath, {
     required GraphicsDevice device,
     required EntityRegistry registry,
+    List<LevelRule> rules = const <LevelRule>[],
   }) async {
     final text = await rootBundle.loadString(assetPath);
     final level = Level.fromJson(
@@ -73,7 +74,7 @@ final class LevelLoader {
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
     // twenty minutes in is worse than not starting.
-    final validator = LevelValidator(registry: registry);
+    final validator = LevelValidator(registry: registry, rules: rules);
     validator.assertValid(level);
 
     final scene = Scene();

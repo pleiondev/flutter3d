@@ -249,8 +249,14 @@ void _anotherGameTests() {
     ),
   );
 
+  /// A vocabulary of exactly two words: where the player starts, and what a
+  /// monster is. No pickups, no doors, no exit — this game has none, and the
+  /// package has no opinion about that.
   EntityRegistry registryOf(Map<String, MonsterDef> monsters) =>
-      EntityRegistry.forGame(monsters: monsters, gifts: GiftRegistry(<Gift>[]));
+      EntityRegistry(<EntityKind>[
+        const PlayerSpawnKind(),
+        MonsterKind(monsters),
+      ]);
 
   Level levelWith(String kind) => Level(
         name: 'other',
@@ -292,6 +298,36 @@ void _anotherGameTests() {
         isNotEmpty,
         reason: 'a monster from somebody else\'s roster validated',
       );
+    });
+
+    test('a game with no monsters and no exit is a valid game', () {
+      // The question this whole seam is really about: not every game is a
+      // shooter. A walking simulator has no monsters, nothing to pick up, and
+      // finishes by script rather than by touching a door.
+      //
+      // Its vocabulary is one word and its rules are none, and the package has
+      // no opinion about either. Before this it could not load a level at all:
+      // the registry it was given named monsters and pickups, and the
+      // validator required a spawn and warned about a missing exit.
+      final level = Level(
+        name: 'a quiet room',
+        brushes: <Brush>[
+          Brush(centre: Vector3(0, -0.5, 0), size: Vector3(8, 1, 8)),
+        ],
+        entities: <EntityDef>[
+          EntityDef(type: EntityTypes.playerSpawn, position: Vector3.zero()),
+        ],
+        lights: <LevelLight>[
+          LevelLight(type: LevelLightType.directional, direction: Vector3(0, -1, 0)),
+        ],
+      );
+
+      final issues = LevelValidator(
+        registry: EntityRegistry(<EntityKind>[const PlayerSpawnKind()]),
+      ).validate(level);
+
+      expect(issues, isEmpty,
+          reason: 'the engine had an opinion about what a game must contain');
     });
 
     test('the same catalog spawns and validates', () {

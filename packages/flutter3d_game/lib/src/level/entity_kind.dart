@@ -713,49 +713,31 @@ final class EntityRegistry {
         };
 
   /// Everything this game ships with.
-  /// The kinds any game on this level format needs, plus whatever else it has.
+  /// **There is no ready-made registry, and that is deliberate.**
   ///
-  /// **There is no `standard` registry any more**, and its absence is the
-  /// point. It listed fourteen kinds, three of which — `torch`, `lamp` and
-  /// `window` — were this repository's own game's furniture, and two of which
-  /// reached for global rosters of its monsters and its pickups. A second game
-  /// loading a level got all of it whether it wanted it or not, and validated
-  /// its own documents against somebody else's vocabulary.
+  /// There was one, and it listed fourteen kinds: a spawn point, three movers,
+  /// a button, a trigger, a note, an exit, a monster, a pickup, a key, and
+  /// three kinds of lamp. A second game loading a level got every one of them.
   ///
-  /// What is left here is the vocabulary of the *format*: a spawn point, the
-  /// three movers, a button, a trigger, a note, an exit, and the two kinds that
-  /// need a catalog. Everything a game invents arrives through [extra]:
+  /// The first attempt at fixing that replaced it with a factory taking a
+  /// monster catalog and a gift registry — which still says every game has
+  /// monsters and pickups. They do not. A racing game has neither; a puzzle
+  /// game has neither; a walking simulator has neither and no exit either.
+  ///
+  /// So this package offers *kinds*, and a game composes its own vocabulary
+  /// out of the ones it wants:
   ///
   /// ```dart
-  /// EntityRegistry.forGame(
-  ///   monsters: Monsters.byName,
-  ///   gifts: sampleGifts,
-  ///   extra: <EntityKind>[
-  ///     LightFixtureKind('torch',
-  ///         defaultBehaviour: const FlameFlicker(),
-  ///         defaultSize: Vector3(0.22, 0.5, 0.22)),
-  ///   ],
-  /// );
+  /// final kinds = EntityRegistry(<EntityKind>[
+  ///   const PlayerSpawnKind(),
+  ///   const DoorKind(),
+  ///   MonsterKind(myMonsters),      // only if this game has monsters
+  ///   MyOwnKind(),                  // and whatever it invents
+  /// ]);
   /// ```
-  factory EntityRegistry.forGame({
-    required Map<String, MonsterDef> monsters,
-    required GiftRegistry gifts,
-    Iterable<EntityKind> extra = const <EntityKind>[],
-  }) =>
-      EntityRegistry(<EntityKind>[
-        const PlayerSpawnKind(),
-        MonsterKind(monsters),
-        PickupKind(gifts),
-        const KeyKind(),
-        const DoorKind(),
-        const LiftKind(),
-        const PlatformKind(),
-        const ButtonKind(),
-        const TriggerKind(),
-        const NoteKind(),
-        const ExitKind(),
-        ...extra,
-      ]);
+  ///
+  /// `sample.dart` assembles the shooter's set, which is one call and is an
+  /// example rather than a default.
 
   final Map<String, EntityKind> _byType;
 

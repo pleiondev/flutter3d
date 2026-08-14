@@ -22,6 +22,7 @@ import 'src/actors/monster.dart';
 import 'src/combat/weapon.dart';
 import 'src/combat/weapon_behaviour.dart';
 import 'src/level/entity_kind.dart';
+import 'src/level/level_validator.dart';
 import 'src/world/gift.dart';
 import 'src/world/light_fixture.dart';
 
@@ -212,11 +213,38 @@ List<EntityKind> sampleLightKinds() => <EntityKind>[
     ];
 
 /// Everything above, assembled the way this game's levels expect.
-EntityRegistry sampleRegistry() => EntityRegistry.forGame(
-      monsters: Monsters.byName,
-      gifts: sampleGifts,
-      extra: sampleLightKinds(),
-    );
+///
+/// **An example of composing a vocabulary, not a default.** The package offers
+/// kinds; which of them a game speaks is the game's own answer, and a game with
+/// no monsters simply leaves `MonsterKind` out of this list.
+EntityRegistry sampleRegistry() => EntityRegistry(<EntityKind>[
+      const PlayerSpawnKind(),
+      MonsterKind(Monsters.byName),
+      PickupKind(sampleGifts),
+      const KeyKind(),
+      const DoorKind(),
+      const LiftKind(),
+      const PlatformKind(),
+      const ButtonKind(),
+      const TriggerKind(),
+      const NoteKind(),
+      const ExitKind(),
+      ...sampleLightKinds(),
+    ]);
+
+/// What this game asks of a level as a whole.
+///
+/// Two rules, and both are about *this* game rather than about the format: one
+/// place to start, and a way to finish. A game that ends by script rather than
+/// by walking into a door passes an empty list.
+List<LevelRule> sampleRules() => const <LevelRule>[
+      ExactlyOne(
+        EntityTypes.playerSpawn,
+        because: 'the player would start at the origin, which is usually '
+            'inside the floor',
+      ),
+      AtLeastOne(EntityTypes.exit, because: 'the level cannot be finished'),
+    ];
 
 /// The loadout this game's player starts with.
 ///
