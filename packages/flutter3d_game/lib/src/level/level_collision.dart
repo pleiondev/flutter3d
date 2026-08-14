@@ -41,8 +41,8 @@ extension LevelCollision on Level {
   /// unknown type is skipped rather than fatal — the validator has already
   /// refused the level if it mattered, and a tool loading a broken document to
   /// repair it should still see everything it can.
-  void spawnInto(SpawnContext context, {EntityRegistry? registry}) {
-    final kinds = registry ?? EntityRegistry.standard;
+  void spawnInto(SpawnContext context, {required EntityRegistry registry}) {
+    final kinds = registry;
     for (final entity in entities) {
       kinds[entity.type]?.spawn(entity, context);
     }

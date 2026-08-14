@@ -222,6 +222,11 @@ final class LevelScope {
 
 /// The names a level document uses.
 ///
+/// The vocabulary of the *format*, which is not everything a level may contain:
+/// a game adds its own types and names them itself. `torch`, `lamp` and
+/// `window` were here until the day this package stopped being one game's — see
+/// `sample.dart`, which owns those three and the kinds behind them.
+///
 /// Kept as constants next to the kinds that implement them so a document, a
 /// validator and an editor all spell them the same way.
 abstract final class EntityTypes {
@@ -236,9 +241,6 @@ abstract final class EntityTypes {
   static const String trigger = 'trigger';
   static const String note = 'note';
   static const String exit = 'exit';
-  static const String torch = 'torch';
-  static const String lamp = 'lamp';
-  static const String window = 'window';
 }
 
 // MARK: - The kinds
@@ -247,12 +249,23 @@ final class PlayerSpawnKind extends EntityKind {
   const PlayerSpawnKind() : super(EntityTypes.playerSpawn);
 }
 
+/// Spawns whatever the game says a monster can be.
+///
+/// **The catalog is given, not reached for.** This class used to read the
+/// global `Monsters.byName`, which meant a level could only contain the three
+/// monsters this repository's own game ships with — and that a second game
+/// would validate its own levels against somebody else's roster. The catalog
+/// is now the one thing that decides both what spawns and what validates, so
+/// the two cannot disagree.
 final class MonsterKind extends EntityKind {
-  const MonsterKind() : super(EntityTypes.monster);
+  const MonsterKind(this.catalog) : super(EntityTypes.monster);
+
+  /// What a `kind` string may name, and what it becomes.
+  final Map<String, MonsterDef> catalog;
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
-    final def = Monsters.byName[entity.string('kind')];
+    final def = catalog[entity.string('kind')];
     // Already an error from validate, and a level with errors does not load —
     // but a tool can spawn from a broken document deliberately, and crashing
     // on it would be the wrong answer.
@@ -268,17 +281,14 @@ final class MonsterKind extends EntityKind {
     context.onMonsterSpawned?.call(monster);
   }
 
-  /// The roster, read from the one place it is written.
+  /// What this kind will accept, which is exactly what it can spawn.
   ///
-  /// It used to be a second literal set beside [Monsters.byName] — two lists
-  /// that had to agree with nothing making them, so a monster added to the
-  /// spawner and forgotten here validated as an error while spawning perfectly
-  /// well, and one added here and forgotten there did the reverse.
-  ///
-  /// Deriving it removes that failure mode outright. A test asserting the two
-  /// agreed would be a test that can never fail once they are the same list,
-  /// which is the wrong artefact.
-  static Iterable<String> get kinds => Monsters.byName.keys;
+  /// It was a second literal set for a while — `{'runner', 'shooter', 'tank'}`
+  /// beside `Monsters.byName` — two lists that had to agree with nothing making
+  /// them. Reading the catalog removes that failure mode rather than testing
+  /// for it: a test asserting two lists agree cannot fail once they are one
+  /// list, which is the wrong artefact.
+  Iterable<String> get kinds => catalog.keys;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -305,15 +315,24 @@ final class MonsterKind extends EntityKind {
   }
 }
 
+/// Something on the floor that gives what the game says it gives.
+///
+/// The registry is given rather than reached for, for the same reason
+/// [MonsterKind]'s catalog is: it decides both what a document may ask for and
+/// what picking it up does, so the two cannot drift, and a game whose pickups
+/// are not this one's can say so.
 final class PickupKind extends EntityKind {
-  const PickupKind() : super(EntityTypes.pickup);
+  const PickupKind(this.gifts) : super(EntityTypes.pickup);
+
+  /// What a `gives` string may name, and what it grants.
+  final GiftRegistry gifts;
 
   /// A panel of light on the floor, roughly the size of what it represents.
   static final Vector3 defaultSize = Vector3(0.45, 0.45, 0.45);
 
   /// What a document may ask for, taken from the registry rather than listed
   /// again here: two lists of the same names is one list too many.
-  static Iterable<String> get gives => GiftRegistry.standard.names;
+  Iterable<String> get gives => gifts.names;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -328,7 +347,7 @@ final class PickupKind extends EntityKind {
       );
       return;
     }
-    if (!GiftRegistry.standard.knows(what)) {
+    if (!gifts.knows(what)) {
       out.add(
         LevelIssue(
           LevelIssueSeverity.error,
@@ -351,7 +370,7 @@ final class PickupKind extends EntityKind {
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
-    final gift = GiftRegistry.standard[entity.string('gives') ?? ''];
+    final gift = gifts[entity.string('gives') ?? ''];
     if (gift == null) return;
     final collider = place(
       entity,
@@ -610,13 +629,31 @@ final class ExitKind extends EntityKind {
 /// One class for the three, because a torch, a lamp and a stained window
 /// differ in what they look like and how they flicker — and both of those are
 /// data. What they *do* is identical: own a light, and vary it.
-abstract base class LightFixtureKind extends EntityKind {
-  const LightFixtureKind(super.type);
+/// A named kind of light, described by data rather than by a subclass.
+///
+/// It was abstract, with `TorchKind`, `LampKind` and `WindowKind` overriding
+/// two getters each. Its own doc already said why that was one step too far:
+/// *"a torch, a lamp and a stained window differ in what they look like and
+/// how they flicker — and both of those are data"*. The abstraction was right
+/// and only the instances were in the wrong package, so the three subclasses
+/// are gone and a game names its own:
+///
+/// ```dart
+/// LightFixtureKind('torch',
+///     defaultBehaviour: const FlameFlicker(),
+///     defaultSize: Vector3(0.22, 0.5, 0.22));
+/// ```
+final class LightFixtureKind extends EntityKind {
+  LightFixtureKind(
+    super.type, {
+    required this.defaultBehaviour,
+    required Vector3 defaultSize,
+  }) : defaultSize = defaultSize.clone();
 
   /// How this kind behaves when the document does not say.
-  LightBehaviour get defaultBehaviour;
+  final LightBehaviour defaultBehaviour;
 
-  Vector3 get defaultSize;
+  final Vector3 defaultSize;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -664,40 +701,6 @@ abstract base class LightFixtureKind extends EntityKind {
   }
 }
 
-/// Fire in a bracket.
-final class TorchKind extends LightFixtureKind {
-  const TorchKind() : super(EntityTypes.torch);
-
-  @override
-  LightBehaviour get defaultBehaviour => const FlameFlicker();
-
-  @override
-  Vector3 get defaultSize => Vector3(0.22, 0.5, 0.22);
-}
-
-/// Something hanging and steady.
-final class LampKind extends LightFixtureKind {
-  const LampKind() : super(EntityTypes.lamp);
-
-  @override
-  LightBehaviour get defaultBehaviour => const SteadyLight();
-
-  @override
-  Vector3 get defaultSize => Vector3(0.34, 0.34, 0.34);
-}
-
-/// A lit pane in a wall. Flat by default, and the level says which way it
-/// faces with `yaw`.
-final class WindowKind extends LightFixtureKind {
-  const WindowKind() : super(EntityTypes.window);
-
-  @override
-  LightBehaviour get defaultBehaviour => const SteadyLight();
-
-  @override
-  Vector3 get defaultSize => Vector3(1.4, 2.2, 0.12);
-}
-
 /// The kinds a build knows about, by name.
 ///
 /// A registry rather than a hardcoded list inside the validator, so a game
@@ -710,22 +713,49 @@ final class EntityRegistry {
         };
 
   /// Everything this game ships with.
-  static final EntityRegistry standard = EntityRegistry(<EntityKind>[
-    const PlayerSpawnKind(),
-    const MonsterKind(),
-    const PickupKind(),
-    const KeyKind(),
-    const DoorKind(),
-    const LiftKind(),
-    const PlatformKind(),
-    const ButtonKind(),
-    const TriggerKind(),
-    const NoteKind(),
-    const ExitKind(),
-    const TorchKind(),
-    const LampKind(),
-    const WindowKind(),
-  ]);
+  /// The kinds any game on this level format needs, plus whatever else it has.
+  ///
+  /// **There is no `standard` registry any more**, and its absence is the
+  /// point. It listed fourteen kinds, three of which — `torch`, `lamp` and
+  /// `window` — were this repository's own game's furniture, and two of which
+  /// reached for global rosters of its monsters and its pickups. A second game
+  /// loading a level got all of it whether it wanted it or not, and validated
+  /// its own documents against somebody else's vocabulary.
+  ///
+  /// What is left here is the vocabulary of the *format*: a spawn point, the
+  /// three movers, a button, a trigger, a note, an exit, and the two kinds that
+  /// need a catalog. Everything a game invents arrives through [extra]:
+  ///
+  /// ```dart
+  /// EntityRegistry.forGame(
+  ///   monsters: Monsters.byName,
+  ///   gifts: sampleGifts,
+  ///   extra: <EntityKind>[
+  ///     LightFixtureKind('torch',
+  ///         defaultBehaviour: const FlameFlicker(),
+  ///         defaultSize: Vector3(0.22, 0.5, 0.22)),
+  ///   ],
+  /// );
+  /// ```
+  factory EntityRegistry.forGame({
+    required Map<String, MonsterDef> monsters,
+    required GiftRegistry gifts,
+    Iterable<EntityKind> extra = const <EntityKind>[],
+  }) =>
+      EntityRegistry(<EntityKind>[
+        const PlayerSpawnKind(),
+        MonsterKind(monsters),
+        PickupKind(gifts),
+        const KeyKind(),
+        const DoorKind(),
+        const LiftKind(),
+        const PlatformKind(),
+        const ButtonKind(),
+        const TriggerKind(),
+        const NoteKind(),
+        const ExitKind(),
+        ...extra,
+      ]);
 
   final Map<String, EntityKind> _byType;
 

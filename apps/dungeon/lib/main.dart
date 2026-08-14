@@ -22,6 +22,7 @@ import 'src/fixture_looks.dart';
 import 'src/monster_looks.dart';
 import 'src/sounds.dart';
 import 'src/weapon_models.dart';
+import 'package:flutter3d_game/sample.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.
@@ -90,6 +91,7 @@ class _GameScreenState extends State<GameScreen>
   /// locked door asks what the body in front of it holds.
   final Inventory _inventory = Inventory(
     arsenal: Arsenal(
+      slots: Weapons.all,
       owned: <WeaponDef>[...Weapons.all],
       ammo: <AmmoType, int>{
         AmmoType.bullets: 90,
@@ -99,6 +101,12 @@ class _GameScreenState extends State<GameScreen>
       startingSlot: 1,
     ),
   );
+
+  /// Everything a document in this game's levels may name.
+  ///
+  /// Built once and shared by the loader's validator and the spawner, so the
+  /// two cannot disagree about what a level is allowed to contain.
+  final EntityRegistry _entityKinds = sampleRegistry();
 
   final ParticleSystem _particles = ParticleSystem(capacity: 3000);
   /// The pistol, not the fists: the game starts with both, and a shooter that
@@ -340,7 +348,7 @@ class _GameScreenState extends State<GameScreen>
     final loaded = _loaded;
     if (loaded == null || _soloud == null) return;
     _ambienceStarted = true;
-    for (final torch in loaded.level.ofType(EntityTypes.torch)) {
+    for (final torch in loaded.level.ofType(SampleEntities.torch)) {
       _audio.play(Sounds.torch, torch.position);
     }
   }
@@ -350,7 +358,11 @@ class _GameScreenState extends State<GameScreen>
   Future<void> _loadLevel() async {
     try {
       final loaded =
-          await const LevelLoader().load(_levelAsset, device: _device!);
+          await const LevelLoader().load(
+        _levelAsset,
+        device: _device!,
+        registry: _entityKinds,
+      );
       final start = loaded.level.playerStart;
 
       final hitscan = Hitscan(world: loaded.collision);
@@ -380,6 +392,10 @@ class _GameScreenState extends State<GameScreen>
       // is what they look like, which is the one thing the simulation cannot
       // know.
       loaded.level.spawnInto(
+        // The vocabulary this game speaks. The package no longer ships a
+        // registry of its own — it named this game's monsters, its pickups and
+        // its torches, so a second game inherited all of it.
+        registry: _entityKinds,
         SpawnContext(
           world: loaded.collision,
           monsters: monsters,

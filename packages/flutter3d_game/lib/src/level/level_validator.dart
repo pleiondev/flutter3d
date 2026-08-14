@@ -23,8 +23,11 @@ export 'level_issue.dart';
 /// level can answer: that there is exactly one spawn, that no two things share
 /// a name, that the geometry is sane, that something is lit.
 final class LevelValidator {
-  LevelValidator({EntityRegistry? registry})
-      : registry = registry ?? EntityRegistry.standard;
+  /// [registry] is required, and that is a change worth noticing: it used to
+  /// default to a roster that named this repository's own monsters, pickups
+  /// and furniture, so a second game silently validated its levels against
+  /// somebody else's vocabulary. There is no default a package can give.
+  const LevelValidator({required this.registry});
 
   /// Which entity kinds this build can spawn.
   final EntityRegistry registry;

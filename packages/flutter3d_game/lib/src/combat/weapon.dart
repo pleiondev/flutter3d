@@ -127,72 +127,6 @@ final class WeaponDef {
   }
 }
 
-/// The weapons this game ships with.
-///
-/// Ordered as they appear on the keyboard, so slot and index are the same
-/// thing and nothing has to map between them.
-abstract final class Weapons {
-  /// Free, short, and the reason running out of ammo is a setback rather than
-  /// a dead end.
-  static const WeaponDef fists = WeaponDef(
-    name: 'Fists',
-    behaviour: MeleeBehaviour(),
-    ammo: AmmoType.none,
-    damage: 20.0,
-    shotsPerSecond: 2.0,
-    range: 2.2,
-    automatic: true,
-  );
-
-  static const WeaponDef pistol = WeaponDef(
-    name: 'Pistol',
-    behaviour: HitscanBehaviour(),
-    ammo: AmmoType.bullets,
-    damage: 14.0,
-    shotsPerSecond: 4.0,
-    range: 120.0,
-    falloffStart: 25.0,
-    falloffEnd: 70.0,
-    minimumDamageFraction: 0.4,
-  );
-
-  /// Eight pellets, and all of the reason to close the distance.
-  static const WeaponDef shotgun = WeaponDef(
-    name: 'Shotgun',
-    behaviour: HitscanBehaviour(),
-    ammo: AmmoType.shells,
-    damage: 11.0,
-    shotsPerSecond: 1.4,
-    rayCount: 8,
-    spread: 0.10,
-    range: 60.0,
-    falloffStart: 6.0,
-    falloffEnd: 26.0,
-    minimumDamageFraction: 0.2,
-    knockback: 2.0,
-  );
-
-  static const WeaponDef rocketLauncher = WeaponDef(
-    name: 'Rocket Launcher',
-    behaviour: ProjectileBehaviour(),
-    ammo: AmmoType.rockets,
-    damage: 90.0,
-    shotsPerSecond: 0.9,
-    range: 200.0,
-    knockback: 9.0,
-    projectileSpeed: 34.0,
-    splashRadius: 4.5,
-    splashMinimumFraction: 0.15,
-  );
-
-  /// In keyboard order: slot n is `all[n]`.
-  static const List<WeaponDef> all = <WeaponDef>[
-    fists,
-    pistol,
-    shotgun,
-    rocketLauncher,
-  ];
-}
 
 /// What the player is carrying, and whether the trigger will do anything.
 ///
@@ -201,13 +135,33 @@ abstract final class Weapons {
 /// apart is what lets the firing rules — cooldown, ammo, switching — be tested
 /// without a level.
 final class Arsenal {
+  /// [slots] is every weapon this game has, in the order its keys select them.
+  ///
+  /// **Separate from what is owned, and that was a defect until now.**
+  /// `selectSlot` used to index a global roster of this repository's own four
+  /// weapons: a game with its own would ask for slot two, be handed somebody
+  /// else's shotgun, and then search its inventory for a weapon of that name.
+  /// It found none and quietly did nothing.
+  ///
+  /// Indexing what is *owned* instead would be worse in a way that is harder to
+  /// see: the slot a key selects would move as things were picked up, so slot
+  /// three is the rocket launcher until you find the shotgun and then it is
+  /// not.
+  ///
+  /// [owned] defaults to all of [slots], because a game that lists its weapons
+  /// and says nothing about ownership means the player has them.
   Arsenal({
+    required List<WeaponDef> slots,
     List<WeaponDef>? owned,
     Map<AmmoType, int>? ammo,
     int startingSlot = 0,
-  })  : _owned = owned ?? <WeaponDef>[Weapons.fists, Weapons.pistol],
-        _ammo = ammo ?? <AmmoType, int>{AmmoType.bullets: 40},
+  })  : slots = List<WeaponDef>.unmodifiable(slots),
+        _owned = owned ?? List<WeaponDef>.of(slots),
+        _ammo = ammo ?? <AmmoType, int>{},
         _current = startingSlot;
+
+  /// Every weapon this game has, in the order its keys select them.
+  final List<WeaponDef> slots;
 
   /// How much of each type can be carried.
   static const Map<AmmoType, int> capacity = <AmmoType, int>{
@@ -263,8 +217,8 @@ final class Arsenal {
   /// Switching does not reset the cooldown, so tapping between two weapons is
   /// not a way to fire faster than either of them allows.
   bool selectSlot(int slot) {
-    if (slot < 0 || slot >= Weapons.all.length) return false;
-    final wanted = Weapons.all[slot];
+    if (slot < 0 || slot >= slots.length) return false;
+    final wanted = slots[slot];
     for (var i = 0; i < _owned.length; i++) {
       if (_owned[i].name == wanted.name) {
         _current = i;

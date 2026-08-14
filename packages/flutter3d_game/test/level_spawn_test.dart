@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_game/sample.dart';
 
 /// A level with one brush to stand on and whatever entities a test wants.
 Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
@@ -37,6 +38,7 @@ Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
   );
   final seen = <Monster>[];
   level.spawnInto(
+    registry: sampleRegistry(),
     SpawnContext(
       world: world,
       monsters: monsters,
@@ -48,6 +50,8 @@ Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
 }
 
 void main() {
+  _anotherGameTests();
+
   group('spawning a level', () {
     test('every monster entity becomes a monster', () {
       final result = _spawn(
@@ -215,6 +219,101 @@ void main() {
       );
 
       expect(monsters.aliveCount, 0);
+    });
+  });
+}
+
+/// A game the package has never heard of.
+///
+/// The whole point of the seam, and a test that could not be written before it:
+/// until now `MonsterKind` reached for a global roster of this repository's own
+/// three monsters, so a level naming anything else was an error no matter what
+/// game was loading it — and a level naming `runner` was valid in every game,
+/// including the ones with no runners.
+void _anotherGameTests() {
+  const ghost = MonsterDef(
+    name: 'ghost',
+    health: 10.0,
+    speed: 1.0,
+    radius: 0.3,
+    height: 1.6,
+    sightRange: 12.0,
+    attack: WeaponDef(
+      name: 'chill',
+      behaviour: MeleeBehaviour(),
+      ammo: AmmoType.none,
+      damage: 5.0,
+      shotsPerSecond: 1.0,
+      range: 1.2,
+      automatic: true,
+    ),
+  );
+
+  EntityRegistry registryOf(Map<String, MonsterDef> monsters) =>
+      EntityRegistry.forGame(monsters: monsters, gifts: GiftRegistry(<Gift>[]));
+
+  Level levelWith(String kind) => Level(
+        name: 'other',
+        brushes: <Brush>[
+          Brush(centre: Vector3(0, -0.5, 0), size: Vector3(8, 1, 8)),
+        ],
+        entities: <EntityDef>[
+          EntityDef(type: EntityTypes.playerSpawn, position: Vector3.zero()),
+          EntityDef(
+            type: EntityTypes.monster,
+            position: Vector3(2, 0, 0),
+            properties: <String, Object?>{'kind': kind},
+          ),
+        ],
+      );
+
+  group('a game with its own roster', () {
+    test('accepts a monster this package has never heard of', () {
+      final issues = LevelValidator(
+        registry: registryOf(<String, MonsterDef>{'ghost': ghost}),
+      ).validate(levelWith('ghost'));
+
+      expect(
+        issues.where((i) => i.severity == LevelIssueSeverity.error),
+        isEmpty,
+      );
+    });
+
+    test('and refuses one that belongs to a different game', () {
+      // The half that makes the first half mean something. `runner` is real —
+      // it is in this repository's sample roster — and it must still be an
+      // error here, because this game does not have it.
+      final issues = LevelValidator(
+        registry: registryOf(<String, MonsterDef>{'ghost': ghost}),
+      ).validate(levelWith('runner'));
+
+      expect(
+        issues.where((i) => i.severity == LevelIssueSeverity.error),
+        isNotEmpty,
+        reason: 'a monster from somebody else\'s roster validated',
+      );
+    });
+
+    test('the same catalog spawns and validates', () {
+      // One object decides both, so the two cannot drift. Before the seam they
+      // were a literal set and a global map.
+      final world = CollisionWorld();
+      final level = levelWith('ghost');
+      level.addTo(world);
+      final monsters = MonsterSystem(
+        world: world,
+        projectiles: ProjectileSystem(world: world),
+      );
+      level.spawnInto(
+        SpawnContext(
+          world: world,
+          monsters: monsters,
+          mechanisms: MechanismWorld(world),
+        ),
+        registry: registryOf(<String, MonsterDef>{'ghost': ghost}),
+      );
+
+      expect(monsters.aliveCount, 1);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_game/sample.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -23,7 +24,7 @@ Pickup _drop(
   double? amount,
   String? detail,
 }) {
-  final gift = GiftRegistry.standard[gives]!;
+  final gift = sampleGifts[gives]!;
   return w.mechanisms.add(
     Pickup(
       gift: gift,
@@ -195,8 +196,8 @@ void main() {
     test('every name the level format allows can be granted', () {
       // The validator accepts what the registry knows; this checks the registry
       // does not merely know a name but can act on it.
-      for (final name in GiftRegistry.standard.names) {
-        final gift = GiftRegistry.standard[name]!;
+      for (final name in sampleGifts.names) {
+        final gift = sampleGifts[name]!;
         final carrying = Inventory();
         carrying.health.damage(60.0);
         expect(

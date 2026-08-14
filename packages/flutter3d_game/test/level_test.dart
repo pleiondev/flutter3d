@@ -8,6 +8,7 @@ import 'package:flutter3d_game/src/level/level_validator.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_game/sample.dart';
 
 /// A level with nothing wrong with it, so a test can break one thing at a time.
 Level _valid() => Level(
@@ -122,7 +123,7 @@ void main() {
   });
 
   group('the validator', () {
-    List<String> errorsOf(Level level) => LevelValidator()
+    List<String> errorsOf(Level level) => LevelValidator(registry: sampleRegistry())
         .validate(level)
         .where((LevelIssue i) => i.isError)
         .map((LevelIssue i) => i.message)
@@ -252,7 +253,7 @@ void main() {
         brushes: _valid().brushes,
         entities: <EntityDef>[
           EntityDef(type: EntityTypes.playerSpawn),
-          EntityDef(type: EntityTypes.torch),
+          EntityDef(type: SampleEntities.torch),
         ],
       );
 
@@ -356,7 +357,7 @@ void main() {
         Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3(2.0, 2.0, 2.0)),
       );
 
-      final issues = LevelValidator().validate(level);
+      final issues = LevelValidator(registry: sampleRegistry()).validate(level);
 
       expect(issues.where((LevelIssue i) => i.isError), isEmpty);
       expect(
@@ -373,7 +374,7 @@ void main() {
       );
 
       expect(
-        LevelValidator()
+        LevelValidator(registry: sampleRegistry())
             .validate(level)
             .map((LevelIssue i) => i.message)
             .join(),
@@ -385,7 +386,7 @@ void main() {
       final level = Level(brushes: _valid().brushes);
 
       expect(
-        () => LevelValidator().assertValid(level),
+        () => LevelValidator(registry: sampleRegistry()).assertValid(level),
         throwsA(
           isA<LevelFormatException>().having(
             (LevelFormatException e) => e.message,
@@ -400,7 +401,7 @@ void main() {
       final level = _valid();
       level.entities.removeWhere((EntityDef e) => e.type == EntityTypes.exit);
 
-      expect(() => LevelValidator().assertValid(level), returnsNormally);
+      expect(() => LevelValidator(registry: sampleRegistry()).assertValid(level), returnsNormally);
     });
   });
 

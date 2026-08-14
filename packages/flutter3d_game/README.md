@@ -49,6 +49,28 @@ not:
 - **A lift that has not moved yet cannot carry you.** Clear the kinematic deltas
   before the body steps and a passenger stops riding.
 
+## Content lives in the game, not here
+
+`lib/src/` contains no monsters, no weapons, no pickups and no furniture. The
+catalogs are *given*:
+
+```dart
+final kinds = EntityRegistry.forGame(
+  monsters: myMonsters,        // Map<String, MonsterDef>
+  gifts: myGifts,              // GiftRegistry
+  extra: <EntityKind>[...],    // whatever else this game invents
+);
+```
+
+The same registry validates a level and spawns it, so the two cannot disagree
+about what a document may contain. `LevelValidator` and `Level.spawnInto`
+require it — there is no default a package can honestly give.
+
+`lib/sample.dart` holds the roster this repository's own game uses. It is
+**not** exported from `flutter3d_game.dart`: a game gets none of it unless it
+asks by name. It stays in the package for the tests, two hundred of which are
+written against those numbers.
+
 ## Layers
 
 `CollisionLayers` names the bits — `world`, `player`, `monster`, `pickup`,
@@ -77,9 +99,8 @@ Stated rather than discovered:
 - **Desktop input only.** `InputState` is device-agnostic and
   `setStickAxis` is the seam a gamepad or touch backend writes to; no such
   backend exists yet.
-- **It still ships this game's roster.** Three monsters, four weapons and
-  fourteen entity types, three of which — `torch`, `lamp`, `window` — are
-  content rather than vocabulary. A second game inherits them today.
+- **No animation, no persistence, no timers.** Nothing here schedules
+  anything; a game that wants a delayed event counts down itself.
 
 ## Tests
 

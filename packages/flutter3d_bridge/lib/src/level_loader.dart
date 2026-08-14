@@ -55,9 +55,15 @@ final class LoadedLevel {
 final class LevelLoader {
   const LevelLoader();
 
+  /// [registry] is the game's vocabulary, and it is required for the same
+  /// reason `LevelValidator`'s is: this package binds a renderer to a
+  /// simulation and has no business deciding what a level may contain. The
+  /// loader used to validate against a roster that named torches and this
+  /// repository's own monsters.
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
+    required EntityRegistry registry,
   }) async {
     final text = await rootBundle.loadString(assetPath);
     final level = Level.fromJson(
@@ -67,7 +73,7 @@ final class LevelLoader {
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
     // twenty minutes in is worse than not starting.
-    final validator = LevelValidator();
+    final validator = LevelValidator(registry: registry);
     validator.assertValid(level);
 
     final scene = Scene();

@@ -6,6 +6,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:flutter3d_game/src/physics/layers.dart';
+import 'package:flutter3d_game/sample.dart';
 
 const double _dt = 1.0 / 60.0;
 
@@ -50,7 +51,7 @@ void main() {
 
   group('the arsenal', () {
     test('starts with fists and a pistol', () {
-      final arsenal = Arsenal();
+      final arsenal = sampleArsenal();
 
       expect(arsenal.owns(Weapons.fists), isTrue);
       expect(arsenal.owns(Weapons.pistol), isTrue);
@@ -58,7 +59,7 @@ void main() {
     });
 
     test('firing spends a round', () {
-      final arsenal = Arsenal()..selectSlot(1);
+      final arsenal = sampleArsenal()..selectSlot(1);
       final before = arsenal.currentAmmo;
 
       expect(arsenal.fire(), isNotNull);
@@ -66,7 +67,7 @@ void main() {
     });
 
     test('fists cost nothing and never run out', () {
-      final arsenal = Arsenal();
+      final arsenal = sampleArsenal();
 
       for (var i = 0; i < 50; i++) {
         expect(arsenal.fire(), isNotNull);
@@ -75,7 +76,7 @@ void main() {
     });
 
     test('a second shot has to wait for the cooldown', () {
-      final arsenal = Arsenal()..selectSlot(1);
+      final arsenal = sampleArsenal()..selectSlot(1);
 
       expect(arsenal.fire(), isNotNull);
       expect(arsenal.fire(), isNull);
@@ -86,6 +87,7 @@ void main() {
       // fires once per N steps fires at a different rate on a faster machine.
       int shotsIn(double seconds, double step) {
         final arsenal = Arsenal(
+          slots: Weapons.all,
           owned: <WeaponDef>[Weapons.pistol],
           ammo: <AmmoType, int>{AmmoType.bullets: 1000},
         );
@@ -109,6 +111,7 @@ void main() {
 
     test('an empty weapon will not fire', () {
       final arsenal = Arsenal(
+        slots: Weapons.all,
         owned: <WeaponDef>[Weapons.pistol],
         ammo: <AmmoType, int>{AmmoType.bullets: 0},
       );
@@ -119,6 +122,8 @@ void main() {
 
     test('running dry falls back to something that works', () {
       final arsenal = Arsenal(
+        slots: Weapons.all,
+        owned: <WeaponDef>[Weapons.fists, Weapons.pistol],
         ammo: <AmmoType, int>{AmmoType.bullets: 1},
       )..selectSlot(1);
 
@@ -130,7 +135,7 @@ void main() {
     });
 
     test('the fallback leaves a working weapon alone', () {
-      final arsenal = Arsenal()..selectSlot(1);
+      final arsenal = sampleArsenal()..selectSlot(1);
 
       arsenal.fallBackIfEmpty();
 
@@ -141,6 +146,7 @@ void main() {
       // Otherwise tapping between two weapons fires faster than either allows,
       // which is the oldest exploit in the genre after diagonal running.
       final arsenal = Arsenal(
+        slots: Weapons.all,
         owned: <WeaponDef>[Weapons.fists, Weapons.pistol],
         ammo: <AmmoType, int>{AmmoType.bullets: 50},
       )..selectSlot(1);
@@ -153,28 +159,31 @@ void main() {
     });
 
     test('picking up a new weapon switches to it', () {
-      final arsenal = Arsenal();
+      final arsenal = sampleArsenal();
 
       expect(arsenal.pickUp(Weapons.shotgun), isTrue);
       expect(arsenal.current.name, Weapons.shotgun.name);
     });
 
     test('picking up one already owned changes nothing', () {
-      final arsenal = Arsenal()..selectSlot(0);
+      final arsenal = sampleArsenal()..selectSlot(0);
 
       expect(arsenal.pickUp(Weapons.pistol), isFalse);
       expect(arsenal.current.name, Weapons.fists.name);
     });
 
     test('selecting a weapon that is not owned does nothing', () {
-      final arsenal = Arsenal()..selectSlot(1);
+      final arsenal = sampleArsenal()..selectSlot(1);
 
       expect(arsenal.selectSlot(3), isFalse);
       expect(arsenal.current.name, Weapons.pistol.name);
     });
 
     test('ammo stops at the pouch limit', () {
-      final arsenal = Arsenal(ammo: <AmmoType, int>{AmmoType.shells: 58});
+      final arsenal = Arsenal(
+        slots: Weapons.all,
+        ammo: <AmmoType, int>{AmmoType.shells: 58},
+      );
 
       expect(arsenal.addAmmo(AmmoType.shells, 10), 2);
       expect(arsenal.ammoOf(AmmoType.shells), 60);
@@ -183,8 +192,12 @@ void main() {
 
     test('an automatic weapon fires while held, a semi-automatic on the press',
         () {
-      final auto = Arsenal(owned: <WeaponDef>[Weapons.fists]);
+      final auto = Arsenal(
+        slots: Weapons.all,
+        owned: <WeaponDef>[Weapons.fists],
+      );
       final semi = Arsenal(
+        slots: Weapons.all,
         owned: <WeaponDef>[Weapons.pistol],
         ammo: <AmmoType, int>{AmmoType.bullets: 10},
       );

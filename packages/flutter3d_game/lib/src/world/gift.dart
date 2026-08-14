@@ -120,17 +120,6 @@ final class GiftRegistry {
   GiftRegistry(Iterable<Gift> gifts)
       : _byName = <String, Gift>{for (final gift in gifts) gift.name: gift};
 
-  static final GiftRegistry standard = GiftRegistry(<Gift>[
-    const HealthGift(),
-    const ArmourGift(),
-    const AmmoGift('bullets', AmmoType.bullets, defaultAmount: 20.0),
-    const AmmoGift('shells', AmmoType.shells, defaultAmount: 8.0),
-    const AmmoGift('rockets', AmmoType.rockets, defaultAmount: 4.0),
-    const KeyGift(),
-    const PowerUpGift('invulnerability', defaultAmount: 20.0),
-    const PowerUpGift('berserk', defaultAmount: 30.0),
-  ]);
-
   final Map<String, Gift> _byName;
 
   Gift? operator [](String name) => _byName[name];

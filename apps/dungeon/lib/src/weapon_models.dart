@@ -1,6 +1,6 @@
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_game/sample.dart';
 
 /// One node per weapon, for [WeaponView].
 ///

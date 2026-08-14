@@ -17,13 +17,20 @@ import 'key_ring.dart';
 /// door asks the body in front of it what it carries, and the answer should be
 /// the player's actual inventory rather than a copy of part of it.
 final class Inventory with KeyHolder {
+  /// [arsenal] defaults to an empty one — no weapons and no slots.
+  ///
+  /// It used to default to this repository's own fists and pistol with forty
+  /// bullets, which is a whole game's opening loadout arriving from a package
+  /// that should not know the game has fists. A game says what its player
+  /// starts with; an inventory built without one starts with nothing, which is
+  /// the only answer that is true for every game.
   Inventory({
     Health? health,
     Arsenal? arsenal,
     KeyRing? keys,
     this.maxArmour = 100.0,
   })  : health = health ?? Health(100.0),
-        arsenal = arsenal ?? Arsenal(),
+        arsenal = arsenal ?? Arsenal(slots: const <WeaponDef>[]),
         keyRing = keys ?? KeyRing();
 
   final Health health;

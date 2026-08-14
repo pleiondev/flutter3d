@@ -2,6 +2,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_game/sample.dart';
 
 /// What this game's fixtures look like.
 ///
@@ -27,13 +28,13 @@ final class DungeonFixtures implements FixtureAppearance {
     final glow = build.glow;
 
     switch (build.fixture.entity.type) {
-      case EntityTypes.window:
+      case SampleEntities.window:
         // One pane, flat, emissive across its whole face. A box is right here:
         // a window in a wall is a box.
         holder.add(MeshNode(meshes.box(size), glow, name: 'pane'));
         return null;
 
-      case EntityTypes.lamp:
+      case SampleEntities.lamp:
         holder
           ..add(
             MeshNode(
