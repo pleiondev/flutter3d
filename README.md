@@ -11,6 +11,7 @@ built from both.
 | [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, input that has forgotten which device it came from, levels and mechanisms. [README](packages/flutter3d_game/README.md) |
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries and a character controller. Plain Dart — no Flutter, no renderer |
 | [`packages/flutter3d_shooter`](packages/flutter3d_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
+| [`packages/flutter3d_platformer`](packages/flutter3d_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/mouse_capture`](packages/mouse_capture) | Relative mouse deltas, which Flutter offers on no desktop platform |
