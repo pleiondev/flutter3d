@@ -89,6 +89,9 @@ class _GameScreenState extends State<GameScreen>
   /// so a pickup has somewhere to give something to and the HUD has one thing
   /// to read — and so it can hang off the player's collider, which is how a
   /// locked door asks what the body in front of it holds.
+  /// Who the player is, once there is a body to be.
+  Player? _player;
+
   final Inventory _inventory = Inventory(
     arsenal: Arsenal(
       slots: Weapons.all,
@@ -412,9 +415,10 @@ class _GameScreenState extends State<GameScreen>
         // player's feet go, which is the only place an author can see.
         position: (start?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0),
       );
-      // What the player is carrying hangs off their collider, so a locked door
-      // can read it without the physics knowing that keys exist.
-      body.collider.userData = _inventory;
+      // Who the collider *is*, rather than what it happens to be carrying.
+      // A locked door reads the keys off the player, and a rocket asks the
+      // player to take damage, without the physics knowing what either is.
+      _player = Player(body: body, inventory: _inventory);
 
       if (!mounted) return;
       setState(() {
@@ -594,7 +598,7 @@ class _GameScreenState extends State<GameScreen>
           perSecond: 34.0,
           seconds: 0.85,
         );
-        _applyBlast(blast, monsters);
+        _applyBlast(blast);
       }
       if (projectiles.detonations.isNotEmpty) {
         _blasts
@@ -794,8 +798,8 @@ class _GameScreenState extends State<GameScreen>
     final monsters = _monsters;
     if (monsters != null) {
       for (final entry in Hitscan.damageByTarget(_lastShot).entries) {
-        final monster = entry.key.userData;
-        if (monster is Monster) monsters.hurt(monster, entry.value);
+        final target = entry.key.userData;
+        if (target is Damageable) target.applyDamage(entry.value);
       }
     }
 
@@ -816,17 +820,21 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// Splits an explosion between the monsters and the player.
-  void _applyBlast(Detonation blast, MonsterSystem? monsters) {
+  /// A rocket hurts whatever it can hurt, and asks nothing about what that is.
+  ///
+  /// This used to be two branches — one testing `userData is Monster` and one
+  /// testing the collider's *layer* for the player — and neither could have
+  /// been written by a game with a third thing worth blowing up. Own goals are
+  /// no longer a special case either: the player is in `blast.damage` like
+  /// anything else, which is the price of the launcher being the best weapon in
+  /// the game up close.
+  void _applyBlast(Detonation blast) {
+    final player = _player;
     for (final entry in blast.damage.entries) {
       final target = entry.key.userData;
-      if (target is Monster) {
-        monsters?.hurt(target, entry.value);
-      } else if (entry.key.layer == CollisionLayers.player) {
-        // Own goal included: a rocket at your own feet hurts, which is the
-        // price of the launcher being the best weapon in the game up close.
-        _inventory.damage(entry.value);
-        _painFlash = 1.0;
-      }
+      if (target is! Damageable) continue;
+      target.applyDamage(entry.value);
+      if (identical(target, player)) _painFlash = 1.0;
     }
   }
 

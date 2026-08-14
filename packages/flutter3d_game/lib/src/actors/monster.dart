@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import '../combat/weapon.dart';
 import '../combat/weapon_behaviour.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'damageable.dart';
 import 'health.dart';
 import '../physics/layers.dart';
 
@@ -99,7 +100,7 @@ final class MonsterDef {
 
 
 /// One monster, alive or otherwise.
-final class Monster {
+final class Monster implements Damageable {
   Monster({
     required this.def,
     required CollisionWorld world,
@@ -130,6 +131,28 @@ final class Monster {
 
   final MonsterDef def;
   final Health health;
+
+  /// How this monster takes damage, installed by whatever is running it.
+  ///
+  /// A function rather than a reference to `MonsterSystem`, and not for
+  /// tidiness: the system already imports this file, so naming it here would
+  /// close a cycle between the two. One closure per monster, made once when it
+  /// spawns.
+  bool Function(double amount)? onDamage;
+
+  /// Takes damage the way its system would, because it *is* its system.
+  ///
+  /// **Not `health.damage(amount)`.** That subtracts the number and skips
+  /// everything being hurt means here: the corpse stays solid and turns the
+  /// corridor into a maze of your own making, the death never reaches
+  /// `MonsterSystem.died`, the flinch is not rolled, and a monster shot from
+  /// behind never notices.
+  ///
+  /// A monster with nothing running it is one built by hand in a test; it takes
+  /// the damage to its health, which is all there is to do with it.
+  @override
+  bool applyDamage(double amount) =>
+      onDamage?.call(amount) ?? health.damage(amount);
   final CharacterController body;
 
   /// Which way it is facing, in radians about Y.

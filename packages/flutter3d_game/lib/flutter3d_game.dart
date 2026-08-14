@@ -12,7 +12,9 @@
 /// `flutter3d_bridge` is where this meets the renderer.
 library;
 
+export 'src/actors/damageable.dart';
 export 'src/actors/health.dart';
+export 'src/actors/player.dart';
 export 'src/actors/monster.dart';
 export 'src/actors/monster_system.dart';
 export 'src/combat/blast.dart';

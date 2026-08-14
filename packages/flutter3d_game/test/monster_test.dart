@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_game/src/actors/damageable.dart';
 import 'package:flutter3d_game/src/actors/health.dart';
+import 'package:flutter3d_game/src/actors/player.dart';
+import 'package:flutter3d_game/src/world/key_ring.dart';
 import 'package:flutter3d_game/src/actors/monster.dart';
 import 'package:flutter3d_game/src/actors/monster_system.dart';
 import 'package:flutter3d_game/src/combat/projectile.dart';
@@ -48,6 +51,8 @@ CollisionWorld _room({bool wall = false}) {
 }
 
 void main() {
+  _damageableTests();
+
   group('health', () {
     test('death is reported exactly once', () {
       // Eight shotgun pellets in one monster is one death. A health class that
@@ -448,6 +453,95 @@ void main() {
       // Five seconds of simulation for thirty monsters. Generous, and the point
       // is the order of magnitude rather than the figure.
       expect(watch.elapsedMilliseconds, lessThan(2000));
+    });
+  });
+}
+
+/// Damage through one interface, whatever is being hurt.
+///
+/// Two type-switches used to live in the application — one for hitscan, one for
+/// a blast — and neither could have been written by a game with a third thing
+/// worth shooting. What replaced them is one question: can this be hurt?
+void _damageableTests() {
+  group('damageable', () {
+    test('a spawned monster takes damage the way its system would', () {
+      // The assertion that matters. `applyDamage` must go back through the
+      // system, not into `health` directly: a monster killed the short way
+      // leaves a corpse that still blocks the corridor and a death nothing
+      // counted.
+      //
+      // Mutation: make `applyDamage` call `health.damage`. Both of these fail.
+      final world = CollisionWorld();
+      final monsters = MonsterSystem(
+        world: world,
+        projectiles: ProjectileSystem(world: world),
+      );
+      final monster = monsters.spawn(Monsters.runner, Vector3.zero());
+
+      final died = (monster as Damageable).applyDamage(1000.0);
+
+      expect(died, isTrue);
+      expect(monsters.died, <Monster>[monster],
+          reason: 'the kill never reached the system that owns it');
+      expect(monster.body.collider.kind, ColliderKind.trigger,
+          reason: 'the corpse still blocks the corridor');
+    });
+
+    test('surviving a hit is reported too', () {
+      final world = CollisionWorld();
+      final monsters = MonsterSystem(
+        world: world,
+        projectiles: ProjectileSystem(world: world),
+      );
+      final monster = monsters.spawn(Monsters.tank, Vector3.zero());
+
+      expect((monster as Damageable).applyDamage(1.0), isFalse);
+      expect(monsters.hurtThisStep.single.monster, monster);
+    });
+
+    test('a monster nothing is running still takes the damage', () {
+      // Built by hand, which is what a test does. There is no system to go
+      // through and no state machine to run, so the health is the whole of it.
+      final monster = Monster(
+        def: Monsters.runner,
+        world: CollisionWorld(),
+        position: Vector3.zero(),
+      );
+
+      expect((monster as Damageable).applyDamage(1000.0), isTrue);
+      expect(monster.health.isAlive, isFalse);
+    });
+
+    test('a player is who their collider is, and can be hurt', () {
+      // The other half of the untangling: `userData` used to hold the player's
+      // *inventory*, which is what the body carries rather than who it is — so
+      // a blast had to test the collider's layer instead of asking it.
+      final world = CollisionWorld();
+      final player = Player(
+        body: CharacterController(world: world, position: Vector3.zero()),
+      );
+
+      final owner = player.body.collider.userData;
+      expect(owner, same(player));
+      expect(owner, isA<Damageable>());
+
+      (owner! as Damageable).applyDamage(10.0);
+      expect(player.inventory.health.current, lessThan(100.0));
+    });
+
+    test('and a locked door still finds the keys on them', () {
+      // `MechanismWorld.activationBy` asks whether the collider's owner is a
+      // `KeyHolder`. It used to find the inventory there, which was right by
+      // accident; it now finds the player, who forwards.
+      final world = CollisionWorld();
+      final player = Player(
+        body: CharacterController(world: world, position: Vector3.zero()),
+      );
+      player.inventory.keyRing.take('brass');
+
+      final owner = player.body.collider.userData;
+      expect(owner, isA<KeyHolder>());
+      expect((owner! as KeyHolder).keys, contains('brass'));
     });
   });
 }

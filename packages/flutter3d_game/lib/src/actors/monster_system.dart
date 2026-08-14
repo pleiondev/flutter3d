@@ -86,6 +86,7 @@ final class MonsterSystem {
       position: position,
       yaw: yaw,
     );
+    monster.onDamage = (double amount) => hurt(monster, amount);
     monsters.add(monster);
     return monster;
   }

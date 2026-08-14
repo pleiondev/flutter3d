@@ -80,6 +80,19 @@ to stand on, something to see by.
 asks by name. It stays in the package for the tests, two hundred of which are
 written against those numbers.
 
+## Who a collider is
+
+`Collider.userData` answers one question — *who is this?* — and one only. It
+used to answer two: a monster on one collider and the player's *inventory* on
+another, which is what the body carries rather than who it is. That is why
+dealing damage took two branches, one testing `userData` and one testing the
+collider's layer, and why neither could have been written by a game with a
+third thing worth shooting.
+
+`Damageable` replaces both with one question. A monster implements it by handing
+the call back to the system that spawned it — subtracting from its own health
+would leave a corpse that still blocks the corridor and a death nothing counted.
+
 ## Events
 
 Each system fills a list during the step and a caller drains it after —
@@ -122,8 +135,9 @@ Stated rather than discovered:
   reads and `exit` is an entity that spawns nothing. There *is* a pause:
   `GameLoop.paused`, which stops the clock rather than accumulating time it
   then throws away.
-- **No player abstraction.** Yaw, pitch and eye height belong to the
-  application; `CharacterController` is a body without a head.
+- **Half a player abstraction.** `Player` owns the body, the inventory and the
+  answer to "who is this collider". Yaw, pitch, eye height and the aim vector
+  still belong to the application, which is the next thing to fix.
 - **No rigid bodies.** Deliberate — nothing pushes the player and the player has
   no angular momentum.
 - **Desktop input only.** `InputState` is device-agnostic and
