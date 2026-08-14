@@ -136,6 +136,20 @@ keeps one per class — usually two or three for a whole roster. Clearance is
 measured against *reachable* room: the top of a wall is a surface, and counting
 it as space would make every corridor come out two cells wider than it is.
 
+**Cell size is the setting that matters, and half a metre is often too coarse.**
+A grid is conservative: a cell touching a wall has a clearance of one however
+far the wall actually is. At `cellSize: 0.5` a one-metre corridor is two cells,
+both of them touching, so no body needing clearance two is routed through it —
+and a monster 0.7 wide, which physically fits, is refused the whole passage. The
+grid then falls back to walking straight at the player in exactly the places a
+route is worth having. The dungeon bakes at `0.25` for that reason, measured on
+its own corridors; four times the cells and twice the bake, both at load time.
+
+**One `Navigation` means one goal.** `update` re-targets every field it holds,
+which is the point — and the one way to misuse it. Two callers with different
+destinations must not share one, or the second one's fields quietly flow to the
+first one's goal and the symptom is an agent that looks stuck.
+
 On `crypt.json` at half-metre cells the grid is 55×96 and bakes in well under a
 tenth of a second; a sweep is under a millisecond. Every cell it cannot reach
 from the player's start is up on top of something. None is on the floor.

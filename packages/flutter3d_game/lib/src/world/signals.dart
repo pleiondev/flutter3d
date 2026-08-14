@@ -1,8 +1,8 @@
 import 'package:vector_math/vector_math.dart';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'collector.dart';
 import 'gift.dart';
-import 'inventory.dart';
 import 'mechanism.dart';
 
 /// A panel on a wall that fires its target when the player presses use.
@@ -144,8 +144,13 @@ final class Pickup extends Mechanism with CollisionListener {
   ActivationOutcome activate(Activation by) {
     if (_taken) return const NothingToDo();
     final holder = by.by?.userData;
-    if (holder is! Inventory) return const NothingToDo();
-    if (!gift.grantTo(holder, amount, detail)) return const NothingToDo();
+    // Not `is Inventory`: a collider says *who* it is, and what they carry is
+    // a question they answer. See [Collector], which is there because getting
+    // this wrong silently broke every pickup in the game.
+    if (holder is! Collector) return const NothingToDo();
+    if (!gift.grantTo(holder.inventory, amount, detail)) {
+      return const NothingToDo();
+    }
 
     _taken = true;
     justTaken = true;

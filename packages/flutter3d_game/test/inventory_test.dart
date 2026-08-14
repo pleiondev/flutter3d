@@ -43,19 +43,24 @@ Pickup _drop(
   );
 }
 
+/// A body that can walk about and carry things.
+///
+/// **A real `Player`.** It used to put the `Inventory` straight into
+/// `userData`, which stopped being how the game arranges things the day a
+/// collider started answering *who* it is. These tests kept passing while every
+/// pickup in the running game silently did nothing — a harness that does not
+/// build what the game builds is a harness that tests itself.
 Collider _walkerOn(
   ({MechanismWorld mechanisms, CollisionWorld world}) w,
   Inventory carrying,
 ) =>
-    w.world.add(
-      Collider(
-        shape: CollisionCapsule(radius: 0.35, halfHeight: 0.55),
+    Player(
+      body: CharacterController(
+        world: w.world,
         position: Vector3(0.0, 0.9, 0.0),
-        kind: ColliderKind.kinematic,
-        layer: CollisionLayers.player,
-        userData: carrying,
       ),
-    );
+      inventory: carrying,
+    ).body.collider;
 
 void main() {
   group('an inventory', () {

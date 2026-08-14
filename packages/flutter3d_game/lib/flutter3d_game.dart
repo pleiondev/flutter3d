@@ -39,6 +39,7 @@ export 'src/level/entity_kind.dart';
 export 'src/level/level_collision.dart';
 export 'src/level/level_issue.dart';
 export 'src/level/spawn_context.dart';
+export 'src/world/collector.dart';
 export 'src/world/exit.dart';
 export 'src/world/rider.dart';
 export 'src/world/gift.dart';

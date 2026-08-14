@@ -18,6 +18,8 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 
 import 'src/effects.dart';
+import 'src/hud.dart';
+import 'src/scene_surface.dart';
 import 'src/fixture_looks.dart';
 import 'src/monster_looks.dart';
 import 'src/sounds.dart';
@@ -374,8 +376,18 @@ class _GameScreenState extends State<GameScreen>
       // and whichever position they happen to be in at load would be frozen
       // into the grid — a closed door becoming a wall nothing ever paths
       // through again.
+      //
+      // Quarter-metre cells, not the default half. Measured on this level: at
+      // half a metre a one-metre corridor is two cells, both of them touching
+      // a wall, so every cell in it has a clearance of one — and a monster
+      // 0.7 wide, which physically fits, is refused the whole passage. The
+      // grid then silently falls back to walking straight at the player in
+      // exactly the places a route is worth having. Four times the cells and
+      // twice the bake, both of which are load-time and both of which are
+      // small.
       final navIssues = <LevelIssue>[];
-      monsters.navigation = Navigation.bake(loaded.level, issues: navIssues);
+      monsters.navigation =
+          Navigation.bake(loaded.level, cellSize: 0.25, issues: navIssues);
       final visuals = MonsterVisuals(
         loaded.scene,
         appearance: const DungeonMonsters(),
@@ -795,7 +807,7 @@ class _GameScreenState extends State<GameScreen>
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
-              _SceneSurface(
+              SceneSurface(
                 renderer: renderer,
                 scene: loaded.scene,
                 view: _view,
@@ -805,7 +817,7 @@ class _GameScreenState extends State<GameScreen>
                 ),
                 onBeforeFrame: _placeCamera,
               ),
-              _Hud(
+              Hud(
                 captured: _devices.isCaptured,
                 fps: _fps,
                 steps: _steps,
@@ -862,388 +874,5 @@ class _GameScreenState extends State<GameScreen>
     _camera
       ..setPositionFrom(_eye)
       ..lookAt(_target);
-  }
-}
-
-class _SceneSurface extends StatelessWidget {
-  const _SceneSurface({
-    required this.renderer,
-    required this.scene,
-    required this.view,
-    required this.fog,
-    required this.onBeforeFrame,
-  });
-
-  final Renderer renderer;
-  final Scene scene;
-  final RenderView view;
-  final FogSettings fog;
-  final VoidCallback onBeforeFrame;
-
-  @override
-  Widget build(BuildContext context) {
-    final dpr = MediaQuery.devicePixelRatioOf(context);
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        onBeforeFrame();
-        final frame = renderer.render(
-          width: (constraints.maxWidth * dpr).round().clamp(1, 8192),
-          height: (constraints.maxHeight * dpr).round().clamp(1, 8192),
-          scene: scene,
-          views: <RenderView>[view],
-          settings: RenderSettings(
-            // Off until the surface buffer carries roughness. Without it the
-            // shader reflects off rough stone as readily as off a wet floor,
-            // and the walls light up instead of the floor.
-            // Off. The march tests only the front-most depth, so a ray that
-            // passes behind a wall counts as hitting it and picks up whatever
-            // is drawn at that pixel — a highlight straight through solid
-            // stone. The thickness bound was meant to stop that, but depth is
-            // compressed at distance and 0.006 spans metres of world out
-            // there. It needs a view-space test, not a depth-space one.
-            reflections: const ReflectionSettings(),
-            // Straight from the document. A crypt without fog is a crypt with
-            // a visible far wall, and the far wall is the thing an author
-            // least wants seen.
-            fog: fog,
-          ),
-        );
-        // From the device rather than painted from an image: a backend whose
-        // frame is composited elsewhere has no image to paint, and `present` is
-        // the one answer both can give.
-        return renderer.device.present(frame.frame);
-      },
-    );
-  }
-}
-
-
-/// The colours the HUD draws a carried key in.
-const Map<String, Color> _keyPips = <String, Color>{
-  'blue': Color(0xFF3A6BF2),
-  'red': Color(0xFFE52E29),
-  'yellow': Color(0xFFF2D133),
-};
-
-class _Hud extends StatelessWidget {
-  const _Hud({
-    required this.captured,
-    required this.fps,
-    required this.steps,
-    required this.dropped,
-    required this.voices,
-    required this.particles,
-    required this.position,
-    required this.grounded,
-    required this.weapon,
-    required this.ammo,
-    required this.hitFlash,
-    required this.painFlash,
-    required this.health,
-    required this.kills,
-    required this.monstersLeft,
-    required this.message,
-    required this.messageOpacity,
-    required this.keys,
-    required this.armour,
-    required this.pouches,
-    required this.powers,
-  });
-
-  final bool captured;
-  final double fps;
-  final int steps;
-  final int dropped;
-
-  /// Sounds actually playing. Zero with no audio device, and the only thing on
-  /// screen that says whether the mixer is doing anything at all.
-  final int voices;
-
-  /// Particles alive. The same job the voice count does for sound: the only
-  /// number that separates "never emitted" from "emitted and not drawn".
-  final int particles;
-  final Vector3 position;
-  final bool grounded;
-  final WeaponDef weapon;
-
-  /// Negative when the weapon needs none.
-  final int ammo;
-
-  /// Fades from one to zero after a shot connected.
-  final double hitFlash;
-
-  final double painFlash;
-  final Health health;
-  final int kills;
-  final int monstersLeft;
-
-  /// The last thing the level said — a locked door, a key collected.
-  final String message;
-
-  /// Fades over the last part of the message's life rather than vanishing.
-  final double messageOpacity;
-
-  /// What the player is carrying, drawn as coloured pips.
-  final Set<String> keys;
-
-  final double armour;
-
-  /// Every pouch, not only the one in use: a player deciding whether to switch
-  /// needs to see what switching would cost.
-  final Map<AmmoType, int> pouches;
-
-  /// Seconds left on whatever is running.
-  final Map<String, double> powers;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        // The crosshair, which turns red the moment a shot connects. A hit
-        // marker is the cheapest feedback in a shooter and the one players
-        // notice the absence of.
-        Center(
-          child: SizedBox(
-            width: 5.0 + hitFlash * 4.0,
-            height: 5.0 + hitFlash * 4.0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color.lerp(
-                  Colors.white70,
-                  const Color(0xFFFF5B4A),
-                  hitFlash,
-                ),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 12.0,
-          top: 12.0,
-          child: DefaultTextStyle(
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12.0,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text('fps ${fps.toStringAsFixed(0)}   '
-                    'steps this frame $steps   dropped $dropped   '
-                    'voices $voices   particles $particles'),
-                Text('x ${position.x.toStringAsFixed(1)}  '
-                    'y ${position.y.toStringAsFixed(1)}  '
-                    'z ${position.z.toStringAsFixed(1)}  '
-                    '${grounded ? 'grounded' : 'airborne'}'),
-              ],
-            ),
-          ),
-        ),
-        // A red wash on being hurt. Drawn under everything else so the numbers
-        // stay legible exactly when they matter most.
-        if (painFlash > 0.0)
-          IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  radius: 1.1,
-                  colors: <Color>[
-                    const Color(0x00FF2A18),
-                    Color.lerp(
-                      const Color(0x00FF2A18),
-                      const Color(0xAAFF2A18),
-                      painFlash,
-                    )!,
-                  ],
-                ),
-              ),
-              child: const SizedBox.expand(),
-            ),
-          ),
-        Positioned(
-          left: 20.0,
-          bottom: 18.0,
-          child: DefaultTextStyle(
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22.0,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text('HEALTH',
-                    style: TextStyle(color: Colors.white54, fontSize: 12.0)),
-                Text(
-                  health.isAlive ? '${health.current.round()}' : 'DEAD',
-                  style: TextStyle(
-                    color: health.current > 30.0
-                        ? Colors.white
-                        : const Color(0xFFFF6B5A),
-                    fontSize: 22.0,
-                  ),
-                ),
-                Text('kills $kills   left $monstersLeft',
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 11.0)),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          right: 20.0,
-          bottom: 18.0,
-          child: DefaultTextStyle(
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22.0,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Text(weapon.name.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12.0,
-                    )),
-                Text(ammo < 0 ? '∞' : '$ammo'),
-              ],
-            ),
-          ),
-        ),
-        // Above the crosshair rather than at the bottom of the screen: it
-        // answers something the player just did, and their eyes are here.
-        if (messageOpacity > 0.0 && message.isNotEmpty)
-          Align(
-            alignment: const Alignment(0.0, -0.35),
-            child: Opacity(
-              opacity: messageOpacity,
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Color(0xFFF2E4C8),
-                  fontSize: 17.0,
-                  shadows: <Shadow>[Shadow(blurRadius: 6.0)],
-                ),
-              ),
-            ),
-          ),
-
-        // Armour beside health, in the corner the eye already goes to.
-        if (armour > 0.0)
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 132.0, bottom: 24.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  const Text('ARMOUR',
-                      style: TextStyle(color: Colors.white38, fontSize: 12.0)),
-                  Text(
-                    '${armour.round()}',
-                    style: const TextStyle(
-                      color: Color(0xFF8FC6E8),
-                      fontSize: 34.0,
-                      fontWeight: FontWeight.w300,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-        // Every pouch, the one in use picked out. A row of small numbers
-        // rather than four labelled lines: it is glanced at, not read.
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 24.0, bottom: 84.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                for (final entry in pouches.entries)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 14.0),
-                    child: Text(
-                      '${entry.key.name.substring(0, 3).toUpperCase()} '
-                      '${entry.value}',
-                      style: TextStyle(
-                        color: entry.key == weapon.ammo
-                            ? Colors.white
-                            : Colors.white30,
-                        fontSize: 13.0,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-
-        if (powers.isNotEmpty)
-          Align(
-            alignment: const Alignment(0.0, -0.75),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                for (final power in powers.entries)
-                  Text(
-                    '${power.key.toUpperCase()}  ${power.value.ceil()}',
-                    style: const TextStyle(
-                      color: Color(0xFFE8D48F),
-                      fontSize: 15.0,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-        if (keys.isNotEmpty)
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 84.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  for (final key in keys)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: SizedBox(
-                        width: 14.0,
-                        height: 22.0,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: _keyPips[key] ?? Colors.white70,
-                            borderRadius: BorderRadius.circular(3.0),
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-
-        if (!captured)
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.all(24.0),
-              child: Text(
-                'Click to look around  ·  WASD to move  ·  Space to jump  ·  '
-                'E to use  ·  Esc to release the pointer',
-                style: TextStyle(color: Colors.white54),
-              ),
-            ),
-          ),
-      ],
-    );
   }
 }

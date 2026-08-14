@@ -52,6 +52,14 @@ final class Navigation {
   Iterable<FlowField> get fields => _fields.values;
 
   /// Where everything is currently walking towards.
+  ///
+  /// **Every** field is re-targeted, which is the point — one goal, one sweep
+  /// per class of body — and also the one way to misuse this: two callers with
+  /// different destinations cannot share a `Navigation`. The second one's
+  /// fields quietly start flowing to the first one's goal, and the symptom is
+  /// an agent that appears to be stuck rather than an error. Give each
+  /// destination its own instance; the grid is the expensive part and it is
+  /// what [Navigation.new] takes, so sharing that costs nothing.
   void update(Vector3 goal) {
     _goal.setFrom(goal);
     _hasGoal = true;

@@ -35,6 +35,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import '../physics/layers.dart';
+import '../world/collector.dart';
 import '../world/inventory.dart';
 import '../world/key_ring.dart';
 import '../world/rider.dart';
@@ -42,7 +43,7 @@ import 'damageable.dart';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
-final class Player with KeyHolder implements Damageable, Rider {
+final class Player with KeyHolder implements Collector, Damageable, Rider {
   Player({
     required this.body,
     Inventory? inventory,
@@ -59,6 +60,9 @@ final class Player with KeyHolder implements Damageable, Rider {
   final CharacterController body;
 
   /// What is being carried: health, armour, weapons, keys, power-ups.
+  ///
+  /// Also the answer [Collector] asks for, which is how a pickup reaches it.
+  @override
   final Inventory inventory;
 
   /// The keys the *person* holds.

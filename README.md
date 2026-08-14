@@ -13,7 +13,7 @@ built from both.
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a weapon to a view model |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/mouse_capture`](packages/mouse_capture) | Relative mouse deltas, which Flutter offers on no desktop platform |
-| [`apps/dungeon`](apps/dungeon) | The game |
+| [`apps/dungeon`](apps/dungeon) | The game, and a headless test that plays it to the exit |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
 The split is not filing. `flutter3d_game` does not depend on `flutter3d`, and
@@ -56,7 +56,7 @@ for p in packages/*/; do (cd "$p" && flutter test); done
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-1230 tests across twelve packages, and the only ones that need a GPU are the
+1234 tests across thirteen packages, and the only ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 30 scenes checkable in a headless run.
 

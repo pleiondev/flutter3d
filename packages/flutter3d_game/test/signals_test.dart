@@ -30,18 +30,20 @@ Collider _volume(CollisionWorld world, Vector3 at, [double size = 2.0]) =>
     );
 
 /// A body that can walk about and carry things.
-Collider _player(CollisionWorld world, Vector3 at, {Inventory? carrying}) =>
-    world.add(
-      Collider(
-        shape: CollisionCapsule(radius: 0.35, halfHeight: 0.55),
-        position: at,
-        // Kinematic, not static: a static collider that moves leaves the
-        // static grid pointing at where it used to be.
-        kind: ColliderKind.kinematic,
-        layer: CollisionLayers.player,
-        userData: carrying,
-      ),
-    );
+///
+/// **A real `Player`, and that is the whole point of this helper.** It used to
+/// put an `Inventory` straight into `userData`, which is the arrangement the
+/// game had before a collider started answering *who* it is rather than what it
+/// holds. These tests went on passing against the old shape while every pickup
+/// in the running game silently stopped working. A harness that does not build
+/// what the game builds is a harness that tests itself.
+Collider _player(CollisionWorld world, Vector3 at, {Inventory? carrying}) {
+  final player = Player(
+    body: CharacterController(world: world, position: at),
+    inventory: carrying,
+  );
+  return player.body.collider;
+}
 
 Door _door(({MechanismWorld mechanisms, CollisionWorld world}) w, String name,
         {String? key}) =>
