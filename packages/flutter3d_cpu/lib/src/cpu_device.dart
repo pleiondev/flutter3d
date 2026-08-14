@@ -100,8 +100,11 @@ final class CpuDevice implements GraphicsDevice {
   bool get supportsWireframe => false;
 
   @override
-  // See createTextureFromPixels: storage is not the missing part, selection is.
-  bool get supportsMipmaps => false;
+  // Both halves are here now: the chain is stored as whole textures and the
+  // level is chosen from a per-triangle derivative. See `BoundTexture.sample`
+  // for why the derivative is a parameter rather than a property of the
+  // fragment, which is the one place this backend cannot imitate hardware.
+  bool get supportsMipmaps => true;
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec) => TextureHandle(
@@ -121,29 +124,30 @@ final class CpuDevice implements GraphicsDevice {
     required ByteData pixels,
     List<ByteData>? mipLevels,
   }) {
-    if (mipLevels != null) {
-      // Refused, not ignored, and [supportsMipmaps] is what a caller should
-      // have asked. Storing a chain and sampling the base level would make
-      // this backend disagree with the other two by an amount that looks
-      // exactly like a filtering difference — which is the mistake
-      // `SamplerOptions.linearRepeat` already made once, at two percent of
-      // every textured golden.
-      //
-      // What is missing is level *selection*, not storage. Choosing a level
-      // needs the screen-space derivative of the texture coordinate, and this
-      // rasteriser has no semantics for its varyings: it interpolates a list of
-      // floats and does not know which pair of them is a UV.
-      throw UnsupportedError(
-        'this backend does not select mip levels yet, so it cannot hold a '
-        'chain. Ask supportsMipmaps before building one.',
-      );
-    }
     final expected = width * height * 4;
     if (pixels.lengthInBytes < expected) return null;
     final texture = CpuTexture(width, height, format);
     final bytes = pixels.buffer.asUint8List(pixels.offsetInBytes, expected);
     for (var i = 0; i < expected; i++) {
       texture.pixels[i] = bytes[i] / 255.0;
+    }
+    if (mipLevels != null && mipLevels.isNotEmpty) {
+      final chain = <CpuTexture>[];
+      var w = width;
+      var h = height;
+      for (final level in mipLevels) {
+        w = w > 1 ? w >> 1 : 1;
+        h = h > 1 ? h >> 1 : 1;
+        final small = CpuTexture(w, h, format);
+        final need = w * h * 4;
+        if (level.lengthInBytes < need) return null;
+        final from = level.buffer.asUint8List(level.offsetInBytes, need);
+        for (var i = 0; i < need; i++) {
+          small.pixels[i] = from[i] / 255.0;
+        }
+        chain.add(small);
+      }
+      texture.levels = chain;
     }
     return TextureHandle(
       backend: texture,
@@ -356,6 +360,19 @@ final class CpuEncoder implements CommandEncoder {
   final Map<String, Map<String, Float32List>> _blocks =
       <String, Map<String, Float32List>>{};
   final Map<String, BoundTexture> _textures = <String, BoundTexture>{};
+
+  /// Whether anything bound to this pass has levels to choose between.
+  ///
+  /// Asked per triangle rather than cached per bind because the bindings change
+  /// inside a pass and the map is small — almost every draw here binds two
+  /// textures or none. The point is only to keep the gradient arithmetic off
+  /// the twenty-seven scenes that have no mip chain anywhere in them.
+  bool _hasMippedTexture() {
+    for (final bound in _textures.values) {
+      if (bound.texture.levels != null) return true;
+    }
+    return false;
+  }
 
   @override
   void setViewport(ScreenRect rect) => _viewport = rect;
@@ -610,6 +627,28 @@ final class CpuEncoder implements CommandEncoder {
     final depth = _depthTarget?.depthBuffer();
     final interpolated = Float32List(varyingCount);
     final context = FragmentContext();
+
+    // Screen-space gradients, once for the whole triangle, and only when a
+    // bound texture actually has levels to choose between. Solved from the
+    // three window positions and the three varying values: the standard
+    // two-by-two system whose determinant is the signed area already computed
+    // above.
+    if (_hasMippedTexture()) {
+      final det =
+          (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
+      if (det != 0.0) {
+        final inv = 1.0 / det;
+        final ddx = context.ddx = Float32List(varyingCount);
+        final ddy = context.ddy = Float32List(varyingCount);
+        for (var k = 0; k < varyingCount; k++) {
+          final v0 = varyings[0][k];
+          final d1 = varyings[1][k] - v0;
+          final d2 = varyings[2][k] - v0;
+          ddx[k] = (d1 * (sy[2] - sy[0]) - d2 * (sy[1] - sy[0])) * inv;
+          ddy[k] = (d2 * (sx[1] - sx[0]) - d1 * (sx[2] - sx[0])) * inv;
+        }
+      }
+    }
     final scissor = _scissor;
 
     for (var step = 0; step <= steps; step++) {

@@ -7,6 +7,7 @@
 /// this whole package exists to answer.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
@@ -72,6 +73,14 @@ final class CpuTexture {
   /// Depth, allocated on first use: most textures never carry one.
   Float32List? depth;
 
+  /// The smaller copies, from half size down. Null for almost every texture.
+  ///
+  /// Held as whole textures rather than as loose byte lists so that sampling a
+  /// level is the same code as sampling the base — a second addressing path
+  /// for the small levels is a second place for the half-texel offset to be
+  /// wrong, and that one is invisible when it is.
+  List<CpuTexture>? levels;
+
   Float32List depthBuffer() =>
       depth ??= Float32List(width * height)..fillRange(0, width * height, 1.0);
 
@@ -124,7 +133,56 @@ final class BoundTexture {
   /// the image by half a texel at each edge and shifts every sample. On a
   /// checkerboard that is a visible seam offset; on a photograph it is
   /// nothing, which is why it survives.
-  Vector4 sample(double u, double v) {
+  /// Samples at [u], [v], choosing a mip level from how fast the coordinate is
+  /// moving.
+  ///
+  /// [du] and [dv] are the change in the coordinate per screen pixel — the
+  /// derivatives a hardware rasteriser computes from a quad of neighbouring
+  /// fragments and this one derives per triangle. Zero means "no idea", which
+  /// selects the base level and is what every call that predates mip chains
+  /// passes.
+  ///
+  /// **The shader supplies them, because only the shader knows which varyings
+  /// are a texture coordinate.** This rasteriser interpolates a list of floats;
+  /// nothing in it can tell a UV from a world position. That is a real
+  /// difference from the hardware backends, where the derivative is a property
+  /// of the fragment rather than of the call, and it is why this is a
+  /// parameter rather than something read off the context.
+  Vector4 sample(double u, double v, {double du = 0.0, double dv = 0.0}) {
+    final chain = texture.levels;
+    if (chain == null || chain.isEmpty || (du == 0.0 && dv == 0.0)) {
+      return _sampleLevel(texture, u, v);
+    }
+
+    // The footprint in texels: how much of the texture one pixel covers. A
+    // level is chosen so that footprint is about one texel, which is the whole
+    // of what a mip chain is for.
+    final footprint = math.max(du * width, dv * height);
+    if (footprint <= 1.0) return _sampleLevel(texture, u, v);
+
+    final lod = math.log(footprint) / math.ln2;
+    final top = chain.length;
+    if (lod >= top) return _sampleLevel(chain[top - 1], u, v);
+
+    final lower = lod.floor();
+    final near = lower == 0 ? texture : chain[lower - 1];
+    if (sampler.mipFilter == MipFilter.nearest) return _sampleLevel(near, u, v);
+
+    final far = chain[lower];
+    final t = lod - lower;
+    final a = _sampleLevel(near, u, v);
+    final b = _sampleLevel(far, u, v);
+    return Vector4(
+      a.x + (b.x - a.x) * t,
+      a.y + (b.y - a.y) * t,
+      a.z + (b.z - a.z) * t,
+      a.w + (b.w - a.w) * t,
+    );
+  }
+
+  Vector4 _sampleLevel(CpuTexture texture, double u, double v) {
+    final width = texture.width;
+    final height = texture.height;
     final x = u * width - 0.5;
     final y = v * height - 0.5;
     final x0 = x.floor();
@@ -180,6 +238,22 @@ final class FragmentContext {
   /// The depth is what the shadow pass stores, so this is not a diagnostic —
   /// leaving it out means `ShadowDepth` cannot be written at all.
   final Vector4 coord = Vector4.zero();
+
+  /// How fast each varying moves across the screen, per pixel.
+  ///
+  /// Filled once per triangle, and only when something bound to the pass has a
+  /// mip chain — the arithmetic is cheap but it is not free, and almost no draw
+  /// in this engine needs it.
+  ///
+  /// **Constant across the triangle, where hardware computes it per fragment.**
+  /// A GPU differences a quad of neighbouring fragments, so its answer follows
+  /// the perspective; this is the affine gradient of the varying in window
+  /// space, which is the same thing only for a triangle facing the camera. The
+  /// difference is a fraction of a level of detail, and a level is a power of
+  /// two — so it changes which mip is picked only for a surface seen at a sharp
+  /// angle, and by one level when it does.
+  Float32List? ddx;
+  Float32List? ddy;
 
   /// What the stage wrote to attachment one, or null if it wrote nothing.
   ///
