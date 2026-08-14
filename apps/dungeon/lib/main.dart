@@ -62,14 +62,12 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
   /// Radians of view movement per unit of mouse motion.
+  ///
+  /// A setting, and settings belong to the application. `Player` takes it as a
+  /// field with a default so that a game with no preferences never has to
+  /// think about it.
   static const double _lookSensitivity = 0.0022;
 
-  /// How far the player can look up or down.
-  ///
-  /// Just short of straight up: at exactly a right angle the forward vector
-  /// becomes parallel to the world up axis and the camera's orientation stops
-  /// being defined.
-  static const double _pitchLimit = math.pi / 2.0 - 0.01;
 
 
   final InputState _input = InputState();
@@ -153,16 +151,12 @@ class _GameScreenState extends State<GameScreen>
 
   final InterpolatedVector3 _smoothedPosition = InterpolatedVector3();
 
-  double _yaw = 0.0;
-  double _pitch = 0.0;
-
   Duration _lastTick = Duration.zero;
   int _steps = 0;
   double _fps = 0.0;
 
   // Scratch vectors, reused every step. Allocating these per frame is the
   // easiest way to hand the collector work it does not need.
-  final Vector3 _forward = Vector3.zero();
   final Vector3 _right = Vector3.zero();
   final Vector3 _wish = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
@@ -425,7 +419,12 @@ class _GameScreenState extends State<GameScreen>
       // Who the collider *is*, rather than what it happens to be carrying.
       // A locked door reads the keys off the player, and a rocket asks the
       // player to take damage, without the physics knowing what either is.
-      _player = Player(body: body, inventory: _inventory);
+      _player = Player(
+        body: body,
+        inventory: _inventory,
+        eyeOffset: _eyeOffset,
+        lookSensitivity: _lookSensitivity,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -441,7 +440,7 @@ class _GameScreenState extends State<GameScreen>
           hitscan: hitscan,
           projectiles: projectiles,
         );
-        _yaw = start?.yaw ?? 0.0;
+        _player!.yaw = start?.yaw ?? 0.0;
         _smoothedPosition.jumpTo(body.position);
         // Loading blocked the ticker for a couple of seconds, and all of that
         // time is sitting in the accumulator. None of it happened in the game,
@@ -504,25 +503,13 @@ class _GameScreenState extends State<GameScreen>
   void _step(double dt) {
     final body = _body;
     final loaded = _loaded;
-    if (body == null || loaded == null) return;
+    final player = _player;
+    if (body == null || loaded == null || player == null) return;
 
-    _yaw -= _input.lookDelta.x * _lookSensitivity;
-    _pitch = (_pitch - _input.lookDelta.y * _lookSensitivity)
-        .clamp(-_pitchLimit, _pitchLimit);
-
-    // Movement follows the yaw only. Walking forward while looking at the floor
-    // must not drive the player into it — that is what a fly camera does, and
-    // not what a first-person one should.
-    final axis = _input.moveAxis;
-    final sin = math.sin(_yaw);
-    final cos = math.cos(_yaw);
-    _forward.setValues(-sin, 0.0, -cos);
-    _right.setValues(cos, 0.0, -sin);
-    _wish.setValues(
-      _forward.x * axis.y + _right.x * axis.x,
-      0.0,
-      _forward.z * axis.y + _right.z * axis.x,
-    );
+    player.look(_input.lookDelta);
+    // Yaw only, and the pawn is where that rule lives now: walking forward
+    // while looking at the floor must not drive the player into it.
+    player.moveWish(_input.moveAxis, _wish);
 
     if (_input.pressed(GameAction.jump)) body.requestJump();
 
@@ -543,7 +530,7 @@ class _GameScreenState extends State<GameScreen>
     loaded.collision.clearKinematicDeltas();
 
     if (mechanisms != null) {
-      if (_input.pressed(GameAction.use)) _use(body, mechanisms);
+      if (_input.pressed(GameAction.use)) _use(player, mechanisms);
       // Last, because the use key above can start a door: publishing before it
       // would report that door a step late, every time.
       mechanisms.publish();
@@ -556,15 +543,13 @@ class _GameScreenState extends State<GameScreen>
     }
     _inventory.expired.clear();
 
-    _updateWeapon(dt, body);
+    _updateWeapon(dt, player);
 
     // After the weapon, so a rocket fired this step is not moved until the
     // next one — otherwise it starts the game already a step down the corridor.
     final monsters = _monsters;
     if (monsters != null && _playerHealth.isAlive) {
-      _eye
-        ..setFrom(body.position)
-        ..y += _eyeOffset;
+      player.eye(_eye);
       monsters.step(dt, playerEye: _eye, playerCollider: body.collider);
       if (monsters.playerDamageThisStep > 0.0) {
         _inventory.damage(monsters.playerDamageThisStep);
@@ -655,10 +640,8 @@ class _GameScreenState extends State<GameScreen>
     // Last, so every source has already moved this step. The listener is the
     // simulated eye rather than the interpolated one: the mix should follow
     // the game's idea of where the player is, not the renderer's.
-    _eye
-      ..setFrom(body.position)
-      ..y += _eyeOffset;
-    _ears.aimAt(_eye, _yaw);
+    player.eye(_eye);
+    _ears.aimAt(_eye, player.yaw);
     _audio.update(_ears);
 
     _smoothedPosition.push(body.position);
@@ -669,23 +652,19 @@ class _GameScreenState extends State<GameScreen>
   /// A ray rather than a proximity test, so two buttons on the same wall are
   /// separately pressable and so the answer matches what the player believes
   /// they are aiming at.
-  void _use(CharacterController body, MechanismWorld mechanisms) {
-    _eye
-      ..setFrom(body.position)
-      ..y += _eyeOffset;
-    _aim.setValues(
-      -math.sin(_yaw) * math.cos(_pitch),
-      math.sin(_pitch),
-      -math.cos(_yaw) * math.cos(_pitch),
-    );
+  void _use(Player player, MechanismWorld mechanisms) {
+    player
+      ..eye(_eye)
+      ..aim(_aim);
 
     final target = mechanisms.underCrosshair(
       _eye,
       _aim,
-      ignore: body.collider,
+      ignore: player.body.collider,
     );
     if (target == null) return;
-    final outcome = target.activate(mechanisms.activationBy(body.collider));
+    final outcome =
+        target.activate(mechanisms.activationBy(player.body.collider));
     if (outcome is Refused) _audio.play(Sounds.locked, _eye);
     _say(outcome.message);
   }
@@ -726,7 +705,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// Firing, and the hands that hold the weapon.
-  void _updateWeapon(double dt, CharacterController body) {
+  void _updateWeapon(double dt, Player player) {
     _arsenal.advanceTime(dt);
     if (_hitFlash > 0.0) _hitFlash = math.max(0.0, _hitFlash - dt * 4.0);
     if (_painFlash > 0.0) _painFlash = math.max(0.0, _painFlash - dt * 1.6);
@@ -740,7 +719,7 @@ class _GameScreenState extends State<GameScreen>
       held: _input.held(GameAction.fire),
       pressed: _input.pressed(GameAction.fire),
     );
-    if (wants) _fire(body);
+    if (wants) _fire(player);
 
     // Only when the trigger is idle: switching weapons out from under a player
     // who is mid-burst because one shot emptied the magazine is worse than
@@ -753,6 +732,7 @@ class _GameScreenState extends State<GameScreen>
       }
     }
 
+    final body = player.body;
     _weaponView.step(
       dt,
       speed: math.sqrt(
@@ -762,8 +742,9 @@ class _GameScreenState extends State<GameScreen>
     );
   }
 
-  void _fire(CharacterController body) {
+  void _fire(Player player) {
     final shot = _shot;
+    final body = player.body;
     if (shot == null) return;
 
     final weapon = _arsenal.fire();
@@ -773,14 +754,9 @@ class _GameScreenState extends State<GameScreen>
     // From the eye, not from the muzzle. The muzzle is off to one side, and a
     // shot that starts there misses what the crosshair is on whenever the
     // player is close to a wall — the classic corner-shooting bug.
-    _eye
-      ..setFrom(body.position)
-      ..y += _eyeOffset;
-    _aim.setValues(
-      -math.sin(_yaw) * math.cos(_pitch),
-      math.sin(_pitch),
-      -math.cos(_yaw) * math.cos(_pitch),
-    );
+    player
+      ..eye(_eye)
+      ..aim(_aim);
 
     // No branch on the kind of weapon. Rays, swings and rockets each know how
     // they arrive; this only has to say where the shot came from.
@@ -812,11 +788,12 @@ class _GameScreenState extends State<GameScreen>
 
     // Where the muzzle actually is, unlike where the shot came from: the flare
     // is the one thing that should sit at the barrel rather than at the eye.
+    player.right(_right);
     _muzzle
       ..setFrom(_eye)
-      ..x += _aim.x * 0.6 - math.cos(_yaw) * 0.18
+      ..x += _aim.x * 0.6 - _right.x * 0.18
       ..y += _aim.y * 0.6 - 0.12
-      ..z += _aim.z * 0.6 + math.sin(_yaw) * 0.18;
+      ..z += _aim.z * 0.6 - _right.z * 0.18;
     _particles.burst(Effects.muzzleFlash, _muzzle, direction: _aim);
 
     for (final hit in _lastShot) {
@@ -957,15 +934,18 @@ class _GameScreenState extends State<GameScreen>
   /// display faster than the step rate, several frames in a row would otherwise
   /// show the same place and then jump.
   void _placeCamera() {
-    _smoothedPosition.read(_loop.alpha, _eye);
-    _eye.y += _eyeOffset;
+    final player = _player;
+    if (player == null) return;
 
-    final cosPitch = math.cos(_pitch);
+    _smoothedPosition.read(_loop.alpha, _eye);
+    player
+      // The interpolated position, not the simulated one — hence `eyeFrom`,
+      // which takes the place rather than reading the body.
+      ..eyeFrom(_eye, _eye)
+      ..aim(_aim);
     _target
       ..setFrom(_eye)
-      ..x += -math.sin(_yaw) * cosPitch
-      ..y += math.sin(_pitch)
-      ..z += -math.cos(_yaw) * cosPitch;
+      ..add(_aim);
 
     _camera
       ..setPositionFrom(_eye)

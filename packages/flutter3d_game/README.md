@@ -24,7 +24,7 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 | `level/` | `Level` format v1, `EntityKind` and its registry, `LevelValidator`, brush→geometry, `SpawnContext` |
 | `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Pickup`, `Gift`, `Inventory`, `LightFixture` |
 | `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
-| `actors/` | `Health`, `MonsterDef`, `MonsterSystem`, `Player`, `Damageable` |
+| `actors/` | `Health`, `MonsterDef`, `MonsterSystem`, `Player` (body, eye, aim), `Damageable` |
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
 | `physics/` | Only the layer names. Collision itself is [`flutter3d_physics`](../flutter3d_physics), a plain Dart package |
 
@@ -129,6 +129,29 @@ On `crypt.json` at half-metre cells the grid is 55×96 and bakes in well under a
 tenth of a second; a sweep is under a millisecond. Every cell it cannot reach
 from the player's start is up on top of something. None is on the floor.
 
+## Where the player is looking
+
+`Player` owns yaw, pitch, the eye and the aim vector. All four used to live in
+the application, where the spherical-to-cartesian aim was written out **three
+times** — for the use ray, for firing, and for the camera's look-at target.
+Three copies of four lines of trigonometry, none of them tested. The
+interesting part is not that one was wrong; they agreed. It is that nothing
+would have noticed if one had stopped agreeing.
+
+Two rules live on the pawn because they are facts about it rather than about
+any caller:
+
+- **The pitch limit is a mathematical invariant, not taste.** At exactly a
+  right angle the forward vector is parallel to world up, the cross product
+  that builds the view basis is zero, and the camera's orientation stops being
+  defined.
+- **Walking follows the yaw only.** Walking forward while looking at the floor
+  must not drive the player into it — that is what a fly camera does. The
+  application asserted this in a comment; `moveWish` asserts it in a test.
+
+`eyeFrom` exists separately from `eye` because the camera must read the
+*interpolated* position while the simulation reads its own.
+
 ## Events
 
 Each system fills a list during the step and a caller drains it after —
@@ -172,9 +195,10 @@ Stated rather than discovered:
   reads and `exit` is an entity that spawns nothing. There *is* a pause:
   `GameLoop.paused`, which stops the clock rather than accumulating time it
   then throws away.
-- **Half a player abstraction.** `Player` owns the body, the inventory and the
-  answer to "who is this collider". Yaw, pitch, eye height and the aim vector
-  still belong to the application, which is the next thing to fix.
+- **No camera, and that is not an omission.** `Player` owns the body, the
+  inventory, where the eye is and which way it points; what a projection matrix
+  should do about that belongs to the renderer. Third-person, over-the-shoulder
+  and fixed cameras are all a caller reading `eye` and `aim` differently.
 - **No rigid bodies.** Deliberate — nothing pushes the player and the player has
   no angular momentum.
 - **Desktop input only.** `InputState` is device-agnostic and

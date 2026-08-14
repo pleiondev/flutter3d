@@ -16,13 +16,23 @@
 /// the player is `Damageable`, and the player is a `KeyHolder` because the
 /// person holding the keys is the person, not their pockets.
 ///
-/// ## What is deliberately not here yet
+/// ## Where the player is looking
 ///
-/// Where the player is *looking*. Yaw, pitch, eye height and the aim vector
-/// still belong to the application, which is the next thing to fix and a larger
-/// one: the aim vector is written out three times there. This class is the
-/// place they will land, and it is useful before they do.
+/// Yaw, pitch, the eye and the aim vector used to live in the application, and
+/// the spherical-to-cartesian aim was written out three times there — once for
+/// the use key, once for firing, once for the camera's look-at target. Three
+/// copies of four lines of trigonometry, which is three chances for one of them
+/// to disagree about which way is forward.
+///
+/// They are here now because they are facts about the pawn, not about the
+/// screen. What is *not* here is anything about a camera: this class says where
+/// the eye is and which way it points, and a renderer decides what that means
+/// for a projection matrix.
 library;
+
+import 'dart:math' as math;
+
+import 'package:vector_math/vector_math.dart';
 
 import '../physics/layers.dart';
 import '../world/inventory.dart';
@@ -32,8 +42,12 @@ import 'damageable.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 final class Player with KeyHolder implements Damageable {
-  Player({required this.body, Inventory? inventory})
-      : inventory = inventory ?? Inventory() {
+  Player({
+    required this.body,
+    Inventory? inventory,
+    this.eyeOffset = 0.7,
+    this.lookSensitivity = 0.0022,
+  }) : inventory = inventory ?? Inventory() {
     // The one line that makes this worth having: from here on, "who is this
     // collider" has one answer for every collider in the world.
     body.collider.userData = this;
@@ -59,4 +73,91 @@ final class Player with KeyHolder implements Damageable {
   bool applyDamage(double amount) => inventory.damage(amount);
 
   bool get isAlive => inventory.health.isAlive;
+
+  /// How far the eye sits above the centre of the body.
+  final double eyeOffset;
+
+  /// Radians of view movement per unit of pointer motion.
+  ///
+  /// A field with a default rather than a constant, because it is a user
+  /// setting and settings belong to the application. The default is only what
+  /// this repository's own game happens to use.
+  double lookSensitivity;
+
+  /// Which way the body faces, in radians. Zero looks along −Z.
+  double yaw = 0.0;
+
+  /// How far up or down, in radians, always within [pitchLimit].
+  double get pitch => _pitch;
+  set pitch(double value) => _pitch = value.clamp(-pitchLimit, pitchLimit);
+  double _pitch = 0.0;
+
+  /// Just short of straight up.
+  ///
+  /// **A mathematical invariant, not a matter of taste.** At exactly a right
+  /// angle the forward vector becomes parallel to the world up axis, the cross
+  /// product that builds the view basis is zero, and the camera's orientation
+  /// stops being defined. Which is why the limit is on the pawn and not left to
+  /// each caller to remember.
+  static const double pitchLimit = math.pi / 2.0 - 0.01;
+
+  /// Turns the view by a pointer delta, applying [lookSensitivity] and the
+  /// pitch limit.
+  void look(Vector2 delta) {
+    yaw -= delta.x * lookSensitivity;
+    pitch = _pitch - delta.y * lookSensitivity;
+  }
+
+  /// Where the eye is, from where the body simulated itself to be.
+  void eye(Vector3 out) => eyeFrom(body.position, out);
+
+  /// Where the eye is, given a body position.
+  ///
+  /// Exists for the camera, which must read the *interpolated* position rather
+  /// than the simulated one: on a display faster than the step rate, several
+  /// frames in a row would otherwise show the same place and then jump.
+  ///
+  /// Safe to call with [out] and [position] being the same vector.
+  void eyeFrom(Vector3 position, Vector3 out) {
+    out.setFrom(position);
+    out.y += eyeOffset;
+  }
+
+  /// The unit vector the crosshair points along — a shot, a use ray, and what
+  /// the camera looks at.
+  void aim(Vector3 out) {
+    final cosPitch = math.cos(_pitch);
+    out.setValues(
+      -math.sin(yaw) * cosPitch,
+      math.sin(_pitch),
+      -math.cos(yaw) * cosPitch,
+    );
+  }
+
+  /// Where forward is on the ground, ignoring pitch.
+  void forward(Vector3 out) =>
+      out.setValues(-math.sin(yaw), 0.0, -math.cos(yaw));
+
+  /// Where the right hand is on the ground, ignoring pitch.
+  void right(Vector3 out) =>
+      out.setValues(math.cos(yaw), 0.0, -math.sin(yaw));
+
+  /// The direction to walk for a movement axis, from [InputState.moveAxis].
+  ///
+  /// **Yaw only, deliberately.** Walking forward while looking at the floor
+  /// must not drive the player into it — that is what a fly camera does, and
+  /// not what a first-person one should. The pitch is where you look, not where
+  /// you go.
+  ///
+  /// Not normalised: an axis at half deflection is a request to walk at half
+  /// speed, and normalising here would throw that away.
+  void moveWish(Vector2 axis, Vector3 out) {
+    final sin = math.sin(yaw);
+    final cos = math.cos(yaw);
+    out.setValues(
+      -sin * axis.y + cos * axis.x,
+      0.0,
+      -cos * axis.y - sin * axis.x,
+    );
+  }
 }
