@@ -24,6 +24,7 @@ workspace:
   - packages/flutter3d_bridge
   - packages/flutter3d_game
   - packages/flutter3d_shooter
+  - packages/flutter3d_platformer
   - packages/flutter3d_physics
   - packages/mouse_capture
   - packages/mouse_capture/example
