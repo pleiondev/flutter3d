@@ -1,4 +1,5 @@
 import 'attenuation.dart';
+import 'mixer.dart';
 
 /// A sound the game can ask for, by name and behaviour rather than by file.
 ///
@@ -14,6 +15,7 @@ final class SoundDef {
     this.attenuation = const InverseRolloff(),
     this.priority = 0,
     this.maxInstances = 4,
+    this.bus = AudioBus.sfx,
   })  : assert(gain >= 0.0),
         assert(maxInstances > 0);
 
@@ -35,6 +37,13 @@ final class SoundDef {
   /// A door closing matters more than the ninth footstep, and distance alone
   /// would let the footstep win because it is nearer.
   final int priority;
+
+  /// Which volume slider turns this down.
+  ///
+  /// Effects by default, because a game that has never thought about buses has
+  /// effects — and the one sound that is obviously not an effect, the music, is
+  /// the one a caller will remember to mark.
+  final AudioBus bus;
 
   /// How many of this one may sound at once.
   ///

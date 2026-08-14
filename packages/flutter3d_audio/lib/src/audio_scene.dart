@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'backend.dart';
 import 'listener.dart';
+import 'mixer.dart';
 import 'sound.dart';
 
 /// One sound, somewhere, possibly moving.
@@ -52,9 +53,15 @@ final class AudioScene {
     required this.backend,
     this.maxVoices = 24,
     this.occlusion,
-  }) : assert(maxVoices > 0);
+    Mixer? mixer,
+  })  : mixer = mixer ?? Mixer(),
+        assert(maxVoices > 0);
 
   final AudioBackend backend;
+
+  /// What each bus is turned to. Read every frame, so moving a slider is heard
+  /// on the next one without restarting anything.
+  final Mixer mixer;
 
   /// How many may sound at once.
   ///
@@ -192,15 +199,18 @@ final class AudioScene {
     for (final emitter in _emitters) {
       final voice = emitter._voice;
       if (keep.contains(emitter)) {
+        // The bus is applied here and not in `_measure`, so that a player
+        // turning the music down cannot cost the music its voice. See [Mixer].
+        final gain = emitter.audibleGain * mixer.gainFor(emitter.sound.bus);
         if (voice == null) {
           emitter._voice = backend.start(
             emitter.sound.asset,
-            gain: emitter.audibleGain,
+            gain: gain,
             pan: emitter.pan,
             loop: emitter.sound.loop,
           );
         } else {
-          backend.update(voice, gain: emitter.audibleGain, pan: emitter.pan);
+          backend.update(voice, gain: gain, pan: emitter.pan);
         }
         continue;
       }

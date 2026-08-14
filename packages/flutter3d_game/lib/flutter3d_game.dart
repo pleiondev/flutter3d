@@ -18,6 +18,7 @@ export 'src/actors/actor_components.dart';
 export 'src/actors/actor_system.dart';
 export 'src/actors/brain.dart';
 export 'src/actors/health.dart';
+export 'src/input/bindings.dart';
 export 'src/input/desktop_input.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';

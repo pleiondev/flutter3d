@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:mouse_capture/mouse_capture.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'bindings.dart';
 import 'game_action.dart';
 import 'input_state.dart';
 
@@ -22,35 +23,43 @@ final class DesktopInput {
   DesktopInput({
     required this.state,
     MouseCapture? capture,
-    Map<LogicalKeyboardKey, GameAction>? bindings,
+    Bindings? bindings,
     Map<LogicalKeyboardKey, int>? slotKeys,
   })  : capture = capture ?? MouseCapture.instance,
-        bindings = bindings ?? Map.of(defaultBindings),
+        bindings = bindings ?? defaultBindings(),
         slotKeys = slotKeys ?? Map.of(defaultSlotKeys) {
     _stateSubscription = this.capture.onStateChanged.listen(_onCaptureChanged);
   }
 
-  /// WASD and the usual neighbours.
+  /// WASD and the usual neighbours, as a fresh table each call.
   ///
   /// Arrow keys are bound too — not for the player, who will use WASD, but
   /// because a laptop without a numeric keypad in the middle of a demo is a
   /// worse time to discover the gap.
-  static final Map<LogicalKeyboardKey, GameAction> defaultBindings =
-      <LogicalKeyboardKey, GameAction>{
-    LogicalKeyboardKey.keyW: GameAction.moveForward,
-    LogicalKeyboardKey.keyS: GameAction.moveBack,
-    LogicalKeyboardKey.keyA: GameAction.moveLeft,
-    LogicalKeyboardKey.keyD: GameAction.moveRight,
-    LogicalKeyboardKey.arrowUp: GameAction.moveForward,
-    LogicalKeyboardKey.arrowDown: GameAction.moveBack,
-    LogicalKeyboardKey.arrowLeft: GameAction.moveLeft,
-    LogicalKeyboardKey.arrowRight: GameAction.moveRight,
-    LogicalKeyboardKey.space: GameAction.jump,
-    LogicalKeyboardKey.shiftLeft: GameAction.sprint,
-    LogicalKeyboardKey.shiftRight: GameAction.sprint,
-    LogicalKeyboardKey.keyE: GameAction.use,
-    LogicalKeyboardKey.keyF: GameAction.use,
-  };
+  ///
+  /// A function rather than a constant because a [Bindings] is mutable and this
+  /// is what a rebinding screen edits: handing every caller the same object
+  /// means the first player to rebind anything rebinds it for the menu, the
+  /// second window and the next level too.
+  static Bindings defaultBindings() => Bindings(<InputSource, GameAction>{
+        InputSource.key(LogicalKeyboardKey.keyW.keyId): GameAction.moveForward,
+        InputSource.key(LogicalKeyboardKey.keyS.keyId): GameAction.moveBack,
+        InputSource.key(LogicalKeyboardKey.keyA.keyId): GameAction.moveLeft,
+        InputSource.key(LogicalKeyboardKey.keyD.keyId): GameAction.moveRight,
+        InputSource.key(LogicalKeyboardKey.arrowUp.keyId):
+            GameAction.moveForward,
+        InputSource.key(LogicalKeyboardKey.arrowDown.keyId):
+            GameAction.moveBack,
+        InputSource.key(LogicalKeyboardKey.arrowLeft.keyId):
+            GameAction.moveLeft,
+        InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
+            GameAction.moveRight,
+        InputSource.key(LogicalKeyboardKey.space.keyId): GameAction.jump,
+        InputSource.key(LogicalKeyboardKey.shiftLeft.keyId): GameAction.sprint,
+        InputSource.key(LogicalKeyboardKey.shiftRight.keyId): GameAction.sprint,
+        InputSource.key(LogicalKeyboardKey.keyE.keyId): GameAction.use,
+        InputSource.key(LogicalKeyboardKey.keyF.keyId): GameAction.use,
+      });
 
   /// The number row, for whatever the game numbers.
   ///
@@ -66,7 +75,11 @@ final class DesktopInput {
 
   final InputState state;
   final MouseCapture capture;
-  final Map<LogicalKeyboardKey, GameAction> bindings;
+
+  /// What each key does. Mutable, and saved by the application: see
+  /// [Bindings.toJson].
+  final Bindings bindings;
+
   final Map<LogicalKeyboardKey, int> slotKeys;
 
   late final StreamSubscription<CaptureState> _stateSubscription;
@@ -94,7 +107,7 @@ final class DesktopInput {
       return KeyEventResult.handled;
     }
 
-    final action = bindings[event.logicalKey];
+    final action = bindings[InputSource.key(event.logicalKey.keyId)];
     if (action == null) return KeyEventResult.ignored;
 
     if (event is KeyDownEvent) {
