@@ -93,8 +93,8 @@ final class CharacterController {
     // game drives an actor with. Named at the call site rather than here, for
     // the reason on [Layers].
     int layer = 1 << 1,
-  })  : shape = shape ?? CollisionBox(Vector3(0.35, 0.9, 0.35)),
-        position = position?.clone() ?? Vector3.zero() {
+  }) : shape = shape ?? CollisionBox(Vector3(0.35, 0.9, 0.35)),
+       position = position?.clone() ?? Vector3.zero() {
     // The body registers itself, so monsters see the player as an obstacle and
     // triggers see them walk in. A controller that only reads the world is a
     // controller nothing else can react to.
@@ -168,12 +168,12 @@ final class CharacterController {
   /// step of not being carried by a moving platform you were standing on;
   /// stated rather than discovered.
   Map<String, Object?> save() => <String, Object?>{
-        'at': <double>[position.x, position.y, position.z],
-        'velocity': <double>[velocity.x, velocity.y, velocity.z],
-        'grounded': _grounded,
-        'coyote': _coyote,
-        'jumpBuffer': _jumpBuffer,
-      };
+    'at': <double>[position.x, position.y, position.z],
+    'velocity': <double>[velocity.x, velocity.y, velocity.z],
+    'grounded': _grounded,
+    'coyote': _coyote,
+    'jumpBuffer': _jumpBuffer,
+  };
 
   void restore(Map<String, Object?> from) {
     _readVector(from['at'], position);
@@ -237,11 +237,7 @@ final class CharacterController {
   /// [wishDirection] is where the player wants to go, in world space and
   /// horizontal; it need not be normalised, and its length scales the requested
   /// speed so an analogue stick works. [sprint] picks which top speed applies.
-  void step(
-    double dt, {
-    required Vector3 wishDirection,
-    bool sprint = false,
-  }) {
+  void step(double dt, {required Vector3 wishDirection, bool sprint = false}) {
     _contacts = 0;
     _coyote = math.max(0.0, _coyote - dt);
     _jumpBuffer = math.max(0.0, _jumpBuffer - dt);
@@ -346,9 +342,7 @@ final class CharacterController {
     // its feel, and clamping there would make mid-air control mushy for the
     // sake of an exploit that needs a surface to work.
     if (!_grounded) return;
-    final speed = math.sqrt(
-      velocity.x * velocity.x + velocity.z * velocity.z,
-    );
+    final speed = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
     if (speed > requested && speed > 1e-6) {
       final scale = requested / speed;
       velocity.x *= scale;
@@ -417,9 +411,11 @@ final class CharacterController {
     // Take the step only if it actually got further along the way the player
     // asked to go. Comparing total distance instead would accept a stumble
     // sideways, and comparing height would accept climbing a wall.
-    final plainProgress = (_plainPosition.x - position.x) * _delta.x +
+    final plainProgress =
+        (_plainPosition.x - position.x) * _delta.x +
         (_plainPosition.z - position.z) * _delta.z;
-    final stepProgress = (_stepPosition.x - position.x) * _delta.x +
+    final stepProgress =
+        (_stepPosition.x - position.x) * _delta.x +
         (_stepPosition.z - position.z) * _delta.z;
 
     if (stepProgress > plainProgress + 1e-6) {

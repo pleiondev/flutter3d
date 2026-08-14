@@ -20,8 +20,13 @@ Aabb3 _box(double minX, double minZ, double maxX, double maxZ) =>
     Aabb3.minMax(Vector3(minX, 0.0, minZ), Vector3(maxX, 1.0, maxZ));
 
 /// Everything the grid reports for a query over [min]..[max].
-List<int> _inBox(SpatialGrid grid, double minX, double minZ, double maxX,
-    double maxZ) {
+List<int> _inBox(
+  SpatialGrid grid,
+  double minX,
+  double minZ,
+  double maxX,
+  double maxZ,
+) {
   final seen = <int>[];
   grid.forEachInBox(
     Vector3(minX, 0.0, minZ),
@@ -91,9 +96,13 @@ void main() {
     grid.clearEntries();
 
     expect(_inBox(grid, -1.0, -1.0, 2.0, 2.0), isEmpty);
-    expect(grid.cellCount, cells,
-        reason: 'the buckets were dropped rather than emptied, so a step that '
-            'rebuilds the world allocates a map entry per cell every frame');
+    expect(
+      grid.cellCount,
+      cells,
+      reason:
+          'the buckets were dropped rather than emptied, so a step that '
+          'rebuilds the world allocates a map entry per cell every frame',
+    );
   });
 
   test('a ray reports each crossed occupant once', () {

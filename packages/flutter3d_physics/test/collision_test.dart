@@ -15,7 +15,6 @@ abstract final class _Layer {
   static const int trigger = 1 << 5;
 }
 
-
 /// Records what it was told, so a test can assert on the sequence.
 final class _Recorder with CollisionListener {
   final List<String> events = <String>[];
@@ -169,11 +168,7 @@ void main() {
       // and an implementation that only looked in the first or the last would
       // pass every other test in this group.
       world.clear();
-      world.addBox(
-        Vector3(40.0, 0.0, 40.0),
-        Vector3.all(2.0),
-        userData: 'far',
-      );
+      world.addBox(Vector3(40.0, 0.0, 40.0), Vector3.all(2.0), userData: 'far');
 
       final hit = RayHit();
       final direction = Vector3(1.0, 0.0, 1.0)..normalize();
@@ -275,7 +270,12 @@ void main() {
     test('stops at the surface and reports the fraction', () {
       final hit = SweepHit();
       final shape = CollisionBox(Vector3.all(0.5));
-      final found = world.sweep(shape, Vector3.zero(), Vector3(0.0, 0.0, -8.0), hit);
+      final found = world.sweep(
+        shape,
+        Vector3.zero(),
+        Vector3(0.0, 0.0, -8.0),
+        hit,
+      );
 
       expect(found, isTrue);
       // Contact when the near face of the player meets the near face of the
@@ -318,7 +318,12 @@ void main() {
       final shape = CollisionBox(Vector3.all(0.5));
 
       expect(
-        world.sweep(shape, Vector3(0.0, 0.0, -5.0), Vector3(0.0, 0.0, 8.0), hit),
+        world.sweep(
+          shape,
+          Vector3(0.0, 0.0, -5.0),
+          Vector3(0.0, 0.0, 8.0),
+          hit,
+        ),
         isFalse,
       );
     });
@@ -527,11 +532,7 @@ void main() {
       world.update();
 
       final found = <Collider>[];
-      world.overlap(
-        CollisionSphere(0.3),
-        Vector3(250 * 5.0, 0.0, 0.0),
-        found,
-      );
+      world.overlap(CollisionSphere(0.3), Vector3(250 * 5.0, 0.0, 0.0), found);
 
       expect(found, hasLength(1));
       expect(found.single.userData, 250);

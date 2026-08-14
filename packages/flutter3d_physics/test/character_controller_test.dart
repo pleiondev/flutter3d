@@ -223,10 +223,7 @@ void main() {
   group('stairs', () {
     CollisionWorld stairsWorld(double height) {
       final world = _room(size: 40.0, walls: false);
-      world.addBox(
-        Vector3(0.0, height / 2.0, -3.0),
-        Vector3(6.0, height, 2.0),
-      );
+      world.addBox(Vector3(0.0, height / 2.0, -3.0), Vector3(6.0, height, 2.0));
       return world;
     }
 
@@ -576,11 +573,14 @@ void main() {
         );
         if (probe.isNotEmpty) {
           for (final other in probe) {
-            final overlapX = (_playerHalf.x * 0.9 + other.shape.boundsHalfExtents.x) -
+            final overlapX =
+                (_playerHalf.x * 0.9 + other.shape.boundsHalfExtents.x) -
                 (player.position.x - other.position.x).abs();
-            final overlapZ = (_playerHalf.z * 0.9 + other.shape.boundsHalfExtents.z) -
+            final overlapZ =
+                (_playerHalf.z * 0.9 + other.shape.boundsHalfExtents.z) -
                 (player.position.z - other.position.z).abs();
-            final overlapY = (_playerHalf.y * 0.9 + other.shape.boundsHalfExtents.y) -
+            final overlapY =
+                (_playerHalf.y * 0.9 + other.shape.boundsHalfExtents.y) -
                 (player.position.y - other.position.y).abs();
             final shallowest = math.min(overlapX, math.min(overlapY, overlapZ));
             if (shallowest > worstIntrusion) worstIntrusion = shallowest;
@@ -593,7 +593,8 @@ void main() {
       expect(
         worstIntrusion,
         lessThan(0.05),
-        reason: 'a run ended ${worstIntrusion.toStringAsFixed(3)} m inside a '
+        reason:
+            'a run ended ${worstIntrusion.toStringAsFixed(3)} m inside a '
             'brush, which is deep enough to be a bug rather than skin width',
       );
     });

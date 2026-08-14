@@ -49,11 +49,7 @@ sealed class CollisionShape {
   ///
   /// Implemented by handing the question to [other], which knows which of its
   /// visitor methods applies to a shape of this type.
-  bool overlaps(
-    Vector3 position,
-    CollisionShape other,
-    Vector3 otherPosition,
-  );
+  bool overlaps(Vector3 position, CollisionShape other, Vector3 otherPosition);
 
   /// Second half of the dispatch: this shape against a box.
   bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition);
@@ -140,7 +136,6 @@ sealed class CollisionShape {
     outNormal[hitAxis] = hitSign;
     return tNear;
   }
-
 }
 
 /// An axis-aligned box: level geometry, and the player.
@@ -164,8 +159,7 @@ final class CollisionBox extends CollisionShape {
     Vector3 position,
     CollisionShape other,
     Vector3 otherPosition,
-  ) =>
-      other.overlapsBox(otherPosition, this, position);
+  ) => other.overlapsBox(otherPosition, this, position);
 
   @override
   bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition) =>
@@ -187,8 +181,7 @@ final class CollisionBox extends CollisionShape {
     Vector3 position,
     CollisionCapsule capsule,
     Vector3 capsulePosition,
-  ) =>
-      capsule.overlapsBox(capsulePosition, this, position);
+  ) => capsule.overlapsBox(capsulePosition, this, position);
 
   @override
   double raycast(
@@ -197,8 +190,7 @@ final class CollisionBox extends CollisionShape {
     Vector3 direction,
     double maxDistance,
     Vector3 outNormal,
-  ) =>
-      raycastBounds(position, origin, direction, maxDistance, outNormal);
+  ) => raycastBounds(position, origin, direction, maxDistance, outNormal);
 }
 
 /// A sphere: pickups, projectiles, blast radii.
@@ -215,25 +207,15 @@ final class CollisionSphere extends CollisionShape {
     Vector3 position,
     CollisionShape other,
     Vector3 otherPosition,
-  ) =>
-      other.overlapsSphere(otherPosition, this, position);
+  ) => other.overlapsSphere(otherPosition, this, position);
 
   @override
   bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition) {
     // Distance to the nearest point of the box, which for an axis-aligned box
     // is one clamp per axis.
-    final dx = _axisGap(
-      position.x - boxPosition.x,
-      box.halfExtents.x,
-    );
-    final dy = _axisGap(
-      position.y - boxPosition.y,
-      box.halfExtents.y,
-    );
-    final dz = _axisGap(
-      position.z - boxPosition.z,
-      box.halfExtents.z,
-    );
+    final dx = _axisGap(position.x - boxPosition.x, box.halfExtents.x);
+    final dy = _axisGap(position.y - boxPosition.y, box.halfExtents.y);
+    final dz = _axisGap(position.z - boxPosition.z, box.halfExtents.z);
     return dx * dx + dy * dy + dz * dz < radius * radius;
   }
 
@@ -256,10 +238,7 @@ final class CollisionSphere extends CollisionShape {
     // Distance from a point to an upright segment.
     final dx = position.x - capsulePosition.x;
     final dz = position.z - capsulePosition.z;
-    final dy = _axisGap(
-      position.y - capsulePosition.y,
-      capsule.halfHeight,
-    );
+    final dy = _axisGap(position.y - capsulePosition.y, capsule.halfHeight);
     final reach = radius + capsule.radius;
     return dx * dx + dy * dy + dz * dz < reach * reach;
   }
@@ -305,8 +284,8 @@ final class CollisionSphere extends CollisionShape {
 /// the floor. A monster falling over is an animation, not a physics event.
 final class CollisionCapsule extends CollisionShape {
   CollisionCapsule({required this.radius, required this.halfHeight})
-      : assert(radius > 0.0),
-        assert(halfHeight >= 0.0);
+    : assert(radius > 0.0),
+      assert(halfHeight >= 0.0);
 
   final double radius;
 
@@ -317,16 +296,14 @@ final class CollisionCapsule extends CollisionShape {
   double get totalHalfHeight => halfHeight + radius;
 
   @override
-  Vector3 get boundsHalfExtents =>
-      Vector3(radius, halfHeight + radius, radius);
+  Vector3 get boundsHalfExtents => Vector3(radius, halfHeight + radius, radius);
 
   @override
   bool overlaps(
     Vector3 position,
     CollisionShape other,
     Vector3 otherPosition,
-  ) =>
-      other.overlapsCapsule(otherPosition, this, position);
+  ) => other.overlapsCapsule(otherPosition, this, position);
 
   @override
   bool overlapsBox(Vector3 position, CollisionBox box, Vector3 boxPosition) {
@@ -334,14 +311,8 @@ final class CollisionCapsule extends CollisionShape {
     // gap does not depend on which point of the segment is closest and the
     // vertical gap is between two intervals. That makes this exact without any
     // of the machinery general segment-to-box distance needs.
-    final dx = _axisGap(
-      position.x - boxPosition.x,
-      box.halfExtents.x,
-    );
-    final dz = _axisGap(
-      position.z - boxPosition.z,
-      box.halfExtents.z,
-    );
+    final dx = _axisGap(position.x - boxPosition.x, box.halfExtents.x);
+    final dz = _axisGap(position.z - boxPosition.z, box.halfExtents.z);
     final dy = _intervalGap(
       position.y - halfHeight,
       position.y + halfHeight,
@@ -356,8 +327,7 @@ final class CollisionCapsule extends CollisionShape {
     Vector3 position,
     CollisionSphere sphere,
     Vector3 spherePosition,
-  ) =>
-      sphere.overlapsCapsule(spherePosition, this, position);
+  ) => sphere.overlapsCapsule(spherePosition, this, position);
 
   @override
   bool overlapsCapsule(

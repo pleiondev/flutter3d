@@ -71,8 +71,8 @@ final class RayHit {
 /// costs one integer append per collider per cell it covers.
 final class CollisionWorld {
   CollisionWorld({double cellSize = 4.0})
-      : _staticGrid = SpatialGrid(cellSize: cellSize),
-        _moverGrid = SpatialGrid(cellSize: cellSize);
+    : _staticGrid = SpatialGrid(cellSize: cellSize),
+      _moverGrid = SpatialGrid(cellSize: cellSize);
 
   final SpatialGrid _staticGrid;
   final SpatialGrid _moverGrid;
@@ -149,12 +149,12 @@ final class CollisionWorld {
 
   /// Convenience for level geometry, which is authored as centre plus size.
   Collider addBox(Vector3 centre, Vector3 size, {Object? userData}) => add(
-        Collider(
-          shape: CollisionBox.size(size),
-          position: centre,
-          userData: userData,
-        ),
-      );
+    Collider(
+      shape: CollisionBox.size(size),
+      position: centre,
+      userData: userData,
+    ),
+  );
 
   void remove(Collider collider) {
     collider.world = null;
