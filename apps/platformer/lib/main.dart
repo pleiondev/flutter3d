@@ -13,6 +13,7 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
@@ -22,6 +23,9 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/scene_surface.dart';
+import 'src/settings_file.dart';
+import 'src/settings_panel.dart';
+import 'src/sounds.dart';
 
 void main() {
   runApp(const PlatformerApp());
@@ -49,8 +53,20 @@ class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
   static const String _levelAsset = 'assets/levels/ascent.json';
 
+  final SettingsFile _settingsFile = SettingsFile();
+  late final GameConfig _config;
+
   final InputState _input = InputState();
   late final DesktopInput _devices;
+
+  AudioScene _audio = AudioScene(backend: SilentBackend());
+  final AudioListener _ears = AudioListener();
+  SoLoudBackend? _soloud;
+
+  /// Whether the runner had its feet down last step, for the landing sound.
+  bool _wasGrounded = true;
+
+  bool _showSettings = false;
   late final GameLoop _loop;
   late final Ticker _ticker;
 
@@ -89,7 +105,18 @@ class _GameScreenState extends State<GameScreen>
   @override
   void initState() {
     super.initState();
-    _devices = DesktopInput(state: _input);
+
+    // Settings before devices: the bindings a player saved are the ones the
+    // keyboard should be reading from the first key press, not from the first
+    // rebind.
+    _config = _settingsFile.read();
+    _devices = DesktopInput(
+      state: _input,
+      bindings: _config.bindings.length > 0
+          ? _config.bindings
+          : DesktopInput.defaultBindings(),
+    );
+    _applyVolumes();
     _loop = GameLoop(
       input: _input,
       onStep: _step,
@@ -123,7 +150,41 @@ class _GameScreenState extends State<GameScreen>
     });
 
     _ticker = createTicker(_onTick)..start();
+    unawaited(_openAudio());
     unawaited(_loadLevel());
+  }
+
+  /// Starts SoLoud and swaps it in behind the mixer.
+  ///
+  /// Failing is allowed and is not fatal: a machine with no audio device, or a
+  /// CI runner, keeps the silent backend and plays the game.
+  Future<void> _openAudio() async {
+    final backend = SoLoudBackend();
+    try {
+      await backend.open();
+    } catch (error) {
+      debugPrint('audio: could not start SoLoud: $error');
+      return;
+    }
+    if (!mounted) return;
+    _soloud = backend;
+    _audio = AudioScene(backend: backend, mixer: _audio.mixer);
+    await _audio.preload(Sounds.all);
+  }
+
+  /// Copies the saved volumes into the mixer the scene is reading.
+  void _applyVolumes() {
+    for (final bus in <AudioBus>[AudioBus.master, AudioBus.music, AudioBus.sfx]) {
+      _audio.mixer.setVolume(bus, _config.volumeOf(bus.name));
+    }
+  }
+
+  void _setVolume(AudioBus bus, double volume) {
+    setState(() {
+      _audio.mixer.setVolume(bus, volume);
+      _config.setVolume(bus.name, volume);
+    });
+    _settingsFile.write(_config);
   }
 
   /// The seam where the engine, the genre and this game's content meet.
@@ -227,6 +288,7 @@ class _GameScreenState extends State<GameScreen>
     // The camera owns "forward", and the simulation takes it as a number.
     sim.cameraYaw = camera.yaw;
     sim.step(dt);
+    _hear(sim, runner);
 
     if (sim.deaths != _deathsSeen) {
       _deathsSeen = sim.deaths;
@@ -238,6 +300,25 @@ class _GameScreenState extends State<GameScreen>
       _drawnAt.push(runner.body.position);
     }
     _drawnYaw.push(runner.yaw);
+  }
+
+  /// Turns a step's events into sounds. Nothing here decides anything.
+  void _hear(PlatformerSimulation sim, Runner runner) {
+    final at = runner.position;
+    if (runner.jumpedThisStep) {
+      _audio.play(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at);
+    }
+    if (runner.dashedThisStep) _audio.play(Sounds.dash, at);
+    for (var i = 0; i < sim.takenThisStep.length; i++) {
+      _audio.play(Sounds.coin, sim.takenThisStep[i].origin);
+    }
+    if (sim.reachedCheckpointThisStep) _audio.play(Sounds.checkpoint, at);
+    if (sim.deaths != _deathsSeen) _audio.play(Sounds.death, at);
+
+    // Landing is a transition rather than an event the simulation reports,
+    // because nothing in the simulation cares — only the ears do.
+    if (runner.isGrounded && !_wasGrounded) _audio.play(Sounds.land, at);
+    _wasGrounded = runner.isGrounded;
   }
 
   void _placeCamera(double dt) {
@@ -258,10 +339,17 @@ class _GameScreenState extends State<GameScreen>
     _camera
       ..setPositionFrom(camera.eye)
       ..lookAt(camera.target);
+
+    // Along the camera's own forward rather than through a yaw: `aimAt` reads
+    // an angle as a first-person camera's, and this one is not.
+    _ears.aimAlong(camera.eye, camera.target - camera.eye);
+    _audio.update(_ears);
   }
 
   @override
   void dispose() {
+    _audio.stopAll();
+    unawaited(_soloud?.dispose());
     _ticker.dispose();
     unawaited(_devices.dispose());
     super.dispose();
@@ -328,6 +416,27 @@ class _GameScreenState extends State<GameScreen>
                 state: sim.state,
                 captured: _devices.isCaptured,
               ),
+              if (_showSettings)
+                SettingsPanel(
+                  mixer: _audio.mixer,
+                  bindings: _devices.bindings,
+                  onVolume: _setVolume,
+                  onClose: () => setState(() => _showSettings = false),
+                )
+              else
+                Positioned(
+                  right: 18,
+                  top: 16,
+                  child: IconButton(
+                    onPressed: () {
+                      // Letting the mouse go first: a settings panel you cannot
+                      // point at is a settings panel with no way out of it.
+                      unawaited(_devices.release());
+                      setState(() => _showSettings = true);
+                    },
+                    icon: const Icon(Icons.settings, color: Colors.white70),
+                  ),
+                ),
             ],
           ),
         ),

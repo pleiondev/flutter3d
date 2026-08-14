@@ -87,7 +87,7 @@ void main() {
       );
       final h = _harness(world, at: Vector3(0.0, 1.4, 0.0));
       h.mechanisms.add(
-        Platform(collider: platform, travel: Vector3(4.0, 0.0, 0.0), wait: 0.0),
+        MovingPlatform(collider: platform, travel: Vector3(4.0, 0.0, 0.0), wait: 0.0),
       );
 
       // Settle, so the capsule is resting on the platform rather than falling
@@ -177,7 +177,7 @@ void main() {
         ),
       );
       h.mechanisms.add(
-        Platform(collider: platform, travel: Vector3(0.0, 2.0, 0.0), wait: 0.0),
+        MovingPlatform(collider: platform, travel: Vector3(0.0, 2.0, 0.0), wait: 0.0),
       );
       world.update();
 

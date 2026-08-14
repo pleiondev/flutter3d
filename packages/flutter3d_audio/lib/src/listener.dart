@@ -39,6 +39,29 @@ final class AudioListener {
     _refreshRight();
   }
 
+  /// Points the listener along a direction, whatever produced it.
+  ///
+  /// [aimAt] takes a yaw and reads it as a first-person camera's: forward is
+  /// `(-sin, 0, -cos)`, which is one game's convention baked into the audio
+  /// package. A third-person camera whose forward is `(sin, 0, cos)` has to
+  /// pass `yaw + pi` and hope, which is how a listener ends up mirrored and
+  /// every sound is panned to the wrong ear.
+  ///
+  /// So a caller that already has a direction hands it over instead of
+  /// re-encoding it as an angle for this to decode again.
+  void aimAlong(Vector3 at, Vector3 direction) {
+    position.setFrom(at);
+    forward.setFrom(direction);
+    forward.y = 0.0;
+    if (forward.length2 < 1e-8) {
+      forward.setValues(0.0, 0.0, -1.0);
+    } else {
+      forward.normalize();
+    }
+    up.setValues(0.0, 1.0, 0.0);
+    _refreshRight();
+  }
+
   void _refreshRight() {
     _right
       ..setFrom(forward)

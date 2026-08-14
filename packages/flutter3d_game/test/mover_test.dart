@@ -242,7 +242,7 @@ void main() {
     test('runs on its own without anyone asking', () {
       final w = _world();
       final platform = w.mechanisms.add(
-        Platform(
+        MovingPlatform(
           collider: _box(w.world, Vector3.zero(), Vector3(2.0, 0.4, 2.0)),
           travel: Vector3(6.0, 0.0, 0.0),
           speed: 3.0,
@@ -262,7 +262,7 @@ void main() {
       // never complete a circuit, and the level would stop working.
       final w = _world();
       final platform = w.mechanisms.add(
-        Platform(
+        MovingPlatform(
           collider: _box(w.world, Vector3.zero(), Vector3(2.0, 2.0, 2.0)),
           travel: Vector3(6.0, 0.0, 0.0),
           speed: 3.0,
@@ -285,9 +285,9 @@ void main() {
 
     test('a phase offset staggers a row of them', () {
       final w = _world();
-      Platform make(double phase) {
+      MovingPlatform make(double phase) {
         final p = w.mechanisms.add(
-          Platform(
+          MovingPlatform(
             collider: _box(
               w.world,
               Vector3(0.0, 0.0, phase),

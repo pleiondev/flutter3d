@@ -308,8 +308,15 @@ final class Lift extends Mover {
 /// Nobody activates it, which is why [activate] says so instead of pretending.
 /// Timing is the level designer's problem and the reason [Mover.wait] exists:
 /// a platform that pauses at each end is one a player can step onto.
-final class Platform extends Mover {
-  Platform({
+///
+/// **Called `Platform` until a second game needed `dart:io`.** A type with that
+/// name in a barrel that games import wholesale shadows the one every Dart
+/// program already has, so a file that wanted to know where `HOME` is had to
+/// hide a mover to get at it. The level format's word is still `platform` — a
+/// document's vocabulary is not a Dart identifier and every level ever authored
+/// uses it.
+final class MovingPlatform extends Mover {
+  MovingPlatform({
     super.name,
     required super.collider,
     required super.travel,

@@ -28,6 +28,10 @@ dependencies:
   flutter3d_platformer:
     path: ../../packages/flutter3d_platformer
 
+  # Sound. Depends on neither the renderer nor the game engine.
+  flutter3d_audio:
+    path: ../../packages/flutter3d_audio
+
   # Where the two meet: level geometry to mesh nodes, a fixture to its look.
   flutter3d_bridge:
     path: ../../packages/flutter3d_bridge
@@ -44,3 +48,4 @@ flutter:
 
   assets:
     - assets/levels/
+    - assets/sounds/

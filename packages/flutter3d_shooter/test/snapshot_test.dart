@@ -56,7 +56,7 @@ final class _World {
     mechanisms = MechanismWorld(world);
 
     mechanisms.add(
-      Platform(
+      MovingPlatform(
         name: 'ledge',
         collider: world.add(
           Collider(
@@ -226,7 +226,7 @@ void main() {
 
     test('puts the mechanisms back', () {
       final world = _World()..play(150);
-      final ledge = world.mechanisms['ledge']! as Platform;
+      final ledge = world.mechanisms['ledge']! as MovingPlatform;
       final taken = world.sim.save();
       final wasAt = ledge.progress;
 

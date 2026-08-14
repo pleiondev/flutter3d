@@ -8,7 +8,7 @@
 /// standing on a rising lift overlaps exactly there, every step, for ever.
 ///
 /// So no lift in the repository could move while anybody rode it. A `Lift`
-/// reversed the moment a foot touched it; a `Platform`, which stalls rather
+/// reversed the moment a foot touched it; a `MovingPlatform`, which stalls rather
 /// than reversing, simply stopped. The comment in the simulation's step order
 /// about clearing kinematic deltas — *"a lift that has not moved yet cannot
 /// carry you"* — described a mechanism that could never engage, because the

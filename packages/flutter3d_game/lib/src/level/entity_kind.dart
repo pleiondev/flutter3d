@@ -321,12 +321,12 @@ final class PlatformKind extends EntityKind {
     if (travel == null) return;
     final collider = place(entity, context, kind: ColliderKind.kinematic);
     final platform = context.mechanisms.add(
-      Platform(
+      MovingPlatform(
         name: entity.name,
         collider: collider,
         travel: travel,
-        speed: entity.number('speed') ?? Platform.defaultSpeed,
-        wait: entity.number('wait') ?? Platform.defaultWait,
+        speed: entity.number('speed') ?? MovingPlatform.defaultSpeed,
+        wait: entity.number('wait') ?? MovingPlatform.defaultWait,
       ),
     );
     // So a row of them does not move as one slab.
