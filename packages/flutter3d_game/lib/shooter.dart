@@ -242,12 +242,12 @@ final class ChaseBrain extends Brain {
 
   @override
   Map<String, Object?> save() => <String, Object?>{
-        'state': state.name,
-        'stateTime': stateTime,
-        'attackCooldown': attackCooldown,
-        'painCooldown': painCooldown,
-        'noticed': hasNoticed,
-      };
+    'state': state.name,
+    'stateTime': stateTime,
+    'attackCooldown': attackCooldown,
+    'painCooldown': painCooldown,
+    'noticed': hasNoticed,
+  };
 
   @override
   void restore(Map<String, Object?> from) {
@@ -268,11 +268,7 @@ final class ChaseBrain extends Brain {
 /// content seam follows: a second shooter brings its own bestiary and gets none
 /// of this one's.
 final class Bestiary {
-  Bestiary({
-    required this.actors,
-    required this.shot,
-    required this.catalog,
-  });
+  Bestiary({required this.actors, required this.shot, required this.catalog});
 
   final ActorSystem actors;
 
@@ -282,32 +278,30 @@ final class Bestiary {
   final Map<String, MonsterDef> catalog;
 
   Actor spawn(MonsterDef def, Vector3 position, {double yaw = 0.0}) {
-    return actors.add(
-      Actor(
-        body: CharacterController(
-          world: actors.world,
-          shape: CollisionCapsule(
-            radius: def.radius,
-            halfHeight: math.max(0.01, def.height / 2.0 - def.radius),
-          ),
-          position: position,
-          layer: CollisionLayers.monster,
-          tuning: MovementTuning(
-            walkSpeed: def.speed,
-            sprintSpeed: def.speed,
-            // No jumping and no coyote time: a monster that leaves the ground
-            // is one that has walked off something, and it should simply fall.
-            jumpSpeed: 0.0,
-            coyoteTime: 0.0,
-            jumpBufferTime: 0.0,
-          ),
+    return actors.spawn(
+      body: CharacterController(
+        world: actors.world,
+        shape: CollisionCapsule(
+          radius: def.radius,
+          halfHeight: math.max(0.01, def.height / 2.0 - def.radius),
         ),
-        health: Health(def.health),
-        brain: ChaseBrain(def: def, shot: shot),
-        turnRate: def.turnRate,
-        eyeFraction: 0.32,
-        yaw: yaw,
+        position: position,
+        layer: CollisionLayers.monster,
+        tuning: MovementTuning(
+          walkSpeed: def.speed,
+          sprintSpeed: def.speed,
+          // No jumping and no coyote time: a monster that leaves the ground
+          // is one that has walked off something, and it should simply fall.
+          jumpSpeed: 0.0,
+          coyoteTime: 0.0,
+          jumpBufferTime: 0.0,
+        ),
       ),
+      health: Health(def.health),
+      brain: ChaseBrain(def: def, shot: shot),
+      turnRate: def.turnRate,
+      eyeFraction: 0.32,
+      yaw: yaw,
     );
   }
 }
@@ -351,19 +345,23 @@ final class MonsterKind extends EntityKind {
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     final kind = entity.string('kind');
     if (kind == null) {
-      out.add(LevelIssue(
-        LevelIssueSeverity.error,
-        'has no "kind", so nothing knows what to spawn',
-        where: scope.describe(entity),
-      ));
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'has no "kind", so nothing knows what to spawn',
+          where: scope.describe(entity),
+        ),
+      );
       return;
     }
     if (!catalog.containsKey(kind)) {
-      out.add(LevelIssue(
-        LevelIssueSeverity.error,
-        'is a "$kind", which this game has never heard of',
-        where: scope.describe(entity),
-      ));
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'is a "$kind", which this game has never heard of',
+          where: scope.describe(entity),
+        ),
+      );
     }
   }
 }

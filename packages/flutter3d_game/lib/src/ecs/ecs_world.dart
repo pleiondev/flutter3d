@@ -39,7 +39,14 @@ final class _Store {
 
   String? name;
   Object? Function(Object value)? encode;
+
+  /// Builds the component from data. For components that are values.
   Object Function(Object? data)? decode;
+
+  /// Writes data back into the component that is already there. For components
+  /// that own something live — a body in a collision world, a brain that is
+  /// code as much as data.
+  void Function(Object value, Object? data)? restoreInPlace;
 
   /// Why this type is deliberately not saved, when it is not.
   String? excludedBecause;
@@ -93,6 +100,43 @@ final class EcsWorld {
         return encode(value as T);
       })
       ..decode = decode;
+    _byName[name] = T;
+  }
+
+  /// Says how a component type is written down when it cannot be *rebuilt*
+  /// from what was written.
+  ///
+  /// A `CharacterController` owns a collider in a live collision world; a brain
+  /// is code as much as data. Neither can be constructed from a save file, and
+  /// neither needs to be: **a snapshot restores a world that already exists**,
+  /// which is the boundary the whole mechanism is drawn around. So this form
+  /// writes the numbers back into the component that is already on the entity,
+  /// and an entity that does not have one is skipped.
+  ///
+  /// The alternative was to declare such components unsaved and write their
+  /// state by hand somewhere else — which is exactly the hand-written save this
+  /// was built to remove, wearing a different hat.
+  void registerInPlace<T extends Object>(
+    String name, {
+    required Object? Function(T value) encode,
+    required void Function(T value, Object? data) restore,
+  }) {
+    final existing = _byName[name];
+    if (existing != null && existing != T) {
+      throw StateError(
+        'component name "$name" is already used by $existing; two components '
+        'sharing a name would overwrite each other in every save file',
+      );
+    }
+    final store = _storeOf<T>();
+    store
+      ..name = name
+      ..encode = ((Object value) {
+        return encode(value as T);
+      })
+      ..restoreInPlace = ((Object value, Object? data) {
+        restore(value as T, data);
+      });
     _byName[name] = T;
   }
 
@@ -235,24 +279,37 @@ final class EcsWorld {
     _live = _generations.length - _free.length;
 
     for (final store in _stores.values) {
-      store.values.clear();
+      // In-place components keep their instances: a save file cannot rebuild a
+      // body that is registered in a collision world, and clearing here would
+      // throw away the only one there is.
+      if (store.restoreInPlace == null) store.values.clear();
     }
     final components = from['components'];
     if (components is! Map) return;
     for (final entry in components.entries) {
       final type = _byName[entry.key];
       final store = type == null ? null : _stores[type];
-      final decode = store?.decode;
       // A component this build does not know is skipped rather than fatal: a
       // save from a newer build is refused by its version, and one from an
       // older build simply has less in it.
-      if (store == null || decode == null) continue;
+      if (store == null) continue;
+      final decode = store.decode;
+      final inPlace = store.restoreInPlace;
+      if (decode == null && inPlace == null) continue;
       final rows = entry.value;
       if (rows is! Map) continue;
       for (final row in rows.entries) {
         final index = int.tryParse('${row.key}');
         if (index == null) continue;
-        store.values[index] = decode(row.value);
+        if (decode != null) {
+          store.values[index] = decode(row.value);
+          continue;
+        }
+        // In place: whatever is there keeps its identity and takes the numbers.
+        // Nothing there means this world does not have that actor, which is
+        // the documented edge of what a snapshot restores.
+        final present = store.values[index];
+        if (present != null) inPlace!(present, row.value);
       }
     }
   }

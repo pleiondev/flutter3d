@@ -43,7 +43,7 @@ final class _World {
       world.addBox(wall, Vector3(1.0, 4.0, 40.0));
     }
 
-    actors = ActorSystem(world: world, random: random);
+    actors = ActorSystem(world: world, entities: entities, random: random);
     bestiary = Bestiary(
       actors: actors,
       shot: WeaponShot(
@@ -129,7 +129,12 @@ final class _World {
   }
 
   final CollisionWorld world = CollisionWorld();
-  late final ProjectileSystem projectiles = ProjectileSystem(world: world);
+
+  /// One entity world, handed to both systems. Two would mean a save that
+  /// covered half the game, which `GameSimulation.entities` refuses out loud.
+  final EcsWorld entities = EcsWorld();
+  late final ProjectileSystem projectiles =
+      ProjectileSystem(world: world, entities: entities);
   final GameRandom random;
   late final ActorSystem actors;
   late final Bestiary bestiary;

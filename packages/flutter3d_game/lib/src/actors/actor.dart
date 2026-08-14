@@ -1,70 +1,72 @@
-/// Something in the world that walks, can be hurt, and is driven by a [Brain].
+/// Who a collider is, and the way into what it is made of.
 ///
-/// This was `Monster`, and the rename is the point rather than decoration. A
-/// monster is a thing a *shooter* has; a platformer has an enemy that paces a
-/// ledge, a racing game has a rival, a stealth game has a guard on a route.
-/// All four are a body with health that something decides for, and that is what
-/// this is. What differs is the brain, and the brain belongs to the game.
+/// ## A handle, not the state
 ///
-/// What is deliberately **not** here, because it was here as `Monster` and is a
-/// shooter's idea rather than an engine's: a state called `alert`, a weapon to
-/// attack with, a chance of flinching, a range at which it notices you. Those
-/// are in `lib/shooter.dart` on `ChaseBrain`, which the barrel does not export.
+/// The body, the health, the facing and the brain are components on an entity
+/// — see `actor_components.dart` for what that bought. This is what is left:
+/// an entity id, the world it is in, and the answers to the three questions
+/// anything that hits a collider asks it.
+///
+/// It could not be dissolved entirely, and the reason is worth stating rather
+/// than working around. `Collider.userData` answers *who is this*, and callers
+/// ask `is Damageable`, `is Rider`, `is Collector`. Those replaced two
+/// type-switches over concrete classes, and putting an entity id in that field
+/// would turn each of them back into "look up a component, in which world" —
+/// in the blast resolver, the hitscan, the mechanisms and the pickups. One
+/// small object per actor is cheaper than that, and honest about what it is.
+///
+/// What is *not* here any more, and is the clearest sign the move was real:
+/// `ordinal`. Actors were numbered by hand so that thinking could be staggered
+/// deterministically across steps; an entity already has a stable index, so the
+/// field and the line that set it are both gone.
 library;
 
 import 'package:vector_math/vector_math.dart';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import '../ecs/ecs_world.dart';
+import '../ecs/entity.dart';
 import '../world/rider.dart';
+import 'actor_components.dart';
 import 'brain.dart';
 import 'damageable.dart';
 import 'health.dart';
 
 final class Actor implements Damageable, Rider {
-  Actor({
-    required this.body,
-    required this.health,
-    required this.brain,
-    this.turnRate = 6.0,
-    this.eyeFraction = 0.32,
-    this.yaw = 0.0,
-  }) {
-    body.collider.userData = this;
-  }
-
-  /// The capsule that walks, slides along walls and falls off ledges.
-  final CharacterController body;
-
-  final Health health;
-
-  /// What decides. Replaceable at runtime, which is what a game needs to turn
-  /// a guard into a fleeing civilian without rebuilding the body.
-  Brain brain;
-
-  /// Radians a second. How fast it comes round to face something.
-  double turnRate;
-
-  /// Where the eye sits, as a fraction of the body's half-height above its
-  /// centre. Roughly the chest on anything humanoid, which is what a shot
-  /// should leave from and what a shot should aim at.
-  double eyeFraction;
-
-  /// Which way it is facing, in radians about Y.
-  double yaw;
-
-  /// Which actor this is, counting from zero as they were added.
+  /// Made by [ActorSystem.spawn] and nowhere else.
   ///
-  /// **It replaces `hashCode`, and that was a real bug rather than a tidy-up.**
-  /// The system staggers thinking across steps so thirty actors do not all
-  /// raycast on the same one, and it used the object's hash to spread them —
-  /// which is its identity, which is its address, which differs between two
-  /// runs of the same game with the same seed. Two identical playthroughs
-  /// diverged. Found by the determinism test, which is the only thing that
-  /// could have found it.
-  int ordinal = 0;
+  /// One handle per entity, kept by the system, because [onDamage] is on it: a
+  /// second handle made on the side would answer every question correctly and
+  /// route damage past the thing that counts deaths.
+  Actor(this.entities, this.entity);
+
+  final EcsWorld entities;
+  final Entity entity;
+
+  /// Which actor this is, for anything that needs a stable order.
+  ///
+  /// The entity's own index: unique among the living, the same on two runs of
+  /// the same game, and nobody has to remember to assign it.
+  int get ordinal => entity.index;
+
+  bool get exists => entities.alive(entity);
+
+  CharacterController get body => entities.get<Body>(entity)!.controller;
+
+  Health get health => entities.get<Vitality>(entity)!.health;
+
+  Facing get facing => entities.get<Facing>(entity)!;
+
+  Brain get brain => entities.get<Thinking>(entity)!.brain;
+  set brain(Brain value) => entities.get<Thinking>(entity)!.brain = value;
+
+  double get yaw => facing.yaw;
+  set yaw(double value) => facing.yaw = value;
+
+  double get turnRate => facing.turnRate;
 
   /// Installed by the system, so that being hurt goes through the system that
-  /// counts deaths, rolls flinches and stops corpses blocking corridors.
+  /// counts deaths and stops corpses blocking corridors.
   ///
   /// A closure rather than a reference to the system, because that file already
   /// imports this one and naming it here would close a cycle.
@@ -84,27 +86,17 @@ final class Actor implements Damageable, Rider {
   /// Where a shot from this actor leaves, and where a shot at it should aim.
   Vector3 eyeLevel(Vector3 out) => out
     ..setFrom(body.position)
-    ..y += body.halfExtents.y * eyeFraction;
+    ..y += body.halfExtents.y * facing.eyeFraction;
 
-  Map<String, Object?> save() => <String, Object?>{
-        'body': body.save(),
-        'health': health.save(),
-        'yaw': yaw,
-        'brain': brain.save(),
-      };
+  /// Two handles to the same entity are the same actor.
+  ///
+  /// They are made freshly on every lookup, so identity has to be the entity's
+  /// rather than the object's — otherwise `identical(target, player)` and every
+  /// `Map<Actor, …>` in a renderer quietly stop working.
+  @override
+  bool operator ==(Object other) =>
+      other is Actor && other.entity == entity && other.entities == entities;
 
-  void restore(Map<String, Object?> from) {
-    final body = from['body'];
-    if (body is Map) this.body.restore(body.cast<String, Object?>());
-    final health = from['health'];
-    if (health is Map) this.health.restore(health.cast<String, Object?>());
-    yaw = (from['yaw'] as num?)?.toDouble() ?? yaw;
-    final brain = from['brain'];
-    if (brain is Map) this.brain.restore(brain.cast<String, Object?>());
-    // A corpse stops being an obstacle when it dies, and has to still be one
-    // after a load — otherwise reloading a save turns every body you walked
-    // over back into a wall.
-    this.body.collider.kind =
-        isAlive ? ColliderKind.kinematic : ColliderKind.trigger;
-  }
+  @override
+  int get hashCode => entity.hashCode;
 }

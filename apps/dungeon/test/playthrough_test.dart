@@ -33,7 +33,7 @@ Level _crypt() => Level.fromJson(
 final class _Game {
   _Game(this.level, {required EntityRegistry registry}) {
     level.addTo(world);
-    actors = ActorSystem(world: world)
+    actors = ActorSystem(world: world, entities: entities)
       ..navigation = Navigation.bake(level, cellSize: 0.25);
     (registry[ShooterEntities.monster] as MonsterKind?)?.bestiary = Bestiary(
       actors: actors,
@@ -80,7 +80,12 @@ final class _Game {
 
   final Level level;
   final CollisionWorld world = CollisionWorld();
-  late final ProjectileSystem projectiles = ProjectileSystem(world: world);
+
+  /// One entity world for both systems; two would be a save covering half the
+  /// game.
+  final EcsWorld entities = EcsWorld();
+  late final ProjectileSystem projectiles =
+      ProjectileSystem(world: world, entities: entities);
   late final ActorSystem actors;
   late final MechanismWorld mechanisms;
   late final Player player;

@@ -14,6 +14,7 @@ library;
 
 export 'src/actors/damageable.dart';
 export 'src/actors/actor.dart';
+export 'src/actors/actor_components.dart';
 export 'src/actors/actor_system.dart';
 export 'src/actors/brain.dart';
 export 'src/actors/health.dart';

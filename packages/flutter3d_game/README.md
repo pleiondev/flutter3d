@@ -26,7 +26,7 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 | `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
 | `actors/` | `Actor` (a body with health), `Brain`, `ActorSystem`, `Health`, `Player`, `Damageable` |
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
-| `ecs/` | `EcsWorld`, `Entity`. Projectiles live here; see below |
+| `ecs/` | `EcsWorld`, `Entity`. Actors and projectiles live here; see below |
 | `save/` | `Snapshot`, `GameRandom` |
 | `physics/` | Only the layer names. Collision itself is [`flutter3d_physics`](../flutter3d_physics), a plain Dart package |
 
@@ -233,8 +233,8 @@ ordinal now.
 
 ## The ECS, and how far it has got
 
-`EcsWorld` is tested, and **one system has moved onto it: projectiles.** The
-rest — monsters, mechanisms, the player — still hold their own state and write
+`EcsWorld` is tested, and **two systems have moved onto it: actors and
+projectiles.** Mechanisms and the player still hold their own state and write
 their own saves. Saying where the line is beats leaving it to be discovered.
 
 It was accepted for one reason, recorded in `docs/SPEC.md`: replication. A
@@ -253,11 +253,30 @@ up in a profile — so it is a measurement later rather than a preference.
 paid immediately: the projectile move changed no test and broke nothing, so
 whatever had gone wrong would have been the system rather than the core.
 
-What the move actually bought, in one sentence: `ProjectileSystem` no longer
-writes its own save, and a second thing that flies through the air cannot be
-left out of a save file by omission — `EcsWorld.save()` refuses to write a
-component type nobody registered, and `FiredBy` is the first thing to be
-declared *not* saved with a reason rather than quietly skipped by a codec.
+What the move bought, in one sentence: neither system writes its own save any
+more, and the next component anybody adds to an actor cannot be left out of a
+save file by omission — `EcsWorld.save()` refuses to write a component type
+nobody registered.
+
+Two things the actor move forced, both of which improved the design:
+
+- **`registerInPlace`.** A `CharacterController` owns a collider in a live
+  collision world and a `Brain` is code as much as data; neither can be rebuilt
+  from a file, and neither needs to be, because a snapshot restores a world
+  that already exists. So those components take their numbers back rather than
+  being reconstructed. The alternative — declaring them unsaved and writing
+  their state by hand somewhere else — is the hand-written save this removes,
+  wearing a different hat.
+- **`ordinal` is gone.** Actors were numbered by hand so thinking could be
+  staggered deterministically; an entity already has a stable index.
+
+What did **not** move is `Actor` itself, and the reason is worth knowing before
+anyone tries again. `Collider.userData` answers *who is this*, and callers ask
+it `is Damageable`, `is Rider`, `is Collector`. An entity id in that field turns
+every one of those back into "look up a component, in which world" — in the
+blast resolver, the hitscan, the mechanisms and the pickups. So `Actor` is a
+handle: an entity, its world, and those three answers. Every field on it is a
+component read.
 
 The cap survived the move. Sixty-four in the air at once is far past what the
 game produces, and something that grows without limit under load grows during

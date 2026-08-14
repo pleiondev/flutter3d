@@ -367,8 +367,15 @@ class _GameScreenState extends State<GameScreen>
       final start = loaded.level.playerStart;
 
       final hitscan = Hitscan(world: loaded.collision);
-      final projectiles = ProjectileSystem(world: loaded.collision);
-      final actors = ActorSystem(world: loaded.collision);
+      // One entity world for everything that has moved onto components, so
+      // that one save covers the lot. Two would be a save covering half the
+      // game, which the simulation refuses out loud rather than discovering on
+      // a load.
+      final entities = EcsWorld();
+      final projectiles =
+          ProjectileSystem(world: loaded.collision, entities: entities);
+      final actors =
+          ActorSystem(world: loaded.collision, entities: entities);
       final bestiary = Bestiary(
         actors: actors,
         shot: WeaponShot(

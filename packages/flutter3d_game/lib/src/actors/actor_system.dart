@@ -10,10 +10,13 @@
 /// its alert pause, its flinch roll and its weapon — is in `lib/shooter.dart`,
 /// which the barrel does not export.
 ///
-/// The distinction is not decoration. This file was `MonsterSystem`, and the
-/// engine therefore knew what a monster was; a platformer has none, and the
-/// first thing that would have happened when one was written is that half of
-/// this file would have been unusable and the other half copied.
+/// ## It no longer writes its own save
+///
+/// Actors are entities and what they are made of are components, so
+/// `EcsWorld.save()` writes them — and refuses to write a component type
+/// nobody registered. The `save`/`restore` pair that used to be here, walking
+/// its own list and calling a hand-written method per actor, is gone. What
+/// replaced it cannot forget the next component somebody adds.
 ///
 /// ## Nothing targets anything but the focus
 ///
@@ -30,10 +33,13 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import '../ecs/ecs_world.dart';
 import '../nav/navigation.dart';
 import '../physics/layers.dart';
 import 'actor.dart';
+import 'actor_components.dart';
 import 'brain.dart';
+import 'health.dart';
 
 /// An actor that took damage this step and survived it.
 final class ActorHurt {
@@ -49,15 +55,32 @@ final class ActorHurt {
 final class ActorSystem {
   ActorSystem({
     required this.world,
+    EcsWorld? entities,
     math.Random? random,
-  }) : random = random ?? math.Random();
+  })  : entities = entities ?? EcsWorld(),
+        random = random ?? math.Random() {
+    registerActorComponents(this.entities);
+  }
 
   final CollisionWorld world;
+
+  /// Where actors live. Shared with everything else that has moved across, so
+  /// that one `save()` covers the lot.
+  final EcsWorld entities;
 
   /// Randomness, shared so that a snapshot can carry where the dice were.
   final math.Random random;
 
-  final List<Actor> actors = <Actor>[];
+  /// One handle per entity, because [Actor.onDamage] is on it.
+  final Map<int, Actor> _handles = <int, Actor>{};
+
+  /// Every actor, in the order they were spawned.
+  Iterable<Actor> get actors sync* {
+    for (final entity in entities.query<Body>()) {
+      final actor = _handles[entity.index];
+      if (actor != null) yield actor;
+    }
+  }
 
   /// How to get to the focus from anywhere, or null for "walk straight at it".
   Navigation? navigation;
@@ -100,13 +123,43 @@ final class ActorSystem {
   final RayHit _sight = RayHit();
   late final Mind _mind = Mind(this);
 
-  /// Adds an actor and wires it to this system.
-  Actor add(Actor actor) {
-    actor
-      ..ordinal = actors.length
-      ..onDamage = (double amount) => hurt(actor, amount);
-    actors.add(actor);
+  /// Brings an actor into being: an entity, its components, and the one handle
+  /// that answers for it.
+  Actor spawn({
+    required CharacterController body,
+    required Health health,
+    required Brain brain,
+    double turnRate = 6.0,
+    double eyeFraction = 0.32,
+    double yaw = 0.0,
+  }) {
+    final entity = entities.spawn();
+    entities
+      ..set(entity, Body(body))
+      ..set(entity, Vitality(health))
+      ..set(entity, Facing(
+        yaw: yaw,
+        turnRate: turnRate,
+        eyeFraction: eyeFraction,
+      ))
+      ..set(entity, Thinking(brain));
+
+    final actor = Actor(entities, entity)
+      ..onDamage = (double amount) => hurt(_handles[entity.index]!, amount);
+    _handles[entity.index] = actor;
+    body.collider.userData = actor;
     return actor;
+  }
+
+  /// Takes an actor out of the world entirely.
+  ///
+  /// Not what death does — a corpse stays, because an emptied corridor should
+  /// show what happened in it. This is for a game that removes things: an enemy
+  /// that bursts, a summon whose time is up.
+  void remove(Actor actor) {
+    world.remove(actor.body.collider);
+    entities.despawn(actor.entity);
+    _handles.remove(actor.entity.index);
   }
 
   int get aliveCount {
@@ -137,7 +190,7 @@ final class ActorSystem {
 
     _mind.dt = dt;
 
-    for (final actor in actors) {
+    for (final actor in actors.toList(growable: false)) {
       _mind.actor = actor;
       _toFocus
         ..setFrom(focus)
@@ -184,6 +237,22 @@ final class ActorSystem {
     hurtThisStep.add(ActorHurt(actor, amount));
     actor.brain.onHurt(_mind, amount);
     return false;
+  }
+
+  /// Puts corpses back to being solid or not, after a snapshot has restored
+  /// health it did not restore collider kinds for.
+  ///
+  /// Called by whoever applied the snapshot. A component cannot do it: the
+  /// collider's kind is a fact about the collision world, and the health that
+  /// decides it lives on a different component.
+  void syncCorpses() {
+    for (final actor in actors) {
+      actor.body.collider.kind =
+          actor.isAlive ? ColliderKind.kinematic : ColliderKind.trigger;
+    }
+    died.clear();
+    hurtThisStep.clear();
+    damageToFocusThisStep = 0.0;
   }
 
   // MARK: - What a brain may do
@@ -255,24 +324,5 @@ final class ActorSystem {
       mask: CollisionLayers.world,
       ignore: actor.body.collider,
     );
-  }
-
-  /// Everything, in the order it was added.
-  ///
-  /// **Positional, not named**, which is the boundary the whole snapshot
-  /// mechanism draws: it restores a world that already exists, so the *n*th
-  /// actor is the *n*th actor and nothing has to invent an identity scheme.
-  List<Map<String, Object?>> save() =>
-      <Map<String, Object?>>[for (final actor in actors) actor.save()];
-
-  void restore(Object? from) {
-    if (from is! List) return;
-    for (var i = 0; i < actors.length && i < from.length; i++) {
-      final row = from[i];
-      if (row is Map) actors[i].restore(row.cast<String, Object?>());
-    }
-    died.clear();
-    hurtThisStep.clear();
-    damageToFocusThisStep = 0.0;
   }
 }

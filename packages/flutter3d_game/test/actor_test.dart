@@ -55,20 +55,27 @@ final class _Patrol extends Brain {
   void restore(Map<String, Object?> from) => eastward = from['eastward'] == true;
 }
 
-Actor _walker(CollisionWorld world, {double at = 0.0}) => Actor(
+Actor _walker(ActorSystem system, {double at = 0.0}) => system.spawn(
       body: CharacterController(
-        world: world,
+        world: system.world,
         position: Vector3(at, 0.9, 0.0),
       ),
       health: Health(30.0),
       brain: _Patrol(from: -4.0, to: 4.0),
     );
 
+/// Something a game might care about and this package has never heard of.
+final class _Suspicion {
+  _Suspicion(this.level);
+  final double level;
+}
+
 void main() {
   group('an actor with a brain that is not a monster', () {
     test('walks its patrol, turns round, and comes back', () {
       final world = _ground();
-      final system = ActorSystem(world: world)..add(_walker(world));
+      final system = ActorSystem(world: world);
+      _walker(system);
       final walker = system.actors.single;
       final nowhere = Vector3(0.0, 100.0, 0.0);
 
@@ -90,7 +97,8 @@ void main() {
 
     test('faces the way it is walking', () {
       final world = _ground();
-      final system = ActorSystem(world: world)..add(_walker(world));
+      final system = ActorSystem(world: world);
+      _walker(system);
       // Twenty steps: long enough to have come round at six radians a second,
       // short enough that it has not reached the end of its patrol and turned
       // back — which it does in about forty.
@@ -107,7 +115,7 @@ void main() {
       // is the engine's, which is what makes it available to every game.
       final world = _ground();
       final system = ActorSystem(world: world);
-      final walker = system.add(_walker(world));
+      final walker = _walker(system);
 
       expect(system.hurt(walker, 10.0), isFalse);
       expect(system.hurtThisStep.single.actor, same(walker));
@@ -125,7 +133,7 @@ void main() {
       // never learns what they are.
       final world = _ground();
       final system = ActorSystem(world: world);
-      final walker = system.add(_walker(world));
+      final walker = _walker(system);
 
       final owner = walker.body.collider.userData;
       expect(owner, same(walker));
@@ -138,7 +146,8 @@ void main() {
       // The engine writes body, health and yaw; what the brain remembers is the
       // brain's, and nothing in `Actor.save` knows what it is.
       final world = _ground();
-      final system = ActorSystem(world: world)..add(_walker(world));
+      final system = ActorSystem(world: world);
+      _walker(system);
       final walker = system.actors.single;
 
       // Far enough to have turned round at least once, so the flag is not
@@ -149,9 +158,12 @@ void main() {
       final wasHeading = (walker.brain as _Patrol).eastward;
       expect(wasHeading, isFalse, reason: 'it should have turned by now');
 
-      final saved = walker.save();
+      // Through the entity world, which is what actually writes an actor down
+      // now: the brain's memory is a component and nothing in between knows
+      // what a patrol is.
+      final saved = system.entities.save();
       (walker.brain as _Patrol).eastward = !wasHeading;
-      walker.restore(saved);
+      system.entities.restore(saved);
       expect((walker.brain as _Patrol).eastward, wasHeading);
     });
 
@@ -160,15 +172,13 @@ void main() {
       // stop stepping a dead body and it hangs in the air where it died.
       final world = _ground();
       final system = ActorSystem(world: world);
-      final walker = system.add(
-        Actor(
-          body: CharacterController(
-            world: world,
-            position: Vector3(0.0, 6.0, 0.0),
-          ),
-          health: Health(10.0),
-          brain: _Patrol(from: -1.0, to: 1.0),
+      final walker = system.spawn(
+        body: CharacterController(
+          world: world,
+          position: Vector3(0.0, 6.0, 0.0),
         ),
+        health: Health(10.0),
+        brain: _Patrol(from: -1.0, to: 1.0),
       );
       system.hurt(walker, 100.0);
 
@@ -179,6 +189,50 @@ void main() {
     });
   });
 
+  group('writing an actor down', () {
+    test('a game may put its own component on an actor', () {
+      // The thing an actor being an entity actually buys, and the reason the
+      // move happened at all: a stealth game adds `Suspicion`, a looter adds
+      // `Drops`, and neither needs a subclass of anything or a second map
+      // keyed by actor.
+      final world = _ground();
+      final system = ActorSystem(world: world);
+      final walker = _walker(system);
+      system.entities
+        ..register<_Suspicion>(
+          'suspicion',
+          encode: (_Suspicion value) => value.level,
+          decode: (Object? data) => _Suspicion((data! as num).toDouble()),
+        )
+        ..set(walker.entity, _Suspicion(0.75));
+
+      final saved = system.entities.save();
+      system.entities
+        ..set(walker.entity, _Suspicion(0.0))
+        ..restore(saved);
+
+      expect(system.entities.get<_Suspicion>(walker.entity)!.level, 0.75);
+    });
+
+    test('a component nobody declared stops the save, naming itself', () {
+      // The whole payoff, on an actor. `ActorSystem` used to write its own save
+      // by walking its own list, and the next field anybody added to an actor
+      // would have been left out of it in silence.
+      final world = _ground();
+      final system = ActorSystem(world: world);
+      system.entities.set(_walker(system).entity, _Suspicion(0.5));
+
+      expect(
+        system.entities.save,
+        throwsA(isA<StateError>().having(
+          (StateError e) => e.message,
+          'message',
+          contains('_Suspicion'),
+        )),
+      );
+    });
+  });
+
   group('the system', () {
     test('numbers actors as they are added, and not by their address', () {
       // The ordinal that replaced `hashCode`. Two identical runs must agree
@@ -186,7 +240,7 @@ void main() {
       final world = _ground();
       final system = ActorSystem(world: world);
       for (var i = 0; i < 4; i++) {
-        system.add(_walker(world, at: i.toDouble()));
+        _walker(system, at: i.toDouble());
       }
       expect(
         <int>[for (final actor in system.actors) actor.ordinal],
@@ -196,7 +250,7 @@ void main() {
 
     test('the eye comes off the body, not off a definition', () {
       final world = _ground();
-      final tall = Actor(
+      final tall = ActorSystem(world: world).spawn(
         body: CharacterController(
           world: world,
           shape: CollisionCapsule(radius: 0.3, halfHeight: 0.9),

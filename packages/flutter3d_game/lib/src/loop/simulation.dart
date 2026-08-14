@@ -138,13 +138,24 @@ final class GameSimulation {
   /// `publish()` runs after the use key and would clear it.
   ActivationOutcome? usedThisStep;
 
-  /// Where the entities live, when anything has moved across yet.
+  /// Where the entities live.
   ///
-  /// Defaults to the projectile system's, because that is the only system that
-  /// has. **When a second one moves, ownership comes up here** and both are
-  /// handed the same world — which is the point of the exercise, and the day
-  /// `save` above loses another hand-written line.
-  EcsWorld? get entities => projectiles?.entities;
+  /// Both systems that have moved across must share **one** world, or a save
+  /// written from one of them silently leaves the other out. Passing two is a
+  /// mistake with no symptom until a load, so it is a mistake with a sentence
+  /// instead.
+  EcsWorld? get entities {
+    final mine = actors?.entities;
+    final theirs = projectiles?.entities;
+    if (mine != null && theirs != null && !identical(mine, theirs)) {
+      throw StateError(
+        'the actor system and the projectile system were given different '
+        'EcsWorlds. One save cannot cover two worlds: build one and hand it '
+        'to both.',
+      );
+    }
+    return mine ?? theirs;
+  }
 
   /// The generator every roll in this simulation comes out of, if the caller
   /// gave one.
@@ -338,7 +349,6 @@ final class GameSimulation {
         'exitNext': _exitNext,
         'player': player.save(),
         if (random != null) 'random': random!.state,
-        if (actors != null) 'actors': actors!.save(),
         // Not a line per system any more, for the one system that has moved:
         // `EcsWorld` writes every component on every entity and refuses to
         // write one nobody registered. The hand-written lines above are what
@@ -360,7 +370,6 @@ final class GameSimulation {
     final seed = from['random'];
     if (seed is num && random != null) random!.state = seed.toInt();
 
-    actors?.restore(from['actors']);
     final entities = this.entities;
     final saved = from['entities'];
     if (entities != null && saved is Map) {
@@ -373,6 +382,10 @@ final class GameSimulation {
     usedThisStep = null;
     damageTakenThisStep = 0.0;
     hits.clear();
+    // Health came back on a component; whether a body is solid is a fact about
+    // the collision world, and something has to put the two together.
+    actors?.syncCorpses();
+
     // The broadphase is holding every body where it was before the restore.
     collision.reindex();
     collision.update();

@@ -526,7 +526,9 @@ void _damageableTests() {
       // Built by hand, which is what a test does. There is no system to go
       // through and no state machine to run, so the health is the whole of it.
       final world = CollisionWorld();
-      final monster = Actor(
+      // Spawned into a system with no one driving it, which is the nearest a
+      // test gets to "built by hand" now that an actor is an entity.
+      final monster = ActorSystem(world: world).spawn(
         body: CharacterController(world: world, position: Vector3.zero()),
         health: Health(Monsters.runner.health),
         brain: ChaseBrain(
