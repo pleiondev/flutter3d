@@ -34,8 +34,9 @@ everything:
 flutter pub get
 
 # Required before the first run, and after every Flutter SDK change: the shader
-# bundle format is tied to the SDK version.
-(cd packages/flutter3d && ./tool/build_shaders.sh)
+# bundle format is tied to the SDK version, and the built bundle is gitignored
+# so a fresh checkout has none.
+(cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 
 # The game
 (cd apps/dungeon && flutter run -d macos)
@@ -52,7 +53,13 @@ the shader library and renders nothing.
 ## Tests
 
 ```bash
-for p in packages/*/; do (cd "$p" && flutter test); done
+tool/ci.sh          # everything a machine can check: shaders, analyze, all tests
+```
+
+Or one package at a time:
+
+```bash
+(cd packages/flutter3d_game && flutter test)
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 

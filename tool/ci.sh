@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Everything a machine can check, in the order that fails fastest.
+#
+# One script rather than a list of steps in a workflow file, so that what CI
+# runs and what you can run are the same thing. A workflow that drifts from
+# what a developer can reproduce is a workflow whose failures nobody can fix.
+#
+#   tool/ci.sh
+#
+# What it does NOT do, stated so the gap is not mistaken for coverage:
+#
+#   * The Impeller half of the golden set. Those thirty scenes render through
+#     flutter_gpu and need a real device, so they run from
+#     packages/flutter3d/tool/golden.sh on a machine with a GPU. The software
+#     half runs here, and cross_backend_test.dart compares the two committed
+#     reference sets with no device at all — which is the question that
+#     actually matters.
+#   * The performance budgets in docs/SPEC.md §5.1. There is no profiler yet
+#     and no stored baseline to compare against.
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+FAILED=()
+step() {
+  local name="$1"; shift
+  echo ""
+  echo "── $name"
+  if ! "$@"; then
+    FAILED+=("$name")
+  fi
+}
+
+in_dir() {
+  local dir="$1"; shift
+  ( cd "$dir" && "$@" )
+}
+
+step "pub get" flutter pub get
+
+# The shader bundle is gitignored and its format is tied to the SDK version, so
+# a fresh checkout has none. A test asserts it was built — deliberately a
+# failure rather than a skip, because "CI built only one bundle" is one of the
+# traps that test exists to catch.
+step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
+
+step "analyze" flutter analyze
+
+for package in packages/*/; do
+  name="$(basename "$package")"
+  [ -d "$package/test" ] || continue
+  # Plain Dart, and it is the point of that package that it needs no Flutter.
+  if [ "$name" = "flutter3d_physics" ]; then
+    step "test $name" in_dir "$package" dart test
+  else
+    step "test $name" in_dir "$package" flutter test
+  fi
+done
+
+for app in apps/*/; do
+  [ -d "$app/test" ] || continue
+  step "test $(basename "$app")" in_dir "$app" flutter test
+done
+
+echo ""
+if [ ${#FAILED[@]} -eq 0 ]; then
+  echo "all green"
+  exit 0
+fi
+echo "failed: ${FAILED[*]}"
+exit 1
