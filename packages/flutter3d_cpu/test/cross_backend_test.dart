@@ -36,29 +36,39 @@ import 'package:flutter_test/flutter_test.dart';
 /// edge: `normal-mapping` is a grid of tiles and every internal boundary is
 /// one, which is the whole of its one percent.
 ///
-/// The particle scenes were the exception and are not any more. They sat at
-/// 4.85% and 10.3% while this backend honoured `setDepthWrite(false)` and
-/// `flutter_gpu` ignored it; mirroring the engine's behaviour deliberately —
-/// see `CpuEncoder.setDepthWrite` — brought `particle-stack` to the same
-/// 0.431% as the scene with no particles in it at all, which is the cube's
-/// silhouette and nothing else. The burst sits a little above that floor
-/// because two hundred and twenty quads have edges of their own.
+/// **Every particle scene now sits at the same 0.431% as the scene with no
+/// particles in it**, which is the cube's silhouette and nothing else. That is
+/// the end of a three-stage story worth keeping in one place:
 ///
-/// When the SDK is fixed these three will move and this table is what says so.
+///  1. This backend honoured `setDepthWrite(false)` and `flutter_gpu` did not,
+///     so the particle scenes sat at 4.85% and 10.3%.
+///  2. This backend mirrored the engine's bug deliberately, which brought them
+///     down to roughly this floor — at the cost of both backends drawing the
+///     same wrong picture.
+///  3. SDK 3.47 fixed the setter, the mirror came out, and both were
+///     re-recorded. They agree again, and now they agree on the right picture.
+///
+/// Two hundred and twenty additive quads contributing *no* pixels beyond the
+/// floor is not an accident: the divergence between these backends is
+/// multisampling on silhouettes, and an additive quad's edge deposits too
+/// little to cross a channel threshold of eight.
 const Map<String, double> _budgets = <String, double>{
-  'particle-stack': 0.50,
-  'particles-burst': 0.70,
+  // One number for all six, because all six measure the same thing now:
+  // 0.431%, except `particles-recycled` at 0.417%. Set just above, which is
+  // the rule this file is built on — a budget far from what was measured has
+  // stopped watching.
+  'particle-stack': 0.45,
+  'particles-burst': 0.45,
   // A pool that has been round several times, which every other particle
-  // fixture is blind to. Slightly above the burst because more of its quads
-  // are near an edge.
-  'particles-recycled': 0.55,
-  'particles-plain': 0.70,
+  // fixture is blind to.
+  'particles-recycled': 0.45,
+  'particles-plain': 0.45,
   'normal-mapping': 1.1,
   'cube-shadow-mover': 0.55,
   'cube-shadow-lit': 0.55,
   'shadow-teapot': 0.52,
-  'particle-one': 0.50,
-  'particles-none': 0.50,
+  'particle-one': 0.45,
+  'particles-none': 0.45,
   'cube-shadow-gap': 0.45,
   'view-model-point-shadow': 0.40,
   'view-model-overlay': 0.40,

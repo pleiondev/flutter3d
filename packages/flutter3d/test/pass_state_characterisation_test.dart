@@ -9,12 +9,12 @@
 /// **Why not just the goldens.** They would catch a changed picture, in fifteen
 /// minutes. They would not catch a state call added or dropped where the
 /// picture happens not to change — and "happens not to change" is exactly the
-/// condition under which the same edit breaks a *different* backend. The three
-/// disagree here in three directions: on Impeller and the CPU backend any
-/// `setDepthWrite` call turns writes on, mirroring a `flutter_gpu` bug, so an
-/// added redundant call flips behaviour; on WebGL the setters are immediate
-/// global GL calls and `beginRenderPass` resets only depth test and scissor,
-/// so a *removed* call leaks the previous pass's value. The omissions in these
+/// condition under which the same edit breaks a *different* backend. On WebGL
+/// the setters are immediate global GL calls and `beginRenderPass` resets only
+/// depth test and scissor, so a *removed* call leaks the previous pass's value.
+/// Until SDK 3.47 there was a second direction — on Impeller and the CPU
+/// backend any `setDepthWrite` call turned writes on, mirroring a `flutter_gpu`
+/// bug, so an *added* redundant call flipped behaviour. The omissions in these
 /// sequences are load-bearing, and this is what pins them.
 ///
 /// The snapshots are written out in full rather than summarised. A test that

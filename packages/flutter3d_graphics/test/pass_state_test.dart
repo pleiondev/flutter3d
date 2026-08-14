@@ -1,11 +1,14 @@
 /// What `PassState` emits, and — more importantly — what it does not.
 ///
-/// The second half is the reason the type exists with optional fields. On two
-/// of the three backends any `setDepthWrite` call turns writes on, and on the
-/// third an omitted setter inherits the previous pass's global GL state. So a
-/// state object that helpfully filled in defaults would change several passes
-/// at once, in different directions per backend, and the pictures would move on
-/// one of them only.
+/// The second half is the reason the type exists with optional fields. On the
+/// WebGL backend an omitted setter inherits the previous pass's global GL
+/// state, so a state object that helpfully filled in defaults would change
+/// several passes at once and the pictures would move on one backend only.
+///
+/// Until SDK 3.47 there was a second reason — any `setDepthWrite` call turned
+/// writes on, on two backends out of three — and the fields stayed optional
+/// when it went away, because what is being protected is that a pass emits
+/// exactly what it means and nothing it does not.
 library;
 
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';

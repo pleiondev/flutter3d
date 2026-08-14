@@ -99,23 +99,26 @@ the wrong thing.
   life, and a buffer uploaded as vertices can never be bound as indices; the
   attempt is an `INVALID_OPERATION`, the draw is dropped, and the frame comes
   back the clear colour with nothing logged.
-- **`setDepthWrite(false)` means depth writes are off** — and one backend
-  cannot honour it. `flutter_gpu`'s native setter ignores its argument and
-  assigns `true` (`bin/cache/pkg/flutter_gpu/render_pass.cc:538`, SDK 3.44.6),
-  so on Impeller depth writes can be switched on and never off. Additive
-  particles, which ask for it so they do not occlude each other, occlude each
-  other there: eight stacked at one point draw as one, and a burst comes out
-  about three percent dim. A fresh pass starts with writes off, so the fix is
-  for a pass that needs them off never to ask for them on — an engine change,
-  not a backend one.
+- **`setDepthWrite(false)` means depth writes are off**, on all three backends,
+  since SDK 3.47.
 
-  **The software backend mirrors this deliberately**, argument and default
-  alike, so that the two draw the same picture: an honest implementation put
-  the particle scenes five to ten percent apart, and a gap that size is loud
-  enough to hide a real regression behind. The mirror is pinned by
-  `flutter3d_cpu/test/depth_write_test.dart`, which is where the reproduction
-  now lives — a picture no longer shows it. Delete that file and make
-  `setDepthWrite` honest again in the same commit the SDK is fixed.
+  It did not until then. `flutter_gpu`'s native setter ignored its argument and
+  assigned `true` (`render_pass.cc:538`, SDK 3.44.6), so on Impeller depth
+  writes could be switched on and never off — and additive particles, which ask
+  for it precisely so they do not occlude each other, occluded each other. The
+  software backend mirrored the bug on purpose, argument and default alike,
+  because an honest implementation put the particle scenes five to ten percent
+  away from the hardware one and a gap that size is loud enough to hide a real
+  regression behind. 3.47 assigns the argument; the mirror is gone.
+
+  **The lesson outlives the bug, which is why this paragraph is still here.**
+  When a backend has to choose between being right and being comparable,
+  comparable wins — and the choice earns a test that fails the day it stops
+  being necessary. `flutter3d_cpu/test/depth_write_test.dart` was that test. It
+  was not deleted when the SDK was fixed; one expectation was flipped, and it
+  now proves the opposite of what it used to. Four particle goldens moved on
+  the upgrade and twenty-four other scenes did not, which is what said the fix
+  had landed and nothing else had.
 - **Ask before requesting what a backend may not have.** `supportsWireframe`,
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`. A backend refuses loudly rather than substituting

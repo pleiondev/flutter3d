@@ -291,8 +291,10 @@ final class CpuEncoder implements CommandEncoder {
   CullMode _cull = CullMode.none;
   WindingOrder _winding = WindingOrder.counterClockwise;
   // False, matching a fresh `flutter_gpu` RenderPass, whose
-  // `DepthAttachmentDescriptor` starts with writes disabled. See
-  // [setDepthWrite], which is bug-compatible with the engine on purpose.
+  // `DepthAttachmentDescriptor` starts with writes disabled. That default is a
+  // property of the descriptor rather than of the setter 3.47 fixed, so it is
+  // unchanged — and `depth_write_test.dart` still pins it, because a default
+  // nobody states is a default that drifts.
   bool _depthWrite = false;
   CompareFunction _depthCompare = CompareFunction.less;
   BlendState? _blend;
@@ -333,37 +335,22 @@ final class CpuEncoder implements CommandEncoder {
   @override
   void setWindingOrder(WindingOrder order) => _winding = order;
 
-  /// **Deliberately bug-compatible with `flutter_gpu`: the argument is
-  /// ignored and any call turns depth writes on.**
+  /// Turns depth writes on or off, which is all it has ever meant to say.
   ///
-  /// Not a mistake and not laziness. The engine's native setter does this:
+  /// For most of this backend's life it ignored its argument and turned writes
+  /// on regardless, because `flutter_gpu`'s native setter assigned the literal
+  /// `true` and a software backend that behaved correctly would have put the
+  /// two backends five and ten percent apart on the particle scenes — a gap
+  /// loud enough to hide a real regression behind. flutter_gpu 3.47 assigns the
+  /// argument, so the mirror is gone.
   ///
-  /// ```cpp
-  /// // bin/cache/pkg/flutter_gpu/render_pass.cc:538
-  /// void InternalFlutterGpu_RenderPass_SetDepthWriteEnable(
-  ///     flutter::gpu::RenderPass* wrapper, bool enable) {
-  ///   auto& depth = wrapper->GetDepthAttachmentDescriptor();
-  ///   depth.depth_write_enabled = true;
-  /// }
-  /// ```
-  ///
-  /// So on the hardware backend depth writes can be switched on and never off,
-  /// and a fresh pass starts with them off — which is why [_depthWrite] starts
-  /// false here rather than true. Mirroring it exactly, argument and default
-  /// and all, is what keeps the two backends comparable: with the honest
-  /// implementation the particle scenes sat five and ten percent apart, and
-  /// that gap is loud enough to hide a real regression behind.
-  ///
-  /// The cost of this choice, stated because it is real: the golden that used
-  /// to reproduce the engine bug in a picture no longer does. What was a ten
-  /// percent gap is now this comment, the note in COMPATIBILITY.md, and
-  /// `test/depth_write_test.dart`, which pins the mirror so that anybody who
-  /// "fixes" this line finds out why it is here before their goldens move.
-  ///
-  /// Undo it the day `flutter_gpu` stops doing this — and not before, because
-  /// until then an honest backend and a truthful one are different things.
+  /// **The sentence worth keeping from all that**: when a backend has to choose
+  /// between being right and being comparable, comparable wins, and the choice
+  /// gets a test that fails the day it stops being necessary. That is what
+  /// `test/depth_write_test.dart` was for, and it is why this line changed on
+  /// the day the SDK did rather than months later.
   @override
-  void setDepthWrite(bool enabled) => _depthWrite = true;
+  void setDepthWrite(bool enabled) => _depthWrite = enabled;
 
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
