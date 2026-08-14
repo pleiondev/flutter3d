@@ -376,6 +376,13 @@ class _GameScreenState extends State<GameScreen>
         world: loaded.collision,
         projectiles: projectiles,
       );
+      // Baked from the level's brushes and deliberately not from
+      // `loaded.collision`: the collision world holds the doors and the lift,
+      // and whichever position they happen to be in at load would be frozen
+      // into the grid — a closed door becoming a wall nothing ever paths
+      // through again.
+      final navIssues = <LevelIssue>[];
+      monsters.navigation = Navigation.bake(loaded.level, issues: navIssues);
       final visuals = MonsterVisuals(
         loaded.scene,
         appearance: const DungeonMonsters(),
@@ -446,7 +453,7 @@ class _GameScreenState extends State<GameScreen>
 
       _startAmbience();
 
-      for (final issue in loaded.issues) {
+      for (final issue in loaded.issues.followedBy(navIssues)) {
         debugPrint('level: $issue');
       }
     } catch (error, stack) {

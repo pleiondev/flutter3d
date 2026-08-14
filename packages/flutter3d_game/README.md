@@ -24,7 +24,8 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 | `level/` | `Level` format v1, `EntityKind` and its registry, `LevelValidator`, brush→geometry, `SpawnContext` |
 | `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Pickup`, `Gift`, `Inventory`, `LightFixture` |
 | `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
-| `actors/` | `Health`, `MonsterDef`, `MonsterSystem` |
+| `actors/` | `Health`, `MonsterDef`, `MonsterSystem`, `Player`, `Damageable` |
+| `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
 | `physics/` | Only the layer names. Collision itself is [`flutter3d_physics`](../flutter3d_physics), a plain Dart package |
 
 ## The order a step runs in
@@ -93,6 +94,41 @@ third thing worth shooting.
 the call back to the system that spawned it — subtracting from its own health
 would leave a corpse that still blocks the corridor and a death nothing counted.
 
+## Getting there
+
+`Navigation` is optional and null keeps the old behaviour exactly — see the
+player, walk straight, get stuck on the corner. Given one, a chasing monster
+reads its direction out of a flow field instead.
+
+Three decisions worth knowing, because each has an alternative that looks
+better and is not:
+
+- **A grid, not a navmesh.** A navmesh's advantage is representing arbitrary
+  walkable surfaces. This format has axis-aligned boxes and no slopes, so the
+  navmesh pipeline's output would be the rectangles you could have rasterised
+  directly.
+- **One flow field, not thirty A\* searches.** Nothing targets anything but
+  the player, so thirty searches would compute thirty prefixes of one tree. The
+  sweep runs only when the player crosses into another cell.
+- **Baked from `Level.brushes`, not from the `CollisionWorld`.** The world
+  holds the doors, and whichever position one happened to be in at load would
+  be frozen into the grid as architecture.
+
+One height per column, and where a column has two surfaces the **lowest**
+wins — because a ceiling's upper face is a perfectly good standing surface by
+every local test there is, and taking the highest puts the level's whole
+population on the roof. Where that is genuinely wrong, a walkway over a floor
+with both under a ceiling, the bake says so as a `LevelIssue` warning.
+
+A field refuses cells its body does not fit in, across and up, and `Navigation`
+keeps one per class — usually two or three for a whole roster. Clearance is
+measured against *reachable* room: the top of a wall is a surface, and counting
+it as space would make every corridor come out two cells wider than it is.
+
+On `crypt.json` at half-metre cells the grid is 55×96 and bakes in well under a
+tenth of a second; a sweep is under a millisecond. Every cell it cannot reach
+from the player's start is up on top of something. None is on the floor.
+
 ## Events
 
 Each system fills a list during the step and a caller drains it after —
@@ -129,8 +165,9 @@ six upwards, and nothing in either package reads the names.
 
 Stated rather than discovered:
 
-- **No navigation.** Monsters see the player, turn, and walk straight at them.
-  They get stuck on corners.
+- **Navigation gets you there, not around you.** No flanking, no cover, no
+  squads, no doors opened by monsters, and nothing reserves the space it is
+  walking into, so a crowd in a corridor is still a crowd in a corridor.
 - **No game-over and no level transition.** `Level.next` is a field nothing
   reads and `exit` is an entity that spawns nothing. There *is* a pause:
   `GameLoop.paused`, which stops the clock rather than accumulating time it

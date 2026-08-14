@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import '../combat/hitscan.dart';
 import '../combat/projectile.dart';
 import '../combat/weapon_behaviour.dart';
+import '../nav/navigation.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'monster.dart';
 import '../physics/layers.dart';
@@ -13,15 +14,23 @@ import '../physics/layers.dart';
 ///
 /// ## The AI is deliberately simple
 ///
-/// See the player, turn, walk straight at them, hit them. No navigation mesh,
-/// no pathfinding, no flanking. Monsters get stuck on corners, and in a game
-/// this fast that is rarely visible — the plan chose this trade explicitly, and
-/// the alternative is a navmesh, which is a stage of its own.
+/// See the player, turn, walk at them, hit them. No flanking, no cover, no
+/// squads, no waiting for a better moment.
 ///
-/// What it does have is the two things whose absence is immediately visible:
+/// What it does have is the three things whose absence is immediately visible:
 /// a line-of-sight test, so nothing charges through a wall at a player it
-/// cannot see, and wall sliding, so a monster that meets a corner keeps moving
-/// along it instead of grinding into it for ever.
+/// cannot see; wall sliding, so a monster that meets a corner keeps moving
+/// along it instead of grinding into it for ever; and — when a [navigation] is
+/// given — a route, so a monster in the next room walks round to you rather
+/// than pressing itself against the wall between.
+///
+/// ## Navigation is optional, and null is a supported answer
+///
+/// Without one, a chasing monster walks straight at the player and gets stuck
+/// on corners, which is what it did before and is still perfectly playable in
+/// an open arena. With one, it reads a direction out of a flow field. Both
+/// paths end in the same call to the character controller, so nothing else
+/// about the monster changes.
 ///
 /// ## Nothing targets anything but the player
 ///
@@ -42,6 +51,13 @@ final class MonsterSystem {
 
   final CollisionWorld world;
   final ProjectileSystem projectiles;
+
+  /// How to get to the player from anywhere, or null for "walk straight at
+  /// them".
+  ///
+  /// Settable rather than constructor-injected because the grid is baked from
+  /// a level and the system usually outlives the loading of one.
+  Navigation? navigation;
   final math.Random _random;
   final WeaponShot _shot;
 
@@ -116,6 +132,11 @@ final class MonsterSystem {
     required Collider playerCollider,
   }) {
     _tick++;
+    // Once for the whole system, not once per monster: every monster is
+    // walking to the same place, which is the entire reason this is a field
+    // and not thirty searches. The sweep itself is skipped while the player
+    // stays in the cell it already flows to.
+    navigation?.update(playerEye);
     playerDamageThisStep = 0.0;
     died.clear();
     hurtThisStep.clear();
@@ -205,11 +226,31 @@ final class MonsterSystem {
         _turnTowards(monster, dt);
 
       case MonsterState.chase:
-        _turnTowards(monster, dt);
-        // Straight at the player, horizontally. The controller does the
-        // sliding, which is what keeps a corner from being a wall.
-        _wish.setValues(_toPlayer.x, 0.0, _toPlayer.z);
-        if (_wish.length2 > 1e-6) _wish.normalize();
+        // A route when there is one, and straight at the player when there is
+        // not — which the field itself reports for the last cell, where
+        // straight is the right answer anyway.
+        final routed = navigation?.steer(
+              monster.position,
+              _wish,
+              radius: monster.def.radius,
+              height: monster.def.height,
+            ) ??
+            false;
+        if (!routed) {
+          // Straight at the player, horizontally. The controller does the
+          // sliding, which is what keeps a corner from being a wall.
+          _wish.setValues(_toPlayer.x, 0.0, _toPlayer.z);
+          if (_wish.length2 > 1e-6) _wish.normalize();
+        }
+        // Facing where it is going rather than where the player is. Around a
+        // corner those are different directions, and a monster sliding
+        // sideways while staring through a wall is the tell that gives a flow
+        // field away.
+        if (routed) {
+          _turnTowardsHeading(monster, dt, _wish.x, _wish.z);
+        } else {
+          _turnTowards(monster, dt);
+        }
 
       case MonsterState.attack:
         _turnTowards(monster, dt);
@@ -293,9 +334,12 @@ final class MonsterSystem {
     }
   }
 
-  void _turnTowards(Monster monster, double dt) {
-    if (_toPlayer.x == 0.0 && _toPlayer.z == 0.0) return;
-    final wanted = math.atan2(-_toPlayer.x, -_toPlayer.z);
+  void _turnTowards(Monster monster, double dt) =>
+      _turnTowardsHeading(monster, dt, _toPlayer.x, _toPlayer.z);
+
+  void _turnTowardsHeading(Monster monster, double dt, double x, double z) {
+    if (x == 0.0 && z == 0.0) return;
+    final wanted = math.atan2(-x, -z);
     final delta = _shortestAngle(monster.yaw, wanted);
     final step = monster.def.turnRate * dt;
     monster.yaw += delta.abs() <= step ? delta : (delta.isNegative ? -step : step);

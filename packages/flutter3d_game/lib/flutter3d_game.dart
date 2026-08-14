@@ -27,6 +27,10 @@ export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
 export 'src/loop/fixed_step.dart';
 export 'src/loop/game_loop.dart';
+export 'src/nav/flow_field.dart';
+export 'src/nav/nav_grid.dart';
+export 'src/nav/navigation.dart';
+
 export 'src/level/brush_geometry.dart';
 export 'src/level/json_reader.dart';
 export 'src/level/level.dart';
