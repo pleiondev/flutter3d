@@ -65,8 +65,19 @@ way.
 
 ## Actors, and why there are no monsters here
 
-`Actor` is a body that walks, health that can run out, a facing, and a [Brain]
-that decides. `ActorSystem` steps them, throttles their thinking, turns them,
+`Actor` is an entity and a handle. **Every part of it is optional**, and each
+one left out is a component the entity does not carry:
+
+| Left out | What that is |
+|---|---|
+| no body | a turret, a trigger, a director that decides and stands nowhere |
+| no health | a lift, a lamp post — a rocket may ask and get "nothing happened" |
+| no brain | a barrel, or anything the game moves itself |
+| no facing | anything with no front, which then does not turn |
+
+`spawn` used to require the first three, so a destructible crate came with a
+walking capsule and a brain that did nothing. `isAlive` is true for an actor
+with no health, because nothing to kill is not the same as dead. `ActorSystem` steps them, throttles their thinking, turns them,
 routes them round corners with the navigation grid, tests lines of sight,
 applies damage, counts deaths and stops corpses blocking corridors.
 

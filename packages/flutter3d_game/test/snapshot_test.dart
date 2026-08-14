@@ -249,11 +249,11 @@ void main() {
       world.actors.hurt(victim, 10000.0);
       final taken = world.sim.save();
 
-      victim.body.collider.kind = ColliderKind.kinematic;
+      victim.body!.collider.kind = ColliderKind.kinematic;
       world.sim.restore(taken);
 
       expect(victim.isAlive, isFalse);
-      expect(victim.body.collider.kind, ColliderKind.trigger);
+      expect(victim.body!.collider.kind, ColliderKind.trigger);
     });
 
     test('a pickup taken before the save is not standing there again', () {

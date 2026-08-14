@@ -665,8 +665,8 @@ class _GameScreenState extends State<GameScreen>
     if (monsters == null) return;
     for (final dead in monsters.died) {
       _kills++;
-      _particles.burst(Effects.impactSparks, dead.position);
-      _audio.play(Sounds.monsterDie, dead.position);
+      _particles.burst(Effects.impactSparks, dead.position!);
+      _audio.play(Sounds.monsterDie, dead.position!);
     }
     // `Sounds.monsterPain` was declared, preloaded and never played: nothing
     // anywhere could tell that a monster had been hit and survived. Only the
@@ -674,7 +674,7 @@ class _GameScreenState extends State<GameScreen>
     // hit that did not land, and every hit screaming is worse than none.
     for (final hurt in monsters.hurtThisStep) {
       if (hurt.staggered) {
-        _audio.play(Sounds.monsterPain, hurt.actor.position);
+        _audio.play(Sounds.monsterPain, hurt.actor.position!);
       }
     }
   }

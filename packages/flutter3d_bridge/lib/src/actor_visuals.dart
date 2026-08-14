@@ -47,12 +47,19 @@ final class ActorVisuals {
   final SharedMeshes _meshes;
   final Map<Actor, MeshNode> _nodes = <Actor, MeshNode>{};
 
+  /// Gives an actor a capsule to be drawn as.
+  ///
+  /// An actor with no body is skipped rather than refused: a turret, a trigger
+  /// or a director is a perfectly good actor and simply is not a capsule. What
+  /// draws those is the game's own business.
   void add(Actor actor) {
+    final body = actor.body;
+    if (body == null) return;
     // Straight off the body, so this works for anything with one. It used to
     // read a `MonsterDef`, which is how the renderer's bridge came to depend on
     // a shooter's idea of what walks about in a level.
-    final radius = actor.body.halfExtents.x;
-    final height = actor.body.halfExtents.y * 2.0;
+    final radius = body.halfExtents.x;
+    final height = body.halfExtents.y * 2.0;
     final key = appearance.meshKeyFor(actor);
     final mesh = _meshes.shape(
       'actor:$key',
@@ -72,7 +79,7 @@ final class ActorVisuals {
     for (final entry in _nodes.entries) {
       final actor = entry.key;
       final node = entry.value;
-      final position = actor.position;
+      final position = actor.position!;
 
       node.material = appearance.materialFor(actor);
 
@@ -83,7 +90,7 @@ final class ActorVisuals {
         node
           ..setPosition(
             position.x,
-            position.y - actor.body.halfExtents.y * 0.64,
+            position.y - actor.body!.halfExtents.y * 0.64,
             position.z,
           )
           ..setRotation(

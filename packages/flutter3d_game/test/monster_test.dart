@@ -218,12 +218,12 @@ void main() {
       final h = _harness(world);
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -12.0));
 
-      final before = monster.position.z;
+      final before = monster.position!.z;
       for (var i = 0; i < 120; i++) {
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
-      expect(monster.position.z, greaterThan(before + 4.0));
+      expect(monster.position!.z, greaterThan(before + 4.0));
     });
 
     test('a corner is slid along, not ground into', () {
@@ -237,11 +237,11 @@ void main() {
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(-3.0, 0.9, -10.0));
       h.system.hurt(monster, 1.0);
 
-      final startX = monster.position.x;
+      final startX = monster.position!.x;
       var furthest = 0.0;
       for (var i = 0; i < 180; i++) {
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
-        furthest = math.max(furthest, (monster.position.x - startX).abs());
+        furthest = math.max(furthest, (monster.position!.x - startX).abs());
       }
 
       // The furthest it got, not where it ended up. With no navigation mesh it
@@ -370,7 +370,7 @@ void main() {
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
       h.system.hurt(monster, 1000.0);
 
-      expect(monster.body.collider.isSolid, isFalse);
+      expect(monster.body!.collider.isSolid, isFalse);
     });
 
     test('a corpse stops thinking and stops attacking', () {
@@ -431,7 +431,7 @@ void main() {
 
       // It spent most of the time doing something other than flinching.
       expect(staggeredSteps, lessThan(120));
-      expect(tank.position.z, greaterThan(-10.0 + 1.0));
+      expect(tank.position!.z, greaterThan(-10.0 + 1.0));
     });
 
     test('a light monster does flinch', () {
@@ -508,7 +508,7 @@ void _damageableTests() {
       expect(died, isTrue);
       expect(monsters.died, <Actor>[monster],
           reason: 'the kill never reached the system that owns it');
-      expect(monster.body.collider.kind, ColliderKind.trigger,
+      expect(monster.body!.collider.kind, ColliderKind.trigger,
           reason: 'the corpse still blocks the corridor');
     });
 
@@ -542,7 +542,7 @@ void _damageableTests() {
       );
 
       expect((monster as Damageable).applyDamage(1000.0), isTrue);
-      expect(monster.health.isAlive, isFalse);
+      expect(monster.health!.isAlive, isFalse);
     });
 
     test('a player is who their collider is, and can be hurt', () {

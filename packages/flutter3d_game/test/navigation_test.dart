@@ -457,7 +457,7 @@ void main() {
       for (var i = 0; i < 900; i++) {
         system.step(_dt, focus: eye, focusBody: player);
         world.update();
-        final gap = (monster.position - playerAt).length;
+        final gap = (monster.position! - playerAt).length;
         if (gap < best) best = gap;
       }
       return best;

@@ -114,8 +114,8 @@ void main() {
       );
 
       final monster = result.actors.actors.single;
-      expect(monster.position.y,
-          closeTo(monster.body.halfExtents.y, 1e-6));
+      expect(monster.position!.y,
+          closeTo(monster.body!.halfExtents.y, 1e-6));
 
       // And a step of simulation does not drop it, which is what would happen
       // if it had been spawned inside the floor and pushed out.
@@ -133,7 +133,7 @@ void main() {
           focusBody: player,
         );
       }
-      expect(monster.position.y, closeTo(monster.body.halfExtents.y, 0.05));
+      expect(monster.position!.y, closeTo(monster.body!.halfExtents.y, 0.05));
     });
 
     test('yaw carries across', () {

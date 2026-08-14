@@ -19,6 +19,15 @@
 /// `ordinal`. Actors were numbered by hand so that thinking could be staggered
 /// deterministically across steps; an entity already has a stable index, so the
 /// field and the line that set it are both gone.
+///
+/// ## Everything is optional
+///
+/// Every accessor below is nullable, and that is deliberate rather than
+/// defensive. `spawn` used to require a body, health and a brain, so a turret
+/// that does not walk, a barrel that does not think and a hazard with no health
+/// all had to carry components they never used — which is precisely what an
+/// entity-component design exists to stop. An entity has what it needs; the
+/// systems ask.
 library;
 
 import 'package:vector_math/vector_math.dart';
@@ -51,19 +60,35 @@ final class Actor implements Damageable, Rider {
 
   bool get exists => entities.alive(entity);
 
-  CharacterController get body => entities.get<Body>(entity)!.controller;
+  /// The capsule that walks, or null for something that does not.
+  ///
+  /// **Nullable, and that is the whole shape of this class.** A turret does not
+  /// walk. A destructible barrel does not walk, does not think, and has no
+  /// facing. An actor used to be forced to have all four components because
+  /// `spawn` required them, which is the thing an entity-component design
+  /// exists to stop: an entity has what it needs and the systems ask.
+  CharacterController? get body => entities.get<Body>(entity)?.controller;
 
-  Health get health => entities.get<Vitality>(entity)!.health;
+  /// Health, or null for something that cannot be hurt.
+  Health? get health => entities.get<Vitality>(entity)?.health;
 
-  Facing get facing => entities.get<Facing>(entity)!;
+  /// Which way it faces, or null for something with no front.
+  Facing? get facing => entities.get<Facing>(entity);
 
-  Brain get brain => entities.get<Thinking>(entity)!.brain;
-  set brain(Brain value) => entities.get<Thinking>(entity)!.brain = value;
+  /// What decides for it, or null for something driven by the game directly.
+  Brain? get brain => entities.get<Thinking>(entity)?.brain;
+  set brain(Brain? value) {
+    if (value == null) {
+      entities.remove<Thinking>(entity);
+    } else {
+      entities.set(entity, Thinking(value));
+    }
+  }
 
-  double get yaw => facing.yaw;
-  set yaw(double value) => facing.yaw = value;
+  double get yaw => facing?.yaw ?? 0.0;
+  set yaw(double value) => facing?.yaw = value;
 
-  double get turnRate => facing.turnRate;
+  double get turnRate => facing?.turnRate ?? 0.0;
 
   /// Installed by the system, so that being hurt goes through the system that
   /// counts deaths and stops corpses blocking corridors.
@@ -72,21 +97,44 @@ final class Actor implements Damageable, Rider {
   /// imports this one and naming it here would close a cycle.
   bool Function(double amount)? onDamage;
 
+  /// Takes damage, if there is anything here to hurt.
+  ///
+  /// False for an actor with no health — a moving platform's body, a scenery
+  /// piece with a collider. **Not an error**: a rocket asks everything in its
+  /// radius, and "nothing happened" is the honest answer for a lamp post.
   @override
-  bool applyDamage(double amount) =>
-      onDamage?.call(amount) ?? health.damage(amount);
+  bool applyDamage(double amount) {
+    if (health == null) return false;
+    return onDamage?.call(amount) ?? health!.damage(amount);
+  }
 
   @override
-  Collider? get carriedBy => body.groundBody;
+  Collider? get carriedBy => body?.groundBody;
 
-  Vector3 get position => body.position;
+  /// Where it is, or null for an actor with no body.
+  ///
+  /// A game whose actors are not all bodies gives them a place of its own with
+  /// its own component; the engine does not guess one.
+  Vector3? get position => body?.position;
 
-  bool get isAlive => health.isAlive;
+  /// True unless there is health here and it has run out.
+  ///
+  /// Something with no health is not dead — it is unkillable, which is what a
+  /// lift and a lamp post are.
+  bool get isAlive => health?.isAlive ?? true;
 
   /// Where a shot from this actor leaves, and where a shot at it should aim.
-  Vector3 eyeLevel(Vector3 out) => out
-    ..setFrom(body.position)
-    ..y += body.halfExtents.y * facing.eyeFraction;
+  ///
+  /// False when there is no body to measure from, so a caller that assumed one
+  /// finds out rather than aiming at the origin of the world.
+  bool eyeLevel(Vector3 out) {
+    final body = this.body;
+    if (body == null) return false;
+    out
+      ..setFrom(body.position)
+      ..y += body.halfExtents.y * (facing?.eyeFraction ?? 0.32);
+    return true;
+  }
 
   /// Two handles to the same entity are the same actor.
   ///

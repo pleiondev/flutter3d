@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter3d_game/src/actors/actor.dart';
+import 'package:flutter3d_game/src/actors/actor_components.dart';
 import 'package:flutter3d_game/src/actors/actor_system.dart';
 import 'package:flutter3d_game/src/actors/brain.dart';
 import 'package:flutter3d_game/src/actors/damageable.dart';
@@ -40,7 +41,7 @@ final class _Patrol extends Brain {
 
   @override
   void act(Mind it) {
-    final x = it.actor.position.x;
+    final x = it.actor.position!.x;
     if (eastward && x >= to) eastward = false;
     if (!eastward && x <= from) eastward = true;
     final heading = eastward ? 1.0 : -1.0;
@@ -62,7 +63,16 @@ Actor _walker(ActorSystem system, {double at = 0.0}) => system.spawn(
       ),
       health: Health(30.0),
       brain: _Patrol(from: -4.0, to: 4.0),
+      facing: Facing(),
     );
+
+/// A brain with no body, which is a perfectly good thing to be.
+final class _Counting extends Brain {
+  _Counting(this.onAct);
+  final void Function() onAct;
+  @override
+  void act(Mind it) => onAct();
+}
 
 /// Something a game might care about and this package has never heard of.
 final class _Suspicion {
@@ -79,12 +89,12 @@ void main() {
       final walker = system.actors.single;
       final nowhere = Vector3(0.0, 100.0, 0.0);
 
-      var east = walker.position.x;
-      var west = walker.position.x;
+      var east = walker.position!.x;
+      var west = walker.position!.x;
       for (var i = 0; i < 400; i++) {
         system.step(_dt, focus: nowhere);
-        if (walker.position.x > east) east = walker.position.x;
-        if (walker.position.x < west) west = walker.position.x;
+        if (walker.position!.x > east) east = walker.position!.x;
+        if (walker.position!.x < west) west = walker.position!.x;
       }
 
       // Both ends, rather than "which way is it going at step four hundred",
@@ -124,7 +134,7 @@ void main() {
 
       expect(system.hurt(walker, 100.0), isTrue);
       expect(system.died, <Actor>[walker]);
-      expect(walker.body.collider.kind, ColliderKind.trigger);
+      expect(walker.body!.collider.kind, ColliderKind.trigger);
       expect(system.aliveCount, 0);
     });
 
@@ -135,7 +145,7 @@ void main() {
       final system = ActorSystem(world: world);
       final walker = _walker(system);
 
-      final owner = walker.body.collider.userData;
+      final owner = walker.body!.collider.userData;
       expect(owner, same(walker));
       expect((owner! as Damageable).applyDamage(1000.0), isTrue);
       expect(system.died, hasLength(1),
@@ -185,7 +195,73 @@ void main() {
       for (var i = 0; i < 120; i++) {
         system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
       }
-      expect(walker.position.y, closeTo(0.9, 0.1));
+      expect(walker.position!.y, closeTo(0.9, 0.1));
+    });
+  });
+
+  group('an actor with only what it needs', () {
+    test('a barrel: health, and nothing else at all', () {
+      // No body, no brain, no facing. It used to be impossible to make: `spawn`
+      // required all three, so a destructible crate came with a walking capsule
+      // and a brain that did nothing.
+      final system = ActorSystem(world: _ground());
+      final barrel = system.spawn(health: Health(20.0));
+
+      expect(barrel.body, isNull);
+      expect(barrel.brain, isNull);
+      expect(barrel.facing, isNull);
+      expect(barrel.position, isNull);
+
+      expect(system.hurt(barrel, 5.0), isFalse);
+      expect(system.hurtThisStep.single.actor, barrel);
+      expect(system.hurt(barrel, 100.0), isTrue);
+      expect(system.died, <Actor>[barrel]);
+
+      // And it steps without complaint alongside everything else.
+      system.step(_dt, focus: Vector3.zero());
+    });
+
+    test('a lamp post: a body a rocket may ask, and no health to lose', () {
+      final world = _ground();
+      final system = ActorSystem(world: world);
+      final post = system.spawn(
+        body: CharacterController(world: world, position: Vector3(2.0, 0.9, 0.0)),
+      );
+
+      expect(post.isAlive, isTrue,
+          reason: 'nothing to kill is not the same as dead');
+      expect(post.applyDamage(1000.0), isFalse);
+      expect(system.died, isEmpty);
+      expect(post.body!.collider.kind, isNot(ColliderKind.trigger),
+          reason: 'it was turned into a corpse, and it was never alive');
+    });
+
+    test('without a facing it does not turn, and nothing throws', () {
+      final world = _ground();
+      final system = ActorSystem(world: world);
+      final drifter = system.spawn(
+        body: CharacterController(world: world, position: Vector3.zero()),
+        brain: _Patrol(from: -4.0, to: 4.0),
+      );
+
+      for (var i = 0; i < 60; i++) {
+        system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
+      }
+      expect(drifter.yaw, 0.0);
+      expect(drifter.position!.x, greaterThan(1.0),
+          reason: 'it should still walk; only the turning is missing');
+    });
+
+    test('a director: a brain and no body', () {
+      // Something that decides and stands nowhere — a spawner, a level script.
+      var thoughts = 0;
+      final system = ActorSystem(world: _ground());
+      system.spawn(brain: _Counting(() => thoughts++));
+
+      for (var i = 0; i < 10; i++) {
+        system.step(_dt, focus: Vector3.zero());
+      }
+      expect(thoughts, 10);
     });
   });
 
@@ -261,9 +337,9 @@ void main() {
       );
       final eye = Vector3.zero();
       tall.eyeLevel(eye);
-      expect(eye.y, greaterThan(tall.position.y));
-      expect(eye.y - tall.position.y,
-          closeTo(tall.body.halfExtents.y * 0.32, 1e-6));
+      expect(eye.y, greaterThan(tall.position!.y));
+      expect(eye.y - tall.position!.y,
+          closeTo(tall.body!.halfExtents.y * 0.32, 1e-6));
     });
   });
 }

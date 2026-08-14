@@ -208,7 +208,7 @@ final class ChaseBrain extends Brain {
     final weapon = def.attack;
     attackCooldown = weapon.cooldownSeconds;
 
-    it.actor.eyeLevel(_eye);
+    if (!it.actor.eyeLevel(_eye)) return;
     _aim
       ..setFrom(it.toFocus)
       ..y = 0.0;
@@ -219,7 +219,7 @@ final class ChaseBrain extends Brain {
     _aim.y = (it.toFocus.y * 0.15).clamp(-0.4, 0.4);
     _aim.normalize();
 
-    shot.begin(weapon, _eye, _aim, shooter: it.actor.body.collider);
+    shot.begin(weapon, _eye, _aim, shooter: it.actor.body?.collider);
     weapon.behaviour.deliver(shot);
 
     // A melee swing lands immediately and reports what it reached; a projectile
@@ -299,9 +299,9 @@ final class Bestiary {
       ),
       health: Health(def.health),
       brain: ChaseBrain(def: def, shot: shot),
-      turnRate: def.turnRate,
-      eyeFraction: 0.32,
-      yaw: yaw,
+      // A monster has all four. Something else in the same system may have one
+      // — see `ActorSystem.spawn`.
+      facing: Facing(yaw: yaw, turnRate: def.turnRate),
     );
   }
 }

@@ -75,10 +75,13 @@ final class ActorSystem {
   final Map<int, Actor> _handles = <int, Actor>{};
 
   /// Every actor, in the order they were spawned.
+  ///
+  /// Walks the handles rather than a component query, because an actor need not
+  /// have any particular component: something that neither walks nor thinks is
+  /// still something a collider can point back to.
   Iterable<Actor> get actors sync* {
-    for (final entity in entities.query<Body>()) {
-      final actor = _handles[entity.index];
-      if (actor != null) yield actor;
+    for (final actor in _handles.values) {
+      if (actor.exists) yield actor;
     }
   }
 
@@ -123,31 +126,38 @@ final class ActorSystem {
   final RayHit _sight = RayHit();
   late final Mind _mind = Mind(this);
 
-  /// Brings an actor into being: an entity, its components, and the one handle
-  /// that answers for it.
+  /// Brings an actor into being: an entity, whichever components it needs, and
+  /// the one handle that answers for it.
+  ///
+  /// **Every part is optional**, and each one left out is a component the
+  /// entity does not carry:
+  ///
+  /// * no [body] — a turret, a trigger, a director that decides things and
+  ///   stands nowhere;
+  /// * no [health] — a lift, a lamp post, anything a rocket may ask and get
+  ///   "nothing happened" from;
+  /// * no [brain] — a barrel, or anything the game moves itself;
+  /// * no [facing] — anything with no front.
+  ///
+  /// This used to require the first three. A game with a destructible crate had
+  /// to give it a walking capsule and a brain that did nothing, which is the
+  /// arrangement an entity-component design exists to remove.
   Actor spawn({
-    required CharacterController body,
-    required Health health,
-    required Brain brain,
-    double turnRate = 6.0,
-    double eyeFraction = 0.32,
-    double yaw = 0.0,
+    CharacterController? body,
+    Health? health,
+    Brain? brain,
+    Facing? facing,
   }) {
     final entity = entities.spawn();
-    entities
-      ..set(entity, Body(body))
-      ..set(entity, Vitality(health))
-      ..set(entity, Facing(
-        yaw: yaw,
-        turnRate: turnRate,
-        eyeFraction: eyeFraction,
-      ))
-      ..set(entity, Thinking(brain));
+    if (body != null) entities.set(entity, Body(body));
+    if (health != null) entities.set(entity, Vitality(health));
+    if (facing != null) entities.set(entity, facing);
+    if (brain != null) entities.set(entity, Thinking(brain));
 
     final actor = Actor(entities, entity)
       ..onDamage = (double amount) => hurt(_handles[entity.index]!, amount);
     _handles[entity.index] = actor;
-    body.collider.userData = actor;
+    body?.collider.userData = actor;
     return actor;
   }
 
@@ -157,7 +167,8 @@ final class ActorSystem {
   /// show what happened in it. This is for a game that removes things: an enemy
   /// that bursts, a summon whose time is up.
   void remove(Actor actor) {
-    world.remove(actor.body.collider);
+    final body = actor.body;
+    if (body != null) world.remove(body.collider);
     entities.despawn(actor.entity);
     _handles.remove(actor.entity.index);
   }
@@ -191,28 +202,33 @@ final class ActorSystem {
     _mind.dt = dt;
 
     for (final actor in actors.toList(growable: false)) {
+      final body = actor.body;
       _mind.actor = actor;
-      _toFocus
-        ..setFrom(focus)
-        ..sub(actor.position);
+      // Something with no body is somewhere the engine does not know; a brain
+      // that wants a place gets it from a component of the game's own.
+      _toFocus.setFrom(focus);
+      if (body != null) _toFocus.sub(body.position);
       _distance = _toFocus.length;
 
       if (!actor.isAlive) {
         // A corpse still needs its body stepped, or it hangs in the air where
         // it died.
-        actor.body.step(dt, wishDirection: Vector3.zero());
+        body?.step(dt, wishDirection: Vector3.zero());
         continue;
       }
 
-      // Thinking is throttled; moving is not. An actor whose movement ran every
-      // fourth step would visibly stutter.
-      final thinks = _distance < closeRange ||
-          (_tick + actor.ordinal) % thinkInterval == 0;
-      if (thinks) actor.brain.think(_mind);
+      final brain = actor.brain;
+      if (brain != null) {
+        // Thinking is throttled; moving is not. An actor whose movement ran
+        // every fourth step would visibly stutter.
+        final thinks = _distance < closeRange ||
+            (_tick + actor.ordinal) % thinkInterval == 0;
+        if (thinks) brain.think(_mind);
+      }
 
       _wish.setZero();
-      actor.brain.act(_mind);
-      actor.body.step(dt, wishDirection: _wish);
+      brain?.act(_mind);
+      body?.step(dt, wishDirection: _wish);
     }
   }
 
@@ -221,21 +237,24 @@ final class ActorSystem {
   /// Returns true if this killed it. What being hurt *looks* like is the
   /// brain's: this reports it and asks.
   bool hurt(Actor actor, double amount) {
-    if (!actor.isAlive) return false;
+    final health = actor.health;
+    // Nothing to hurt is not a failure: a rocket asks everything in its radius
+    // and a lamp post is entitled to say no.
+    if (health == null || !health.isAlive) return false;
 
     _mind.actor = actor;
-    final killed = actor.health.damage(amount);
+    final killed = health.damage(amount);
     if (killed) {
       // A corpse stops being an obstacle: walking into the bodies of everything
       // you have killed turns a corridor into a maze of your own making.
-      actor.body.collider.kind = ColliderKind.trigger;
+      actor.body?.collider.kind = ColliderKind.trigger;
       died.add(actor);
-      actor.brain.onDeath(_mind);
+      actor.brain?.onDeath(_mind);
       return true;
     }
 
     hurtThisStep.add(ActorHurt(actor, amount));
-    actor.brain.onHurt(_mind, amount);
+    actor.brain?.onHurt(_mind, amount);
     return false;
   }
 
@@ -247,7 +266,8 @@ final class ActorSystem {
   /// decides it lives on a different component.
   void syncCorpses() {
     for (final actor in actors) {
-      actor.body.collider.kind =
+      if (actor.health == null) continue;
+      actor.body?.collider.kind =
           actor.isAlive ? ColliderKind.kinematic : ColliderKind.trigger;
     }
     died.clear();
@@ -263,13 +283,15 @@ final class ActorSystem {
   /// not — which the field itself reports for the last cell, where straight is
   /// the right answer anyway.
   void steerTowardsFocus(Actor actor) {
-    final routed = navigation?.steer(
-          actor.position,
-          _wish,
-          radius: actor.body.halfExtents.x,
-          height: actor.body.halfExtents.y * 2.0,
-        ) ??
-        false;
+    final body = actor.body;
+    final routed = body != null &&
+        (navigation?.steer(
+              body.position,
+              _wish,
+              radius: body.halfExtents.x,
+              height: body.halfExtents.y * 2.0,
+            ) ??
+            false);
     if (routed) return;
     // Straight at it, horizontally. The controller does the sliding, which is
     // what keeps a corner from being a wall.
@@ -285,6 +307,7 @@ final class ActorSystem {
 
   void turnTowards(Actor actor, double x, double z, double dt) {
     if (x == 0.0 && z == 0.0) return;
+    if (actor.facing == null) return;
     final wanted = math.atan2(-x, -z);
     final delta = _shortestAngle(actor.yaw, wanted);
     final step = actor.turnRate * dt;
@@ -308,7 +331,10 @@ final class ActorSystem {
   /// crowd blinds itself, and two of them standing in a doorway would each wait
   /// for the other to move.
   bool canSee(Actor actor) {
-    actor.eyeLevel(_eye);
+    final body = actor.body;
+    // Nothing to see from. False rather than true: a brain that asks and gets
+    // an unconditional yes charges at a player through a wall.
+    if (body == null || !actor.eyeLevel(_eye)) return false;
     _aim
       ..setFrom(_focus)
       ..sub(_eye);
@@ -322,7 +348,7 @@ final class ActorSystem {
       distance,
       _sight,
       mask: CollisionLayers.world,
-      ignore: actor.body.collider,
+      ignore: body.collider,
     );
   }
 }
