@@ -115,21 +115,6 @@ final class PowerUpGift extends Gift {
       '$name for ${amount.round()} seconds.';
 }
 
-/// Reveals the level. Nothing yet reads it; the flag is the whole gift.
-final class MapGift extends Gift {
-  const MapGift() : super('map');
-
-  @override
-  bool grantTo(Inventory to, double amount, String? detail) {
-    if (to.hasMap) return false;
-    to.hasMap = true;
-    return true;
-  }
-
-  @override
-  String? announce(double amount, String? detail) => 'The level is mapped.';
-}
-
 /// The gifts a build knows about, by the name a document uses.
 final class GiftRegistry {
   GiftRegistry(Iterable<Gift> gifts)
@@ -144,7 +129,6 @@ final class GiftRegistry {
     const KeyGift(),
     const PowerUpGift('invulnerability', defaultAmount: 20.0),
     const PowerUpGift('berserk', defaultAmount: 30.0),
-    const MapGift(),
   ]);
 
   final Map<String, Gift> _byName;

@@ -175,17 +175,6 @@ void main() {
       expect(carrying.remainingOf('invulnerability'), greaterThan(11.0));
     });
 
-    test('the map is taken once and refused after', () {
-      final w = _world();
-      final carrying = Inventory();
-      _drop(w, 'map');
-      _walkerOn(w, carrying);
-      _run(w.mechanisms, 0.1);
-
-      expect(carrying.hasMap, isTrue);
-      expect(const MapGift().grantTo(carrying, 1.0, null), isFalse);
-    });
-
     test('a body carrying nothing collects nothing', () {
       // A monster walking over a medkit does not drink it.
       final w = _world();

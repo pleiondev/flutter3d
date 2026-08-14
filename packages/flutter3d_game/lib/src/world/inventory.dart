@@ -32,9 +32,6 @@ final class Inventory with KeyHolder {
 
   final double maxArmour;
 
-  /// Whether the level has been revealed. Nothing reads it yet.
-  bool hasMap = false;
-
   @override
   Set<String> get keys => keyRing.keys;
 

@@ -268,9 +268,17 @@ final class MonsterKind extends EntityKind {
     context.onMonsterSpawned?.call(monster);
   }
 
-  /// The roster. A monster naming something else spawns nothing, so it is an
-  /// error rather than a shrug.
-  static const Set<String> kinds = <String>{'runner', 'shooter', 'tank'};
+  /// The roster, read from the one place it is written.
+  ///
+  /// It used to be a second literal set beside [Monsters.byName] — two lists
+  /// that had to agree with nothing making them, so a monster added to the
+  /// spawner and forgotten here validated as an error while spawning perfectly
+  /// well, and one added here and forgotten there did the reverse.
+  ///
+  /// Deriving it removes that failure mode outright. A test asserting the two
+  /// agreed would be a test that can never fail once they are the same list,
+  /// which is the wrong artefact.
+  static Iterable<String> get kinds => Monsters.byName.keys;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
