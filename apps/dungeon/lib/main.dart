@@ -819,12 +819,12 @@ class _GameScreenState extends State<GameScreen>
         child: Listener(
           onPointerDown: (_) {
             if (_devices.isCaptured) {
-              _devices.pressPointer();
+              _devices.pressPointer(ShooterActions.fire);
             } else {
-              _devices.enterFirstPerson();
+              _devices.captureMouse();
             }
           },
-          onPointerUp: (_) => _devices.releasePointer(),
+          onPointerUp: (_) => _devices.releasePointer(ShooterActions.fire),
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[

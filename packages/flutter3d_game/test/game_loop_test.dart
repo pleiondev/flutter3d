@@ -15,6 +15,10 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
+/// An action this package does not ship, declared here because the point of
+/// [GameAction] being open is that a caller can do exactly this.
+const GameAction _shoot = GameAction('shoot');
+
 /// A look source that hands over whatever it has accumulated and empties.
 ///
 /// The real one is the mouse-capture plugin. What matters here is the same
@@ -114,12 +118,12 @@ void main() {
       clock: FixedStep(),
       drainLook: look.drain,
       onStep: (double dt) {
-        if (input.pressed(GameAction.fire)) pressedIn.add(index);
+        if (input.pressed(_shoot)) pressedIn.add(index);
         index++;
       },
     );
 
-    input.press(GameAction.fire);
+    input.press(_shoot);
     loop.advance(3.0 / 60.0);
 
     expect(pressedIn, <int>[0],
@@ -205,7 +209,7 @@ void main() {
       // The key that unpauses would otherwise also fire the weapon.
       final loop = build();
       loop.paused = true;
-      input.press(GameAction.fire);
+      input.press(_shoot);
       loop.advance(1.0 / 60.0);
 
       final firedIn = <int>[];
@@ -214,7 +218,7 @@ void main() {
         input: input,
         clock: FixedStep(),
         onStep: (double dt) {
-          if (input.pressed(GameAction.fire)) firedIn.add(index);
+          if (input.pressed(_shoot)) firedIn.add(index);
           index++;
         },
       );

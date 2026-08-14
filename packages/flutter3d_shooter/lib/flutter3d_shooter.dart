@@ -15,6 +15,7 @@
 /// `bridge.dart` for that reason; a test holds the split.
 library;
 
+export 'src/actions.dart';
 export 'src/collector.dart';
 export 'src/combat/blast.dart';
 export 'src/combat/hitscan.dart';

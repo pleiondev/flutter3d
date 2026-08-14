@@ -45,6 +45,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'player.dart';
+import 'actions.dart';
 import 'combat/hitscan.dart';
 import 'pickup.dart';
 import 'combat/projectile.dart';
@@ -309,14 +310,14 @@ final class GameSimulation {
     final arsenal = player.inventory.arsenal;
     arsenal.advanceTime(dt);
 
-    final slot = input.weaponRequest;
+    final slot = input.slotRequest;
     if (slot != null) arsenal.selectSlot(slot);
 
     final shot = this.shot;
     if (shot != null &&
         arsenal.wantsToFire(
-          held: input.held(GameAction.fire),
-          pressed: input.pressed(GameAction.fire),
+          held: input.held(ShooterActions.fire),
+          pressed: input.pressed(ShooterActions.fire),
         )) {
       final weapon = arsenal.fire();
       if (weapon != null) _fire(shot, weapon);
@@ -325,7 +326,7 @@ final class GameSimulation {
     // Only when the trigger is idle: switching weapons out from under a player
     // who is mid-burst because one shot emptied the magazine is worse than
     // letting them notice.
-    if (!input.held(GameAction.fire)) arsenal.fallBackIfEmpty();
+    if (!input.held(ShooterActions.fire)) arsenal.fallBackIfEmpty();
   }
 
   void _fire(WeaponShot shot, WeaponDef weapon) {

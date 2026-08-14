@@ -150,7 +150,7 @@ final class _World {
       input
         ..setStickAxis(math.sin(i * 0.03), 1.0)
         ..addLook(math.sin(i * 0.11) * 6.0, math.cos(i * 0.07) * 3.0);
-      if (i % 40 == 0) input.press(GameAction.fire);
+      if (i % 40 == 0) input.press(ShooterActions.fire);
       // Twice, four steps apart: the first is taken on the ground and consumed
       // at once, the second lands while the player is in the air and sits in
       // the jump buffer — which is the only way that field is ever non-zero

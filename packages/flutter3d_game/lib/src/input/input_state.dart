@@ -41,7 +41,7 @@ final class InputState {
   final Vector2 _moveAxis = Vector2.zero();
   final Vector2 _lookDelta = Vector2.zero();
 
-  int? _weaponRequest;
+  int? _slotRequest;
 
   // MARK: - Reading, from inside a step
 
@@ -64,11 +64,15 @@ final class InputState {
 
   bool released(GameAction action) => _releasedLatch.contains(action);
 
-  /// The weapon slot asked for since the last step, if any.
+  /// The numbered slot asked for since the last step, if any.
+  ///
+  /// A weapon in a shooter, an item in an adventure, an ability in a
+  /// platformer: what the number means is the game's business, and this used to
+  /// say `weaponRequest` because only one game had ever asked.
   ///
   /// Last request wins. Two slots chosen inside a single frame is a fumble, and
   /// arriving at the one the player pressed most recently is what they meant.
-  int? get weaponRequest => _weaponRequest;
+  int? get slotRequest => _slotRequest;
 
   // MARK: - Writing, from a device
 
@@ -96,8 +100,8 @@ final class InputState {
     _lookDelta.setValues(_lookDelta.x + dx, _lookDelta.y + dy);
   }
 
-  void requestWeapon(int slot) {
-    _weaponRequest = slot;
+  void requestSlot(int slot) {
+    _slotRequest = slot;
   }
 
   /// Drops everything, held state included.
@@ -112,7 +116,7 @@ final class InputState {
     _stickAxis.setZero();
     _lookDelta.setZero();
     _moveAxis.setZero();
-    _weaponRequest = null;
+    _slotRequest = null;
   }
 
   // MARK: - Step boundaries
@@ -129,7 +133,7 @@ final class InputState {
     _pressedLatch.clear();
     _releasedLatch.clear();
     _lookDelta.setZero();
-    _weaponRequest = null;
+    _slotRequest = null;
   }
 
   void _recomputeMoveAxis() {

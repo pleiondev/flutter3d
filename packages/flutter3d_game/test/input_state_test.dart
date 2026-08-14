@@ -2,6 +2,10 @@ import 'package:flutter3d_game/src/input/game_action.dart';
 import 'package:flutter3d_game/src/input/input_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// An action this package does not ship, declared here because the point of
+/// [GameAction] being open is that a caller can do exactly this.
+const GameAction _shoot = GameAction('shoot');
+
 /// What a comparison against a `Vector2` can actually be held to.
 ///
 /// `vector_math` stores its vectors in a `Float32List`, so anything written
@@ -41,41 +45,41 @@ void main() {
     test('a tap entirely between two steps is not lost', () {
       // The failure this guards against gets worse as the frame rate drops,
       // which is exactly when the player is least willing to forgive it.
-      input.press(GameAction.fire);
-      input.release(GameAction.fire);
+      input.press(_shoot);
+      input.release(_shoot);
 
       input.beginStep();
-      expect(input.pressed(GameAction.fire), isTrue);
-      expect(input.released(GameAction.fire), isTrue);
-      expect(input.held(GameAction.fire), isFalse);
+      expect(input.pressed(_shoot), isTrue);
+      expect(input.released(_shoot), isTrue);
+      expect(input.held(_shoot), isFalse);
       input.endStep();
     });
 
     test('several taps between steps collapse into one press', () {
       // Not ideal, but honest: the alternative is a queue, and nobody fires
       // three shots by tapping inside sixteen milliseconds on purpose.
-      input.press(GameAction.fire);
-      input.release(GameAction.fire);
-      input.press(GameAction.fire);
-      input.release(GameAction.fire);
+      input.press(_shoot);
+      input.release(_shoot);
+      input.press(_shoot);
+      input.release(_shoot);
 
       input.beginStep();
-      expect(input.pressed(GameAction.fire), isTrue);
+      expect(input.pressed(_shoot), isTrue);
       input.endStep();
 
       input.beginStep();
-      expect(input.pressed(GameAction.fire), isFalse);
+      expect(input.pressed(_shoot), isFalse);
       input.endStep();
     });
 
     test('holding across many steps produces one press and stays held', () {
-      input.press(GameAction.fire);
+      input.press(_shoot);
 
       var presses = 0;
       for (var i = 0; i < 10; i++) {
         input.beginStep();
-        if (input.pressed(GameAction.fire)) presses++;
-        expect(input.held(GameAction.fire), isTrue);
+        if (input.pressed(_shoot)) presses++;
+        expect(input.held(_shoot), isTrue);
         input.endStep();
       }
 
@@ -190,24 +194,24 @@ void main() {
 
   group('weapon selection', () {
     test('is reported to the step that follows it', () {
-      input.requestWeapon(3);
+      input.requestSlot(3);
 
       input.beginStep();
-      expect(input.weaponRequest, 3);
+      expect(input.slotRequest, 3);
       input.endStep();
 
-      expect(input.weaponRequest, isNull);
+      expect(input.slotRequest, isNull);
     });
 
     test('the most recent request inside one frame wins', () {
-      input.requestWeapon(1);
-      input.requestWeapon(2);
+      input.requestSlot(1);
+      input.requestSlot(2);
 
-      expect(input.weaponRequest, 2);
+      expect(input.slotRequest, 2);
     });
 
     test('is null when nothing was asked for', () {
-      expect(input.weaponRequest, isNull);
+      expect(input.slotRequest, isNull);
     });
   });
 
@@ -216,14 +220,14 @@ void main() {
       // A key that was down when the window went away never sends its key-up.
       input.press(GameAction.moveForward);
       input.addLook(10.0, 10.0);
-      input.requestWeapon(2);
+      input.requestSlot(2);
 
       input.clear();
 
       expect(input.held(GameAction.moveForward), isFalse);
       expect(input.moveAxis.y, 0.0);
       expect(input.lookDelta.x, 0.0);
-      expect(input.weaponRequest, isNull);
+      expect(input.slotRequest, isNull);
     });
 
     test('clear also drops the stick, which reports nothing on release', () {

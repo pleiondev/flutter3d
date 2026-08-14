@@ -10,16 +10,23 @@ import 'input_state.dart';
 
 /// Feeds an [InputState] from a keyboard and a captured mouse.
 ///
-/// The only file in `lib/src/game/` that knows what a key is. Everything below
-/// it sees [GameAction] and a movement axis, which is what makes the same
-/// simulation run under touch controls without a branch.
+/// The only file here that knows what a key is. Everything below it sees
+/// [GameAction] and a movement axis, which is what makes the same simulation
+/// run under touch controls without a branch.
+///
+/// What it does **not** know is what the game is. It used to: the pointer was
+/// wired to `GameAction.fire`, the number row selected weapons, and capturing
+/// the mouse was called `enterFirstPerson`. All three were true of the one game
+/// that existed and false of the next one, so all three are arguments now.
 final class DesktopInput {
   DesktopInput({
     required this.state,
     MouseCapture? capture,
     Map<LogicalKeyboardKey, GameAction>? bindings,
+    Map<LogicalKeyboardKey, int>? slotKeys,
   })  : capture = capture ?? MouseCapture.instance,
-        bindings = bindings ?? Map.of(defaultBindings) {
+        bindings = bindings ?? Map.of(defaultBindings),
+        slotKeys = slotKeys ?? Map.of(defaultSlotKeys) {
     _stateSubscription = this.capture.onStateChanged.listen(_onCaptureChanged);
   }
 
@@ -45,7 +52,11 @@ final class DesktopInput {
     LogicalKeyboardKey.keyF: GameAction.use,
   };
 
-  static final Map<LogicalKeyboardKey, int> _weaponKeys =
+  /// The number row, for whatever the game numbers.
+  ///
+  /// Weapons in a shooter, and this map was called `_weaponKeys` and was
+  /// private, so a game with items instead of weapons could not have them.
+  static final Map<LogicalKeyboardKey, int> defaultSlotKeys =
       <LogicalKeyboardKey, int>{
     LogicalKeyboardKey.digit1: 0,
     LogicalKeyboardKey.digit2: 1,
@@ -56,6 +67,7 @@ final class DesktopInput {
   final InputState state;
   final MouseCapture capture;
   final Map<LogicalKeyboardKey, GameAction> bindings;
+  final Map<LogicalKeyboardKey, int> slotKeys;
 
   late final StreamSubscription<CaptureState> _stateSubscription;
 
@@ -76,9 +88,9 @@ final class DesktopInput {
       return KeyEventResult.handled;
     }
 
-    final weapon = _weaponKeys[event.logicalKey];
-    if (weapon != null) {
-      if (event is KeyDownEvent) state.requestWeapon(weapon);
+    final slot = slotKeys[event.logicalKey];
+    if (slot != null) {
+      if (event is KeyDownEvent) state.requestSlot(slot);
       return KeyEventResult.handled;
     }
 
@@ -96,9 +108,14 @@ final class DesktopInput {
     return KeyEventResult.handled;
   }
 
-  void pressPointer() => state.press(GameAction.fire);
+  /// Presses whatever the game has decided the pointer means.
+  ///
+  /// The action is an argument because it used to be `GameAction.fire`, written
+  /// into the engine. A platformer's mouse button grabs a ledge, a strategy
+  /// game's selects, and neither of them fires anything.
+  void pressPointer(GameAction action) => state.press(action);
 
-  void releasePointer() => state.release(GameAction.fire);
+  void releasePointer(GameAction action) => state.release(action);
 
   /// Takes the mouse motion accumulated since the last call.
   ///
@@ -109,7 +126,12 @@ final class DesktopInput {
     out.setValues(delta.dx, delta.dy);
   }
 
-  Future<void> enterFirstPerson() => capture.capture();
+  /// Takes the pointer, so the mouse reports motion instead of a cursor.
+  ///
+  /// Was `enterFirstPerson`, which a third-person platformer wanting exactly
+  /// this behaviour would have had to call anyway, wondering what it had agreed
+  /// to. What is being asked for is the capture, not a camera.
+  Future<void> captureMouse() => capture.capture();
 
   Future<void> release() => capture.release();
 
