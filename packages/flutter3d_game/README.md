@@ -26,7 +26,7 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 | `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
 | `actors/` | `Health`, `MonsterDef`, `MonsterSystem`, `Player` (body, eye, aim), `Damageable` |
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
-| `ecs/` | `EcsWorld`, `Entity`. **Nothing uses it yet** — see below |
+| `ecs/` | `EcsWorld`, `Entity`. Projectiles live here; see below |
 | `save/` | `Snapshot`, `GameRandom` |
 | `physics/` | Only the layer names. Collision itself is [`flutter3d_physics`](../flutter3d_physics), a plain Dart package |
 
@@ -205,10 +205,11 @@ monster thinking was staggered across steps by `Object.hashCode`, which is an
 address, so two runs of the same game with the same seed diverged. It is an
 ordinal now.
 
-## The ECS, and what it is not yet
+## The ECS, and how far it has got
 
-`EcsWorld` exists and is tested and **no system in this package uses it.** That
-is worth saying plainly rather than leaving to be discovered.
+`EcsWorld` is tested, and **one system has moved onto it: projectiles.** The
+rest — monsters, mechanisms, the player — still hold their own state and write
+their own saves. Saying where the line is beats leaving it to be discovered.
 
 It was accepted for one reason, recorded in `docs/SPEC.md`: replication. A
 snapshot with delta compression needs state enumerable in one place, and the
@@ -222,10 +223,19 @@ live in maps keyed by entity index. The condition that would change that is
 written in the file — a query walking thousands of entities per step, showing
 up in a profile — so it is a measurement later rather than a preference.
 
-**Building it before the migration rather than during** is deliberate. A core
-written while systems are being rewritten on top of it is a core whose bugs
-look like migration bugs. This one has sixteen tests and six mutations, so when
-the first system moves across, anything that breaks is the system.
+**Building it before the migration rather than during** was deliberate, and it
+paid immediately: the projectile move changed no test and broke nothing, so
+whatever had gone wrong would have been the system rather than the core.
+
+What the move actually bought, in one sentence: `ProjectileSystem` no longer
+writes its own save, and a second thing that flies through the air cannot be
+left out of a save file by omission — `EcsWorld.save()` refuses to write a
+component type nobody registered, and `FiredBy` is the first thing to be
+declared *not* saved with a reason rather than quietly skipped by a codec.
+
+The cap survived the move. Sixty-four in the air at once is far past what the
+game produces, and something that grows without limit under load grows during
+the frame that was already struggling.
 
 ## Events
 
