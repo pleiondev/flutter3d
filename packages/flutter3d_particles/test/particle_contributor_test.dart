@@ -7,6 +7,8 @@
 /// which is a larger price than a duplicated fixture.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +17,8 @@ import 'package:vector_math/vector_math.dart' as vm;
 import 'fake_backend.dart';
 
 void main() {
+  _meshParticleTests();
+
   group('the particle contributor, drawn against a fake pass', () {
     late FakeBackend device;
     late FakePass pass;
@@ -141,4 +145,122 @@ final class _RecordingServices implements RenderServices {
     shadows.add(SceneShadows.from(frame, casterIndex: casterIndex));
     viewProjections.add(viewProjection);
   }
+}
+
+/// A mesh already on the device, as far as the contributor can tell.
+///
+/// The fake backend hands out opaque handles, so a mesh here is a description
+/// and nothing more — which is the whole of what an instanced draw needs from
+/// one: two buffers, two counts and an index type.
+final class _FakeMesh implements DrawableGeometry {
+  _FakeMesh(this.vertices, this.indices);
+
+  @override
+  final GeometryBuffer vertices;
+  @override
+  final GeometryBuffer indices;
+  @override
+  int get vertexCount => 24;
+  @override
+  int get indexCount => 36;
+  @override
+  IndexType get indexType => IndexType.int16;
+  @override
+  vm.Aabb3 get bounds => vm.Aabb3();
+  @override
+  double get boundingRadius => 1.0;
+  @override
+  MeshData? get source => null;
+}
+
+/// The mesh path, which is a different set of calls from the billboard one.
+void _meshParticleTests() {
+  group('the mesh particle contributor', () {
+    late FakeBackend device;
+    late FakePass pass;
+    late ParticleSystem particles;
+    late _FakeMesh mesh;
+
+    setUp(() {
+      device = FakeBackend();
+      pass = FakePass(const RenderPassDescriptor(colors: <ColorTarget>[]));
+      mesh = _FakeMesh(
+        device.uploadGeometry(ByteData(64 * 24), GeometryUsage.vertices),
+        device.uploadGeometry(ByteData(2 * 36), GeometryUsage.indices),
+      );
+      particles = ParticleSystem(capacity: 64)
+        ..burst(
+          ParticleEffect(
+            count: 5,
+            emitter: const SphereEmitter(speed: Range.exact(1.0)),
+            lifetime: const Range.exact(1.0),
+            size: const Range.exact(0.5),
+            color: vm.Vector4(1.0, 0.5, 0.2, 1.0),
+          ),
+          vm.Vector3.zero(),
+        );
+    });
+
+    ContributorFrame frame() => ContributorFrame(
+          encoder: pass,
+          device: device,
+          services: _RecordingServices(),
+          state: FramePassState(),
+          settings: const RenderSettings(),
+          width: 320,
+          height: 200,
+          view: RenderView(camera: CameraNode()),
+          viewProjection: vm.Matrix4.identity(),
+        );
+
+    test('binds the mesh in slot zero and the placements in slot one', () {
+      MeshParticleContributor(particles, mesh: mesh).encode(frame());
+
+      final vertices =
+          pass.commands.whereType<RecordedVertices>().toList();
+      expect(vertices, hasLength(2),
+          reason: 'a mesh particle draw is two vertex buffers, which is the '
+              'only draw in this engine that is');
+
+      // The mesh: slot zero, already on the device, its own vertex count.
+      expect(vertices[0].slot, 0);
+      expect(vertices[0].transient, isFalse);
+      expect(vertices[0].count, 24);
+
+      // The placements: slot one, rebuilt this frame, one per live particle.
+      expect(vertices[1].slot, 1);
+      expect(vertices[1].transient, isTrue);
+      expect(vertices[1].count, 5);
+    });
+
+    test('draws once, with one instance per live particle', () {
+      MeshParticleContributor(particles, mesh: mesh).encode(frame());
+
+      final draws = pass.commands.whereType<RecordedDraw>().toList();
+      expect(draws, hasLength(1),
+          reason: 'the point of instancing is that five particles are one call');
+      expect(draws.single.instanceCount, 5);
+    });
+
+    test('the index buffer is the mesh\'s, not one built per frame', () {
+      MeshParticleContributor(particles, mesh: mesh).encode(frame());
+
+      final indices = pass.commands.whereType<RecordedIndices>().toList();
+      expect(indices, hasLength(1));
+      expect(indices.single.transient, isFalse,
+          reason: 'the geometry is on the device already; rebuilding indices '
+              'every frame is what the billboard path has to do and this one '
+              'exists to avoid');
+      expect(indices.single.count, 36);
+    });
+
+    test('draws nothing when nothing is alive', () {
+      final empty = ParticleSystem(capacity: 8);
+      final contributor = MeshParticleContributor(empty, mesh: mesh);
+      expect(contributor.isActive, isFalse);
+
+      contributor.encode(frame());
+      expect(pass.commands.whereType<RecordedDraw>(), isEmpty);
+    });
+  });
 }

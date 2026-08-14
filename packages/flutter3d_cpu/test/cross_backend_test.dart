@@ -63,6 +63,11 @@ const Map<String, double> _budgets = <String, double>{
   // fixture is blind to.
   'particles-recycled': 0.45,
   'particles-plain': 0.45,
+  // Five spheres, and therefore five curved silhouettes where every other
+  // particle scene has straight-edged quads. The gap between these backends is
+  // multisampling on edges, so a budget above the particle floor is the shape
+  // of the fixture rather than a fault in it — measured at 0.716%.
+  'particles-mesh': 0.75,
   'normal-mapping': 1.1,
   'cube-shadow-mover': 0.55,
   'cube-shadow-lit': 0.55,

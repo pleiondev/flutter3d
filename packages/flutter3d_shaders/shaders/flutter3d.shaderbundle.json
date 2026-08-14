@@ -75,6 +75,14 @@
     "type": "fragment",
     "file": "shaders/lighting/particle.frag"
   },
+  "ParticleMeshVertex": {
+    "type": "vertex",
+    "file": "shaders/particle_mesh.vert"
+  },
+  "ParticleMesh": {
+    "type": "fragment",
+    "file": "shaders/lighting/particle_mesh.frag"
+  },
   "Reflections": {
     "type": "fragment",
     "file": "shaders/post/reflections.frag"

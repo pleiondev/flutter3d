@@ -63,7 +63,12 @@ final class RecordedUniformBlock extends Recorded {
 }
 
 final class RecordedVertices extends Recorded {
-  const RecordedVertices(this.count, {required this.transient});
+  const RecordedVertices(this.count, {required this.transient, this.slot = 0});
+
+  /// Which vertex buffer slot this filled. Zero for every draw in the engine
+  /// except an instanced one, which is what makes a non-zero value worth
+  /// asserting on.
+  final int slot;
   final int count;
 
   /// True when the data was built this frame rather than living on the device.
@@ -213,11 +218,11 @@ final class FakePass implements CommandEncoder {
   @override
   void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
           {int slot = 0}) =>
-      commands.add(RecordedVertices(vertexCount, transient: false));
+      commands.add(RecordedVertices(vertexCount, transient: false, slot: slot));
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
-      commands.add(RecordedVertices(vertexCount, transient: true));
+      commands.add(RecordedVertices(vertexCount, transient: true, slot: slot));
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) =>

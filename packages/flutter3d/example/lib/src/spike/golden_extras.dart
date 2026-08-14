@@ -139,6 +139,67 @@ abstract final class GoldenExtras {
     return particles;
   }
 
+  /// A handful of particles drawn as meshes rather than as billboards.
+  ///
+  /// Deliberately few, at fixed places, with a lifetime far longer than the
+  /// warm-up: what this fixture is for is the *instanced draw*, and a hundred
+  /// tumbling embers would put the picture at the mercy of the simulation as
+  /// well. Five spheres in a row disagree between backends only if the
+  /// instancing does.
+  ///
+  /// The one scene where Impeller's instanced path is exercised at all — its
+  /// conformance suite runs from an application rather than a test, so until
+  /// this fixture existed, `drawIndexed(count, instanceCount:)` was a line
+  /// nothing had run.
+  static ParticleSystem meshParticles() {
+    // Calibrated by experiment, and both halves of it were needed.
+    //
+    // **Size.** `particle-one` puts a quad of size 0.8 at (0, 0.6, 1.6) and it
+    // covers a quarter of the frame; the same number given to a sphere covers
+    // all of it, because a quad's size is its extent and a mesh particle's is
+    // its scale — the sphere has radius one, so the scale *is* the radius. The
+    // first attempt at this fixture read as one saturated mass across three
+    // screens.
+    //
+    // **Height.** The second attempt was small enough and drew 382 pixels in
+    // the top right corner. Not occlusion, which was the first guess: y = 0.6
+    // is already at the top edge of this camera's frame, and `particle-one`
+    // only shows there because its quad is large enough to hang down into
+    // view. Small spheres at the same height are simply above it.
+    //
+    // Five spheres, clear of the cube, sizes ascending so a backend that drew
+    // instance zero five times over is caught by more than their places.
+    final particles = ParticleSystem(capacity: 16, seed: seed);
+    for (var i = 0; i < 5; i++) {
+      particles.burst(
+        ParticleEffect(
+          count: 1,
+          lifetime: const Range.exact(10.0),
+          // Ascending, so the instances are told apart by size as well as by
+          // place: a backend that drew instance zero five times over would
+          // match on position and still be caught here.
+          size: Range.exact(0.06 + i * 0.012),
+          color: Vector4(1.0, 0.45 + i * 0.12, 0.20, 1.0),
+          emitter: const SphereEmitter(speed: Range.exact(0.0)),
+        ),
+        Vector3(-0.44 + i * 0.22, 0.0, 1.6),
+      );
+    }
+    return particles;
+  }
+
+  /// The shape those particles are copies of.
+  ///
+  /// A low sphere on purpose. The facing term in `particle_mesh.frag` is what
+  /// gives an additive mesh its form, and a coarse sphere shows it: sixteen
+  /// segments have visibly different brightnesses where a smooth one would look
+  /// like a flat disc and prove nothing.
+  static DrawableGeometry meshParticleShape(GraphicsDevice device) =>
+      DeviceMesh.upload(
+        device,
+        const SphereShape(radius: 1.0, segments: 12, rings: 6).build(),
+      );
+
   /// Eight particles in exactly the same place, which is the only thing
   /// `particle-one` leaves untested.
   ///

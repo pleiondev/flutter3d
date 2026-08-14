@@ -38,6 +38,8 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'MrtProbe', fragment: true),
   (name: 'Normals', fragment: true),
   (name: 'Particle', fragment: true),
+  (name: 'ParticleMesh', fragment: true),
+  (name: 'ParticleMeshVertex', fragment: false),
   (name: 'ParticleVertex', fragment: false),
   (name: 'Pbr', fragment: true),
   (name: 'Reflections', fragment: true),

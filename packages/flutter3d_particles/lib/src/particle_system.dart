@@ -535,6 +535,43 @@ final class ParticleSystem {
   /// texture coordinate.
   static const int floatsPerParticle = 4 * (3 + 4 + 2);
 
+  /// Floats one mesh-particle instance occupies: a place, a colour, a size.
+  ///
+  /// Eight rather than the sixteen a full transform would take. A particle's
+  /// size is one number everywhere else in this engine, and a uniform scale
+  /// leaves a normal a normal — which is why the mesh stage needs no inverse
+  /// transpose and why this is the cheap layout rather than the lazy one.
+  static const int floatsPerInstance = 3 + 4 + 1;
+
+  /// Writes one record per live particle for an instanced mesh draw, and
+  /// returns how many were written.
+  ///
+  /// The counterpart to [writeQuads], and much smaller: a billboard costs four
+  /// vertices of nine floats because the quad *is* the particle, while a mesh
+  /// particle costs eight floats because the geometry is already on the device
+  /// and only the placement changes.
+  ///
+  /// Stops when [out] is full rather than growing it, for the same reason
+  /// [writeQuads] does: the buffer is sized from the pool's capacity once, and
+  /// a frame that would overrun it is a frame with a bug in the caller.
+  int writeInstances(Float32List out) {
+    final room = out.length ~/ floatsPerInstance;
+    final count = _alive < room ? _alive : room;
+    for (var i = 0; i < count; i++) {
+      final particle = _pool[i];
+      final at = i * floatsPerInstance;
+      out[at] = particle.position.x;
+      out[at + 1] = particle.position.y;
+      out[at + 2] = particle.position.z;
+      out[at + 3] = particle.color.x;
+      out[at + 4] = particle.color.y;
+      out[at + 5] = particle.color.z;
+      out[at + 6] = particle.color.w;
+      out[at + 7] = particle.size;
+    }
+    return count;
+  }
+
   /// Writes camera-facing quads into [vertices] and returns how many particles
   /// were written.
   ///

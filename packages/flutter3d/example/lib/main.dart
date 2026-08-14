@@ -423,7 +423,14 @@ class _SpikePageState extends State<SpikePage>
     final goldenScene = _golden?.scene;
     final renderer = _renderer;
     if (goldenScene != null && renderer != null) {
-      if (goldenScene.particles) {
+      if (goldenScene.name == 'particles-mesh') {
+        // A different contributor, not a mode of the other one: the mesh path
+        // binds two vertex buffers where the billboard path binds one.
+        renderer.addContributor(MeshParticleContributor(
+          GoldenExtras.meshParticles(),
+          mesh: GoldenExtras.meshParticleShape(device),
+        ));
+      } else if (goldenScene.particles) {
         renderer.addContributor(ParticleContributor(
           switch (goldenScene.name) {
             'particle-one' => GoldenExtras.oneParticle(),

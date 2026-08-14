@@ -257,6 +257,20 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     particles: true,
   ),
 
+  // Five spheres drawn as one instanced call. The only scene in the suite that
+  // draws anything more than once, and therefore the only one that says whether
+  // each backend's instanced path works — see GoldenExtras.meshParticles.
+  const GoldenScene(
+    name: 'particles-mesh',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+    particles: true,
+  ),
+
   // Eight quads stacked at one point: addition alone. See stackedParticles.
   const GoldenScene(
     name: 'particle-stack',

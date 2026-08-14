@@ -1212,6 +1212,83 @@ final class ParticleVertexShader implements CpuVertexShader {
   }
 }
 
+/// `particle_mesh.vert`: one mesh, placed and tinted per instance.
+///
+/// **The attribute order here is the layout's, not a shader's.** Every other
+/// stage in this file reads one interleaved vertex whose order is its own `in`
+/// declarations; this one is fed by `_LayoutFetch`, which assembles slot 0's
+/// attributes and then slot 1's. So position and normal come first because they
+/// are the mesh's buffer, and the placement follows because it is the instance
+/// buffer — see `MeshParticleContributor.layout`, which is the one place that
+/// order is decided.
+final class ParticleMeshVertexShader implements CpuVertexShader {
+  const ParticleMeshVertexShader();
+
+  @override
+  int get varyingCount => 10;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    final scale = a[13];
+    final x = a[6] + a[0] * scale;
+    final y = a[7] + a[1] * scale;
+    final z = a[8] + a[2] * scale;
+
+    out[0] = a[9];
+    out[1] = a[10];
+    out[2] = a[11];
+    out[3] = a[12];
+    out[4] = x;
+    out[5] = y;
+    out[6] = z;
+    // Unchanged by a uniform scale, which is why the scale is one number.
+    out[7] = a[3];
+    out[8] = a[4];
+    out[9] = a[5];
+
+    return bindings.mat4('ParticleMeshInfo', 'view_projection') *
+        Vector4(x, y, z, 1.0);
+  }
+}
+
+/// `particle_mesh.frag`: additive, fogged, shaded by which way a face points.
+final class ParticleMeshShader implements CpuFragmentShader {
+  const ParticleMeshShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+    final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+
+    final tx = eye.x - v[4];
+    final ty = eye.y - v[5];
+    final tz = eye.z - v[6];
+    final distance = math.sqrt(tx * tx + ty * ty + tz * tz);
+
+    var facing = 1.0;
+    if (distance > 0.0) {
+      final n = Vector3(v[7], v[8], v[9]);
+      final length = n.length;
+      if (length > 0.0) {
+        // `abs`, because nothing here is culled and a back face is as visible
+        // as a front one.
+        facing = ((n.x * tx + n.y * ty + n.z * tz) / (length * distance)).abs();
+      }
+    }
+    // Never to zero: a silhouette edge is exactly perpendicular to the eye, and
+    // a face that vanished there would carve a dark seam along it.
+    final intensity = 0.35 + 0.65 * facing;
+
+    var fogged = 1.0;
+    if (fog.w > 0.0) {
+      fogged = math.exp(-fog.w * distance).clamp(0.0, 1.0);
+    }
+
+    final scale = v[3] * intensity * fogged;
+    return Vector4(v[0] * scale, v[1] * scale, v[2] * scale, 1.0);
+  }
+}
+
 /// `particle.frag`: a radial falloff, premultiplied, fogged.
 final class ParticleShader implements CpuFragmentShader {
   const ParticleShader();
@@ -1419,6 +1496,9 @@ Map<String, CpuStage> builtinCpuShaders() {
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
     'DebugLine': const CpuStage.fragment(DebugLineShader()),
     'ParticleVertex': const CpuStage.vertex(ParticleVertexShader()),
+    'ParticleMeshVertex':
+        const CpuStage.vertex(ParticleMeshVertexShader()),
+    'ParticleMesh': const CpuStage.fragment(ParticleMeshShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
