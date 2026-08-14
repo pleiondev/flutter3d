@@ -38,9 +38,13 @@ final class CpuShaderLibrary implements ShaderLibrary {
 
 /// A vertex and a fragment stage, paired.
 final class _CpuPipeline {
-  const _CpuPipeline(this.vertex, this.fragment);
+  const _CpuPipeline(this.vertex, this.fragment, this.layout);
   final CpuVertexShader vertex;
   final CpuFragmentShader fragment;
+
+  /// Where the vertex stage's inputs come from, or null to read one
+  /// interleaved buffer in shader order — see `_drawOnce`.
+  final VertexLayoutSpec? layout;
 }
 
 /// The software backend.
@@ -149,22 +153,22 @@ final class CpuDevice implements GraphicsDevice {
     ShaderHandle fragment, {
     VertexLayoutSpec? layout,
   }) {
+    // Every format this backend can read is floats. The integer ones exist in
+    // the vocabulary because flutter_gpu has them; a stage here receives one
+    // `Float32List`, so a `uint32` attribute would have to be reinterpreted,
+    // and reinterpreting it silently is how a joint index becomes 1.4e-45.
     if (layout != null) {
-      // Refused rather than ignored, which is this backend's rule everywhere
-      // else. Its vertex stages read `attributes` by position out of one
-      // interleaved buffer, so honouring a layout means teaching the vertex
-      // fetch to assemble that array from several buffers with per-instance
-      // stepping — real work, and not work that can be faked by dropping the
-      // argument. A layout silently ignored would draw every instance on top
-      // of the first one and look like a simulation bug.
-      //
-      // Nothing passes a layout yet. The first thing that does — mesh
-      // particles — cannot land until this is implemented, because a scene the
-      // software backend refuses is a scene with no cross-backend check.
-      throw UnsupportedError(
-        'this backend does not implement vertex layouts yet, so it cannot '
-        'draw a pipeline that needs one. See the note at this line.',
-      );
+      for (final buffer in layout.buffers) {
+        for (final attribute in buffer.attributes) {
+          if (!attribute.format.name.startsWith('float')) {
+            throw UnsupportedError(
+              'attribute "${attribute.name}" is ${attribute.format.name}. This '
+              'backend hands a vertex stage a list of floats, so it reads only '
+              'the float formats.',
+            );
+          }
+        }
+      }
     }
     final v = (vertex.backend as CpuStage).vertex;
     final f = (fragment.backend as CpuStage).fragment;
@@ -176,7 +180,7 @@ final class CpuDevice implements GraphicsDevice {
       );
     }
     return PipelineHandle(
-      backend: _CpuPipeline(v, f),
+      backend: _CpuPipeline(v, f, layout),
       name: '${vertex.name}+${fragment.name}',
     );
   }
@@ -386,33 +390,29 @@ final class CpuEncoder implements CommandEncoder {
   @override
   void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
       {int slot = 0}) {
-    _requireSlotZero(slot);
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
-    _vertices = backend.bytes;
-    _vertexCount = vertexCount;
+    _bindSlot(slot, backend.bytes, vertexCount);
   }
 
   @override
-  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {
-    _requireSlotZero(slot);
-    _vertices = bytes;
-    _vertexCount = vertexCount;
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
+      _bindSlot(slot, bytes, vertexCount);
+
+  /// Slot zero stays in [_vertices] and the rest go in [_slots].
+  ///
+  /// Two fields rather than one map because slot zero is every draw this engine
+  /// has ever made and the map would be allocated for all of them to hold one
+  /// entry. The layout-less path never looks at [_slots] at all.
+  void _bindSlot(int slot, ByteData bytes, int count) {
+    if (slot == 0) {
+      _vertices = bytes;
+      _vertexCount = count;
+      return;
+    }
+    (_slots ??= <int, ByteData>{})[slot] = bytes;
   }
 
-  /// A slot above zero needs a layout, and a layout is not implemented here.
-  ///
-  /// Separate from the pipeline's refusal because the two are reached by
-  /// different mistakes: this one is a caller binding a second buffer against a
-  /// pipeline that never described one.
-  void _requireSlotZero(int slot) {
-    if (slot != 0) {
-      throw UnsupportedError(
-        'slot $slot: this backend binds one vertex buffer. Slots beyond zero '
-        'only mean anything with a vertex layout, which it does not implement '
-        'yet — see createPipeline.',
-      );
-    }
-  }
+  Map<int, ByteData>? _slots;
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
@@ -483,11 +483,11 @@ final class CpuEncoder implements CommandEncoder {
     // attributes means on any backend. The instance *index* arrives with the
     // vertex layouts that give a stage something to read it for.
     for (var instance = 0; instance < instanceCount; instance++) {
-      _drawOnce();
+      _drawOnce(instance);
     }
   }
 
-  void _drawOnce() {
+  void _drawOnce(int instance) {
     final pipeline = _pipeline;
     final vertices = _vertices;
     if (pipeline == null || vertices == null) return;
@@ -505,9 +505,11 @@ final class CpuEncoder implements CommandEncoder {
     final view = _viewport ??
         ScreenRect(x: 0, y: 0, width: target.width, height: target.height);
 
-    final stride = _floatsPerVertex(vertices, _vertexCount);
-    final floats = vertices.buffer
-        .asFloat32List(vertices.offsetInBytes, vertices.lengthInBytes ~/ 4);
+    final layout = pipeline.layout;
+    final fetch = layout == null
+        ? _PackedFetch(vertices, _floatsPerVertex(vertices, _vertexCount))
+        : _LayoutFetch.build(layout, vertices, _slots, instance);
+    final stride = fetch.floatsPerVertex;
     final bindings = ShaderBindings(_blocks, _textures);
     final varyingCount = pipeline.vertex.varyingCount;
 
@@ -529,11 +531,7 @@ final class CpuEncoder implements CommandEncoder {
         final vertex = _indices != null
             ? _indexAt(t * perPrimitive + corner)
             : t * perPrimitive + corner;
-        final base = vertex * stride;
-        if (base + stride > floats.length) return;
-        for (var f = 0; f < stride; f++) {
-          attributes[f] = floats[base + f];
-        }
+        if (!fetch.into(attributes, vertex)) return;
         clip[corner] = pipeline.vertex.run(attributes, bindings, varyings[corner]);
       }
       if (perPrimitive == 2) {
@@ -901,4 +899,158 @@ final class CpuEncoder implements CommandEncoder {
         CompareFunction.equal => incoming == stored,
         CompareFunction.notEqual => incoming != stored,
       };
+}
+
+/// How one vertex's attributes are collected before a stage sees them.
+///
+/// Two implementations, and the split is the whole of this backend's support
+/// for instancing. A vertex stage here receives one `Float32List` and reads it
+/// by position — that never changes. What changes is where those floats came
+/// from.
+abstract interface class _VertexFetch {
+  /// How many floats one vertex amounts to.
+  int get floatsPerVertex;
+
+  /// Fills [out] for [vertex], or answers false when a buffer is too short.
+  ///
+  /// False rather than a throw because a short buffer is a caller's arithmetic
+  /// mistake that this backend has always answered by drawing nothing, and
+  /// changing that here would turn a blank scene into a crash in the middle of
+  /// a golden run.
+  bool into(Float32List out, int vertex);
+}
+
+/// One interleaved buffer, in the order the shader declares its inputs.
+///
+/// Every draw this engine made before instancing, and every draw it still makes
+/// except the instanced ones. The layout is not described anywhere: it is the
+/// shader's `in` order, which is the same contract flutter_gpu works from.
+final class _PackedFetch implements _VertexFetch {
+  _PackedFetch(ByteData bytes, this.floatsPerVertex)
+      : _floats = bytes.buffer
+            .asFloat32List(bytes.offsetInBytes, bytes.lengthInBytes ~/ 4);
+
+  final Float32List _floats;
+
+  @override
+  final int floatsPerVertex;
+
+  @override
+  bool into(Float32List out, int vertex) {
+    final base = vertex * floatsPerVertex;
+    if (base + floatsPerVertex > _floats.length) return false;
+    for (var f = 0; f < floatsPerVertex; f++) {
+      out[f] = _floats[base + f];
+    }
+    return true;
+  }
+}
+
+/// Several buffers, some stepping per vertex and some per instance.
+///
+/// **The assembled order is the layout's order** — every attribute of slot 0,
+/// then every attribute of slot 1, and so on — and the vertex stage must
+/// declare its inputs to match. That is the same kind of contract the packed
+/// path already lives under, where the order is the shader's own; it is written
+/// down here because with two buffers there is no single obvious order to fall
+/// back on, and a stage that disagreed would read a position as a colour and
+/// draw something rather than failing.
+final class _LayoutFetch implements _VertexFetch {
+  _LayoutFetch._(
+    this._views,
+    this._strides,
+    this._element,
+    this._offsets,
+    this._counts,
+    this.floatsPerVertex,
+  );
+
+  /// Resolves [layout] against the bound buffers for one instance.
+  ///
+  /// Built per draw rather than per vertex: the arithmetic below depends only
+  /// on the layout and the instance, and doing it three times per triangle was
+  /// measurably the wrong shape when the same mistake was made in the packed
+  /// path's ancestor.
+  factory _LayoutFetch.build(
+    VertexLayoutSpec layout,
+    ByteData slotZero,
+    Map<int, ByteData>? slots,
+    int instance,
+  ) {
+    final views = <Float32List>[];
+    final strides = <int>[];
+    final element = <int>[];
+    final offsets = <List<int>>[];
+    final counts = <List<int>>[];
+    var total = 0;
+
+    for (var slot = 0; slot < layout.buffers.length; slot++) {
+      final buffer = layout.buffers[slot];
+      final bytes = slot == 0 ? slotZero : slots?[slot];
+      if (bytes == null) {
+        throw StateError(
+          'the pipeline\'s layout describes slot $slot and nothing was bound '
+          'to it. Every slot the layout names has to be filled before a draw.',
+        );
+      }
+      views.add(bytes.buffer
+          .asFloat32List(bytes.offsetInBytes, bytes.lengthInBytes ~/ 4));
+      if (buffer.strideInBytes % 4 != 0) {
+        throw UnsupportedError(
+          'slot $slot has a stride of ${buffer.strideInBytes} bytes. This '
+          'backend reads floats, so a stride has to be a multiple of four.',
+        );
+      }
+      strides.add(buffer.strideInBytes ~/ 4);
+      // The one line instancing is actually about: a per-instance buffer is
+      // read at the instance index and stays there for every vertex of it.
+      element.add(buffer.stepMode == VertexStepMode.instance ? instance : -1);
+
+      final theseOffsets = <int>[];
+      final theseCounts = <int>[];
+      for (final attribute in buffer.attributes) {
+        theseOffsets.add(attribute.offsetInBytes ~/ 4);
+        theseCounts.add(attribute.format.componentCount);
+        total += attribute.format.componentCount;
+      }
+      offsets.add(theseOffsets);
+      counts.add(theseCounts);
+    }
+
+    return _LayoutFetch._(views, strides, element, offsets, counts, total);
+  }
+
+  final List<Float32List> _views;
+  final List<int> _strides;
+
+  /// The fixed element index for a per-instance buffer, or -1 for a per-vertex
+  /// one, which takes the vertex it is asked for.
+  final List<int> _element;
+
+  final List<List<int>> _offsets;
+  final List<List<int>> _counts;
+
+  @override
+  final int floatsPerVertex;
+
+  @override
+  bool into(Float32List out, int vertex) {
+    var at = 0;
+    for (var slot = 0; slot < _views.length; slot++) {
+      final view = _views[slot];
+      final fixed = _element[slot];
+      final base = (fixed < 0 ? vertex : fixed) * _strides[slot];
+      final offsets = _offsets[slot];
+      final counts = _counts[slot];
+      for (var a = 0; a < offsets.length; a++) {
+        final from = base + offsets[a];
+        final count = counts[a];
+        if (from + count > view.length) return false;
+        for (var c = 0; c < count; c++) {
+          out[at++] = view[from + c];
+        }
+      }
+    }
+    return true;
+  }
 }
