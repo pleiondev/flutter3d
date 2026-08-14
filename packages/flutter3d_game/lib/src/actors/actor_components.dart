@@ -58,6 +58,16 @@ final class Facing {
   double eyeFraction;
 }
 
+/// A body the world pushes around: a crate, a barrel, anything with mass.
+///
+/// Not [Body], which is a `CharacterController` — something driven by a brain
+/// or by a player and never moved by physics. A `Physical` is the other kind:
+/// nothing decides for it, and everything happens to it.
+final class Physical {
+  Physical(this.body);
+  final RigidBody body;
+}
+
 /// What decides where it is going.
 final class Thinking {
   Thinking(this.brain);
@@ -104,6 +114,13 @@ void registerActorComponents(EcsWorld entities) {
           turnRate: (row['turnRate'] as num?)?.toDouble() ?? 6.0,
           eyeFraction: (row['eyeFraction'] as num?)?.toDouble() ?? 0.32,
         );
+      },
+    )
+    ..registerInPlace<Physical>(
+      'physical',
+      encode: (Physical value) => value.body.save(),
+      restore: (Physical value, Object? data) {
+        if (data is Map) value.body.restore(data.cast<String, Object?>());
       },
     )
     ..registerInPlace<Thinking>(

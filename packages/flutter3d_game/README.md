@@ -28,7 +28,7 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
 | `ecs/` | `EcsWorld`, `Entity`. Actors and projectiles live here; see below |
 | `save/` | `Snapshot`, `GameRandom` |
-| `physics/` | Only the layer names. Collision itself is [`flutter3d_physics`](../flutter3d_physics), a plain Dart package |
+| `physics/` | Only the layer names. Collision, character movement and rigid bodies are [`flutter3d_physics`](../flutter3d_physics), a plain Dart package |
 
 ## The order a step runs in
 
@@ -292,6 +292,24 @@ component read.
 The cap survived the move. Sixty-four in the air at once is far past what the
 game produces, and something that grows without limit under load grows during
 the frame that was already struggling.
+
+## Things with mass
+
+`GameSimulation` takes an optional `Dynamics` — crates, barrels, anything the
+world pushes around. Stage one of the specification's two: mass, gravity,
+impulses, resting and sleeping, and **no rotation**, which is what makes a box
+stay axis-aligned and its contacts exact.
+
+**A character controller does not push anything on its own**, and that is not an
+oversight: it is kinematic, it sweeps and slides and is never moved by anything,
+which is what makes a first-person game feel solid. So the transfer is explicit
+— `Dynamics.push`, called after the player has moved — and it hands over a
+*speed* rather than a force. A crate gets just enough velocity to move away at
+the speed it is being approached at, and no more; a force proportional to mass
+would let a player launch a light crate across the room by brushing it.
+
+A body is a `Physical` component, so the snapshot carries it with everything
+else and the next kind of moving thing cannot be left out by omission.
 
 ## Events
 

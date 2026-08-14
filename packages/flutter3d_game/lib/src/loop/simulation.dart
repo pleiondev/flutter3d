@@ -86,6 +86,7 @@ final class GameSimulation {
     this.actors,
     this.projectiles,
     this.shot,
+    this.dynamics,
     this.levelNext,
     this.random,
   });
@@ -102,6 +103,10 @@ final class GameSimulation {
   final ActorSystem? actors;
   final ProjectileSystem? projectiles;
   final WeaponShot? shot;
+
+  /// Crates, barrels and anything else with mass, or null for a game with
+  /// none.
+  final Dynamics? dynamics;
 
   /// What the level document says follows it.
   final String? levelNext;
@@ -215,11 +220,29 @@ final class GameSimulation {
     doors?.step(dt);
     collision.reindex();
 
+    // Between the doors and the player: a crate falling onto a lift that moved
+    // this step should land on where the lift is now, and the player sweeping a
+    // moment later should be stopped by where the crate is now.
+    //
+    // **Ordering by argument, not by test** — said out loud rather than dressed
+    // up. Moving this after `body.step` breaks nothing any test here can see,
+    // for the same reason `reindex` does not: the narrow phase reads live
+    // positions, so being a step out of date costs a fraction of a crate's
+    // travel and is recovered on the next step. It is still the right order,
+    // and `Dynamics` re-indexes the broadphase itself when it is done.
+    dynamics?.step(dt);
+
     player.body.step(
       dt,
       wishDirection: _wish,
       sprint: playing && input.held(GameAction.sprint),
     );
+
+    // After the player has moved, because what they shove depends on where
+    // they ended up and how fast they got there.
+    if (playing) {
+      dynamics?.push(player.body.collider, player.body.velocity);
+    }
 
     collision.update();
     collision.clearKinematicDeltas();
