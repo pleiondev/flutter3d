@@ -37,6 +37,7 @@ export 'src/shader.dart';
 export 'src/texture.dart';
 
 /// How a texture is sampled.
+export 'src/mip_chain.dart';
 export 'src/sampler.dart';
 
 /// Reuse of render targets, and the description that makes two of them

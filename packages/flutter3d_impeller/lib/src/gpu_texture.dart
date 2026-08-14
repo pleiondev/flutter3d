@@ -33,6 +33,7 @@ TextureHandle createGpuTexture(
   int sampleCount = 1,
   bool enableRenderTargetUsage = true,
   bool enableShaderReadUsage = true,
+  int mipLevelCount = 1,
 }) {
   final texture = gpu.gpuContext.createTexture(
     storageMode.toGpu(),
@@ -40,6 +41,14 @@ TextureHandle createGpuTexture(
     height,
     format: format.toGpu(),
     sampleCount: sampleCount,
+    // Clamped to what the device will allocate. `fullMipCount` stops one short
+    // of one-by-one, and asking for more than it throws — so the trim happens
+    // here, where the limit is, rather than at every call site.
+    mipLevelCount: mipLevelCount <= 1
+        ? 1
+        : (mipLevelCount < gpu.Texture.fullMipCount(width, height)
+            ? mipLevelCount
+            : gpu.Texture.fullMipCount(width, height)),
     enableRenderTargetUsage: enableRenderTargetUsage,
     enableShaderReadUsage: enableShaderReadUsage,
   );

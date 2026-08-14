@@ -146,9 +146,16 @@ enum MinMagFilter { nearest, linear }
 
 /// Filtering between mip levels.
 ///
-/// Present for completeness and currently inert: this engine has no mip chain,
-/// because generating one needs render-to-mip-level support that the stable
-/// channel does not expose.
+/// Meaningful only on a texture that *has* a chain — see
+/// `GraphicsDevice.createTextureFromPixels`, whose `mipLevels` is the only way
+/// one is made here. A sampler asking for [linear] on a texture with one level
+/// gets that one level, on every backend.
+///
+/// This used to say the whole enum was inert because generating a chain needed
+/// render-to-mip-level support the stable channel did not expose. Both halves
+/// of that were wrong by SDK 3.47 and the second half was always beside the
+/// point: the chain is generated on the CPU and uploaded level by level, so
+/// nothing renders into a mip at all.
 enum MipFilter { nearest, linear }
 
 /// What sampling outside the 0..1 range does.

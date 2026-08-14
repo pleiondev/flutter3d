@@ -297,6 +297,11 @@ final class FakeBackend implements GraphicsDevice {
   @override
   final bool supportsWireframe;
 
+  /// True, because a fake has nothing to be incapable with. The real answer is
+  /// a device property, and the two backends that have one disagree.
+  @override
+  bool get supportsMipmaps => true;
+
   /// The engine's own convention, so a fake never exercises the remap. The
   /// backends that need the other one are covered by running them.
   @override
@@ -351,6 +356,7 @@ final class FakeBackend implements GraphicsDevice {
     required int height,
     required TextureFormat format,
     required ByteData pixels,
+    List<ByteData>? mipLevels,
   }) {
     final spec = RenderTargetSpec(
       width: width,

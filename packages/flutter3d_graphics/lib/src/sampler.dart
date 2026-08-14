@@ -30,7 +30,10 @@ final class SamplerOptions {
   final MinMagFilter minFilter;
   final MinMagFilter magFilter;
 
-  /// Inert until the engine has a mip chain. See [MipFilter].
+  /// Which levels of a mip chain are blended. See [MipFilter].
+  ///
+  /// Ignored by a texture with one level, which is every texture in this engine
+  /// except the ones built with a chain on purpose.
   final MipFilter mipFilter;
 
   final SamplerAddressMode widthAddressMode;
@@ -40,6 +43,22 @@ final class SamplerOptions {
   static const SamplerOptions linearRepeat = SamplerOptions(
     minFilter: MinMagFilter.linear,
     magFilter: MinMagFilter.linear,
+    widthAddressMode: SamplerAddressMode.repeat,
+    heightAddressMode: SamplerAddressMode.repeat,
+  );
+
+  /// Smooth and tiling, and blended between mip levels.
+  ///
+  /// **A second constant rather than a change to [linearRepeat]**, which is the
+  /// default for every material texture in the engine. Turning the mip filter
+  /// on there would have moved every textured golden — and would have moved
+  /// them for textures that have no chain to blend, where the setting cannot
+  /// help and can only cost. Something that wants trilinear filtering asks for
+  /// it and supplies the chain to go with it.
+  static const SamplerOptions trilinearRepeat = SamplerOptions(
+    minFilter: MinMagFilter.linear,
+    magFilter: MinMagFilter.linear,
+    mipFilter: MipFilter.linear,
     widthAddressMode: SamplerAddressMode.repeat,
     heightAddressMode: SamplerAddressMode.repeat,
   );

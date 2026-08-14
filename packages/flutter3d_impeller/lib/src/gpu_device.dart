@@ -112,6 +112,9 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsWireframe => true;
 
   @override
+  bool get supportsMipmaps => gpu.gpuContext.doesSupportManuallyMippedTextures;
+
+  @override
   TextureHandle createTexture(RenderTargetSpec spec) => createGpuTexture(
         spec.storageMode,
         spec.width,
@@ -166,6 +169,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     required int height,
     required TextureFormat format,
     required ByteData pixels,
+    List<ByteData>? mipLevels,
   }) {
     final texture = createGpuTexture(
       // Host-visible, because these bytes come from the CPU. That is a
@@ -183,6 +187,11 @@ final class GpuRenderBackend implements GraphicsDevice {
       width,
       height,
       format: format,
+      // One more than the levels below it. flutter_gpu clamps its own
+      // allocation at `fullMipCount`, which stops one short of one-by-one, so a
+      // longer chain than the device will hold is trimmed rather than refused —
+      // and the trimming happens there, where the limit is known.
+      mipLevelCount: mipLevels == null ? 1 : mipLevels.length + 1,
     );
 
     // `overwrite` demands exactly the base mip size and throws otherwise, so
@@ -194,6 +203,15 @@ final class GpuRenderBackend implements GraphicsDevice {
       return null;
     }
     texture.gpuTexture.overwrite(pixels);
+    if (mipLevels != null) {
+      // Level by level, and only as far as the texture actually goes: asking
+      // to write a level it does not have throws, and a chain longer than
+      // `fullMipCount` is the ordinary case rather than a mistake.
+      final levels = texture.gpuTexture.mipLevelCount;
+      for (var i = 0; i < mipLevels.length && i + 1 < levels; i++) {
+        texture.gpuTexture.overwrite(mipLevels[i], mipLevel: i + 1);
+      }
+    }
     return texture;
   }
 

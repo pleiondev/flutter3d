@@ -219,6 +219,13 @@ final class WebGlDevice implements GraphicsDevice {
   bool get supportsWireframe => false;
 
   @override
+  // WebGL2 samples a hand-built chain correctly as a matter of specification:
+  // `texStorage2D` allocates every level and `TEXTURE_MAX_LEVEL` bounds it. The
+  // device this capability exists to warn about is an OpenGL ES 2 one, which
+  // this backend does not run on at all.
+  bool get supportsMipmaps => true;
+
+  @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
@@ -256,7 +263,7 @@ final class WebGlDevice implements GraphicsDevice {
   }
 
   @override
-  TextureHandle createTexture(RenderTargetSpec spec) {
+  TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1}) {
     final internal = textureFormatToGl(spec.format);
     if (spec.sampleCount > 1 || spec.storageMode == StorageMode.deviceTransient) {
       // Multisampled or attachment-only: a renderbuffer. Cannot be sampled,
@@ -286,7 +293,7 @@ final class WebGlDevice implements GraphicsDevice {
     _gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, texture);
     _gl.texStorage2D(
       web.WebGLRenderingContext.TEXTURE_2D,
-      1,
+      levels,
       internal,
       spec.width,
       spec.height,
@@ -300,32 +307,58 @@ final class WebGlDevice implements GraphicsDevice {
     required int height,
     required TextureFormat format,
     required ByteData pixels,
+    List<ByteData>? mipLevels,
   }) {
     // RGBA8 is the only format the engine uploads from the CPU, and four bytes
     // a texel is the whole of the size question here — WebGL has no padding to
     // ask about, unlike Impeller's base mip size.
     if (pixels.lengthInBytes != width * height * 4) return null;
 
+    // **Allocated with the whole chain up front.** `texStorage2D` fixes the
+    // number of levels for the texture's life, and a level written into a
+    // texture allocated for one is an INVALID_OPERATION — dropped, with the
+    // frame coming back looking merely unfiltered. So the count is decided
+    // here and the levels are filled afterwards.
+    final levels = mipLevels == null ? 1 : mipLevels.length + 1;
     final handle = createTexture(RenderTargetSpec(
       width: width,
       height: height,
       format: format,
-    ));
+    ), levels: levels);
     final backend = handle.backend as WebGlTexture;
     _gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
-    _gl.texSubImage2D(
-      web.WebGLRenderingContext.TEXTURE_2D,
-      0,
-      0,
-      0,
-      width.toJS,
-      height.toJS,
-      web.WebGLRenderingContext.RGBA.toJS,
-      web.WebGLRenderingContext.UNSIGNED_BYTE,
-      pixels.buffer
-          .asUint8List(pixels.offsetInBytes, pixels.lengthInBytes)
-          .toJS,
-    );
+
+    void upload(int level, int w, int h, ByteData bytes) {
+      _gl.texSubImage2D(
+        web.WebGLRenderingContext.TEXTURE_2D,
+        level,
+        0,
+        0,
+        w.toJS,
+        h.toJS,
+        web.WebGLRenderingContext.RGBA.toJS,
+        web.WebGLRenderingContext.UNSIGNED_BYTE,
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
+      );
+    }
+
+    upload(0, width, height, pixels);
+    if (mipLevels != null) {
+      var w = width;
+      var h = height;
+      for (var i = 0; i < mipLevels.length; i++) {
+        w = w > 1 ? w >> 1 : 1;
+        h = h > 1 ? h >> 1 : 1;
+        upload(i + 1, w, h, mipLevels[i]);
+      }
+      // Without this the texture is incomplete for any minifying filter and
+      // samples as black — the same failure mode as the float-linear extension,
+      // and just as silent. `glGenerateMipmap` is deliberately not called: the
+      // levels are the engine's, identical on three backends, and generating a
+      // second set here would put this backend one filter away from the others.
+      _gl.texParameteri(web.WebGLRenderingContext.TEXTURE_2D,
+          web.WebGL2RenderingContext.TEXTURE_MAX_LEVEL, mipLevels.length);
+    }
     return handle;
   }
 

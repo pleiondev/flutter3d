@@ -100,6 +100,10 @@ final class CpuDevice implements GraphicsDevice {
   bool get supportsWireframe => false;
 
   @override
+  // See createTextureFromPixels: storage is not the missing part, selection is.
+  bool get supportsMipmaps => false;
+
+  @override
   TextureHandle createTexture(RenderTargetSpec spec) => TextureHandle(
         backend: CpuTexture(spec.width, spec.height, spec.format),
         width: spec.width,
@@ -115,7 +119,25 @@ final class CpuDevice implements GraphicsDevice {
     required int height,
     required TextureFormat format,
     required ByteData pixels,
+    List<ByteData>? mipLevels,
   }) {
+    if (mipLevels != null) {
+      // Refused, not ignored, and [supportsMipmaps] is what a caller should
+      // have asked. Storing a chain and sampling the base level would make
+      // this backend disagree with the other two by an amount that looks
+      // exactly like a filtering difference — which is the mistake
+      // `SamplerOptions.linearRepeat` already made once, at two percent of
+      // every textured golden.
+      //
+      // What is missing is level *selection*, not storage. Choosing a level
+      // needs the screen-space derivative of the texture coordinate, and this
+      // rasteriser has no semantics for its varyings: it interpolates a list of
+      // floats and does not know which pair of them is a UV.
+      throw UnsupportedError(
+        'this backend does not select mip levels yet, so it cannot hold a '
+        'chain. Ask supportsMipmaps before building one.',
+      );
+    }
     final expected = width * height * 4;
     if (pixels.lengthInBytes < expected) return null;
     final texture = CpuTexture(width, height, format);

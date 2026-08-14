@@ -86,6 +86,17 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// give the engine an offscreen target to use it on.
   bool get supportsOffscreenMsaa;
 
+  /// Whether a texture built with a hand-supplied mip chain samples correctly.
+  ///
+  /// Asked rather than assumed, and the failure it guards against is not a
+  /// missing feature but a silent one: flutter_gpu reports this as
+  /// `doesSupportManuallyMippedTextures`, and its own documentation says that
+  /// on OpenGL ES 2 devices without `GL_APPLE_texture_max_level` such a texture
+  /// **samples as black**. Not blurrier, not unfiltered — black. A caller that
+  /// did not ask would see an effect disappear on one class of device with
+  /// nothing logged anywhere.
+  bool get supportsMipmaps;
+
   /// Whether [PolygonMode.line] can be drawn.
   ///
   /// False on OpenGL ES, which has no `glPolygonMode` — wireframe there means
@@ -150,11 +161,25 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Null when [pixels] is not the size the device wants for a texture of that
   /// description — which is how a decoder that disagreed about the dimensions
   /// degrades to "no texture" rather than taking the whole model down.
+  ///
+  /// [mipLevels] are the smaller copies, from half size downwards, and the
+  /// texture is built with a chain exactly as long as the list. **They are
+  /// supplied rather than generated**, and that is the same lesson as
+  /// `linearRepeat`: WebGL2 has `glGenerateMipmap` and Impeller does not, so
+  /// letting each backend make its own chain is two backends agreeing by
+  /// accident and a third answering differently — at a scale nobody would
+  /// attribute to the filter. `MipChain.build` makes them once, above the seam,
+  /// and every backend uploads the same bytes.
+  ///
+  /// Ask [supportsMipmaps] first. A device that answers false is not merely
+  /// slower with a chain; on OpenGL ES 2 without `GL_APPLE_texture_max_level` a
+  /// hand-built chain samples as black.
   TextureHandle? createTextureFromPixels({
     required int width,
     required int height,
     required TextureFormat format,
     required ByteData pixels,
+    List<ByteData>? mipLevels,
   });
 
   /// Tells the backend a new frame is starting.
