@@ -66,6 +66,19 @@ final class MonsterSystem {
   /// Monsters that died this step, for effects and the kill counter.
   final List<Monster> died = <Monster>[];
 
+  /// Monsters that took damage this step and survived it.
+  ///
+  /// The counterpart to [died], and it was missing: a pain sound was declared,
+  /// preloaded and **never played**, because nothing anywhere could tell that a
+  /// monster had been hit. The caller knew it had fired and the system knew
+  /// what it had hit, and between them the fact went nowhere.
+  ///
+  /// A list cleared at the top of [step], like [died], rather than a stream: a
+  /// `Stream` delivers after the step that produced it, which breaks the one
+  /// property this package exists to protect, and allocates a subscription and
+  /// an event per hit sixty times a second.
+  final List<MonsterHurt> hurtThisStep = <MonsterHurt>[];
+
   Monster spawn(MonsterDef def, Vector3 position, {double yaw = 0.0}) {
     final monster = Monster(
       def: def,
@@ -104,6 +117,7 @@ final class MonsterSystem {
     _tick++;
     playerDamageThisStep = 0.0;
     died.clear();
+    hurtThisStep.clear();
 
     for (final monster in monsters) {
       if (monster.state == MonsterState.dead) {
@@ -249,6 +263,8 @@ final class MonsterSystem {
       return true;
     }
 
+    hurtThisStep.add(MonsterHurt(monster, amount));
+
     // Being shot is how a monster notices someone it could not see.
     monster.hasNoticed = true;
     if (monster.state == MonsterState.idle) {
@@ -259,6 +275,10 @@ final class MonsterSystem {
         _random.nextDouble() < monster.def.painChance) {
       _enter(monster, MonsterState.hurt);
       monster.painCooldown = monster.def.hurtDuration + monster.def.painCooldown;
+      // Recorded after the roll, so a caller can tell a monster that flinched
+      // from one that took the hit and kept coming — which is the difference
+      // between a grunt and a scream.
+      hurtThisStep.last.staggered = true;
     }
     return false;
   }
@@ -319,4 +339,25 @@ final class MonsterSystem {
     // behind it.
     return _sight.distance >= distance - 0.05;
   }
+}
+
+/// One monster taking damage and surviving it.
+///
+/// A record of a moment rather than a state: the monster is still there to be
+/// asked about its health, and what a caller wants from this is the *event* —
+/// a sound to play, a mark on the crosshair, a number floating up.
+final class MonsterHurt {
+  MonsterHurt(this.monster, this.amount);
+
+  final Monster monster;
+
+  /// How much it took, before armour if it had any.
+  final double amount;
+
+  /// Whether the hit made it flinch, which is a roll rather than a certainty.
+  ///
+  /// The difference between a grunt and a scream, and the reason this is a
+  /// record and not just the monster: by the time a caller looks, the state
+  /// machine has already moved on.
+  bool staggered = false;
 }

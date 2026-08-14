@@ -84,6 +84,44 @@ abstract base class Mechanism {
 
   /// Advances by [dt]. Called every simulation step, for every mechanism.
   void step(double dt) {}
+
+  /// Where this is, for anything that wants to make a noise there.
+  ///
+  /// Null for a mechanism with no place — a relay wired between two others is
+  /// somewhere in the level file and nowhere in the world.
+  Vector3? get origin => null;
+
+  /// Reports what happened to this mechanism since the last collection.
+  ///
+  /// Nothing by default, which is right for the ones that do their work by
+  /// switching something else on. See [MechanismWorld.publish] for why each
+  /// mechanism answers for itself rather than being interrogated.
+  void collect(MechanismEvents into) {}
+}
+
+/// What the level's machinery did during one step.
+final class MechanismEvents {
+  /// Movers that began travelling.
+  final List<Mechanism> started = <Mechanism>[];
+
+  /// Movers that arrived.
+  final List<Mechanism> stopped = <Mechanism>[];
+
+  /// Pickups collected.
+  final List<Mechanism> taken = <Mechanism>[];
+
+  /// Anything the level said to the player.
+  ///
+  /// A trigger fires from inside the collision dispatch, where there is nobody
+  /// to return an outcome to, so it parks one and this collects it.
+  final List<String> messages = <String>[];
+
+  void _clear() {
+    started.clear();
+    stopped.clear();
+    taken.clear();
+    messages.clear();
+  }
 }
 
 /// A mechanism that does nothing itself and switches something else on.
@@ -177,9 +215,36 @@ final class MechanismWorld {
     );
   }
 
+  /// What happened to the level's machinery this step.
+  ///
+  /// Filled by [publish]. Empty lists rather than nulls, and cleared rather
+  /// than replaced, so a caller that drains them every step allocates nothing.
+  final MechanismEvents events = MechanismEvents();
+
   void step(double dt) {
     for (var i = 0; i < _all.length; i++) {
       _all[i].step(dt);
+    }
+  }
+
+  /// Asks every mechanism what it did, for a caller that wants to make a noise
+  /// about it.
+  ///
+  /// **Called at the end of the simulation step, not from [step].** A button
+  /// pressed with the use key is activated *after* mechanisms have stepped, so
+  /// a door it starts is not yet moving when `step` returns — publishing there
+  /// would report it a step late, every time. It looks like a wart and it is
+  /// the honest shape: the end of the step is when the step's facts are in.
+  ///
+  /// **Each mechanism reports itself.** The application used to walk every
+  /// mechanism in the level, type-testing as it went, and hand-diff
+  /// `Mover.isMoving` against a map of sounds. Doing that here instead would
+  /// only move the switch: this world would have to know what a door and a
+  /// pickup are, and a game's own mechanism would have nowhere to report from.
+  void publish() {
+    events._clear();
+    for (var i = 0; i < _all.length; i++) {
+      _all[i].collect(events);
     }
   }
 

@@ -205,7 +205,8 @@ class _GameScreenState extends State<GameScreen>
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
   /// would be a stone slab that grinds for exactly as long as the sample.
-  final Map<Mover, SoundEmitter> _moverVoices = <Mover, SoundEmitter>{};
+  final Map<Mechanism, SoundEmitter> _moverVoices =
+      <Mechanism, SoundEmitter>{};
 
   MechanismWorld? _mechanisms;
   FixtureVisuals? _fixtureVisuals;
@@ -532,11 +533,12 @@ class _GameScreenState extends State<GameScreen>
 
     if (mechanisms != null) {
       if (_input.pressed(GameAction.use)) _use(body, mechanisms);
-      _collectMessages(mechanisms);
+      // Last, because the use key above can start a door: publishing before it
+      // would report that door a step late, every time.
+      mechanisms.publish();
+      _hearMechanisms(mechanisms);
     }
     if (_messageFor > 0.0) _messageFor = math.max(0.0, _messageFor - dt);
-
-    _hearMechanisms();
     _inventory.step(dt);
     for (final power in _inventory.expired) {
       _say('$power has run out.');
@@ -561,6 +563,15 @@ class _GameScreenState extends State<GameScreen>
         _kills++;
         _particles.burst(Effects.impactSparks, dead.position);
         _audio.play(Sounds.monsterDie, dead.position);
+      }
+      // `Sounds.monsterPain` was declared, preloaded and never played: nothing
+      // anywhere could tell that a monster had been hit and survived. Only the
+      // ones that flinched make a noise — a hit that did not stagger reads as
+      // a hit that did not land, and every hit screaming is worse than none.
+      for (final hurt in monsters.hurtThisStep) {
+        if (hurt.staggered) {
+          _audio.play(Sounds.monsterPain, hurt.monster.position);
+        }
       }
     }
 
@@ -668,49 +679,32 @@ class _GameScreenState extends State<GameScreen>
     _say(outcome.message);
   }
 
-  /// Anything the level said to the player during the physics step.
-  ///
-  /// A trigger fires from inside the collision dispatch, where there is nobody
-  /// to return an outcome to, so it parks one and this collects it.
-  void _collectMessages(MechanismWorld mechanisms) {
-    for (final mechanism in mechanisms.all) {
-      if (mechanism is TriggerVolume) {
-        _say(mechanism.takeOutcome()?.message);
-      } else if (mechanism is Pickup && mechanism.justTaken) {
-        _audio.play(Sounds.pickup, mechanism.collider.position);
-        _say(mechanism.message);
-      }
-    }
-  }
-
   /// Grinding stone while a mover travels, and a thud when it stops.
   ///
-  /// Diffed against what was sounding last step rather than driven by events,
-  /// because a mover has no events — it has a position that changes, and the
-  /// only honest question to ask it is whether it is moving now.
-  void _hearMechanisms() {
-    final mechanisms = _mechanisms;
-    if (mechanisms == null) return;
+  /// Driven by events now. It used to walk every mechanism in the level each
+  /// step, type-test for a `Mover` and diff `isMoving` against this map by
+  /// hand — the comment there said "a mover has no events", and it has them
+  /// now. What is left here is the part that genuinely is per-frame: a sound
+  /// already playing follows the thing making it.
+  void _hearMechanisms(MechanismWorld mechanisms) {
+    for (final started in mechanisms.events.started) {
+      _moverVoices[started] =
+          _audio.play(Sounds.stoneMove, started.origin ?? _eye);
+    }
+    for (final stopped in mechanisms.events.stopped) {
+      _moverVoices.remove(stopped)?.stop();
+      _audio.play(Sounds.stoneStop, stopped.origin ?? _eye);
+    }
+    for (final entry in _moverVoices.entries) {
+      final at = entry.key.origin;
+      if (at != null) entry.value.position.setFrom(at);
+    }
 
-    for (final mechanism in mechanisms.all) {
-      if (mechanism is! Mover) continue;
-      final voice = _moverVoices[mechanism];
-
-      if (mechanism.isMoving) {
-        if (voice == null) {
-          _moverVoices[mechanism] =
-              _audio.play(Sounds.stoneMove, mechanism.collider.position);
-        } else {
-          voice.position.setFrom(mechanism.collider.position);
-        }
-        continue;
-      }
-
-      if (voice != null) {
-        voice.stop();
-        _moverVoices.remove(mechanism);
-        _audio.play(Sounds.stoneStop, mechanism.collider.position);
-      }
+    for (final taken in mechanisms.events.taken) {
+      _audio.play(Sounds.pickup, taken.origin ?? _eye);
+    }
+    for (final said in mechanisms.events.messages) {
+      _say(said);
     }
   }
 

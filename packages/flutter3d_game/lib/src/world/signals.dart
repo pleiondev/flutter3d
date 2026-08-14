@@ -1,3 +1,5 @@
+import 'package:vector_math/vector_math.dart';
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'gift.dart';
 import 'inventory.dart';
@@ -60,6 +62,12 @@ final class TriggerVolume extends Signal with CollisionListener {
   /// A trigger fires from inside the physics step, where there is nobody to
   /// return an outcome to; the game reads this afterwards. Cleared on read so
   /// a message shows once rather than for as long as the player stands there.
+  @override
+  void collect(MechanismEvents into) {
+    final said = takeOutcome()?.message;
+    if (said != null) into.messages.add(said);
+  }
+
   ActivationOutcome? takeOutcome() {
     final outcome = _outcome;
     _outcome = null;
@@ -117,6 +125,17 @@ final class Pickup extends Mechanism with CollisionListener {
 
   /// True on the step it was collected, so the game can say so once.
   bool justTaken = false;
+
+  @override
+  Vector3 get origin => collider.position;
+
+  @override
+  void collect(MechanismEvents into) {
+    if (!justTaken) return;
+    into.taken.add(this);
+    final said = message;
+    if (said != null) into.messages.add(said);
+  }
 
   /// What to tell the player about it, valid on the step it was taken.
   String? message;

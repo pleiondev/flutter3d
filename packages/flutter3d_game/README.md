@@ -80,6 +80,27 @@ to stand on, something to see by.
 asks by name. It stays in the package for the tests, two hundred of which are
 written against those numbers.
 
+## Events
+
+Each system fills a list during the step and a caller drains it after —
+`MonsterSystem.died` and `hurtThisStep`, `ProjectileSystem.detonations`, and
+`MechanismWorld.events` once `publish()` has been called.
+
+Lists rather than streams, and the reason is the fixed step: a `Stream`
+delivers *after* the step that produced the event, which is the one property
+this package exists to protect. A list cleared at the top of each step is
+synchronous, typed, and allocates nothing.
+
+**Each mechanism reports itself** — `Mechanism.collect` — rather than the world
+type-testing its members. That is the same rule `Gift` and `EntityKind` already
+follow, and it is what lets a game's own mechanism report events the package
+has never heard of.
+
+`publish()` is called at the *end* of the simulation step, not from `step()`. A
+button pressed with the use key runs after mechanisms have stepped, so a door
+it starts is not yet moving when `step` returns; publishing there would report
+every such door a step late.
+
 ## Layers
 
 `CollisionLayers` names the bits — `world`, `player`, `monster`, `pickup`,

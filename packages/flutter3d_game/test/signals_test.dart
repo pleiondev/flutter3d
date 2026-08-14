@@ -71,6 +71,8 @@ Pickup _key(({MechanismWorld mechanisms, CollisionWorld world}) w, Vector3 at) =
     );
 
 void main() {
+  _eventTests();
+
   group('a button', () {
     test('fires what it points at', () {
       final w = _world();
@@ -380,6 +382,111 @@ void main() {
         ),
         isNull,
       );
+    });
+  });
+}
+
+/// What the level's machinery reports about itself.
+///
+/// Replaces a walk the application used to do by hand over every mechanism in
+/// the level, type-testing as it went and diffing `Mover.isMoving` against a
+/// map of sounds. The comment there said "a mover has no events"; it has now,
+/// and each mechanism reports its own rather than being interrogated.
+Collider _eventBox(CollisionWorld world) => world.add(
+      Collider(
+        shape: CollisionBox(Vector3(2.0, 3.0, 0.3)),
+        position: Vector3(4.0, 1.0, 0.0),
+        kind: ColliderKind.kinematic,
+      ),
+    );
+
+/// A mechanism that is nowhere, which the base class allows.
+final class _Placeless extends Mechanism {
+  @override
+  ActivationOutcome activate(Activation by) => const NothingToDo();
+}
+
+void _eventTests() {
+  group('published events', () {
+    test('a door started by a button is reported in that step, not the next',
+        () {
+      // The reason `publish()` is not called from `step()`. A button pressed
+      // with the use key is activated *after* mechanisms have stepped, so the
+      // door it starts is not yet moving when `step` returns.
+      //
+      // Mutation: call `publish()` at the end of `MechanismWorld.step`. The
+      // door then appears one step late and this fails.
+      final world = CollisionWorld();
+      final mechanisms = MechanismWorld(world);
+      final door = Door(
+        name: 'door',
+        collider: _eventBox(world),
+        travel: Vector3(0, 3, 0),
+        speed: 2.0,
+      );
+      mechanisms.add(door);
+
+      mechanisms.step(1 / 60);
+      mechanisms.publish();
+      expect(mechanisms.events.started, isEmpty);
+
+      // The use key, after the step — which is where the application puts it.
+      door.activate(const Activation());
+      mechanisms.publish();
+
+      expect(mechanisms.events.started, <Mechanism>[door]);
+    });
+
+    test('a mover that keeps going is reported once, not every step', () {
+      final world = CollisionWorld();
+      final mechanisms = MechanismWorld(world);
+      final door = Door(
+        name: 'door',
+        collider: _eventBox(world),
+        travel: Vector3(0, 3, 0),
+        speed: 1.0,
+      );
+      mechanisms.add(door);
+      door.activate(const Activation());
+
+      var starts = 0;
+      for (var i = 0; i < 30; i++) {
+        mechanisms.step(1 / 60);
+        mechanisms.publish();
+        starts += mechanisms.events.started.length;
+      }
+
+      expect(starts, 1, reason: 'a grinding sound restarted every step');
+      expect(mechanisms.events.stopped, isEmpty, reason: 'still travelling');
+    });
+
+    test('and reported stopped exactly once when it arrives', () {
+      final world = CollisionWorld();
+      final mechanisms = MechanismWorld(world);
+      final door = Door(
+        name: 'door',
+        collider: _eventBox(world),
+        travel: Vector3(0, 1, 0),
+        speed: 4.0,
+      );
+      mechanisms.add(door);
+      door.activate(const Activation());
+
+      var stops = 0;
+      for (var i = 0; i < 120; i++) {
+        mechanisms.step(1 / 60);
+        mechanisms.publish();
+        stops += mechanisms.events.stopped.length;
+      }
+
+      expect(stops, 1);
+    });
+
+    test('a mechanism with no place reports none', () {
+      // `origin` is nullable because a mechanism need not be anywhere: a relay
+      // wired between two others is in the level file and nowhere in the world.
+      // The base class answers null, and a caller placing a sound has to cope.
+      expect(_Placeless().origin, isNull);
     });
   });
 }

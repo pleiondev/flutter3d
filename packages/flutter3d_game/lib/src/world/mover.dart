@@ -87,6 +87,24 @@ abstract base class Mover extends Mechanism {
 
   bool get isMoving => _progress != goal;
 
+  /// What [isMoving] said when this last reported itself.
+  ///
+  /// On the mover rather than in a set held by the world: it is this object's
+  /// own history, and a `Set<Mover>` rebuilt every step allocates for a level
+  /// whose doors are almost always still.
+  bool _wasMoving = false;
+
+  @override
+  Vector3 get origin => collider.position;
+
+  @override
+  void collect(MechanismEvents into) {
+    final moving = isMoving;
+    if (moving == _wasMoving) return;
+    _wasMoving = moving;
+    (moving ? into.started : into.stopped).add(this);
+  }
+
   /// Whether backing off when it meets a body is the right answer.
   ///
   /// True for a door, because a door that closes on the player is a door that
