@@ -1,8 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
 import '../actors/monster.dart';
-import '../physics/collider.dart';
-import '../physics/collision_shape.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import '../world/gift.dart';
 import '../world/light_fixture.dart';
 import '../world/mover.dart';
@@ -10,6 +9,7 @@ import '../world/signals.dart';
 import 'level.dart';
 import 'level_issue.dart';
 import 'spawn_context.dart';
+import '../physics/layers.dart';
 
 /// Everything one kind of level entity knows about itself.
 ///

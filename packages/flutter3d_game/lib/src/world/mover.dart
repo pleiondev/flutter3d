@@ -2,8 +2,9 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-import '../physics/collider.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'mechanism.dart';
+import '../physics/layers.dart';
 
 /// Where a mover is in its trip.
 ///

@@ -41,8 +41,9 @@ export 'src/world/mover.dart';
 export 'src/world/signals.dart';
 export 'src/level/level_validator.dart';
 export 'src/loop/interpolated.dart';
-export 'src/physics/character_controller.dart';
-export 'src/physics/collider.dart';
-export 'src/physics/collision_shape.dart';
-export 'src/physics/collision_world.dart';
-export 'src/physics/spatial_grid.dart';
+// Collision and character movement are their own package now — plain Dart, no
+// Flutter, no renderer. Re-exported so that a game depending on this one still
+// gets a working world from a single import, which is what it was doing before
+// the split.
+export 'package:flutter3d_physics/flutter3d_physics.dart';
+export 'src/physics/layers.dart';

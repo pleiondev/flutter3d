@@ -89,7 +89,10 @@ final class CharacterController {
     CollisionShape? shape,
     Vector3? position,
     this.tuning = const MovementTuning(),
-    int layer = CollisionLayers.player,
+    // Bit one, which a game usually calls its player — a controller is what a
+    // game drives an actor with. Named at the call site rather than here, for
+    // the reason on [Layers].
+    int layer = 1 << 1,
   })  : shape = shape ?? CollisionBox(Vector3(0.35, 0.9, 0.35)),
         position = position?.clone() ?? Vector3.zero() {
     // The body registers itself, so monsters see the player as an obstacle and

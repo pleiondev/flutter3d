@@ -1,11 +1,10 @@
 import 'package:vector_math/vector_math.dart';
 
-import '../physics/collider.dart';
-import '../physics/collision_shape.dart';
-import '../physics/collision_world.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'level.dart';
 import 'level_validator.dart';
 import 'spawn_context.dart';
+import '../physics/layers.dart';
 
 /// Building the physical side of a level.
 ///

@@ -27,24 +27,25 @@ enum ColliderKind {
   trigger,
 }
 
-/// Bit flags deciding which colliders see each other.
+/// The one layer constant that means the same thing in every game.
 ///
-/// A collider takes part in a test when each side is in the other's mask. That
-/// is what keeps a rocket from colliding with the player who fired it, a
-/// monster from blocking a hitscan meant for the wall behind it, and a
-/// player-only trigger from firing when a monster walks over it.
-abstract final class CollisionLayers {
-  static const int world = 1 << 0;
-  static const int player = 1 << 1;
-  static const int monster = 1 << 2;
-  static const int projectile = 1 << 3;
-  static const int pickup = 1 << 4;
-  static const int trigger = 1 << 5;
-
+/// A collider takes part in a test when each side is in the other's mask —
+/// that rule is this package's, and it is what keeps a rocket from colliding
+/// with the player who fired it and a player-only trigger from firing when
+/// something else walks over it.
+///
+/// **Which bit means what is not this package's business.** This class used to
+/// name `world`, `player`, `monster`, `projectile`, `pickup` and `trigger`,
+/// which was three names too many the moment a collision world stopped being
+/// part of one game. A game declares its own; see `CollisionLayers` in
+/// `flutter3d_game`, which still names those five and forwards [all] here.
+///
+/// Two of the old six went nowhere: `projectile` and `solid` had no user
+/// anywhere in the workspace, so they were deleted rather than moved.
+abstract final class Layers {
+  /// Every bit set. The default mask: see everything, and let the other side
+  /// decide whether it wants to be seen.
   static const int all = 0xFFFFFFFF;
-
-  /// Everything solid enough to stop a body.
-  static const int solid = world | player | monster;
 }
 
 /// Told when colliders begin, continue and stop overlapping.
@@ -71,8 +72,11 @@ final class Collider {
     required this.shape,
     Vector3? position,
     this.kind = ColliderKind.static,
-    this.layer = CollisionLayers.world,
-    this.mask = CollisionLayers.all,
+    // Bit zero, which a game usually calls its world. Written as a number
+    // because naming it here is the mistake this package was extracted to
+    // stop making.
+    this.layer = 1 << 0,
+    this.mask = Layers.all,
     CollisionListener? listener,
     this.userData,
   }) : position = position?.clone() ?? Vector3.zero() {

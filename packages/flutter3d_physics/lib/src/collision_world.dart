@@ -324,7 +324,7 @@ final class CollisionWorld {
     Vector3 origin,
     Vector3 delta,
     SweepHit out, {
-    int mask = CollisionLayers.all,
+    int mask = Layers.all,
     Collider? ignore,
   }) {
     out.reset();
@@ -457,7 +457,7 @@ final class CollisionWorld {
     Vector3 direction,
     double maxDistance,
     RayHit out, {
-    int mask = CollisionLayers.all,
+    int mask = Layers.all,
     Collider? ignore,
     bool includeTriggers = false,
   }) {
@@ -508,7 +508,7 @@ final class CollisionWorld {
     CollisionShape shape,
     Vector3 position,
     List<Collider> out, {
-    int mask = CollisionLayers.all,
+    int mask = Layers.all,
     Collider? ignore,
     bool includeTriggers = true,
   }) {
@@ -553,7 +553,7 @@ final class CollisionWorld {
     Vector3 centre,
     Vector3 halfExtents,
     Vector3 out, {
-    int mask = CollisionLayers.all,
+    int mask = Layers.all,
     Collider? ignore,
   }) {
     out.setZero();

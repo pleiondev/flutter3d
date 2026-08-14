@@ -2,8 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../actors/monster.dart';
 import '../actors/monster_system.dart';
-import '../physics/collider.dart';
-import '../physics/collision_world.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import '../world/mechanism.dart';
 import 'level.dart';
 

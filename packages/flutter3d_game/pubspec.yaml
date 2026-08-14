@@ -15,6 +15,12 @@ dependencies:
   mouse_capture:
     path: ../mouse_capture
 
+  # Collision, queries and the character controller. Extracted because it
+  # imported nothing from here, and because a collision world that knows what a
+  # monster is cannot be used by a game that has none.
+  flutter3d_physics:
+    path: ../flutter3d_physics
+
   vector_math: ^2.2.0
 
 dev_dependencies:

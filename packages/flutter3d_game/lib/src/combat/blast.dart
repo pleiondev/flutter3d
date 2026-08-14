@@ -1,8 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
-import '../physics/collider.dart';
-import '../physics/collision_shape.dart';
-import '../physics/collision_world.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import '../physics/layers.dart';
 
 /// An explosion's shape: how far it reaches and how hard.
 final class Blast {

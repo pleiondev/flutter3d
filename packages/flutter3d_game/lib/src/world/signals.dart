@@ -1,4 +1,4 @@
-import '../physics/collider.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'gift.dart';
 import 'inventory.dart';
 import 'mechanism.dart';

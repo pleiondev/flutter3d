@@ -5,9 +5,9 @@ import 'package:vector_math/vector_math.dart';
 import '../combat/hitscan.dart';
 import '../combat/projectile.dart';
 import '../combat/weapon_behaviour.dart';
-import '../physics/collider.dart';
-import '../physics/collision_world.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'monster.dart';
+import '../physics/layers.dart';
 
 /// Everything that wants to kill the player, and the rules it follows.
 ///

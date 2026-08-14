@@ -5,7 +5,7 @@ import 'package:flutter3d_game/src/level/level.dart';
 import 'package:flutter3d_game/src/level/entity_kind.dart';
 import 'package:flutter3d_game/src/level/level_collision.dart';
 import 'package:flutter3d_game/src/level/level_validator.dart';
-import 'package:flutter3d_game/src/physics/collision_world.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

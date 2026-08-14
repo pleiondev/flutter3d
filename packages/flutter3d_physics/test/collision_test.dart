@@ -1,8 +1,20 @@
-import 'package:flutter3d_game/src/physics/collider.dart';
-import 'package:flutter3d_game/src/physics/collision_shape.dart';
-import 'package:flutter3d_game/src/physics/collision_world.dart';
-import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
+
+/// Layer names for these tests, because the package deliberately has none.
+///
+/// The point of the extraction: a collision world cannot know what a monster
+/// is, so "monster" is a bit a caller chose — here, a test. `Layers.all` is the
+/// only constant the package keeps, because every bit means the same thing
+/// everywhere.
+abstract final class _Layer {
+  static const int world = 1 << 0;
+  static const int player = 1 << 1;
+  static const int monster = 1 << 2;
+  static const int trigger = 1 << 5;
+}
+
 
 /// Records what it was told, so a test can assert on the sequence.
 final class _Recorder with CollisionListener {
@@ -222,7 +234,7 @@ void main() {
         Collider(
           shape: CollisionBox(Vector3.all(1.0)),
           position: Vector3(0.0, 0.0, -3.0),
-          layer: CollisionLayers.monster,
+          layer: _Layer.monster,
           userData: 'monster',
         ),
       );
@@ -234,7 +246,7 @@ void main() {
           Vector3(0.0, 0.0, -1.0),
           50.0,
           hit,
-          mask: CollisionLayers.world,
+          mask: _Layer.world,
         ),
         isFalse,
       );
@@ -244,7 +256,7 @@ void main() {
           Vector3(0.0, 0.0, -1.0),
           50.0,
           hit,
-          mask: CollisionLayers.monster,
+          mask: _Layer.monster,
         ),
         isTrue,
       );
@@ -377,7 +389,7 @@ void main() {
           shape: CollisionBox(Vector3.all(1.0)),
           position: Vector3.zero(),
           kind: ColliderKind.trigger,
-          layer: CollisionLayers.trigger,
+          layer: _Layer.trigger,
           userData: 'zone',
         ),
       );
@@ -386,7 +398,7 @@ void main() {
           shape: CollisionSphere(0.3),
           position: Vector3(10.0, 0.0, 0.0),
           kind: ColliderKind.kinematic,
-          layer: CollisionLayers.player,
+          layer: _Layer.player,
           listener: recorder,
           userData: 'player',
         ),
@@ -416,7 +428,7 @@ void main() {
           shape: CollisionBox(Vector3.all(0.5)),
           position: Vector3.zero(),
           kind: ColliderKind.kinematic,
-          layer: CollisionLayers.monster,
+          layer: _Layer.monster,
           listener: other,
           userData: 'monster',
         ),
@@ -436,7 +448,7 @@ void main() {
     });
 
     test('layers keep unrelated colliders from reporting each other', () {
-      walker.mask = CollisionLayers.world;
+      walker.mask = _Layer.world;
       walker.moveTo(Vector3.zero());
       world.update();
 

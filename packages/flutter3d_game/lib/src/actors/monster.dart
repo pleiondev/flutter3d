@@ -4,11 +4,9 @@ import 'package:vector_math/vector_math.dart';
 
 import '../combat/weapon.dart';
 import '../combat/weapon_behaviour.dart';
-import '../physics/character_controller.dart';
-import '../physics/collider.dart';
-import '../physics/collision_shape.dart';
-import '../physics/collision_world.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'health.dart';
+import '../physics/layers.dart';
 
 /// What a monster is doing.
 ///

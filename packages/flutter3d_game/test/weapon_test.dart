@@ -2,11 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game/src/combat/hitscan.dart';
 import 'package:flutter3d_game/src/combat/weapon.dart';
-import 'package:flutter3d_game/src/physics/collider.dart';
-import 'package:flutter3d_game/src/physics/collision_shape.dart';
-import 'package:flutter3d_game/src/physics/collision_world.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_game/src/physics/layers.dart';
 
 const double _dt = 1.0 / 60.0;
 
