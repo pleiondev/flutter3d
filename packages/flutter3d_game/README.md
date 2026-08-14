@@ -26,6 +26,8 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 | `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
 | `actors/` | `Health`, `MonsterDef`, `MonsterSystem`, `Player` (body, eye, aim), `Damageable` |
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
+| `ecs/` | `EcsWorld`, `Entity`. **Nothing uses it yet** — see below |
+| `save/` | `Snapshot`, `GameRandom` |
 | `physics/` | Only the layer names. Collision itself is [`flutter3d_physics`](../flutter3d_physics), a plain Dart package |
 
 ## The order a step runs in
@@ -202,6 +204,28 @@ The determinism test that goes with it found a real defect on its first run:
 monster thinking was staggered across steps by `Object.hashCode`, which is an
 address, so two runs of the same game with the same seed diverged. It is an
 ordinal now.
+
+## The ECS, and what it is not yet
+
+`EcsWorld` exists and is tested and **no system in this package uses it.** That
+is worth saying plainly rather than leaving to be discovered.
+
+It was accepted for one reason, recorded in `docs/SPEC.md`: replication. A
+snapshot with delta compression needs state enumerable in one place, and the
+`GameSimulation.save()` above enumerates it by hand — a line per subsystem,
+which will silently miss the next one. `EcsWorld.save()` cannot miss one: a
+component type that is neither registered nor deliberately excluded throws,
+naming itself.
+
+It is not accepted for cache locality, and does not deliver any: components
+live in maps keyed by entity index. The condition that would change that is
+written in the file — a query walking thousands of entities per step, showing
+up in a profile — so it is a measurement later rather than a preference.
+
+**Building it before the migration rather than during** is deliberate. A core
+written while systems are being rewritten on top of it is a core whose bugs
+look like migration bugs. This one has sixteen tests and six mutations, so when
+the first system moves across, anything that breaks is the system.
 
 ## Events
 

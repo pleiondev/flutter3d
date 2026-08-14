@@ -25,6 +25,8 @@ export 'src/combat/weapon_behaviour.dart';
 export 'src/input/desktop_input.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
+export 'src/ecs/ecs_world.dart';
+export 'src/ecs/entity.dart';
 export 'src/loop/simulation.dart';
 export 'src/save/game_random.dart';
 export 'src/save/snapshot.dart';
