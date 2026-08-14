@@ -331,7 +331,23 @@ abstract interface class PassEncoder {
 
   /// Draws what is bound. Always indexed — there is no non-indexed path in this
   /// engine, which is why the debug overlay keeps an identity index sequence.
-  void draw();
+  ///
+  /// [instanceCount] draws the bound geometry that many times, with the vertex
+  /// stage seeing an instance index and reading any attribute whose
+  /// [BufferLayout.stepMode] is [VertexStepMode.instance] from a per-instance
+  /// buffer. One means an ordinary draw and is the only value anything asked
+  /// for before mesh particles.
+  ///
+  /// **The one count that belongs to the draw rather than to a binding.** Every
+  /// other count here travels with the thing it counts — vertices with the
+  /// vertex buffer, indices with the index buffer — because that is where it is
+  /// known. An instance count is not a property of any buffer: the same mesh and
+  /// the same instance buffer can be drawn a hundred times or ten.
+  ///
+  /// Zero draws nothing, which matters because the number usually comes from a
+  /// live population: a particle system with nothing alive should not be a
+  /// special case at every call site.
+  void draw({int instanceCount = 1});
 }
 
 /// A pass somebody opened, and must therefore close.

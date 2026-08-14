@@ -92,7 +92,84 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
       (name: 'the bundle answers to every name the engine asks for',
           run: _shaderNames),
       (name: 'a stage pair the engine links does link', run: _linking),
+      (name: 'an instanced draw draws every instance', run: _instancedDraw),
     ];
+
+/// `draw(instanceCount: n)` puts the geometry down n times.
+///
+/// Additive and coincident, so the answer is one number: three instances of a
+/// quarter-brightness triangle read back at three quarters, and one instance
+/// reads back at a quarter. A backend that ignores the count fails on the first
+/// number, and one that draws the wrong number of them fails on the ratio.
+///
+/// **Worth a conformance check rather than a golden**, because the three
+/// backends reach instancing three different ways — Impeller passes the count
+/// to `drawIndexed`, WebGL2 switches to `drawElementsInstanced` and has to
+/// manage attribute divisors that are sticky per location, and the software
+/// backend repeats the whole rasterisation. A golden would catch it on one
+/// backend and only for scenes that happen to use it.
+Future<void> _instancedDraw(GraphicsDevice device) async {
+  const size = 16;
+
+  Future<double> brightnessWith(int instances) async {
+    final target = device.createTexture(const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ));
+    final vertex = device.shaders['DebugLineVertex'];
+    final fragment = device.shaders['DebugLine'];
+    require(vertex != null && fragment != null,
+        'the debug-line stages are missing, so this cannot draw anything');
+
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ));
+    pass
+      ..bindPipeline(device.createPipeline(vertex!, fragment!))
+      ..setPrimitiveType(PrimitiveType.triangle)
+      ..setCullMode(CullMode.none)
+      ..setBlend(BlendState.additive)
+      ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+        'view_projection': Float32List.fromList(Matrix4.identity().storage),
+      });
+
+    // One triangle covering the target at a quarter brightness. The same shape
+    // the depth-write reproduction uses, for the same reason: the arithmetic is
+    // checkable by eye.
+    final one = Float32List.fromList(<double>[
+      -1, -1, 0.5, 0.25, 0, 0, 1, //
+      3, -1, 0.5, 0.25, 0, 0, 1,
+      -1, 3, 0.5, 0.25, 0, 0, 1,
+    ]);
+    final indices = Uint16List.fromList(<int>[0, 1, 2]);
+    pass
+      ..bindVertexData(ByteData.sublistView(one), 3)
+      ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
+      ..draw(instanceCount: instances)
+      ..submit();
+
+    final pixels = await device.readPixels(target);
+    require(pixels != null, 'the target could not be read back');
+    return pixels!.buffer.asUint8List()[0] / 255.0;
+  }
+
+  final once = await brightnessWith(1);
+  require((once - 0.25).abs() < 0.02,
+      'a single instance drew $once where a quarter was expected, so this '
+      'check cannot say anything about three');
+
+  final thrice = await brightnessWith(3);
+  require((thrice - 0.75).abs() < 0.02,
+      'three instances drew $thrice where three quarters was expected — the '
+      'count was ignored, or applied the wrong number of times');
+}
 
 
 Future<void> _capabilities(GraphicsDevice device) async {

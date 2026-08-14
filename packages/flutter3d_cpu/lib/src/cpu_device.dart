@@ -432,7 +432,23 @@ final class CpuEncoder implements CommandEncoder {
   }
 
   @override
-  void draw() {
+  void draw({int instanceCount = 1}) {
+    // Honestly, and to no advantage — which is the point. A scene the software
+    // backend refuses to draw is a scene with no cross-backend check, and the
+    // two most expensive bugs this repository has found were both found by
+    // exactly that check.
+    //
+    // With no attribute stepping per instance there is nothing to vary yet, so
+    // every repetition puts the same triangles in the same places. That is not
+    // a stub: it is what an instanced draw of geometry with no per-instance
+    // attributes means on any backend. The instance *index* arrives with the
+    // vertex layouts that give a stage something to read it for.
+    for (var instance = 0; instance < instanceCount; instance++) {
+      _drawOnce();
+    }
+  }
+
+  void _drawOnce() {
     final pipeline = _pipeline;
     final vertices = _vertices;
     if (pipeline == null || vertices == null) return;

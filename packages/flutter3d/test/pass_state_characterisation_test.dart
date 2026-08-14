@@ -47,7 +47,11 @@ String? _describe(Recorded command) => switch (command) {
       RecordedBlend(:final state) =>
         'blend ${state == null ? 'off' : '${state.sourceColorFactor.name}/'
             '${state.destinationColorFactor.name}'}',
-      RecordedDraw() => 'draw',
+      // Unadorned at one instance, so the snapshots below stay the sequences
+      // they were before instancing existed and a reader can see at a glance
+      // that nothing in the renderer became an instanced draw by accident.
+      RecordedDraw(:final instanceCount) =>
+        instanceCount == 1 ? 'draw' : 'draw ×$instanceCount',
       _ => null,
     };
 

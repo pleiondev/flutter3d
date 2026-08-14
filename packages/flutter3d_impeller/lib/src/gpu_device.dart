@@ -479,9 +479,9 @@ final class _GpuCommandEncoder implements CommandEncoder {
   }
 
   @override
-  void draw() {
-    if (_indexCount == 0) return;
-    _pass.drawIndexed(_indexCount);
+  void draw({int instanceCount = 1}) {
+    if (_indexCount == 0 || instanceCount <= 0) return;
+    _pass.drawIndexed(_indexCount, instanceCount: instanceCount);
   }
 
   @override

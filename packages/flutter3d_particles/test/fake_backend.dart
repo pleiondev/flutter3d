@@ -29,7 +29,12 @@ sealed class Recorded {
 }
 
 final class RecordedDraw extends Recorded {
-  const RecordedDraw();
+  const RecordedDraw({this.instanceCount = 1});
+
+  /// How many instances the draw asked for. One for every draw this engine
+  /// made before mesh particles, which is why the characterisation snapshots
+  /// print `draw` unadorned unless it is anything else.
+  final int instanceCount;
 }
 
 final class RecordedPipeline extends Recorded {
@@ -244,7 +249,8 @@ final class FakePass implements CommandEncoder {
   void clearBindings() => commands.add(const RecordedClearBindings());
 
   @override
-  void draw() => commands.add(const RecordedDraw());
+  void draw({int instanceCount = 1}) =>
+      commands.add(RecordedDraw(instanceCount: instanceCount));
 
   @override
   void submit() => submitted = true;

@@ -954,8 +954,19 @@ final class WebGlEncoder implements CommandEncoder {
   }
 
   @override
-  void draw() {
-    _gl.drawElements(_primitive, _indexCount, indexTypeToGl(_indexType), 0);
+  void draw({int instanceCount = 1}) {
+    if (instanceCount <= 0) return;
+    if (instanceCount == 1) {
+      // Not `drawElementsInstanced` with a count of one. They are specified to
+      // draw the same thing, but this path is every draw the engine has made
+      // until now, and a golden that moves because a non-instanced draw quietly
+      // became an instanced one would be a very expensive way to learn that a
+      // driver disagrees with the specification.
+      _gl.drawElements(_primitive, _indexCount, indexTypeToGl(_indexType), 0);
+    } else {
+      _gl.drawElementsInstanced(
+          _primitive, _indexCount, indexTypeToGl(_indexType), 0, instanceCount);
+    }
     // A draw consumes the bindings that were set for it, in the sense that the
     // next one rebinds from scratch. Unit counters reset so a pass with many
     // draws does not run out of texture units.
