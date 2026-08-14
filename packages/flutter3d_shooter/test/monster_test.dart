@@ -2,20 +2,16 @@ import 'dart:math' as math;
 
 import 'package:flutter3d_game/src/actors/damageable.dart';
 import 'package:flutter3d_game/src/actors/health.dart';
-import 'package:flutter3d_game/src/actors/player.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter3d_game/src/world/key_ring.dart';
 
 import 'package:flutter3d_game/src/actors/actor.dart';
 import 'package:flutter3d_game/src/actors/actor_system.dart';
-import 'package:flutter3d_game/shooter.dart';
-import 'package:flutter3d_game/src/combat/hitscan.dart';
-import 'package:flutter3d_game/src/combat/projectile.dart';
-import 'package:flutter3d_game/src/combat/weapon_behaviour.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 import 'package:flutter3d_game/src/physics/layers.dart';
-import 'package:flutter3d_game/sample.dart';
+import 'package:flutter3d_shooter/sample.dart';
 
 /// What an actor is doing, for a game whose actors are monsters.
 ///

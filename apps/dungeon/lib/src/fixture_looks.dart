@@ -1,8 +1,9 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:vector_math/vector_math.dart';
-import 'package:flutter3d_game/sample.dart';
+import 'package:flutter3d_shooter/sample.dart';
 
 /// What this game's fixtures look like.
 ///
@@ -151,6 +152,17 @@ final class DungeonFixtures implements FixtureAppearance {
     }
     return LevelMaterial(baseColor: Vector4(0.45, 0.42, 0.38, 1.0));
   }
+
+  /// A collected pickup is gone, and the node with it.
+  @override
+  bool isSpent(Fixture fixture) {
+    final mechanism = fixture.mechanism;
+    return mechanism is Pickup && mechanism.isTaken;
+  }
+
+  /// Pickups turn. Doors, lifts, buttons and torches do not.
+  @override
+  bool spins(Fixture fixture) => fixture.mechanism is Pickup;
 
   static final Map<String, Vector4> _keyColours = <String, Vector4>{
     'blue': Vector4(0.20, 0.42, 0.95, 1.0),

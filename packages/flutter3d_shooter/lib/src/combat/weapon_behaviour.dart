@@ -2,11 +2,10 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'hitscan.dart';
 import 'projectile.dart';
 import 'weapon.dart';
-import '../physics/layers.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 
 /// One shot, from where it starts to what it reached.
 ///

@@ -10,14 +10,11 @@
 /// red. The permutation is named in each.
 library;
 
-import 'package:flutter3d_game/src/actors/player.dart';
-import 'package:flutter3d_game/src/combat/projectile.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter3d_game/src/input/game_action.dart';
 import 'package:flutter3d_game/src/input/input_state.dart';
-import 'package:flutter3d_game/src/loop/simulation.dart';
 import 'package:flutter3d_game/src/physics/layers.dart';
 import 'package:flutter3d_game/src/world/exit.dart';
-import 'package:flutter3d_game/src/world/inventory.dart';
 import 'package:flutter3d_game/src/world/mechanism.dart';
 import 'package:flutter3d_game/src/world/mover.dart';
 import 'package:flutter3d_game/src/world/signals.dart';

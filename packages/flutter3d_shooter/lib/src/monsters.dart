@@ -1,21 +1,25 @@
-/// The parts of a first-person shooter that are not parts of an engine.
+/// Monsters: what they are, and the one brain this game gives them.
 ///
-/// **Not exported from `flutter3d_game.dart`.** A game imports this by name if
-/// it is a shooter, and a platformer does not — which is the whole reason the
-/// file exists. Everything here used to live in `lib/src/`, where it meant the
-/// engine knew what a monster was, what an alert pause was, and that being hurt
-/// involves a chance of flinching.
+/// This was `flutter3d_game/lib/shooter.dart` — a file the game layer's barrel
+/// deliberately did not export, so that a game had to ask for it by name. That
+/// worked as a rule and not as a boundary: the file still sat in the engine's
+/// package, and so did the weapons, the inventory and the step order it needs.
+/// Now the boundary is the package, and the rule is enforced by resolution
+/// rather than by discipline.
 ///
-/// What the engine keeps is in `actors/`: a body that walks, health that runs
-/// out, turning, steering round corners, a line-of-sight test, and a [Brain]
-/// that decides. This is one brain.
+/// What the engine keeps is in its `actors/`: a body that walks, health that
+/// runs out, turning, steering round corners, a line-of-sight test, and a
+/// [Brain] that decides. This is one brain.
 library;
 
 import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-import 'flutter3d_game.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+
+import 'combat/weapon.dart';
+import 'combat/weapon_behaviour.dart';
 
 /// What this game's monsters may be, as words in a level document.
 ///
@@ -24,6 +28,18 @@ import 'flutter3d_game.dart';
 /// is furniture. It lives beside the kind that implements it.
 abstract final class ShooterEntities {
   static const String monster = 'monster';
+
+  /// Two that used to be `EntityTypes`'. A pickup that gives health, armour or
+  /// ammunition, and a note left on a wall to be read, are furniture of this
+  /// genre rather than of the format — the same argument that moved `torch`,
+  /// `lamp` and `window` out before them.
+  ///
+  /// `key` is not here, and the difference is worth the sentence: the *pickup*
+  /// that grants a key is this genre's, but the word belongs to the format,
+  /// because `LevelScope` gathers keys to check that a locked door names one
+  /// that exists.
+  static const String pickup = 'pickup';
+  static const String note = 'note';
 }
 
 /// What a monster is doing.

@@ -5,21 +5,22 @@
 /// makes its simulation headless and testable without a device. `flutter3d`, in
 /// return, must never learn what a monster is. Neither rule leaves anywhere for
 /// the mapping between them to live, and this package is that place: level
-/// geometry to mesh nodes, an actor to its visual, a weapon to a view model, a
-/// glowing fixture to the light it drives.
+/// geometry to mesh nodes, an actor to its visual, a glowing fixture to the
+/// light it drives.
 ///
-/// Everything here is mechanism. What a torch looks like, what colour a runner
-/// is and how a shotgun is shaped are decided by the game and handed in —
-/// see [FixtureAppearance], [MonsterAppearance] and [WeaponView]'s models.
+/// Everything here is mechanism. What a torch looks like and what colour a
+/// runner is are decided by the game and handed in — see [FixtureAppearance]
+/// and [ActorAppearance].
 ///
-/// A caveat worth stating rather than papering over: extracting this package
-/// does not make the stack content-free. `flutter3d_game` itself ships a monster
-/// roster, a weapon roster and a list of entity types, and this package
-/// references them. That is a separate problem.
+/// The caveat this doc used to end on — that extracting the package did not
+/// make the stack content-free, because the game layer still shipped a monster
+/// roster and a weapon roster and this package referenced them — has been
+/// answered. Those live in `flutter3d_shooter` now, and the view model of a
+/// weapon held in the hands went with them: it was the one thing in here that
+/// only a shooter could want.
 library;
 
 export 'src/fixture_visuals.dart';
 export 'src/level_loader.dart';
 export 'src/actor_visuals.dart';
 export 'src/shared_meshes.dart';
-export 'src/weapon_view.dart';

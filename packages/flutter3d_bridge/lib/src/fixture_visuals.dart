@@ -75,10 +75,9 @@ final class LightFixtureBuild {
 /// The half of a fixture's look that only the game can know.
 ///
 /// [FixtureVisuals] owns the mechanism — placement, caches, the model loader,
-/// the material override, hiding a taken pickup, spinning it, and driving the
-/// glow and the light off one brightness number. What a torch actually looks
-/// like is not mechanism: it is the difference between a torch and a lamp and a
-/// window, and it is decided here.
+/// the material override, and driving the glow and the light off one brightness
+/// number. What a torch actually looks like is not mechanism: it is the
+/// difference between a torch and a lamp and a window, and it is decided here.
 abstract interface class FixtureAppearance {
   /// Builds the visible parts of a light fixture under [LightFixtureBuild.holder].
   ///
@@ -91,6 +90,22 @@ abstract interface class FixtureAppearance {
   /// A game that would rather see nothing can return a flat colour; a game with
   /// keys and buttons will want to tell them apart at a distance.
   LevelMaterial fallbackFor(Fixture fixture);
+
+  /// Whether the fixture is used up and should not be drawn at all.
+  ///
+  /// This and [spins] used to be one line each of `mechanism is Pickup` in
+  /// [FixtureVisuals.sync], which is how the bridge came to know what a pickup
+  /// was. Both questions are about *this game's* furniture: a collected medkit
+  /// disappears, a racing game's checkpoint does not, and neither fact is the
+  /// renderer's or the simulation's to hold.
+  bool isSpent(Fixture fixture);
+
+  /// Whether it turns on the spot.
+  ///
+  /// The oldest trick in the genre, and it works for the same reason it always
+  /// did: a thing that moves in a still room is a thing the player walks over
+  /// to. Still a decision about furniture rather than about drawing.
+  bool spins(Fixture fixture);
 }
 
 /// What the doors, lifts, platforms, buttons, keys and lights look like.
@@ -326,16 +341,13 @@ final class FixtureVisuals {
   void sync(double elapsed) {
     for (final piece in _pieces) {
       final mechanism = piece.fixture.mechanism;
-      if (mechanism is Pickup && mechanism.isTaken) {
+      if (appearance.isSpent(piece.fixture)) {
         piece.node.visible = false;
         continue;
       }
       piece.node.setPositionFrom(piece.fixture.position);
 
-      // A pickup turns. It is the oldest trick in the genre and it works for
-      // the same reason it always did: a thing that moves in a still room is
-      // a thing the player walks over to.
-      if (mechanism is Pickup) {
+      if (appearance.spins(piece.fixture)) {
         piece.node.setRotation(
           Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), elapsed * 1.4),
         );

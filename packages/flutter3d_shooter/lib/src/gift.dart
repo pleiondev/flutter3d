@@ -1,4 +1,4 @@
-import '../combat/weapon.dart';
+import 'combat/weapon.dart';
 import 'inventory.dart';
 
 /// Something a pickup gives.

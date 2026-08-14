@@ -19,12 +19,11 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 
 | Directory | What it holds |
 |---|---|
-| `loop/` | `FixedStep`, `GameLoop`, `GameSimulation` (the step order, `GameState`), interpolation |
+| `loop/` | `FixedStep`, `GameLoop`, interpolation. **A step *order* is a genre's** — see `GameSimulation` in [`flutter3d_shooter`](../flutter3d_shooter) |
 | `input/` | `GameAction`, `InputState` (latched edges, analogue axis, look delta), `DesktopInput` |
 | `level/` | `Level` format v1, `EntityKind` and its registry, `LevelValidator`, brush→geometry, `SpawnContext` |
-| `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Pickup`, `Exit`, `Rider`, `Gift`, `Inventory`, `LightFixture` |
-| `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
-| `actors/` | `Actor` (a body with health), `Brain`, `ActorSystem`, `Health`, `Player`, `Damageable` |
+| `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Exit`, `Rider`, `KeyRing`, `LightFixture` |
+| `actors/` | `Actor` (a body with health), `Brain`, `ActorSystem`, `Health`, `Damageable` |
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
 | `ecs/` | `EcsWorld`, `Entity`. Actors and projectiles live here; see below |
 | `save/` | `Snapshot`, `GameRandom` |
@@ -89,11 +88,14 @@ happened when one was written is that half the file would have been unusable
 and the other half copied.
 
 The shooter's chase-and-attack machine — six states, `MonsterDef`, the flinch
-roll, `Bestiary`, `MonsterKind` — is in [`lib/shooter.dart`](lib/shooter.dart),
-which **the barrel does not export**. A game imports it by name if it is a
-shooter. `test/actor_test.dart` drives an actor with a fourteen-line patrol
-brain that shares nothing with it, which is what makes the split a fact rather
-than a rename.
+roll, `Bestiary`, `MonsterKind` — is in
+[`flutter3d_shooter`](../flutter3d_shooter), and so are the weapons, the
+inventory, the pickup and the step order that drives them. It used to be
+`lib/shooter.dart` here, unexported by the barrel, which was a rule rather than
+a boundary: the file still resolved from inside this package, and the four
+things it leans on carried no marking at all. `test/no_genre_test.dart` is what
+makes the split a fact rather than a rename, and `test/actor_test.dart` drives
+an actor with a fourteen-line patrol brain that shares nothing with any of it.
 
 The rule is the one `gift.dart` wrote down long before this: a hierarchy rather
 than an enum with a switch, because every job that treats them differently
@@ -126,10 +128,15 @@ What the validator still checks by itself is true of any level whatever the
 game is: names unique, references resolving, brushes not degenerate, something
 to stand on, something to see by.
 
-`lib/sample.dart` holds the roster this repository's own game uses. It is
-**not** exported from `flutter3d_game.dart`: a game gets none of it unless it
-asks by name. It stays in the package for the tests, two hundred of which are
-written against those numbers.
+`flutter3d_shooter/lib/sample.dart` holds the roster this repository's own game
+uses, and the two hundred-odd tests written against those numbers went with it.
+
+That is also why four suites covering *this* package's machinery — the level
+format, the validator, navigation, and buttons and trigger volumes — now run
+from the shooter package: their fixtures are written in that game's vocabulary
+(`monster`, `key`, `torch`), so they moved rather than being rewritten blind.
+The coverage still runs on every CI. What was lost is locality, and
+content-free fixtures for those four are work that has not been done.
 
 ## Who a collider is
 

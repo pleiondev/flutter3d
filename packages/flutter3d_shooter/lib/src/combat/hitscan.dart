@@ -2,9 +2,8 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'weapon.dart';
-import '../physics/layers.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 
 /// One thing a shot reached.
 ///

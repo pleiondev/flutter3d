@@ -1,8 +1,6 @@
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
-import '../ecs/ecs_world.dart';
-import '../ecs/entity.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'blast.dart';
 
 /// A rocket in flight: where it is, where it is going, and how long it has.

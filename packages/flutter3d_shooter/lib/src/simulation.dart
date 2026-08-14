@@ -42,24 +42,14 @@ library;
 
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 
-import '../actors/damageable.dart';
-import '../actors/actor_system.dart';
-import '../actors/player.dart';
-import '../combat/hitscan.dart';
-import '../combat/projectile.dart';
-import '../combat/weapon.dart';
-import '../combat/weapon_behaviour.dart';
-import '../input/game_action.dart';
-import '../input/input_state.dart';
-import '../ecs/ecs_world.dart';
-import '../save/game_random.dart';
-import '../save/snapshot.dart';
-import '../world/exit.dart';
-import '../world/mechanism.dart';
-import '../world/mover.dart';
-import '../world/signals.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'player.dart';
+import 'combat/hitscan.dart';
+import 'pickup.dart';
+import 'combat/projectile.dart';
+import 'combat/weapon.dart';
+import 'combat/weapon_behaviour.dart';
 
 /// Whether the game is being played, lost, or finished.
 ///

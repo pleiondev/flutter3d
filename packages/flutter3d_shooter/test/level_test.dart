@@ -8,7 +8,8 @@ import 'package:flutter3d_game/src/level/level_validator.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
-import 'package:flutter3d_game/sample.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_shooter/sample.dart';
 
 /// A level with nothing wrong with it, so a test can break one thing at a time.
 Level _valid() => Level(
@@ -214,9 +215,9 @@ void main() {
         entities: <EntityDef>[
           EntityDef(type: EntityTypes.playerSpawn),
           EntityDef(type: 'monster'),
-          EntityDef(type: EntityTypes.pickup),
+          EntityDef(type: ShooterEntities.pickup),
           EntityDef(type: EntityTypes.key),
-          EntityDef(type: EntityTypes.note),
+          EntityDef(type: ShooterEntities.note),
           EntityDef(type: EntityTypes.trigger),
         ],
       );

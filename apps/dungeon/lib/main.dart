@@ -13,6 +13,7 @@ import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_shooter/bridge.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'package:flutter3d_audio/flutter3d_audio.dart';
@@ -24,8 +25,8 @@ import 'src/fixture_looks.dart';
 import 'src/monster_looks.dart';
 import 'src/sounds.dart';
 import 'src/weapon_models.dart';
-import 'package:flutter3d_game/sample.dart';
-import 'package:flutter3d_game/shooter.dart';
+import 'package:flutter3d_shooter/sample.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.

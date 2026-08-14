@@ -34,14 +34,10 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
-import '../physics/layers.dart';
-import '../world/collector.dart';
-import '../world/inventory.dart';
-import '../world/key_ring.dart';
-import '../world/rider.dart';
-import 'damageable.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'collector.dart';
+import 'inventory.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 final class Player with KeyHolder implements Collector, Damageable, Rider {
   Player({

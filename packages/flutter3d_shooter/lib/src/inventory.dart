@@ -1,9 +1,8 @@
 import 'dart:collection';
 import 'dart:math' as math;
 
-import '../actors/health.dart';
-import '../combat/weapon.dart';
-import 'key_ring.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'combat/weapon.dart';
 
 /// Everything the player is carrying.
 ///

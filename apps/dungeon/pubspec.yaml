@@ -29,6 +29,11 @@ dependencies:
   flutter3d_game:
     path: ../../packages/flutter3d_game
 
+  # The genre: monsters, weapons, the inventory, the step order and the weapon
+  # view model. This app is one shooter; the engine packages above are not.
+  flutter3d_shooter:
+    path: ../../packages/flutter3d_shooter
+
   # Where the two meet: level geometry to mesh nodes, an actor to its visual,
   # a weapon to a view model. What is left in this app is the content those
   # take as arguments.

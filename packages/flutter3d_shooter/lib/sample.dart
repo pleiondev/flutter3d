@@ -18,13 +18,12 @@ library;
 
 import 'package:vector_math/vector_math.dart';
 
-import 'shooter.dart';
+import 'src/entity_kinds.dart';
+import 'src/monsters.dart';
 import 'src/combat/weapon.dart';
 import 'src/combat/weapon_behaviour.dart';
-import 'src/level/entity_kind.dart';
-import 'src/level/level_validator.dart';
-import 'src/world/gift.dart';
-import 'src/world/light_fixture.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'src/gift.dart';
 
 /// The roster.
 abstract final class Monsters {

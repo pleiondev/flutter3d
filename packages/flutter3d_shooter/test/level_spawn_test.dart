@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
-import 'package:flutter3d_game/sample.dart';
-import 'package:flutter3d_game/shooter.dart';
+import 'package:flutter3d_shooter/sample.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 
 /// A level with one brush to stand on and whatever entities a test wants.
 Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
