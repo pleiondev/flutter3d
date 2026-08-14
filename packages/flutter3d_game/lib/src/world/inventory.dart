@@ -79,6 +79,31 @@ final class Inventory with KeyHolder {
     return health.damage(amount);
   }
 
+  Map<String, Object?> save() => <String, Object?>{
+        'health': health.save(),
+        'arsenal': arsenal.save(),
+        'keys': keyRing.save(),
+        'powers': Map<String, double>.of(_powers),
+      };
+
+  void restore(Map<String, Object?> from) {
+    final health = from['health'];
+    if (health is Map) this.health.restore(health.cast<String, Object?>());
+    final arsenal = from['arsenal'];
+    if (arsenal is Map) this.arsenal.restore(arsenal.cast<String, Object?>());
+    keyRing.restore(from['keys']);
+    _powers.clear();
+    final powers = from['powers'];
+    if (powers is Map) {
+      for (final entry in powers.entries) {
+        final key = entry.key;
+        final seconds = entry.value;
+        if (key is String && seconds is num) _powers[key] = seconds.toDouble();
+      }
+    }
+    expired.clear();
+  }
+
   void step(double dt) {
     if (_powers.isEmpty) return;
     // Over a copy of the keys: expiring one removes it.

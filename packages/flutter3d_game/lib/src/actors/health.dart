@@ -28,6 +28,21 @@ final class Health {
 
   /// Applies [amount] and returns true on the hit that killed — once, and only
   /// for that hit.
+  Map<String, Object?> save() => <String, Object?>{
+        'current': _current,
+        'armour': armour,
+        'mourned': _mourned,
+      };
+
+  void restore(Map<String, Object?> from) {
+    _current = (from['current'] as num?)?.toDouble() ?? _current;
+    armour = (from['armour'] as num?)?.toDouble() ?? armour;
+    // Saved because it is a latch, not a number: without it a corpse loaded
+    // from a save reports its death a second time, and whatever counts deaths
+    // counts one that already happened.
+    _mourned = from['mourned'] == true;
+  }
+
   bool damage(double amount) {
     if (amount <= 0.0 || _mourned) return false;
 

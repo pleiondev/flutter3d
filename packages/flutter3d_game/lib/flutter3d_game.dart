@@ -26,6 +26,8 @@ export 'src/input/desktop_input.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
 export 'src/loop/simulation.dart';
+export 'src/save/game_random.dart';
+export 'src/save/snapshot.dart';
 export 'src/loop/fixed_step.dart';
 export 'src/loop/game_loop.dart';
 export 'src/nav/flow_field.dart';

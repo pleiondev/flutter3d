@@ -144,6 +144,26 @@ abstract base class Mover extends Mechanism {
     collider.moveTo(_candidate);
   }
 
+  Map<String, Object?> save() => <String, Object?>{
+        'progress': _progress,
+        'goal': goal,
+        'held': _held,
+        'wasMoving': _wasMoving,
+      };
+
+  void restore(Map<String, Object?> from) {
+    _progress = (from['progress'] as num?)?.toDouble() ?? 0.0;
+    goal = (from['goal'] as num?)?.toDouble() ?? 0.0;
+    _held = (from['held'] as num?)?.toDouble() ?? 0.0;
+    // Saved so a door that was already moving when the save was taken is not
+    // reported as *starting* on the first step after the load, which would put
+    // a stone-grinding noise in a room where nothing changed.
+    _wasMoving = from['wasMoving'] == true;
+    _at(_progress, _candidate);
+    collider.moveTo(_candidate);
+    collider.clearDelta();
+  }
+
   /// Puts the mover back where it started, motionless.
   ///
   /// For a level restart, which must not leave a door standing open because the

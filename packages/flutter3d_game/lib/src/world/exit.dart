@@ -84,6 +84,13 @@ final class Exit extends Mechanism with CollisionListener {
   @override
   void step(double dt) => justReached = false;
 
+  Map<String, Object?> save() => <String, Object?>{'reached': _reached};
+
+  void restore(Map<String, Object?> from) {
+    _reached = from['reached'] == true;
+    justReached = false;
+  }
+
   @override
   void collect(MechanismEvents into) {
     if (!justReached) return;

@@ -30,4 +30,14 @@ final class KeyRing with KeyHolder {
   bool has(String key) => _held.contains(key);
 
   void clear() => _held.clear();
+
+  List<String> save() => _held.toList()..sort();
+
+  void restore(Object? from) {
+    _held.clear();
+    if (from is! List) return;
+    for (final key in from) {
+      if (key is String) _held.add(key);
+    }
+  }
 }

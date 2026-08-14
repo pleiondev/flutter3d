@@ -155,6 +155,50 @@ final class CharacterController {
   /// fraction of a second before landing.
   void requestJump() => _jumpBuffer = tuning.jumpBufferTime;
 
+  /// Everything about this body that a snapshot has to carry.
+  ///
+  /// The four scalars beyond position and velocity are the ones whose absence
+  /// is invisible for exactly one step and then wrong: a restore that forgot
+  /// [isGrounded] gives the player a free coyote jump, and one that forgot the
+  /// jump buffer eats a press made a frame before landing.
+  ///
+  /// [groundBody] is deliberately **not** here. It is a reference, it is
+  /// recomputed at the end of every step by the ground probe, and naming it
+  /// would mean inventing an identity scheme for colliders. The cost is one
+  /// step of not being carried by a moving platform you were standing on;
+  /// stated rather than discovered.
+  Map<String, Object?> save() => <String, Object?>{
+        'at': <double>[position.x, position.y, position.z],
+        'velocity': <double>[velocity.x, velocity.y, velocity.z],
+        'grounded': _grounded,
+        'coyote': _coyote,
+        'jumpBuffer': _jumpBuffer,
+      };
+
+  void restore(Map<String, Object?> from) {
+    _readVector(from['at'], position);
+    _readVector(from['velocity'], velocity);
+    collider.position.setFrom(position);
+    collider.refreshBounds();
+    collider.clearDelta();
+    _grounded = from['grounded'] == true;
+    _groundBody = null;
+    _coyote = _readNumber(from['coyote']);
+    _jumpBuffer = _readNumber(from['jumpBuffer']);
+  }
+
+  static void _readVector(Object? value, Vector3 out) {
+    if (value is! List || value.length < 3) return;
+    out.setValues(
+      (value[0] as num).toDouble(),
+      (value[1] as num).toDouble(),
+      (value[2] as num).toDouble(),
+    );
+  }
+
+  static double _readNumber(Object? value) =>
+      value is num ? value.toDouble() : 0.0;
+
   /// Places the player somewhere with no motion and no memory. For spawns and
   /// level changes.
   void teleport(Vector3 to) {

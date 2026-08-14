@@ -131,6 +131,17 @@ final class Monster implements Damageable, Rider {
   }
 
   final MonsterDef def;
+
+  /// Which monster this is, counting from zero as they were spawned.
+  ///
+  /// **It replaces `hashCode`, and that was a real bug rather than a tidy-up.**
+  /// The system staggers thinking across steps so thirty monsters do not all
+  /// raycast on the same one, and it used the object's hash to spread them —
+  /// which is its identity, which is its address, which differs between two
+  /// runs of the same game with the same seed. Two identical playthroughs
+  /// diverged, and a replay or a network session would have too. Found by the
+  /// determinism test, which is the only thing that could have found it.
+  int ordinal = 0;
   final Health health;
 
   /// How this monster takes damage, installed by whatever is running it.
@@ -155,6 +166,39 @@ final class Monster implements Damageable, Rider {
   ///
   /// A monster with nothing running it is one built by hand in a test; it takes
   /// the damage to its health, which is all there is to do with it.
+  Map<String, Object?> save() => <String, Object?>{
+        'body': body.save(),
+        'yaw': yaw,
+        'state': state.name,
+        'stateTime': stateTime,
+        'health': health.save(),
+        'attackCooldown': attackCooldown,
+        'painCooldown': painCooldown,
+        'noticed': hasNoticed,
+      };
+
+  void restore(Map<String, Object?> from) {
+    final body = from['body'];
+    if (body is Map) this.body.restore(body.cast<String, Object?>());
+    final health = from['health'];
+    if (health is Map) this.health.restore(health.cast<String, Object?>());
+    yaw = (from['yaw'] as num?)?.toDouble() ?? yaw;
+    final named = from['state'];
+    for (final value in MonsterState.values) {
+      if (value.name == named) state = value;
+    }
+    stateTime = (from['stateTime'] as num?)?.toDouble() ?? 0.0;
+    attackCooldown = (from['attackCooldown'] as num?)?.toDouble() ?? 0.0;
+    painCooldown = (from['painCooldown'] as num?)?.toDouble() ?? 0.0;
+    hasNoticed = from['noticed'] == true;
+    // A corpse stops being an obstacle when it dies, and has to still be one
+    // after a load — otherwise reloading a save turns every body you walked
+    // over back into a wall.
+    this.body.collider.kind = state == MonsterState.dead
+        ? ColliderKind.trigger
+        : ColliderKind.kinematic;
+  }
+
   @override
   bool applyDamage(double amount) =>
       onDamage?.call(amount) ?? health.damage(amount);

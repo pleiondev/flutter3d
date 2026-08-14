@@ -135,6 +135,63 @@ final class ProjectileSystem {
     return false;
   }
 
+  /// Everything still in flight.
+  ///
+  /// [Projectile.owner] is **not** saved: it is a collider reference, it exists
+  /// only so the sweep ignores the muzzle it came out of, and by the time a
+  /// save is loaded the rocket has almost always left. The cost is a rocket
+  /// saved in the first metre of its life being able to hit whoever fired it.
+  List<Map<String, Object?>> save() => <Map<String, Object?>>[
+        for (final p in _pool)
+          if (p.alive)
+            <String, Object?>{
+              'at': <double>[p.position.x, p.position.y, p.position.z],
+              'velocity': <double>[p.velocity.x, p.velocity.y, p.velocity.z],
+              'life': p.life,
+              'blast': <String, double>{
+                'radius': p.blast.radius,
+                'damage': p.blast.damage,
+                'minimumFraction': p.blast.minimumFraction,
+                'knockback': p.blast.knockback,
+              },
+            },
+      ];
+
+  void restore(Object? from) {
+    clear();
+    if (from is! List) return;
+    var slot = 0;
+    for (final row in from) {
+      if (row is! Map || slot >= _pool.length) continue;
+      final blast = row['blast'];
+      final p = _pool[slot++];
+      p
+        ..alive = true
+        ..owner = null
+        ..life = (row['life'] as num?)?.toDouble() ?? 0.0
+        ..blast = Blast(
+          radius: blast is Map ? (blast['radius'] as num).toDouble() : 0.0,
+          damage: blast is Map ? (blast['damage'] as num).toDouble() : 0.0,
+          minimumFraction: blast is Map
+              ? (blast['minimumFraction'] as num?)?.toDouble() ?? 0.0
+              : 0.0,
+          knockback:
+              blast is Map ? (blast['knockback'] as num?)?.toDouble() ?? 0.0 : 0.0,
+        );
+      _readVector(row['at'], p.position);
+      _readVector(row['velocity'], p.velocity);
+    }
+  }
+
+  static void _readVector(Object? value, Vector3 out) {
+    if (value is! List || value.length < 3) return;
+    out.setValues(
+      (value[0] as num).toDouble(),
+      (value[1] as num).toDouble(),
+      (value[2] as num).toDouble(),
+    );
+  }
+
   void clear() {
     for (final projectile in _pool) {
       projectile.alive = false;

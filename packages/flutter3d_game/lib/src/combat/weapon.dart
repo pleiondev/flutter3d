@@ -158,7 +158,15 @@ final class Arsenal {
   })  : slots = List<WeaponDef>.unmodifiable(slots),
         _owned = owned ?? List<WeaponDef>.of(slots),
         _ammo = ammo ?? <AmmoType, int>{},
-        _current = startingSlot;
+        // Zero, then resolved through [selectSlot] below. A *slot* is an index
+        // into the game's roster and `_current` is an index into what is
+        // owned, and this class has now confused the two three times: once in
+        // `selectSlot`, once here, and once in a saved index. An arsenal that
+        // owns two of four weapons and starts on slot three used to throw a
+        // `RangeError` on its first step.
+        _current = 0 {
+    selectSlot(startingSlot);
+  }
 
   /// Every weapon this game has, in the order its keys select them.
   final List<WeaponDef> slots;
@@ -246,6 +254,50 @@ final class Arsenal {
       }
     }
     return false;
+  }
+
+  /// What is owned, held and loaded — by **name**.
+  ///
+  /// A weapon definition is content: a save that copied its damage and rate of
+  /// fire would restore a pistol balanced the way it was on the day the save
+  /// was taken, and a patch that changed a number would never reach anybody who
+  /// had played before it. The names are looked back up in [slots], which is
+  /// the game's own roster.
+  Map<String, Object?> save() => <String, Object?>{
+        'owned': <String>[for (final weapon in _owned) weapon.name],
+        'current': _current,
+        'cooldown': _cooldown,
+        'ammo': <String, int>{
+          for (final entry in _ammo.entries) entry.key.name: entry.value,
+        },
+      };
+
+  void restore(Map<String, Object?> from) {
+    final names = from['owned'];
+    if (names is List) {
+      _owned.clear();
+      for (final name in names) {
+        for (final weapon in slots) {
+          if (weapon.name == name) {
+            _owned.add(weapon);
+            break;
+          }
+        }
+      }
+    }
+    _current = (from['current'] as num?)?.toInt() ?? 0;
+    // A saved index into a roster that has since shrunk would throw on the
+    // first shot rather than on load, which is the worse of the two places.
+    if (_current >= _owned.length) _current = _owned.isEmpty ? 0 : 0;
+    _cooldown = (from['cooldown'] as num?)?.toDouble() ?? 0.0;
+    final ammo = from['ammo'];
+    if (ammo is Map) {
+      _ammo.clear();
+      for (final type in AmmoType.values) {
+        final held = ammo[type.name];
+        if (held is num) _ammo[type] = held.toInt();
+      }
+    }
   }
 
   void advanceTime(double dt) {

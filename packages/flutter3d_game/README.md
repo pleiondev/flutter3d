@@ -177,6 +177,32 @@ any caller:
 `eyeFrom` exists separately from `eye` because the camera must read the
 *interpolated* position while the simulation reads its own.
 
+## Writing a game down
+
+`GameSimulation.save()` returns a `Snapshot`: everything needed to carry on
+simulating, and nothing needed only to draw. A save file, a network packet and
+the input to a determinism test are the same thing, so there is one mechanism
+rather than three — keeping three of them right costs three times as much.
+
+**It is not a level loader.** A snapshot restores objects that already exist:
+the same collision world, the same monsters in the same order, the same
+mechanisms under the same names. That boundary is what saves it from having to
+invent an identity scheme for every collider. Load the level, then apply the
+snapshot.
+
+Versioned like the level format, and refuses a document from a newer build for
+the same reason: subtly wrong is worse than refused.
+
+`GameRandom` exists because `math.Random` has no readable state, which makes it
+the one thing in a simulation that cannot be written down. Pass one instance to
+`MonsterSystem`, `Hitscan` and `GameSimulation` and two loads of the same save
+agree for ever; leave it out and they agree until the first flinch roll.
+
+The determinism test that goes with it found a real defect on its first run:
+monster thinking was staggered across steps by `Object.hashCode`, which is an
+address, so two runs of the same game with the same seed diverged. It is an
+ordinal now.
+
 ## Events
 
 Each system fills a list during the step and a caller drains it after —

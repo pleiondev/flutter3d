@@ -111,6 +111,26 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// each caller to remember.
   static const double pitchLimit = math.pi / 2.0 - 0.01;
 
+  Map<String, Object?> save() => <String, Object?>{
+        'body': body.save(),
+        'inventory': inventory.save(),
+        'yaw': yaw,
+        'pitch': _pitch,
+      };
+
+  void restore(Map<String, Object?> from) {
+    final body = from['body'];
+    if (body is Map) this.body.restore(body.cast<String, Object?>());
+    final inventory = from['inventory'];
+    if (inventory is Map) {
+      this.inventory.restore(inventory.cast<String, Object?>());
+    }
+    yaw = (from['yaw'] as num?)?.toDouble() ?? yaw;
+    // Through the setter, so a snapshot written by a build with a different
+    // pitch limit cannot restore a camera with no orientation.
+    pitch = (from['pitch'] as num?)?.toDouble() ?? _pitch;
+  }
+
   /// Turns the view by a pointer delta, applying [lookSensitivity] and the
   /// pitch limit.
   void look(Vector2 delta) {

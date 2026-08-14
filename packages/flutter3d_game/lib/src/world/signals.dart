@@ -176,4 +176,16 @@ final class Pickup extends Mechanism with CollisionListener {
 
   @override
   void step(double dt) => justTaken = false;
+
+  Map<String, Object?> save() => <String, Object?>{'taken': _taken};
+
+  void restore(Map<String, Object?> from) {
+    _taken = from['taken'] == true;
+    justTaken = false;
+    // A pickup taken before the save must not be standing there again. It was
+    // removed from the world when it was collected, so putting it back is the
+    // caller's problem only if the caller reloaded the level — and then this
+    // has to take it away again.
+    if (_taken) world.collisions.removeLater(collider);
+  }
 }

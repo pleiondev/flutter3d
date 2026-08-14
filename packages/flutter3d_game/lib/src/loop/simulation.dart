@@ -53,8 +53,12 @@ import '../combat/weapon.dart';
 import '../combat/weapon_behaviour.dart';
 import '../input/game_action.dart';
 import '../input/input_state.dart';
+import '../save/game_random.dart';
+import '../save/snapshot.dart';
 import '../world/exit.dart';
 import '../world/mechanism.dart';
+import '../world/mover.dart';
+import '../world/signals.dart';
 
 /// Whether the game is being played, lost, or finished.
 ///
@@ -82,6 +86,7 @@ final class GameSimulation {
     this.projectiles,
     this.shot,
     this.levelNext,
+    this.random,
   });
 
   final Player player;
@@ -131,6 +136,16 @@ final class GameSimulation {
   /// Returned rather than pushed into `MechanismEvents.messages`, because
   /// `publish()` runs after the use key and would clear it.
   ActivationOutcome? usedThisStep;
+
+  /// The generator every roll in this simulation comes out of, if the caller
+  /// gave one.
+  ///
+  /// Optional, and the consequence of leaving it out is stated rather than
+  /// hidden: a snapshot then restores everything except *where the dice were*,
+  /// so two worlds loaded from it agree until the first flinch roll and then
+  /// drift. Pass the same instance to `MonsterSystem` and `Hitscan` — it is one
+  /// object shared, not one each.
+  final GameRandom? random;
 
   final Vector3 _wish = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
@@ -301,6 +316,98 @@ final class GameSimulation {
       final target = entry.key.userData;
       if (target is Damageable) target.applyDamage(entry.value);
     }
+  }
+
+  /// Everything needed to carry on, and nothing needed only to draw.
+  ///
+  /// See [Snapshot] for what this is and is not. The per-step lists are
+  /// deliberately absent: they describe the step that has just happened, a
+  /// caller has already drained them, and restoring them would replay a sound
+  /// for a monster that died before the save was taken.
+  Snapshot save() => Snapshot(<String, Object?>{
+        'state': _state.name,
+        'exitNext': _exitNext,
+        'player': player.save(),
+        if (random != null) 'random': random!.state,
+        if (monsters != null) 'monsters': monsters!.save(),
+        if (projectiles != null) 'projectiles': projectiles!.save(),
+        if (mechanisms != null) 'mechanisms': _saveMechanisms(mechanisms!),
+      });
+
+  void restore(Snapshot snapshot) {
+    final from = snapshot.data;
+    for (final value in GameState.values) {
+      if (value.name == from['state']) _state = value;
+    }
+    _exitNext = from['exitNext'] as String?;
+
+    final player = from['player'];
+    if (player is Map) this.player.restore(player.cast<String, Object?>());
+
+    final seed = from['random'];
+    if (seed is num && random != null) random!.state = seed.toInt();
+
+    monsters?.restore(from['monsters']);
+    projectiles?.restore(from['projectiles']);
+    _restoreMechanisms(from['mechanisms']);
+
+    // Whatever the step that took the snapshot reported is not news any more.
+    firedThisStep = null;
+    usedThisStep = null;
+    damageTakenThisStep = 0.0;
+    hits.clear();
+    // The broadphase is holding every body where it was before the restore.
+    collision.reindex();
+    collision.update();
+    collision.clearKinematicDeltas();
+  }
+
+  /// Mechanisms by name, because that is what a level document gives them and
+  /// what a door is called does not change between two runs of the same level.
+  ///
+  /// Anything unnamed is skipped — a relay wired between two others has no
+  /// state worth carrying, and inventing a positional key for it would make the
+  /// format depend on the order the spawner happened to walk the entities in.
+  static Map<String, Object?> _saveMechanisms(MechanismWorld world) {
+    final out = <String, Object?>{};
+    for (final mechanism in world.all) {
+      final name = mechanism.name;
+      if (name == null) continue;
+      switch (mechanism) {
+        case final Mover mover:
+          out[name] = mover.save();
+        case final Pickup pickup:
+          out[name] = pickup.save();
+        case final Exit exit:
+          out[name] = exit.save();
+        default:
+          break;
+      }
+    }
+    return out;
+  }
+
+  void _restoreMechanisms(Object? from) {
+    final world = mechanisms;
+    if (world == null || from is! Map) return;
+    for (final mechanism in world.all) {
+      final name = mechanism.name;
+      if (name == null) continue;
+      final row = from[name];
+      if (row is! Map) continue;
+      final fields = row.cast<String, Object?>();
+      switch (mechanism) {
+        case final Mover mover:
+          mover.restore(fields);
+        case final Pickup pickup:
+          pickup.restore(fields);
+        case final Exit exit:
+          exit.restore(fields);
+        default:
+          break;
+      }
+    }
+    world.events.reached.clear();
   }
 
   void _hurtPlayer(double amount) {

@@ -95,6 +95,26 @@ final class MonsterSystem {
   /// an event per hit sixty times a second.
   final List<MonsterHurt> hurtThisStep = <MonsterHurt>[];
 
+  /// Every monster, in the order they were spawned.
+  ///
+  /// **Positional, not named**, which is the boundary this whole mechanism
+  /// draws: a snapshot restores a world that already exists, so the *n*th
+  /// monster is the *n*th monster and nothing has to invent an identity scheme.
+  /// Restoring into a differently populated level is not a thing this does.
+  List<Map<String, Object?>> save() =>
+      <Map<String, Object?>>[for (final monster in monsters) monster.save()];
+
+  void restore(Object? from) {
+    if (from is! List) return;
+    for (var i = 0; i < monsters.length && i < from.length; i++) {
+      final row = from[i];
+      if (row is Map) monsters[i].restore(row.cast<String, Object?>());
+    }
+    died.clear();
+    hurtThisStep.clear();
+    playerDamageThisStep = 0.0;
+  }
+
   Monster spawn(MonsterDef def, Vector3 position, {double yaw = 0.0}) {
     final monster = Monster(
       def: def,
@@ -103,6 +123,7 @@ final class MonsterSystem {
       yaw: yaw,
     );
     monster.onDamage = (double amount) => hurt(monster, amount);
+    monster.ordinal = monsters.length;
     monsters.add(monster);
     return monster;
   }
@@ -162,7 +183,7 @@ final class MonsterSystem {
       // Thinking is throttled; moving is not. A monster whose movement ran
       // every fourth step would visibly stutter.
       final thinks = distance < distantRange ||
-          (_tick + monster.hashCode) % distantInterval == 0;
+          (_tick + monster.ordinal) % distantInterval == 0;
       if (thinks) {
         _think(monster, playerEye, playerCollider, distance);
       }
