@@ -86,6 +86,9 @@ flutter test                       # in this directory
 dart test                          # in ../flutter3d_physics — no Flutter needed
 ```
 
-Every subsystem has tests except `GameLoop`, `DesktopInput`, `LightFixture` and
-`SpawnContext.onFixture`. That list is a decision to fix, not a claim that they
-work.
+Every subsystem has tests. The four that had none — `GameLoop`, `DesktopInput`,
+`LightFixture` and `SpawnContext.onFixture` — were covered by writing each test
+against the claim its doc comment makes and then breaking the code to watch it
+fail. One of those first attempts passed against a deliberately broken
+implementation, because it was asserting a guarantee `EntityDef` makes rather
+than the one `Fixture` makes; it is rewritten and the reason is in the file.
