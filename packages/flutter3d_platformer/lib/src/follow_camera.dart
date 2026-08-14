@@ -62,16 +62,18 @@ final class FollowCamera {
     required this.world,
     this.tuning = const FollowTuning(),
     double yaw = 0.0,
-  })  : _yaw = yaw,
-        _pitch = tuning.pitch;
+  }) {
+    _yaw = yaw;
+    _pitch = tuning.pitch;
+  }
 
   /// Where the walls are, for keeping the camera out of them.
   final CollisionWorld world;
 
   final FollowTuning tuning;
 
-  double _yaw;
-  double _pitch;
+  late double _yaw;
+  late double _pitch;
 
   /// Which way the camera faces, in radians. The runner takes this as the
   /// direction "forward" means.

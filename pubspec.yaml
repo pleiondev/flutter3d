@@ -29,3 +29,4 @@ workspace:
   - packages/mouse_capture
   - packages/mouse_capture/example
   - apps/dungeon
+  - apps/platformer

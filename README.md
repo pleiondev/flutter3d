@@ -1,7 +1,8 @@
 # flutter3d
 
-A 3D engine on Flutter GPU, a game engine on top of it, and a first-person game
-built from both.
+A 3D engine on Flutter GPU, a game engine on top of it, and **two games of
+different genres** built from both — which is the only honest test that the
+engine is one.
 
 ## What is here
 
@@ -15,7 +16,8 @@ built from both.
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/mouse_capture`](packages/mouse_capture) | Relative mouse deltas, which Flutter offers on no desktop platform |
-| [`apps/dungeon`](apps/dungeon) | The game, and a headless test that plays it to the exit |
+| [`apps/dungeon`](apps/dungeon) | The shooter, and a headless test that plays it to the exit |
+| [`apps/platformer`](apps/platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
 The split is not filing. `flutter3d_game` does not depend on `flutter3d`, and
@@ -29,7 +31,7 @@ which fail quietly (a collision that passes through a wall once in a thousand
 steps, a jump that is a different height on a faster monitor, a press swallowed
 at a low frame rate) be reached from a plain unit test. `flutter3d_bridge` is
 the one package allowed to depend on both, and it is where the renderer and the
-simulation meet; the application supplies only what a dungeon looks like.
+simulation meet; an application supplies only what its own game looks like.
 
 ## Running
 
@@ -44,8 +46,11 @@ flutter pub get
 # so a fresh checkout has none.
 (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 
-# The game
+# The shooter
 (cd apps/dungeon && flutter run -d macos)
+
+# The platformer
+(cd apps/platformer && flutter run -d macos)
 
 # The engine demo
 (cd packages/flutter3d/example && flutter run -d macos)

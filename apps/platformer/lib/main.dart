@@ -1,0 +1,336 @@
+/// A third-person platformer, assembled from the engine, the genre and this
+/// game's own content.
+///
+/// The assembly is the dungeon's, minus everything that was a shooter's: no
+/// weapons, no arsenal, no monsters, no view model with its own field of view.
+/// What is left is the shape every application on this stack has — a device, a
+/// renderer, a loop, a level, a camera — and it is short enough to read in one
+/// sitting, which the dungeon's 898 lines are not.
+library;
+
+import 'dart:async';
+
+import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/scheduler.dart';
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_bridge/flutter3d_bridge.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:vector_math/vector_math.dart' hide Colors;
+
+import 'src/hud.dart';
+import 'src/looks.dart';
+import 'src/scene_surface.dart';
+
+void main() {
+  runApp(const PlatformerApp());
+}
+
+class PlatformerApp extends StatelessWidget {
+  const PlatformerApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => const MaterialApp(
+        title: 'Ascent',
+        debugShowCheckedModeBanner: false,
+        home: GameScreen(),
+      );
+}
+
+class GameScreen extends StatefulWidget {
+  const GameScreen({super.key});
+
+  @override
+  State<GameScreen> createState() => _GameScreenState();
+}
+
+class _GameScreenState extends State<GameScreen>
+    with SingleTickerProviderStateMixin {
+  static const String _levelAsset = 'assets/levels/ascent.json';
+
+  final InputState _input = InputState();
+  late final DesktopInput _devices;
+  late final GameLoop _loop;
+  late final Ticker _ticker;
+
+  final CameraNode _camera = CameraNode(
+    projection: const PerspectiveProjection(fovYRadians: 1.05, far: 220.0),
+  );
+  late final RenderView _view;
+
+  GpuRenderBackend? _device;
+  Renderer? _renderer;
+  Object? _initError;
+
+  Scene? _scene;
+  LoadedLevel? _loaded;
+  FixtureVisuals? _fixtures;
+  MeshNode? _runnerNode;
+
+  Runner? _runner;
+  PlatformerSimulation? _sim;
+  FollowCamera? _followCamera;
+
+  /// The runner's drawn position, one frame behind the simulation.
+  ///
+  /// Interpolated for the same reason the dungeon interpolates its camera: the
+  /// step is 60 Hz and the display may not be, and a body drawn at the last
+  /// step's position judders on a 120 Hz monitor even though the simulation is
+  /// perfectly smooth.
+  final InterpolatedVector3 _drawnAt = InterpolatedVector3();
+  final InterpolatedAngle _drawnYaw = InterpolatedAngle();
+
+  final Vector3 _scratch = Vector3.zero();
+  Duration _lastTick = Duration.zero;
+  double _elapsed = 0.0;
+  int _deathsSeen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _devices = DesktopInput(state: _input);
+    _loop = GameLoop(
+      input: _input,
+      onStep: _step,
+      drainLook: _devices.drainLook,
+    );
+    _view = RenderView(camera: _camera);
+    unawaited(_openGraphics());
+  }
+
+  Future<void> _openGraphics() async {
+    final GpuRenderBackend device;
+    try {
+      device = await GpuRenderBackend.create();
+    } catch (error) {
+      if (mounted) setState(() => _initError = error);
+      return;
+    }
+    if (!mounted) return;
+    _device = device;
+
+    setState(() {
+      try {
+        _renderer = Renderer.create(
+          device: device,
+          fallbackAlbedo: SolidColorTexture.white.upload(device),
+          fallbackNormal: SolidColorTexture.flatNormal.upload(device),
+        );
+      } catch (error) {
+        _initError = error;
+      }
+    });
+
+    _ticker = createTicker(_onTick)..start();
+    unawaited(_loadLevel());
+  }
+
+  /// The seam where the engine, the genre and this game's content meet.
+  Future<void> _loadLevel() async {
+    final device = _device;
+    if (device == null) return;
+
+    final loaded = await LevelLoader().load(
+      _levelAsset,
+      device: device,
+      registry: platformerRegistry(),
+      rules: platformerRules(),
+    );
+    if (!mounted) return;
+
+    final actors = ActorSystem(world: loaded.collision);
+    final mechanisms = MechanismWorld(loaded.collision);
+    final fixtures = FixtureVisuals(
+      loaded.scene,
+      loaded,
+      appearance: const PlatformerLooks(),
+      device: device,
+    )..bindLights();
+
+    loaded.level.spawnInto(
+      SpawnContext(
+        world: loaded.collision,
+        actors: actors,
+        mechanisms: mechanisms,
+        onFixture: fixtures.add,
+      ),
+      registry: platformerRegistry(),
+    );
+
+    // The authored point is where the feet go; the body is a box about its
+    // middle.
+    final start = loaded.level.playerStart?.position ?? Vector3.zero();
+    final runner = Runner(
+      body: CharacterController(
+        world: loaded.collision,
+        position: start + Vector3(0.0, 0.9, 0.0),
+      ),
+    );
+
+    final node = MeshNode(
+      SharedMeshes(device).box(runner.body.halfExtents * 2.0),
+      Material(
+        name: 'runner',
+        baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
+        lighting: LightingModel.pbr,
+      )..roughness = 0.5,
+      name: 'runner',
+    );
+    loaded.scene.add(node);
+
+    setState(() {
+      _loaded = loaded;
+      _scene = loaded.scene;
+      _fixtures = fixtures;
+      _runnerNode = node;
+      _runner = runner;
+      _sim = PlatformerSimulation(
+        runner: runner,
+        collision: loaded.collision,
+        input: _input,
+        startAt: runner.body.position.clone(),
+        mechanisms: mechanisms,
+        levelNext: loaded.level.next,
+      );
+      _followCamera = FollowCamera(world: loaded.collision);
+      _drawnAt.jumpTo(runner.body.position);
+      _drawnYaw.jumpTo(runner.yaw);
+    });
+  }
+
+  void _onTick(Duration now) {
+    final dt = _lastTick == Duration.zero
+        ? 1.0 / 60.0
+        : (now - _lastTick).inMicroseconds / 1e6;
+    _lastTick = now;
+    _elapsed += dt;
+
+    // Paused whenever the mouse is not ours: a game that keeps running behind
+    // a menu is a game that kills the player while they are reading it.
+    _loop.paused = !_devices.isCaptured || _sim == null;
+    _loop.advance(dt.clamp(0.0, 0.25));
+
+    _placeCamera(dt);
+    _fixtures?.sync(_elapsed);
+    if (mounted) setState(() {});
+  }
+
+  /// One simulation step. Nothing here draws.
+  void _step(double dt) {
+    final sim = _sim;
+    final runner = _runner;
+    final camera = _followCamera;
+    if (sim == null || runner == null || camera == null) return;
+
+    // The camera owns "forward", and the simulation takes it as a number.
+    sim.cameraYaw = camera.yaw;
+    sim.step(dt);
+
+    if (sim.deaths != _deathsSeen) {
+      _deathsSeen = sim.deaths;
+      // A cut rather than a chase: easing from where they died to where they
+      // came back is a second of the level flying past for no reason.
+      camera.cut();
+      _drawnAt.jumpTo(runner.body.position);
+    } else {
+      _drawnAt.push(runner.body.position);
+    }
+    _drawnYaw.push(runner.yaw);
+  }
+
+  void _placeCamera(double dt) {
+    final camera = _followCamera;
+    final node = _runnerNode;
+    if (camera == null || node == null) return;
+
+    camera.look(_input.lookDelta);
+    _drawnAt.read(_loop.alpha, _scratch);
+    camera.follow(_scratch, dt);
+
+    node
+      ..setPositionFrom(_scratch)
+      ..setRotation(
+        Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _drawnYaw.read(_loop.alpha)),
+      );
+
+    _camera
+      ..setPositionFrom(camera.eye)
+      ..lookAt(camera.target);
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    unawaited(_devices.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = _initError;
+    if (error != null) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Text(
+              'The renderer did not start.\n\n$error\n\n'
+              'The shader bundle is built by '
+              'packages/flutter3d_impeller/tool/build_shaders.sh and is not '
+              'in the repository.',
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final renderer = _renderer;
+    final scene = _scene;
+    final sim = _sim;
+    if (renderer == null || scene == null || sim == null) {
+      return const Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Focus(
+        autofocus: true,
+        onKeyEvent: (_, KeyEvent event) => _devices.handleKeyEvent(event),
+        child: Listener(
+          onPointerDown: (_) {
+            _devices.pressPointer(PlatformerActions.dash);
+            if (!_devices.isCaptured) unawaited(_devices.captureMouse());
+          },
+          onPointerUp: (_) => _devices.releasePointer(PlatformerActions.dash),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              SceneSurface(
+                renderer: renderer,
+                scene: scene,
+                view: _view,
+                fog: FogSettings(
+                  color: _loaded?.level.fogColor ?? Vector3(0.05, 0.07, 0.12),
+                  density: _loaded?.level.fogDensity ?? 0.0,
+                ),
+                onBeforeFrame: () {},
+              ),
+              Hud(
+                coins: _runner?.purse['coin'] ?? 0,
+                deaths: sim.deaths,
+                state: sim.state,
+                captured: _devices.isCaptured,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
