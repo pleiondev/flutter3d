@@ -20,6 +20,7 @@ export 'src/actions.dart';
 export 'src/checkpoint.dart';
 export 'src/collectible.dart';
 export 'src/entity_kinds.dart';
+export 'src/follow_camera.dart';
 export 'src/hazard.dart';
 export 'src/purse.dart';
 export 'src/runner.dart';
