@@ -163,4 +163,101 @@ void main() {
     loop.advance(1.5 / 60.0);
     expect(loop.alpha, closeTo(0.5, 1e-6));
   });
+
+  group('paused', () {
+    test('runs nothing, and does not report a stall that did not happen', () {
+      // The interesting half. An implementation that accumulated the time and
+      // then dropped the backlog would also work — and would report ten
+      // seconds of dropped steps, through a counter kept precisely so that a
+      // real stall is noticeable.
+      //
+      // Mutation: let the clock have the time while paused. `droppedSteps`
+      // goes up and this fails.
+      final loop = build()..paused = true;
+
+      expect(loop.advance(10.0), 0);
+      expect(looksSeen, isEmpty);
+      expect(loop.clock.droppedSteps, 0,
+          reason: 'ten seconds behind a menu was reported as a performance '
+              'problem');
+    });
+
+    test('resuming does not run the time the pause took', () {
+      // Mutation: drop the `clock.reset()` on the resume edge. Without it the
+      // accumulator is whatever was left when the pause began, which is a
+      // fraction of a step — so make the pause itself the thing that would
+      // burst, by leaving a nearly-full accumulator behind.
+      final loop = build();
+      loop.advance(0.9 / 60.0);
+      expect(looksSeen, isEmpty, reason: 'not enough for a step yet');
+
+      loop.paused = true;
+      loop.advance(5.0);
+      loop.paused = false;
+
+      // The 0.9 of a step that was waiting is gone with the pause: none of that
+      // time happened in the game.
+      expect(loop.advance(0.5 / 60.0), 0);
+      expect(loop.advance(0.6 / 60.0), 1);
+    });
+
+    test('a press taken while paused does not reach the first step after', () {
+      // The key that unpauses would otherwise also fire the weapon.
+      final loop = build();
+      loop.paused = true;
+      input.press(GameAction.fire);
+      loop.advance(1.0 / 60.0);
+
+      final firedIn = <int>[];
+      var index = 0;
+      final counting = GameLoop(
+        input: input,
+        clock: FixedStep(),
+        onStep: (double dt) {
+          if (input.pressed(GameAction.fire)) firedIn.add(index);
+          index++;
+        },
+      );
+      counting.advance(2.0 / 60.0);
+
+      expect(firedIn, isEmpty);
+    });
+
+    test('a key still held when the game comes back is still held', () {
+      // The other half: a latch is an event and being held is a condition.
+      final loop = build();
+      input.press(GameAction.sprint);
+
+      loop.paused = true;
+      loop.advance(1.0);
+      loop.paused = false;
+
+      final heldIn = <bool>[];
+      final counting = GameLoop(
+        input: input,
+        clock: FixedStep(),
+        onStep: (double dt) => heldIn.add(input.held(GameAction.sprint)),
+      );
+      counting.advance(1.0 / 60.0);
+
+      expect(heldIn, <bool>[true]);
+    });
+
+    test('motion behind a menu is thrown away rather than saved up', () {
+      // The opposite of what a frame too short to step does, and the difference
+      // is how long the wait is: a pause can last minutes, and the motion would
+      // arrive as one turn of the camera on the frame the game came back.
+      final loop = build()..paused = true;
+      look.add(500.0, 0.0);
+
+      loop.advance(1.0 / 60.0);
+      expect(look.drains, 1, reason: 'the motion was left to pile up');
+
+      loop.paused = false;
+      expect(loop.advance(1.0 / 60.0), 1);
+      expect(looksSeen.single, 0.0,
+          reason: 'five hundred pixels of menu-time mouse movement turned the '
+              'camera on the frame the game resumed');
+    });
+  });
 }

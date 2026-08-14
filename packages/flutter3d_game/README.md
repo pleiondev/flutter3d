@@ -66,8 +66,10 @@ Stated rather than discovered:
 
 - **No navigation.** Monsters see the player, turn, and walk straight at them.
   They get stuck on corners.
-- **No pause, no game-over, no level transition.** `Level.next` is a field
-  nothing reads and `exit` is an entity that spawns nothing.
+- **No game-over and no level transition.** `Level.next` is a field nothing
+  reads and `exit` is an entity that spawns nothing. There *is* a pause:
+  `GameLoop.paused`, which stops the clock rather than accumulating time it
+  then throws away.
 - **No player abstraction.** Yaw, pitch and eye height belong to the
   application; `CharacterController` is a body without a head.
 - **No rigid bodies.** Deliberate — nothing pushes the player and the player has

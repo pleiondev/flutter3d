@@ -456,6 +456,12 @@ class _GameScreenState extends State<GameScreen>
       final phase = (_elapsed / 2.0).floor().isEven;
       if (phase != _fogOn) _fogOn = phase;
     }
+    // Paused exactly when the pointer is not captured, which is what Escape
+    // already does and what clicking back in already undoes. No menu, no second
+    // key, and no state that can disagree with what the player sees: the
+    // crosshair is gone and the cursor is back, so a game that kept simulating
+    // would be a game running behind the player's back.
+    _loop.paused = !_devices.isCaptured;
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
