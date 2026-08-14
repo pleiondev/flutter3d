@@ -104,6 +104,33 @@ void main() {
     expect(camera.pitch, lessThanOrEqualTo(const FollowTuning().maxPitch));
   });
 
+  test('strafing goes to the camera\'s right, not its left', () {
+    // **The test that was missing, and a player found what it would have.**
+    // The one below holds forward only, and forward is symmetric in the sign
+    // that was wrong — so A and D were swapped for the whole of the first
+    // build and every test agreed with it.
+    //
+    // The camera at yaw 0 sits at -Z looking towards +Z. Screen-right is then
+    // world -X, because right is `cross(forward, up)`. Mutation: flip the sign
+    // of either `axis.x` term in `Runner._readWish`.
+    final world = CollisionWorld()
+      ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(60.0, 1.0, 60.0));
+    final runner = Runner(
+      body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+    );
+    final input = InputState()..press(GameAction.moveRight);
+
+    for (var i = 0; i < 60; i++) {
+      input.beginStep();
+      runner.step(_frame, input, cameraYaw: 0.0);
+      input.endStep();
+    }
+
+    expect(runner.position.x, lessThan(-2.0),
+        reason: 'right of a camera looking along +Z is world -X');
+    expect(runner.position.z.abs(), lessThan(0.5));
+  });
+
   test('the yaw it reports is the forward the runner runs in', () {
     // The contract between the two: the camera owns "forward", and the runner
     // takes it as an argument. Turn the camera a quarter turn and forward is

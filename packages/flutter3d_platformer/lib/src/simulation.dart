@@ -67,7 +67,11 @@ final class PlatformerSimulation {
 
   final Vector3 _respawn;
 
-  /// Where a death puts the runner back.
+  /// Where a death puts the runner back: **the feet**, as a level authors it.
+  ///
+  /// Every point that crosses this seam — the player spawn, a checkpoint's
+  /// `respawn`, this — is a place on the floor rather than the middle of a
+  /// body. [Runner.reviveAt] is the one place that converts.
   Vector3 get respawnPoint => _respawn;
 
   /// How many times the runner has died. A score, and a test's favourite number.

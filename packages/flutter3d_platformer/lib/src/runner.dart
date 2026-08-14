@@ -139,13 +139,21 @@ final class Runner implements Damageable, Rider, Gatherer {
 
   void _readWish(InputState input, double cameraYaw) {
     final axis = input.moveAxis;
-    // The stick's y is forward, which in world terms is where the camera looks.
     final sin = math.sin(cameraYaw);
     final cos = math.cos(cameraYaw);
+
+    // Forward is where the camera looks: `F = (sin, 0, cos)`.
+    //
+    // Right is the screen's right, which is `cross(F, up)` and therefore
+    // `(-cos, 0, sin)` — **not** `(cos, 0, -sin)`, which is what this said
+    // until somebody played it and reported that A and D were the wrong way
+    // round. The test that was supposed to cover this only ever held forward,
+    // so it agreed with both signs; `strafing goes to the camera's right` is
+    // the one that does not.
     _wish.setValues(
-      axis.x * cos + axis.y * sin,
+      axis.y * sin - axis.x * cos,
       0.0,
-      axis.y * cos - axis.x * sin,
+      axis.y * cos + axis.x * sin,
     );
   }
 
@@ -229,10 +237,17 @@ final class Runner implements Damageable, Rider, Gatherer {
     yaw += difference.abs() <= step ? difference : step * difference.sign;
   }
 
-  /// Puts it back at [at], upright, still and unhurt.
-  void reviveAt(Vector3 at) {
+  /// Puts it back with its feet on [feet], upright, still and unhurt.
+  ///
+  /// **Feet, not the body's middle**, and the difference is a bug that took a
+  /// player about four seconds to find. A level document says where a spawn or
+  /// a checkpoint is the way a person would point at the floor; a body is a box
+  /// about its centre. Teleporting the centre to the authored point buries the
+  /// runner half a body deep in the floor, from where it slides, falls, dies
+  /// and comes back to the same place — a death loop with no way out of it.
+  void reviveAt(Vector3 feet) {
     body
-      ..teleport(at)
+      ..teleport(Vector3(feet.x, feet.y + body.halfExtents.y, feet.z))
       ..velocity.setZero();
     health.restore(<String, Object?>{'current': health.maximum, 'armour': 0.0});
     _buffer = 0.0;

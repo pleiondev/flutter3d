@@ -108,7 +108,7 @@ final class _Run {
       runner: runner,
       collision: world,
       input: input,
-      startAt: runner.body.position.clone(),
+      startAt: start,
       mechanisms: mechanisms,
     );
   }
@@ -280,6 +280,41 @@ void main() {
     test('the coin is collected by walking over it', () {
       final run = _Run()..run(180, until: (_Run r) => r.runner.purse['coin'] > 0);
       expect(run.runner.purse['coin'], 1);
+    });
+
+    test('a revived runner stands on the floor rather than inside it', () {
+      // **The bug a player found in four seconds.** A level says where a
+      // checkpoint is the way a person points at the floor; a body is a box
+      // about its centre. Teleporting the centre to the authored point buries
+      // the runner half a body deep, and what follows is a death loop with no
+      // way out of it — it slides, falls, dies and comes back to the same spot.
+      //
+      // Mutation: drop the `halfExtents.y` in `Runner.reviveAt`.
+      final run = _Run();
+      final standing = run.y;
+
+      run.runner.reviveAt(Vector3(0.0, 0.0, 2.0));
+      expect(run.runner.position.y, closeTo(standing, 0.01));
+
+      // And it stays there: a buried body is not grounded and does not rest.
+      for (var i = 0; i < 30; i++) {
+        run.step();
+      }
+      expect(run.runner.isGrounded, isTrue);
+      expect(run.runner.position.y, closeTo(standing, 0.05));
+    });
+
+    test('dying once does not become dying forever', () {
+      // The death loop as the player met it: fall in, come back, fall in again
+      // without having moved. One fall must stay one fall.
+      final run = _Run()..run(240, until: (_Run r) => r.sim.deaths > 0);
+      expect(run.sim.deaths, 1);
+
+      for (var i = 0; i < 120; i++) {
+        run.step();
+      }
+      expect(run.sim.deaths, 1, reason: 'standing still after a revive is safe');
+      expect(run.runner.isGrounded, isTrue);
     });
 
     test('falling in the pit puts the runner back at the checkpoint', () {

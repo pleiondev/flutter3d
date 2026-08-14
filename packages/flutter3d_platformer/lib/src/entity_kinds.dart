@@ -117,6 +117,9 @@ final class CheckpointKind extends EntityKind {
 
   static final Vector3 defaultSize = Vector3(1.5, 2.5, 1.5);
 
+  /// What is drawn: a post, whatever the trigger's size is.
+  static final Vector3 markerSize = Vector3(0.35, 2.2, 0.35);
+
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     if (entity.integer('order') == null) {
@@ -150,11 +153,14 @@ final class CheckpointKind extends EntityKind {
         at: entity.vector('respawn') ?? entity.position,
       ),
     );
+    // The volume is wide so that it is hard to miss; the *marker* is a post,
+    // because a checkpoint drawn at the size of its trigger is an eight-metre
+    // slab across the middle of the level, which is what the first build did.
     context.reveal(
       entity,
       collider: collider,
       mechanism: checkpoint,
-      size: entity.vector('size') ?? defaultSize,
+      size: entity.vector('marker') ?? markerSize,
     );
   }
 }

@@ -49,7 +49,7 @@ final class _Game {
       runner: runner,
       collision: world,
       input: input,
-      startAt: runner.body.position.clone(),
+      startAt: start,
       mechanisms: mechanisms,
     );
   }

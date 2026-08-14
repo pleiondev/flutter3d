@@ -189,7 +189,8 @@ class _GameScreenState extends State<GameScreen>
         runner: runner,
         collision: loaded.collision,
         input: _input,
-        startAt: runner.body.position.clone(),
+        // The authored point: feet on the floor. See Runner.reviveAt.
+        startAt: start,
         mechanisms: mechanisms,
         levelNext: loaded.level.next,
       );
