@@ -92,10 +92,31 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   ///
   /// Cached on the pair, for the reason the other backend caches: linking is
   /// expensive, and the engine asks for the same pair every frame.
-  PipelineHandle link(ShaderHandle vertex, ShaderHandle fragment) {
+  /// Links a stage pair, and wraps it with the layout the pipeline was asked
+  /// for.
+  ///
+  /// **The GL program is cached by the stage pair; the layout is not part of
+  /// it.** A layout changes how attributes are pointed at buffers at bind time,
+  /// through `vertexAttribPointer`, and not how the program links — so two
+  /// layouts over one pair share one linked program and differ only in the
+  /// wrapper. Keying the cache on the layout as well would link the same
+  /// program twice; ignoring the layout when a cached program is found would
+  /// hand back a pipeline that quietly draws with the wrong one, which is the
+  /// mistake this shape makes impossible rather than merely unlikely.
+  PipelineHandle link(ShaderHandle vertex, ShaderHandle fragment,
+      {VertexLayoutSpec? layout}) {
     final key = '${vertex.name}+${fragment.name}';
-    final program = _programs.putIfAbsent(key, () => _link(vertex, fragment));
-    return PipelineHandle(backend: program, name: key);
+    final linked = _programs.putIfAbsent(key, () => _link(vertex, fragment));
+    return PipelineHandle(
+      backend: WebGlProgram(
+        linked.program,
+        linked.attributes,
+        linked.blocks,
+        linked.samplers,
+        layout: layout,
+      ),
+      name: key,
+    );
   }
 
   WebGlProgram _link(ShaderHandle vertex, ShaderHandle fragment) {

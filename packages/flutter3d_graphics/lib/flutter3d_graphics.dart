@@ -29,6 +29,7 @@ export 'src/pass_state.dart';
 
 /// Enums, one per thing a caller has to name.
 export 'src/formats.dart';
+export 'src/vertex_layout_spec.dart';
 
 /// Opaque handles for the things a backend owns.
 export 'src/geometry_buffer.dart';

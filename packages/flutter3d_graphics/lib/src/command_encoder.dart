@@ -12,10 +12,19 @@
 /// reading all eight pass sites in the renderer plus the two in the extension
 /// API, and **every member here has at least one caller**; anything flutter_gpu
 /// offers that no pass in this engine uses — stencil configuration, depth
-/// range, separate depth and stencil load/store actions, non-indexed draws,
-/// instancing — is absent rather than passed through. An interface member with
-/// no user is a guess about a second backend, and this seam has no second
-/// backend to check a guess against.
+/// range, separate depth and stencil load/store actions, non-indexed draws —
+/// is absent rather than passed through. An interface member with no user is a
+/// guess about a second backend, and this file was written when there was no
+/// second backend to check a guess against.
+///
+/// Instancing was on that list until mesh particles needed it, which is the
+/// rule working rather than failing. It arrived when something asked, and it
+/// arrived in this engine's shape — an argument on [PassEncoder.draw] and a
+/// slot on the vertex binds — rather than as flutter_gpu's split into
+/// `draw(vertexCount)` and `drawIndexed(indexCount)`, which would have added a
+/// member no pass here has ever wanted. There are three backends now, so the
+/// guess can be checked, and it is: by a conformance test rather than a
+/// golden, because the three reach instancing three different ways.
 ///
 /// ## Where flutter_gpu's model and the engine's intent differ
 ///
@@ -64,6 +73,7 @@ import 'geometry_buffer.dart';
 import 'sampler.dart';
 import 'shader.dart';
 import 'texture.dart';
+import 'vertex_layout_spec.dart';
 
 /// A rectangle of a render target, in pixels.
 ///
@@ -266,14 +276,21 @@ abstract interface class PassEncoder {
 
   /// Binds geometry the device already holds — a mesh, or the one triangle
   /// every full-screen pass draws.
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount);
+  ///
+  /// [slot] is which of the pipeline's [VertexLayoutSpec.buffers] this fills.
+  /// Zero is the only slot anything used before instancing, and slots must be
+  /// filled densely — see the note on [VertexLayoutSpec].
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount, {int slot = 0});
 
   /// Binds vertices built this frame.
   ///
   /// The bytes are consumed by the time this returns; where they live until the
   /// GPU has read them is the backend's problem, which is the whole reason this
   /// takes bytes rather than a buffer the caller had to allocate.
-  void bindVertexData(ByteData bytes, int vertexCount);
+  ///
+  /// This is where per-instance data goes: it is built every frame from a
+  /// simulation, which is exactly what this method is for.
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0});
 
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount);
 

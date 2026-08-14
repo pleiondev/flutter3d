@@ -211,11 +211,12 @@ final class FakePass implements CommandEncoder {
       commands.add(RecordedPipeline(pipeline));
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount) =>
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
+          {int slot = 0}) =>
       commands.add(RecordedVertices(vertexCount, transient: false));
 
   @override
-  void bindVertexData(ByteData bytes, int vertexCount) =>
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
       commands.add(RecordedVertices(vertexCount, transient: true));
 
   @override
@@ -357,7 +358,9 @@ final class FakeBackend implements GraphicsDevice {
   }
 
   @override
-  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment) =>
+  PipelineHandle createPipeline(
+          ShaderHandle vertex, ShaderHandle fragment,
+          {VertexLayoutSpec? layout}) =>
       PipelineHandle(
         backend: '${vertex.name}+${fragment.name}',
         name: '${vertex.name}+${fragment.name}',

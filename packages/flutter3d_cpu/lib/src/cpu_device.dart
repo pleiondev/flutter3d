@@ -144,7 +144,28 @@ final class CpuDevice implements GraphicsDevice {
   }
 
   @override
-  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment) {
+  PipelineHandle createPipeline(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutSpec? layout,
+  }) {
+    if (layout != null) {
+      // Refused rather than ignored, which is this backend's rule everywhere
+      // else. Its vertex stages read `attributes` by position out of one
+      // interleaved buffer, so honouring a layout means teaching the vertex
+      // fetch to assemble that array from several buffers with per-instance
+      // stepping — real work, and not work that can be faked by dropping the
+      // argument. A layout silently ignored would draw every instance on top
+      // of the first one and look like a simulation bug.
+      //
+      // Nothing passes a layout yet. The first thing that does — mesh
+      // particles — cannot land until this is implemented, because a scene the
+      // software backend refuses is a scene with no cross-backend check.
+      throw UnsupportedError(
+        'this backend does not implement vertex layouts yet, so it cannot '
+        'draw a pipeline that needs one. See the note at this line.',
+      );
+    }
     final v = (vertex.backend as CpuStage).vertex;
     final f = (fragment.backend as CpuStage).fragment;
     if (v == null || f == null) {
@@ -363,16 +384,34 @@ final class CpuEncoder implements CommandEncoder {
       _pipeline = pipeline.backend as _CpuPipeline;
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount) {
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
+      {int slot = 0}) {
+    _requireSlotZero(slot);
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
     _vertices = backend.bytes;
     _vertexCount = vertexCount;
   }
 
   @override
-  void bindVertexData(ByteData bytes, int vertexCount) {
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {
+    _requireSlotZero(slot);
     _vertices = bytes;
     _vertexCount = vertexCount;
+  }
+
+  /// A slot above zero needs a layout, and a layout is not implemented here.
+  ///
+  /// Separate from the pipeline's refusal because the two are reached by
+  /// different mistakes: this one is a caller binding a second buffer against a
+  /// pipeline that never described one.
+  void _requireSlotZero(int slot) {
+    if (slot != 0) {
+      throw UnsupportedError(
+        'slot $slot: this backend binds one vertex buffer. Slots beyond zero '
+        'only mean anything with a vertex layout, which it does not implement '
+        'yet — see createPipeline.',
+      );
+    }
   }
 
   @override

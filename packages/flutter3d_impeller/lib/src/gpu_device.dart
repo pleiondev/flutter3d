@@ -125,11 +125,20 @@ final class GpuRenderBackend implements GraphicsDevice {
       );
 
   @override
-  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment) =>
+  PipelineHandle createPipeline(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutSpec? layout,
+  }) =>
       PipelineHandle(
         backend: gpu.gpuContext.createRenderPipeline(
           vertex.backend as gpu.Shader,
           fragment.backend as gpu.Shader,
+          // Null is passed through rather than replaced with a layout derived
+          // from the shader. flutter_gpu does that derivation itself, and doing
+          // it here as well would be a second answer to the question the
+          // reflection already answers.
+          vertexLayout: layout?.toGpu(),
         ),
         name: '${vertex.name}+${fragment.name}',
       );
@@ -399,12 +408,13 @@ final class _GpuCommandEncoder implements CommandEncoder {
   int _indexCount = 0;
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount) =>
-      _pass.bindVertexBuffer(_view(buffer));
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
+          {int slot = 0}) =>
+      _pass.bindVertexBuffer(_view(buffer), slot: slot);
 
   @override
-  void bindVertexData(ByteData bytes, int vertexCount) =>
-      _pass.bindVertexBuffer(_host.emplace(bytes));
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
+      _pass.bindVertexBuffer(_host.emplace(bytes), slot: slot);
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {

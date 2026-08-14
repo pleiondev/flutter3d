@@ -35,9 +35,14 @@ final class WebGlTexture {
 
 /// A linked program plus what reflection told us about it.
 final class WebGlProgram {
-  WebGlProgram(this.program, this.attributes, this.blocks, this.samplers);
+  WebGlProgram(this.program, this.attributes, this.blocks, this.samplers,
+      {this.layout});
 
   final web.WebGLProgram program;
+
+  /// What the pipeline was built with, or null to keep guessing from the
+  /// shader. See [WebGlDevice.createPipeline] and `_describeVertices`.
+  final VertexLayoutSpec? layout;
 
   /// Vertex attributes in location order, with their float component counts.
   ///
@@ -214,8 +219,12 @@ final class WebGlDevice implements GraphicsDevice {
   bool get supportsWireframe => false;
 
   @override
-  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment) =>
-      _library.link(vertex, fragment);
+  PipelineHandle createPipeline(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutSpec? layout,
+  }) =>
+      _library.link(vertex, fragment, layout: layout);
 
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
@@ -773,14 +782,15 @@ final class WebGlEncoder implements CommandEncoder {
   }
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount) {
+  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
+      {int slot = 0}) {
     _gl.bindBuffer(web.WebGLRenderingContext.ARRAY_BUFFER,
         buffer.backend as web.WebGLBuffer);
-    _describeVertices();
+    _describeVertices(slot);
   }
 
   @override
-  void bindVertexData(ByteData bytes, int vertexCount) {
+  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {
     // Transient geometry: a buffer per call, orphaned when the frame ends. The
     // flutter_gpu backend has a ring of bump allocators for this; here the
     // driver owns the lifetime, so a fresh buffer is both correct and simpler.
@@ -792,35 +802,86 @@ final class WebGlEncoder implements CommandEncoder {
       web.WebGLRenderingContext.STREAM_DRAW,
     );
     _transient.add(buffer);
-    _describeVertices();
+    _describeVertices(slot);
   }
 
-  /// Points every attribute the bound program declares at the bound buffer.
+  /// Points the attributes of one slot at the buffer that was just bound.
   ///
-  /// See [WebGlProgram.attributes] for why this can be done at all without the
-  /// HAL carrying a vertex layout.
-  void _describeVertices() {
+  /// Two paths, and the split is the point. **Without a layout this guesses
+  /// from the shader** — see [WebGlProgram.attributes] — which is what every
+  /// draw in this engine did before instancing and what keeps every existing
+  /// picture identical. **With a layout it stops guessing**, because a layout
+  /// is the only thing that can say which of two buffers steps per instance.
+  void _describeVertices(int slot) {
     final program = _program;
     if (program == null) {
       throw StateError('bind a pipeline before binding vertices: the vertex '
           'layout comes from the shader, so there is nothing to describe '
           'against yet');
     }
-    final stride = program.vertexFloats * 4;
-    var offset = 0;
-    for (final attribute in program.attributes) {
-      _gl.enableVertexAttribArray(attribute.location);
+
+    final layout = program.layout;
+    if (layout == null) {
+      if (slot != 0) {
+        throw StateError(
+          'slot $slot was bound on a pipeline built without a layout. Which '
+          'buffer an attribute comes from is exactly what a layout says, and '
+          'reflection cannot answer it — build the pipeline with a '
+          'VertexLayoutSpec.',
+        );
+      }
+      final stride = program.vertexFloats * 4;
+      var offset = 0;
+      for (final attribute in program.attributes) {
+        _gl.enableVertexAttribArray(attribute.location);
+        _gl.vertexAttribPointer(
+          attribute.location,
+          attribute.componentCount,
+          web.WebGLRenderingContext.FLOAT,
+          false,
+          stride,
+          offset,
+        );
+        offset += attribute.componentCount * 4;
+      }
+      return;
+    }
+
+    if (slot < 0 || slot >= layout.buffers.length) {
+      throw RangeError.range(slot, 0, layout.buffers.length - 1, 'slot',
+          'the pipeline\'s layout describes ${layout.buffers.length} buffers');
+    }
+    final buffer = layout.buffers[slot];
+    final divisor = buffer.stepMode == VertexStepMode.instance ? 1 : 0;
+    for (final attribute in buffer.attributes) {
+      final location =
+          _gl.getAttribLocation(program.program, attribute.name);
+      // Negative means the linker dropped it — an `in` the stage declares and
+      // never reads. Not an error: the same thing happens on Impeller, and a
+      // layout naming an attribute the shader optimised away is a layout that
+      // is merely more complete than it needs to be.
+      if (location < 0) continue;
+      _gl.enableVertexAttribArray(location);
       _gl.vertexAttribPointer(
-        attribute.location,
-        attribute.componentCount,
+        location,
+        attribute.format.componentCount,
         web.WebGLRenderingContext.FLOAT,
         false,
-        stride,
-        offset,
+        buffer.strideInBytes,
+        attribute.offsetInBytes,
       );
-      offset += attribute.componentCount * 4;
+      _gl.vertexAttribDivisor(location, divisor);
+      // **Divisors are sticky per attribute location, not per buffer and not
+      // per draw.** Remembering which ones were set is what lets
+      // [clearBindings] put them back; without it the next non-instanced draw
+      // inherits a divisor of one and renders one instance's worth of
+      // geometry, with no GL error anywhere.
+      if (divisor != 0) _instancedLocations.add(location);
     }
   }
+
+  /// Attribute locations that currently carry a non-zero divisor.
+  final Set<int> _instancedLocations = <int>{};
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
@@ -949,6 +1010,14 @@ final class WebGlEncoder implements CommandEncoder {
     _nextTextureUnit = 0;
     _nextBlockBinding = 0;
     _indexCount = 0;
+    // Divisors, before anything else forgets which ones were set. They are
+    // global per attribute location and survive both the draw and the buffer
+    // binding, so an instanced draw followed by an ordinary one would otherwise
+    // draw a single triangle's worth of a mesh and report nothing.
+    for (final location in _instancedLocations) {
+      _gl.vertexAttribDivisor(location, 0);
+    }
+    _instancedLocations.clear();
     _gl.bindBuffer(web.WebGLRenderingContext.ARRAY_BUFFER, null);
     _gl.bindBuffer(web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, null);
   }

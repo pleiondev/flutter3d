@@ -14,6 +14,7 @@ import 'geometry_buffer.dart';
 import 'render_target_pool.dart';
 import 'shader.dart';
 import 'texture.dart';
+import 'vertex_layout_spec.dart';
 
 /// Everything the engine needs a graphics backend for.
 ///
@@ -109,7 +110,22 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Expensive — it compiles and links on the backend — so callers cache. The
   /// engine keys its cache on the *pair*, because a skinned mesh has a different
   /// vertex layout and the layout comes from the vertex stage alone.
-  PipelineHandle createPipeline(ShaderHandle vertex, ShaderHandle fragment);
+  ///
+  /// [layout] says where the vertex inputs come from, and **null means the
+  /// backend works it out from the shader** — which is what every pipeline in
+  /// this engine did before instancing and what all of them still do. Passing
+  /// one is how a pipeline gets a second buffer stepping per instance, because
+  /// no reflection can tell a backend which of two buffers that is.
+  ///
+  /// A caller that caches pipelines must key on the layout as well as on the
+  /// pair. Two layouts over one stage pair are two different pipelines, and
+  /// handing back the first for the second is a draw that reads instance data
+  /// as vertices — which draws a picture rather than raising anything.
+  PipelineHandle createPipeline(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutSpec? layout,
+  });
 
   /// Uploads geometry that will outlive the frame.
   ///
