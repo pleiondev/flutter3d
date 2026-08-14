@@ -52,12 +52,17 @@ the shader library and renders nothing.
 ## Tests
 
 ```bash
-for p in packages/flutter3d packages/flutter3d_game packages/mouse_capture; do
-  (cd "$p" && flutter test)
-done
+for p in packages/*/; do (cd "$p" && flutter test); done
+(cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-495 tests, none of which need a GPU.
+1230 tests across twelve packages, and the only ones that need a GPU are the
+Impeller half of the golden set. The other half is rendered by the software
+backend, which is what makes 30 scenes checkable in a headless run.
+
+How they are written down — two independent golden sets rather than one, and
+why every new test is written by breaking the thing it covers — is in
+[docs/SPEC.md](docs/SPEC.md), section 6.
 
 ## Channel
 
