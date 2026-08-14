@@ -26,6 +26,7 @@
 /// brightly while the light it casts has gone out.
 library;
 
+export 'src/flipbook.dart';
 export 'src/light_emitter.dart';
 export 'src/particle.dart';
 export 'src/particle_affector.dart';

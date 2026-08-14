@@ -29,6 +29,8 @@
 /// settle it. The argument above is a reason to start here, not a result.
 library;
 
+import 'dart:math' as math;
+
 import 'package:vector_math/vector_math.dart';
 
 import 'particle.dart';
@@ -233,3 +235,37 @@ final class ParticleColorGradient extends ParticleAffector {
     gradient.sampleInto(particle.color, particle.life);
   }
 }
+
+/// Turns a billboard over its life.
+///
+/// Reads [Particle.seed] for the starting angle and for the direction, so a
+/// burst is not a sheet of aligned squares turning in step — which is the most
+/// recognisable tell of a rotating sprite system, and worse than no rotation at
+/// all because it draws the eye to the grid.
+///
+/// **Derived from age rather than accumulated.** Adding a delta to the angle
+/// every step would make the result depend on how many sub-steps a frame
+/// happened to take, and the fixed timestep exists precisely so that nothing
+/// does. It also means an affector applied twice in one step is harmless.
+final class ParticleSpin extends ParticleAffector {
+  const ParticleSpin({
+    required this.turnsPerSecond,
+    this.randomiseStart = true,
+  });
+
+  /// The fastest a particle spins, in whole turns a second. Each takes a signed
+  /// fraction of it from its own seed, so half of a burst turns each way.
+  final double turnsPerSecond;
+
+  /// Whether a particle starts at a random angle rather than at zero.
+  final bool randomiseStart;
+
+  @override
+  void apply(Particle particle, double dt) {
+    final spin = (particle.seed * 2.0 - 1.0) * turnsPerSecond;
+    final start = randomiseStart ? particle.seed * _tau : 0.0;
+    particle.rotation = start + spin * particle.age * _tau;
+  }
+}
+
+const double _tau = 2.0 * math.pi;

@@ -20,6 +20,17 @@ final class Particle {
   /// additively.
   final Vector4 color = Vector4.zero();
 
+  /// How far the quad is turned about the view axis, in radians.
+  ///
+  /// Zero for every particle nothing rotates, and the billboard path checks for
+  /// that before doing any trigonometry — a burst of two hundred untextured
+  /// sparks should not pay for a feature it does not use.
+  ///
+  /// **Only a billboard turns.** A mesh particle is a shape in the world and
+  /// would need a real orientation; this is the angle of a camera-facing quad
+  /// about the direction it faces, which is the only rotation a billboard has.
+  double rotation = 0.0;
+
   double age = 0.0;
   double lifetime = 0.0;
   double size = 0.0;

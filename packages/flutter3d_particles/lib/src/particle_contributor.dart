@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:vector_math/vector_math.dart' as vm;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'flipbook.dart';
 import 'particle_system.dart';
 
 /// Draws every live particle as one batch of camera-facing quads.
@@ -38,7 +39,7 @@ const PassState _kParticleState = PassState(
 );
 
 final class ParticleContributor extends PassContributor {
-  ParticleContributor(this.particles, {this.texture});
+  ParticleContributor(this.particles, {this.texture, this.flipbook});
 
   final ParticleSystem particles;
 
@@ -55,6 +56,14 @@ final class ParticleContributor extends PassContributor {
   /// as it recedes, which is exactly the case a chain exists for, and one
   /// without a chain sparkles as it goes away.
   final TextureHandle? texture;
+
+  /// The sheet [texture] is a grid of, or null for a single sprite.
+  ///
+  /// Only meaningful with a texture, and harmless without one: the cell it
+  /// would choose scales coordinates the procedural stage reads as a radius,
+  /// which would shrink the disc rather than doing anything useful. Set both or
+  /// neither.
+  final Flipbook? flipbook;
 
   static const String _infoBlock = 'ParticleInfo';
 
@@ -81,7 +90,8 @@ final class ParticleContributor extends PassContributor {
     _right.setValues(world.entry(0, 0), world.entry(1, 0), world.entry(2, 0));
     _up.setValues(world.entry(0, 1), world.entry(1, 1), world.entry(2, 1));
 
-    final written = particles.writeQuads(_right, _up, vertices, indices);
+    final written = particles.writeQuads(_right, _up, vertices, indices,
+        flipbook: flipbook);
     if (written == 0) {
       developer.Timeline.finishSync();
       return;

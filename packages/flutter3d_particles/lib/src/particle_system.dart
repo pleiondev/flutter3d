@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'particle_random.dart';
 
+import 'flipbook.dart';
 import 'particle.dart';
 import 'light_emitter.dart';
 import 'particle_affector.dart';
@@ -585,8 +586,9 @@ final class ParticleSystem {
     Vector3 cameraRight,
     Vector3 cameraUp,
     Float32List vertices,
-    Uint32List indices,
-  ) {
+    Uint32List indices, {
+    Flipbook? flipbook,
+  }) {
     var written = 0;
     final maxParticles = math.min(
       vertices.length ~/ floatsPerParticle,
@@ -599,12 +601,39 @@ final class ParticleSystem {
       if (particle.size <= 0.0 || particle.color.w <= 0.0) continue;
 
       final half = particle.size * 0.5;
-      final rx = cameraRight.x * half;
-      final ry = cameraRight.y * half;
-      final rz = cameraRight.z * half;
-      final ux = cameraUp.x * half;
-      final uy = cameraUp.y * half;
-      final uz = cameraUp.z * half;
+
+      // The quad's own axes, which are the camera's turned by the particle's
+      // rotation. Turning the axes rather than the corners is what makes a
+      // rotation cost two trigonometric calls per particle instead of eight
+      // multiplies per corner — and it is exact, because rotating a basis and
+      // rotating everything expressed in it are the same operation.
+      var ax = cameraRight.x;
+      var ay = cameraRight.y;
+      var az = cameraRight.z;
+      var bx = cameraUp.x;
+      var by = cameraUp.y;
+      var bz = cameraUp.z;
+      if (particle.rotation != 0.0) {
+        final c = math.cos(particle.rotation);
+        final s = math.sin(particle.rotation);
+        ax = cameraRight.x * c + cameraUp.x * s;
+        ay = cameraRight.y * c + cameraUp.y * s;
+        az = cameraRight.z * c + cameraUp.z * s;
+        bx = cameraUp.x * c - cameraRight.x * s;
+        by = cameraUp.y * c - cameraRight.y * s;
+        bz = cameraUp.z * c - cameraRight.z * s;
+      }
+      final rx = ax * half;
+      final ry = ay * half;
+      final rz = az * half;
+      final ux = bx * half;
+      final uy = by * half;
+      final uz = bz * half;
+
+      // Which cell of the atlas this particle is showing, as a rectangle in
+      // texture space. Null is the whole texture, which is the zero-to-one the
+      // corners already carry.
+      final cell = flipbook?.cellFor(particle);
 
       var out = written * floatsPerParticle;
       for (final (sx, sy, u, v) in const <(double, double, double, double)>[
@@ -620,8 +649,8 @@ final class ParticleSystem {
         vertices[out + 4] = particle.color.y;
         vertices[out + 5] = particle.color.z;
         vertices[out + 6] = particle.color.w;
-        vertices[out + 7] = u;
-        vertices[out + 8] = v;
+        vertices[out + 7] = cell == null ? u : cell.left + u * cell.width;
+        vertices[out + 8] = cell == null ? v : cell.top + v * cell.height;
         out += 9;
       }
 
