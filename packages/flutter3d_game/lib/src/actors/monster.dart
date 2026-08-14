@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import '../combat/weapon.dart';
 import '../combat/weapon_behaviour.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import '../world/rider.dart';
 import 'damageable.dart';
 import 'health.dart';
 import '../physics/layers.dart';
@@ -100,7 +101,7 @@ final class MonsterDef {
 
 
 /// One monster, alive or otherwise.
-final class Monster implements Damageable {
+final class Monster implements Damageable, Rider {
   Monster({
     required this.def,
     required CollisionWorld world,
@@ -138,6 +139,10 @@ final class Monster implements Damageable {
   /// tidiness: the system already imports this file, so naming it here would
   /// close a cycle between the two. One closure per monster, made once when it
   /// spawns.
+  /// A monster rides a platform the same way the player does. See [Rider].
+  @override
+  Collider? get carriedBy => body.groundBody;
+
   bool Function(double amount)? onDamage;
 
   /// Takes damage the way its system would, because it *is* its system.

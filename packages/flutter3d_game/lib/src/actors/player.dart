@@ -37,11 +37,12 @@ import 'package:vector_math/vector_math.dart';
 import '../physics/layers.dart';
 import '../world/inventory.dart';
 import '../world/key_ring.dart';
+import '../world/rider.dart';
 import 'damageable.dart';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 
-final class Player with KeyHolder implements Damageable {
+final class Player with KeyHolder implements Damageable, Rider {
   Player({
     required this.body,
     Inventory? inventory,
@@ -68,6 +69,11 @@ final class Player with KeyHolder implements Damageable {
   /// itself there, which was right by accident.
   @override
   Set<String> get keys => inventory.keys;
+
+  /// What the player is standing on, so a lift can tell a passenger from
+  /// somebody in the way. See [Rider].
+  @override
+  Collider? get carriedBy => body.groundBody;
 
   @override
   bool applyDamage(double amount) => inventory.damage(amount);

@@ -110,6 +110,9 @@ final class MechanismEvents {
   /// Pickups collected.
   final List<Mechanism> taken = <Mechanism>[];
 
+  /// Exits reached. Usually empty, and never more than once per level.
+  final List<Mechanism> reached = <Mechanism>[];
+
   /// Anything the level said to the player.
   ///
   /// A trigger fires from inside the collision dispatch, where there is nobody
@@ -120,6 +123,7 @@ final class MechanismEvents {
     started.clear();
     stopped.clear();
     taken.clear();
+    reached.clear();
     messages.clear();
   }
 }

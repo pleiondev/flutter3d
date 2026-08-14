@@ -178,14 +178,34 @@ final class Arsenal {
   double _cooldown = 0.0;
 
   List<WeaponDef> get owned => List<WeaponDef>.unmodifiable(_owned);
-  WeaponDef get current => _owned[_current];
+
+  /// Whether anything is being held at all.
+  ///
+  /// True for a game with no weapons in it, and for a player who has not
+  /// picked one up yet. Everything asked once a step — [canFire],
+  /// [wantsToFire], [fire], [fallBackIfEmpty] — answers correctly for that
+  /// case, so no caller has to test this first.
+  bool get isEmpty => _owned.isEmpty;
+
+  /// What is being held.
+  ///
+  /// Throws when [isEmpty]. A sentinel "empty hands" weapon would be a lie
+  /// every caller then has to detect anyway, and a nullable return would put a
+  /// check in the HUD, the view model and the crosshair for a case none of
+  /// them can do anything about.
+  WeaponDef get current {
+    if (_owned.isEmpty) {
+      throw StateError('nothing is being held: check Arsenal.isEmpty first');
+    }
+    return _owned[_current];
+  }
   int get currentIndex => _current;
   double get cooldownRemaining => _cooldown;
 
   int ammoOf(AmmoType type) =>
       type == AmmoType.none ? -1 : (_ammo[type] ?? 0);
 
-  int get currentAmmo => ammoOf(current.ammo);
+  int get currentAmmo => isEmpty ? 0 : ammoOf(current.ammo);
 
   bool owns(WeaponDef weapon) =>
       _owned.any((WeaponDef w) => w.name == weapon.name);
@@ -234,6 +254,7 @@ final class Arsenal {
 
   /// Whether pulling the trigger right now would fire.
   bool get canFire =>
+      !isEmpty &&
       _cooldown <= 0.0 &&
       (current.ammo == AmmoType.none ||
           ammoOf(current.ammo) >= current.ammoPerShot);
@@ -243,7 +264,7 @@ final class Arsenal {
   /// An automatic weapon fires while held; the rest need the press edge, which
   /// the caller reports as [pressed].
   bool wantsToFire({required bool held, required bool pressed}) =>
-      current.automatic ? held : pressed;
+      !isEmpty && (current.automatic ? held : pressed);
 
   /// Spends a shot. Returns the weapon fired, or null when it could not.
   WeaponDef? fire() {
@@ -261,7 +282,7 @@ final class Arsenal {
   /// Called when the current one runs dry: leaving the player holding an empty
   /// weapon and clicking is worse than choosing for them.
   void fallBackIfEmpty() {
-    if (canFire || _cooldown > 0.0) return;
+    if (isEmpty || canFire || _cooldown > 0.0) return;
     for (var i = _owned.length - 1; i >= 0; i--) {
       final weapon = _owned[i];
       if (weapon.ammo == AmmoType.none ||

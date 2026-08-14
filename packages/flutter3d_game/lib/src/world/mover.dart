@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'mechanism.dart';
+import 'rider.dart';
 import '../physics/layers.dart';
 
 /// Where a mover is in its trip.
@@ -167,6 +168,11 @@ abstract base class Mover extends Mechanism {
   /// Only bodies, never level geometry: a door closing into its own frame
   /// overlaps the wall by design, and testing against the world would jam every
   /// door in the level shut.
+  ///
+  /// **And never a passenger.** A body standing on this mover overlaps where it
+  /// is about to be on every single step, which used to mean no lift in the
+  /// level could move while anybody rode it — see [Rider], which is where the
+  /// whole story is written down.
   bool _isBlocked(Vector3 candidate) {
     world.collisions.overlap(
       collider.shape,
@@ -176,7 +182,12 @@ abstract base class Mover extends Mechanism {
       ignore: collider,
       includeTriggers: false,
     );
-    return _touching.isNotEmpty;
+    for (final body in _touching) {
+      final owner = body.userData;
+      if (owner is Rider && identical(owner.carriedBy, collider)) continue;
+      return true;
+    }
+    return false;
   }
 
   static double _towards(double from, double to, double by) {

@@ -19,10 +19,10 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 
 | Directory | What it holds |
 |---|---|
-| `loop/` | `FixedStep` (accumulator, `alpha`, dropped steps), `GameLoop`, `InterpolatedVector3`/`InterpolatedAngle` |
+| `loop/` | `FixedStep`, `GameLoop`, `GameSimulation` (the step order, `GameState`), interpolation |
 | `input/` | `GameAction`, `InputState` (latched edges, analogue axis, look delta), `DesktopInput` |
 | `level/` | `Level` format v1, `EntityKind` and its registry, `LevelValidator`, brush→geometry, `SpawnContext` |
-| `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Pickup`, `Gift`, `Inventory`, `LightFixture` |
+| `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Pickup`, `Exit`, `Rider`, `Gift`, `Inventory`, `LightFixture` |
 | `combat/` | `WeaponDef` and `Arsenal`, hitscan, projectiles, blast |
 | `actors/` | `Health`, `MonsterDef`, `MonsterSystem`, `Player` (body, eye, aim), `Damageable` |
 | `nav/` | `NavGrid` baked from the brushes, `FlowField`, `Navigation` |
@@ -41,14 +41,25 @@ collision.update()
 collision.clearKinematicDeltas()
 ```
 
-Two bugs that ordering prevents, both of which look like physics faults and are
-not:
+`Simulation` owns this order now, and two claims that used to sit here as
+comments have been measured rather than repeated:
 
-- **A lift indexed one step late is a lift you can walk through.** Move
-  `reindex()` after `body.step` and the player sweeps against where the lift
-  *was*.
-- **A lift that has not moved yet cannot carry you.** Clear the kinematic deltas
-  before the body steps and a passenger stops riding.
+- **A platform that moves sideways cannot carry you** if the kinematic deltas
+  are cleared before the body steps. Tested. Note *sideways*: the old comment
+  said a rising lift could not carry you, and that is false — a lift penetrates
+  the capsule standing on it and the controller pushes it out, upwards, whether
+  the delta was read or not.
+- **`reindex()` before `body.step` is ordering by argument, not by test.** It
+  is right — the broadphase should match geometry that already moved — but the
+  narrow phase reads live positions and a cell is four metres, so a stale index
+  loses a mover only if it left its cell inside one step. No door does. Nothing
+  here claims a test covers it.
+
+And a third thing, which was a real bug rather than a claim about one: a
+`Mover` refused to move into any body, and a passenger standing on it overlaps
+where it is about to be on every step. **No lift in the repository could move
+while anybody rode it.** `Rider` is what tells being carried from being in the
+way.
 
 ## Content lives in the game, not here
 
@@ -191,10 +202,10 @@ Stated rather than discovered:
 - **Navigation gets you there, not around you.** No flanking, no cover, no
   squads, no doors opened by monsters, and nothing reserves the space it is
   walking into, so a crowd in a corridor is still a crowd in a corridor.
-- **No game-over and no level transition.** `Level.next` is a field nothing
-  reads and `exit` is an entity that spawns nothing. There *is* a pause:
-  `GameLoop.paused`, which stops the clock rather than accumulating time it
-  then throws away.
+- **A game flow with nowhere to go.** `GameState` is `playing`, `dead` or
+  `complete`, a dead player's input moves nothing, and an `Exit` reports where
+  to go next. What no one has written is the part that *acts* on that: nothing
+  restarts a level and nothing loads the next one.
 - **No camera, and that is not an omission.** `Player` owns the body, the
   inventory, where the eye is and which way it points; what a projection matrix
   should do about that belongs to the renderer. Third-person, over-the-shoulder

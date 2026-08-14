@@ -89,6 +89,8 @@ class _GameScreenState extends State<GameScreen>
   /// locked door asks what the body in front of it holds.
   /// Who the player is, once there is a body to be.
   Player? _player;
+  GameSimulation? _sim;
+  GameState _shown = GameState.playing;
 
   final Inventory _inventory = Inventory(
     arsenal: Arsenal(
@@ -117,8 +119,6 @@ class _GameScreenState extends State<GameScreen>
   /// A field initializer used to do it, back when a mesh could reach the
   /// graphics context on its own. Nothing can now, which is the point.
   late final WeaponView _weaponView;
-  WeaponShot? _shot;
-  ProjectileSystem? _projectiles;
   MonsterSystem? _monsters;
   MonsterVisuals? _monsterVisuals;
 
@@ -158,7 +158,6 @@ class _GameScreenState extends State<GameScreen>
   // Scratch vectors, reused every step. Allocating these per frame is the
   // easiest way to hand the collector work it does not need.
   final Vector3 _right = Vector3.zero();
-  final Vector3 _wish = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
   // Scratch for the occlusion ray, which runs once per audible source per
@@ -426,20 +425,30 @@ class _GameScreenState extends State<GameScreen>
         lookSensitivity: _lookSensitivity,
       );
 
+      final sim = GameSimulation(
+        player: _player!,
+        collision: loaded.collision,
+        input: _input,
+        mechanisms: mechanisms,
+        monsters: monsters,
+        projectiles: projectiles,
+        shot: WeaponShot(
+          world: loaded.collision,
+          hitscan: hitscan,
+          projectiles: projectiles,
+        ),
+        levelNext: loaded.level.next,
+      );
+
       if (!mounted) return;
       setState(() {
+        _sim = sim;
         _loaded = loaded;
         _body = body;
-        _projectiles = projectiles;
         _monsters = monsters;
         _monsterVisuals = visuals;
         _mechanisms = mechanisms;
         _fixtureVisuals = fixtures;
-        _shot = WeaponShot(
-          world: loaded.collision,
-          hitscan: hitscan,
-          projectiles: projectiles,
-        );
         _player!.yaw = start?.yaw ?? 0.0;
         _smoothedPosition.jumpTo(body.position);
         // Loading blocked the ticker for a couple of seconds, and all of that
@@ -498,143 +507,77 @@ class _GameScreenState extends State<GameScreen>
     setState(() {});
   }
 
-  /// One step of simulated time. Everything that decides where the player is
-  /// happens here and nowhere else.
+  /// One step of simulated time.
+  ///
+  /// The order everything happens in belongs to `GameSimulation` now, along with
+  /// the two claims about it that turned out to need measuring. What is left
+  /// here is presentation: this reads what the step reports and turns it into
+  /// noise, sparks and flashes.
   void _step(double dt) {
-    final body = _body;
-    final loaded = _loaded;
+    final sim = _sim;
     final player = _player;
-    if (body == null || loaded == null || player == null) return;
+    if (sim == null || player == null) return;
 
-    player.look(_input.lookDelta);
-    // Yaw only, and the pawn is where that rule lives now: walking forward
-    // while looking at the floor must not drive the player into it.
-    player.moveWish(_input.moveAxis, _wish);
+    final heldBefore = _arsenal.current;
+    sim.step(dt);
 
-    if (_input.pressed(GameAction.jump)) body.requestJump();
-
-    // Doors and lifts move first, and the world is re-indexed before the player
-    // sweeps against them: a lift indexed one step late is a lift you can walk
-    // through, and one that has not moved yet cannot carry you.
-    final mechanisms = _mechanisms;
-    mechanisms?.step(dt);
-    loaded.collision.reindex();
-
-    body.step(
-      dt,
-      wishDirection: _wish,
-      sprint: _input.held(GameAction.sprint),
-    );
-
-    loaded.collision.update();
-    loaded.collision.clearKinematicDeltas();
-
-    if (mechanisms != null) {
-      if (_input.pressed(GameAction.use)) _use(player, mechanisms);
-      // Last, because the use key above can start a door: publishing before it
-      // would report that door a step late, every time.
-      mechanisms.publish();
-      _hearMechanisms(mechanisms);
+    // A weapon can change hands inside the step — a slot key, or the last
+    // round of the current one. The view model is told once, here, rather than
+    // by the two places that could have caused it.
+    if (!identical(_arsenal.current, heldBefore)) {
+      _weaponView.selectWeapon(_arsenal.current);
     }
+
+    final outcome = sim.usedThisStep;
+    if (outcome != null) {
+      if (outcome is Refused) _audio.play(Sounds.locked, sim.firedFrom);
+      _say(outcome.message);
+    }
+
+    final mechanisms = _mechanisms;
+    if (mechanisms != null) _hearMechanisms(mechanisms);
+
+    if (_hitFlash > 0.0) _hitFlash = math.max(0.0, _hitFlash - dt * 4.0);
+    if (_painFlash > 0.0) _painFlash = math.max(0.0, _painFlash - dt * 1.6);
     if (_messageFor > 0.0) _messageFor = math.max(0.0, _messageFor - dt);
-    _inventory.step(dt);
     for (final power in _inventory.expired) {
       _say('$power has run out.');
     }
     _inventory.expired.clear();
 
-    _updateWeapon(dt, player);
+    if (sim.damageTakenThisStep > 0.0) _painFlash = 1.0;
 
-    // After the weapon, so a rocket fired this step is not moved until the
-    // next one — otherwise it starts the game already a step down the corridor.
-    final monsters = _monsters;
-    if (monsters != null && _playerHealth.isAlive) {
-      player.eye(_eye);
-      monsters.step(dt, playerEye: _eye, playerCollider: body.collider);
-      if (monsters.playerDamageThisStep > 0.0) {
-        _inventory.damage(monsters.playerDamageThisStep);
-        _painFlash = 1.0;
-      }
-      for (final dead in monsters.died) {
-        _kills++;
-        _particles.burst(Effects.impactSparks, dead.position);
-        _audio.play(Sounds.monsterDie, dead.position);
-      }
-      // `Sounds.monsterPain` was declared, preloaded and never played: nothing
-      // anywhere could tell that a monster had been hit and survived. Only the
-      // ones that flinched make a noise — a hit that did not stagger reads as
-      // a hit that did not land, and every hit screaming is worse than none.
-      for (final hurt in monsters.hurtThisStep) {
-        if (hurt.staggered) {
-          _audio.play(Sounds.monsterPain, hurt.monster.position);
-        }
+    // Said once, on the edge. There is no restart and no next level to load
+    // yet, so this is exactly as much as the application can honestly do about
+    // either — and it is more than the nothing it did before, when `exit`
+    // spawned no mechanism and dying left you walking around at zero health.
+    if (sim.state != _shown) {
+      _shown = sim.state;
+      switch (sim.state) {
+        case GameState.playing:
+          break;
+        case GameState.dead:
+          _say('You died.');
+        case GameState.complete:
+          final next = sim.nextLevel;
+          _say(next == null ? 'Level complete.' : 'Level complete — $next.');
       }
     }
 
-    final projectiles = _projectiles;
-    if (projectiles != null) {
-      projectiles.step(dt);
-      for (final blast in projectiles.detonations) {
-        _particles.burst(Effects.explosionCore, blast.position);
-        _particles.burst(Effects.explosionEmbers, blast.position);
-        // And smoke for a second after the fire is out, from a key that
-        // belongs to this blast alone. A fresh object rather than the
-        // position: two rockets landing in the same doorway are two plumes,
-        // and a key they shared would mean the second restarted the first.
-        // The system drops the emission when it runs out, so a key per blast
-        // does not accumulate.
-        _particles.emitTimed(
-          Object(),
-          Effects.explosionSmoke,
-          blast.position,
-          perSecond: 34.0,
-          seconds: 0.85,
-        );
-        _applyBlast(blast);
-      }
-      if (projectiles.detonations.isNotEmpty) {
-        _blasts
-          ..clear()
-          ..addAll(projectiles.detonations);
-        _hitFlash = 1.0;
-      }
-    }
+    _showShot(sim);
+    _showMonsters(sim);
+    _showBlasts(sim);
 
-    // Every torch, every step. The rate is per second and the system keeps
-    // each source's fractional remainder, so the fire looks the same on a
-    // 60 Hz display and a 120 Hz one.
-    final fixtures = _fixtureVisuals;
-    if (fixtures != null) {
-      for (final entry in fixtures.flames.entries) {
-        final fixture = entry.key;
-        final fire = entry.value;
-        if (!fixture.enabled) continue;
-        // A steady rate, not one modulated by brightness. The flicker is
-        // supposed to come out of the fire, and feeding brightness back into
-        // the emission rate would make it come out of itself.
-        // Stated rather than spent: `advance` below drains it across fixed
-        // sub-steps, so the flame has the same shape at 30 Hz as at 120.
-        _particles.emit(
-          fire,
-          Effects.flame,
-          fire.originInto(_flameAt),
-          perSecond: 150.0,
-        );
+    final body = player.body;
+    _weaponView.step(
+      dt,
+      speed: math.sqrt(
+        body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z,
+      ),
+      grounded: body.isGrounded,
+    );
 
-        // And the light is what the fire measures, not a sine running
-        // alongside it. Divided by the power a healthy flame settles at, so
-        // the fixture sees a fraction and the level's own intensity stays the
-        // thing that decides how bright a torch is.
-        fixture.measure(
-          fire.glow.power / _flamePower,
-          // Only once the glow has seen a particle. Before that its centre is
-          // the world origin, and a torch whose light spends its first frames
-          // inside a wall is worse than one that never moved at all.
-          at: fire.glow.located ? fire.glow.centre : null,
-        );
-      }
-    }
-
+    _burnTorches();
     _particles.advance(dt);
 
     // Last, so every source has already moved this step. The listener is the
@@ -647,35 +590,122 @@ class _GameScreenState extends State<GameScreen>
     _smoothedPosition.push(body.position);
   }
 
-  /// A hand on whatever the crosshair is pointing at.
-  ///
-  /// A ray rather than a proximity test, so two buttons on the same wall are
-  /// separately pressable and so the answer matches what the player believes
-  /// they are aiming at.
-  void _use(Player player, MechanismWorld mechanisms) {
-    player
-      ..eye(_eye)
-      ..aim(_aim);
+  /// The noise and the sparks a shot makes. The shot itself already happened.
+  void _showShot(GameSimulation sim) {
+    final weapon = sim.firedThisStep;
+    if (weapon == null) return;
+    _weaponView.recoil();
 
-    final target = mechanisms.underCrosshair(
-      _eye,
-      _aim,
-      ignore: player.body.collider,
+    // At the eye rather than at the muzzle, for the same reason the shot
+    // starts there: a sound half a metre to one side pans audibly wrong when
+    // the player is against a wall.
+    _audio.play(
+      weapon.ammo == AmmoType.shells ? Sounds.shotgun : Sounds.pistol,
+      sim.firedFrom,
     );
-    if (target == null) return;
-    final outcome =
-        target.activate(mechanisms.activationBy(player.body.collider));
-    if (outcome is Refused) _audio.play(Sounds.locked, _eye);
-    _say(outcome.message);
+
+    _lastShot
+      ..clear()
+      ..addAll(sim.hits);
+    if (_lastShot.any((ShotHit h) => h.struckSomething)) _hitFlash = 1.0;
+
+    // Where the muzzle actually is, unlike where the shot came from: the flare
+    // is the one thing that should sit at the barrel rather than at the eye.
+    _player!
+      ..aim(_aim)
+      ..right(_right);
+    _muzzle
+      ..setFrom(sim.firedFrom)
+      ..x += _aim.x * 0.6 - _right.x * 0.18
+      ..y += _aim.y * 0.6 - 0.12
+      ..z += _aim.z * 0.6 - _right.z * 0.18;
+    _particles.burst(Effects.muzzleFlash, _muzzle, direction: _aim);
+
+    for (final hit in _lastShot) {
+      if (!hit.struckSomething) continue;
+      _particles.burst(Effects.impactSparks, hit.point, direction: hit.normal);
+      _particles.burst(Effects.impactDust, hit.point, direction: hit.normal);
+    }
   }
 
-  /// Grinding stone while a mover travels, and a thud when it stops.
-  ///
-  /// Driven by events now. It used to walk every mechanism in the level each
-  /// step, type-test for a `Mover` and diff `isMoving` against this map by
-  /// hand — the comment there said "a mover has no events", and it has them
-  /// now. What is left here is the part that genuinely is per-frame: a sound
-  /// already playing follows the thing making it.
+  void _showMonsters(GameSimulation sim) {
+    final monsters = sim.monsters;
+    if (monsters == null) return;
+    for (final dead in monsters.died) {
+      _kills++;
+      _particles.burst(Effects.impactSparks, dead.position);
+      _audio.play(Sounds.monsterDie, dead.position);
+    }
+    // `Sounds.monsterPain` was declared, preloaded and never played: nothing
+    // anywhere could tell that a monster had been hit and survived. Only the
+    // ones that flinched make a noise — a hit that did not stagger reads as a
+    // hit that did not land, and every hit screaming is worse than none.
+    for (final hurt in monsters.hurtThisStep) {
+      if (hurt.staggered) {
+        _audio.play(Sounds.monsterPain, hurt.monster.position);
+      }
+    }
+  }
+
+  void _showBlasts(GameSimulation sim) {
+    final projectiles = sim.projectiles;
+    if (projectiles == null || projectiles.detonations.isEmpty) return;
+    for (final blast in projectiles.detonations) {
+      _particles.burst(Effects.explosionCore, blast.position);
+      _particles.burst(Effects.explosionEmbers, blast.position);
+      // And smoke for a second after the fire is out, from a key that belongs
+      // to this blast alone. A fresh object rather than the position: two
+      // rockets landing in the same doorway are two plumes, and a key they
+      // shared would mean the second restarted the first. The system drops the
+      // emission when it runs out, so a key per blast does not accumulate.
+      _particles.emitTimed(
+        Object(),
+        Effects.explosionSmoke,
+        blast.position,
+        perSecond: 34.0,
+        seconds: 0.85,
+      );
+    }
+    _blasts
+      ..clear()
+      ..addAll(projectiles.detonations);
+    _hitFlash = 1.0;
+  }
+
+  /// Every torch, every step. The rate is per second and the system keeps each
+  /// source's fractional remainder, so the fire looks the same on a 60 Hz
+  /// display and a 120 Hz one.
+  void _burnTorches() {
+    final fixtures = _fixtureVisuals;
+    if (fixtures == null) return;
+    for (final entry in fixtures.flames.entries) {
+      final fixture = entry.key;
+      final fire = entry.value;
+      if (!fixture.enabled) continue;
+      // A steady rate, not one modulated by brightness. The flicker is
+      // supposed to come out of the fire, and feeding brightness back into the
+      // emission rate would make it come out of itself.
+      _particles.emit(
+        fire,
+        Effects.flame,
+        fire.originInto(_flameAt),
+        perSecond: 150.0,
+      );
+
+      // And the light is what the fire measures, not a sine running alongside
+      // it. Divided by the power a healthy flame settles at, so the fixture
+      // sees a fraction and the level's own intensity stays the thing that
+      // decides how bright a torch is.
+      fixture.measure(
+        fire.glow.power / _flamePower,
+        // Only once the glow has seen a particle. Before that its centre is
+        // the world origin, and a torch whose light spends its first frames
+        // inside a wall is worse than one that never moved at all.
+        at: fire.glow.located ? fire.glow.centre : null,
+      );
+    }
+  }
+
   void _hearMechanisms(MechanismWorld mechanisms) {
     for (final started in mechanisms.events.started) {
       _moverVoices[started] =
@@ -702,124 +732,6 @@ class _GameScreenState extends State<GameScreen>
     if (message == null) return;
     _message = message;
     _messageFor = 3.0;
-  }
-
-  /// Firing, and the hands that hold the weapon.
-  void _updateWeapon(double dt, Player player) {
-    _arsenal.advanceTime(dt);
-    if (_hitFlash > 0.0) _hitFlash = math.max(0.0, _hitFlash - dt * 4.0);
-    if (_painFlash > 0.0) _painFlash = math.max(0.0, _painFlash - dt * 1.6);
-
-    final slot = _input.weaponRequest;
-    if (slot != null && _arsenal.selectSlot(slot)) {
-      _weaponView.selectWeapon(_arsenal.current);
-    }
-
-    final wants = _arsenal.wantsToFire(
-      held: _input.held(GameAction.fire),
-      pressed: _input.pressed(GameAction.fire),
-    );
-    if (wants) _fire(player);
-
-    // Only when the trigger is idle: switching weapons out from under a player
-    // who is mid-burst because one shot emptied the magazine is worse than
-    // letting them notice.
-    if (!_input.held(GameAction.fire)) {
-      final before = _arsenal.current.name;
-      _arsenal.fallBackIfEmpty();
-      if (_arsenal.current.name != before) {
-        _weaponView.selectWeapon(_arsenal.current);
-      }
-    }
-
-    final body = player.body;
-    _weaponView.step(
-      dt,
-      speed: math.sqrt(
-        body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z,
-      ),
-      grounded: body.isGrounded,
-    );
-  }
-
-  void _fire(Player player) {
-    final shot = _shot;
-    final body = player.body;
-    if (shot == null) return;
-
-    final weapon = _arsenal.fire();
-    if (weapon == null) return;
-    _weaponView.recoil();
-
-    // From the eye, not from the muzzle. The muzzle is off to one side, and a
-    // shot that starts there misses what the crosshair is on whenever the
-    // player is close to a wall — the classic corner-shooting bug.
-    player
-      ..eye(_eye)
-      ..aim(_aim);
-
-    // No branch on the kind of weapon. Rays, swings and rockets each know how
-    // they arrive; this only has to say where the shot came from.
-    shot.begin(weapon, _eye, _aim, shooter: body.collider);
-    weapon.behaviour.deliver(shot);
-
-    // At the eye rather than at the muzzle, for the same reason the shot
-    // starts there: a sound half a metre to one side pans audibly wrong when
-    // the player is against a wall.
-    _audio.play(
-      weapon.ammo == AmmoType.shells ? Sounds.shotgun : Sounds.pistol,
-      _eye,
-    );
-
-    _lastShot
-      ..clear()
-      ..addAll(shot.hits);
-    if (_lastShot.any((ShotHit h) => h.struckSomething)) _hitFlash = 1.0;
-
-    // Pellets landing in the same monster are summed before they are applied,
-    // or eight of them are eight deaths.
-    final monsters = _monsters;
-    if (monsters != null) {
-      for (final entry in Hitscan.damageByTarget(_lastShot).entries) {
-        final target = entry.key.userData;
-        if (target is Damageable) target.applyDamage(entry.value);
-      }
-    }
-
-    // Where the muzzle actually is, unlike where the shot came from: the flare
-    // is the one thing that should sit at the barrel rather than at the eye.
-    player.right(_right);
-    _muzzle
-      ..setFrom(_eye)
-      ..x += _aim.x * 0.6 - _right.x * 0.18
-      ..y += _aim.y * 0.6 - 0.12
-      ..z += _aim.z * 0.6 - _right.z * 0.18;
-    _particles.burst(Effects.muzzleFlash, _muzzle, direction: _aim);
-
-    for (final hit in _lastShot) {
-      if (!hit.struckSomething) continue;
-      _particles.burst(Effects.impactSparks, hit.point, direction: hit.normal);
-      _particles.burst(Effects.impactDust, hit.point, direction: hit.normal);
-    }
-  }
-
-  /// Splits an explosion between the monsters and the player.
-  /// A rocket hurts whatever it can hurt, and asks nothing about what that is.
-  ///
-  /// This used to be two branches — one testing `userData is Monster` and one
-  /// testing the collider's *layer* for the player — and neither could have
-  /// been written by a game with a third thing worth blowing up. Own goals are
-  /// no longer a special case either: the player is in `blast.damage` like
-  /// anything else, which is the price of the launcher being the best weapon in
-  /// the game up close.
-  void _applyBlast(Detonation blast) {
-    final player = _player;
-    for (final entry in blast.damage.entries) {
-      final target = entry.key.userData;
-      if (target is! Damageable) continue;
-      target.applyDamage(entry.value);
-      if (identical(target, player)) _painFlash = 1.0;
-    }
   }
 
   @override

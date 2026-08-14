@@ -2,6 +2,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../actors/monster.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import '../world/exit.dart';
 import '../world/gift.dart';
 import '../world/light_fixture.dart';
 import '../world/mover.dart';
@@ -621,6 +622,30 @@ final class ExitKind extends EntityKind {
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
     requireKeyExists(entity, scope, out);
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    // The player alone, and not because monsters would mind: a monster
+    // wandering across the finish line would end the level from the far side
+    // of the map with nobody watching.
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.trigger,
+      layer: CollisionLayers.trigger,
+      mask: CollisionLayers.player,
+      fallbackSize: Vector3(1.5, 2.5, 1.5),
+    );
+    context.mechanisms.add(
+      Exit(
+        name: entity.name,
+        collider: collider,
+        next: entity.string('next'),
+        message: entity.string('text'),
+        key: entity.string('key'),
+      ),
+    );
   }
 }
 
