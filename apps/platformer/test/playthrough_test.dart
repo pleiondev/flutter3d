@@ -64,6 +64,22 @@ final class _Game {
   bool _forward = false;
   bool _jump = false;
 
+  /// Runs forward jumping as high and as often as it can, for [steps] or until
+  /// [until].
+  ///
+  /// **A rhythm rather than a route.** A script keyed to the level's own
+  /// coordinates has to be rewritten every time somebody moves a ledge, and
+  /// then it fails in a way that says nothing about what broke. Twenty-two
+  /// steps of held jump is a full ascent, the eight that follow are the release
+  /// that both ends the jump and makes the next press an edge — so this clears
+  /// a gap and double-jumps a ledge without being told where either is.
+  void autopilot(int steps, {bool Function(_Game game)? until}) {
+    for (var i = 0; i < steps; i++) {
+      if (until != null && until(this)) return;
+      step(forward: true, jump: i % 30 < 22);
+    }
+  }
+
   /// Edges only, the way a keyboard produces them. See the package's own
   /// playthrough for what happens when a harness releases on every step.
   void step({bool forward = false, bool jump = false}) {
@@ -111,6 +127,21 @@ void main() {
     }
 
     expect(game.runner.purse['coin'], greaterThan(0));
+  });
+
+  test('the summit can be reached', () {
+    // The half of the level a person plays and a script did not: over the
+    // drop, onto the ledge that takes two jumps, and into the exit. Without
+    // this, a level edited into an unfinishable state ships.
+    final game = _Game()
+      ..autopilot(900, until: (_Game g) => g.sim.state == RunState.finished);
+
+    expect(game.sim.state, RunState.finished);
+    expect(game.sim.deaths, 0, reason: 'the route does not require dying');
+    // The only level there is, so the exit names nothing to go on to. Asserted
+    // rather than left unsaid: the first version of this test expected a next
+    // level, copied from the package's own fixture, and passed on nothing.
+    expect(game.sim.nextLevel, isNull);
   });
 
   test('walking off the edge is survivable, because there is a checkpoint', () {
