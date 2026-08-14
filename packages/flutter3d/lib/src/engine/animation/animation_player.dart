@@ -40,9 +40,15 @@ enum AnimationWrap {
 /// on their own. There is no invalidation to remember and no update pass to run
 /// in the right order.
 ///
-/// One clip at a time. Layers, crossfades and additive blending are a separate
-/// feature, and building them in before there is anything to blend would be
-/// guessing at the API.
+/// One clip at a time, **crossfading between two**: `crossFadeTo` keeps the
+/// clip being left over playing while the new one comes in, because cutting
+/// straight to the new pose is what makes a character look as though it teleports
+/// between animations.
+///
+/// Layers and additive blending are still a separate feature, and building them
+/// in before there is anything to blend would be guessing at the API. What is
+/// missing above this is a state machine that decides *which* clip — that
+/// belongs to the game layer, not here.
 final class AnimationPlayer {
   AnimationPlayer({required this.clips, required this.targets});
 
