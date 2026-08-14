@@ -257,6 +257,20 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     particles: true,
   ),
 
+  // Four sprites at four distances, each landing on a different level of a mip
+  // chain. The only scene with a chain in it at all — see
+  // GoldenExtras.particleSprite.
+  const GoldenScene(
+    name: 'particles-textured',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.0,
+    pitch: 0.0,
+    particles: true,
+  ),
+
   // Five spheres drawn as one instanced call. The only scene in the suite that
   // draws anything more than once, and therefore the only one that says whether
   // each backend's instanced path works — see GoldenExtras.meshParticles.

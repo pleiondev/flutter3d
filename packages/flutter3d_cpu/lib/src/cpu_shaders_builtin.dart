@@ -1212,6 +1212,57 @@ final class ParticleVertexShader implements CpuVertexShader {
   }
 }
 
+/// `particle_textured.frag`: a sprite, premultiplied, fogged, and mipped.
+///
+/// The one stage in this file that asks for a mip level, and therefore the one
+/// place the derivative machinery is used. Varying four and five are the
+/// texture coordinate — `ParticleVertexShader` puts them there — and nothing
+/// but this stage could know that, which is why the derivative is passed in
+/// rather than read off the texture.
+final class ParticleTexturedShader implements CpuFragmentShader {
+  const ParticleTexturedShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final texture = b.textures['particle_texture'];
+    var texel = Vector4(1, 1, 1, 1);
+    if (texture != null) {
+      // The larger of the two directions per axis. A hardware sampler uses the
+      // longer side of the whole footprint parallelogram; taking the maximum of
+      // the axis-aligned components is the same thing for a quad facing the
+      // camera, which every billboard is by construction.
+      var du = 0.0;
+      var dv = 0.0;
+      final ddx = c.ddx;
+      final ddy = c.ddy;
+      if (ddx != null && ddy != null) {
+        du = math.max(ddx[4].abs(), ddy[4].abs());
+        dv = math.max(ddx[5].abs(), ddy[5].abs());
+      }
+      texel = texture.sample(v[4], v[5], du: du, dv: dv);
+    }
+
+    var fogged = 1.0;
+    final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+    if (fog.w > 0.0) {
+      final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+      final d =
+          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
+      fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
+    }
+
+    // The texture's alpha is coverage and the particle's is brightness, so the
+    // two multiply.
+    final scale = v[3] * texel.w * fogged;
+    return Vector4(
+      v[0] * texel.x * scale,
+      v[1] * texel.y * scale,
+      v[2] * texel.z * scale,
+      1.0,
+    );
+  }
+}
+
 /// `particle_mesh.vert`: one mesh, placed and tinted per instance.
 ///
 /// **The attribute order here is the layout's, not a shader's.** Every other
@@ -1499,6 +1550,8 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ParticleMeshVertex':
         const CpuStage.vertex(ParticleMeshVertexShader()),
     'ParticleMesh': const CpuStage.fragment(ParticleMeshShader()),
+    'ParticleTextured':
+        const CpuStage.fragment(ParticleTexturedShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),

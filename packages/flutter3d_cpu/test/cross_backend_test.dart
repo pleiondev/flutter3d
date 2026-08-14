@@ -63,6 +63,11 @@ const Map<String, double> _budgets = <String, double>{
   // fixture is blind to.
   'particles-recycled': 0.45,
   'particles-plain': 0.45,
+  // Four sprites at four distances, each on a different level of a mip chain.
+  // At the particle floor, which is the finding: the software backend picks its
+  // levels from a per-triangle gradient rather than from a quad of neighbouring
+  // fragments, and on quads facing the camera the two agree.
+  'particles-textured': 0.47,
   // Five spheres, and therefore five curved silhouettes where every other
   // particle scene has straight-edged quads. The gap between these backends is
   // multisampling on edges, so a budget above the particle floor is the shape

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -137,6 +138,72 @@ abstract final class GoldenExtras {
       Vector3(0.0, 0.6, 1.6),
     );
     return particles;
+  }
+
+  /// Particles carrying a sprite with a mip chain.
+  ///
+  /// Spread in depth on purpose. A mip chain only shows itself where the same
+  /// texture is seen at different scales, so a row of particles all at one
+  /// distance would exercise the chain and prove nothing about it: every one of
+  /// them would land on the same level.
+  static ParticleSystem texturedParticles() {
+    final particles = ParticleSystem(capacity: 16, seed: seed);
+    for (var i = 0; i < 4; i++) {
+      particles.burst(
+        ParticleEffect(
+          count: 1,
+          lifetime: const Range.exact(10.0),
+          size: const Range.exact(0.34),
+          color: Vector4(1.0, 0.9, 0.75, 1.0),
+          emitter: const SphereEmitter(speed: Range.exact(0.0)),
+        ),
+        // Receding: each is further away and therefore smaller on screen, so
+        // the four between them read four different levels of the chain.
+        Vector3(-0.5 + i * 0.36, 0.0, 1.7 - i * 0.55),
+      );
+    }
+    return particles;
+  }
+
+  /// The sprite they carry: a fine checkerboard inside a soft disc.
+  ///
+  /// Two properties, and both are the point. **Checkerboard**, because it is
+  /// the pattern a missing mip chain destroys most visibly — sampled below its
+  /// Nyquist limit it turns into moire rather than into grey, and moire is
+  /// something a reference image can catch. **Soft disc in the alpha**, because
+  /// a square sprite would put a hard edge on every particle and the edge, not
+  /// the filtering, would then be what the picture is about.
+  static TextureHandle particleSprite(GraphicsDevice device) {
+    const size = 64;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final at = (y * size + x) * 4;
+        final on = ((x >> 2) + (y >> 2)).isEven;
+        final value = on ? 255 : 60;
+        // Distance from the middle, where the corners sit past one.
+        final dx = (x + 0.5) / size * 2.0 - 1.0;
+        final dy = (y + 0.5) / size * 2.0 - 1.0;
+        final radius = math.sqrt(dx * dx + dy * dy);
+        final falloff = (1.0 - radius).clamp(0.0, 1.0);
+        pixels[at] = value;
+        pixels[at + 1] = value;
+        pixels[at + 2] = value;
+        pixels[at + 3] = (falloff * falloff * 255).round();
+      }
+    }
+    final bytes = ByteData.sublistView(pixels);
+    return device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: bytes,
+      // Asked for, not assumed: a device that answers false samples a
+      // hand-built chain as black on some hardware, and a fixture that ignored
+      // the answer would record that black.
+      mipLevels:
+          device.supportsMipmaps ? MipChain.build(bytes, size, size) : null,
+    )!;
   }
 
   /// A handful of particles drawn as meshes rather than as billboards.

@@ -20,12 +20,10 @@ import 'particle_system.dart';
 /// unsorted batch composite correctly, and one draw call covers all of them.
 /// How particles are drawn: additive, unculled, depth-tested but never written.
 ///
-/// **The depth write is the interesting field, and on two backends it does
-/// nothing.** Particles must not occlude each other — with additive blending
-/// they have no business trying — but `flutter_gpu`'s setter ignores its
-/// argument, so on Impeller and on the software backend that mirrors it, they
-/// do. See `flutter3d_graphics/COMPATIBILITY.md`. Written as a named value
-/// rather than five calls so the request is legible even where it is refused.
+/// Depth write off, and it means it. That sentence was untrue for most of this
+/// file's life — `flutter_gpu`'s setter ignored its argument until SDK 3.47, so
+/// additive particles occluded each other on two backends out of three. See
+/// `flutter3d_graphics/COMPATIBILITY.md`, which keeps the lesson.
 ///
 /// A quad seen from behind is still a quad, which is why nothing is culled:
 /// culling would make half the particles vanish depending on which way the
@@ -40,9 +38,23 @@ const PassState _kParticleState = PassState(
 );
 
 final class ParticleContributor extends PassContributor {
-  ParticleContributor(this.particles);
+  ParticleContributor(this.particles, {this.texture});
 
   final ParticleSystem particles;
+
+  /// A sprite for every particle, or null for the procedural disc.
+  ///
+  /// **Null picks a different fragment stage, not a white texture.** The
+  /// procedural stage has no sampler at all, and that is deliberate: binding a
+  /// texture to a slot a compiled shader has no room for is this engine's most
+  /// expensive recurring bug, and the crash is native with no Dart stack. Two
+  /// stages, chosen here, is the arrangement that cannot make that mistake.
+  ///
+  /// Build it with a mip chain — `MipChain.build`, and ask
+  /// `GraphicsDevice.supportsMipmaps` first. A particle is a quad that shrinks
+  /// as it recedes, which is exactly the case a chain exists for, and one
+  /// without a chain sparkles as it goes away.
+  final TextureHandle? texture;
 
   static const String _infoBlock = 'ParticleInfo';
 
@@ -80,7 +92,8 @@ final class ParticleContributor extends PassContributor {
     // returns null, the plugin draws nothing, and the frame is merely a frame
     // without particles in it. The golden caught it; nothing else would have.
     final vertexShader = _shader(frame, 'ParticleVertex');
-    final fragmentShader = _shader(frame, 'Particle');
+    final fragmentShader =
+        _shader(frame, texture == null ? 'Particle' : 'ParticleTextured');
     if (vertexShader == null || fragmentShader == null) {
       developer.Timeline.finishSync();
       return;
@@ -135,6 +148,16 @@ final class ParticleContributor extends PassContributor {
       'FogInfo',
       <String, Float32List>{'fog': _fog, 'eye': _eyeData},
     );
+
+    final sprite = texture;
+    if (sprite != null) {
+      // Trilinear rather than `linearRepeat`, which is the engine's default and
+      // has its mip filter off. A particle is a quad that shrinks as it
+      // recedes; without the chain being blended it sparkles on the way out,
+      // which reads as flickering rather than as distance.
+      encoder.bindTexture(fragmentShader, 'particle_texture', sprite,
+          sampler: SamplerOptions.trilinearRepeat);
+    }
 
     encoder.draw();
     frame.state.drawCalls++;
