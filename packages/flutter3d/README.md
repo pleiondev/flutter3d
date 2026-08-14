@@ -29,7 +29,9 @@ What works today:
 - **an HDR pipeline**: the scene renders into `r16g16b16a16Float`, and tone
   mapping, exposure and the sRGB encode happen in a composite pass — which is
   what lets **bloom** exist at all, built from a chain of half-size targets
-  because flutter_gpu has no mip levels;
+  rather than from mip levels — flutter_gpu had none when it was written, and
+  now that it does, a bloom chain still wants separate targets it can blur
+  between;
 - **material maps**: normal (with a full TBN), ORM, occlusion and emissive, plus
   alpha masking and vertex colours — with neutral fallback textures instead of
   per-map flags, so the shader needs no branch and the engine no bookkeeping;

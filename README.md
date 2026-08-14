@@ -60,7 +60,16 @@ done
 
 ## Channel
 
-Flutter 3.44.6 stable. The consequences are recorded in
-[RESEARCH](packages/flutter3d/RESEARCH.md) — no mip levels, no compressed
-texture formats, no compute passes, no instancing — and they are the reason
-several things are built the way they are rather than the obvious way.
+Flutter 3.47.0 stable, and the list of what that costs got shorter in August
+2026. Mip levels and instancing both arrived, and both are now used: a mip
+chain is built on the CPU and uploaded level by level because `flutter_gpu` has
+no `generateMipmap`, and instanced draws carry mesh particles. What is still
+absent is compressed texture formats, compute passes, and rendering into a mip
+level — recorded in [RESEARCH](packages/flutter3d/RESEARCH.md), and still the
+reason several things are built the way they are rather than the obvious way.
+
+The upgrade is worth one sentence of its own: `setDepthWrite(false)` did
+nothing until 3.47, so additive particles occluded each other on two backends
+out of three, and the software backend mirrored the bug on purpose so the two
+would stay comparable. `flutter3d_graphics/COMPATIBILITY.md` keeps that story
+because the lesson outlives it.

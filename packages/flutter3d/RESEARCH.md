@@ -194,6 +194,12 @@ transparent objects. All of that has to be done on the CPU or emulated with rend
 prefilter — by rendering into mip levels; that is exactly why flutter_scene requires master
 ≥ 2026-06-09, with render-to-mip-level support).
 
+Note since: SDK 3.47 exposes `ColorAttachment.mipLevel` and
+`doesSupportFramebufferRenderMipmap`, so rendering into a mip level is
+available on Metal and Vulkan and false on GLES. That unblocks the prefilter
+above. It does **not** affect ordinary mip chains, which are built on the CPU
+here and uploaded level by level — nothing renders into a mip for those.
+
 **(6) No compressed pixel formats** (ASTC/BC/ETC2) in the public `PixelFormat`, and no
 `texture2DArray`/`texture3D`. Consequences:
 - KTX2/Basis will have to be **transcoded into an uncompressed** format on the CPU (memory and
@@ -203,8 +209,13 @@ prefilter — by rendering into mip levels; that is exactly why flutter_scene re
 - Colour grading LUTs are 2D-tiled, not 3D textures.
 - Light clusters are packed into a 2D texture or a buffer, not into 3D.
 
-**(7) `draw()` has no `instanceCount` in the documented API.** flutter_scene claims instancing —
-either through per-instance vertex attributes, or the API appeared later. ⚠️ Check.
+**(7) `draw()` has no `instanceCount` in the documented API.** ✅ Answered, and it
+did appear later: SDK 3.47 has `draw(vertexCount, {instanceCount})` and
+`drawIndexed(indexCount, {instanceCount})`, plus a `vertex_layout.dart` with
+explicit formats, buffer slots and `VertexStepMode.instance`. This engine's HAL
+took the instance count as an argument on `draw` and left the vertex and index
+counts on the binds, because that is where each is known — see
+`command_encoder.dart`. Mesh particles are the first user.
 
 **(8) Dart GC.** Every `Vector3` is a heap object. In hot loops (culling, transform updates,
 particles) you need pools, `Float32List` storage (SoA) and in-place `Matrix4` operations. This
@@ -293,8 +304,11 @@ choose an engine.
 - [x] **P1** Skinning: bone matrices in a uniform buffer (mind the size limit!) or in a texture.
       A uniform array of 64 `mat4`, since the spike proved arrays survive Impeller — the texture
       fallback was never needed. Four weights a vertex, renormalized in the shader.
-- [ ] **P1** Instancing: per-instance attributes in a separate vertex buffer
-      (⚠️ check whether `draw()` has `instanceCount` on master).
+- [x] **P1** Instancing: per-instance attributes in a separate vertex buffer.
+      Done in August 2026 on SDK 3.47, on all three backends — Impeller passes
+      the count through, WebGL2 switches to `drawElementsInstanced` and manages
+      attribute divisors, and the software rasteriser assembles its vertex from
+      several buffers with per-instance stepping.
 - [ ] **P2** Morph targets (positions/normals, weights).
 - [ ] **P2** Static batching (merge by material), a `BatchedMesh` equivalent.
 - [ ] **P2** Procedural builders (extrude, revolve, tube, text geometry), CSG.
@@ -464,7 +478,13 @@ choose an engine.
       them, so the loader hands out views over the file bytes instead of copies. Measured on the
       teapot: **4.54 ms as OBJ against 1.1 us as `.f3d`**, and the two render pixel for pixel
       identically.
-- [ ] **P2** Textures: mip chains, sRGB flags, KTX2 → ⚠️ find out whether master has compressed
+- [x] **P2** Textures: mip chains. Done in August 2026 — `MipChain.build` makes
+      the levels on the CPU and every backend uploads the same bytes, because
+      WebGL2 has `glGenerateMipmap`, Impeller has nothing of the kind, and a
+      chain generated per backend is two of them agreeing by accident. Ask
+      `supportsMipmaps` first: a hand-built chain samples as **black** on
+      OpenGL ES 2 without `GL_APPLE_texture_max_level`. Still open below:
+- [ ] **P2** Textures: sRGB flags, KTX2 → ⚠️ find out whether master has compressed
       `PixelFormat`s; if not — transcoding to RGBA8 and honest memory accounting.
 - [ ] **P2** HDR/EXR for environment maps, equirect → cubemap conversion.
 - [ ] **P2** Meshopt decompression (realistic in Dart), Draco (needs native/FFI — more expensive).
@@ -530,6 +550,13 @@ choose an engine.
 
 ## 4. Verified against the sources (Flutter 3.44.6, stable)
 
+> **Read as history.** This section was written against 3.44.6 and its answers
+> were correct then. The engine moved to 3.47.0 in August 2026, and three of
+> the rows below changed with it: compressed formats exist, instancing exists,
+> and mip levels exist. Each is marked where it sits. The method — reading the
+> Dart that ships inside the SDK rather than guessing from the docs — is the
+> part worth keeping.
+
 It turned out that `flutter_gpu` ships inside the SDK even on stable —
 `bin/cache/pkg/flutter_gpu`, 1757 lines of Dart in total. That made it possible to close all four
 questions by reading the code rather than guessing from the docs. Below are facts, not
@@ -537,7 +564,7 @@ assumptions.
 
 | Question | Answer on stable 3.44.6 | Where to look |
 |---|---|---|
-| Compressed formats (ASTC/BC/ETC2) | **No.** Exactly 16 `PixelFormat` values, all uncompressed | `lib/src/formats.dart:36` |
+| Compressed formats (ASTC/BC/ETC2) | **No** on 3.44.6 — exactly 16 `PixelFormat` values, all uncompressed. **Yes on 3.47.0**: 31 values, seventeen of them block-compressed, gated by `supportsTextureCompression` | `lib/src/formats.dart:36` |
 | `instanceCount` in `draw()` | **No.** `void draw()` takes no parameters at all | `lib/src/render_pass.dart:450` |
 | Changing the viewport part way through a pass | **Works.** `setViewport` and `setScissor` are pass state, and a second set followed by more draws lands where the second viewport says. Verified by drawing the casters twice into the left and right halves of one shadow map: two teapots, one per half. This is what makes point-light shadows affordable — six cube faces are six viewport changes and six draws inside **one** pass into an atlas, not six passes | `shaders/…`, spike reverted; `shadow-map` golden shows the map |
 | What a pass's clear covers | **The whole attachment, whatever the viewport says.** `LoadAction.clear` is the default on `ColorAttachment` and runs before any draw; `setViewport`/`setScissor` bound where the rasteriser may write and have no effect on it. So an atlas must be filled by **one** pass that clears once and then moves the viewport — a pass per tile wipes the tiles already there and leaves only the last. Verified by giving four point lights a row each: four rows were rendered and the atlas came back holding one, and the same scene fills all four once the passes are merged | `lib/src/render_pass.dart:11`; `cube-shadow-many` golden |
@@ -743,6 +770,11 @@ visible.
 
 Render-to-mip-level is reported on master; taking it means leaving 3.44.6,
 which the shader bundle format is tied to.
+
+**Since:** 3.47.0 stable has it — `ColorAttachment.mipLevel`, gated by
+`doesSupportFramebufferRenderMipmap`, true on Metal and Vulkan and false on
+GLES. The engine moved to 3.47 and rebuilt its bundle, so the cost this
+paragraph was weighing is already paid.
 
 ---
 

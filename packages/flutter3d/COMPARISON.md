@@ -31,7 +31,7 @@ rest.
 
 | Capability | flutter3d | flutter_scene | How this was checked |
 |---|---|---|---|
-| **Runs on the stable channel** | **Yes.** Flutter 3.44.6 stable, no channel switch and no experimental flags. `flutter_gpu` ships inside the stable SDK at `bin/cache/pkg/flutter_gpu` (RESEARCH.md §4), and `tool/build_shaders.sh` calls `impellerc` directly rather than going through Native Assets | **No.** Their README: Flutter GPU "hasn't shipped to the stable channel yet, so Flutter Scene requires the Flutter master channel", specifically a build from 2026-06-09 or later. Their `pubspec.yaml` lower bound says stable only so pub.dev can score the package, and they say so — it is "looser than the real requirement". Plus a one-time `flutter config --enable-dart-data-assets` | their README §Requirements, lines 81 and 83 |
+| **Runs on the stable channel** | **Yes.** Flutter 3.47.0 stable, no channel switch and no experimental flags. `flutter_gpu` ships inside the stable SDK at `bin/cache/pkg/flutter_gpu` (RESEARCH.md §4), and `tool/build_shaders.sh` calls `impellerc` directly rather than going through Native Assets | **No.** Their README: Flutter GPU "hasn't shipped to the stable channel yet, so Flutter Scene requires the Flutter master channel", specifically a build from 2026-06-09 or later. Their `pubspec.yaml` lower bound says stable only so pub.dev can score the package, and they say so — it is "looser than the real requirement". Plus a one-time `flutter config --enable-dart-data-assets` | their README §Requirements, lines 81 and 83 |
 | **Point-light shadows** | **Yes.** Cube atlas, six 90° faces per light, four lights per frame, one pass | **No — not at any quality.** `PointLight` takes `intensity`, `range`, `falloffExponent` and nothing else; there is no `castsShadow` on it | Said outright in their own README: "Directional, point, and spot lights. **Directional and spot lights cast shadows**" (line 90), and confirmed in `src/light.dart:387` and `render/punctual_lights.dart`, which carries `spotShadow*` fields and no point equivalent. Ours: `cube-shadow`, `cube-shadow-lit`, `cube-shadow-many` goldens |
 | **Radial-distance cube faces** | Faces store distance/range, not clip depth, so no seam at a face boundary | n/a — no cube shadows to seam | `shaders/lighting/shadow_distance.frag` |
 | **Static/dynamic shadow split for point lights** | Two atlases, walls baked once at load, movers redrawn per frame, shader takes `min` | They have the same idea, but only for **directional cascades** (`shadowStatic` + `DirectionalShadowCache`). Spot and point get nothing | `src/render/shadow_cache.dart` (theirs) |
@@ -62,11 +62,24 @@ line by line.
 Since then the pool became a dense prefix with O(1) recycling, the simulation
 moved to a fixed sub-step, randomness became a per-particle stream keyed on
 emission ordinal, and curves, gradients, turbulence, a box emitter and
-self-terminating emissions landed. What is still theirs alone is the part that
-needs the renderer: instanced billboards, mesh particles, textures with mips,
-rotation and flipbook. What is still ours alone is particles that emit light —
-zero occurrences of light, emissive or illuminate across all six of their
-particle files.
+self-terminating emissions landed. Then the rest of it closed as well:
+instanced mesh particles on all three backends, textures with mip chains,
+rotation and flipbook.
+
+**Nothing on that list is theirs alone any more.** What is ours alone is
+unchanged and still the reason to choose this one — particles that emit light,
+with zero occurrences of light, emissive or illuminate across all six of their
+particle files — and a few things that went past them on the way: curve
+segments that ease rather than only interpolating, a divergence-free flow field
+instead of sampled noise, and a light that follows the flame's own centre
+rather than the bracket holding it.
+
+Two of theirs are still genuinely different rather than missing. Their
+billboards have **facing modes**; ours face the camera and nothing else, which
+is a decision rather than a gap until something wants a spark stretched along
+its velocity. And their particles are alpha-blended as well as additive; ours
+are additive only, because additive needs no sorting and sorting a few thousand
+particles a frame is the whole budget — the note in `ParticleSystem` says so.
 
 One genuine difference in kind, and this one also read backwards at first: we
 expose a **render-plugin seam** (`RenderPlugin`, `RenderStage`) that lets an
@@ -203,10 +216,12 @@ their `pubspec.yaml` "looser than the real requirement" — present so pub.dev c
 score the package. Anyone shipping a product reads "requires the master channel"
 as "cannot pin a toolchain", and for a studio that is close to disqualifying.
 
-We are on 3.44.6 stable with no channel switch and no experimental flags, and
+We are on 3.47.0 stable with no channel switch and no experimental flags, and
 that is not luck: `tool/build_shaders.sh` calls `impellerc` directly precisely
-because the packaged path wanted Native Assets, and we use no mips at all. The
-same two decisions that make us smaller are what make us shippable today.
+because the packaged path wanted Native Assets. The second half of that
+sentence used to be "and we use no mips at all", which stopped being true in
+August 2026 — stable grew them, and the chain is built on the CPU and uploaded
+level by level. The position held without the concession.
 
 It follows that **staying on stable is a feature to defend, not an accident to
 outgrow**. Anything that would force a channel move — mips their way, most of
