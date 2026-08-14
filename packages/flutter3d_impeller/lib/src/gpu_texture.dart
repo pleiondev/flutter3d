@@ -31,8 +31,6 @@ TextureHandle createGpuTexture(
   int height, {
   TextureFormat format = TextureFormat.r8g8b8a8UNormInt,
   int sampleCount = 1,
-  TextureCoordinateSystem coordinateSystem =
-      TextureCoordinateSystem.renderToTexture,
   bool enableRenderTargetUsage = true,
   bool enableShaderReadUsage = true,
 }) {
@@ -42,7 +40,6 @@ TextureHandle createGpuTexture(
     height,
     format: format.toGpu(),
     sampleCount: sampleCount,
-    coordinateSystem: coordinateSystem.toGpu(),
     enableRenderTargetUsage: enableRenderTargetUsage,
     enableShaderReadUsage: enableShaderReadUsage,
   );

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -251,7 +252,16 @@ class _SpikePageState extends State<SpikePage>
   @override
   void initState() {
     super.initState();
+    unawaited(_openScene());
+  }
 
+  /// Builds the backend and the whole demo scene under it.
+  ///
+  /// Asynchronous for one reason: loading the shader bundle is, since
+  /// flutter_gpu 3.47. Everything after the first line runs exactly as it did
+  /// when `initState` ran it directly, in the same order, and the ticker at the
+  /// end is what puts the finished scene on screen.
+  Future<void> _openScene() async {
     // The backend, before anything that needs one. It used to be built inline
     // at `Renderer.create`, which was fine while meshes and textures reached a
     // global to upload themselves; now that they take a device, it has to exist
@@ -259,12 +269,19 @@ class _SpikePageState extends State<SpikePage>
     // it lands in the same place and `build` shows the same panel.
     final GraphicsDevice device;
     try {
-      device = createBackend(width: 480, height: 360);
+      device = await createBackend(width: 480, height: 360);
     } catch (error, stack) {
-      _initError = error;
-      _initStack = stack;
+      // Inside `setState` because the failing frame is no longer the first
+      // one: `build` has already run and shown the empty gap.
+      if (mounted) {
+        setState(() {
+          _initError = error;
+          _initStack = stack;
+        });
+      }
       return;
     }
+    if (!mounted) return;
     _device = device;
 
     _scene = Scene(name: 'demo');
@@ -761,11 +778,19 @@ class _SpikePageState extends State<SpikePage>
   @override
   Widget build(BuildContext context) {
     final renderer = _renderer;
+    final initError = _initError;
     if (renderer == null) {
       return Scaffold(
         backgroundColor: const Color(0xFF0E1014),
+        // No renderer and no error is the gap while the backend is being
+        // built, which exists because loading the shader bundle became
+        // asynchronous. It used to be impossible, and `_initError!` used to say
+        // so; an empty frame is the honest thing to show for the one frame it
+        // usually lasts.
         body: SafeArea(
-          child: _ErrorPanel(error: _initError!, stack: _initStack),
+          child: initError == null
+              ? const SizedBox.shrink()
+              : _ErrorPanel(error: initError, stack: _initStack),
         ),
       );
     }

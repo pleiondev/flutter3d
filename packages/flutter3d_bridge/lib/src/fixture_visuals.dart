@@ -295,7 +295,12 @@ final class FixtureVisuals {
       final document = await decodeModelInIsolate(
         ModelLoadRequest(source: BundleAssetSource(path)),
       );
-      return ModelAsset.fromDocument(
+      // `await`, not a bare return: this returns a future, and a future
+      // returned out of a `try` completes after the block has been left, so
+      // the `catch` below never saw its failures. A model whose upload threw
+      // took the whole level down instead of printing the line under this.
+      // The 3.47 analyser is what noticed; it had been true all along.
+      return await ModelAsset.fromDocument(
         document,
         device: device,
         fallbackAlbedo:

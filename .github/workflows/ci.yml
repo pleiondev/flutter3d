@@ -18,7 +18,7 @@ jobs:
           # Pinned, not "stable". The shader bundle format is tied to the SDK
           # version, so a floating channel would break the build on somebody
           # else's release schedule — and it would look like our regression.
-          flutter-version: 3.44.6
+          flutter-version: 3.47.0
           channel: stable
 
       # One resolve for the whole workspace.
@@ -47,13 +47,29 @@ jobs:
       # Still an explicit list: which packages are gated is a decision, not
       # something to infer from a directory listing. Add a line when a package
       # is meant to be gated.
+      #
+      # The three backend packages joined this list during the 3.47 upgrade,
+      # and the reason is worth keeping. They were not here, so nothing in CI
+      # ran a line of `flutter3d_impeller` — the package that translates the
+      # engine's vocabulary into the SDK's, and therefore the one package an
+      # SDK change is guaranteed to reach first. `flutter analyze` above would
+      # have caught a compile error, but the mapping tests are what catch a
+      # value that still compiles and means something else.
       - name: Test every package
         run: |
           set -e
-          for package in packages/flutter3d packages/flutter3d_particles packages/flutter3d_cpu packages/flutter3d_game packages/mouse_capture; do
+          for package in packages/flutter3d packages/flutter3d_graphics packages/flutter3d_impeller packages/flutter3d_particles packages/flutter3d_cpu packages/flutter3d_game packages/flutter3d_audio packages/flutter3d_shaders packages/mouse_capture; do
             echo "── $package"
             (cd "$package" && flutter test)
           done
+
+      # Separate because it needs a browser, and a browser is the whole point:
+      # this backend's `int` is a double and its GL state is global, so its
+      # tests say nothing when run on the Dart VM.
+      - name: Test the WebGL backend
+        run: |
+          cd packages/flutter3d_webgl
+          flutter test --platform chrome
 
   benchmark:
     name: AOT benchmark compiles
@@ -62,7 +78,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.6
+          flutter-version: 3.47.0
           channel: stable
       - run: flutter pub get
 
@@ -94,7 +110,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.44.6
+          flutter-version: 3.47.0
           channel: stable
       - run: flutter pub get
       - run: packages/flutter3d/tool/build_shaders.sh

@@ -1,18 +1,21 @@
-/// The depth-write mirror, pinned.
+/// Depth writes go off when they are asked to, and a fresh pass has them off.
 ///
-/// `CpuEncoder.setDepthWrite` ignores its argument and turns writes on,
-/// because `flutter_gpu`'s native setter does exactly that — see the comment
-/// on that method for the engine source. This file exists so that the mirror
-/// is a decision with a test behind it rather than a line somebody deletes on
-/// a Tuesday because it looks obviously wrong.
+/// This file used to say the opposite. `CpuEncoder.setDepthWrite` ignored its
+/// argument and turned writes on, because `flutter_gpu`'s native setter
+/// assigned the literal `true`, and a software backend that behaved correctly
+/// would have drawn the particle scenes five and ten percent away from the
+/// hardware one — a gap wide enough to hide a real regression behind.
 ///
-/// It does look obviously wrong. That is the point of the test.
+/// Its header said to delete it the day the SDK was fixed. That was written
+/// when its only job was pinning a mirror, and it was wrong: the fixture below
+/// is the minimal reproduction that *found* the engine bug, it runs in a
+/// millisecond, and flipping one expectation turns it from "the mirror is
+/// still in place" into "the mirror is gone and the argument is honoured".
+/// Deleting it would have thrown away the only direct evidence either way.
 ///
-/// **Delete this file the day the SDK is fixed**, and make `setDepthWrite`
-/// honest again in the same commit. Until then the two backends draw the same
-/// picture, which is worth more here than either of them being right on its
-/// own: a five to ten percent gap on the particle scenes is loud enough to
-/// hide a genuine regression behind.
+/// The second test never changed at all. The default is a property of
+/// `DepthAttachmentDescriptor` rather than of the setter 3.47 fixed, and a
+/// default nobody states is a default that drifts.
 library;
 
 import 'dart:typed_data';
@@ -89,23 +92,25 @@ double _twoCoincidentTriangles({required bool askForDepthWriteOff}) {
 }
 
 void main() {
-  test('asking for depth writes off does not turn them off', () {
-    // A quarter, not a half. The request was ignored, so the first draw wrote
-    // its depth of 0.5, and the second compared `less` against it, failed, and
-    // never reached the target. A backend that honoured the request would
-    // leave the buffer alone, both draws would land, and additive blending
-    // would give a half.
-    expect(_twoCoincidentTriangles(askForDepthWriteOff: true), closeTo(0.25, 1e-6),
-        reason: 'the second triangle landed, so depth writes really were '
-            'disabled — which means this backend has stopped mirroring '
-            'flutter_gpu. If the SDK was fixed, delete this file and make '
-            'setDepthWrite honest; if it was not, the mirror broke.');
+  test('asking for depth writes off turns them off', () {
+    // A half, not a quarter. The request was honoured, so the first draw left
+    // the depth buffer alone, the second passed `less` against the cleared
+    // value, both landed, and additive blending added them.
+    //
+    // A quarter here means this backend is back to ignoring the argument — the
+    // shape of the bug flutter_gpu had until 3.47, and the reason this fixture
+    // exists rather than a comment saying the same thing.
+    expect(_twoCoincidentTriangles(askForDepthWriteOff: true),
+        closeTo(0.5, 1e-6),
+        reason: 'the second triangle never reached the target, so depth writes '
+            'were on despite being switched off');
   });
 
   test('a pass nobody asks starts with depth writes off', () {
-    // The other half of the mirror, and the half that is easy to miss: a fresh
-    // flutter_gpu RenderPass has writes disabled until something calls the
-    // setter. Never calling it therefore leaves both draws landing.
+    // Unchanged, and deliberately so: a fresh flutter_gpu RenderPass has writes
+    // disabled until something calls the setter, and 3.47 changed the setter
+    // rather than that default. Never calling it therefore leaves both draws
+    // landing, exactly as it did before.
     expect(_twoCoincidentTriangles(askForDepthWriteOff: false),
         closeTo(0.5, 1e-6),
         reason: 'a pass that was never told anything about depth writes '

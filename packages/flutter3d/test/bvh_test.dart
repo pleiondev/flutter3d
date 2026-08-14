@@ -254,8 +254,10 @@ void main() {
         ..build(scene, view, viewMatrix: camera.viewMatrix, frustum: frustum);
       expect(accelerated.usedBvh, isTrue);
 
-      final expected = linearVisible(scene, frustum)
-        ..remove(null);
+      // No `..remove(null)`: `linearVisible` answers `Set<String>`, so the call
+      // never removed anything and only read as though unnamed nodes were being
+      // filtered out. The 3.47 analyser flags it as unrelated-type.
+      final expected = linearVisible(scene, frustum);
       final actual = <String>{
         for (var i = 0; i < accelerated.length; i++)
           accelerated.itemAt(i).requireNode.name!,

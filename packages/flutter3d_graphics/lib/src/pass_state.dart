@@ -8,16 +8,20 @@
 /// place to read what a pass was actually asking for.
 ///
 /// **Every field is optional, and that is a correctness requirement rather than
-/// a convenience.** The three backends disagree about what an *omitted* call
-/// means, in three directions:
+/// a convenience.** A backend can disagree about what an *omitted* call means:
 ///
-/// - On Impeller and the software backend, any `setDepthWrite` call turns depth
-///   writes **on** — `flutter_gpu`'s native setter ignores its argument, and
-///   `flutter3d_cpu` mirrors that deliberately. So emitting a redundant
-///   `setDepthWrite(false)` where a site today emits nothing flips behaviour.
 /// - On WebGL the setters are immediate calls against global GL state, and
 ///   `beginRenderPass` re-enables only depth test and scissor. An omitted field
 ///   inherits whatever the previous pass left.
+///
+/// There used to be a second entry here, and how it went away is the argument
+/// for the rule rather than against it. Until SDK 3.47, *any* `setDepthWrite`
+/// call turned depth writes on — `flutter_gpu`'s native setter ignored its
+/// argument, and the software backend mirrored that deliberately — so emitting
+/// a redundant `setDepthWrite(false)` where a site emitted nothing flipped
+/// behaviour on two backends out of three. That is now fixed, and the field is
+/// still optional, because the property being protected is that a pass says
+/// exactly what it means to say and no more.
 ///
 /// So the omissions in a pass's sequence are load-bearing, and a value object
 /// with non-nullable fields and defaults would quietly change several passes.

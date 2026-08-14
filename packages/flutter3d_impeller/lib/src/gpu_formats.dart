@@ -22,9 +22,9 @@
 ///
 /// ## Reverse mappings exist only where something reads state back
 ///
-/// Textures carry their storage mode, format and coordinate system, and stage 2
-/// of this work hands out an opaque texture handle that has to answer questions
-/// about them without naming flutter_gpu. Pipeline and pass state — cull,
+/// Textures carry their storage mode and format, and the opaque texture handle
+/// this backend hands out has to answer questions about them without naming
+/// flutter_gpu. Pipeline and pass state — cull,
 /// blend, depth compare, load and store — is only ever written, so a reverse
 /// mapping for it would be code with no reader.
 library;
@@ -65,12 +65,32 @@ extension TextureFormatToGpu on TextureFormat {
           gpu.PixelFormat.b8g8r8a8UNormIntSRGB,
         TextureFormat.r32g32b32a32Float => gpu.PixelFormat.r32g32b32a32Float,
         TextureFormat.r16g16b16a16Float => gpu.PixelFormat.r16g16b16a16Float,
-        TextureFormat.b10g10r10XR => gpu.PixelFormat.b10g10r10XR,
-        TextureFormat.b10g10r10XRSRGB => gpu.PixelFormat.b10g10r10XRSRGB,
-        TextureFormat.b10g10r10a10XR => gpu.PixelFormat.b10g10r10a10XR,
+        TextureFormat.r32Float => gpu.PixelFormat.r32Float,
         TextureFormat.s8UInt => gpu.PixelFormat.s8UInt,
         TextureFormat.d24UnormS8Uint => gpu.PixelFormat.d24UnormS8Uint,
         TextureFormat.d32FloatS8UInt => gpu.PixelFormat.d32FloatS8UInt,
+        TextureFormat.bc1RGBAUNormInt => gpu.PixelFormat.bc1RGBAUNormInt,
+        TextureFormat.bc1RGBAUNormIntSRGB =>
+          gpu.PixelFormat.bc1RGBAUNormIntSRGB,
+        TextureFormat.bc3RGBAUNormInt => gpu.PixelFormat.bc3RGBAUNormInt,
+        TextureFormat.bc3RGBAUNormIntSRGB =>
+          gpu.PixelFormat.bc3RGBAUNormIntSRGB,
+        TextureFormat.bc5RGUNormInt => gpu.PixelFormat.bc5RGUNormInt,
+        TextureFormat.bc7RGBAUNormInt => gpu.PixelFormat.bc7RGBAUNormInt,
+        TextureFormat.bc7RGBAUNormIntSRGB =>
+          gpu.PixelFormat.bc7RGBAUNormIntSRGB,
+        TextureFormat.etc2RGB8UNormInt => gpu.PixelFormat.etc2RGB8UNormInt,
+        TextureFormat.etc2RGB8UNormIntSRGB =>
+          gpu.PixelFormat.etc2RGB8UNormIntSRGB,
+        TextureFormat.etc2RGBA8UNormInt => gpu.PixelFormat.etc2RGBA8UNormInt,
+        TextureFormat.etc2RGBA8UNormIntSRGB =>
+          gpu.PixelFormat.etc2RGBA8UNormIntSRGB,
+        TextureFormat.astc4x4LDR => gpu.PixelFormat.astc4x4LDR,
+        TextureFormat.astc4x4LDRSRGB => gpu.PixelFormat.astc4x4LDRSRGB,
+        TextureFormat.astc8x8LDR => gpu.PixelFormat.astc8x8LDR,
+        TextureFormat.astc8x8LDRSRGB => gpu.PixelFormat.astc8x8LDRSRGB,
+        TextureFormat.astc4x4HDR => gpu.PixelFormat.astc4x4HDR,
+        TextureFormat.astc8x8HDR => gpu.PixelFormat.astc8x8HDR,
       };
 }
 
@@ -88,30 +108,32 @@ extension TextureFormatFromGpu on gpu.PixelFormat {
           TextureFormat.b8g8r8a8UNormIntSRGB,
         gpu.PixelFormat.r32g32b32a32Float => TextureFormat.r32g32b32a32Float,
         gpu.PixelFormat.r16g16b16a16Float => TextureFormat.r16g16b16a16Float,
-        gpu.PixelFormat.b10g10r10XR => TextureFormat.b10g10r10XR,
-        gpu.PixelFormat.b10g10r10XRSRGB => TextureFormat.b10g10r10XRSRGB,
-        gpu.PixelFormat.b10g10r10a10XR => TextureFormat.b10g10r10a10XR,
+        gpu.PixelFormat.r32Float => TextureFormat.r32Float,
         gpu.PixelFormat.s8UInt => TextureFormat.s8UInt,
         gpu.PixelFormat.d24UnormS8Uint => TextureFormat.d24UnormS8Uint,
         gpu.PixelFormat.d32FloatS8UInt => TextureFormat.d32FloatS8UInt,
-      };
-}
-
-extension TextureCoordinateSystemToGpu on TextureCoordinateSystem {
-  gpu.TextureCoordinateSystem toGpu() => switch (this) {
-        TextureCoordinateSystem.uploadFromHost =>
-          gpu.TextureCoordinateSystem.uploadFromHost,
-        TextureCoordinateSystem.renderToTexture =>
-          gpu.TextureCoordinateSystem.renderToTexture,
-      };
-}
-
-extension TextureCoordinateSystemFromGpu on gpu.TextureCoordinateSystem {
-  TextureCoordinateSystem toEngine() => switch (this) {
-        gpu.TextureCoordinateSystem.uploadFromHost =>
-          TextureCoordinateSystem.uploadFromHost,
-        gpu.TextureCoordinateSystem.renderToTexture =>
-          TextureCoordinateSystem.renderToTexture,
+        gpu.PixelFormat.bc1RGBAUNormInt => TextureFormat.bc1RGBAUNormInt,
+        gpu.PixelFormat.bc1RGBAUNormIntSRGB =>
+          TextureFormat.bc1RGBAUNormIntSRGB,
+        gpu.PixelFormat.bc3RGBAUNormInt => TextureFormat.bc3RGBAUNormInt,
+        gpu.PixelFormat.bc3RGBAUNormIntSRGB =>
+          TextureFormat.bc3RGBAUNormIntSRGB,
+        gpu.PixelFormat.bc5RGUNormInt => TextureFormat.bc5RGUNormInt,
+        gpu.PixelFormat.bc7RGBAUNormInt => TextureFormat.bc7RGBAUNormInt,
+        gpu.PixelFormat.bc7RGBAUNormIntSRGB =>
+          TextureFormat.bc7RGBAUNormIntSRGB,
+        gpu.PixelFormat.etc2RGB8UNormInt => TextureFormat.etc2RGB8UNormInt,
+        gpu.PixelFormat.etc2RGB8UNormIntSRGB =>
+          TextureFormat.etc2RGB8UNormIntSRGB,
+        gpu.PixelFormat.etc2RGBA8UNormInt => TextureFormat.etc2RGBA8UNormInt,
+        gpu.PixelFormat.etc2RGBA8UNormIntSRGB =>
+          TextureFormat.etc2RGBA8UNormIntSRGB,
+        gpu.PixelFormat.astc4x4LDR => TextureFormat.astc4x4LDR,
+        gpu.PixelFormat.astc4x4LDRSRGB => TextureFormat.astc4x4LDRSRGB,
+        gpu.PixelFormat.astc8x8LDR => TextureFormat.astc8x8LDR,
+        gpu.PixelFormat.astc8x8LDRSRGB => TextureFormat.astc8x8LDRSRGB,
+        gpu.PixelFormat.astc4x4HDR => TextureFormat.astc4x4HDR,
+        gpu.PixelFormat.astc8x8HDR => TextureFormat.astc8x8HDR,
       };
 }
 

@@ -7,6 +7,21 @@
 
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
+# Written by the SDK, not by hand. `flutter analyze` on 3.47 rewrites every
+# analysis_options.yaml it reads, printing "Upgrading analysis_options.yaml to
+# exclude build and platform directories" as it goes. It is committed here — in
+# all sixteen of them — because the alternative is a tree that goes dirty every
+# time anyone analyses it, and a CI job that reports modified files it did not
+# modify on purpose.
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 include: package:flutter_lints/flutter.yaml
 
 linter:

@@ -66,23 +66,41 @@ enum TextureFormat {
   b8g8r8a8UNormIntSRGB,
   r32g32b32a32Float,
   r16g16b16a16Float,
-  b10g10r10XR,
-  b10g10r10XRSRGB,
-  b10g10r10a10XR,
+  r32Float,
   // Depth and stencil formats.
   s8UInt,
   d24UnormS8Uint,
   d32FloatS8UInt,
-}
-
-/// Which corner a texture's origin is in.
-enum TextureCoordinateSystem {
-  /// (0, 0) is the bottom-left with +Y going up. Used when uploading texture
-  /// data from the host.
-  uploadFromHost,
-
-  /// (0, 0) is the top-left with +Y going down. The default.
-  renderToTexture,
+  // Block-compressed formats. Sample-only everywhere: they cannot be render
+  // targets, shader-writable, or multisampled, and hardware support varies by
+  // family.
+  //
+  // **No pass in this engine allocates one**, and by the rule in
+  // `command_encoder.dart` a member with no user would be absent. That rule
+  // governs *methods* — an interface member is a guess about a backend. This
+  // enum is governed by the opposite rule, three paragraphs up: mirror
+  // flutter_gpu value for value. The two are not in conflict because they are
+  // about different things. A partial mirror would break the property the
+  // mapping tests actually check — that a value lands on the flutter_gpu value
+  // of the same name — and would put the backends' `switch` statements one
+  // silent step away from mapping the wrong texel layout.
+  bc1RGBAUNormInt,
+  bc1RGBAUNormIntSRGB,
+  bc3RGBAUNormInt,
+  bc3RGBAUNormIntSRGB,
+  bc5RGUNormInt,
+  bc7RGBAUNormInt,
+  bc7RGBAUNormIntSRGB,
+  etc2RGB8UNormInt,
+  etc2RGB8UNormIntSRGB,
+  etc2RGBA8UNormInt,
+  etc2RGBA8UNormIntSRGB,
+  astc4x4LDR,
+  astc4x4LDRSRGB,
+  astc8x8LDR,
+  astc8x8LDRSRGB,
+  astc4x4HDR,
+  astc8x8HDR,
 }
 
 /// One term of a blend equation.
