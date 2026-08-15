@@ -18,11 +18,19 @@ import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
 /// were never in. So the level's asset path is stored beside it and checked on
 /// the way back in.
 final class SaveFile {
-  SaveFile({Directory? directory})
-      : directory = directory ??
-            Directory('${_home()}/Library/Application Support/platformer');
+  SaveFile({Directory? directory}) : _given = directory;
 
-  final Directory directory;
+  final Directory? _given;
+
+  /// Resolved on first use rather than in the constructor.
+  ///
+  /// `Platform.environment` is unavailable where there is no filesystem — a web
+  /// build throws `UnsupportedError` on the way past it — and resolving it
+  /// eagerly turned that into a game that never drew a frame. Deferred, the
+  /// throw happens inside [read] and [write], which already promise never to
+  /// throw and already fall back to a fresh run.
+  late final Directory directory = _given ??
+      Directory('${_home()}/Library/Application Support/platformer');
 
   File get file => File('${directory.path}/save.json');
 

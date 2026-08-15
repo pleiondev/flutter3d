@@ -32,8 +32,15 @@ final class MethodChannelMouseCapture extends MouseCapturePlatform {
   /// The native side multiplexes deltas and state changes onto a single channel
   /// so the hot path stays one binary message per mouse event; splitting them
   /// here keeps that off the public API.
-  Stream<Object?> get _sharedEvents =>
-      _events ??= eventChannel.receiveBroadcastStream();
+  Stream<Object?> get _sharedEvents => _events ??= isSupported
+      ? eventChannel.receiveBroadcastStream()
+      // Nothing is listening on the other side where there is no
+      // implementation, and subscribing anyway is a `MissingPluginException`
+      // on the first listener — which every caller gets, because
+      // `MouseCapture` subscribes in its constructor. An empty stream is the
+      // honest answer: this platform never changes capture state, which is
+      // exactly what [isSupported] already says.
+      : const Stream<Object?>.empty();
 
   @override
   Stream<Offset> get deltas => _sharedEvents

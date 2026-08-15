@@ -11,6 +11,7 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
@@ -18,11 +19,11 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/backend.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
@@ -69,7 +70,17 @@ class _GameScreenState extends State<GameScreen>
   /// what the package defaults to and what every test written before
   /// progression existed relies on.
   static const int _lives = 3;
-  static const String _runnerModel = 'assets/models/hero.glb';
+  /// Who the player is looking at.
+  ///
+  /// **Back to the penguin.** `hero.glb` is rigged and carries eighteen clips,
+  /// which is why it was picked; on screen it draws as a loose fan of triangles
+  /// — four skinned meshes sharing one armature, and something between the file
+  /// and this renderer does not agree about them. That is a bug worth finding,
+  /// and finding it is not worth shipping an unreadable player in the meantime.
+  /// The clip machinery below stays wired: a model with clips still gets them,
+  /// and this one has none, so the pose is `RunnerLooks` alone — which is what
+  /// it was written for.
+  static const String _runnerModel = 'assets/models/penguin.glb';
 
   /// Which way the model faces when nothing has turned it.
   ///
@@ -103,7 +114,7 @@ class _GameScreenState extends State<GameScreen>
   );
   late final RenderView _view;
 
-  GpuRenderBackend? _device;
+  GraphicsDevice? _device;
   Renderer? _renderer;
   Object? _initError;
 
@@ -137,12 +148,13 @@ class _GameScreenState extends State<GameScreen>
   // ignore: unused_field
   ModelAsset? _runnerAsset;
 
-  /// How far below the body's centre the visual's origin sits.
+  /// The model's own lowest point, in its local space.
   ///
   /// A body is a box about its middle; a model of somebody standing has its
-  /// feet at the origin. The same two conventions that produced the respawn
-  /// bug, reconciled in one number instead of by a parent node.
-  double _runnerDrop = 0.0;
+  /// feet at or near the origin. The same two conventions that produced the
+  /// respawn bug — reconciled every frame rather than once at load, because a
+  /// crouch moves the body's middle and a fixed offset does not follow it.
+  double _modelFloor = 0.0;
 
   /// Added to the runner's yaw, for a model that was exported facing the other
   /// way. A number rather than a re-authored mesh.
@@ -223,20 +235,64 @@ class _GameScreenState extends State<GameScreen>
   /// The dash was already the pointer's; drop-through is control, which is
   /// where a player looks for crouch and is what it becomes when crouching
   /// exists.
-  static Bindings _bindings() => DesktopInput.defaultBindings()
-    ..bind(
-      InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
-      PlatformerActions.dropThrough,
-    )
-    ..bind(
-      InputSource.key(LogicalKeyboardKey.keyC.keyId),
-      PlatformerActions.dropThrough,
-    );
+  static Bindings _bindings() {
+    final bindings = DesktopInput.defaultBindings()
+      ..bind(
+        InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
+        PlatformerActions.dropThrough,
+      )
+      ..bind(
+        InputSource.key(LogicalKeyboardKey.keyC.keyId),
+        PlatformerActions.dropThrough,
+      );
+    if (kIsWeb) {
+      // The pointer is the dash on desktop, and on the web it is the only way
+      // to look around — a drag cannot also be a dash without every turn of
+      // the camera spending one. So the web build gives the dash a key.
+      bindings.bind(
+        InputSource.key(LogicalKeyboardKey.keyQ.keyId),
+        PlatformerActions.dash,
+      );
+    }
+    return bindings;
+  }
+
+  /// Mouse motion picked up from a drag, for a build with no pointer lock.
+  ///
+  /// Drained rather than read, and zeroed on the way out, because the loop asks
+  /// for the motion *since the last step* — leaving it in place would turn one
+  /// flick of the mouse into a camera that keeps turning.
+  /// Held so the keyboard can be given back after a click.
+  ///
+  /// The web build draws through a platform view, and clicking one moves the
+  /// browser's focus to the canvas element — after which Flutter sees no key
+  /// events at all and the game looks frozen while its clock keeps running.
+  /// `autofocus` only covers the first frame.
+  final FocusNode _keyboard = FocusNode(debugLabel: 'game');
+
+  final Vector2 _dragLook = Vector2.zero();
+  bool _dragging = false;
+
+  /// Takes the drag accumulated since the last frame.
+  ///
+  /// Read by the camera rather than handed to [GameLoop], and the reason is
+  /// worth knowing: the loop gives its delta to [InputState], and `endStep`
+  /// clears that at the end of every step — so by the time a frame draws, the
+  /// motion has already been thrown away. On the captured-pointer path the
+  /// simulation is the only reader and that is fine; here the camera is.
+  Vector2 _takeDragLook() {
+    final taken = _dragLook.clone();
+    _dragLook.setZero();
+    return taken;
+  }
 
   Future<void> _openGraphics() async {
-    final GpuRenderBackend device;
+    final GraphicsDevice device;
     try {
-      device = await GpuRenderBackend.create();
+      // Which backend this is was decided at compile time by
+      // `src/backend.dart`. The size is ignored by a backend that sizes itself
+      // per frame, and is the canvas for one that does not.
+      device = await openDevice(width: kRenderWidth, height: kRenderHeight);
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -463,7 +519,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// A box, right away, so the game can be played while the model loads.
-  SceneNode _boxRunner(GpuRenderBackend device, Scene scene, Runner runner) {
+  SceneNode _boxRunner(GraphicsDevice device, Scene scene, Runner runner) {
     final box = MeshNode(
       SharedMeshes(device).box(runner.body.halfExtents * 2.0),
       Material(
@@ -486,10 +542,11 @@ class _GameScreenState extends State<GameScreen>
   /// through `FixtureVisuals` is fine, and the difference is that a modelled
   /// fixture arrives *after* the frames have started — so this does too.
   ///
-  /// The asset is authored at the size the game wants (`tool/shrink_glb.py`
-  /// bakes the scale into its root), so there is no `setScale` here either.
+  /// The asset is authored at the size the game wants (`tool/prepare_models.py`
+  /// bakes the scale into its root), so there is no scale set at load either —
+  /// what `setScale` carries is the pose, and nothing else.
   Future<void> _dressRunner(
-    GpuRenderBackend device,
+    GraphicsDevice device,
     Scene scene,
     Runner runner,
   ) async {
@@ -515,7 +572,7 @@ class _GameScreenState extends State<GameScreen>
         // penguin had none, so it was thrown away and nobody noticed. This one
         // has eighteen.
         _runnerAnimation = instance.player;
-        _runnerDrop = runner.body.halfExtents.y - asset.localBounds.min.y;
+        _modelFloor = asset.localBounds.min.y;
         _runnerFacing = _modelFacing;
       });
       if (box != null) scene.remove(box);
@@ -533,7 +590,11 @@ class _GameScreenState extends State<GameScreen>
 
     // Paused whenever the mouse is not ours: a game that keeps running behind
     // a menu is a game that kills the player while they are reading it.
-    _loop.paused = !_devices.isCaptured || _sim == null;
+    // Paused whenever the mouse is not ours: a game that keeps running
+    // behind a menu is a game that kills the player while they are reading
+    // it. There is no pointer to own in a browser, so there the gate is
+    // only whether the level has loaded.
+    _loop.paused = _sim == null || (!kIsWeb && !_devices.isCaptured);
     _loop.advance(dt.clamp(0.0, 0.25));
 
     _particles.advance(dt);
@@ -705,7 +766,9 @@ class _GameScreenState extends State<GameScreen>
     final node = _runnerNode;
     if (camera == null || node == null) return;
 
-    camera.look(_input.lookDelta);
+    // A captured pointer reports through the loop; a drag reports here.
+    // A captured pointer reports through the loop; a drag reports here.
+    camera.look(kIsWeb ? _takeDragLook() : _input.lookDelta);
     _drawnAt.read(_loop.alpha, _scratch);
     camera.follow(_scratch, dt);
 
@@ -716,8 +779,20 @@ class _GameScreenState extends State<GameScreen>
     if (runner != null) _pose.advance(runner, dt);
     final scale = _pose.scale;
 
+    // Placed by its feet rather than by a fixed drop from the body's centre.
+    // A crouching body's centre falls by half of what the body lost, so a fixed
+    // drop buries the model in the floor for exactly as long as the crouch —
+    // see `RunnerLooks.drawnHeight`, which is where the arithmetic is tested.
+    final feet = runner == null
+        ? _scratch.y
+        : _pose.drawnHeight(
+            bodyY: _scratch.y,
+            halfHeight: runner.body.halfExtents.y,
+            modelFloor: _modelFloor,
+          );
+
     node
-      ..setPosition(_scratch.x, _scratch.y - _runnerDrop, _scratch.z)
+      ..setPosition(_scratch.x, feet, _scratch.z)
       ..setScale(scale.x, scale.y, scale.z)
       ..setRotation(
         Quaternion.axisAngle(
@@ -754,6 +829,7 @@ class _GameScreenState extends State<GameScreen>
     _saveRun();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
+    _keyboard.dispose();
     _ticker.dispose();
     unawaited(_devices.dispose());
     super.dispose();
@@ -793,6 +869,7 @@ class _GameScreenState extends State<GameScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
+        focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
           // R starts a lost run over. Handled here rather than through a
@@ -807,11 +884,19 @@ class _GameScreenState extends State<GameScreen>
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
+          // Desktop only. The web build reads its pointer from the layer
+          // above the platform view — see the stack below — and handling it
+          // here as well doubled every look delta.
           onPointerDown: (_) {
+            _keyboard.requestFocus();
+            if (kIsWeb) return;
             _devices.pressPointer(PlatformerActions.dash);
             if (!_devices.isCaptured) unawaited(_devices.captureMouse());
           },
-          onPointerUp: (_) => _devices.releasePointer(PlatformerActions.dash),
+          onPointerUp: (_) {
+            if (kIsWeb) return;
+            _devices.releasePointer(PlatformerActions.dash);
+          },
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
@@ -825,6 +910,28 @@ class _GameScreenState extends State<GameScreen>
                 ),
                 onBeforeFrame: () {},
               ),
+              // The web build draws into a platform view, and a platform view
+              // takes every pointer event over it — the `Listener` outside this
+              // stack never sees the drag that turns the camera. A transparent
+              // layer *above* the view does, because it is an ordinary Flutter
+              // widget again. Nothing below it is interactive, so opaque hit
+              // testing costs nothing.
+              if (kIsWeb)
+                Positioned.fill(
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (_) {
+                      _keyboard.requestFocus();
+                      _dragging = true;
+                    },
+                    onPointerMove: (PointerMoveEvent event) {
+                      if (!_dragging) return;
+                      _dragLook.add(Vector2(event.delta.dx, event.delta.dy));
+                    },
+                    onPointerUp: (_) => _dragging = false,
+                    onPointerCancel: (_) => _dragging = false,
+                  ),
+                ),
               if (sim != null)
                 Hud(
                   coins: _runner?.purse['coin'] ?? 0,
@@ -832,7 +939,8 @@ class _GameScreenState extends State<GameScreen>
                   lives: sim.lives,
                   elapsed: sim.elapsed,
                   state: sim.state,
-                  captured: _devices.isCaptured,
+                  // Nothing to capture in a browser, so nothing to prompt for.
+                  captured: kIsWeb || _devices.isCaptured,
                   levelName: _loaded?.level.name ?? '',
                 ),
               if (_showSettings)

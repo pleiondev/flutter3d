@@ -18,11 +18,19 @@ import 'package:flutter3d_game/flutter3d_game.dart' show GameConfig;
 /// which the repository's dependency policy asks for, and which keeps this
 /// testable with nothing but a directory.
 final class SettingsFile {
-  SettingsFile({Directory? directory})
-      : directory = directory ??
-            Directory('${_home()}/Library/Application Support/platformer');
+  SettingsFile({Directory? directory}) : _given = directory;
 
-  final Directory directory;
+  final Directory? _given;
+
+  /// Resolved on first use rather than in the constructor.
+  ///
+  /// `Platform.environment` is unavailable where there is no filesystem — a web
+  /// build throws `UnsupportedError` on the way past it — and resolving it
+  /// eagerly turned that into a game that never drew a frame. Deferred, the
+  /// throw happens inside [read] and [write], which already promise never to
+  /// throw and already fall back to defaults.
+  late final Directory directory = _given ??
+      Directory('${_home()}/Library/Application Support/platformer');
 
   File get file => File('${directory.path}/settings.json');
 

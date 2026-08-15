@@ -15,6 +15,11 @@ dependencies:
   flutter3d_impeller:
     path: ../../packages/flutter3d_impeller
 
+  # The browser backend. Which of the two runs is decided at compile time by
+  # `lib/src/backend.dart`.
+  flutter3d_webgl:
+    path: ../../packages/flutter3d_webgl
+
   # Rendering.
   flutter3d:
     path: ../../packages/flutter3d

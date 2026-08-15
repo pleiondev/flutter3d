@@ -11,10 +11,14 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The backend. Named here on purpose: this is the one line an application
-  # changes to run on a different graphics API.
+  # The backends. Named here on purpose: which one runs is decided by
+  # `lib/src/backend.dart`, a conditional import, and these two lines are the
+  # whole of the difference between a desktop build and a web one.
   flutter3d_impeller:
     path: ../../packages/flutter3d_impeller
+
+  flutter3d_webgl:
+    path: ../../packages/flutter3d_webgl
 
   flutter3d:
     path: ../../packages/flutter3d

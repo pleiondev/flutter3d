@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -10,7 +11,6 @@ import 'package:flutter/scheduler.dart';
 // dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_shooter/bridge.dart';
@@ -18,6 +18,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 
+import 'src/backend.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/scene_surface.dart';
@@ -148,7 +149,7 @@ class _GameScreenState extends State<GameScreen>
 
   /// The backend. Everything that uploads anything needs it, so it outlives
   /// `initState` as a field rather than being rebuilt where it is wanted.
-  GpuRenderBackend? _device;
+  GraphicsDevice? _device;
 
   /// How far the eye sits above the centre of the player's box.
   static const double _eyeOffset = 0.7;
@@ -201,6 +202,22 @@ class _GameScreenState extends State<GameScreen>
   /// up, which is asynchronous and must not hold up the first frame.
   AudioScene _audio = AudioScene(backend: SilentBackend());
   final AudioListener _ears = AudioListener();
+
+  /// Held so the keyboard can be given back after a click.
+  ///
+  /// The web build draws through a platform view, and clicking one moves the
+  /// browser's focus to the canvas element — after which Flutter sees no key
+  /// events and the game looks frozen while its clock keeps running.
+  final FocusNode _keyboard = FocusNode(debugLabel: 'game');
+
+  /// Mouse motion picked up from a drag, where there is no pointer to lock.
+  final Vector2 _dragLook = Vector2.zero();
+  bool _dragging = false;
+
+  void _drainDragLook(Vector2 out) {
+    out.setFrom(_dragLook);
+    _dragLook.setZero();
+  }
   SoLoudBackend? _soloud;
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
@@ -226,7 +243,10 @@ class _GameScreenState extends State<GameScreen>
     _loop = GameLoop(
       input: _input,
       onStep: _step,
-      drainLook: _devices.drainLook,
+      // Where the pointer cannot be captured — a browser — the delta comes
+      // from a drag instead. A first-person camera reads `lookDelta` inside
+      // the step, so the loop is the right place for it either way.
+      drainLook: kIsWeb ? _drainDragLook : _devices.drainLook,
     );
 
     _view = RenderView(camera: _camera);
@@ -249,9 +269,12 @@ class _GameScreenState extends State<GameScreen>
     // uploaded through it. A failure here is the same failure as a missing
     // shader bundle — `_renderer` stays null and `build` shows the panel — so
     // there is nothing further to set up.
-    final GpuRenderBackend device;
+    final GraphicsDevice device;
     try {
-      device = await GpuRenderBackend.create();
+      // Which backend this is was decided at compile time by
+      // `src/backend.dart`. The size is ignored by a backend that sizes itself
+      // per frame, and is the canvas for one that does not.
+      device = await openDevice(width: kRenderWidth, height: kRenderHeight);
     } catch (error) {
       if (mounted) setState(() => _initError = error);
       return;
@@ -507,6 +530,7 @@ class _GameScreenState extends State<GameScreen>
   void dispose() {
     _audio.stopAll();
     unawaited(_soloud?.dispose());
+    _keyboard.dispose();
     _ticker.dispose();
     _devices.dispose();
     super.dispose();
@@ -531,7 +555,9 @@ class _GameScreenState extends State<GameScreen>
     // key, and no state that can disagree with what the player sees: the
     // crosshair is gone and the cursor is back, so a game that kept simulating
     // would be a game running behind the player's back.
-    _loop.paused = !_devices.isCaptured;
+    // There is no pointer to own in a browser, so there the game is never
+    // paused by not owning it.
+    _loop.paused = !kIsWeb && !_devices.isCaptured;
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
@@ -805,6 +831,7 @@ class _GameScreenState extends State<GameScreen>
     return Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
+        focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
           // F toggles the fog in place. A before-and-after has to come from
@@ -817,14 +844,22 @@ class _GameScreenState extends State<GameScreen>
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
+          // Desktop only. The web build reads its pointer from the layer above
+          // the platform view — see the stack below — because a platform view
+          // takes every pointer event over it.
           onPointerDown: (_) {
+            _keyboard.requestFocus();
+            if (kIsWeb) return;
             if (_devices.isCaptured) {
               _devices.pressPointer(ShooterActions.fire);
             } else {
               _devices.captureMouse();
             }
           },
-          onPointerUp: (_) => _devices.releasePointer(ShooterActions.fire),
+          onPointerUp: (_) {
+            if (kIsWeb) return;
+            _devices.releasePointer(ShooterActions.fire);
+          },
           child: Stack(
             fit: StackFit.expand,
             children: <Widget>[
@@ -838,8 +873,35 @@ class _GameScreenState extends State<GameScreen>
                 ),
                 onBeforeFrame: _placeCamera,
               ),
+              // Hold to fire and drag to aim, which is what a captured pointer
+              // already does at once — so the two are the same gesture here
+              // rather than two that fight over the button.
+              if (kIsWeb)
+                Positioned.fill(
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (_) {
+                      _keyboard.requestFocus();
+                      _dragging = true;
+                      _devices.pressPointer(ShooterActions.fire);
+                    },
+                    onPointerMove: (PointerMoveEvent event) {
+                      if (!_dragging) return;
+                      _dragLook.add(Vector2(event.delta.dx, event.delta.dy));
+                    },
+                    onPointerUp: (_) {
+                      _dragging = false;
+                      _devices.releasePointer(ShooterActions.fire);
+                    },
+                    onPointerCancel: (_) {
+                      _dragging = false;
+                      _devices.releasePointer(ShooterActions.fire);
+                    },
+                  ),
+                ),
               Hud(
-                captured: _devices.isCaptured,
+                // Nothing to capture in a browser, so nothing to prompt for.
+                captured: kIsWeb || _devices.isCaptured,
                 fps: _fps,
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,

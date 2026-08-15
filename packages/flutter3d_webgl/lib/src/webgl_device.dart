@@ -396,6 +396,11 @@ final class WebGlDevice implements GraphicsDevice {
     _canvas.style
       ..width = '100%'
       ..height = '100%'
+      // A display surface, not a control. Left interactive, the canvas takes
+      // the pointer events over it and the Flutter widgets above the platform
+      // view never see them — which reads as an application whose camera does
+      // not turn while its keyboard works fine.
+      ..pointerEvents = 'none'
       ..objectFit = switch (fit) {
         BoxFit.contain => 'contain',
         BoxFit.cover => 'cover',

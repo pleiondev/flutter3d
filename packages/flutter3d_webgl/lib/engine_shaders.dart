@@ -586,8 +586,19 @@ layout(std140) uniform FragInfo {
   /// w: strength, zero when shadows are off.
   vec4 shadow_params;
 
-  /// World space to the shadow camera's clip space.
+  /// World space to the shadow camera's clip space. The first cascade.
   mat4 shadow_matrix;
+
+  /// The second and third cascades. Copies of the first when there is one, so
+  /// this block's layout never depends on how many there are.
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// cascades there are, 1 to 3. w: one texel of a tile, vertically —
+  /// shadow_params.x is one texel of the whole atlas, and with more than one
+  /// cascade those differ.
+  vec4 shadow_cascades;
 }
 frag_info;
 
@@ -1318,8 +1329,19 @@ layout(std140) uniform FragInfo {
   /// w: strength, zero when shadows are off.
   vec4 shadow_params;
 
-  /// World space to the shadow camera's clip space.
+  /// World space to the shadow camera's clip space. The first cascade.
   mat4 shadow_matrix;
+
+  /// The second and third cascades. Copies of the first when there is one, so
+  /// this block's layout never depends on how many there are.
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// cascades there are, 1 to 3. w: one texel of a tile, vertically —
+  /// shadow_params.x is one texel of the whole atlas, and with more than one
+  /// cascade those differ.
+  vec4 shadow_cascades;
 }
 frag_info;
 
@@ -1865,20 +1887,58 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // relative to the light rather than to depth.
   vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
 
-  vec4 lightSpace = frag_info.shadow_matrix * vec4(origin, 1.0);
-  if (lightSpace.w <= 0.0) return 1.0;
-  vec3 projected = lightSpace.xyz / lightSpace.w;
+  // Which cascade covers this fragment.
+  //
+  // Chosen by distance from the camera and then *checked*, because the volumes
+  // are spheres on the line of sight rather than fitted frusta: a fragment at
+  // the edge of the view can be past the end of the cascade its distance
+  // suggests. Falling through to the next one costs a branch and removes a
+  // whole class of missing-shadow bug, and the last cascade is fitted to the
+  // entire scene, so the fall-through always terminates somewhere real.
+  int cascadeCount = int(frag_info.shadow_cascades.z + 0.5);
+  float viewDistance = length(v_world_position - frag_info.camera_position.xyz);
+  int cascade = 0;
+  if (cascadeCount > 1 && viewDistance > frag_info.shadow_cascades.x) cascade = 1;
+  if (cascadeCount > 2 && viewDistance > frag_info.shadow_cascades.y) cascade = 2;
 
-  // Clip space x and y are in [-1, 1]; the texture is in [0, 1] with the
-  // origin at the top, matching where the render target's row zero is.
-  vec2 uv = vec2(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5);
-  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;
-  // Depth is already in [0, 1] here, as every projection in this engine
-  // produces; beyond the far plane there is nothing left to shadow.
-  if (projected.z > 1.0) return 1.0;
+  vec2 uv = vec2(0.0);
+  vec3 projected = vec3(0.0);
+  bool found = false;
+  for (int attempt = 0; attempt < 3; attempt++) {
+    int which = cascade + attempt;
+    if (which >= cascadeCount) break;
+
+    mat4 matrix = which == 0
+        ? frag_info.shadow_matrix
+        : (which == 1 ? frag_info.shadow_matrix_far
+                      : frag_info.shadow_matrix_farthest);
+    vec4 lightSpace = matrix * vec4(origin, 1.0);
+    if (lightSpace.w <= 0.0) continue;
+    vec3 candidate = lightSpace.xyz / lightSpace.w;
+
+    // Clip space x and y are in [-1, 1]; a tile is in [0, 1] with the origin at
+    // the top, matching where the render target's row zero is.
+    vec2 inTile = vec2(candidate.x * 0.5 + 0.5, 0.5 - candidate.y * 0.5);
+    if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
+      continue;
+    }
+    // Depth is already in [0, 1] here, as every projection in this engine
+    // produces; beyond the far plane there is nothing left to shadow.
+    if (candidate.z > 1.0) continue;
+
+    // Into the atlas: the cascades sit side by side in one texture.
+    uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
+    projected = candidate;
+    cascade = which;
+    found = true;
+    break;
+  }
+  if (!found) return 1.0;
 
   float bias = frag_info.shadow_params.y;
-  float texel = frag_info.shadow_params.x;
+  // Horizontally a texel of the atlas, vertically a texel of a tile. With one
+  // cascade they are the same number and this is the kernel it has always been.
+  vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
@@ -2197,8 +2257,19 @@ layout(std140) uniform FragInfo {
   /// w: strength, zero when shadows are off.
   vec4 shadow_params;
 
-  /// World space to the shadow camera's clip space.
+  /// World space to the shadow camera's clip space. The first cascade.
   mat4 shadow_matrix;
+
+  /// The second and third cascades. Copies of the first when there is one, so
+  /// this block's layout never depends on how many there are.
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// cascades there are, 1 to 3. w: one texel of a tile, vertically —
+  /// shadow_params.x is one texel of the whole atlas, and with more than one
+  /// cascade those differ.
+  vec4 shadow_cascades;
 }
 frag_info;
 
@@ -2744,20 +2815,58 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // relative to the light rather than to depth.
   vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
 
-  vec4 lightSpace = frag_info.shadow_matrix * vec4(origin, 1.0);
-  if (lightSpace.w <= 0.0) return 1.0;
-  vec3 projected = lightSpace.xyz / lightSpace.w;
+  // Which cascade covers this fragment.
+  //
+  // Chosen by distance from the camera and then *checked*, because the volumes
+  // are spheres on the line of sight rather than fitted frusta: a fragment at
+  // the edge of the view can be past the end of the cascade its distance
+  // suggests. Falling through to the next one costs a branch and removes a
+  // whole class of missing-shadow bug, and the last cascade is fitted to the
+  // entire scene, so the fall-through always terminates somewhere real.
+  int cascadeCount = int(frag_info.shadow_cascades.z + 0.5);
+  float viewDistance = length(v_world_position - frag_info.camera_position.xyz);
+  int cascade = 0;
+  if (cascadeCount > 1 && viewDistance > frag_info.shadow_cascades.x) cascade = 1;
+  if (cascadeCount > 2 && viewDistance > frag_info.shadow_cascades.y) cascade = 2;
 
-  // Clip space x and y are in [-1, 1]; the texture is in [0, 1] with the
-  // origin at the top, matching where the render target's row zero is.
-  vec2 uv = vec2(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5);
-  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;
-  // Depth is already in [0, 1] here, as every projection in this engine
-  // produces; beyond the far plane there is nothing left to shadow.
-  if (projected.z > 1.0) return 1.0;
+  vec2 uv = vec2(0.0);
+  vec3 projected = vec3(0.0);
+  bool found = false;
+  for (int attempt = 0; attempt < 3; attempt++) {
+    int which = cascade + attempt;
+    if (which >= cascadeCount) break;
+
+    mat4 matrix = which == 0
+        ? frag_info.shadow_matrix
+        : (which == 1 ? frag_info.shadow_matrix_far
+                      : frag_info.shadow_matrix_farthest);
+    vec4 lightSpace = matrix * vec4(origin, 1.0);
+    if (lightSpace.w <= 0.0) continue;
+    vec3 candidate = lightSpace.xyz / lightSpace.w;
+
+    // Clip space x and y are in [-1, 1]; a tile is in [0, 1] with the origin at
+    // the top, matching where the render target's row zero is.
+    vec2 inTile = vec2(candidate.x * 0.5 + 0.5, 0.5 - candidate.y * 0.5);
+    if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
+      continue;
+    }
+    // Depth is already in [0, 1] here, as every projection in this engine
+    // produces; beyond the far plane there is nothing left to shadow.
+    if (candidate.z > 1.0) continue;
+
+    // Into the atlas: the cascades sit side by side in one texture.
+    uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
+    projected = candidate;
+    cascade = which;
+    found = true;
+    break;
+  }
+  if (!found) return 1.0;
 
   float bias = frag_info.shadow_params.y;
-  float texel = frag_info.shadow_params.x;
+  // Horizontally a texel of the atlas, vertically a texel of a tile. With one
+  // cascade they are the same number and this is the kernel it has always been.
+  vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
@@ -3085,8 +3194,19 @@ layout(std140) uniform FragInfo {
   /// w: strength, zero when shadows are off.
   vec4 shadow_params;
 
-  /// World space to the shadow camera's clip space.
+  /// World space to the shadow camera's clip space. The first cascade.
   mat4 shadow_matrix;
+
+  /// The second and third cascades. Copies of the first when there is one, so
+  /// this block's layout never depends on how many there are.
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// cascades there are, 1 to 3. w: one texel of a tile, vertically —
+  /// shadow_params.x is one texel of the whole atlas, and with more than one
+  /// cascade those differ.
+  vec4 shadow_cascades;
 }
 frag_info;
 
@@ -3632,20 +3752,58 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // relative to the light rather than to depth.
   vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
 
-  vec4 lightSpace = frag_info.shadow_matrix * vec4(origin, 1.0);
-  if (lightSpace.w <= 0.0) return 1.0;
-  vec3 projected = lightSpace.xyz / lightSpace.w;
+  // Which cascade covers this fragment.
+  //
+  // Chosen by distance from the camera and then *checked*, because the volumes
+  // are spheres on the line of sight rather than fitted frusta: a fragment at
+  // the edge of the view can be past the end of the cascade its distance
+  // suggests. Falling through to the next one costs a branch and removes a
+  // whole class of missing-shadow bug, and the last cascade is fitted to the
+  // entire scene, so the fall-through always terminates somewhere real.
+  int cascadeCount = int(frag_info.shadow_cascades.z + 0.5);
+  float viewDistance = length(v_world_position - frag_info.camera_position.xyz);
+  int cascade = 0;
+  if (cascadeCount > 1 && viewDistance > frag_info.shadow_cascades.x) cascade = 1;
+  if (cascadeCount > 2 && viewDistance > frag_info.shadow_cascades.y) cascade = 2;
 
-  // Clip space x and y are in [-1, 1]; the texture is in [0, 1] with the
-  // origin at the top, matching where the render target's row zero is.
-  vec2 uv = vec2(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5);
-  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;
-  // Depth is already in [0, 1] here, as every projection in this engine
-  // produces; beyond the far plane there is nothing left to shadow.
-  if (projected.z > 1.0) return 1.0;
+  vec2 uv = vec2(0.0);
+  vec3 projected = vec3(0.0);
+  bool found = false;
+  for (int attempt = 0; attempt < 3; attempt++) {
+    int which = cascade + attempt;
+    if (which >= cascadeCount) break;
+
+    mat4 matrix = which == 0
+        ? frag_info.shadow_matrix
+        : (which == 1 ? frag_info.shadow_matrix_far
+                      : frag_info.shadow_matrix_farthest);
+    vec4 lightSpace = matrix * vec4(origin, 1.0);
+    if (lightSpace.w <= 0.0) continue;
+    vec3 candidate = lightSpace.xyz / lightSpace.w;
+
+    // Clip space x and y are in [-1, 1]; a tile is in [0, 1] with the origin at
+    // the top, matching where the render target's row zero is.
+    vec2 inTile = vec2(candidate.x * 0.5 + 0.5, 0.5 - candidate.y * 0.5);
+    if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
+      continue;
+    }
+    // Depth is already in [0, 1] here, as every projection in this engine
+    // produces; beyond the far plane there is nothing left to shadow.
+    if (candidate.z > 1.0) continue;
+
+    // Into the atlas: the cascades sit side by side in one texture.
+    uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
+    projected = candidate;
+    cascade = which;
+    found = true;
+    break;
+  }
+  if (!found) return 1.0;
 
   float bias = frag_info.shadow_params.y;
-  float texel = frag_info.shadow_params.x;
+  // Horizontally a texel of the atlas, vertically a texel of a tile. With one
+  // cascade they are the same number and this is the kernel it has always been.
+  vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
@@ -4006,8 +4164,19 @@ layout(std140) uniform FragInfo {
   /// w: strength, zero when shadows are off.
   vec4 shadow_params;
 
-  /// World space to the shadow camera's clip space.
+  /// World space to the shadow camera's clip space. The first cascade.
   mat4 shadow_matrix;
+
+  /// The second and third cascades. Copies of the first when there is one, so
+  /// this block's layout never depends on how many there are.
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// cascades there are, 1 to 3. w: one texel of a tile, vertically —
+  /// shadow_params.x is one texel of the whole atlas, and with more than one
+  /// cascade those differ.
+  vec4 shadow_cascades;
 }
 frag_info;
 
@@ -4553,20 +4722,58 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
   // relative to the light rather than to depth.
   vec3 origin = v_world_position + s.n * frag_info.shadow_params.z;
 
-  vec4 lightSpace = frag_info.shadow_matrix * vec4(origin, 1.0);
-  if (lightSpace.w <= 0.0) return 1.0;
-  vec3 projected = lightSpace.xyz / lightSpace.w;
+  // Which cascade covers this fragment.
+  //
+  // Chosen by distance from the camera and then *checked*, because the volumes
+  // are spheres on the line of sight rather than fitted frusta: a fragment at
+  // the edge of the view can be past the end of the cascade its distance
+  // suggests. Falling through to the next one costs a branch and removes a
+  // whole class of missing-shadow bug, and the last cascade is fitted to the
+  // entire scene, so the fall-through always terminates somewhere real.
+  int cascadeCount = int(frag_info.shadow_cascades.z + 0.5);
+  float viewDistance = length(v_world_position - frag_info.camera_position.xyz);
+  int cascade = 0;
+  if (cascadeCount > 1 && viewDistance > frag_info.shadow_cascades.x) cascade = 1;
+  if (cascadeCount > 2 && viewDistance > frag_info.shadow_cascades.y) cascade = 2;
 
-  // Clip space x and y are in [-1, 1]; the texture is in [0, 1] with the
-  // origin at the top, matching where the render target's row zero is.
-  vec2 uv = vec2(projected.x * 0.5 + 0.5, 0.5 - projected.y * 0.5);
-  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 1.0;
-  // Depth is already in [0, 1] here, as every projection in this engine
-  // produces; beyond the far plane there is nothing left to shadow.
-  if (projected.z > 1.0) return 1.0;
+  vec2 uv = vec2(0.0);
+  vec3 projected = vec3(0.0);
+  bool found = false;
+  for (int attempt = 0; attempt < 3; attempt++) {
+    int which = cascade + attempt;
+    if (which >= cascadeCount) break;
+
+    mat4 matrix = which == 0
+        ? frag_info.shadow_matrix
+        : (which == 1 ? frag_info.shadow_matrix_far
+                      : frag_info.shadow_matrix_farthest);
+    vec4 lightSpace = matrix * vec4(origin, 1.0);
+    if (lightSpace.w <= 0.0) continue;
+    vec3 candidate = lightSpace.xyz / lightSpace.w;
+
+    // Clip space x and y are in [-1, 1]; a tile is in [0, 1] with the origin at
+    // the top, matching where the render target's row zero is.
+    vec2 inTile = vec2(candidate.x * 0.5 + 0.5, 0.5 - candidate.y * 0.5);
+    if (inTile.x < 0.0 || inTile.x > 1.0 || inTile.y < 0.0 || inTile.y > 1.0) {
+      continue;
+    }
+    // Depth is already in [0, 1] here, as every projection in this engine
+    // produces; beyond the far plane there is nothing left to shadow.
+    if (candidate.z > 1.0) continue;
+
+    // Into the atlas: the cascades sit side by side in one texture.
+    uv = vec2((inTile.x + float(which)) / float(cascadeCount), inTile.y);
+    projected = candidate;
+    cascade = which;
+    found = true;
+    break;
+  }
+  if (!found) return 1.0;
 
   float bias = frag_info.shadow_params.y;
-  float texel = frag_info.shadow_params.x;
+  // Horizontally a texel of the atlas, vertically a texel of a tile. With one
+  // cascade they are the same number and this is the kernel it has always been.
+  vec2 texel = vec2(frag_info.shadow_params.x, frag_info.shadow_cascades.w);
 
   // PCF 3x3. Four samples would band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
