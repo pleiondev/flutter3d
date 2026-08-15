@@ -59,17 +59,23 @@ KEEP_CLEAR = [
 ]
 
 
-def _route(at, size, material):
-    brushes.append({"at": _r(at), "size": _r(size), "material": material})
+def _route(at, size, material, surface=None):
+    row = {"at": _r(at), "size": _r(size), "material": material}
+    if surface:
+        row["surface"] = surface
+    brushes.append(row)
 
 
-def _fill(at, size, material):
+def _fill(at, size, material, surface=None):
     x0, x1 = at[0] - size[0] / 2, at[0] + size[0] / 2
     z0, z1 = at[2] - size[2] / 2, at[2] + size[2] / 2
     for cx0, cx1, cz0, cz1 in KEEP_CLEAR:
         if x0 < cx1 and x1 > cx0 and z0 < cz1 and z1 > cz0:
             raise SystemExit(f"filling at {at} size {size} sits on the route")
-    brushes.append({"at": _r(at), "size": _r(size), "material": material})
+    row = {"at": _r(at), "size": _r(size), "material": material}
+    if surface:
+        row["surface"] = surface
+    brushes.append(row)
 
 
 def _r(v):
@@ -138,6 +144,22 @@ def mover(kind, name, at, size, travel, speed, wait, phase=None):
     entities.append(row)
 
 
+def oneway(name, at, size=(5.0, 0.3, 5.0)):
+    """A platform you jump up through and land on top of."""
+    entities.append({
+        "type": "oneway", "name": name, "at": _r(at), "size": _r(size),
+        "material": "wood",
+    })
+
+
+def conveyor(name, at, flow, size=(5.0, 0.4, 12.0)):
+    """A floor that carries whoever stands on it. The belt does not move."""
+    entities.append({
+        "type": "conveyor", "name": name, "at": _r(at), "size": _r(size),
+        "flow": _r(flow), "material": "brass",
+    })
+
+
 def plate(name, target, at, size=(4.0, 2.0, 4.0)):
     """A volume that works a mechanism by being walked into.
 
@@ -186,8 +208,8 @@ _route([0.0, -0.5, -2.5], [120.0, 1.0, 55.0], "moss")
 _route([0.0, -0.5, 42.5], [120.0, 1.0, 27.0], "stone")
 _route([0.0, -0.5, 69.5], [120.0, 1.0, 3.0], "stone")
 _route([0.0, -0.5, 96.0], [120.0, 1.0, 50.0], "wood")
-_route([0.0, -0.5, 124.5], [120.0, 1.0, 7.0], "ice")
-_route([0.0, -0.5, 156.5], [120.0, 1.0, 21.0], "ice")
+_route([0.0, -0.5, 124.5], [120.0, 1.0, 7.0], "ice", surface="ice")
+_route([0.0, -0.5, 156.5], [120.0, 1.0, 21.0], "ice", surface="ice")
 _route([0.0, -0.5, 200.0], [120.0, 1.0, 66.0], "stone")
 
 _route([-60.5, 4.0, 105.0], [1.0, 8.0, 274.0], "stone")
@@ -290,6 +312,35 @@ coin([16.0, 7.4, -18.0])
 hazard("the ruin spikes", [16.0, 0.4, -22.0], [8.0, 0.8, 5.0], damage=35.0)
 spring("the ruin pad", [16.0, 0.2, -13.0], speed=14.0)
 coin([16.0, 5.0, -13.0])
+
+# The yard of surfaces: where a player meets a floor that behaves, early and
+# where falling off costs nothing. Three lessons, in the order a level teaches
+# them — a platform you pass through, a floor that slides, a floor that carries.
+#
+# East of the walked line and south of the plateau's stair, so none of it is on
+# the route: the whole point is that a player who never comes here can still
+# finish the level.
+for i, y in enumerate((1.6, 3.0, 4.4)):
+    oneway(f"the gantry {i + 1}", [14.0 + i * 1.5, y, 10.0], size=(6.0, 0.3, 6.0))
+    coin([14.0 + i * 1.5, y + 1.0, 10.0])
+# Under the lowest one, so the only way out is down through it.
+coin([14.0, 0.8, 10.0])
+
+# A rink, and a kerb at the far end so a player who overshoots stops rather
+# than skates into the plateau's stair.
+_fill([-14.0, 0.05, 8.0], [16.0, 0.1, 16.0], "ice", surface="ice")
+_fill([-14.0, 1.0, 16.5], [16.0, 2.0, 1.0], "stone")
+coin([-18.0, 0.9, 12.0])
+coin([-10.0, 0.9, 12.0])
+
+# The belts run north, in the clear strip between the yard's north wall and the
+# plateau. The first draft put them at x = -30, which is *inside* the walled
+# yard — entities do not go through `KEEP_CLEAR`, so nothing complained and the
+# belt delivered its passenger into a fence.
+conveyor("the first belt", [-44.0, 0.2, 13.0], [0.0, 0.0, 5.0], size=(4.0, 0.4, 14.0))
+conveyor("the second belt", [-39.0, 0.2, 13.0], [0.0, 0.0, -5.0], size=(4.0, 0.4, 14.0))
+coin([-44.0, 0.9, 19.0])
+coin([-39.0, 0.9, 7.0])
 
 # The north strip: broken walls with coins behind them.
 for i in range(6):

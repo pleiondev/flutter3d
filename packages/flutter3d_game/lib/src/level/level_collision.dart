@@ -27,7 +27,11 @@ extension LevelCollision on Level {
         Collider(
           shape: CollisionBox(brush.halfExtents),
           position: brush.centre,
-          layer: CollisionLayers.world,
+          // The document's own bit when it names one. A one-way platform, a
+          // grate, a wall only some bodies respect: all of them are a brush on
+          // a layer of its own, and the level format was the one place that
+          // could not say so.
+          layer: brush.layer ?? CollisionLayers.world,
           userData: brush,
         ),
       );

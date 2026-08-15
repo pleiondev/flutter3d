@@ -138,6 +138,21 @@ final class Collider {
   /// collision response alone cannot do.
   final Vector3 delta = Vector3.zero();
 
+  /// How fast this collider's *surface* drags whatever stands on it, in m/s.
+  ///
+  /// Independent of [delta], and the difference is the whole point: a lift
+  /// moves, so its transform changed and [delta] says by how much; a conveyor
+  /// belt does not move at all and only its skin does. Both carry a passenger,
+  /// and until this existed only the first could.
+  ///
+  /// A travelator, a river, a boost pad, an escalator and a rotating disc
+  /// (roughly) are all this vector. The engine never learns which.
+  ///
+  /// Read by the character controller when it decides what is carrying it.
+  /// Zero on everything by default, so nothing changes for a collider that
+  /// never sets it.
+  final Vector3 surfaceVelocity = Vector3.zero();
+
   /// True when this collider blocks movement.
   bool get isSolid => kind != ColliderKind.trigger;
 

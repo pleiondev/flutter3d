@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 import 'checkpoint.dart';
 import 'crate.dart';
 import 'spring.dart';
+import 'surfaces.dart';
 import 'collectible.dart';
 import 'hazard.dart';
 
@@ -19,6 +20,12 @@ abstract final class PlatformerEntities {
   static const String checkpoint = 'checkpoint';
   static const String crate = 'crate';
   static const String spring = 'spring';
+
+  /// A platform you jump up through and land on top of.
+  static const String oneWay = 'oneway';
+
+  /// A floor that carries whoever stands on it.
+  static const String conveyor = 'conveyor';
 }
 
 final class CollectibleKind extends EntityKind {
@@ -190,6 +197,8 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
       const KeyKind(),
       CrateKind(dynamics: dynamics),
       const SpringKind(),
+      const OneWayKind(),
+      const ConveyorKind(),
     ]);
 
 /// What is true of a platformer's level whatever it contains.
@@ -292,6 +301,105 @@ final class KeyKind extends EntityKind {
       entity,
       collider: collider,
       mechanism: key,
+      size: entity.vector('size') ?? defaultSize,
+    );
+  }
+}
+
+/// A platform that is a floor from above and nothing from below.
+///
+/// An entity rather than a brush with a layer number in it. A brush could carry
+/// the bit — `Brush.layer` exists and the level format can write it — but the
+/// number would be a bare 64 in a document, meaning nothing to anybody reading
+/// it, and the genre's own word for the thing belongs with the genre's other
+/// words. What makes it work is [PlatformerLayers.oneWay] and the runner's
+/// filter; this only puts the box on the right layer.
+final class OneWayKind extends EntityKind {
+  const OneWayKind() : super(PlatformerEntities.oneWay);
+
+  /// Thin, because thickness is what a player misjudges when jumping through.
+  static final Vector3 defaultSize = Vector3(4.0, 0.3, 4.0);
+
+  @override
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final size = entity.vector('size');
+    if (size != null && size.y > 0.6) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'is ${size.y} m thick, and a one-way platform that thick is one a '
+          'player lands inside of before they are through it',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.static,
+      layer: PlatformerLayers.oneWay,
+      fallbackSize: defaultSize,
+    );
+    context.reveal(
+      entity,
+      collider: collider,
+      size: entity.vector('size') ?? defaultSize,
+    );
+  }
+}
+
+/// A floor that drags whatever stands on it.
+///
+/// The belt does not move — only its skin does — which is exactly what
+/// `Collider.surfaceVelocity` says, and why a conveyor needed no mover, no
+/// schedule and no mechanism at all. It is a static box with a number on it.
+final class ConveyorKind extends EntityKind {
+  const ConveyorKind() : super(PlatformerEntities.conveyor);
+
+  static final Vector3 defaultSize = Vector3(4.0, 0.4, 8.0);
+
+  @override
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final flow = entity.vector('flow');
+    if (flow == null) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'has no "flow", so it is a floor that carries nobody anywhere',
+          where: scope.describe(entity),
+        ),
+      );
+      return;
+    }
+    if (flow.length < 1e-6) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'flows nowhere',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final flow = entity.vector('flow');
+    if (flow == null) return;
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.static,
+      fallbackSize: defaultSize,
+    );
+    collider.surfaceVelocity.setFrom(flow);
+    context.reveal(
+      entity,
+      collider: collider,
       size: entity.vector('size') ?? defaultSize,
     );
   }

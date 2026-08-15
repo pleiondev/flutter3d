@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart';
 import 'actions.dart';
 import 'purse.dart';
 import 'spring.dart';
+import 'surfaces.dart';
 
 /// How this game's jump feels, which is most of how the game feels.
 final class RunnerTuning {
@@ -15,6 +16,7 @@ final class RunnerTuning {
     this.airJumps = 1,
     this.jumpCut = 0.45,
     this.coyoteTime = 0.12,
+    this.dropThroughTime = 0.25,
     this.jumpBufferTime = 0.12,
     this.dashSpeed = 18.0,
     this.dashCooldown = 0.55,
@@ -98,6 +100,14 @@ final class RunnerTuning {
   /// mantling a kerb looks like a stumble.
   final double mantleLow;
 
+  /// How long a one-way platform stays passable after asking to drop.
+  ///
+  /// Long enough to fall clear of it: a quarter of a second is about forty
+  /// centimetres, and any thickness a level authors is well under that. Too
+  /// short and the runner lands back on the platform it just left, which reads
+  /// as the input being eaten.
+  final double dropThroughTime;
+
   /// The tallest ledge the runner can pull up onto.
   ///
   /// Deliberately under a single jump's 1.88 m: a mantle is for the ledge you
@@ -133,14 +143,27 @@ final class Runner with KeyHolder
     Health? health,
     Purse? purse,
     this.tuning = const RunnerTuning(),
+    this.surfaces = const Surfaces.plain(),
   })  : health = health ?? Health(100.0),
         purse = purse ?? Purse() {
     body.collider.userData = this;
+    // What this body counts as solid is a policy, and a platformer's policy is
+    // that some platforms are floors from above and nothing at all from below.
+    // The engine holds the mechanism and this holds the opinion.
+    body.solidFilter = _countsAsSolid;
+    _ground = body.tuning;
     _land();
   }
 
   final CharacterController body;
   final RunnerTuning tuning;
+
+  /// What the floors of this game are made of, and what each does.
+  ///
+  /// Read every step from whatever the feet are on. A game that names no
+  /// surfaces gets `MovementTuning` unchanged and pays one map lookup.
+  final Surfaces surfaces;
+
   final Health health;
 
   @override
@@ -164,6 +187,16 @@ final class Runner with KeyHolder
 
   double _coyote = 0.0;
   double _buffer = 0.0;
+
+  /// How long a one-way platform stays passable after asking to drop through.
+  double _dropping = 0.0;
+
+  /// The numbers for ordinary ground, kept so a surface can be left again.
+  late MovementTuning _ground;
+
+  /// What the feet were on last step, so the tuning is looked up when it
+  /// changes rather than on every one of the sixty.
+  String? _standingOn;
   double _wallCoyote = 0.0;
   final Vector3 _wallAway = Vector3.zero();
   bool _onWall = false;
@@ -244,6 +277,7 @@ final class Runner with KeyHolder
     mantledThisStep = false;
 
     _readWish(input, cameraYaw);
+    _readSurface();
     _probeWall(dt);
     _tickTimers(dt, input);
     _tryMantle();
@@ -267,6 +301,38 @@ final class Runner with KeyHolder
     _bleedOffDash(dt, asked);
   }
 
+  /// Whether a contact counts, which for this genre is a question about
+  /// one-way platforms and nothing else.
+  ///
+  /// Three answers, and each is a rule a player can feel:
+  ///
+  ///  * anything that is not a one-way platform is solid, always;
+  ///  * a one-way platform is nothing at all while dropping through it;
+  ///  * otherwise it is solid only as a *floor* — a contact whose normal points
+  ///    up, met while not rising. Jumping up through it, and running into its
+  ///    side in mid-air, both find nothing.
+  ///
+  /// The third clause is why this is a predicate and not a mask. With a mask
+  /// the sides of a one-way platform stay solid, and a player sprinting past
+  /// one stops dead on an invisible lip at chest height.
+  bool _countsAsSolid(Collider other, Vector3 normal) {
+    if (other.layer & PlatformerLayers.oneWay == 0) return true;
+    if (_dropping > 0.0) return false;
+    return normal.y > 0.5 && body.velocity.y <= 0.0;
+  }
+
+  /// Reads what the feet are on and hands the body that surface's numbers.
+  ///
+  /// The lookup is skipped while the name has not changed, which is almost
+  /// always: a runner crosses one floor for seconds at a time.
+  void _readSurface() {
+    final under = body.ground?.userData;
+    final name = under is Brush ? under.surface : null;
+    if (name == _standingOn) return;
+    _standingOn = name;
+    body.tuning = name == null ? _ground : surfaces.tuningFor(name);
+  }
+
   void _readWish(InputState input, double cameraYaw) {
     final axis = input.moveAxis;
     final sin = math.sin(cameraYaw);
@@ -287,7 +353,21 @@ final class Runner with KeyHolder
     );
   }
 
+  /// Asks to fall through the one-way platform underfoot.
+  ///
+  /// A window rather than a flag: the platform has to stay passable for long
+  /// enough to get clear of it, and a single step is not — the body falls three
+  /// centimetres in one and would land straight back on it.
+  void dropThrough() {
+    if (!body.isGrounded) return;
+    final under = body.ground;
+    if (under == null || under.layer & PlatformerLayers.oneWay == 0) return;
+    _dropping = tuning.dropThroughTime;
+  }
+
   void _tickTimers(double dt, InputState input) {
+    _dropping = math.max(0.0, _dropping - dt);
+    if (input.pressed(PlatformerActions.dropThrough)) dropThrough();
     if (body.isGrounded) {
       _coyote = tuning.coyoteTime;
       _airJumpsLeft = tuning.airJumps;

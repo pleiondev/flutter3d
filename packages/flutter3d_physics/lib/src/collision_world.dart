@@ -6,6 +6,23 @@ import 'collider.dart';
 import 'collision_shape.dart';
 import 'spatial_grid.dart';
 
+/// Whether a contact counts, asked of the collider and the way it faces.
+///
+/// The mechanism behind a one-way platform, a phase state, a floor that only
+/// some bodies fall through — and the engine knows none of those words. It
+/// takes the *normal*, which is what separates this from [Layers]: a mask can
+/// only skip a whole collider, and a platform you may pass upwards through but
+/// must stand on is one collider whose top face counts and whose other five do
+/// not.
+///
+/// [normal] points from the surface towards the body, is axis-aligned like
+/// every normal here, and is **scratch**: read it, do not keep it.
+///
+/// Called from inside the sweep loop, which is the hottest loop in a game, so
+/// the argument is a function rather than an object with a method and the
+/// null case costs one comparison.
+typedef ContactFilter = bool Function(Collider other, Vector3 normal);
+
 /// Where a swept shape first touched something.
 ///
 /// Reused between queries rather than returned fresh: the character controller
@@ -103,6 +120,9 @@ final class CollisionWorld {
   int get moverCount => _movers.length;
 
   // Scratch, reused by every query.
+  /// Which way a depenetration would push, handed to a [ContactFilter].
+  final Vector3 _pushNormal = Vector3.zero();
+
   final Vector3 _queryMin = Vector3.zero();
   final Vector3 _queryMax = Vector3.zero();
   final Vector3 _expandedMin = Vector3.zero();
@@ -326,6 +346,7 @@ final class CollisionWorld {
     SweepHit out, {
     int mask = Layers.all,
     Collider? ignore,
+    ContactFilter? allow,
   }) {
     out.reset();
     if (delta.x == 0.0 && delta.y == 0.0 && delta.z == 0.0) return false;
@@ -346,7 +367,7 @@ final class CollisionWorld {
       if (identical(other, ignore)) return;
       if (!other.isSolid) return;
       if ((mask & other.layer) == 0) return;
-      _sweepAgainst(origin, half, delta, other, out);
+      _sweepAgainst(origin, half, delta, other, out, allow);
     }
 
     _staticGrid.forEachInBox(_queryMin, _queryMax, (int i) {
@@ -364,6 +385,7 @@ final class CollisionWorld {
     Vector3 delta,
     Collider other,
     SweepHit out,
+    ContactFilter? allow,
   ) {
     // A box against a box is a point against the first grown by the second's
     // half-extents — the Minkowski sum of two axis-aligned boxes.
@@ -379,11 +401,16 @@ final class CollisionWorld {
     );
 
     final t = _sweepPointBox(origin, delta, _expandedMin, _expandedMax);
-    if (t < out.fraction) {
-      out.fraction = t;
-      out.normal.setFrom(_candidateNormal);
-      out.collider = other;
-    }
+    if (t >= out.fraction) return;
+    // The filter is asked *here* rather than in `consider`, and the normal is
+    // the reason: whether a contact counts is usually a question about which
+    // way the surface faces, and that is not known until the slab test has run.
+    // A caller that only wants to skip whole colliders has [mask] already.
+    if (allow != null && !allow(other, _candidateNormal)) return;
+
+    out.fraction = t;
+    out.normal.setFrom(_candidateNormal);
+    out.collider = other;
   }
 
   /// The slab test: how far along [delta] a point stays inside every slab.
@@ -555,6 +582,7 @@ final class CollisionWorld {
     Vector3 out, {
     int mask = Layers.all,
     Collider? ignore,
+    ContactFilter? allow,
   }) {
     out.setZero();
     var corrected = false;
@@ -586,13 +614,29 @@ final class CollisionWorld {
           math.min(_queryMax.z, box.max.z) - math.max(_queryMin.z, box.min.z);
       if (overlapZ <= 0.0) return;
 
-      corrected = true;
+      // Which way this push would go, so the filter is asked the same question
+      // here as in a sweep: not "which collider" but "which way does it face".
+      // Without this a body that sweeps through a one-way platform is ejected
+      // out of its side by the very next depenetration, which is the bug a mask
+      // on its own leaves behind.
       if (overlapY <= overlapX && overlapY <= overlapZ) {
-        out.y += centre.y < other.position.y ? -overlapY : overlapY;
+        final push = centre.y < other.position.y ? -overlapY : overlapY;
+        _pushNormal.setValues(0.0, push < 0 ? -1.0 : 1.0, 0.0);
+        if (allow != null && !allow(other, _pushNormal)) return;
+        corrected = true;
+        out.y += push;
       } else if (overlapX <= overlapZ) {
-        out.x += centre.x < other.position.x ? -overlapX : overlapX;
+        final push = centre.x < other.position.x ? -overlapX : overlapX;
+        _pushNormal.setValues(push < 0 ? -1.0 : 1.0, 0.0, 0.0);
+        if (allow != null && !allow(other, _pushNormal)) return;
+        corrected = true;
+        out.x += push;
       } else {
-        out.z += centre.z < other.position.z ? -overlapZ : overlapZ;
+        final push = centre.z < other.position.z ? -overlapZ : overlapZ;
+        _pushNormal.setValues(0.0, 0.0, push < 0 ? -1.0 : 1.0);
+        if (allow != null && !allow(other, _pushNormal)) return;
+        corrected = true;
+        out.z += push;
       }
     }
 

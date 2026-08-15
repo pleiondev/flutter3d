@@ -103,6 +103,10 @@ final class _Game {
         world: world,
         position: start + Vector3(0.0, 0.9, 0.0),
       ),
+      // As `main.dart` builds it. The first version of this left the surfaces
+      // out, and the level's ice walked exactly like its moss — a harness that
+      // is not the game is a harness that agrees with any bug the game has.
+      surfaces: Surfaces.common(),
     );
     sim = PlatformerSimulation(
       runner: runner,
@@ -239,6 +243,13 @@ void main() {
       expect(counted['door'], greaterThanOrEqualTo(2));
       expect(counted['key'], greaterThanOrEqualTo(2));
       expect(counted['checkpoint'], greaterThanOrEqualTo(7));
+      expect(counted['oneway'], greaterThanOrEqualTo(3), reason: 'the gantry');
+      expect(counted['conveyor'], greaterThanOrEqualTo(2), reason: 'the belts');
+      expect(
+        level.brushes.where((Brush b) => b.surface == 'ice'),
+        isNotEmpty,
+        reason: 'ice that is made of ice, not merely painted as it',
+      );
     });
 
     test('everything the level is built around is in it', () {
@@ -355,6 +366,71 @@ void main() {
           reason: 'the vault would not need the crate');
       expect(ledge, lessThan(crate + reach),
           reason: 'the vault could not be reached from the crate either');
+    });
+  });
+
+  group('the yard of surfaces', () {
+    test('the gantry is a floor from above and a doorway from below', () {
+      // Both halves in the shipped level, because a one-way platform that works
+      // in a test fixture and not in the document is a one-way platform nobody
+      // can use. The runner is put under the lowest gantry and thrown at it.
+      final game = _Game();
+      final gantry = game.level.entities.firstWhere(
+        (EntityDef e) => e.name == 'the gantry 1',
+      );
+
+      game.putAt(Vector3(gantry.position.x, 0.0, gantry.position.z));
+      game.wait(20);
+      final floor = game.runner.position.y;
+
+      game.runner.launch(16.0);
+      game.wait(120);
+
+      expect(game.runner.isGrounded, isTrue);
+      expect(game.runner.position.y, greaterThan(floor + 1.0),
+          reason: 'it did not get through the gantry');
+
+      // And down again through the same platform.
+      final onTop = game.runner.position.y;
+      for (var i = 0; i < 120; i++) {
+        game.input.beginStep();
+        game.input.press(PlatformerActions.dropThrough);
+        game.sim.step(_dt);
+        game.input.endStep();
+      }
+
+      expect(game.runner.position.y, lessThan(onTop - 1.0),
+          reason: 'it could not drop back through');
+    });
+
+    test('the ice is slipperier than the moss beside it', () {
+      // The level's own floors, measured against each other. Mutation: drop
+      // `surface: "ice"` from the generator and the two come out the same.
+      double slide(Vector3 from) {
+        final game = _Game()..putAt(from);
+        game.wait(10);
+        game.walk(70);
+        final letGoAt = game.runner.position.z;
+        game.wait(70);
+        return game.runner.position.z - letGoAt;
+      }
+
+      final onIce = slide(Vector3(-14.0, 0.1, 1.0));
+      final onMoss = slide(Vector3(-2.0, 0.0, 1.0));
+
+      expect(onMoss, lessThan(0.6));
+      expect(onIce, greaterThan(onMoss * 3.0),
+          reason: 'ice slid $onIce m and moss slid $onMoss m');
+    });
+
+    test('a belt carries a runner who is doing nothing', () {
+      // Mutation: drop the `flow` from the level, or `surfaceVelocity` from
+      // `ConveyorKind.spawn`.
+      final game = _Game()..putAt(Vector3(-44.0, 0.5, 8.0));
+      game.wait(90);
+
+      expect(game.runner.position.z, greaterThan(10.0),
+          reason: 'the belt carried nobody');
     });
   });
 

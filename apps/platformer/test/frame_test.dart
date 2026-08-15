@@ -104,6 +104,7 @@ final class _Shown {
         world: world,
         position: start + Vector3(0.0, 0.9, 0.0),
       ),
+      surfaces: Surfaces.common(),
     );
     // A box, which is what the real game draws until the model arrives.
     final runnerNode = MeshNode(
@@ -206,8 +207,19 @@ final class _Shown {
   }
 
   /// Draws a frame and gives back its pixels, RGBA.
-  Future<Uint8List> draw() async {
+  ///
+  /// [hiding] takes a node out of the picture *after* the fixtures have been
+  /// synchronised, which is the only moment it stays hidden: `sync` makes every
+  /// fixture that is not spent visible again, so hiding one before the call is
+  /// hiding it from nobody. Found the way these things are — by an A/B that
+  /// reported the two frames identical.
+  Future<Uint8List> draw({String? hiding}) async {
     fixtures.sync(_elapsed);
+    if (hiding != null) {
+      for (final MeshNode piece in scene.meshes) {
+        if (piece.name == hiding) piece.visible = false;
+      }
+    }
     final p = runner.position;
     runnerNode.setPosition(p.x, p.y, p.z);
     final result = renderer.render(
@@ -314,6 +326,30 @@ void main() {
 
     expect(_differences(withRunner, without), greaterThan(200),
         reason: 'hiding the runner changed nothing, so it was not drawn');
+  });
+
+  test('a one-way platform is drawn, like anything else the level places', () {
+    // A new `EntityKind` that forgets `context.reveal` spawns a collider the
+    // player walks into and cannot see, and every simulation test passes. This
+    // is stage E1's assertion on the picture, per the rule the harness was
+    // built for.
+    //
+    // Mutation: drop the `context.reveal(...)` call from `OneWayKind.spawn`.
+    return _Shown.build().then((_Shown it) async {
+      final gantry = it.level.entities
+          .firstWhere((EntityDef e) => e.name == 'the gantry 1');
+      it.runner.body.teleport(gantry.position + Vector3(0.0, 6.0, 0.0));
+      it.look(
+        from: gantry.position + Vector3(0.0, 1.6, -7.0),
+        at: gantry.position,
+      );
+
+      final drawn = await it.draw();
+      final without = await it.draw(hiding: 'the gantry 1');
+
+      expect(_differences(drawn, without), greaterThan(150),
+          reason: 'hiding the gantry changed nothing, so it was never drawn');
+    });
   });
 
   test('the level is drawn at all', () async {

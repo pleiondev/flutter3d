@@ -26,14 +26,40 @@ final class Brush {
     required Vector3 size,
     this.material = 'default',
     this.solid = true,
+    String? surface,
+    this.layer,
   })  : centre = centre.clone(),
-        size = size.clone();
+        size = size.clone(),
+        // ignore: prefer_initializing_formals
+        _surface = surface;
 
   final Vector3 centre;
   final Vector3 size;
 
-  /// Name of an entry in [Level.materials].
+  /// Name of an entry in [Level.materials]. What this brush **looks** like.
   final String material;
+
+  final String? _surface;
+
+  /// What this brush is **made of**, for physics and for sound.
+  ///
+  /// Separate from [material], which is how it is shaded, and the separation is
+  /// the point: a level wanting stone-looking ice, or a metal grate you can
+  /// fall through, could not say so while the only word for a surface was its
+  /// paint. The engine never compares this to anything — a game reads it and
+  /// decides what `ice` means, exactly as it decides what a `crate` is.
+  ///
+  /// Falls back to [material], so every level ever authored keeps behaving the
+  /// way it does and a document that has nothing to say says nothing.
+  String get surface => _surface ?? material;
+
+  /// The collision bit this brush sits on, or null for the world's default.
+  ///
+  /// [Collider] has always had a layer and the level document has been the one
+  /// thing unable to name it. A one-way platform, a grate only monsters walk
+  /// through, a wall the AI respects and the player does not — all of them are
+  /// a brush on a bit of its own, and all of them were unauthorable.
+  final int? layer;
 
   /// Whether this brush stops anything.
   ///
@@ -66,13 +92,19 @@ final class Brush {
         size: json.vector3('size'),
         material: json.text('material') ?? 'default',
         solid: json.flagOr('solid', fallback: true),
+        surface: json.text('surface'),
+        layer: json.integer('layer'),
       );
 
+  /// Both new keys are omitted when unset, so every committed level document
+  /// round-trips byte for byte.
   Map<String, Object?> toJson() => <String, Object?>{
         'at': centre.toJson(),
         'size': size.toJson(),
         if (material != 'default') 'material': material,
         if (!solid) 'solid': false,
+        if (_surface != null) 'surface': _surface,
+        if (layer != null) 'layer': layer,
       };
 }
 

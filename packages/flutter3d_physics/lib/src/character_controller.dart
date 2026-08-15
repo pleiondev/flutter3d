@@ -121,10 +121,34 @@ final class CharacterController {
   /// This body's entry in the world, kept in step with [position].
   late final Collider collider;
 
+  /// Which contacts this body's own movement counts, or null for all of them.
+  ///
+  /// Every other body in the world decides what it collides with through
+  /// `layer` and `mask`; this one collided with everything solid whether it
+  /// wanted to or not, and that asymmetry is what made one-way platforms,
+  /// drop-through floors and phase states inexpressible. A mask would have
+  /// closed it halfway — see [ContactFilter] for why the normal is needed.
+  ///
+  /// Applied to the four queries this body makes about the world and to
+  /// nothing else: other bodies still see it, triggers still fire, and a
+  /// monster does not walk through a wall because the player can.
+  ContactFilter? solidFilter;
+
   /// Half the body's bounding box: radius in X and Z, half the height in Y.
   Vector3 get halfExtents => shape.boundsHalfExtents;
 
-  final MovementTuning tuning;
+  /// Every number that decides how this body feels — and **swappable**.
+  ///
+  /// Not final, which is the whole of what ice, mud, water, a low-gravity room
+  /// and a slow-effect are made of: the game assigns a different constant and
+  /// the next step uses it. The alternative was a friction multiplier on the
+  /// engine, which would have been one genre's word for one of the twelve
+  /// numbers in here.
+  ///
+  /// [save] does not carry it, deliberately: it is a reference to a constant
+  /// the game owns, so the game saves *which* one it had and reassigns on
+  /// restore. The same reasoning as [groundBody].
+  MovementTuning tuning;
 
   /// Centre of the box. The eye sits above this.
   final Vector3 position;
@@ -132,15 +156,29 @@ final class CharacterController {
   final Vector3 velocity = Vector3.zero();
 
   bool _grounded = false;
-  Collider? _groundBody;
+  Collider? _ground;
   double _coyote = 0.0;
   double _jumpBuffer = 0.0;
 
   /// Whether the feet are on something as of the last step.
   bool get isGrounded => _grounded;
 
-  /// What the feet are on, when it moves under its own power.
-  Collider? get groundBody => _groundBody;
+  /// Whatever the feet are on, of any kind. Null while airborne.
+  ///
+  /// The general question, and the one a game asks far more often: what am I
+  /// standing on. Ice, mud, a conveyor, a damage floor, which footstep to play
+  /// — all of them are this, and all of them were unanswerable while the only
+  /// thing recorded was the narrow case below.
+  Collider? get ground => _ground;
+
+  /// What the feet are on, **when it moves under its own power**. Null on a
+  /// static brush.
+  ///
+  /// The narrow question: who do I have to move with. Kept separate from
+  /// [ground] rather than folded into it, because a lift asks whether anybody
+  /// is riding it and every brush in the level would answer yes.
+  Collider? get groundBody =>
+      _ground != null && _ground!.kind == ColliderKind.kinematic ? _ground : null;
 
   /// How many separate surfaces the last step slid along.
   ///
@@ -182,7 +220,7 @@ final class CharacterController {
     collider.refreshBounds();
     collider.clearDelta();
     _grounded = from['grounded'] == true;
-    _groundBody = null;
+    _ground = null;
     _coyote = _readNumber(from['coyote']);
     _jumpBuffer = _readNumber(from['jumpBuffer']);
   }
@@ -207,7 +245,7 @@ final class CharacterController {
     collider.refreshBounds();
     velocity.setZero();
     _grounded = false;
-    _groundBody = null;
+    _ground = null;
     _coyote = 0.0;
     _jumpBuffer = 0.0;
   }
@@ -242,7 +280,7 @@ final class CharacterController {
     _coyote = math.max(0.0, _coyote - dt);
     _jumpBuffer = math.max(0.0, _jumpBuffer - dt);
 
-    _carryWithGround();
+    _carryWithGround(dt);
     _resolveOverlap();
     _accelerate(dt, wishDirection, sprint);
     _applyGravity(dt);
@@ -265,10 +303,21 @@ final class CharacterController {
   /// collision alone does not work: the lift's surface would push through the
   /// player's feet between one step and the next, and the depenetration below
   /// would shove them out sideways.
-  void _carryWithGround() {
-    final body = _groundBody;
-    if (body == null || !_grounded) return;
-    position.add(body.delta);
+  void _carryWithGround(double dt) {
+    final under = _ground;
+    if (under == null || !_grounded) return;
+    // Two ways to be carried, and they are not the same thing. A lift moves,
+    // so its whole transform changed and `delta` says by how much. A conveyor
+    // does not move at all — only its skin does — so it drags by
+    // `surfaceVelocity` and there is nothing in `delta` to find.
+    position.add(under.delta);
+    final drag = under.surfaceVelocity;
+    if (drag.x != 0.0 || drag.y != 0.0 || drag.z != 0.0) {
+      position
+        ..x += drag.x * dt
+        ..y += drag.y * dt
+        ..z += drag.z * dt;
+    }
   }
 
   void _resolveOverlap() {
@@ -277,6 +326,7 @@ final class CharacterController {
       halfExtents,
       _correction,
       ignore: collider,
+      allow: solidFilter,
     )) {
       position.add(_correction);
       // A ceiling pressing down should not leave upward speed, and a floor
@@ -371,7 +421,7 @@ final class CharacterController {
     _jumpBuffer = 0.0;
     _coyote = 0.0;
     _grounded = false;
-    _groundBody = null;
+    _ground = null;
   }
 
   /// Horizontal motion, with a step-up attempt when it gets blocked.
@@ -438,7 +488,8 @@ final class CharacterController {
   /// Returns whether the whole offset was travelled.
   bool _moveAxisSwept(Vector3 point, double dx, double dy, double dz) {
     _probe.setValues(dx, dy, dz);
-    if (!world.sweep(shape, point, _probe, _hit, ignore: collider)) {
+    if (!world.sweep(shape, point, _probe, _hit,
+        ignore: collider, allow: solidFilter)) {
       point.add(_probe);
       return true;
     }
@@ -465,7 +516,8 @@ final class CharacterController {
     for (var pass = 0; pass < 3; pass++) {
       if (delta.x == 0.0 && delta.y == 0.0 && delta.z == 0.0) break;
 
-      if (!world.sweep(shape, point, delta, _hit, ignore: collider)) {
+      if (!world.sweep(shape, point, delta, _hit,
+          ignore: collider, allow: solidFilter)) {
         point.add(delta);
         delta.setZero();
         break;
@@ -513,7 +565,8 @@ final class CharacterController {
     }
 
     _probe.setValues(0.0, -tuning.groundProbe, 0.0);
-    if (!world.sweep(shape, position, _probe, _hit, ignore: collider) ||
+    if (!world.sweep(shape, position, _probe, _hit,
+            ignore: collider, allow: solidFilter) ||
         _hit.normal.y <= 0.5) {
       _setAirborne();
       return;
@@ -522,17 +575,16 @@ final class CharacterController {
     position.y += _probe.y * math.max(0.0, _hit.fraction) + _skin;
     velocity.y = 0.0;
     _grounded = true;
-    // Only a body that moves is worth remembering: standing on a brush needs no
-    // carrying, and holding a reference to one would just be noise.
-    final ground = _hit.collider;
-    _groundBody = ground != null && ground.kind == ColliderKind.kinematic
-        ? ground
-        : null;
+    // Whatever it is, recorded. It used to keep only kinematic bodies, on the
+    // grounds that a brush needs no carrying and a reference to one would be
+    // noise — true of carrying, and it threw away the answer to every other
+    // question about the floor. [groundBody] still narrows it.
+    _ground = _hit.collider;
     _coyote = tuning.coyoteTime;
   }
 
   void _setAirborne() {
     _grounded = false;
-    _groundBody = null;
+    _ground = null;
   }
 }

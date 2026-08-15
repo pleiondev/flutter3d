@@ -12,6 +12,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -157,7 +158,7 @@ class _GameScreenState extends State<GameScreen>
       state: _input,
       bindings: _config.bindings.length > 0
           ? _config.bindings
-          : DesktopInput.defaultBindings(),
+          : _bindings(),
     );
     _applyVolumes();
     _loop = GameLoop(
@@ -168,6 +169,21 @@ class _GameScreenState extends State<GameScreen>
     _view = RenderView(camera: _camera);
     unawaited(_openGraphics());
   }
+
+  /// The engine's table plus this game's own two keys.
+  ///
+  /// The dash was already the pointer's; drop-through is control, which is
+  /// where a player looks for crouch and is what it becomes when crouching
+  /// exists.
+  static Bindings _bindings() => DesktopInput.defaultBindings()
+    ..bind(
+      InputSource.key(LogicalKeyboardKey.controlLeft.keyId),
+      PlatformerActions.dropThrough,
+    )
+    ..bind(
+      InputSource.key(LogicalKeyboardKey.keyC.keyId),
+      PlatformerActions.dropThrough,
+    );
 
   Future<void> _openGraphics() async {
     final GpuRenderBackend device;
@@ -279,6 +295,9 @@ class _GameScreenState extends State<GameScreen>
         world: loaded.collision,
         position: start + Vector3(0.0, 0.9, 0.0),
       ),
+      // What this game's floors are made of. The names live in the level
+      // document, on the brushes, beside the material that paints them.
+      surfaces: Surfaces.common(),
     );
 
     // A box now, the model when it arrives. `FixtureVisuals` does the same for

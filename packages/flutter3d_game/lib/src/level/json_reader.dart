@@ -60,6 +60,17 @@ extension JsonObjectReader on Map<String, Object?> {
     return value;
   }
 
+  /// A whole number, or null when the key is absent.
+  ///
+  /// Reads a `num` and rounds, because JSON has one number type and `4` in a
+  /// hand-written document is as likely to arrive as `4.0`.
+  int? integer(String key) {
+    final value = this[key];
+    if (value == null) return null;
+    if (value is! num) throw LevelFormatException('"$key" must be a number');
+    return value.round();
+  }
+
   String? text(String key) {
     final value = this[key];
     if (value == null) return null;
