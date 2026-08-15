@@ -1,0 +1,155 @@
+---
+description: Resolve the workspace, build the shader bundle, run the demo, and put your own lit mesh on screen.
+---
+
+# Quickstart
+
+Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of those minutes are a shader bundle that a fresh checkout does not have and cannot run without.
+
+<div class="goal">
+<ul>
+<li>A resolved pub workspace and a built shader bundle</li>
+<li>The engine's own demo running, with every feature switchable</li>
+<li>Your own Flutter app drawing a mesh through <code>Renderer</code></li>
+</ul>
+</div>
+
+## Requirements
+
+| | |
+|---|---|
+| Flutter | 3.47.0 stable or newer. The shader bundle format is tied to the SDK version |
+| Dart | 3.12.2 or newer (comes with the SDK above) |
+| Platform | macOS, Windows or Linux desktop, or the web through the WebGL backend. Mobile works; the demo is desktop-first |
+| Impeller | Required. Flutter GPU refuses to start on Skia |
+
+## Resolve the workspace
+
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all fifteen packages against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+
+```bash
+git clone https://github.com/dzolotov/flutter3d.git
+cd flutter3d
+flutter pub get
+```
+
+## Build the shader bundle
+
+Required before the first run, and again after every Flutter SDK change.
+
+```bash
+(cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
+```
+
+<div class="warn">
+<p>The bundle is generated, gitignored, and its format is tied to the Flutter version. A fresh checkout has none, and the symptom is <code>Failed to initialize ShaderLibrary</code> at startup instead of a missing-file error. After <code>flutter upgrade</code>, run it again — shaders that used to load will stop.</p>
+</div>
+
+The script calls `impellerc` directly rather than going through Native Assets, and prints the compiled binding table on the way out. That table is worth reading once: the compiler drops a uniform block or a sampler whose result never reaches the output, so what a shader *declares* and what it actually *binds* are different lists.
+
+## Run something
+
+```bash
+# The engine's demo: a model browser with every feature switchable
+(cd packages/flutter3d/example && flutter run -d macos)
+
+# The shooter
+(cd apps/dungeon && flutter run -d macos)
+
+# The platformer
+(cd apps/platformer && flutter run -d macos)
+```
+
+<div class="note">
+<p>Flutter GPU and Impeller are enabled <strong>per application</strong> through <code>Info.plist</code>, not per channel. Every app in this repository sets <code>FLTEnableFlutterGPU</code> and <code>FLTEnableImpeller</code> for itself, and a new one that skips them fails to initialise the shader library and renders nothing. On Android the key is <code>io.flutter.embedding.android.EnableFlutterGPU</code> in <code>AndroidManifest.xml</code>.</p>
+</div>
+
+## Run the tests
+
+```bash
+tool/ci.sh                                  # shaders, analyze, every test
+(cd packages/flutter3d_game && flutter test)
+(cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
+```
+
+1242 tests across fifteen packages, and only about thirty of them need a GPU — the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
+
+## Your own application
+
+A new app needs three things in its pubspec: the engine, a backend, and whatever else it draws with. The backend is named on purpose. It is the one line an application changes to run on a different graphics API.
+
+```yaml
+name: my_game
+publish_to: 'none'
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend. The engine talks to a HAL (flutter3d_graphics) and never to a
+  # graphics API, so this is the one line that picks which one runs:
+  #   flutter3d_impeller -> flutter_gpu (Metal, Vulkan)  <- the production one
+  #   flutter3d_webgl    -> WebGL2, in the browser
+  #   flutter3d_cpu      -> software, rasterises in Dart (tests, goldens)
+  flutter3d_impeller:
+    path: ../flutter3d/packages/flutter3d_impeller
+
+  flutter3d:
+    path: ../flutter3d/packages/flutter3d
+
+  vector_math: ^2.2.0
+```
+
+Then open a device, create a renderer, and hand it a scene. Everything below is real API; the [core tutorial](/core/tutorial/) walks the whole thing line by line.
+
+```dart
+import 'package:flutter/material.dart' hide Material;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:vector_math/vector_math.dart' hide Colors;
+
+Future<Renderer> openRenderer() async {
+  final device = await GpuRenderBackend.create();
+  return Renderer.create(
+    device: device,
+    // Neutral fallbacks rather than per-map flags: the shader then needs no
+    // branch and the engine no bookkeeping about which maps a material has.
+    fallbackAlbedo: SolidColorTexture.white.upload(device),
+    fallbackNormal: SolidColorTexture.flatNormal.upload(device),
+  );
+}
+
+Scene buildScene(GraphicsDevice device) {
+  final scene = Scene();
+
+  // A shape is a value that builds `MeshData` on the CPU; the device turns
+  // that into buffers. The two steps stay apart because bounds, culling and
+  // picking need the first one and no device at all.
+  scene.add(MeshNode(
+    DeviceMesh.upload(device, const SphereShape(radius: 1.0).build()),
+    Material(
+      name: 'ball',
+      lighting: LightingModel.pbr,
+      baseColor: Vector4(0.9, 0.42, 0.28, 1.0),
+      roughness: 0.35,
+    ),
+  ));
+
+  scene.add(LightNode(type: LightType.directional)
+    ..intensity = 3.0
+    ..castsShadow = true
+    ..setLocalForward(Vector3(-0.4, -1.0, -0.3)));
+
+  return scene;
+}
+```
+
+## Where to go next
+
+- [Core: what core is](/core/): the shape of the engine and which package owns what
+- [The frame](/core/rendering/): what the renderer actually does with a scene
+- [Tutorial: first scene](/core/tutorial/): the whole application, step by step
+- [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU silently renders nothing
