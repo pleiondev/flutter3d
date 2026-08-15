@@ -16,6 +16,13 @@ enum RunState {
 
   /// The exit was reached.
   finished,
+
+  /// The lives ran out. The run is over and the level starts again.
+  ///
+  /// Distinct from [finished] because they are opposite outcomes that a game
+  /// has to show differently, and distinct from [fallen] because that one is
+  /// one step long and this one waits for the player.
+  lost,
 }
 
 /// A platformer's step, in the order it has to happen in.
@@ -35,6 +42,7 @@ final class PlatformerSimulation {
     this.mechanisms,
     this.dynamics,
     this.actors,
+    this.lives = -1,
     this.levelNext,
     GameRandom? random,
     this.killPlane = -20.0,
@@ -86,6 +94,26 @@ final class PlatformerSimulation {
   /// How many times the runner has died. A score, and a test's favourite number.
   int deaths = 0;
 
+  /// How many deaths this run has left. Negative means the run cannot be lost.
+  ///
+  /// A count rather than a flag, because "three lives" is the shortest sentence
+  /// a player understands about consequence — and one that starts negative is
+  /// how a teaching level says "not here".
+  ///
+  /// **Negative by default**, so nothing that existed before this counts down:
+  /// a package whose default is three lives is a package that silently ends
+  /// every test that dies three times. The game sets the number; the genre only
+  /// knows how to count it.
+  int lives;
+
+  /// How long this run has been played, in seconds.
+  ///
+  /// Simulated time and not wall-clock: it is the sum of the steps, so it does
+  /// not run while the game is paused, does not jump when a frame is slow, and
+  /// is the same number for the same play on any machine. A timer read off the
+  /// clock is a timer that punishes a player whose laptop stuttered.
+  double elapsed = 0.0;
+
   /// Collectibles taken on this step, for a sound and a counter.
   final List<Collectible> takenThisStep = <Collectible>[];
 
@@ -106,12 +134,14 @@ final class PlatformerSimulation {
     reachedCheckpointThisStep = false;
     stompedThisStep = false;
 
-    if (state == RunState.finished) return;
+    if (state == RunState.finished || state == RunState.lost) return;
 
     if (state == RunState.fallen) {
       _revive();
       return;
     }
+
+    elapsed += dt;
 
     // Doors and lifts move, and the broadphase learns where they are, before
     // the runner sweeps against them. The same order and the same reason as
@@ -162,6 +192,16 @@ final class PlatformerSimulation {
 
   void _revive() {
     deaths += 1;
+    if (lives > 0) {
+      lives -= 1;
+      if (lives == 0) {
+        // Out of lives: the run is over where it stands. Reviving first and
+        // *then* ending it would put the runner back at a checkpoint they are
+        // never going to play from, which reads as the game ignoring the death.
+        state = RunState.lost;
+        return;
+      }
+    }
     runner.reviveAt(_respawn);
     // The broadphase is holding the runner where they died.
     collision.reindex();
@@ -277,6 +317,8 @@ final class PlatformerSimulation {
         'state': state.name,
         'respawn': <double>[_respawn.x, _respawn.y, _respawn.z],
         'deaths': deaths,
+        'lives': lives,
+        'elapsed': elapsed,
         'mechanisms': <String, Object?>{
           for (final mechanism in mechanisms?.all ?? const <Mechanism>[])
             if (mechanism.name != null) mechanism.name!: _saveMechanism(mechanism),
@@ -303,6 +345,10 @@ final class PlatformerSimulation {
     }
     final died = data['deaths'];
     if (died is num) deaths = died.toInt();
+    final left = data['lives'];
+    if (left is num) lives = left.toInt();
+    final played = data['elapsed'];
+    if (played is num) elapsed = played.toDouble();
 
     final saves = data['mechanisms'];
     if (saves is Map<String, Object?>) {

@@ -18,7 +18,7 @@ const double _dt = 1.0 / 60.0;
 
 /// A floor, a pit beyond it, a coin, a checkpoint, and a runner.
 final class _World {
-  _World() {
+  _World({int lives = -1}) {
     world.addBox(Vector3(0.0, -0.5, 4.0), Vector3(20.0, 1.0, 12.0));
     mechanisms = MechanismWorld(world);
 
@@ -47,6 +47,7 @@ final class _World {
       input: input,
       startAt: Vector3.zero(),
       mechanisms: mechanisms,
+      lives: lives,
     );
   }
 
@@ -70,6 +71,11 @@ final class _World {
 
   bool _forward = false;
 
+  /// One step, standing still. For a death that has nothing to do with walking.
+  void step() => run(1, forward: false);
+
+  void restore(Snapshot from) => sim.restore(from);
+
   void run(int steps, {bool forward = true}) {
     for (var i = 0; i < steps; i++) {
       input.beginStep();
@@ -90,6 +96,8 @@ Snapshot _throughText(Snapshot from) =>
     Snapshot(jsonDecode(jsonEncode(from.data)) as Map<String, Object?>);
 
 void main() {
+  group('progress', _progressTests);
+
   test('a run restores where it was saved', () {
     // Walked far enough to have taken the coin, passed the checkpoint and be
     // somewhere that is not the origin — see the note at the top of the file.
@@ -146,5 +154,94 @@ void main() {
 
     expect((second.runner.position - wasAt).length, lessThan(0.2),
         reason: 'the first step after a load is not a teleport');
+  });
+}
+
+/// Kills the runner and lets the simulation notice.
+///
+/// Two steps, and the second is not optional: a death is seen at the end of
+/// one step and acted on at the start of the next, which is the arrangement
+/// that keeps the revive out of the middle of a collision dispatch.
+void _die(_World run) {
+  run.runner.health.damage(1000.0);
+  run.step();
+  run.step();
+}
+
+/// Lives, and the clock a run is measured by.
+///
+/// Both are progression rather than movement, and both are the kind of thing a
+/// save has to carry or a resumed run is a different run.
+void _progressTests() {
+  test('a run with no lives set cannot be lost', () {
+    // The default, and the reason it is negative: everything written before
+    // lives existed keeps working, and every test that dies four times still
+    // dies four times.
+    final run = _World();
+    for (var i = 0; i < 6; i++) {
+      _die(run);
+    }
+
+    expect(run.sim.deaths, 6);
+    expect(run.sim.state, isNot(RunState.lost));
+  });
+
+  test('three lives means three deaths and then the run is over', () {
+    // Mutation: decrement after reviving rather than before. The player gets a
+    // fourth life, which is the sort of thing nobody notices and everybody
+    // feels.
+    final run = _World(lives: 3);
+
+    _die(run);
+    expect(run.sim.state, RunState.running, reason: 'one death is not the end');
+    expect(run.sim.lives, 2);
+
+    _die(run);
+    expect(run.sim.lives, 1);
+
+    _die(run);
+    expect(run.sim.state, RunState.lost);
+    expect(run.sim.deaths, 3);
+  });
+
+  test('a lost run stops running', () {
+    // Mutation: leave the state as `fallen` when the lives run out — the runner
+    // respawns for ever and the count is decoration.
+    final run = _World(lives: 1);
+    _die(run);
+    expect(run.sim.state, RunState.lost);
+
+    final where = run.runner.position.clone();
+    run.run(60);
+    expect(run.runner.position, where, reason: 'it kept playing');
+  });
+
+  test('the clock counts simulated time, not wall-clock', () {
+    // Mutation: read `DateTime.now()`. The number stops being the same for the
+    // same play, and a player whose machine stuttered is charged for it.
+    final run = _World()..run(120);
+    expect(run.sim.elapsed, closeTo(2.0, 0.01));
+  });
+
+  test('and it stops once the run is over', () {
+    final run = _World(lives: 1);
+    run.run(60);
+    final atDeath = run.sim.elapsed;
+    _die(run);
+    run.run(120);
+
+    expect(run.sim.state, RunState.lost);
+    expect(run.sim.elapsed, closeTo(atDeath, 0.05));
+  });
+
+  test('a save carries both', () {
+    final run = _World(lives: 3)..run(90);
+    _die(run);
+    final saved = run.sim.save();
+
+    final other = _World(lives: 3)..restore(saved);
+    expect(other.sim.lives, run.sim.lives);
+    expect(other.sim.elapsed, closeTo(run.sim.elapsed, 1e-6));
+    expect(other.sim.deaths, run.sim.deaths);
   });
 }

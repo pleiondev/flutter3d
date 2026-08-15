@@ -99,26 +99,6 @@ const int _height = 72;
   return (scene: scene, camera: camera);
 }
 
-Future<Uint8List> _pixels(
-  ({CpuDevice device, Renderer renderer}) engine,
-  ({Scene scene, CameraNode camera}) room,
-  ShadowSettings shadows,
-) async {
-  final frame = engine.renderer.render(
-    width: _width,
-    height: _height,
-    scene: room.scene,
-    views: <RenderView>[RenderView(camera: room.camera)],
-    settings: RenderSettings(
-      shadows: shadows,
-      bloom: const BloomSettings(enabled: false),
-    ),
-  );
-  final pixels = await engine.device.readPixels(frame.frame);
-  expect(pixels, isNotNull);
-  return pixels!.buffer.asUint8List();
-}
-
 Future<List<int>> _grid(
   ({CpuDevice device, Renderer renderer}) engine,
   ({Scene scene, CameraNode camera}) room,

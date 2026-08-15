@@ -46,7 +46,9 @@ final class _Shown {
       this.mechanisms, this.dynamics, this.fixtures, this.runner, this.sim,
       this.runnerNode, this.camera, this.actors);
 
-  static Future<_Shown> build() async {
+  static Future<_Shown> build({
+    String level = 'assets/levels/ascent.json',
+  }) async {
     final device = CpuDevice(
       width: _width,
       height: _height,
@@ -69,7 +71,7 @@ final class _Shown {
     // own scene would be a test of a scene nobody ships.
     final kinds = platformerRegistry();
     final loaded = await LevelLoader().load(
-      'assets/levels/ascent.json',
+      level,
       device: device,
       registry: kinds,
       rules: platformerRules(),
@@ -77,7 +79,7 @@ final class _Shown {
 
     final world = loaded.collision;
     final scene = loaded.scene;
-    final level = loaded.level;
+    final document = loaded.level;
     final dynamics = Dynamics(world: world);
     (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
@@ -90,7 +92,7 @@ final class _Shown {
       device: device,
     )..bindLights();
 
-    level.spawnInto(
+    document.spawnInto(
       SpawnContext(
         world: world,
         actors: actors,
@@ -100,7 +102,7 @@ final class _Shown {
       registry: kinds,
     );
 
-    final start = level.playerStart?.position ?? Vector3.zero();
+    final start = document.playerStart?.position ?? Vector3.zero();
     final runner = Runner(
       body: CharacterController(
         world: world,
@@ -130,7 +132,8 @@ final class _Shown {
       actors: actors,
     );
 
-    return _Shown._(device, renderer, level, scene, world, mechanisms, dynamics,
+    return _Shown._(device, renderer, document, scene, world, mechanisms,
+        dynamics,
         fixtures, runner, sim, runnerNode, CameraNode(), actors);
   }
 
@@ -442,6 +445,30 @@ void main() {
       expect(_differences(alive, gone), greaterThan(60),
           reason: 'the dead guard is still on the screen');
     });
+  });
+
+  test('the level a finished level names is one that loads and draws', () async {
+    // The end of E5, asserted where it can actually go wrong. `sim.nextLevel`
+    // is a string in a document; the failure it invites is a typo, or a level
+    // that loads and shows nothing because its own lights never spawned. Both
+    // of those look identical from the simulation's side — the state is
+    // `finished` and the name is a name.
+    //
+    // Mutation: point `next` at a level that does not exist, or at one with no
+    // lights. The first throws here; the second draws a flat frame.
+    final first = await _Shown.build(level: 'assets/levels/first_steps.json');
+    final next = first.level.next;
+    expect(next, isNotNull, reason: 'the teaching level leads nowhere');
+
+    final second = await _Shown.build(level: next!);
+    final at = second.runner.position;
+    second.look(from: at + Vector3(0.0, 3.0, -8.0), at: at);
+
+    final grid = parityGrid(await second.draw(), _width, _height);
+    final low = grid.reduce((int a, int b) => a < b ? a : b);
+    final high = grid.reduce((int a, int b) => a > b ? a : b);
+    expect(high - low, greaterThan(20),
+        reason: 'the first frame of the next level is fog');
   });
 
   test('the level is drawn at all', () async {

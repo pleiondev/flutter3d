@@ -13,7 +13,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart' show LogicalKeyboardKey;
+import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -27,6 +27,7 @@ import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/runner_looks.dart';
+import 'src/save_file.dart';
 import 'src/scene_surface.dart';
 import 'src/settings_file.dart';
 import 'src/settings_panel.dart';
@@ -56,7 +57,18 @@ class GameScreen extends StatefulWidget {
 
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
-  static const String _levelAsset = 'assets/levels/ascent.json';
+  /// Where a new game begins: the level that teaches the verbs.
+  ///
+  /// `ascent.json` is no longer the first thing a player sees — it is what
+  /// `first_steps.json` names as its `next`, and the chain is authored in the
+  /// documents rather than listed here. A game that keeps its own order of
+  /// levels has two orders, and the second one is always the wrong one.
+  static const String _firstLevel = 'assets/levels/first_steps.json';
+
+  /// How many falls a run survives. Negative would mean "endless", which is
+  /// what the package defaults to and what every test written before
+  /// progression existed relies on.
+  static const int _lives = 3;
   static const String _runnerModel = 'assets/models/hero.glb';
 
   /// Which way the model faces when nothing has turned it.
@@ -163,6 +175,25 @@ class _GameScreenState extends State<GameScreen>
   double _elapsed = 0.0;
   int _deathsSeen = 0;
 
+  final SaveFile _saveFile = SaveFile();
+
+  /// Which level is being played. Written by [_loadLevel], read by the save.
+  String _levelAsset = _firstLevel;
+
+  /// Where the run was standing when it was last written to disk.
+  ///
+  /// A save is worth writing when the respawn point *moves* — that is what
+  /// passing a checkpoint means — and at no other time. Writing every frame
+  /// would put a file write in the frame budget; writing only on quit loses the
+  /// whole run to a crash.
+  Vector3? _savedFrom;
+
+  /// Guards the one-way trip out of a finished run: the state stays `finished`
+  /// for every frame until the next level is up, and without this each of them
+  /// would start loading it.
+  bool _movingOn = false;
+
+
   @override
   void initState() {
     super.initState();
@@ -230,7 +261,15 @@ class _GameScreenState extends State<GameScreen>
 
     _ticker = createTicker(_onTick)..start();
     unawaited(_openAudio());
-    unawaited(_loadLevel());
+
+    // A run in progress beats a fresh one, and the file says which level it was
+    // in — see `SaveFile`, which refuses to hand back a snapshot without one.
+    final saved = _saveFile.read();
+    unawaited(
+      saved == null
+          ? _loadLevel(_firstLevel)
+          : _loadLevel(saved.level, resume: saved.run),
+    );
   }
 
   /// Starts SoLoud and swaps it in behind the mixer.
@@ -267,9 +306,14 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// The seam where the engine, the genre and this game's content meet.
-  Future<void> _loadLevel() async {
+  ///
+  /// [asset] is which level; [resume] is a run to put back into it, which is
+  /// only ever a snapshot saved from *this* level — [SaveFile] refuses to hand
+  /// over one from another.
+  Future<void> _loadLevel(String asset, {Snapshot? resume}) async {
     final device = _device;
     if (device == null) return;
+    _levelAsset = asset;
 
     // One registry validates the document and then spawns it. Two could
     // disagree about what a document may contain, which is the failure this
@@ -278,7 +322,7 @@ class _GameScreenState extends State<GameScreen>
     // where the bestiary is.
     final kinds = platformerRegistry();
     final loaded = await LevelLoader().load(
-      _levelAsset,
+      asset,
       device: device,
       registry: kinds,
       rules: platformerRules(),
@@ -345,12 +389,77 @@ class _GameScreenState extends State<GameScreen>
         mechanisms: mechanisms,
         dynamics: dynamics,
         levelNext: loaded.level.next,
+        lives: _lives,
       );
       _followCamera = FollowCamera(world: loaded.collision);
       unawaited(_dressRunner(device, loaded.scene, runner));
       _drawnAt.jumpTo(runner.body.position);
       _drawnYaw.jumpTo(runner.yaw);
     });
+
+    // After the scene is built rather than during it: `restore` moves bodies
+    // and re-indexes the broadphase, and doing that while the fixtures are
+    // still being added would leave the grid describing a world that has since
+    // changed.
+    if (resume != null) {
+      _sim?.restore(resume);
+      _deathsSeen = _sim?.deaths ?? 0;
+      _followCamera?.cut();
+      _drawnAt.jumpTo(runner.body.position);
+    }
+    _savedFrom = null;
+  }
+
+  /// Writes the run out when it has reached somewhere new to come back to.
+  void _keepSaved() {
+    final sim = _sim;
+    if (sim == null) return;
+    final at = sim.respawnPoint;
+    if (_savedFrom != null && _savedFrom!.distanceToSquared(at) < 1e-6) return;
+    _savedFrom = at.clone();
+    _saveRun();
+  }
+
+  /// Puts the run on disk. Called on a checkpoint and when the window closes.
+  ///
+  /// Cheap enough to do on every checkpoint and nowhere near cheap enough to do
+  /// every frame, which is what `_sinceSaved` is for.
+  void _saveRun() {
+    final sim = _sim;
+    if (sim == null) return;
+    if (sim.state == RunState.finished || sim.state == RunState.lost) return;
+    _saveFile.write(_levelAsset, sim.save());
+  }
+
+  /// What happens when a level is finished or a run is lost.
+  ///
+  /// Finished with somewhere to go loads it; finished with nowhere to go and
+  /// lost both stop, and the save is cleared either way — a run that has ended
+  /// is not one to resume into.
+  void _endOfRun() {
+    final sim = _sim;
+    if (sim == null || _movingOn) return;
+    if (sim.state != RunState.finished && sim.state != RunState.lost) return;
+
+    _movingOn = true;
+    _saveFile.clear();
+    final next = sim.state == RunState.finished ? sim.nextLevel : null;
+    if (next == null) return;
+
+    // A beat on the results screen before the next level: arriving in a new
+    // place in the same frame the last one ended reads as a glitch.
+    Future<void>.delayed(const Duration(milliseconds: 1400), () async {
+      if (!mounted) return;
+      await _loadLevel(next);
+      if (mounted) _movingOn = false;
+    });
+  }
+
+  /// Starts the run over, from the top of the level being played.
+  void _restart() {
+    _saveFile.clear();
+    _movingOn = false;
+    unawaited(_loadLevel(_levelAsset));
   }
 
   /// A box, right away, so the game can be played while the model loads.
@@ -432,6 +541,8 @@ class _GameScreenState extends State<GameScreen>
     _placeCamera(dt);
     _fixtures?.sync(_elapsed);
     _burnLamps();
+    _keepSaved();
+    _endOfRun();
     if (mounted) setState(() {});
   }
 
@@ -640,6 +751,7 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
+    _saveRun();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
     _ticker.dispose();
@@ -682,7 +794,18 @@ class _GameScreenState extends State<GameScreen>
       backgroundColor: Colors.black,
       body: Focus(
         autofocus: true,
-        onKeyEvent: (_, KeyEvent event) => _devices.handleKeyEvent(event),
+        onKeyEvent: (_, KeyEvent event) {
+          // R starts a lost run over. Handled here rather than through a
+          // binding because it is not a verb the runner has: the simulation it
+          // would be asking is the one that has stopped.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyR &&
+              _sim?.state == RunState.lost) {
+            _restart();
+            return KeyEventResult.handled;
+          }
+          return _devices.handleKeyEvent(event);
+        },
         child: Listener(
           onPointerDown: (_) {
             _devices.pressPointer(PlatformerActions.dash);
@@ -706,8 +829,11 @@ class _GameScreenState extends State<GameScreen>
                 Hud(
                   coins: _runner?.purse['coin'] ?? 0,
                   deaths: sim.deaths,
+                  lives: sim.lives,
+                  elapsed: sim.elapsed,
                   state: sim.state,
                   captured: _devices.isCaptured,
+                  levelName: _loaded?.level.name ?? '',
                 ),
               if (_showSettings)
                 SettingsPanel(

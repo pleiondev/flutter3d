@@ -1,0 +1,254 @@
+{
+  "version": 1,
+  "name": "First Steps",
+  "generatedBy": "tool/make_first_steps.py",
+  "fogColor": [0.05, 0.07, 0.12],
+  "fogDensity": 0.004,
+  "materials": {
+    "moss": {
+      "roughness": 1.0,
+      "albedo": "assets/textures/moss_albedo.png",
+      "normal": "assets/textures/moss_normal.png",
+      "orm": "assets/textures/moss_orm.png",
+      "texelsPerMetre": 0.5
+    },
+    "stone": {
+      "roughness": 1.0,
+      "albedo": "assets/textures/stone_albedo.png",
+      "normal": "assets/textures/stone_normal.png",
+      "orm": "assets/textures/stone_orm.png",
+      "texelsPerMetre": 0.5
+    },
+    "brass": {
+      "roughness": 1.0,
+      "albedo": "assets/textures/brass_albedo.png",
+      "normal": "assets/textures/brass_normal.png",
+      "orm": "assets/textures/brass_orm.png",
+      "texelsPerMetre": 1.0,
+      "metallic": 1.0
+    },
+    "wood": {
+      "roughness": 1.0,
+      "albedo": "assets/textures/wood_albedo.png",
+      "normal": "assets/textures/wood_normal.png",
+      "orm": "assets/textures/wood_orm.png",
+      "texelsPerMetre": 0.7
+    },
+    "ice": {
+      "roughness": 1.0,
+      "albedo": "assets/textures/ice_albedo.png",
+      "normal": "assets/textures/ice_normal.png",
+      "orm": "assets/textures/ice_orm.png",
+      "texelsPerMetre": 0.4
+    }
+  },
+  "brushes": [
+    {"at": [-11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone"},
+    {"at": [11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone"},
+    {"at": [0.0, 7.0, -10.5], "size": [24.0, 16.0, 1.0], "material": "stone"},
+    {"at": [0.0, 7.0, 108.5], "size": [24.0, 16.0, 1.0], "material": "stone"},
+    {"at": [0.0, -0.5, -1.0], "size": [22.0, 1.0, 18.0], "material": "moss"},
+    {"at": [0.0, -2.5, 11.0], "size": [22.0, 1.0, 6.0], "material": "stone"},
+    {"at": [0.0, -1.5, 11.6], "size": [22.0, 1.0, 1.6], "material": "stone"},
+    {"at": [0.0, -0.5, 13.2], "size": [22.0, 1.0, 1.6], "material": "stone"},
+    {"at": [0.0, -0.5, 19.0], "size": [22.0, 1.0, 10.0], "material": "moss"},
+    {"at": [0.0, 1.3, 26.0], "size": [22.0, 2.6, 4.0], "material": "stone"},
+    {"at": [0.0, -2.5, 32.0], "size": [22.0, 1.0, 8.0], "material": "stone"},
+    {"at": [0.0, -1.5, 33.6], "size": [22.0, 1.0, 1.6], "material": "stone"},
+    {"at": [0.0, -0.5, 35.2], "size": [22.0, 1.0, 1.6], "material": "stone"},
+    {"at": [0.0, -0.5, 41.0], "size": [22.0, 1.0, 10.0], "material": "moss"},
+    {"at": [0.0, -0.5, 52.0], "size": [22.0, 1.0, 12.0], "material": "moss"},
+    {"at": [-6.0, 3.0, 52.0], "size": [10.0, 6.0, 10.0], "material": "stone"},
+    {"at": [6.0, 3.0, 52.0], "size": [10.0, 6.0, 10.0], "material": "stone"},
+    {"at": [0.0, 3.0, 57.5], "size": [2.0, 6.0, 1.0], "material": "stone"},
+    {"at": [0.0, 5.5, 64.0], "size": [22.0, 1.0, 12.0], "material": "stone"},
+    {"at": [0.0, 5.5, 84.0], "size": [22.0, 1.0, 10.0], "material": "stone"},
+    {"at": [0.0, 4.0, 74.5], "size": [22.0, 1.0, 9.0], "material": "stone"},
+    {"at": [0.0, 4.875, 77.0], "size": [22.0, 0.75, 2.0], "material": "stone"},
+    {"at": [0.0, 5.625, 78.5], "size": [22.0, 0.75, 1.0], "material": "stone"},
+    {"at": [0.0, 9.0, 94.0], "size": [22.0, 5.0, 8.0], "material": "stone"},
+    {"at": [0.0, 5.5, 96.0], "size": [22.0, 1.0, 14.0], "material": "stone"}
+  ],
+  "lights": [
+    {
+      "type": "directional",
+      "direction": [-0.35, -0.85, 0.4],
+      "color": [1.0, 0.96, 0.88],
+      "intensity": 2.6,
+      "castsShadow": true
+    },
+    {"at": [0.0, 6.0, 0.0], "color": [1.0, 0.94, 0.8], "intensity": 24.0, "range": 30.0},
+    {"at": [0.0, 6.0, 30.0], "color": [1.0, 0.94, 0.8], "intensity": 24.0, "range": 32.0},
+    {"at": [0.0, 9.0, 56.0], "color": [0.85, 0.92, 1.0], "intensity": 26.0, "range": 34.0},
+    {"at": [0.0, 11.0, 76.0], "color": [1.0, 0.9, 0.7], "intensity": 26.0, "range": 36.0},
+    {"at": [0.0, 11.0, 100.0], "color": [0.9, 1.0, 0.9], "intensity": 26.0, "range": 34.0}
+  ],
+  "entities": [
+    {"type": "player_spawn", "at": [0.0, 0.0, -8.0]},
+    {
+      "type": "collectible",
+      "name": "first coin 1",
+      "at": [0.0, 0.8, -4.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "first coin 2",
+      "at": [0.0, 0.8, 0.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "first coin 3",
+      "at": [0.0, 0.8, 4.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "lamp",
+      "name": "the first lamp",
+      "at": [-6.0, 1.0, -2.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the second lamp",
+      "at": [6.0, 1.0, -2.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "checkpoint",
+      "name": "the first post",
+      "at": [0.0, 1.0, 8.0],
+      "order": 1,
+      "respawn": [0.0, 0.0, 6.0],
+      "size": [24.0, 3.0, 1.0]
+    },
+    {
+      "type": "collectible",
+      "name": "the jump coin",
+      "at": [0.0, 2.2, 11.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "checkpoint",
+      "name": "the second post",
+      "at": [0.0, 1.0, 22.0],
+      "order": 2,
+      "respawn": [0.0, 0.0, 21.0],
+      "size": [24.0, 3.0, 1.0]
+    },
+    {
+      "type": "collectible",
+      "name": "the high coin",
+      "at": [0.0, 3.6, 26.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the second jump coin",
+      "at": [0.0, 3.0, 32.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "checkpoint",
+      "name": "the third post",
+      "at": [0.0, 1.0, 44.0],
+      "order": 3,
+      "respawn": [0.0, 0.0, 43.0],
+      "size": [24.0, 3.0, 1.0]
+    },
+    {
+      "type": "collectible",
+      "name": "the shaft coin one",
+      "at": [0.0, 3.0, 52.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the shaft coin two",
+      "at": [0.0, 5.5, 52.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the ledge coin",
+      "at": [0.0, 7.0, 62.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "checkpoint",
+      "name": "the fourth post",
+      "at": [0.0, 1.0, 66.0],
+      "order": 4,
+      "respawn": [0.0, 0.0, 66.0],
+      "size": [24.0, 3.0, 1.0]
+    },
+    {
+      "type": "collectible",
+      "name": "the dash coin",
+      "at": [0.0, 7.0, 68.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the gap coin",
+      "at": [0.0, 8.0, 74.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "checkpoint",
+      "name": "the fifth post",
+      "at": [0.0, 1.0, 88.0],
+      "order": 5,
+      "respawn": [0.0, 0.0, 88.0],
+      "size": [24.0, 3.0, 1.0]
+    },
+    {
+      "type": "collectible",
+      "name": "the crawl coin",
+      "at": [0.0, 6.8, 94.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "enemy",
+      "name": "the guard",
+      "at": [-6.0, 6.0, 101.0],
+      "size": [0.7, 0.7, 0.7],
+      "kind": "patrol",
+      "speed": 0.3,
+      "material": "brass",
+      "route": [
+        [6.0, 6.0, 101.0]
+      ]
+    },
+    {
+      "type": "collectible",
+      "name": "the guard's coin",
+      "at": [0.0, 6.8, 101.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "exit",
+      "name": "the way on",
+      "at": [0.0, 7.5, 104.0],
+      "size": [5.0, 3.0, 3.0],
+      "text": "First steps."
+    }
+  ],
+  "next": "assets/levels/ascent.json"
+}
