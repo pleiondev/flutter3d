@@ -213,6 +213,79 @@ void main() {
     });
   });
 
+  group('coming back from a death', () {
+    // **Revived in mid-fall, which is how anybody actually dies here.** The
+    // first version of these two revived a runner who was already standing on
+    // the floor, and both mutations survived: `_tickTimers` reads
+    // `body.isGrounded` from the previous step, which was true, so the jump
+    // budget was refilled whether `reviveAt` did it or not. The claim only
+    // bites when the last step said *airborne*, and that is exactly the state a
+    // player is in when they fall into a pit.
+
+    test('the first jump after a revive is a ground jump', () {
+      // `CharacterController.isGrounded` answers for the last step that ran,
+      // and after a teleport no step has run yet — so it says airborne about a
+      // runner standing on a checkpoint, and the first press is spent as a
+      // double jump. That is reported as "it ate my jump" and nobody can
+      // reproduce it.
+      //
+      // Mutation: drop the `_land()` from `reviveAt`.
+      final stage = _Floor(from: 20.0);
+      stage.run(30);
+      expect(stage.runner.isGrounded, isFalse, reason: 'not falling');
+
+      stage.runner.reviveAt(Vector3(3.0, 0.0, 3.0));
+
+      // Arrived at rest — a runner who came back still carrying the speed of
+      // the fall that killed them would die again on landing.
+      //
+      // **No mutation named, deliberately.** Deleting the `velocity.setZero()`
+      // in `reviveAt` changes nothing, because `CharacterController.teleport`
+      // already zeroes velocity, grounding and its own two timers. The line is
+      // belt-and-braces over a guarantee one layer down, and a comment claiming
+      // a mutation that cannot fire is worse than no comment. What this pins is
+      // the behaviour, whichever layer keeps providing it.
+      expect(stage.runner.body.velocity.y, 0.0,
+          reason: 'still falling at ${stage.runner.body.velocity.y}');
+
+      stage.step(holding: _jump);
+
+      expect(stage.runner.jumpedThisStep, isTrue, reason: 'nothing happened');
+      expect(stage.runner.body.velocity.y, closeTo(9.10, 0.05),
+          reason: 'launched at ${stage.runner.body.velocity.y}, which is the '
+              'air jump: the revive ate the ground jump');
+      expect(stage.runner.airJumpsLeft, const RunnerTuning().airJumps,
+          reason: 'and the spare jump is gone too');
+    });
+
+    test('and a press made before dying does not survive the revive', () {
+      // Mutation: drop `_buffer = 0.0` from `reviveAt`. A press made in the
+      // last moments before a death is still waiting at the checkpoint, and the
+      // runner leaves the ground the instant they arrive — which reads as the
+      // checkpoint launching them.
+      //
+      // No air jump, so the press has nothing to spend itself on while falling
+      // and is still in the buffer when the revive happens. With one in hand it
+      // would be consumed in mid-air and there would be nothing to carry.
+      final stage = _Floor(from: 20.0, tuning: const RunnerTuning(airJumps: 0));
+      stage.run(30);
+      stage.step(holding: _jump);
+      expect(stage.runner.jumpedThisStep, isFalse, reason: 'it jumped in air');
+
+      stage.runner.reviveAt(Vector3(3.0, 0.0, 3.0));
+
+      var jumps = 0;
+      for (var i = 0; i < 30; i++) {
+        stage.step();
+        if (stage.runner.jumpedThisStep) jumps++;
+      }
+
+      expect(jumps, 0,
+          reason: 'it jumped $jumps times on arriving, so the press outlived '
+              'the death');
+    });
+  });
+
   group('the jump buffer', () {
     // **Every test here turns the double jump off**, and that is not a
     // convenience. With an air jump in hand, a press in mid-air is consumed by

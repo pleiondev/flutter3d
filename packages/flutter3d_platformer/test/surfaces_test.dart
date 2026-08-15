@@ -287,4 +287,39 @@ void main() {
           reason: 'walking with the belt was no faster than against it');
     });
   });
+
+  group('what the table knows', () {
+    // `knows` and `names` had no reader anywhere in the repository. They are
+    // the seam a game uses to decide whether a floor is worth a footstep sound
+    // — the thing that turns a surface name from a movement number into
+    // something you can hear — and until there is one, this is what says they
+    // work.
+    test('an unknown surface walks like ordinary ground', () {
+      // Mutation: make `tuningFor` return the first entry for anything it does
+      // not recognise. Every unnamed floor in every level silently becomes ice.
+      final table = Surfaces.common();
+      expect(table.knows('nonsense'), isFalse);
+      expect(table.tuningFor('nonsense'), same(table.fallback));
+      expect(table.tuningFor(null), same(table.fallback));
+    });
+
+    test('and the names it does know are the ones it lists', () {
+      // Mutation: have `names` return a hardcoded list. It drifts from the
+      // table the moment anybody adds a surface, and a game asking "is this
+      // worth a sound" gets the wrong answer for the newest floor.
+      // Named rather than merely counted: `names` returning a hardcoded
+      // one-element list passed the version of this that only walked whatever
+      // it was given, because everything it was given was consistent with
+      // itself. What it could not know is what was left out.
+      final table = Surfaces.common();
+      expect(table.names, containsAll(<String>['ice', 'mud']),
+          reason: 'the table lists ${table.names}, which is missing a surface '
+              'it defines');
+      for (final name in table.names) {
+        expect(table.knows(name), isTrue, reason: 'listed but not known: $name');
+        expect(table.tuningFor(name), isNot(same(table.fallback)),
+            reason: '$name is listed and walks like plain ground');
+      }
+    });
+  });
 }

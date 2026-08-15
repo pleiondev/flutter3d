@@ -163,39 +163,6 @@ bool _playThrough(_Game game, {int steps = 7200}) {
   return game.sim.state == RunState.finished;
 }
 
-/// Plays with a deliberately short repertoire, and says how far it got.
-///
-/// The opposite of [_playThrough], which tries everything: this one tries a
-/// *player who has not learned the next verb yet*, and the question it answers
-/// is whether such a player is stopped by the room that teaches it — or by
-/// something else, somewhere else, with nothing to try.
-double _reachWith(_Game game, {required Set<GameAction> verbs, int steps = 9000}) {
-  var best = game.z;
-  for (var i = 0; i < steps; i++) {
-    if (game.sim.state == RunState.finished) return game.z;
-    final holding = <GameAction>{GameAction.moveForward};
-    // Wandering left and right, because a player who meets a wall looks for the
-    // way round it before giving up — and a test that walks a straight line
-    // cannot tell a wall from a door beside it.
-    switch ((i ~/ 240) % 3) {
-      case 1:
-        holding.add(GameAction.moveLeft);
-      case 2:
-        holding.add(GameAction.moveRight);
-    }
-    // A held jump is one jump: this is a player who has not found the second.
-    if (verbs.contains(GameAction.jump) && i % 30 < 20) {
-      holding.add(GameAction.jump);
-    }
-    if (verbs.contains(PlatformerActions.dash) && i % 30 == 5) {
-      holding.add(PlatformerActions.dash);
-    }
-    game.step(holding);
-    if (game.z > best) best = game.z;
-  }
-  return best;
-}
-
 void main() {
   test('the level a player starts on has no errors in it', () {
     final issues = LevelValidator(
@@ -249,7 +216,7 @@ void main() {
     // one jump at a time?
 
     /// The top of every brush whose footprint covers [x], [z].
-    List<double> _topsAt(double x, double z) => <double>[
+    List<double> topsAt(double x, double z) => <double>[
           for (final brush in _level().brushes)
             if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
                 (brush.centre.z - z).abs() <= brush.size.z / 2.0)
@@ -277,8 +244,8 @@ void main() {
       // and the shelf, and this says so.
       const jump = 1.8;
 
-      final floor = _topsAt(9.0, 23.0).reduce(math.min);
-      final step = _topsAt(9.0, 23.0).where((double y) => y > floor + 0.3);
+      final floor = topsAt(9.0, 23.0).reduce(math.min);
+      final step = topsAt(9.0, 23.0).where((double y) => y > floor + 0.3);
       expect(step, isNotEmpty, reason: 'nothing to climb at x = 9');
 
       final onto = step.reduce(math.min);
@@ -286,7 +253,7 @@ void main() {
           reason: 'the step is ${(onto - floor).toStringAsFixed(2)} m up, and a '
               'single jump is $jump');
 
-      final shelf = _topsAt(0.0, 26.0).reduce(math.max);
+      final shelf = topsAt(0.0, 26.0).reduce(math.max);
       expect(shelf - onto, lessThan(jump),
           reason: 'from the step at $onto the shelf at $shelf is '
               '${(shelf - onto).toStringAsFixed(2)} m, more than a jump');

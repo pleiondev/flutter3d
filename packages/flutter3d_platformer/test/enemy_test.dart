@@ -123,6 +123,35 @@ EntityDef _patrol({
 
 void main() {
   group('a patrol', () {
+    test('says which post it is walking towards, and changes its mind at one',
+        () {
+      // `Patrol.target` had no reader anywhere — not in a game, not in a test.
+      // It is the brain's own account of where it is going, and it is what a
+      // save carries, so a `target` that never advances is a patrol that
+      // restores facing the wrong way.
+      //
+      // Mutation: never advance `_target` in `_arrive`. The enemy still walks
+      // — it turns at the ledge probe — but it walks the first leg for ever and
+      // a restored save sends it back to the post it already reached.
+      final run = _Run(
+        extras: <EntityDef>[_patrol()],
+        startAt: Vector3(0.0, 0.0, -8.0),
+      );
+      final brain = run.enemy.brain;
+      expect(brain, isA<Patrol>(), reason: 'the patrol did not spawn as one');
+      final patrol = brain! as Patrol;
+
+      final first = patrol.target;
+      var changed = false;
+      for (var i = 0; i < 3600 && !changed; i++) {
+        run.step();
+        if (patrol.target != first) changed = true;
+      }
+
+      expect(changed, isTrue,
+          reason: 'it walked for a minute and never reached a post');
+    });
+
     test('walks its route, there and back, for a minute', () {
       // Mutation: drop `actors?.step` from `PlatformerSimulation.step`. Nothing
       // moves, which is what this package did for four stages.

@@ -56,6 +56,41 @@ void main() {
     });
   });
 
+  group('a pulse', () {
+    // **The behaviour no level could ask for.** `PulseLight` was written
+    // alongside the other two and then had no property that reached it: the
+    // lamp kind read `flicker` and nothing else, so a swell was expressible in
+    // Dart and not in a document, which is the same as not existing.
+    test('swells and dips rather than flickering', () {
+      const pulse = PulseLight(period: 4.0);
+
+      // A whole period apart is the same brightness; a half period apart is
+      // not. That is what makes it a swell rather than noise.
+      expect(pulse.at(0.0, 0.0), closeTo(pulse.at(4.0, 0.0), 1e-9));
+      expect((pulse.at(1.0, 0.0) - pulse.at(3.0, 0.0)).abs(),
+          greaterThan(0.1));
+    });
+
+    test('and never goes darker than its depth', () {
+      // Mutation: drop the `1.0 -` and the light inverts — the lamp is dark
+      // when it should be bright, which reads as a lamp that is broken rather
+      // than a lamp that pulses.
+      const pulse = PulseLight(depth: 0.4);
+      for (var t = 0.0; t < 8.0; t += 0.05) {
+        final at = pulse.at(t, 0.13);
+        expect(at, lessThanOrEqualTo(1.0 + 1e-9));
+        expect(at, greaterThanOrEqualTo(0.6 - 1e-9));
+      }
+    });
+
+    test('a row of them does not pulse in unison', () {
+      // The same claim the flame makes, and it has to hold for both or a
+      // corridor of lamps becomes one big lamp.
+      const pulse = PulseLight();
+      expect(pulse.at(1.0, 0.0), isNot(closeTo(pulse.at(1.0, 0.5), 0.01)));
+    });
+  });
+
   group('a fixture', () {
     LightFixture make({LightBehaviour? behaviour, bool enabled = true}) =>
         LightFixture(

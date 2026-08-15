@@ -700,6 +700,33 @@ class _GameScreenState extends State<GameScreen>
       camera?.widen(0.1);
     }
     if (runner.wallJumpedThisStep) _particles.burst(Effects.dust, at);
+
+    // **Three flags the runner has always set and nobody has ever read**, which
+    // is the same shape of gap as the silent coin: the simulation was right and
+    // the game said nothing. Each one is a moment a player commits to something
+    // and deserves to be told it landed.
+    if (runner.longJumpedThisStep) {
+      // A long jump is a commitment — low, far, and no steering. It gets the
+      // dash's own sound and a wide skirt of dust, because it is the slide it
+      // came out of, launched.
+      _audio.play(Sounds.dash, at);
+      _particles.burst(Effects.dust, at);
+      camera?.widen(0.08);
+    }
+    if (runner.grabbedThisStep) {
+      // Catching a rope or a ladder: quiet, and the camera settles rather than
+      // kicking, because the runner has just stopped falling.
+      _audio.play(Sounds.checkpoint, at);
+      _particles.burst(Effects.dust, at);
+    }
+    if (runner.bouncedThisStep) {
+      // The hop off something stomped. `sim.stompedThisStep` says an enemy
+      // died; this says the runner was thrown by it, and they are not the same
+      // event — a bounce off a held jump goes higher, and that is what the kick
+      // is scaled by.
+      camera?.kick(Vector3(0.0, 0.05, 0.0));
+      _particles.burst(Effects.spring, at, direction: _up);
+    }
     for (var i = 0; i < sim.takenThisStep.length; i++) {
       final where = sim.takenThisStep[i].origin;
       _audio.play(Sounds.coin, where);

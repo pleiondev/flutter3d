@@ -368,6 +368,121 @@ void main() {
     });
   });
 
+  group('a lamp', () {
+    // **Registered since the package began and never spawned by a test.** The
+    // meta-test below counted it as covered because it validates cleanly, which
+    // is exactly the kind of coverage that proves nothing: a kind that spawns
+    // the wrong thing validates just as cleanly as one that spawns the right
+    // thing.
+    LightFixture lampFrom(Map<String, Object?> properties) {
+      final world = CollisionWorld();
+      final mechanisms = MechanismWorld(world);
+      final level = Level.fromJson(<String, Object?>{
+        'version': 1,
+        'name': 'one lamp',
+        'materials': <String, Object?>{
+          'stone': <String, Object?>{'baseColor': <double>[0.5, 0.5, 0.5, 1.0]},
+        },
+        'brushes': <Object?>[
+          <String, Object?>{
+            'at': <double>[0.0, -0.5, 0.0],
+            'size': <double>[20.0, 1.0, 20.0],
+            'material': 'stone',
+          },
+        ],
+        'lights': <Object?>[
+          <String, Object?>{
+            'name': 'the light',
+            'at': <double>[0.0, 4.0, 0.0],
+            'intensity': 20.0,
+            'range': 20.0,
+          },
+        ],
+        'entities': <Object?>[_entity(PlatformerEntities.lamp, properties)],
+      });
+      level.spawnInto(
+        SpawnContext(world: world, mechanisms: mechanisms, actors: ActorSystem(world: world)),
+        registry: platformerRegistry(),
+      );
+      final lamps = <LightFixture>[
+        for (final m in mechanisms.all)
+          if (m is LightFixture) m,
+      ];
+      expect(lamps, hasLength(1), reason: 'the lamp did not spawn');
+      return lamps.single;
+    }
+
+    test('burns by default, and the document can ask it to swell instead', () {
+      // Mutation: check `flicker` before `pulse` in `_behaviourFor`, or drop
+      // the `pulse` branch entirely — which is how it shipped. A lamp asking to
+      // pulse gets a flame, silently.
+      final burning = lampFrom(<String, Object?>{'light': 'the light'});
+      final swelling =
+          lampFrom(<String, Object?>{'light': 'the light', 'pulse': 0.4});
+
+      // Told apart by **periodicity**, which is what a swell is and a flame is
+      // not: a pulse of period 3.5 s is at the same brightness 3.5 s later, and
+      // a flame is at whatever its noise says. Comparing how *much* they move
+      // was the first attempt and it could not fail — over two seconds the two
+      // travel 0.68 and 0.70, which is the same number.
+      double after(LightFixture lamp, double seconds) {
+        for (var t = 0.0; t + 1e-9 < seconds; t += 1.0 / 60.0) {
+          lamp.step(1.0 / 60.0);
+        }
+        return lamp.brightness;
+      }
+
+      const period = 3.5;
+      // One step first: before a fixture has ever been stepped, `brightness` is
+      // the field's initial value rather than the behaviour's value at zero,
+      // and comparing against that compares against nothing.
+      swelling.step(1.0 / 60.0);
+      burning.step(1.0 / 60.0);
+      final swellStart = swelling.brightness;
+      expect(after(swelling, period), closeTo(swellStart, 0.02),
+          reason: 'the lamp asked to pulse and did not come back round');
+
+      final burnStart = burning.brightness;
+      expect(after(burning, period), isNot(closeTo(burnStart, 0.02)),
+          reason: 'the flame repeated itself exactly, so it is a pulse');
+    });
+
+    test('and one that asks for both gets the swell', () {
+      // The doc comment on `_behaviourFor` claims the order, so the order needs
+      // a test — without one it is a comment, and a comment cannot fail.
+      //
+      // Mutation: check `flicker` first. A lamp carrying both properties starts
+      // flickering, and the level author who wrote `pulse` has no way to tell
+      // why it was ignored.
+      final both = lampFrom(<String, Object?>{
+        'light': 'the light',
+        'pulse': 0.4,
+        'flicker': 0.3,
+      });
+
+      both.step(1.0 / 60.0);
+      final start = both.brightness;
+      for (var t = 0.0; t + 1e-9 < 3.5; t += 1.0 / 60.0) {
+        both.step(1.0 / 60.0);
+      }
+
+      expect(both.brightness, closeTo(start, 0.02),
+          reason: 'it did not come back round after a period, so `flicker` won');
+    });
+
+    test('and a swell of zero is a lamp that just stays on', () {
+      final steady = lampFrom(<String, Object?>{
+        'light': 'the light',
+        'pulse': 0.0,
+      });
+      final was = steady.brightness;
+      for (var i = 0; i < 240; i++) {
+        steady.step(1.0 / 60.0);
+      }
+      expect(steady.brightness, closeTo(was, 1e-9));
+    });
+  });
+
   test('a breakable block has nothing to check, and says so here', () {
     // `BreakableKind` overrides no `validate`, which is a decision rather than
     // an omission: it has no property that can be wrong. Written down because

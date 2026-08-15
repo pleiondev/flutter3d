@@ -518,6 +518,18 @@ final class LightFixtureKind extends EntityKind {
   }
 
   LightBehaviour _behaviourFor(EntityDef entity) {
+    // A swell rather than a flicker: something magical rather than burning.
+    // `PulseLight` was written with the other two and then had no way into a
+    // level at all — no property reached it, so nothing in any game could ever
+    // be one. Checked before `flicker` because a lamp that asks for both is
+    // asking for the slower of the two.
+    final swell = entity.number('pulse');
+    if (swell != null) {
+      return swell <= 0.0
+          ? const SteadyLight()
+          : PulseLight(depth: swell, period: entity.number('period') ?? 3.5);
+    }
+
     final depth = entity.number('flicker');
     if (depth == null) return defaultBehaviour;
     if (depth <= 0.0) return const SteadyLight();
