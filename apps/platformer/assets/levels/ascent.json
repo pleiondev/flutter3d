@@ -39,9 +39,9 @@
   "entities": [
     { "type": "player_spawn", "at": [0.0, 0.0, 0.0] },
 
-    { "type": "collectible", "name": "coin one", "at": [0.0, 0.8, 3.0], "what": "coin" },
-    { "type": "collectible", "name": "coin two", "at": [-1.6, 0.8, 5.0], "what": "coin" },
-    { "type": "collectible", "name": "coin three", "at": [1.6, 0.8, 5.0], "what": "coin" },
+    { "type": "collectible", "name": "coin one", "at": [0.0, 0.8, 3.0], "what": "coin", "model": "assets/models/coin.glb" },
+    { "type": "collectible", "name": "coin two", "at": [-1.6, 0.8, 5.0], "what": "coin", "model": "assets/models/coin.glb" },
+    { "type": "collectible", "name": "coin three", "at": [1.6, 0.8, 5.0], "what": "coin", "model": "assets/models/coin.glb" },
 
     {
       "type": "checkpoint",
@@ -60,8 +60,8 @@
       "instant": true
     },
 
-    { "type": "collectible", "name": "coin four", "at": [-3.0, 1.7, 8.0], "what": "coin" },
-    { "type": "collectible", "name": "coin five", "at": [3.0, 3.0, 10.5], "what": "coin" },
+    { "type": "collectible", "name": "coin four", "at": [-3.0, 1.7, 8.0], "what": "coin", "model": "assets/models/coin.glb" },
+    { "type": "collectible", "name": "coin five", "at": [3.0, 3.0, 10.5], "what": "coin", "model": "assets/models/coin.glb" },
 
     {
       "type": "checkpoint",
@@ -72,8 +72,8 @@
       "size": [8.0, 3.0, 1.0]
     },
 
-    { "type": "collectible", "name": "coin six", "at": [0.0, 0.8, 15.0], "what": "coin" },
-    { "type": "collectible", "name": "coin seven", "at": [0.0, 3.2, 19.6], "what": "coin" },
+    { "type": "collectible", "name": "coin six", "at": [0.0, 0.8, 15.0], "what": "coin", "model": "assets/models/coin.glb" },
+    { "type": "collectible", "name": "coin seven", "at": [0.0, 3.2, 19.6], "what": "coin", "model": "assets/models/coin.glb" },
 
     {
       "type": "platform",

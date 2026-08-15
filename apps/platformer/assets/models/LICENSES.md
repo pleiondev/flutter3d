@@ -12,7 +12,7 @@ Attribution is a condition of the licence, so it is written here, and it must
 appear wherever the game does — a credits screen, a store page, a README.
 
 **The file in this repository is modified**, which CC BY also requires be
-stated. Two changes, both by `tool/shrink_glb.py` and a short script beside it:
+stated. Two changes, both by `tool/prepare_models.py`:
 
 * its four 1024x1024 maps are resized to 512x512 — this stack has no compressed
   texture formats, so every image costs raw RGBA in device memory whatever its
@@ -38,3 +38,31 @@ $ python3 -c "..."   # read the JSON chunk of the GLB
 
 Anything added here later is expected to answer the same three rows before it is
 committed.
+
+
+## `coin.glb` — "Stylized Coin"
+
+| | |
+|---|---|
+| Author | BarracudaByte — https://sketchfab.com/barracudabyte |
+| Source | https://sketchfab.com/3d-models/stylized-coin-8cd6f95c44994ed5944a42892d0ffc10 |
+| Licence | **CC BY 4.0** — http://creativecommons.org/licenses/by/4.0/ |
+
+**Modified**, and the licence asks that this be said. All of it by
+`tool/prepare_models.py`:
+
+* its one 1024x1024 map is resized to 512x512;
+* its root node carries a scale of 0.5 and a drop, so the coin is 0.4 m across
+  with its origin at its own centre rather than on the floor beneath it — a
+  fixture's model is placed at the collider's centre, and without the drop every
+  coin would hover;
+* **`KHR_materials_unlit` is removed**, and that one is a workaround for a
+  defect rather than a choice. An unlit material in this engine draws its base
+  colour and never samples its albedo: the coin was flat beige whatever was done
+  to the image, and became a gold coin with a star on it the moment the
+  extension came off. `LightingModel.unlit` declares `usesMaterialMaps: false`
+  while leaving `usesAlbedoTexture` true, and the texture is lost somewhere
+  between those two. Fixing it belongs in the renderer, not in an asset
+  pipeline.
+
+The mesh is untouched. The original is `stylized_coin.glb` as downloaded.
