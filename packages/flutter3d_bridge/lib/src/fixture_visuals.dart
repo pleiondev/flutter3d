@@ -100,6 +100,19 @@ abstract interface class FixtureAppearance {
   /// renderer's or the simulation's to hold.
   bool isSpent(Fixture fixture);
 
+  /// How big to draw a fixture right now, as a fraction of its size.
+  ///
+  /// One for almost everything. It exists because a collected coin that simply
+  /// stops being drawn reads as a rendering glitch — the eye needs a moment to
+  /// connect the sound to the thing that made it — and a shrink is the cheapest
+  /// honest way to give it one.
+  ///
+  /// [isSpent] stays the question "is it gone", and a game that shrinks
+  /// something answers *that* only once the shrink has finished. The two are
+  /// separate so a fixture can be invisible without being over, and over
+  /// without ever having shrunk.
+  double scaleOf(Fixture fixture);
+
   /// Whether it turns on the spot.
   ///
   /// The oldest trick in the genre, and it works for the same reason it always
@@ -360,6 +373,15 @@ final class FixtureVisuals {
         piece.node.visible = false;
         continue;
       }
+
+      final scale = appearance.scaleOf(piece.fixture);
+      if (scale <= 0.0) {
+        piece.node.visible = false;
+        continue;
+      }
+      piece.node
+        ..visible = true
+        ..setScale(scale, scale, scale);
       piece.node.setPositionFrom(piece.fixture.position);
 
       final material = piece.node is MeshNode

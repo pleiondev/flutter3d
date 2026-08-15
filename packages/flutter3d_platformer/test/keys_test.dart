@@ -82,6 +82,8 @@ final class _Room {
 }
 
 void main() {
+  _vanishing();
+
   test('a locked door refuses a runner with no key', () {
     // Mutation: give `Runner` the mixin without overriding `keys` — it cannot
     // compile, which is the good kind of failure. Mutation that does compile:
@@ -121,5 +123,40 @@ void main() {
 
     expect(other.runner.keys, contains('blue'));
     expect(other.knock(), isA<Activated>());
+  });
+}
+
+/// The coin's exit, which is a look and still belongs under test: the number it
+/// is driven by lives in the simulation.
+void _vanishing() {
+  test('a taken coin counts the time since it left', () {
+    final room = _Room();
+    expect(room.key.sinceTaken, double.infinity, reason: 'still on the floor');
+
+    // Up to the moment it is taken and no further: the runner reaches it in
+    // about half a second, so walking a fixed sixty steps measures the walk
+    // rather than the coin.
+    for (var i = 0; i < 120 && !room.key.isTaken; i++) {
+      room.walk(1);
+    }
+    expect(room.key.isTaken, isTrue);
+    expect(room.key.sinceTaken, closeTo(0.0, 0.05), reason: 'just now');
+
+    room.walk(30);
+    expect(room.key.sinceTaken, closeTo(0.5, 0.1));
+  });
+
+  test('a restored coin is not caught mid-shrink', () {
+    // Mutation: carry `sinceTaken` through `restore`. A save written on the
+    // frame a coin was collected loads with a half-sized coin standing in a
+    // room the player has already cleared.
+    final room = _Room()..walk(60);
+    final saved = room.key.save();
+
+    final other = _Room();
+    other.key.restore(saved);
+
+    expect(other.key.isTaken, isTrue);
+    expect(other.key.sinceTaken, double.infinity);
   });
 }

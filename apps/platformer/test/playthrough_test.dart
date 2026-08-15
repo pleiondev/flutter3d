@@ -4,6 +4,13 @@
 /// machinery and nothing about the document. This one reads the asset off disk
 /// the way the application does, so a level edited into an unplayable state
 /// fails here rather than in front of somebody.
+///
+/// It does **not** try to finish the level. The field is a hundred and twenty
+/// metres across and two hundred and sixty long, with a locked gate, a ferry
+/// and a shaft in it; a script for that is a script rewritten every time a
+/// brush moves, and the package already proves a level can be finished. What is
+/// pinned here is that the document loads, that its first zone is crossable
+/// only by jumping, and that everything the level is built around is in it.
 library;
 
 import 'dart:convert';
@@ -24,18 +31,19 @@ Level _shipped() => Level.fromJson(
 /// Everything `main.dart` assembles, minus anything that draws.
 final class _Game {
   _Game() {
-    LevelValidator(registry: platformerRegistry(), rules: platformerRules())
-        .assertValid(level);
+    final kinds = platformerRegistry();
+    LevelValidator(registry: kinds, rules: platformerRules()).assertValid(level);
 
     level.addTo(world);
     mechanisms = MechanismWorld(world);
+    (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
     level.spawnInto(
       SpawnContext(
         world: world,
         actors: ActorSystem(world: world),
         mechanisms: mechanisms,
       ),
-      registry: platformerRegistry(),
+      registry: kinds,
     );
 
     final start = level.playerStart?.position ?? Vector3.zero();
@@ -51,11 +59,13 @@ final class _Game {
       input: input,
       startAt: start,
       mechanisms: mechanisms,
+      dynamics: dynamics,
     );
   }
 
   final Level level = _shipped();
   final CollisionWorld world = CollisionWorld();
+  late final Dynamics dynamics = Dynamics(world: world);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
@@ -64,28 +74,14 @@ final class _Game {
   bool _forward = false;
   bool _jump = false;
 
-  /// Runs forward jumping as high and as often as it can, for [steps] or until
-  /// [until].
-  ///
-  /// **A rhythm rather than a route.** A script keyed to the level's own
-  /// coordinates has to be rewritten every time somebody moves a ledge, and
-  /// then it fails in a way that says nothing about what broke. Twenty-two
-  /// steps of held jump is a full ascent, the eight that follow are the release
-  /// that both ends the jump and makes the next press an edge — so this clears
-  /// a gap and double-jumps a ledge without being told where either is.
-  void autopilot(int steps, {bool Function(_Game game)? until}) {
-    for (var i = 0; i < steps; i++) {
-      if (until != null && until(this)) return;
-      step(forward: true, jump: i % 30 < 22);
-    }
-  }
-
   /// Edges only, the way a keyboard produces them. See the package's own
   /// playthrough for what happens when a harness releases on every step.
   void step({bool forward = false, bool jump = false}) {
     input.beginStep();
     if (forward != _forward) {
-      forward ? input.press(GameAction.moveForward) : input.release(GameAction.moveForward);
+      forward
+          ? input.press(GameAction.moveForward)
+          : input.release(GameAction.moveForward);
       _forward = forward;
     }
     if (jump != _jump) {
@@ -95,96 +91,158 @@ final class _Game {
     sim.step(_dt);
     input.endStep();
   }
+
+  /// Runs forward jumping on a rhythm: twenty-two steps held, eight released,
+  /// which is a full ascent and then the release that makes the next press an
+  /// edge. A rhythm rather than a route — a script keyed to the level's own
+  /// coordinates is rewritten every time somebody moves a brush.
+  void autopilot(int steps, {bool Function(_Game game)? until}) {
+    for (var i = 0; i < steps; i++) {
+      if (until != null && until(this)) return;
+      step(forward: true, jump: i % 30 < 22);
+    }
+  }
+
+  /// Walks forward, and only forward, until [until] or [steps] run out.
+  void walk(int steps, {bool Function(_Game game)? until}) {
+    for (var i = 0; i < steps; i++) {
+      if (until != null && until(this)) return;
+      step(forward: true);
+    }
+  }
+
+  T? named<T extends Mechanism>(String name) {
+    final found = mechanisms[name];
+    return found is T ? found : null;
+  }
 }
 
 void main() {
-  test('the level this game ships has no errors in it', () {
-    final issues =
-        LevelValidator(registry: platformerRegistry(), rules: platformerRules())
-            .validate(_shipped());
+  group('the document', () {
+    test('the level this game ships has no errors in it', () {
+      final issues = LevelValidator(
+        registry: platformerRegistry(),
+        rules: platformerRules(),
+      ).validate(_shipped());
 
-    expect(
-      issues.where((LevelIssue i) => i.isError).map((LevelIssue i) => i.message),
-      isEmpty,
-    );
+      expect(
+        issues
+            .where((LevelIssue i) => i.isError)
+            .map((LevelIssue i) => i.message),
+        isEmpty,
+      );
+    });
+
+    test('the whole game builds without a renderer', () {
+      final game = _Game();
+      expect(game.sim.state, RunState.running);
+      expect(game.runner.purse['coin'], 0);
+    });
+
+    test('the field is as big as the level says', () {
+      // Written down so that shrinking the level by accident — a brush resized,
+      // a wall moved in — fails rather than merely looking different.
+      final level = _shipped();
+      var minX = double.infinity, maxX = -double.infinity;
+      var minZ = double.infinity, maxZ = -double.infinity;
+      for (final brush in level.brushes) {
+        if (brush.min.x < minX) minX = brush.min.x;
+        if (brush.max.x > maxX) maxX = brush.max.x;
+        if (brush.min.z < minZ) minZ = brush.min.z;
+        if (brush.max.z > maxZ) maxZ = brush.max.z;
+      }
+
+      expect(maxX - minX, greaterThan(118.0));
+      expect(maxZ - minZ, greaterThan(260.0));
+    });
+
+    test('everything the level is built around is in it', () {
+      // One assertion per thing a player is meant to meet, so a level edited
+      // into "no springs" or "no gate" says which one went.
+      final game = _Game();
+
+      expect(game.named<Spring>('the first pad'), isNotNull);
+      expect(game.named<Spring>('the cold pad'), isNotNull);
+      expect(game.named<Door>('the blue gate')?.isLocked, isTrue);
+      expect(game.named<MovingPlatform>('the ferry'), isNotNull);
+      expect(game.named<Collectible>('the blue key')?.key, 'blue');
+      expect(game.named<Checkpoint>('the brink')?.order, 1);
+      expect(game.named<Checkpoint>('the foot of the stair')?.order, 4);
+      expect(game.named<Hazard>('the spikes')?.instant, isFalse,
+          reason: 'spikes hurt, the drop kills');
+      expect(game.dynamics.bodies, hasLength(2), reason: 'two crates');
+    });
+
+    test('the gate is shut until the key is carried', () {
+      // The engine has had keyed doors since the shooter and this genre could
+      // not open one until the runner grew a key ring. Asserted through the
+      // world, with the body, the way the game asks.
+      final game = _Game();
+      final gate = game.named<Door>('the blue gate')!;
+
+      expect(gate.activate(game.mechanisms.activationBy(game.runner.body.collider)),
+          isA<Refused>());
+
+      game.runner.keyRing.take('blue');
+      expect(gate.activate(game.mechanisms.activationBy(game.runner.body.collider)),
+          isA<Activated>());
+    });
   });
 
-  test('the whole game builds without a renderer', () {
-    final game = _Game();
-    expect(game.sim.state, RunState.running);
-    expect(game.runner.purse['coin'], 0);
-  });
+  group('the first zone', () {
+    test('the coins on the way out are collected on foot', () {
+      final game = _Game()
+        ..walk(400, until: (_Game g) => g.runner.purse['coin'] > 0);
 
-  test('the coins in the first room are reachable on foot', () {
-    // Not the whole level: getting to the summit needs a double jump timed
-    // against a moving platform, and a script that plays it would be a script
-    // that has to be rewritten every time the level is edited. What is worth
-    // pinning is that the level loads, spawns, and can be walked in.
-    final game = _Game();
-    for (var i = 0; i < 300; i++) {
-      game.step(forward: true);
-      if (game.runner.purse['coin'] > 0) break;
-    }
+      expect(game.runner.purse['coin'], greaterThan(0));
+    });
 
-    expect(game.runner.purse['coin'], greaterThan(0));
-  });
+    test('a collected coin shrinks away rather than blinking out', () {
+      final game = _Game()
+        ..walk(400, until: (_Game g) => g.runner.purse['coin'] > 0);
+      final coin = game.named<Collectible>('coin one')!;
 
-  test('the summit can be reached', () {
-    // The half of the level a person plays and a script did not: over the
-    // drop, onto the ledge that takes two jumps, and into the exit. Without
-    // this, a level edited into an unfinishable state ships.
-    final game = _Game()
-      ..autopilot(900, until: (_Game g) => g.sim.state == RunState.finished);
+      expect(coin.isTaken, isTrue);
+      expect(coin.sinceTaken, lessThan(0.1), reason: 'it went just now');
 
-    expect(game.sim.state, RunState.finished);
-    expect(game.sim.deaths, 0, reason: 'the route does not require dying');
-    // The only level there is, so the exit names nothing to go on to. Asserted
-    // rather than left unsaid: the first version of this test expected a next
-    // level, copied from the package's own fixture, and passed on nothing.
-    expect(game.sim.nextLevel, isNull);
-  });
+      game.walk(30);
+      expect(coin.sinceTaken, closeTo(0.5, 0.15));
+    });
 
-  test('the brass pad over the drop can actually be jumped onto', () {
-    // **A player could not, and the arithmetic says why:** a single jump rises
-    // 1.88 m and the pad's top was at 1.80, so it was clearable for the one
-    // instant of the apex and no longer. A platform you can only reach on a
-    // frame-perfect apex is not a platform.
-    //
-    // Mutation: put the pad back at 1.6 (top 1.8) and this fails.
-    final game = _Game();
-    // On the floor, in line with the pad, short of the edge.
-    game.runner.body.teleport(Vector3(-3.0, 0.9, 5.8));
+    test('the drop is crossed by jumping and not by walking', () {
+      // Both halves, because the first without the second proves nothing.
+      final jumped = _Game()
+        ..autopilot(900, until: (_Game g) => g.runner.position.z > 33.0);
+      expect(jumped.runner.position.z, greaterThan(33.0));
+      expect(jumped.sim.deaths, 0, reason: 'the rhythm clears it');
 
-    // Jump, and steer forward for a third of a second. Holding forward the
-    // whole way is what a running jump is, and a running jump clears the pad
-    // entirely — six metres a second carries 4.7 m through the air and the pad
-    // is 2.2 m across. Landing on it is a hop, and that is a fair thing for a
-    // level to ask.
-    for (var i = 0; i < 90; i++) {
-      game.step(forward: i < 20, jump: i < 24);
-    }
+      final walked = _Game()..walk(900, until: (_Game g) => g.sim.deaths > 0);
+      expect(walked.sim.deaths, greaterThan(0), reason: 'the drop is a drop');
+    });
 
-    expect(game.runner.isGrounded, isTrue, reason: 'it should have landed');
-    expect(game.runner.position.y, closeTo(2.0, 0.15),
-        reason: 'a body half a metre high standing on a pad topped at 1.1');
-    expect(game.runner.position.z, inInclusiveRange(6.9, 9.1),
-        reason: 'on the pad, not past it');
-    expect(game.runner.purse['coin'], 1, reason: 'the coin sits over the pad');
-    expect(game.sim.deaths, 0);
-  });
+    test('falling in puts the runner back at the checkpoint, not the start', () {
+      final game = _Game()..walk(900, until: (_Game g) => g.sim.deaths > 0);
+      expect(game.sim.deaths, greaterThan(0));
 
-  test('walking off the edge is survivable, because there is a checkpoint', () {
-    final game = _Game();
-    // Forward until it falls in the drop and comes back.
-    for (var i = 0; i < 600 && game.sim.deaths == 0; i++) {
-      game.step(forward: true);
-    }
-    expect(game.sim.deaths, greaterThan(0), reason: 'the drop should catch it');
+      game.step();
+      expect(game.sim.state, RunState.running);
+      expect(game.runner.health.isAlive, isTrue);
+      expect(game.runner.position.z, closeTo(18.0, 1.5),
+          reason: 'the brink said 18, and the level starts at -22');
+    });
 
-    game.step();
-    expect(game.sim.state, RunState.running);
-    expect(game.runner.health.isAlive, isTrue);
-    // Back at the checkpoint before the gap rather than at the level's start.
-    expect(game.runner.position.z, greaterThan(3.0));
+    test('a crate is where the level put it, and shoves', () {
+      final game = _Game();
+      final crate = game.dynamics.bodies.first;
+      final before = crate.position.clone();
+
+      // Walked into from beside it rather than from the spawn: what is under
+      // test is the crate, not the route to it.
+      game.runner.body.teleport(Vector3(before.x, 0.9, before.z - 2.0));
+      game.walk(200);
+
+      expect(crate.position.z, greaterThan(before.z + 0.5));
+      expect(crate.position.y, closeTo(before.y, 0.3), reason: 'and stays down');
+    });
   });
 }

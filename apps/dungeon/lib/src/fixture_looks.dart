@@ -169,6 +169,10 @@ final class DungeonFixtures implements FixtureAppearance {
   @override
   void refresh(Fixture fixture, Material material) {}
 
+  /// Nothing here shrinks either.
+  @override
+  double scaleOf(Fixture fixture) => 1.0;
+
   static final Map<String, Vector4> _keyColours = <String, Vector4>{
     'blue': Vector4(0.20, 0.42, 0.95, 1.0),
     'red': Vector4(0.90, 0.18, 0.16, 1.0),

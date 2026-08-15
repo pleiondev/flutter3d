@@ -47,6 +47,13 @@ final class Collectible extends Mechanism with CollisionListener {
   /// True on the step it was collected, so a game can say so once.
   bool justTaken = false;
 
+  /// Seconds since it was taken, and infinite while it is still there.
+  ///
+  /// The simulation has no opinion about how a coin leaves — that is a look —
+  /// but only the simulation knows *when* it left, so it counts and the game
+  /// decides what to do with the number.
+  double sinceTaken = double.infinity;
+
   @override
   Vector3 get origin => collider.position;
 
@@ -67,6 +74,7 @@ final class Collectible extends Mechanism with CollisionListener {
 
     _taken = true;
     justTaken = true;
+    sinceTaken = 0.0;
     // Out of the world rather than merely disabled, and after the step, because
     // this runs from inside the overlap dispatch.
     world.collisions.removeLater(collider);
@@ -79,13 +87,20 @@ final class Collectible extends Mechanism with CollisionListener {
   }
 
   @override
-  void step(double dt) => justTaken = false;
+  void step(double dt) {
+    justTaken = false;
+    if (_taken && sinceTaken.isFinite) sinceTaken += dt;
+  }
 
   Map<String, Object?> save() => <String, Object?>{'taken': _taken};
 
   void restore(Map<String, Object?> from) {
     _taken = from['taken'] == true;
     justTaken = false;
+    // Whatever it was doing when the save happened, a coin taken before it has
+    // finished shrinking by the time it is loaded: restoring mid-animation
+    // would put a half-sized coin in a room the player has already cleared.
+    sinceTaken = double.infinity;
     if (_taken) world.collisions.removeLater(collider);
   }
 }

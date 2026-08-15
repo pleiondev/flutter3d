@@ -57,11 +57,28 @@ final class PlatformerLooks implements FixtureAppearance {
     return LevelMaterial(baseColor: Vector4(0.55, 0.52, 0.48, 1.0));
   }
 
-  /// A collected coin is gone, and the node with it.
+  /// How long a collected coin takes to shrink away.
+  static const double _vanish = 1.0;
+
+  /// A collected coin is gone **once it has finished shrinking**, not the
+  /// instant it was taken — see [scaleOf].
   @override
   bool isSpent(Fixture fixture) {
     final mechanism = fixture.mechanism;
-    return mechanism is Collectible && mechanism.isTaken;
+    return mechanism is Collectible && mechanism.sinceTaken >= _vanish;
+  }
+
+  /// A taken coin shrinks to nothing over a second and then leaves.
+  ///
+  /// Eased rather than linear: a coin that shrinks at a constant rate looks
+  /// like it is being deleted, and one that starts slowly and finishes fast
+  /// looks like it went somewhere.
+  @override
+  double scaleOf(Fixture fixture) {
+    final mechanism = fixture.mechanism;
+    if (mechanism is! Collectible || !mechanism.isTaken) return 1.0;
+    final t = (mechanism.sinceTaken / _vanish).clamp(0.0, 1.0);
+    return (1.0 - t) * (1.0 - t);
   }
 
   /// Coins turn. Nothing else does.

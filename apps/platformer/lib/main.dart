@@ -93,7 +93,16 @@ class _GameScreenState extends State<GameScreen>
   Renderer? _renderer;
   Object? _initError;
 
-  Scene? _scene;
+  /// The scene being drawn. Empty until the level arrives, and **never null**.
+  ///
+  /// That is the whole point of it: the renderer must get to build its frame
+  /// targets before anything else has taken device memory, and waiting for the
+  /// level to load meant fifteen textures were uploaded first. On this machine
+  /// that combination fails to allocate — every frame, from the first — which
+  /// is the same trap the runner's model fell into and is documented on
+  /// `_dressRunner`.
+  Scene _scene = Scene();
+
   LoadedLevel? _loaded;
   FixtureVisuals? _fixtures;
 
@@ -478,14 +487,14 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final renderer = _renderer;
-    final scene = _scene;
-    final sim = _sim;
-    if (renderer == null || scene == null || sim == null) {
+    if (renderer == null) {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    final scene = _scene;
+    final sim = _sim;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -511,12 +520,13 @@ class _GameScreenState extends State<GameScreen>
                 ),
                 onBeforeFrame: () {},
               ),
-              Hud(
-                coins: _runner?.purse['coin'] ?? 0,
-                deaths: sim.deaths,
-                state: sim.state,
-                captured: _devices.isCaptured,
-              ),
+              if (sim != null)
+                Hud(
+                  coins: _runner?.purse['coin'] ?? 0,
+                  deaths: sim.deaths,
+                  state: sim.state,
+                  captured: _devices.isCaptured,
+                ),
               if (_showSettings)
                 SettingsPanel(
                   mixer: _audio.mixer,

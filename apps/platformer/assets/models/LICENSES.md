@@ -66,3 +66,21 @@ committed.
   pipeline.
 
 The mesh is untouched. The original is `stylized_coin.glb` as downloaded.
+
+
+## `key.glb` — provenance **unrecorded**
+
+Carried across from `apps/dungeon/assets/models/key.glb` on request, and it is
+the one asset here that cannot answer the three rows above.
+`apps/dungeon/assets/textures/LICENSES.md` records why: the archive it came from
+— a Cinema 4D export dated 2019, repackaged 2022 — has no licence file, no
+readme and no author.
+
+**This game therefore inherits the shooter's blocker.** Neither can ship until
+the licence is traced or the model replaced, and it is now two games rather than
+one. Written here rather than left implied, because the whole point of this file
+is that an asset with no provenance should be visible from the game that uses
+it.
+
+Modified by `tool/prepare_models.py`: scaled by 1.2 and dropped onto its own
+centre. The mesh is untouched.
