@@ -78,6 +78,20 @@ entities.append({"type": "player_spawn", "at": [0.0, 0.0, -8.0]})
 room(-10.0, 8.0)
 for i, z in enumerate((-4.0, 0.0, 4.0)):
     coin([0.0, 0.8, z], f"first coin {i + 1}")
+# Off the straight line, because a level whose every coin is on the centreline
+# teaches that the centreline is the level. These are the first reason to look
+# left and right.
+for i, (x, z) in enumerate(((-5.0, -6.0), (5.0, -6.0), (-7.0, 1.0), (7.0, 1.0),
+                            (-4.0, 6.0), (4.0, 6.0))):
+    coin([x, 0.8, z], f"first stray coin {i + 1}")
+
+# **The first crate, where it can do no harm.** A player who has never pushed
+# one finds out that it moves by walking into it on flat ground, with a coin
+# behind it as the reason to bother. Every crate puzzle later in the game is
+# this fact plus geometry.
+crate([-2.0, 0.7, 2.0], "the first crate")
+crate([2.0, 0.7, 2.0], "the second crate")
+
 lamp("the first lamp", [-6.0, 1.0, -2.0])
 lamp("the second lamp", [6.0, 1.0, -2.0])
 
@@ -88,16 +102,51 @@ checkpoint("the first post", 8.0, 1, respawn=6.0)
 catch(8.0, 14.0)
 room(14.0, 24.0)
 coin([0.0, 2.2, 11.0], "the jump coin")
+coin([-3.5, 2.2, 11.0], "the jump coin to the left")
+coin([3.5, 2.2, 11.0], "the jump coin to the right")
+
+# **The first crate that is worth moving rather than merely movable.** A coin
+# hung at 3.4 m is out of reach of both jumps from the floor and easy from the
+# top of a crate. Nothing is lost by ignoring it, which is what makes it a
+# puzzle rather than a gate.
+crate([-6.0, 0.7, 17.0], "the crate to stand on")
+coin([-6.0, 3.4, 19.0], "the coin you need the crate for")
+for i, x in enumerate((-8.0, -4.0, 4.0, 8.0)):
+    coin([x, 0.8, 15.5], f"landing coin {i + 1}")
 
 # ------------------------------------------------------------------- twice ---
-# A shelf at 2.6 m — over a single jump's 1.8 and under a double's 3.13 — with
-# a coin on it, and then a gap of six that needs the same move to cross.
+# **Shown before it is asked for, which is the rule this room used to break.**
+# It went straight to a 2.6 m shelf across the whole width — over a single
+# jump's 1.8 and under a double's 3.13 — with nothing before it and no way
+# round. A player who had not discovered that a second jump exists in mid-air
+# walked into it and stopped: measured, walking and jumping reached z = 23.5
+# and stalled there for the rest of the run. The header of this file promises
+# that every verb is shown somewhere it cannot hurt you before it is needed
+# somewhere it can, and here the showing *was* the wall.
 checkpoint("the second post", 22.0, 2, respawn=21.0)
+
+# The showing: coins at 2.6 m over open floor, which is the height of the shelf
+# that is coming. Missing them costs nothing, and reaching them is the lesson.
+coin([0.0, 2.6, 19.0], "the coin you cannot reach once")
+coin([-4.5, 2.6, 21.0], "the coin you cannot reach twice")
+coin([4.5, 2.6, 21.0], "the coin you cannot reach three times")
+
+# The asking, and beside it a step. **The step is the door, the coin on top is
+# the lesson**: a player who has worked out the double jump goes straight over
+# and is paid for it, and one who has not climbs in two goes and keeps playing.
+# The crate in the room behind also reaches — pushed to the face, it is 1.4 m
+# to stand on — but a crate can be shoved into the pit, and a door that the
+# player can destroy is not a door.
 route([0.0, 1.3, 26.0], [WIDE, 2.6, 4.0], "stone")
+route([9.0, 0.65, 23.0], [4.0, 1.3, 2.0], "moss")
 coin([0.0, 3.6, 26.0], "the high coin")
+coin([9.0, 2.0, 23.0], "the coin on the step")
+
 catch(28.0, 36.0)
 room(36.0, 46.0)
 coin([0.0, 3.0, 32.0], "the second jump coin")
+coin([-3.5, 3.0, 31.0], "the coin left of the gap")
+coin([3.5, 3.0, 33.0], "the coin right of the gap")
 
 # ---------------------------------------------------------------- the shaft --
 checkpoint("the third post", 44.0, 3, respawn=43.0)
@@ -118,8 +167,19 @@ room(46.0, 58.0)
 route([-6.0, 3.0, 52.0], [10.0, 6.0, 10.0], "stone")
 route([6.0, 3.0, 52.0], [10.0, 6.0, 10.0], "stone")
 route([0.0, 3.0, 57.5], [2.0, 6.0, 1.0], "stone")
-coin([0.0, 3.0, 52.0], "the shaft coin one")
-coin([0.0, 5.5, 52.0], "the shaft coin two")
+coin([0.0, 1.4, 52.0], "the shaft coin one")
+coin([0.0, 3.0, 52.0], "the shaft coin two")
+coin([0.0, 4.4, 52.0], "the shaft coin three")
+coin([0.0, 5.8, 52.0], "the shaft coin four")
+# A ladder of coins rather than two: a climb you are paid for at every metre is
+# a climb you keep trying. Two coins six metres apart is a climb you abandon.
+
+# The room the chimney stands in, which was a corridor with a slot in it. A
+# crate to push, and coins along the walls, so the room is somewhere you are
+# rather than somewhere you pass.
+crate([-8.0, 0.7, 48.0], "the crate at the foot of the shaft")
+for i, (x, z) in enumerate(((-9.0, 47.0), (9.0, 47.0), (-9.0, 50.0), (9.0, 50.0))):
+    coin([x, 0.8, z], f"shaft floor coin {i + 1}")
 
 # The floor at the top, level with the blocks' own tops. **Not inside the
 # slot**: the first version put it at the chimney's top between the walls,
@@ -133,8 +193,19 @@ coin([0.0, 7.0, 62.0], "the ledge coin")
 # trying before it is needed.
 checkpoint("the fourth post", 66.0, 4, respawn=66.0)
 coin([0.0, 7.0, 68.0], "the dash coin")
+# A line of them, so the dash is worth trying before it is needed: each one is
+# a little further than a walk gets you comfortably.
+for i, z in enumerate((69.5, 70.5, 71.5)):
+    coin([0.0, 7.0, z], f"the dash trail {i + 1}")
 route([0.0, 5.5, 84.0], [WIDE, 1.0, 10.0], "stone")
 coin([0.0, 8.0, 74.0], "the gap coin")
+coin([-4.0, 8.0, 74.0], "the gap coin to the left")
+coin([4.0, 8.0, 74.0], "the gap coin to the right")
+
+# A crate on the far side, and a coin only reachable from on top of it. The
+# last thing the level teaches about crates: they come with you.
+crate([7.0, 6.2, 82.0], "the crate on the far side")
+coin([7.0, 8.9, 84.0], "the coin above the far crate")
 
 # And a shallow floor under the gap, with a stair up to the far side: a miss
 # costs a few seconds, not a walk back to the start.
@@ -148,12 +219,19 @@ route([0.0, 5.625, 78.5], [WIDE, 0.75, 1.0], "stone")
 checkpoint("the fifth post", 88.0, 5, respawn=88.0)
 route([0.0, 9.0, 94.0], [WIDE, 5.0, 8.0], "stone")
 route([0.0, 5.5, 96.0], [WIDE, 1.0, 14.0], "stone")
-coin([0.0, 6.8, 94.0], "the crawl coin")
+for i, z in enumerate((91.5, 94.0, 96.5)):
+    coin([0.0, 6.8, z], f"the crawl coin {i + 1}")
+coin([-5.0, 6.8, 94.0], "the crawl coin to the left")
+coin([5.0, 6.8, 94.0], "the crawl coin to the right")
 
 # ----------------------------------------------------------------- the guard -
 # One thing that walks, on a route across the way out, with the exit behind it.
 enemy("the guard", [-6.0, 6.0, 101.0], [[6.0, 6.0, 101.0]], speed=0.3)
 coin([0.0, 6.8, 101.0], "the guard's coin")
+coin([-8.0, 6.8, 100.0], "the coin the guard walks past")
+coin([8.0, 6.8, 102.0], "the other coin the guard walks past")
+crate([-8.0, 6.2, 103.0], "the last crate")
+crate([8.0, 6.2, 103.0], "the other last crate")
 
 entities.append({
     "type": "exit",

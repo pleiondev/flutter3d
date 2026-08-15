@@ -53,6 +53,7 @@
     {"at": [0.0, -0.5, 13.2], "size": [22.0, 1.0, 1.6], "material": "stone"},
     {"at": [0.0, -0.5, 19.0], "size": [22.0, 1.0, 10.0], "material": "moss"},
     {"at": [0.0, 1.3, 26.0], "size": [22.0, 2.6, 4.0], "material": "stone"},
+    {"at": [9.0, 0.65, 23.0], "size": [4.0, 1.3, 2.0], "material": "moss"},
     {"at": [0.0, -2.5, 32.0], "size": [22.0, 1.0, 8.0], "material": "stone"},
     {"at": [0.0, -1.5, 33.6], "size": [22.0, 1.0, 1.6], "material": "stone"},
     {"at": [0.0, -0.5, 35.2], "size": [22.0, 1.0, 1.6], "material": "stone"},
@@ -107,6 +108,64 @@
       "model": "assets/models/coin.glb"
     },
     {
+      "type": "collectible",
+      "name": "first stray coin 1",
+      "at": [-5.0, 0.8, -6.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "first stray coin 2",
+      "at": [5.0, 0.8, -6.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "first stray coin 3",
+      "at": [-7.0, 0.8, 1.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "first stray coin 4",
+      "at": [7.0, 0.8, 1.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "first stray coin 5",
+      "at": [-4.0, 0.8, 6.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "first stray coin 6",
+      "at": [4.0, 0.8, 6.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "crate",
+      "name": "the first crate",
+      "at": [-2.0, 0.7, 2.0],
+      "size": [1.4, 1.4, 1.4],
+      "mass": 30.0,
+      "material": "wood"
+    },
+    {
+      "type": "crate",
+      "name": "the second crate",
+      "at": [2.0, 0.7, 2.0],
+      "size": [1.4, 1.4, 1.4],
+      "mass": 30.0,
+      "material": "wood"
+    },
+    {
       "type": "lamp",
       "name": "the first lamp",
       "at": [-6.0, 1.0, -2.0],
@@ -136,12 +195,90 @@
       "model": "assets/models/coin.glb"
     },
     {
+      "type": "collectible",
+      "name": "the jump coin to the left",
+      "at": [-3.5, 2.2, 11.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the jump coin to the right",
+      "at": [3.5, 2.2, 11.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "crate",
+      "name": "the crate to stand on",
+      "at": [-6.0, 0.7, 17.0],
+      "size": [1.4, 1.4, 1.4],
+      "mass": 30.0,
+      "material": "wood"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin you need the crate for",
+      "at": [-6.0, 3.4, 19.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "landing coin 1",
+      "at": [-8.0, 0.8, 15.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "landing coin 2",
+      "at": [-4.0, 0.8, 15.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "landing coin 3",
+      "at": [4.0, 0.8, 15.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "landing coin 4",
+      "at": [8.0, 0.8, 15.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
       "type": "checkpoint",
       "name": "the second post",
       "at": [0.0, 1.0, 22.0],
       "order": 2,
       "respawn": [0.0, 0.0, 21.0],
       "size": [24.0, 3.0, 1.0]
+    },
+    {
+      "type": "collectible",
+      "name": "the coin you cannot reach once",
+      "at": [0.0, 2.6, 19.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin you cannot reach twice",
+      "at": [-4.5, 2.6, 21.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin you cannot reach three times",
+      "at": [4.5, 2.6, 21.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
@@ -152,8 +289,29 @@
     },
     {
       "type": "collectible",
+      "name": "the coin on the step",
+      "at": [9.0, 2.0, 23.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
       "name": "the second jump coin",
       "at": [0.0, 3.0, 32.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin left of the gap",
+      "at": [-3.5, 3.0, 31.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin right of the gap",
+      "at": [3.5, 3.0, 33.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
@@ -168,14 +326,64 @@
     {
       "type": "collectible",
       "name": "the shaft coin one",
-      "at": [0.0, 3.0, 52.0],
+      "at": [0.0, 1.4, 52.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the shaft coin two",
-      "at": [0.0, 5.5, 52.0],
+      "at": [0.0, 3.0, 52.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the shaft coin three",
+      "at": [0.0, 4.4, 52.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the shaft coin four",
+      "at": [0.0, 5.8, 52.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "crate",
+      "name": "the crate at the foot of the shaft",
+      "at": [-8.0, 0.7, 48.0],
+      "size": [1.4, 1.4, 1.4],
+      "mass": 30.0,
+      "material": "wood"
+    },
+    {
+      "type": "collectible",
+      "name": "shaft floor coin 1",
+      "at": [-9.0, 0.8, 47.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "shaft floor coin 2",
+      "at": [9.0, 0.8, 47.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "shaft floor coin 3",
+      "at": [-9.0, 0.8, 50.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "shaft floor coin 4",
+      "at": [9.0, 0.8, 50.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
@@ -203,8 +411,58 @@
     },
     {
       "type": "collectible",
+      "name": "the dash trail 1",
+      "at": [0.0, 7.0, 69.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the dash trail 2",
+      "at": [0.0, 7.0, 70.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the dash trail 3",
+      "at": [0.0, 7.0, 71.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
       "name": "the gap coin",
       "at": [0.0, 8.0, 74.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the gap coin to the left",
+      "at": [-4.0, 8.0, 74.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the gap coin to the right",
+      "at": [4.0, 8.0, 74.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "crate",
+      "name": "the crate on the far side",
+      "at": [7.0, 6.2, 82.0],
+      "size": [1.4, 1.4, 1.4],
+      "mass": 30.0,
+      "material": "wood"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin above the far crate",
+      "at": [7.0, 8.9, 84.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
@@ -218,8 +476,36 @@
     },
     {
       "type": "collectible",
-      "name": "the crawl coin",
+      "name": "the crawl coin 1",
+      "at": [0.0, 6.8, 91.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the crawl coin 2",
       "at": [0.0, 6.8, 94.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the crawl coin 3",
+      "at": [0.0, 6.8, 96.5],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the crawl coin to the left",
+      "at": [-5.0, 6.8, 94.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the crawl coin to the right",
+      "at": [5.0, 6.8, 94.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
@@ -241,6 +527,36 @@
       "at": [0.0, 6.8, 101.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin the guard walks past",
+      "at": [-8.0, 6.8, 100.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the other coin the guard walks past",
+      "at": [8.0, 6.8, 102.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "crate",
+      "name": "the last crate",
+      "at": [-8.0, 6.2, 103.0],
+      "size": [1.4, 1.4, 1.4],
+      "mass": 30.0,
+      "material": "wood"
+    },
+    {
+      "type": "crate",
+      "name": "the other last crate",
+      "at": [8.0, 6.2, 103.0],
+      "size": [1.4, 1.4, 1.4],
+      "mass": 30.0,
+      "material": "wood"
     },
     {
       "type": "exit",
