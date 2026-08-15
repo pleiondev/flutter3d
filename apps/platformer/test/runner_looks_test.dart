@@ -12,6 +12,7 @@ library;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter3d/flutter3d.dart';
 import 'package:platformer/src/runner_looks.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -73,6 +74,8 @@ final class _Run {
 double _distortion(Vector3 scale) => (scale.y - 1.0).abs();
 
 void main() {
+  group('clips', _clipTests);
+
   test('a body standing still is drawn as itself', () {
     final run = _Run()..run(60);
 
@@ -232,5 +235,77 @@ void main() {
 
     expect(run.runner.isCrouching, isTrue);
     expect(run.scale.y, lessThan(0.8), reason: 'a crouch drawn standing up');
+  });
+}
+
+/// Which clip plays, and whether the model has it.
+///
+/// The state machine is a pure function, so it is tested as one — and the last
+/// test is the one that matters most: a clip name this game asks for that the
+/// *file* does not contain is a silent no-op, because `crossFadeToNamed`
+/// returns false and nothing looks at it.
+void _clipTests() {
+  test('standing still is idle, and moving is not', () {
+    final run = _Run()..run(30);
+    expect(RunnerClips.forRunner(run.runner), RunnerClips.idle);
+
+    run.run(60, holding: <GameAction>{GameAction.moveForward});
+    expect(RunnerClips.forRunner(run.runner), RunnerClips.run);
+  });
+
+  test('the air has two clips, and which one depends on the way you are going',
+      () {
+    // Mutation: use one clip for both. A jump and a fall look identical, which
+    // is the difference between reading a jump and watching a shape rise.
+    final run = _Run()..run(30);
+    run.step(holding: <GameAction>{GameAction.jump});
+    expect(RunnerClips.forRunner(run.runner), RunnerClips.jump);
+
+    for (var i = 0; i < 60; i++) {
+      run.step();
+      if (run.runner.body.velocity.y < -1.0) break;
+    }
+    expect(RunnerClips.forRunner(run.runner), RunnerClips.falling);
+  });
+
+  test('crouching ducks, and being in the air beats being crouched', () {
+    final run = _Run()..run(30);
+    run.run(10, holding: <GameAction>{PlatformerActions.dropThrough});
+    expect(RunnerClips.forRunner(run.runner), RunnerClips.duck);
+  });
+
+  test('a dead runner plays one thing and nothing else', () {
+    // Mutation: put the death case anywhere but first. A body that dies while
+    // running keeps running.
+    final run = _Run()..run(30);
+    run.runner.health.damage(1000.0);
+    expect(RunnerClips.forRunner(run.runner), RunnerClips.death);
+  });
+
+  test('a run clip is played faster the faster the body moves', () {
+    // The sliding-feet problem, which is the most noticeable flaw a
+    // well-animated character can have.
+    //
+    // Mutation: return 1.0 always.
+    expect(RunnerClips.rateFor(RunnerClips.run, 9.0),
+        greaterThan(RunnerClips.rateFor(RunnerClips.run, 4.0)));
+    expect(RunnerClips.rateFor(RunnerClips.idle, 9.0), 1.0);
+  });
+
+  test('the model on disk has every clip this game asks for', () async {
+    // **The one that cannot be reasoned about, only checked.** A name that is
+    // not in the file makes `crossFadeToNamed` return false, and nothing looks
+    // at the answer: the runner would simply keep playing whatever it was.
+    final document = await decodeModel(
+      const ModelLoadRequest(
+        source: FileAssetSource('assets/models/hero.glb'),
+      ),
+    );
+
+    final names =
+        document.animations.map((AnimationClip c) => c.name).toSet();
+    for (final wanted in RunnerClips.all) {
+      expect(names, contains(wanted), reason: 'the model has no "$wanted"');
+    }
   });
 }

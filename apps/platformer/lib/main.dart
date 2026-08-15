@@ -9,6 +9,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -56,7 +57,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
   static const String _levelAsset = 'assets/levels/ascent.json';
-  static const String _runnerModel = 'assets/models/penguin.glb';
+  static const String _runnerModel = 'assets/models/hero.glb';
 
   /// Which way the model faces when nothing has turned it.
   ///
@@ -111,6 +112,13 @@ class _GameScreenState extends State<GameScreen>
   /// does not — the game is playable either way, and a missing asset should not
   /// be the difference between playing and staring at an error.
   SceneNode? _runnerNode;
+
+  /// The clips on the runner's model, when it has any.
+  AnimationPlayer? _runnerAnimation;
+
+  /// What is playing now, so a crossfade is asked for once rather than sixty
+  /// times a second.
+  String? _clip;
 
   /// The loaded model, held so that nothing collects it out from under the
   /// scene. `FixtureVisuals` keeps its assets in a cache for the same reason.
@@ -390,6 +398,11 @@ class _GameScreenState extends State<GameScreen>
       setState(() {
         _runnerAsset = asset;
         _runnerNode = instance.root;
+        // **The line three stages of this game were waiting for.** The player
+        // has always been built by `instantiate` when the model has clips; the
+        // penguin had none, so it was thrown away and nobody noticed. This one
+        // has eighteen.
+        _runnerAnimation = instance.player;
         _runnerDrop = runner.body.halfExtents.y - asset.localBounds.min.y;
         _runnerFacing = _modelFacing;
       });
@@ -412,6 +425,7 @@ class _GameScreenState extends State<GameScreen>
     _loop.advance(dt.clamp(0.0, 0.25));
 
     _particles.advance(dt);
+    _animateRunner(dt);
     _placeCamera(dt);
     _fixtures?.sync(_elapsed);
     _burnLamps();
@@ -440,6 +454,38 @@ class _GameScreenState extends State<GameScreen>
       _drawnAt.push(runner.body.position);
     }
     _drawnYaw.push(runner.yaw);
+  }
+
+  /// Picks the runner's clip and advances it.
+  ///
+  /// Once a frame rather than once a step, because this is presentation: the
+  /// simulation runs at sixty hertz and the animation should run at whatever
+  /// the display does. The state machine itself is `RunnerClips.forRunner`,
+  /// which is a pure function and tested as one.
+  void _animateRunner(double dt) {
+    final player = _runnerAnimation;
+    final runner = _runner;
+    if (player == null || runner == null) return;
+
+    final wanted = RunnerClips.forRunner(runner);
+    if (wanted != _clip) {
+      // A short fade, and shorter still into a jump: a quarter of a second of
+      // blending into a take-off is a quarter of a second of the runner still
+      // standing there while the body is already in the air.
+      player.crossFadeToNamed(
+        wanted,
+        duration: wanted == RunnerClips.jump ? 0.06 : 0.14,
+      );
+      _clip = wanted;
+    }
+
+    final speed = math.sqrt(
+      runner.body.velocity.x * runner.body.velocity.x +
+          runner.body.velocity.z * runner.body.velocity.z,
+    );
+    player
+      ..speed = RunnerClips.rateFor(wanted, speed)
+      ..update(dt);
   }
 
   /// Keeps every lamp's flame alight.

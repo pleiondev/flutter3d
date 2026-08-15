@@ -44,6 +44,14 @@ def main() -> int:
     _transform_root(key, scale=1.2, drop=0.3)
     _write(key, MODELS / 'key.glb')
 
+    hero = _read(source / 'animated_platformer_character.glb')
+    # Three and three quarter units tall in its bind pose, and the pose is a T
+    # — the width is arms, not shoulders, so height is the only measurement
+    # worth scaling by. 1.8 m makes it the size the character controller is.
+    _transform_root(hero, scale=1.8 / 3.75)
+    _make_lit(hero)
+    _write(hero, MODELS / 'hero.glb')
+
     coin = _read(source / 'stylized_coin.glb')
     _resize_images(coin, 512)
     # 0.8 m across as exported, and standing on the floor beneath its origin. A

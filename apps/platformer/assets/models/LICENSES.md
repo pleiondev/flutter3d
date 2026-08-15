@@ -84,3 +84,25 @@ it.
 
 Modified by `tool/prepare_models.py`: scaled by 1.2 and dropped onto its own
 centre. The mesh is untouched.
+
+## `hero.glb` — the runner, animated
+
+**Animated Platformer Character** by **Quaternius**, **CC0 1.0 (public domain)**
+— <https://poly.pizza/m/kKtL4zvS3n>, downloaded 15.08.2026 from
+`https://static.poly.pizza/906e29d9-2e15-4c5c-a38a-fb99023acc9c.glb`.
+
+CC0, so there is no attribution requirement and this entry is a record rather
+than a duty. It is written down anyway, because the whole point of this file is
+that a licence nobody can trace is a debt — and a file whose provenance is
+"somebody downloaded it" cannot be told apart from one that is.
+
+Chosen for what it has rather than for how it looks: **eighteen clips**,
+including `Idle`, `Walk`, `Run`, `Jump`, `Jump_Idle`, `Jump_Land`, `Duck` and
+`Death` — which is the platformer's whole state machine — and **twenty-nine
+joints**, comfortably under the engine's cap of sixty-four. The penguin has
+`animations: 0` and no skin at all, which is why the runner was a statue for
+three stages.
+
+Prepared by `tool/prepare_models.py`: scaled from its bind-pose height of 3.75
+units to the 1.8 m the character controller is, and `KHR_materials_unlit`
+stripped for the reason recorded above.
