@@ -1,0 +1,68 @@
+name: racing
+description: "An arcade racer: one circuit, a car that can be made to slide, and a lap time to beat."
+publish_to: 'none'
+version: 0.1.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The backend. Named here on purpose: this is the one line an application
+  # changes to run on a different graphics API.
+  flutter3d_impeller:
+    path: ../../packages/flutter3d_impeller
+
+  # The browser backend. Which of the two runs is decided at compile time by
+  # `lib/src/backend.dart`.
+  flutter3d_webgl:
+    path: ../../packages/flutter3d_webgl
+
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # Simulation and input.
+  flutter3d_game:
+    path: ../../packages/flutter3d_game
+
+  # The genre. Cars, tracks, laps — none of which the two above have heard of.
+  flutter3d_racing:
+    path: ../../packages/flutter3d_racing
+
+  # Sound. Depends on neither the renderer nor the game engine.
+  flutter3d_audio:
+    path: ../../packages/flutter3d_audio
+
+  # Where the two meet: level geometry to mesh nodes, a fixture to its light.
+  flutter3d_bridge:
+    path: ../../packages/flutter3d_bridge
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Only the tests use it, and only to draw a frame without a GPU. The
+  # platformer shipped three bugs that every simulation test passed and a single
+  # rendered frame would have caught.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+# Two traps this repository has paid for before, one of them already sprung
+# here: `FLTEnableFlutterGPU` and `FLTEnableImpeller` have to be in the macOS
+# `Info.plist` or the window comes up empty — they are; and when sound is added,
+# run `flutter clean` afterwards, or SoLoud reports "no available native assets"
+# once and then plays nothing for the rest of the session.
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/tracks/
+    - assets/models/
+    - assets/sounds/

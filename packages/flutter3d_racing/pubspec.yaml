@@ -1,0 +1,39 @@
+name: flutter3d_racing
+description: "A third genre: a car with grip it can lose, a track measured in metres, and the lap that comes of going round it."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The engine half. Everything here is content it takes as an argument.
+  flutter3d_game:
+    path: ../flutter3d_game
+
+  flutter3d_physics:
+    path: ../flutter3d_physics
+
+  # The renderer, spent by exactly one file — `bridge.dart`, which the isolation
+  # test names. The road has to become triangles somewhere.
+  flutter3d:
+    path: ../flutter3d
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# The dependency on flutter3d above is spent in `lib/bridge.dart` and nowhere
+# else, which `test/isolation_test.dart` checks in both directions. Everything
+# else here keeps the rule the other two genres keep, and it is the rule that
+# matters: a car that understeers on one machine and not another, a lap that
+# counts twice at the finish line, a driving line an AI cuts through a barrier —
+# none of those are visible in a screenshot, and all of them are reachable from
+# a test with no device.

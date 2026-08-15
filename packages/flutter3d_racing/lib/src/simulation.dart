@@ -1,0 +1,411 @@
+import 'dart:math' as math;
+
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:vector_math/vector_math.dart';
+
+import 'race_state.dart';
+import 'track.dart';
+import 'vehicle/vehicle_controller.dart';
+
+/// A racing game's step, in the order it has to happen in.
+///
+/// The sibling of `PlatformerSimulation`, and the third time this order has
+/// been written down: mechanisms move, the broadphase catches up, dynamics run,
+/// the bodies move, overlaps dispatch, events are published. What is new here
+/// is everything between — cars pushing each other apart, a lap that only
+/// counts if it was driven the whole way round, and putting a car back on the
+/// track when it has left it.
+///
+/// ## What counts a lap
+///
+/// Crossing the finish line is not enough, and the checkpoints exist for one
+/// reason: without them a car can drive ten metres past the line, turn round,
+/// and cross it forwards again for a lap a second. So the line only counts when
+/// every checkpoint has been passed since the last one, in order.
+///
+/// ## What this does not own
+///
+/// The cars. They are handed in already built, they are stepped here, and they
+/// are otherwise none of this class's business — the same relationship the
+/// platformer's simulation has with its runner. That is what lets a car be
+/// driven with no race around it at all.
+final class RacingSimulation {
+  RacingSimulation({
+    required this.collision,
+    required this.vehicles,
+    required this.race,
+    this.mechanisms,
+    this.dynamics,
+    this.killPlane = -50.0,
+    this.offRoadPatience = 4.0,
+    this.contactRestitution = 0.35,
+  }) : inputs = List<VehicleInput>.generate(
+          vehicles.length,
+          (_) => VehicleInput(),
+          growable: false,
+        ) {
+    for (var i = 0; i < vehicles.length; i++) {
+      race.progress[i].s = vehicles[i].trackDistance;
+      _previousS.add(vehicles[i].trackDistance);
+      _backwards.add(0.0);
+      _offRoadFor.add(0.0);
+    }
+  }
+
+  final CollisionWorld collision;
+
+  /// The cars, in a fixed order. Nought is the player's.
+  ///
+  /// Fixed because the order is part of the answer: cars are pushed apart in
+  /// pairs, and a set that iterated differently on another machine would
+  /// separate them differently and take the replay with it.
+  final List<VehicleController> vehicles;
+
+  final RaceState race;
+  final MechanismWorld? mechanisms;
+  final Dynamics? dynamics;
+
+  /// What each driver is asking for. Filled in before [step] — by the player's
+  /// keys for car nought, and by an AI for the rest.
+  final List<VehicleInput> inputs;
+
+  /// The height below which there is no track left.
+  final double killPlane;
+
+  /// How long a car may be off the racing surface before it is put back.
+  ///
+  /// Long enough to run wide and recover, short enough that cutting the course
+  /// is not a strategy.
+  final double offRoadPatience;
+
+  /// How much of the speed of a bump between two cars comes back out of it.
+  final double contactRestitution;
+
+  /// True on the step the race ended.
+  bool finishedThisStep = false;
+
+  /// Advances one fixed step.
+  ///
+  /// The order, and why each piece is where it is:
+  ///
+  /// 1.  clear last step's flags, so that nothing reads an event twice;
+  /// 2.  run the lights — during a countdown a car may rev and may not move;
+  /// 3.  mechanisms move, then `reindex`, then dynamics: a mover that has not
+  ///     been reindexed is a mover the sweeps below find in last step's place;
+  /// 4.  every car steps, in a fixed order;
+  /// 5.  cars that have ended up inside each other are pushed apart — after the
+  ///     driving, because it is the driving that put them there;
+  /// 6.  dynamics are shoved: intent, never leftover velocity;
+  /// 7.  progress is read — where each car is round the lap, which checkpoints
+  ///     it has passed, whether it is going backwards or has left the road;
+  /// 8.  overlaps dispatch, then kinematic deltas are cleared;
+  /// 9.  mechanisms publish, or every event they raised stays unread while the
+  ///     machinery goes on working — the platformer's second lesson;
+  /// 10. cars that have fallen off the world, or spent too long off it, are put
+  ///     back, and the broadphase is told, because it is still holding them
+  ///     where they went.
+  void step(double dt) {
+    race.clearStepFlags();
+    finishedThisStep = false;
+
+    if (race.phase == RacePhase.finished) return;
+
+    final racing = _runLights(dt);
+    race.elapsed += dt;
+
+    mechanisms?.step(dt);
+    collision.reindex();
+    dynamics?.step(dt);
+
+    for (var i = 0; i < vehicles.length; i++) {
+      vehicles[i].step(dt, racing ? inputs[i] : _revvingOnly(inputs[i]));
+      if (!racing) {
+        // Held on the line. The wheels have turned, which is the point of
+        // letting the throttle through, but the car has not.
+        vehicles[i].velocity.setZero();
+      }
+    }
+
+    _separateCars();
+
+    if (dynamics != null) {
+      for (final vehicle in vehicles) {
+        dynamics!.push(vehicle.collider, vehicle.velocity);
+      }
+    }
+
+    for (var i = 0; i < vehicles.length; i++) {
+      _readProgress(i, dt, racing);
+    }
+
+    collision.update();
+    collision.clearKinematicDeltas();
+    mechanisms?.publish();
+
+    for (var i = 0; i < vehicles.length; i++) {
+      _recover(i, dt);
+    }
+  }
+
+  /// Runs the countdown. Returns whether the cars may actually drive.
+  bool _runLights(double dt) {
+    if (race.phase != RacePhase.countdown) return true;
+
+    final before = race.countdown.ceil();
+    race.countdown -= dt;
+    final after = race.countdown.ceil();
+    if (after != before) race.countdownTickThisStep = true;
+
+    if (race.countdown > 0.0) return false;
+
+    race.countdown = 0.0;
+    race.phase = RacePhase.running;
+    race.startedThisStep = true;
+    return true;
+  }
+
+  /// The throttle and nothing else, for a car waiting on the lights.
+  VehicleInput _revvingOnly(VehicleInput asked) {
+    _held
+      ..reset()
+      ..throttle = asked.throttle;
+    return _held;
+  }
+
+  /// Pushes apart any two cars that have ended up inside each other.
+  ///
+  /// Symmetric, and in a fixed pair order. Both halves matter: a car that gave
+  /// way to every other car would be shuffled across the track by a crowd, and
+  /// a pair order that varied would separate them differently on two machines
+  /// running the same replay.
+  void _separateCars() {
+    for (var i = 0; i < vehicles.length; i++) {
+      for (var j = i + 1; j < vehicles.length; j++) {
+        final a = vehicles[i];
+        final b = vehicles[j];
+
+        _between
+          ..setFrom(b.position)
+          ..sub(a.position);
+        final distance = _between.length;
+
+        final overlap = _radiusOf(a) + _radiusOf(b) - distance;
+        if (overlap <= 0.0) continue;
+
+        if (distance < 1e-6) {
+          // Exactly on top of one another, which a grid with a bad column gap
+          // can manage. Any direction will do; a fixed one keeps it repeatable.
+          _between.setValues(1.0, 0.0, 0.0);
+        } else {
+          _between.scale(1.0 / distance);
+        }
+
+        a.position.addScaled(_between, -overlap / 2.0);
+        b.position.addScaled(_between, overlap / 2.0);
+
+        // And the part of their speeds that was closing the gap, swapped and
+        // damped. Without this they separate and immediately drive back into
+        // each other, which reads as two cars vibrating against one another.
+        final closing = b.velocity.dot(_between) - a.velocity.dot(_between);
+        if (closing >= 0.0) continue;
+        final exchange = -closing * (1.0 + contactRestitution) / 2.0;
+        a.velocity.addScaled(_between, -exchange);
+        b.velocity.addScaled(_between, exchange);
+      }
+    }
+  }
+
+  double _radiusOf(VehicleController vehicle) {
+    final shape = vehicle.collider.shape;
+    return shape is CollisionSphere ? shape.radius : 1.0;
+  }
+
+  /// Where this car has got to, and what that means.
+  void _readProgress(int index, double dt, bool racing) {
+    final racer = race.progress[index];
+    final vehicle = vehicles[index];
+    final track = race.track;
+    final length = track.length;
+
+    final previous = _previousS[index];
+    final current = track.centre.wrap(vehicle.trackDistance);
+    final moved = _shortestDelta(previous, current, length);
+    _previousS[index] = current;
+    racer.s = current;
+
+    // How far off the racing line, worked out from where the car already knows
+    // it is rather than by searching the curve a second time.
+    track.frameAt(current, _frame);
+    _offset
+      ..setFrom(vehicle.position)
+      ..sub(_frame.position);
+    racer.lateral = _offset.dot(_frame.right);
+
+    final wasOffRoad = racer.offRoad;
+    racer.offRoad = racer.lateral.abs() > track.widthAt(current) / 2.0;
+    if (racer.offRoad && !wasOffRoad) racer.leftRoadThisStep = true;
+
+    if (!racing || racer.finished || race.mode == RaceMode.freeRoam) {
+      if (race.mode == RaceMode.freeRoam) racer.totalTime += dt;
+      return;
+    }
+
+    racer.lapTime += dt;
+    racer.totalTime += dt;
+
+    _readWrongWay(racer, index, moved);
+    _readCheckpoints(racer, previous, moved, length);
+    _readLine(racer, previous, moved, length);
+  }
+
+  /// Going backwards, once it has gone on long enough to be deliberate.
+  ///
+  /// Measured as distance rather than as a moment, because a car sliding
+  /// through a corner spends single steps pointing anywhere at all, and a
+  /// warning that flashed on every one of those would mean nothing.
+  void _readWrongWay(RacerProgress racer, int index, double moved) {
+    if (moved < 0.0) {
+      _backwards[index] -= moved;
+    } else {
+      _backwards[index] = math.max(0.0, _backwards[index] - moved);
+    }
+
+    final wrong = _backwards[index] > 12.0;
+    if (wrong && !racer.wrongWay) racer.wrongWayStartedThisStep = true;
+    racer.wrongWay = wrong;
+  }
+
+  void _readCheckpoints(
+    RacerProgress racer,
+    double previous,
+    double moved,
+    double length,
+  ) {
+    final checkpoints = race.track.checkpoints;
+    if (checkpoints.isEmpty || moved <= 0.0) return;
+
+    // One step can cover several checkpoints on a short track at speed, so this
+    // is a loop and not an `if`.
+    while (racer.nextCheckpoint < checkpoints.length &&
+        _swept(previous, moved, checkpoints[racer.nextCheckpoint], length)) {
+      racer.nextCheckpoint += 1;
+      racer.checkpointThisStep = true;
+    }
+  }
+
+  /// Crossing the finish line, which only counts having been all the way round.
+  void _readLine(
+    RacerProgress racer,
+    double previous,
+    double moved,
+    double length,
+  ) {
+    if (moved <= 0.0) return;
+    if (!_swept(previous, moved, 0.0, length)) return;
+
+    if (racer.nextCheckpoint < race.track.checkpoints.length) {
+      // Over the line without having been round: a cut course, or a car that
+      // reversed over the line and drove forwards again. Nothing happens, and
+      // the checkpoints it does have are kept — it still has to reach the rest.
+      return;
+    }
+
+    racer.lap += 1;
+    racer.nextCheckpoint = 0;
+    racer.lastLap = racer.lapTime;
+    racer.lapCompletedThisStep = true;
+
+    final best = racer.bestLap;
+    if (best == null || racer.lastLap < best) {
+      racer.bestLap = racer.lastLap;
+      racer.bestLapThisStep = true;
+    }
+    racer.lapTime = 0.0;
+
+    if (race.mode == RaceMode.race && racer.lap >= race.laps) {
+      racer.finishedAt = race.elapsed;
+      racer.finishedThisStep = true;
+      if (race.progress.every((RacerProgress other) => other.finished)) {
+        race.phase = RacePhase.finished;
+        finishedThisStep = true;
+      }
+    }
+  }
+
+  /// Puts a car back when it has fallen off the world or spent too long off the
+  /// track.
+  void _recover(int index, double dt) {
+    final racer = race.progress[index];
+    final vehicle = vehicles[index];
+
+    if (racer.offRoad) {
+      _offRoadFor[index] += dt;
+    } else {
+      _offRoadFor[index] = 0.0;
+    }
+
+    final fell = vehicle.position.y < killPlane;
+    final lost = _offRoadFor[index] > offRoadPatience;
+    if (!fell && !lost) return;
+
+    // Back to the last checkpoint reached, facing the way the track goes. Not
+    // to where it left the road: a car put back where it went off is a car put
+    // back into the wall it went off into.
+    final checkpoints = race.track.checkpoints;
+    final at = racer.nextCheckpoint == 0
+        ? 0.0
+        : checkpoints[racer.nextCheckpoint - 1];
+
+    race.track.frameAt(at, _frame);
+    _spawn
+      ..setFrom(_frame.position)
+      ..y += 1.0;
+    vehicle.placeAt(
+      _spawn,
+      math.atan2(_frame.forward.x, _frame.forward.z),
+      trackDistance: at,
+    );
+
+    _previousS[index] = race.track.centre.wrap(at);
+    _backwards[index] = 0.0;
+    _offRoadFor[index] = 0.0;
+    racer
+      ..s = _previousS[index]
+      ..offRoad = false
+      ..wrongWay = false
+      ..respawnedThisStep = true;
+
+    // No `reindex` here, unlike the platformer's revive. That one runs at the
+    // top of a step and returns before the step's own reindex; this runs at the
+    // bottom, after the overlaps have dispatched, and the next step reindexes
+    // before anything sweeps. A call here would be one nobody could observe.
+  }
+
+  /// Whether moving [moved] metres on from [from] passes [mark] going forwards.
+  ///
+  /// Both ends wrap, so the mark is tried a lap either side as well: a step that
+  /// crosses the finish line has a `from` near the length and a mark at nought.
+  static bool _swept(double from, double moved, double mark, double length) {
+    final to = from + moved;
+    for (final candidate in <double>[mark - length, mark, mark + length]) {
+      if (candidate > from && candidate <= to) return true;
+    }
+    return false;
+  }
+
+  /// The shorter of the two ways round from [from] to [to], signed.
+  static double _shortestDelta(double from, double to, double length) {
+    var delta = (to - from) % length;
+    if (delta > length / 2) delta -= length;
+    return delta;
+  }
+
+  final List<double> _previousS = <double>[];
+  final List<double> _backwards = <double>[];
+  final List<double> _offRoadFor = <double>[];
+  final VehicleInput _held = VehicleInput();
+  final TrackFrame _frame = TrackFrame();
+  final Vector3 _offset = Vector3.zero();
+  final Vector3 _between = Vector3.zero();
+  final Vector3 _spawn = Vector3.zero();
+}

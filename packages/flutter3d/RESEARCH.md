@@ -262,7 +262,11 @@ choose an engine.
       Implemented with version counters: there is no separate update pass.
 - [ ] **P1** Euler angles with axis orders, matrix decomposition, `slerp`/`nlerp`, spherical
       coordinates.
-- [ ] **P1** Curves and splines (Catmull-Rom, Bezier, path), easing functions.
+- [~] **P1** Curves and splines (Catmull-Rom, Bezier, path), easing functions.
+      Catmull-Rom is done, in `flutter3d_game` rather than here: its first caller is a racing
+      simulation, and a simulation may not depend on the renderer. Measured in metres rather
+      than in a segment parameter, because every caller so far wants a distance. Bezier, paths
+      and easing are still open, and nothing asks for them yet.
 - [x] **P2** Intersections: ray×AABB/sphere/triangle/OBB/plane, sphere×frustum, sweep tests.
       AABB, sphere and triangle (Möller–Trumbore) are done, with `out` parameters and a `-1`
       sentinel instead of a nullable double. OBB, plane and sweeps are not.
