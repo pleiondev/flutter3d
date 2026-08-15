@@ -52,12 +52,13 @@ final class FollowTuning {
 
 /// A third-person camera: behind the runner, above it, out of the walls.
 ///
-/// The game layer has no camera type and that is deliberate — its README says a
-/// third-person camera is a caller reading `eye` and `aim` differently. This is
-/// that caller, and it lives here rather than in the engine because a platformer
-/// is the only thing in this repository that has one so far. It moves down when
-/// a second game wants it, which is the same rule that produced
-/// `flutter3d_bridge`.
+/// What is left here is what makes it a *platformer's* camera: a yaw the player
+/// turns with the mouse, a pitch they tilt, and the orbit those two describe
+/// around the runner. Everything a chasing camera has in common with any other
+/// — easing without overshoot, knocks and shakes that fade, staying out of the
+/// walls, and the order those have to happen in — moved to [CameraRig] in the
+/// engine when a second game wanted it. That is the same rule that produced
+/// `flutter3d_bridge`, applied a second time.
 ///
 /// Nothing here knows what a renderer is: it answers with two points and a
 /// number, and the application copies them into whatever it is drawing with.
@@ -66,7 +67,12 @@ final class FollowCamera {
     required this.world,
     this.tuning = const FollowTuning(),
     double yaw = 0.0,
-  }) {
+  }) : rig = CameraRig(
+          world: world,
+          impulseDecay: tuning.impulseDecay,
+          nearClearance: tuning.nearClearance,
+          minDistance: tuning.minDistance,
+        ) {
     _yaw = yaw;
     _pitch = tuning.pitch;
   }
@@ -75,6 +81,10 @@ final class FollowCamera {
   final CollisionWorld world;
 
   final FollowTuning tuning;
+
+  /// The shared half: where the camera actually is, and everything that gets it
+  /// there.
+  final CameraRig rig;
 
   late double _yaw;
   late double _pitch;
@@ -85,51 +95,32 @@ final class FollowCamera {
 
   double get pitch => _pitch;
 
-  final Vector3 _eye = Vector3.zero();
-  final Vector3 _target = Vector3.zero();
-  bool _placed = false;
-
   /// Where the camera is. Valid after the first [follow].
-  Vector3 get eye => _eye;
+  Vector3 get eye => rig.eye;
 
   /// What it is looking at.
-  Vector3 get target => _target;
-
-  /// A knock, in metres, that decays away. The camera's own recoil.
-  final Vector3 _kick = Vector3.zero();
-
-  /// How much shake is left, and how fast it wobbles.
-  double _shake = 0.0;
-  double _shakeTime = 0.0;
+  Vector3 get target => rig.target;
 
   /// How much of the shake the player asked for, nought to one.
-  ///
-  /// A setting rather than a constant because a shaking camera makes some
-  /// people ill, and a game that cannot be turned down is a game they cannot
-  /// play. Zero is not "broken", it is "off".
-  double shakeScale = 1.0;
+  double get shakeScale => rig.shakeScale;
+  set shakeScale(double value) => rig.shakeScale = value;
 
   /// Extra field of view, in radians, that decays away. Read by the
   /// application, which owns the projection.
-  double get extraFov => _fov;
-  double _fov = 0.0;
+  double get extraFov => rig.extraFov;
 
   /// Knocks the camera along [direction] by its length, in metres.
   ///
   /// For a landing: a dip the size of the impact, gone in a quarter of a
   /// second. Cinemachine calls the same idea an impulse.
-  void kick(Vector3 direction) => _kick.add(direction);
+  void kick(Vector3 direction) => rig.kick(direction);
 
   /// Shakes the camera for [seconds], [amount] metres wide.
-  void shake(double amount, {double seconds = 0.35}) {
-    _shake = math.max(_shake, amount * seconds);
-    _shakeSeconds = math.max(_shakeSeconds, seconds);
-  }
-
-  double _shakeSeconds = 0.0;
+  void shake(double amount, {double seconds = 0.35}) =>
+      rig.shake(amount, seconds: seconds);
 
   /// Widens the view by [radians], which decays back. For speed and a dash.
-  void widen(double radians) => _fov = math.max(_fov, radians);
+  void widen(double radians) => rig.widen(radians);
 
   /// Turns the camera by a look delta from a mouse or a stick.
   void look(Vector2 delta) {
@@ -144,91 +135,31 @@ final class FollowCamera {
   /// step with the simulated one: this is presentation, and a camera that
   /// steps at 60 Hz on a 120 Hz display judders even when the runner does not.
   void follow(Vector3 runner, double dt) {
-    _target
+    _wantedTarget
       ..setFrom(runner)
       ..y += tuning.aimHeight;
 
     final cosPitch = math.cos(_pitch);
-    final wanted = Vector3(
-      _target.x - math.sin(_yaw) * tuning.distance * cosPitch,
-      _target.y + tuning.height - math.sin(_pitch) * tuning.distance,
-      _target.z - math.cos(_yaw) * tuning.distance * cosPitch,
+    _wantedEye.setValues(
+      _wantedTarget.x - math.sin(_yaw) * tuning.distance * cosPitch,
+      _wantedTarget.y + tuning.height - math.sin(_pitch) * tuning.distance,
+      _wantedTarget.z - math.cos(_yaw) * tuning.distance * cosPitch,
     );
 
-    if (!_placed) {
-      // The first frame is a cut, not a chase. Starting at the origin and
-      // easing in means the level begins with the camera flying across it.
-      _eye.setFrom(wanted);
-      _placed = true;
-    } else {
-      // Exponential smoothing, written so that the fraction of the gap closed
-      // in a second is the same whatever dt is.
-      final t = 1.0 - math.exp(-tuning.lag * dt);
-      _eye.addScaled(wanted - _eye, t);
-    }
-
-    // **The wall check runs on both sides of the impulse, and both are
-    // needed.** Before, because the knock should be added to a camera that is
-    // already where it belongs rather than to one halfway inside a wall.
-    // After, because a knock is a displacement like any other and a camera
-    // inside a brush is the one thing this class exists to prevent — a
-    // property test with three hundred random impulses in a boxed room caught
-    // it doing exactly that, half a metre into the wall behind the player.
-    _keepOutOfWalls();
-
-    _decay(dt);
-    _eye.add(_kick);
-    if (_shake > 0.0) {
-      _eye
-        ..x += math.sin(_shakeTime * 47.0) * _shake * shakeScale
-        ..y += math.sin(_shakeTime * 39.0 + 1.7) * _shake * shakeScale
-        ..z += math.sin(_shakeTime * 53.0 + 3.1) * _shake * shakeScale;
-    }
-
-    _keepOutOfWalls();
-  }
-
-  void _decay(double dt) {
-    _shakeTime += dt;
-    final gone = 1.0 - math.exp(-tuning.impulseDecay * dt);
-    _kick.scale(1.0 - gone);
-    _fov *= 1.0 - gone;
-    if (_shakeSeconds > 0.0) {
-      _shake = math.max(0.0, _shake - dt * _shake / _shakeSeconds - 1e-4);
-    }
-  }
-
-  /// Pulls the camera in until the line from the runner to it is clear.
-  ///
-  /// A ray out from the target rather than a sweep of the camera's shape: the
-  /// camera has no shape, and what matters is that the player can see their own
-  /// runner. [FollowTuning.nearClearance] is what stops the near plane from
-  /// clipping into the wall it stopped against.
-  void _keepOutOfWalls() {
-    final toEye = _eye - _target;
-    final reach = toEye.length;
-    if (reach <= 1e-4) return;
-    toEye.scale(1.0 / reach);
-
-    final hit = RayHit();
-    if (!world.raycast(_target, toEye, reach, hit, mask: CollisionLayers.world)) {
-      return;
-    }
-
-    final pulled = math.max(tuning.minDistance, hit.distance - tuning.nearClearance);
-    _eye
-      ..setFrom(_target)
-      ..addScaled(toEye, pulled);
+    rig.place(
+      desiredEye: _wantedEye,
+      desiredTarget: _wantedTarget,
+      lag: tuning.lag,
+      dt: dt,
+    );
   }
 
   /// Puts the camera behind the runner at once, without a chase.
   ///
   /// For a respawn: easing from where the player died to where they came back
   /// is a second of the level flying past for no reason.
-  void cut() {
-    _placed = false;
-    _kick.setZero();
-    _shake = 0.0;
-    _fov = 0.0;
-  }
+  void cut() => rig.cut();
+
+  final Vector3 _wantedEye = Vector3.zero();
+  final Vector3 _wantedTarget = Vector3.zero();
 }

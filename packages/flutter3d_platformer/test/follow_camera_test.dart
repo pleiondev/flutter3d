@@ -86,6 +86,96 @@ void main() {
         lessThan(const FollowTuning().distance));
   });
 
+  test('and having been pulled in, it stays where it was pulled to', () {
+    // **The bug the whole "the penguin is drawn twice" report turned out to
+    // be**, and it was not the penguin: it was every pixel on the screen.
+    //
+    // `keepOutOfWalls` wrote its answer into the vector being smoothed. So the
+    // wall pulled the eye in to four metres, the smoother spent the next frame
+    // easing from four back towards seven, the wall pulled it in again, and the
+    // picture bounced by whatever fraction of that gap the lag closes — a
+    // hundred and eighty millimetres a frame, measured with the runner
+    // provably motionless, at twenty-seven places in the teaching level. At
+    // sixty hertz that is not a wobble, it is a double exposure.
+    //
+    // The rule: **a constraint is not a state.** What is smoothed is where the
+    // camera wants to be; where it is allowed to be is worked out from that
+    // afresh each frame and thrown away.
+    //
+    // Mutation: point `keepOutOfWalls` back at the smoothed vector. Both
+    // assertions below fail, and the second says by how much.
+    final camera = FollowCamera(world: _walled());
+    for (var i = 0; i < 240; i++) {
+      camera.follow(Vector3.zero(), _frame);
+    }
+
+    final settled = camera.eye.clone();
+    var worst = 0.0;
+    for (var i = 0; i < 60; i++) {
+      camera.follow(Vector3.zero(), _frame);
+      final moved = (camera.eye - settled).length;
+      if (moved > worst) worst = moved;
+    }
+
+    expect(worst, lessThan(0.001),
+        reason: 'watching something that has not moved, the camera moved '
+            '${(worst * 1000).toStringAsFixed(0)} mm');
+  });
+
+  test('and what is smoothed is never touched by the wall', () {
+    // The same claim from the other side, and the one that would survive a
+    // rewrite of how the pull-in works: whatever the wall does, the state the
+    // lag runs on must converge on the free position.
+    //
+    // Mutation: as above. `freeEye` stops converging, because every frame it is
+    // clamped back to the wall and has to climb out again.
+    final camera = FollowCamera(world: _walled());
+    for (var i = 0; i < 240; i++) {
+      camera.follow(Vector3.zero(), _frame);
+    }
+
+    final free = camera.rig.freeEye.clone();
+    for (var i = 0; i < 30; i++) {
+      camera.follow(Vector3.zero(), _frame);
+    }
+
+    expect((camera.rig.freeEye - free).length, lessThan(1e-6),
+        reason: 'the smoothed state has not converged');
+
+    // And the two really are different things: the free eye is behind the wall,
+    // where the camera wanted to be, and the shown one is in front of it. A
+    // fix that simply stopped pulling in would pass the test above and fail
+    // this one.
+    expect(camera.rig.freeEye.z, lessThan(-2.0),
+        reason: 'the free eye should be where the wall is not consulted');
+    expect(camera.eye.z, greaterThan(-2.0),
+        reason: 'the shown eye should still be in front of the wall');
+  });
+
+  test('and a kick is not smoothed either', () {
+    // The same rule as the wall, applied to the other transient: an impulse is
+    // something added on the way out, not something written into where the
+    // camera thinks it is. Adding it to the state works — the kick decays and
+    // the smoother climbs back — which is exactly why it needs a test: it is
+    // wrong in a way that looks right.
+    //
+    // Mutation: `_eye.add(_kick)` instead of `_shown.add(_kick)`. The camera
+    // still returns to where it was, so every other test here passes; what
+    // changes is that a kick now drags the lag with it.
+    final camera = FollowCamera(world: _empty());
+    for (var i = 0; i < 240; i++) {
+      camera.follow(Vector3.zero(), _frame);
+    }
+
+    final free = camera.rig.freeEye.clone();
+    camera.kick(Vector3(0.0, -0.5, 0.0));
+    camera.follow(Vector3.zero(), _frame);
+
+    expect(camera.eye.y, lessThan(free.y - 0.3), reason: 'the kick did nothing');
+    expect((camera.rig.freeEye - free).length, lessThan(1e-6),
+        reason: 'the kick moved what the lag runs on');
+  });
+
   test('looking turns the camera and the pitch is clamped', () {
     final camera = FollowCamera(world: _empty());
     final before = camera.yaw;
