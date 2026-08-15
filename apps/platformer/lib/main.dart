@@ -9,6 +9,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -52,6 +53,20 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen>
     with SingleTickerProviderStateMixin {
   static const String _levelAsset = 'assets/levels/ascent.json';
+  static const String _runnerModel = 'assets/models/penguin.glb';
+
+  /// Which way the model faces when nothing has turned it.
+  ///
+  /// A number rather than a rotated asset: whichever way an exporter happened
+  /// to point it is not worth re-authoring a mesh over, and the alternative —
+  /// building the offset into the yaw the *simulation* holds — would make the
+  /// runner's facing depend on what it is wearing.
+  ///
+  /// Zero, checked by walking: half a turn was the guess, and the penguin went
+  /// backwards. There is no way to read this off the file — a bounding box is
+  /// symmetric about the thing it contains — so it is one of the few numbers
+  /// here that only somebody looking at the screen can settle.
+  static const double _modelFacing = 0.0;
 
   final SettingsFile _settingsFile = SettingsFile();
   late final GameConfig _config;
@@ -82,7 +97,27 @@ class _GameScreenState extends State<GameScreen>
   Scene? _scene;
   LoadedLevel? _loaded;
   FixtureVisuals? _fixtures;
-  MeshNode? _runnerNode;
+
+  /// What the player sees themselves as. A model when one loads, a box when it
+  /// does not — the game is playable either way, and a missing asset should not
+  /// be the difference between playing and staring at an error.
+  SceneNode? _runnerNode;
+
+  /// The loaded model, held so that nothing collects it out from under the
+  /// scene. `FixtureVisuals` keeps its assets in a cache for the same reason.
+  // ignore: unused_field
+  ModelAsset? _runnerAsset;
+
+  /// How far below the body's centre the visual's origin sits.
+  ///
+  /// A body is a box about its middle; a model of somebody standing has its
+  /// feet at the origin. The same two conventions that produced the respawn
+  /// bug, reconciled in one number instead of by a parent node.
+  double _runnerDrop = 0.0;
+
+  /// Added to the runner's yaw, for a model that was exported facing the other
+  /// way. A number rather than a re-authored mesh.
+  double _runnerFacing = 0.0;
 
   Runner? _runner;
   PlatformerSimulation? _sim;
@@ -229,16 +264,12 @@ class _GameScreenState extends State<GameScreen>
       ),
     );
 
-    final node = MeshNode(
-      SharedMeshes(device).box(runner.body.halfExtents * 2.0),
-      Material(
-        name: 'runner',
-        baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
-        lighting: LightingModel.pbr,
-      )..roughness = 0.5,
-      name: 'runner',
-    );
-    loaded.scene.add(node);
+    // A box now, the model when it arrives. `FixtureVisuals` does the same for
+    // a modelled fixture, and doing it any other way is what turned out to
+    // matter: awaiting the model here puts it in the scene before the renderer
+    // has ever built its frame targets, and on this machine that combination
+    // fails to allocate them — every frame, from the first.
+    final node = _boxRunner(device, loaded.scene, runner);
 
     setState(() {
       _loaded = loaded;
@@ -256,9 +287,67 @@ class _GameScreenState extends State<GameScreen>
         levelNext: loaded.level.next,
       );
       _followCamera = FollowCamera(world: loaded.collision);
+      unawaited(_dressRunner(device, loaded.scene, runner));
       _drawnAt.jumpTo(runner.body.position);
       _drawnYaw.jumpTo(runner.yaw);
     });
+  }
+
+  /// A box, right away, so the game can be played while the model loads.
+  SceneNode _boxRunner(GpuRenderBackend device, Scene scene, Runner runner) {
+    final box = MeshNode(
+      SharedMeshes(device).box(runner.body.halfExtents * 2.0),
+      Material(
+        name: 'runner',
+        baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
+        lighting: LightingModel.pbr,
+      )..roughness = 0.5,
+      name: 'runner box',
+    );
+    scene.add(box);
+    return box;
+  }
+
+  /// Swaps the box for the model once it has been read and uploaded.
+  ///
+  /// **Not awaited before the first frame, and that is the whole point.** The
+  /// model in the scene before the renderer has ever built its frame targets is
+  /// the arrangement that fails here: `_ensureTargets` cannot allocate, every
+  /// frame, from the first, and the picture is an error screen. The same file
+  /// through `FixtureVisuals` is fine, and the difference is that a modelled
+  /// fixture arrives *after* the frames have started — so this does too.
+  ///
+  /// The asset is authored at the size the game wants (`tool/shrink_glb.py`
+  /// bakes the scale into its root), so there is no `setScale` here either.
+  Future<void> _dressRunner(
+    GpuRenderBackend device,
+    Scene scene,
+    Runner runner,
+  ) async {
+    try {
+      final document = await decodeModelInIsolate(
+        ModelLoadRequest(source: const BundleAssetSource(_runnerModel)),
+      );
+      final asset = await ModelAsset.fromDocument(
+        document,
+        device: device,
+        fallbackAlbedo: SolidColorTexture.white.upload(device),
+        name: _runnerModel,
+      );
+      if (!mounted) return;
+
+      final instance = asset.instantiate(scene, name: 'runner');
+      final box = _runnerNode;
+      setState(() {
+        _runnerAsset = asset;
+        _runnerNode = instance.root;
+        _runnerDrop = runner.body.halfExtents.y - asset.localBounds.min.y;
+        _runnerFacing = _modelFacing;
+      });
+      if (box != null) scene.remove(box);
+    } catch (error) {
+      debugPrint('runner: could not load $_runnerModel, staying a box ($error)');
+    }
   }
 
   void _onTick(Duration now) {
@@ -331,9 +420,12 @@ class _GameScreenState extends State<GameScreen>
     camera.follow(_scratch, dt);
 
     node
-      ..setPositionFrom(_scratch)
+      ..setPosition(_scratch.x, _scratch.y - _runnerDrop, _scratch.z)
       ..setRotation(
-        Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _drawnYaw.read(_loop.alpha)),
+        Quaternion.axisAngle(
+          Vector3(0.0, 1.0, 0.0),
+          _drawnYaw.read(_loop.alpha) + _runnerFacing,
+        ),
       );
 
     _camera
