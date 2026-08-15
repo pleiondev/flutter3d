@@ -11,6 +11,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 
+import 'backend.dart';
+
 class SceneSurface extends StatelessWidget {
   const SceneSurface({
     super.key,
@@ -44,7 +46,10 @@ class SceneSurface extends StatelessWidget {
             // that is metres of world per texel, which draws a car's own shadow
             // as a slab beside it; three tiles put the near one over the part
             // of the track anybody is looking at.
-            shadows: const ShadowSettings(cascades: 3, resolution: 2048),
+            shadows: const ShadowSettings(
+              cascades: kShadowCascades,
+              resolution: kShadowResolution,
+            ),
           ),
         );
         // From the device rather than painted from an image: a backend whose

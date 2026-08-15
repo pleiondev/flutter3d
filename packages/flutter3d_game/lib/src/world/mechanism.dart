@@ -97,6 +97,30 @@ abstract base class Mechanism {
   /// switching something else on. See [MechanismWorld.publish] for why each
   /// mechanism answers for itself rather than being interrogated.
   void collect(MechanismEvents into) {}
+
+  /// What this mechanism holds that a save has to carry.
+  ///
+  /// **Abstract, and that is the whole point of it being here.** Each game used
+  /// to keep a hand-written `switch` over mechanism types in its own `save`,
+  /// listing the five or six it knew about — so a new mechanism was silently
+  /// unsaved, and the shooter's notes had already recorded that as debt before
+  /// the platformer inherited it. A door that was open closed itself on load, a
+  /// once-only trigger fired again, and nothing anywhere said so.
+  ///
+  /// A mechanism with nothing to remember answers `const <String, Object?>{}`
+  /// and says why in a line. That is not ceremony: the empty map is a decision
+  /// somebody made, and the compiler now insists that somebody make it.
+  ///
+  /// **Identity is [name].** A save is a map from name to row, so a mechanism
+  /// with no name cannot be saved and is skipped — see the note on
+  /// [MechanismWorld.saveAll].
+  Map<String, Object?> save();
+
+  /// Puts back what [save] took. Given the same map it produced.
+  ///
+  /// Restoring is not the reverse of a step: it must leave the mechanism in a
+  /// state it could have reached by playing, including any collider it owns.
+  void restore(Map<String, Object?> from);
 }
 
 /// What the level's machinery did during one step.
@@ -152,6 +176,18 @@ abstract base class Signal extends Mechanism {
 
   /// Whether this has already fired and will not fire again.
   bool get isSpent => _spent;
+
+  /// The latch, and nothing else.
+  ///
+  /// **This is what a save used to lose.** A once-only trigger — the plate in
+  /// front of a gate, the volume that fires a cutscene — was not in anybody's
+  /// `switch`, so reloading gave it back and it fired a second time. A player
+  /// who saved past a one-shot and came back found it waiting.
+  @override
+  Map<String, Object?> save() => <String, Object?>{'spent': _spent};
+
+  @override
+  void restore(Map<String, Object?> from) => _spent = from['spent'] == true;
 
   /// Passes the activation on to [target].
   ///

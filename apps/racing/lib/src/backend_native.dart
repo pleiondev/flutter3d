@@ -15,6 +15,14 @@ const bool kFixedResolution = false;
 const int kRenderWidth = 0;
 const int kRenderHeight = 0;
 
+/// The shadow atlas this build can afford.
+///
+/// The atlas is `resolution × cascades` wide, so these two numbers multiply
+/// into one texture: 6144 pixels of HDR here, which a discrete GPU fills
+/// without noticing.
+const int kShadowCascades = 3;
+const int kShadowResolution = 2048;
+
 /// Opens the backend, or throws with something worth putting on screen.
 ///
 /// [width] and [height] are ignored: this backend sizes itself per frame.

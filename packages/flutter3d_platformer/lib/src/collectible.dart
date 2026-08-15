@@ -92,8 +92,10 @@ final class Collectible extends Mechanism with CollisionListener {
     if (_taken && sinceTaken.isFinite) sinceTaken += dt;
   }
 
+  @override
   Map<String, Object?> save() => <String, Object?>{'taken': _taken};
 
+  @override
   void restore(Map<String, Object?> from) {
     _taken = from['taken'] == true;
     justTaken = false;

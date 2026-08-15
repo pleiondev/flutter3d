@@ -109,6 +109,22 @@ final class LightFixture extends Mechanism {
   bool get isMeasured => _measured;
   bool _measured = false;
 
+  /// Whether it is lit, and nothing else.
+  ///
+  /// The brightness is not saved and that is deliberate: it is a function of
+  /// the clock and the seed, so it comes back on its own at the first step and
+  /// storing it would be storing a number that is about to be overwritten.
+  /// Whether somebody switched the lamp off is the only thing here that a
+  /// player did.
+  @override
+  Map<String, Object?> save() => <String, Object?>{'enabled': enabled};
+
+  @override
+  void restore(Map<String, Object?> from) {
+    final on = from['enabled'];
+    if (on is bool) enabled = on;
+  }
+
   /// Where the fire actually is, or null if nothing has said.
   ///
   /// A flame is not a point and it does not sit still, so the light it casts

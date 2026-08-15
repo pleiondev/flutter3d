@@ -144,6 +144,7 @@ abstract base class Mover extends Mechanism {
     collider.moveTo(_candidate);
   }
 
+  @override
   Map<String, Object?> save() => <String, Object?>{
         'progress': _progress,
         'goal': goal,
@@ -151,6 +152,7 @@ abstract base class Mover extends Mechanism {
         'wasMoving': _wasMoving,
       };
 
+  @override
   void restore(Map<String, Object?> from) {
     _progress = (from['progress'] as num?)?.toDouble() ?? 0.0;
     goal = (from['goal'] as num?)?.toDouble() ?? 0.0;

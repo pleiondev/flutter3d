@@ -101,8 +101,10 @@ final class Pickup extends Mechanism with CollisionListener {
   @override
   void step(double dt) => justTaken = false;
 
+  @override
   Map<String, Object?> save() => <String, Object?>{'taken': _taken};
 
+  @override
   void restore(Map<String, Object?> from) {
     _taken = from['taken'] == true;
     justTaken = false;

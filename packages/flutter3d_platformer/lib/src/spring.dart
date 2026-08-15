@@ -39,6 +39,15 @@ final class Spring extends Mechanism with CollisionListener {
   /// gravity, which is two and a half times a jump and reads as a launch.
   final double speed;
 
+  /// Nothing. A pad has a speed and a collider and no memory: `firedThisStep`
+  /// is cleared by the step that publishes it, so there is no moment at which
+  /// a save could catch it holding anything.
+  @override
+  Map<String, Object?> save() => const <String, Object?>{};
+
+  @override
+  void restore(Map<String, Object?> from) {}
+
   /// True on the step it fired, for a sound and a squash.
   bool firedThisStep = false;
 

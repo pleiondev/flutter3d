@@ -56,6 +56,17 @@ final class Hazard extends Mechanism with CollisionListener {
   /// overlap callbacks the broadphase happened to dispatch.
   double _dt = 0.0;
 
+  /// Nothing. **A decision, not an omission**, which is what the empty map is
+  /// for: what a hazard holds is a fraction of a second of accumulated contact
+  /// and whether it looked for its rail yet, and both are rebuilt on the first
+  /// step after a load. A player who saves standing in lava is restored
+  /// standing in lava, which is the same lava either way.
+  @override
+  Map<String, Object?> save() => const <String, Object?>{};
+
+  @override
+  void restore(Map<String, Object?> from) {}
+
   @override
   void step(double dt) {
     _dt = dt;

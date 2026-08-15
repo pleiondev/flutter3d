@@ -57,8 +57,10 @@ final class Checkpoint extends Mechanism with CollisionListener {
   @override
   void step(double dt) => justReached = false;
 
+  @override
   Map<String, Object?> save() => <String, Object?>{'reached': _reached};
 
+  @override
   void restore(Map<String, Object?> from) {
     _reached = from['reached'] == true;
     justReached = false;

@@ -14,14 +14,24 @@ import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 /// takes a `BoxFit`.
 const bool kFixedResolution = true;
 
-/// 720p, which is the trade this demo is making.
+/// 960×540, lower than the other two demos.
 ///
-/// Every pixel here is blitted to the canvas and then scaled by the browser, so
-/// this is the resolution the picture actually has however large the window is.
-/// Higher costs fill rate on a software-composited surface; lower reads as
-/// blurry the moment anybody opens it on a laptop.
-const int kRenderWidth = 1280;
-const int kRenderHeight = 720;
+/// It does not go far enough. This scene runs at well under one frame a second
+/// in a browser, and dropping to 480×270 with a single 512 shadow tile changed
+/// nothing measurable, so the cost is not fill rate. Until it is found, the
+/// browser build of this game renders correctly and is not playable; the
+/// desktop build is.
+const int kRenderWidth = 960;
+const int kRenderHeight = 540;
+
+/// The shadow atlas this build can afford.
+///
+/// The atlas is `resolution × cascades` wide. Desktop asks for 3 × 2048, which
+/// is a 6144-pixel HDR texture; two tiles of 1024 is a twelfth of the fill and
+/// still covers the near road, which is the only part a chase camera sees in
+/// any detail.
+const int kShadowCascades = 2;
+const int kShadowResolution = 1024;
 
 /// Opens the backend, or throws with something worth putting on screen.
 Future<GraphicsDevice> openDevice({

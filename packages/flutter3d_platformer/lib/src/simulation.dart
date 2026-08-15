@@ -319,9 +319,13 @@ final class PlatformerSimulation {
         'deaths': deaths,
         'lives': lives,
         'elapsed': elapsed,
+        // **Keyed by name, and a mechanism without one is not saved.**
+        // Every entity the generators emit is named, so nothing is lost today —
+        // but that is a convention, not a guarantee, and `saved every named
+        // mechanism` in the tests is what keeps it one.
         'mechanisms': <String, Object?>{
           for (final mechanism in mechanisms?.all ?? const <Mechanism>[])
-            if (mechanism.name != null) mechanism.name!: _saveMechanism(mechanism),
+            if (mechanism.name != null) mechanism.name!: mechanism.save(),
         },
       });
 
@@ -356,7 +360,7 @@ final class PlatformerSimulation {
         final name = mechanism.name;
         if (name == null) continue;
         final row = saves[name];
-        if (row is Map<String, Object?>) _restoreMechanism(mechanism, row);
+        if (row is Map<String, Object?>) mechanism.restore(row);
       }
     }
 
@@ -365,37 +369,4 @@ final class PlatformerSimulation {
     collision.clearKinematicDeltas();
   }
 
-  /// Saves what a mechanism holds, if it holds anything.
-  ///
-  /// A switch over types, and it is the same one `GameSimulation.save` has —
-  /// which the shooter's own notes already call out as the remaining debt of
-  /// the ECS migration: a new mechanism is silently unsaved. Stated here rather
-  /// than repeated silently, because this package inherits the debt rather than
-  /// inventing it.
-  static Map<String, Object?>? _saveMechanism(Mechanism mechanism) =>
-      switch (mechanism) {
-        Collectible() => mechanism.save(),
-        Checkpoint() => mechanism.save(),
-        Crumbling() => mechanism.save(),
-        Breakable() => mechanism.save(),
-        Mover() => mechanism.save(),
-        _ => null,
-      };
-
-  static void _restoreMechanism(Mechanism mechanism, Map<String, Object?> row) {
-    switch (mechanism) {
-      case Collectible():
-        mechanism.restore(row);
-      case Checkpoint():
-        mechanism.restore(row);
-      case Crumbling():
-        mechanism.restore(row);
-      case Breakable():
-        mechanism.restore(row);
-      case Mover():
-        mechanism.restore(row);
-      default:
-        break;
-    }
-  }
 }

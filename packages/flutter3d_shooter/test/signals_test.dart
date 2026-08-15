@@ -407,6 +407,13 @@ Collider _eventBox(CollisionWorld world) => world.add(
 final class _Placeless extends Mechanism {
   @override
   ActivationOutcome activate(Activation by) => const NothingToDo();
+
+  /// Nothing: a test fixture that exists to have no place.
+  @override
+  Map<String, Object?> save() => const <String, Object?>{};
+
+  @override
+  void restore(Map<String, Object?> from) {}
 }
 
 void _eventTests() {

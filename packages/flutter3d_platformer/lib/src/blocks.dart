@@ -93,12 +93,14 @@ final class Crumbling extends Mechanism with CollisionListener {
     if (sinceTouched.isInfinite) sinceTouched = 0.0;
   }
 
+  @override
   Map<String, Object?> save() => <String, Object?>{
         'since': sinceTouched.isFinite ? sinceTouched : null,
         'fallen': _fallen,
         'away': _away,
       };
 
+  @override
   void restore(Map<String, Object?> from) {
     final since = from['since'];
     sinceTouched = since is num ? since.toDouble() : double.infinity;
@@ -151,8 +153,10 @@ final class Breakable extends Mechanism {
     return true;
   }
 
+  @override
   Map<String, Object?> save() => <String, Object?>{'broken': _broken};
 
+  @override
   void restore(Map<String, Object?> from) {
     _broken = from['broken'] == true;
     brokeThisStep = false;
@@ -206,6 +210,21 @@ final class Climbable extends Mechanism {
   /// leaves with it.
   double get swingVelocity => _swingVelocity;
   double _swingVelocity = 0.0;
+
+  /// Where the swing has got to.
+  ///
+  /// A rope's offset is a function of its own clock, so this is the clock. Not
+  /// saving it is visible rather than subtle: the rope is somewhere when you
+  /// save and somewhere else the instant you load, and a climber standing on it
+  /// is left in the air beside it.
+  @override
+  Map<String, Object?> save() => <String, Object?>{'time': _time};
+
+  @override
+  void restore(Map<String, Object?> from) {
+    final at = from['time'];
+    if (at is num) _time = at.toDouble();
+  }
 
   /// The top of the volume: where a climb ends and a step-off begins.
   double get top => _restingAt.y + collider.shape.boundsHalfExtents.y;

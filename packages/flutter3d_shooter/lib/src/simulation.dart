@@ -47,7 +47,6 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'player.dart';
 import 'actions.dart';
 import 'combat/hitscan.dart';
-import 'pickup.dart';
 import 'combat/projectile.dart';
 import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';
@@ -412,24 +411,18 @@ final class GameSimulation {
   /// Anything unnamed is skipped — a relay wired between two others has no
   /// state worth carrying, and inventing a positional key for it would make the
   /// format depend on the order the spawner happened to walk the entities in.
-  static Map<String, Object?> _saveMechanisms(MechanismWorld world) {
-    final out = <String, Object?>{};
-    for (final mechanism in world.all) {
-      final name = mechanism.name;
-      if (name == null) continue;
-      switch (mechanism) {
-        case final Mover mover:
-          out[name] = mover.save();
-        case final Pickup pickup:
-          out[name] = pickup.save();
-        case final Exit exit:
-          out[name] = exit.save();
-        default:
-          break;
-      }
-    }
-    return out;
-  }
+  /// Every named mechanism, each answering for itself.
+  ///
+  /// This used to be a `switch` over three types, and the note beside it called
+  /// that out as the remaining debt of the ECS migration: a new mechanism was
+  /// silently unsaved. `Mechanism.save` is abstract now, so there is nothing to
+  /// forget — and the two lamps and the trigger volumes this game already had
+  /// were among the things being forgotten.
+  static Map<String, Object?> _saveMechanisms(MechanismWorld world) =>
+      <String, Object?>{
+        for (final mechanism in world.all)
+          if (mechanism.name != null) mechanism.name!: mechanism.save(),
+      };
 
   void _restoreMechanisms(Object? from) {
     final world = mechanisms;
@@ -439,17 +432,7 @@ final class GameSimulation {
       if (name == null) continue;
       final row = from[name];
       if (row is! Map) continue;
-      final fields = row.cast<String, Object?>();
-      switch (mechanism) {
-        case final Mover mover:
-          mover.restore(fields);
-        case final Pickup pickup:
-          pickup.restore(fields);
-        case final Exit exit:
-          exit.restore(fields);
-        default:
-          break;
-      }
+      mechanism.restore(row.cast<String, Object?>());
     }
     world.events.reached.clear();
   }

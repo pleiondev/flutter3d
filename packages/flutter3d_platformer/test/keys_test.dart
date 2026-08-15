@@ -159,4 +159,124 @@ void _vanishing() {
     expect(other.key.isTaken, isTrue);
     expect(other.key.sinceTaken, double.infinity);
   });
+
+  group('and a save carries it', () {
+    // **The acceptance for putting `save`/`restore` on `Mechanism` itself.**
+    // Both games kept a hand-written `switch` listing the mechanism types they
+    // knew about, and a `Door` is a `Mover`, so a door was saved — but the
+    // *trigger* that opened it was a `Signal`, which was in neither list. Open
+    // a gate, save, load, and the plate is unspent: the gate closes and the
+    // player is asked to find the key again.
+    test('an opened door is still open, and its trigger is still spent', () {
+      final room = _Room();
+      room.walk(240);
+      expect(room.runner.keys, contains('blue'), reason: 'never took the key');
+      expect(room.knock(), isA<Activated>(), reason: 'the door refused the key');
+
+      room.walk(60);
+      final openedTo = room.door.progress;
+      expect(openedTo, greaterThan(0.5), reason: 'the door has not moved');
+
+      final saved = <String, Object?>{
+        for (final m in room.mechanisms.all)
+          if (m.name != null) m.name!: m.save(),
+      };
+
+      // A second world, built exactly as the first: this is a reload.
+      final again = _Room();
+      for (final m in again.mechanisms.all) {
+        final row = saved[m.name];
+        if (row is Map<String, Object?>) m.restore(row);
+      }
+
+      expect(again.door.progress, closeTo(openedTo, 0.01),
+          reason: 'the door came back shut');
+    });
+
+    test('a one-shot plate that has fired does not fire again after a load',
+        () {
+      // **The claim the acceptance for this stage is written as.** A `Door` is
+      // a `Mover` and was in both games' hand-written lists; the *plate* in
+      // front of it is a `Signal` and was in neither. So the gate was saved
+      // open and its trigger came back unspent — walk in again and it fires a
+      // second time, which for a one-shot is the difference between a trap that
+      // has sprung and one that is still armed.
+      //
+      // Mutation: return the empty map from `Signal.save`, or ignore `spent` in
+      // `Signal.restore`. Either way the plate is armed again.
+      final room = _Room();
+      final plate = room.mechanisms.add(
+        TriggerVolume(
+          name: 'the plate',
+          target: 'blue door',
+          once: true,
+          collider: room.world.add(
+            Collider(
+              shape: CollisionBox(Vector3(2.0, 1.5, 0.5)),
+              position: Vector3(0.0, 1.0, 6.0),
+              kind: ColliderKind.trigger,
+              layer: CollisionLayers.trigger,
+              mask: CollisionLayers.player,
+            ),
+          ),
+        ),
+      );
+
+      room.walk(240);
+      expect(room.runner.keys, contains('blue'), reason: 'never took the key');
+      expect(plate.isSpent, isTrue, reason: 'it never walked into the plate');
+
+      final saved = plate.save();
+
+      // A fresh plate, as a reload builds one, and then the save put back.
+      final again = _Room();
+      final reloaded = again.mechanisms.add(
+        TriggerVolume(
+          name: 'the plate',
+          target: 'blue door',
+          once: true,
+          collider: again.world.add(
+            Collider(
+              shape: CollisionBox(Vector3(2.0, 1.5, 0.5)),
+              position: Vector3(0.0, 1.0, 6.0),
+              kind: ColliderKind.trigger,
+              layer: CollisionLayers.trigger,
+              mask: CollisionLayers.player,
+            ),
+          ),
+        ),
+      );
+      expect(reloaded.isSpent, isFalse, reason: 'a fresh plate starts armed');
+
+      reloaded.restore(saved);
+
+      expect(reloaded.isSpent, isTrue,
+          reason: 'the plate came back armed, so the save lost its latch');
+      expect(
+        reloaded.activate(again.mechanisms.activationBy(
+          again.runner.body.collider,
+        )),
+        isA<NothingToDo>(),
+        reason: 'a spent one-shot answered a second time',
+      );
+    });
+
+    test('every mechanism in the room answers, including the ones with '
+        'nothing to say', () {
+      // Mutation: give `Mechanism.save` a default returning null instead of
+      // making it abstract. This still passes — which is why the claim is about
+      // *every* mechanism rather than about the door: what the abstract method
+      // buys is that a type added tomorrow cannot quietly opt out, and the only
+      // way to say that in a test is to walk the whole world.
+      final room = _Room();
+      for (final m in room.mechanisms.all) {
+        expect(m.name, isNotNull,
+            reason: '${m.runtimeType} has no name, so it is never saved');
+        expect(() => m.save(), returnsNormally,
+            reason: '${m.runtimeType} cannot be saved');
+        expect(() => m.restore(m.save()), returnsNormally,
+            reason: '${m.runtimeType} cannot restore its own save');
+      }
+    });
+  });
 }
