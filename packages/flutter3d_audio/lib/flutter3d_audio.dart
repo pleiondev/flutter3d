@@ -8,6 +8,7 @@ library;
 export 'src/attenuation.dart';
 export 'src/audio_scene.dart';
 export 'src/backend.dart';
+export 'src/engine_sound.dart';
 export 'src/listener.dart';
 export 'src/mixer.dart';
 export 'src/sound.dart';

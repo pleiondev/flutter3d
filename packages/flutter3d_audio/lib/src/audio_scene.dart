@@ -22,6 +22,14 @@ final class SoundEmitter {
   /// winds up, without a second SoundDef for each step of it.
   double gain = 1.0;
 
+  /// Scales the sound's own speed, and may be moved while it plays.
+  ///
+  /// What an engine note is: one recording of an engine, played faster as the
+  /// revs rise. Separate from [SoundDef.rate] because that one is the file's
+  /// resting speed and its per-play variation, decided once, while this is the
+  /// game's hand on it every step.
+  double rate = 1.0;
+
   /// What the last mix decided, for anything that wants to know whether it is
   /// being heard — a debug overlay, or a monster deciding not to bother.
   double audibleGain = 0.0;
@@ -30,6 +38,14 @@ final class SoundEmitter {
 
   bool _stopped = false;
   bool get isStopped => _stopped;
+
+  /// The speed this emitter was dealt, including the sound's own variance.
+  ///
+  /// Drawn once, when the emitter is made, rather than each time a voice is
+  /// started: a loop that lost its voice to something louder and got it back
+  /// would otherwise come back at a different pitch, which on an engine is a
+  /// gear change nobody asked for.
+  double _dealtRate = 1.0;
 
   /// Ends it. A looping emitter runs until this is called; a one-shot also
   /// ends by itself when the backend says its voice has finished.
@@ -113,7 +129,10 @@ final class AudioScene {
   /// Starts [sound] at [at]. The emitter is returned so a caller that owns a
   /// moving source can keep it.
   SoundEmitter play(SoundDef sound, Vector3 at) {
-    final emitter = SoundEmitter(sound: sound, at: at);
+    final emitter = SoundEmitter(sound: sound, at: at)
+      // Dealt here, once, rather than each time a voice starts — see
+      // [SoundEmitter._dealtRate].
+      .._dealtRate = _rateFor(sound);
     _emitters.add(emitter);
     return emitter;
   }
@@ -225,11 +244,16 @@ final class AudioScene {
             emitter.sound.asset,
             gain: gain,
             pan: emitter.pan,
-            rate: _rateFor(emitter.sound),
+            rate: emitter._dealtRate * emitter.rate,
             loop: emitter.sound.loop,
           );
         } else {
-          backend.update(voice, gain: gain, pan: emitter.pan);
+          backend.update(
+            voice,
+            gain: gain,
+            pan: emitter.pan,
+            rate: emitter._dealtRate * emitter.rate,
+          );
         }
         continue;
       }

@@ -28,7 +28,22 @@ abstract interface class AudioBackend {
     required bool loop,
   });
 
-  void update(VoiceId voice, {required double gain, required double pan});
+  /// Changes a voice that is already playing.
+  ///
+  /// [rate] is required here for the same reason it is required on [start], and
+  /// the reason there is a rate here at all is a looping sound whose speed is
+  /// the point: an engine note is one file played faster and slower, and a
+  /// backend that could only set it once would leave a car droning on one tone
+  /// through every gear. The argument that killed `setRate` for one-shots — a
+  /// sound that begins at the wrong speed and is corrected a frame later is
+  /// audible as a chirp — does not apply to a loop already running at the speed
+  /// the caller last asked for.
+  void update(
+    VoiceId voice, {
+    required double gain,
+    required double pan,
+    required double rate,
+  });
 
   void stop(VoiceId voice);
 
@@ -68,11 +83,17 @@ final class SilentBackend implements AudioBackend {
   }
 
   @override
-  void update(VoiceId voice, {required double gain, required double pan}) {
+  void update(
+    VoiceId voice, {
+    required double gain,
+    required double pan,
+    required double rate,
+  }) {
     final live = voice as SilentVoice;
     live
       ..gain = gain
-      ..pan = pan;
+      ..pan = pan
+      ..rate = rate;
     live.updates++;
   }
 
@@ -96,9 +117,9 @@ final class SilentVoice {
   double gain;
   double pan;
 
-  /// What speed it was started at, which is what a test asserting on variance
-  /// reads.
-  final double rate;
+  /// What speed it is playing at. Set at the start, and moved by [update] for
+  /// a loop whose speed is the point — see there.
+  double rate;
   final bool loop;
   bool alive = true;
   int updates = 0;

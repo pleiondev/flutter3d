@@ -79,11 +79,17 @@ final class SoLoudBackend implements AudioBackend {
   }
 
   @override
-  void update(VoiceId voice, {required double gain, required double pan}) {
+  void update(
+    VoiceId voice, {
+    required double gain,
+    required double pan,
+    required double rate,
+  }) {
     final handle = voice as SoundHandle;
     _soloud
       ..setVolume(handle, gain)
-      ..setPan(handle, pan);
+      ..setPan(handle, pan)
+      ..setRelativePlaySpeed(handle, rate);
   }
 
   @override
