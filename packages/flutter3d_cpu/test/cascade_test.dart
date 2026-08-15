@@ -209,19 +209,102 @@ void main() {
     final engine = _engine();
     const shadows = ShadowSettings(cascades: 3, resolution: 256);
 
-    final centres = <String>{};
-    for (var step = 0; step < 24; step++) {
-      room.camera.setPosition(step * 0.02, 3.0, -8.0);
-      await _grid(engine, room, shadows);
+    // Measured rather than assumed, because the answer depends on how big the
+    // near cascade is — and it got smaller the day `viewDistance` arrived,
+    // which broke the version of this test that counted distinct places against
+    // a hand-picked threshold. What snapping actually promises does not depend
+    // on the texel's size: **a camera that moves less than a texel must not
+    // move the shadow at all.**
+    room.camera.setPosition(0.0, 3.0, -8.0);
+    await _grid(engine, room, shadows);
+    final texel = engine.renderer.debugCascadeRadii.first *
+        2.0 *
+        shadows.depthPadding /
+        shadows.resolution;
+
+    String centre() {
       final near = engine.renderer.debugCascadeCentres.first;
-      centres.add('${near.x.toStringAsFixed(4)},${near.z.toStringAsFixed(4)}');
+      return '${near.x.toStringAsFixed(5)},${near.y.toStringAsFixed(5)},'
+          '${near.z.toStringAsFixed(5)}';
     }
 
-    // Half a metre of travel against a texel a third of a metre wide: two or
-    // three whole-texel steps, not twenty-four slides.
-    expect(centres.length, lessThan(6),
-        reason: 'the cascade centre took ${centres.length} distinct places in '
-            'twenty-four frames, so it is sliding rather than stepping');
+    final creeping = <String>{};
+    for (var step = 0; step < 6; step++) {
+      room.camera.setPosition(step * texel / 10.0, 3.0, -8.0);
+      await _grid(engine, room, shadows);
+      creeping.add(centre());
+    }
+
+    // At most two: half a texel of travel crosses a texel boundary at most
+    // once, and where it falls depends on where the camera started.
+    expect(creeping.length, lessThanOrEqualTo(2),
+        reason: 'six frames within half a texel produced ${creeping.length} '
+            'different centres, so the shadow is sliding with the camera');
+
+    // And the other half of the claim, without which the above passes on a
+    // centre that never moves at all: a whole texel of travel does move it.
+    final before = centre();
+    room.camera.setPosition(4.0 * texel, 3.0, -8.0);
+    await _grid(engine, room, shadows);
+    expect(centre(), isNot(before),
+        reason: 'four texels of travel and the cascade did not follow');
+  });
+
+  test('the near cascade is sized by the camera, not by the level', () async {
+    // **The defect the user reported twice, in the same words: the character is
+    // drawn twice.** It is not — it is their own shadow, drawn at a texel so
+    // coarse that a staircase of blocks reads as a second body. The cause was
+    // that the cascades were split across the *scene*, so the near map grew
+    // with the level: at 22 × 118 m the near cascade was 14.5 m of radius,
+    // which is 3.4 cm of world per texel at 1024, and a penguin is 90 cm wide.
+    //
+    // So the claim is a number, not a picture: however long the level is, the
+    // near cascade covers about the same few metres.
+    //
+    // Mutation: take `viewDistance` back out of the `far` used for the splits.
+    // The two radii below stop matching and the long one grows without bound.
+    final short = _engine();
+    await _grid(short, _longRoom(length: 120.0),
+        const ShadowSettings(cascades: 3));
+    final near = short.renderer.debugCascadeRadii.first;
+
+    final long = _engine();
+    await _grid(long, _longRoom(length: 900.0),
+        const ShadowSettings(cascades: 3));
+    final alsoNear = long.renderer.debugCascadeRadii.first;
+
+    expect(alsoNear, closeTo(near, 0.5),
+        reason: 'the level got seven times longer and the near cascade went '
+            'from $near m to $alsoNear m, so the player\'s own shadow is '
+            'coarser for reasons that have nothing to do with the player');
+
+    // And tight enough to be worth having. A metre of world per centimetre of
+    // texel is the working number: at 1024 this is under two centimetres, which
+    // is what a 90 cm caster needs to read as a shadow rather than as a shape.
+    const resolution = 1024;
+    final perTexel = near * 2.0 * const ShadowSettings().depthPadding / resolution;
+    expect(perTexel, lessThan(0.025),
+        reason: 'the near cascade is ${(perTexel * 100).toStringAsFixed(1)} cm '
+            'of world per texel');
+  });
+
+  test('copyWith carries the cascade settings', () {
+    // The trap `copyWith`'s own comment warns about, sprung again: it listed
+    // every field it knew about when it was written, and `cascades` arrived
+    // afterwards. A caller who set three and went through `copyWith` got one
+    // back, silently, once a frame.
+    //
+    // Mutation: drop any of the three lines. This says which.
+    const asked = ShadowSettings(
+      cascades: 3,
+      cascadeSplit: 0.4,
+      viewDistance: 25.0,
+    );
+    final through = asked.copyWith(bias: 0.001);
+
+    expect(through.cascades, 3);
+    expect(through.cascadeSplit, 0.4);
+    expect(through.viewDistance, 25.0);
   });
 
   test('nothing falls between the volumes', () async {

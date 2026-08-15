@@ -229,12 +229,86 @@ void main() {
     expect(run.looks.lean, closeTo(0.0, 0.03), reason: 'it stayed leaning');
   });
 
-  test('a crouch is drawn flat whatever else is going on', () {
+  test('a crouch is drawn as short as the body actually is', () {
+    // **Measured, not tuned.** The number this used to assert was `< 0.8`,
+    // against a hand-picked `crouchSquash` that drew the runner at 0.685 while
+    // the collider was at 0.5 — a body visibly taller than the gap it had just
+    // fitted through. The pose is now read off the body, so the claim can be
+    // the exact one.
+    //
+    // Mutation: put the eyeballed constant back. The drawn height stops
+    // matching the collider and this says by how much.
     final run = _Run()..run(30);
     run.run(20, holding: <GameAction>{PlatformerActions.dropThrough});
 
     expect(run.runner.isCrouching, isTrue);
-    expect(run.scale.y, lessThan(0.8), reason: 'a crouch drawn standing up');
+    final wanted =
+        run.runner.body.halfExtents.y / run.runner.standingHalfHeight;
+    expect(run.scale.y, closeTo(wanted, 0.02),
+        reason: 'drawn at ${run.scale.y} while the body is at $wanted');
+  });
+
+  test('and standing up is not a decay', () {
+    // Mutation: fold the crouch into `_squash`, which decays. Standing up then
+    // takes a quarter of a second during which the collider is already tall and
+    // the picture is not — so the runner walks under a ledge they cannot fit
+    // under, on the one frame anybody would screenshot.
+    final run = _Run()..run(30);
+    run.run(20, holding: <GameAction>{PlatformerActions.dropThrough});
+    expect(run.scale.y, lessThan(0.7));
+
+    run.step();
+    expect(run.runner.isCrouching, isFalse);
+    expect(run.scale.y, closeTo(1.0, 0.02),
+        reason: 'one step after standing up it is still drawn crouched');
+  });
+
+  group('feet on the floor', () {
+    // The arithmetic a crouch breaks if nobody does it. Pure, so tested
+    // directly: the model's feet must land on the body's feet in both shapes,
+    // and the body's *centre* is what moves between them.
+    const modelFloor = 0.0;
+
+    test('standing, the model sits on the body\'s feet', () {
+      final looks = RunnerLooks();
+      expect(
+        looks.drawnHeight(bodyY: 0.9, halfHeight: 0.9, modelFloor: modelFloor),
+        closeTo(0.0, 1e-9),
+      );
+    });
+
+    test('crouching, it does not sink into the floor', () {
+      // Mutation: place the node at a fixed drop from the body's centre, which
+      // is what this used to do. The centre falls by 0.45 when the body halves,
+      // so the penguin spends every crouch buried to the knees.
+      final run = _Run()..run(30);
+      final stood = run.runner.body.position.y - run.runner.body.halfExtents.y;
+
+      run.run(20, holding: <GameAction>{PlatformerActions.dropThrough});
+      expect(run.runner.isCrouching, isTrue);
+
+      final feet = run.looks.drawnHeight(
+        bodyY: run.runner.body.position.y,
+        halfHeight: run.runner.body.halfExtents.y,
+        modelFloor: modelFloor,
+      );
+      expect(feet, closeTo(stood, 0.02),
+          reason: 'the crouched model is drawn ${stood - feet} m into the '
+              'floor it is standing on');
+    });
+
+    test('and a model whose own origin is not its feet is offset by that much',
+        () {
+      // `localBounds.min.y` is not zero for every asset, and an asset that
+      // carries its own offset must not be drawn floating.
+      final looks = RunnerLooks();
+      expect(
+        looks.drawnHeight(bodyY: 0.9, halfHeight: 0.9, modelFloor: -0.2),
+        closeTo(0.2, 1e-9),
+        reason: 'a model whose lowest point is 0.2 below its origin is placed '
+            '0.2 higher, so that point lands on the floor',
+      );
+    });
   });
 }
 
@@ -292,10 +366,16 @@ void _clipTests() {
     expect(RunnerClips.rateFor(RunnerClips.idle, 9.0), 1.0);
   });
 
-  test('the model on disk has every clip this game asks for', () async {
+  test('the rigged model has every clip this game asks for', () async {
     // **The one that cannot be reasoned about, only checked.** A name that is
     // not in the file makes `crossFadeToNamed` return false, and nothing looks
     // at the answer: the runner would simply keep playing whatever it was.
+    //
+    // Against `hero.glb`, which the game does *not* currently load: it draws as
+    // a fan of triangles here and the penguin is shipped instead. The names are
+    // still worth guarding — the clip machinery is wired and the moment that
+    // model renders it is what plays — and asserting them against the penguin
+    // would assert nothing, because the penguin has no clips at all.
     final document = await decodeModel(
       const ModelLoadRequest(
         source: FileAssetSource('assets/models/hero.glb'),

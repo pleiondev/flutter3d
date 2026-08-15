@@ -275,6 +275,20 @@ final class Runner with KeyHolder
   /// Whether the runner is crouched — walking short, or sliding.
   bool get isCrouching => _crouched;
 
+  /// Half the body's height when it is standing, in metres.
+  ///
+  /// For whatever draws the runner. The body's *current* half height is on the
+  /// controller and changes with the crouch; this is the one it came back to,
+  /// and a picture that wants to squash by the right amount needs both. Reading
+  /// it off `body` is not enough — by the time anything is drawn the shape may
+  /// already be the short one.
+  double get standingHalfHeight => switch (_standing) {
+        CollisionBox(:final Vector3 halfExtents) => halfExtents.y,
+        CollisionCapsule(:final double halfHeight, :final double radius) =>
+          halfHeight + radius,
+        CollisionSphere(:final double radius) => radius,
+      };
+
   /// Whether the runner is sliding, which is a crouch with speed in it.
   bool get isSliding => _sliding > 0.0;
 

@@ -50,7 +50,12 @@ class SceneSurface extends StatelessWidget {
             // allocate its frame targets late. Three tiles of 1024 cover about
             // forty metres each, which is four centimetres of world per texel
             // against the old fourteen.
-            shadows: const ShadowSettings(cascades: 3, resolution: 1024),
+            // 2048 rather than 1024, which is a real cost — the atlas is
+            // `resolution × cascades` wide, so this is 6144 × 2048 — and it is
+            // what the character's own shadow reads as soft rather than as a
+            // staircase. At 1024 the near cascade is 1.9 cm of world per texel
+            // and the penguin's shadow is a visible flight of steps beside it.
+            shadows: const ShadowSettings(cascades: 3, resolution: 2048),
           ),
         );
         // From the device rather than painted from an image: a backend whose

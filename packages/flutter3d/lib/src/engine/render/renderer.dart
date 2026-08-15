@@ -334,6 +334,7 @@ final class ShadowSettings {
     this.depthPadding = 1.2,
     this.cascades = 1,
     this.cascadeSplit = 0.7,
+    this.viewDistance = 60.0,
     this.pointBias = 0.08,
     this.pointNormalOffset = 0.02,
     this.pointSoftness = 4.0,
@@ -375,6 +376,24 @@ final class ShadowSettings {
   /// with distance. The usual practical answer is most of the way towards
   /// logarithmic, and that is the default.
   final double cascadeSplit;
+
+  /// How far from the camera the cascades are fitted for, in metres.
+  ///
+  /// **The number that decides how sharp a character's own shadow is**, and the
+  /// reason it exists: without it the cascades are split across the *scene*, so
+  /// the near map grows with the level. On a 22 × 118 m level that put the near
+  /// cascade at 14.5 m of radius — 3.4 cm of world per texel at 1024 — and a
+  /// penguin's shadow came out as a staircase of blocks beside it, which was
+  /// reported, twice and in the same words, as the character being drawn twice.
+  /// Doubling the level's length made it worse again. That is the defect
+  /// cascades were supposed to remove, surviving with a milder constant.
+  ///
+  /// Sixty metres by default: far enough that the shadows a player can see are
+  /// fitted, near enough that the first cascade is tight. **Nothing goes
+  /// unshadowed past it** — the last cascade is still fitted to the whole scene
+  /// and every fragment falls through to it, so this trades sharpness near the
+  /// camera against sharpness far from it, and never against coverage.
+  final double viewDistance;
 
   /// Distance bias for a point light's cube map, in **metres**.
   ///
@@ -513,6 +532,9 @@ final class ShadowSettings {
     double? pointLightRadius,
     double? pointMaxSoftness,
     ShadowCasterFaces? casterFaces,
+    int? cascades,
+    double? cascadeSplit,
+    double? viewDistance,
   }) =>
       // Every field, and that is not bookkeeping. This method already dropped
       // the point-shadow settings on the floor: `settingsFrom` calls it once a
@@ -532,6 +554,12 @@ final class ShadowSettings {
         pointLightRadius: pointLightRadius ?? this.pointLightRadius,
         pointMaxSoftness: pointMaxSoftness ?? this.pointMaxSoftness,
         casterFaces: casterFaces ?? this.casterFaces,
+        // The three the comment above was written about, missing for exactly
+        // the reason it names: a caller who set `cascades: 3` and went through
+        // `copyWith` got one cascade back and no way to tell.
+        cascades: cascades ?? this.cascades,
+        cascadeSplit: cascadeSplit ?? this.cascadeSplit,
+        viewDistance: viewDistance ?? this.viewDistance,
       );
 }
 
@@ -1724,7 +1752,10 @@ final class Renderer implements RenderServices {
       final eyeAt = camera.readWorldPosition();
       final forward = camera.readForward();
       final near = 1.0;
-      final far = math.min(sceneRadius * 2.0, _cameraFar(camera));
+      final far = math.min(
+        math.min(sceneRadius * 2.0, _cameraFar(camera)),
+        math.max(settings.viewDistance, near * 2.0),
+      );
 
       for (var i = 1; i < count; i++) {
         final ratio = i / count;

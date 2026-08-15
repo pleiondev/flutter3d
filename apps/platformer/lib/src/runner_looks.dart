@@ -33,13 +33,24 @@ final class RunnerLooks {
   /// How much of a mid-air flip is left, in turns.
   double _flip = 0.0;
 
+  /// How much of the body's height the crouch has taken, as a fraction.
+  ///
+  /// Held apart from [_squash] because it is not an impulse: a squash is
+  /// something that happened and decays, and a crouch is a state that is either
+  /// true or over. Adding them into one number made standing up a decay, and a
+  /// runner who stood up rose over a quarter of a second while the collider had
+  /// already changed.
+  double _crouch = 0.0;
+
   /// The pose, as a scale about the feet.
   ///
   /// Volume is kept: a body that squashes to four fifths of its height widens
   /// by the square root of five quarters, which is what makes it read as a
   /// squash rather than as a shrink.
   Vector3 get scale {
-    final vertical = 1.0 - _squash * tuning.depth;
+    // The crouch is not decayed and not scaled by `depth`: it is the body's own
+    // height, so it applies whole and it lasts exactly as long as the crouch.
+    final vertical = (1.0 - _squash * tuning.depth) * (1.0 - _crouch);
     final horizontal = 1.0 / math.sqrt(vertical.abs().clamp(0.05, 4.0));
     return Vector3(horizontal, vertical, horizontal);
   }
@@ -93,8 +104,13 @@ final class RunnerLooks {
     _roll += (wantedRoll - _roll) * follow;
 
     // A crouched body is drawn short, which is the one place the pose has to
-    // agree with the physics rather than decorate it.
-    if (runner.isCrouching) _squash = math.max(_squash, tuning.crouchSquash);
+    // agree with the physics rather than decorate it — so it is *measured*
+    // rather than tuned. The collider halves in height when it crouches, and a
+    // model drawn at the eyeballed 0.685 a tuned `crouchSquash` gave was a
+    // body visibly taller than the gap it had just fitted through.
+    _crouch = runner.isCrouching
+        ? 1.0 - runner.body.halfExtents.y / runner.standingHalfHeight
+        : 0.0;
   }
 
   /// Forgets everything. For a death, a respawn, a level change.
@@ -103,7 +119,23 @@ final class RunnerLooks {
     _lean = 0.0;
     _roll = 0.0;
     _flip = 0.0;
+    _crouch = 0.0;
   }
+
+  /// Where to put the model's origin so its feet are on the body's feet.
+  ///
+  /// **The arithmetic a crouch breaks if nobody does it.** The node is placed
+  /// from the body's *centre*, and a crouching body's centre drops by half of
+  /// what it lost — so a model placed at a fixed offset below that centre sinks
+  /// into the floor by exactly that much, at exactly the moment the player is
+  /// looking at it. [modelFloor] is the model's own lowest point in its local
+  /// space, which the vertical scale moves along with everything else.
+  double drawnHeight({
+    required double bodyY,
+    required double halfHeight,
+    required double modelFloor,
+  }) =>
+      bodyY - halfHeight - modelFloor * scale.y;
 }
 
 /// The numbers behind the pose, in one place for the same reason
@@ -115,7 +147,6 @@ final class PoseTuning {
     this.landSquash = 0.9,
     this.poundSquash = 1.2,
     this.slideSquash = 0.8,
-    this.crouchSquash = 0.9,
     this.hardLanding = 18.0,
     this.recovery = 9.0,
     this.flipTime = 0.42,
@@ -138,9 +169,6 @@ final class PoseTuning {
   final double poundSquash;
 
   final double slideSquash;
-
-  /// How flat a crouch draws, whatever else is happening.
-  final double crouchSquash;
 
   /// The falling speed that counts as a hard landing, in m/s.
   final double hardLanding;
