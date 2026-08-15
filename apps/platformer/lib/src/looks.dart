@@ -1,3 +1,4 @@
+import 'package:flutter3d/flutter3d.dart' show Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
@@ -66,4 +67,26 @@ final class PlatformerLooks implements FixtureAppearance {
   /// Coins turn. Nothing else does.
   @override
   bool spins(Fixture fixture) => fixture.mechanism is Collectible;
+
+  /// A checkpoint is blue until it is yours, and green after.
+  ///
+  /// Asked every frame rather than once at spawn, because the whole job of the
+  /// thing is to answer a question that changes. Built once, it stayed blue for
+  /// ever and a player reasonably asked what the purple post was for.
+  @override
+  void refresh(Fixture fixture, Material material) {
+    final mechanism = fixture.mechanism;
+    if (mechanism is! Checkpoint) return;
+    final reached = mechanism.isReached;
+    material.baseColor.setValues(
+      reached ? 0.30 : 0.45,
+      reached ? 0.85 : 0.35,
+      reached ? 0.45 : 0.95,
+      1.0,
+    );
+    // Brighter once it is yours, so it reads across a room and not only up
+    // close, where a colour change is easy to miss mid-jump.
+    final glow = reached ? 0.85 : 0.30;
+    material.emissive.setValues(glow, glow, glow);
+  }
 }

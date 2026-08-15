@@ -106,6 +106,21 @@ abstract interface class FixtureAppearance {
   /// did: a thing that moves in a still room is a thing the player walks over
   /// to. Still a decision about furniture rather than about drawing.
   bool spins(Fixture fixture);
+
+  /// A chance to change how a fixture looks, once a frame.
+  ///
+  /// [fallbackFor] is asked once, when the node is built, which is right for
+  /// "what colour is a key" and wrong for anything whose look depends on what
+  /// has happened. A checkpoint is the case that forced this: it was built
+  /// blue, turned green in the code and stayed blue on the screen, so the one
+  /// thing it exists to tell the player — *you have got this far* — it never
+  /// said.
+  ///
+  /// The material handed over belongs to this fixture alone, so changing it
+  /// changes nothing else. Fixtures drawn from a loaded model are not offered,
+  /// because their materials belong to the model and are shared with every
+  /// other copy of it.
+  void refresh(Fixture fixture, Material material);
 }
 
 /// What the doors, lifts, platforms, buttons, keys and lights look like.
@@ -346,6 +361,11 @@ final class FixtureVisuals {
         continue;
       }
       piece.node.setPositionFrom(piece.fixture.position);
+
+      final material = piece.node is MeshNode
+          ? (piece.node as MeshNode).material
+          : null;
+      if (material != null) appearance.refresh(piece.fixture, material);
 
       if (appearance.spins(piece.fixture)) {
         piece.node.setRotation(

@@ -164,6 +164,11 @@ final class DungeonFixtures implements FixtureAppearance {
   @override
   bool spins(Fixture fixture) => fixture.mechanism is Pickup;
 
+  /// Nothing in this game changes colour once it is placed. A collected pickup
+  /// disappears rather than fading, and a door is the same door open or shut.
+  @override
+  void refresh(Fixture fixture, Material material) {}
+
   static final Map<String, Vector4> _keyColours = <String, Vector4>{
     'blue': Vector4(0.20, 0.42, 0.95, 1.0),
     'red': Vector4(0.90, 0.18, 0.16, 1.0),

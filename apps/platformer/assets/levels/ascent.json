@@ -21,8 +21,8 @@
     { "at": [0.0, 1.2, 21.0], "size": [10.0, 2.4, 4.0], "material": "stone" },
     { "at": [0.0, 3.6, 23.5], "size": [10.0, 2.4, 1.0], "material": "stone" },
 
-    { "at": [-3.0, 1.6, 8.0], "size": [1.6, 0.4, 1.6], "material": "brass" },
-    { "at": [3.0, 3.0, 10.5], "size": [1.6, 0.4, 1.6], "material": "brass" }
+    { "at": [-3.0, 0.9, 8.0], "size": [2.2, 0.4, 2.2], "material": "brass" },
+    { "at": [3.0, 2.2, 10.5], "size": [2.2, 0.4, 2.2], "material": "brass" }
   ],
   "lights": [
     {
@@ -60,8 +60,8 @@
       "instant": true
     },
 
-    { "type": "collectible", "name": "coin four", "at": [-3.0, 2.4, 8.0], "what": "coin" },
-    { "type": "collectible", "name": "coin five", "at": [3.0, 3.8, 10.5], "what": "coin" },
+    { "type": "collectible", "name": "coin four", "at": [-3.0, 1.7, 8.0], "what": "coin" },
+    { "type": "collectible", "name": "coin five", "at": [3.0, 3.0, 10.5], "what": "coin" },
 
     {
       "type": "checkpoint",

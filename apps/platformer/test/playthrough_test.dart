@@ -144,6 +144,35 @@ void main() {
     expect(game.sim.nextLevel, isNull);
   });
 
+  test('the brass pad over the drop can actually be jumped onto', () {
+    // **A player could not, and the arithmetic says why:** a single jump rises
+    // 1.88 m and the pad's top was at 1.80, so it was clearable for the one
+    // instant of the apex and no longer. A platform you can only reach on a
+    // frame-perfect apex is not a platform.
+    //
+    // Mutation: put the pad back at 1.6 (top 1.8) and this fails.
+    final game = _Game();
+    // On the floor, in line with the pad, short of the edge.
+    game.runner.body.teleport(Vector3(-3.0, 0.9, 5.8));
+
+    // Jump, and steer forward for a third of a second. Holding forward the
+    // whole way is what a running jump is, and a running jump clears the pad
+    // entirely — six metres a second carries 4.7 m through the air and the pad
+    // is 2.2 m across. Landing on it is a hop, and that is a fair thing for a
+    // level to ask.
+    for (var i = 0; i < 90; i++) {
+      game.step(forward: i < 20, jump: i < 24);
+    }
+
+    expect(game.runner.isGrounded, isTrue, reason: 'it should have landed');
+    expect(game.runner.position.y, closeTo(2.0, 0.15),
+        reason: 'a body half a metre high standing on a pad topped at 1.1');
+    expect(game.runner.position.z, inInclusiveRange(6.9, 9.1),
+        reason: 'on the pad, not past it');
+    expect(game.runner.purse['coin'], 1, reason: 'the coin sits over the pad');
+    expect(game.sim.deaths, 0);
+  });
+
   test('walking off the edge is survivable, because there is a checkpoint', () {
     final game = _Game();
     // Forward until it falls in the drop and comes back.
