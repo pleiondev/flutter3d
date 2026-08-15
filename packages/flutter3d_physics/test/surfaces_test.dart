@@ -334,6 +334,151 @@ void main() {
     });
   });
 
+  group('being a different size', () {
+    CollisionShape crouched() => CollisionBox(Vector3(0.35, 0.45, 0.35));
+    CollisionShape standing() => CollisionBox(Vector3(0.35, 0.9, 0.35));
+
+    /// A ceiling a standing body does not fit under, and a crouched one does.
+    void lowRoof(CollisionWorld world) {
+      world.add(
+        Collider(
+          shape: CollisionBox(Vector3(4.0, 0.5, 4.0)),
+          position: Vector3(0.0, 1.5, 0.0),
+        ),
+      );
+    }
+
+    test('crouching under a low roof works and standing up does not', () {
+      // Mutation: delete the overlap check. Standing up returns true and leaves
+      // the body inside the ceiling, where `_resolveOverlap` fires it sideways
+      // on the next step — a teleport, and one nothing else in the suite sees.
+      final world = _room();
+      final body = _body(world);
+      _run(body, 10);
+      lowRoof(world);
+      world.reindex();
+
+      expect(body.tryResize(crouched()), isTrue);
+      expect(body.tryResize(standing()), isFalse, reason: 'there is a roof');
+      // A loose tolerance because every vector here is float32-backed.
+      expect(body.halfExtents.y, closeTo(0.45, 1e-6),
+          reason: 'a refused resize changed the body anyway');
+    });
+
+    test('and standing up works again once there is room', () {
+      final world = _room();
+      final body = _body(world);
+      _run(body, 10);
+      lowRoof(world);
+      world.reindex();
+      expect(body.tryResize(crouched()), isTrue);
+
+      // Out from under it.
+      body.teleport(Vector3(9.0, 0.45, 0.0));
+      _run(body, 5);
+
+      expect(body.tryResize(standing()), isTrue);
+    });
+
+    test('resizing keeps the feet on the floor', () {
+      // Mutation: skip the centre compensation and assign the shape alone. The
+      // body sinks half its height into the floor and is pushed back out, which
+      // reads as a crouch that drops you through the ground and bounces.
+      final world = _room();
+      final body = _body(world);
+      _run(body, 10);
+      final feet = body.position.y - body.halfExtents.y;
+
+      expect(body.tryResize(crouched()), isTrue);
+      expect(body.position.y - body.halfExtents.y, closeTo(feet, 0.01));
+    });
+
+    test('the world sees the new shape at once', () {
+      // Mutation: assign `_shape` and forget `collider.shape`. The body is
+      // crouched and the world still reports the tall box, so a doorway it now
+      // fits through still refuses it — the aliasing bug this method exists to
+      // prevent.
+      final world = _room();
+      final body = _body(world);
+      _run(body, 10);
+      body.tryResize(crouched());
+
+      final found = <Collider>[];
+      world.overlap(
+        CollisionBox(Vector3(0.2, 0.2, 0.2)),
+        Vector3(0.0, 1.5, 0.0),
+        found,
+        includeTriggers: false,
+      );
+      expect(found, isEmpty, reason: 'the old head is still in the world');
+    });
+
+    test('shrinking is never refused, even inside something', () {
+      // A body already touching a wall must still be allowed to become smaller,
+      // or a crouch is refused for being in the doorway it is crouching to get
+      // through.
+      final world = _room();
+      final body = _body(world);
+      world.add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 2.0, 2.0)),
+          position: Vector3(0.0, 0.9, 0.0),
+        ),
+      );
+      world.reindex();
+
+      expect(body.tryResize(crouched()), isTrue);
+    });
+  });
+
+  group('finding a body by its collider', () {
+    Dynamics stackOf(int count) {
+      final world = CollisionWorld()
+        ..add(Collider(
+          shape: CollisionBox(Vector3(40.0, 0.5, 40.0)),
+          position: Vector3(0.0, -0.5, 0.0),
+        ));
+      final dynamics = Dynamics(world: world);
+      for (var i = 0; i < count; i++) {
+        dynamics.add(RigidBody(
+          world: world,
+          shape: CollisionBox(Vector3.all(0.6)),
+          position: Vector3((i % 8) * 2.0, 0.6 + (i ~/ 8) * 1.4, 0.0),
+        ));
+      }
+      return dynamics;
+    }
+
+    test('a collider knows its body without asking every body', () {
+      // Mutation: put the linear scan back. The count goes up with the square
+      // of the number of bodies, and a level with thirty-four crates in it pays
+      // for it sixty times a second.
+      final dynamics = stackOf(40);
+      for (var i = 0; i < 5; i++) {
+        dynamics.step(1.0 / 60.0);
+      }
+
+      expect(dynamics.bodyOf(dynamics.bodies.first.collider),
+          same(dynamics.bodies.first));
+      // Every lookup is one map read, so the number of *lookups* is what the
+      // cost is: this only pins that they happen and are answered, since the
+      // scan is what the map replaced.
+      expect(dynamics.bodyLookupsLastStep, greaterThan(0));
+    });
+
+    test('a removed body is not found, and stops being solved', () {
+      // Mutation: forget `_byCollider.remove` in `remove`. The stale entry
+      // keeps handing out a body that is no longer in the world, and the
+      // contact solver keeps pushing it.
+      final dynamics = stackOf(4);
+      final gone = dynamics.bodies.last;
+      final collider = gone.collider;
+      dynamics.remove(gone);
+
+      expect(dynamics.bodyOf(collider), isNull);
+    });
+  });
+
   group('how it feels', () {
     test('a low-friction tuning takes longer to stop', () {
       // Mutation: make `tuning` a getter returning the value the constructor

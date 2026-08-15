@@ -12,6 +12,7 @@ final class Hazard extends Mechanism with CollisionListener {
     required this.collider,
     this.damagePerSecond = 40.0,
     this.instant = false,
+    this.follows,
   }) {
     collider
       ..kind = ColliderKind.trigger
@@ -30,6 +31,24 @@ final class Hazard extends Mechanism with CollisionListener {
   /// discovering it is not large enough for a player with armour.
   final bool instant;
 
+  /// The name of a [Mover] this rides on, or null for a hazard that stays put.
+  ///
+  /// **This is what a saw blade is.** A hazard is a volume and a mover is a
+  /// block that travels, and until this existed a level could author either but
+  /// never one on the other: a moving saw had to be a platform that happened to
+  /// hurt, which the mover knows nothing about, or a hazard that happened to be
+  /// where the platform was, which stops being true a second later.
+  ///
+  /// Resolved by name on the first step rather than at spawn, because a level
+  /// document may name a mover that has not been spawned yet and the order of
+  /// entities in a file is not something an author should have to think about.
+  final String? follows;
+
+  Mover? _rail;
+  bool _looked = false;
+  final Vector3 _offset = Vector3.zero();
+  final Vector3 _at = Vector3.zero();
+
   @override
   Vector3 get origin => collider.position;
 
@@ -38,7 +57,33 @@ final class Hazard extends Mechanism with CollisionListener {
   double _dt = 0.0;
 
   @override
-  void step(double dt) => _dt = dt;
+  void step(double dt) {
+    _dt = dt;
+    _ride();
+  }
+
+  /// Keeps a mounted hazard where its mover is, at the offset it was authored
+  /// at — so a saw drawn a metre above its arm stays a metre above it.
+  void _ride() {
+    final name = follows;
+    if (name == null) return;
+    if (!_looked) {
+      _looked = true;
+      final found = world[name];
+      if (found is Mover) {
+        _rail = found;
+        _offset
+          ..setFrom(collider.position)
+          ..sub(found.collider.position);
+      }
+    }
+    final rail = _rail;
+    if (rail == null) return;
+    _at
+      ..setFrom(rail.collider.position)
+      ..add(_offset);
+    collider.moveTo(_at);
+  }
 
   @override
   ActivationOutcome activate(Activation by) {

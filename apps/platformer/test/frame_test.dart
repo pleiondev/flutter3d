@@ -352,6 +352,30 @@ void main() {
     });
   });
 
+  test('a rope is drawn where it swings, not where it was authored', () {
+    // Stage E2's assertion on the picture. A `Climbable` moves its own collider
+    // and `FixtureVisuals` follows colliders, so a rope that swings in the
+    // simulation and hangs still on the screen is a rope whose fixture was
+    // placed from the document instead — which is exactly what happens if the
+    // reveal passes a position rather than the collider.
+    //
+    // Mutation: hand `context.reveal` no collider in `ClimbableKind.spawn`.
+    return _Shown.build().then((_Shown it) async {
+      final rope = it.mechanisms['the rope']!;
+      it.runner.body.teleport(Vector3(52.0, 20.0, 90.0));
+      it.look(from: Vector3(52.0, 7.0, 96.0), at: rope.origin!);
+
+      final atRest = await it.draw();
+      // A quarter of the swing's period, which is where a pendulum is furthest
+      // from the middle.
+      it.wait(40);
+      final swung = await it.draw();
+
+      expect(_differences(atRest, swung), greaterThan(120),
+          reason: 'the rope moved in the simulation and not on the screen');
+    });
+  });
+
   test('the level is drawn at all', () async {
     // The cheapest guard in the file, and the one that would have caught the
     // renderer failing to allocate its targets: a frame that is one flat colour

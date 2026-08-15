@@ -160,6 +160,32 @@ def conveyor(name, at, flow, size=(5.0, 0.4, 12.0)):
     })
 
 
+def crumbling(name, at, size=(3.5, 0.4, 3.5), delay=0.45, gone=2.5):
+    entities.append({
+        "type": "crumbling", "name": name, "at": _r(at), "size": _r(size),
+        "delay": delay, "gone": gone, "material": "wood",
+    })
+
+
+def breakable(name, at, size=(2.0, 2.0, 2.0)):
+    entities.append({
+        "type": "breakable", "name": name, "at": _r(at), "size": _r(size),
+        "material": "stone",
+    })
+
+
+def climbable(name, at, size=(1.2, 8.0, 1.2), swing=0.0, period=2.4, phase=0.0):
+    """A ladder, or — with a swing on it — a rope."""
+    row = {
+        "type": "climbable", "name": name, "at": _r(at), "size": _r(size),
+        "material": "wood",
+    }
+    if swing:
+        row.update({"swing": swing, "period": period, "phase": phase,
+                    "material": "brass"})
+    entities.append(row)
+
+
 def plate(name, target, at, size=(4.0, 2.0, 4.0)):
     """A volume that works a mechanism by being walked into.
 
@@ -342,6 +368,14 @@ conveyor("the second belt", [-39.0, 0.2, 13.0], [0.0, 0.0, -5.0], size=(4.0, 0.4
 coin([-44.0, 0.9, 19.0])
 coin([-39.0, 0.9, 7.0])
 
+# A crawlspace, and the only way to the coin behind it is on your belly. The
+# slot is one metre: a standing runner is 1.8 and a crouched one 0.9.
+# At z = 14 rather than 21: the brass pads by the brink stand at 20.8, they are
+# waist-high, and a crawl that ends in one is a crawl nobody finishes.
+_fill([7.0, 2.0, 14.0], [7.0, 1.9, 7.0], "stone")
+coin([7.0, 0.6, 14.0])
+coin([7.0, 3.9, 14.0])
+
 # The north strip: broken walls with coins behind them.
 for i in range(6):
     x = -54.0 + i * 8.0
@@ -476,6 +510,21 @@ for dx in (-2.0, 2.0):
     for dz in (-2.0, 2.0):
         coin([40.0 + dx, 7.8, 76.0 + dz])
 
+# A saw on an arm, which is a hazard riding a mover — the two have existed
+# separately since the engine had either.
+mover("platform", "the saw arm", [20.0, 3.4, 76.0], [2.0, 0.4, 2.0],
+      [0.0, 0.0, 9.0], 3.5, 0.6)
+hazard("the saw", [20.0, 4.4, 76.0], [1.8, 1.8, 1.8], damage=55.0)
+entities[-1]["follows"] = "the saw arm"
+coin([20.0, 6.4, 80.0])
+
+# A ladder to the gallery, and a rope over the drop beside it.
+climbable("the gallery ladder", [48.0, 4.0, 88.0], size=(1.2, 8.0, 1.2))
+coin([48.0, 8.8, 88.0])
+climbable("the rope", [52.0, 6.0, 104.0], size=(1.0, 10.0, 1.0),
+          swing=3.5, period=2.6)
+coin([56.0, 10.0, 104.0])
+
 # The warehouse, west of the maze: twelve crates in a yard, sheds, a gantry.
 for i in range(4):
     for j in range(3):
@@ -522,6 +571,12 @@ for side, x in (("far west", -34.0), ("far east", 34.0)):
     coin([x, 2.6, 132.0])
     _fill([x + 8.0, -2.0, 137.0], [3.4, 6.4, 3.4], "ice")
     coin([x + 8.0, 2.0, 137.0])
+
+# A bridge of shelves across the crevasse, for a player who would rather not
+# wait for the ferry. Each one holds for less than half a second.
+for i, z in enumerate((129.0, 133.0, 137.0, 141.0, 145.0)):
+    crumbling(f"the shelf {i + 1}", [-24.0, 0.8, z])
+coin([-24.0, 1.8, 137.0])
 
 _route([0.0, 1.8, 147.0], [12.0, 3.6, 3.0], "ice")
 _route([0.0, 3.0, 152.0], [12.0, 6.0, 4.0], "ice")
@@ -591,6 +646,24 @@ for i in range(5):
     x = -52.0 + i * 8.0
     pillar(x, 176.0, 2.0 + i * 0.8, width=4.0)
     pillar(-x, 176.0, 2.0 + i * 0.8, width=4.0)
+
+# A gap of nine and a half metres, beside the path rather than on it: a double
+# jump clears seven and a half, and a long jump out of a slide clears this.
+_fill([-30.0, 1.0, 172.0], [7.0, 2.0, 7.0], "stone")
+_fill([-30.0, 1.0, 185.0], [7.0, 2.0, 7.0], "stone")
+coin([-30.0, 3.0, 185.0])
+coin([-30.0, 3.0, 188.0])
+
+# A cap of blocks over a pocket of coins. Nothing but a pound gets through it.
+for i, dx in enumerate((-2.0, 0.0, 2.0)):
+    breakable(f"the cap {i + 1}", [10.0 + dx, 3.6, 176.0], size=(2.0, 1.2, 4.0))
+_fill([6.0, 1.5, 176.0], [2.0, 3.0, 6.0], "stone")
+_fill([14.0, 1.5, 176.0], [2.0, 3.0, 6.0], "stone")
+_fill([10.0, 1.5, 179.5], [10.0, 3.0, 1.0], "stone")
+_fill([10.0, 1.5, 172.5], [10.0, 3.0, 1.0], "stone")
+coin([10.0, 0.8, 176.0])
+coin([8.0, 0.8, 176.0])
+coin([12.0, 0.8, 176.0])
 
 # Two ziggurats flanking the stair, and lifts up the outer walls.
 ziggurat(-34.0, 208.0, 4, 2.4, 20.0)

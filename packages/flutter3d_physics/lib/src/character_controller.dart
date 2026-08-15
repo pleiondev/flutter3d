@@ -75,6 +75,41 @@ final class MovementTuning {
   /// step on every stair, and a controller that believes it is falling there
   /// cannot jump and plays footstep sounds wrong.
   final double groundProbe;
+
+  /// The same numbers with a few changed.
+  ///
+  /// Wanted the moment two things have an opinion about how a body moves at
+  /// once — a floor that is ice *and* a body that is crouching. Without it the
+  /// second one has to restate all twelve numbers and silently loses whatever
+  /// the first one said.
+  MovementTuning copyWith({
+    double? walkSpeed,
+    double? sprintSpeed,
+    double? groundAcceleration,
+    double? groundFriction,
+    double? airAcceleration,
+    double? gravity,
+    double? terminalVelocity,
+    double? jumpSpeed,
+    double? stepHeight,
+    double? coyoteTime,
+    double? jumpBufferTime,
+    double? groundProbe,
+  }) =>
+      MovementTuning(
+        walkSpeed: walkSpeed ?? this.walkSpeed,
+        sprintSpeed: sprintSpeed ?? this.sprintSpeed,
+        groundAcceleration: groundAcceleration ?? this.groundAcceleration,
+        groundFriction: groundFriction ?? this.groundFriction,
+        airAcceleration: airAcceleration ?? this.airAcceleration,
+        gravity: gravity ?? this.gravity,
+        terminalVelocity: terminalVelocity ?? this.terminalVelocity,
+        jumpSpeed: jumpSpeed ?? this.jumpSpeed,
+        stepHeight: stepHeight ?? this.stepHeight,
+        coyoteTime: coyoteTime ?? this.coyoteTime,
+        jumpBufferTime: jumpBufferTime ?? this.jumpBufferTime,
+        groundProbe: groundProbe ?? this.groundProbe,
+      );
 }
 
 /// Moves a box through a [CollisionWorld] the way a player expects.
@@ -93,14 +128,14 @@ final class CharacterController {
     // game drives an actor with. Named at the call site rather than here, for
     // the reason on [Layers].
     int layer = 1 << 1,
-  }) : shape = shape ?? CollisionBox(Vector3(0.35, 0.9, 0.35)),
+  }) : _shape = shape ?? CollisionBox(Vector3(0.35, 0.9, 0.35)),
        position = position?.clone() ?? Vector3.zero() {
     // The body registers itself, so monsters see the player as an obstacle and
     // triggers see them walk in. A controller that only reads the world is a
     // controller nothing else can react to.
     collider = world.add(
       Collider(
-        shape: this.shape,
+        shape: _shape,
         position: this.position,
         kind: ColliderKind.kinematic,
         layer: layer,
@@ -116,7 +151,10 @@ final class CharacterController {
   /// costs nothing here and matters elsewhere. The player is a box because
   /// nothing tests exact overlap against them; a monster is a capsule because
   /// a melee swing and a blast both do, and those are exact.
-  final CollisionShape shape;
+  ///
+  /// Read fresh wherever it is used, and changed only through [tryResize].
+  CollisionShape get shape => _shape;
+  CollisionShape _shape;
 
   /// This body's entry in the world, kept in step with [position].
   late final Collider collider;
@@ -237,6 +275,65 @@ final class CharacterController {
   static double _readNumber(Object? value) =>
       value is num ? value.toDouble() : 0.0;
 
+  /// Swaps the body's volume, keeping its feet where they are.
+  ///
+  /// Returns false and changes **nothing** when the new shape does not fit,
+  /// which is the whole reason this is a method and not a setter. "Can I be
+  /// this size here" is the question crouching asks on the way back up, and it
+  /// is the same question a monster rearing up asks, and a slime splitting, and
+  /// a vehicle unfolding. Every one of them would otherwise write this check
+  /// itself and one of them would get it wrong.
+  ///
+  /// Shrinking never fails: a body already touching something must be allowed
+  /// to become smaller, or a crouch inside a doorway is refused for being in a
+  /// doorway. The refusal is only meaningful when growing.
+  ///
+  /// [keepFeet] is what a character wants — a crouch that dropped the whole
+  /// body would sink it into the floor and be depenetrated back out — and a
+  /// caller resizing about the centre says so.
+  ///
+  /// Not carried by [save]: a `CollisionShape` is not JSON. A game that
+  /// crouches saves that it was crouching and calls this again after
+  /// [restore]; one that forgets restores a standing body inside a crawlspace
+  /// and is ejected from it on the next step.
+  bool tryResize(CollisionShape to, {bool keepFeet = true}) {
+    final was = halfExtents;
+    final will = to.boundsHalfExtents;
+    final feet = position.y - was.y;
+    _resizeAt.setValues(
+      position.x,
+      keepFeet ? feet + will.y : position.y,
+      position.z,
+    );
+
+    final grows = will.x > was.x + 1e-9 ||
+        will.y > was.y + 1e-9 ||
+        will.z > was.z + 1e-9;
+    if (grows) {
+      world.overlap(
+        to,
+        _resizeAt,
+        _clearance,
+        ignore: collider,
+        includeTriggers: false,
+      );
+      for (final other in _clearance) {
+        // Asked with an upward normal, because growing is what this is for and
+        // upward is which way a body grows: a one-way platform overhead is not
+        // in the way of standing up, for the same reason it is not in the way
+        // of jumping.
+        if (solidFilter == null || solidFilter!(other, _up)) return false;
+      }
+    }
+
+    _shape = to;
+    collider.shape = to;
+    position.setFrom(_resizeAt);
+    collider.position.setFrom(position);
+    collider.refreshBounds();
+    return true;
+  }
+
   /// Places the player somewhere with no motion and no memory. For spawns and
   /// level changes.
   void teleport(Vector3 to) {
@@ -262,6 +359,9 @@ final class CharacterController {
   final Vector3 _stepVelocity = Vector3.zero();
   final Vector3 _scratchDelta = Vector3.zero();
   final Vector3 _probe = Vector3.zero();
+  final Vector3 _resizeAt = Vector3.zero();
+  final Vector3 _up = Vector3(0.0, 1.0, 0.0);
+  final List<Collider> _clearance = <Collider>[];
 
   /// How far to sit back from a surface after touching it.
   ///

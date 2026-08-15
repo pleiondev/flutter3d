@@ -117,6 +117,10 @@ final class _Run {
   }
 
   double get y => runner.position.y;
+
+  /// Where the feet are, which is what a level authors and what a crouch
+  /// leaves alone.
+  double get feet => runner.position.y - runner.body.halfExtents.y;
 }
 
 void main() {
@@ -180,19 +184,23 @@ void main() {
       run.run(240, holding: <GameAction>{PlatformerActions.dropThrough});
 
       expect(run.runner.isGrounded, isTrue);
-      expect(run.y, closeTo(0.9, 0.15), reason: 'it fell to the floor');
+      // Measured at the feet, because the key that drops you through is also
+      // the key that crouches you, and a crouched body's centre is lower.
+      expect(run.feet, closeTo(0.0, 0.15), reason: 'it fell to the floor');
     });
 
-    test('asking for it on ordinary ground does nothing', () {
+    test('asking for it on ordinary ground crouches instead of falling', () {
       // A drop-through that works anywhere is a runner falling out of the
       // level, and the check is one line that is easy not to write.
       //
-      // Mutation: drop the `layer & oneWay` test from `Runner.dropThrough`.
+      // Mutation: drop the `layer & oneWay` test from `Runner.dropThrough` —
+      // the runner leaves the level through its own floor.
       final run = _Run()..run(30);
       run.run(120, holding: <GameAction>{PlatformerActions.dropThrough});
 
       expect(run.runner.isGrounded, isTrue);
-      expect(run.y, closeTo(0.9, 0.05));
+      expect(run.feet, closeTo(0.0, 0.05));
+      expect(run.runner.isCrouching, isTrue);
     });
   });
 

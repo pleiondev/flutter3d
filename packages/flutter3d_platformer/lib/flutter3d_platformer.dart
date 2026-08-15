@@ -17,6 +17,7 @@
 library;
 
 export 'src/actions.dart';
+export 'src/blocks.dart';
 export 'src/checkpoint.dart';
 export 'src/collectible.dart';
 export 'src/crate.dart';

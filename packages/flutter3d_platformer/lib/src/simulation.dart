@@ -1,6 +1,7 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'blocks.dart';
 import 'checkpoint.dart';
 import 'collectible.dart';
 import 'runner.dart';
@@ -107,6 +108,8 @@ final class PlatformerSimulation {
     // Intent, not residual velocity — see [Runner.shove].
     dynamics?.push(runner.body.collider, runner.shove);
 
+    _readFloor();
+
     // Overlaps dispatch here: collectibles are taken, hazards bite, checkpoints
     // light up. All three run from inside this call, which is why each of them
     // reports through a flag rather than returning anything.
@@ -137,6 +140,18 @@ final class PlatformerSimulation {
     // The broadphase is holding the runner where they died.
     collision.reindex();
     state = RunState.running;
+  }
+
+  /// What the runner's weight and its landing do to the floor.
+  ///
+  /// Read from `body.ground` rather than from an overlap, and that is the
+  /// distinction the two mechanisms are built around: brushing the side of a
+  /// crumbling platform is not standing on it, and a ground pound that broke a
+  /// block beside the one it hit would be a pound nobody could aim.
+  void _readFloor() {
+    final under = runner.body.ground?.userData;
+    if (under is Crumbling) under.takeWeight();
+    if (runner.poundedThisStep && under is Breakable) under.shatter();
   }
 
   void _readCheckpoints() {
@@ -230,6 +245,8 @@ final class PlatformerSimulation {
       switch (mechanism) {
         Collectible() => mechanism.save(),
         Checkpoint() => mechanism.save(),
+        Crumbling() => mechanism.save(),
+        Breakable() => mechanism.save(),
         Mover() => mechanism.save(),
         _ => null,
       };
@@ -239,6 +256,10 @@ final class PlatformerSimulation {
       case Collectible():
         mechanism.restore(row);
       case Checkpoint():
+        mechanism.restore(row);
+      case Crumbling():
+        mechanism.restore(row);
+      case Breakable():
         mechanism.restore(row);
       case Mover():
         mechanism.restore(row);

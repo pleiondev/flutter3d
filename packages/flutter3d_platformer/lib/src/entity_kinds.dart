@@ -1,6 +1,7 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'blocks.dart';
 import 'checkpoint.dart';
 import 'crate.dart';
 import 'spring.dart';
@@ -26,6 +27,15 @@ abstract final class PlatformerEntities {
 
   /// A floor that carries whoever stands on it.
   static const String conveyor = 'conveyor';
+
+  /// A platform that gives way under you.
+  static const String crumbling = 'crumbling';
+
+  /// A block a ground pound breaks.
+  static const String breakable = 'breakable';
+
+  /// A ladder, or — with a swing on it — a rope.
+  static const String climbable = 'climbable';
 }
 
 final class CollectibleKind extends EntityKind {
@@ -85,6 +95,16 @@ final class HazardKind extends EntityKind {
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final rail = entity.string('follows');
+    if (rail != null && scope.level.named(rail) == null) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'rides "$rail", which no entity in this level is named',
+          where: scope.describe(entity),
+        ),
+      );
+    }
     final damage = entity.number('damage');
     if (damage != null && damage <= 0.0 && !entity.flag('instant')) {
       out.add(
@@ -113,6 +133,7 @@ final class HazardKind extends EntityKind {
         collider: collider,
         damagePerSecond: entity.number('damage') ?? 40.0,
         instant: entity.flag('instant'),
+        follows: entity.string('follows'),
       ),
     );
     context.reveal(
@@ -199,6 +220,9 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
       const SpringKind(),
       const OneWayKind(),
       const ConveyorKind(),
+      const CrumblingKind(),
+      const BreakableKind(),
+      const ClimbableKind(),
     ]);
 
 /// What is true of a platformer's level whatever it contains.
@@ -400,6 +424,121 @@ final class ConveyorKind extends EntityKind {
     context.reveal(
       entity,
       collider: collider,
+      size: entity.vector('size') ?? defaultSize,
+    );
+  }
+}
+
+/// A platform that gives way. See [Crumbling].
+final class CrumblingKind extends EntityKind {
+  const CrumblingKind() : super(PlatformerEntities.crumbling);
+
+  static final Vector3 defaultSize = Vector3(3.0, 0.4, 3.0);
+
+  @override
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final delay = entity.number('delay');
+    if (delay != null && delay <= 0.0) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'gives way after $delay seconds, which is a platform nobody can '
+          'stand on for long enough to notice',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final collider = place(entity, context, kind: ColliderKind.static,
+        fallbackSize: defaultSize);
+    final crumbling = context.mechanisms.add(
+      Crumbling(
+        name: entity.name,
+        collider: collider,
+        delay: entity.number('delay') ?? 0.5,
+        gone: entity.number('gone') ?? 2.5,
+      ),
+    );
+    context.reveal(
+      entity,
+      collider: collider,
+      mechanism: crumbling,
+      size: entity.vector('size') ?? defaultSize,
+    );
+  }
+}
+
+/// A block a ground pound breaks. See [Breakable].
+final class BreakableKind extends EntityKind {
+  const BreakableKind() : super(PlatformerEntities.breakable);
+
+  static final Vector3 defaultSize = Vector3(2.0, 2.0, 2.0);
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final collider = place(entity, context, kind: ColliderKind.static,
+        fallbackSize: defaultSize);
+    final block = context.mechanisms.add(
+      Breakable(name: entity.name, collider: collider),
+    );
+    context.reveal(
+      entity,
+      collider: collider,
+      mechanism: block,
+      size: entity.vector('size') ?? defaultSize,
+    );
+  }
+}
+
+/// A ladder, or a rope. See [Climbable].
+final class ClimbableKind extends EntityKind {
+  const ClimbableKind() : super(PlatformerEntities.climbable);
+
+  /// Narrow and tall: a ladder is a line you stand on, not a room.
+  static final Vector3 defaultSize = Vector3(1.0, 6.0, 1.0);
+
+  @override
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final size = entity.vector('size') ?? defaultSize;
+    if (size.y < 2.0) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'is ${size.y} m tall, which is a ladder shorter than the runner '
+          'climbing it',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.trigger,
+      layer: CollisionLayers.trigger,
+      mask: CollisionLayers.player,
+      fallbackSize: defaultSize,
+    );
+    final climbable = context.mechanisms.add(
+      Climbable(
+        name: entity.name,
+        collider: collider,
+        climbSpeed: entity.number('speed') ?? 4.0,
+        swing: entity.number('swing') ?? 0.0,
+        period: entity.number('period') ?? 2.4,
+        phase: entity.number('phase') ?? 0.0,
+      ),
+    );
+    context.reveal(
+      entity,
+      collider: collider,
+      mechanism: climbable,
       size: entity.vector('size') ?? defaultSize,
     );
   }

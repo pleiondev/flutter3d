@@ -149,17 +149,44 @@ final class Dynamics {
 
   RigidBody add(RigidBody body) {
     bodies.add(body);
+    _byCollider[body.collider] = body;
     return body;
   }
 
   void remove(RigidBody body) {
     bodies.remove(body);
+    _byCollider.remove(body.collider);
     world.remove(body.collider);
   }
+
+  /// The body a collider belongs to, or null for level geometry.
+  ///
+  /// Public because a game holding a `Collider` off a sweep had no way back to
+  /// its `RigidBody` — and constant-time because this is called from inside the
+  /// broadphase loop, where a linear scan makes the cost of a step quadratic in
+  /// the number of bodies. The platformer's shipped level has thirty-four
+  /// crates in it, which is where that stopped being theoretical.
+  RigidBody? bodyOf(Collider collider) {
+    _lookups++;
+    return _byCollider[collider];
+  }
+
+  /// How many collider-to-body lookups the last step made.
+  ///
+  /// A counter rather than a timing, so the test that guards the cost cannot
+  /// go flaky on a busy machine. The same shape as
+  /// `CharacterController.contactsLastStep`, and for the same reason.
+  int get bodyLookupsLastStep => _lookupsLastStep;
+  int _lookups = 0;
+  int _lookupsLastStep = 0;
+
+  final Map<Collider, RigidBody> _byCollider = <Collider, RigidBody>{};
 
   /// One fixed step.
   void step(double dt) {
     if (dt <= 0.0) return;
+    _lookupsLastStep = _lookups;
+    _lookups = 0;
 
     // **Before gravity, and that ordering is the whole of it.** Asked after,
     // every awake body looks as though it is moving at a third of a metre a
@@ -229,7 +256,7 @@ final class Dynamics {
       includeTriggers: false,
     );
     for (final other in _nearby) {
-      final body = _bodyOf(other);
+      final body = bodyOf(other);
       if (body == null || !body.isMovable) continue;
 
       contactBetween(
@@ -296,7 +323,7 @@ final class Dynamics {
           includeTriggers: false,
         );
         for (final other in _nearby) {
-          final otherBody = _bodyOf(other);
+          final otherBody = bodyOf(other);
           // Body-against-body is handled once, below, rather than twice here.
           if (otherBody != null) continue;
           contactBetween(
@@ -380,7 +407,7 @@ final class Dynamics {
       includeTriggers: false,
     );
     for (final other in _nearby) {
-      final otherBody = _bodyOf(other);
+      final otherBody = bodyOf(other);
       if (otherBody != null) {
         // Something actually moving, rather than a neighbour being nudged a
         // fraction of a millimetre by the penetration corrector.
@@ -395,7 +422,7 @@ final class Dynamics {
       // step, for ever, and nothing in a pile ever slept. Body-to-body waking
       // is the mutual rule in `_collect`, which asks whether the other one is
       // actually *moving* rather than merely being corrected.
-      if (_bodyOf(other) != null) continue;
+      if (bodyOf(other) != null) continue;
       return true;
     }
     return false;
@@ -560,10 +587,4 @@ final class Dynamics {
     }
   }
 
-  RigidBody? _bodyOf(Collider collider) {
-    for (final body in bodies) {
-      if (identical(body.collider, collider)) return body;
-    }
-    return null;
-  }
 }

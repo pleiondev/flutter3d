@@ -4,6 +4,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'actions.dart';
+import 'blocks.dart';
 import 'purse.dart';
 import 'spring.dart';
 import 'surfaces.dart';
@@ -17,6 +18,14 @@ final class RunnerTuning {
     this.jumpCut = 0.45,
     this.coyoteTime = 0.12,
     this.dropThroughTime = 0.25,
+    this.crouchHeight = 0.45,
+    this.crouchSpeed = 2.4,
+    this.slideSpeed = 11.0,
+    this.slideTime = 0.55,
+    this.slideFriction = 6.0,
+    this.longJumpUp = 6.0,
+    this.longJumpPush = 12.0,
+    this.poundSpeed = 26.0,
     this.jumpBufferTime = 0.12,
     this.dashSpeed = 18.0,
     this.dashCooldown = 0.55,
@@ -108,6 +117,42 @@ final class RunnerTuning {
   /// as the input being eaten.
   final double dropThroughTime;
 
+  /// Half the body's height while crouched.
+  ///
+  /// Half again of the standing 0.9, which is what makes a one-metre gap a
+  /// crawlspace rather than a decoration.
+  final double crouchHeight;
+
+  /// How fast a crouched runner walks. Slow enough to be a decision.
+  final double crouchSpeed;
+
+  /// The speed a slide starts at, whatever the runner was doing.
+  ///
+  /// Faster than a sprint, or nobody would slide; short-lived, or it would
+  /// replace running.
+  final double slideSpeed;
+
+  /// How long a slide lasts before it becomes an ordinary crouch.
+  final double slideTime;
+
+  /// How quickly a slide bleeds off. Low: a slide that stops in its own length
+  /// is a stumble.
+  final double slideFriction;
+
+  /// Up and along, for the jump a slide can be cancelled into.
+  ///
+  /// Deliberately a low arc and a long one: the long jump crosses gaps a normal
+  /// jump cannot and reaches ledges a normal jump can, which is what makes it
+  /// worth learning rather than strictly better.
+  final double longJumpUp;
+  final double longJumpPush;
+
+  /// How fast a ground pound drives the runner down.
+  ///
+  /// Well past terminal velocity for a fall, because the point is that it
+  /// arrives *now* and lands hard enough to break something.
+  final double poundSpeed;
+
   /// The tallest ledge the runner can pull up onto.
   ///
   /// Deliberately under a single jump's 1.88 m: a mantle is for the ledge you
@@ -151,6 +196,10 @@ final class Runner with KeyHolder
     // that some platforms are floors from above and nothing at all from below.
     // The engine holds the mechanism and this holds the opinion.
     body.solidFilter = _countsAsSolid;
+    _standing = body.shape;
+    _crouching = CollisionBox(
+      Vector3(body.halfExtents.x, tuning.crouchHeight, body.halfExtents.z),
+    );
     _ground = body.tuning;
     _land();
   }
@@ -190,6 +239,67 @@ final class Runner with KeyHolder
 
   /// How long a one-way platform stays passable after asking to drop through.
   double _dropping = 0.0;
+
+  /// How much of a slide is left, in seconds. Zero when merely crouched.
+  double _sliding = 0.0;
+
+  /// Whether the body is currently the short shape.
+  bool _crouched = false;
+
+  /// Whether the player has let go of crouch and is waiting for headroom.
+  bool _wantsToStand = false;
+
+  /// Whether a ground pound is on its way down.
+  bool _pounding = false;
+
+  /// The two shapes this body is ever in, built once in the constructor.
+  ///
+  /// **Not `late`**, and that is not a style preference: a late `_standing =
+  /// body.shape` is read the first time somebody stands up, which is *after*
+  /// the first crouch, so it captured the crouched shape and standing up became
+  /// a resize to the size it already was. The runner crouched once and stayed
+  /// crouched for the rest of the level.
+  late final CollisionShape _standing;
+  late final CollisionShape _crouching;
+
+  /// Whether the runner is crouched — walking short, or sliding.
+  bool get isCrouching => _crouched;
+
+  /// Whether the runner is sliding, which is a crouch with speed in it.
+  bool get isSliding => _sliding > 0.0;
+
+  /// Whether a ground pound is in the air on its way down.
+  bool get isPounding => _pounding;
+
+  /// True on the step a ground pound hit the floor, for dust and a shake.
+  bool poundedThisStep = false;
+
+  /// True on the step a slide started.
+  bool slidThisStep = false;
+
+  /// True on the step a long jump left the ground.
+  bool longJumpedThisStep = false;
+
+  /// What the runner is climbing, or null.
+  Climbable? get climbing => _climbing;
+  Climbable? _climbing;
+  double _climbCooldown = 0.0;
+
+  /// True on the step the runner took hold of a ladder or a rope.
+  bool grabbedThisStep = false;
+
+  /// True on the step the runner touched down after being in the air.
+  ///
+  /// The simulation had no such moment: the application worked it out by
+  /// remembering whether the runner was grounded last frame, which cannot know
+  /// *how hard* — and how hard is what decides the dust, the squash and the
+  /// volume of the thud.
+  bool landedThisStep = false;
+
+  /// How fast the runner was falling when it last landed, in metres a second.
+  double landingSpeed = 0.0;
+
+  bool _wasGrounded = false;
 
   /// The numbers for ordinary ground, kept so a surface can be left again.
   late MovementTuning _ground;
@@ -275,11 +385,23 @@ final class Runner with KeyHolder
     jumpedThisStep = false;
     wallJumpedThisStep = false;
     mantledThisStep = false;
+    poundedThisStep = false;
+    slidThisStep = false;
+    longJumpedThisStep = false;
+    landedThisStep = false;
+    grabbedThisStep = false;
+
+    _climbCooldown = math.max(0.0, _climbCooldown - dt);
+    if (_readClimb(input)) {
+      _climb(dt, input);
+      return;
+    }
 
     _readWish(input, cameraYaw);
     _readSurface();
     _probeWall(dt);
     _tickTimers(dt, input);
+    _crouchAndSlide(dt, input);
     _tryMantle();
     _tryJump();
     _cutJumpShort(input);
@@ -287,7 +409,11 @@ final class Runner with KeyHolder
     _slideDownWall();
 
     final sprinting = input.held(GameAction.sprint);
+    // Read before the step, because the step is where a landing turns downward
+    // speed into zero and the number is gone.
+    final falling = math.max(0.0, -body.velocity.y);
     body.step(dt, wishDirection: _wish, sprint: sprinting);
+    _readLanding(falling);
     _face(dt);
 
     final asked = sprinting ? body.tuning.sprintSpeed : body.tuning.walkSpeed;
@@ -330,8 +456,12 @@ final class Runner with KeyHolder
     final name = under is Brush ? under.surface : null;
     if (name == _standingOn) return;
     _standingOn = name;
-    body.tuning = name == null ? _ground : surfaces.tuningFor(name);
+    _surfaceTuning = name == null ? _ground : surfaces.tuningFor(name);
+    body.tuning = _surfaceTuning;
   }
+
+  /// What the floor alone says, before crouching has its word.
+  late MovementTuning _surfaceTuning = body.tuning;
 
   void _readWish(InputState input, double cameraYaw) {
     final axis = input.moveAxis;
@@ -351,6 +481,184 @@ final class Runner with KeyHolder
       0.0,
       axis.y * cos + axis.x * sin,
     );
+  }
+
+  /// Takes hold of a ladder or a rope, and reports whether the runner is on
+  /// one.
+  ///
+  /// An overlap query rather than a listener on the volume, because the answer
+  /// has to be true *while* inside rather than on the step of entering: a
+  /// climber halfway up a ladder never enters it again.
+  bool _readClimb(InputState input) {
+    if (_climbCooldown > 0.0) {
+      _climbing = null;
+      return false;
+    }
+
+    _clearance.clear();
+    body.world.overlap(
+      body.shape,
+      body.position,
+      _clearance,
+      mask: CollisionLayers.trigger,
+    );
+    Climbable? found;
+    for (final other in _clearance) {
+      final data = other.userData;
+      if (data is Climbable) {
+        found = data;
+        break;
+      }
+    }
+
+    if (found == null) {
+      _climbing = null;
+      return false;
+    }
+    if (_climbing == null) grabbedThisStep = true;
+    _climbing = found;
+    return true;
+  }
+
+  /// One step of being on a ladder or a rope.
+  ///
+  /// Gravity, wall probing, dashing and the rest are all skipped: a climber is
+  /// somewhere else in the state machine, and the step returns before any of
+  /// them. What is left is up, down, and the two ways off.
+  ///
+  /// The horizontal position is *written from the volume's*, which is the whole
+  /// of how a rope carries its passenger: the volume swings, the climber is
+  /// wherever it is, and a jump off leaves with the speed it had.
+  void _climb(double dt, InputState input) {
+    final rope = _climbing!;
+    final axis = input.moveAxis;
+
+    if (input.pressed(GameAction.jump)) {
+      _letGo();
+      body.velocity
+        ..x = rope.swingVelocity
+        ..y = tuning.jumpSpeed
+        ..z = 0.0;
+      _airJumpsLeft = tuning.airJumps;
+      jumpedThisStep = true;
+      return;
+    }
+    if (input.pressed(PlatformerActions.dropThrough)) {
+      _letGo();
+      return;
+    }
+
+    final at = rope.origin;
+    final climbed = body.position.y + axis.y * rope.climbSpeed * dt;
+    final ceiling = rope.top + body.halfExtents.y;
+
+    body.velocity.setZero();
+    body.position.setValues(at.x, math.min(climbed, ceiling), at.z);
+    // The controller syncs its collider inside `step`, and this step never
+    // called it.
+    body.collider.position.setFrom(body.position);
+    body.collider.refreshBounds();
+
+    // Over the top: step off onto whatever the ladder was leaning against.
+    if (climbed >= ceiling) {
+      _letGo();
+      _land();
+    }
+  }
+
+  void _letGo() {
+    _climbing = null;
+    _climbCooldown = 0.3;
+  }
+
+  /// Crouching, sliding, standing back up, and the pound that shares the key.
+  ///
+  /// One button, and which verb it means is decided by where the runner is and
+  /// how fast: in the air it is a ground pound, on a one-way platform it is a
+  /// drop through, at speed it is a slide, and otherwise it is a crouch. A
+  /// platformer that spends three keys on those four is a platformer with three
+  /// keys spare and nothing to bind to them.
+  void _crouchAndSlide(double dt, InputState input) {
+    final held = input.held(PlatformerActions.dropThrough);
+    _sliding = math.max(0.0, _sliding - dt);
+
+    if (input.pressed(PlatformerActions.dropThrough) && !body.isGrounded) {
+      _startPound();
+      return;
+    }
+
+    // The same press already went into a one-way platform: do not also crouch
+    // on the way through it.
+    if (held && body.isGrounded && !_crouched && _dropping <= 0.0) {
+      final speed = math.sqrt(
+        body.velocity.x * body.velocity.x + body.velocity.z * body.velocity.z,
+      );
+      if (body.tryResize(_crouching)) {
+        _crouched = true;
+        _wantsToStand = false;
+        // Fast enough to be worth a slide, or it is a crouch that happened to
+        // be moving. The threshold is a walk, so a sprint always slides and a
+        // shuffle never does.
+        if (speed > body.tuning.walkSpeed * 0.8) {
+          _sliding = tuning.slideTime;
+          slidThisStep = true;
+          _shoveInto(tuning.slideSpeed);
+        }
+      }
+    }
+
+    if (!held && _crouched) _wantsToStand = true;
+
+    if (_wantsToStand && body.tryResize(_standing)) {
+      _crouched = false;
+      _wantsToStand = false;
+      _sliding = 0.0;
+    }
+
+    _applyCrouchTuning();
+  }
+
+  /// Sets the velocity to [speed] along the way the runner is facing.
+  void _shoveInto(double speed) {
+    final along = _wish.length2 > 1e-6 ? _wish.normalized() : _facingVector();
+    body.velocity
+      ..x = along.x * speed
+      ..z = along.z * speed;
+  }
+
+  Vector3 _facingVector() =>
+      Vector3(math.sin(yaw), 0.0, math.cos(yaw));
+
+  /// A crouched runner is a slow one, and a sliding one keeps what it has.
+  ///
+  /// Derived from whatever the floor said rather than replacing it, which is
+  /// what `MovementTuning.copyWith` is for: ice one is crouching on is still
+  /// ice.
+  void _applyCrouchTuning() {
+    final floor = _surfaceTuning;
+    if (!_crouched) {
+      body.tuning = floor;
+      return;
+    }
+    body.tuning = floor.copyWith(
+      walkSpeed: tuning.crouchSpeed,
+      sprintSpeed: tuning.crouchSpeed,
+      // A slide keeps its speed; a crouch-walk does not slither.
+      groundFriction: _sliding > 0.0 ? tuning.slideFriction : floor.groundFriction,
+      groundAcceleration:
+          _sliding > 0.0 ? floor.groundAcceleration * 0.2 : floor.groundAcceleration,
+    );
+  }
+
+  /// Drives the runner at the floor. The landing is read in [_land].
+  void _startPound() {
+    if (_pounding) return;
+    _pounding = true;
+    _sliding = 0.0;
+    body.velocity
+      ..x = 0.0
+      ..z = 0.0
+      ..y = -tuning.poundSpeed;
   }
 
   /// Asks to fall through the one-way platform underfoot.
@@ -486,7 +794,18 @@ final class Runner with KeyHolder
     if (_buffer <= 0.0) return;
 
     if (body.isGrounded || _coyote > 0.0) {
-      body.velocity.y = tuning.jumpSpeed;
+      if (_sliding > 0.0) {
+        // Out of a slide: low and long. The horizontal is *set* along the way
+        // the runner is going, so a long jump aimed anywhere but forwards is a
+        // long jump that goes forwards — which is what makes it a commitment
+        // rather than a better jump.
+        _shoveInto(tuning.longJumpPush);
+        body.velocity.y = tuning.longJumpUp;
+        _sliding = 0.0;
+        longJumpedThisStep = true;
+      } else {
+        body.velocity.y = tuning.jumpSpeed;
+      }
       _coyote = 0.0;
     } else if (_wallCoyote > 0.0 && _wallAway.length2 > 1e-6) {
       // Up and away from the wall, and the horizontal is *set* rather than
@@ -557,6 +876,12 @@ final class Runner with KeyHolder
   /// pad that throws you across a gap must not be quietly cancelled by this.
   void _bleedOffDash(double dt, double asked) {
     if (!body.isGrounded) return;
+    // A slide is its own speed, exactly as a dash is: this is the thing that
+    // hauls anything faster than a walk back down to walking pace, and running
+    // it on a slide clamps eleven metres a second to a crouch's two and a half
+    // in a handful of steps. The slide then travelled about as far as standing
+    // still, which is what the test caught.
+    if (_sliding > 0.0) return;
     final v = body.velocity;
     final speed = math.sqrt(v.x * v.x + v.z * v.z);
     if (speed <= asked || speed < 1e-4) return;
@@ -624,6 +949,20 @@ final class Runner with KeyHolder
   /// Coyote time is the right shape for it: being placed somewhere counts as
   /// having just been on the ground, and it expires on its own if the placing
   /// was in mid-air.
+  /// Notices the moment the feet touch down, and how hard.
+  void _readLanding(double fallingAt) {
+    final grounded = body.isGrounded;
+    if (grounded && !_wasGrounded) {
+      landedThisStep = true;
+      landingSpeed = fallingAt;
+      if (_pounding) {
+        _pounding = false;
+        poundedThisStep = true;
+      }
+    }
+    _wasGrounded = grounded;
+  }
+
   void _land() {
     _coyote = tuning.coyoteTime;
     _airJumpsLeft = tuning.airJumps;

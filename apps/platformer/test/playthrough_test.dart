@@ -245,6 +245,10 @@ void main() {
       expect(counted['checkpoint'], greaterThanOrEqualTo(7));
       expect(counted['oneway'], greaterThanOrEqualTo(3), reason: 'the gantry');
       expect(counted['conveyor'], greaterThanOrEqualTo(2), reason: 'the belts');
+      expect(counted['crumbling'], greaterThanOrEqualTo(5), reason: 'the bridge');
+      expect(counted['breakable'], greaterThanOrEqualTo(3), reason: 'the cap');
+      expect(counted['climbable'], greaterThanOrEqualTo(2),
+          reason: 'a ladder and a rope');
       expect(
         level.brushes.where((Brush b) => b.surface == 'ice'),
         isNotEmpty,
@@ -431,6 +435,63 @@ void main() {
 
       expect(game.runner.position.z, greaterThan(10.0),
           reason: 'the belt carried nobody');
+    });
+  });
+
+  group('the yard of moves', () {
+    test('the crawlspace admits a crouched runner and no other', () {
+      // Both halves, in the shipped level. Mutation: raise the slot in the
+      // generator and the standing half stops failing.
+      double reached({required bool crouching}) {
+        final game = _Game()..putAt(Vector3(7.0, 0.0, 8.0));
+        game.wait(10);
+        for (var i = 0; i < 300; i++) {
+          game.input.beginStep();
+          game.input.press(GameAction.moveForward);
+          if (crouching) game.input.press(PlatformerActions.dropThrough);
+          game.sim.step(_dt);
+          game.input.endStep();
+        }
+        return game.runner.position.z;
+      }
+
+      expect(reached(crouching: true), greaterThan(18.0),
+          reason: 'it could not crawl through');
+      expect(reached(crouching: false), lessThan(11.0),
+          reason: 'it walked through a one-metre slot');
+    });
+
+    test('the shelves over the crevasse hold, and then do not', () {
+      final game = _Game();
+      final shelf = game.named<Crumbling>('the shelf 1')!;
+
+      game.putAt(Vector3(-24.0, 1.2, 129.0));
+      game.wait(10);
+      expect(game.runner.isGrounded, isTrue, reason: 'standing on a shelf');
+      expect(shelf.hasFallen, isFalse);
+
+      game.wait(45);
+      expect(shelf.hasFallen, isTrue, reason: 'it never gave way');
+    });
+
+    test('the cap over the coins opens to a pound and nothing else', () {
+      final game = _Game();
+      final cap = game.named<Breakable>('the cap 2')!;
+
+      // Landing on it from a height is not enough.
+      game.putAt(Vector3(10.0, 8.0, 176.0));
+      game.wait(120);
+      expect(cap.isBroken, isFalse, reason: 'a landing broke it');
+
+      game.putAt(Vector3(10.0, 8.0, 176.0));
+      game.wait(4);
+      game.input.beginStep();
+      game.input.press(PlatformerActions.dropThrough);
+      game.sim.step(_dt);
+      game.input.endStep();
+      game.wait(120);
+
+      expect(cap.isBroken, isTrue, reason: 'the pound did not break it');
     });
   });
 
