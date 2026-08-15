@@ -152,4 +152,126 @@ void main() {
     expect(runner.position.x, greaterThan(2.0));
     expect(runner.position.z.abs(), lessThan(0.5));
   });
+
+  group('impulses', () {
+    test('a kick moves the camera and then gives it back', () {
+      // Mutation: forget the decay. The camera keeps the knock for the rest of
+      // the level, which reads as the whole world having shifted.
+      final camera = FollowCamera(world: _empty());
+      final at = Vector3(0.0, 1.0, 0.0);
+      for (var i = 0; i < 60; i++) {
+        camera.follow(at, 1.0 / 60.0);
+      }
+      final settled = camera.eye.clone();
+
+      camera.kick(Vector3(0.0, -0.4, 0.0));
+      camera.follow(at, 1.0 / 60.0);
+      expect((camera.eye.y - settled.y).abs(), greaterThan(0.05),
+          reason: 'the kick did nothing');
+
+      for (var i = 0; i < 60; i++) {
+        camera.follow(at, 1.0 / 60.0);
+      }
+      expect(camera.eye.y, closeTo(settled.y, 0.01),
+          reason: 'it never came back');
+    });
+
+    test('a shake is over inside half a second', () {
+      final camera = FollowCamera(world: _empty());
+      final at = Vector3(0.0, 1.0, 0.0);
+      for (var i = 0; i < 60; i++) {
+        camera.follow(at, 1.0 / 60.0);
+      }
+      final settled = camera.eye.clone();
+
+      camera.shake(0.5);
+      var worst = 0.0;
+      for (var i = 0; i < 12; i++) {
+        camera.follow(at, 1.0 / 60.0);
+        final away = (camera.eye - settled).length;
+        if (away > worst) worst = away;
+      }
+      expect(worst, greaterThan(0.01), reason: 'nothing shook');
+
+      for (var i = 0; i < 60; i++) {
+        camera.follow(at, 1.0 / 60.0);
+      }
+      expect((camera.eye - settled).length, lessThan(0.01),
+          reason: 'it is still shaking');
+    });
+
+    test('turning the shake off turns it off', () {
+      // The setting exists because a shaking camera makes some people ill, and
+      // "off" has to mean off rather than "less".
+      final camera = FollowCamera(world: _empty())..shakeScale = 0.0;
+      final at = Vector3(0.0, 1.0, 0.0);
+      for (var i = 0; i < 60; i++) {
+        camera.follow(at, 1.0 / 60.0);
+      }
+      final settled = camera.eye.clone();
+
+      camera.shake(2.0);
+      for (var i = 0; i < 20; i++) {
+        camera.follow(at, 1.0 / 60.0);
+        expect((camera.eye - settled).length, lessThan(0.005));
+      }
+    });
+
+    test('a shaken camera never ends up inside a wall', () {
+      // The property the ordering exists for: the wall check runs first, so a
+      // shake must be small enough that the clearance absorbs it. A hundred
+      // random impulses in a boxed room, and the eye stays out of the geometry.
+      // A room, not six floors: the first draft used the same flat slab for
+      // every side, so the "walls" were horizontal and the camera was inside
+      // three of them before anything was even shaken.
+      final world = CollisionWorld();
+      void slab(Vector3 at, Vector3 half) => world.add(
+            Collider(
+              shape: CollisionBox(half),
+              position: at,
+              layer: CollisionLayers.world,
+            ),
+          );
+      slab(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 0.5, 6.0));
+      slab(Vector3(0.0, 6.5, 0.0), Vector3(6.0, 0.5, 6.0));
+      slab(Vector3(-6.5, 3.0, 0.0), Vector3(0.5, 3.0, 6.0));
+      slab(Vector3(6.5, 3.0, 0.0), Vector3(0.5, 3.0, 6.0));
+      slab(Vector3(0.0, 3.0, -6.5), Vector3(6.0, 3.0, 0.5));
+      slab(Vector3(0.0, 3.0, 6.5), Vector3(6.0, 3.0, 0.5));
+      final camera = FollowCamera(world: world);
+      final random = GameRandom(7);
+      final inside = <Collider>[];
+
+      for (var i = 0; i < 300; i++) {
+        camera.follow(Vector3(0.0, 1.0, 0.0), 1.0 / 60.0);
+        if (i % 20 == 0) {
+          camera.kick(Vector3(random.nextDouble() - 0.5, random.nextDouble() - 0.5,
+              random.nextDouble() - 0.5));
+          camera.shake(random.nextDouble() * 0.3);
+        }
+        // A point, not a box, and the difference is the honest reading of the
+        // invariant. One ray clears the *first* thing it hits, so a camera
+        // pulled thirty-five centimetres off the ceiling can still end up a
+        // millimetre from the wall behind it. Grazing a surface is a near
+        // plane's problem — `nearClearance` — and being *inside* one is this
+        // class's, which is what is asserted.
+        world.overlap(CollisionBox(Vector3.all(1e-6)), camera.eye, inside,
+            includeTriggers: false);
+        expect(inside, isEmpty,
+            reason: 'the camera was inside geometry on step $i, at '
+                '${camera.eye}');
+      }
+    });
+
+    test('a widened view narrows again', () {
+      final camera = FollowCamera(world: _empty());
+      camera.widen(0.3);
+      expect(camera.extraFov, greaterThan(0.2));
+
+      for (var i = 0; i < 90; i++) {
+        camera.follow(Vector3.zero(), 1.0 / 60.0);
+      }
+      expect(camera.extraFov, lessThan(0.01));
+    });
+  });
 }

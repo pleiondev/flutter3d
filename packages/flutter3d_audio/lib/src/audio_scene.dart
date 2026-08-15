@@ -54,8 +54,26 @@ final class AudioScene {
     this.maxVoices = 24,
     this.occlusion,
     Mixer? mixer,
+    math.Random? random,
   })  : mixer = mixer ?? Mixer(),
+        _random = random ?? math.Random(1),
         assert(maxVoices > 0);
+
+  /// Where the play-rate variance is drawn from.
+  ///
+  /// Injected so a game can hand over its own seeded generator: a playthrough
+  /// test that replays a recorded run must get the same sequence of sounds, and
+  /// an unseeded `Random()` in here would make every snapshot test that happens
+  /// to play a sound irreproducible.
+  final math.Random _random;
+
+  /// The speed one play of [sound] runs at.
+  double _rateFor(SoundDef sound) {
+    if (sound.rateVariance <= 0.0) return sound.rate;
+    // Two-sided: `1 + r * variance` would raise the average pitch by half the
+    // variance, which is the sign mistake somebody actually writes.
+    return sound.rate * (1.0 + (_random.nextDouble() * 2.0 - 1.0) * sound.rateVariance);
+  }
 
   final AudioBackend backend;
 
@@ -207,6 +225,7 @@ final class AudioScene {
             emitter.sound.asset,
             gain: gain,
             pan: emitter.pan,
+            rate: _rateFor(emitter.sound),
             loop: emitter.sound.loop,
           );
         } else {

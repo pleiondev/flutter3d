@@ -828,6 +828,69 @@
       "once": false
     },
     {
+      "type": "lamp",
+      "name": "the maze lamp 1",
+      "at": [-24.0, 2.2, 87.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 2",
+      "at": [24.0, 2.2, 87.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 3",
+      "at": [-24.0, 2.2, 99.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 4",
+      "at": [24.0, 2.2, 99.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 5",
+      "at": [-24.0, 2.2, 111.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 6",
+      "at": [24.0, 2.2, 111.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 7",
+      "at": [0.0, 2.2, 93.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 8",
+      "at": [0.0, 2.2, 105.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
+      "type": "lamp",
+      "name": "the maze lamp 9",
+      "at": [0.0, 2.2, 117.0],
+      "size": [0.4, 1.6, 0.4],
+      "material": "brass"
+    },
+    {
       "type": "collectible",
       "name": "maze coin 1",
       "at": [-24.0, 0.8, 87.0],

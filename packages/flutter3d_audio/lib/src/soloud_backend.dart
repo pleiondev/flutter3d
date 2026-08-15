@@ -55,6 +55,7 @@ final class SoLoudBackend implements AudioBackend {
     String asset, {
     required double gain,
     required double pan,
+    required double rate,
     required bool loop,
   }) {
     final source = _sources[asset];
@@ -66,6 +67,10 @@ final class SoLoudBackend implements AudioBackend {
         pan: pan,
         looping: loop,
       );
+      // Set rather than passed: `play` has no speed argument, and setting it on
+      // the handle immediately afterwards is the same frame, so nothing is
+      // audible at the wrong speed.
+      if (rate != 1.0) _soloud.setRelativePlaySpeed(handle, rate);
       return handle;
     } catch (error) {
       debugPrint('flutter3d_audio: could not play "$asset": $error');

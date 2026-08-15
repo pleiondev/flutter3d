@@ -16,8 +16,12 @@ final class SoundDef {
     this.priority = 0,
     this.maxInstances = 4,
     this.bus = AudioBus.sfx,
+    this.rate = 1.0,
+    this.rateVariance = 0.0,
   })  : assert(gain >= 0.0),
-        assert(maxInstances > 0);
+        assert(maxInstances > 0),
+        assert(rate > 0.0),
+        assert(rateVariance >= 0.0 && rateVariance < 1.0);
 
   /// What the game calls it. Used in messages and in the mixer's own reports.
   final String name;
@@ -31,6 +35,21 @@ final class SoundDef {
   final bool loop;
 
   final Attenuation attenuation;
+
+  /// How fast to play it. One is the file's own speed.
+  ///
+  /// **Rate, not pitch.** Pitch implies resampling that keeps the duration, and
+  /// neither SoLoud's `setRelativePlaySpeed` nor WebAudio's `playbackRate` does
+  /// that. Calling it pitch would be a promise the backends cannot keep.
+  final double rate;
+
+  /// How much to vary [rate] on each play, either side of it.
+  ///
+  /// The other half of what [maxInstances] is for. Ten identical grunts on one
+  /// frame is a click; ten identical *coins* half a second apart is a machine
+  /// noise, and the ear notices the sameness long before it notices the sound.
+  /// A few per cent is enough.
+  final double rateVariance;
 
   /// Breaks ties when there are more sounds than voices.
   ///

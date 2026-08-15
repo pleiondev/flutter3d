@@ -33,6 +33,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/looks.dart';
+import 'package:platformer/src/runner_looks.dart';
 import 'package:vector_math/vector_math.dart';
 
 const int _width = 240;
@@ -165,6 +166,7 @@ final class _Shown {
     sim.step(_dt);
     sim.input.endStep();
     _input.endStep();
+    pose.advance(runner, _dt);
     _elapsed += _dt;
   }
 
@@ -206,6 +208,9 @@ final class _Shown {
     return frame;
   }
 
+  /// How the runner is posed, as `main.dart` poses it.
+  final RunnerLooks pose = RunnerLooks();
+
   /// Draws a frame and gives back its pixels, RGBA.
   ///
   /// [hiding] takes a node out of the picture *after* the fixtures have been
@@ -215,13 +220,16 @@ final class _Shown {
   /// reported the two frames identical.
   Future<Uint8List> draw({String? hiding}) async {
     fixtures.sync(_elapsed);
+    final p = runner.position;
+    final scale = pose.scale;
+    runnerNode
+      ..setPosition(p.x, p.y, p.z)
+      ..setScale(scale.x, scale.y, scale.z);
     if (hiding != null) {
       for (final MeshNode piece in scene.meshes) {
         if (piece.name == hiding) piece.visible = false;
       }
     }
-    final p = runner.position;
-    runnerNode.setPosition(p.x, p.y, p.z);
     final result = renderer.render(
       width: _width,
       height: _height,
@@ -373,6 +381,33 @@ void main() {
 
       expect(_differences(atRest, swung), greaterThan(120),
           reason: 'the rope moved in the simulation and not on the screen');
+    });
+  });
+
+  test('the pose reaches the screen, and a hard landing shows', () {
+    // Stage E3's assertion on the picture. `RunnerLooks` is tested on its own
+    // numbers in `runner_looks_test.dart`; what this asks is whether those
+    // numbers ever arrive at a pixel, which is exactly the seam all three
+    // shipped bugs lived in.
+    //
+    // Mutation: drop the `setScale` from where the runner is drawn.
+    return _Shown.build().then((_Shown it) async {
+      it.runner.body.teleport(Vector3(0.0, 0.9, -22.0));
+      it.wait(40);
+      final at = it.runner.position.clone();
+      it.look(from: at + Vector3(0.0, 1.2, -4.0), at: at);
+      final standing = await it.draw();
+
+      // Dropped from a height, and drawn on the step it lands.
+      it.runner.body.teleport(Vector3(0.0, 20.0, -22.0));
+      for (var i = 0; i < 200; i++) {
+        it.step();
+        if (it.runner.landedThisStep) break;
+      }
+      final landed = await it.draw();
+
+      expect(_differences(standing, landed), greaterThan(80),
+          reason: 'the runner is drawn the same standing and squashed');
     });
   });
 

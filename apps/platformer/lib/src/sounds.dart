@@ -14,6 +14,10 @@ abstract final class Sounds {
     // Seven coins collected in one dash is not seven times as loud.
     maxInstances: 3,
     priority: 2,
+    // A few per cent either way. There are two hundred and fifty coins in this
+    // level, and identical repeats read as a machine long before they read as
+    // a sound — the same finding `maxInstances` came from, at a slower rate.
+    rateVariance: 0.12,
   );
 
   static const SoundDef jump = SoundDef(
@@ -21,6 +25,7 @@ abstract final class Sounds {
     asset: 'assets/sounds/jump.wav',
     gain: 0.5,
     maxInstances: 2,
+    rateVariance: 0.08,
   );
 
   static const SoundDef airJump = SoundDef(
@@ -35,6 +40,7 @@ abstract final class Sounds {
     asset: 'assets/sounds/land.wav',
     gain: 0.45,
     maxInstances: 2,
+    rateVariance: 0.1,
   );
 
   static const SoundDef dash = SoundDef(
@@ -42,6 +48,7 @@ abstract final class Sounds {
     asset: 'assets/sounds/dash.wav',
     gain: 0.55,
     maxInstances: 2,
+    rateVariance: 0.06,
   );
 
   static const SoundDef death = SoundDef(

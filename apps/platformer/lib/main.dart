@@ -18,11 +18,14 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
+import 'src/runner_looks.dart';
 import 'src/scene_surface.dart';
 import 'src/settings_file.dart';
 import 'src/settings_panel.dart';
@@ -77,9 +80,6 @@ class _GameScreenState extends State<GameScreen>
   AudioScene _audio = AudioScene(backend: SilentBackend());
   final AudioListener _ears = AudioListener();
   SoLoudBackend? _soloud;
-
-  /// Whether the runner had its feet down last step, for the landing sound.
-  bool _wasGrounded = true;
 
   bool _showSettings = false;
   late final GameLoop _loop;
@@ -138,6 +138,15 @@ class _GameScreenState extends State<GameScreen>
   /// step is 60 Hz and the display may not be, and a body drawn at the last
   /// step's position judders on a 120 Hz monitor even though the simulation is
   /// perfectly smooth.
+  /// Dust, sparks and flame. One pool for the whole game, one draw call.
+  final ParticleSystem _particles = ParticleSystem(capacity: 2000);
+
+  /// How the runner is drawn, from what it is doing. See `RunnerLooks`.
+  final RunnerLooks _pose = RunnerLooks();
+
+  /// The lens the camera keeps, so a widened view has something to go back to.
+  final PerspectiveProjection _lens = const PerspectiveProjection();
+
   final InterpolatedVector3 _drawnAt = InterpolatedVector3();
   final InterpolatedAngle _drawnYaw = InterpolatedAngle();
 
@@ -203,6 +212,9 @@ class _GameScreenState extends State<GameScreen>
           fallbackAlbedo: SolidColorTexture.white.upload(device),
           fallbackNormal: SolidColorTexture.flatNormal.upload(device),
         );
+        // One pool, one draw call, added once. Everything this game throws
+        // into the air goes through it.
+        _renderer?.addContributor(ParticleContributor(_particles));
       } catch (error) {
         _initError = error;
       }
@@ -399,8 +411,10 @@ class _GameScreenState extends State<GameScreen>
     _loop.paused = !_devices.isCaptured || _sim == null;
     _loop.advance(dt.clamp(0.0, 0.25));
 
+    _particles.advance(dt);
     _placeCamera(dt);
     _fixtures?.sync(_elapsed);
+    _burnLamps();
     if (mounted) setState(() {});
   }
 
@@ -428,23 +442,97 @@ class _GameScreenState extends State<GameScreen>
     _drawnYaw.push(runner.yaw);
   }
 
+  /// Keeps every lamp's flame alight.
+  ///
+  /// Restated every frame rather than started once, because that is what
+  /// `ParticleSystem.emit` wants: a rate that is not restated goes out, which
+  /// is how a torch that was destroyed stops smoking without anybody telling
+  /// it to.
+  void _burnLamps() {
+    final flames = _fixtures?.flames;
+    if (flames == null) return;
+    for (final MapEntry<LightFixture, TorchFire> lamp in flames.entries) {
+      final fire = lamp.value;
+      _particles.emit(
+        fire,
+        Effects.flame,
+        fire.originInto(_flameAt),
+        perSecond: 34.0 * lamp.key.brightness,
+        direction: _up,
+      );
+    }
+  }
+
+  static final Vector3 _up = Vector3(0.0, 1.0, 0.0);
+  final Vector3 _flameAt = Vector3.zero();
+
   /// Turns a step's events into sounds. Nothing here decides anything.
   void _hear(PlatformerSimulation sim, Runner runner) {
     final at = runner.position;
+    final camera = _followCamera;
     if (runner.jumpedThisStep) {
       _audio.play(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at);
     }
-    if (runner.dashedThisStep) _audio.play(Sounds.dash, at);
-    for (var i = 0; i < sim.takenThisStep.length; i++) {
-      _audio.play(Sounds.coin, sim.takenThisStep[i].origin);
+    if (runner.dashedThisStep) {
+      _audio.play(Sounds.dash, at);
+      _particles.burst(Effects.dash, at);
+      camera?.widen(0.1);
     }
-    if (sim.reachedCheckpointThisStep) _audio.play(Sounds.checkpoint, at);
-    if (sim.deaths != _deathsSeen) _audio.play(Sounds.death, at);
+    if (runner.wallJumpedThisStep) _particles.burst(Effects.dust, at);
+    for (var i = 0; i < sim.takenThisStep.length; i++) {
+      final where = sim.takenThisStep[i].origin;
+      _audio.play(Sounds.coin, where);
+      _particles.burst(Effects.coin, where);
+    }
+    if (sim.reachedCheckpointThisStep) {
+      _audio.play(Sounds.checkpoint, at);
+      _particles.burst(Effects.checkpoint, at, direction: _up);
+    }
+    if (sim.deaths != _deathsSeen) {
+      _audio.play(Sounds.death, at);
+      _particles.burst(Effects.death, at);
+      camera?.shake(0.5, seconds: 0.4);
+    }
 
-    // Landing is a transition rather than an event the simulation reports,
-    // because nothing in the simulation cares — only the ears do.
-    if (runner.isGrounded && !_wasGrounded) _audio.play(Sounds.land, at);
-    _wasGrounded = runner.isGrounded;
+    // Everything the level's own machinery did this step. A spring that throws
+    // somebody and a shelf that gives way are both events nobody was watching
+    // for until there was something to show for them.
+    for (final Mechanism mechanism in sim.mechanisms?.all ?? const <Mechanism>[]) {
+      if (mechanism is Spring && mechanism.firedThisStep) {
+        _particles.burst(Effects.spring, mechanism.origin, direction: _up);
+      }
+      if (mechanism is Crumbling && mechanism.crumbledThisStep) {
+        _particles.burst(Effects.crumble, mechanism.origin);
+      }
+      if (mechanism is Breakable && mechanism.brokeThisStep) {
+        _particles.burst(Effects.slam, mechanism.origin);
+      }
+    }
+
+    // Landing is an event the simulation reports now, and it reports how hard:
+    // the application used to work it out from whether the runner was grounded
+    // last frame, which cannot know the speed.
+    if (runner.landedThisStep) {
+      _audio.play(Sounds.land, at);
+      _feelLanding(runner.landingSpeed, pounded: runner.poundedThisStep);
+      if (runner.poundedThisStep) {
+        _particles.burst(Effects.slam, at);
+      } else if (runner.landingSpeed > 6.0) {
+        _particles.burst(Effects.dust, at);
+      }
+    }
+  }
+
+  /// What a landing does to the camera. The pose is `RunnerLooks`' business.
+  void _feelLanding(double speed, {required bool pounded}) {
+    final camera = _followCamera;
+    if (camera == null) return;
+    // Below walking pace nothing happens: a camera that dips every time the
+    // player steps off a kerb is a camera nobody can look at.
+    if (speed < 6.0 && !pounded) return;
+    final hardness = (speed / 20.0).clamp(0.0, 1.0);
+    camera.kick(Vector3(0.0, -0.18 * hardness, 0.0));
+    if (pounded) camera.shake(0.22, seconds: 0.3);
   }
 
   void _placeCamera(double dt) {
@@ -456,18 +544,39 @@ class _GameScreenState extends State<GameScreen>
     _drawnAt.read(_loop.alpha, _scratch);
     camera.follow(_scratch, dt);
 
+    // The pose: squash, stretch, lean, and the flip a double jump turns. Built
+    // from what the runner did this step and applied here, because this is the
+    // one place that draws.
+    final runner = _runner;
+    if (runner != null) _pose.advance(runner, dt);
+    final scale = _pose.scale;
+
     node
       ..setPosition(_scratch.x, _scratch.y - _runnerDrop, _scratch.z)
+      ..setScale(scale.x, scale.y, scale.z)
       ..setRotation(
         Quaternion.axisAngle(
-          Vector3(0.0, 1.0, 0.0),
-          _drawnYaw.read(_loop.alpha) + _runnerFacing,
-        ),
+              Vector3(0.0, 1.0, 0.0),
+              _drawnYaw.read(_loop.alpha) + _runnerFacing + _pose.spin,
+            ) *
+            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), _pose.lean) *
+            Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), _pose.roll),
       );
+
+    // Speed widens the view a little, which is the cheapest way to make fast
+    // feel fast. Read off the drawn body rather than the simulated one so it
+    // moves at the display's rate.
+    if (runner != null) {
+      final speed = runner.body.velocity.length;
+      if (speed > 9.0) camera.widen(((speed - 9.0) / 14.0).clamp(0.0, 0.12));
+    }
 
     _camera
       ..setPositionFrom(camera.eye)
-      ..lookAt(camera.target);
+      ..lookAt(camera.target)
+      ..projection = _lens.copyWith(
+        fovYRadians: _lens.fovYRadians + camera.extraFov,
+      );
 
     // Along the camera's own forward rather than through a yaw: `aimAt` reads
     // an angle as a first-person camera's, and this one is not.

@@ -15,11 +15,16 @@ abstract interface class AudioBackend {
 
   /// Begins a voice, or null when the backend refused.
   ///
-  /// [pan] runs from -1 (hard left) through 0 to 1 (hard right).
+  /// [pan] runs from -1 (hard left) through 0 to 1 (hard right). [rate] is a
+  /// multiple of the file's own speed, and it is a required parameter rather
+  /// than an optional one on purpose: a one-shot that begins at rate one and is
+  /// corrected a frame later is audible as a chirp, so there is no
+  /// `setRate(voice, rate)` to forget to call.
   VoiceId? start(
     String asset, {
     required double gain,
     required double pan,
+    required double rate,
     required bool loop,
   });
 
@@ -54,9 +59,10 @@ final class SilentBackend implements AudioBackend {
     String asset, {
     required double gain,
     required double pan,
+    required double rate,
     required bool loop,
   }) {
-    final voice = SilentVoice(_next++, asset, gain, pan, loop);
+    final voice = SilentVoice(_next++, asset, gain, pan, rate, loop);
     started.add(voice);
     return voice;
   }
@@ -83,16 +89,20 @@ final class SilentBackend implements AudioBackend {
 /// One recorded voice. Public because a test reads it, and a type a test has
 /// to reach for is part of the interface whether or not it looks like one.
 final class SilentVoice {
-  SilentVoice(this.id, this.asset, this.gain, this.pan, this.loop);
+  SilentVoice(this.id, this.asset, this.gain, this.pan, this.rate, this.loop);
 
   final int id;
   final String asset;
   double gain;
   double pan;
+
+  /// What speed it was started at, which is what a test asserting on variance
+  /// reads.
+  final double rate;
   final bool loop;
   bool alive = true;
   int updates = 0;
 
   @override
-  String toString() => 'voice($asset, gain: $gain, pan: $pan)';
+  String toString() => 'voice($asset, gain: $gain, pan: $pan, rate: $rate)';
 }

@@ -1,4 +1,5 @@
-import 'package:flutter3d/flutter3d.dart' show Material;
+import 'package:flutter3d/flutter3d.dart'
+    show Material, MeshNode, SphereShape, TextureHandle;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
@@ -13,10 +14,45 @@ import 'package:vector_math/vector_math.dart';
 final class PlatformerLooks implements FixtureAppearance {
   const PlatformerLooks();
 
-  /// This game has no torches. Returning null is a fixture that glows without
-  /// burning, which is the whole of the answer for a level lit by its lights.
+  /// A lamp: a glowing globe on a post, with a flame the game feeds.
+  ///
+  /// It used to return null for everything, on the grounds that a level lit by
+  /// its own lights needs no fixtures — true, and it left `LightFixture`,
+  /// `FlameFlicker` and the whole particle path unused. A maze with five
+  /// hundred metres of corridor in it is exactly where a light you can see the
+  /// source of earns its place.
   @override
-  TorchFire? buildLightFixture(LightFixtureBuild build) => null;
+  TorchFire? buildLightFixture(LightFixtureBuild build) {
+    final size = build.fixture.size;
+    build.holder
+      ..add(
+        MeshNode(
+          build.meshes.shape(
+            'globe${size.x}',
+            () => SphereShape(radius: size.x * 0.5),
+          ),
+          build.glow,
+          name: 'globe',
+        ),
+      )
+      ..add(
+        MeshNode(
+          build.meshes.box(Vector3(size.x * 0.28, size.y, size.z * 0.28)),
+          LevelLoader.materialFrom(
+            LevelMaterial(
+              baseColor: Vector4(0.22, 0.20, 0.18, 1.0),
+              roughness: 0.6,
+              metallic: 0.7,
+            ),
+            const <String, TextureHandle?>{},
+            name: 'lamp post',
+          ),
+          name: 'post',
+        )..setPosition(0.0, -size.y * 0.5, 0.0),
+      );
+    // Just clear of the globe, so the flame is not inside its own glass.
+    return TorchFire(build.holder, rise: size.y * 0.25);
+  }
 
   @override
   LevelMaterial fallbackFor(Fixture fixture) {

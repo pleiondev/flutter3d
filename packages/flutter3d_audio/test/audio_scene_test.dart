@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -19,6 +21,8 @@ const SoundDef _door = SoundDef(
 AudioListener _ears() => AudioListener()..aimAt(Vector3.zero(), 0.0);
 
 void main() {
+  group('play rate', _rateTests);
+
   group('attenuation', () {
     test('is full inside the reference radius', () {
       const model = InverseRolloff(reference: 2.0, maximum: 30.0);
@@ -303,5 +307,89 @@ void main() {
       expect(gainToDecibels(0.5), closeTo(-6.02, 0.01));
       expect(gainToDecibels(0.0), double.negativeInfinity);
     });
+  });
+}
+
+/// What speed a sound is played at, and how much that varies.
+///
+/// The other half of `maxInstances`: identical repeats read as a machine even
+/// when they are far enough apart not to click.
+void _rateTests() {
+  SoundDef coin({double variance = 0.0, double rate = 1.0}) => SoundDef(
+        name: 'coin',
+        asset: 'coin.wav',
+        rate: rate,
+        rateVariance: variance,
+      );
+
+  ({AudioScene scene, SilentBackend backend}) sceneWith({int seed = 3}) {
+    final backend = SilentBackend();
+    return (
+      scene: AudioScene(backend: backend, random: math.Random(seed)),
+      backend: backend,
+    );
+  }
+
+  test('no variance plays at exactly the rate asked for', () {
+    // Mutation: `1.0 + random.nextDouble() * variance` with a non-zero default
+    // — every sound in every game drifts sharp.
+    final it = sceneWith();
+    it.scene
+      ..play(coin(), Vector3.zero())
+      ..update(AudioListener());
+
+    expect(it.backend.started.single.rate, 1.0);
+  });
+
+  test('variance makes two plays of one sound differ', () {
+    // Mutation: draw the rate once at `SoundDef` construction. Every coin in
+    // the level is the same coin again, which is the thing this is for.
+    final it = sceneWith();
+    final sound = coin(variance: 0.15);
+    for (var i = 0; i < 6; i++) {
+      it.scene
+        ..play(sound, Vector3(i * 0.1, 0.0, 0.0))
+        ..update(AudioListener());
+    }
+
+    final rates = it.backend.started.map((SilentVoice v) => v.rate).toSet();
+    expect(rates.length, greaterThan(1), reason: 'every play was identical');
+    for (final rate in rates) {
+      expect(rate, inInclusiveRange(0.85, 1.15));
+    }
+  });
+
+  test('the variance is two-sided, so nothing drifts sharp', () {
+    // Mutation: `1.0 + r * variance`. The mean climbs by half the variance and
+    // a hundred coins later the level sounds like a cartoon.
+    final it = sceneWith(seed: 11);
+    final sound = coin(variance: 0.2);
+    for (var i = 0; i < 400; i++) {
+      it.scene
+        ..play(sound, Vector3(i * 0.01, 0.0, 0.0))
+        ..update(AudioListener());
+    }
+
+    final rates = it.backend.started.map((SilentVoice v) => v.rate);
+    final mean = rates.reduce((double a, double b) => a + b) / rates.length;
+    expect(mean, closeTo(1.0, 0.02));
+  });
+
+  test('the same seed gives the same sounds', () {
+    // Mutation: use `math.Random()` inside the scene. Every snapshot test that
+    // happens to play a sound stops being reproducible, and the failure looks
+    // like the physics diverging.
+    List<double> run() {
+      final it = sceneWith(seed: 5);
+      final sound = coin(variance: 0.1);
+      for (var i = 0; i < 8; i++) {
+        it.scene
+          ..play(sound, Vector3(i.toDouble(), 0.0, 0.0))
+          ..update(AudioListener());
+      }
+      return it.backend.started.map((SilentVoice v) => v.rate).toList();
+    }
+
+    expect(run(), run());
   });
 }

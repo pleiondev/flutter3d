@@ -16,6 +16,7 @@ final class FollowTuning {
     this.sensitivity = 0.0035,
     this.nearClearance = 0.35,
     this.minDistance = 1.2,
+    this.impulseDecay = 9.0,
   });
 
   final double distance;
@@ -44,6 +45,9 @@ final class FollowTuning {
 
   /// How close to the runner the camera may be pulled before giving up.
   final double minDistance;
+
+  /// How fast a kick, a widening and a shake fade, per second.
+  final double impulseDecay;
 }
 
 /// A third-person camera: behind the runner, above it, out of the walls.
@@ -91,6 +95,42 @@ final class FollowCamera {
   /// What it is looking at.
   Vector3 get target => _target;
 
+  /// A knock, in metres, that decays away. The camera's own recoil.
+  final Vector3 _kick = Vector3.zero();
+
+  /// How much shake is left, and how fast it wobbles.
+  double _shake = 0.0;
+  double _shakeTime = 0.0;
+
+  /// How much of the shake the player asked for, nought to one.
+  ///
+  /// A setting rather than a constant because a shaking camera makes some
+  /// people ill, and a game that cannot be turned down is a game they cannot
+  /// play. Zero is not "broken", it is "off".
+  double shakeScale = 1.0;
+
+  /// Extra field of view, in radians, that decays away. Read by the
+  /// application, which owns the projection.
+  double get extraFov => _fov;
+  double _fov = 0.0;
+
+  /// Knocks the camera along [direction] by its length, in metres.
+  ///
+  /// For a landing: a dip the size of the impact, gone in a quarter of a
+  /// second. Cinemachine calls the same idea an impulse.
+  void kick(Vector3 direction) => _kick.add(direction);
+
+  /// Shakes the camera for [seconds], [amount] metres wide.
+  void shake(double amount, {double seconds = 0.35}) {
+    _shake = math.max(_shake, amount * seconds);
+    _shakeSeconds = math.max(_shakeSeconds, seconds);
+  }
+
+  double _shakeSeconds = 0.0;
+
+  /// Widens the view by [radians], which decays back. For speed and a dash.
+  void widen(double radians) => _fov = math.max(_fov, radians);
+
   /// Turns the camera by a look delta from a mouse or a stick.
   void look(Vector2 delta) {
     _yaw -= delta.x * tuning.sensitivity;
@@ -127,7 +167,35 @@ final class FollowCamera {
       _eye.addScaled(wanted - _eye, t);
     }
 
+    // **The wall check runs on both sides of the impulse, and both are
+    // needed.** Before, because the knock should be added to a camera that is
+    // already where it belongs rather than to one halfway inside a wall.
+    // After, because a knock is a displacement like any other and a camera
+    // inside a brush is the one thing this class exists to prevent — a
+    // property test with three hundred random impulses in a boxed room caught
+    // it doing exactly that, half a metre into the wall behind the player.
     _keepOutOfWalls();
+
+    _decay(dt);
+    _eye.add(_kick);
+    if (_shake > 0.0) {
+      _eye
+        ..x += math.sin(_shakeTime * 47.0) * _shake * shakeScale
+        ..y += math.sin(_shakeTime * 39.0 + 1.7) * _shake * shakeScale
+        ..z += math.sin(_shakeTime * 53.0 + 3.1) * _shake * shakeScale;
+    }
+
+    _keepOutOfWalls();
+  }
+
+  void _decay(double dt) {
+    _shakeTime += dt;
+    final gone = 1.0 - math.exp(-tuning.impulseDecay * dt);
+    _kick.scale(1.0 - gone);
+    _fov *= 1.0 - gone;
+    if (_shakeSeconds > 0.0) {
+      _shake = math.max(0.0, _shake - dt * _shake / _shakeSeconds - 1e-4);
+    }
   }
 
   /// Pulls the camera in until the line from the runner to it is clear.
@@ -157,5 +225,10 @@ final class FollowCamera {
   ///
   /// For a respawn: easing from where the player died to where they came back
   /// is a second of the level flying past for no reason.
-  void cut() => _placed = false;
+  void cut() {
+    _placed = false;
+    _kick.setZero();
+    _shake = 0.0;
+    _fov = 0.0;
+  }
 }

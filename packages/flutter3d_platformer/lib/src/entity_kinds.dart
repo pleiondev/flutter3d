@@ -36,6 +36,9 @@ abstract final class PlatformerEntities {
 
   /// A ladder, or — with a swing on it — a rope.
   static const String climbable = 'climbable';
+
+  /// A lamp on a post: something to see by, and something to see.
+  static const String lamp = 'lamp';
 }
 
 final class CollectibleKind extends EntityKind {
@@ -223,6 +226,14 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
       const CrumblingKind(),
       const BreakableKind(),
       const ClimbableKind(),
+      // The engine's own kind, named by this game. `LightFixtureKind` stopped
+      // being abstract precisely so a genre could say `lamp` without the engine
+      // knowing the word.
+      LightFixtureKind(
+        PlatformerEntities.lamp,
+        defaultBehaviour: const FlameFlicker(),
+        defaultSize: Vector3(0.4, 1.6, 0.4),
+      ),
     ]);
 
 /// What is true of a platformer's level whatever it contains.

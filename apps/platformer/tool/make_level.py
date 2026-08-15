@@ -186,6 +186,14 @@ def climbable(name, at, size=(1.2, 8.0, 1.2), swing=0.0, period=2.4, phase=0.0):
     entities.append(row)
 
 
+def lamp(name, at, size=(0.4, 1.6, 0.4)):
+    """Something to see by, and something to see."""
+    entities.append({
+        "type": "lamp", "name": name, "at": _r(at), "size": _r(size),
+        "material": "brass",
+    })
+
+
 def plate(name, target, at, size=(4.0, 2.0, 4.0)):
     """A volume that works a mechanism by being walked into.
 
@@ -483,6 +491,14 @@ for z, x in ((90.0, -3.0), (96.0, 3.0), (102.0, -3.0), (108.0, 3.0)):
 # Stubs inside the rows: without them a serpentine is a corridor with a bend.
 for z, x in ((87.0, 8.0), (93.0, -8.0), (99.0, 8.0), (105.0, -8.0), (111.0, 14.0)):
     _route([x, 2.5, z], [1.0, 5.0, 3.6], "stone")
+# Lamps down the maze, which is five hundred metres of corridor between
+# walls with nothing to look at.
+for i, (x, z) in enumerate((
+    (-24.0, 87.0), (24.0, 87.0), (-24.0, 99.0), (24.0, 99.0),
+    (-24.0, 111.0), (24.0, 111.0), (0.0, 93.0), (0.0, 105.0), (0.0, 117.0),
+)):
+    lamp(f"the maze lamp {i + 1}", [x, 2.2, z])
+
 for i, (x, z) in enumerate((
     (-24.0, 87.0), (-18.0, 87.0), (12.0, 87.0), (24.0, 93.0), (18.0, 93.0),
     (-24.0, 99.0), (-18.0, 99.0), (24.0, 105.0), (18.0, 105.0),
