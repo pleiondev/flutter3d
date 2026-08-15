@@ -43,6 +43,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+  # Only the tests use it, and only to draw a frame without a GPU. Three bugs
+  # shipped that every simulation test passed and a single rendered frame would
+  # have caught — see `test/frame_test.dart`.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
 flutter:
   uses-material-design: true
 

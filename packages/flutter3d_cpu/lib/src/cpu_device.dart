@@ -752,7 +752,20 @@ final class CpuEncoder implements CommandEncoder {
         // where it is genuinely linear — interpolating after the divide is the
         // classic way to get a seam that moves as the camera does.
         final t = (_nearEpsilon - a.w) / (b.w - a.w);
-        poly.add(a + (b - a) * t);
+        final cutVertex = a + (b - a) * t;
+        // Say where it is rather than trusting the arithmetic that put it
+        // there. By construction this vertex lies *on* the plane, but `Vector4`
+        // is float32-backed and the interpolation rounds — sometimes to a hair
+        // below the plane, and sometimes to exactly zero. Dividing x by that
+        // zero gives infinity, and the bounding box's `ceil()` throws
+        // "Infinity or NaN toInt" from inside a rasteriser, which is a long way
+        // from where anybody would look.
+        //
+        // Found by pointing a camera at a level's floor from three metres up:
+        // one brush a hundred and twenty metres across is one pair of triangles
+        // straddling the eye, and every frame from inside such a level crashed.
+        cutVertex.w = _nearEpsilon;
+        poly.add(cutVertex);
         final cut = Float32List(varyingCount);
         for (var k = 0; k < varyingCount; k++) {
           cut[k] = varyings[i][k] + (varyings[j][k] - varyings[i][k]) * t;
