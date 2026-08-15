@@ -110,6 +110,13 @@ final class PlatformerLooks implements FixtureAppearance {
   /// drew none of them.
   @override
   bool isSpent(Fixture fixture) {
+    // A dead guard leaves the screen. `ActorSystem` turns a corpse's collider
+    // into a trigger so it stops being an obstacle, and nothing was watching
+    // that from the drawing side — so an enemy killed by a stomp stayed
+    // standing there, and the player kept trying to jump on it.
+    final who = fixture.collider?.userData;
+    if (who is Actor) return !who.isAlive;
+
     final mechanism = fixture.mechanism;
     return mechanism is Collectible &&
         mechanism.isTaken &&

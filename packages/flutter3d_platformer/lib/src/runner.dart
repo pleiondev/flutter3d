@@ -18,6 +18,8 @@ final class RunnerTuning {
     this.jumpCut = 0.45,
     this.coyoteTime = 0.12,
     this.dropThroughTime = 0.25,
+    this.stompBounce = 7.5,
+    this.stompBounceHeld = 11.0,
     this.crouchHeight = 0.45,
     this.crouchSpeed = 2.4,
     this.slideSpeed = 11.0,
@@ -108,6 +110,14 @@ final class RunnerTuning {
   /// Below this the character controller's own step-up already handles it, and
   /// mantling a kerb looks like a stumble.
   final double mantleLow;
+
+  /// How high a stomp throws the runner back, and how high while holding jump.
+  ///
+  /// The held figure is above a standing jump's 9.5, so a chain of stomps
+  /// climbs — which is the whole reason a player aims for the second enemy
+  /// rather than landing beside it.
+  final double stompBounce;
+  final double stompBounceHeld;
 
   /// How long a one-way platform stays passable after asking to drop.
   ///
@@ -389,6 +399,8 @@ final class Runner with KeyHolder
     slidThisStep = false;
     longJumpedThisStep = false;
     landedThisStep = false;
+    bouncedThisStep = false;
+    _jumpHeld = input.held(GameAction.jump);
     grabbedThisStep = false;
 
     _climbCooldown = math.max(0.0, _climbCooldown - dt);
@@ -660,6 +672,26 @@ final class Runner with KeyHolder
       ..z = 0.0
       ..y = -tuning.poundSpeed;
   }
+
+  /// The hop off something the runner has just landed on.
+  ///
+  /// Fixed, plus a bonus for holding the jump — the arrangement every
+  /// platformer since the first one uses, and the reason is that both halves
+  /// are needed: a fixed bounce is predictable enough to chain, and the held
+  /// bonus is what makes chaining *worth* aiming for. A bounce scaled by how
+  /// fast the runner was falling would reward height instead of timing.
+  void bounce() {
+    body.velocity.y = _jumpHeld ? tuning.stompBounceHeld : tuning.stompBounce;
+    _airJumpsLeft = tuning.airJumps;
+    _coyote = 0.0;
+    bouncedThisStep = true;
+  }
+
+  /// True on the step the runner bounced off something it landed on.
+  bool bouncedThisStep = false;
+
+  /// Whether the jump button was down as of this step's input.
+  bool _jumpHeld = false;
 
   /// Asks to fall through the one-way platform underfoot.
   ///

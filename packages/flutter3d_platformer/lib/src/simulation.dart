@@ -34,6 +34,7 @@ final class PlatformerSimulation {
     required Vector3 startAt,
     this.mechanisms,
     this.dynamics,
+    this.actors,
     this.levelNext,
     GameRandom? random,
     this.killPlane = -20.0,
@@ -45,6 +46,13 @@ final class PlatformerSimulation {
   final InputState input;
   final MechanismWorld? mechanisms;
   final Dynamics? dynamics;
+
+  /// The things that move on their own, or null for a level with none.
+  ///
+  /// Built by the application since this package existed and **never stepped**,
+  /// which is why there were no enemies: the system was there, the brains were
+  /// there, and nothing called them.
+  final ActorSystem? actors;
   final GameRandom random;
 
   /// What the application says the level goes on to, passed through unread.
@@ -84,9 +92,19 @@ final class PlatformerSimulation {
   /// True on the step a checkpoint was reached for the first time.
   bool reachedCheckpointThisStep = false;
 
+  /// True on the step the runner landed on something and killed it.
+  bool stompedThisStep = false;
+
+  /// Damage a second from standing against an enemy.
+  ///
+  /// A rate rather than a lump, exactly as a hazard's is, and for the same
+  /// reason: what matters is how long you are in the wrong place.
+  double actorDamage = 60.0;
+
   void step(double dt) {
     takenThisStep.clear();
     reachedCheckpointThisStep = false;
+    stompedThisStep = false;
 
     if (state == RunState.finished) return;
 
@@ -100,6 +118,13 @@ final class PlatformerSimulation {
     // the shooter's; a mover that has not been reindexed is a mover the sweep
     // finds in last step's place.
     mechanisms?.step(dt);
+
+    // Actors after the movers and **before the broadphase catches up**, for the
+    // same reason and with the same consequence: an actor that has moved and
+    // not been reindexed is an actor the runner's sweep finds in last step's
+    // place, which is a patrol you can walk through half the time.
+    actors?.step(dt, focus: runner.position, focusBody: runner.body.collider);
+
     collision.reindex();
     dynamics?.step(dt);
 
@@ -109,6 +134,7 @@ final class PlatformerSimulation {
     dynamics?.push(runner.body.collider, runner.shove);
 
     _readFloor();
+    _readActors(dt);
 
     // Overlaps dispatch here: collectibles are taken, hazards bite, checkpoints
     // light up. All three run from inside this call, which is why each of them
@@ -152,6 +178,65 @@ final class PlatformerSimulation {
     final under = runner.body.ground?.userData;
     if (under is Crumbling) under.takeWeight();
     if (runner.poundedThisStep && under is Breakable) under.shatter();
+  }
+
+  /// Landing on an enemy, and walking into one.
+  ///
+  /// The whole of a platformer's combat, and the asymmetry *is* the design:
+  /// from above you win, from the side you lose. Everything else — a health
+  /// bar, a weapon, a hit reaction — is a different genre's answer.
+  ///
+  /// Read from overlap rather than from a trigger volume, because an actor's
+  /// body is solid: the runner never enters it, it stops against it, and a
+  /// trigger would have to be a second collider kept in step with the first.
+  void _readActors(double dt) {
+    final system = actors;
+    if (system == null) return;
+    if (!runner.health.isAlive) return;
+
+    final body = runner.body;
+    final mine = body.halfExtents;
+
+    for (final actor in system.actors) {
+      if (!actor.isAlive) continue;
+      final theirs = actor.body;
+      if (theirs == null) continue;
+
+      final where = actor.position;
+      if (where == null) continue;
+      final apart = where - body.position;
+      // A skin, because two solid bodies never overlap: the controller stops
+      // one against the other and they come to rest exactly touching, where the
+      // overlap is zero and a strict test says they are not in contact. Without
+      // it an enemy pressed against the player did nothing at all, which is
+      // what the first run of these tests reported.
+      const touching = 0.06;
+      if (mine.x + theirs.halfExtents.x + touching - apart.x.abs() <= 0.0) {
+        continue;
+      }
+      if (mine.z + theirs.halfExtents.z + touching - apart.z.abs() <= 0.0) {
+        continue;
+      }
+      if (mine.y + theirs.halfExtents.y - apart.y.abs() <= -0.15) continue;
+
+      // **Feet against the top of its head, not centre against centre.** The
+      // first version compared centres with a margin, which is true whenever
+      // the runner is simply the taller of the two — so walking into a
+      // waist-high guard counted as landing on it and the game had no way to
+      // lose. A stomp is the feet arriving at or above the crown, on the way
+      // down.
+      final feet = body.position.y - mine.y;
+      final crown = where.y + theirs.halfExtents.y;
+      final onTop = feet >= crown - 0.25 && body.velocity.y <= 0.5;
+
+      if (onTop) {
+        system.hurt(actor, double.infinity);
+        stompedThisStep = true;
+        runner.bounce();
+      } else {
+        runner.applyDamage(actorDamage * dt);
+      }
+    }
   }
 
   void _readCheckpoints() {

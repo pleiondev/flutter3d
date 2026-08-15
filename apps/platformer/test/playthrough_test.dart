@@ -88,12 +88,9 @@ final class _Game {
     level.addTo(world);
     mechanisms = MechanismWorld(world);
     (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
+    actors = ActorSystem(world: world);
     level.spawnInto(
-      SpawnContext(
-        world: world,
-        actors: ActorSystem(world: world),
-        mechanisms: mechanisms,
-      ),
+      SpawnContext(world: world, actors: actors, mechanisms: mechanisms),
       registry: kinds,
     );
 
@@ -115,6 +112,7 @@ final class _Game {
       startAt: start,
       mechanisms: mechanisms,
       dynamics: dynamics,
+      actors: actors,
     );
   }
 
@@ -123,6 +121,7 @@ final class _Game {
   late final Dynamics dynamics = Dynamics(world: world);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
+  late final ActorSystem actors;
   late final Runner runner;
   late final PlatformerSimulation sim;
 
@@ -249,6 +248,8 @@ void main() {
       expect(counted['breakable'], greaterThanOrEqualTo(3), reason: 'the cap');
       expect(counted['climbable'], greaterThanOrEqualTo(2),
           reason: 'a ladder and a rope');
+      expect(counted['enemy'], greaterThanOrEqualTo(3),
+          reason: 'two guards and a leaper');
       expect(
         level.brushes.where((Brush b) => b.surface == 'ice'),
         isNotEmpty,
@@ -492,6 +493,45 @@ void main() {
       game.wait(120);
 
       expect(cap.isBroken, isTrue, reason: 'the pound did not break it');
+    });
+  });
+
+  group('the guards', () {
+    test('the level spawns them, and they patrol', () {
+      // Mutation: drop `actors: actors` from the simulation the app builds —
+      // the enemies stand still for ever, which is what a level full of actors
+      // and no step looks like.
+      final game = _Game();
+      expect(game.actors.actors, hasLength(greaterThanOrEqualTo(3)));
+
+      final guard = game.actors.actors.first;
+      final startedAt = guard.position!.clone();
+      game.wait(240);
+
+      expect((guard.position! - startedAt).length, greaterThan(2.0),
+          reason: 'a guard that never moved');
+      expect(guard.position!.y, greaterThan(-1.0), reason: 'it fell out');
+    });
+
+    test('landing on one kills it and throws the runner back', () {
+      final game = _Game();
+      final guard = game.actors.actors.first;
+      final over = guard.position!;
+
+      // From just above, not from five metres: a guard walks while the runner
+      // falls, and half a second in the air is more than a body's width of
+      // walking. Dropping onto a moving target from a height is a test of the
+      // level designer's aim rather than of the stomp.
+      game.putAt(Vector3(over.x, over.y + 1.0, over.z));
+      var stomped = false;
+      for (var i = 0; i < 200 && !stomped; i++) {
+        game.step();
+        stomped = game.sim.stompedThisStep;
+      }
+
+      expect(stomped, isTrue, reason: 'it landed beside it');
+      expect(guard.isAlive, isFalse);
+      expect(game.runner.body.velocity.y, greaterThan(4.0));
     });
   });
 

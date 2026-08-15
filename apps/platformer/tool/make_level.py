@@ -186,6 +186,15 @@ def climbable(name, at, size=(1.2, 8.0, 1.2), swing=0.0, period=2.4, phase=0.0):
     entities.append(row)
 
 
+def enemy(name, at, route, kind="patrol", speed=0.55, size=(0.7, 0.7, 0.7)):
+    """Something that walks a route and hurts on contact."""
+    entities.append({
+        "type": "enemy", "name": name, "at": _r(at), "size": _r(size),
+        "kind": kind, "speed": speed, "material": "brass",
+        "route": [_r(point) for point in route],
+    })
+
+
 def lamp(name, at, size=(0.4, 1.6, 0.4)):
     """Something to see by, and something to see."""
     entities.append({
@@ -384,6 +393,16 @@ _fill([7.0, 2.0, 14.0], [7.0, 1.9, 7.0], "stone")
 coin([7.0, 0.6, 14.0])
 coin([7.0, 3.9, 14.0])
 
+# The first thing in the level that walks. On the moss, in the open, where a
+# player meets one before anything else can go wrong — and a coin on the far
+# side of it, so meeting one is worth something.
+# A third of walking pace: a guard that moves as fast as the player is a
+# guard you cannot get round, and the first one a player meets should be
+# something to learn on.
+enemy("the first guard", [-10.0, 0.0, -4.0], [[-10.0, 0.0, -20.0]], speed=0.32)
+coin([-10.0, 0.8, -22.0])
+enemy("the second guard", [30.0, 0.0, -6.0], [[44.0, 0.0, -6.0]], speed=0.42)
+
 # The north strip: broken walls with coins behind them.
 for i in range(6):
     x = -54.0 + i * 8.0
@@ -525,6 +544,11 @@ plate("the east plate", "the east lift", [34.0, 1.6, 76.0])
 for dx in (-2.0, 2.0):
     for dz in (-2.0, 2.0):
         coin([40.0 + dx, 7.8, 76.0 + dz])
+
+# A leaper on the forecourt: it jumps the gaps in its own route, which is what
+# separates it from the guards on the moss.
+enemy("the leaper", [-16.0, 0.0, 74.0], [[8.0, 0.0, 74.0]], kind="leaper",
+      speed=0.45)
 
 # A saw on an arm, which is a hazard riding a mover — the two have existed
 # separately since the engine had either.

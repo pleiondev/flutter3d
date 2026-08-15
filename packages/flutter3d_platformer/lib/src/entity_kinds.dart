@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 import 'blocks.dart';
 import 'checkpoint.dart';
 import 'crate.dart';
+import 'enemy.dart';
 import 'spring.dart';
 import 'surfaces.dart';
 import 'collectible.dart';
@@ -39,6 +40,9 @@ abstract final class PlatformerEntities {
 
   /// A lamp on a post: something to see by, and something to see.
   static const String lamp = 'lamp';
+
+  /// Something that walks a route and hurts on contact.
+  static const String enemy = 'enemy';
 }
 
 final class CollectibleKind extends EntityKind {
@@ -229,6 +233,7 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
       // The engine's own kind, named by this game. `LightFixtureKind` stopped
       // being abstract precisely so a genre could say `lamp` without the engine
       // knowing the word.
+      const EnemyKind(),
       LightFixtureKind(
         PlatformerEntities.lamp,
         defaultBehaviour: const FlameFlicker(),
@@ -552,5 +557,86 @@ final class ClimbableKind extends EntityKind {
       mechanism: climbable,
       size: entity.vector('size') ?? defaultSize,
     );
+  }
+}
+
+/// Something that walks a route. See [Patrol] and [Leaper].
+///
+/// The route is the entity's own position followed by whatever `route` lists,
+/// so the simplest enemy a level can author is a position and one more point.
+/// A `kind` of `leaper` jumps the gaps in that route instead of turning at
+/// them.
+final class EnemyKind extends EntityKind {
+  const EnemyKind() : super(PlatformerEntities.enemy);
+
+  /// Shorter than the runner, so a stomp reads as landing *on* something.
+  static final Vector3 defaultSize = Vector3(0.7, 0.7, 0.7);
+
+  @override
+  void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final route = entity.properties['route'];
+    if (route is! List || route.isEmpty) {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'has no "route", so it is a thing standing in one place — which is a '
+          'hazard, and cheaper',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+    final kind = entity.string('kind');
+    if (kind != null && kind != 'patrol' && kind != 'leaper') {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'is a "$kind", and this game knows "patrol" and "leaper"',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+  }
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final actors = context.actors;
+    final rows = entity.properties['route'];
+    if (rows is! List || rows.isEmpty) return;
+
+    final route = <Vector3>[entity.position.clone()];
+    for (final row in rows) {
+      if (row is List && row.length >= 3) {
+        route.add(Vector3(
+          (row[0] as num).toDouble(),
+          (row[1] as num).toDouble(),
+          (row[2] as num).toDouble(),
+        ));
+      }
+    }
+    if (route.length < 2) return;
+
+    final size = entity.vector('size') ?? defaultSize;
+    final body = CharacterController(
+      world: context.world,
+      shape: CollisionBox(size / 2.0),
+      // The document points at the floor, as it does for everything else.
+      position: entity.position + Vector3(0.0, size.y / 2.0, 0.0),
+      layer: CollisionLayers.monster,
+    );
+
+    final speed = entity.number('speed') ?? 0.55;
+    final actor = actors.spawn(
+      body: body,
+      health: Health(entity.number('health') ?? 20.0),
+      facing: Facing(),
+      brain: entity.string('kind') == 'leaper'
+          ? Leaper(route: route, speed: speed)
+          : Patrol(route: route, speed: speed),
+    );
+
+    context.reveal(entity, collider: body.collider, size: size);
+    // So a stomp can find what it landed on: the runner reads `ground.userData`
+    // and everything else in this genre puts its own mechanism there.
+    body.collider.userData = actor;
   }
 }

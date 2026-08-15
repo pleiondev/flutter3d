@@ -337,6 +337,9 @@ class _GameScreenState extends State<GameScreen>
         runner: runner,
         collision: loaded.collision,
         input: _input,
+        // Built since this game began and stepped by nobody, which is why a
+        // platformer carrying a whole actor system had no enemies in it.
+        actors: actors,
         // The authored point: feet on the floor. See Runner.reviveAt.
         startAt: start,
         mechanisms: mechanisms,
@@ -529,6 +532,11 @@ class _GameScreenState extends State<GameScreen>
       final where = sim.takenThisStep[i].origin;
       _audio.play(Sounds.coin, where);
       _particles.burst(Effects.coin, where);
+    }
+    if (sim.stompedThisStep) {
+      _audio.play(Sounds.land, at);
+      _particles.burst(Effects.slam, at);
+      camera?.kick(Vector3(0.0, -0.12, 0.0));
     }
     if (sim.reachedCheckpointThisStep) {
       _audio.play(Sounds.checkpoint, at);

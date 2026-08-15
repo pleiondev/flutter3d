@@ -44,7 +44,7 @@ const double _dt = 1.0 / 60.0;
 final class _Shown {
   _Shown._(this.device, this.renderer, this.level, this.scene, this.world,
       this.mechanisms, this.dynamics, this.fixtures, this.runner, this.sim,
-      this.runnerNode, this.camera);
+      this.runnerNode, this.camera, this.actors);
 
   static Future<_Shown> build() async {
     final device = CpuDevice(
@@ -82,6 +82,7 @@ final class _Shown {
     (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
     final mechanisms = MechanismWorld(world);
+    final actors = ActorSystem(world: world);
     final fixtures = FixtureVisuals(
       scene,
       loaded,
@@ -92,7 +93,7 @@ final class _Shown {
     level.spawnInto(
       SpawnContext(
         world: world,
-        actors: ActorSystem(world: world),
+        actors: actors,
         mechanisms: mechanisms,
         onFixture: fixtures.add,
       ),
@@ -126,10 +127,11 @@ final class _Shown {
       startAt: start,
       mechanisms: mechanisms,
       dynamics: dynamics,
+      actors: actors,
     );
 
     return _Shown._(device, renderer, level, scene, world, mechanisms, dynamics,
-        fixtures, runner, sim, runnerNode, CameraNode());
+        fixtures, runner, sim, runnerNode, CameraNode(), actors);
   }
 
   final CpuDevice device;
@@ -144,6 +146,7 @@ final class _Shown {
   final PlatformerSimulation sim;
   final MeshNode runnerNode;
   final CameraNode camera;
+  final ActorSystem actors;
 
   final InputState _input = InputState();
   double _elapsed = 0.0;
@@ -408,6 +411,36 @@ void main() {
 
       expect(_differences(standing, landed), greaterThan(80),
           reason: 'the runner is drawn the same standing and squashed');
+    });
+  });
+
+  test('a guard is drawn, and is gone once it is stomped', () {
+    // Stage E4's assertion on the picture, and it covers the half nobody thinks
+    // to check: an enemy that dies in the simulation and stays on the screen is
+    // a corpse the player keeps trying to jump on.
+    //
+    // Mutation: never hide the fixture of a dead actor — the frames match and
+    // this fails.
+    return _Shown.build().then((_Shown it) async {
+      final guard = it.actors.actors.first;
+      final over = guard.position!;
+      it.look(from: over + Vector3(0.0, 1.4, -5.0), at: over);
+
+      final alive = await it.draw();
+      expect(guard.isAlive, isTrue);
+
+      it.runner.body.teleport(over + Vector3(0.0, 1.0, 0.0));
+      for (var i = 0; i < 200 && guard.isAlive; i++) {
+        it.step();
+      }
+      expect(guard.isAlive, isFalse, reason: 'it was never stomped');
+
+      // Out of the way, so what changes is the guard and not the runner.
+      it.runner.body.teleport(over + Vector3(0.0, 1.0, -14.0));
+      final gone = await it.draw();
+
+      expect(_differences(alive, gone), greaterThan(60),
+          reason: 'the dead guard is still on the screen');
     });
   });
 

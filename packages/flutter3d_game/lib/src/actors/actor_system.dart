@@ -279,6 +279,33 @@ final class ActorSystem {
 
   void steer(Actor actor, Vector3 direction) => _wish.setFrom(direction);
 
+  /// Walk towards a point that is not the focus.
+  ///
+  /// Straight, and it slides off what it meets: the flow field is baked towards
+  /// the focus and cannot route anywhere else, which is why this is a separate
+  /// method rather than `steerTowardsFocus(point)`. A patrol between two posts
+  /// wants exactly this; an enemy that must cross a level to somewhere the
+  /// player is not wants navigation, and that is a bigger change than this one.
+  void steerTowards(Actor actor, Vector3 point) {
+    final body = actor.body;
+    if (body == null) return;
+    _wish
+      ..setFrom(point)
+      ..sub(body.position)
+      ..y = 0.0;
+    final length = _wish.length;
+    if (length > 1e-6) _wish.scale(1.0 / length);
+  }
+
+  /// Asks this actor's body to jump.
+  ///
+  /// Through the controller's own buffered request rather than by writing
+  /// `velocity.y`, and the difference is the whole reason it is here: a brain
+  /// setting the speed directly can do it in mid-air, every step, and the actor
+  /// flies. `requestJump` is refused unless the body is on the ground or inside
+  /// its coyote window, which is the same rule the player plays by.
+  void jump(Actor actor) => actor.body?.requestJump();
+
   /// A route when the level has one, and straight at the focus when it does
   /// not — which the field itself reports for the last cell, where straight is
   /// the right answer anyway.
