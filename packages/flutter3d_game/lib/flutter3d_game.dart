@@ -27,6 +27,8 @@ export 'src/ecs/ecs_world.dart';
 export 'src/ecs/entity.dart';
 export 'src/save/game_random.dart';
 export 'src/save/snapshot.dart';
+export 'src/camera/camera_rig.dart';
+export 'src/math/spline.dart';
 export 'src/loop/fixed_step.dart';
 export 'src/loop/game_loop.dart';
 export 'src/nav/flow_field.dart';
