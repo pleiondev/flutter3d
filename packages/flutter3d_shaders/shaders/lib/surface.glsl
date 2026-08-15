@@ -68,8 +68,19 @@ uniform FragInfo {
   /// w: strength, zero when shadows are off.
   vec4 shadow_params;
 
-  /// World space to the shadow camera's clip space.
+  /// World space to the shadow camera's clip space. The first cascade.
   mat4 shadow_matrix;
+
+  /// The second and third cascades. Copies of the first when there is one, so
+  /// this block's layout never depends on how many there are.
+  mat4 shadow_matrix_far;
+  mat4 shadow_matrix_farthest;
+
+  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// cascades there are, 1 to 3. w: one texel of a tile, vertically —
+  /// shadow_params.x is one texel of the whole atlas, and with more than one
+  /// cascade those differ.
+  vec4 shadow_cascades;
 }
 frag_info;
 

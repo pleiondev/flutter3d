@@ -332,6 +332,8 @@ final class ShadowSettings {
     this.normalOffset = 0.02,
     this.strength = 1.0,
     this.depthPadding = 1.2,
+    this.cascades = 1,
+    this.cascadeSplit = 0.7,
     this.pointBias = 0.08,
     this.pointNormalOffset = 0.02,
     this.pointSoftness = 4.0,
@@ -339,6 +341,40 @@ final class ShadowSettings {
     this.pointMaxSoftness = 16.0,
     this.casterFaces = ShadowCasterFaces.back,
   });
+
+  /// How many cascades the directional map is split into, one to three.
+  ///
+  /// **One by default, and that is not timidity.** One cascade is the exact
+  /// behaviour this renderer has always had — the same single square map, the
+  /// same matrix, the same texel — so every golden image and every parity
+  /// number in the repository still holds, and a scene that never asked for
+  /// cascades pays nothing for their existence.
+  ///
+  /// What they buy: a directional map fitted to the whole scene spends its
+  /// resolution on ground the camera cannot see. On a level a hundred and
+  /// twenty metres by two hundred and sixty that is about fourteen centimetres
+  /// of world per texel, which draws a character's own shadow as a blurred
+  /// slab beside them — it was reported as the character being drawn twice.
+  /// Three cascades put the nearest one around the camera instead, at metres
+  /// per texel rather than tens.
+  ///
+  /// They are laid out side by side in one texture, so the pass count does not
+  /// change and neither does the number of samplers the fragment shader binds.
+  ///
+  /// **The atlas is [resolution] × [cascades] wide**, which is the one number to
+  /// keep an eye on: three cascades at the default two thousand is a
+  /// six-thousand-pixel HDR texture and a hundred megabytes. A game usually
+  /// wants a smaller tile *and* cascades rather than a large tile without them
+  /// — three tiles of a thousand cover a level far better than one of four.
+  final int cascades;
+
+  /// How the view distance is divided between cascades, from 0 to 1.
+  ///
+  /// Zero splits them evenly by distance, one splits them logarithmically —
+  /// which is what perspective actually wants, since a texel's world size grows
+  /// with distance. The usual practical answer is most of the way towards
+  /// logarithmic, and that is the default.
+  final double cascadeSplit;
 
   /// Distance bias for a point light's cube map, in **metres**.
   ///
@@ -836,6 +872,36 @@ final class Renderer implements RenderServices {
   /// World space to the shadow camera's clip space, rebuilt each frame the
   /// light or the scene moves.
   final vm.Matrix4 _shadowMatrix = vm.Matrix4.identity();
+
+  /// The second and third cascades' matrices. Copies of the first when there is
+  /// only one, so the shader can read all three without asking how many.
+  final vm.Matrix4 _shadowMatrixFar = vm.Matrix4.identity();
+  final vm.Matrix4 _shadowMatrixFarthest = vm.Matrix4.identity();
+
+  /// x, y: where cascades 0 and 1 end, in metres from the camera. z: how many
+  /// there are. w: one texel of a tile, vertically.
+  final Float32List _shadowCascades = Float32List(4);
+
+  int _shadowCascadeCount = 1;
+
+  /// How far each cascade reached, in metres, as of the last shadow pass.
+  ///
+  /// For tests and for a frame inspector. The whole argument for cascades is a
+  /// number — how much world one texel covers — and a change that cannot be
+  /// measured is a change that gets quietly undone.
+  List<double> get debugCascadeRadii =>
+      List<double>.unmodifiable(_shadowCascadeRadii);
+  final List<double> _shadowCascadeRadii = <double>[];
+
+  /// Where each cascade was centred, after snapping, as of the last pass.
+  ///
+  /// Exposed for one test, and it is the only way to make that test honest: the
+  /// snapping's whole job is that this value *quantises* as the camera creeps,
+  /// and a picture at any single moment cannot show the difference between a
+  /// number that jumps and one that slides.
+  List<vm.Vector3> get debugCascadeCentres =>
+      List<vm.Vector3>.unmodifiable(_shadowCascadeCentres);
+  final List<vm.Vector3> _shadowCascadeCentres = <vm.Vector3>[];
 
   /// [_shadowMatrix] in the backend's clip space, for drawing the map with.
   final vm.Matrix4 _shadowDrawMatrix = vm.Matrix4.identity();
@@ -1583,6 +1649,19 @@ final class Renderer implements RenderServices {
   final vm.Matrix4 _cubeDrawMatrix = vm.Matrix4.identity();
   final Float32List _cubeLight = Float32List(4);
 
+  /// How far this camera sees, for dividing between cascades.
+  ///
+  /// An orthographic camera has no far distance worth splitting by, and a
+  /// camera with a far plane at infinity would put the first split at infinity
+  /// too, so both fall back to something a level-sized scene can use.
+  static double _cameraFar(CameraNode camera) {
+    final projection = camera.projection;
+    if (projection is PerspectiveProjection && projection.far.isFinite) {
+      return math.max(10.0, projection.far);
+    }
+    return 200.0;
+  }
+
   /// Draws the directional light's shadow map, and says whether it drew one.
   ///
   /// The frame's own resources are handed in for the depth attachment, which is
@@ -1600,6 +1679,7 @@ final class Renderer implements RenderServices {
     required Scene scene,
     required ShadowSettings settings,
     required int casterIndex,
+    CameraNode? camera,
   }) {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (casterIndex < 0) return false;
@@ -1607,9 +1687,9 @@ final class Renderer implements RenderServices {
     final bounds = scene.computeBounds();
     if (!bounds.min.x.isFinite) return false;
 
-    final centre = (bounds.min + bounds.max)..scale(0.5);
-    final radius = ((bounds.max - bounds.min)..scale(0.5)).length;
-    if (radius <= 0.0) return false;
+    final sceneCentre = (bounds.min + bounds.max)..scale(0.5);
+    final sceneRadius = ((bounds.max - bounds.min)..scale(0.5)).length;
+    if (sceneRadius <= 0.0) return false;
 
     // The light's aim, taken from the packed buffer so the pass sees the same
     // direction the shading does.
@@ -1621,65 +1701,149 @@ final class Renderer implements RenderServices {
     if (aim.length2 < 1e-12) return false;
     aim.normalize();
 
-    // Back the camera off along the light's axis by the scene radius, then give
-    // the volume the same depth again on the far side. An ortho volume fitted
-    // exactly to the bounds would clip the casters at its own near plane.
-    final padding = math.max(settings.depthPadding, 1.0);
-    final distance = radius * padding;
-    final eye = centre - aim.scaled(distance);
-
     // Any up vector that is not parallel to the aim will do; the choice only
     // rotates the map, and a rotated map shadows identically.
     final up = aim.y.abs() > 0.99
         ? vm.Vector3(0.0, 0.0, 1.0)
         : vm.Vector3(0.0, 1.0, 0.0);
-    final view = _lookAt(eye, centre, up);
-
-    final projection = OrthographicProjection(
-      height: radius * 2.0 * padding,
-      near: 0.01,
-      far: distance + radius * padding,
-    ).toMatrix(1.0);
-
-    _shadowMatrix
-      ..setFrom(projection)
-      ..multiply(view);
-
-    // The same matrix in the clip space this backend rasterises with, for
-    // *drawing* the map. The shader keeps [_shadowMatrix] itself.
-    //
-    // They have to differ, and the reason is subtle enough to have cost a
-    // session. The shadow pass stores `gl_FragCoord.z`, which is window depth:
-    // on a backend whose NDC depth is already [0, 1] that is the projected z
-    // unchanged, and on one whose NDC is [-1, 1] it is (z + 1) / 2. Draw with
-    // an unremapped matrix on the second and every stored depth lands in
-    // [0.5, 1] while the lighting shader, computing the expected depth from the
-    // unremapped matrix, looks for it in [0, 1]. Nothing compares as occluded
-    // and the frame comes back fully lit — which reads exactly like a shadow
-    // pass that never ran.
-    _shadowDrawMatrix.setFrom(toDepthRange(_shadowMatrix, device.depthRange));
-
-    // And the shader's copy, in the convention it samples with. On a
-    // bottom-left backend the map it is about to read is mirrored in memory, so
-    // the uv it computes has to be mirrored with it. Measured: this alone takes
-    // the directional shadow from a worst cell of 32 to 4.
-    _shadowMatrix
-        .setFrom(toFramebufferOrigin(_shadowMatrix, device.framebufferOrigin));
-
+    final padding = math.max(settings.depthPadding, 1.0);
     final resolution = settings.resolution.clamp(256, 4096);
-    if (_shadowMap == null || _shadowResolution != resolution) {
+    final count = settings.cascades.clamp(1, 3);
+
+    // Where each cascade looks, and how much it covers.
+    //
+    // **The last one is always the whole scene**, which is what makes this safe
+    // rather than clever: a fragment the near cascades do not reach falls
+    // through to a map that is exactly the one this renderer has always drawn,
+    // so nothing is ever left unshadowed by a gap between volumes.
+    final centres = <vm.Vector3>[];
+    final radii = <double>[];
+    final splits = <double>[0.0, 0.0];
+
+    if (count > 1 && camera != null) {
+      final eyeAt = camera.readWorldPosition();
+      final forward = camera.readForward();
+      final near = 1.0;
+      final far = math.min(sceneRadius * 2.0, _cameraFar(camera));
+
+      for (var i = 1; i < count; i++) {
+        final ratio = i / count;
+        // Between an even split and a logarithmic one. Perspective wants the
+        // logarithm — a texel covers more world the further away it is — and
+        // pure logarithm puts the first split so close that the near cascade
+        // covers the player's feet and nothing else.
+        final even = near + (far - near) * ratio;
+        final logarithmic = near * math.pow(far / near, ratio).toDouble();
+        final atEnd = even + (logarithmic - even) * settings.cascadeSplit;
+        splits[i - 1] = atEnd;
+
+        // A sphere on the line of sight rather than a fitted frustum: what is
+        // outside it is picked up by the next cascade, and the arithmetic that
+        // fits a frustum exactly is arithmetic that has to be right about the
+        // aspect ratio, which this pass does not know.
+        centres.add(eyeAt + forward.scaled(atEnd * 0.55));
+        radii.add(atEnd * 0.9);
+      }
+    }
+    centres.add(sceneCentre);
+    radii.add(sceneRadius);
+    _shadowCascadeRadii
+      ..clear()
+      ..addAll(radii);
+
+    // One matrix per cascade, plus the copy each backend needs to *draw* with.
+    final drawMatrices = <vm.Matrix4>[];
+    final shaderMatrices = <vm.Matrix4>[];
+
+    for (var i = 0; i < centres.length; i++) {
+      final radius = radii[i];
+      var centre = centres[i];
+
+      // Snapped to whole texels, in the light's own space. Without this a
+      // camera that moves by half a texel redraws every shadow edge in a
+      // slightly different place and the whole level crawls — the single most
+      // recognisable artefact cascades have.
+      //
+      // **The frame has to be fixed, and the first version of this got it
+      // wrong.** Building the light view from the centre puts the centre at
+      // that view's own origin, so its x and y are zero, snapping zero to a
+      // texel gives zero, and the whole thing is an expensive no-op — which is
+      // exactly what the mutation test reported when deleting it changed
+      // nothing. A rotation about the world origin depends on the light's
+      // direction alone, and a point's coordinates in it move when the point
+      // does.
+      final texelWorld = radius * 2.0 * padding / resolution;
+      final snapFrame = _lookAt(vm.Vector3.zero(), aim, up);
+      final inLight = snapFrame.transformed3(centre.clone());
+      // All three, not just the two the map is indexed by. Depth along the
+      // light axis does not shimmer — the volume has padding to spare — but a
+      // centre that slides in z is a centre that slides, and the point of
+      // quantising is that the whole thing either stays put or moves by a whole
+      // texel. Snapping two of three leaves it sliding along the third, which
+      // is what the test caught.
+      inLight
+        ..x = (inLight.x / texelWorld).floorToDouble() * texelWorld
+        ..y = (inLight.y / texelWorld).floorToDouble() * texelWorld
+        ..z = (inLight.z / texelWorld).floorToDouble() * texelWorld;
+      final back = vm.Matrix4.copy(snapFrame)..invert();
+      centre = back.transformed3(inLight);
+
+      if (i == 0) _shadowCascadeCentres.clear();
+      _shadowCascadeCentres.add(centre.clone());
+
+      final distance = radius * padding;
+      final eye = centre - aim.scaled(distance);
+      final view = _lookAt(eye, centre, up);
+      final projection = OrthographicProjection(
+        height: radius * 2.0 * padding,
+        near: 0.01,
+        far: distance + radius * padding,
+      ).toMatrix(1.0);
+
+      final matrix = vm.Matrix4.copy(projection)..multiply(view);
+      drawMatrices.add(toDepthRange(matrix, device.depthRange));
+      shaderMatrices.add(toFramebufferOrigin(matrix, device.framebufferOrigin));
+    }
+
+    _shadowMatrix.setFrom(shaderMatrices.first);
+    _shadowMatrixFar.setFrom(shaderMatrices[math.min(1, count - 1)]);
+    _shadowMatrixFarthest.setFrom(shaderMatrices[count - 1]);
+    _shadowDrawMatrix.setFrom(drawMatrices.first);
+
+    // Two matrices per cascade, and they have to differ. The reason is subtle
+    // enough to have cost a session. The shadow pass stores `gl_FragCoord.z`,
+    // which is window depth: on a backend whose NDC depth is already [0, 1]
+    // that is the projected z unchanged, and on one whose NDC is [-1, 1] it is
+    // (z + 1) / 2. Draw with an unremapped matrix on the second and every
+    // stored depth lands in [0.5, 1] while the lighting shader, computing the
+    // expected depth from the unremapped matrix, looks for it in [0, 1].
+    // Nothing compares as occluded and the frame comes back fully lit — which
+    // reads exactly like a shadow pass that never ran.
+    //
+    // The shader's copy also carries the framebuffer-origin convention: on a
+    // bottom-left backend the map it is about to read is mirrored in memory, so
+    // the uv it computes has to be mirrored with it. Measured: that alone takes
+    // the directional shadow from a worst cell of 32 to 4.
+
+    // Cascades live side by side in one texture, so the number of samplers the
+    // fragment shader binds does not depend on how many there are.
+    final atlasWidth = resolution * count;
+    if (_shadowMap == null ||
+        _shadowResolution != resolution ||
+        _shadowCascadeCount != count) {
       // Sampled by the lighting pass, so devicePrivate rather than transient.
       _shadowMap = device.createTexture(RenderTargetSpec(
-        width: resolution,
+        width: atlasWidth,
         height: resolution,
         format: hdrFormat,
       ));
       _shadowResolution = resolution;
+      _shadowCascadeCount = count;
     }
 
     final depth = resources.transient(
       RenderTargetSpec(
-        width: resolution,
+        width: atlasWidth,
         height: resolution,
         format: device.defaultDepthStencilFormat,
         storageMode: StorageMode.deviceTransient,
@@ -1699,7 +1863,7 @@ final class Renderer implements RenderServices {
       depth: DepthTarget(texture: depth),
     ));
 
-    final full = ScreenRect(width: resolution, height: resolution);
+    final full = ScreenRect(width: atlasWidth, height: resolution);
     // The same caster state the cube atlas uses, with one difference: front
     // faces culled, so the depth stored is the *back* of each caster. That
     // moves the comparison surface away from the lit face and removes most of
@@ -1725,6 +1889,25 @@ final class Renderer implements RenderServices {
     _shadowCasters = 0;
     final meshes = scene.meshes;
     final mvp = vm.Matrix4.identity();
+
+    for (var cascade = 0; cascade < count; cascade++) {
+      // Each cascade is the same casters drawn again into its own strip of the
+      // atlas. A viewport rather than a second pass: the clear has already
+      // happened, and the pipelines and buffers are the same.
+      if (count > 1) {
+        final tile = ScreenRect(
+          x: cascade * resolution,
+          width: resolution,
+          height: resolution,
+        );
+        pass.setState(_kShadowCasterState.copyWith(
+          viewport: tile,
+          scissor: tile,
+          cullMode: CullMode.frontFace,
+        ));
+        boundSkinned = null;
+      }
+      final drawMatrix = drawMatrices[cascade];
 
     for (var i = 0; i < meshes.length; i++) {
       final node = meshes[i];
@@ -1763,7 +1946,7 @@ final class Renderer implements RenderServices {
       );
 
       mvp
-        ..setFrom(_shadowDrawMatrix)
+        ..setFrom(drawMatrix)
         ..multiply(node.worldMatrix);
       final stage = skinned ? skinnedVertexShader : vertexShader;
       pass.bindUniformBlock(stage, _kFrameInfoBlock, {
@@ -1778,13 +1961,24 @@ final class Renderer implements RenderServices {
         });
       }
       pass.draw();
-      _shadowCasters++;
+      // Counted once, not once per cascade: the number answers "how many things
+      // cast", and a caster drawn into three tiles is still one caster. The
+      // draw call count is the graph's business.
+      if (cascade == 0) _shadowCasters++;
+    }
     }
 
     pass.submit();
     developer.Timeline.finishSync();
 
-    _shadowParams[0] = 1.0 / resolution;
+    // Horizontally the texel is a texel of the *atlas*, vertically it is a
+    // texel of a tile. With one cascade they are the same number, which is what
+    // keeps that path byte-identical to the one this renderer has always had.
+    _shadowParams[0] = 1.0 / atlasWidth;
+    _shadowCascades[0] = splits[0];
+    _shadowCascades[1] = splits[1];
+    _shadowCascades[2] = count.toDouble();
+    _shadowCascades[3] = 1.0 / resolution;
     _shadowParams[1] = settings.bias;
     _shadowParams[2] = settings.normalOffset;
     _shadowParams[3] = settings.strength.clamp(0.0, 1.0);
@@ -2320,6 +2514,9 @@ final class Renderer implements RenderServices {
           'frame_params': _frameParams,
           'shadow_params': _shadowParams,
           'shadow_matrix': _shadowMatrix.storage,
+          'shadow_matrix_far': _shadowMatrixFar.storage,
+          'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
+          'shadow_cascades': _shadowCascades,
         });
       }
 
@@ -2724,6 +2921,9 @@ final class Renderer implements RenderServices {
     // just switched off.
     _shadowParams[3] = 0.0;
     _shadowCasters = 0;
+    // One cascade until a pass says otherwise, so a shader reading these
+    // between frames sees the arrangement it has always seen.
+    _shadowCascades[2] = 1.0;
 
     // Which point lights get a row of the atlas, decided by relevance rather
     // than by the order they happen to sit in the scene list. Four is now a
@@ -2797,6 +2997,11 @@ final class Renderer implements RenderServices {
       scene: scene,
       settings: settings.shadows,
       casterIndex: shadowCaster,
+      // The first view's camera, for splitting the cascades by where somebody
+      // is actually looking. A second viewport is a second set of splits and
+      // one map cannot serve both; the primary view wins, which is the same
+      // answer reflections give.
+      camera: ordered.isEmpty ? null : ordered.first.camera,
     );
     final sceneNode = _SceneNode(
       this,
@@ -3503,7 +3708,12 @@ final class _ShadowMapNode extends RenderNode {
     required this.scene,
     required this.settings,
     required this.casterIndex,
+    this.camera,
   });
+
+  /// Where the player is looking, for cascade splits. Null for a scene with no
+  /// views, which is a scene with nothing to split by.
+  final CameraNode? camera;
 
   final Renderer _renderer;
   final Scene scene;
@@ -3530,6 +3740,7 @@ final class _ShadowMapNode extends RenderNode {
       scene: scene,
       settings: settings,
       casterIndex: casterIndex,
+      camera: camera,
     );
     if (!drew) return;
     frame.resources.provide(

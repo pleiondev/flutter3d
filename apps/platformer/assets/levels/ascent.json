@@ -301,7 +301,7 @@
   "lights": [
     {
       "type": "directional",
-      "direction": [-0.16, -0.97, 0.18],
+      "direction": [-0.35, -0.85, 0.4],
       "color": [1.0, 0.96, 0.88],
       "intensity": 2.6,
       "castsShadow": true

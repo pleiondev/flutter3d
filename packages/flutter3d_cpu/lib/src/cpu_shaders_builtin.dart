@@ -373,26 +373,61 @@ double _shadowFactor(_Surface s, ShaderBindings b, int lightIndex) {
   // fixes acne a depth bias cannot, because that error is proportional to the
   // surface's slope relative to the light rather than to depth.
   final origin = s.world + s.normal * params.z;
-  final matrix = b.mat4('FragInfo', 'shadow_matrix');
-  final lightSpace = matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
-  if (lightSpace.w <= 0.0) return 1.0;
-  final projected = Vector3(lightSpace.x, lightSpace.y, lightSpace.z)
-    ..scale(1.0 / lightSpace.w);
 
-  final u = projected.x * 0.5 + 0.5;
-  final vv = 0.5 - projected.y * 0.5;
-  if (u < 0.0 || u > 1.0 || vv < 0.0 || vv > 1.0) return 1.0;
-  if (projected.z > 1.0) return 1.0;
+  // Which cascade covers this fragment. The mirror of shadow.glsl, and it has
+  // to stay one: the parity suite compares this backend's picture against
+  // Impeller's, so a difference here reads as a *rendering* bug in whichever
+  // one somebody happens to be looking at.
+  final cascades = b.vec4('FragInfo', 'shadow_cascades', Vector4(0, 0, 1, 0));
+  final count = (cascades.z + 0.5).floor().clamp(1, 3);
+  final camera = b.vec4('FragInfo', 'camera_position', Vector4.zero());
+  final viewDistance =
+      (s.world - Vector3(camera.x, camera.y, camera.z)).length;
+  var cascade = 0;
+  if (count > 1 && viewDistance > cascades.x) cascade = 1;
+  if (count > 2 && viewDistance > cascades.y) cascade = 2;
+
+  var u = 0.0;
+  var vv = 0.0;
+  Vector3? projected;
+  for (var attempt = 0; attempt < 3; attempt++) {
+    final which = cascade + attempt;
+    if (which >= count) break;
+
+    final matrix = b.mat4(
+      'FragInfo',
+      which == 0
+          ? 'shadow_matrix'
+          : (which == 1 ? 'shadow_matrix_far' : 'shadow_matrix_farthest'),
+    );
+    final lightSpace = matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
+    if (lightSpace.w <= 0.0) continue;
+    final candidate = Vector3(lightSpace.x, lightSpace.y, lightSpace.z)
+      ..scale(1.0 / lightSpace.w);
+
+    final tileU = candidate.x * 0.5 + 0.5;
+    final tileV = 0.5 - candidate.y * 0.5;
+    if (tileU < 0.0 || tileU > 1.0 || tileV < 0.0 || tileV > 1.0) continue;
+    if (candidate.z > 1.0) continue;
+
+    u = (tileU + which) / count;
+    vv = tileV;
+    projected = candidate;
+    break;
+  }
+  if (projected == null) return 1.0;
 
   final bias = params.y;
-  final texel = params.x;
+  // Horizontally a texel of the atlas, vertically a texel of a tile.
+  final texelU = params.x;
+  final texelV = cascades.w > 0.0 ? cascades.w : params.x;
 
   // PCF 3x3: four samples band visibly at this map size and nine is the
   // smallest kernel that reads as a soft edge rather than as stair steps.
   var lit = 0.0;
   for (var y = -1; y <= 1; y++) {
     for (var x = -1; x <= 1; x++) {
-      final occluder = map.sample(u + x * texel, vv + y * texel).x;
+      final occluder = map.sample(u + x * texelU, vv + y * texelV).x;
       lit += projected.z - bias > occluder ? 0.0 : 1.0;
     }
   }

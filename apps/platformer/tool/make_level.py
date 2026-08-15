@@ -720,14 +720,15 @@ MATERIALS["brass"]["metallic"] = 1.0
 
 LIGHTS = [
     {
-        # Steep on purpose. At (-0.35, -0.85, 0.4) the sun stood low enough to
-        # throw a shadow two thirds of the runner's own height off to one side,
-        # and one shadow map over a hundred and twenty metres of level is too
-        # coarse to soften it — so what the player saw beside themselves was a
-        # second, blurrier penguin. Overhead, the shadow lands under the feet
-        # where it reads as contact.
+        # Back to an angle that casts. It was pinned nearly overhead as a
+        # workaround: one shadow map stretched over a hundred and twenty metres
+        # of level is fourteen centimetres of world per texel, and at a low sun
+        # the runner's own shadow came out as a blurred slab beside them —
+        # reported, in those words, as the character being drawn twice. The
+        # renderer has cascades now and the near one is four centimetres a
+        # texel, so the sun can go back to throwing a shadow you can see.
         "type": "directional",
-        "direction": [-0.16, -0.97, 0.18],
+        "direction": [-0.35, -0.85, 0.4],
         "color": [1.0, 0.96, 0.88],
         "intensity": 2.6,
         "castsShadow": True,
