@@ -9,7 +9,6 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -227,13 +226,22 @@ class _GameScreenState extends State<GameScreen>
     final device = _device;
     if (device == null) return;
 
+    // One registry validates the document and then spawns it. Two could
+    // disagree about what a document may contain, which is the failure this
+    // seam was built to remove — so the crate kind is told where bodies go
+    // *after* there is a world, exactly as the shooter tells its monster kind
+    // where the bestiary is.
+    final kinds = platformerRegistry();
     final loaded = await LevelLoader().load(
       _levelAsset,
       device: device,
-      registry: platformerRegistry(),
+      registry: kinds,
       rules: platformerRules(),
     );
     if (!mounted) return;
+
+    final dynamics = Dynamics(world: loaded.collision);
+    (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
     final actors = ActorSystem(world: loaded.collision);
     final mechanisms = MechanismWorld(loaded.collision);
@@ -251,7 +259,7 @@ class _GameScreenState extends State<GameScreen>
         mechanisms: mechanisms,
         onFixture: fixtures.add,
       ),
-      registry: platformerRegistry(),
+      registry: kinds,
     );
 
     // The authored point is where the feet go; the body is a box about its
@@ -284,6 +292,7 @@ class _GameScreenState extends State<GameScreen>
         // The authored point: feet on the floor. See Runner.reviveAt.
         startAt: start,
         mechanisms: mechanisms,
+        dynamics: dynamics,
         levelNext: loaded.level.next,
       );
       _followCamera = FollowCamera(world: loaded.collision);

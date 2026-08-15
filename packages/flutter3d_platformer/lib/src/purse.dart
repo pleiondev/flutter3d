@@ -1,5 +1,7 @@
 import 'dart:collection';
 
+import 'package:flutter3d_game/flutter3d_game.dart';
+
 /// What somebody has picked up, counted by name.
 ///
 /// Not an inventory. `Inventory` in `flutter3d_shooter` holds health, armour,
@@ -49,4 +51,14 @@ final class Purse {
 /// and whether that someone gathers things is a question they answer.
 abstract interface class Gatherer {
   Purse get purse;
+}
+
+/// Someone a key can be given to.
+///
+/// Separate from [Gatherer] because a key is not a count: you hold it or you do
+/// not, for ever, and a `Purse` that could answer "how many blue keys" would be
+/// answering a question no door asks. `KeyRing` in the engine is that set, and
+/// this is how a pickup reaches one without knowing whose it is.
+abstract interface class KeyTaker {
+  KeyRing get keyRing;
 }

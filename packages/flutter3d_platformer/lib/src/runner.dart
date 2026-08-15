@@ -17,6 +17,7 @@ final class RunnerTuning {
     this.jumpBufferTime = 0.12,
     this.dashSpeed = 18.0,
     this.dashCooldown = 0.55,
+    this.dashDrag = 40.0,
     this.turnRate = 16.0,
   });
 
@@ -45,6 +46,15 @@ final class RunnerTuning {
   final double dashSpeed;
   final double dashCooldown;
 
+  /// How fast speed above walking pace bleeds off, in m/s².
+  ///
+  /// **Without this a dash never ends.** The character controller accelerates
+  /// towards the speed you asked for and applies friction only when you ask for
+  /// nothing — so a runner who dashes and keeps holding forward keeps the whole
+  /// eighteen metres a second for ever, and the dash stops being a move and
+  /// becomes a new walking speed. A test found that; playing it had not.
+  final double dashDrag;
+
   /// How fast the runner turns to face where it is going, in radians a second.
   final double turnRate;
 }
@@ -66,7 +76,8 @@ final class RunnerTuning {
 /// treats anything moving up as airborne. So setting `velocity.y` from out here
 /// behaves exactly like the controller's own jump, and the controller needed no
 /// hook, no callback and no subclass.
-final class Runner implements Damageable, Rider, Gatherer {
+final class Runner with KeyHolder
+    implements Damageable, Rider, Gatherer, KeyTaker {
   Runner({
     required this.body,
     Health? health,
@@ -84,6 +95,18 @@ final class Runner implements Damageable, Rider, Gatherer {
 
   @override
   final Purse purse;
+
+  @override
+  /// The keys this runner is carrying.
+  ///
+  /// A locked `Door` and a keyed `Exit` ask the body in front of them what it
+  /// holds, and until this line existed a platformer's answer was "nothing" —
+  /// so every keyed door in the engine was unopenable in this genre and nobody
+  /// had noticed, because no level had tried one.
+  final KeyRing keyRing = KeyRing();
+
+  @override
+  Set<String> get keys => keyRing.keys;
 
   /// Which way it is facing, in radians. Follows movement rather than the
   /// camera: nobody in a third-person game steers with their shoulders.
@@ -116,6 +139,21 @@ final class Runner implements Damageable, Rider, Gatherer {
   bool applyDamage(double amount) => health.damage(amount);
 
   final Vector3 _wish = Vector3.zero();
+  final Vector3 _shove = Vector3.zero();
+
+  /// What this runner is trying to walk into, for pushing things.
+  ///
+  /// **Not `body.velocity`, and the difference is the whole reason this
+  /// exists.** A character controller slides: when it is stopped by something,
+  /// the component of its velocity going into that something is projected away
+  /// to zero. So a runner pressed against a crate reports no motion towards it
+  /// at all, and a push driven by velocity pushes with nothing — only a glancing
+  /// blow, which happens to keep some sideways speed, would ever move anything.
+  ///
+  /// Intent survives being blocked. This is the direction asked for, at the
+  /// speed asked for, and it is zero when the runner is airborne, because
+  /// shoving a crate while falling past it is not a thing a platformer does.
+  Vector3 get shove => _shove;
 
   /// One simulation step.
   ///
@@ -133,8 +171,19 @@ final class Runner implements Damageable, Rider, Gatherer {
     _cutJumpShort(input);
     _tryDash(input);
 
-    body.step(dt, wishDirection: _wish, sprint: input.held(GameAction.sprint));
+    final sprinting = input.held(GameAction.sprint);
+    body.step(dt, wishDirection: _wish, sprint: sprinting);
     _face(dt);
+
+    final asked = sprinting ? body.tuning.sprintSpeed : body.tuning.walkSpeed;
+    if (body.isGrounded) {
+      _shove
+        ..setFrom(_wish)
+        ..scale(asked);
+    } else {
+      _shove.setZero();
+    }
+    _bleedOffDash(dt, asked);
   }
 
   void _readWish(InputState input, double cameraYaw) {
@@ -223,6 +272,23 @@ final class Runner implements Damageable, Rider, Gatherer {
     dashedThisStep = true;
   }
 
+  /// Brings speed above walking pace back down after a dash.
+  ///
+  /// Only downwards, and only above what was asked for, so it cannot fight the
+  /// controller's own acceleration or slow a runner a spring has launched — a
+  /// pad that throws you across a gap must not be quietly cancelled by this.
+  void _bleedOffDash(double dt, double asked) {
+    if (!body.isGrounded) return;
+    final v = body.velocity;
+    final speed = math.sqrt(v.x * v.x + v.z * v.z);
+    if (speed <= asked || speed < 1e-4) return;
+    final slowed = math.max(asked, speed - tuning.dashDrag * dt);
+    final scale = slowed / speed;
+    v
+      ..x *= scale
+      ..z *= scale;
+  }
+
   void _face(double dt) {
     if (_wish.x == 0.0 && _wish.z == 0.0) return;
     final wanted = math.atan2(_wish.x, _wish.z);
@@ -276,6 +342,7 @@ final class Runner implements Damageable, Rider, Gatherer {
         'body': body.save(),
         'health': health.save(),
         'purse': purse.save(),
+        'keys': keyRing.save(),
         'yaw': yaw,
         // The four that are invisible for exactly one step and then wrong, the
         // same argument the controller's own save makes about its pair.
@@ -292,6 +359,7 @@ final class Runner implements Damageable, Rider, Gatherer {
     if (vitality is Map<String, Object?>) health.restore(vitality);
     final held = from['purse'];
     if (held is Map<String, Object?>) purse.restore(held);
+    keyRing.restore(from['keys']);
     yaw = _number(from['yaw']);
     _coyote = _number(from['coyote']);
     _buffer = _number(from['buffer']);

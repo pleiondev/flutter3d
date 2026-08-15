@@ -40,6 +40,15 @@
     { "type": "player_spawn", "at": [0.0, 0.0, 0.0] },
 
     { "type": "collectible", "name": "coin one", "at": [0.0, 0.8, 3.0], "what": "coin", "model": "assets/models/coin.glb" },
+
+    {
+      "type": "crate",
+      "name": "the crate",
+      "at": [3.2, 0.0, 4.0],
+      "size": [1.2, 1.2, 1.2],
+      "mass": 30.0,
+      "material": "brass"
+    },
     { "type": "collectible", "name": "coin two", "at": [-1.6, 0.8, 5.0], "what": "coin", "model": "assets/models/coin.glb" },
     { "type": "collectible", "name": "coin three", "at": [1.6, 0.8, 5.0], "what": "coin", "model": "assets/models/coin.glb" },
 

@@ -17,6 +17,7 @@ final class Collectible extends Mechanism with CollisionListener {
     required this.what,
     required this.collider,
     this.howMany = 1,
+    this.key,
   }) {
     collider
       ..kind = ColliderKind.trigger
@@ -28,6 +29,15 @@ final class Collectible extends Mechanism with CollisionListener {
   final String what;
 
   final int howMany;
+
+  /// A key this also grants, or null.
+  ///
+  /// One class rather than two, because a key *is* a thing on the floor you
+  /// walk over — everything about picking it up is identical and only where it
+  /// lands differs. What makes that honest rather than lazy is that a taker
+  /// answers two questions separately: [Gatherer] for the count, [KeyTaker] for
+  /// the key, and a game may implement either alone.
+  final String? key;
 
   final Collider collider;
 
@@ -51,6 +61,9 @@ final class Collectible extends Mechanism with CollisionListener {
     final who = by.by?.userData;
     if (who is! Gatherer) return const NothingToDo();
     if (!who.purse.add(what, howMany)) return const NothingToDo();
+    final unlocks = key;
+    final taker = by.by?.userData;
+    if (unlocks != null && taker is KeyTaker) taker.keyRing.take(unlocks);
 
     _taken = true;
     justTaken = true;

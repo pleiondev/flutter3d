@@ -2,6 +2,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'checkpoint.dart';
+import 'crate.dart';
 import 'collectible.dart';
 import 'hazard.dart';
 
@@ -15,6 +16,7 @@ abstract final class PlatformerEntities {
   static const String collectible = 'collectible';
   static const String hazard = 'hazard';
   static const String checkpoint = 'checkpoint';
+  static const String crate = 'crate';
 }
 
 final class CollectibleKind extends EntityKind {
@@ -54,6 +56,7 @@ final class CollectibleKind extends EntityKind {
         name: entity.name,
         what: what,
         howMany: entity.integer('count') ?? 1,
+        key: entity.string('key'),
         collider: collider,
       ),
     );
@@ -170,7 +173,8 @@ final class CheckpointKind extends EntityKind {
 /// A game composes this itself — there is no default registry and that is the
 /// point — but the eight the format ships are wanted verbatim, so listing them
 /// here is the honest version of "and the usual".
-EntityRegistry platformerRegistry() => EntityRegistry(<EntityKind>[
+EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
+    EntityRegistry(<EntityKind>[
       const PlayerSpawnKind(),
       const DoorKind(),
       const LiftKind(),
@@ -181,6 +185,7 @@ EntityRegistry platformerRegistry() => EntityRegistry(<EntityKind>[
       const CollectibleKind(),
       const HazardKind(),
       const CheckpointKind(),
+      CrateKind(dynamics: dynamics),
     ]);
 
 /// What is true of a platformer's level whatever it contains.

@@ -104,7 +104,8 @@ final class PlatformerSimulation {
 
     runner.step(dt, input, cameraYaw: cameraYaw);
 
-    dynamics?.push(runner.body.collider, runner.body.velocity);
+    // Intent, not residual velocity — see [Runner.shove].
+    dynamics?.push(runner.body.collider, runner.shove);
 
     // Overlaps dispatch here: collectibles are taken, hazards bite, checkpoints
     // light up. All three run from inside this call, which is why each of them
