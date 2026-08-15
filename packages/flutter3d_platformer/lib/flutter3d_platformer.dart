@@ -26,3 +26,4 @@ export 'src/hazard.dart';
 export 'src/purse.dart';
 export 'src/runner.dart';
 export 'src/simulation.dart';
+export 'src/spring.dart';

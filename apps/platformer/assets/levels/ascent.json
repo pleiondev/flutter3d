@@ -14,7 +14,7 @@
     { "at": [5.5, 1.5, 2.5], "size": [1.0, 5.0, 9.0], "material": "stone" },
     { "at": [0.0, 1.5, -2.5], "size": [12.0, 5.0, 1.0], "material": "stone" },
 
-    { "at": [0.0, -0.5, 14.0], "size": [10.0, 1.0, 10.0], "material": "moss" },
+    { "at": [0.0, -0.5, 14.3], "size": [10.0, 1.0, 9.4], "material": "moss" },
     { "at": [-5.5, 1.5, 14.0], "size": [1.0, 5.0, 10.0], "material": "stone" },
     { "at": [5.5, 1.5, 14.0], "size": [1.0, 5.0, 10.0], "material": "stone" },
 
@@ -22,6 +22,8 @@
     { "at": [0.0, 3.6, 23.5], "size": [10.0, 2.4, 1.0], "material": "stone" },
 
     { "at": [-3.0, 0.9, 8.0], "size": [2.2, 0.4, 2.2], "material": "brass" },
+
+    { "at": [-2.7, 2.0, 13.0], "size": [1.0, 4.0, 4.0], "material": "stone" },
     { "at": [3.0, 2.2, 10.5], "size": [2.2, 0.4, 2.2], "material": "brass" }
   ],
   "lights": [
@@ -64,8 +66,8 @@
     {
       "type": "hazard",
       "name": "the drop",
-      "at": [0.0, -4.0, 8.0],
-      "size": [12.0, 6.0, 2.2],
+      "at": [0.0, -4.0, 8.3],
+      "size": [12.0, 6.0, 2.8],
       "instant": true
     },
 
@@ -82,6 +84,15 @@
     },
 
     { "type": "collectible", "name": "coin six", "at": [0.0, 0.8, 15.0], "what": "coin", "model": "assets/models/coin.glb" },
+    { "type": "collectible", "name": "the shaft coin", "at": [-2.7, 4.6, 13.0], "what": "coin", "model": "assets/models/coin.glb" },
+
+    {
+      "type": "spring",
+      "name": "the pad",
+      "at": [3.0, 0.2, 13.5],
+      "size": [1.6, 0.4, 1.6],
+      "speed": 15.0
+    },
     { "type": "collectible", "name": "coin seven", "at": [0.0, 3.2, 19.6], "what": "coin", "model": "assets/models/coin.glb" },
 
     {
