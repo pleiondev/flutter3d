@@ -50,11 +50,12 @@ def main() -> int:
     # fixture's model is placed at the collider's *centre*, so the drop is not
     # decoration: without it every coin hovers half a metre up.
     #
-    # 0.4 m across, which is half what it was exported at and was settled by
-    # looking: at 0.8 the coins read as dinner plates beside a 1.8 m runner.
-    # The trigger stays 0.5 m — a pickup that is easier to take than it looks
-    # is the right way round.
-    _transform_root(coin, scale=0.4 / 0.8, drop=0.8)
+    # 0.6 m across. It was exported at 0.8, halved to 0.4 because at 0.8 the
+    # coins read as dinner plates beside a 1.8 m runner, and then put back up
+    # by half again once the field grew: on a hundred and twenty metres of
+    # ground a 0.4 m coin is a speck. The trigger stays 0.5 m — a pickup that
+    # is easier to take than it looks is the right way round.
+    _transform_root(coin, scale=0.6 / 0.8, drop=0.8)
     _make_lit(coin)
     _write(coin, MODELS / 'coin.glb')
     return 0

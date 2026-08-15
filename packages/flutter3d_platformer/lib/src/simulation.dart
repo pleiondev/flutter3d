@@ -113,6 +113,13 @@ final class PlatformerSimulation {
     collision.update();
     collision.clearKinematicDeltas();
 
+    // What the machinery did this step, asked for rather than assumed. Without
+    // this the events are the empty lists they were initialised with, and every
+    // consequence read out of them — the coin sound, a trigger's message —
+    // silently never happens, while the purse fills up and the door opens. The
+    // shooter's step ends with the same call for the same reason.
+    mechanisms?.publish();
+
     _readCheckpoints();
     _readCollectibles();
     _readExits();

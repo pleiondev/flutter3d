@@ -282,6 +282,25 @@ void main() {
       expect(run.runner.purse['coin'], 1);
     });
 
+    test('and the step says so, for whoever has to make a noise about it', () {
+      // The purse is not the whole answer. A game hears a pickup through
+      // `takenThisStep`, which is filled from the mechanism world's published
+      // events — and this step forgot to publish them, so for as long as the
+      // platformer has existed the coin has been counted in silence. The purse
+      // filling up is exactly why nobody noticed.
+      //
+      // Mutation: drop `mechanisms?.publish()` from `PlatformerSimulation.step`.
+      final run = _Run()..run(180, until: (_Run r) => r.sim.takenThisStep.isNotEmpty);
+
+      expect(run.sim.takenThisStep, hasLength(1));
+      expect(run.sim.takenThisStep.single.name, 'first coin');
+      expect(run.sim.takenThisStep.single.what, 'coin');
+
+      // And cleared again on the next step, so a sound plays once.
+      run.step();
+      expect(run.sim.takenThisStep, isEmpty);
+    });
+
     test('a revived runner stands on the floor rather than inside it', () {
       // **The bug a player found in four seconds.** A level says where a
       // checkpoint is the way a person points at the floor; a body is a box

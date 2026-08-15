@@ -1,0 +1,653 @@
+#!/usr/bin/env python3
+"""Writes `assets/levels/ascent.json`.
+
+    python3 tool/make_level.py
+
+The field is a hundred and twenty metres by two hundred and sixty-four. A level
+that size, hand-authored in JSON, is a level with nine coins standing in an
+empty field — which is what the first two drafts of this one were, and what
+playing it looked like. Filling it by hand is four hundred brushes of typing
+that nobody will ever re-indent; filling it with a program is the arrangement
+written down as an arrangement.
+
+So the document is generated, and this file is the source. Two kinds of thing
+go into it, and the difference matters:
+
+  * **route** — everything the player's way through is made of, and everything
+    the tests name: both gates and their plates, the keys, the barges, the
+    ferry, the lifts, the springs, the checkpoints, the maze, the vault, the
+    summit stair. Written out one by one, with the coordinates that make them
+    work, because a set piece a program placed is a set piece nobody checked.
+  * **fill** — the huts, pillars, walkways, ledges, crates and coins in between.
+    Placed in loops, and never allowed to touch the route: `KEEP_CLEAR` lists
+    the ground the route needs and `_fill` refuses to put a brush on it.
+
+Sizes are chosen against what the runner can actually do, measured rather than
+assumed — see `_doubleJumpHeight` in `test/playthrough_test.dart`. As of writing
+the runner walks at 6 m/s, jumps 1.8 m, double-jumps 3.13 m and clears about
+7.5 m of gap. Anything a player has to climb is therefore a step of 3 m or
+less; anything they must not climb — the maze, the vault — is 4.2 m or more.
+"""
+
+import json
+from pathlib import Path
+
+OUT = Path(__file__).resolve().parent.parent / "assets" / "levels" / "ascent.json"
+COIN = "assets/models/coin.glb"
+
+brushes: list[dict] = []
+entities: list[dict] = []
+_fill_entities: list[dict] = []
+_coins = 0
+_crates = 0
+
+# Footprints the generated filling may not stand on: the walked line out of the
+# spawn, the shaft, the canyon crossing, both gates, the maze, the ice, the
+# summit stair, the yard, and the patch of grass one test shoves a crate across.
+KEEP_CLEAR = [
+    (-3.0, 3.0, -25.0, 26.0),
+    (-5.0, 5.0, 29.0, 51.0),
+    (-5.0, 5.0, 51.0, 72.0),
+    (-4.0, 4.0, 72.0, 84.0),
+    (-28.0, 28.0, 83.0, 121.0),
+    (-6.0, 6.0, 121.0, 170.0),
+    (-14.0, 14.0, 188.0, 233.0),
+    (-52.0, -24.0, -24.0, 4.0),
+    (4.0, 11.0, -9.0, -1.0),
+    (25.0, 39.0, 1.0, 20.0),
+    (-45.0, -31.0, 70.0, 82.0),
+]
+
+
+def _route(at, size, material):
+    brushes.append({"at": _r(at), "size": _r(size), "material": material})
+
+
+def _fill(at, size, material):
+    x0, x1 = at[0] - size[0] / 2, at[0] + size[0] / 2
+    z0, z1 = at[2] - size[2] / 2, at[2] + size[2] / 2
+    for cx0, cx1, cz0, cz1 in KEEP_CLEAR:
+        if x0 < cx1 and x1 > cx0 and z0 < cz1 and z1 > cz0:
+            raise SystemExit(f"filling at {at} size {size} sits on the route")
+    brushes.append({"at": _r(at), "size": _r(size), "material": material})
+
+
+def _r(v):
+    return [round(float(x), 3) for x in v]
+
+
+def coin(at, name=None):
+    """A coin, on the route if it is named and in the filling if it is not."""
+    global _coins
+    _coins += 1
+    row = {
+        "type": "collectible",
+        "name": name or f"coin {_coins:03d}",
+        "at": _r(at),
+        "what": "coin",
+        "model": COIN,
+    }
+    (entities if name else _fill_entities).append(row)
+
+
+def crate(at, name=None, size=1.4, mass=30.0):
+    global _crates
+    _crates += 1
+    row = {
+        "type": "crate",
+        "name": name or f"crate {_crates:02d}",
+        "at": _r(at),
+        "size": [size, size, size],
+        "mass": mass,
+        "material": "wood",
+    }
+    (entities if name else _fill_entities).append(row)
+
+
+def spring(name, at, speed=15.0, size=2.6):
+    entities.append({
+        "type": "spring", "name": name, "at": _r(at),
+        "size": [size, 0.4, size], "speed": speed, "material": "brass",
+    })
+
+
+def checkpoint(name, z, order, respawn=None):
+    entities.append({
+        "type": "checkpoint", "name": name, "at": _r([0.0, 1.0, z]),
+        "order": order, "respawn": _r([0.0, 0.0, respawn if respawn is not None else z]),
+        "size": [24.0, 3.0, 1.0],
+    })
+
+
+def hazard(name, at, size, damage=None, instant=False):
+    row = {"type": "hazard", "name": name, "at": _r(at), "size": _r(size)}
+    if instant:
+        row["instant"] = True
+    else:
+        row["damage"] = damage if damage is not None else 45.0
+    entities.append(row)
+
+
+def mover(kind, name, at, size, travel, speed, wait, phase=None):
+    row = {
+        "type": kind, "name": name, "at": _r(at), "size": _r(size),
+        "travel": _r(travel), "speed": speed, "wait": wait, "material": "brass",
+    }
+    if phase is not None:
+        row["phase"] = phase
+    entities.append(row)
+
+
+def plate(name, target, at, size=(4.0, 2.0, 4.0)):
+    """A volume that works a mechanism by being walked into.
+
+    How a platformer opens a door. Nothing in this genre presses a use key —
+    there is no such action and there should not be — so a gate with no plate in
+    front of it is a gate that never opens, whatever key the player is holding.
+    """
+    entities.append({
+        "type": "trigger", "name": name, "at": _r(at), "size": _r(size),
+        "target": target, "once": False,
+    })
+
+
+def pillar(x, z, height, width=2.4, material="stone", top_coin=True):
+    _fill([x, height / 2, z], [width, height, width], material)
+    if top_coin:
+        coin([x, height + 0.8, z])
+
+
+def hut(x, z, height, width=7.0, material="stone", top_coin=True):
+    _fill([x, height / 2, z], [width, height, width], material)
+    if top_coin:
+        coin([x, height + 0.8, z])
+
+
+def plank(x, z, along_x, length, y, material="wood"):
+    size = [length, 0.3, 2.0] if along_x else [2.0, 0.3, length]
+    _fill([x, y, z], size, material)
+
+
+def ziggurat(x, z, levels, step_h, base, material="stone"):
+    """A stepped block, coins on every terrace. Steps are climbable by design."""
+    for i in range(levels):
+        side = base - i * (base / (levels + 1))
+        top = (i + 1) * step_h
+        _fill([x, top / 2, z], [side, top, side], material)
+        coin([x + side / 2 - 1.0, top + 0.8, z])
+        coin([x - side / 2 + 1.0, top + 0.8, z])
+
+
+# ---------------------------------------------------------------- zone one ---
+# The yard: moss, a walled crate puzzle, a village, and a lot of grass that used
+# to be nothing but grass.
+
+_route([0.0, -0.5, -2.5], [120.0, 1.0, 55.0], "moss")
+_route([0.0, -0.5, 42.5], [120.0, 1.0, 27.0], "stone")
+_route([0.0, -0.5, 69.5], [120.0, 1.0, 3.0], "stone")
+_route([0.0, -0.5, 96.0], [120.0, 1.0, 50.0], "wood")
+_route([0.0, -0.5, 124.5], [120.0, 1.0, 7.0], "ice")
+_route([0.0, -0.5, 156.5], [120.0, 1.0, 21.0], "ice")
+_route([0.0, -0.5, 200.0], [120.0, 1.0, 66.0], "stone")
+
+_route([-60.5, 4.0, 105.0], [1.0, 8.0, 274.0], "stone")
+_route([60.5, 4.0, 105.0], [1.0, 8.0, 274.0], "stone")
+_route([0.0, 4.0, -30.5], [122.0, 8.0, 1.0], "stone")
+_route([0.0, 4.0, 233.5], [122.0, 8.0, 1.0], "stone")
+
+entities.append({"type": "player_spawn", "at": [0.0, 0.0, -22.0]})
+coin([0.0, 0.8, -16.0], "coin one")
+coin([-3.0, 0.8, -11.0], "coin two")
+coin([3.0, 0.8, -11.0], "coin three")
+crate([7.0, 0.0, -4.0], "the crate")
+crate([8.8, 0.0, -4.0], "the other crate")
+
+# The walled yard, and the vault above it. The ledge is 4.2: over a double jump
+# and under a crate plus a double jump, which is the whole puzzle.
+_route([-50.5, 2.3, -10.0], [1.0, 4.6, 25.0], "stone")
+_route([-38.5, 2.3, 2.5], [25.0, 4.6, 1.0], "stone")
+_route([-38.5, 2.3, -22.5], [25.0, 4.6, 1.0], "stone")
+_route([-25.5, 2.3, -19.25], [1.0, 4.6, 6.5], "stone")
+_route([-25.5, 2.3, -4.75], [1.0, 4.6, 14.5], "stone")
+_route([-46.0, 2.1, -10.0], [8.0, 4.2, 25.0], "stone")
+_route([-33.0, 2.3, -14.75], [1.0, 4.6, 15.5], "wood")
+_route([-37.0, 2.3, -0.75], [1.0, 4.6, 6.5], "wood")
+
+crate([-29.0, 0.0, -19.0], "the yard crate")
+crate([-31.0, 0.0, -19.0], "the second yard crate")
+crate([-30.0, 0.0, -21.0], "the spare yard crate")
+coin([-29.0, 0.8, -13.0], "yard coin one")
+coin([-35.0, 0.8, -6.0], "yard coin two")
+coin([-40.0, 0.8, -12.0], "yard coin three")
+for i, z in enumerate((-18.0, -14.0, -6.0, -2.0)):
+    coin([-46.0, 5.0, z], f"vault coin {i + 1}")
+entities.append({
+    "type": "key", "name": "the green key", "at": [-46.0, 5.2, -10.0],
+    "color": "green", "material": "brass", "model": "assets/models/key.glb",
+})
+
+# The east plateau, with its own stair up.
+_route([-30.0, 2.0, 18.0], [12.0, 4.0, 12.0], "stone")
+_route([32.0, 3.0, 8.0], [12.0, 6.0, 12.0], "stone")
+_route([32.0, 1.0, 16.5], [8.0, 2.0, 5.0], "stone")
+_route([32.0, 2.0, 12.0], [8.0, 4.0, 4.0], "stone")
+_route([-8.0, 0.9, 22.0], [3.0, 0.4, 2.4], "brass")
+_route([8.0, 0.9, 22.0], [3.0, 0.4, 2.4], "brass")
+coin([32.0, 6.8, 4.0], "plateau coin one")
+coin([28.0, 6.8, 8.0], "plateau coin two")
+coin([36.0, 6.8, 8.0], "plateau coin three")
+spring("the high pad", [32.0, 6.2, 11.0])
+coin([32.0, 11.0, 11.0], "plateau coin four")
+spring("the first pad", [-30.0, 4.2, 18.0], speed=16.0)
+coin([-30.0, 10.0, 18.0], "high coin")
+
+checkpoint("the brink", 20.0, 1, respawn=18.0)
+coin([0.0, 2.0, 24.0], "arc coin one")
+coin([0.0, 3.0, 27.0], "arc coin two")
+coin([0.0, 2.0, 30.0], "arc coin three")
+hazard("the first drop", [0.0, -4.0, 27.0], [122.0, 6.0, 4.0], instant=True)
+checkpoint("past the drop", 33.0, 2, respawn=34.0)
+
+# The village: twelve huts with a coin on every roof and planks between them,
+# because a roof you cannot get to is a roof with a coin nobody will ever have.
+for row_i, z in enumerate((-26.0, -18.0, -10.0)):
+    heights = (3.0, 5.6, 4.2, 6.4) if row_i % 2 == 0 else (5.2, 3.4, 6.0, 4.4)
+    xs = (24.0, 33.0, 42.0, 51.0)
+    for x, h in zip(xs, heights):
+        hut(x, z, h)
+    for i in range(3):
+        low = min(heights[i], heights[i + 1])
+        plank((xs[i] + xs[i + 1]) / 2, z, True, 9.0 - 7.0 + 2.0, low)
+for x in (24.0, 33.0, 42.0, 51.0):
+    crate([x, 0.0, -22.0])
+
+# Stepping stones out to the eastern corner.
+for i, x in enumerate((42.0, 48.0, 54.0)):
+    for j, z in enumerate((2.0, 8.0, 14.0, 20.0)):
+        pillar(x, z, 1.0 + ((i + j) % 4) * 0.8, width=3.0, top_coin=(i + j) % 2 == 0)
+
+# The western colonnade, along the wall.
+for i in range(7):
+    z = -26.0 + i * 8.0
+    pillar(-57.0, z, 5.0, width=2.6, top_coin=i % 2 == 0)
+    if i % 2 == 0:
+        _fill([-57.0, 5.6, z], [4.0, 0.6, 4.0], "wood")
+
+# The training ground, west of the walked line: a grid of stumps to hop across.
+for i, x in enumerate((-22.0, -17.0, -12.0, -7.0)):
+    for j, z in enumerate((-26.0, -20.0, -14.0, -8.0)):
+        pillar(x, z, 0.8 + ((i * 3 + j) % 5) * 0.6, width=3.2,
+               top_coin=(i + j) % 2 == 0)
+
+# The ruin: two arches, a spike pit and a pad to clear it with.
+for x in (13.0, 19.0):
+    _fill([x, 3.0, -26.0], [1.6, 6.0, 1.6], "stone")
+    _fill([x, 3.0, -18.0], [1.6, 6.0, 1.6], "stone")
+_fill([16.0, 6.3, -26.0], [8.0, 0.6, 1.6], "stone")
+_fill([16.0, 6.3, -18.0], [8.0, 0.6, 1.6], "stone")
+coin([16.0, 7.4, -26.0])
+coin([16.0, 7.4, -18.0])
+hazard("the ruin spikes", [16.0, 0.4, -22.0], [8.0, 0.8, 5.0], damage=35.0)
+spring("the ruin pad", [16.0, 0.2, -13.0], speed=14.0)
+coin([16.0, 5.0, -13.0])
+
+# The north strip: broken walls with coins behind them.
+for i in range(6):
+    x = -54.0 + i * 8.0
+    _fill([x, 1.2, 16.0], [6.0, 2.4, 1.0], "stone")
+    coin([x, 0.8, 18.5])
+
+# ---------------------------------------------------------------- zone two ---
+# The shaft, the quarry, the scaffold and the canyon.
+
+_route([-3.5, 6.0, 44.0], [1.0, 12.0, 10.0], "stone")
+_route([3.5, 6.0, 44.0], [1.0, 12.0, 10.0], "stone")
+_route([0.0, 4.0, 48.5], [8.0, 8.0, 1.0], "stone")
+_route([-7.0, 4.0, 44.0], [6.0, 8.0, 10.0], "stone")
+_route([7.0, 4.0, 44.0], [6.0, 8.0, 10.0], "stone")
+coin([0.0, 3.0, 44.0], "the shaft coin")
+coin([0.0, 6.0, 42.0], "the second shaft coin")
+coin([0.0, 9.0, 42.0], "the third shaft coin")
+entities.append({
+    "type": "key", "name": "the blue key", "at": [0.0, 9.0, 46.0],
+    "color": "blue", "material": "brass", "model": "assets/models/key.glb",
+})
+
+checkpoint("the canyon rim", 53.0, 3, respawn=52.0)
+hazard("the gulf", [0.0, -4.0, 62.0], [122.0, 6.0, 12.0], instant=True)
+mover("platform", "the first barge", [-8.0, 1.0, 58.0], [5.0, 0.6, 5.0],
+      [16.0, 0.0, 0.0], 3.5, 1.2)
+mover("platform", "the second barge", [8.0, 1.0, 62.0], [5.0, 0.6, 5.0],
+      [-16.0, 0.0, 0.0], 3.5, 1.2, phase=2.5)
+mover("platform", "the third barge", [-8.0, 1.0, 66.0], [5.0, 0.6, 5.0],
+      [16.0, 0.0, 0.0], 3.5, 1.2, phase=5.0)
+coin([0.0, 3.0, 58.0], "canyon coin one")
+coin([0.0, 3.0, 62.0], "canyon coin two")
+coin([0.0, 3.0, 66.0], "canyon coin three")
+
+# Two more ways across, so the canyon is a canyon rather than a doorway.
+for side, x in (("west", -30.0), ("east", 30.0)):
+    mover("platform", f"the {side} ferry", [x, 1.0, 59.0], [4.5, 0.6, 4.5],
+          [0.0, 0.0, 8.0], 3.0, 1.2, phase=1.5)
+    mover("platform", f"the {side} skiff", [x, 1.0, 67.0], [4.5, 0.6, 4.5],
+          [8.0 if x < 0 else -8.0, 0.0, 0.0], 3.0, 1.0, phase=3.0)
+    coin([x, 2.6, 59.0])
+    coin([x, 2.6, 67.0])
+    # Columns out of the depths, tall enough to stand on and no taller.
+    for z in (60.0, 64.0):
+        _fill([x + 10.0, -2.0, z], [3.0, 6.0, 3.0], "stone")
+        coin([x + 10.0, 1.8, z])
+
+# The quarry: terraces stepping up, with crates and a pad at the top.
+for i in range(6):
+    x = -54.0 + i * 8.0
+    h = 1.2 + i * 0.9
+    _fill([x, h / 2, 40.0], [7.0, h, 18.0], "stone")
+    coin([x, h + 0.8, 36.0])
+    coin([x, h + 0.8, 44.0])
+for x in (-52.0, -44.0, -36.0):
+    crate([x, 0.0, 31.0])
+spring("the quarry pad", [-14.0, 6.0, 40.0], speed=16.0)
+_fill([-14.0, 2.9, 40.0], [5.0, 5.8, 5.0], "stone")
+coin([-14.0, 12.0, 40.0])
+
+# The scaffold: platforms at three heights with movers between them.
+for i, x in enumerate((16.0, 28.0, 40.0, 52.0)):
+    for j, z in enumerate((34.0, 44.0, 52.0)):
+        h = 2.0 + ((i + j) % 3) * 2.0
+        _fill([x, h - 0.3, z], [7.0, 0.6, 7.0], "wood")
+        _fill([x, (h - 0.6) / 2, z], [1.0, h - 0.6, 1.0], "stone")
+        coin([x, h + 0.8, z])
+mover("platform", "the scaffold hoist", [22.0, 2.0, 48.0], [4.0, 0.6, 4.0],
+      [0.0, 4.0, 0.0], 2.0, 1.5)
+mover("platform", "the scaffold shuttle", [46.0, 3.0, 39.0], [4.0, 0.6, 4.0],
+      [0.0, 0.0, 10.0], 2.5, 1.0, phase=1.0)
+
+# -------------------------------------------------------------- zone three ---
+# The forecourt, the maze, and two wings of filling either side of it.
+
+_route([-40.0, 3.5, 76.0], [8.0, 7.0, 8.0], "wood")
+_route([-31.0, 4.0, 80.0], [58.0, 8.0, 2.0], "wood")
+_route([31.0, 4.0, 80.0], [58.0, 8.0, 2.0], "wood")
+checkpoint("the forecourt", 72.0, 4, respawn=73.0)
+mover("lift", "the tower lift", [-34.0, 0.3, 76.0], [4.0, 0.6, 4.0],
+      [0.0, 7.0, 0.0], 2.0, 4.0)
+plate("the lift plate", "the tower lift", [-34.0, 1.6, 76.0])
+coin([-42.0, 7.8, 74.0], "tower coin one")
+coin([-38.0, 7.8, 74.0], "tower coin two")
+coin([-42.0, 7.8, 78.0], "tower coin three")
+coin([-38.0, 7.8, 78.0], "tower coin four")
+
+entities.append({
+    "type": "door", "name": "the blue gate", "at": [0.0, 2.5, 80.0],
+    "size": [4.0, 5.0, 2.0], "travel": [0.0, 5.2, 0.0], "speed": 6.0,
+    "wait": 0.0, "key": "blue", "material": "brass",
+})
+plate("the blue gate's plate", "the blue gate", [0.0, 1.6, 77.0],
+      size=(6.0, 3.0, 3.0))
+
+# The maze. Five metres tall, which is over a double jump and under the walls of
+# a room; a maze a player can hop out of is scenery.
+_route([-27.5, 2.5, 102.0], [1.0, 5.0, 37.0], "stone")
+_route([27.5, 2.5, 102.0], [1.0, 5.0, 37.0], "stone")
+for z in (83.5, 114.0, 120.5):
+    _route([-15.25, 2.5, z], [24.5, 5.0, 1.0], "stone")
+    _route([15.25, 2.5, z], [24.5, 5.0, 1.0], "stone")
+for z, x in ((90.0, -3.0), (96.0, 3.0), (102.0, -3.0), (108.0, 3.0)):
+    _route([x, 2.5, z], [49.0, 5.0, 1.0], "stone")
+# Stubs inside the rows: without them a serpentine is a corridor with a bend.
+for z, x in ((87.0, 8.0), (93.0, -8.0), (99.0, 8.0), (105.0, -8.0), (111.0, 14.0)):
+    _route([x, 2.5, z], [1.0, 5.0, 3.6], "stone")
+for i, (x, z) in enumerate((
+    (-24.0, 87.0), (-18.0, 87.0), (12.0, 87.0), (24.0, 93.0), (18.0, 93.0),
+    (-24.0, 99.0), (-18.0, 99.0), (24.0, 105.0), (18.0, 105.0),
+    (-24.0, 111.0), (24.0, 111.0), (-24.0, 117.0), (24.0, 117.0),
+)):
+    coin([x, 0.8, z], f"maze coin {i + 1}")
+
+entities.append({
+    "type": "door", "name": "the green gate", "at": [0.0, 2.5, 120.5],
+    "size": [6.0, 5.0, 2.0], "travel": [0.0, 5.2, 0.0], "speed": 6.0,
+    "wait": 0.0, "key": "green", "material": "brass",
+})
+plate("the green gate's plate", "the green gate", [0.0, 1.6, 118.0],
+      size=(6.0, 3.0, 3.0))
+
+# The forecourt filling: pillars, crates and a second tower with its own lift.
+for i, x in enumerate((-54.0, -22.0, -12.0, 12.0, 22.0, 54.0)):
+    pillar(x, 74.0, 4.0 + (i % 3), width=3.0)
+    crate([x + 4.0 if x < 0 else x - 4.0, 0.0, 74.0])
+_fill([40.0, 3.5, 76.0], [8.0, 7.0, 8.0], "wood")
+mover("lift", "the east lift", [34.0, 0.3, 76.0], [4.0, 0.6, 4.0],
+      [0.0, 7.0, 0.0], 2.0, 4.0)
+plate("the east plate", "the east lift", [34.0, 1.6, 76.0])
+for dx in (-2.0, 2.0):
+    for dz in (-2.0, 2.0):
+        coin([40.0 + dx, 7.8, 76.0 + dz])
+
+# The warehouse, west of the maze: twelve crates in a yard, sheds, a gantry.
+for i in range(4):
+    for j in range(3):
+        crate([-54.0 + i * 4.0, 0.0, 90.0 + j * 5.0])
+for j, z in enumerate((86.0, 98.0, 110.0)):
+    _fill([-36.0, 2.5, z], [8.0, 5.0, 8.0], "stone")
+    coin([-36.0, 6.3, z])
+_fill([-45.0, 5.0, 104.0], [22.0, 0.6, 4.0], "wood")
+for i in range(5):
+    coin([-54.0 + i * 4.5, 6.0, 104.0])
+for i in range(3):
+    h = 1.4 + i * 1.4
+    _fill([-33.0, h / 2, 116.0 - i * 4.0], [5.0, h, 4.0], "stone")
+
+# The east gallery: a stair to a walkway along the maze's outer wall.
+for i in range(5):
+    h = 1.6 + i * 1.4
+    _fill([32.0, h / 2, 86.0 + i * 7.0], [6.0, h, 6.0], "stone")
+    coin([32.0, h + 0.8, 86.0 + i * 7.0])
+_fill([42.0, 8.0, 102.0], [4.0, 0.6, 36.0], "wood")
+for i in range(6):
+    coin([42.0, 9.2, 86.0 + i * 6.0])
+for i in range(4):
+    pillar(52.0, 88.0 + i * 9.0, 3.0 + i * 1.2, width=3.4)
+
+# --------------------------------------------------------------- zone four ---
+# The ice: a crevasse with five ways across and a field of spikes beyond it.
+
+checkpoint("the cold", 124.0, 5)
+hazard("the crevasse", [0.0, -4.0, 137.0], [122.0, 6.0, 18.0], instant=True)
+mover("platform", "the ferry", [0.0, 1.0, 131.0], [5.0, 0.6, 5.0],
+      [0.0, 0.0, 13.0], 3.0, 1.5)
+mover("platform", "the west floe", [-14.0, 1.0, 134.0], [4.0, 0.6, 4.0],
+      [0.0, 0.0, 8.0], 2.5, 1.0, phase=1.0)
+mover("platform", "the east floe", [14.0, 1.0, 142.0], [4.0, 0.6, 4.0],
+      [0.0, 0.0, -8.0], 2.5, 1.0, phase=3.0)
+coin([-14.0, 2.6, 134.0], "floe coin one")
+coin([-14.0, 2.6, 142.0], "floe coin two")
+coin([14.0, 2.6, 134.0], "floe coin three")
+coin([14.0, 2.6, 142.0], "floe coin four")
+for side, x in (("far west", -34.0), ("far east", 34.0)):
+    mover("platform", f"the {side} floe", [x, 1.0, 132.0], [4.5, 0.6, 4.5],
+          [0.0, 0.0, 10.0], 2.5, 1.2, phase=2.0)
+    coin([x, 2.6, 132.0])
+    _fill([x + 8.0, -2.0, 137.0], [3.4, 6.4, 3.4], "ice")
+    coin([x + 8.0, 2.0, 137.0])
+
+_route([0.0, 1.8, 147.0], [12.0, 3.6, 3.0], "ice")
+_route([0.0, 3.0, 152.0], [12.0, 6.0, 4.0], "ice")
+_route([-22.0, 1.5, 162.0], [12.0, 3.0, 8.0], "ice")
+_route([22.0, 1.5, 162.0], [12.0, 3.0, 8.0], "ice")
+hazard("the spikes", [-9.0, 0.4, 150.0], [10.0, 0.8, 8.0])
+hazard("more spikes", [9.0, 0.4, 158.0], [10.0, 0.8, 8.0])
+hazard("the far spikes", [-30.0, 0.4, 154.0], [14.0, 0.8, 8.0], damage=35.0)
+hazard("the eastern spikes", [30.0, 0.4, 154.0], [14.0, 0.8, 8.0], damage=35.0)
+spring("the cold pad", [0.0, 6.2, 152.0], speed=17.0)
+coin([0.0, 12.5, 156.0], "the cold coin")
+coin([-22.0, 3.8, 162.0], "ice coin one")
+coin([22.0, 3.8, 162.0], "ice coin two")
+
+# The near shore, and the ridges beyond the spikes.
+for i in range(7):
+    x = -48.0 + i * 16.0
+    if abs(x) < 8.0:
+        continue
+    pillar(x, 123.5, 1.4 + (i % 3) * 0.9, width=4.0, material="ice")
+for x in (-46.0, -26.0, 26.0, 46.0):
+    _fill([x, 1.5, 150.0], [10.0, 3.0, 1.2], "ice")
+    _fill([x, 1.5, 158.0], [10.0, 3.0, 1.2], "ice")
+    coin([x, 4.2, 150.0])
+    coin([x, 4.2, 158.0])
+for x in (-44.0, 44.0):
+    spring(f"the floe pad {'west' if x < 0 else 'east'}", [x, 0.2, 164.0], speed=15.0)
+    coin([x, 5.5, 164.0])
+for x in (-16.0, 16.0):
+    crate([x, 0.0, 148.0])
+    crate([x, 0.0, 160.0])
+
+# --------------------------------------------------------------- zone five ---
+# The summit: a colonnade, two ziggurats, the stair, and a ring of coins on top.
+
+checkpoint("past the ice", 170.0, 6)
+checkpoint("the foot of the stair", 190.0, 7)
+_route([0.0, 1.2, 196.0], [26.0, 2.4, 8.0], "stone")
+_route([0.0, 2.5, 206.0], [22.0, 5.0, 8.0], "stone")
+_route([0.0, 3.8, 216.0], [18.0, 7.6, 8.0], "stone")
+_route([0.0, 5.1, 226.0], [14.0, 10.2, 8.0], "stone")
+coin([0.0, 3.2, 196.0], "stair coin one")
+spring("the last pad", [9.0, 2.6, 196.0])
+coin([9.0, 8.0, 196.0], "stair coin two")
+coin([0.0, 5.8, 206.0], "stair coin three")
+coin([0.0, 8.4, 216.0], "stair coin four")
+mover("lift", "the summit lift", [-12.0, 0.3, 214.0], [4.0, 0.6, 4.0],
+      [0.0, 7.0, 0.0], 2.0, 4.0)
+plate("the summit plate", "the summit lift", [-12.0, 1.6, 214.0])
+for i, (x, z) in enumerate((
+    (4.0, 226.0), (2.8, 228.8), (0.0, 230.0), (-2.8, 228.8),
+    (-4.0, 226.0), (-2.8, 223.2), (0.0, 222.0), (2.8, 223.2),
+)):
+    coin([x, 11.0, z], f"ring coin {i + 1}")
+entities.append({
+    "type": "exit", "name": "the summit", "at": [0.0, 11.7, 226.0],
+    "size": [5.0, 3.0, 5.0], "text": "The summit.",
+})
+
+# The colonnade below the stair.
+for i in range(6):
+    z = 172.0 + i * 4.0
+    for x in (-18.0, 18.0):
+        pillar(x, z, 6.0, width=2.4, top_coin=i % 2 == 0)
+    coin([0.0, 0.8, z])
+for i in range(5):
+    x = -52.0 + i * 8.0
+    pillar(x, 176.0, 2.0 + i * 0.8, width=4.0)
+    pillar(-x, 176.0, 2.0 + i * 0.8, width=4.0)
+
+# Two ziggurats flanking the stair, and lifts up the outer walls.
+ziggurat(-34.0, 208.0, 4, 2.4, 20.0)
+ziggurat(34.0, 208.0, 4, 2.4, 20.0)
+for x in (-50.0, 50.0):
+    mover("lift", f"the {'west' if x < 0 else 'east'} hoist", [x, 0.3, 196.0],
+          [4.0, 0.6, 4.0], [0.0, 8.0, 0.0], 2.0, 4.0)
+    plate(f"the {'west' if x < 0 else 'east'} hoist plate",
+          f"the {'west' if x < 0 else 'east'} hoist", [x, 1.6, 196.0])
+    _fill([x, 4.0, 204.0], [8.0, 8.0, 8.0], "stone")
+    coin([x, 8.8, 204.0])
+    _fill([x, 8.3, 212.0], [8.0, 0.6, 8.0], "wood")
+    coin([x, 9.4, 212.0])
+
+# The back wall, so the summit has something behind it.
+for i in range(9):
+    x = -48.0 + i * 12.0
+    if abs(x) < 20.0:
+        continue
+    _fill([x, 2.0, 230.0], [8.0, 4.0, 4.0], "stone")
+    coin([x, 5.2, 230.0])
+
+# ------------------------------------------------------------------- write ---
+
+MATERIALS = {
+    name: {
+        "roughness": 1.0,
+        "albedo": f"assets/textures/{name}_albedo.png",
+        "normal": f"assets/textures/{name}_normal.png",
+        "orm": f"assets/textures/{name}_orm.png",
+        "texelsPerMetre": texels,
+    }
+    for name, texels in (
+        ("moss", 0.5), ("stone", 0.5), ("brass", 1.0), ("wood", 0.7), ("ice", 0.4)
+    )
+}
+MATERIALS["brass"]["metallic"] = 1.0
+
+LIGHTS = [
+    {
+        # Steep on purpose. At (-0.35, -0.85, 0.4) the sun stood low enough to
+        # throw a shadow two thirds of the runner's own height off to one side,
+        # and one shadow map over a hundred and twenty metres of level is too
+        # coarse to soften it — so what the player saw beside themselves was a
+        # second, blurrier penguin. Overhead, the shadow lands under the feet
+        # where it reads as contact.
+        "type": "directional",
+        "direction": [-0.16, -0.97, 0.18],
+        "color": [1.0, 0.96, 0.88],
+        "intensity": 2.6,
+        "castsShadow": True,
+    },
+] + [
+    {"at": [x, y, z], "color": c, "intensity": 26.0, "range": r}
+    for x, y, z, c, r in (
+        (0.0, 7.0, -12.0, [0.6, 0.75, 1.0], 46.0),
+        (-38.0, 7.0, -10.0, [1.0, 0.85, 0.6], 34.0),
+        (36.0, 8.0, -18.0, [1.0, 0.85, 0.6], 40.0),
+        (0.0, 9.0, 44.0, [1.0, 0.8, 0.55], 40.0),
+        (-30.0, 8.0, 40.0, [1.0, 0.86, 0.62], 44.0),
+        (34.0, 8.0, 44.0, [1.0, 0.86, 0.62], 44.0),
+        (0.0, 9.0, 62.0, [0.8, 0.85, 1.0], 44.0),
+        (0.0, 7.0, 78.0, [1.0, 0.86, 0.62], 40.0),
+        (0.0, 8.0, 96.0, [1.0, 0.9, 0.7], 46.0),
+        (0.0, 8.0, 114.0, [1.0, 0.9, 0.7], 46.0),
+        (-42.0, 8.0, 100.0, [1.0, 0.88, 0.66], 44.0),
+        (42.0, 9.0, 100.0, [1.0, 0.88, 0.66], 44.0),
+        (0.0, 8.0, 137.0, [0.7, 0.9, 1.0], 48.0),
+        (0.0, 8.0, 155.0, [0.7, 0.9, 1.0], 42.0),
+        (0.0, 8.0, 178.0, [0.95, 0.95, 1.0], 46.0),
+        (0.0, 14.0, 214.0, [0.9, 1.0, 0.95], 50.0),
+    )
+]
+
+document = {
+    "version": 1,
+    "name": "Ascent",
+    "generatedBy": "tool/make_level.py",
+    "fogColor": [0.05, 0.07, 0.12],
+    "fogDensity": 0.004,
+    "materials": MATERIALS,
+    "brushes": brushes,
+    "lights": LIGHTS,
+    "entities": entities + _fill_entities,
+}
+
+
+def dump(value, indent):
+    """Compact where compact reads better: one line per brush, per entity."""
+    pad = "  " * indent
+    if isinstance(value, dict):
+        inner = json.dumps(value, separators=(", ", ": "))
+        if len(inner) <= 110 and not any(isinstance(v, (dict, list)) and
+                                         len(json.dumps(v)) > 60
+                                         for v in value.values()):
+            return pad + inner
+        rows = [f'{pad}  {json.dumps(k)}: '
+                f'{dump(v, indent + 1).lstrip() if isinstance(v, (dict, list)) else json.dumps(v)}'
+                for k, v in value.items()]
+        return pad + "{\n" + ",\n".join(rows) + "\n" + pad + "}"
+    if isinstance(value, list):
+        if all(isinstance(v, (int, float, str)) for v in value):
+            return pad + json.dumps(value, separators=(", ", ": "))
+        return pad + "[\n" + ",\n".join(dump(v, indent + 1) for v in value) + \
+            "\n" + pad + "]"
+    return pad + json.dumps(value)
+
+
+OUT.write_text(dump(document, 0) + "\n")
+print(f"{OUT.name}: {len(brushes)} brushes, {len(entities) + len(_fill_entities)} "
+      f"entities, {_coins} coins, {_crates} crates")

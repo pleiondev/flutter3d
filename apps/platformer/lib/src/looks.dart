@@ -58,17 +58,29 @@ final class PlatformerLooks implements FixtureAppearance {
   }
 
   /// How long a collected coin takes to shrink away.
-  static const double _vanish = 1.0;
+  ///
+  /// Three hundred milliseconds. A second read as the coin dawdling: by the
+  /// time it had gone the player was two coins further on, and a trail of
+  /// half-sized coins behind them looked like the pickup had not registered.
+  static const double _vanish = 0.3;
 
   /// A collected coin is gone **once it has finished shrinking**, not the
   /// instant it was taken — see [scaleOf].
+  ///
+  /// The `isTaken` half is not redundant, whatever it looks like: a coin that
+  /// has never been picked up has `sinceTaken` of infinity, which is how it
+  /// says *never*. Testing the clock alone made every uncollected coin in the
+  /// level spent on the first frame, and a level with two hundred coins in it
+  /// drew none of them.
   @override
   bool isSpent(Fixture fixture) {
     final mechanism = fixture.mechanism;
-    return mechanism is Collectible && mechanism.sinceTaken >= _vanish;
+    return mechanism is Collectible &&
+        mechanism.isTaken &&
+        mechanism.sinceTaken >= _vanish;
   }
 
-  /// A taken coin shrinks to nothing over a second and then leaves.
+  /// A taken coin shrinks to nothing over [_vanish] and then leaves.
   ///
   /// Eased rather than linear: a coin that shrinks at a constant rate looks
   /// like it is being deleted, and one that starts slowly and finishes fast
