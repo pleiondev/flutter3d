@@ -302,7 +302,7 @@ final class Bestiary {
           halfHeight: math.max(0.01, def.height / 2.0 - def.radius),
         ),
         position: position,
-        layer: CollisionLayers.monster,
+        layer: CollisionLayers.actor,
         tuning: MovementTuning(
           walkSpeed: def.speed,
           sprintSpeed: def.speed,

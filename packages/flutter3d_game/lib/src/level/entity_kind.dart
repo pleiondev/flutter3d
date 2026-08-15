@@ -394,7 +394,7 @@ final class TriggerKind extends EntityKind {
     // works, but the default is the player alone — otherwise the first monster
     // to wander through the room springs every trap in it.
     final who = entity.flag('anyone')
-        ? CollisionLayers.player | CollisionLayers.monster
+        ? CollisionLayers.player | CollisionLayers.actor
         : CollisionLayers.player;
     final collider = place(
       entity,

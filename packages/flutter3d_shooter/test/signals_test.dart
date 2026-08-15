@@ -179,7 +179,7 @@ void main() {
         Collider(
           shape: CollisionCapsule(radius: 0.35, halfHeight: 0.55),
           position: Vector3(0.0, 1.0, 0.0),
-          layer: CollisionLayers.monster,
+          layer: CollisionLayers.actor,
         ),
       );
       _run(w.mechanisms, 1.0);

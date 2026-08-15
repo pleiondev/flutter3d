@@ -198,7 +198,7 @@ abstract base class Mover extends Mechanism {
       collider.shape,
       candidate,
       _touching,
-      mask: CollisionLayers.player | CollisionLayers.monster,
+      mask: CollisionLayers.player | CollisionLayers.actor,
       ignore: collider,
       includeTriggers: false,
     );

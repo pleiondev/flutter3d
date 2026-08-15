@@ -69,7 +69,7 @@ final class BlastResolver {
     Blast blast,
     Vector3 centre,
     Map<Collider, double> out, {
-    int mask = CollisionLayers.player | CollisionLayers.monster,
+    int mask = CollisionLayers.player | CollisionLayers.actor,
   }) {
     out.clear();
     world.overlap(

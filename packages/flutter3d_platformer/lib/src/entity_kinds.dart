@@ -621,7 +621,7 @@ final class EnemyKind extends EntityKind {
       shape: CollisionBox(size / 2.0),
       // The document points at the floor, as it does for everything else.
       position: entity.position + Vector3(0.0, size.y / 2.0, 0.0),
-      layer: CollisionLayers.monster,
+      layer: CollisionLayers.actor,
     );
 
     final speed = entity.number('speed') ?? 0.55;

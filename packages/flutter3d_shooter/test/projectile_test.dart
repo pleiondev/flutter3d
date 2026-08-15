@@ -14,7 +14,7 @@ Collider _target(CollisionWorld world, Vector3 at, {Object? name}) => world.add(
         shape: CollisionCapsule(radius: 0.4, halfHeight: 0.7),
         position: at,
         kind: ColliderKind.kinematic,
-        layer: CollisionLayers.monster,
+        layer: CollisionLayers.actor,
         userData: name,
       ),
     );

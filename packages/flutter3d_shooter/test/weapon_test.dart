@@ -259,7 +259,7 @@ void main() {
           shape: CollisionCapsule(radius: 0.4, halfHeight: 0.6),
           position: Vector3(0.0, 0.0, -12.0),
           kind: ColliderKind.kinematic,
-          layer: CollisionLayers.monster,
+          layer: CollisionLayers.actor,
           userData: 'monster',
         ),
       );
@@ -404,7 +404,7 @@ void main() {
             shape: CollisionBox(Vector3(3.0, 3.0, 0.5)),
             position: Vector3(0.0, 0.0, -4.0),
             kind: ColliderKind.kinematic,
-            layer: CollisionLayers.monster,
+            layer: CollisionLayers.actor,
             userData: 'monster',
           ),
         );

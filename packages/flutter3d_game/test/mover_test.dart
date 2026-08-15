@@ -273,7 +273,7 @@ void main() {
         Collider(
           shape: CollisionBox(Vector3.all(0.5)),
           position: Vector3(2.5, 0.0, 0.0),
-          layer: CollisionLayers.monster,
+          layer: CollisionLayers.actor,
         ),
       );
 
