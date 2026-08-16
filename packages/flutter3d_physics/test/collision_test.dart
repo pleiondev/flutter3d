@@ -368,6 +368,89 @@ void main() {
       expect(correction.z, 0.0);
     });
 
+    test('a body on the seam between two floors is lifted once, not twice', () {
+      // **The most ordinary situation there is, and it was double-counted.**
+      // Every floor in every level is a row of brushes, and a body standing on
+      // the seam overlaps two of them — by the same amount, upwards, for the
+      // same reason. `out.y += push` once per collider lifted it by the sum.
+      //
+      // It went unnoticed for the reason small errors do: it is always upward
+      // and always small, so it reads as a body sitting a little high rather
+      // than as a bug.
+      //
+      // Mutation: restore `+=` per collider. The correction doubles.
+      final world = CollisionWorld();
+      world.addBox(Vector3(-5.0, 0.0, 0.0), Vector3(10.0, 1.0, 10.0));
+      world.addBox(Vector3(5.0, 0.0, 0.0), Vector3(10.0, 1.0, 10.0));
+
+      // Straddling x = 0, sunk 0.1 m into both.
+      final correction = Vector3.zero();
+      final corrected = world.depenetrate(
+        Vector3(0.0, 0.9, 0.0),
+        Vector3.all(0.5),
+        correction,
+      );
+
+      expect(corrected, isTrue);
+      expect(correction.y, closeTo(0.1, 1e-6),
+          reason: 'lifted ${correction.y} m out of a 0.1 m overlap');
+    });
+
+    test('and it is lifted the deeper of two unequal overlaps, either order',
+        () {
+      // The other half of "deepest, not sum": two floors at different heights,
+      // and the answer is the one that actually clears both.
+      //
+      // **On both sides, and that is the point.** With the deeper floor to the
+      // east it is visited last, and an implementation that simply keeps
+      // whichever push it saw most recently gives the same answer — so that
+      // version of this test passed against exactly the mutation it was written
+      // for. The grid walks cells in order, so which floor is *visited* first
+      // is decided by where it stands, not by when it was added.
+      double liftedWithDeeper({required bool west}) {
+        final world = CollisionWorld();
+        world.addBox(Vector3(-5.0, west ? 0.1 : 0.0, 0.0),
+            Vector3(10.0, 1.0, 10.0));
+        world.addBox(Vector3(5.0, west ? 0.0 : 0.1, 0.0),
+            Vector3(10.0, 1.0, 10.0));
+
+        final correction = Vector3.zero();
+        world.depenetrate(Vector3(0.0, 0.9, 0.0), Vector3.all(0.5), correction);
+        return correction.y;
+      }
+
+      expect(liftedWithDeeper(west: false), closeTo(0.2, 1e-6),
+          reason: 'the taller floor needs 0.2 m');
+      expect(liftedWithDeeper(west: true), closeTo(0.2, 1e-6),
+          reason: 'the answer changed with which side the taller floor is on, '
+              'so it is keeping the last push rather than the deepest');
+    });
+
+    test('but opposing pushes still both count', () {
+      // **Not an oversight, and the crushing test caught it.** Written as "only
+      // what is still needed along this normal", the second of two opposing
+      // pushes overwrites the first — so a body being closed on by a platform
+      // is resolved as whichever face spoke last, and goes through the floor.
+      //
+      // A body told two different things gets the net of them.
+      //
+      // Mutation: keep only the deepest push of the six regardless of
+      // direction, or resolve by projection. The correction stops being a
+      // difference and this fails.
+      final world = CollisionWorld();
+      world.addBox(Vector3(0.0, 0.0, 0.0), Vector3(10.0, 1.0, 10.0));
+      world.addBox(Vector3(0.0, 2.5, 0.0), Vector3(10.0, 1.0, 10.0));
+
+      // Squeezed: 0.2 m up out of the floor below, 0.1 m down out of the
+      // ceiling above, so the net is a tenth upward.
+      final correction = Vector3.zero();
+      world.depenetrate(Vector3(0.0, 1.2, 0.0), Vector3(0.5, 0.9, 0.5),
+          correction);
+
+      expect(correction.y, closeTo(0.1, 1e-6),
+          reason: 'the two faces did not net out: ${correction.y}');
+    });
+
     test('reports nothing when clear', () {
       final world = CollisionWorld();
       world.addBox(Vector3.zero(), Vector3.all(1.0));

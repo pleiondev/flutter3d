@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
@@ -624,20 +625,24 @@ final class CollisionWorld {
         _pushNormal.setValues(0.0, push < 0 ? -1.0 : 1.0, 0.0);
         if (allow != null && !allow(other, _pushNormal)) return;
         corrected = true;
-        out.y += push;
+        _ask(push < 0 ? 2 : 3, overlapY);
       } else if (overlapX <= overlapZ) {
         final push = centre.x < other.position.x ? -overlapX : overlapX;
         _pushNormal.setValues(push < 0 ? -1.0 : 1.0, 0.0, 0.0);
         if (allow != null && !allow(other, _pushNormal)) return;
         corrected = true;
-        out.x += push;
+        _ask(push < 0 ? 0 : 1, overlapX);
       } else {
         final push = centre.z < other.position.z ? -overlapZ : overlapZ;
         _pushNormal.setValues(0.0, 0.0, push < 0 ? -1.0 : 1.0);
         if (allow != null && !allow(other, _pushNormal)) return;
         corrected = true;
-        out.z += push;
+        _ask(push < 0 ? 4 : 5, overlapZ);
       }
+    }
+
+    for (var i = 0; i < 6; i++) {
+      _deepest[i] = 0.0;
     }
 
     _staticGrid.forEachInBox(_queryMin, _queryMax, (int i) {
@@ -646,8 +651,37 @@ final class CollisionWorld {
     _moverGrid.forEachInBox(_queryMin, _queryMax, (int i) {
       resolve(_movers[i]);
     });
+
+    // **The deepest push in each direction, not the sum of them.** It used to
+    // be `out.y += push`, once per collider, and that double-counts in the most
+    // ordinary situation there is: a body standing on the seam between two
+    // floor brushes overlaps both, by the same tenth of a metre, upwards, for
+    // the same reason — and was lifted two tenths. Every floor in every level
+    // is a row of brushes, so this fired constantly, and it went unnoticed
+    // because the error is small and always upward, which reads as a body that
+    // sits a little high rather than as a bug.
+    //
+    // **Opposing pushes still both apply**, and that is not an oversight. A
+    // body being closed on by a platform is told two different things, and the
+    // answer is the net of them — resolving it as "whichever face spoke last"
+    // pushes the player through the floor, which is what the crushing test
+    // caught when this was first written as a projection.
+    out.x += _deepest[1] - _deepest[0];
+    out.y += _deepest[3] - _deepest[2];
+    out.z += _deepest[5] - _deepest[4];
     return corrected;
   }
+
+  /// Records a push of [depth] in one of the six directions, keeping the
+  /// deepest.
+  void _ask(int direction, double depth) {
+    if (depth > _deepest[direction]) _deepest[direction] = depth;
+  }
+
+  /// The deepest push asked for in each of the six directions, this call.
+  ///
+  /// Order: -x, +x, -y, +y, -z, +z.
+  final Float64List _deepest = Float64List(6);
 
   static bool _boundsOverlap(Aabb3 a, Aabb3 b) =>
       a.min.x < b.max.x &&
