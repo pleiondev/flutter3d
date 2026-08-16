@@ -191,6 +191,9 @@ class _GameScreenState extends State<GameScreen>
   /// Whether the player has asked to play yet, which takes the title card down.
   bool _started = false;
 
+  /// Whether the music loop has been started. Once per session.
+  bool _musicPlaying = false;
+
   /// Whether the run behind the title card came off the disk.
   bool _resumed = false;
 
@@ -377,6 +380,20 @@ class _GameScreenState extends State<GameScreen>
     _soloud = backend;
     _audio = AudioScene(backend: backend, mixer: _audio.mixer);
     await _audio.preload(Sounds.all);
+    _startMusic();
+  }
+
+  /// Starts the loop, once, whichever of the two arrives second.
+  ///
+  /// The audio device and the first level open in parallel and either may win,
+  /// so both call this and the flag decides. Once only: a looping sound played
+  /// twice is the same sound out of phase with itself.
+  void _startMusic() {
+    if (_musicPlaying || _sim == null || _soloud == null) return;
+    _musicPlaying = true;
+    // Position is immaterial — the track carries [NoAttenuation] — and the
+    // listener is where a sound with no place in the world belongs.
+    _audio.play(Sounds.music, _ears.position);
   }
 
   /// Copies the saved volumes into the mixer the scene is reading.
@@ -529,6 +546,9 @@ class _GameScreenState extends State<GameScreen>
     }
     _savedFrom = null;
     _soundtrack.reset();
+    // The other of the two racers: the device may have opened before there was
+    // anything to play under.
+    _startMusic();
   }
 
   /// Writes the run out when it has reached somewhere new to come back to.

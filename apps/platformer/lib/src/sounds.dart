@@ -67,6 +67,29 @@ abstract final class Sounds {
     maxInstances: 1,
   );
 
+  /// The one long thing in the game, and the only one on the music bus.
+  ///
+  /// **The bus existed with a slider and nothing behind it**, which is a
+  /// setting that does nothing — worse than an absent one, because a player who
+  /// moves it learns the settings screen lies. Eight bars of A minor at ninety,
+  /// written by `tool/make_music.py` for the same reason the sound effects are:
+  /// a licence nobody can trace is a debt, and a music track is the easiest
+  /// asset in the world to acquire carelessly.
+  ///
+  /// [NoAttenuation] and one instance: it is not in the level, it *is* the
+  /// level. A looping sound played twice is the same sound out of phase with
+  /// itself, which is a flanger and not a mistake anybody enjoys.
+  static const SoundDef music = SoundDef(
+    name: 'music',
+    asset: 'assets/sounds/music.wav',
+    gain: 1.0,
+    loop: true,
+    bus: AudioBus.music,
+    attenuation: NoAttenuation(),
+    maxInstances: 1,
+    priority: 10,
+  );
+
   static const List<SoundDef> all = <SoundDef>[
     coin,
     jump,
@@ -75,6 +98,7 @@ abstract final class Sounds {
     dash,
     death,
     checkpoint,
+    music,
   ];
 
   /// A footstep, by what is underfoot.
