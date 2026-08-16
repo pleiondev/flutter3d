@@ -582,8 +582,7 @@ void main() {
           if (m is Exit) m,
       ].first;
       final at = exit.origin;
-      expect(at, isNotNull, reason: 'the exit has no place');
-      it.look(from: at! + Vector3(0.0, 2.0, -8.0), at: at);
+      it.look(from: at + Vector3(0.0, 2.0, -8.0), at: at);
 
       // Out of shot, so what is measured is the exit and not the runner.
       it.runner.body.teleport(at + Vector3(0.0, 1.0, -30.0));
