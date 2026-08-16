@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:test/test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -328,6 +330,63 @@ void main() {
       );
     });
 
+    test('a body resting exactly on a face is touching it, not inside it', () {
+      // **The difference is float noise, and reading it as "inside" costs a
+      // landing.** A body put exactly on a surface reads as some tens of
+      // nanometres *under* it, because the surface's coordinates went through a
+      // single-precision vector on the way and the body's arithmetic did not.
+      // Answering "no contact" there lets the next sixtieth of a second of
+      // gravity carry it properly inside, where the answer is honestly no
+      // contact — and the fall never ends. It was found as a runner hovering
+      // seven millimetres under a conveyor belt for ever, neither standing on
+      // it nor falling off it.
+      //
+      // **The numbers are the belt's, and they have to be.** A first version of
+      // this used a wall at whole coordinates, where the boundary lands on an
+      // exactly representable number, there is no noise to swallow and the test
+      // passed with the tolerance deleted.
+      world.clear();
+      world.addBox(Vector3(0.0, 0.2, 0.0), Vector3(8.0, 0.4, 20.0));
+      world.update();
+
+      final hit = SweepHit();
+      final shape = CollisionBox(Vector3(0.35, 0.9, 0.35));
+      // The belt's top is 0.4 and the body is 0.9 from its centre to its feet,
+      // so this is exactly resting on it — in double precision, and a hair
+      // inside it in the world's own.
+      final found = world.sweep(
+        shape,
+        Vector3(0.0, 1.3, 0.0),
+        Vector3(0.0, -0.0067, 0.0),
+        hit,
+      );
+
+      expect(found, isTrue,
+          reason: 'a body standing on a belt was told there was no belt');
+      expect(hit.fraction, 0.0);
+      expect(hit.normal.y, closeTo(1.0, 1e-6));
+    });
+
+    test('and a body properly inside still is not, at a thousand times that',
+        () {
+      // The slack is a micrometre, and the rule it must not swallow is the one
+      // two tests above: a body that really is inside has to be free to move
+      // out. A millimetre in is a thousand times the slack, and is exactly the
+      // clearance every contact backs off by.
+      world.clear();
+      world.addBox(Vector3(0.0, 0.2, 0.0), Vector3(8.0, 0.4, 20.0));
+      world.update();
+
+      final hit = SweepHit();
+      final shape = CollisionBox(Vector3(0.35, 0.9, 0.35));
+
+      expect(
+        world.sweep(shape, Vector3(0.0, 1.3 - 1e-3, 0.0),
+            Vector3(0.0, -0.0067, 0.0), hit),
+        isFalse,
+      );
+    });
+
     test('triggers do not block movement', () {
       world.clear();
       world.add(
@@ -349,7 +408,94 @@ void main() {
     });
   });
 
+  group('the planes a shape offers', () {
+    // **Every sweep and every push in the world goes through this**, and it is
+    // abstract so that a shape which is not a box cannot behave like one by
+    // saying nothing. Before it, the world reached past the shape for
+    // `Collider.bounds` and no test could tell the difference.
+    final planes = Float64List(CollisionShape.boundsPlaneCount * 4);
+
+    /// The offset of the plane whose normal is [normal].
+    double offsetOf(int count, Vector3 normal) {
+      for (var i = 0; i < count; i++) {
+        final base = i * 4;
+        if (planes[base] == normal.x &&
+            planes[base + 1] == normal.y &&
+            planes[base + 2] == normal.z) {
+          return planes[base + 3];
+        }
+      }
+      fail('no face pointing $normal');
+    }
+
+    test('are the shape grown by whatever is being swept against it', () {
+      // The Minkowski sum, in closed form: a box against a box is a *point*
+      // against the first grown by the second's half-extents, which is what
+      // makes the sweep analytic instead of a solver.
+      final box = CollisionBox(Vector3(1.0, 2.0, 3.0));
+      final count = box.expandedPlanes(
+        Vector3(10.0, 0.0, 0.0),
+        Vector3(0.5, 0.5, 0.5),
+        planes,
+      );
+
+      expect(count, 6);
+      expect(offsetOf(count, Vector3(1.0, 0.0, 0.0)), closeTo(11.5, 1e-9));
+      // The low face's normal points out the other way, so its offset is the
+      // negated coordinate.
+      expect(offsetOf(count, Vector3(-1.0, 0.0, 0.0)), closeTo(-8.5, 1e-9));
+      expect(offsetOf(count, Vector3(0.0, 1.0, 0.0)), closeTo(2.5, 1e-9));
+      expect(offsetOf(count, Vector3(0.0, 0.0, 1.0)), closeTo(3.5, 1e-9));
+    });
+
+    test('and nothing is swept by a face the shape did not offer', () {
+      // A sphere and a capsule both answer with their bounding box today, and
+      // the point of the method is that they answer at all. If one of them ever
+      // stops, this is the test that says what changed.
+      final sphere = CollisionSphere(2.0);
+      final capsule = CollisionCapsule(radius: 0.5, halfHeight: 1.0);
+      final zero = Vector3.zero();
+      final none = Vector3.zero();
+
+      expect(sphere.expandedPlanes(zero, none, planes), 6);
+      expect(offsetOf(6, Vector3(0.0, 1.0, 0.0)), closeTo(2.0, 1e-9));
+
+      expect(capsule.expandedPlanes(zero, none, planes), 6);
+      expect(offsetOf(6, Vector3(0.0, 1.0, 0.0)), closeTo(1.5, 1e-9),
+          reason: 'a capsule is as tall as its caps reach');
+      expect(offsetOf(6, Vector3(1.0, 0.0, 0.0)), closeTo(0.5, 1e-9));
+    });
+  });
+
   group('depenetration', () {
+    test('pushes out the nearest face, not the narrowest part of the body', () {
+      // **A body deep inside a wide floor used to be shoved sideways.** The old
+      // form measured the *overlap* of two boxes per axis, and when the brush
+      // is wider than the body — every floor in every level — the horizontal
+      // overlap is the body's own width and stops growing. Sink a body further
+      // in than it is wide and the shallowest-looking axis became a horizontal
+      // one, so the way out of a floor was out of its side.
+      //
+      // A face is the honest measure: how far to travel along the normal to
+      // leave through it. Mutation: take the shallowest overlap instead and
+      // this pushes sideways by 0.5.
+      final world = CollisionWorld();
+      world.addBox(Vector3.zero(), Vector3(20.0, 4.0, 20.0));
+
+      final correction = Vector3.zero();
+      // Half a metre wide, sunk 1.4 m into a slab whose top is at y = 2.
+      final corrected = world.depenetrate(
+        Vector3(0.0, 1.1, 0.0),
+        Vector3.all(0.5),
+        correction,
+      );
+
+      expect(corrected, isTrue);
+      expect(correction.y, closeTo(1.4, 1e-6));
+      expect(correction.x, 0.0);
+      expect(correction.z, 0.0);
+    });
+
     test('pushes out along the shallowest axis', () {
       final world = CollisionWorld();
       world.addBox(Vector3.zero(), Vector3(10.0, 1.0, 10.0));

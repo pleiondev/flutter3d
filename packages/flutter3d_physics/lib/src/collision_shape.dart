@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
@@ -23,19 +24,83 @@ import 'package:vector_math/vector_math.dart';
 /// implementing the visitor methods — the compiler names every case that is
 /// missing, which a `switch` over pairs cannot do.
 ///
-/// ## Exact here, approximate when sweeping
+/// ## Exact here, approximate when moving
 ///
 /// Everything below is exact. Overlap decides outcomes — whether a rocket hit a
 /// monster, whether the player is standing in a pickup — and being
 /// approximately right there is being wrong in a way the player can see.
-/// Sweeping, in [CollisionWorld], runs against bounds instead: it moves bodies,
-/// where stopping a centimetre early at a corner is invisible, and the exact
-/// version is a swept Minkowski sum with rounded edges, which is a solver.
+///
+/// Moving a body is the other trade, and [expandedPlanes] is where each shape
+/// declares which side of it it takes. All three take the bounding box, because
+/// stopping a centimetre early at a corner is invisible and the exact version
+/// is a swept Minkowski sum with rounded edges, which is a solver. **The
+/// declaration is the point**: a shape that meant to be swept properly cannot
+/// inherit the box by saying nothing.
 sealed class CollisionShape {
   const CollisionShape();
 
   /// Half the size of the axis-aligned box containing this shape.
   Vector3 get boundsHalfExtents;
+
+  /// How many planes [expandedPlanes] writes, four doubles each.
+  ///
+  /// Asked before the write so the caller can size its buffer. Abstract for
+  /// the same reason [expandedPlanes] is: a shape that answered six by
+  /// inheritance and then wrote eight would have two of them silently dropped.
+  int get expandedPlaneCount;
+
+  /// This shape at [position], grown by [half], as a set of planes.
+  ///
+  /// **This is the one thing that moves a body**, and every sweep and every
+  /// push in [CollisionWorld] goes through it. Written into [out] as four
+  /// doubles a plane — the normal's three components, then `d` — with the solid
+  /// being every point where `n · p <= d`, and the normals pointing outwards.
+  /// Returns how many planes were written.
+  ///
+  /// Growing by [half] is what makes a *box* against this shape the same
+  /// question as a *point* against this shape: the Minkowski sum of an
+  /// axis-aligned box with a convex body is that body with each plane pushed
+  /// out by `|n · half|`, which is closed form and needs no solver. A caller
+  /// therefore sweeps its own shape by handing over its half-extents, and the
+  /// answer has no rounded edges to iterate towards.
+  ///
+  /// Abstract, and deliberately so. Every shape here answers with
+  /// [boundsExpandedPlanes], which is the bounding box — but it answers *out
+  /// loud*. Before this, a shape that was not a box behaved like one because
+  /// the world reached past it for `Collider.bounds`, and no test could tell:
+  /// the fourth shape would have been a slope, and a slope that silently
+  /// collides as its bounding box is a wall you can stand on top of.
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out);
+
+  /// The six planes of this shape's bounding box, grown by [half].
+  ///
+  /// In axis order — low face then high face, x then y then z — which the
+  /// world's slab walk relies on to break ties between axes the way it always
+  /// has.
+  int boundsExpandedPlanes(Vector3 position, Vector3 half, Float64List out) {
+    final extent = boundsHalfExtents;
+    var i = 0;
+    for (var axis = 0; axis < 3; axis++) {
+      final grown = extent[axis] + half[axis];
+      // The low face, whose outward normal points the other way.
+      out[i] = 0.0;
+      out[i + 1] = 0.0;
+      out[i + 2] = 0.0;
+      out[i + axis] = -1.0;
+      out[i + 3] = grown - position[axis];
+      i += 4;
+      out[i] = 0.0;
+      out[i + 1] = 0.0;
+      out[i + 2] = 0.0;
+      out[i + axis] = 1.0;
+      out[i + 3] = position[axis] + grown;
+      i += 4;
+    }
+    return 6;
+  }
+
+  /// How many planes [boundsExpandedPlanes] writes.
+  static const int boundsPlaneCount = 6;
 
   /// Writes the world bounds of this shape centred on [centre].
   void computeBounds(Vector3 centre, Aabb3 out) {
@@ -191,6 +256,15 @@ final class CollisionBox extends CollisionShape {
     double maxDistance,
     Vector3 outNormal,
   ) => raycastBounds(position, origin, direction, maxDistance, outNormal);
+
+  @override
+  int get expandedPlaneCount => CollisionShape.boundsPlaneCount;
+
+  @override
+  // The bounding box *is* this shape, so there is nothing approximate about it
+  // here. The other two shapes say the same words and mean less by them.
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out) =>
+      boundsExpandedPlanes(position, half, out);
 }
 
 /// A sphere: pickups, projectiles, blast radii.
@@ -275,6 +349,17 @@ final class CollisionSphere extends CollisionShape {
     if (outNormal.length2 > 0.0) outNormal.normalize();
     return t;
   }
+
+  @override
+  int get expandedPlaneCount => CollisionShape.boundsPlaneCount;
+
+  @override
+  // A cube, when it is being pushed out of the way of something. Nothing that
+  // sweeps is a sphere today — they are pickups and projectiles, and a
+  // projectile is a ray — so this is the cheap answer to a question nobody
+  // asks, and it is written down rather than assumed.
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out) =>
+      boundsExpandedPlanes(position, half, out);
 }
 
 /// An upright capsule: a segment of length `2 * halfHeight` with [radius]
@@ -359,6 +444,19 @@ final class CollisionCapsule extends CollisionShape {
       // only at the rounded caps. A monster shot at the very top of the head is
       // the only case, and it resolves in the player's favour.
       raycastBounds(position, origin, direction, maxDistance, outNormal);
+
+  @override
+  int get expandedPlaneCount => CollisionShape.boundsPlaneCount;
+
+  @override
+  // **The box, and a capsule is not one.** A walking body swept as its bounding
+  // box catches its shoulders on a corner it should round, which is a thing
+  // players feel and no test here asserts. Saying so costs a line and is the
+  // whole reason this method is abstract: the next person to want a capsule
+  // swept as a capsule has one place to change and a comment admitting it was
+  // never done.
+  int expandedPlanes(Vector3 position, Vector3 half, Float64List out) =>
+      boundsExpandedPlanes(position, half, out);
 }
 
 /// How far [offset] lies outside `[-half, half]`. Zero when inside.

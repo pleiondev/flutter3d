@@ -473,6 +473,35 @@ void main() {
       expect(player.position.y, closeTo(startY + 1.2, 0.05));
     });
 
+    test('a passenger set down exactly on a platform stands on it', () {
+      // **A body put exactly on a surface used to hover a fraction under it for
+      // ever.** Depenetration leaves it touching; the ground probe sweeps down
+      // from there; and a sweep that reads "exactly on the face" as "already
+      // inside" answers no contact — so the body is airborne, gravity carries
+      // it properly in, and from there the answer is honestly no contact. It
+      // never lands and never falls.
+      //
+      // It only shows when the push lands the body precisely, which is why it
+      // took a belt eight metres wide and a body dropped into the middle of it.
+      final world = CollisionWorld();
+      world.add(
+        Collider(
+          shape: CollisionBox(Vector3(4.0, 0.2, 10.0)),
+          position: Vector3(0.0, 0.2, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+
+      // Feet at -0.2 against a platform whose top is 0.4: the body's own height
+      // swallows the platform whole, which is the case that puts it exactly on
+      // the surface in one push.
+      final player = _player(world, at: Vector3(0.0, 0.7, 0.0));
+      _walk(player, 2);
+
+      expect(player.isGrounded, isTrue, reason: 'never landed');
+      expect(player.position.y, closeTo(1.3, 0.005));
+    });
+
     test('a sideways platform carries its passenger', () {
       final world = CollisionWorld();
       final platform = world.add(

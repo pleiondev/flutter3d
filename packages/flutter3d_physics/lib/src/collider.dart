@@ -83,6 +83,7 @@ final class Collider {
     // Through the field rather than the setter: there is no world to notify
     // yet, and the setter would be a call into nothing.
     _listener = listener;
+    refreshBounds();
   }
 
   CollisionShape shape;
@@ -171,5 +172,21 @@ final class Collider {
   /// Cached bounds, refreshed by the world when it indexes this collider.
   final Aabb3 bounds = Aabb3();
 
-  void refreshBounds() => shape.computeBounds(position, bounds);
+  /// Where the broadphase last saw this collider.
+  ///
+  /// [moveTo] moves [position] and nothing else — the grid is rebuilt once a
+  /// step, and until it is, [bounds] describes where this was when it was last
+  /// indexed. That is one step behind for anything that has moved this step,
+  /// and it has to be, because a narrow phase testing a mover where it *is*
+  /// while the grid answers for where it *was* misses it in whichever cell it
+  /// has left: the collider is never handed to the test at all.
+  ///
+  /// So this is the position every query moves a body against, named rather
+  /// than fished back out of the middle of [bounds].
+  final Vector3 indexedAt = Vector3.zero();
+
+  void refreshBounds() {
+    shape.computeBounds(position, bounds);
+    indexedAt.setFrom(position);
+  }
 }
