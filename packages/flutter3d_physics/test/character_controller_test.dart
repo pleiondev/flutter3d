@@ -552,6 +552,45 @@ void main() {
       expect(airborne, 0, reason: 'a 0.3 m reach carries a 0.2 m step');
     });
 
+    test('a body already in the air is not caught early by the long reach', () {
+      // **The one sentence in the controller that says why the snap is safe**,
+      // and it had no test behind it: "a body that was already airborne gets
+      // the short probe, so the long reach can never find ground the body was
+      // not standing on". Everything else about the feature can be right and
+      // this still wrong.
+      //
+      // Mutation: drop the `_grounded &&` from the reach in `_probeGround`,
+      // leaving `!leftDeliberately`. The whole physics suite and the whole
+      // platformer suite stay green — and every fall in every game lands early
+      // and soft, because the last fraction of it is deleted and the impact
+      // speed with it. Anything reading landing speed for a squash, a sound or
+      // fall damage reads a number that was never reached.
+      double impactFalling(double snap) {
+        final world = _room(size: 40.0, walls: false);
+        final player = CharacterController(
+          world: world,
+          shape: CollisionBox(_playerHalf),
+          position: Vector3(0.0, 3.9, 0.0),
+          tuning: MovementTuning(floorSnapLength: snap),
+        );
+        var last = 0.0;
+        for (var i = 0; i < 200; i++) {
+          final before = player.velocity.y;
+          player.step(_dt, wishDirection: Vector3.zero());
+          world.update();
+          if (player.isGrounded) return last;
+          last = before;
+        }
+        fail('never landed');
+      }
+
+      // A snap changes how a fall *ends* only by not changing it: the body must
+      // arrive at the floor under gravity, at the speed gravity gave it.
+      expect(impactFalling(0.3), closeTo(impactFalling(0.0), 0.01),
+          reason: 'the long reach shortened a plain fall onto a flat floor: '
+              '${impactFalling(0.3)} against ${impactFalling(0.0)}');
+    });
+
     test('and a pit is still a pit, at the default and at a stair-sized snap', () {
       // The hazard the length has to stay under. A snap deep enough to reach
       // an authored pit floor does not make the body fall in slowly — it
