@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 
+import 'credits.dart';
+
 /// Coins, deaths, and what the game is waiting for.
 ///
 /// Flutter widgets over the top of the rendered frame rather than geometry in
@@ -20,6 +22,7 @@ class Hud extends StatelessWidget {
     this.message,
     this.behind = false,
     this.lost = 0.0,
+    this.finale = false,
   });
 
   final int coins;
@@ -57,6 +60,15 @@ class Hud extends StatelessWidget {
 
   /// Simulated seconds this run never ran, so the clock can admit it.
   final double lost;
+
+  /// Whether the level just finished was the last one.
+  ///
+  /// **A game that ends is different from a level that ends.** Finishing
+  /// Ascent used to put up the same panel as finishing the tutorial, whose
+  /// whole message was "Press escape to let the mouse go" — so the reward for
+  /// four hundred metres of climbing was a note about the mouse pointer, and
+  /// nothing ever said the game was over or who made it.
+  final bool finale;
 
   @override
   Widget build(BuildContext context) {
@@ -114,7 +126,14 @@ class Hud extends StatelessWidget {
               bottom: 96,
               child: Center(child: _Banner(message!)),
             ),
-          if (state == RunState.finished)
+          if (state == RunState.finished && finale)
+            Ending(
+              coins: coins,
+              deaths: deaths,
+              elapsed: elapsed,
+              lost: lost,
+            )
+          else if (state == RunState.finished)
             Center(
               child: _Results(
                 title: levelName,
@@ -139,6 +158,92 @@ class Hud extends StatelessWidget {
           else if (!captured)
             const Center(child: _Banner('Click to play')),
         ],
+      ),
+    );
+  }
+}
+
+/// The end of the game: what the run came to, and who made it.
+///
+/// **The credits are here because the licence puts them here.** Two of the
+/// models are CC BY 4.0, and a credits screen is where a game discharges that
+/// — see [Credits], which is also read by the settings panel, so a player who
+/// never finishes still sees it.
+///
+/// Full-screen rather than a panel over the level, because the level is behind
+/// it and this is the moment to stop looking at the level.
+class Ending extends StatelessWidget {
+  const Ending({
+    super.key,
+    required this.coins,
+    required this.deaths,
+    required this.elapsed,
+    this.lost = 0.0,
+  });
+
+  final int coins;
+  final int deaths;
+  final double elapsed;
+  final double lost;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Colors.black.withValues(alpha: 0.82),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(32),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'You reached the summit.',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w300,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    _Tally(label: 'time', value: clock(elapsed)),
+                    const SizedBox(width: 28),
+                    _Tally(label: 'coins', value: '$coins'),
+                    const SizedBox(width: 28),
+                    _Tally(label: 'falls', value: '$deaths'),
+                  ],
+                ),
+                if (lost >= 1.0) ...<Widget>[
+                  const SizedBox(height: 12),
+                  Text(
+                    'This machine lost ${lost.round()}s the game never ran.',
+                    style: TextStyle(
+                      color: Colors.amber.withValues(alpha: 0.85),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 26),
+                const CreditsSection(heading: 'Art in this game'),
+                const SizedBox(height: 22),
+                Text(
+                  'Press R to climb it again.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.75),
+                    fontSize: 14,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

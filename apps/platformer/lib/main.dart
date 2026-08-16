@@ -36,6 +36,7 @@ import 'src/scene_surface.dart';
 import 'src/settings_file.dart';
 import 'src/settings_panel.dart';
 import 'src/sounds.dart';
+import 'src/title_card.dart';
 
 void main() {
   runApp(const PlatformerApp());
@@ -186,6 +187,12 @@ class _GameScreenState extends State<GameScreen>
 
   /// Whether the machine is keeping up, and what it cost when it was not.
   final Pace _pace = Pace();
+
+  /// Whether the player has asked to play yet, which takes the title card down.
+  bool _started = false;
+
+  /// Whether the run behind the title card came off the disk.
+  bool _resumed = false;
 
   /// Why the level would not load, and which one it was.
   ///
@@ -346,6 +353,7 @@ class _GameScreenState extends State<GameScreen>
     // A run in progress beats a fresh one, and the file says which level it was
     // in — see `SaveFile`, which refuses to hand back a snapshot without one.
     final saved = _saveFile.read();
+    _resumed = saved != null;
     unawaited(
       saved == null
           ? _loadLevel(_firstLevel)
@@ -566,6 +574,27 @@ class _GameScreenState extends State<GameScreen>
       await _loadLevel(next);
       if (mounted) _movingOn = false;
     });
+  }
+
+  /// Takes the title card down, the first time the player asks to play.
+  ///
+  /// Once per session and never again: a card that comes back every time the
+  /// pointer is released is a card in the middle of a run.
+  void _begin() {
+    if (_started) return;
+    setState(() => _started = true);
+  }
+
+  /// Whether the run has ended and nothing else is going to happen.
+  ///
+  /// Finishing a level that *has* a next one is not over: the game is about to
+  /// load it, and a restart during that beat would throw away a level the
+  /// player has just won.
+  bool get _runIsOver {
+    final sim = _sim;
+    if (sim == null) return false;
+    if (sim.state == RunState.lost) return true;
+    return sim.state == RunState.finished && sim.nextLevel == null;
   }
 
   /// Starts the run over, from the top of the level being played.
@@ -1003,12 +1032,16 @@ class _GameScreenState extends State<GameScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
-          // R starts a lost run over. Handled here rather than through a
+          // R starts a finished run over. Handled here rather than through a
           // binding because it is not a verb the runner has: the simulation it
           // would be asking is the one that has stopped.
+          //
+          // **Both ways a run ends, not just the losing one.** A player who
+          // reached the summit was offered nothing at all and had to quit the
+          // application to climb it again.
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.keyR &&
-              _sim?.state == RunState.lost) {
+              _runIsOver) {
             _restart();
             return KeyEventResult.handled;
           }
@@ -1020,6 +1053,7 @@ class _GameScreenState extends State<GameScreen>
           // here as well doubled every look delta.
           onPointerDown: (_) {
             _keyboard.requestFocus();
+            _begin();
             if (kIsWeb) return;
             _devices.pressPointer(PlatformerActions.dash);
             if (!_devices.isCaptured) unawaited(_devices.captureMouse());
@@ -1053,6 +1087,7 @@ class _GameScreenState extends State<GameScreen>
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: (_) {
                       _keyboard.requestFocus();
+                      _begin();
                       _dragging = true;
                     },
                     onPointerMove: (PointerMoveEvent event) {
@@ -1063,7 +1098,10 @@ class _GameScreenState extends State<GameScreen>
                     onPointerCancel: (_) => _dragging = false,
                   ),
                 ),
-              if (sim != null)
+              // Not behind the title card: the tallies and its own "Click to
+              // play" banner showed through it, saying the same thing twice
+              // and counting a run the player has not started.
+              if (sim != null && _started)
                 Hud(
                   coins: _runner?.purse['coin'] ?? 0,
                   deaths: sim.deaths,
@@ -1077,6 +1115,15 @@ class _GameScreenState extends State<GameScreen>
                   message: _said,
                   behind: _pace.behind,
                   lost: _pace.lost,
+                  // The end of the *game*, not of a level: the last level is
+                  // the one with nowhere to go next, which the document says
+                  // and this widget must not guess at.
+                  finale: sim.nextLevel == null,
+                ),
+              if (!_started)
+                TitleCard(
+                  prompt: kIsWeb ? 'Click to begin.' : 'Click to take the mouse.',
+                  resuming: _resumed,
                 ),
               if (_showSettings)
                 SettingsPanel(
@@ -1085,7 +1132,9 @@ class _GameScreenState extends State<GameScreen>
                   onVolume: _setVolume,
                   onClose: () => setState(() => _showSettings = false),
                 )
-              else
+              // Not over the title card, which carries the same settings on it
+              // and is the one screen a stray gear icon has nothing to add to.
+              else if (_started)
                 Positioned(
                   right: 18,
                   top: 16,
