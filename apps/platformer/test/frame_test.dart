@@ -155,7 +155,7 @@ final class _Shown {
   double _elapsed = 0.0;
   bool _forward = false;
 
-  void step({bool forward = false}) {
+  void step({bool forward = false, bool pound = false}) {
     _input.beginStep();
     if (forward != _forward) {
       forward
@@ -169,6 +169,7 @@ final class _Shown {
       ..beginStep()
       ..press(GameAction.moveForward);
     if (!forward) sim.input.release(GameAction.moveForward);
+    if (pound) sim.input.press(PlatformerActions.dropThrough);
     sim.step(_dt);
     sim.input.endStep();
     _input.endStep();
@@ -224,6 +225,36 @@ final class _Shown {
   /// fixture that is not spent visible again, so hiding one before the call is
   /// hiding it from nobody. Found the way these things are — by an A/B that
   /// reported the two frames identical.
+  /// Draws without asking the appearance anything, so a test can force a node
+  /// visible and see what difference that node makes on its own.
+  Future<Uint8List> drawAsIs() async {
+    final result = renderer.render(
+      width: _width,
+      height: _height,
+      scene: scene,
+      views: <RenderView>[RenderView(camera: camera)],
+      settings: const RenderSettings(),
+    );
+    final pixels = await device.readPixels(result.frame);
+    expect(pixels, isNotNull, reason: 'the frame could not be read back');
+    return pixels!.buffer.asUint8List();
+  }
+
+  /// The drawn piece nearest [at], which is how a fixture's node is found
+  /// without the bridge having to hand out its bookkeeping.
+  MeshNode? pieceNear(Vector3 at, {double within = 3.0}) {
+    MeshNode? best;
+    var nearest = within;
+    for (final MeshNode piece in scene.meshes) {
+      final away = (piece.readWorldPosition() - at).length;
+      if (away < nearest) {
+        nearest = away;
+        best = piece;
+      }
+    }
+    return best;
+  }
+
   Future<Uint8List> draw({String? hiding}) async {
     fixtures.sync(_elapsed);
     final p = runner.position;
@@ -444,6 +475,94 @@ void main() {
 
       expect(_differences(alive, gone), greaterThan(60),
           reason: 'the dead guard is still on the screen');
+    });
+  });
+
+  test('a shelf that gives way stops being drawn', () {
+    // **The third time this question has been answered one type at a time.**
+    // The coin was first, the stomped guard second, and five crumbling shelves
+    // and three breakable caps in the shipped level were still keeping their
+    // meshes after their colliders left — so a player falls through geometry
+    // that looks perfectly solid.
+    //
+    // Mutation: take `Crumbling` back out of `PlatformerLooks.isSpent`. The two
+    // frames match and this fails.
+    return _Shown.build().then((_Shown it) async {
+      final shelf = <Crumbling>[
+        for (final m in it.mechanisms.all)
+          if (m is Crumbling) m,
+      ].first;
+      final over = shelf.origin!;
+      it.look(from: over + Vector3(0.0, 2.5, -6.0), at: over);
+
+      expect(shelf.hasFallen, isFalse);
+
+      // Stood on until it goes. The runner is put on top rather than teleported
+      // through, because what makes a shelf crumble is being stood on.
+      it.runner.body.teleport(over + Vector3(0.0, 1.2, 0.0));
+      for (var i = 0; i < 400 && !shelf.hasFallen; i++) {
+        it.step();
+      }
+      expect(shelf.hasFallen, isTrue, reason: 'it never gave way');
+
+      // **Both frames from the same instant**, differing only in whether the
+      // shelf is drawn. The first version of this compared a frame from before
+      // the collapse with one from after, and four hundred steps had passed in
+      // between — barges had moved and lamps had flickered, so the two differed
+      // by plenty whether the shelf was hidden or not, and deleting the fix
+      // left the test green.
+      it.runner.body.teleport(over + Vector3(0.0, 1.0, -20.0));
+      final asDrawn = await it.draw();
+
+      final piece = it.pieceNear(over);
+      expect(piece, isNotNull, reason: 'no drawn piece near the shelf');
+      piece!.visible = true;
+      final forced = await it.drawAsIs();
+
+      expect(_differences(asDrawn, forced), greaterThan(40),
+          reason: 'forcing the shelf visible changed nothing, so it was being '
+              'drawn all along');
+    });
+  });
+
+  test('and so does a cap that is pounded through', () {
+    // The other half of the same fix, and it needed its own test: with only the
+    // shelf covered, deleting `Breakable` from `isSpent` left everything green.
+    // Three caps in the shipped level, each hiding coins, each still drawn
+    // after the runner had smashed it.
+    //
+    // Mutation: take `Breakable` back out of `PlatformerLooks.isSpent`.
+    return _Shown.build().then((_Shown it) async {
+      final cap = <Breakable>[
+        for (final m in it.mechanisms.all)
+          if (m is Breakable && m.name == 'the cap 2') m,
+      ].first;
+      final over = cap.origin!;
+      it.look(from: over + Vector3(0.0, 3.0, -7.0), at: over);
+
+      // A ground pound, which is the only thing that opens one — see the
+      // playthrough's own test that a landing does not.
+      it.runner.body.teleport(over + Vector3(0.0, 6.0, 0.0));
+      for (var i = 0; i < 4; i++) {
+        it.step();
+      }
+      it.step(pound: true);
+      for (var i = 0; i < 200 && !cap.isBroken; i++) {
+        it.step();
+      }
+      expect(cap.isBroken, isTrue, reason: 'the pound did not break it');
+
+      it.runner.body.teleport(over + Vector3(0.0, 1.0, -22.0));
+      final asDrawn = await it.draw();
+
+      final piece = it.pieceNear(over);
+      expect(piece, isNotNull, reason: 'no drawn piece near the cap');
+      piece!.visible = true;
+      final forced = await it.drawAsIs();
+
+      expect(_differences(asDrawn, forced), greaterThan(40),
+          reason: 'forcing the cap visible changed nothing, so it was being '
+              'drawn all along');
     });
   });
 

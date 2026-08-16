@@ -118,6 +118,19 @@ final class PlatformerLooks implements FixtureAppearance {
     if (who is Actor) return !who.isAlive;
 
     final mechanism = fixture.mechanism;
+
+    // **Geometry that has given way stops being drawn.** Five crumbling
+    // shelves and three breakable caps in the big level kept their meshes after
+    // their colliders left, so a player falls through a shelf that still looks
+    // solid — the same shape of defect as the guard who stayed standing, and
+    // the third time this question has been answered one type at a time.
+    //
+    // `isSpent` is the right question for both even though a crumbling shelf
+    // comes *back*: the bridge answers it every frame and only sets `visible`,
+    // so a shelf that returns is drawn again on the frame it returns.
+    if (mechanism is Crumbling) return mechanism.hasFallen;
+    if (mechanism is Breakable) return mechanism.isBroken;
+
     return mechanism is Collectible &&
         mechanism.isTaken &&
         mechanism.sinceTaken >= _vanish;
