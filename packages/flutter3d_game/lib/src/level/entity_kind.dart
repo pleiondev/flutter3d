@@ -30,6 +30,18 @@ import '../physics/layers.dart';
 /// a hierarchy — the validator and the spawner each walk the entity list once
 /// and ask, instead of each carrying its own switch over the same names.
 abstract base class EntityKind {
+
+  /// Whether a player has to be able to *get to* one of these.
+  ///
+  /// A coin inside a wall looks exactly like a coin nobody has taken yet, and
+  /// fourteen of them shipped in two levels before anything asked. The check
+  /// lives in the validator; the answer lives here, because "is this something
+  /// the player collects" is a question about a kind and not about geometry —
+  /// and because the engine must not learn the words `coin`, `crate` or `key`.
+  ///
+  /// False by default: a light fixture, a trigger volume and a spawn point are
+  /// all perfectly happy inside solid rock.
+  bool get mustBeReachable => false;
   const EntityKind(this.type);
 
   /// The string that appears in a level document.

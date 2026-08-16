@@ -269,9 +269,55 @@ def dump(value, indent):
     return pad + json.dumps(value)
 
 
+# Things a player is meant to reach. A brush through one of these is a coin
+# nobody can take and a crate nobody can push, and it looks perfectly fine in
+# the document — which is why this is checked rather than reviewed.
+REACHABLE = ("collectible", "crate", "key")
+
+
+def _buried():
+    """Every reachable entity whose middle is inside a solid brush.
+
+    **The founding bug of this project, still live when it was measured.**
+    Fourteen coins and a crate sat inside the geometry of the two shipped
+    levels — including three in a crawlspace and a crate at the foot of the
+    chimney, all authored by hand, all invisible in the JSON, and none of them
+    caught by anything. The validator did not look, the autopilot walked past
+    them, and a coin you cannot take looks exactly like a coin you have not
+    taken yet.
+
+    The centre rather than the whole box, deliberately: a coin whose edge grazes
+    a wall is fine and common, and a check that fails on that is a check people
+    switch off. A centre inside solid is never right.
+    """
+    out = []
+    for e in entities + fill_entities:
+        if e.get("type") not in REACHABLE:
+            continue
+        at = e.get("at")
+        if not at:
+            continue
+        for b in brushes:
+            c, s = b["at"], b["size"]
+            if all(c[i] - s[i] / 2 + 0.01 < at[i] < c[i] + s[i] / 2 - 0.01
+                   for i in range(3)):
+                # The brush is named too. Working out *which* one buried a coin
+                # by reading coordinates is the slow half of fixing it.
+                out.append(f'  {e.get("name") or e["type"]} at {at} '
+                           f'is inside the {b["material"]} at {c} size {s}')
+                break
+    return out
+
+
 def write(filename, *, name, lights, fog=(0.05, 0.07, 0.12), density=0.004,
           next_level=None, tool=None):
     """Writes the document and says what went into it."""
+    walled_in = _buried()
+    if walled_in:
+        raise SystemExit(
+            f"{len(walled_in)} things a player is meant to reach are inside "
+            "solid brushes:\n" + "\n".join(walled_in))
+
     document = {
         "version": 1,
         "name": name,

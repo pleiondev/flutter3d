@@ -67,7 +67,7 @@
     {"at": [0.0, 4.0, 74.5], "size": [22.0, 1.0, 9.0], "material": "stone"},
     {"at": [0.0, 4.875, 77.0], "size": [22.0, 0.75, 2.0], "material": "stone"},
     {"at": [0.0, 5.625, 78.5], "size": [22.0, 0.75, 1.0], "material": "stone"},
-    {"at": [0.0, 9.0, 94.0], "size": [22.0, 5.0, 8.0], "material": "stone"},
+    {"at": [0.0, 9.5, 94.0], "size": [22.0, 5.0, 8.0], "material": "stone"},
     {"at": [0.0, 5.5, 96.0], "size": [22.0, 1.0, 14.0], "material": "stone"}
   ],
   "lights": [
@@ -353,8 +353,8 @@
     },
     {
       "type": "crate",
-      "name": "the crate at the foot of the shaft",
-      "at": [-8.0, 0.7, 48.0],
+      "name": "the crate before the shaft",
+      "at": [-6.0, 0.7, 42.0],
       "size": [1.4, 1.4, 1.4],
       "mass": 30.0,
       "material": "wood"
@@ -362,28 +362,28 @@
     {
       "type": "collectible",
       "name": "shaft floor coin 1",
-      "at": [-9.0, 0.8, 47.0],
+      "at": [-9.0, 0.8, 46.4],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 2",
-      "at": [9.0, 0.8, 47.0],
+      "at": [-4.0, 0.8, 46.4],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 3",
-      "at": [-9.0, 0.8, 50.0],
+      "at": [4.0, 0.8, 46.4],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "shaft floor coin 4",
-      "at": [9.0, 0.8, 50.0],
+      "at": [9.0, 0.8, 46.4],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
@@ -477,35 +477,35 @@
     {
       "type": "collectible",
       "name": "the crawl coin 1",
-      "at": [0.0, 6.8, 91.5],
+      "at": [0.0, 6.5, 91.5],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin 2",
-      "at": [0.0, 6.8, 94.0],
+      "at": [0.0, 6.5, 94.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin 3",
-      "at": [0.0, 6.8, 96.5],
+      "at": [0.0, 6.5, 96.5],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin to the left",
-      "at": [-5.0, 6.8, 94.0],
+      "at": [-5.0, 6.5, 94.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },
     {
       "type": "collectible",
       "name": "the crawl coin to the right",
-      "at": [5.0, 6.8, 94.0],
+      "at": [5.0, 6.5, 94.0],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },

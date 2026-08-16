@@ -177,9 +177,14 @@ coin([0.0, 5.8, 52.0], "the shaft coin four")
 # The room the chimney stands in, which was a corridor with a slot in it. A
 # crate to push, and coins along the walls, so the room is somewhere you are
 # rather than somewhere you pass.
-crate([-8.0, 0.7, 48.0], "the crate at the foot of the shaft")
-for i, (x, z) in enumerate(((-9.0, 47.0), (9.0, 47.0), (-9.0, 50.0), (9.0, 50.0))):
-    coin([x, 0.8, z], f"shaft floor coin {i + 1}")
+# **In the room before the shaft, not in it.** The shaft room's floor is almost
+# entirely underneath the two chimney blocks — they run from z = 47 to 57 across
+# all but the two-metre slot — so a crate "at the foot of the shaft" was a crate
+# inside a wall, and so were half these coins. There is one metre of open floor
+# in front of the blocks, and that is where the things you can reach go.
+crate([-6.0, 0.7, 42.0], "the crate before the shaft")
+for i, x in enumerate((-9.0, -4.0, 4.0, 9.0)):
+    coin([x, 0.8, 46.4], f"shaft floor coin {i + 1}")
 
 # The floor at the top, level with the blocks' own tops. **Not inside the
 # slot**: the first version put it at the chimney's top between the walls,
@@ -217,12 +222,18 @@ route([0.0, 5.625, 78.5], [WIDE, 0.75, 1.0], "stone")
 # A metre of headroom, over a floor that carries on: the slab is thick enough
 # that jumping at it is obviously not the answer.
 checkpoint("the fifth post", 88.0, 5, respawn=88.0)
-route([0.0, 9.0, 94.0], [WIDE, 5.0, 8.0], "stone")
+# **A metre of headroom, and it used to be half of one.** The floor's top is at
+# y = 6 and the slab's underside was at 6.5 — against a crouched body 0.9 m
+# tall, which is a room that cannot be crawled through at all. The autopilot
+# still finished the level, by climbing the 5.5 m face of the slab, so nothing
+# said so. Now the underside is at 7: a crouch fits with room to spare and a
+# standing runner, 1.8 m, does not.
+route([0.0, 9.5, 94.0], [WIDE, 5.0, 8.0], "stone")
 route([0.0, 5.5, 96.0], [WIDE, 1.0, 14.0], "stone")
 for i, z in enumerate((91.5, 94.0, 96.5)):
-    coin([0.0, 6.8, z], f"the crawl coin {i + 1}")
-coin([-5.0, 6.8, 94.0], "the crawl coin to the left")
-coin([5.0, 6.8, 94.0], "the crawl coin to the right")
+    coin([0.0, 6.5, z], f"the crawl coin {i + 1}")
+coin([-5.0, 6.5, 94.0], "the crawl coin to the left")
+coin([5.0, 6.5, 94.0], "the crawl coin to the right")
 
 # ----------------------------------------------------------------- the guard -
 # One thing that walks, on a route across the way out, with the exit behind it.

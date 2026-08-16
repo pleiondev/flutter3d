@@ -113,6 +113,7 @@ final class LevelValidator {
     _checkBrushes(level, issues);
     _checkTheSetOfEntities(level, issues);
     _checkEachEntity(level, scope, issues);
+    _checkReachable(level, issues);
     _checkLighting(level, issues);
     return issues;
   }
@@ -232,6 +233,53 @@ final class LevelValidator {
   ///
   /// Compared against a cell grid rather than every pair, so a level with
   /// thousands of brushes does not take quadratic time to check.
+  /// Nothing a player has to reach may be inside solid geometry.
+  ///
+  /// **The defect this project shipped twice and did not see either time.**
+  /// Fourteen coins and a crate sat inside brushes across the two levels — a
+  /// crate at the foot of a chimney, three coins in a crawlspace, four on top
+  /// of pillars that were roofed after the coins were placed. Every one was
+  /// authored by hand, every one is invisible in the document, and a coin you
+  /// cannot take looks exactly like a coin you have not taken yet. The
+  /// validator did not look and the autopilot walked past them.
+  ///
+  /// **The centre, not the whole box**, deliberately: a coin whose edge grazes
+  /// a wall is fine and common, and a check that fails on that is a check
+  /// people switch off. A centre inside solid is never right.
+  ///
+  /// Which kinds this applies to is [EntityKind.mustBeReachable] — the kind
+  /// answers, so the engine never learns the words.
+  void _checkReachable(Level level, List<LevelIssue> issues) {
+    final solid = <Brush>[
+      for (final brush in level.brushes)
+        if (brush.solid) brush,
+    ];
+    if (solid.isEmpty) return;
+
+    for (var i = 0; i < level.entities.length; i++) {
+      final entity = level.entities[i];
+      if (registry[entity.type]?.mustBeReachable != true) continue;
+      final at = entity.position;
+
+      for (final brush in solid) {
+        final min = brush.min;
+        final max = brush.max;
+        if (at.x <= min.x + 0.01 || at.x >= max.x - 0.01) continue;
+        if (at.y <= min.y + 0.01 || at.y >= max.y - 0.01) continue;
+        if (at.z <= min.z + 0.01 || at.z >= max.z - 0.01) continue;
+
+        issues.add(
+          LevelIssue(
+            LevelIssueSeverity.error,
+            'is inside solid geometry, so nothing can reach it',
+            where: 'entities[$i]',
+          ),
+        );
+        break;
+      }
+    }
+  }
+
   void _checkOverlaps(Level level, List<LevelIssue> issues) {
     const cell = 8.0;
     final buckets = <int, List<int>>{};

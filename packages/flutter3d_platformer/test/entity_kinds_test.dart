@@ -483,6 +483,46 @@ void main() {
     });
   });
 
+  group('a thing the player must reach', () {
+    // The engine asks the *kind*, never the word — see
+    // `EntityKind.mustBeReachable`. These three say yes; everything else in
+    // this genre says no, and a lamp inside a wall is nobody's problem.
+    test('a coin inside a brush is an error, and a lamp inside one is not', () {
+      // Mutation: return false from `CollectibleKind.mustBeReachable`, or drop
+      // `_checkReachable` from `LevelValidator.validate`. Fourteen of these
+      // shipped in two levels and nothing said a word.
+      final buried = _issuesFor(_entity(PlatformerEntities.collectible,
+          <String, Object?>{'what': 'coin'})
+        ..['at'] = <double>[0.0, -0.5, 0.0]);
+
+      expect(
+        buried.where((LevelIssue i) => i.isError).map((LevelIssue i) => i.message),
+        contains(contains('inside solid geometry')),
+      );
+
+      final lamp = _issuesFor(_entity(PlatformerEntities.lamp,
+          <String, Object?>{'light': 'the light'})
+        ..['at'] = <double>[0.0, -0.5, 0.0]);
+      expect(
+        lamp.map((LevelIssue i) => i.message),
+        isNot(contains(contains('inside solid geometry'))),
+        reason: 'a lamp in the rock is decoration, not a defect',
+      );
+    });
+
+    test('and one resting on the floor is fine', () {
+      // The half that stops this being a check people switch off: the floor's
+      // top is y = 0 and a coin sits at 0.8, which is neither inside it nor a
+      // near miss worth reporting.
+      final coin = _entity(PlatformerEntities.collectible,
+          <String, Object?>{'what': 'coin'});
+      expect(
+        _errors(coin),
+        isNot(contains(contains('inside solid geometry'))),
+      );
+    });
+  });
+
   test('a breakable block has nothing to check, and says so here', () {
     // `BreakableKind` overrides no `validate`, which is a decision rather than
     // an omission: it has no property that can be wrong. Written down because

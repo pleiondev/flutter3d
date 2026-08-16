@@ -50,6 +50,11 @@ final class Crate {
 /// world to spawn it into, and two registries could disagree about what a
 /// document may contain.
 final class CrateKind extends EntityKind {
+
+  /// A player has to be able to get to one of these. See
+  /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
+  @override
+  bool get mustBeReachable => true;
   CrateKind({this.dynamics}) : super(PlatformerEntities.crate);
 
   /// Where a crate goes once there is a world. Null while validating.

@@ -288,6 +288,70 @@ void main() {
     });
   });
 
+  test('nothing a player must reach is inside a wall — in both shipped levels',
+      () {
+    // **The new rule, applied to the thing it was written for.** A test that
+    // builds its own fixture proves the code path; this loads the documents the
+    // game actually ships and asks about them. Fourteen coins and a crate were
+    // inside brushes when it was first run — eight here, six in Ascent, several
+    // of them placed by hand in the session that added the crawlspace.
+    //
+    // Mutation: put any of them back. `python3 tool/make_first_steps.py` now
+    // refuses outright, and if a document is edited past the generator this
+    // catches it.
+    for (final path in <String>[
+      'assets/levels/first_steps.json',
+      'assets/levels/ascent.json',
+    ]) {
+      final level = Level.fromJson(
+        jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
+      );
+      final buried = LevelValidator(
+        registry: platformerRegistry(),
+        rules: platformerRules(),
+      ).validate(level).where(
+            (LevelIssue i) => i.message.contains('inside solid geometry'),
+          );
+
+      expect(buried, isEmpty,
+          reason: '$path: ${buried.map((LevelIssue i) => i.toString()).join('; ')}');
+    }
+  });
+
+  test('the low passage can actually be crawled through', () {
+    // It could not. The floor's top was at y = 6 and the slab's underside at
+    // 6.5 — half a metre against a crouched body 0.9 m tall — so the room that
+    // teaches crouching was impassable crouched. The autopilot finished the
+    // level anyway by climbing the 5.5 m face of the slab, which is why no test
+    // ever said so.
+    //
+    // Mutation: lower the slab back to a centre of 9.0. The gap drops to 0.5
+    // and this fails; a bot cannot tell you that, because a bot finds the way
+    // round.
+    const crouched = 0.45 * 2.0;
+    final level = _level();
+    final tops = <double>[];
+    final bottoms = <double>[];
+    for (final brush in level.brushes) {
+      if ((brush.centre.z - 94.0).abs() > 4.0) continue;
+      if (brush.centre.x.abs() > 1.0) continue;
+      final top = brush.centre.y + brush.size.y / 2.0;
+      final bottom = brush.centre.y - brush.size.y / 2.0;
+      if (top < 7.0) tops.add(top);
+      if (bottom > 6.0) bottoms.add(bottom);
+    }
+
+    expect(tops, isNotEmpty, reason: 'no floor under the passage');
+    expect(bottoms, isNotEmpty, reason: 'no roof over the passage');
+
+    final gap = bottoms.reduce(math.min) - tops.reduce(math.max);
+    expect(gap, greaterThan(crouched),
+        reason: 'the passage is ${gap}m and a crouched runner is ${crouched}m');
+    expect(gap, lessThan(1.8),
+        reason: 'the passage is ${gap}m, which a standing runner walks through, '
+            'so it teaches nothing');
+  });
+
   test('there is enough in it to be worth playing', () {
     // Not a mechanism, a *quantity*, and it is here because the level failed on
     // exactly that: forty-four coins and seven crates now, against eleven and

@@ -143,9 +143,15 @@ for i, x in enumerate((42.0, 48.0, 54.0)):
 # The western colonnade, along the wall.
 for i in range(7):
     z = -26.0 + i * 8.0
-    pillar(-57.0, z, 5.0, width=2.6, top_coin=i % 2 == 0)
-    if i % 2 == 0:
+    # **The cap goes on, then the coin goes on the cap.** Asking `pillar` for a
+    # top coin and then roofing the pillar put the coin inside the roof: at
+    # 5.8 against a cap spanning 5.3 to 5.9. Four coins nobody could ever take,
+    # and they looked exactly like four coins nobody had taken yet.
+    capped = i % 2 == 0
+    pillar(-57.0, z, 5.0, width=2.6, top_coin=not capped)
+    if capped:
         fill([-57.0, 5.6, z], [4.0, 0.6, 4.0], "wood")
+        coin([-57.0, 6.7, z])
 
 # The training ground, west of the walked line: a grid of stumps to hop across.
 for i, x in enumerate((-22.0, -17.0, -12.0, -7.0)):
@@ -216,7 +222,10 @@ enemy("the second guard", [30.0, 0.0, -6.0], [[44.0, 0.0, -6.0]], speed=0.42)
 for i in range(6):
     x = -54.0 + i * 8.0
     fill([x, 1.2, 16.0], [6.0, 2.4, 1.0], "stone")
-    coin([x, 0.8, 18.5])
+    # One of the six lands on the hut at (-30, 18): a loop that steps blindly
+    # across a field will eventually step inside something standing in it.
+    if abs(x - -30.0) > 0.5:
+        coin([x, 0.8, 18.5])
 
 # ---------------------------------------------------------------- zone two ---
 # The shaft, the quarry, the scaffold and the canyon.
@@ -365,7 +374,9 @@ mover("platform", "the saw arm", [20.0, 3.4, 76.0], [2.0, 0.4, 2.0],
       [0.0, 0.0, 9.0], 3.5, 0.6)
 hazard("the saw", [20.0, 4.4, 76.0], [1.8, 1.8, 1.8], damage=55.0)
 entities[-1]["follows"] = "the saw arm"
-coin([20.0, 6.4, 80.0])
+# Above the plank at y = 4 ± 4, not inside it. A coin beside a moving saw is
+# meant to be the reason to time the jump, and it was in the walkway.
+coin([20.0, 8.8, 80.0])
 
 # A ladder to the gallery, and a rope over the drop beside it.
 climbable("the gallery ladder", [48.0, 4.0, 88.0], size=(1.2, 8.0, 1.2))

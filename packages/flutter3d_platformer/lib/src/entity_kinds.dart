@@ -46,6 +46,11 @@ abstract final class PlatformerEntities {
 }
 
 final class CollectibleKind extends EntityKind {
+
+  /// A player has to be able to get to one of these. See
+  /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
+  @override
+  bool get mustBeReachable => true;
   const CollectibleKind() : super(PlatformerEntities.collectible);
 
   static final Vector3 defaultSize = Vector3(0.5, 0.5, 0.5);
@@ -308,6 +313,11 @@ final class SpringKind extends EntityKind {
 /// What it spawns is an ordinary [Collectible] that also grants a key — the
 /// walking-over-it half is identical and only where it lands differs.
 final class KeyKind extends EntityKind {
+
+  /// A player has to be able to get to one of these. See
+  /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
+  @override
+  bool get mustBeReachable => true;
   const KeyKind() : super(EntityTypes.key);
 
   static final Vector3 defaultSize = Vector3(0.5, 0.5, 0.5);
