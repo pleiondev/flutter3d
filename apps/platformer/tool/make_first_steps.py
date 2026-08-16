@@ -91,6 +91,23 @@ for i, (x, z) in enumerate(((-5.0, -6.0), (5.0, -6.0), (-7.0, 1.0), (7.0, 1.0),
                             (-4.0, 6.0), (4.0, 6.0))):
     coin([x, 0.8, z], f"first stray coin {i + 1}")
 
+# ------------------------------------------------------------------- a rise --
+# **The first slope, and it is terrain rather than a verb.** A ramp asks
+# nothing of a player — you walk up it — so it belongs here, in the room whose
+# whole job is walking, and not later where a mistake costs a life. It is
+# eight metres long and two tall: fourteen degrees, which the size says on its
+# own, because the cut runs corner to corner and the format carries no angle.
+#
+# Off the centre line and with a coin on top, so the reason to go up it is a
+# reason and not an instruction. The ledge it climbs to is a plain block, which
+# is what makes the ramp visible as the thing that is not one.
+# The footprint was chosen by asking the level where there was room, not by
+# eye: the first version sat on a stray coin, and the buried-entity check —
+# which now knows a ramp's box is half empty — named it.
+slope([-8.5, 1.0, -6.0], [4.0, 2.0, 7.0], "stone", "+z")
+route([-8.5, 1.0, -1.5], [4.0, 2.0, 2.0], "stone")
+coin([-8.5, 2.8, -1.5], "the coin at the top of the slope")
+
 # **The first crate, where it can do no harm.** A player who has never pushed
 # one finds out that it moves by walking into it on flat ground, with a coin
 # behind it as the reason to bother. Every crate puzzle later in the game is

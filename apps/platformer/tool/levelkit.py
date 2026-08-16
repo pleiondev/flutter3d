@@ -37,7 +37,7 @@ def start(clear=()):
     _crates = 0
 
 
-def route(at, size, material, surface=None, casts=True):
+def route(at, size, material, surface=None, casts=True, ramp=None):
     row = {"at": _r(at), "size": _r(size), "material": material}
     if surface:
         row["surface"] = surface
@@ -45,6 +45,35 @@ def route(at, size, material, surface=None, casts=True):
     # the documents do not grow a line per brush saying the obvious.
     if not casts:
         row["castsShadow"] = False
+    if ramp:
+        _check_ramp(ramp)
+        row["ramp"] = ramp
+    brushes.append(row)
+
+
+# Which way a ramp climbs, in the words the level format uses.
+RAMPS = ("+x", "-x", "+z", "-z")
+
+
+def _check_ramp(ramp):
+    """A typo here is a block where a slope was meant, and the reader would
+    refuse the document — but it refuses it at load, in front of a player, and
+    a generator that can say so at generate time should."""
+    if ramp not in RAMPS:
+        raise SystemExit(f"ramp {ramp!r} is not one of {', '.join(RAMPS)}")
+
+
+def slope(at, size, material, uphill, surface=None):
+    """A brush with a corner cut off, climbing towards `uphill`.
+
+    There is no angle: the cut runs corner to corner, so the steepness is the
+    size — `[8, 2, 8]` climbing `+z` is fourteen degrees, and it is read off
+    the numbers rather than kept in agreement with a second one.
+    """
+    _check_ramp(uphill)
+    row = {"at": _r(at), "size": _r(size), "material": material, "ramp": uphill}
+    if surface:
+        row["surface"] = surface
     brushes.append(row)
 
 
@@ -294,6 +323,25 @@ def _buried():
     a wall is fine and common, and a check that fails on that is a check people
     switch off. A centre inside solid is never right.
     """
+    def _solid_at(b, at):
+        """Whether a point inside this brush's box is inside the brush itself.
+
+        **A ramp's box is half empty**, and that half is exactly where a coin
+        wants to hang: above the slope, in the air over the thin end. Answering
+        from the box would bury every one of them and teach the author to stop
+        believing this check — which is worse than not having it.
+        """
+        ramp = b.get("ramp")
+        if not ramp:
+            return True
+        c, s = b["at"], b["size"]
+        axis = 0 if ramp[1] == "x" else 2
+        sign = 1.0 if ramp[0] == "+" else -1.0
+        # How far up the climb the point is, from nought at the thin end to one
+        # at the tall one, and the surface's height there.
+        along = (sign * (at[axis] - c[axis]) / (s[axis] / 2) + 1.0) / 2.0
+        return at[1] < c[1] - s[1] / 2 + s[1] * along
+
     out = []
     for e in entities + fill_entities:
         if e.get("type") not in REACHABLE:
@@ -304,7 +352,7 @@ def _buried():
         for b in brushes:
             c, s = b["at"], b["size"]
             if all(c[i] - s[i] / 2 + 0.01 < at[i] < c[i] + s[i] / 2 - 0.01
-                   for i in range(3)):
+                   for i in range(3)) and _solid_at(b, at):
                 # The brush is named too. Working out *which* one buried a coin
                 # by reading coordinates is the slow half of fixing it.
                 out.append(f'  {e.get("name") or e["type"]} at {at} '

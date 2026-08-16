@@ -23,9 +23,15 @@ extension LevelCollision on Level {
   void addTo(CollisionWorld world) {
     for (final brush in brushes) {
       if (!brush.solid) continue;
+      final ramp = brush.ramp;
       world.add(
         Collider(
-          shape: CollisionBox(brush.halfExtents),
+          // A ramp is a brush with a corner cut off, and the difference is the
+          // whole of what makes it walkable: a wedge's low end is an edge, and
+          // a box's is a wall as tall as the brush.
+          shape: ramp == null
+              ? CollisionBox(brush.halfExtents)
+              : CollisionWedge(brush.halfExtents, uphill: ramp),
           position: brush.centre,
           // The document's own bit when it names one. A one-way platform, a
           // grate, a wall only some bodies respect: all of them are a brush on

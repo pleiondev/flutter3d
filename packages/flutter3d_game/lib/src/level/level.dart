@@ -1,3 +1,4 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'dart:math' as math;
@@ -29,6 +30,7 @@ final class Brush {
     this.castsShadow = true,
     String? surface,
     this.layer,
+    this.ramp,
   })  : centre = centre.clone(),
         size = size.clone(),
         // ignore: prefer_initializing_formals
@@ -86,6 +88,23 @@ final class Brush {
   /// lighting the level.
   final bool castsShadow;
 
+  /// Which way this brush climbs, or null for an ordinary block.
+  ///
+  /// **A ramp is a brush with a corner cut off**, not a new kind of thing in
+  /// the document: the same centre, the same size, the same material and the
+  /// same surface. Set it and the block fills its box at one end and tapers to
+  /// an edge at the other, which is what makes it walkable rather than a step
+  /// as tall as itself.
+  ///
+  /// There is no angle here on purpose. The slope runs corner to corner, so the
+  /// steepness is the brush's own proportions — a block twice as long as it is
+  /// tall climbs at twenty-six degrees — and an author reads it off the numbers
+  /// already typed rather than keeping two of them in agreement.
+  final WedgeUphill? ramp;
+
+  /// Whether this brush is a ramp rather than a block.
+  bool get isRamp => ramp != null;
+
   Vector3 get halfExtents => size / 2.0;
   Vector3 get min => centre - halfExtents;
   Vector3 get max => centre + halfExtents;
@@ -113,7 +132,36 @@ final class Brush {
         castsShadow: json.flagOr('castsShadow', fallback: true),
         surface: json.text('surface'),
         layer: json.integer('layer'),
+        ramp: _rampFromName(json.text('ramp')),
       );
+
+  /// The four directions a ramp may climb, by the name a document uses.
+  ///
+  /// Spelled out rather than taken from `WedgeUphill.name`, because the enum's
+  /// names belong to the physics package and a level document is a file format:
+  /// renaming a Dart identifier must not silently invalidate every level ever
+  /// saved.
+  static const Map<String, WedgeUphill> _ramps = <String, WedgeUphill>{
+    '+x': WedgeUphill.positiveX,
+    '-x': WedgeUphill.negativeX,
+    '+z': WedgeUphill.positiveZ,
+    '-z': WedgeUphill.negativeZ,
+  };
+
+  static WedgeUphill? _rampFromName(String? name) {
+    if (name == null) return null;
+    final found = _ramps[name];
+    if (found == null) {
+      throw LevelFormatException(
+        'brush ramp "$name" is not one of ${_ramps.keys.join(', ')}',
+      );
+    }
+    return found;
+  }
+
+  static String _rampName(WedgeUphill uphill) =>
+      _ramps.entries.firstWhere((MapEntry<String, WedgeUphill> e) =>
+          e.value == uphill).key;
 
   /// Both new keys are omitted when unset, so every committed level document
   /// round-trips byte for byte.
@@ -125,6 +173,7 @@ final class Brush {
         if (!castsShadow) 'castsShadow': false,
         if (_surface != null) 'surface': _surface,
         if (layer != null) 'layer': layer,
+        if (ramp != null) 'ramp': _rampName(ramp!),
       };
 }
 

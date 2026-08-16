@@ -48,6 +48,8 @@
     {"at": [0.0, 7.0, -10.5], "size": [24.0, 16.0, 1.0], "material": "stone", "castsShadow": false},
     {"at": [0.0, 7.0, 108.5], "size": [24.0, 16.0, 1.0], "material": "stone", "castsShadow": false},
     {"at": [0.0, -0.5, -1.0], "size": [22.0, 1.0, 18.0], "material": "moss"},
+    {"at": [-8.5, 1.0, -6.0], "size": [4.0, 2.0, 7.0], "material": "stone", "ramp": "+z"},
+    {"at": [-8.5, 1.0, -1.5], "size": [4.0, 2.0, 2.0], "material": "stone"},
     {"at": [0.0, -2.5, 11.0], "size": [22.0, 1.0, 6.0], "material": "stone"},
     {"at": [0.0, -1.5, 11.6], "size": [22.0, 1.0, 1.6], "material": "stone"},
     {"at": [0.0, -0.5, 13.2], "size": [22.0, 1.0, 1.6], "material": "stone"},
@@ -146,6 +148,13 @@
       "type": "collectible",
       "name": "first stray coin 6",
       "at": [4.0, 0.8, 6.0],
+      "what": "coin",
+      "model": "assets/models/coin.glb"
+    },
+    {
+      "type": "collectible",
+      "name": "the coin at the top of the slope",
+      "at": [-8.5, 2.8, -1.5],
       "what": "coin",
       "model": "assets/models/coin.glb"
     },

@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'level.dart';
@@ -138,8 +140,13 @@ final class BrushGeometry {
   ) {
     final half = brush.halfExtents;
     final scale = material.texelsPerMetre;
+    final ramp = brush.ramp;
 
     for (final (normal, u, v) in _faces) {
+      // A ramp keeps two of the block's six faces — the floor and the wall at
+      // the top of the climb — loses the one at the thin end entirely, and
+      // trades the other three for a slope and two triangles.
+      if (ramp != null && !_rampKeeps(ramp, normal)) continue;
       // Distance from the centre to this face, along its own normal.
       final offset = normal.x.abs() * half.x +
           normal.y.abs() * half.y +
@@ -190,6 +197,119 @@ final class BrushGeometry {
 
       out.addQuad(first);
     }
+
+    if (ramp != null) _emitRamp(brush, ramp, material, out);
+  }
+
+  /// Whether a ramp keeps the block face pointing along [normal].
+  ///
+  /// Two of the six: the floor, and the wall at the top of the climb. The face
+  /// at the thin end is gone entirely — that is the corner being cut — and the
+  /// two sides and the top are replaced by triangles and a slope.
+  static bool _rampKeeps(WedgeUphill uphill, Vector3 normal) {
+    if (normal.y != 0.0) return normal.y < 0.0;
+    return normal.x == uphill.x && normal.z == uphill.z;
+  }
+
+  /// The slope and the two triangles under it.
+  void _emitRamp(
+    Brush brush,
+    WedgeUphill uphill,
+    LevelMaterial material,
+    _SurfaceBuilder out,
+  ) {
+    final half = brush.halfExtents;
+    final centre = brush.centre;
+    final scale = material.texelsPerMetre;
+    final axis = uphill.axis;
+    final side = axis == 0 ? 2 : 0;
+
+    // The slope is a rectangle centred on the brush's own centre, because the
+    // cut runs corner to corner. Its two axes are the side of the brush and the
+    // line straight up the hill, and `cross(u, v) == normal` holds by
+    // construction — which is what winds the corners the right way round.
+    final normal = CollisionWedge(half, uphill: uphill).slopeNormal;
+    final u = Vector3.zero()..[side] = 1.0;
+    final v = normal.cross(u);
+    final halfU = half[side];
+    final halfV = math.sqrt(half[axis] * half[axis] + half.y * half.y);
+
+    final first = out.vertexCount;
+    for (final (su, sv) in const <(double, double)>[
+      (-1.0, -1.0),
+      (1.0, -1.0),
+      (1.0, 1.0),
+      (-1.0, 1.0),
+    ]) {
+      final x = centre.x + u.x * halfU * su + v.x * halfV * sv;
+      final y = centre.y + u.y * halfU * su + v.y * halfV * sv;
+      final z = centre.z + u.z * halfU * su + v.z * halfV * sv;
+      out.addVertex(
+        x, y, z,
+        normal.x, normal.y, normal.z,
+        u.x, u.y, u.z,
+        (x * u.x + y * u.y + z * u.z) * scale,
+        (x * v.x + y * v.y + z * v.z) * scale,
+      );
+    }
+    out.addQuad(first);
+
+    // The two ends, which are right-angled triangles: along the floor from the
+    // thin edge to the tall end, and up the tall end to the top of the slope.
+    final thin = centre[axis] - uphill.sign * half[axis];
+    final tall = centre[axis] + uphill.sign * half[axis];
+    final bottom = centre.y - half.y;
+    final top = centre.y + half.y;
+
+    for (final outward in <double>[-1.0, 1.0]) {
+      final faceNormal = Vector3.zero()..[side] = outward;
+      final at = centre[side] + outward * half[side];
+      final corners = <Vector3>[
+        _at(axis, side, thin, bottom, at),
+        _at(axis, side, tall, bottom, at),
+        _at(axis, side, tall, top, at),
+      ];
+      // Wound from the geometry rather than from four cases worked out by
+      // hand: a face wound the wrong way is culled as a back face, which looks
+      // like a hole and not like a mistake.
+      final winding = (corners[1] - corners[0]).cross(corners[2] - corners[0]);
+      if (winding.dot(faceNormal) < 0.0) {
+        final swap = corners[1];
+        corners[1] = corners[2];
+        corners[2] = swap;
+      }
+
+      // The face's own axes, so the texture runs along the level rather than
+      // along the triangle. Any pair perpendicular to the normal will do; the
+      // world projection makes the choice invisible across a seam.
+      final faceU = Vector3.zero()..[axis] = 1.0;
+      final faceV = faceNormal.cross(faceU);
+      final base = out.vertexCount;
+      for (final corner in corners) {
+        out.addVertex(
+          corner.x, corner.y, corner.z,
+          faceNormal.x, faceNormal.y, faceNormal.z,
+          faceU.x, faceU.y, faceU.z,
+          corner.dot(faceU) * scale,
+          corner.dot(faceV) * scale,
+        );
+      }
+      out.addTriangle(base);
+    }
+  }
+
+  /// A point given as a coordinate along the climb, a height, and the side.
+  static Vector3 _at(
+    int axis,
+    int side,
+    double along,
+    double height,
+    double across,
+  ) {
+    final point = Vector3(0.0, height, 0.0);
+    point[axis] = along;
+    point[side] = across;
+    return point;
   }
 }
 
@@ -199,6 +319,11 @@ final class _BrushIndex {
     for (var i = 0; i < level.brushes.length; i++) {
       final brush = level.brushes[i];
       if (!brush.solid) continue;
+      // **A ramp hides nothing.** Its box is half empty — that is what a ramp
+      // is — so treating it as solid here would cull a neighbour's face that
+      // stands in the air above the slope, and a hole in a wall is far worse
+      // than a triangle nobody sees.
+      if (brush.isRamp) continue;
       final min = brush.min;
       final max = brush.max;
       for (var x = (min.x / cellSize).floor();
@@ -277,6 +402,11 @@ final class _SurfaceBuilder {
     _normals.addAll(<double>[nx, ny, nz]);
     _texcoords.addAll(<double>[u, v]);
     _tangents.addAll(<double>[tx, ty, tz, -1.0]);
+  }
+
+  /// One triangle over three corners added in order.
+  void addTriangle(int first) {
+    _indices.addAll(<int>[first, first + 1, first + 2]);
   }
 
   /// Two triangles over four corners added in order.
