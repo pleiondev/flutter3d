@@ -516,7 +516,7 @@ void main() {
 
       final piece = it.pieceNear(over);
       expect(piece, isNotNull, reason: 'no drawn piece near the shelf');
-      piece!.visible = true;
+      piece.visible = true;
       final forced = await it.drawAsIs();
 
       expect(_differences(asDrawn, forced), greaterThan(40),
@@ -557,7 +557,7 @@ void main() {
 
       final piece = it.pieceNear(over);
       expect(piece, isNotNull, reason: 'no drawn piece near the cap');
-      piece!.visible = true;
+      piece.visible = true;
       final forced = await it.drawAsIs();
 
       expect(_differences(asDrawn, forced), greaterThan(40),
