@@ -29,6 +29,7 @@ import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
 import 'src/looks.dart';
+import 'src/pace.dart';
 import 'src/runner_looks.dart';
 import 'src/save_file.dart';
 import 'src/scene_surface.dart';
@@ -182,6 +183,17 @@ class _GameScreenState extends State<GameScreen>
   /// stairs is a level of the horizon pitching until it is smoothed.
   InterpolatedVector3 _drawnAt = InterpolatedVector3();
   final InterpolatedAngle _drawnYaw = InterpolatedAngle();
+
+  /// Whether the machine is keeping up, and what it cost when it was not.
+  final Pace _pace = Pace();
+
+  /// Why the level would not load, and which one it was.
+  ///
+  /// Separate from `_initError`, which is the renderer's, because the two want
+  /// different words: one is a build that is missing its shaders, and this is a
+  /// document somebody has just edited.
+  Object? _levelError;
+  String? _levelErrorAsset;
 
   final Vector3 _scratch = Vector3.zero();
   Duration _lastTick = Duration.zero;
@@ -374,15 +386,43 @@ class _GameScreenState extends State<GameScreen>
     _settingsFile.write(_config);
   }
 
+  /// Loads [asset], and shows why if it cannot.
+  ///
+  /// **A level that will not read used to be a black screen for ever.** There
+  /// was no `catch` here at all and `_initError` covers only the device and the
+  /// renderer, so a malformed document, a missing texture or a save naming a
+  /// level that no longer exists left the game drawing nothing, saying nothing,
+  /// and offering nothing to do about it. Every one of those is a *content*
+  /// mistake — the failure a person editing a level makes, which is to say the
+  /// most likely failure this game has.
+  Future<void> _loadLevel(String asset, {Snapshot? resume}) async {
+    try {
+      await _readLevel(asset, resume: resume);
+    } catch (error, trace) {
+      debugPrint('level: could not load $asset: $error\n$trace');
+      if (mounted) {
+        setState(() {
+          _levelError = error;
+          _levelErrorAsset = asset;
+        });
+      }
+    }
+  }
+
   /// The seam where the engine, the genre and this game's content meet.
   ///
   /// [asset] is which level; [resume] is a run to put back into it, which is
   /// only ever a snapshot saved from *this* level — [SaveFile] refuses to hand
   /// over one from another.
-  Future<void> _loadLevel(String asset, {Snapshot? resume}) async {
+  Future<void> _readLevel(String asset, {Snapshot? resume}) async {
     final device = _device;
     if (device == null) return;
     _levelAsset = asset;
+    _levelError = null;
+    // A load takes far longer than a frame and drops simulated time every time.
+    // Counting that against the machine would light the slow-machine warning on
+    // every level of every run, which is the same as not having one.
+    _pace.reset(_loop.clock.droppedSteps);
 
     // One registry validates the document and then spawns it. Two could
     // disagree about what a document may contain, which is the failure this
@@ -535,6 +575,21 @@ class _GameScreenState extends State<GameScreen>
     unawaited(_loadLevel(_levelAsset));
   }
 
+  /// Back to the beginning, from a level that would not load.
+  ///
+  /// Not [_restart], which reloads the level that has just failed: the saved
+  /// level is the usual reason a run cannot be resumed, so the only thing that
+  /// helps is throwing the save away and going back to the first one.
+  void _startOver() {
+    _saveFile.clear();
+    _movingOn = false;
+    setState(() {
+      _levelError = null;
+      _levelErrorAsset = null;
+    });
+    unawaited(_loadLevel(_firstLevel));
+  }
+
   /// A box, right away, so the game can be played while the model loads.
   SceneNode _boxRunner(GraphicsDevice device, Scene scene, Runner runner) {
     final box = MeshNode(
@@ -613,6 +668,14 @@ class _GameScreenState extends State<GameScreen>
     // only whether the level has loaded.
     _loop.paused = _sim == null || (!kIsWeb && !_devices.isCaptured);
     _loop.advance(dt.clamp(0.0, 0.25));
+    // The loop has always counted the simulated time it could not run. Nobody
+    // read it, so a machine that could not keep up ran the game slowly and said
+    // nothing about it.
+    _pace.note(
+      dropped: _loop.clock.droppedSteps,
+      dt: dt,
+      stepSeconds: _loop.clock.stepSeconds,
+    );
 
     if (_sayFor > 0.0) {
       _sayFor -= dt;
@@ -915,6 +978,15 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
+    final levelError = _levelError;
+    if (levelError != null) {
+      return LevelErrorScreen(
+        asset: _levelErrorAsset ?? _levelAsset,
+        error: levelError,
+        onStartOver: _startOver,
+      );
+    }
+
     final renderer = _renderer;
     if (renderer == null) {
       return const Scaffold(
@@ -1003,6 +1075,8 @@ class _GameScreenState extends State<GameScreen>
                   levelName: _loaded?.level.name ?? '',
                   keys: _runner?.keys ?? const <String>{},
                   message: _said,
+                  behind: _pace.behind,
+                  lost: _pace.lost,
                 ),
               if (_showSettings)
                 SettingsPanel(

@@ -18,6 +18,8 @@ class Hud extends StatelessWidget {
     required this.levelName,
     this.keys = const <String>{},
     this.message,
+    this.behind = false,
+    this.lost = 0.0,
   });
 
   final int coins;
@@ -44,6 +46,17 @@ class Hud extends StatelessWidget {
   /// drained, so a player who walked into one was told nothing and had no way
   /// to learn a key existed.
   final String? message;
+
+  /// Whether the machine has just been failing to run the game at full speed.
+  ///
+  /// **The game used to slow down and say nothing**, which reads as the game
+  /// being like that rather than as this machine being unable to run it. See
+  /// `Pace`: nothing is dropped until a frame takes longer than 83 ms, so this
+  /// is never a close call.
+  final bool behind;
+
+  /// Simulated seconds this run never ran, so the clock can admit it.
+  final double lost;
 
   @override
   Widget build(BuildContext context) {
@@ -78,6 +91,22 @@ class Hud extends StatelessWidget {
             ),
           ),
 
+          if (behind && state == RunState.running)
+            Positioned(
+              right: 24,
+              top: 24,
+              child: Text(
+                'This machine is behind — the game is running slowly.',
+                style: TextStyle(
+                  color: Colors.amber.withValues(alpha: 0.9),
+                  fontSize: 13,
+                  shadows: const <Shadow>[
+                    Shadow(blurRadius: 8, color: Colors.black87),
+                  ],
+                ),
+              ),
+            ),
+
           if (message != null && state == RunState.running)
             Positioned(
               left: 0,
@@ -93,6 +122,7 @@ class Hud extends StatelessWidget {
                 deaths: deaths,
                 elapsed: elapsed,
                 subtitle: 'Press escape to let the mouse go.',
+                lost: lost,
               ),
             )
           else if (state == RunState.lost)
@@ -103,11 +133,84 @@ class Hud extends StatelessWidget {
                 deaths: deaths,
                 elapsed: elapsed,
                 subtitle: 'Press R to start again.',
+                lost: lost,
               ),
             )
           else if (!captured)
             const Center(child: _Banner('Click to play')),
         ],
+      ),
+    );
+  }
+}
+
+/// What a level that would not load looks like.
+///
+/// **It used to look like nothing at all.** There was no `catch` around the
+/// load, so a malformed document, a missing texture or a save naming a level
+/// that has since been renamed left a black screen with no message and no way
+/// out — and every one of those is a mistake made while *editing content*,
+/// which is the most likely mistake this game has.
+///
+/// The way out matters as much as the message: the failing level is usually the
+/// saved one, so the only thing that can rescue a player is throwing the save
+/// away, and they cannot do that from a black screen.
+class LevelErrorScreen extends StatelessWidget {
+  const LevelErrorScreen({
+    super.key,
+    required this.asset,
+    required this.error,
+    required this.onStartOver,
+  });
+
+  final String asset;
+  final Object error;
+
+  /// Clears the run and goes back to the first level.
+  final VoidCallback onStartOver;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'That level would not load.',
+                  style: TextStyle(color: Colors.white, fontSize: 22),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  asset,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '$error',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 22),
+                TextButton(
+                  onPressed: onStartOver,
+                  child: const Text('Throw the run away and start again'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -190,6 +293,7 @@ class _Results extends StatelessWidget {
     required this.deaths,
     required this.elapsed,
     required this.subtitle,
+    this.lost = 0.0,
   });
 
   final String title;
@@ -197,6 +301,14 @@ class _Results extends StatelessWidget {
   final int deaths;
   final double elapsed;
   final String subtitle;
+
+  /// Simulated seconds the machine could not run.
+  ///
+  /// **The time above counts simulated seconds**, so a run that dropped four of
+  /// them took four seconds longer than it says. Printed rather than folded in:
+  /// adding the loss to the clock would make the game look slower than it ran,
+  /// and hiding it makes the clock a small lie.
+  final double lost;
 
   @override
   Widget build(BuildContext context) {
@@ -230,6 +342,16 @@ class _Results extends StatelessWidget {
                 _Tally(label: 'falls', value: '$deaths'),
               ],
             ),
+            if (lost >= 1.0) ...<Widget>[
+              const SizedBox(height: 12),
+              Text(
+                'This machine lost ${lost.round()}s the game never ran.',
+                style: TextStyle(
+                  color: Colors.amber.withValues(alpha: 0.85),
+                  fontSize: 12,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
             Text(
               subtitle,
