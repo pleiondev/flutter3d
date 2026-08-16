@@ -101,12 +101,19 @@ for i, (x, z) in enumerate(((-5.0, -6.0), (5.0, -6.0), (-7.0, 1.0), (7.0, 1.0),
 # Off the centre line and with a coin on top, so the reason to go up it is a
 # reason and not an instruction. The ledge it climbs to is a plain block, which
 # is what makes the ramp visible as the thing that is not one.
-# The footprint was chosen by asking the level where there was room, not by
-# eye: the first version sat on a stray coin, and the buried-entity check —
-# which now knows a ramp's box is half empty — named it.
-slope([-8.5, 1.0, -6.0], [4.0, 2.0, 7.0], "stone", "+z")
-route([-8.5, 1.0, -1.5], [4.0, 2.0, 2.0], "stone")
-coin([-8.5, 2.8, -1.5], "the coin at the top of the slope")
+# **Its thin end has to be somewhere a player is walking towards.** The first
+# placement put it at z = -9.5, a metre and a half behind the spawn and hard
+# against the back wall, so the only way up was to walk backwards first — and
+# from the side, at the spawn's own z, the slope's edge stood 0.43 m tall
+# against a step of 0.40. Three centimetres: it looked walkable and was not,
+# which is the worst number a piece of level geometry can have.
+#
+# So it starts at floor level six metres ahead of the spawn and runs the way
+# the player is already going. Walking forward along the left wall now simply
+# becomes walking uphill, with no moment of deciding to.
+slope([-9.5, 1.0, -1.0], [3.0, 2.0, 6.0], "stone", "+z")
+route([-9.5, 1.0, 3.0], [3.0, 2.0, 2.0], "stone")
+coin([-9.5, 2.8, 3.0], "the coin at the top of the slope")
 
 # **The first crate, where it can do no harm.** A player who has never pushed
 # one finds out that it moves by walking into it on flat ground, with a coin
