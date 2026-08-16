@@ -26,6 +26,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 import 'src/backend.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
+import 'src/lens.dart';
 import 'src/looks.dart';
 import 'src/runner_looks.dart';
 import 'src/save_file.dart';
@@ -109,9 +110,7 @@ class _GameScreenState extends State<GameScreen>
   late final GameLoop _loop;
   late final Ticker _ticker;
 
-  final CameraNode _camera = CameraNode(
-    projection: const PerspectiveProjection(fovYRadians: 1.05, far: 220.0),
-  );
+  final CameraNode _camera = CameraNode(projection: Lens.base);
   late final RenderView _view;
 
   GraphicsDevice? _device;
@@ -175,9 +174,6 @@ class _GameScreenState extends State<GameScreen>
 
   /// How the runner is drawn, from what it is doing. See `RunnerLooks`.
   final RunnerLooks _pose = RunnerLooks();
-
-  /// The lens the camera keeps, so a widened view has something to go back to.
-  final PerspectiveProjection _lens = const PerspectiveProjection();
 
   final InterpolatedVector3 _drawnAt = InterpolatedVector3();
   final InterpolatedAngle _drawnYaw = InterpolatedAngle();
@@ -841,9 +837,7 @@ class _GameScreenState extends State<GameScreen>
     _camera
       ..setPositionFrom(camera.eye)
       ..lookAt(camera.target)
-      ..projection = _lens.copyWith(
-        fovYRadians: _lens.fovYRadians + camera.extraFov,
-      );
+      ..projection = Lens.widened(camera.extraFov);
 
     // Along the camera's own forward rather than through a yaw: `aimAt` reads
     // an angle as a first-person camera's, and this one is not.
