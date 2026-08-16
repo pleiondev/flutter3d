@@ -815,7 +815,12 @@ class _GameScreenState extends State<GameScreen>
     // A captured pointer reports through the loop; a drag reports here.
     camera.look(kIsWeb ? _takeDragLook() : _input.lookDelta);
     _drawnAt.read(_loop.alpha, _scratch);
-    camera.follow(_scratch, dt);
+    // The way the runner is *going*, so the camera drifts round behind them
+    // over a long level instead of having to be steered by hand at every
+    // corner. Velocity rather than facing: a runner sliding backwards off a
+    // ledge is going one way and looking another, and the camera should show
+    // where they are about to land.
+    camera.follow(_scratch, dt, travelling: _runner?.body.velocity);
 
     // The pose: squash, stretch, lean, and the flip a double jump turns. Built
     // from what the runner did this step and applied here, because this is the

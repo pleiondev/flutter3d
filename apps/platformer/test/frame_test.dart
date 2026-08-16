@@ -566,6 +566,40 @@ void main() {
     });
   });
 
+  test('the way out is something you can see', () {
+    // **The goal of a 260 m level was marked by nothing.** `ExitKind` was the
+    // one kind that spawned no fixture, so a player found the finish by walking
+    // into an invisible volume, and the only clue was whatever coins the author
+    // happened to scatter near it. `PlatformerLooks` has had a material for an
+    // exit all along — pale and emissive — and it could never apply to
+    // anything.
+    //
+    // Mutation: drop the `context.reveal` from `ExitKind.spawn`. There is
+    // nothing near the exit to hide, and this fails on the first expectation.
+    return _Shown.build().then((_Shown it) async {
+      final exit = <Exit>[
+        for (final m in it.mechanisms.all)
+          if (m is Exit) m,
+      ].first;
+      final at = exit.origin;
+      expect(at, isNotNull, reason: 'the exit has no place');
+      it.look(from: at! + Vector3(0.0, 2.0, -8.0), at: at);
+
+      // Out of shot, so what is measured is the exit and not the runner.
+      it.runner.body.teleport(at + Vector3(0.0, 1.0, -30.0));
+      final asDrawn = await it.draw();
+
+      final piece = it.pieceNear(at);
+      if (piece == null) fail('nothing is drawn at the way out');
+      piece.visible = false;
+      final without = await it.drawAsIs();
+
+      expect(_differences(asDrawn, without), greaterThan(40),
+          reason: 'hiding the piece at the exit changed nothing, so what is '
+              'there is not the exit');
+    });
+  });
+
   test('the level a finished level names is one that loads and draws', () async {
     // The end of E5, asserted where it can actually go wrong. `sim.nextLevel`
     // is a string in a document; the failure it invites is a typo, or a level

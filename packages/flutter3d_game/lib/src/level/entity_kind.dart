@@ -448,7 +448,7 @@ final class ExitKind extends EntityKind {
       mask: CollisionLayers.player,
       fallbackSize: Vector3(1.5, 2.5, 1.5),
     );
-    context.mechanisms.add(
+    final exit = context.mechanisms.add(
       Exit(
         name: entity.name,
         collider: collider,
@@ -456,6 +456,18 @@ final class ExitKind extends EntityKind {
         message: entity.string('text'),
         key: entity.string('key'),
       ),
+    );
+    // **Revealed, like every other piece of furniture in a level.** It was the
+    // one kind that spawned no fixture at all, so the goal of a two hundred and
+    // sixty metre level was marked by nothing: a player found it by walking
+    // into an invisible volume, and the only clue was whatever coins the author
+    // happened to scatter nearby. What it looks like is still the game's
+    // business — this only says there is something there to look at.
+    context.reveal(
+      entity,
+      collider: collider,
+      mechanism: exit,
+      size: entity.vector('size') ?? Vector3(1.5, 2.5, 1.5),
     );
   }
 }

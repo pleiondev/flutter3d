@@ -364,4 +364,85 @@ void main() {
       expect(camera.extraFov, lessThan(0.01));
     });
   });
+
+  group('drifting back behind the runner', () {
+    // **Two hundred and sixty metres of steering the camera by hand.** The yaw
+    // only ever changed when the mouse moved, so the runner turned a corner and
+    // the camera did not, and the player spent the level looking at their own
+    // back until they corrected it themselves.
+
+    test('a runner who keeps going gets the camera behind them', () {
+      // Mutation: `recentre = 0.0`, which is the old behaviour exactly. The
+      // yaw never moves and this fails.
+      final camera = FollowCamera(world: _empty());
+      // Looking one way, running another: a quarter turn apart.
+      camera.look(Vector2(-400.0, 0.0));
+      final started = camera.yaw;
+
+      final north = Vector3(0.0, 0.0, 8.0);
+      for (var i = 0; i < 240; i++) {
+        camera.follow(Vector3.zero(), _frame, travelling: north);
+      }
+
+      expect(camera.yaw, isNot(closeTo(started, 0.05)),
+          reason: 'the camera never turned');
+      expect(camera.yaw, closeTo(0.0, 0.1),
+          reason: 'it settled at ${camera.yaw} rather than behind the runner');
+    });
+
+    test('and a runner standing still is left alone', () {
+      // A standing runner is being looked *at*. Turning the camera round
+      // somebody who is not going anywhere is the camera deciding where the
+      // player should be looking.
+      //
+      // Mutation: drop the `recentreAbove` guard.
+      final camera = FollowCamera(world: _empty());
+      camera.look(Vector2(-400.0, 0.0));
+      final started = camera.yaw;
+
+      for (var i = 0; i < 240; i++) {
+        camera.follow(Vector3.zero(), _frame, travelling: Vector3.zero());
+      }
+
+      expect(camera.yaw, closeTo(started, 1e-9),
+          reason: 'it turned round somebody who was not moving');
+    });
+
+    test('and it takes the short way round', () {
+      // The arithmetic worth a test: a runner heading a hair one side of due
+      // north with the camera a hair the other must not send the camera the
+      // long way about — three quarters of a turn through everything the
+      // player is not looking at.
+      //
+      // Mutation: drop the wrapping in `_drift`. The yaw sweeps the wrong way
+      // and this fails on the direction of the first step.
+      final camera = FollowCamera(world: _empty());
+      camera.look(Vector2(1000.0, 0.0));
+      final started = camera.yaw;
+      expect(started.abs(), greaterThan(3.0), reason: 'not near the wrap');
+
+      final justPast = Vector3(-0.5, 0.0, -8.0);
+      camera.follow(Vector3.zero(), _frame, travelling: justPast);
+
+      // Whichever way it went, one frame of a slow drift must be a small step.
+      expect((camera.yaw - started).abs(), lessThan(0.2),
+          reason: 'it moved ${camera.yaw - started} radians in one frame, so '
+              'it went the long way round');
+    });
+
+    test('and the player can still look wherever they like', () {
+      // The drift is slow on purpose: it must be something a player overrides
+      // by continuing to move the mouse, not a fight they lose.
+      final camera = FollowCamera(world: _empty());
+      final north = Vector3(0.0, 0.0, 8.0);
+
+      camera.follow(Vector3.zero(), _frame, travelling: north);
+      final before = camera.yaw;
+      camera.look(Vector2(-200.0, 0.0));
+      final after = camera.yaw;
+
+      expect((after - before).abs(), greaterThan(0.5),
+          reason: 'a look was swallowed by the drift');
+    });
+  });
 }

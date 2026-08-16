@@ -17,7 +17,29 @@ final class FollowTuning {
     this.nearClearance = 0.35,
     this.minDistance = 1.2,
     this.impulseDecay = 9.0,
+    this.recentre = 1.6,
+    this.recentreAbove = 3.0,
   });
+
+  /// How fast the camera drifts back behind the runner, in radians a second.
+  ///
+  /// **Zero was the old behaviour and it is exhausting over a long level.** The
+  /// yaw only ever changed when the mouse moved, so crossing 260 metres meant
+  /// steering the camera by hand around every corner: the runner turns, the
+  /// camera does not, and the player is soon watching their own back.
+  ///
+  /// Slow on purpose. A camera that snaps behind you takes the shot away from
+  /// somebody who deliberately looked sideways; this is a drift a player can
+  /// override simply by continuing to move the mouse.
+  final double recentre;
+
+  /// How fast the runner must be going before the camera drifts, in m/s.
+  ///
+  /// A standing runner is being looked *at*, and turning the camera round
+  /// somebody who is not going anywhere is the camera deciding where the player
+  /// should be looking. Above a walk, the direction of travel is the thing
+  /// worth seeing.
+  final double recentreAbove;
 
   final double distance;
   final double height;
@@ -134,7 +156,9 @@ final class FollowCamera {
   /// Called once a frame with the *interpolated* position rather than once a
   /// step with the simulated one: this is presentation, and a camera that
   /// steps at 60 Hz on a 120 Hz display judders even when the runner does not.
-  void follow(Vector3 runner, double dt) {
+  void follow(Vector3 runner, double dt, {Vector3? travelling}) {
+    _drift(travelling, dt);
+
     _wantedTarget
       ..setFrom(runner)
       ..y += tuning.aimHeight;
@@ -159,6 +183,33 @@ final class FollowCamera {
   /// For a respawn: easing from where the player died to where they came back
   /// is a second of the level flying past for no reason.
   void cut() => rig.cut();
+
+  /// Eases the yaw round towards the way the runner is going.
+  ///
+  /// The shortest way round, which is the whole of the arithmetic worth
+  /// commenting on: a runner heading a hair west of due north with the camera a
+  /// hair east of it must not have the camera go the long way about.
+  void _drift(Vector3? travelling, double dt) {
+    if (travelling == null || tuning.recentre <= 0.0) return;
+    final speed = math.sqrt(
+      travelling.x * travelling.x + travelling.z * travelling.z,
+    );
+    if (speed < tuning.recentreAbove) return;
+
+    final wanted = math.atan2(travelling.x, travelling.z);
+    var away = wanted - _yaw;
+    while (away > math.pi) {
+      away -= 2.0 * math.pi;
+    }
+    while (away < -math.pi) {
+      away += 2.0 * math.pi;
+    }
+
+    // Scaled by how much faster than the threshold: a runner ambling barely
+    // moves the camera, and one at a sprint gets it behind them promptly.
+    final urgency = ((speed - tuning.recentreAbove) / 4.0).clamp(0.0, 1.0);
+    _yaw += away * (1.0 - math.exp(-tuning.recentre * urgency * dt));
+  }
 
   final Vector3 _wantedEye = Vector3.zero();
   final Vector3 _wantedTarget = Vector3.zero();
