@@ -37,10 +37,14 @@ def start(clear=()):
     _crates = 0
 
 
-def route(at, size, material, surface=None):
+def route(at, size, material, surface=None, casts=True):
     row = {"at": _r(at), "size": _r(size), "material": material}
     if surface:
         row["surface"] = surface
+    # A fence is not architecture: see `Brush.castsShadow`. Omitted when true so
+    # the documents do not grow a line per brush saying the obvious.
+    if not casts:
+        row["castsShadow"] = False
     brushes.append(row)
 
 

@@ -43,10 +43,10 @@
     }
   },
   "brushes": [
-    {"at": [-11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone"},
-    {"at": [11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone"},
-    {"at": [0.0, 7.0, -10.5], "size": [24.0, 16.0, 1.0], "material": "stone"},
-    {"at": [0.0, 7.0, 108.5], "size": [24.0, 16.0, 1.0], "material": "stone"},
+    {"at": [-11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone", "castsShadow": false},
+    {"at": [11.5, 7.0, 49.0], "size": [1.0, 16.0, 118.0], "material": "stone", "castsShadow": false},
+    {"at": [0.0, 7.0, -10.5], "size": [24.0, 16.0, 1.0], "material": "stone", "castsShadow": false},
+    {"at": [0.0, 7.0, 108.5], "size": [24.0, 16.0, 1.0], "material": "stone", "castsShadow": false},
     {"at": [0.0, -0.5, -1.0], "size": [22.0, 1.0, 18.0], "material": "moss"},
     {"at": [0.0, -2.5, 11.0], "size": [22.0, 1.0, 6.0], "material": "stone"},
     {"at": [0.0, -1.5, 11.6], "size": [22.0, 1.0, 1.6], "material": "stone"},

@@ -124,4 +124,83 @@ void main() {
       expect(read.layer, 64);
     });
   });
+
+  group('a brush that does not cast a shadow', () {
+    // **A fence is not architecture.** A boundary wall exists so the level
+    // cannot be walked out of. The teaching level's are sixteen metres tall —
+    // raised from six when an autopilot climbed a chimney and walked off the
+    // top of the world — and at this game's sun they lay a hard-edged band of
+    // shade across a third of a twenty-two metre level: measured at eight per
+    // cent of a frame, and read by a player as a shadow following them, because
+    // they walk along it.
+    //
+    // Steepening the sun removes it and costs more than it saves — the same
+    // frame goes from 23.8% dark to 29.4%, because a sun overhead lights
+    // vertical surfaces edge-on. The wall was never what should have been
+    // lighting the level.
+
+    test('says so in its document, and only when it is unusual', () {
+      // Mutation: write the flag unconditionally. Every brush in every level
+      // grows a line saying the obvious, and two hundred and fifty of them is
+      // a diff nobody reads.
+      final fence = Brush(
+        centre: Vector3.zero(),
+        size: Vector3.all(1.0),
+        castsShadow: false,
+      );
+      expect(fence.toJson()['castsShadow'], false);
+
+      final wall = Brush(centre: Vector3.zero(), size: Vector3.all(1.0));
+      expect(wall.toJson().containsKey('castsShadow'), isFalse);
+      expect(wall.castsShadow, isTrue, reason: 'the default moved');
+    });
+
+    test('and comes back from one', () {
+      final read = Brush.fromJson(<String, Object?>{
+        'at': <double>[0.0, 0.0, 0.0],
+        'size': <double>[1.0, 1.0, 1.0],
+        'castsShadow': false,
+      });
+
+      expect(read.castsShadow, isFalse);
+    });
+
+    test('is batched apart from one that does', () {
+      // **Why the surfaces are keyed by this as well as by material.** Brushes
+      // are batched so a level of two hundred and fifty is a handful of draws,
+      // and a batch is the smallest thing that can be left out of the shadow
+      // pass — so a fence and a wall of the same stone have to stop sharing
+      // one.
+      //
+      // Mutation: key the builders by material alone. The two collapse into a
+      // single surface and the fence starts casting again, along with the wall.
+      final level = Level(brushes: <Brush>[
+        Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
+        Brush(
+          centre: Vector3(8.0, 0.0, 0.0),
+          size: Vector3.all(2.0),
+          castsShadow: false,
+        ),
+      ]);
+
+      final surfaces = const BrushGeometry().build(level);
+
+      expect(surfaces, hasLength(2),
+          reason: 'same material, different answer, and they were batched '
+              'together anyway');
+      expect(surfaces.map((BrushSurface s) => s.castsShadow),
+          containsAll(<bool>[true, false]));
+    });
+
+    test('and a level with no fences batches exactly as it always did', () {
+      // The compatibility half: the split must cost nothing to every level
+      // that does not use it.
+      final level = Level(brushes: <Brush>[
+        Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
+        Brush(centre: Vector3(8.0, 0.0, 0.0), size: Vector3.all(2.0)),
+      ]);
+
+      expect(const BrushGeometry().build(level), hasLength(1));
+    });
+  });
 }

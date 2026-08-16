@@ -26,6 +26,7 @@ final class Brush {
     required Vector3 size,
     this.material = 'default',
     this.solid = true,
+    this.castsShadow = true,
     String? surface,
     this.layer,
   })  : centre = centre.clone(),
@@ -68,6 +69,23 @@ final class Brush {
   /// through a purely visual detail is a player fighting the level.
   final bool solid;
 
+  /// Whether it takes part in the lighting, as opposed to merely being lit.
+  ///
+  /// **True by default, and the one place it is worth saying otherwise is a
+  /// fence.** A boundary wall exists so the level cannot be walked out of; it
+  /// is not architecture. The teaching level's are sixteen metres tall — raised
+  /// from six when an autopilot climbed a chimney and walked off the top of the
+  /// world — and at the sun this game uses they lay a hard-edged band of shadow
+  /// across a third of a twenty-two metre level. Measured: eight per cent of a
+  /// frame, and it reads as a shadow following the player because they walk
+  /// along it.
+  ///
+  /// Steepening the sun removes it and costs more than it saves: the same frame
+  /// goes from 23.8% dark to 29.4%, because a sun overhead lights vertical
+  /// surfaces edge-on. The wall was never the thing that should have been
+  /// lighting the level.
+  final bool castsShadow;
+
   Vector3 get halfExtents => size / 2.0;
   Vector3 get min => centre - halfExtents;
   Vector3 get max => centre + halfExtents;
@@ -92,6 +110,7 @@ final class Brush {
         size: json.vector3('size'),
         material: json.text('material') ?? 'default',
         solid: json.flagOr('solid', fallback: true),
+        castsShadow: json.flagOr('castsShadow', fallback: true),
         surface: json.text('surface'),
         layer: json.integer('layer'),
       );
@@ -103,6 +122,7 @@ final class Brush {
         'size': size.toJson(),
         if (material != 'default') 'material': material,
         if (!solid) 'solid': false,
+        if (!castsShadow) 'castsShadow': false,
         if (_surface != null) 'surface': _surface,
         if (layer != null) 'layer': layer,
       };

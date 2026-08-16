@@ -255,6 +255,22 @@ final class _Shown {
     return best;
   }
 
+  /// The same frame with the shadow pass turned off, for asking what a shadow
+  /// is actually contributing.
+  Future<Uint8List> drawWithout({required bool shadows}) async {
+    fixtures.sync(_elapsed);
+    final result = renderer.render(
+      width: _width,
+      height: _height,
+      scene: scene,
+      views: <RenderView>[RenderView(camera: camera)],
+      settings: RenderSettings(shadows: ShadowSettings(enabled: !shadows)),
+    );
+    final pixels = await device.readPixels(result.frame);
+    expect(pixels, isNotNull, reason: 'the frame could not be read back');
+    return pixels!.buffer.asUint8List();
+  }
+
   Future<Uint8List> draw({String? hiding}) async {
     fixtures.sync(_elapsed);
     final p = runner.position;
@@ -599,6 +615,47 @@ void main() {
     });
   });
 
+  test('the fence around the level does not shade a third of it', () {
+    // **A fence is not architecture, and this one was lighting the level.** The
+    // teaching level's boundary walls are sixteen metres tall — raised from six
+    // when an autopilot climbed a chimney and walked off the top of the world —
+    // and at this game's sun they laid a hard-edged band of shade across a
+    // third of a twenty-two metre level. It was reported as a shadow that
+    // follows you, which is what it looks like when you walk along one.
+    //
+    // Mutation: take `casts=False` off the walls in `make_first_steps.py` and
+    // regenerate. The shadowed frame darkens by about eight per cent of itself
+    // and this fails.
+    return _Shown.build(level: 'assets/levels/first_steps.json')
+        .then((_Shown it) async {
+      final at = Vector3(0.0, 0.9, 2.0);
+      it.look(from: at + Vector3(0.0, 2.6, -7.0), at: at);
+      // The runner out of shot: its own shadow is about three per cent of the
+      // frame and entirely welcome, and leaving it in would mean choosing a
+      // threshold that admits a character and excludes a wall — which is a
+      // threshold that stops meaning anything.
+      it.runner.body.teleport(Vector3(0.0, 0.9, -60.0));
+      // Two crates and two lamps stand in this room and rightly cast; what is
+      // measured is that nothing casts a *band*, so the comparison is against
+      // the same frame with the fences put back rather than against zero.
+
+      final asShipped = _darkFraction(await it.draw());
+
+      // The fences put back into the shadow pass, and nothing else touched.
+      for (final MeshNode piece in it.scene.meshes) {
+        piece.castsShadow = true;
+      }
+      final withFences = _darkFraction(await it.drawAsIs());
+
+      expect(withFences - asShipped, greaterThan(0.04),
+          reason: 'putting the fences back changed the frame by only '
+              '${((withFences - asShipped) * 100).toStringAsFixed(1)}%, so '
+              'either they were never the problem or they are still casting');
+      expect(asShipped, lessThan(withFences),
+          reason: 'the shipped frame is the darker of the two');
+    });
+  });
+
   test('the level a finished level names is one that loads and draws', () async {
     // The end of E5, asserted where it can actually go wrong. `sim.nextLevel`
     // is a string in a document; the failure it invites is a typo, or a level
@@ -639,4 +696,15 @@ void main() {
     expect(high - low, greaterThan(20),
         reason: 'every cell of the frame is the same brightness');
   });
+}
+
+/// How much of a frame reads as unlit.
+double _darkFraction(Uint8List rgba) {
+  var dark = 0;
+  var total = 0;
+  for (var i = 0; i < rgba.length; i += 4) {
+    total++;
+    if (rgba[i] + rgba[i + 1] + rgba[i + 2] < 90) dark++;
+  }
+  return dark / total;
 }

@@ -107,7 +107,11 @@ final class LevelLoader {
         )
           // Brushes are the level: they never move, so their shadow is baked
           // once rather than redrawn six times a frame.
-          ..shadowIsStatic = true,
+          ..shadowIsStatic = true
+          // A fence is not architecture. See `Brush.castsShadow` — and note
+          // that this is why surfaces are batched by that answer as well as by
+          // material: a batch is the smallest thing that can be left out.
+          ..castsShadow = surface.castsShadow,
       );
     }
 

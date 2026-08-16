@@ -4,7 +4,8 @@ import 'package:vector_math/vector_math.dart';
 
 import 'level.dart';
 
-/// The triangles of every brush sharing one material.
+/// The triangles of every brush sharing one material *and* one answer about
+/// shadows.
 ///
 /// Plain arrays rather than the engine's `MeshData`, because this package does
 /// not depend on the engine and should not: turning brushes into triangles is
@@ -14,6 +15,7 @@ import 'level.dart';
 final class BrushSurface {
   BrushSurface({
     required this.material,
+    required this.castsShadow,
     required this.positions,
     required this.normals,
     required this.texcoords,
@@ -22,6 +24,14 @@ final class BrushSurface {
   });
 
   final String material;
+
+  /// Whether the mesh built from this takes part in the shadow pass.
+  ///
+  /// **The reason surfaces are keyed by this as well as by material.** Brushes
+  /// are batched so that a level of two hundred and fifty of them is a handful
+  /// of draws, and a batch is the smallest thing that can answer — so a fence
+  /// and a wall of the same stone had to stop sharing one.
+  final bool castsShadow;
 
   /// Three floats per vertex.
   final Float32List positions;
@@ -96,16 +106,20 @@ final class BrushGeometry {
     (Vector3(0.0, 0.0, -1.0), Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
   ];
 
-  /// One surface per material actually used.
+  /// One surface per material actually used, per answer about shadows.
   List<BrushSurface> build(Level level) {
     final builders = <String, _SurfaceBuilder>{};
     final index = _BrushIndex(level, cellSize);
 
     for (final brush in level.brushes) {
       final material = level.materialFor(brush);
+      // Keyed by both, because a batch is the smallest thing that can be taken
+      // out of the shadow pass. A level with no fences in it produces exactly
+      // the batches it always did.
+      final key = brush.castsShadow ? brush.material : '${brush.material}\u0000';
       final builder = builders.putIfAbsent(
-        brush.material,
-        () => _SurfaceBuilder(brush.material),
+        key,
+        () => _SurfaceBuilder(brush.material, castsShadow: brush.castsShadow),
       );
       _emitBrush(brush, material, index, builder);
     }
@@ -233,9 +247,10 @@ final class _BrushIndex {
 
 /// Accumulates one material's triangles.
 final class _SurfaceBuilder {
-  _SurfaceBuilder(this.material);
+  _SurfaceBuilder(this.material, {required this.castsShadow});
 
   final String material;
+  final bool castsShadow;
   final List<double> _positions = <double>[];
   final List<double> _normals = <double>[];
   final List<double> _texcoords = <double>[];
@@ -278,6 +293,7 @@ final class _SurfaceBuilder {
 
   BrushSurface finish() => BrushSurface(
         material: material,
+        castsShadow: castsShadow,
         positions: Float32List.fromList(_positions),
         normals: Float32List.fromList(_normals),
         texcoords: Float32List.fromList(_texcoords),

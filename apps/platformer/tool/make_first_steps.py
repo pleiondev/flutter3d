@@ -58,16 +58,22 @@ def walls(z0, z1, *, height=16.0, material="stone"):
     first attempt and the autopilot climbed the chimney, walked off the top of
     the world at x = 12.5 and finished the level from outside it.
     """
+    # **They cast no shadow, and that is the point of the flag.** Sixteen metres
+    # of wall beside a twenty-two metre level lays a hard band of shade across a
+    # third of it at this sun — measured at eight per cent of a frame — and it
+    # reads as a shadow following the player, because they walk along it. These
+    # exist so the level cannot be walked out of; they were never meant to be
+    # lighting it.
     route([-WIDE / 2 - 0.5, height / 2 - 1.0, (z0 + z1) / 2.0],
-          [1.0, height, z1 - z0], material)
+          [1.0, height, z1 - z0], material, casts=False)
     route([WIDE / 2 + 0.5, height / 2 - 1.0, (z0 + z1) / 2.0],
-          [1.0, height, z1 - z0], material)
+          [1.0, height, z1 - z0], material, casts=False)
 
 
 LENGTH = (-10.0, 108.0)
 walls(*LENGTH)
-route([0.0, 7.0, LENGTH[0] - 0.5], [WIDE + 2, 16.0, 1.0], "stone")
-route([0.0, 7.0, LENGTH[1] + 0.5], [WIDE + 2, 16.0, 1.0], "stone")
+route([0.0, 7.0, LENGTH[0] - 0.5], [WIDE + 2, 16.0, 1.0], "stone", casts=False)
+route([0.0, 7.0, LENGTH[1] + 0.5], [WIDE + 2, 16.0, 1.0], "stone", casts=False)
 
 entities.append({"type": "player_spawn", "at": [0.0, 0.0, -8.0]})
 
