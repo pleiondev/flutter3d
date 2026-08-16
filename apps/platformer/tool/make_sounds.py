@@ -79,3 +79,24 @@ write("death.wav", tone(0.5, 480, 110, harmonics=(1.0, 0.45, 0.2)))
 
 # The checkpoint: a two-note chime, so it reads as good news.
 write("checkpoint.wav", tone(0.4, 600, 900, harmonics=(1.0, 0.5, 0.25)))
+
+# ---------------------------------------------------------------- footsteps --
+# **Running is most of what a player does and it was silent.** Three, because
+# the level's floors already differ underfoot and a step that sounds the same on
+# ice as on moss tells the player their surface change was cosmetic.
+#
+# All short and quiet: a sound heard twice a second has to sit under everything
+# else or it becomes the whole mix.
+write("step_moss.wav", tone(0.07, 240, 150, harmonics=(1.0, 0.2), noise=0.35, seed=11))
+write("step_stone.wav", tone(0.06, 400, 260, harmonics=(1.0, 0.35), noise=0.2, seed=13))
+write("step_ice.wav", tone(0.08, 900, 1200, harmonics=(1.0, 0.25), noise=0.15, seed=17))
+
+# A spring: the throw, not the landing. Rising and springy, and longer than a
+# jump so the two are not mistaken for each other.
+write("spring.wav", tone(0.3, 260, 1100, harmonics=(1.0, 0.4, 0.15)))
+
+# Something giving way underfoot: low, gritty, and over quickly.
+write("crumble.wav", tone(0.25, 160, 60, harmonics=(1.0, 0.5), noise=0.6, seed=23))
+
+# The way out. The only sound in the game that is allowed to be long.
+write("exit.wav", tone(1.1, 400, 800, harmonics=(1.0, 0.6, 0.3, 0.15)))

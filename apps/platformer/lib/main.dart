@@ -24,6 +24,7 @@ import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
+import 'src/soundtrack.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
@@ -184,6 +185,11 @@ class _GameScreenState extends State<GameScreen>
   int _deathsSeen = 0;
 
   final SaveFile _saveFile = SaveFile();
+
+  /// What a step sounds like. See `soundtrack.dart` for why this is a class
+  /// and not a method: a decision can be tested, an effect inside a widget
+  /// cannot.
+  final Soundtrack _soundtrack = Soundtrack();
 
   /// Which level is being played. Written by [_loadLevel], read by the save.
   String _levelAsset = _firstLevel;
@@ -460,6 +466,7 @@ class _GameScreenState extends State<GameScreen>
       _drawnAt.jumpTo(runner.body.position);
     }
     _savedFrom = null;
+    _soundtrack.reset();
   }
 
   /// Writes the run out when it has reached somewhere new to come back to.
@@ -687,11 +694,16 @@ class _GameScreenState extends State<GameScreen>
   void _hear(PlatformerSimulation sim, Runner runner) {
     final at = runner.position;
     final camera = _followCamera;
-    if (runner.jumpedThisStep) {
-      _audio.play(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at);
+
+    // **What to play is decided in `Ears` and only performed here.** It used to
+    // be decided here too, inside a widget, where nothing could ask what a step
+    // ought to sound like without a device and a window — so the game being
+    // mute was undetectable. See `ears.dart`.
+    for (final Heard heard in _soundtrack.listen(sim, runner)) {
+      _audio.play(heard.sound, heard.at);
     }
+
     if (runner.dashedThisStep) {
-      _audio.play(Sounds.dash, at);
       _particles.burst(Effects.dash, at);
       camera?.widen(0.1);
     }
@@ -702,17 +714,14 @@ class _GameScreenState extends State<GameScreen>
     // the game said nothing. Each one is a moment a player commits to something
     // and deserves to be told it landed.
     if (runner.longJumpedThisStep) {
-      // A long jump is a commitment — low, far, and no steering. It gets the
-      // dash's own sound and a wide skirt of dust, because it is the slide it
-      // came out of, launched.
-      _audio.play(Sounds.dash, at);
+      // A long jump is a commitment — low, far, and no steering. It gets a wide
+      // skirt of dust, because it is the slide it came out of, launched.
       _particles.burst(Effects.dust, at);
       camera?.widen(0.08);
     }
     if (runner.grabbedThisStep) {
-      // Catching a rope or a ladder: quiet, and the camera settles rather than
-      // kicking, because the runner has just stopped falling.
-      _audio.play(Sounds.checkpoint, at);
+      // Catching a rope or a ladder: the camera settles rather than kicking,
+      // because the runner has just stopped falling.
       _particles.burst(Effects.dust, at);
     }
     if (runner.bouncedThisStep) {
@@ -724,21 +733,16 @@ class _GameScreenState extends State<GameScreen>
       _particles.burst(Effects.spring, at, direction: _up);
     }
     for (var i = 0; i < sim.takenThisStep.length; i++) {
-      final where = sim.takenThisStep[i].origin;
-      _audio.play(Sounds.coin, where);
-      _particles.burst(Effects.coin, where);
+      _particles.burst(Effects.coin, sim.takenThisStep[i].origin);
     }
     if (sim.stompedThisStep) {
-      _audio.play(Sounds.land, at);
       _particles.burst(Effects.slam, at);
       camera?.kick(Vector3(0.0, -0.12, 0.0));
     }
     if (sim.reachedCheckpointThisStep) {
-      _audio.play(Sounds.checkpoint, at);
       _particles.burst(Effects.checkpoint, at, direction: _up);
     }
     if (sim.deaths != _deathsSeen) {
-      _audio.play(Sounds.death, at);
       _particles.burst(Effects.death, at);
       camera?.shake(0.5, seconds: 0.4);
     }

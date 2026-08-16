@@ -76,4 +76,80 @@ abstract final class Sounds {
     death,
     checkpoint,
   ];
+
+  /// A footstep, by what is underfoot.
+  ///
+  /// **Running is most of what a player does, and it was silent.** Three of
+  /// them because the level's floors already differ underfoot — ice slides and
+  /// mud drags — and a step that sounds the same on both tells the player the
+  /// surface change was decoration.
+  ///
+  /// Quiet and short: a sound heard twice a second either sits under everything
+  /// else or becomes the whole mix. `maxInstances` of two, because two feet is
+  /// the most that can ever be in the air at once.
+  static const SoundDef stepMoss = SoundDef(
+    name: 'step_moss',
+    asset: 'assets/sounds/step_moss.wav',
+    gain: 0.22,
+    maxInstances: 2,
+    priority: 0,
+    rateVariance: 0.14,
+  );
+
+  static const SoundDef stepStone = SoundDef(
+    name: 'step_stone',
+    asset: 'assets/sounds/step_stone.wav',
+    gain: 0.24,
+    maxInstances: 2,
+    priority: 0,
+    rateVariance: 0.14,
+  );
+
+  static const SoundDef stepIce = SoundDef(
+    name: 'step_ice',
+    asset: 'assets/sounds/step_ice.wav',
+    gain: 0.2,
+    maxInstances: 2,
+    priority: 0,
+    rateVariance: 0.14,
+  );
+
+  /// The throw off a pad, which had particles and no sound at all.
+  static const SoundDef spring = SoundDef(
+    name: 'spring',
+    asset: 'assets/sounds/spring.wav',
+    gain: 0.6,
+    maxInstances: 2,
+    rateVariance: 0.06,
+  );
+
+  /// Something giving way underfoot. Also used for a block broken by a pound:
+  /// they are the same event to the ear, and a second file to tell them apart
+  /// would be a distinction nobody hears.
+  static const SoundDef crumble = SoundDef(
+    name: 'crumble',
+    asset: 'assets/sounds/crumble.wav',
+    gain: 0.55,
+    maxInstances: 3,
+    rateVariance: 0.1,
+  );
+
+  /// The way out. The one sound in this game allowed to be long.
+  static const SoundDef exit = SoundDef(
+    name: 'exit',
+    asset: 'assets/sounds/exit.wav',
+    gain: 0.8,
+    maxInstances: 1,
+  );
+
+  /// Which footstep a surface name gets.
+  ///
+  /// The names come off the level's brushes, so this is where the document's
+  /// vocabulary meets the sound bank — and an unknown surface is stone rather
+  /// than silence, because a floor nobody named is still a floor.
+  static SoundDef stepOn(String? surface) => switch (surface) {
+        'ice' => stepIce,
+        'moss' => stepMoss,
+        _ => stepStone,
+      };
 }

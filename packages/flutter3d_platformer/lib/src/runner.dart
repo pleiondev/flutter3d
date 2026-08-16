@@ -339,6 +339,13 @@ final class Runner with KeyHolder
 
   /// What the feet were on last step, so the tuning is looked up when it
   /// changes rather than on every one of the sixty.
+  /// The surface name of the floor underfoot, or null on unnamed ground.
+  ///
+  /// For whatever wants to make a noise about it: a footstep on ice is not a
+  /// footstep on moss, and the level already says which is which on the brush.
+  /// The movement numbers are applied from this in `_readSurface`; this is the
+  /// same answer, offered rather than kept.
+  String? get standingOn => _standingOn;
   String? _standingOn;
   double _wallCoyote = 0.0;
   final Vector3 _wallAway = Vector3.zero();
