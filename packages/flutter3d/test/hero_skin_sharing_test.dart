@@ -292,9 +292,13 @@ void main() {
       // Mutation: drop `_scratch.invert()` from `Skeleton.update`. The posed
       // radius goes from 0.95 of the bind radius to 2184 times it — this
       // file's 48x armature scale, applied twice — which is exactly the shape
-      // the bug on screen looks like. Reparenting a mesh to the instance root
-      // (the mutation under `every skinned mesh hangs from the node that names
-      // it`) is caught here too, and for the same reason.
+      // the bug on screen looks like.
+      //
+      // Reparenting a mesh to the instance root does make this file red, but
+      // **not here and not for this reason**: the run dies earlier, inside
+      // `sourcesOf`, which finds no drawn surfaces under the node at all. Said
+      // plainly because a comment naming the wrong detector sends the next
+      // reader to the wrong place.
     });
   });
 }

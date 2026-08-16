@@ -13,6 +13,8 @@
 /// harness in this repository that can render a frame without a GPU.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -346,6 +348,57 @@ void main() {
       // the same character again to draw it.
       expect(built.joint.poseReads, lessThan(skinnedDraws),
           reason: 'the pose was recomputed for every face');
+    });
+  });
+
+  group('and the pose it draws is the pose the joint is in', () {
+    // **The hole the review found**, and it is the one that matters most: every
+    // fixture above pins its single joint at the identity with an identity
+    // inverse bind, deliberately, so the skinned box sits where an unskinned
+    // one would. That makes the whole suite blind to *which* matrices reach the
+    // atlas — bind the bind pose instead of the real one and all of it stays
+    // green, which is a shadow that never animates.
+    //
+    // Mutation: in `renderer.dart`, bind a fresh identity `Float32List` where
+    // the cube pass binds `skeleton.matrices`. The joints below stop arriving
+    // and this reads zeros.
+    test('a moved joint arrives in the atlas, not the bind pose', () async {
+      final device = FakeBackend();
+      final built = _scene(device, skinned: true);
+      // Off the identity, and by more than any tolerance: the joint carries the
+      // caster, so this is the difference between a shadow that follows the
+      // animation and one painted at the bind pose for ever.
+      built.joint.setPosition(0.0, 0.0, 3.0);
+
+      _renderer(device).render(
+        width: 64,
+        height: 64,
+        scene: built.scene,
+        views: <RenderView>[RenderView(camera: built.camera)],
+        settings: const RenderSettings(),
+      );
+
+      final skins = <Float32List>[
+        for (final pass in _atlasPasses(device))
+          for (final block in pass.recordedOf<RecordedUniformBlock>())
+            if (block.block == 'SkinInfo')
+              for (final member in block.members.values) member,
+      ];
+
+      expect(skins, isNotEmpty, reason: 'no joints reached the atlas at all');
+
+      // The translation lives in the last row of each 4x4. Identity has zeroes
+      // there; this joint has a 3 in one of them.
+      final carried = skins.any((Float32List m) {
+        for (var i = 0; i + 15 < m.length; i += 16) {
+          if ((m[i + 14] - 3.0).abs() < 1e-3) return true;
+        }
+        return false;
+      });
+
+      expect(carried, isTrue,
+          reason: 'the atlas was given a pose that does not contain the '
+              'joint\'s 3 m offset, so it is drawing the bind pose');
     });
   });
 }
