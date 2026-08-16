@@ -1272,6 +1272,11 @@ final class Renderer implements RenderServices {
     final position = vm.Vector3.zero();
     var drawn = 0;
 
+    // Which skinned casters have had their pose evaluated in this pass. See
+    // [_cubeShadowPosed]: the loop below reaches the same node once per face
+    // of every light, and the pose it would compute is the same each time.
+    _cubeShadowPosed.clear();
+
     for (var slot = 0; slot < slotCount; slot++) {
       position.setValues(
         _cubeLightData[slot * 4],
@@ -1344,13 +1349,26 @@ final class Renderer implements RenderServices {
           if (node.shadowIsStatic != static) continue;
           final mesh = node.mesh;
           if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
-          // Static geometry only for now: a skinned caster needs the skinned
-          // vertex stage, and a monster's shadow is worth less than getting the
-          // walls right first.
-          if (node.skeleton != null) continue;
+
+          // A skinned caster needs the skinned vertex stage here for the same
+          // reason it needs one in the main pass and in the cascade pass: the
+          // vertex layout is read off the shader's `in` declarations, so joints
+          // and weights make this a different shader whatever the body does.
+          // Drawing a rigged monster with the static stage would read its
+          // joints as a position.
+          final skeleton = node.skeleton;
+          final skinned = skeleton != null;
 
           pass.bindPipeline(
-            _cubeShadowPipeline ??= device.createPipeline(vertexShader, shader),
+            skinned
+                ? (_skinnedCubeShadowPipeline ??= device.createPipeline(
+                    skinnedVertexShader,
+                    shader,
+                  ))
+                : (_cubeShadowPipeline ??= device.createPipeline(
+                    vertexShader,
+                    shader,
+                  )),
           );
           pass.setWindingOrder(
             node.worldIsMirrored
@@ -1367,11 +1385,47 @@ final class Renderer implements RenderServices {
           mvp
             ..setFrom(_cubeDrawMatrix)
             ..multiply(node.worldMatrix);
-          pass.bindUniformBlock(vertexShader, _kFrameInfoBlock, {
-            'mvp': mvp.storage,
-            'model': node.worldMatrix.storage,
-            'normal_matrix': node.worldNormalMatrix.storage,
-          });
+          pass.bindUniformBlock(
+            skinned ? skinnedVertexShader : vertexShader,
+            _kFrameInfoBlock,
+            {
+              'mvp': mvp.storage,
+              'model': node.worldMatrix.storage,
+              'normal_matrix': node.worldNormalMatrix.storage,
+            },
+          );
+          if (skeleton != null) {
+            // What a skinned caster costs here, plainly: the joint array is
+            // bound again for every face this node is drawn into, so one
+            // character in front of one point light is up to six 4 KB uploads
+            // and six passes of the skinning arithmetic over its vertices
+            // instead of one — and up to twenty-four across the four rows the
+            // atlas holds. The GPU-side skinning is genuinely repeated, because
+            // each face is a separate draw and nothing caches a deformed
+            // vertex buffer.
+            //
+            // Three things bound it, none of which is a per-caster budget.
+            // [kShadowedLights] caps the lights at four. [_computeFaceSignatures]
+            // names only the faces whose ninety-degree frustum the caster's
+            // bounding sphere might touch, so a character standing off to one
+            // side lands in one or two of the six rather than all of them; and
+            // [ShadowFaceScheduler] then skips any named face whose signature
+            // did not change. That last one does *not* help a character that is
+            // actually animating: its pose stamp moves every frame, which is
+            // exactly what makes the shadow follow the animation, so an
+            // animated caster near a shadowed light pays this every frame.
+            //
+            // The CPU half is not repeated. `update` allocates a matrix per
+            // joint, and running it once per face would be sixty-odd
+            // allocations six times over for a pose that cannot change inside
+            // one pass.
+            if (_cubeShadowPosed.add(node)) {
+              skeleton.update(node.worldMatrix);
+            }
+            pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
+              'joint_matrices': skeleton.matrices,
+            });
+          }
           pass.bindUniformBlock(shader, 'ShadowLight', {
             'light': _cubeLight,
           });
@@ -1503,7 +1557,6 @@ final class Renderer implements RenderServices {
         if (node.shadowIsStatic) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
-        if (node.skeleton != null) continue;
 
         final radius = node.worldBoundsRadius;
         _shadowToCaster
@@ -1544,12 +1597,21 @@ final class Renderer implements RenderServices {
   /// forced the static/dynamic split in the first place changes its silhouette
   /// without moving its centre, and a signature that missed that would freeze
   /// its shadow in one pose.
+  ///
+  /// And the pose on top of that for a skinned one, because the same argument
+  /// applies twice over: a character walking on the spot keeps its world matrix
+  /// exactly where it was and changes its silhouette on every frame. The pose
+  /// stamp is a sum of globally monotonic version numbers, so it costs one read
+  /// rather than sixty-four matrices hashed, and it cannot repeat a value it
+  /// has already had.
   static int _casterKeyFor(MeshNode node) {
     var hash = identityHashCode(node);
     final m = node.worldMatrix.storage;
     for (var i = 0; i < 16; i++) {
       hash = _mix(hash, (m[i] * 1000.0).round());
     }
+    final skeleton = node.skeleton;
+    if (skeleton != null) hash = _mix(hash, skeleton.poseVersion);
     return hash;
   }
 
@@ -1662,7 +1724,27 @@ final class Renderer implements RenderServices {
   }
 
   PipelineHandle? _cubeShadowPipeline;
+
+  /// The same fragment stage paired with the skinned vertex one.
+  ///
+  /// A pipeline of its own rather than a reuse of [_skinnedShadowPipeline],
+  /// and the difference is the fragment half: the cascade pass records clip
+  /// depth through `ShadowDepth`, this one records radial distance through
+  /// `ShadowDistance`, and a pipeline is the pair. The uniform layout either
+  /// stage reads is identical, which is why nothing else about the skinned
+  /// path changes between the two.
+  PipelineHandle? _skinnedCubeShadowPipeline;
   PipelineHandle? _cubeShadowResetPipeline;
+
+  /// Skinned casters whose pose has already been evaluated in the pass now
+  /// being encoded.
+  ///
+  /// Held on the renderer rather than allocated per pass so that a frame with
+  /// no skinned casters — which is most frames in most scenes — costs one
+  /// `clear` of an empty set. Identity is the right key: the same node twice
+  /// means the same world matrix and the same joints, and two nodes sharing one
+  /// skeleton at different transforms genuinely need two evaluations.
+  final Set<MeshNode> _cubeShadowPosed = <MeshNode>{};
 
   /// Whether each atlas has been cleared since it was allocated.
   bool _cubeShadowCleared = false;
