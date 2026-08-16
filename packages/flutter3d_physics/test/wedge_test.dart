@@ -256,6 +256,62 @@ void main() {
           reason: 'climbed the back of the ramp, which is a wall');
     });
 
+    test('walks up it rather than flying up it', () {
+      // **A ramp was a ski jump.** Sliding along a slope puts the climb into
+      // the velocity as well as the position, so the body ended every step
+      // travelling upwards — and `_probeGround` reads upward speed as a jump,
+      // so it was airborne the whole way and launched off the top. Measured
+      // before: 0 grounded steps of the climb, and `velocity.y` pinned at
+      // +1.05 m/s.
+      //
+      // Mutation: stop recording the climb in `_slide` and every assertion
+      // below fails at once.
+      final world = rampWorld();
+      final player = _player(world, Vector3(0.0, 0.9, -3.0));
+      _walk(player, 30);
+
+      var airborne = 0;
+      var fastest = 0.0;
+      for (var i = 0; i < 100; i++) {
+        player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
+        world.update();
+        if (!player.isGrounded) airborne++;
+        fastest = math.max(fastest, player.velocity.y);
+      }
+
+      expect(player.position.y, greaterThan(2.5), reason: 'never climbed');
+      expect(airborne, 0, reason: 'left the ground while walking up a ramp');
+      expect(fastest, lessThan(0.01),
+          reason: 'the climb went into the velocity, so the top is a jump');
+    });
+
+    test('and too steep to stand on is too steep to climb', () {
+      // Past `_walkableNormalY` — sixty degrees — a face stops being a floor.
+      // Nothing new was written for this: the ground probe already refused a
+      // normal that flat, and until there was a shape that could report one,
+      // the refusal had never been reachable.
+      final world = _floor();
+      world.add(
+        Collider(
+          // Three and a half up over two along: sixty degrees and a bit.
+          shape: CollisionWedge(
+            Vector3(3.0, 3.5, 2.0),
+            uphill: WedgeUphill.positiveZ,
+          ),
+          position: Vector3(0.0, 3.5, 2.0),
+        ),
+      );
+      world.update();
+
+      final player = _player(world, Vector3(0.0, 0.9, -3.0));
+      _walk(player, 30);
+      final startY = player.position.y;
+      _walk(player, 150, direction: Vector3(0.0, 0.0, 1.0));
+
+      expect(player.position.y, closeTo(startY, 0.05),
+          reason: 'stood on a sixty-degree face');
+    });
+
     test('and a body never ends up inside one', () {
       // The stop condition plan §4a named in advance, in its smallest form: a
       // wedge that lets a body through is a wedge to revert.

@@ -279,6 +279,13 @@ final class CharacterController {
   double get steppedUp => _steppedUp;
   double _steppedUp = 0.0;
 
+  /// Whether this step slid along a face flat enough to stand on.
+  ///
+  /// Set by [_slide] and read by [_probeGround], and it exists because the two
+  /// cannot tell each other anything through the velocity: a body going up a
+  /// ramp and a body that has just jumped are both rising.
+  bool _climbed = false;
+
   /// Records that the player asked to jump.
   ///
   /// Buffered rather than acted on immediately, so the request survives the
@@ -472,6 +479,7 @@ final class CharacterController {
   void step(double dt, {required Vector3 wishDirection, bool sprint = false}) {
     _contacts = 0;
     _steppedUp = 0.0;
+    _climbed = false;
     _coyote = math.max(0.0, _coyote - dt);
     _jumpBuffer = math.max(0.0, _jumpBuffer - dt);
 
@@ -750,6 +758,15 @@ final class CharacterController {
         delta.z -= _hit.normal.z * intoSurface;
       }
 
+      // **A walkable face under the body is a slope being climbed, not a wall
+      // being hit.** Stripping the into-surface component below is what turns a
+      // horizontal push into motion up a ramp — and it puts that motion in the
+      // *velocity* too, so the body ends the step travelling upwards. Nothing
+      // told the ground probe the difference, and a probe that reads upward
+      // speed as a jump left the body airborne the whole way up and launched it
+      // off the top: a ramp was a ski jump.
+      if (_hit.normal.y > _walkableNormalY) _climbed = true;
+
       // Speed into the surface is gone for good, or the player would keep
       // accelerating into a wall and shoot along it the moment it ended.
       final speedIntoSurface = vel.dot(_hit.normal);
@@ -771,9 +788,16 @@ final class CharacterController {
     final leftDeliberately = _snapSuppressed;
     _snapSuppressed = false;
 
-    if (velocity.y > 0.0) {
+    // Rising because a slope pushed the body up it, rather than because the
+    // body left the ground on purpose. The two are indistinguishable from the
+    // velocity alone, which is why [_slide] records it.
+    final climbing = _climbed && !leftDeliberately;
+
+    if (velocity.y > 0.0 && !climbing) {
       // On the way up nothing counts as ground, or a jump would be cancelled by
-      // the floor it just left.
+      // the floor it just left. **The exception is a climb**, and it has to be
+      // an exception rather than a wider rule: a jump also rises with a floor
+      // an inch below it, and grounding that is a player who cannot jump.
       _setAirborne();
       return;
     }
