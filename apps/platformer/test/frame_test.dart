@@ -492,7 +492,7 @@ void main() {
         for (final m in it.mechanisms.all)
           if (m is Crumbling) m,
       ].first;
-      final over = shelf.origin!;
+      final over = shelf.origin;
       it.look(from: over + Vector3(0.0, 2.5, -6.0), at: over);
 
       expect(shelf.hasFallen, isFalse);
@@ -515,7 +515,7 @@ void main() {
       final asDrawn = await it.draw();
 
       final piece = it.pieceNear(over);
-      expect(piece, isNotNull, reason: 'no drawn piece near the shelf');
+      if (piece == null) fail('no drawn piece near the shelf');
       piece.visible = true;
       final forced = await it.drawAsIs();
 
@@ -537,7 +537,7 @@ void main() {
         for (final m in it.mechanisms.all)
           if (m is Breakable && m.name == 'the cap 2') m,
       ].first;
-      final over = cap.origin!;
+      final over = cap.origin;
       it.look(from: over + Vector3(0.0, 3.0, -7.0), at: over);
 
       // A ground pound, which is the only thing that opens one — see the
@@ -556,7 +556,7 @@ void main() {
       final asDrawn = await it.draw();
 
       final piece = it.pieceNear(over);
-      expect(piece, isNotNull, reason: 'no drawn piece near the cap');
+      if (piece == null) fail('no drawn piece near the cap');
       piece.visible = true;
       final forced = await it.drawAsIs();
 
