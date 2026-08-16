@@ -58,6 +58,7 @@ final class _Room {
   }
 
   final CollisionWorld world = CollisionWorld();
+  final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final Runner runner;
   late final Collectible key;
@@ -158,6 +159,67 @@ void _vanishing() {
 
     expect(other.key.isTaken, isTrue);
     expect(other.key.sinceTaken, double.infinity);
+  });
+
+  test('a gate that refuses says so, and the game can hear it', () {
+    // **The level has been saying things since the engine had signals, and this
+    // game never listened.** A trigger fires from inside the collision dispatch
+    // where there is nobody to return an outcome to, so the sentence is parked
+    // in `MechanismEvents.messages` — which the shooter drains, and the dungeon
+    // drains, and the platformer did not. A player who walked into a locked
+    // gate was told nothing and had no way to learn a key existed.
+    //
+    // **Through a plate and not by knocking**, which is the difference that
+    // matters: `door.activate(...)` hands its refusal straight back to whoever
+    // called it, and nobody calls it in this game. What a player touches is the
+    // plate in front of the gate, and that is the path where the sentence has
+    // nowhere to go but the event list.
+    //
+    // Mutation: drop `saidThisStep.addAll(events.messages)` from the
+    // simulation. The gate still refuses and the player still hears nothing.
+    final room = _Room();
+    room.mechanisms.add(
+      TriggerVolume(
+        name: 'the plate',
+        target: 'blue door',
+        collider: room.world.add(
+          Collider(
+            shape: CollisionBox(Vector3(2.0, 1.5, 0.5)),
+            position: Vector3(0.0, 1.0, 1.5),
+            kind: ColliderKind.trigger,
+            layer: CollisionLayers.trigger,
+            mask: CollisionLayers.player,
+          ),
+        ),
+      ),
+    );
+
+    final sim = PlatformerSimulation(
+      runner: room.runner,
+      collision: room.world,
+      input: room.input,
+      startAt: Vector3.zero(),
+      mechanisms: room.mechanisms,
+    );
+
+    // Onto the plate, which sits before the key: so the runner arrives at the
+    // gate's trigger empty-handed, as a player would the first time.
+    final said = <String>[];
+    // Twenty steps is two metres: onto the plate at z = 1.5 and stopped well
+    // short of the key at z = 3.
+    for (var i = 0; i < 20; i++) {
+      room.input.beginStep();
+      room.input.press(GameAction.moveForward);
+      sim.step(_dt);
+      room.input.endStep();
+      said.addAll(sim.saidThisStep);
+    }
+
+    expect(room.runner.keys, isEmpty, reason: 'it picked the key up first');
+    expect(said, isNotEmpty,
+        reason: 'it stood on the gate\'s plate and was told nothing');
+    expect(said.join(' '), contains('blue'),
+        reason: 'it said "$said", which does not name the key');
   });
 
   group('and a save carries it', () {

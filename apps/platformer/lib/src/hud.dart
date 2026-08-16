@@ -16,6 +16,8 @@ class Hud extends StatelessWidget {
     required this.state,
     required this.captured,
     required this.levelName,
+    this.keys = const <String>{},
+    this.message,
   });
 
   final int coins;
@@ -30,6 +32,18 @@ class Hud extends StatelessWidget {
   final RunState state;
   final bool captured;
   final String levelName;
+
+  /// Which keys the runner is carrying. A door asks "have you got one", so the
+  /// player has to be able to answer the same question without guessing.
+  final Set<String> keys;
+
+  /// The last thing the level said, or null.
+  ///
+  /// **The level has always said things and nobody was listening.** A locked
+  /// gate answers "You need the blue key" into a list the platformer never
+  /// drained, so a player who walked into one was told nothing and had no way
+  /// to learn a key existed.
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
@@ -50,9 +64,27 @@ class Hud extends StatelessWidget {
                 ],
                 const SizedBox(width: 24),
                 _Tally(label: 'time', value: clock(elapsed)),
+                if (keys.isNotEmpty) ...<Widget>[
+                  const SizedBox(width: 24),
+                  _Tally(
+                    label: keys.length == 1 ? 'key' : 'keys',
+                    // Named rather than counted: a door wants a colour, so a
+                    // number here would be the wrong answer to the question the
+                    // player is about to be asked.
+                    value: (keys.toList()..sort()).join(' '),
+                  ),
+                ],
               ],
             ),
           ),
+
+          if (message != null && state == RunState.running)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 96,
+              child: Center(child: _Banner(message!)),
+            ),
           if (state == RunState.finished)
             Center(
               child: _Results(

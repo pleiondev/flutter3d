@@ -117,6 +117,17 @@ final class PlatformerSimulation {
   /// Collectibles taken on this step, for a sound and a counter.
   final List<Collectible> takenThisStep = <Collectible>[];
 
+  /// What the level said to the player on this step.
+  ///
+  /// **Nothing in this game read it for the whole of its life.** A locked gate
+  /// answers "You need the blue key" and parks the sentence in
+  /// `MechanismEvents.messages`, because a trigger fires from inside the
+  /// collision dispatch, where there is nobody to return an outcome to. The
+  /// shooter drains that list and so does the dungeon; the platformer did not,
+  /// so a player who walked into a gate without the key was told nothing and
+  /// had no way to learn that a key existed at all.
+  final List<String> saidThisStep = <String>[];
+
   /// True on the step a checkpoint was reached for the first time.
   bool reachedCheckpointThisStep = false;
 
@@ -131,6 +142,7 @@ final class PlatformerSimulation {
 
   void step(double dt) {
     takenThisStep.clear();
+    saidThisStep.clear();
     reachedCheckpointThisStep = false;
     stompedThisStep = false;
 
@@ -297,6 +309,11 @@ final class PlatformerSimulation {
     for (final taken in events.taken) {
       if (taken is Collectible) takenThisStep.add(taken);
     }
+    // Whatever the level said. Published here rather than in its own reader
+    // because it comes off the same event object, gathered by the same
+    // `publish()` two lines up — and reading it before that call is how it
+    // stayed empty the first time this was written.
+    saidThisStep.addAll(events.messages);
   }
 
   void _readExits() {

@@ -191,6 +191,13 @@ class _GameScreenState extends State<GameScreen>
   /// cannot.
   final Soundtrack _soundtrack = Soundtrack();
 
+  /// The last thing the level said, and how much longer to say it for.
+  ///
+  /// Three seconds, and replaced rather than queued: a player who walks into a
+  /// gate twice wants the second answer, not both of them in order.
+  String? _said;
+  double _sayFor = 0.0;
+
   /// Which level is being played. Written by [_loadLevel], read by the save.
   String _levelAsset = _firstLevel;
 
@@ -600,6 +607,10 @@ class _GameScreenState extends State<GameScreen>
     _loop.paused = _sim == null || (!kIsWeb && !_devices.isCaptured);
     _loop.advance(dt.clamp(0.0, 0.25));
 
+    if (_sayFor > 0.0) {
+      _sayFor -= dt;
+      if (_sayFor <= 0.0) _said = null;
+    }
     _particles.advance(dt);
     _animateRunner(dt);
     _placeCamera(dt);
@@ -701,6 +712,13 @@ class _GameScreenState extends State<GameScreen>
     // mute was undetectable. See `ears.dart`.
     for (final Heard heard in _soundtrack.listen(sim, runner)) {
       _audio.play(heard.sound, heard.at);
+    }
+
+    // What the level said. It has been saying things since the engine had
+    // signals, into a list this game never drained.
+    for (final String said in sim.saidThisStep) {
+      _said = said;
+      _sayFor = 3.0;
     }
 
     if (runner.dashedThisStep) {
@@ -967,6 +985,8 @@ class _GameScreenState extends State<GameScreen>
                   // Nothing to capture in a browser, so nothing to prompt for.
                   captured: kIsWeb || _devices.isCaptured,
                   levelName: _loaded?.level.name ?? '',
+                  keys: _runner?.keys ?? const <String>{},
+                  message: _said,
                 ),
               if (_showSettings)
                 SettingsPanel(
