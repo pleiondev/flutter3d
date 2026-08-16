@@ -164,19 +164,23 @@ class _GameScreenState extends State<GameScreen>
   PlatformerSimulation? _sim;
   FollowCamera? _followCamera;
 
-  /// The runner's drawn position, one frame behind the simulation.
-  ///
-  /// Interpolated for the same reason the dungeon interpolates its camera: the
-  /// step is 60 Hz and the display may not be, and a body drawn at the last
-  /// step's position judders on a 120 Hz monitor even though the simulation is
-  /// perfectly smooth.
   /// Dust, sparks and flame. One pool for the whole game, one draw call.
   final ParticleSystem _particles = ParticleSystem(capacity: 2000);
 
   /// How the runner is drawn, from what it is doing. See `RunnerLooks`.
   final RunnerLooks _pose = RunnerLooks();
 
-  final InterpolatedVector3 _drawnAt = InterpolatedVector3();
+  /// The runner's drawn position, one frame behind the simulation.
+  ///
+  /// Interpolated for the same reason the dungeon interpolates its camera: the
+  /// step is 60 Hz and the display may not be, and a body drawn at the last
+  /// step's position judders on a 120 Hz monitor even though the simulation is
+  /// perfectly smooth.
+  ///
+  /// Replaced when a level loads, because that is when there is a runner to ask
+  /// how tall a step it climbs — and the camera follows this, so a level of
+  /// stairs is a level of the horizon pitching until it is smoothed.
+  InterpolatedVector3 _drawnAt = InterpolatedVector3();
   final InterpolatedAngle _drawnYaw = InterpolatedAngle();
 
   final Vector3 _scratch = Vector3.zero();
@@ -458,7 +462,10 @@ class _GameScreenState extends State<GameScreen>
       );
       _followCamera = FollowCamera(world: loaded.collision);
       unawaited(_dressRunner(device, loaded.scene, runner));
-      _drawnAt.jumpTo(runner.body.position);
+      _drawnAt = InterpolatedVector3(
+        initial: runner.body.position,
+        stepLimit: runner.body.tuning.stepHeight,
+      );
       _drawnYaw.jumpTo(runner.yaw);
     });
 
@@ -640,7 +647,11 @@ class _GameScreenState extends State<GameScreen>
       camera.cut();
       _drawnAt.jumpTo(runner.body.position);
     } else {
-      _drawnAt.push(runner.body.position);
+      _drawnAt.push(
+        runner.body.position,
+        dt: dt,
+        steppedUp: runner.body.steppedUp,
+      );
     }
     _drawnYaw.push(runner.yaw);
   }

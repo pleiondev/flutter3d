@@ -262,6 +262,23 @@ final class CharacterController {
   int get contactsLastStep => _contacts;
   int _contacts = 0;
 
+  /// How far the last step lifted the body onto a ledge, in metres.
+  ///
+  /// Climbing a stair is a *teleport*: [_moveHorizontally] raises the body by
+  /// [MovementTuning.stepHeight], carries it across and sets it down, and all
+  /// of that is one step of simulated time. The simulation wants it that way.
+  /// A renderer does not — fifteen centimetres inside a sixtieth of a second is
+  /// nine metres a second, which pitches the horizon on every riser — so it is
+  /// reported here for anything drawing the body to smooth over. See
+  /// `InterpolatedVector3.stepLimit`.
+  ///
+  /// Reported rather than left to be worked out from the position, because a
+  /// rise the body did not travel through is not the same as a rise it was
+  /// carried through: a passenger on a lift is moved by [_carryWithGround] and
+  /// looks identical from outside.
+  double get steppedUp => _steppedUp;
+  double _steppedUp = 0.0;
+
   /// Records that the player asked to jump.
   ///
   /// Buffered rather than acted on immediately, so the request survives the
@@ -454,6 +471,7 @@ final class CharacterController {
   /// speed so an analogue stick works. [sprint] picks which top speed applies.
   void step(double dt, {required Vector3 wishDirection, bool sprint = false}) {
     _contacts = 0;
+    _steppedUp = 0.0;
     _coyote = math.max(0.0, _coyote - dt);
     _jumpBuffer = math.max(0.0, _jumpBuffer - dt);
 
@@ -656,6 +674,9 @@ final class CharacterController {
         (_stepPosition.z - position.z) * _delta.z;
 
     if (stepProgress > plainProgress + 1e-6) {
+      // Before the assignment, because this is how far the body was lifted and
+      // [position] is still where it was lifted from.
+      _steppedUp = math.max(0.0, _stepPosition.y - position.y);
       position.setFrom(_stepPosition);
       velocity.setFrom(_stepVelocity);
     } else {

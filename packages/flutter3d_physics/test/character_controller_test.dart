@@ -253,6 +253,62 @@ void main() {
       expect(player.position.y, closeTo(0.9, 0.05));
     });
 
+    test('the climb is reported, so a renderer can smooth it', () {
+      // A step up is a teleport inside one simulated step, and a renderer
+      // showing it raw pitches the horizon on every riser. It cannot work the
+      // height out from the position — see the lift below — so the controller
+      // says how far it lifted the body.
+      final world = stairsWorld(0.3);
+      final player = _player(world);
+      _walk(player, 30);
+      expect(player.steppedUp, 0.0, reason: 'nothing was climbed standing still');
+
+      var climbed = 0.0;
+      for (var i = 0; i < 35; i++) {
+        player.step(_dt, wishDirection: Vector3(0.0, 0.0, -1.0));
+        player.world.update();
+        climbed = math.max(climbed, player.steppedUp);
+      }
+
+      expect(player.position.z, lessThan(-2.5), reason: 'never reached the step');
+      // The whole of the ledge, in one step, and never more than the limit.
+      expect(climbed, closeTo(0.3, 0.02));
+      expect(climbed, lessThanOrEqualTo(const MovementTuning().stepHeight));
+      // And it is this step's news, not a running total.
+      _walk(player, 5, direction: Vector3(0.0, 0.0, -1.0));
+      expect(player.steppedUp, 0.0);
+    });
+
+    test('a body carried upward has climbed nothing', () {
+      // **The distinction the report exists for.** A lift moves its passenger
+      // by writing the body's position, so a rise measured from outside looks
+      // exactly like a stair — and a renderer smoothing it would draw the
+      // runner sunk into the lift for the whole ascent.
+      final world = CollisionWorld();
+      final platform = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 0.5, 2.0)),
+          position: Vector3(0.0, -0.5, 0.0),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+
+      final player = _player(world, at: Vector3(0.0, 0.9, 0.0));
+      _walk(player, 20);
+
+      var reported = 0.0;
+      for (var i = 0; i < 60; i++) {
+        platform.moveTo(platform.position + Vector3(0.0, 0.02, 0.0));
+        player.step(_dt, wishDirection: Vector3.zero());
+        world.update();
+        world.clearKinematicDeltas();
+        reported = math.max(reported, player.steppedUp);
+      }
+
+      expect(player.position.y, greaterThan(1.9), reason: 'the lift never rose');
+      expect(reported, 0.0);
+    });
+
     test('stepping up does not fire when there is no headroom', () {
       final world = stairsWorld(0.3);
       // A ceiling low enough that standing on the step would not fit.
