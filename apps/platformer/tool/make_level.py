@@ -473,6 +473,47 @@ for x in (-16.0, 16.0):
 # The summit: a colonnade, two ziggurats, the stair, and a ring of coins on top.
 
 checkpoint("past the ice", 170.0, 6)
+
+# ------------------------------------------------- the gate of two skills ---
+# **The summit is earned with the two verbs this level never asked for.** The
+# wall jump and the dash were paid for in the engine, taught in `first_steps`,
+# and then Ascent wanted neither of them for two hundred and sixty metres — so a
+# player learned two moves in the tutorial and never used them again.
+#
+# A corridor, because the field is sixty metres wide and anything not fenced is
+# something you walk around. The fences cast no shadow: see `Brush.castsShadow`.
+for x in (-13.0, 13.0):
+    route([x, 5.0, 181.0], [2.0, 12.0, 28.0], "stone", casts=False)
+
+# The chimney. **Two metres**, and that number is measured rather than chosen:
+# the runner's wall probe reaches fourteen centimetres, so a slot much wider is
+# one it falls down the middle of. Four metres was tried in `first_steps` and
+# the autopilot sat at the bottom of it.
+for x in (-6.5, 6.5):
+    route([x, 3.5, 180.0], [11.0, 7.0, 8.0], "stone")
+route([0.0, 3.5, 184.5], [2.0, 7.0, 1.0], "stone")
+coin([0.0, 2.0, 180.0], "the chimney coin one")
+coin([0.0, 5.0, 180.0], "the chimney coin two")
+
+# And the dash, from the top of the chimney. Nine metres against a double jump
+# that clears seven and a half — shown first by a coin out over solid ground, so
+# the move is worth trying before it is needed.
+coin([0.0, 8.2, 186.0], "the dash coin")
+# **Measured from the chimney's closing wall, not from the blocks.** The first
+# version put the landing at z = 195 and called the gap nine metres; the wall
+# that seals the top of the slot ends at 185, so the gap was seven — which a
+# double jump clears, and the set piece asked for nothing.
+route([0.0, 6.5, 197.5], [24.0, 1.0, 6.0], "stone")
+coin([0.0, 8.5, 190.0], "the coin over the gap")
+
+# **Nothing under the gap, and that is deliberate.** The ground runs the whole
+# length of this end of the level, so a miss drops you onto it and costs the
+# climb again — which is the right price for a mistake, and not the run. The
+# first version built a floor and a stair out of it, and put the stair directly
+# underneath the landing platform: half a metre of headroom against a body 1.8 m
+# tall, so the runner arrived, climbed, and was trapped under the thing it was
+# climbing towards.
+
 checkpoint("the foot of the stair", 190.0, 7)
 route([0.0, 1.2, 196.0], [26.0, 2.4, 8.0], "stone")
 route([0.0, 2.5, 206.0], [22.0, 5.0, 8.0], "stone")
@@ -515,14 +556,21 @@ coin([-30.0, 3.0, 185.0])
 coin([-30.0, 3.0, 188.0])
 
 # A cap of blocks over a pocket of coins. Nothing but a pound gets through it.
+#
+# **Moved back down the level, out of the gate of two skills.** It stood at
+# z = 176, which the chimney now occupies — so the three caps were inside solid
+# rock and the test that pounds one found nothing to pound. Moved in z rather
+# than in x, because the field either side of the corridor is already a forest
+# of pillars and every x tried put a coin inside one.
+_CAP_AT = 30.0
 for i, dx in enumerate((-2.0, 0.0, 2.0)):
-    breakable(f"the cap {i + 1}", [10.0 + dx, 3.6, 176.0], size=(2.0, 1.2, 4.0))
-fill([6.0, 1.5, 176.0], [2.0, 3.0, 6.0], "stone")
-fill([14.0, 1.5, 176.0], [2.0, 3.0, 6.0], "stone")
-fill([10.0, 1.5, 179.5], [10.0, 3.0, 1.0], "stone")
-fill([10.0, 1.5, 172.5], [10.0, 3.0, 1.0], "stone")
-coin([10.0, 0.8, 176.0])
-coin([8.0, 0.8, 176.0])
+    breakable(f"the cap {i + 1}", [_CAP_AT + dx, 3.6, 164.0], size=(2.0, 1.2, 4.0))
+fill([_CAP_AT - 4.0, 1.5, 164.0], [2.0, 3.0, 6.0], "stone")
+fill([_CAP_AT + 4.0, 1.5, 164.0], [2.0, 3.0, 6.0], "stone")
+fill([_CAP_AT, 1.5, 167.5], [10.0, 3.0, 1.0], "stone")
+fill([_CAP_AT, 1.5, 160.5], [10.0, 3.0, 1.0], "stone")
+coin([_CAP_AT, 0.8, 164.0])
+coin([_CAP_AT - 2.0, 0.8, 164.0])
 coin([12.0, 0.8, 176.0])
 
 # Two ziggurats flanking the stair, and lifts up the outer walls.

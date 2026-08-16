@@ -189,4 +189,79 @@ void main() {
     expect(climb.sim.state, RunState.finished,
         reason: 'stood on the summit and the level did not end');
   });
+
+  group('the gate of two skills', () {
+    // **Ascent asked for neither the wall jump nor the dash for two hundred and
+    // sixty metres.** Both were paid for in the engine and taught in
+    // `first_steps`, and then the level a player spends nine tenths of their
+    // time in wanted nothing but walking, jumping and a crouch — so two moves
+    // were learned in the tutorial and never used again.
+    //
+    // The approach to the summit is a corridor now: a two-metre chimney to
+    // climb, and a nine-metre gap to dash, against a double jump that clears
+    // seven and a half.
+    //
+    // **What is asserted here is that they are there and that they are the
+    // right size — not that they are unavoidable.** Three tests that claimed
+    // the second thing were written and deleted: this field is a hundred and
+    // twenty metres wide, two thin fences do not seal an approach, and a runner
+    // simply goes round. Making the gate compulsory is a redesign of the whole
+    // end of the level, and claiming it in a comment while a bot strolls past
+    // would be worse than saying so.
+
+    test('the chimney is a chimney and not a room', () {
+      // The measurement that decides whether it can be climbed at all: the
+      // runner's wall probe reaches fourteen centimetres, so a slot much wider
+      // than two metres is one it falls down the middle of. Four was tried in
+      // `first_steps` and the autopilot sat at the bottom of it.
+      //
+      // Mutation: widen the slot. This says by how much.
+      final level = _shipped();
+      final walls = <Brush>[
+        for (final brush in level.brushes)
+          if ((brush.centre.z - 180.0).abs() < 5.0 &&
+              brush.centre.y > 2.0 &&
+              brush.centre.x.abs() > 1.0 &&
+              brush.centre.x.abs() < 12.0)
+            brush,
+      ];
+      expect(walls, hasLength(2), reason: 'the chimney is not two walls');
+
+      final inner = walls
+          .map((Brush b) => b.centre.x.abs() - b.size.x / 2.0)
+          .reduce(math.min);
+      expect(inner * 2.0, closeTo(2.0, 0.1),
+          reason: 'the slot is ${inner * 2} m across, and a wall jump needs '
+              'about two');
+    });
+
+    test('and the gap past it is wider than a double jump', () {
+      // Nine metres against a measured 7.5. Mutation: narrow it, and the dash
+      // stops being the answer.
+      final level = _shipped();
+      final tops = <Brush>[
+        for (final brush in level.brushes)
+          if (brush.centre.x.abs() < 1.0 &&
+              brush.centre.z > 178.0 &&
+              brush.centre.z < 200.0 &&
+              brush.centre.y > 3.0)
+            brush,
+      ];
+      expect(tops, isNotEmpty, reason: 'nothing to jump from or to');
+
+      final near = tops
+          .map((Brush b) => b.centre.z + b.size.z / 2.0)
+          .where((double z) => z < 190.0)
+          .reduce(math.max);
+      final far = tops
+          .map((Brush b) => b.centre.z - b.size.z / 2.0)
+          .where((double z) => z > 190.0)
+          .reduce(math.min);
+
+      expect(far - near, greaterThan(7.5),
+          reason: 'the gap is ${far - near} m, which a double jump clears');
+      expect(far - near, lessThan(14.0),
+          reason: 'the gap is ${far - near} m, which a dash does not');
+    });
+  });
 }

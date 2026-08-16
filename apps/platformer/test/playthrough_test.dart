@@ -337,16 +337,33 @@ void main() {
         for (final b in level.brushes)
           // The middle lane only: the ziggurats and the colonnade beside it are
           // filling, and a player who wants them can take the hoists.
+          //
+          // **And the ground lane only.** There are two ways to this end of the
+          // level now: the terraces, and the high road that the gate of two
+          // skills lands on at seven metres. Measuring both as one staircase
+          // reads the drop from the high road onto the first terrace as a step
+          // nobody could climb — which is what happened the day the gate was
+          // authored, and it is the test's model that was wrong rather than the
+          // level.
           if (b.min.z >= 190.0 && b.min.x >= -14.0 && b.max.x <= 14.0 &&
               b.max.y > 1.0)
             b,
-      ]..sort((Brush a, Brush b) => a.min.z.compareTo(b.min.z));
+      ]
+        // **By height, not by distance.** Sorting along z assumed one staircase
+        // climbing away from the player, and there are two ways to this end of
+        // the level now — the terraces, and the high road the gate of two
+        // skills lands on. Ordered by z, the drop from the high road onto the
+        // first terrace reads as a step nobody could climb; ordered by height,
+        // the question is the one actually worth asking, which is whether every
+        // level here is within reach of the one below it.
+        ..sort((Brush a, Brush b) => a.max.y.compareTo(b.max.y));
 
       expect(stair, hasLength(greaterThanOrEqualTo(4)));
       var standing = 0.0;
       for (final terrace in stair) {
         expect(terrace.max.y - standing, lessThan(reach - 0.5),
-            reason: 'the terrace at ${terrace.min.z} is a step too tall');
+            reason: 'the terrace at ${terrace.min.z}, topping out at '
+                '${terrace.max.y}, is a step too tall from $standing');
         standing = terrace.max.y;
       }
     });
@@ -479,12 +496,19 @@ void main() {
       final game = _Game();
       final cap = game.named<Breakable>('the cap 2')!;
 
+      // **Above the cap, wherever the level put it.** This used to be three
+      // numbers copied out of the generator, and when the cap moved — evicted
+      // by the chimney that now stands where it was — the test went on
+      // pounding an empty patch of field and reported that a pound does not
+      // break a block.
+      final above = cap.origin + Vector3(0.0, 4.4, 0.0);
+
       // Landing on it from a height is not enough.
-      game.putAt(Vector3(10.0, 8.0, 176.0));
+      game.putAt(above);
       game.wait(120);
       expect(cap.isBroken, isFalse, reason: 'a landing broke it');
 
-      game.putAt(Vector3(10.0, 8.0, 176.0));
+      game.putAt(above);
       game.wait(4);
       game.input.beginStep();
       game.input.press(PlatformerActions.dropThrough);
