@@ -25,6 +25,7 @@ final class MovementTuning {
     this.coyoteTime = 0.1,
     this.jumpBufferTime = 0.1,
     this.groundProbe = 0.08,
+    this.floorSnapLength = 0.0,
   });
 
   final double walkSpeed;
@@ -76,11 +77,39 @@ final class MovementTuning {
   /// cannot jump and plays footstep sounds wrong.
   final double groundProbe;
 
+  /// How far the feet are pulled down to keep a floor they already had.
+  ///
+  /// **Zero, which is a body that lets go of the ground at every stair edge.**
+  /// [groundProbe] is eight centimetres and a 0.2 m step is not, so walking
+  /// down a staircase the body is in free fall for the first few frames of
+  /// every tread: a measured run down forty 0.2 m steps spent 116 of its 600
+  /// steps airborne. Airborne is not cosmetic — it means air acceleration
+  /// instead of ground friction, no step-up when something is in the way, a
+  /// coyote timer draining, and whatever the game hangs off [isGrounded]
+  /// flickering sixty times a second.
+  ///
+  /// Set it and the probe reaches this far instead — but **only when the feet
+  /// were already on something and did not deliberately leave it**, which is
+  /// the whole safety of the mechanism. A reach that also *found* ground would
+  /// be a body that cannot fall and cannot jump; this one can only keep a
+  /// contact it already had, and one step of not having it is enough to fall
+  /// for good.
+  ///
+  /// **The cost, plainly: a drop shorter than this stops being a drop.** Step
+  /// off a ledge this high and the body is placed on the floor below rather
+  /// than falling to it, so the figure has to stay well under the shallowest
+  /// hole a level means as a hole. A third of a metre carries a 0.2 m
+  /// staircase; the shallowest pit anything in this repository authors is two
+  /// metres down, so there is an order of magnitude of room between the two.
+  /// A game that wants a genuine hop down a kerb wants a *smaller* number than
+  /// its stair rise, not a bigger one.
+  final double floorSnapLength;
+
   /// The same numbers with a few changed.
   ///
   /// Wanted the moment two things have an opinion about how a body moves at
   /// once — a floor that is ice *and* a body that is crouching. Without it the
-  /// second one has to restate all twelve numbers and silently loses whatever
+  /// second one has to restate all thirteen numbers and silently loses whatever
   /// the first one said.
   MovementTuning copyWith({
     double? walkSpeed,
@@ -95,6 +124,7 @@ final class MovementTuning {
     double? coyoteTime,
     double? jumpBufferTime,
     double? groundProbe,
+    double? floorSnapLength,
   }) =>
       MovementTuning(
         walkSpeed: walkSpeed ?? this.walkSpeed,
@@ -109,6 +139,7 @@ final class MovementTuning {
         coyoteTime: coyoteTime ?? this.coyoteTime,
         jumpBufferTime: jumpBufferTime ?? this.jumpBufferTime,
         groundProbe: groundProbe ?? this.groundProbe,
+        floorSnapLength: floorSnapLength ?? this.floorSnapLength,
       );
 }
 
@@ -180,7 +211,7 @@ final class CharacterController {
   /// Not final, which is the whole of what ice, mud, water, a low-gravity room
   /// and a slow-effect are made of: the game assigns a different constant and
   /// the next step uses it. The alternative was a friction multiplier on the
-  /// engine, which would have been one genre's word for one of the twelve
+  /// engine, which would have been one genre's word for one of the thirteen
   /// numbers in here.
   ///
   /// [save] does not carry it, deliberately: it is a reference to a constant
@@ -197,6 +228,12 @@ final class CharacterController {
   Collider? _ground;
   double _coyote = 0.0;
   double _jumpBuffer = 0.0;
+
+  /// Whether the next ground probe has been told the body meant to leave.
+  ///
+  /// See [suppressFloorSnap] for why it exists and why it is a single flag
+  /// rather than a timer.
+  bool _snapSuppressed = false;
 
   /// Whether the feet are on something as of the last step.
   bool get isGrounded => _grounded;
@@ -231,6 +268,28 @@ final class CharacterController {
   /// fraction of a second before landing.
   void requestJump() => _jumpBuffer = tuning.jumpBufferTime;
 
+  /// Says that the body is leaving the ground **on purpose**, so the next
+  /// ground probe must not pull it back.
+  ///
+  /// [MovementTuning.floorSnapLength] keeps the feet on a floor they already
+  /// had. That is what a stair edge wants and the opposite of what a spring, a
+  /// bounce or a jump the game owns wants — and from in here the two look
+  /// identical, because both are a body that was grounded last step with its
+  /// upward speed written from outside. Nothing on a `Vector3` records who
+  /// assigned to it.
+  ///
+  /// This body's own [_tryJump] needs no such announcement: it clears
+  /// [isGrounded] on the spot, which the probe reads as "not mine to keep". It
+  /// calls this anyway, so that the rule is one rule with one name rather than
+  /// two spellings of it that can drift apart.
+  ///
+  /// **A flag spent by the next probe, not a timer**, and the difference
+  /// matters at the call site: a game may write its velocity before the step
+  /// or after it, and a window measured in seconds would have to know which.
+  /// One probe is also all that is needed — a body that has genuinely left is
+  /// airborne by the end of it, and an airborne body is never snapped again.
+  void suppressFloorSnap() => _snapSuppressed = true;
+
   /// Everything about this body that a snapshot has to carry.
   ///
   /// The four scalars beyond position and velocity are the ones whose absence
@@ -259,6 +318,7 @@ final class CharacterController {
     collider.clearDelta();
     _grounded = from['grounded'] == true;
     _ground = null;
+    _snapSuppressed = false;
     _coyote = _readNumber(from['coyote']);
     _jumpBuffer = _readNumber(from['jumpBuffer']);
   }
@@ -345,6 +405,7 @@ final class CharacterController {
     _ground = null;
     _coyote = 0.0;
     _jumpBuffer = 0.0;
+    _snapSuppressed = false;
   }
 
   // Scratch. One step runs several sweeps and the step runs sixty times a
@@ -369,6 +430,22 @@ final class CharacterController {
   /// where the slab test can go either way. A millimetre of clearance costs
   /// nothing visible and removes the whole class of jitter.
   static const double _skin = 0.001;
+
+  /// The flattest a contact's normal may lean and still be a floor.
+  ///
+  /// It is the cosine of the slope, so 0.5 is sixty degrees: anything steeper
+  /// is a wall the body slides down rather than a surface it stands on. Named
+  /// because the number is now read by a probe that reaches much further, and
+  /// a magic 0.5 in a longer sweep is a much easier thing to get wrong.
+  ///
+  /// **A game may have a constant that looks like this one and is not.** A
+  /// filter deciding whether a particular platform is solid for a particular
+  /// contact asks about that contact, not about walkability, and the two agree
+  /// today only because the sweeps in [CollisionWorld] cannot report a normal
+  /// that is not an axis. Give this figure a name in one place and it stays
+  /// one question; share it and the first genre that wants a steeper limit for
+  /// its own geometry changes what "standing" means for everybody.
+  static const double _walkableNormalY = 0.5;
 
   /// Advances by [dt].
   ///
@@ -504,6 +581,12 @@ final class CharacterController {
     if (_grounded && velocity.y <= 0.0) {
       // A small downward bias keeps the box pressed against the floor, so the
       // ground probe below keeps finding it on the way down a staircase.
+      //
+      // Kept even though [MovementTuning.floorSnapLength] now does that job
+      // properly, because it is also what the *default* has instead of a snap:
+      // removing it would change how every existing game walks, which is a
+      // re-baselining this change is not worth. A sixtieth of a second of it
+      // is 1.7 cm, well inside the snap's reach, so the two do not fight.
       velocity.y = -1.0;
       return;
     }
@@ -522,6 +605,10 @@ final class CharacterController {
     _coyote = 0.0;
     _grounded = false;
     _ground = null;
+    // Belt and braces, and said out loud: clearing [_grounded] on the line
+    // above is already enough for this step's probe. See [suppressFloorSnap]
+    // for why the rule is spelt once rather than twice.
+    suppressFloorSnap();
   }
 
   /// Horizontal motion, with a step-up attempt when it gets blocked.
@@ -657,6 +744,12 @@ final class CharacterController {
 
   /// Decides whether the player is standing on anything, and snaps them to it.
   void _probeGround() {
+    // Spent here whatever happens, so that a body which really did leave is
+    // not still carrying permission on some later step. One probe is the whole
+    // window — see [suppressFloorSnap].
+    final leftDeliberately = _snapSuppressed;
+    _snapSuppressed = false;
+
     if (velocity.y > 0.0) {
       // On the way up nothing counts as ground, or a jump would be cancelled by
       // the floor it just left.
@@ -664,10 +757,29 @@ final class CharacterController {
       return;
     }
 
-    _probe.setValues(0.0, -tuning.groundProbe, 0.0);
+    // How far down to look. Past [MovementTuning.groundProbe] only to *keep* a
+    // floor: the feet must have been on something as of last step, and must
+    // not have chosen to leave it. A body that was already airborne gets the
+    // short probe, so the long reach can never find ground the body was not
+    // standing on — which is what stops a snap from being a body that cannot
+    // fall.
+    final reach = _grounded && !leftDeliberately
+        ? math.max(tuning.groundProbe, tuning.floorSnapLength)
+        : tuning.groundProbe;
+
+    _probe.setValues(0.0, -reach, 0.0);
+    // **`allow: solidFilter` is not optional here**, and it is easy to think
+    // it is. The filter is how a game says which surfaces count for this body
+    // — a platform that is a floor only from above, one it has just asked to
+    // fall through, a phase state — and a reach this long without it stands
+    // the body on a surface the game has refused. Not for ever: the step after
+    // that, gravity sinks the box into the surface, and a sweep whose shape
+    // starts inside a box reports no contact at all, so the fall resumes by
+    // itself. One step of it is still a landing, a refilled coyote timer, and
+    // [ground] naming a collider that is not supposed to be there.
     if (!world.sweep(shape, position, _probe, _hit,
             ignore: collider, allow: solidFilter) ||
-        _hit.normal.y <= 0.5) {
+        _hit.normal.y <= _walkableNormalY) {
       _setAirborne();
       return;
     }

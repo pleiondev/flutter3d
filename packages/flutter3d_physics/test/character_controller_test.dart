@@ -492,6 +492,254 @@ void main() {
     });
   });
 
+  group('the floor snap', () {
+    /// A staircase going down along +Z: [treads] treads, each 2 m deep and
+    /// [rise] lower than the one before, each solid all the way down so the
+    /// only thing under the feet is the tread itself.
+    CollisionWorld staircase({double rise = 0.2, int treads = 40}) {
+      final world = CollisionWorld();
+      for (var i = 0; i < treads; i++) {
+        world.addBox(
+          Vector3(0.0, -rise * i - 2.0, 2.0 * i + 1.0),
+          Vector3(8.0, 4.0, 2.0),
+        );
+      }
+      return world;
+    }
+
+    /// Walks down [world] for [steps] and counts the steps spent off the
+    /// ground.
+    int airborneWalkingDown(CollisionWorld world, MovementTuning tuning,
+        {int steps = 600}) {
+      final player = CharacterController(
+        world: world,
+        shape: CollisionBox(_playerHalf),
+        position: Vector3(0.0, 0.9, 0.5),
+        tuning: tuning,
+      );
+      var airborne = 0;
+      for (var i = 0; i < steps; i++) {
+        player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
+        world.update();
+        if (!player.isGrounded) airborne++;
+      }
+      return airborne;
+    }
+
+    test('without one, a staircase is a series of small falls', () {
+      // The measurement the snap exists to fix, pinned so that the fixture is
+      // known to reproduce it — and so that a default which quietly stopped
+      // being zero would be caught here rather than in a level.
+      //
+      // Mutation: default `floorSnapLength` to 0.3 and this reads zero.
+      expect(
+        airborneWalkingDown(staircase(), const MovementTuning()),
+        greaterThan(100),
+        reason: 'eight centimetres of probe cannot hold a twenty centimetre '
+            'step, and the body falls the rest of the way every tread',
+      );
+    });
+
+    test('with one, the feet never leave the stairs', () {
+      // Mutation: set `floorSnapLength` here to 0.0 — 116 of the 600 steps go
+      // airborne. Or drop the `math.max` in `_probeGround` so the reach stays
+      // at `groundProbe`, which is the same thing said in the controller.
+      final airborne = airborneWalkingDown(
+        staircase(),
+        const MovementTuning(floorSnapLength: 0.3),
+      );
+
+      expect(airborne, 0, reason: 'a 0.3 m reach carries a 0.2 m step');
+    });
+
+    test('and a pit is still a pit, at the default and at a stair-sized snap', () {
+      // The hazard the length has to stay under. A snap deep enough to reach
+      // an authored pit floor does not make the body fall in slowly — it
+      // *places* it at the bottom on the first step, so the fall never
+      // happens and nothing downstream ever sees the body airborne.
+      //
+      // Two metres is the shallowest pit anything in this repository authors.
+      //
+      // Mutation: default `floorSnapLength` to 2.0, or pass 2.0 below, and
+      // the body walks off the lip still grounded.
+      CollisionWorld pit() {
+        final world = CollisionWorld();
+        // The lip, z from -6 to 0, its top at y = 0.
+        world.addBox(Vector3(0.0, -1.0, -3.0), Vector3(8.0, 2.0, 6.0));
+        // The pit floor, two metres down, and long enough that walking on is
+        // not walking off the end of it.
+        world.addBox(Vector3(0.0, -3.0, 20.0), Vector3(8.0, 2.0, 40.0));
+        return world;
+      }
+
+      for (final tuning in <MovementTuning>[
+        const MovementTuning(),
+        const MovementTuning(floorSnapLength: 0.3),
+      ]) {
+        final world = pit();
+        final player = CharacterController(
+          world: world,
+          shape: CollisionBox(_playerHalf),
+          position: Vector3(0.0, 0.9, -3.0),
+          tuning: tuning,
+        );
+
+        var fell = false;
+        var fastest = 0.0;
+        for (var i = 0; i < 180; i++) {
+          player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
+          world.update();
+          if (!player.isGrounded) fell = true;
+          fastest = math.max(fastest, -player.velocity.y);
+        }
+
+        expect(fell, isTrue, reason: 'the body must leave the lip');
+        expect(fastest, greaterThan(3.0),
+            reason: 'and fall, rather than be placed at the bottom');
+        expect(player.position.y, closeTo(-1.1, 0.05),
+            reason: 'landing on the pit floor at y = -2');
+      }
+    });
+
+    test('the snap sweep asks the filter, so a refused floor is not a floor', () {
+      // The snap is the second sweep that can hold a body up, and
+      // [solidFilter] is how a game says which surfaces count for it —
+      // droppable platforms, phase states, a platform that is a floor only
+      // from above. Stepping off a lip onto a surface the filter refuses has
+      // to be stepping into space.
+      //
+      // Mutation: drop `allow: solidFilter` from the snap sweep in
+      // `_probeGround`. The reach finds the refused platform 0.2 m under the
+      // lip and stands the body on it.
+      //
+      // **For one step and not more**, which is worth saying rather than
+      // overselling: the step after, gravity sinks the box into the platform,
+      // and a sweep whose shape starts inside a box reports no hit at all — so
+      // the fall resumes by itself. One step is still a refilled jump budget,
+      // a reset coyote timer, a landing, and [ground] naming a collider the
+      // game has just said is not there.
+      final world = CollisionWorld();
+      // The lip: top at y = 0, z from -6 to 0.
+      world.addBox(Vector3(0.0, -1.0, -3.0), Vector3(8.0, 2.0, 6.0));
+      // A platform 0.2 m lower and well inside the snap's reach, which the
+      // filter refuses.
+      final refused =
+          world.addBox(Vector3(0.0, -0.35, 4.0), Vector3(8.0, 0.3, 8.0));
+      // And the real floor, far below both.
+      world.addBox(Vector3(0.0, -6.5, 0.0), Vector3(40.0, 1.0, 40.0));
+
+      final player = CharacterController(
+        world: world,
+        shape: CollisionBox(_playerHalf),
+        position: Vector3(0.0, 0.9, -3.0),
+        tuning: const MovementTuning(floorSnapLength: 0.5),
+      )..solidFilter = (Collider other, Vector3 normal) => other != refused;
+
+      var stoodOnIt = 0;
+      for (var i = 0; i < 90; i++) {
+        player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
+        world.update();
+        // Past the lip, and not yet down on the real floor.
+        if (player.position.z > 0.36 &&
+            player.position.y > -2.0 &&
+            player.isGrounded) {
+          stoodOnIt++;
+        }
+      }
+
+      expect(stoodOnIt, 0, reason: 'the refused platform is not ground');
+      expect(player.position.y, closeTo(-5.1, 0.05),
+          reason: 'it fell past it to the floor at y = -6');
+    });
+
+    test('a body that left the ground on purpose is not pulled back to it', () {
+      // A spring, a stomp bounce or a jump the game owns writes `velocity.y`
+      // from outside and the controller has no other way to know it was
+      // deliberate.
+      //
+      // **In open air it needs no help**, and this half claims no mutation:
+      // the upward speed survives the whole step, and `_probeGround`'s
+      // `velocity.y > 0.0` early-out already calls that airborne one layer
+      // down. Asserted anyway, because it is the thing a caller cares about.
+      final open = CollisionWorld();
+      open.addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
+      final thrown = CharacterController(
+        world: open,
+        shape: CollisionBox(_playerHalf),
+        position: Vector3(0.0, 0.9, 0.0),
+        tuning: const MovementTuning(floorSnapLength: 0.5),
+      );
+      _walk(thrown, 30);
+      thrown.velocity.y = 15.0;
+      thrown.suppressFloorSnap();
+      thrown.step(_dt, wishDirection: Vector3.zero());
+
+      expect(thrown.velocity.y, closeTo(15.0 - 24.0 * _dt, 1e-6));
+      expect(thrown.isGrounded, isFalse);
+
+      // The half that does need it: a low ceiling takes the upward speed away
+      // inside the same step, so the probe runs with `velocity.y` at zero and
+      // the feet twenty centimetres above a floor they were on last step —
+      // which is exactly the shape of a stair edge.
+      //
+      // Mutation: drop the `suppressFloorSnap()` call — or the
+      // `!leftDeliberately` term in `_probeGround` — and the body is placed
+      // back on the pad it was thrown from, still grounded, having gone
+      // nowhere. With a pad that fires while it is stood on, that is a runner
+      // vibrating in place for ever.
+      final shaft = CollisionWorld();
+      shaft.addBox(Vector3(0.0, -0.5, 0.0), Vector3(20.0, 1.0, 20.0));
+      shaft.addBox(Vector3(0.0, 2.3, 0.0), Vector3(20.0, 0.6, 20.0));
+      final bonked = CharacterController(
+        world: shaft,
+        shape: CollisionBox(_playerHalf),
+        position: Vector3(0.0, 0.9, 0.0),
+        tuning: const MovementTuning(floorSnapLength: 0.5),
+      );
+      _walk(bonked, 30);
+      final pad = bonked.position.y;
+
+      bonked.velocity.y = 15.0;
+      bonked.suppressFloorSnap();
+      bonked.step(_dt, wishDirection: Vector3.zero());
+
+      expect(bonked.velocity.y, closeTo(0.0, 1e-9), reason: 'the ceiling');
+      expect(bonked.isGrounded, isFalse);
+      expect(bonked.position.y, greaterThan(pad + 0.15),
+          reason: 'it stays where the ceiling stopped it');
+    });
+
+    test('and the suppression is spent by one probe, not held for ever', () {
+      // A flag nobody clears is a body whose snap was turned off by one jump
+      // and never came back — and because the plain probe still lands it, the
+      // symptom is not a fall but a staircase that starts stuttering again
+      // twenty seconds after the jump that broke it. That is the kind of bug
+      // nobody attributes to the jump.
+      //
+      // Mutation: drop `_snapSuppressed = false;` from `_probeGround`. The
+      // stairs below go back to 116 airborne steps out of 600.
+      final world = staircase();
+      final player = CharacterController(
+        world: world,
+        shape: CollisionBox(_playerHalf),
+        position: Vector3(0.0, 0.9, 0.5),
+        tuning: const MovementTuning(floorSnapLength: 0.3),
+      );
+
+      var airborne = 0;
+      for (var i = 0; i < 600; i++) {
+        // Once, early on, and nothing else about the run changes.
+        if (i == 60) player.suppressFloorSnap();
+        player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
+        world.update();
+        // From the step after the one it was allowed to spoil.
+        if (i > 61 && !player.isGrounded) airborne++;
+      }
+
+      expect(airborne, 0, reason: 'one probe later the snap is back');
+    });
+  });
+
   group('the stress test', () {
     test('a thousand runs never end inside geometry', () {
       // Point tests find the failures somebody thought of. This finds the ones

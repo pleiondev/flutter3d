@@ -191,6 +191,15 @@ final class RunnerTuning {
 /// treats anything moving up as airborne. So setting `velocity.y` from out here
 /// behaves exactly like the controller's own jump, and the controller needed no
 /// hook, no callback and no subclass.
+///
+/// **It has since cost exactly one line, which is the honest version of that
+/// claim.** `MovementTuning.floorSnapLength` keeps a grounded body's feet on
+/// the floor they had, and a grounded body whose `velocity.y` somebody else
+/// wrote looks precisely like one walking off a stair edge. So every place in
+/// here that throws the runner upward also calls
+/// `CharacterController.suppressFloorSnap` — still no hook and no subclass,
+/// but no longer *nothing*: writing a public field is not by itself a way to
+/// state an intention.
 final class Runner with KeyHolder
     implements Damageable, Rider, Gatherer, KeyTaker, Launchable {
   Runner({
@@ -565,6 +574,12 @@ final class Runner with KeyHolder
         ..x = rope.swingVelocity
         ..y = tuning.jumpSpeed
         ..z = 0.0;
+      // The same rule as everywhere else in here: the genre wrote the upward
+      // speed, so the genre says the ground was left on purpose. It matters
+      // here because a climber holds a ladder without the controller ever
+      // stepping, so what the body last recorded may well be the floor it
+      // grabbed the ladder from.
+      body.suppressFloorSnap();
       _airJumpsLeft = tuning.airJumps;
       jumpedThisStep = true;
       return;
@@ -696,6 +711,10 @@ final class Runner with KeyHolder
   /// fast the runner was falling would reward height instead of timing.
   void bounce() {
     body.velocity.y = _jumpHeld ? tuning.stompBounceHeld : tuning.stompBounce;
+    // Landing on a head is landing, so the body is usually *grounded* at this
+    // moment and a floor snap would happily keep it there. Saying so is the
+    // only way the controller can tell this apart from a stair edge.
+    body.suppressFloorSnap();
     _airJumpsLeft = tuning.airJumps;
     _coyote = 0.0;
     bouncedThisStep = true;
@@ -852,6 +871,11 @@ final class Runner with KeyHolder
       } else {
         body.velocity.y = tuning.jumpSpeed;
       }
+      // Every jump this genre owns is a departure the controller did not
+      // decide, and its floor snap must not treat one as a stair edge. Both
+      // branches, because a long jump leaves at six metres a second and is
+      // just as much a jump.
+      body.suppressFloorSnap();
       _coyote = 0.0;
     } else if (_wallCoyote > 0.0 && _wallAway.length2 > 1e-6) {
       // Up and away from the wall, and the horizontal is *set* rather than
@@ -861,6 +885,13 @@ final class Runner with KeyHolder
         ..x = _wallAway.x * tuning.wallJumpPush
         ..y = tuning.wallJumpUp
         ..z = _wallAway.z * tuning.wallJumpPush;
+      // Said for the same reason as the branch above, and honestly it
+      // can change nothing: this branch is only reachable while airborne —
+      // `body.isGrounded || _coyote > 0.0` is tested first — and a body that
+      // is already airborne is never snapped. It is here so that "the genre
+      // wrote velocity.y to leave the ground" has one spelling rather than
+      // three sites and an exception.
+      body.suppressFloorSnap();
       _wallCoyote = 0.0;
       _onWall = false;
       // The air jump comes back. Two walls facing each other are meant to be
@@ -960,6 +991,12 @@ final class Runner with KeyHolder
   @override
   void launch(double speed) {
     body.velocity.y = speed;
+    // A pad is walked over, so the feet are on the floor under it when this
+    // fires: without this line a body with a floor snap set would be entitled
+    // to keep that floor, and a launch that meets anything overhead — a
+    // ceiling, a ledge, a shaft — is put straight back on the pad, which fires
+    // again, for ever.
+    body.suppressFloorSnap();
     _buffer = 0.0;
     _coyote = 0.0;
     _airJumpsLeft = tuning.airJumps;

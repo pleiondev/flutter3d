@@ -106,6 +106,7 @@ final body = CharacterController(
     coyoteTime: 0.12,
     jumpBufferTime: 0.12,
     groundProbe: 0.15,
+    floorSnapLength: 0.3,
   ),
 );
 
@@ -120,6 +121,33 @@ body.step(dt, wishDirection: wish, sprint: input.held(GameAction.sprint));
 | `tryResize(shape, keepFeet: true)` | Crouch and stand, refused when there is no headroom |
 | `teleport(to)` | A cut, not a move, no sweep, no carry |
 | `solidFilter` | A `ContactFilter` that decides what counts as solid *for this body* |
+| `suppressFloorSnap()` | "I meant to leave the ground" — say it whenever you write `velocity.y` yourself |
+
+### Walking down stairs
+
+`groundProbe` asks whether there is a floor within a few centimetres of the
+feet. A staircase is further than that, so on every tread the body is briefly
+in free fall — measured at 116 airborne steps out of 600 walking down 0.2 m
+stairs, with everything that hangs off `isGrounded` flickering along with it.
+
+`floorSnapLength` is how far the probe may reach **to keep a floor it already
+had**, and it defaults to `0.0`, which is exactly today's behaviour. It never
+finds new ground: the feet must have been on something as of the last step.
+
+<div class="warn">
+<p><strong>A drop shorter than the snap stops being a drop.</strong> Step off a ledge this high and the body is placed on the floor below instead of falling to it, so keep the figure well under the shallowest hole your levels mean as a hole. A third of a metre carries a 0.2 m staircase; two metres would turn an authored pit into a dip.</p>
+</div>
+
+A spring, a stomp bounce or a jump the game owns is also a grounded body whose
+`velocity.y` was written from outside, and the controller cannot tell that from
+a stair edge. Call `suppressFloorSnap()` when you write it:
+
+```dart
+void launch(double speed) {
+  body.velocity.y = speed;
+  body.suppressFloorSnap();
+}
+```
 
 ### Coyote time and jump buffering
 
