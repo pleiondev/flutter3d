@@ -69,6 +69,70 @@ void main() {
     });
   });
 
+  group('what the validator says about one', () {
+    List<LevelIssue> check(Brush brush) => LevelValidator(
+          registry: EntityRegistry(const <EntityKind>[]),
+        ).validate(_level(<Brush>[brush]));
+
+    test('a sensible ramp draws no comment', () {
+      expect(
+        check(_ramp()).where((LevelIssue i) => i.message.contains('ramp')),
+        isEmpty,
+      );
+    });
+
+    test('and one steeper than a body can stand on is named', () {
+      // **A ramp is the one brush whose numbers can contradict its purpose.**
+      // Everything else about a block is what it says; a ramp's steepness is
+      // implied by its proportions, so a size typed the wrong way round is a
+      // slope nobody can climb that still loads, still draws, and still looks
+      // like a ramp from a distance.
+      final steep = Brush(
+        centre: Vector3(0.0, 2.0, 0.0),
+        size: Vector3(4.0, 4.0, 1.0),
+        material: 'stone',
+        ramp: WedgeUphill.positiveZ,
+      );
+
+      expect(
+        check(steep).map((LevelIssue i) => i.message).join(),
+        contains('steeper than sixty degrees'),
+      );
+    });
+
+    test('and one flat enough to be a block is named too', () {
+      final flat = Brush(
+        centre: Vector3(0.0, 0.05, 0.0),
+        size: Vector3(4.0, 0.1, 20.0),
+        material: 'stone',
+        ramp: WedgeUphill.positiveZ,
+      );
+
+      expect(
+        check(flat).map((LevelIssue i) => i.message).join(),
+        contains('a block would look the same'),
+      );
+    });
+
+    test('but neither refuses the level', () {
+      // A wedge-shaped wall is a perfectly good thing to build — it is what the
+      // outside of a roof is — and refusing to load a level over one would be
+      // the validator deciding what a game means by its own geometry.
+      final steep = Brush(
+        centre: Vector3(0.0, 2.0, 0.0),
+        size: Vector3(4.0, 4.0, 1.0),
+        material: 'stone',
+        ramp: WedgeUphill.positiveZ,
+      );
+
+      expect(
+        () => LevelValidator(registry: EntityRegistry(const <EntityKind>[]))
+            .assertValid(_level(<Brush>[steep])),
+        returnsNormally,
+      );
+    });
+  });
+
   group('in the collision world', () {
     test('a ramp becomes a wedge and a block becomes a box', () {
       final world = CollisionWorld();

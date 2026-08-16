@@ -218,9 +218,59 @@ final class LevelValidator {
           ),
         );
       }
+
+      _checkRamp(brush, where, issues);
     }
 
     _checkOverlaps(level, issues);
+  }
+
+  /// What a ramp has to be to be worth being one.
+  ///
+  /// **A ramp is the one brush whose numbers can contradict its purpose.**
+  /// Every other property of a block is what it says it is; a ramp's steepness
+  /// is implied by its proportions, so a size typed the wrong way round makes a
+  /// slope nobody can stand on — and it still loads, still draws, and still
+  /// looks like a ramp from a distance.
+  ///
+  /// Warnings rather than errors on purpose. A wall shaped like a wedge is a
+  /// perfectly good thing to build — it is what the outside of a roof is — and
+  /// refusing to load a level over one would be the validator deciding what a
+  /// game means by its own geometry.
+  void _checkRamp(Brush brush, String where, List<LevelIssue> issues) {
+    final uphill = brush.ramp;
+    if (uphill == null) return;
+
+    final run = uphill.axis == 0 ? brush.size.x : brush.size.z;
+    final gradient = brush.size.y / run;
+    // The same sixty degrees the character controller calls the flattest a
+    // contact may lean and still be a floor. Named here as a number rather than
+    // imported, because a game may hold a different opinion and this package
+    // must not be the one that decides.
+    const walkable = 1.732;
+
+    if (gradient > walkable) {
+      issues.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'ramp rises ${brush.size.y} over $run, which is steeper than sixty '
+          'degrees — a body slides down this rather than walking up it',
+          where: where,
+        ),
+      );
+    } else if (gradient < 0.02) {
+      // Two centimetres in a metre. Below that the wedge and the block it was
+      // cut from are the same thing to a player, and the difference is a face
+      // the mesh builder pays for and nobody sees.
+      issues.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'ramp rises ${brush.size.y} over $run, which is flat enough that a '
+          'block would look the same and cost less',
+          where: where,
+        ),
+      );
+    }
   }
 
   /// Reports solid brushes that share more than a token amount of volume.

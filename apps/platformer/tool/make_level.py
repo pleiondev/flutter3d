@@ -104,7 +104,17 @@ entities.append({
 route([-30.0, 2.0, 18.0], [12.0, 4.0, 12.0], "stone")
 route([32.0, 3.0, 8.0], [12.0, 6.0, 12.0], "stone")
 route([32.0, 1.0, 16.5], [8.0, 2.0, 5.0], "stone")
-route([32.0, 2.0, 12.0], [8.0, 4.0, 4.0], "stone")
+# **A way up the plateau that is walked rather than jumped.** Six metres over
+# twelve is twenty-seven degrees, up the western face, and it is additive: the
+# spring, the gantry and the two-metre step from the north are all still there.
+# A plateau reachable four ways is a plateau, and one reachable only by jumping
+# is a puzzle nobody set.
+#
+# **The first placement of this hung in mid-air** — put against the northern
+# face, its foot landed at z = 26, and the ground ends at z = 25 where the drop
+# begins. Nothing complained: a ramp whose bottom is over a hole is a perfectly
+# valid brush. The western field is solid for sixty metres.
+slope([20.0, 3.0, 5.0], [12.0, 6.0, 6.0], "stone", "+x")
 route([-8.0, 0.9, 22.0], [3.0, 0.4, 2.4], "brass")
 route([8.0, 0.9, 22.0], [3.0, 0.4, 2.4], "brass")
 coin([32.0, 6.8, 4.0], "plateau coin one")
