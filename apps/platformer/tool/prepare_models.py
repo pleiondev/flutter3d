@@ -39,13 +39,19 @@ def main() -> int:
     # unrecorded — which meant neither game could ship. It is generated now, by
     # `tool/make_key.py`, which writes both games' copies in one pass.
 
+    # **The rig is not a game asset any more.** It is prepared the same way and
+    # written to `packages/flutter3d/test/fixtures/`, because two engine tests
+    # draw it and the game does not: the runner is the penguin. It used to sit
+    # in `assets/models/`, which is declared whole, so 424 KB of character the
+    # game never drew went into every download.
     hero = _read(source / 'animated_platformer_character.glb')
     # Three and three quarter units tall in its bind pose, and the pose is a T
     # — the width is arms, not shoulders, so height is the only measurement
     # worth scaling by. 1.8 m makes it the size the character controller is.
     _transform_root(hero, scale=1.8 / 3.75)
     _make_lit(hero)
-    _write(hero, MODELS / 'hero.glb')
+    _write(hero, HERE.parent.parent.parent / 'packages' / 'flutter3d' / 'test'
+           / 'fixtures' / 'hero.glb')
 
     coin = _read(source / 'stylized_coin.glb')
     _resize_images(coin, 512)

@@ -46,7 +46,10 @@ import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 
 import 'fake_backend.dart';
 
-const String kHero = '../../apps/platformer/assets/models/hero.glb';
+// A fixture rather than a game's asset. It used to live in the platformer's
+// `assets/models/`, which is declared whole, so a rig the game stopped drawing
+// went into every download — see `test/fixtures/README.md`.
+const String kHero = 'test/fixtures/hero.glb';
 
 /// The decoded file and one uploaded copy of it, on a device that draws
 /// nothing.

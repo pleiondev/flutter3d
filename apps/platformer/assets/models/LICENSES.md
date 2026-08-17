@@ -86,24 +86,21 @@ difference between it and what was here before. The size is copied from the
 model it replaces (0.25 by 0.72 m) because both games place it by that size, and
 `test/key_model_test.dart` checks that it stayed there.
 
-## `hero.glb` — the runner, animated
 
-**Animated Platformer Character** by **Quaternius**, **CC0 1.0 (public domain)**
-— <https://poly.pizza/m/kKtL4zvS3n>, downloaded 15.08.2026 from
-`https://static.poly.pizza/906e29d9-2e15-4c5c-a38a-fb99023acc9c.glb`.
+## `hero.glb` — **not in this game any more**
 
-CC0, so there is no attribution requirement and this entry is a record rather
-than a duty. It is written down anyway, because the whole point of this file is
-that a licence nobody can trace is a debt — and a file whose provenance is
-"somebody downloaded it" cannot be told apart from one that is.
+Moved to `packages/flutter3d/test/fixtures/`, which no application declares and
+no player downloads.
 
-Chosen for what it has rather than for how it looks: **eighteen clips**,
-including `Idle`, `Walk`, `Run`, `Jump`, `Jump_Idle`, `Jump_Land`, `Duck` and
-`Death` — which is the platformer's whole state machine — and **twenty-nine
-joints**, comfortably under the engine's cap of sixty-four. The penguin has
-`animations: 0` and no skin at all, which is why the runner was a statue for
-three stages.
+It is a rigged character with eighteen clips that this game stopped drawing —
+the runner is the penguin — and it sat in this directory, which the pubspec
+declares whole, so 424 KB went into every download of a game that never showed
+it. That is the failure worth naming: an asset directory is bundled by the
+directory, so an asset stops shipping only when it stops being in one.
 
-Prepared by `tool/prepare_models.py`: scaled from its bind-pose height of 3.75
-units to the 1.8 m the character controller is, and `KHR_materials_unlit`
-stripped for the reason recorded above.
+Kept rather than deleted, because two engine tests draw it: four skins over one
+armature, which shipped broken twice, and the same rig rendered, which is what
+caught a node scale. Its licence — **Animated Platformer Character** by
+**Quaternius**, CC0 1.0, <https://poly.pizza/m/kKtL4zvS3n> — is recorded beside
+it in `test/fixtures/README.md`, because a file's provenance should travel with
+the file.

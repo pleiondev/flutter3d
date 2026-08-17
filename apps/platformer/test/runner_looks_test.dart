@@ -371,14 +371,20 @@ void _clipTests() {
     // not in the file makes `crossFadeToNamed` return false, and nothing looks
     // at the answer: the runner would simply keep playing whatever it was.
     //
-    // Against `hero.glb`, which the game does *not* currently load: it draws as
-    // a fan of triangles here and the penguin is shipped instead. The names are
-    // still worth guarding — the clip machinery is wired and the moment that
-    // model renders it is what plays — and asserting them against the penguin
-    // would assert nothing, because the penguin has no clips at all.
+    // Against `hero.glb`, which the game does *not* load: the penguin is shipped
+    // instead. The names are still worth guarding — the clip machinery is wired
+    // and the moment that model renders it is what plays — and asserting them
+    // against the penguin would assert nothing, because the penguin has no clips
+    // at all.
+    //
+    // **Read from the engine's fixtures**, because that is where the rig lives
+    // now: it used to sit in this game's `assets/models/`, which is declared
+    // whole, so 424 KB of a model nothing drew went into every download.
     final document = await decodeModel(
       const ModelLoadRequest(
-        source: FileAssetSource('assets/models/hero.glb'),
+        source: FileAssetSource(
+          '../../packages/flutter3d/test/fixtures/hero.glb',
+        ),
       ),
     );
 

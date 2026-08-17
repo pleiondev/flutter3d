@@ -102,15 +102,6 @@ abstract final class Credits {
       modified: true,
     ),
     Credit(
-      file: 'models/hero.glb',
-      work: 'Animated Platformer Character',
-      author: 'Quaternius',
-      source: 'https://poly.pizza/m/kKtL4zvS3n',
-      licence: 'CC0 1.0',
-      licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
-      modified: true,
-    ),
-    Credit(
       file: 'models/key.glb',
       work: 'A key',
       // **The one asset here that nobody had to be asked for.** The key that

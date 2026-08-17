@@ -36,7 +36,14 @@ import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 160;
+/// The penguin, which is the platformer's runner and therefore a game's asset.
 const String _models = '../../apps/platformer/assets/models';
+
+/// The rig, which is **not**. It used to sit beside the penguin, in a directory
+/// declared whole, so 424 KB went into every download of a game that stopped
+/// drawing it — see `flutter3d/test/fixtures/README.md`. It is still drawn here,
+/// because this is the test that caught its node scale.
+const String _fixtures = '../flutter3d/test/fixtures';
 
 ({CpuDevice device, Renderer renderer}) _engine() {
   final device = CpuDevice(
@@ -61,8 +68,9 @@ const String _models = '../../apps/platformer/assets/models';
 }
 
 Future<ModelAsset> _load(String name, CpuDevice device) async {
+  final where = name == 'hero' ? _fixtures : _models;
   final document = await decodeModel(
-    ModelLoadRequest(source: FileAssetSource('$_models/$name.glb')),
+    ModelLoadRequest(source: FileAssetSource('$where/$name.glb')),
   );
   return ModelAsset.fromDocument(
     document,
