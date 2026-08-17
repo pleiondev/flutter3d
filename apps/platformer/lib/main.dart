@@ -63,18 +63,34 @@ void main() {
 }
 
 class PlatformerApp extends StatelessWidget {
-  const PlatformerApp({super.key});
+  const PlatformerApp({super.key, this.openGraphics});
+
+  /// How to obtain the device this game draws with.
+  ///
+  /// **Null in the application, and the only reason it exists is that nothing
+  /// could ever mount this game.** `main.dart` opened the backend its build was
+  /// compiled for — `flutter_gpu` on the desktop — so a widget test had no way
+  /// past the first frame, and every screen, gate and wire in this file was
+  /// covered by nothing but an analyser and a pair of eyes. A test hands in a
+  /// `CpuDevice`, which is a `GraphicsDevice` with no GPU under it.
+  ///
+  /// One field, and it changes nothing about how the game runs: an application
+  /// that passes nothing gets exactly what it got before.
+  final Future<GraphicsDevice> Function()? openGraphics;
 
   @override
-  Widget build(BuildContext context) => const MaterialApp(
+  Widget build(BuildContext context) => MaterialApp(
         title: 'Ascent',
         debugShowCheckedModeBanner: false,
-        home: GameScreen(),
+        home: GameScreen(openGraphics: openGraphics),
       );
 }
 
 class GameScreen extends StatefulWidget {
-  const GameScreen({super.key});
+  const GameScreen({super.key, this.openGraphics});
+
+  /// See [PlatformerApp.openGraphics].
+  final Future<GraphicsDevice> Function()? openGraphics;
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -138,7 +154,16 @@ class _GameScreenState extends State<GameScreen>
   final CameraNode _camera = CameraNode(projection: Lens.base);
   late final RenderView _view;
 
-  GraphicsDevice? _device;
+  /// The device, for whoever needs it before it exists.
+  ///
+  /// **A level used to be dropped on the floor if it got here first.**
+  /// `_readLevel` began `if (device == null) return;` — silently, with nothing
+  /// to retry it — and the game only ever worked because opening a GPU happened
+  /// to finish before `initState` reached the first load. Lose that race and the
+  /// result is a black screen with no error and no way to ask why: a `flutter
+  /// test` loses it every time, which is how it was found, and a cold driver or
+  /// a slow machine is the same race with worse luck.
+  final Completer<GraphicsDevice> _deviceReady = Completer<GraphicsDevice>();
   Renderer? _renderer;
   Object? _initError;
 
@@ -385,13 +410,17 @@ class _GameScreenState extends State<GameScreen>
       // Which backend this is was decided at compile time by
       // `src/backend.dart`. The size is ignored by a backend that sizes itself
       // per frame, and is the canvas for one that does not.
-      device = await openDevice(width: kRenderWidth, height: kRenderHeight);
+      device = await (widget.openGraphics?.call() ??
+          openDevice(width: kRenderWidth, height: kRenderHeight));
     } catch (error) {
+      // Told to whoever is waiting as well, or a level load blocks for ever on
+      // a device that is never coming.
+      if (!_deviceReady.isCompleted) _deviceReady.completeError(error);
       if (mounted) setState(() => _initError = error);
       return;
     }
     if (!mounted) return;
-    _device = device;
+    if (!_deviceReady.isCompleted) _deviceReady.complete(device);
 
     setState(() {
       try {
@@ -566,7 +595,9 @@ class _GameScreenState extends State<GameScreen>
       await _readLevel(asset, resume: resume);
     } catch (error, trace) {
       debugPrint('level: could not load $asset: $error\n$trace');
-      if (mounted) {
+      // A device that never opened is reported as itself, once, by
+      // `_openGraphics` — not a second time here as a level that would not load.
+      if (mounted && _initError == null) {
         setState(() {
           _levelError = error;
           _levelErrorAsset = asset;
@@ -581,8 +612,9 @@ class _GameScreenState extends State<GameScreen>
   /// only ever a snapshot saved from *this* level — [SaveFile] refuses to hand
   /// over one from another.
   Future<void> _readLevel(String asset, {Snapshot? resume}) async {
-    final device = _device;
-    if (device == null) return;
+    // Waited for rather than given up on — see [_deviceReady].
+    final device = await _deviceReady.future;
+    if (!mounted) return;
     _levelAsset = asset;
     _levelError = null;
     // A load takes far longer than a frame and drops simulated time every time.
