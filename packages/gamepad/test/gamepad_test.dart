@@ -12,7 +12,8 @@ library;
 
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, debugDefaultTargetPlatformOverride, kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gamepad/gamepad.dart';
 import 'package:gamepad/src/standard_mapping.dart';
@@ -271,16 +272,33 @@ void main() {
     });
 
     test('and the default is whichever this build actually has', () {
-      // The conditional export is the whole of the platform choice, so this is
-      // the test that notices when it stops choosing. Run it both ways:
+      // The conditional export plus the native whitelist is the whole of the
+      // platform choice, so this is the test that notices when it stops
+      // choosing. Run it both ways; the second compiles the browser backend:
       //
       //     flutter test
       //     flutter test --platform chrome
       //
-      // The `false` half changes the day a native backend lands, and changing it
-      // is the point: a platform table nobody has to update is a platform table
-      // that goes stale.
-      expect(Gamepad().isSupported, kIsWeb ? isTrue : isFalse);
+      // **The platform has to be named, not inferred.** A `flutter test` on a
+      // desktop reports itself as `TargetPlatform.android` — `flutter_test`'s
+      // own default — so a test that simply asked would be asserting something
+      // about the machine it happens to run on.
+      if (kIsWeb) {
+        expect(Gamepad().isSupported, isTrue, reason: 'the browser backend');
+        return;
+      }
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      for (final platform in TargetPlatform.values) {
+        debugDefaultTargetPlatformOverride = platform;
+        // Exactly one native platform is written today, and this is the list
+        // that has to change the day another one is — which is the point: a
+        // platform table nobody has to update is one that goes stale.
+        expect(
+          Gamepad().isSupported,
+          platform == TargetPlatform.android,
+          reason: '$platform',
+        );
+      }
     });
   });
 

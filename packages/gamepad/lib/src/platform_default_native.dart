@@ -1,14 +1,18 @@
+import 'gamepad_method_channel.dart';
 import 'gamepad_platform_interface.dart';
 
 /// The gamepad a build outside the browser gets.
 ///
-/// Nothing yet, and honestly nothing: [UnsupportedGamepad] answers "no pad,
-/// ever" without opening a channel, so a game on a platform this package does
-/// not serve behaves exactly as it did before the package existed.
+/// [MethodChannelGamepad], which answers honestly on the platforms it has no
+/// native side for: its `isSupported` is a **whitelist** and it opens nothing
+/// until somebody reads it. So a macOS build behaves exactly as it did before
+/// this package existed, without a `MissingPluginException` to catch.
 ///
-/// macOS lands here, as a method channel over `GameController.framework`,
-/// whitelisted to the platforms that have a native side. It is not written yet
-/// for a reason recorded in the specification: **an earlier gamepad backend in
-/// this repository was deleted rather than finished**, because one written
-/// without a controller in hand is wrong in a way no test shows.
-GamepadPlatform defaultGamepadPlatform() => UnsupportedGamepad();
+/// Android is written. macOS and iOS are not, and the reason is recorded in the
+/// specification: **an earlier gamepad backend here was deleted rather than
+/// finished**, because one written without a controller in hand is wrong in a way
+/// no test shows. What made Android possible anyway is that its whole difficulty
+/// is in *choosing* — which axis is a trigger, whether the d-pad is a hat — and
+/// the choosing is in Dart, under test, with the Kotlin side forwarding raw
+/// events and deciding nothing.
+GamepadPlatform defaultGamepadPlatform() => MethodChannelGamepad();

@@ -23,3 +23,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.flutter3d.gamepad
+        pluginClass: GamepadPlugin
+
+      # The web needs no registration: the backend is pure Dart and
+      # `lib/src/platform_default.dart` selects it with a conditional export.
+      # macOS and iOS will need entries here when their native side is written.
