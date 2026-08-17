@@ -611,6 +611,16 @@ class _GameScreenState extends State<GameScreen>
         ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
         ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire);
 
+  /// The pointer goes back and the keys are let go, before a panel is shown.
+  ///
+  /// The second half used to happen only as a side effect of the first, so on a
+  /// build with no pointer to release a key held as the panel opened stayed
+  /// held — and closing it walked the player into a wall.
+  void _openSettings() {
+    unawaited(_devices.release());
+    _input.clear();
+  }
+
   void _setVolume(AudioBus bus, double volume) {
     setState(() {
       _audio.mixer.setVolume(bus, volume);
@@ -992,7 +1002,7 @@ class _GameScreenState extends State<GameScreen>
           // player on a controller — who never took the pointer — has a way in.
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape) {
-            if (!_showSettings) unawaited(_devices.release());
+            if (!_showSettings) _openSettings();
             setState(() => _showSettings = !_showSettings);
             return KeyEventResult.handled;
           }
@@ -1003,6 +1013,13 @@ class _GameScreenState extends State<GameScreen>
               event.logicalKey == LogicalKeyboardKey.keyF) {
             setState(() => _fogOn = !_fogOn);
           }
+          // **With the panel open the keys belong to the panel.** Handing them
+          // to the game costs two things at once: Flutter's focus traversal
+          // never sees Tab or the arrows, so a player with no mouse cannot
+          // reach a slider at all — and a key held as the panel opened stays
+          // held in the `InputState`, so closing it sends the player walking
+          // off on their own.
+          if (_showSettings) return KeyEventResult.ignored;
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
@@ -1114,9 +1131,7 @@ class _GameScreenState extends State<GameScreen>
                   child: IconButton(
                     tooltip: 'Settings',
                     onPressed: () {
-                      // The pointer first: a panel you cannot point at has no
-                      // way out of it.
-                      unawaited(_devices.release());
+                      _openSettings();
                       setState(() => _showSettings = true);
                     },
                     icon: const Icon(Icons.settings, color: Colors.white70),

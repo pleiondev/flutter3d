@@ -256,8 +256,12 @@ class Hud extends StatelessWidget {
           alignment: Alignment.bottomRight,
           child: Padding(
             padding: const EdgeInsets.only(right: 24.0, bottom: 84.0),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+            // `Wrap` rather than `Row`: this one is bounded by the screen, so
+            // at a large text size a row of four pouches overflows and Flutter
+            // paints the yellow bars over the game. Wrapping puts the fourth on
+            // a second line, which is what a glance wants anyway.
+            child: Wrap(
+              alignment: WrapAlignment.end,
               children: <Widget>[
                 for (final entry in pouches.entries)
                   Padding(

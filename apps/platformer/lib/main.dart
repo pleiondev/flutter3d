@@ -469,6 +469,18 @@ class _GameScreenState extends State<GameScreen>
     _settingsFile.write(_config);
   }
 
+  /// Everything that has to happen before a settings panel is on screen.
+  ///
+  /// Letting the mouse go, because a panel you cannot point at has no way out of
+  /// it — and **letting go of the keys**, which used to happen only as a side
+  /// effect of releasing the pointer. On the web and on a phone there is no
+  /// pointer to release, so a key held as the panel opened stayed held, and
+  /// closing the panel sent the runner walking off on their own.
+  void _openSettings() {
+    unawaited(_devices.release());
+    _input.clear();
+  }
+
   /// What a player can move, in the order the panel lists it.
   ///
   /// The game's list rather than the engine's `GameAction.common`: this one has
@@ -1266,10 +1278,17 @@ class _GameScreenState extends State<GameScreen>
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape &&
               _started) {
-            if (!_showSettings) unawaited(_devices.release());
+            if (!_showSettings) _openSettings();
             setState(() => _showSettings = !_showSettings);
             return KeyEventResult.handled;
           }
+          // **With the panel open the keys belong to the panel.** Handing them
+          // to the game costs two things at once: Flutter's focus traversal
+          // never sees Tab or the arrows, so a player with no mouse cannot
+          // reach a slider at all — and a key held as the panel opened stays
+          // held in the `InputState`, so closing it sends the player walking
+          // off on their own.
+          if (_showSettings) return KeyEventResult.ignored;
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
@@ -1405,9 +1424,7 @@ class _GameScreenState extends State<GameScreen>
                   top: 16,
                   child: IconButton(
                     onPressed: () {
-                      // Letting the mouse go first: a settings panel you cannot
-                      // point at is a settings panel with no way out of it.
-                      unawaited(_devices.release());
+                      _openSettings();
                       setState(() => _showSettings = true);
                     },
                     tooltip: 'Settings',
