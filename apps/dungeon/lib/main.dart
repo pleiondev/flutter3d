@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
@@ -42,6 +41,17 @@ import 'package:gamepad/gamepad.dart' show PadButton;
 /// What this proves, which no unit test can: that the fixed step, the captured
 /// mouse and the renderer agree with each other at 60 Hz on a real device.
 void main() {
+  // A phone is held the way a first-person camera wants it, and rotating it
+  // mid-fight would reframe the shot. `ensureInitialized` because both calls
+  // are platform channels.
+  if (Playing.touch) {
+    WidgetsFlutterBinding.ensureInitialized();
+    unawaited(SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]));
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky));
+  }
   runApp(const DungeonApp());
 }
 
@@ -229,7 +239,7 @@ class _GameScreenState extends State<GameScreen>
   /// ran, rather than replacing it, so a player with a hand on each turns the
   /// view by the sum.
   void _drainLook(Vector2 out) {
-    if (kIsWeb) {
+    if (Playing.dragLook) {
       _drainDragLook(out);
     } else {
       _devices.drainLook(out);
@@ -586,7 +596,9 @@ class _GameScreenState extends State<GameScreen>
     _pad.tick(dt);
     // A player on a controller never captures the pointer, so a gate that only
     // knew about the mouse would leave them looking at a frozen dungeon.
-    _loop.paused = !kIsWeb && !_devices.isCaptured && !_pad.isConnected;
+    _loop.paused = Playing.capturesPointer &&
+        !_devices.isCaptured &&
+        !_pad.isConnected;
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
@@ -878,7 +890,7 @@ class _GameScreenState extends State<GameScreen>
           // takes every pointer event over it.
           onPointerDown: (_) {
             _keyboard.requestFocus();
-            if (kIsWeb) return;
+            if (!Playing.capturesPointer) return;
             if (_devices.isCaptured) {
               _devices.pressPointer(ShooterActions.fire);
             } else {
@@ -886,7 +898,7 @@ class _GameScreenState extends State<GameScreen>
             }
           },
           onPointerUp: (_) {
-            if (kIsWeb) return;
+            if (!Playing.capturesPointer) return;
             _devices.releasePointer(ShooterActions.fire);
           },
           child: Stack(
@@ -905,14 +917,22 @@ class _GameScreenState extends State<GameScreen>
               // Hold to fire and drag to aim, which is what a captured pointer
               // already does at once — so the two are the same gesture here
               // rather than two that fight over the button.
-              if (kIsWeb)
+              //
+              // **On a phone it aims and does not fire.** A finger dragging to
+              // look is the same gesture as a mouse dragging to look, but a
+              // mouse has a second button and a thumb does not: firing on every
+              // drag would empty the weapon every time the player turned round.
+              // So a touch build gets a trigger of its own, below.
+              if (Playing.dragLook)
                 Positioned.fill(
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: (_) {
                       _keyboard.requestFocus();
                       _dragging = true;
-                      _devices.pressPointer(ShooterActions.fire);
+                      if (!Playing.touch) {
+                        _devices.pressPointer(ShooterActions.fire);
+                      }
                     },
                     onPointerMove: (PointerMoveEvent event) {
                       if (!_dragging) return;
@@ -920,17 +940,31 @@ class _GameScreenState extends State<GameScreen>
                     },
                     onPointerUp: (_) {
                       _dragging = false;
-                      _devices.releasePointer(ShooterActions.fire);
+                      if (!Playing.touch) {
+                        _devices.releasePointer(ShooterActions.fire);
+                      }
                     },
                     onPointerCancel: (_) {
                       _dragging = false;
-                      _devices.releasePointer(ShooterActions.fire);
+                      if (!Playing.touch) {
+                        _devices.releasePointer(ShooterActions.fire);
+                      }
                     },
                   ),
                 ),
+              // Above the drag layer, so a thumb on the stick is not also a turn
+              // of the view.
+              if (Playing.touch)
+                TouchControls(
+                  state: _input,
+                  buttons: const <TouchAction>[
+                    TouchAction(GameAction.use, 'use'),
+                    TouchAction(ShooterActions.fire, 'fire'),
+                  ],
+                ),
               Hud(
                 // Nothing to capture in a browser, so nothing to prompt for.
-                captured: kIsWeb || _devices.isCaptured,
+                captured: !Playing.capturesPointer || _devices.isCaptured,
                 fps: _fps,
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,

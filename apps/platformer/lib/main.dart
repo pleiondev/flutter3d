@@ -37,7 +37,6 @@ import 'src/save_file.dart';
 import 'src/scene_surface.dart';
 import 'src/settings_file.dart';
 import 'src/settings_panel.dart';
-import 'src/playing.dart';
 import 'src/sounds.dart';
 import 'src/title_card.dart';
 
@@ -308,7 +307,7 @@ class _GameScreenState extends State<GameScreen>
         InputSource.key(LogicalKeyboardKey.keyC.keyId),
         PlatformerActions.dropThrough,
       );
-    if (!Playing.dashOnPointer) {
+    if (!Playing.capturesPointer) {
       // The pointer is the dash on the desktop. Anywhere else a press is
       // something else — a drag that turns the camera, or a finger — and a
       // press that also dashed would spend one on every look. So those builds
@@ -1191,12 +1190,12 @@ class _GameScreenState extends State<GameScreen>
           onPointerDown: (_) {
             _keyboard.requestFocus();
             _begin();
-            if (!Playing.dashOnPointer) return;
+            if (!Playing.capturesPointer) return;
             _devices.pressPointer(PlatformerActions.dash);
             if (!_devices.isCaptured) unawaited(_devices.captureMouse());
           },
           onPointerUp: (_) {
-            if (!Playing.dashOnPointer) return;
+            if (!Playing.capturesPointer) return;
             _devices.releasePointer(PlatformerActions.dash);
           },
           child: Stack(
@@ -1278,7 +1277,7 @@ class _GameScreenState extends State<GameScreen>
                           ? 'Click to take the mouse, or press a button on the '
                               'pad.'
                           : 'Click to begin, or press a button on the pad.',
-                  dashOnPointer: Playing.dashOnPointer,
+                  dashOnPointer: Playing.capturesPointer,
                   touch: Playing.touch,
                   resuming: _resumed,
                 ),
