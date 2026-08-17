@@ -290,12 +290,18 @@ void main() {
       addTearDown(() => debugDefaultTargetPlatformOverride = null);
       for (final platform in TargetPlatform.values) {
         debugDefaultTargetPlatformOverride = platform;
-        // Exactly one native platform is written today, and this is the list
-        // that has to change the day another one is — which is the point: a
-        // platform table nobody has to update is one that goes stale.
+        // The native platforms written today, and this is the list that has to
+        // change the day another one is — which is the point: a platform table
+        // nobody has to update is one that goes stale. Windows and Linux are
+        // what is left, and neither has an XInput or an evdev side yet.
+        const written = <TargetPlatform>{
+          TargetPlatform.android,
+          TargetPlatform.macOS,
+          TargetPlatform.iOS,
+        };
         expect(
           Gamepad().isSupported,
-          platform == TargetPlatform.android,
+          written.contains(platform),
           reason: '$platform',
         );
       }

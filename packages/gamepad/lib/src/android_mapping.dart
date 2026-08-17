@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 
 import 'pad_button.dart';
+import 'pad_mirror.dart';
 import 'pad_snapshot.dart';
 
 /// The `MotionEvent` axis numbers this package reads.
@@ -77,7 +78,7 @@ abstract final class AndroidAxis {
 /// arrow keys, which every game here already binds to walking, and the honest
 /// alternative — claiming `pad:dpad.up` for a key that might be a keyboard's —
 /// would write a lie into the player's config file.
-final class AndroidPadState {
+final class AndroidPadState implements PadMirror {
   /// Which controls answer through Flutter's keyboard, by logical key id.
   ///
   /// `final` rather than `const` because a `LogicalKeyboardKey`'s id is not a
@@ -104,10 +105,40 @@ final class AndroidPadState {
   int? _leftTriggerAxis;
   int? _rightTriggerAxis;
 
+  @override
+  bool get connected => _deviceId != null;
+
+  /// Takes one message from the plugin.
+  ///
+  /// The payload's **type** says what it is, which is `mouse_capture`'s trick
+  /// and for its reason: a motion sample is the hot path and deserves one typed
+  /// list rather than a map with a discriminator in it. A message this does not
+  /// understand — an older Dart side against a newer plugin — changes nothing.
+  @override
+  void note(Object? event) {
+    if (event is Float64List) {
+      noteMotion(event);
+      return;
+    }
+    if (event is! Map) return;
+    switch (event['event']) {
+      case 'connected':
+        final id = event['device'];
+        if (id is! int) return;
+        final axes = event['axes'];
+        connect(
+          deviceId: id,
+          axes: axes is List ? axes.whereType<int>() : const <int>[],
+        );
+      case 'disconnected':
+        disconnect();
+      case 'relaxed':
+        relax();
+    }
+  }
+
   final Map<int, double> _axes = <int, double>{};
   final Set<String> _keysDown = <String>{};
-
-  bool get connected => _deviceId != null;
 
   /// The device this is mirroring, and which axes it admits to having.
   void connect({required int deviceId, required Iterable<int> axes}) {
@@ -179,6 +210,7 @@ final class AndroidPadState {
   }
 
   /// Writes the mirror into [out].
+  @override
   void fill(PadSnapshot out) {
     if (!connected) {
       out.disconnect();

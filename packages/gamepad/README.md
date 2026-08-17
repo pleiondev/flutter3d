@@ -62,9 +62,9 @@ by moving it.
 
 | Platform | State | How |
 |---|---|---|
-| macOS | not yet | `GameController.framework` — `GCController.current`, `GCExtendedGamepad`, and analogue triggers for free |
+| macOS | **yes** | `GameController.framework`, one Swift source shared with iOS |
 | Web | **yes** | `navigator.getGamepads()`, pure Dart, no native code |
-| iOS | not yet | the same Swift source as macOS |
+| iOS | **yes** | the same file, through `sharedDarwinSource` |
 | Android | **yes** | Kotlin forwards raw `MotionEvent` axes and an inventory of what the device has; every decision is in Dart |
 | Windows | no | XInput, when somebody needs it |
 | Linux | no | evdev, likewise |
@@ -79,6 +79,21 @@ rather than a preference. It also means a browser build has a gamepad under
 it **without opening a channel**: asking and catching the failure costs every
 unsupported platform a `MissingPluginException` at first use, and a listener
 already attached cannot be un-attached.
+
+## On Apple's platforms, one sign is the whole difference
+
+`GCExtendedGamepad` is already the shape this package chose — face buttons by
+position, four d-pad buttons, two analogue triggers, two clickable sticks — so
+there is no per-device guessing and no mapping database to consult. Apple
+normalised the hardware years ago. macOS and iOS share one Swift file, because
+the framework is the same framework on both.
+
+What is left is **`GameController` reports a stick's y positive upwards**, where
+Android, the browser and this package all report it downwards. It is a difference
+no code review catches and a room with a controller catches in one second,
+because the character walks backwards. So it is negated in
+`lib/src/darwin_mapping.dart`, once, with a test on it — rather than in Swift,
+where nothing could see it.
 
 ## On Android, the native side decides nothing
 

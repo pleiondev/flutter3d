@@ -4,18 +4,25 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'android_mapping.dart';
+import 'darwin_mapping.dart';
 import 'gamepad_platform_interface.dart';
+import 'pad_mirror.dart';
 import 'pad_snapshot.dart';
 
 /// A gamepad behind a platform channel.
 ///
-/// Android for now. The channel carries **raw events**, not a normalised pad:
-/// the native side reports which device appeared and which axes it says it has,
-/// then forwards each `MotionEvent` untouched, and [AndroidPadState] does every
-/// piece of arithmetic and every choice. That is deliberate and it is the whole
-/// reason this backend could be written at all without a controller in hand —
-/// the traps are all in the choosing (which axis is a trigger, whether the d-pad
-/// is a hat) and the choosing is in Dart, where a test can reach it.
+/// Android, macOS and iOS. The channel carries **what the platform said**, not a
+/// normalised pad: the native side forwards values and this side chooses what
+/// they mean, in a [PadMirror] per platform. That is deliberate and it is the
+/// whole reason these backends could be written without a controller in hand —
+/// every trap is in the choosing, and the choosing is in Dart where a test can
+/// reach it. Android's traps are which axis a trigger is on and whether the
+/// d-pad is a hat; Apple's is a single sign, because `GameController` reports a
+/// stick's y positive upwards and everything else here reports it downwards.
+///
+/// One class rather than three because the channel is the same channel: a
+/// stream of platform messages, a mirror to put them in, and a synchronous read
+/// out of it. What differs is which mirror.
 ///
 /// ## Pushed into a mirror, read out synchronously
 ///
@@ -35,17 +42,35 @@ final class MethodChannelGamepad extends GamepadPlatform {
   /// Platforms with a native implementation.
   ///
   /// A **whitelist**, never try-and-see: subscribing where nothing is listening
-  /// is a `MissingPluginException` for the first listener, and this class
-  /// subscribes in its constructor. macOS and iOS join this set when their
-  /// `GameController` side is written, and not before.
+  /// is a `MissingPluginException` for the first listener. Windows and Linux
+  /// join this set when somebody writes XInput and evdev, and not before.
   static const Set<TargetPlatform> _supported = <TargetPlatform>{
     TargetPlatform.android,
+    TargetPlatform.macOS,
+    TargetPlatform.iOS,
   };
+
+  /// Where a gamepad's buttons come from as well as the channel.
+  ///
+  /// Android alone: it delivers them as `KeyEvent`s and Flutter's embedding maps
+  /// them to `gameButtonA` and its neighbours before the framework sees them, so
+  /// catching them natively would be a second source of truth for one event.
+  /// `GameController` has no such path and reports everything through the
+  /// plugin.
+  static const Set<TargetPlatform> _buttonsThroughKeyboard =
+      <TargetPlatform>{TargetPlatform.android};
 
   @override
   bool get isSupported => !kIsWeb && _supported.contains(defaultTargetPlatform);
 
-  final AndroidPadState _state = AndroidPadState();
+  /// The mirror for this platform, built once and only where it is used.
+  late final PadMirror _state = defaultTargetPlatform == TargetPlatform.android
+      ? _android
+      : DarwinPadState();
+
+  /// Android's mirror, named as well as held: its buttons arrive off the
+  /// channel, through the keyboard, and that needs the concrete type.
+  final AndroidPadState _android = AndroidPadState();
   final StreamController<PadConnection> _connections =
       StreamController<PadConnection>.broadcast();
 
@@ -66,7 +91,9 @@ final class MethodChannelGamepad extends GamepadPlatform {
 
   @override
   Future<void> dispose() async {
-    if (_listening) HardwareKeyboard.instance.removeHandler(_onKey);
+    if (_listening && _buttonsThroughKeyboard.contains(defaultTargetPlatform)) {
+      HardwareKeyboard.instance.removeHandler(_onKey);
+    }
     _listening = false;
     await _subscription?.cancel();
     _subscription = null;
@@ -89,10 +116,9 @@ final class MethodChannelGamepad extends GamepadPlatform {
     if (_listening || !isSupported) return;
     _listening = true;
     _subscription = eventChannel.receiveBroadcastStream().listen(_onEvent);
-    // Buttons arrive through Flutter's own keyboard on Android, already mapped
-    // to `gameButtonA` and its neighbours — see [AndroidPadState]. Handled here
-    // rather than natively so there is one source of truth for one event.
-    HardwareKeyboard.instance.addHandler(_onKey);
+    if (_buttonsThroughKeyboard.contains(defaultTargetPlatform)) {
+      HardwareKeyboard.instance.addHandler(_onKey);
+    }
   }
 
   /// Handles one event from the native side.
@@ -107,36 +133,24 @@ final class MethodChannelGamepad extends GamepadPlatform {
   void handleEvent(Object? event) => _onEvent(event);
 
   void _onEvent(Object? event) {
-    if (event is Float64List) {
-      _state.noteMotion(event);
-      return;
-    }
-    if (event is! Map) return;
-    switch (event['event']) {
-      case 'connected':
-        final id = event['device'];
-        if (id is! int) return;
-        final axes = event['axes'];
-        _state.connect(
-          deviceId: id,
-          axes: axes is List ? axes.whereType<int>() : const <int>[],
-        );
-        _connections.add(PadConnection.connected);
-      case 'disconnected':
-        // Zeroed by the state itself before anybody is told, so a controller
-        // whose battery dies mid-corner cannot leave the throttle where it was.
-        _state.disconnect();
-        _connections.add(PadConnection.disconnected);
-      case 'relaxed':
-        // The application went to the background. The pad is still attached and
-        // the player is not: everything downstream releases through the ordinary
-        // path once the buttons stop being down.
-        _state.relax();
-    }
+    // **Asked of the mirror rather than parsed here.** The mirror is the one
+    // that knows whether a pad is attached, so reading it on either side of the
+    // message is how a connection change is noticed — and nothing has to
+    // understand a platform's messages twice to find out.
+    //
+    // It also means the zeroing happens first and the news second, which is what
+    // stops a controller whose battery dies mid-corner from leaving the throttle
+    // where it was.
+    final was = _state.connected;
+    _state.note(event);
+    if (_state.connected == was) return;
+    _connections.add(
+      _state.connected ? PadConnection.connected : PadConnection.disconnected,
+    );
   }
 
   bool _onKey(KeyEvent event) {
-    _state.noteKey(event);
+    _android.noteKey(event);
     // **Always false, even for a button that was ours.** Returning true marks
     // the event handled and stops it reaching the rest of the application —
     // which is how a player on a television would lose the ability to leave a
