@@ -25,12 +25,15 @@ import 'package:platformer/src/settings_panel.dart';
 
 /// The panel as the game mounts it: inside a [Scaffold], because the volume
 /// sliders need a [Material] ancestor and the game gives them one.
-Widget _panel() => MaterialApp(
+Widget _panel({GameConfig? config, bool padConnected = false}) => MaterialApp(
       home: Scaffold(
         body: SettingsPanel(
           mixer: Mixer(),
-          bindings: DesktopInput.defaultBindings(),
+          bindings: PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
+          config: config ?? GameConfig(),
+          padConnected: padConnected,
           onVolume: (AudioBus bus, double volume) {},
+          onSetting: (String name, double value) {},
           onClose: () {},
         ),
       ),

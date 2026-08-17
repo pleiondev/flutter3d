@@ -21,6 +21,7 @@ import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:gamepad/gamepad.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
@@ -104,6 +105,7 @@ class _GameScreenState extends State<GameScreen>
 
   final InputState _input = InputState();
   late final DesktopInput _devices;
+  late final PadInput _pad;
 
   AudioScene _audio = AudioScene(backend: SilentBackend());
   final AudioListener _ears = AudioListener();
@@ -255,11 +257,18 @@ class _GameScreenState extends State<GameScreen>
           ? _config.bindings
           : _bindings(),
     );
+    // A saved config written before the gamepad existed has no `pad:` in it, and
+    // a player should not have to delete their settings to use a controller. The
+    // rebindings they did make are left alone.
+    if (!PadInput.knowsPad(_devices.bindings)) _padBindings(_devices.bindings);
+    // One table for both devices, because a player's bindings are one file.
+    _pad = PadInput(state: _input, bindings: _devices.bindings)
+      ..applySettings(_config);
     _applyVolumes();
     _loop = GameLoop(
       input: _input,
       onStep: _step,
-      drainLook: _devices.drainLook,
+      drainLook: _drainLook,
     );
     _view = RenderView(camera: _camera);
     unawaited(_openGraphics());
@@ -289,7 +298,34 @@ class _GameScreenState extends State<GameScreen>
         PlatformerActions.dash,
       );
     }
-    return bindings;
+    return _padBindings(bindings);
+  }
+
+  /// The pad's half of the same table.
+  ///
+  /// The engine's defaults — the d-pad walks, the south face button jumps, the
+  /// left stick clicks to sprint — plus this game's two verbs. The dash goes on
+  /// the east face button, where a thumb already is; dropping through goes on
+  /// the left shoulder rather than a second face button, because it is held
+  /// while the other hand is doing something and a thumb cannot be in two
+  /// places.
+  static Bindings _padBindings(Bindings bindings) {
+    return PadInput.addDefaultsTo(bindings)
+      ..bind(InputSource.pad(PadButton.faceEast.id), PlatformerActions.dash)
+      ..bind(
+        InputSource.pad(PadButton.shoulderLeft.id),
+        PlatformerActions.dropThrough,
+      );
+  }
+
+  /// The mouse's motion, plus the pad's.
+  ///
+  /// Two devices and one callback: `DesktopInput` assigns and `PadInput` adds,
+  /// in that order, so moving both at once turns the view by the sum rather than
+  /// by whichever ran last.
+  void _drainLook(Vector2 out) {
+    _devices.drainLook(out);
+    _pad.drainLook(out);
   }
 
   /// Mouse motion picked up from a drag, for a build with no pointer lock.
@@ -407,6 +443,19 @@ class _GameScreenState extends State<GameScreen>
     setState(() {
       _audio.mixer.setVolume(bus, volume);
       _config.setVolume(bus.name, volume);
+    });
+    _settingsFile.write(_config);
+  }
+
+  /// Records a number that is not a volume, and acts on it at once.
+  ///
+  /// Applied before it is written, because the point of a dead-zone slider is
+  /// that the player moves it and feels the stick change — a setting that took
+  /// effect on the next launch could not be chosen at all.
+  void _setSetting(String name, double value) {
+    setState(() {
+      _config.setSetting(name, value);
+      _pad.applySettings(_config);
     });
     _settingsFile.write(_config);
   }
@@ -596,6 +645,30 @@ class _GameScreenState extends State<GameScreen>
     });
   }
 
+  /// What the pad means to a screen rather than to the runner.
+  ///
+  /// Two things the simulation has no verb for: taking down the title card, and
+  /// starting over once the run is finished. Read as edges here rather than
+  /// bound to invented actions, so the binding table holds only words the game
+  /// logic actually reads.
+  void _padScreenButtons() {
+    final pressing = _pad.heldButtons.isNotEmpty;
+    final wasPressing = _padPressing;
+    _padPressing = pressing;
+    if (!pressing || wasPressing) return;
+
+    // Any button begins, which is also how a browser reveals the pad to the
+    // page in the first place: it stays invisible until one is pressed.
+    if (!_started) {
+      _begin();
+      return;
+    }
+    if (_runIsOver && _pad.heldButtons.contains(PadButton.start)) _restart();
+  }
+
+  /// Whether the pad was holding anything last frame, for the edge above.
+  bool _padPressing = false;
+
   /// Takes the title card down, the first time the player asks to play.
   ///
   /// Once per session and never again: a card that comes back every time the
@@ -715,7 +788,15 @@ class _GameScreenState extends State<GameScreen>
     // behind a menu is a game that kills the player while they are reading
     // it. There is no pointer to own in a browser, so there the gate is
     // only whether the level has loaded.
-    _loop.paused = _sim == null || (!kIsWeb && !_devices.isCaptured);
+    // Before the loop, so the frame that reads the pad is the frame it moves in.
+    _pad.tick(dt);
+    _padScreenButtons();
+
+    // A pad player never captures the pointer, and a gate that only knows about
+    // the mouse would leave them paused for ever — which is what this line did
+    // the day the pad arrived and the reason it now asks about both.
+    _loop.paused =
+        _sim == null || (!kIsWeb && !_devices.isCaptured && !_pad.isConnected);
     _loop.advance(dt.clamp(0.0, 0.25));
     // The loop has always counted the simulated time it could not run. Nobody
     // read it, so a machine that could not keep up ran the game slowly and said
@@ -1149,7 +1230,10 @@ class _GameScreenState extends State<GameScreen>
                 SettingsPanel(
                   mixer: _audio.mixer,
                   bindings: _devices.bindings,
+                  config: _config,
+                  padConnected: _pad.isConnected,
                   onVolume: _setVolume,
+                  onSetting: _setSetting,
                   onClose: () => setState(() => _showSettings = false),
                 )
               // Not over the title card, which carries the same settings on it

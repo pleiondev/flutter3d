@@ -196,6 +196,16 @@ final class PadInput {
     return bindings;
   }
 
+  /// Whether [bindings] mentions a gamepad at all.
+  ///
+  /// For the awkward case that arrives with every new device: a config saved
+  /// before this package existed has no `pad:` in it, and a player should not
+  /// have to delete their settings to use a controller. A game reads its saved
+  /// table, asks this, and adds the defaults if the answer is no — which leaves
+  /// every rebinding they *did* make alone.
+  static bool knowsPad(Bindings bindings) => bindings.sources
+      .any((InputSource source) => source.id.startsWith(InputSource.padPrefix));
+
   /// The d-pad, clockwise from the top.
   ///
   /// A d-pad has no numbers on it, so there is no right answer and this is the
@@ -257,6 +267,14 @@ final class PadInput {
 
   /// Whether a pad answered the last [tick].
   bool get isConnected => _snapshot.connected;
+
+  /// What the pad is holding, for a screen rather than for a simulation.
+  ///
+  /// A title card waiting for "press any button", a rebinding row listening for
+  /// the next press, a game-over screen offering a restart: none of those are
+  /// verbs the simulation has, and inventing an action for each would put words
+  /// in the binding table that no game logic ever reads.
+  Iterable<PadButton> get heldButtons => _snapshot.held;
 
   /// Reads the pad and writes what it says into the state.
   ///

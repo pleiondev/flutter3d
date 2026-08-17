@@ -25,7 +25,14 @@ final class InputSource {
   factory InputSource.pointer(int button) => InputSource('pointer:$button');
 
   /// A gamepad button, by a name the backend chooses and keeps.
-  factory InputSource.pad(String button) => InputSource('pad:$button');
+  factory InputSource.pad(String button) => InputSource('$padPrefix$button');
+
+  /// What a gamepad's ids start with.
+  ///
+  /// Named because two places have to agree on it: what [InputSource.pad]
+  /// writes, and how a game asks whether a saved table mentions a pad at all —
+  /// see `PadInput.knowsPad`. Spelling it twice is how one of them drifts.
+  static const String padPrefix = 'pad:';
 
   final String id;
 
@@ -90,6 +97,13 @@ final class Bindings {
       _sources[source] = action;
 
   void unbind(InputSource source) => _sources.remove(source);
+
+  /// Every source bound to anything.
+  ///
+  /// For asking what kind of device a saved table knows about, which is how a
+  /// config written before a device existed gets that device's defaults added
+  /// without throwing away the player's own rebindings.
+  Iterable<InputSource> get sources => _sources.keys;
 
   /// Everything currently bound to [action], for a screen that lists them.
   Iterable<InputSource> sourcesFor(GameAction action) => _sources.entries

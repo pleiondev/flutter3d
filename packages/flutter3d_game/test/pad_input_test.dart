@@ -463,6 +463,23 @@ void main() {
           reason: 'space and the south face button');
     });
 
+    test('and a table saved before pads existed can be given them', () {
+      // **The migration every new device brings.** A config written by an older
+      // build has no `pad:` in it, and a player should not have to delete their
+      // settings to use a controller — so a game asks, adds the defaults if the
+      // answer is no, and leaves every rebinding they did make alone.
+      final saved = Bindings()
+        ..bind(InputSource.key(32), GameAction.jump)
+        ..bind(InputSource.key(9), dash);
+      expect(PadInput.knowsPad(saved), isFalse);
+
+      PadInput.addDefaultsTo(saved);
+
+      expect(PadInput.knowsPad(saved), isTrue);
+      expect(saved[InputSource.key(9)], dash, reason: 'their rebinding');
+      expect(saved[InputSource.pad('face.south')], GameAction.jump);
+    });
+
     test('and each call hands out its own', () {
       // A shared default is rebound for the menu, the second window and the
       // next level by the first player who changes anything.
@@ -470,6 +487,23 @@ void main() {
 
       expect(PadInput.defaultBindings()[InputSource.pad('face.south')],
           GameAction.jump);
+    });
+  });
+
+  group('the buttons a screen asks about', () {
+    test('are the ones the pad is holding', () {
+      // For a title card waiting on "press any button" and a game-over screen
+      // offering a restart: neither is a verb the simulation has, and inventing
+      // an action for each would put words in the binding table nothing reads.
+      final fake = FakePad()..state.setDown(PadButton.start, down: true);
+      final pad = PadInput(state: InputState(), pad: _bare(fake))
+        ..tick(1 / 60);
+
+      expect(pad.heldButtons, contains(PadButton.start));
+
+      fake.state.setDown(PadButton.start, down: false);
+      pad.tick(1 / 60);
+      expect(pad.heldButtons, isEmpty);
     });
   });
 
