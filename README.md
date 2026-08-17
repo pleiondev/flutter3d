@@ -17,8 +17,8 @@ engine is one.
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/gamepad`](packages/gamepad) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/gamepad/README.md) |
 | [`packages/mouse_capture`](packages/mouse_capture) | Relative mouse deltas, which Flutter offers on no desktop platform |
-| [`apps/dungeon`](apps/dungeon) | The shooter, and a headless test that plays it to the exit |
-| [`apps/platformer`](apps/platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it |
+| [`apps/dungeon`](apps/dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web and Android |
+| [`apps/platformer`](apps/platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web and Android |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
 The split is not filing. `flutter3d_game` does not depend on `flutter3d`, and
