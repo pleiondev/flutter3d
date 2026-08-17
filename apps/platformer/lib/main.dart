@@ -1146,6 +1146,22 @@ class _GameScreenState extends State<GameScreen>
             _restart();
             return KeyEventResult.handled;
           }
+          // Escape opens the settings, which the title card has been promising
+          // and nothing was doing. Before `DesktopInput` sees it, because that
+          // is where Escape gives the pointer back, and giving it back is half
+          // of what opening a panel means: a settings panel you cannot point at
+          // has no way out of it.
+          //
+          // Only once the game has started. The title card carries the same
+          // credits and is the one screen a panel over the top of it adds
+          // nothing to.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape &&
+              _started) {
+            if (!_showSettings) unawaited(_devices.release());
+            setState(() => _showSettings = !_showSettings);
+            return KeyEventResult.handled;
+          }
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
@@ -1223,7 +1239,12 @@ class _GameScreenState extends State<GameScreen>
                 ),
               if (!_started)
                 TitleCard(
-                  prompt: kIsWeb ? 'Click to begin.' : 'Click to take the mouse.',
+                  prompt: kIsWeb
+                      ? 'Click to begin, or press a button on the pad.'
+                      : 'Click to take the mouse, or press a button on the pad.',
+                  // The pointer dashes on the desktop; in a browser it is the
+                  // only way to turn the camera, so there the dash is a key.
+                  dashOnPointer: !kIsWeb,
                   resuming: _resumed,
                 ),
               if (_showSettings)

@@ -83,13 +83,22 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        const MaterialApp(home: TitleCard(prompt: 'Click to take the mouse.')),
+        const MaterialApp(
+          home: TitleCard(
+            prompt: 'Click to take the mouse.',
+            dashOnPointer: true,
+          ),
+        ),
       );
 
       expect(find.text('Ascent'), findsOneWidget);
       // The two moves the level was rebuilt to ask for. A player who is not
       // told about the dash finds a nine-metre gap and no way over it.
-      expect(find.textContaining('dash'), findsOneWidget);
+      //
+      // Widgets, plural: the card names the dash once for the keyboard and once
+      // for the controller. Which line says what is `title_card_test.dart`'s
+      // question, and this one only asks whether it is mentioned at all.
+      expect(find.textContaining('dash'), findsWidgets);
       expect(find.textContaining('jump'), findsWidgets);
       for (final credit in Credits.owed) {
         expect(find.textContaining(credit.author!), findsWidgets);
@@ -104,7 +113,7 @@ void main() {
       // their progress was kept is by being told.
       await tester.pumpWidget(
         const MaterialApp(
-          home: TitleCard(prompt: 'Click.', resuming: true),
+          home: TitleCard(prompt: 'Click.', dashOnPointer: true, resuming: true),
         ),
       );
 
@@ -115,7 +124,7 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        const MaterialApp(home: TitleCard(prompt: 'Click.')),
+        const MaterialApp(home: TitleCard(prompt: 'Click.', dashOnPointer: true)),
       );
 
       expect(find.textContaining('checkpoint'), findsNothing);

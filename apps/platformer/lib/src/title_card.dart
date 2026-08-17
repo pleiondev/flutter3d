@@ -4,6 +4,13 @@ import 'credits.dart';
 
 /// What the game says before it starts.
 ///
+/// **The control lines were wrong, and that is worth recording.** They were a
+/// `const` list, so they said "click to dash" in a browser where clicking turns
+/// the camera, and they promised that Escape opens the settings when Escape only
+/// released the mouse. A list of what the keys do, written beside the keys and
+/// checked by nothing, drifts the first time either changes — so the lines are
+/// built from what the build actually is, and a test renders both.
+///
 /// **There was nothing here.** The application opened straight into the
 /// tutorial with a `Click to play` banner over it, so the game had no name on
 /// screen, no statement of what the keys were, and nowhere for the attribution
@@ -14,11 +21,40 @@ import 'credits.dart';
 /// title card that comes back every time the pointer is released is a title
 /// card in the middle of a run.
 class TitleCard extends StatelessWidget {
-  const TitleCard({super.key, required this.prompt, this.resuming = false});
+  const TitleCard({
+    super.key,
+    required this.prompt,
+    required this.dashOnPointer,
+    this.resuming = false,
+  });
 
   /// What the player has to do to begin. Different on the web, where there is
   /// no pointer to capture.
   final String prompt;
+
+  /// Whether the mouse button dashes, which is true of the desktop build only.
+  ///
+  /// **This card said "click to dash" on the web, where clicking turns the
+  /// camera and `Q` dashes.** An argument rather than a `kIsWeb` read inside
+  /// this file, so a test can render both without pretending to be a browser —
+  /// which is how the wrong line survived: nothing could look at it.
+  final bool dashOnPointer;
+
+  /// What the game is actually driven by, said once.
+  List<String> get _controls => <String>[
+        'W A S D to move, space to jump — twice, in the air.',
+        dashOnPointer
+            ? 'Shift to sprint, Ctrl or C to crouch, click to dash.'
+            : 'Shift to sprint, Ctrl or C to crouch, Q to dash.',
+        // Positions, not printed labels: this game cannot know whether the pad
+        // in the player's hands calls its lower face button `A` or Cross, and
+        // deliberately does not try to find out.
+        'Or a controller: left stick to move, the lower face button to jump, '
+            'the right one to dash.',
+        dashOnPointer
+            ? 'Escape gives the mouse back and opens the settings.'
+            : 'Escape opens the settings.',
+      ];
 
   /// Whether there is a saved run behind this card.
   ///
@@ -57,11 +93,7 @@ class TitleCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 22),
-                for (final line in const <String>[
-                  'W A S D to move, space to jump — twice, in the air.',
-                  'Shift to sprint, Ctrl or C to crouch, click to dash.',
-                  'Escape releases the mouse and opens the settings.',
-                ])
+                for (final line in _controls)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Text(
