@@ -56,6 +56,17 @@ for package in packages/*/; do
   fi
 done
 
+# An example with tests, which until `packages/gamepad/example` there was none of.
+# Its tests are the only ones that mount the tool the gamepad's manual acceptance
+# is walked with, and a test CI never runs is a test that rots.
+for example in packages/*/example/; do
+  # Matched on the files rather than on the directory: an empty `test/` makes
+  # `flutter test` exit non-zero rather than skip, and there is one of those in
+  # the tree already.
+  compgen -G "$example/test/*_test.dart" > /dev/null || continue
+  step "test $(basename "$(dirname "$example")") example" in_dir "$example" flutter test
+done
+
 for app in apps/*/; do
   [ -d "$app/test" ] || continue
   step "test $(basename "$app")" in_dir "$app" flutter test

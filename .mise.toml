@@ -33,5 +33,17 @@
 # Nothing here wants a standalone Dart in any case. Every script that runs one
 # takes it out of the SDK: `build_shaders.sh` and `tool/bench` both reach
 # `<SDK>/bin/cache/dart-sdk/bin/dart` explicitly, for exactly this reason.
+# **Java is pinned for the same reason, and it was found the same way.** The
+# Android runner in `packages/gamepad/example` would not build at all against the
+# JDK that happened to be on the machine — 26 — because the Android Gradle
+# Plugin's `core-for-system-modules` transform runs `jlink --disable-plugin
+# system-modules`, which that JDK refuses. The error names neither Java nor the
+# transform in any useful way, and Flutter's own suggestion for it points at an
+# AGP version that is already newer than the one being used.
+#
+# So the toolchain the Android side is known to build with is written down here
+# rather than discovered again by whoever next runs `flutter build apk`. 21
+# because it is the current LTS and AGP supports it; 17 also works.
 [tools]
 flutter = "3.47.0"
+java = "temurin-21"

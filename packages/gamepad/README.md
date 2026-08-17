@@ -65,7 +65,7 @@ by moving it.
 | macOS | not yet | `GameController.framework` — `GCController.current`, `GCExtendedGamepad`, and analogue triggers for free |
 | Web | **yes** | `navigator.getGamepads()`, pure Dart, no native code |
 | iOS | not yet | the same Swift source as macOS |
-| Android | not yet | Kotlin: `InputDevice`, `InputManager.InputDeviceListener`, `MotionEvent` axes |
+| Android | **yes** | Kotlin forwards raw `MotionEvent` axes and an inventory of what the device has; every decision is in Dart |
 | Windows | no | XInput, when somebody needs it |
 | Linux | no | evdev, likewise |
 
@@ -79,6 +79,58 @@ rather than a preference. It also means a browser build has a gamepad under
 it **without opening a channel**: asking and catching the failure costs every
 unsupported platform a `MissingPluginException` at first use, and a listener
 already attached cannot be un-attached.
+
+## On Android, the native side decides nothing
+
+The rule that got a previous gamepad backend deleted rather than finished still
+holds, so the way past it is to leave the Kotlin with nothing in it a test would
+have caught. It reports which controller is attached and **which axes that
+controller admits to having**, forwards each `MotionEvent` untouched, and says
+when the application goes to the background. Everything else —
+`lib/src/android_mapping.dart` — is Dart, and `test/android_test.dart` covers it.
+
+Three Android facts worth knowing, because each is a device disagreeing with
+another device:
+
+* **A trigger is on one of two axis pairs.** Some drivers report `AXIS_LTRIGGER`
+  and `AXIS_RTRIGGER`; others report `AXIS_BRAKE` and `AXIS_GAS` — the same
+  physical control under a steering wheel's name — and a few report neither and
+  offer only the digital `L2`/`R2` buttons. Which to read is chosen per device
+  from the inventory, never guessed.
+* **A d-pad is a hat or it is arrow keys.** A hat (`AXIS_HAT_X`/`AXIS_HAT_Y`) is
+  read as a d-pad. A pad without one sends `KEYCODE_DPAD_*`, which Flutter maps
+  to the arrow keys — indistinguishable in Dart from a keyboard's arrows, because
+  a `KeyEvent` does not say which device it came from. Those are deliberately
+  **not** claimed as `pad:dpad.*`: writing that identifier for a key that might
+  be a keyboard's would put a lie in the player's permanent config file. On such
+  hardware the d-pad works as arrow keys, which every game here binds to walking
+  anyway.
+* **Buttons arrive through Flutter, not through the plugin.** Android delivers
+  them as `KeyEvent`s and Flutter's embedding already maps their key codes to
+  `gameButtonA` and its neighbours. Catching them natively as well would be a
+  second source of truth for one event. Sticks are the opposite case: Flutter
+  turns pointer and scroll motion into `PointerEvent`s and drops the rest, so a
+  joystick's `MotionEvent` never reaches Dart, and that is the one thing the
+  plugin exists for.
+
+Android has **no way to ask** a gamepad what it is doing — input arrives as
+events aimed at the focused window — so events fill a mirror and `read` copies
+it. The API stays a pull; the transport is a push; the value is as fresh as a
+poll's would have been.
+
+### Building it
+
+`packages/gamepad/example` is the Android runner, and there is a **JDK pin** in
+the repository's `.mise.toml` because of it: the Android Gradle Plugin's
+`core-for-system-modules` transform runs `jlink --disable-plugin system-modules`,
+which a JDK 26 refuses, and the error it produces names neither Java nor the
+transform.
+
+```sh
+cd packages/gamepad/example
+mise exec -- flutter build apk --debug   # the pin is what makes this work
+mise exec -- flutter run -d <device>
+```
 
 ## On the web, two things will surprise you
 
@@ -141,6 +193,16 @@ Run the suite both ways; the second one compiles the web backend:
 flutter test
 flutter test --platform chrome
 ```
+
+The Android backend is tested the same way and for the same reason: the trigger
+pair chosen per device, the hat becoming four buttons, arrow keys *not* becoming
+a d-pad, a second controller's stick being ignored, the background releasing
+everything without disconnecting, and the channel's own decoding against a mock
+messenger. What is left for a person is whether the events arrive at all.
+
+`packages/gamepad/example` is the tool for that half — every axis, every trigger
+and every button live on one screen, with the dead-zone sliders beside them, so
+the acceptance checklist can be walked in a minute.
 
 What remains manual is written down where it belongs — in the plan, as an
 acceptance checklist, because it is the part a person has to do.
