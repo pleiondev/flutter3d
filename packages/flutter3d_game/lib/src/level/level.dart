@@ -1,9 +1,124 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'dart:math' as math;
 
 import 'json_reader.dart';
+
+/// One key a document may carry, with the value this object would write.
+///
+/// See [_writeThrough] for what is done with it.
+final class _Field {
+  const _Field(this.key, this.value, {this.whenAbsent = true});
+
+  final String key;
+  final Object? value;
+
+  /// Whether to add this key to a document that did not carry it.
+  ///
+  /// False for a value equal to its default: a document that has nothing to say
+  /// must go on saying nothing, which is what keeps a level a readable diff.
+  final bool whenAbsent;
+}
+
+/// Writes [fields] into a map, through the document this object came from.
+///
+/// **The rule that makes a level survive being read and written back**, and it
+/// is three lines long:
+///
+/// * a key the document had, whose value has not changed, is given back
+///   **exactly as it arrived** — same position, same `4` rather than `4.0`,
+///   even when it happens to equal the default;
+/// * a key the document had, whose value has changed, is written canonically
+///   **in the place the document put it**;
+/// * a key the document did not have is added only when it has something to
+///   say, and everything this format does not know is copied through untouched.
+///
+/// The last of those is why `generatedBy` and the racing document's `track`
+/// come back: they are simply not this type's business, and a writer that
+/// deletes what it does not recognise is a writer nobody can use. `EntityDef`
+/// has held that principle since it was written — «an editor written against a
+/// later version must not silently strip the properties it does not recognise»
+/// — and this is the rest of the format catching up.
+///
+/// [source] is empty for an object built in Dart rather than read, and then
+/// this degrades exactly to the elide-by-default writer it replaces.
+Map<String, Object?> _writeThrough(
+  Map<String, Object?> source,
+  List<_Field> fields,
+) {
+  final byKey = <String, _Field>{for (final field in fields) field.key: field};
+  final out = <String, Object?>{};
+
+  for (final entry in source.entries) {
+    final field = byKey[entry.key];
+    if (field == null) {
+      out[entry.key] = entry.value;
+      continue;
+    }
+    out[entry.key] =
+        _sameValue(entry.value, field.value) ? entry.value : field.value;
+  }
+
+  for (final field in fields) {
+    if (out.containsKey(field.key) || !field.whenAbsent) continue;
+    out[field.key] = field.value;
+  }
+  return out;
+}
+
+/// The values a document is allowed to leave unsaid.
+///
+/// Named rather than written twice: a default that appears in the constructor
+/// and again in the writer is two numbers that must agree, and one day will
+/// not.
+final Vector4 _defaultBaseColor = Vector4(0.5, 0.5, 0.5, 1.0);
+final Vector3 _origin = Vector3.zero();
+final Vector3 _white = Vector3(1.0, 1.0, 1.0);
+
+/// One number as it survives a `Vector3`, which is single precision.
+final Float32List _narrow = Float32List(1);
+double _asFloat32(double value) {
+  _narrow[0] = value;
+  return _narrow[0];
+}
+
+/// Whether two decoded JSON values say the same thing.
+///
+/// **Numerically**, so the `4` a level document wrote and the `4.0` this code
+/// holds are the same value and the document keeps its own spelling. Without
+/// that, reading and writing `crypt.json` would rewrite a hundred and fifty-six
+/// coordinates that nobody touched.
+bool _sameValue(Object? a, Object? b) {
+  if (a is num && b is num) {
+    final x = a.toDouble();
+    final y = b.toDouble();
+    if (x == y) return true;
+    // **And at the precision the value actually survives at.** Every coordinate
+    // in this format passes through a `Vector3`, which is single precision, so
+    // a document saying `0.034` gets `0.034000001847743988` back — a different
+    // double denoting the same stored number. Comparing as doubles would
+    // rewrite every vector in every level on the first save.
+    return _asFloat32(x) == _asFloat32(y);
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!_sameValue(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key) || !_sameValue(a[key], b[key])) return false;
+    }
+    return true;
+  }
+  return a == b;
+}
 
 /// Raised when a document is not a level, or is one this build cannot read.
 final class LevelFormatException implements Exception {
@@ -31,10 +146,19 @@ final class Brush {
     String? surface,
     this.layer,
     this.ramp,
+    Map<String, Object?> source = const <String, Object?>{},
   })  : centre = centre.clone(),
         size = size.clone(),
         // ignore: prefer_initializing_formals
+        _source = source,
+        // ignore: prefer_initializing_formals
         _surface = surface;
+
+  /// The document this brush was read from, or empty when it was built in code.
+  ///
+  /// Kept so [toJson] can give a document back the way it arrived. See
+  /// [_writeThrough].
+  final Map<String, Object?> _source;
 
   final Vector3 centre;
   final Vector3 size;
@@ -133,6 +257,7 @@ final class Brush {
         surface: json.text('surface'),
         layer: json.integer('layer'),
         ramp: _rampFromName(json.text('ramp')),
+        source: json,
       );
 
   /// The four directions a ramp may climb, by the name a document uses.
@@ -163,18 +288,17 @@ final class Brush {
       _ramps.entries.firstWhere((MapEntry<String, WedgeUphill> e) =>
           e.value == uphill).key;
 
-  /// Both new keys are omitted when unset, so every committed level document
-  /// round-trips byte for byte.
-  Map<String, Object?> toJson() => <String, Object?>{
-        'at': centre.toJson(),
-        'size': size.toJson(),
-        if (material != 'default') 'material': material,
-        if (!solid) 'solid': false,
-        if (!castsShadow) 'castsShadow': false,
-        if (_surface != null) 'surface': _surface,
-        if (layer != null) 'layer': layer,
-        if (ramp != null) 'ramp': _rampName(ramp!),
-      };
+  Map<String, Object?> toJson() => _writeThrough(_source, <_Field>[
+        _Field('at', centre.toJson()),
+        _Field('size', size.toJson()),
+        _Field('material', material, whenAbsent: material != 'default'),
+        _Field('solid', solid, whenAbsent: !solid),
+        _Field('castsShadow', castsShadow, whenAbsent: !castsShadow),
+        _Field('surface', _surface, whenAbsent: _surface != null),
+        _Field('layer', layer, whenAbsent: layer != null),
+        _Field('ramp', ramp == null ? null : _rampName(ramp!),
+            whenAbsent: ramp != null),
+      ]);
 }
 
 /// How a surface is shaded, named so brushes can share one.
@@ -190,7 +314,13 @@ final class LevelMaterial {
     this.albedo,
     this.normal,
     this.orm,
-  }) : baseColor = baseColor ?? Vector4(0.5, 0.5, 0.5, 1.0);
+    Map<String, Object?> source = const <String, Object?>{},
+  })  : baseColor = baseColor ?? Vector4(0.5, 0.5, 0.5, 1.0),
+        // ignore: prefer_initializing_formals
+        _source = source;
+
+  /// The document this material was read from. See [_writeThrough].
+  final Map<String, Object?> _source;
 
   final Vector4 baseColor;
   final double roughness;
@@ -231,18 +361,21 @@ final class LevelMaterial {
         albedo: json.text('albedo'),
         normal: json.text('normal'),
         orm: json.text('orm'),
+        source: json,
       );
 
-  Map<String, Object?> toJson() => <String, Object?>{
-        'baseColor': baseColor.toJson(),
-        'roughness': roughness,
-        if (metallic != 0.0) 'metallic': metallic,
-        if (emissive != 0.0) 'emissive': emissive,
-        if (texelsPerMetre != 1.0) 'texelsPerMetre': texelsPerMetre,
-        if (albedo != null) 'albedo': albedo,
-        if (normal != null) 'normal': normal,
-        if (orm != null) 'orm': orm,
-      };
+  Map<String, Object?> toJson() => _writeThrough(_source, <_Field>[
+        _Field('baseColor', baseColor.toJson(),
+            whenAbsent: baseColor != _defaultBaseColor),
+        _Field('roughness', roughness, whenAbsent: roughness != 0.85),
+        _Field('metallic', metallic, whenAbsent: metallic != 0.0),
+        _Field('emissive', emissive, whenAbsent: emissive != 0.0),
+        _Field('texelsPerMetre', texelsPerMetre,
+            whenAbsent: texelsPerMetre != 1.0),
+        _Field('albedo', albedo, whenAbsent: albedo != null),
+        _Field('normal', normal, whenAbsent: normal != null),
+        _Field('orm', orm, whenAbsent: orm != null),
+      ]);
 }
 
 enum LevelLightType { directional, point, spot }
@@ -258,9 +391,15 @@ final class LevelLight {
     this.range = 0.0,
     this.castsShadow = false,
     this.name,
+    Map<String, Object?> source = const <String, Object?>{},
   })  : position = position?.clone() ?? Vector3.zero(),
         direction = direction?.clone() ?? Vector3(0.0, -1.0, 0.0),
+        // ignore: prefer_initializing_formals
+        _source = source,
         color = color?.clone() ?? Vector3(1.0, 1.0, 1.0);
+
+  /// The document this light was read from. See [_writeThrough].
+  final Map<String, Object?> _source;
 
   final LevelLightType type;
   final Vector3 position;
@@ -294,18 +433,20 @@ final class LevelLight {
         range: json.numberOr('range', 0.0),
         castsShadow: json.flagOr('castsShadow'),
         name: json.text('name'),
+        source: json,
       );
 
-  Map<String, Object?> toJson() => <String, Object?>{
-        'type': type.name,
-        'at': position.toJson(),
-        if (type != LevelLightType.point) 'direction': direction.toJson(),
-        'color': color.toJson(),
-        'intensity': intensity,
-        if (range != 0.0) 'range': range,
-        if (castsShadow) 'castsShadow': true,
-        if (name != null) 'name': name,
-      };
+  Map<String, Object?> toJson() => _writeThrough(_source, <_Field>[
+        _Field('type', type.name, whenAbsent: type != LevelLightType.point),
+        _Field('at', position.toJson(), whenAbsent: position != _origin),
+        _Field('direction', direction.toJson(),
+            whenAbsent: type != LevelLightType.point),
+        _Field('color', color.toJson(), whenAbsent: color != _white),
+        _Field('intensity', intensity, whenAbsent: intensity != 1.0),
+        _Field('range', range, whenAbsent: range != 0.0),
+        _Field('castsShadow', castsShadow, whenAbsent: castsShadow),
+        _Field('name', name, whenAbsent: name != null),
+      ]);
 }
 
 /// Anything in the level that is not geometry: a spawn, a monster, a pickup, a
@@ -323,10 +464,16 @@ final class EntityDef {
     this.yaw = 0.0,
     this.name,
     Map<String, Object?>? properties,
+    Map<String, Object?> source = const <String, Object?>{},
   })  : position = position?.clone() ?? Vector3.zero(),
+        // ignore: prefer_initializing_formals
+        _source = source,
         properties = Map<String, Object?>.unmodifiable(
           properties ?? const <String, Object?>{},
         );
+
+  /// The document this entity was read from. See [_writeThrough].
+  final Map<String, Object?> _source;
 
   final String type;
   final Vector3 position;
@@ -392,16 +539,17 @@ final class EntityDef {
       yaw: json.numberOr('yaw', 0.0),
       name: json.text('name'),
       properties: properties,
+      source: json,
     );
   }
 
-  Map<String, Object?> toJson() => <String, Object?>{
-        'type': type,
-        'at': position.toJson(),
-        if (yaw != 0.0) 'yaw': yaw,
-        if (name != null) 'name': name,
-        ...properties,
-      };
+  Map<String, Object?> toJson() => _writeThrough(_source, <_Field>[
+        _Field('type', type),
+        _Field('at', position.toJson()),
+        _Field('yaw', yaw, whenAbsent: yaw != 0.0),
+        _Field('name', name, whenAbsent: name != null),
+        for (final entry in properties.entries) _Field(entry.key, entry.value),
+      ]);
 }
 
 /// Everything one playable space is made of.
@@ -422,11 +570,22 @@ final class Level {
     this.fogDensity = 0.0,
     this.music,
     this.next,
+    Map<String, Object?> source = const <String, Object?>{},
   })  : brushes = brushes ?? <Brush>[],
+        // ignore: prefer_initializing_formals
+        _source = source,
         entities = entities ?? <EntityDef>[],
         lights = lights ?? <LevelLight>[],
         materials = materials ?? <String, LevelMaterial>{},
         fogColor = fogColor?.clone() ?? Vector3(0.05, 0.04, 0.06);
+
+  /// The document this level was read from. See [_writeThrough].
+  ///
+  /// **This is where `generatedBy` lives.** Nothing in the format knows that
+  /// key; it belongs to whichever tool produced the file, and a writer that
+  /// deleted it would quietly erase the answer to "who owns this document" —
+  /// the question an editor has to ask before it is allowed to save.
+  final Map<String, Object?> _source;
 
   /// Bumped when an existing field changes meaning. Adding one does not need
   /// it: an older reader ignores what it does not know.
@@ -491,21 +650,25 @@ final class Level {
       fogDensity: json.numberOr('fogDensity', 0.0),
       music: json.text('music'),
       next: json.text('next'),
+      source: json,
     );
   }
 
-  Map<String, Object?> toJson() => <String, Object?>{
-        'version': formatVersion,
-        'name': name,
-        'fogColor': fogColor.toJson(),
-        if (fogDensity != 0.0) 'fogDensity': fogDensity,
-        if (music != null) 'music': music,
-        if (next != null) 'next': next,
-        'materials': <String, Object?>{
+  Map<String, Object?> toJson() => _writeThrough(_source, <_Field>[
+        _Field('version', formatVersion),
+        _Field('name', name),
+        _Field('fogColor', fogColor.toJson()),
+        _Field('fogDensity', fogDensity, whenAbsent: fogDensity != 0.0),
+        _Field('music', music, whenAbsent: music != null),
+        _Field('next', next, whenAbsent: next != null),
+        _Field('materials', <String, Object?>{
           for (final entry in materials.entries) entry.key: entry.value.toJson(),
-        },
-        'brushes': brushes.map((Brush b) => b.toJson()).toList(),
-        'lights': lights.map((LevelLight l) => l.toJson()).toList(),
-        'entities': entities.map((EntityDef e) => e.toJson()).toList(),
-      };
+        }, whenAbsent: materials.isNotEmpty),
+        _Field('brushes', brushes.map((Brush b) => b.toJson()).toList(),
+            whenAbsent: brushes.isNotEmpty),
+        _Field('lights', lights.map((LevelLight l) => l.toJson()).toList(),
+            whenAbsent: lights.isNotEmpty),
+        _Field('entities', entities.map((EntityDef e) => e.toJson()).toList(),
+            whenAbsent: entities.isNotEmpty),
+      ]);
 }
