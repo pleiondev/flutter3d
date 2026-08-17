@@ -315,4 +315,68 @@ void main() {
       expect(input.moveAxis.y, 0.0);
     });
   });
+
+  group('two things holding one action', () {
+    test('lifting one of them keeps it held', () {
+      // **A bug that shipped.** `W` and the up arrow are both bound to walking
+      // forward, and a player holding both who lifted one stopped dead — a set
+      // has no idea how many fingers are on it. Same again for a hand on the
+      // keyboard and a thumb on a pad, which is where this was noticed.
+      final input = InputState()
+        ..press(GameAction.moveForward)
+        ..press(GameAction.moveForward);
+
+      input.release(GameAction.moveForward);
+
+      expect(input.held(GameAction.moveForward), isTrue);
+    });
+
+    test('and the release is not announced either', () {
+      // A game that ends a variable-height jump on `released` would cut it
+      // short the moment either of two bound buttons came up.
+      final input = InputState()
+        ..press(GameAction.jump)
+        ..press(GameAction.jump);
+
+      input.release(GameAction.jump);
+
+      expect(input.released(GameAction.jump), isFalse);
+    });
+
+    test('and lifting the last one does release it', () {
+      final input = InputState()
+        ..press(GameAction.jump)
+        ..press(GameAction.jump)
+        ..release(GameAction.jump)
+        ..release(GameAction.jump);
+
+      expect(input.held(GameAction.jump), isFalse);
+      expect(input.released(GameAction.jump), isTrue);
+    });
+
+    test('and the movement axis agrees with the count', () {
+      final input = InputState()
+        ..press(GameAction.moveForward)
+        ..press(GameAction.moveForward)
+        ..release(GameAction.moveForward);
+
+      expect(input.moveAxis.y, 1.0);
+    });
+
+    test('and a release with nothing held is still a release', () {
+      // What a key-up arriving after `clear()` looks like: focus went away, the
+      // state was dropped, and the key the player was holding reports up when
+      // the window comes back. It must not go negative and hold the action for
+      // ever afterwards.
+      final input = InputState()..release(GameAction.jump);
+
+      expect(input.held(GameAction.jump), isFalse);
+      expect(input.released(GameAction.jump), isTrue);
+
+      input
+        ..press(GameAction.jump)
+        ..release(GameAction.jump);
+      expect(input.held(GameAction.jump), isFalse);
+    });
+  });
 }

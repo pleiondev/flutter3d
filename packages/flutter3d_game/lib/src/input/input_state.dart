@@ -29,6 +29,9 @@ final class InputState {
   /// Physically down right now.
   final Set<GameAction> _held = <GameAction>{};
 
+  /// How many things are holding each held action down — see [release].
+  final Map<GameAction, int> _holds = <GameAction, int>{};
+
   /// Went down at least once since the last [endStep].
   final Set<GameAction> _pressedLatch = <GameAction>{};
 
@@ -102,12 +105,31 @@ final class InputState {
   // MARK: - Writing, from a device
 
   void press(GameAction action) {
+    _holds[action] = (_holds[action] ?? 0) + 1;
     _held.add(action);
     _pressedLatch.add(action);
     _recomputeMoveAxis();
   }
 
+  /// Lets go of one hold on [action], which releases it only if it was the last.
+  ///
+  /// **Counted, not a bit**, and the difference is visible in the shipped games:
+  /// `W` and the up arrow are both bound to walking forward, so a player holding
+  /// both and lifting one used to stop dead. Same again for a hand on the
+  /// keyboard and a thumb on a pad, which is how this was found.
+  ///
+  /// The count is per action rather than per source, because [press] does not say
+  /// who is pressing and should not have to: a device that produces edges — every
+  /// one here does — presses once and releases once, and the arithmetic works out
+  /// without anybody being identified. A device that pressed twice without
+  /// releasing would stay held, and that is a bug in the device.
   void release(GameAction action) {
+    final holds = (_holds[action] ?? 0) - 1;
+    if (holds > 0) {
+      _holds[action] = holds;
+      return;
+    }
+    _holds.remove(action);
     _held.remove(action);
     _releasedLatch.add(action);
     _recomputeMoveAxis();
@@ -146,6 +168,7 @@ final class InputState {
   /// after alt-tabbing.
   void clear() {
     _held.clear();
+    _holds.clear();
     _pressedLatch.clear();
     _releasedLatch.clear();
     _stickAxis.setZero();
