@@ -45,6 +45,11 @@ dependencies:
   flutter3d_bridge:
     path: ../../packages/flutter3d_bridge
 
+  # The controller. Only for the button names this game says out loud; the
+  # translation lives in `flutter3d_game`.
+  gamepad:
+    path: ../../packages/gamepad
+
   vector_math: ^2.2.0
 
 dev_dependencies:

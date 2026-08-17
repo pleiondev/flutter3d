@@ -28,6 +28,7 @@ import 'src/sounds.dart';
 import 'src/weapon_models.dart';
 import 'package:flutter3d_shooter/sample.dart';
 import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:gamepad/gamepad.dart' show PadButton;
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.
@@ -77,6 +78,7 @@ class _GameScreenState extends State<GameScreen>
 
   final InputState _input = InputState();
   late final DesktopInput _devices;
+  late final PadInput _pad;
   late final GameLoop _loop;
   late final Ticker _ticker;
 
@@ -218,6 +220,22 @@ class _GameScreenState extends State<GameScreen>
     out.setFrom(_dragLook);
     _dragLook.setZero();
   }
+
+  /// The mouse's motion — or the drag's, in a browser — plus the pad's.
+  ///
+  /// Where the pointer cannot be captured the delta comes from a drag instead. A
+  /// first-person camera reads `lookDelta` inside the step, so the loop is the
+  /// right place for it either way; and the pad **adds** to whichever of the two
+  /// ran, rather than replacing it, so a player with a hand on each turns the
+  /// view by the sum.
+  void _drainLook(Vector2 out) {
+    if (kIsWeb) {
+      _drainDragLook(out);
+    } else {
+      _devices.drainLook(out);
+    }
+    _pad.drainLook(out);
+  }
   SoLoudBackend? _soloud;
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
@@ -240,13 +258,20 @@ class _GameScreenState extends State<GameScreen>
     super.initState();
 
     _devices = DesktopInput(state: _input);
+    // One table for both devices, and the d-pad chooses a weapon here rather
+    // than walking: this game numbers things, and a first-person player has the
+    // left stick for walking already.
+    _pad = PadInput(
+      state: _input,
+      bindings: PadInput.addDefaultsTo(_devices.bindings)
+        ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
+        ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire),
+      slotButtons: PadInput.dpadSlots,
+    );
     _loop = GameLoop(
       input: _input,
       onStep: _step,
-      // Where the pointer cannot be captured — a browser — the delta comes
-      // from a drag instead. A first-person camera reads `lookDelta` inside
-      // the step, so the loop is the right place for it either way.
-      drainLook: kIsWeb ? _drainDragLook : _devices.drainLook,
+      drainLook: _drainLook,
     );
 
     _view = RenderView(camera: _camera);
@@ -557,7 +582,11 @@ class _GameScreenState extends State<GameScreen>
     // would be a game running behind the player's back.
     // There is no pointer to own in a browser, so there the game is never
     // paused by not owning it.
-    _loop.paused = !kIsWeb && !_devices.isCaptured;
+    // Before the loop, so the frame that reads the pad is the frame it moves in.
+    _pad.tick(dt);
+    // A player on a controller never captures the pointer, so a gate that only
+    // knew about the mouse would leave them looking at a frozen dungeon.
+    _loop.paused = !kIsWeb && !_devices.isCaptured && !_pad.isConnected;
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
