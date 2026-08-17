@@ -573,6 +573,25 @@ class _GameScreenState extends State<GameScreen>
 
   static const String _levelAsset = 'assets/levels/crypt.json';
 
+  /// What the player has already told the operating system.
+  ///
+  /// **The whole of this game's accessibility settings, and deliberately.** The
+  /// crypt has no settings screen — no volumes, no bindings, nothing — so an
+  /// in-game slider would mean building one. What it can do without any of that
+  /// is honour the answer the player has already given their system, which is
+  /// the answer they would rather not give twice.
+  ///
+  /// Only the flashes read it. This is a first-person game and its camera has no
+  /// rig to shake, so the full-screen white on every hit is the only thing here
+  /// that moves without being asked to.
+  Accommodations _system = const Accommodations();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _system = Accommodations.of(context);
+  }
+
   void _onTick(Duration elapsed) {
     final dt = _lastTick == Duration.zero
         ? 0.0
@@ -645,7 +664,11 @@ class _GameScreenState extends State<GameScreen>
     }
     _inventory.expired.clear();
 
-    if (sim.damageTakenThisStep > 0.0) _painFlash = 1.0;
+    // Scaled rather than skipped, so the day a platform reports the two apart a
+    // flash can be turned down without turning the camera down with it. A
+    // full-screen flash on every hit is a photosensitivity question, which is
+    // not the same harm as a camera that moves by itself.
+    if (sim.damageTakenThisStep > 0.0) _painFlash = _system.screenFlash;
 
     // Said once, on the edge. There is no restart and no next level to load
     // yet, so this is exactly as much as the application can honestly do about
@@ -707,7 +730,9 @@ class _GameScreenState extends State<GameScreen>
     _lastShot
       ..clear()
       ..addAll(sim.hits);
-    if (_lastShot.any((ShotHit h) => h.struckSomething)) _hitFlash = 1.0;
+    if (_lastShot.any((ShotHit h) => h.struckSomething)) {
+      _hitFlash = _system.screenFlash;
+    }
 
     // Where the muzzle actually is, unlike where the shot came from: the flare
     // is the one thing that should sit at the barrel rather than at the eye.
@@ -769,7 +794,7 @@ class _GameScreenState extends State<GameScreen>
     _blasts
       ..clear()
       ..addAll(projectiles.detonations);
-    _hitFlash = 1.0;
+    _hitFlash = _system.screenFlash;
   }
 
   /// Every torch, every step. The rate is per second and the system keeps each

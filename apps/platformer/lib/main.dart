@@ -505,7 +505,11 @@ class _GameScreenState extends State<GameScreen>
   /// how much camera movement is too much is a question you answer by moving the
   /// slider and looking, not by reading a number and relaunching.
   void _applyAccessibility() {
-    _followCamera?.motion = _config.settingOf('a11y.cameraMotion', 1.0);
+    // The system answer is the **default**, not an override: somebody who turned
+    // reduce-motion on years ago should not have to find the slider, and
+    // somebody who has moved the slider should not be argued with.
+    _followCamera?.motion =
+        _config.settingOf('a11y.cameraMotion', _system.cameraMotion);
     _input.setToggled(
       GameAction.sprint,
       toggled: _config.settingOf('a11y.toggleSprint', 0.0) >= 0.5,
@@ -744,6 +748,20 @@ class _GameScreenState extends State<GameScreen>
 
   /// Whether the pad was holding anything last frame, for the edge above.
   bool _padPressing = false;
+
+  /// What the player has already told the operating system.
+  Accommodations _system = const Accommodations();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Here rather than in `initState`, because this is the one place a
+    // `MediaQuery` is guaranteed to exist and to be re-read when it changes —
+    // and it does change: a player can turn reduce-motion on without leaving
+    // the game.
+    _system = Accommodations.of(context);
+    _applyAccessibility();
+  }
 
   /// Takes the title card down, the first time the player asks to play.
   ///
