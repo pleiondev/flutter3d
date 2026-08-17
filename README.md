@@ -15,7 +15,7 @@ engine is one.
 | [`packages/flutter3d_platformer`](packages/flutter3d_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
-| [`packages/gamepad`](packages/gamepad) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file. [README](packages/gamepad/README.md) |
+| [`packages/gamepad`](packages/gamepad) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/gamepad/README.md) |
 | [`packages/mouse_capture`](packages/mouse_capture) | Relative mouse deltas, which Flutter offers on no desktop platform |
 | [`apps/dungeon`](apps/dungeon) | The shooter, and a headless test that plays it to the exit |
 | [`apps/platformer`](apps/platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it |

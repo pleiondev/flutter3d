@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Fifteen packages and two applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file.
+Seventeen packages and three applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file.
 
 ## Engine
 
@@ -101,6 +101,13 @@ Positional audio: attenuation curves, panning, occlusion through a callback, voi
 ### `mouse_capture`
 Relative mouse deltas, which Flutter offers on no desktop platform. On macOS it turns off the association between the physical mouse and the on-screen cursor, so `mouseMoved` events keep arriving with their deltas while the cursor stays put.
 
+### `gamepad`
+Sticks, triggers and buttons, read as a snapshot the caller asks for once per frame — not a stream, because a fixed-step simulation asks *what is the pad doing now* and a stream would push edge detection into every caller. The dead zone is radial and rescaled, applied on the way out so nobody can forget it.
+
+Button names are **physical positions** (`face.south`, not `a`), because the string lands in a player's config file and is read back years later, possibly on a different pad: Xbox's lower face button is `A`, PlayStation's is Cross, and Nintendo swaps `A` and `B`.
+
+Knows nothing about games. The translation into actions is `PadInput` in `flutter3d_game`, beside the keyboard's. The web backend is pure Dart over `navigator.getGamepads()`; macOS, iOS and Android wait for a controller in hand, for the reason `docs/SPEC.md` §4.6 records.
+
 ## Applications
 
 ### `apps/dungeon`
@@ -127,6 +134,7 @@ flowchart TB
   backend --> gfx
   backend --> shaders["flutter3d_shaders"]
   extras["flutter3d_particles<br>flutter3d_audio"] -.-> engine
+  game --> devices["mouse_capture<br>gamepad<br><i>devices only</i>"]
 
   classDef forbidden stroke-dasharray: 4 3
   game -.-x engine
