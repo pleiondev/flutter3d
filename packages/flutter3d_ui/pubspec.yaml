@@ -1,0 +1,34 @@
+name: flutter3d_ui
+description: "The screens a game has that are not the game: settings, volumes, rebinding, credits — the parts a player uses before and after playing."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+repository: https://github.com/dzolotov/flutter3d
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The vocabulary these screens edit: bindings, actions, the settings map.
+  flutter3d_game:
+    path: ../flutter3d_game
+
+  # Volumes are a mixer's, and a settings panel is where they are turned.
+  flutter3d_audio:
+    path: ../flutter3d_audio
+
+  # For the dead zone's own default, so the panel and the pad cannot disagree
+  # about what "unset" means.
+  gamepad:
+    path: ../gamepad
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

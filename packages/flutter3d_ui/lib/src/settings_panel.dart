@@ -4,7 +4,6 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:gamepad/gamepad.dart' show Deadzone;
 
-import 'credits.dart';
 
 /// Volume sliders and the keys, over the top of the paused game.
 ///
@@ -25,6 +24,7 @@ class SettingsPanel extends StatelessWidget {
     required this.waitingFor,
     required this.onRebind,
     required this.onResetControls,
+    this.credits,
   });
 
   final Mixer mixer;
@@ -52,6 +52,14 @@ class SettingsPanel extends StatelessWidget {
   final void Function(GameAction? action) onRebind;
 
   final VoidCallback onResetControls;
+
+  /// What the game owes the people whose work it ships, if anything.
+  ///
+  /// A widget rather than a list, because what a credit *is* differs per game —
+  /// one has models under CC BY and one has an author it cannot trace — and this
+  /// screen's only job is to be somewhere a player reliably reaches. A game with
+  /// nothing to declare passes nothing.
+  final Widget? credits;
 
   /// **Music was missing here**, and a commit message claimed it was not. The
   /// mixer has had the bus since the soundtrack landed and the application was
@@ -168,8 +176,10 @@ class SettingsPanel extends StatelessWidget {
                   max: 2600.0,
                   onChanged: (double value) => onSetting('pad.look', value),
                 ),
-                const SizedBox(height: 18),
-                const CreditsSection(),
+                if (credits != null) ...<Widget>[
+                  const SizedBox(height: 18),
+                  credits!,
+                ],
                 const SizedBox(height: 20),
                 Align(
                   alignment: Alignment.centerRight,

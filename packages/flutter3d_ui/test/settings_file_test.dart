@@ -6,7 +6,7 @@ import 'dart:io';
 
 import 'package:flutter3d_game/flutter3d_game.dart' show GameConfig, InputSource, GameAction;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platformer/src/settings_file.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 void main() {
   late Directory temporary;
@@ -14,7 +14,7 @@ void main() {
 
   setUp(() {
     temporary = Directory.systemTemp.createTempSync('platformer_settings');
-    settings = SettingsFile(directory: temporary);
+    settings = SettingsFile(appName: 'test', directory: temporary);
   });
 
   tearDown(() => temporary.deleteSync(recursive: true));

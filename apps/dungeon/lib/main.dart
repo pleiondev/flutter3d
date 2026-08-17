@@ -27,6 +27,7 @@ import 'src/sounds.dart';
 import 'src/weapon_models.dart';
 import 'package:flutter3d_shooter/sample.dart';
 import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:gamepad/gamepad.dart' show PadButton;
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
@@ -87,6 +88,29 @@ class _GameScreenState extends State<GameScreen>
 
 
   final InputState _input = InputState();
+
+  /// What the player has changed, and where it is kept.
+  ///
+  /// **This game had neither.** No volumes, no rebinding, no way to turn
+  /// anything down — the only settings it has ever had were the ones its author
+  /// compiled in. The panel is shared with the platformer; what is here is the
+  /// wiring and the two lists that are this game's own.
+  final SettingsFile _settingsFile = SettingsFile(appName: 'dungeon');
+  late final GameConfig _config;
+  late final Rebinding _rebinding = Rebinding(bindings: _devices.bindings);
+  bool _showSettings = false;
+
+  /// What a player can move, in the order the panel lists it.
+  static const List<GameAction> _rebindable = <GameAction>[
+    GameAction.moveForward,
+    GameAction.moveBack,
+    GameAction.moveLeft,
+    GameAction.moveRight,
+    GameAction.jump,
+    GameAction.sprint,
+    ShooterActions.fire,
+    GameAction.use,
+  ];
   late final DesktopInput _devices;
   late final PadInput _pad;
   late final GameLoop _loop;
@@ -267,13 +291,21 @@ class _GameScreenState extends State<GameScreen>
   void initState() {
     super.initState();
 
-    _devices = DesktopInput(state: _input);
+    // Settings before devices: the bindings a player saved are the ones the
+    // keyboard should read from the first key press, not from the first rebind.
+    _config = _settingsFile.read();
+    _devices = DesktopInput(
+      state: _input,
+      bindings: _config.bindings.length > 0 ? _config.bindings : null,
+    );
     // One table for both devices, and the d-pad chooses a weapon here rather
     // than walking: this game numbers things, and a first-person player has the
     // left stick for walking already.
     _pad = PadInput(
       state: _input,
-      bindings: PadInput.addDefaultsTo(_devices.bindings)
+      bindings: (PadInput.knowsPad(_devices.bindings)
+          ? _devices.bindings
+          : PadInput.addDefaultsTo(_devices.bindings))
         ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
         ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire),
       slotButtons: PadInput.dpadSlots,
@@ -573,6 +605,40 @@ class _GameScreenState extends State<GameScreen>
 
   static const String _levelAsset = 'assets/levels/crypt.json';
 
+  /// The table this game ships with, for the panel's way back.
+  static Bindings _defaultBindings() =>
+      PadInput.addDefaultsTo(DesktopInput.defaultBindings())
+        ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
+        ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire);
+
+  void _setVolume(AudioBus bus, double volume) {
+    setState(() {
+      _audio.mixer.setVolume(bus, volume);
+      _config.setVolume(bus.name, volume);
+    });
+    _settingsFile.write(_config);
+  }
+
+  void _setSetting(String name, double value) {
+    setState(() {
+      _config.setSetting(name, value);
+      _pad.applySettings(_config);
+      _input.setToggled(
+        GameAction.sprint,
+        toggled: _config.settingOf('a11y.toggleSprint', 0.0) >= 0.5,
+      );
+    });
+    _settingsFile.write(_config);
+  }
+
+  /// Takes a control the player has just offered for the waiting action.
+  bool _capture(InputSource source) {
+    if (!_rebinding.capture(source)) return false;
+    setState(() {});
+    _settingsFile.write(_config);
+    return true;
+  }
+
   /// What the player has already told the operating system.
   ///
   /// **The whole of this game's accessibility settings, and deliberately.** The
@@ -613,14 +679,23 @@ class _GameScreenState extends State<GameScreen>
     // paused by not owning it.
     // Before the loop, so the frame that reads the pad is the frame it moves in.
     _pad.tick(dt);
+    // A pad button offered to a waiting rebinding, so a controller can be
+    // remapped from the controller.
+    if (_rebinding.waitingFor != null && _pad.heldButtons.isNotEmpty) {
+      _capture(InputSource.pad(_pad.heldButtons.first.id));
+    }
     // A player on a controller never captures the pointer, so a gate that only
     // knew about the mouse would leave them looking at a frozen dungeon.
     // The same gate the platformer names in `pause_gate.dart`, minus its menu:
     // this game has no settings panel to open, which is the one clause that
     // file adds. When it grows one, that clause comes with it.
-    _loop.paused = Playing.capturesPointer &&
-        !_devices.isCaptured &&
-        !_pad.isConnected;
+    // A menu is open, or the player is somewhere else. The platformer's
+    // `pause_gate.dart` carries the three ways this line has been wrong; the
+    // menu clause is the one that arrived with the panel below.
+    _loop.paused = _showSettings ||
+        (Playing.capturesPointer &&
+            !_devices.isCaptured &&
+            !_pad.isConnected);
     _steps = _loop.advance(dt);
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
@@ -903,6 +978,24 @@ class _GameScreenState extends State<GameScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
+          // A rebinding takes the next key, before anything else looks at it —
+          // including Escape, which is how a player says "not that one".
+          if (event is KeyDownEvent && _rebinding.waitingFor != null) {
+            if (event.logicalKey == LogicalKeyboardKey.escape) {
+              setState(_rebinding.cancel);
+            } else {
+              _capture(InputSource.key(event.logicalKey.keyId));
+            }
+            return KeyEventResult.handled;
+          }
+          // Escape opens the settings as well as letting the pointer go, so a
+          // player on a controller — who never took the pointer — has a way in.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            if (!_showSettings) unawaited(_devices.release());
+            setState(() => _showSettings = !_showSettings);
+            return KeyEventResult.handled;
+          }
           // F toggles the fog in place. A before-and-after has to come from
           // one process at one camera position, which is exactly what the
           // measurement I threw away did not have.
@@ -989,6 +1082,45 @@ class _GameScreenState extends State<GameScreen>
                     TouchAction(GameAction.use, 'use'),
                     TouchAction(ShooterActions.fire, 'fire'),
                   ],
+                ),
+              if (_showSettings)
+                SettingsPanel(
+                  mixer: _audio.mixer,
+                  bindings: _devices.bindings,
+                  config: _config,
+                  padConnected: _pad.isConnected,
+                  actions: _rebindable,
+                  waitingFor: _rebinding.waitingFor,
+                  onVolume: _setVolume,
+                  onSetting: _setSetting,
+                  onRebind: (GameAction? action) => setState(() {
+                    action == null
+                        ? _rebinding.cancel()
+                        : _rebinding.start(action);
+                  }),
+                  onResetControls: () {
+                    setState(() => _rebinding.reset(_defaultBindings()));
+                    _settingsFile.write(_config);
+                  },
+                  onClose: () {
+                    _rebinding.cancel();
+                    setState(() => _showSettings = false);
+                  },
+                )
+              else
+                Positioned(
+                  right: 18,
+                  top: 16,
+                  child: IconButton(
+                    tooltip: 'Settings',
+                    onPressed: () {
+                      // The pointer first: a panel you cannot point at has no
+                      // way out of it.
+                      unawaited(_devices.release());
+                      setState(() => _showSettings = true);
+                    },
+                    icon: const Icon(Icons.settings, color: Colors.white70),
+                  ),
                 ),
               Hud(
                 // Nothing to capture in a browser, so nothing to prompt for.

@@ -8,13 +8,13 @@
 /// could change one. A player who cannot reach `Ctrl`, who plays one-handed, or
 /// whose controller has a dead button had no way in.
 ///
-/// The rules are here rather than in `main.dart` because `main.dart` is imported
-/// by no test, and these are the parts that can be wrong.
+/// The rules are here rather than in a game's `main.dart` because a `main.dart`
+/// is imported by no test, and these are the parts that can be wrong.
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platformer/src/rebinding.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 const GameAction _dash = GameAction('dash');
 

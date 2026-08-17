@@ -44,6 +44,10 @@ dependencies:
   flutter3d_particles:
     path: ../../packages/flutter3d_particles
 
+  # Settings, volumes and rebinding — the screens that are not the game.
+  flutter3d_ui:
+    path: ../../packages/flutter3d_ui
+
   # The controller. Only for the two names on the pad this game says out loud —
   # the translation lives in `flutter3d_game`, which already depends on it.
   gamepad:

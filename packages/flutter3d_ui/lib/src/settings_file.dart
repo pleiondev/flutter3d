@@ -18,7 +18,15 @@ import 'package:flutter3d_game/flutter3d_game.dart' show GameConfig;
 /// which the repository's dependency policy asks for, and which keeps this
 /// testable with nothing but a directory.
 final class SettingsFile {
-  SettingsFile({Directory? directory}) : _given = directory;
+  SettingsFile({required this.appName, Directory? directory})
+      : _given = directory;
+
+  /// The directory this game keeps its settings in, under the usual place.
+  ///
+  /// A parameter since the second game arrived: two applications sharing one
+  /// settings file would have each overwrite the other's bindings, and finding
+  /// that out takes a while because it only happens if you play both.
+  final String appName;
 
   final Directory? _given;
 
@@ -30,7 +38,7 @@ final class SettingsFile {
   /// throw happens inside [read] and [write], which already promise never to
   /// throw and already fall back to defaults.
   late final Directory directory = _given ??
-      Directory('${_home()}/Library/Application Support/platformer');
+      Directory('${_home()}/Library/Application Support/$appName');
 
   File get file => File('${directory.path}/settings.json');
 

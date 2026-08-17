@@ -45,6 +45,11 @@ dependencies:
   flutter3d_bridge:
     path: ../../packages/flutter3d_bridge
 
+  # Settings, volumes and rebinding — the screens that are not the game. The
+  # crypt had none of them: no volumes, no bindings a player could move, nothing.
+  flutter3d_ui:
+    path: ../../packages/flutter3d_ui
+
   # The controller. Only for the button names this game says out loud; the
   # translation lives in `flutter3d_game`.
   gamepad:

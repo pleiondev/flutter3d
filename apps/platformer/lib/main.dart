@@ -26,6 +26,7 @@ import 'package:gamepad/gamepad.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
+import 'src/credits.dart';
 import 'src/soundtrack.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
@@ -33,12 +34,10 @@ import 'src/lens.dart';
 import 'src/looks.dart';
 import 'src/pace.dart';
 import 'src/pause_gate.dart';
-import 'src/rebinding.dart';
 import 'src/runner_looks.dart';
 import 'src/save_file.dart';
 import 'src/scene_surface.dart';
-import 'src/settings_file.dart';
-import 'src/settings_panel.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'src/sounds.dart';
 import 'src/title_card.dart';
 
@@ -120,7 +119,7 @@ class _GameScreenState extends State<GameScreen>
   /// here that only somebody looking at the screen can settle.
   static const double _modelFacing = 0.0;
 
-  final SettingsFile _settingsFile = SettingsFile();
+  final SettingsFile _settingsFile = SettingsFile(appName: 'platformer');
   late final GameConfig _config;
 
   final InputState _input = InputState();
@@ -1392,6 +1391,7 @@ class _GameScreenState extends State<GameScreen>
                         ? _rebinding.cancel()
                         : _rebinding.start(action);
                   }),
+                  credits: const CreditsSection(),
                   onResetControls: () {
                     setState(() => _rebinding.reset(_bindings()));
                     _settingsFile.write(_config);

@@ -21,7 +21,7 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/credits.dart';
-import 'package:platformer/src/settings_panel.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 /// The panel as the game mounts it: inside a [Scaffold], because the volume
 /// sliders need a [Material] ancestor and the game gives them one.
@@ -39,6 +39,7 @@ Widget _panel({GameConfig? config, bool padConnected = false}) => MaterialApp(
           waitingFor: null,
           onRebind: (GameAction? action) {},
           onResetControls: () {},
+          credits: const CreditsSection(),
         ),
       ),
     );
