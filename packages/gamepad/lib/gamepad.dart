@@ -33,7 +33,8 @@
 library;
 
 export 'src/deadzone.dart';
-export 'src/gamepad_platform_interface.dart' show GamepadPlatform, PadConnection;
+export 'src/gamepad_platform_interface.dart'
+    show GamepadPlatform, PadConnection, UnsupportedGamepad;
 export 'src/pad_button.dart';
 export 'src/pad_snapshot.dart';
 

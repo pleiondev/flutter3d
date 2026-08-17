@@ -63,16 +63,43 @@ by moving it.
 | Platform | State | How |
 |---|---|---|
 | macOS | not yet | `GameController.framework` — `GCController.current`, `GCExtendedGamepad`, and analogue triggers for free |
-| Web | not yet | `navigator.getGamepads()`, pure Dart, no native code |
+| Web | **yes** | `navigator.getGamepads()`, pure Dart, no native code |
 | iOS | not yet | the same Swift source as macOS |
 | Android | not yet | Kotlin: `InputDevice`, `InputManager.InputDeviceListener`, `MotionEvent` axes |
 | Windows | no | XInput, when somebody needs it |
 | Linux | no | evdev, likewise |
 
+Which implementation a build gets is a **conditional export**
+(`lib/src/platform_default.dart`), not a plugin registration: the web backend is
+pure Dart with nothing to register, and the choice is a fact about the platform
+rather than a preference. It also means a browser build has a gamepad under
+`flutter test --platform chrome`, where a generated plugin registrant never runs.
+
 `isSupported` answers `false` on a platform with no implementation, and answers
 it **without opening a channel**: asking and catching the failure costs every
 unsupported platform a `MissingPluginException` at first use, and a listener
 already attached cannot be un-attached.
+
+## On the web, two things will surprise you
+
+**A pad is invisible until a button is pressed.** Browsers hide gamepads from a
+page that has never seen one used, as a fingerprinting defence. Nothing can be
+done about it and nothing can detect it: press a button first.
+
+**`getGamepads()` freezes rather than empties** while the page is in the
+background — it keeps returning the last values it saw, so a player who switches
+tabs mid-corner would come back to a car that never stopped accelerating. So
+focus and visibility are both watched, and an unfocused page reports a pad that
+is attached and doing nothing. Not disconnected: the controller is still there,
+the player is not, and everything downstream releases through the ordinary path.
+
+**Only the standard mapping is used.** A pad the browser will not vouch for is
+treated as no pad, because without the mapping the indices come from whatever
+the driver felt like — index three might be a trigger — and binding it would
+write `pad:face.north` into a player's permanent file for something that is not
+a face button. There is deliberately no mapping database here to resolve that
+with, and an identifier that means the wrong thing is worse than a pad that does
+not answer.
 
 ## What this package is not
 
@@ -102,6 +129,18 @@ above it, so everything above it is tested: the dead zone in both directions,
 the trigger's travel, a disconnection zeroing before it announces itself, and
 the button vocabulary's own spelling. `test/gamepad_test.dart` supplies a fake
 platform, as `mouse_capture` does.
+
+The browser's mapping table is tested too, and separately from the browser: the
+seventeen button indices and four axis indices live in
+`lib/src/standard_mapping.dart`, which imports no `dart:js_interop` and so is
+checked by an ordinary unit test — including the mistake this is most likely to
+ship with, a trigger looked for in the axis list where the right stick lives.
+Run the suite both ways; the second one compiles the web backend:
+
+```sh
+flutter test
+flutter test --platform chrome
+```
 
 What remains manual is written down where it belongs — in the plan, as an
 acceptance checklist, because it is the part a person has to do.

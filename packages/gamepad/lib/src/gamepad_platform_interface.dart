@@ -1,6 +1,7 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 import 'pad_snapshot.dart';
+import 'platform_default.dart';
 
 /// Whether a pad is attached.
 ///
@@ -27,7 +28,10 @@ abstract base class GamepadPlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static GamepadPlatform _instance = _UnsupportedGamepad();
+  /// Chosen at compile time — see `platform_default.dart`. The browser gets a
+  /// real implementation; everything else gets [UnsupportedGamepad] until a
+  /// native backend is written with a controller in hand.
+  static GamepadPlatform _instance = defaultGamepadPlatform();
 
   static GamepadPlatform get instance => _instance;
 
@@ -60,11 +64,15 @@ abstract base class GamepadPlatform extends PlatformInterface {
 
 /// The platform for a build with no gamepad implementation.
 ///
+/// Public because a test in another package wants a pad that is honestly
+/// absent, which is not the same as the default instance — on the web the
+/// default is a real implementation.
+///
 /// Answers "no pad, ever" without opening a channel, so a game on a platform
 /// this package does not serve behaves exactly as it did before the package
 /// existed. There is no `MissingPluginException` to catch because nothing is
 /// called.
-final class _UnsupportedGamepad extends GamepadPlatform {
+final class UnsupportedGamepad extends GamepadPlatform {
   @override
   bool get isSupported => false;
 

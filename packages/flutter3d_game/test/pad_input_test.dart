@@ -510,7 +510,8 @@ void main() {
   group('a build with no gamepad implementation', () {
     test('is a translator that says nothing', () {
       final input = InputState()..press(GameAction.moveForward);
-      final pad = PadInput(state: input, pad: Gamepad())..tick(1 / 60);
+      final pad = PadInput(state: input, pad: Gamepad(platform: UnsupportedGamepad()))
+        ..tick(1 / 60);
 
       expect(pad.isSupported, isFalse);
       expect(pad.isConnected, isFalse);

@@ -12,8 +12,10 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gamepad/gamepad.dart';
+import 'package:gamepad/src/standard_mapping.dart';
 
 /// A gamepad that does whatever a test says.
 ///
@@ -260,12 +262,159 @@ void main() {
     test('says so, and opens nothing', () {
       // Never try-and-see: asking the channel and catching the failure costs
       // every unsupported platform a `MissingPluginException` at first use.
-      final pad = Gamepad(platform: GamepadPlatform.instance);
+      final pad = Gamepad(platform: UnsupportedGamepad());
       final out = PadSnapshot()..connected = true;
 
       expect(pad.isSupported, isFalse);
       pad.read(out);
       expect(out.connected, isFalse);
+    });
+
+    test('and the default is whichever this build actually has', () {
+      // The conditional export is the whole of the platform choice, so this is
+      // the test that notices when it stops choosing. Run it both ways:
+      //
+      //     flutter test
+      //     flutter test --platform chrome
+      //
+      // The `false` half changes the day a native backend lands, and changing it
+      // is the point: a platform table nobody has to update is a platform table
+      // that goes stale.
+      expect(Gamepad().isSupported, kIsWeb ? isTrue : isFalse);
+    });
+  });
+
+  group("the browser's standard mapping", () {
+    // A pad reporting nothing, in the shape the browser reports it.
+    List<double> axes([
+      double x0 = 0.0,
+      double y0 = 0.0,
+      double x1 = 0.0,
+      double y1 = 0.0,
+    ]) =>
+        <double>[x0, y0, x1, y1];
+    List<bool> pressed() => List<bool>.filled(17, false);
+    List<double> values() => List<double>.filled(17, 0.0);
+
+    test('a trigger is a button with a value, not an axis', () {
+      // **The single most likely way to ship this wrongly.** In the standard
+      // mapping the triggers are buttons 6 and 7 with travel between nought and
+      // one; they are not in the axis list at all, and a backend that looked for
+      // them there would find the right stick and call it a pedal.
+      final snapshot = PadSnapshot();
+      final travel = values()..[7] = 0.42;
+      StandardGamepad.apply(snapshot,
+          axisValues: axes(), pressed: pressed(), values: travel);
+
+      expect(snapshot.axis(PadAxis.triggerRight), closeTo(0.42, 1e-9));
+      expect(snapshot.axis(PadAxis.rightStickX), 0.0);
+      expect(snapshot.pressure(PadButton.triggerRight), closeTo(0.42, 1e-9));
+    });
+
+    test('and its bit is the browser\'s threshold, reported separately', () {
+      // Both numbers are passed on because they are not the same question. The
+      // game applies its own threshold — with hysteresis, which the browser has
+      // none of — and needs the travel to do it.
+      final snapshot = PadSnapshot();
+      StandardGamepad.apply(snapshot,
+          axisValues: axes(),
+          pressed: pressed()..[6] = true,
+          values: values()..[6] = 0.9);
+
+      expect(snapshot.down(PadButton.triggerLeft), isTrue);
+      expect(snapshot.pressure(PadButton.triggerLeft), closeTo(0.9, 1e-9));
+    });
+
+    test('the face buttons are positions, in the order the spec fixes', () {
+      // The specification numbers them bottom, right, left, top — which is this
+      // package's own vocabulary, and the reason no translation table is needed
+      // between the two.
+      for (final pair in const <List<Object>>[
+        <Object>[0, PadButton.faceSouth],
+        <Object>[1, PadButton.faceEast],
+        <Object>[2, PadButton.faceWest],
+        <Object>[3, PadButton.faceNorth],
+      ]) {
+        final snapshot = PadSnapshot();
+        StandardGamepad.apply(snapshot,
+            axisValues: axes(),
+            pressed: pressed()..[pair[0] as int] = true,
+            values: values());
+
+        expect(snapshot.down(pair[1] as PadButton), isTrue,
+            reason: 'button ${pair[0]} is not ${pair[1]}');
+      }
+    });
+
+    test('the d-pad is four buttons, and 12 is up', () {
+      // On some drivers a d-pad is a hat axis; under the standard mapping it
+      // never is, and getting this range wrong swaps up with the stick click.
+      final snapshot = PadSnapshot();
+      StandardGamepad.apply(snapshot,
+          axisValues: axes(), pressed: pressed()..[12] = true, values: values());
+
+      expect(snapshot.down(PadButton.dpadUp), isTrue);
+      expect(snapshot.down(PadButton.stickRightClick), isFalse);
+    });
+
+    test('the sticks are axes nought to three', () {
+      final snapshot = PadSnapshot();
+      StandardGamepad.apply(snapshot,
+          axisValues: axes(0.1, 0.2, 0.3, 0.4),
+          pressed: pressed(),
+          values: values());
+
+      expect(snapshot.axis(PadAxis.leftStickX), closeTo(0.1, 1e-9));
+      expect(snapshot.axis(PadAxis.leftStickY), closeTo(0.2, 1e-9));
+      expect(snapshot.axis(PadAxis.rightStickX), closeTo(0.3, 1e-9));
+      expect(snapshot.axis(PadAxis.rightStickY), closeTo(0.4, 1e-9));
+    });
+
+    test('a pad with fewer buttons than the table is not an error', () {
+      // Plenty of pads report sixteen, having no middle button. Reading past the
+      // end would be a crash on the frame a player plugs one in.
+      final snapshot = PadSnapshot();
+      StandardGamepad.apply(snapshot,
+          axisValues: <double>[0.0, 0.0],
+          pressed: List<bool>.filled(11, false)..[9] = true,
+          values: List<double>.filled(11, 0.0));
+
+      expect(snapshot.down(PadButton.start), isTrue);
+      expect(snapshot.down(PadButton.guide), isFalse);
+      expect(snapshot.axis(PadAxis.rightStickY), 0.0);
+    });
+
+    test('and one with more is not either', () {
+      // Paddles, a touchpad, adaptive triggers: everything past the standard
+      // mapping is deliberately unnamed here, and must be ignored rather than
+      // guessed at.
+      final snapshot = PadSnapshot();
+      StandardGamepad.apply(snapshot,
+          axisValues: List<double>.filled(8, 0.5),
+          pressed: List<bool>.filled(24, true),
+          values: List<double>.filled(24, 1.0));
+
+      expect(snapshot.down(PadButton.guide), isTrue);
+      expect(snapshot.held.length, StandardGamepad.buttons.length);
+    });
+
+    test('and what was released last frame is not still down', () {
+      // The snapshot is reused between frames, so a mapping that only ever added
+      // would hold every button that had ever been pressed.
+      //
+      // This is the guard on the invariant rather than on a defensive clear:
+      // `apply` writes every control it names on every call, and clearing first
+      // as well would be a line no mutation can reach.
+      final snapshot = PadSnapshot();
+      StandardGamepad.apply(snapshot,
+          axisValues: axes(), pressed: pressed()..[0] = true, values: values());
+      expect(snapshot.down(PadButton.faceSouth), isTrue);
+
+      StandardGamepad.apply(snapshot,
+          axisValues: axes(), pressed: pressed(), values: values());
+
+      expect(snapshot.down(PadButton.faceSouth), isFalse);
+      expect(snapshot.connected, isTrue);
     });
   });
 }
