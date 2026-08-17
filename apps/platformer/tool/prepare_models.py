@@ -34,15 +34,10 @@ def main() -> int:
     _transform_root(penguin, scale=1.8 / 7.845971085131168)
     _write(penguin, MODELS / 'penguin.glb')
 
-    # The shooter's key, carried across on request. It is the one asset in the
-    # repository whose licence is unrecorded — see `assets/models/LICENSES.md`,
-    # which now says so in two games instead of one.
-    key = _read(HERE.parent.parent / 'dungeon' / 'assets' / 'models' / 'key.glb')
-    # 0.6 m tall and standing on its base. A fixture's model is placed at the
-    # collider's centre, so it comes down half its height; a fifth again bigger
-    # because a key on the floor of a 120-metre field is easy to miss.
-    _transform_root(key, scale=1.2, drop=0.3)
-    _write(key, MODELS / 'key.glb')
+    # **The key is not here any more.** It used to be carried across from the
+    # shooter, and it was the one asset in the repository whose licence was
+    # unrecorded — which meant neither game could ship. It is generated now, by
+    # `tool/make_key.py`, which writes both games' copies in one pass.
 
     hero = _read(source / 'animated_platformer_character.glb')
     # Three and three quarter units tall in its bind pose, and the pose is a T

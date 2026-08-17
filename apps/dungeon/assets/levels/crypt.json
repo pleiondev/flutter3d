@@ -34,10 +34,7 @@
       "orm": "assets/textures/stone_orm.png"
     },
     "keymetal": {
-      "baseColor": [1.0, 1.0, 1.0, 1.0], "roughness": 0.4,
-      "albedo": "assets/textures/key_albedo.jpg",
-      "normal": "assets/textures/key_normal.png",
-      "orm": "assets/textures/key_orm.png"
+      "baseColor": [0.92, 0.72, 0.26, 1.0], "roughness": 0.35, "metallic": 0.9
     },
     "iron": {
       "baseColor": [0.72, 0.70, 0.68, 1.0], "roughness": 0.6,

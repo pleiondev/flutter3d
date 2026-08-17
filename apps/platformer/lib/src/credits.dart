@@ -110,7 +110,20 @@ abstract final class Credits {
       licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
       modified: true,
     ),
-    Credit.untraced(file: 'models/key.glb', work: 'A key'),
+    Credit(
+      file: 'models/key.glb',
+      work: 'A key',
+      // **The one asset here that nobody had to be asked for.** The key that
+      // used to sit in this slot came from an archive with no licence file, no
+      // author and no trail back to one, and it was the only thing standing
+      // between this game and a release. It is generated now — the provenance
+      // is a script in this repository, and `tool/make_key.py` says why at
+      // length.
+      author: 'this repository',
+      source: 'apps/platformer/tool/make_key.py',
+      licence: 'CC0 1.0',
+      licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    ),
   ];
 
   /// The ones whose licence makes naming the author a condition.
@@ -119,8 +132,13 @@ abstract final class Credits {
 
   /// The ones that cannot be credited because nobody knows who made them.
   ///
-  /// **Not empty, and that is the point.** While this list has anything in it
-  /// the game cannot be released, whatever the credits screen says.
+  /// **Empty now, and it took generating a key to get there.** While this list
+  /// has anything in it the game cannot be released, whatever the credits screen
+  /// says — so the way it emptied was not finding the author of the old key,
+  /// which nobody could, but replacing it with one this repository made.
+  ///
+  /// It stays, because the next asset dropped into `assets/models` is one
+  /// somebody found somewhere, and `credits_test.dart` reads the directory.
   static List<Credit> get untraced =>
       models.where((Credit c) => !c.traced).toList();
 }

@@ -43,6 +43,8 @@ final class PlatformerSimulation {
     this.dynamics,
     this.actors,
     this.lives = -1,
+    this.deaths = 0,
+    this.elapsed = 0.0,
     this.levelNext,
     GameRandom? random,
     this.killPlane = -20.0,
@@ -91,8 +93,6 @@ final class PlatformerSimulation {
   /// body. [Runner.reviveAt] is the one place that converts.
   Vector3 get respawnPoint => _respawn;
 
-  /// How many times the runner has died. A score, and a test's favourite number.
-  int deaths = 0;
 
   /// How many deaths this run has left. Negative means the run cannot be lost.
   ///
@@ -106,13 +106,25 @@ final class PlatformerSimulation {
   /// knows how to count it.
   int lives;
 
+  /// How many falls this **run** has cost, which is not the same as this level.
+  ///
+  /// Arguments rather than always starting at nought, because a run spans levels
+  /// and a simulation does not: only the application knows what the level after
+  /// this one is, so only the application can carry the tally across. It used to
+  /// start fresh every time, which made three lives mean three lives *per level*
+  /// and the clock on the summit read as the time for the last climb.
+  /// How many times the runner has died. A score, and a test's favourite number.
+  int deaths;
+
   /// How long this run has been played, in seconds.
   ///
   /// Simulated time and not wall-clock: it is the sum of the steps, so it does
   /// not run while the game is paused, does not jump when a frame is slow, and
   /// is the same number for the same play on any machine. A timer read off the
   /// clock is a timer that punishes a player whose laptop stuttered.
-  double elapsed = 0.0;
+  ///
+  /// Given at construction for the same reason [deaths] is: a run spans levels.
+  double elapsed;
 
   /// Collectibles taken on this step, for a sound and a counter.
   final List<Collectible> takenThisStep = <Collectible>[];

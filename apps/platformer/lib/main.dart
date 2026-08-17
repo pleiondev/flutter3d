@@ -551,6 +551,17 @@ class _GameScreenState extends State<GameScreen>
   /// and offering nothing to do about it. Every one of those is a *content*
   /// mistake — the failure a person editing a level makes, which is to say the
   /// most likely failure this game has.
+  /// What a run has come to so far, carried from one level into the next.
+  ///
+  /// **Three lives used to mean three lives per level**, and the clock on the
+  /// summit read as the time for the last climb: every level built a fresh
+  /// simulation with the constant, and the tally of the run before it went
+  /// nowhere. A run spans levels and a simulation does not — only this file
+  /// knows what the level after this one is, so only this file can carry it.
+  ///
+  /// Null for a run that is starting. Cleared when one ends, either way.
+  ({int lives, int deaths, double elapsed, int coins})? _carried;
+
   Future<void> _loadLevel(String asset, {Snapshot? resume}) async {
     try {
       await _readLevel(asset, resume: resume);
@@ -627,6 +638,11 @@ class _GameScreenState extends State<GameScreen>
       // What this game's floors are made of. The names live in the level
       // document, on the brushes, beside the material that paints them.
       surfaces: Surfaces.common(),
+      // Seeded so the purse is the run's total rather than this level's, which
+      // is what the HUD has always claimed it was and what the ending totals.
+      // Through the purse rather than beside it, so `sim.save()` carries it and
+      // a resumed run is not a run that lost its coins.
+      purse: Purse()..add('coin', _carried?.coins ?? 0),
     );
 
     // A box now, the model when it arrives. `FixtureVisuals` does the same for
@@ -654,7 +670,9 @@ class _GameScreenState extends State<GameScreen>
         mechanisms: mechanisms,
         dynamics: dynamics,
         levelNext: loaded.level.next,
-        lives: _lives,
+        lives: _carried?.lives ?? _lives,
+        deaths: _carried?.deaths ?? 0,
+        elapsed: _carried?.elapsed ?? 0.0,
       );
       _followCamera = FollowCamera(world: loaded.collision);
       // A camera is built per level, so the setting has to be put back on it.
@@ -718,7 +736,17 @@ class _GameScreenState extends State<GameScreen>
     _movingOn = true;
     _saveFile.clear();
     final next = sim.state == RunState.finished ? sim.nextLevel : null;
-    if (next == null) return;
+    if (next == null) {
+      // The run is over, whichever way. The next one starts from nothing.
+      _carried = null;
+      return;
+    }
+    _carried = (
+      lives: sim.lives,
+      deaths: sim.deaths,
+      elapsed: sim.elapsed,
+      coins: _runner?.purse['coin'] ?? 0,
+    );
 
     // A beat on the results screen before the next level: arriving in a new
     // place in the same frame the last one ended reads as a glitch.
@@ -799,6 +827,8 @@ class _GameScreenState extends State<GameScreen>
   /// Starts the run over, from the top of the level being played.
   void _restart() {
     _saveFile.clear();
+    // A new run, not a continuation of the one that ended.
+    _carried = null;
     _movingOn = false;
     unawaited(_loadLevel(_levelAsset));
   }

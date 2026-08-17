@@ -18,7 +18,7 @@ const double _dt = 1.0 / 60.0;
 
 /// A floor, a pit beyond it, a coin, a checkpoint, and a runner.
 final class _World {
-  _World({int lives = -1}) {
+  _World({int lives = -1, int deaths = 0, double elapsed = 0.0}) {
     world.addBox(Vector3(0.0, -0.5, 4.0), Vector3(20.0, 1.0, 12.0));
     mechanisms = MechanismWorld(world);
 
@@ -48,6 +48,8 @@ final class _World {
       startAt: Vector3.zero(),
       mechanisms: mechanisms,
       lives: lives,
+      deaths: deaths,
+      elapsed: elapsed,
     );
   }
 
@@ -243,5 +245,47 @@ void _progressTests() {
     expect(other.sim.lives, run.sim.lives);
     expect(other.sim.elapsed, closeTo(run.sim.elapsed, 1e-6));
     expect(other.sim.deaths, run.sim.deaths);
+  });
+
+  group('a run that spans levels', () {
+    // **Three lives used to mean three lives per level.** Every level built a
+    // fresh simulation from the constant, so the tally of the levels before it
+    // went nowhere — and the clock on the summit read as the time for the last
+    // climb rather than for the climb.
+    //
+    // A run spans levels and a simulation does not: only an application knows
+    // what the level after this one is, so only it can carry the tally. What is
+    // tested here is that a simulation will *take* one.
+
+    test('starts where the run had got to, not at nothing', () {
+      final world = _World(lives: 2, deaths: 5, elapsed: 91.5);
+
+      expect(world.sim.lives, 2);
+      expect(world.sim.deaths, 5);
+      expect(world.sim.elapsed, 91.5);
+    });
+
+    test('and goes on counting from there', () {
+      final world = _World(lives: 3, deaths: 5, elapsed: 91.5);
+
+      world.step();
+
+      expect(world.sim.elapsed, greaterThan(91.5));
+      expect(world.sim.deaths, 5, reason: 'nothing died');
+    });
+
+    test('and a carried tally survives being saved and read back', () {
+      // The other half of carrying it: a player who closes the game halfway up
+      // the second level must not come back with the first level forgiven.
+      final world = _World(lives: 2, deaths: 5, elapsed: 91.5);
+      final saved = world.sim.save();
+
+      final fresh = _World();
+      fresh.sim.restore(saved);
+
+      expect(fresh.sim.lives, 2);
+      expect(fresh.sim.deaths, 5);
+      expect(fresh.sim.elapsed, 91.5);
+    });
   });
 }

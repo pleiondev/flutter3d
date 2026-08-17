@@ -64,18 +64,28 @@ void main() {
         reason: 'shipped a model nobody is credited for');
   });
 
-  test('an asset nobody can trace says so rather than going quiet', () {
-    // The awkward half. `key.glb` came from an archive with no licence file, no
-    // readme and no author, and the honest answer is to print that — a credits
-    // screen listing three of four models reads as a complete one.
-    final untraced = Credits.untraced;
+  test('nothing this game ships is untraceable any more', () {
+    // **This test used to assert the opposite.** `key.glb` came from an archive
+    // with no licence file, no readme and no author, and while it was here the
+    // game could not be released at all — no amount of looking fixes an asset
+    // with no provenance. It was replaced by one this repository generates, so
+    // the list is empty and the release blocker is gone.
+    //
+    // The machinery stays: the next model dropped into `assets/models` is one
+    // somebody found somewhere, and the test above reads that directory.
+    expect(Credits.untraced, isEmpty,
+        reason: 'this game cannot be released while anything is in this list');
+  });
 
-    expect(untraced.map((Credit c) => c.file), contains('models/key.glb'));
-    for (final credit in untraced) {
-      expect(credit.line, contains('untraced'));
-      expect(credit.owesAttribution, isFalse,
-          reason: 'nobody to attribute it to');
-    }
+  test('and the way of saying so still works', () {
+    // Kept because the check above is now an assertion about an empty list, and
+    // an empty list passes whatever the code does. This is the half that fails
+    // if `untraced` stops meaning anything.
+    const found = Credit.untraced(file: 'models/found.glb', work: 'A thing');
+
+    expect(found.traced, isFalse);
+    expect(found.line, contains('untraced'));
+    expect(found.owesAttribution, isFalse, reason: 'nobody to attribute it to');
   });
 
   testWidgets('the screen a player can reach names the authors', (
@@ -95,13 +105,18 @@ void main() {
     }
   });
 
-  testWidgets('and it does not quietly drop the one it cannot credit', (
+  testWidgets('and the screen lists every model, not only the owed ones', (
     WidgetTester tester,
   ) async {
+    // **This used to walk `Credits.untraced`**, which is empty now — so it
+    // passed without looking at anything. What it was reaching for is the real
+    // obligation: a credits screen listing three of four models reads as a
+    // complete one, and the licence is discharged by the whole list.
     await tester.pumpWidget(_panel());
 
-    for (final credit in Credits.untraced) {
-      expect(find.text(credit.line), findsOneWidget);
+    expect(Credits.models, isNotEmpty);
+    for (final credit in Credits.models) {
+      expect(find.text(credit.line), findsOneWidget, reason: credit.file);
     }
   });
 }

@@ -23,10 +23,10 @@ stated. Two changes, both by `tool/prepare_models.py`:
 Neither touches the mesh. The original is `weathered_penguin-bot.glb` as
 downloaded from the source above.
 
-The traceable case, and the reason this file exists at all:
-`apps/dungeon/assets/textures/LICENSES.md` records the opposite one, where the
-key model and its maps have **no** licence traced and the game cannot ship until
-that is fixed. This model carries its own provenance in the GLB's
+The traceable case, and the reason this file exists at all: the key below used
+to be the opposite one, shipped with no licence traced at all, and it took
+generating a replacement rather than finding an author to close it. This model
+carries its own provenance in the GLB's
 `asset.extras`, which is where the table above came from rather than from
 somebody's memory:
 
@@ -68,22 +68,23 @@ committed.
 The mesh is untouched. The original is `stylized_coin.glb` as downloaded.
 
 
-## `key.glb` — provenance **unrecorded**
+## `key.glb` — generated here, CC0
 
-Carried across from `apps/dungeon/assets/models/key.glb` on request, and it is
-the one asset here that cannot answer the three rows above.
-`apps/dungeon/assets/textures/LICENSES.md` records why: the archive it came from
-— a Cinema 4D export dated 2019, repackaged 2022 — has no licence file, no
-readme and no author.
+**This entry used to say the game could not ship.** The key it describes came
+from an archive with no licence file, no readme and no author, both games placed
+it, and the credits screen told the player so. It was not traced — an asset with
+no provenance does not acquire one — it was replaced.
 
-**This game therefore inherits the shooter's blocker.** Neither can ship until
-the licence is traced or the model replaced, and it is now two games rather than
-one. Written here rather than left implied, because the whole point of this file
-is that an asset with no provenance should be visible from the game that uses
-it.
+Written by `tool/make_key.py`: a torus for the bow, a cylinder for the shaft and
+two boxes for the bit, flat-shaded, 888 vertices, 24 KB. Run it again and the
+file is byte-identical; it writes the same one into `apps/dungeon` in the same
+pass, so the two games cannot drift.
 
-Modified by `tool/prepare_models.py`: scaled by 1.2 and dropped onto its own
-centre. The mesh is untouched.
+CC0 1.0 — <https://creativecommons.org/publicdomain/zero/1.0/>. No attribution
+is owed and this entry is a record rather than a duty, which is the whole
+difference between it and what was here before. The size is copied from the
+model it replaces (0.25 by 0.72 m) because both games place it by that size, and
+`test/key_model_test.dart` checks that it stayed there.
 
 ## `hero.glb` — the runner, animated
 
