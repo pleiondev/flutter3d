@@ -32,6 +32,9 @@ final class InputState {
   /// How many things are holding each held action down — see [release].
   final Map<GameAction, int> _holds = <GameAction, int>{};
 
+  /// Actions a press flips rather than holds — see [setToggled].
+  final Set<GameAction> _toggled = <GameAction>{};
+
   /// Went down at least once since the last [endStep].
   final Set<GameAction> _pressedLatch = <GameAction>{};
 
@@ -105,6 +108,20 @@ final class InputState {
   // MARK: - Writing, from a device
 
   void press(GameAction action) {
+    if (_toggled.contains(action)) {
+      // A press flips it and a release says nothing. Which is the whole feature:
+      // see [setToggled].
+      if (_held.remove(action)) {
+        _holds.remove(action);
+        _releasedLatch.add(action);
+      } else {
+        _held.add(action);
+        _holds[action] = 1;
+        _pressedLatch.add(action);
+      }
+      _recomputeMoveAxis();
+      return;
+    }
     _holds[action] = (_holds[action] ?? 0) + 1;
     _held.add(action);
     _pressedLatch.add(action);
@@ -124,6 +141,9 @@ final class InputState {
   /// without anybody being identified. A device that pressed twice without
   /// releasing would stay held, and that is a bug in the device.
   void release(GameAction action) {
+    // A toggled action is let go by pressing it again, so the release that ends
+    // an ordinary hold has nothing to do here.
+    if (_toggled.contains(action)) return;
     final holds = (_holds[action] ?? 0) - 1;
     if (holds > 0) {
       _holds[action] = holds;
@@ -134,6 +154,44 @@ final class InputState {
     _releasedLatch.add(action);
     _recomputeMoveAxis();
   }
+
+  /// Makes [action] latch: a press turns it on and the next press turns it off.
+  ///
+  /// **An accessibility setting, and a plain one.** Sprinting is held, and
+  /// holding a key for the length of a climb is a real barrier for a player with
+  /// limited grip or a tremor — the accommodation every guideline names first
+  /// and the one nearly every game omits. A latch costs one set and two
+  /// branches.
+  ///
+  /// Here rather than in a device because it is not about a device: a keyboard,
+  /// a pad and a thumb should all latch the same action, and putting it in one
+  /// translator would mean the other two disagreed. It is also why [release]
+  /// does nothing for a latched action — the device still reports the release,
+  /// honestly, and this is the layer that decides it means nothing.
+  ///
+  /// A latch survives [endStep] and dies with [clear], like any other held
+  /// state: a player who alt-tabs mid-climb comes back standing still rather
+  /// than sprinting into a wall. **The choice of which actions latch does not
+  /// die with it** — that is a setting, not state, and a player should not have
+  /// to set it again because a window lost focus.
+  void setToggled(GameAction action, {required bool toggled}) {
+    if (toggled) {
+      _toggled.add(action);
+      return;
+    }
+    _toggled.remove(action);
+    // Left held would be a sprint nothing can turn off: the key that would have
+    // released it is up already, and the press that would have flipped it is not
+    // coming.
+    if (_held.remove(action)) {
+      _holds.remove(action);
+      _releasedLatch.add(action);
+      _recomputeMoveAxis();
+    }
+  }
+
+  /// Whether [action] latches rather than being held.
+  bool isToggled(GameAction action) => _toggled.contains(action);
 
   /// Says how hard an action is being asked for.
   ///

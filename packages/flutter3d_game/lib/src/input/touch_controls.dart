@@ -27,6 +27,14 @@ import 'input_state.dart';
 /// wants jump and dash, a shooter wants fire and a slot. [TouchControls] takes
 /// them as a list.
 ///
+/// ## Labelled, even though a blind player is not playing this
+///
+/// Each button says what it does to a screen reader. That is not the
+/// contradiction it looks like: a player with low vision, or one whose reader is
+/// on for something else entirely, meets these controls and gets "jump" rather
+/// than an unnamed circle. The stick is not labelled, because a thumb stick
+/// under a reader is a gesture nobody can perform.
+///
 /// ## One finger per control
 ///
 /// Every control tracks the pointer id that claimed it, which is the whole of
@@ -247,6 +255,14 @@ class _TouchButtonState extends State<TouchButton> {
   @override
   Widget build(BuildContext context) {
     final down = _pointer != null;
+    return Semantics(
+      button: true,
+      label: widget.label,
+      child: _listener(down),
+    );
+  }
+
+  Widget _listener(bool down) {
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (PointerDownEvent event) {

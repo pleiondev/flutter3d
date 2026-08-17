@@ -22,6 +22,7 @@ export 'src/ghost.dart';
 export 'src/layers.dart';
 export 'src/race_state.dart';
 export 'src/simulation.dart';
+export 'src/sky.dart';
 export 'src/track.dart';
 export 'src/track_field.dart';
 export 'src/track_reader.dart';

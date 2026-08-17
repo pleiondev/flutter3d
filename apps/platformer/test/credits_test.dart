@@ -35,6 +35,10 @@ Widget _panel({GameConfig? config, bool padConnected = false}) => MaterialApp(
           onVolume: (AudioBus bus, double volume) {},
           onSetting: (String name, double value) {},
           onClose: () {},
+          actions: const <GameAction>[GameAction.jump],
+          waitingFor: null,
+          onRebind: (GameAction? action) {},
+          onResetControls: () {},
         ),
       ),
     );

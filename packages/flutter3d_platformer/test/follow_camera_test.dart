@@ -266,6 +266,26 @@ void main() {
           reason: 'it never came back');
     });
 
+    test('and it turns the knocks off as well, which it used not to', () {
+      // **Half the accommodation was missing.** The knob was called `shakeScale`
+      // and only the shake read it, so a player who turned the shake off still
+      // got a camera driven into the floor on every landing — the same
+      // involuntary movement under a different name.
+      final camera = FollowCamera(world: _empty())..motion = 0.0;
+      final at = Vector3(0.0, 1.0, 0.0);
+      for (var i = 0; i < 60; i++) {
+        camera.follow(at, 1.0 / 60.0);
+      }
+      final settled = camera.eye.clone();
+
+      camera.kick(Vector3(0.0, -0.5, 0.0));
+      for (var i = 0; i < 6; i++) {
+        camera.follow(at, 1.0 / 60.0);
+        expect((camera.eye - settled).length, lessThan(0.01),
+            reason: 'the camera was knocked with the setting at nought');
+      }
+    });
+
     test('a shake is over inside half a second', () {
       final camera = FollowCamera(world: _empty());
       final at = Vector3(0.0, 1.0, 0.0);
@@ -293,7 +313,7 @@ void main() {
     test('turning the shake off turns it off', () {
       // The setting exists because a shaking camera makes some people ill, and
       // "off" has to mean off rather than "less".
-      final camera = FollowCamera(world: _empty())..shakeScale = 0.0;
+      final camera = FollowCamera(world: _empty())..motion = 0.0;
       final at = Vector3(0.0, 1.0, 0.0);
       for (var i = 0; i < 60; i++) {
         camera.follow(at, 1.0 / 60.0);

@@ -379,4 +379,95 @@ void main() {
       expect(input.held(GameAction.jump), isFalse);
     });
   });
+
+  group('an action that latches instead of being held', () {
+    // **The accommodation every guideline names first and nearly every game
+    // omits.** Sprinting is held, and holding a key for the length of a climb is
+    // a real barrier for a player with limited grip or a tremor.
+
+    test('a press turns it on and stays on', () {
+      final input = InputState()..setToggled(GameAction.sprint, toggled: true);
+
+      input
+        ..press(GameAction.sprint)
+        ..release(GameAction.sprint);
+
+      expect(input.held(GameAction.sprint), isTrue,
+          reason: 'the release is what a latch is for ignoring');
+    });
+
+    test('and the next press turns it off', () {
+      final input = InputState()..setToggled(GameAction.sprint, toggled: true);
+
+      input
+        ..press(GameAction.sprint)
+        ..release(GameAction.sprint)
+        ..press(GameAction.sprint)
+        ..release(GameAction.sprint);
+
+      expect(input.held(GameAction.sprint), isFalse);
+      expect(input.released(GameAction.sprint), isTrue,
+          reason: 'a simulation watching for the edge still sees one');
+    });
+
+    test('and it latches from whichever device pressed it', () {
+      // The reason this is in `InputState` and not in a translator: a keyboard,
+      // a pad and a thumb must all latch the same action, and three copies would
+      // be three that disagree.
+      final input = InputState()..setToggled(GameAction.sprint, toggled: true);
+
+      input.press(GameAction.sprint);
+      expect(input.held(GameAction.sprint), isTrue);
+
+      // As a second device would: a fresh press, no matching release.
+      input.press(GameAction.sprint);
+      expect(input.held(GameAction.sprint), isFalse);
+    });
+
+    test('and losing focus lets go of it', () {
+      // A player who alt-tabs mid-climb must not come back sprinting into a
+      // wall. Held state dies with focus, latched or not.
+      final input = InputState()..setToggled(GameAction.sprint, toggled: true);
+      input.press(GameAction.sprint);
+
+      input.clear();
+
+      expect(input.held(GameAction.sprint), isFalse);
+    });
+
+    test('but the choice of what latches survives it', () {
+      // A setting, not state. Making a player set it again because a window lost
+      // focus would be the accommodation failing in the one moment it matters.
+      final input = InputState()..setToggled(GameAction.sprint, toggled: true);
+
+      input.clear();
+
+      expect(input.isToggled(GameAction.sprint), isTrue);
+      input.press(GameAction.sprint);
+      input.release(GameAction.sprint);
+      expect(input.held(GameAction.sprint), isTrue);
+    });
+
+    test('and turning the setting off does not leave it stuck on', () {
+      // **The mutation this exists for.** The key that would have released it is
+      // up already and the press that would have flipped it is not coming, so a
+      // sprint left on here is a sprint nothing can turn off.
+      final input = InputState()..setToggled(GameAction.sprint, toggled: true);
+      input.press(GameAction.sprint);
+
+      input.setToggled(GameAction.sprint, toggled: false);
+
+      expect(input.held(GameAction.sprint), isFalse);
+    });
+
+    test('and an ordinary action is untouched by any of it', () {
+      final input = InputState()..setToggled(GameAction.sprint, toggled: true);
+
+      input
+        ..press(GameAction.jump)
+        ..release(GameAction.jump);
+
+      expect(input.held(GameAction.jump), isFalse);
+    });
+  });
 }

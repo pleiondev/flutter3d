@@ -32,6 +32,7 @@ import 'src/hud.dart';
 import 'src/lens.dart';
 import 'src/looks.dart';
 import 'src/pace.dart';
+import 'src/rebinding.dart';
 import 'src/runner_looks.dart';
 import 'src/save_file.dart';
 import 'src/scene_surface.dart';
@@ -124,6 +125,7 @@ class _GameScreenState extends State<GameScreen>
   final InputState _input = InputState();
   late final DesktopInput _devices;
   late final PadInput _pad;
+  late final Rebinding _rebinding = Rebinding(bindings: _devices.bindings);
 
   AudioScene _audio = AudioScene(backend: SilentBackend());
   final AudioListener _ears = AudioListener();
@@ -283,6 +285,7 @@ class _GameScreenState extends State<GameScreen>
     _pad = PadInput(state: _input, bindings: _devices.bindings)
       ..applySettings(_config);
     _applyVolumes();
+    _applyAccessibility();
     _loop = GameLoop(
       input: _input,
       onStep: _step,
@@ -466,6 +469,49 @@ class _GameScreenState extends State<GameScreen>
     _settingsFile.write(_config);
   }
 
+  /// What a player can move, in the order the panel lists it.
+  ///
+  /// The game's list rather than the engine's `GameAction.common`: this one has
+  /// a dash and a drop-through in it, and a screen that could not rebind those
+  /// two would be a screen that could not rebind the moves the levels ask for.
+  static const List<GameAction> _rebindable = <GameAction>[
+    GameAction.moveForward,
+    GameAction.moveBack,
+    GameAction.moveLeft,
+    GameAction.moveRight,
+    GameAction.jump,
+    GameAction.sprint,
+    PlatformerActions.dash,
+    PlatformerActions.dropThrough,
+    GameAction.use,
+  ];
+
+  /// Takes a control the player has just offered for the waiting action.
+  ///
+  /// Saves immediately: a rebinding that survived only until the next launch
+  /// would be worse than none, because a player would set it, believe it, and
+  /// find out during a run.
+  bool _capture(InputSource source) {
+    if (!_rebinding.capture(source)) return false;
+    setState(() {});
+    _settingsFile.write(_config);
+    return true;
+  }
+
+  /// Puts the accessibility settings where they take effect.
+  ///
+  /// Called after the config is read and again whenever a slider moves, because
+  /// **an accommodation a player cannot feel while setting it cannot be set**:
+  /// how much camera movement is too much is a question you answer by moving the
+  /// slider and looking, not by reading a number and relaunching.
+  void _applyAccessibility() {
+    _followCamera?.motion = _config.settingOf('a11y.cameraMotion', 1.0);
+    _input.setToggled(
+      GameAction.sprint,
+      toggled: _config.settingOf('a11y.toggleSprint', 0.0) >= 0.5,
+    );
+  }
+
   /// Records a number that is not a volume, and acts on it at once.
   ///
   /// Applied before it is written, because the point of a dead-zone slider is
@@ -475,6 +521,7 @@ class _GameScreenState extends State<GameScreen>
     setState(() {
       _config.setSetting(name, value);
       _pad.applySettings(_config);
+      _applyAccessibility();
     });
     _settingsFile.write(_config);
   }
@@ -594,6 +641,8 @@ class _GameScreenState extends State<GameScreen>
         lives: _lives,
       );
       _followCamera = FollowCamera(world: loaded.collision);
+      // A camera is built per level, so the setting has to be put back on it.
+      _applyAccessibility();
       unawaited(_dressRunner(device, loaded.scene, runner));
       _drawnAt = InterpolatedVector3(
         initial: runner.body.position,
@@ -675,6 +724,14 @@ class _GameScreenState extends State<GameScreen>
     final wasPressing = _padPressing;
     _padPressing = pressing;
     if (!pressing || wasPressing) return;
+
+    // A pad button offered to a waiting rebinding, so a controller can be
+    // remapped from the controller rather than from the keyboard — which is the
+    // whole point for a player who has only one of the two.
+    if (_rebinding.waitingFor != null) {
+      _capture(InputSource.pad(_pad.heldButtons.first.id));
+      return;
+    }
 
     // Any button begins, which is also how a browser reveals the pad to the
     // page in the first place: it stays invisible until one is pressed.
@@ -1165,6 +1222,16 @@ class _GameScreenState extends State<GameScreen>
             _restart();
             return KeyEventResult.handled;
           }
+          // A rebinding takes the next key, before anything else looks at it —
+          // including Escape below, which is how a player says "not that one".
+          if (event is KeyDownEvent && _rebinding.waitingFor != null) {
+            if (event.logicalKey == LogicalKeyboardKey.escape) {
+              setState(_rebinding.cancel);
+            } else {
+              _capture(InputSource.key(event.logicalKey.keyId));
+            }
+            return KeyEventResult.handled;
+          }
           // Escape opens the settings, which the title card has been promising
           // and nothing was doing. Before `DesktopInput` sees it, because that
           // is where Escape gives the pointer back, and giving it back is half
@@ -1289,7 +1356,23 @@ class _GameScreenState extends State<GameScreen>
                   padConnected: _pad.isConnected,
                   onVolume: _setVolume,
                   onSetting: _setSetting,
-                  onClose: () => setState(() => _showSettings = false),
+                  onClose: () {
+                    // A rebinding left waiting would eat the next key press in
+                    // the game, which reads as the game ignoring the player.
+                    _rebinding.cancel();
+                    setState(() => _showSettings = false);
+                  },
+                  actions: _rebindable,
+                  waitingFor: _rebinding.waitingFor,
+                  onRebind: (GameAction? action) => setState(() {
+                    action == null
+                        ? _rebinding.cancel()
+                        : _rebinding.start(action);
+                  }),
+                  onResetControls: () {
+                    setState(() => _rebinding.reset(_bindings()));
+                    _settingsFile.write(_config);
+                  },
                 )
               // Not over the title card, which carries the same settings on it
               // and is the one screen a stray gear icon has nothing to add to.
@@ -1304,6 +1387,7 @@ class _GameScreenState extends State<GameScreen>
                       unawaited(_devices.release());
                       setState(() => _showSettings = true);
                     },
+                    tooltip: 'Settings',
                     icon: const Icon(Icons.settings, color: Colors.white70),
                   ),
                 ),

@@ -102,6 +102,121 @@ void main() {
     expect(find.text('Gamepad'), findsOneWidget);
   });
 
+  group('accessibility', () {
+    testWidgets('the camera can be told to stop flinching', (
+      WidgetTester tester,
+    ) async {
+      // A camera that shakes on every landing is what makes some players ill,
+      // and the following is the game. This turns down the first only.
+      final changed = <String, double>{};
+      await tester.pumpWidget(_panel(
+        onSetting: (String name, double value) => changed[name] = value,
+      ));
+
+      // Found by its label rather than by an index, so adding a slider above it
+      // does not silently move this test onto a different setting.
+      final slider = find.descendant(
+        of: find.widgetWithText(MergeSemantics, 'Camera motion'),
+        matching: find.byType(Slider),
+      );
+      await tester.ensureVisible(slider);
+      await tester.pumpAndSettle();
+      final track = tester.getRect(slider);
+      await tester.tapAt(Offset(track.left + 4.0, track.center.dy));
+
+      expect(changed['a11y.cameraMotion'], isNotNull);
+      expect(changed['a11y.cameraMotion'], lessThan(0.2));
+    });
+
+    testWidgets('and sprinting can be latched instead of held', (
+      WidgetTester tester,
+    ) async {
+      // The accommodation every guideline names first: holding a key for the
+      // length of a climb is a real barrier, and the switch reads as the thing
+      // being turned *off* because that is what a player looks for.
+      final changed = <String, double>{};
+      await tester.pumpWidget(_panel(
+        onSetting: (String name, double value) => changed[name] = value,
+      ));
+
+      final toggle = find.byType(Switch);
+      await tester.ensureVisible(toggle);
+      await tester.pumpAndSettle();
+      await tester.tap(toggle);
+
+      expect(changed['a11y.toggleSprint'], 1.0);
+    });
+
+    testWidgets('and a screen reader is told what each row is', (
+      WidgetTester tester,
+    ) async {
+      // The panel is the one screen a player has to use before they can play,
+      // and every row of it was an unnamed rectangle.
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(_panel());
+
+      expect(
+        find.bySemanticsLabel(RegExp('jump, bound to')),
+        findsOneWidget,
+      );
+      handle.dispose();
+    });
+  });
+
+  group('rebinding', () {
+    testWidgets('a row says what its action is bound to, by name', (
+      WidgetTester tester,
+    ) async {
+      // `key:32` is what gets saved and is not a thing anybody can read. This is
+      // the one place that translates, and it translates for showing only.
+      await tester.pumpWidget(_panel());
+
+      expect(find.textContaining('Space'), findsOneWidget);
+      expect(find.textContaining('key:'), findsNothing);
+    });
+
+    testWidgets('and a pad button keeps its position name', (
+      WidgetTester tester,
+    ) async {
+      // There is no way to know what is printed on it: `face.south` is where the
+      // button is, and a screen that guessed `A` would guess wrong on half the
+      // controllers in the world.
+      await tester.pumpWidget(_panel());
+
+      expect(find.textContaining('pad face.south'), findsOneWidget);
+    });
+
+    testWidgets('and tapping one asks for the new control', (
+      WidgetTester tester,
+    ) async {
+      GameAction? asked;
+      await tester.pumpWidget(_panel(
+        onRebind: (GameAction? action) => asked = action,
+      ));
+
+      await tester.tap(find.textContaining('Space'));
+
+      expect(asked, GameAction.jump);
+    });
+
+    testWidgets('and the row waiting says so', (WidgetTester tester) async {
+      await tester.pumpWidget(_panel(waitingFor: GameAction.jump));
+
+      expect(find.text('press a key or a button'), findsOneWidget);
+    });
+
+    testWidgets('and an action bound to nothing says that out loud', (
+      WidgetTester tester,
+    ) async {
+      // An action with no control is a verb the player cannot reach, which is
+      // the exact condition this screen exists to fix. An empty space would hide
+      // it.
+      await tester.pumpWidget(_panel(bindings: Bindings()));
+
+      expect(find.text('nothing'), findsWidgets);
+    });
+  });
+
   testWidgets('the bindings list counts controls, not keys', (
     WidgetTester tester,
   ) async {
@@ -111,7 +226,6 @@ void main() {
     await tester.pumpWidget(_panel());
 
     expect(find.text('1 key'), findsNothing);
-    expect(find.textContaining('controls'), findsWidgets);
   });
 }
 
@@ -119,21 +233,30 @@ void main() {
 Widget _panel({
   Mixer? mixer,
   GameConfig? config,
+  Bindings? bindings,
   bool padConnected = false,
   void Function(String name, double value)? onSetting,
+  GameAction? waitingFor,
+  void Function(GameAction? action)? onRebind,
+  VoidCallback? onResetControls,
 }) =>
     MaterialApp(
       home: Scaffold(
         body: SettingsPanel(
           mixer: mixer ?? _mixer(),
           // The same table the game builds: both halves of it, because that is
-          // what the rows below are counting.
-          bindings: PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
+          // what the rows below are showing.
+          bindings:
+              bindings ?? PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
           config: config ?? GameConfig(),
           padConnected: padConnected,
           onVolume: (AudioBus bus, double volume) {},
           onSetting: onSetting ?? (String name, double value) {},
           onClose: () {},
+          actions: const <GameAction>[GameAction.jump, GameAction.sprint],
+          waitingFor: waitingFor,
+          onRebind: onRebind ?? (GameAction? action) {},
+          onResetControls: onResetControls ?? () {},
         ),
       ),
     );

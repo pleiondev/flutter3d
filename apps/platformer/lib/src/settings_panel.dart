@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:gamepad/gamepad.dart' show Deadzone;
@@ -20,6 +21,10 @@ class SettingsPanel extends StatelessWidget {
     required this.onVolume,
     required this.onSetting,
     required this.onClose,
+    required this.actions,
+    required this.waitingFor,
+    required this.onRebind,
+    required this.onResetControls,
   });
 
   final Mixer mixer;
@@ -35,6 +40,18 @@ class SettingsPanel extends StatelessWidget {
   final void Function(AudioBus bus, double volume) onVolume;
   final void Function(String name, double value) onSetting;
   final VoidCallback onClose;
+
+  /// What can be rebound, in the order a player reads it. The game's list, not
+  /// the engine's: this one has a dash and a drop-through in it.
+  final List<GameAction> actions;
+
+  /// Which action is listening for its new control, if any.
+  final GameAction? waitingFor;
+
+  /// Starts listening for [action], or stops when handed null.
+  final void Function(GameAction? action) onRebind;
+
+  final VoidCallback onResetControls;
 
   /// **Music was missing here**, and a commit message claimed it was not. The
   /// mixer has had the bus since the soundtrack landed and the application was
@@ -88,11 +105,41 @@ class SettingsPanel extends StatelessWidget {
                 const SizedBox(height: 8),
                 // Read from the same table the keyboard reads, so a rebinding
                 // that never reached the game cannot look as though it did.
-                for (final action in GameAction.common)
+                for (final action in actions)
                   _Binding(
-                    action: action.name,
-                    sources: bindings.sourcesFor(action).length,
+                    action: action,
+                    sources: bindings.sourcesFor(action).toList(),
+                    waiting: waitingFor == action,
+                    onTap: () => onRebind(waitingFor == action ? null : action),
                   ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    onPressed: onResetControls,
+                    child: const Text('Reset controls'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const _Heading('Accessibility'),
+                const SizedBox(height: 8),
+                _Setting(
+                  label: 'Camera motion',
+                  value: config.settingOf('a11y.cameraMotion', 1.0),
+                  max: 1.0,
+                  // A camera that flinches on every landing is what makes some
+                  // players ill, and the following is the game. This turns down
+                  // the first and leaves the second.
+                  onChanged: (double value) =>
+                      onSetting('a11y.cameraMotion', value),
+                ),
+                _Switch(
+                  label: 'Hold to sprint',
+                  // Reads as the thing being turned off, because that is what a
+                  // player looks for: they know they cannot hold a key.
+                  on: config.settingOf('a11y.toggleSprint', 0.0) < 0.5,
+                  onChanged: (bool hold) =>
+                      onSetting('a11y.toggleSprint', hold ? 0.0 : 1.0),
+                ),
                 const SizedBox(height: 12),
                 _Heading(
                   padConnected ? 'Gamepad' : 'Gamepad (none connected)',
@@ -179,7 +226,8 @@ class _Setting extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return MergeSemantics(
+      child: Row(
       children: <Widget>[
         SizedBox(
           width: 96,
@@ -205,31 +253,145 @@ class _Setting extends StatelessWidget {
           ),
         ),
       ],
+    ),
     );
   }
 }
 
+/// One action, what it is bound to, and a way to change it.
 class _Binding extends StatelessWidget {
-  const _Binding({required this.action, required this.sources});
+  const _Binding({
+    required this.action,
+    required this.sources,
+    required this.waiting,
+    required this.onTap,
+  });
 
-  final String action;
-  final int sources;
+  final GameAction action;
+  final List<InputSource> sources;
+  final bool waiting;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: <Widget>[
-          Text(action, style: const TextStyle(color: Colors.white)),
-          Text(
-            // Not "keys": the table holds a controller's buttons too now, and a
-            // row saying "2 keys" for a key and a face button would be a lie in
-            // the one place a player goes to find out what is bound.
-            sources == 1 ? '1 control' : '$sources controls',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+    final String bound;
+    if (waiting) {
+      bound = 'press a key or a button';
+    } else if (sources.isEmpty) {
+      // Worth saying out loud rather than showing an empty space: an action
+      // bound to nothing is a verb the player cannot reach, which is the exact
+      // condition this screen exists to fix.
+      bound = 'nothing';
+    } else {
+      bound = sources.map(_describe).join(', ');
+    }
+
+    return MergeSemantics(
+      child: Semantics(
+        button: true,
+        label: '${action.name}, bound to $bound',
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: <Widget>[
+                Text(action.name, style: const TextStyle(color: Colors.white)),
+                Flexible(
+                  child: Text(
+                    bound,
+                    textAlign: TextAlign.right,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: waiting
+                          ? Colors.amber
+                          : Colors.white.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Keys whose label is not a thing to put on screen.
+  ///
+  /// **`LogicalKeyboardKey.debugName` would have answered all of these and is
+  /// deliberately not used**: it is stripped in a release build, so a panel
+  /// built on it reads perfectly in development and shows nothing to a player.
+  /// `keyLabel` is the supported one, and for space it is a space — which is why
+  /// this table exists rather than a fallback.
+  ///
+  /// `static final` rather than `const` because a key's id is not a constant
+  /// expression. Only the keys this game binds; anything else falls through to
+  /// its label.
+  static final Map<int, String> _keyNames = <int, String>{
+    LogicalKeyboardKey.space.keyId: 'Space',
+    LogicalKeyboardKey.shiftLeft.keyId: 'Left Shift',
+    LogicalKeyboardKey.shiftRight.keyId: 'Right Shift',
+    LogicalKeyboardKey.controlLeft.keyId: 'Left Ctrl',
+    LogicalKeyboardKey.controlRight.keyId: 'Right Ctrl',
+    LogicalKeyboardKey.altLeft.keyId: 'Left Alt',
+    LogicalKeyboardKey.altRight.keyId: 'Right Alt',
+    LogicalKeyboardKey.escape.keyId: 'Escape',
+    LogicalKeyboardKey.tab.keyId: 'Tab',
+    LogicalKeyboardKey.enter.keyId: 'Enter',
+    LogicalKeyboardKey.arrowUp.keyId: 'Up',
+    LogicalKeyboardKey.arrowDown.keyId: 'Down',
+    LogicalKeyboardKey.arrowLeft.keyId: 'Left',
+    LogicalKeyboardKey.arrowRight.keyId: 'Right',
+  };
+
+  /// What to call a source on screen.
+  ///
+  /// The **identifier** is what gets saved and `key:32` is not a thing anybody
+  /// can read, so this is the one place that translates — and it translates for
+  /// showing only, never for storing. A pad button keeps its position name,
+  /// because that is what it is: `face.south` is where the button sits, and
+  /// there is no way to know what is printed on it.
+  static String _describe(InputSource source) {
+    if (source.id.startsWith(InputSource.padPrefix)) {
+      return 'pad ${source.id.substring(InputSource.padPrefix.length)}';
+    }
+    if (!source.id.startsWith('key:')) return source.id;
+    final id = int.tryParse(source.id.substring(4));
+    if (id == null) return source.id;
+    final named = _keyNames[id];
+    if (named != null) return named;
+    final label = LogicalKeyboardKey.findKeyByKeyId(id)?.keyLabel ?? '';
+    return label.trim().isEmpty ? source.id : label;
+  }
+}
+
+/// A setting that is on or off.
+class _Switch extends StatelessWidget {
+  const _Switch({
+    required this.label,
+    required this.on,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool on;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return MergeSemantics(
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: 140,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+            ),
+          ),
+          Switch(value: on, onChanged: onChanged),
         ],
       ),
     );

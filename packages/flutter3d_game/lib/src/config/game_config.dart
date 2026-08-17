@@ -69,7 +69,18 @@ final class GameConfig {
   ///   trigger's travel is rest;
   /// * `pad.look` — how fast the right stick turns the view;
   /// * `mouse.look` — the same for the mouse, which until now had nowhere to
-  ///   live and so could not be changed at all.
+  ///   live and so could not be changed at all;
+  /// * `a11y.cameraMotion` — how much of the camera's involuntary movement to
+  ///   keep, from nought to one. See `CameraRig.motion`: the shakes and knocks
+  ///   are what make people ill, and the following is the game;
+  /// * `a11y.toggleSprint` — one when sprinting latches rather than being held.
+  ///   Stored as a number like everything else here, because a map of doubles is
+  ///   one thing to read, write and hand-edit rather than two.
+  ///
+  /// **The `a11y.` names are settings and not decoration.** Each is something a
+  /// player cannot play without: a camera that flinches, a key that has to be
+  /// held for a minute. They are spelled here so three games cannot spell them
+  /// three ways, which is the same reason the pad's names are.
   ///
   /// Unlike [volumes] there is no universal default: a sensitivity of one means
   /// nothing without knowing whose. So [settingOf] takes the fallback from the

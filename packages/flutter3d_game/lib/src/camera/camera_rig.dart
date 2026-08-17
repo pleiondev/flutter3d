@@ -85,12 +85,28 @@ final class CameraRig {
   double _shakeTime = 0.0;
   double _shakeSeconds = 0.0;
 
-  /// How much of the shake the player asked for, nought to one.
+  /// How much of the camera's **involuntary** movement the player asked for,
+  /// from nought to one.
   ///
-  /// A setting rather than a constant because a shaking camera makes some
-  /// people ill, and a game that cannot be turned down is a game they cannot
-  /// play. Zero is not "broken", it is "off".
-  double shakeScale = 1.0;
+  /// A setting rather than a constant because a camera that moves by itself
+  /// makes some people ill, and a game that cannot be turned down is a game they
+  /// cannot play. Zero is not "broken", it is "off".
+  ///
+  /// **This was `shakeScale` and covered only the shake**, which was half the
+  /// accommodation: a landing that knocks the camera down and a dash that widens
+  /// the view move it just as involuntarily, and a player who turned the shake
+  /// off still got both. It is one knob rather than three because it is one
+  /// question — *how much should the camera move on its own* — and three would
+  /// have been three sliders asking it.
+  ///
+  /// What is **not** scaled is the following. A camera chasing a runner is the
+  /// game; the flinches are an effect on top of it. Turning this to nought
+  /// leaves the same game in a camera that no longer flinches.
+  ///
+  /// Nought rather than a bool because the middle is real: plenty of people want
+  /// a quarter of it rather than none. Games save it as `a11y.cameraMotion` —
+  /// see `GameConfig.settings`.
+  double motion = 1.0;
 
   /// Extra field of view, in radians, that decays away. Read by whoever owns
   /// the projection.
@@ -104,17 +120,21 @@ final class CameraRig {
   ///
   /// For a landing, or a car meeting a wall: a dip the size of the impact, gone
   /// in a quarter of a second.
-  void kick(Vector3 direction) => _kick.add(direction);
+  void kick(Vector3 direction) {
+    if (motion <= 0.0) return;
+    _kick.add(direction * motion);
+  }
 
   /// Shakes the camera for [seconds], [amount] metres wide.
   void shake(double amount, {double seconds = 0.35}) {
-    _shake = math.max(_shake, amount * seconds);
+    if (motion <= 0.0) return;
+    _shake = math.max(_shake, amount * seconds * motion);
     _shakeSeconds = math.max(_shakeSeconds, seconds);
   }
 
   /// Widens the view by [radians], which decays back. For speed, a dash, a
   /// boost.
-  void widen(double radians) => _fov = math.max(_fov, radians);
+  void widen(double radians) => _fov = math.max(_fov, radians * motion);
 
   /// Puts the camera where it should be for this frame.
   ///
@@ -163,9 +183,9 @@ final class CameraRig {
     _shown.add(_kick);
     if (_shake > 0.0) {
       _shown
-        ..x += math.sin(_shakeTime * 47.0) * _shake * shakeScale
-        ..y += math.sin(_shakeTime * 39.0 + 1.7) * _shake * shakeScale
-        ..z += math.sin(_shakeTime * 53.0 + 3.1) * _shake * shakeScale;
+        ..x += math.sin(_shakeTime * 47.0) * _shake
+        ..y += math.sin(_shakeTime * 39.0 + 1.7) * _shake
+        ..z += math.sin(_shakeTime * 53.0 + 3.1) * _shake;
     }
 
     // Last, so that nothing after it can put the camera back inside a brush —

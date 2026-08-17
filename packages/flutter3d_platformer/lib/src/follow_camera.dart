@@ -124,8 +124,10 @@ final class FollowCamera {
   Vector3 get target => rig.target;
 
   /// How much of the shake the player asked for, nought to one.
-  double get shakeScale => rig.shakeScale;
-  set shakeScale(double value) => rig.shakeScale = value;
+  /// How much of the camera's involuntary movement to keep — see
+  /// [CameraRig.motion]. Was `shakeScale`, and covered only the shake.
+  double get motion => rig.motion;
+  set motion(double value) => rig.motion = value;
 
   /// Extra field of view, in radians, that decays away. Read by the
   /// application, which owns the projection.

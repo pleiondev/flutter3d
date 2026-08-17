@@ -1,6 +1,7 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'sky.dart';
 import 'track.dart';
 
 /// A track file: the circuit, and the level built around it.
@@ -18,7 +19,8 @@ import 'track.dart';
 /// editor is a person introducing a corner that is four metres wide for one
 /// control point.
 final class TrackDocument {
-  const TrackDocument({required this.track, this.level});
+  TrackDocument({required this.track, this.level, SkyPreset? sky})
+      : sky = sky ?? SkyPresets.morning;
 
   factory TrackDocument.fromJson(Map<String, Object?> json) {
     final track = json['track'];
@@ -27,9 +29,13 @@ final class TrackDocument {
     }
 
     final level = json['level'];
+    final sky = json['sky'];
     return TrackDocument(
       track: _trackFromJson(track.asJsonObject('track')),
       level: level == null ? null : Level.fromJson(level.asJsonObject('level')),
+      sky: sky == null
+          ? null
+          : SkyPreset.fromJson(sky.asJsonObject('sky')),
     );
   }
 
@@ -38,6 +44,16 @@ final class TrackDocument {
   /// The scenery, barriers and furniture around the circuit. Absent in a
   /// fixture that is only interested in the driving.
   final Level? level;
+
+  /// The time of day the circuit is raced at.
+  ///
+  /// Never absent, because there is no such thing as a track in no weather: a
+  /// file with no `"sky"` block gets [SkyPresets.morning], the same way a car
+  /// with no model gets a box. The level's own `fogColor` and `fogDensity` are
+  /// derived from this by the generator and are not read back — the application
+  /// asks the preset, which knows which way the camera is pointing and can
+  /// therefore answer something the level file cannot.
+  final SkyPreset sky;
 }
 
 TrackSpline _trackFromJson(Map<String, Object?> json) {
