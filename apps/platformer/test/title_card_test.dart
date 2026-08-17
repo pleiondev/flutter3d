@@ -15,10 +15,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/title_card.dart';
 
-Widget _card({required bool dashOnPointer}) => MaterialApp(
+Widget _card({required bool dashOnPointer, bool touch = false}) => MaterialApp(
       home: TitleCard(
         prompt: 'Click to begin.',
         dashOnPointer: dashOnPointer,
+        touch: touch,
       ),
     );
 
@@ -57,6 +58,21 @@ void main() {
 
     await tester.pumpWidget(_card(dashOnPointer: false));
     expect(find.text('Escape opens the settings.'), findsOneWidget);
+  });
+
+  testWidgets('and a phone is told about none of the keys', (
+    WidgetTester tester,
+  ) async {
+    // **The same failure in a new shape.** A card that recited `W A S D` and
+    // Escape to somebody holding a phone would be a screen of nonsense, and it
+    // is the first screen they see. What a finger has instead is a stick, three
+    // buttons and a drag.
+    await tester.pumpWidget(_card(dashOnPointer: false, touch: true));
+
+    expect(find.textContaining('W A S D'), findsNothing);
+    expect(find.textContaining('Escape'), findsNothing);
+    expect(find.textContaining('stick walks'), findsOneWidget);
+    expect(find.textContaining('Drag anywhere else'), findsOneWidget);
   });
 
   testWidgets('and the controller is mentioned by position, not by label', (

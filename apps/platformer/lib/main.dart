@@ -11,7 +11,8 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/services.dart'
+    show DeviceOrientation, SystemChrome, SystemUiMode;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
@@ -36,10 +37,28 @@ import 'src/save_file.dart';
 import 'src/scene_surface.dart';
 import 'src/settings_file.dart';
 import 'src/settings_panel.dart';
+import 'src/playing.dart';
 import 'src/sounds.dart';
 import 'src/title_card.dart';
 
 void main() {
+  // A phone is held the way the level is shaped, and the level is wide. Locked
+  // rather than allowed to rotate, because a third-person camera reframed
+  // mid-jump is a death the player did not earn.
+  //
+  // `ensureInitialized` because both calls below are platform channels, and a
+  // channel before the binding exists is an assertion rather than an effect.
+  if (Playing.touch) {
+    WidgetsFlutterBinding.ensureInitialized();
+    unawaited(SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]));
+    // The status bar over a game is a strip of the level nobody can see, and
+    // the navigation bar is a place to lose a thumb. `edgeToEdge` rather than
+    // `immersive`, so a swipe brings them back rather than being eaten.
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky));
+  }
   runApp(const PlatformerApp());
 }
 
@@ -289,10 +308,11 @@ class _GameScreenState extends State<GameScreen>
         InputSource.key(LogicalKeyboardKey.keyC.keyId),
         PlatformerActions.dropThrough,
       );
-    if (kIsWeb) {
-      // The pointer is the dash on desktop, and on the web it is the only way
-      // to look around — a drag cannot also be a dash without every turn of
-      // the camera spending one. So the web build gives the dash a key.
+    if (!Playing.dashOnPointer) {
+      // The pointer is the dash on the desktop. Anywhere else a press is
+      // something else — a drag that turns the camera, or a finger — and a
+      // press that also dashed would spend one on every look. So those builds
+      // give the dash a key, and on a phone a button as well.
       bindings.bind(
         InputSource.key(LogicalKeyboardKey.keyQ.keyId),
         PlatformerActions.dash,
@@ -795,8 +815,8 @@ class _GameScreenState extends State<GameScreen>
     // A pad player never captures the pointer, and a gate that only knows about
     // the mouse would leave them paused for ever — which is what this line did
     // the day the pad arrived and the reason it now asks about both.
-    _loop.paused =
-        _sim == null || (!kIsWeb && !_devices.isCaptured && !_pad.isConnected);
+    _loop.paused = _sim == null ||
+        (Playing.capturesPointer && !_devices.isCaptured && !_pad.isConnected);
     _loop.advance(dt.clamp(0.0, 0.25));
     // The loop has always counted the simulated time it could not run. Nobody
     // read it, so a machine that could not keep up ran the game slowly and said
@@ -1017,7 +1037,7 @@ class _GameScreenState extends State<GameScreen>
 
     // A captured pointer reports through the loop; a drag reports here.
     // A captured pointer reports through the loop; a drag reports here.
-    camera.look(kIsWeb ? _takeDragLook() : _input.lookDelta);
+    camera.look(Playing.dragLook ? _takeDragLook() : _input.lookDelta);
     _drawnAt.read(_loop.alpha, _scratch);
     // The way the runner is *going*, so the camera drifts round behind them
     // over a long level instead of having to be steered by hand at every
@@ -1171,12 +1191,12 @@ class _GameScreenState extends State<GameScreen>
           onPointerDown: (_) {
             _keyboard.requestFocus();
             _begin();
-            if (kIsWeb) return;
+            if (!Playing.dashOnPointer) return;
             _devices.pressPointer(PlatformerActions.dash);
             if (!_devices.isCaptured) unawaited(_devices.captureMouse());
           },
           onPointerUp: (_) {
-            if (kIsWeb) return;
+            if (!Playing.dashOnPointer) return;
             _devices.releasePointer(PlatformerActions.dash);
           },
           child: Stack(
@@ -1198,7 +1218,7 @@ class _GameScreenState extends State<GameScreen>
               // layer *above* the view does, because it is an ordinary Flutter
               // widget again. Nothing below it is interactive, so opaque hit
               // testing costs nothing.
-              if (kIsWeb)
+              if (Playing.dragLook)
                 Positioned.fill(
                   child: Listener(
                     behavior: HitTestBehavior.opaque,
@@ -1226,7 +1246,7 @@ class _GameScreenState extends State<GameScreen>
                   elapsed: sim.elapsed,
                   state: sim.state,
                   // Nothing to capture in a browser, so nothing to prompt for.
-                  captured: kIsWeb || _devices.isCaptured,
+                  captured: !Playing.capturesPointer || _devices.isCaptured,
                   levelName: _loaded?.level.name ?? '',
                   keys: _runner?.keys ?? const <String>{},
                   message: _said,
@@ -1237,14 +1257,29 @@ class _GameScreenState extends State<GameScreen>
                   // and this widget must not guess at.
                   finale: sim.nextLevel == null,
                 ),
+              // Above the drag layer on purpose: a widget higher in the stack
+              // takes the pointers that land on it, so a thumb on the stick is
+              // never also a turn of the camera. Everything the drag layer
+              // still sees is screen the controls are not on.
+              if (Playing.touch && _started && !_showSettings)
+                TouchControls(
+                  state: _input,
+                  buttons: const <TouchAction>[
+                    TouchAction(PlatformerActions.dropThrough, 'drop'),
+                    TouchAction(PlatformerActions.dash, 'dash'),
+                    TouchAction(GameAction.jump, 'jump'),
+                  ],
+                ),
               if (!_started)
                 TitleCard(
-                  prompt: kIsWeb
-                      ? 'Click to begin, or press a button on the pad.'
-                      : 'Click to take the mouse, or press a button on the pad.',
-                  // The pointer dashes on the desktop; in a browser it is the
-                  // only way to turn the camera, so there the dash is a key.
-                  dashOnPointer: !kIsWeb,
+                  prompt: Playing.touch
+                      ? 'Touch to begin.'
+                      : Playing.capturesPointer
+                          ? 'Click to take the mouse, or press a button on the '
+                              'pad.'
+                          : 'Click to begin, or press a button on the pad.',
+                  dashOnPointer: Playing.dashOnPointer,
+                  touch: Playing.touch,
                   resuming: _resumed,
                 ),
               if (_showSettings)

@@ -25,6 +25,7 @@ class TitleCard extends StatelessWidget {
     super.key,
     required this.prompt,
     required this.dashOnPointer,
+    this.touch = false,
     this.resuming = false,
   });
 
@@ -40,8 +41,19 @@ class TitleCard extends StatelessWidget {
   /// which is how the wrong line survived: nothing could look at it.
   final bool dashOnPointer;
 
+  /// Whether this build is played with fingers, in which case none of the keys
+  /// below exist and describing them would be a screen of nonsense.
+  final bool touch;
+
   /// What the game is actually driven by, said once.
-  List<String> get _controls => <String>[
+  List<String> get _controls => touch
+      ? const <String>[
+          'The stick walks. Jump twice to reach the high ledges.',
+          'Dash across the wide gaps; drop through the thin platforms.',
+          'Drag anywhere else to look around.',
+          'A controller works too, if one is paired.',
+        ]
+      : <String>[
         'W A S D to move, space to jump — twice, in the air.',
         dashOnPointer
             ? 'Shift to sprint, Ctrl or C to crouch, click to dash.'
