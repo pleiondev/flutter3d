@@ -21,8 +21,11 @@ Widget _hud({
   RunState state = RunState.running,
   Set<String> keys = const <String>{},
   String? message,
+  double textScale = 1.0,
 }) =>
-    MaterialApp(
+    MediaQuery(
+      data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+      child: MaterialApp(
       home: Hud(
         coins: coins,
         deaths: deaths,
@@ -34,6 +37,7 @@ Widget _hud({
         keys: keys,
         message: message,
       ),
+    ),
     );
 
 void main() {
@@ -131,5 +135,46 @@ void main() {
     expect(find.text('Out of lives'), findsNothing);
     expect(find.text('First Steps'), findsNothing);
     expect(find.text('0:12'), findsOneWidget);
+  });
+
+  group('a player who has changed how they read', () {
+    // Two failures that only appear for somebody who has turned their text up or
+    // turned a screen reader on — which is to say, exactly the players nobody
+    // tests as.
+
+    testWidgets('hears what each tally is, not a list of numbers', (
+      WidgetTester tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(_hud(coins: 12, lives: 2));
+
+      expect(find.bySemanticsLabel('coins 12'), findsOneWidget);
+      expect(find.bySemanticsLabel('lives 2'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('and does not lose the clock off the edge', (
+      WidgetTester tester,
+    ) async {
+      await tester.pumpWidget(_hud(
+        coins: 12,
+        deaths: 3,
+        lives: 2,
+        elapsed: 62.0,
+        keys: const <String>{'gold'},
+        textScale: 2.5,
+      ));
+
+      // **Asserted on where they are, not on whether they exist.** A `Row`
+      // inside a `Positioned` with no right edge is given unbounded width, so it
+      // never overflows and never complains — it simply lays the last tallies
+      // out past the screen, where they are still in the tree and still
+      // findable. A test that only looked for them passed with the bug in.
+      const screen = 800.0;
+      for (final tally in <String>['12', '3', '2', '1:02', 'gold']) {
+        expect(tester.getRect(find.text(tally)).right, lessThanOrEqualTo(screen),
+            reason: '"$tally" is off the right-hand edge');
+      }
+    });
   });
 }

@@ -32,6 +32,7 @@ import 'src/hud.dart';
 import 'src/lens.dart';
 import 'src/looks.dart';
 import 'src/pace.dart';
+import 'src/pause_gate.dart';
 import 'src/rebinding.dart';
 import 'src/runner_looks.dart';
 import 'src/save_file.dart';
@@ -886,11 +887,15 @@ class _GameScreenState extends State<GameScreen>
     _pad.tick(dt);
     _padScreenButtons();
 
-    // A pad player never captures the pointer, and a gate that only knows about
-    // the mouse would leave them paused for ever — which is what this line did
-    // the day the pad arrived and the reason it now asks about both.
-    _loop.paused = _sim == null ||
-        (Playing.capturesPointer && !_devices.isCaptured && !_pad.isConnected);
+    // Four facts and no devices — see `pause_gate.dart`, which carries the three
+    // ways this line has been wrong and a test for each.
+    _loop.paused = shouldPause(
+      ready: _sim != null,
+      menuOpen: _showSettings,
+      pointerIsTheGate: Playing.capturesPointer,
+      pointerHeld: _devices.isCaptured,
+      padConnected: _pad.isConnected,
+    );
     _loop.advance(dt.clamp(0.0, 0.25));
     // The loop has always counted the simulated time it could not run. Nobody
     // read it, so a machine that could not keep up ran the game slowly and said

@@ -78,19 +78,21 @@ class Hud extends StatelessWidget {
           Positioned(
             left: 24,
             top: 20,
-            child: Row(
+            // Bounded and wrapping, because a `Row` of fixed sizes is a row that
+            // runs off the screen the moment a player turns their text up — and
+            // the tallies are the one part of this screen somebody with low
+            // vision most needs to read. `Wrap` puts the overflow on a second
+            // line instead of into the debug console.
+            right: 24,
+            child: Wrap(
+              spacing: 24,
+              runSpacing: 8,
               children: <Widget>[
                 _Tally(label: 'coins', value: '$coins'),
-                const SizedBox(width: 24),
                 _Tally(label: 'falls', value: '$deaths'),
-                if (lives >= 0) ...<Widget>[
-                  const SizedBox(width: 24),
-                  _Tally(label: 'lives', value: '$lives'),
-                ],
-                const SizedBox(width: 24),
+                if (lives >= 0) _Tally(label: 'lives', value: '$lives'),
                 _Tally(label: 'time', value: clock(elapsed)),
-                if (keys.isNotEmpty) ...<Widget>[
-                  const SizedBox(width: 24),
+                if (keys.isNotEmpty)
                   _Tally(
                     label: keys.length == 1 ? 'key' : 'keys',
                     // Named rather than counted: a door wants a colour, so a
@@ -98,7 +100,6 @@ class Hud extends StatelessWidget {
                     // player is about to be asked.
                     value: (keys.toList()..sort()).join(' '),
                   ),
-                ],
               ],
             ),
           ),
@@ -329,7 +330,13 @@ class _Tally extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    // Read as one thing — "coins 12" — rather than as two unrelated numbers in
+    // a row of numbers. The HUD is not how a blind player plays this game, and
+    // that is not who this is for: it is for the reader that is already on.
+    return Semantics(
+      label: '$label $value',
+      excludeSemantics: true,
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
         Text(
@@ -350,6 +357,7 @@ class _Tally extends StatelessWidget {
           ),
         ),
       ],
+    ),
     );
   }
 }

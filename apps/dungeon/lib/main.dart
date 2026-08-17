@@ -615,6 +615,9 @@ class _GameScreenState extends State<GameScreen>
     _pad.tick(dt);
     // A player on a controller never captures the pointer, so a gate that only
     // knew about the mouse would leave them looking at a frozen dungeon.
+    // The same gate the platformer names in `pause_gate.dart`, minus its menu:
+    // this game has no settings panel to open, which is the one clause that
+    // file adds. When it grows one, that clause comes with it.
     _loop.paused = Playing.capturesPointer &&
         !_devices.isCaptured &&
         !_pad.isConnected;
