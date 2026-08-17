@@ -38,6 +38,12 @@ final class InputState {
   /// Analogue movement from a stick, in `[-1, 1]` on each axis.
   final Vector2 _stickAxis = Vector2.zero();
 
+  /// How hard an action is being asked for, where a device can say.
+  ///
+  /// Only holds the actions something has given a magnitude to; everything else
+  /// answers from [held] — see [value].
+  final Map<GameAction, double> _values = <GameAction, double>{};
+
   final Vector2 _moveAxis = Vector2.zero();
   final Vector2 _lookDelta = Vector2.zero();
 
@@ -64,6 +70,25 @@ final class InputState {
 
   bool released(GameAction action) => _releasedLatch.contains(action);
 
+  /// How hard [action] is being asked for, from nought to one.
+  ///
+  /// **An action has a magnitude as well as a bit**, and the point is that
+  /// nothing downstream learns which device supplied it. A key gives one, a
+  /// gamepad trigger gives 0.42, a future on-screen slider gives 0.7, and a
+  /// simulation reading this cannot tell them apart — which is the same promise
+  /// [moveAxis] already makes for a stick against four keys.
+  ///
+  /// A held action with no magnitude answers one, so every existing caller that
+  /// switches to this keeps behaving exactly as it did. That is what makes it
+  /// safe to read `value` everywhere and `held` only where a bit is genuinely
+  /// what is wanted.
+  ///
+  /// Deliberately **not** folded into [moveAxis]: movement is already analogue
+  /// through the stick, and an action's magnitude is about how far a trigger is
+  /// pulled, which is a different question with a different answer.
+  double value(GameAction action) =>
+      _values[action] ?? (held(action) ? 1.0 : 0.0);
+
   /// The numbered slot asked for since the last step, if any.
   ///
   /// A weapon in a shooter, an item in an adventure, an ability in a
@@ -87,6 +112,16 @@ final class InputState {
     _releasedLatch.add(action);
     _recomputeMoveAxis();
   }
+
+  /// Says how hard an action is being asked for.
+  ///
+  /// Independent of [press] and [release]: a device that can measure travel
+  /// reports both, because a game may want the threshold, the proportion, or
+  /// each in a different place. A magnitude of nought is not a release —
+  /// releasing is [release] — so a trigger returning to rest still has to say so
+  /// both ways.
+  void setActionValue(GameAction action, double magnitude) =>
+      _values[action] = magnitude.clamp(0.0, 1.0);
 
   /// Sets the analogue movement axis, for a stick or a d-pad.
   void setStickAxis(double x, double y) {
@@ -116,6 +151,7 @@ final class InputState {
     _stickAxis.setZero();
     _lookDelta.setZero();
     _moveAxis.setZero();
+    _values.clear();
     _slotRequest = null;
   }
 

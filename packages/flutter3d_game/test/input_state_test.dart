@@ -238,4 +238,81 @@ void main() {
       expect(input.moveAxis.length, 0.0);
     });
   });
+
+  group('an action with a magnitude', () {
+    // **A trigger is not a button and not a stick**, and until this existed the
+    // input layer had no word for it: the racing game read `held(throttle)` and
+    // turned an analogue pedal into an on-off switch.
+    test('a held action with nothing to say is fully asked for', () {
+      // The compatibility promise. Every existing caller can read `value`
+      // instead of `held` and behave identically, which is what makes it safe
+      // to use everywhere.
+      final input = InputState()..press(GameAction.jump);
+
+      expect(input.value(GameAction.jump), 1.0);
+      expect(input.value(GameAction.sprint), 0.0);
+    });
+
+    test('and a device that can measure says how far', () {
+      final input = InputState()..setActionValue(GameAction.sprint, 0.42);
+
+      expect(input.value(GameAction.sprint), closeTo(0.42, 1e-9));
+    });
+
+    test('a magnitude is not a press, and nought is not a release', () {
+      // Independent on purpose: a game may want the threshold, the proportion,
+      // or each in a different place, so a device reports both and neither
+      // implies the other.
+      final input = InputState()..setActionValue(GameAction.sprint, 0.9);
+
+      expect(input.held(GameAction.sprint), isFalse,
+          reason: 'a magnitude decided what "pressed" means, which is the '
+              "game's decision and not the device's");
+
+      input
+        ..press(GameAction.sprint)
+        ..setActionValue(GameAction.sprint, 0.0);
+      expect(input.held(GameAction.sprint), isTrue,
+          reason: 'a trigger returning to rest released the action by itself');
+    });
+
+    test('it survives a step, because it is a condition and not an event', () {
+      // The same rule the stick axis follows, and for the same reason: a
+      // trigger held at half is still held at half on the next step.
+      final input = InputState()..setActionValue(GameAction.sprint, 0.5);
+
+      input
+        ..beginStep()
+        ..endStep();
+
+      expect(input.value(GameAction.sprint), closeTo(0.5, 1e-9));
+    });
+
+    test('and losing focus drops it', () {
+      // Mutation: leave `_values` alone in `clear()`. A player who alt-tabs
+      // while pulling the trigger comes back to a car at full throttle.
+      final input = InputState()..setActionValue(GameAction.sprint, 1.0);
+
+      input.clear();
+
+      expect(input.value(GameAction.sprint), 0.0);
+    });
+
+    test('and it is bounded, because a device may lie', () {
+      final input = InputState()
+        ..setActionValue(GameAction.sprint, 1.4)
+        ..setActionValue(GameAction.jump, -0.3);
+
+      expect(input.value(GameAction.sprint), 1.0);
+      expect(input.value(GameAction.jump), 0.0);
+    });
+
+    test('a magnitude does not move the player', () {
+      // Movement is already analogue through the stick. Folding a trigger into
+      // the move axis would make the throttle a direction.
+      final input = InputState()..setActionValue(GameAction.moveForward, 1.0);
+
+      expect(input.moveAxis.y, 0.0);
+    });
+  });
 }

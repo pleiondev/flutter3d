@@ -13,9 +13,13 @@ import '../input/bindings.dart';
 /// the audio package turns it back into a bus, and a game with a `dialogue`
 /// slider needs no change on either side.
 final class GameConfig {
-  GameConfig({Bindings? bindings, Map<String, double>? volumes})
-      : bindings = bindings ?? Bindings(),
-        volumes = <String, double>{...?volumes};
+  GameConfig({
+    Bindings? bindings,
+    Map<String, double>? volumes,
+    Map<String, double>? settings,
+  })  : bindings = bindings ?? Bindings(),
+        volumes = <String, double>{...?volumes},
+        settings = <String, double>{...?settings};
 
   /// Reads what [toJson] wrote, and survives what it did not write.
   ///
@@ -25,28 +29,66 @@ final class GameConfig {
   /// settings file that throws is a settings file that bricks the game.
   factory GameConfig.fromJson(Map<String, Object?> json) {
     final bindings = json['bindings'];
-    final volumes = json['volumes'];
     return GameConfig(
       bindings: bindings is Map<String, Object?>
           ? Bindings.fromJson(bindings)
           : Bindings(),
-      volumes: <String, double>{
-        if (volumes is Map<String, Object?>)
-          for (final entry in volumes.entries)
-            if (entry.value is num) entry.key: (entry.value! as num).toDouble(),
-      },
+      volumes: _numbers(json['volumes']),
+      settings: _numbers(json['settings']),
     );
   }
+
+  /// Every number in a map, and nothing that is not a number.
+  ///
+  /// A settings file is edited by hand more often than anybody admits, and a
+  /// string where a number was expected must cost that one key rather than the
+  /// whole file.
+  static Map<String, double> _numbers(Object? source) => <String, double>{
+        if (source is Map<String, Object?>)
+          for (final entry in source.entries)
+            if (entry.value is num) entry.key: (entry.value! as num).toDouble(),
+      };
 
   final Bindings bindings;
 
   /// How loud each bus is, by name, in `[0, 1]`.
   final Map<String, double> volumes;
 
+  /// Everything else a player has turned, by name.
+  ///
+  /// **A second map rather than fields**, and the reason is the same one the
+  /// class doc gives for volumes: a dead zone belongs to a gamepad package this
+  /// one does not depend on, a look sensitivity belongs to a camera, and neither
+  /// is a concept `flutter3d_game` should learn in order to write a number down.
+  /// A name and a number is the whole of what it needs to know.
+  ///
+  /// The names in use, so they are in one place rather than spelled slightly
+  /// differently in three:
+  ///
+  /// * `pad.deadzone.stick`, `pad.deadzone.trigger` — how much of a stick's or
+  ///   trigger's travel is rest;
+  /// * `pad.look` — how fast the right stick turns the view;
+  /// * `mouse.look` — the same for the mouse, which until now had nowhere to
+  ///   live and so could not be changed at all.
+  ///
+  /// Unlike [volumes] there is no universal default: a sensitivity of one means
+  /// nothing without knowing whose. So [settingOf] takes the fallback from the
+  /// caller, which is the only place that knows it.
+  final Map<String, double> settings;
+
   double volumeOf(String bus) => volumes[bus] ?? 1.0;
 
   void setVolume(String bus, double volume) =>
       volumes[bus] = volume.clamp(0.0, 1.0);
+
+  double settingOf(String name, double fallback) => settings[name] ?? fallback;
+
+  /// Records a setting.
+  ///
+  /// Not clamped, because this map holds things that are not fractions: a look
+  /// sensitivity above one is an ordinary request, and a class that knew which
+  /// names were fractions would be a class that knew what a gamepad is.
+  void setSetting(String name, double value) => settings[name] = value;
 
   Map<String, Object?> toJson() => <String, Object?>{
         'bindings': bindings.toJson(),
@@ -56,5 +98,12 @@ final class GameConfig {
         'volumes': <String, Object?>{
           for (final name in volumes.keys.toList()..sort()) name: volumes[name],
         },
+        // Omitted when empty, so a config written by a build that had no
+        // settings reads back byte for byte.
+        if (settings.isNotEmpty)
+          'settings': <String, Object?>{
+            for (final name in settings.keys.toList()..sort())
+              name: settings[name],
+          },
       };
 }
