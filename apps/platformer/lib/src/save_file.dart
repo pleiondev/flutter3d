@@ -1,8 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 /// Where a run in progress is kept between launches.
 ///
@@ -18,21 +18,22 @@ import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
 /// were never in. So the level's asset path is stored beside it and checked on
 /// the way back in.
 final class SaveFile {
-  SaveFile({Directory? directory}) : _given = directory;
+  SaveFile({Storage? storage})
+      : storage = storage ?? defaultStorage('platformer');
 
-  final Directory? _given;
-
-  /// Resolved on first use rather than in the constructor.
+  /// Where the document is kept, which differs per platform — see [Storage].
   ///
-  /// `Platform.environment` is unavailable where there is no filesystem — a web
-  /// build throws `UnsupportedError` on the way past it — and resolving it
-  /// eagerly turned that into a game that never drew a frame. Deferred, the
-  /// throw happens inside [read] and [write], which already promise never to
-  /// throw and already fall back to a fresh run.
-  late final Directory directory = _given ??
-      Directory('${_home()}/Library/Application Support/platformer');
+  /// **The web build and the Android build kept nothing**, and both looked
+  /// fine: the old file-backed path threw where there was no filesystem and
+  /// wrote where nothing was reading, and both throws were swallowed into "no
+  /// save". A checkpoint that is not written is indistinguishable from a player
+  /// who has not reached one.
+  final Storage storage;
 
-  File get file => File('${directory.path}/save.json');
+  /// A separate document from the settings on purpose: settings are what a
+  /// player chose and a save is where they got to, and one of those must survive
+  /// a delete of the other. Wiping a corrupt save should not cost the bindings.
+  static const String _name = 'save.json';
 
   /// The run that was saved, or null if there is nothing to resume.
   ///
@@ -40,9 +41,10 @@ final class SaveFile {
   /// cannot be read is a run that has to start again, and that is a much
   /// smaller loss than a game that will not launch.
   ({String level, Snapshot run})? read() {
+    final text = storage.read(_name);
+    if (text == null) return null;
     try {
-      if (!file.existsSync()) return null;
-      final json = jsonDecode(file.readAsStringSync());
+      final json = jsonDecode(text);
       if (json is! Map<String, Object?>) return null;
       final level = json['level'];
       final run = json['run'];
@@ -55,39 +57,16 @@ final class SaveFile {
   }
 
   /// Writes the run, and says whether it managed to.
-  ///
-  /// Through a temporary file and a rename, so a crash mid-write cannot leave
-  /// a half-written save where a whole one used to be.
-  bool write(String level, Snapshot run) {
-    try {
-      directory.createSync(recursive: true);
-      final temporary = File('${file.path}.new');
-      temporary.writeAsStringSync(
+  bool write(String level, Snapshot run) => storage.write(
+        _name,
         const JsonEncoder.withIndent('  ').convert(
           <String, Object?>{'level': level, 'run': run.data},
         ),
-        flush: true,
       );
-      temporary.renameSync(file.path);
-      return true;
-    } catch (error) {
-      debugPrint('save: could not be written ($error)');
-      return false;
-    }
-  }
 
   /// Forgets the run. Called when it ends, either way.
   ///
-  /// A finished run left on disk is resumed on the next launch, and the player
-  /// is put back on the last checkpoint of a level they already beat.
-  void clear() {
-    try {
-      if (file.existsSync()) file.deleteSync();
-    } catch (error) {
-      debugPrint('save: could not be cleared ($error)');
-    }
-  }
-
-  static String _home() =>
-      Platform.environment['HOME'] ?? Directory.current.path;
+  /// A finished run left behind is resumed on the next launch, and the player is
+  /// put back on the last checkpoint of a level they already beat.
+  void clear() => storage.remove(_name);
 }

@@ -5,16 +5,21 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/save_file.dart';
 
 void main() {
   late Directory temporary;
+  late FileStorage storage;
   late SaveFile saves;
 
   setUp(() {
     temporary = Directory.systemTemp.createTempSync('platformer_save');
-    saves = SaveFile(directory: temporary);
+    // A real directory, because what these tests are about is a document that
+    // survives a process — see `Storage`, which is what decides where one goes.
+    storage = FileStorage(appName: 'platformer', directory: temporary);
+    saves = SaveFile(storage: storage);
   });
 
   tearDown(() => temporary.deleteSync(recursive: true));
@@ -47,15 +52,13 @@ void main() {
     // snapshot holds positions in metres, and metres from another level put the
     // runner inside a wall — which reads as the game being broken, not as the
     // save being stale.
-    saves.directory.createSync(recursive: true);
-    saves.file.writeAsStringSync('{"run": {"deaths": 3}}');
+    storage.write('save.json', '{"run": {"deaths": 3}}');
 
     expect(saves.read(), isNull);
   });
 
   test('rubbish on disk starts a new run rather than refusing to launch', () {
-    saves.directory.createSync(recursive: true);
-    saves.file.writeAsStringSync('{"level": "a.json", "run": ');
+    storage.write('save.json', '{"level": "a.json", "run": ');
 
     expect(saves.read(), isNull);
   });
@@ -64,10 +67,10 @@ void main() {
     // Mutation: never clear. The player beats the level, quits, comes back, and
     // is put on the last checkpoint of the level they already finished.
     saves.write('a.json', Snapshot(<String, Object?>{}));
-    expect(saves.file.existsSync(), isTrue);
+    expect(storage.read('save.json'), isNotNull);
 
     saves.clear();
-    expect(saves.file.existsSync(), isFalse);
+    expect(storage.read('save.json'), isNull);
     saves.clear();
   });
 }

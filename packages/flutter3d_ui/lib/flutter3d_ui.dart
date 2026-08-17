@@ -18,4 +18,5 @@ library;
 
 export 'src/rebinding.dart';
 export 'src/settings_file.dart';
+export 'src/storage/storage.dart';
 export 'src/settings_panel.dart';

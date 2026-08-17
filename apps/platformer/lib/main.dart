@@ -409,7 +409,6 @@ class _GameScreenState extends State<GameScreen>
     });
 
     _ticker = createTicker(_onTick)..start();
-    unawaited(_openAudio());
 
     // A run in progress beats a fresh one, and the file says which level it was
     // in — see `SaveFile`, which refuses to hand back a snapshot without one.
@@ -809,6 +808,14 @@ class _GameScreenState extends State<GameScreen>
   /// pointer is released is a card in the middle of a run.
   void _begin() {
     if (_started) return;
+    // **The audio starts here rather than at launch**, and that is the browser's
+    // rule rather than a preference: a page may not make a sound until the
+    // player has done something, and a build that opened its audio in
+    // `initState` spent that permission before the player had given it — so the
+    // first sound of the game was the one that got refused. This is the first
+    // click, touch or pad button in every build, which is exactly the gesture
+    // the browser is waiting for.
+    unawaited(_openAudio());
     setState(() => _started = true);
   }
 

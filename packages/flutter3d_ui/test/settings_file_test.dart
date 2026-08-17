@@ -1,5 +1,10 @@
 /// A settings file is read on every launch and written by a process that may be
 /// killed mid-write. Both of those are what these are about.
+///
+/// On the VM only: what is being checked is a real document on a real disk,
+/// including that nothing is left beside it after a write. Where the settings go
+/// is `storage_test.dart`'s question, and it has the browser's half.
+@TestOn('vm')
 library;
 
 import 'dart:io';
@@ -10,11 +15,13 @@ import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 void main() {
   late Directory temporary;
+  late FileStorage storage;
   late SettingsFile settings;
 
   setUp(() {
     temporary = Directory.systemTemp.createTempSync('platformer_settings');
-    settings = SettingsFile(appName: 'test', directory: temporary);
+    storage = FileStorage(appName: 'test', directory: temporary);
+    settings = SettingsFile(appName: 'test', storage: storage);
   });
 
   tearDown(() => temporary.deleteSync(recursive: true));
@@ -22,7 +29,7 @@ void main() {
   test('the first launch reads defaults rather than failing', () {
     // Mutation: let `read` throw when the file is missing. Every fresh install
     // then fails to start, which is the worst possible way to lose a setting.
-    expect(settings.file.existsSync(), isFalse);
+    expect(File('${temporary.path}/settings.json').existsSync(), isFalse);
     final config = settings.read();
 
     expect(config.volumeOf('master'), 1.0);
@@ -45,16 +52,16 @@ void main() {
     // Mutation: drop the try/catch in `read`. A disk that filled up mid-write,
     // or a hand edit that lost a brace, then bricks the game permanently —
     // every launch reads the same broken file and dies the same way.
-    settings.directory.createSync(recursive: true);
-    settings.file.writeAsStringSync('{ this is not json');
+    temporary.createSync(recursive: true);
+    File('${temporary.path}/settings.json').writeAsStringSync('{ this is not json');
 
     final config = settings.read();
     expect(config.volumeOf('master'), 1.0);
   });
 
   test('a document that is valid json but the wrong shape is defaults too', () {
-    settings.directory.createSync(recursive: true);
-    settings.file.writeAsStringSync('["a list, not an object"]');
+    temporary.createSync(recursive: true);
+    File('${temporary.path}/settings.json').writeAsStringSync('["a list, not an object"]');
 
     expect(settings.read().bindings.length, 0);
   });
@@ -66,7 +73,7 @@ void main() {
     // that makes it impossible: nothing is left beside the file afterwards.
     settings.write(GameConfig()..setVolume('music', 0.5));
 
-    final leftovers = settings.directory
+    final leftovers = temporary
         .listSync()
         .map((FileSystemEntity e) => e.uri.pathSegments.last)
         .where((String name) => name != 'settings.json')

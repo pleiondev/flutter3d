@@ -1,0 +1,147 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
+
+import 'storage.dart';
+
+/// Where this platform keeps a small document belonging to one application.
+///
+/// **A table rather than one path, because there is no one path.** The rules
+/// below are each platform's own convention, and getting them from the
+/// environment rather than from a plugin is what keeps this package free of
+/// `path_provider` — the dependency policy in `docs/SPEC.md` asks for that, and
+/// on three of the five it is genuinely just an environment variable.
+///
+/// The two mobile platforms are the interesting ones. Neither publishes its
+/// container in the environment, but both set `TMPDIR`, and both put it **inside**
+/// that container:
+///
+/// * Android: `/data/user/0/<package>/cache`, whose parent is the private data
+///   directory that `files/` and `shared_prefs/` sit in;
+/// * iOS: `<container>/tmp`, whose parent is the container.
+///
+/// So the parent of [temporary] is the root to build from. **That is an
+/// assumption about the Flutter engine's own setup**, not a documented API, and
+/// it is written down here rather than buried: if it ever stops holding, the
+/// symptom is a game that cannot keep settings, which is exactly what this
+/// replaced — no worse, and now with a name.
+///
+/// Returns null where nothing can be worked out, which a caller treats as "this
+/// platform does not keep anything" rather than as a failure.
+String? applicationDirectory({
+  required String appName,
+  required TargetPlatform platform,
+  required Map<String, String> environment,
+  required String temporary,
+}) {
+  final home = environment['HOME'];
+  switch (platform) {
+    case TargetPlatform.macOS:
+      // A sandboxed application's `HOME` is its container, so this is inside it.
+      return home == null ? null : '$home/Library/Application Support/$appName';
+    case TargetPlatform.iOS:
+      return '${_parent(temporary)}/Library/Application Support/$appName';
+    case TargetPlatform.android:
+      // Beside `files/`, which is where an Android application's own data goes.
+      return '${_parent(temporary)}/files/$appName';
+    case TargetPlatform.linux:
+      final config = environment['XDG_CONFIG_HOME'] ??
+          (home == null ? null : '$home/.config');
+      return config == null ? null : '$config/$appName';
+    case TargetPlatform.windows:
+      final appData = environment['APPDATA'];
+      return appData == null ? null : '$appData\\$appName';
+    case TargetPlatform.fuchsia:
+      return null;
+  }
+}
+
+String _parent(String path) {
+  final trimmed = path.endsWith('/')
+      ? path.substring(0, path.length - 1)
+      : path;
+  final cut = trimmed.lastIndexOf('/');
+  return cut <= 0 ? trimmed : trimmed.substring(0, cut);
+}
+
+/// Documents kept as files, one per name, in a directory this platform owns.
+final class FileStorage implements Storage {
+  FileStorage({required this.appName, Directory? directory})
+      : _given = directory;
+
+  final String appName;
+  final Directory? _given;
+
+  /// Resolved on first use rather than in the constructor.
+  ///
+  /// `Platform.environment` is unavailable where there is no filesystem, and
+  /// resolving it eagerly turned that into a game that never drew a frame.
+  /// Deferred, the failure lands inside a read or a write, which already promise
+  /// never to throw.
+  late final Directory? directory = _given ?? _resolve();
+
+  Directory? _resolve() {
+    try {
+      final path = applicationDirectory(
+        appName: appName,
+        platform: defaultTargetPlatform,
+        environment: Platform.environment,
+        temporary: Directory.systemTemp.path,
+      );
+      return path == null ? null : Directory(path);
+    } catch (error) {
+      debugPrint('storage: no directory on this platform ($error)');
+      return null;
+    }
+  }
+
+  File? _file(String name) {
+    final where = directory;
+    return where == null ? null : File('${where.path}/$name');
+  }
+
+  @override
+  String? read(String name) {
+    try {
+      final file = _file(name);
+      if (file == null || !file.existsSync()) return null;
+      return file.readAsStringSync();
+    } catch (error) {
+      debugPrint('storage: could not read $name ($error)');
+      return null;
+    }
+  }
+
+  @override
+  bool write(String name, String contents) {
+    try {
+      final where = directory;
+      final file = _file(name);
+      if (where == null || file == null) return false;
+      where.createSync(recursive: true);
+      // Through a temporary file and a rename, because the alternative is that a
+      // crash halfway through a write leaves a half-written document that the
+      // next read refuses — turning one lost session into every future one.
+      final temporary = File('${file.path}.new')
+        ..writeAsStringSync(contents, flush: true);
+      temporary.renameSync(file.path);
+      return true;
+    } catch (error) {
+      debugPrint('storage: could not write $name ($error)');
+      return false;
+    }
+  }
+
+  @override
+  void remove(String name) {
+    try {
+      final file = _file(name);
+      if (file != null && file.existsSync()) file.deleteSync();
+    } catch (error) {
+      debugPrint('storage: could not clear $name ($error)');
+    }
+  }
+}
+
+/// The storage a build outside the browser gets.
+Storage defaultStorage(String appName) => FileStorage(appName: appName);
