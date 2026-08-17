@@ -134,6 +134,10 @@ final class DesktopInput {
   ///
   /// Matches the signature [GameLoop] wants, so the loop needs to know nothing
   /// about how the pointer is captured.
+  ///
+  /// **Assigns**, where [PadInput.drainLook] adds. `GameLoop` takes one
+  /// callback, so a game with both devices calls this one first and lets the pad
+  /// add its share on top.
   void drainLook(Vector2 out) {
     final delta = capture.takeDelta();
     out.setValues(delta.dx, delta.dy);

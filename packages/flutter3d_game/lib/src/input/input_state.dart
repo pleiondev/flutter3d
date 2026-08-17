@@ -145,6 +145,17 @@ final class InputState {
   void setActionValue(GameAction action, double magnitude) =>
       _values[action] = magnitude.clamp(0.0, 1.0);
 
+  /// Stops saying anything about how hard [action] is asked for.
+  ///
+  /// **Not the same as a magnitude of nought**, and the difference is what makes
+  /// two devices able to share one action. A magnitude present is authoritative:
+  /// a trigger resting at zero really does mean no throttle. So a gamepad that
+  /// went away, or whose trigger came back to rest, has to *withdraw* its
+  /// number rather than set it to zero — otherwise the last thing the pad said
+  /// shadows the keyboard for the rest of the process, and `W` stops working the
+  /// first time anybody touches a trigger.
+  void clearActionValue(GameAction action) => _values.remove(action);
+
   /// Sets the analogue movement axis, for a stick or a d-pad.
   void setStickAxis(double x, double y) {
     _stickAxis.setValues(x, y);

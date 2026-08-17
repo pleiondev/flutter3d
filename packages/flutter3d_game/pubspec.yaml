@@ -15,6 +15,12 @@ dependencies:
   mouse_capture:
     path: ../mouse_capture
 
+  # Sticks, triggers and buttons. A device package, exactly as mouse_capture is:
+  # it knows nothing about actions or games, and `pad_input.dart` is the
+  # translator — the same shape `DesktopInput` has beside the keyboard.
+  gamepad:
+    path: ../gamepad
+
   # Collision, queries and the character controller. Extracted because it
   # imported nothing from here, and because a collision world that knows what a
   # monster is cannot be used by a game that has none.

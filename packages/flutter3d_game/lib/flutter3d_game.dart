@@ -23,6 +23,7 @@ export 'src/input/bindings.dart';
 export 'src/input/desktop_input.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
+export 'src/input/pad_input.dart';
 export 'src/ecs/ecs_world.dart';
 export 'src/ecs/entity.dart';
 export 'src/save/game_random.dart';
