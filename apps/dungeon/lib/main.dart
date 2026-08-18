@@ -26,6 +26,7 @@ import 'src/effects.dart';
 import 'src/fixture_looks.dart';
 import 'src/hud.dart';
 import 'src/monster_looks.dart';
+import 'src/run_cubit.dart';
 import 'src/scene_surface.dart';
 import 'src/sounds.dart';
 import 'src/staging.dart';
@@ -118,8 +119,18 @@ class _GameScreenState extends State<GameScreen>
   late final Ticker _ticker;
 
   /// The level, once it has loaded. Null while it is loading or if it failed.
-  LoadedLevel? _loaded;
-  CharacterController? _body;
+  /// The run: which level is up, what happened to it, and where next.
+  ///
+  /// Built in [_openGraphics], because loading needs a device.
+  late final RunCubit _run;
+
+  /// What the render loop reads, all of it owned by [_run] now. Getters rather
+  /// than fields so there is one answer to "which level is this" — seven fields
+  /// assigned in one `setState` were seven chances for a load to leave one of
+  /// them describing the level before.
+  LevelReady? get _level => _run.level;
+  LoadedLevel? get _loaded => _level?.loaded;
+  CharacterController? get _body => _level?.staged.player.body;
 
   /// Everything, loaded. Pickups arrive in a later stage and will replace
   /// this; until they do, a launcher nobody can find is a launcher nobody can
@@ -130,11 +141,10 @@ class _GameScreenState extends State<GameScreen>
   /// to read — and so it can hang off the player's collider, which is how a
   /// locked door asks what the body in front of it holds.
   /// Who the player is, once there is a body to be.
-  Player? _player;
-  GameSimulation? _sim;
-  GameState _shown = GameState.playing;
+  Player? get _player => _level?.staged.player;
+  GameSimulation? get _sim => _level?.staged.sim;
 
-  final Inventory _inventory = startingInventory();
+  Inventory get _inventory => _run.inventory;
 
   /// Everything a document in this game's levels may name.
   ///
@@ -150,8 +160,8 @@ class _GameScreenState extends State<GameScreen>
   /// A field initializer used to do it, back when a mesh could reach the
   /// graphics context on its own. Nothing can now, which is the point.
   late final WeaponView _weaponView;
-  ActorSystem? _actors;
-  ActorVisuals? _actorVisuals;
+  ActorSystem? get _actors => _level?.staged.actors;
+  ActorVisuals? get _actorVisuals => _level?.actorVisuals;
 
   Arsenal get _arsenal => _inventory.arsenal;
   Health get _playerHealth => _inventory.health;
@@ -173,9 +183,14 @@ class _GameScreenState extends State<GameScreen>
   Renderer? _renderer;
   Object? _initError;
 
-  /// The backend. Everything that uploads anything needs it, so it outlives
-  /// `initState` as a field rather than being rebuilt where it is wanted.
-  GraphicsDevice? _device;
+  /// Whether the run has ended, either way. Read by the two restarts.
+  bool get _runIsOver => switch (_run.state) {
+        RunPlaying(:final isOver) => isOver,
+        _ => false,
+      };
+
+  /// Whether the pad was holding anything last frame, for the edge above.
+  bool _padPressing = false;
 
   /// How far the eye sits above the centre of the player's box.
   static const double _eyeOffset = 0.7;
@@ -267,8 +282,8 @@ class _GameScreenState extends State<GameScreen>
   final Map<Mechanism, SoundEmitter> _moverVoices =
       <Mechanism, SoundEmitter>{};
 
-  MechanismWorld? _mechanisms;
-  FixtureVisuals? _fixtureVisuals;
+  MechanismWorld? get _mechanisms => _level?.staged.mechanisms;
+  FixtureVisuals? get _fixtureVisuals => _level?.fixtureVisuals;
 
   /// The last thing the level said, and how long it has left on screen.
   String _message = '';
@@ -348,7 +363,6 @@ class _GameScreenState extends State<GameScreen>
       return;
     }
     if (!mounted) return;
-    _device = device;
 
     _weaponView = WeaponView(
       models: dungeonWeaponModels(device),
@@ -378,9 +392,10 @@ class _GameScreenState extends State<GameScreen>
       ?..addContributor(ParticleContributor(_particles))
       ..addNode(_weaponView.plugin);
 
+    _openRun(device);
     _ticker = createTicker(_onTick)..start();
     unawaited(_openAudio());
-    unawaited(_loadLevel());
+    unawaited(_run.begin());
   }
 
   /// Starts SoLoud and swaps it in behind the mixer.
@@ -447,77 +462,79 @@ class _GameScreenState extends State<GameScreen>
 
   bool _ambienceStarted = false;
 
-  Future<void> _loadLevel() async {
-    try {
-      final loaded =
-          await const LevelLoader().load(
-        _levelAsset,
-        device: _device!,
-        registry: _entityKinds,
+  /// Builds the run once there is a device to load through.
+  ///
+  /// The loader and the scene builder are handed in rather than reached for, so
+  /// that `run_cubit_test.dart` can hand over a `CpuDevice` and drive the whole
+  /// chain — starting, dying, restarting, moving on, quitting and coming back —
+  /// without a window.
+  void _openRun(GraphicsDevice device) {
+    _run = RunCubit(
+      firstLevel: _firstLevel,
+      registry: _entityKinds,
+      input: _input,
+      inventory: startingInventory(),
+      saves: SaveFile(appName: 'dungeon'),
+      eyeOffset: _eyeOffset,
+      lookSensitivity: _lookSensitivity,
+      loader: (String asset, EntityRegistry registry) =>
+          const LevelLoader().load(
+        asset,
+        device: device,
+        registry: registry,
         rules: sampleRules(),
-      );
-      final visuals = ActorVisuals(
-        loaded.scene,
-        appearance: const DungeonMonsters(),
-        device: _device!,
-      );
-      final fixtures = FixtureVisuals(
-        loaded.scene,
-        loaded,
-        appearance: const DungeonFixtures(),
-        device: _device!,
-      )
-        ..fallbackAlbedo = _renderer?.fallbackAlbedo
-        // Before spawning, so a torch can find the light it drives.
-        ..bindLights();
+      ),
+      openScene: (LoadedLevel loaded) => (
+        actors: ActorVisuals(
+          loaded.scene,
+          appearance: const DungeonMonsters(),
+          device: device,
+        ),
+        fixtures: FixtureVisuals(
+          loaded.scene,
+          loaded,
+          appearance: const DungeonFixtures(),
+          device: device,
+        )
+          ..fallbackAlbedo = _renderer?.fallbackAlbedo
+          // Before spawning, so a torch can find the light it drives.
+          ..bindLights(),
+      ),
+    );
+  }
 
-      // Everything that is not drawing — see `stage`, which is where the rest
-      // of this used to be written out longhand, in this file and again in the
-      // one test this application has.
-      final staged = stage(
-        loaded.level,
-        loaded.collision,
-        input: _input,
-        registry: _entityKinds,
-        inventory: _inventory,
-        onActorSpawned: visuals.add,
-        onFixture: fixtures.add,
-        eyeOffset: _eyeOffset,
-        lookSensitivity: _lookSensitivity,
-      );
-      _player = staged.player;
-
-      if (!mounted) return;
-      setState(() {
-        _sim = staged.sim;
-        _loaded = loaded;
-        _body = staged.player.body;
-        _actors = staged.actors;
-        _actorVisuals = visuals;
-        _mechanisms = staged.mechanisms;
-        _fixtureVisuals = fixtures;
-        _smoothedPosition.jumpTo(staged.player.body.position);
-        // Loading blocked the ticker for a couple of seconds, and all of that
-        // time is sitting in the accumulator. None of it happened in the game,
-        // so it is dropped rather than simulated — otherwise the first frame
-        // spends its whole budget catching up, and the dropped-step counter
-        // reads as a performance problem for the rest of the session.
-        _loop.clock.reset();
-      });
-
-      _startAmbience();
-
-      for (final issue in loaded.issues.followedBy(staged.navIssues)) {
-        debugPrint('level: $issue');
-      }
-    } catch (error, stack) {
-      debugPrint('level failed to load: $error\n$stack');
-      if (mounted) setState(() => _initError = error);
+  /// Everything the widget has to do when a level arrives.
+  ///
+  /// A listener rather than the tail of the load, because the load happens in
+  /// the cubit now and these are all effects on things the cubit does not own:
+  /// a smoothed camera position, an accumulator full of loading time, and a
+  /// looping sound.
+  void _levelArrived(LevelReady level) {
+    _smoothedPosition.jumpTo(level.staged.player.body.position);
+    // Loading blocked the ticker for a couple of seconds, and all of that time
+    // is sitting in the accumulator. None of it happened in the game, so it is
+    // dropped rather than simulated — otherwise the first frame spends its
+    // whole budget catching up, and the dropped-step counter reads as a
+    // performance problem for the rest of the session.
+    _loop.clock.reset();
+    _startAmbience();
+    // **On entering a level, and on quitting, and at no other time.** This game
+    // has no checkpoints — the platformer saves when its respawn point moves,
+    // and there is nothing here that moves. A door is not a checkpoint: a
+    // player who opens one and then dies has not earned the corridor beyond it.
+    // A write per frame would put a file in the frame budget; a write only on
+    // quit loses a level to a crash.
+    _run.save();
+    for (final issue
+        in level.loaded.issues.followedBy(level.staged.navIssues)) {
+      debugPrint('level: $issue');
     }
   }
 
   @override
   void dispose() {
+    // The other half of the rule above: quitting keeps the level you are in.
+    _run.save();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
     unawaited(_settings.close());
@@ -527,7 +544,7 @@ class _GameScreenState extends State<GameScreen>
     super.dispose();
   }
 
-  static const String _levelAsset = 'assets/levels/crypt.json';
+  static const String _firstLevel = 'assets/levels/crypt.json';
 
   /// The table this game ships with, for the panel's way back.
   static Bindings _defaultBindings() =>
@@ -618,6 +635,16 @@ class _GameScreenState extends State<GameScreen>
     if (_settings.state.waitingFor != null && _pad.heldButtons.isNotEmpty) {
       _capture(InputSource.pad(_pad.heldButtons.first.id));
     }
+    // Start restarts a finished run, on the edge rather than while held — a
+    // player who dies with a thumb on Start would otherwise restart for ever.
+    final padPressing = _pad.heldButtons.isNotEmpty;
+    if (_runIsOver &&
+        !_padPressing &&
+        padPressing &&
+        _pad.heldButtons.contains(PadButton.start)) {
+      unawaited(_run.restart());
+    }
+    _padPressing = padPressing;
     // A player on a controller never captures the pointer, so a gate that only
     // knew about the mouse would leave them looking at a frozen dungeon.
     // The same gate the platformer names in `pause_gate.dart`, minus its menu:
@@ -682,22 +709,13 @@ class _GameScreenState extends State<GameScreen>
     // not the same harm as a camera that moves by itself.
     if (sim.damageTakenThisStep > 0.0) _painFlash = _system.screenFlash;
 
-    // Said once, on the edge. There is no restart and no next level to load
-    // yet, so this is exactly as much as the application can honestly do about
-    // either — and it is more than the nothing it did before, when `exit`
-    // spawned no mechanism and dying left you walking around at zero health.
-    if (sim.state != _shown) {
-      _shown = sim.state;
-      switch (sim.state) {
-        case GameState.playing:
-          break;
-        case GameState.dead:
-          _say('You died.');
-        case GameState.complete:
-          final next = sim.nextLevel;
-          _say(next == null ? 'Level complete.' : 'Level complete — $next.');
-      }
-    }
+    // The run's own state, republished by the cubit on the step it changes —
+    // which is what makes the announcement below a listener rather than an
+    // edge detector kept in a field here.
+    _run.observe();
+    // Once a level says there is somewhere to go, go. Does nothing until the
+    // level is finished and nothing twice; the guard is the cubit's.
+    unawaited(_run.advance());
 
     _showShot(sim);
     _showActors(sim);
@@ -872,7 +890,28 @@ class _GameScreenState extends State<GameScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => BlocConsumer<RunCubit, RunState>(
+        bloc: _renderer == null ? null : _run,
+        // The three things that have to happen *when* the run changes rather
+        // than every time it is drawn: a new level needs its camera put where
+        // the player is, and an ended one needs saying out loud.
+        listener: (BuildContext context, RunState run) {
+          switch (run) {
+            case RunPlaying(:final level, outcome: GameState.playing):
+              _levelArrived(level);
+            case RunPlaying(outcome: GameState.dead):
+              _say('You died. Press R to try again.');
+            case RunPlaying(:final level, outcome: GameState.complete):
+              final next = level.staged.sim.nextLevel;
+              _say(next == null ? 'You are out.' : 'Level complete.');
+            case RunLoading() || RunFailed():
+              break;
+          }
+        },
+        builder: (BuildContext context, RunState run) => _game(run),
+      );
+
+  Widget _game(RunState run) {
     final renderer = _renderer;
     final loaded = _loaded;
     final body = _body;
@@ -894,12 +933,31 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
+    if (run is RunFailed) {
+      // **This used to be a black screen for ever**: the load caught its own
+      // throw and printed it, which is a line in a console nobody playing the
+      // game can see. Every one of these is a content mistake — the failure a
+      // person editing a level makes.
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32.0),
+            child: Text(
+              'That level would not load.\n\n${run.asset}\n\n${run.error}',
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+        ),
+      );
+    }
+
     if (loaded == null || body == null) {
       return const Scaffold(
         backgroundColor: Colors.black,
         body: Center(
           child: Text(
-            'Loading the crypt…',
+            'Loading…',
             style: TextStyle(color: Colors.white54),
           ),
         ),
@@ -920,6 +978,16 @@ class _GameScreenState extends State<GameScreen>
             } else {
               _capture(InputSource.key(event.logicalKey.keyId));
             }
+            return KeyEventResult.handled;
+          }
+          // **R, and before Escape**, because a dead player pressing keys is
+          // looking for a way back into the game rather than into a menu. This
+          // was the whole of what was missing: dying printed a word and left
+          // the only exit as closing the application.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyR &&
+              _runIsOver) {
+            unawaited(_run.restart());
             return KeyEventResult.handled;
           }
           // Escape opens the settings as well as letting the pointer go, so a

@@ -68,6 +68,11 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # A renderer with no GPU under it, so a test can load a level the way the game
+  # does. `LevelLoader` needs a device and does not need a window.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
   flutter_lints: ^6.0.0
 
 flutter:
