@@ -26,6 +26,7 @@ import 'src/effects.dart';
 import 'src/fixture_looks.dart';
 import 'src/hud.dart';
 import 'src/monster_looks.dart';
+import 'src/reactions.dart';
 import 'src/run_cubit.dart';
 import 'src/scene_surface.dart';
 import 'src/sounds.dart';
@@ -168,11 +169,6 @@ class _GameScreenState extends State<GameScreen>
   Health get _playerHealth => _inventory.health;
   int _kills = 0;
 
-  /// Explosions from the last step, for the effects to catch up with.
-  final List<Detonation> _blasts = <Detonation>[];
-
-  /// The last shot's hits, for the impact markers the debug overlay draws.
-  final List<ShotHit> _lastShot = <ShotHit>[];
   double _hitFlash = 0.0;
 
   /// Fades after the player is hurt. Red rather than the crosshair's white,
@@ -204,7 +200,6 @@ class _GameScreenState extends State<GameScreen>
 
   // Scratch vectors, reused every step. Allocating these per frame is the
   // easiest way to hand the collector work it does not need.
-  final Vector3 _right = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
   // Scratch for the occlusion ray, which runs once per audible source per
@@ -285,6 +280,9 @@ class _GameScreenState extends State<GameScreen>
   /// widget cannot.
   final Soundtrack _soundtrack = Soundtrack();
 
+  /// What a step looks like. A class for the same reason [_soundtrack] is one.
+  final Reactions _reactions = Reactions();
+
   final Map<Object, SoundEmitter> _moverVoices =
       <Mechanism, SoundEmitter>{};
 
@@ -294,7 +292,6 @@ class _GameScreenState extends State<GameScreen>
   /// The last thing the level said, and how long it has left on screen.
   String _message = '';
   double _messageFor = 0.0;
-  final Vector3 _muzzle = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
 
@@ -731,9 +728,16 @@ class _GameScreenState extends State<GameScreen>
     // level is finished and nothing twice; the guard is the cubit's.
     unawaited(_run.advance());
 
-    _showShot(sim);
-    _showActors(sim);
-    _showBlasts(sim);
+    // **What is shown is decided in `Reactions` and only performed here**, for
+    // the same reason the sound is: three private methods of a widget nothing
+    // can mount meant no test in this application had ever mentioned a
+    // particle.
+    _show(_reactions.listen(sim, player));
+
+    // The two that are not reactions to an event. A recoil is the weapon view's
+    // own animation, and the kill count is a number the HUD shows.
+    if (sim.firedThisStep != null) _weaponView.recoil();
+    _kills += sim.actors?.died.length ?? 0;
 
     final body = player.body;
     _weaponView.step(
@@ -757,70 +761,24 @@ class _GameScreenState extends State<GameScreen>
     _smoothedPosition.push(body.position);
   }
 
-  /// The noise and the sparks a shot makes. The shot itself already happened.
-  void _showShot(GameSimulation sim) {
-    final weapon = sim.firedThisStep;
-    if (weapon == null) return;
-    _weaponView.recoil();
-
-    _lastShot
-      ..clear()
-      ..addAll(sim.hits);
-    if (_lastShot.any((ShotHit h) => h.struckSomething)) {
-      _hitFlash = _system.screenFlash;
+  /// Performs what `Reactions` decided. Nothing here chooses anything.
+  void _show(Reaction reaction) {
+    for (final shown in reaction.bursts) {
+      _particles.burst(shown.effect, shown.at, direction: shown.direction);
     }
-
-    // Where the muzzle actually is, unlike where the shot came from: the flare
-    // is the one thing that should sit at the barrel rather than at the eye.
-    _player!
-      ..aim(_aim)
-      ..right(_right);
-    _muzzle
-      ..setFrom(sim.firedFrom)
-      ..x += _aim.x * 0.6 - _right.x * 0.18
-      ..y += _aim.y * 0.6 - 0.12
-      ..z += _aim.z * 0.6 - _right.z * 0.18;
-    _particles.burst(Effects.muzzleFlash, _muzzle, direction: _aim);
-
-    for (final hit in _lastShot) {
-      if (!hit.struckSomething) continue;
-      _particles.burst(Effects.impactSparks, hit.point, direction: hit.normal);
-      _particles.burst(Effects.impactDust, hit.point, direction: hit.normal);
-    }
-  }
-
-  void _showActors(GameSimulation sim) {
-    final monsters = sim.actors;
-    if (monsters == null) return;
-    for (final dead in monsters.died) {
-      _kills++;
-      _particles.burst(Effects.impactSparks, dead.position!);
-    }
-  }
-
-  void _showBlasts(GameSimulation sim) {
-    final projectiles = sim.projectiles;
-    if (projectiles == null || projectiles.detonations.isEmpty) return;
-    for (final blast in projectiles.detonations) {
-      _particles.burst(Effects.explosionCore, blast.position);
-      _particles.burst(Effects.explosionEmbers, blast.position);
-      // And smoke for a second after the fire is out, from a key that belongs
-      // to this blast alone. A fresh object rather than the position: two
-      // rockets landing in the same doorway are two plumes, and a key they
-      // shared would mean the second restarted the first. The system drops the
-      // emission when it runs out, so a key per blast does not accumulate.
+    for (final lingering in reaction.lingering) {
       _particles.emitTimed(
-        Object(),
-        Effects.explosionSmoke,
-        blast.position,
-        perSecond: 34.0,
-        seconds: 0.85,
+        lingering.key,
+        lingering.effect,
+        lingering.at,
+        perSecond: lingering.perSecond,
+        seconds: lingering.seconds,
       );
     }
-    _blasts
-      ..clear()
-      ..addAll(projectiles.detonations);
-    _hitFlash = _system.screenFlash;
+    // Scaled by the player's own setting rather than decided in `Reactions`: a
+    // full-screen flash on every hit is a photosensitivity question, and how
+    // much of one is the player's answer.
+    if (reaction.flash) _hitFlash = _system.screenFlash;
   }
 
   /// Every torch, every step. The rate is per second and the system keeps each
