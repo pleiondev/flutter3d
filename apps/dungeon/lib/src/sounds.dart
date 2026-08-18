@@ -100,6 +100,39 @@ abstract final class Sounds {
     maxInstances: 6,
   );
 
+  /// **The two weapons that used to sound like a pistol.** The application
+  /// chose between two sounds for four weapons — shells or not — so the
+  /// launcher and the fists both cracked like a nine-millimetre.
+  static const SoundDef rocket = SoundDef(
+    name: 'rocket',
+    asset: 'assets/sounds/rocket.wav',
+    attenuation: machinery,
+    priority: 7,
+    maxInstances: 3,
+  );
+
+  static const SoundDef punch = SoundDef(
+    name: 'punch',
+    asset: 'assets/sounds/punch.wav',
+    attenuation: nearby,
+    priority: 4,
+    maxInstances: 3,
+  );
+
+  /// A boot on stone.
+  ///
+  /// Quiet, and with room for several at once: this plays a few times a second
+  /// for the whole game, and a footstep anybody notices is one everybody hates
+  /// by the second corridor. The game had none at all — a first-person game
+  /// where walking is silent reads as sliding.
+  static const SoundDef step = SoundDef(
+    name: 'step',
+    asset: 'assets/sounds/step_stone.wav',
+    attenuation: nearby,
+    priority: 2,
+    maxInstances: 4,
+  );
+
   static const List<SoundDef> all = <SoundDef>[
     pistol,
     shotgun,
@@ -110,5 +143,8 @@ abstract final class Sounds {
     pickup,
     locked,
     torch,
+    rocket,
+    punch,
+    step,
   ];
 }

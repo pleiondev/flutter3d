@@ -29,6 +29,7 @@ import 'src/monster_looks.dart';
 import 'src/run_cubit.dart';
 import 'src/scene_surface.dart';
 import 'src/sounds.dart';
+import 'src/soundtrack.dart';
 import 'src/staging.dart';
 import 'src/weapon_models.dart';
 
@@ -279,7 +280,12 @@ class _GameScreenState extends State<GameScreen>
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
   /// would be a stone slab that grinds for exactly as long as the sample.
-  final Map<Mechanism, SoundEmitter> _moverVoices =
+  /// What a step of this game sounds like. A class rather than eight calls
+  /// scattered through this file: a decision can be tested, an effect inside a
+  /// widget cannot.
+  final Soundtrack _soundtrack = Soundtrack();
+
+  final Map<Object, SoundEmitter> _moverVoices =
       <Mechanism, SoundEmitter>{};
 
   MechanismWorld? get _mechanisms => _level?.staged.mechanisms;
@@ -687,13 +693,21 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final outcome = sim.usedThisStep;
-    if (outcome != null) {
-      if (outcome is Refused) _audio.play(Sounds.locked, sim.firedFrom);
-      _say(outcome.message);
-    }
+    if (outcome != null) _say(outcome.message);
+
+    // **What to play is decided in `Soundtrack` and only performed here.** It
+    // used to be decided here too, in eight places inside a widget, where
+    // nothing could ask what a step ought to sound like without a device and a
+    // window — so the game being mute was undetectable, and four weapons
+    // sharing two sounds went unnoticed for as long as the game has existed.
+    _perform(_soundtrack.listen(sim, player));
 
     final mechanisms = _mechanisms;
-    if (mechanisms != null) _hearMechanisms(mechanisms);
+    if (mechanisms != null) {
+      for (final said in mechanisms.events.messages) {
+        _say(said);
+      }
+    }
 
     if (_hitFlash > 0.0) _hitFlash = math.max(0.0, _hitFlash - dt * 4.0);
     if (_painFlash > 0.0) _painFlash = math.max(0.0, _painFlash - dt * 1.6);
@@ -749,14 +763,6 @@ class _GameScreenState extends State<GameScreen>
     if (weapon == null) return;
     _weaponView.recoil();
 
-    // At the eye rather than at the muzzle, for the same reason the shot
-    // starts there: a sound half a metre to one side pans audibly wrong when
-    // the player is against a wall.
-    _audio.play(
-      weapon.ammo == AmmoType.shells ? Sounds.shotgun : Sounds.pistol,
-      sim.firedFrom,
-    );
-
     _lastShot
       ..clear()
       ..addAll(sim.hits);
@@ -789,16 +795,6 @@ class _GameScreenState extends State<GameScreen>
     for (final dead in monsters.died) {
       _kills++;
       _particles.burst(Effects.impactSparks, dead.position!);
-      _audio.play(Sounds.monsterDie, dead.position!);
-    }
-    // `Sounds.monsterPain` was declared, preloaded and never played: nothing
-    // anywhere could tell that a monster had been hit and survived. Only the
-    // ones that flinched make a noise — a hit that did not stagger reads as a
-    // hit that did not land, and every hit screaming is worse than none.
-    for (final hurt in monsters.hurtThisStep) {
-      if (hurt.staggered) {
-        _audio.play(Sounds.monsterPain, hurt.actor.position!);
-      }
     }
   }
 
@@ -861,25 +857,25 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  void _hearMechanisms(MechanismWorld mechanisms) {
-    for (final started in mechanisms.events.started) {
-      _moverVoices[started] =
-          _audio.play(Sounds.stoneMove, started.origin ?? _eye);
+  /// Plays what the soundtrack decided, and keeps the running voices in place.
+  ///
+  /// The lifetimes are the only thing left here, and they are effects rather
+  /// than decisions: a grinding door is one voice that has to be started,
+  /// moved and stopped by the same key, and which key that is was decided in
+  /// `Soundtrack`.
+  void _perform(Sounding sounding) {
+    for (final heard in sounding.once) {
+      _audio.play(heard.sound, heard.at);
     }
-    for (final stopped in mechanisms.events.stopped) {
-      _moverVoices.remove(stopped)?.stop();
-      _audio.play(Sounds.stoneStop, stopped.origin ?? _eye);
-    }
-    for (final entry in _moverVoices.entries) {
-      final at = entry.key.origin;
-      if (at != null) entry.value.position.setFrom(at);
-    }
-
-    for (final taken in mechanisms.events.taken) {
-      _audio.play(Sounds.pickup, taken.origin ?? _eye);
-    }
-    for (final said in mechanisms.events.messages) {
-      _say(said);
+    for (final loop in sounding.loops) {
+      switch (loop.what) {
+        case Voice.begin:
+          _moverVoices[loop.key] = _audio.play(loop.sound!, loop.at!);
+        case Voice.follow:
+          _moverVoices[loop.key]?.position.setFrom(loop.at!);
+        case Voice.end:
+          _moverVoices.remove(loop.key)?.stop();
+      }
     }
   }
 

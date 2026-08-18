@@ -184,6 +184,49 @@ def build(out: pathlib.Path) -> None:
         fire[i] = fire[i] * t + fire[n - blend + i] * (1.0 - t)
     write(out / "torch_loop.wav", fire[: n - blend], gain=0.35)
 
+    # A rocket leaving the tube. **Two of the four weapons used to be silent in
+    # the sense that mattered**: the application played the pistol for anything
+    # that was not a shotgun, so the launcher and the fists both cracked like a
+    # nine-millimetre. Longer than the pistol and much darker, with the hiss of
+    # the motor behind the launch.
+    n = int(0.55 * RATE)
+    env = envelope(n, 0.004, 0.5)
+    write(
+        out / "rocket.wav",
+        mix(
+            [s * e * 1.1 for s, e in zip(tone(n, 90, 28), env)],
+            [s * e * 0.7 for s, e in zip(lowpass(noise(n, 11), 1800), env)],
+        ),
+        gain=0.75,
+    )
+
+    # A fist landing. No crack at all: a dull, close thump, and short, because
+    # it is the one attack whose sound should not carry.
+    n = int(0.16 * RATE)
+    env = envelope(n, 0.002, 0.13)
+    write(
+        out / "punch.wav",
+        mix(
+            [s * e for s, e in zip(lowpass(noise(n, 12), 900), env)],
+            [s * e * 0.9 for s, e in zip(tone(n, 150, 55), env)],
+        ),
+        gain=0.5,
+    )
+
+    # A boot on stone. Quiet on purpose: this plays several times a second for
+    # the whole game, and a footstep anybody notices is a footstep everybody
+    # hates by the second corridor.
+    n = int(0.13 * RATE)
+    env = envelope(n, 0.001, 0.11)
+    write(
+        out / "step_stone.wav",
+        mix(
+            [s * e for s, e in zip(lowpass(noise(n, 13), 2200), env)],
+            [s * e * 0.5 for s, e in zip(tone(n, 190, 90), env)],
+        ),
+        gain=0.32,
+    )
+
 
 if __name__ == "__main__":
     build(pathlib.Path(__file__).resolve().parent.parent / "assets" / "sounds")
