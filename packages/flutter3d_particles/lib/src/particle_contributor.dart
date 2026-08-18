@@ -2,10 +2,9 @@ import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show debugPrint;
-
+import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-import 'package:flutter3d/flutter3d.dart';
 import 'flipbook.dart';
 import 'particle_system.dart';
 

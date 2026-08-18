@@ -165,16 +165,16 @@ void main() {
       for (var i = 0; i < 100; i++) {
         system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
       }
-      final wasHeading = (walker.brain as _Patrol).eastward;
+      final wasHeading = (walker.brain! as _Patrol).eastward;
       expect(wasHeading, isFalse, reason: 'it should have turned by now');
 
       // Through the entity world, which is what actually writes an actor down
       // now: the brain's memory is a component and nothing in between knows
       // what a patrol is.
       final saved = system.entities.save();
-      (walker.brain as _Patrol).eastward = !wasHeading;
+      (walker.brain! as _Patrol).eastward = !wasHeading;
       system.entities.restore(saved);
-      expect((walker.brain as _Patrol).eastward, wasHeading);
+      expect((walker.brain! as _Patrol).eastward, wasHeading);
     });
 
     test('a corpse still falls', () {

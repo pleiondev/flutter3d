@@ -10,9 +10,8 @@
 /// wrong for a model nobody had written yet.
 library;
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('a model defined outside the engine', () {

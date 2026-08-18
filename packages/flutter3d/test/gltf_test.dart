@@ -2,12 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/gltf_resolvers.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 const String kSamples = 'assets/samples';
 
@@ -98,7 +97,7 @@ void main() {
       ByteData.sublistView(bytes).setUint32(8, bytes.length, Endian.little);
 
       final container = GlbContainer.parse(bytes);
-      expect((container.json['asset'] as Map)['version'], '2.0');
+      expect((container.json['asset']! as Map)['version'], '2.0');
     });
 
     test('rejects an unsupported version', () {

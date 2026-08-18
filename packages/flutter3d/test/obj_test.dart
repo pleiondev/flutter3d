@@ -2,11 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 Uint8List obj(String text) => Uint8List.fromList(utf8.encode(text));
 

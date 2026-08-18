@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
-import 'package:flutter3d_shooter/sample.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 
 /// A level with one brush to stand on and whatever entities a test wants.
 Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
@@ -79,7 +79,7 @@ void main() {
 
       expect(result.actors.aliveCount, 2);
       expect(
-        result.actors.actors.map((Actor a) => (a.brain as ChaseBrain).def.name),
+        result.actors.actors.map((Actor a) => (a.brain! as ChaseBrain).def.name),
         <String>['runner', 'tank'],
       );
     });
@@ -96,7 +96,7 @@ void main() {
       );
 
       expect(result.seen, hasLength(1));
-      expect((result.seen.single.brain as ChaseBrain).def.name, 'shooter');
+      expect((result.seen.single.brain! as ChaseBrain).def.name, 'shooter');
     });
 
     test('an entity authored at the floor stands on it', () {

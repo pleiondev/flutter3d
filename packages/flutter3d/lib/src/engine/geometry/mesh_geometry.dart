@@ -1,6 +1,6 @@
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'mesh_data.dart';
 
 /// What the scene needs to know about a mesh, without knowing where it lives.

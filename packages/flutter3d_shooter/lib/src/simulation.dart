@@ -40,16 +40,15 @@
 /// which is the one thing this package exists to prevent.
 library;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
-
-import 'package:flutter3d_game/flutter3d_game.dart';
-import 'player.dart';
 import 'actions.dart';
 import 'combat/hitscan.dart';
 import 'combat/projectile.dart';
 import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';
+import 'player.dart';
 
 /// Whether the game is being played, lost, or finished.
 ///

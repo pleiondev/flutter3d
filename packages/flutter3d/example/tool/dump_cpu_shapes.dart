@@ -11,11 +11,10 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-
 import 'package:flutter3d_example/cpu_shapes_scene.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// From the environment rather than a --dart-define: a define is folded at
 /// compile time and `flutter test` does not pass one through to the test's own

@@ -1,9 +1,8 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
-
-import 'dart:math' as math;
 
 import 'json_reader.dart';
 

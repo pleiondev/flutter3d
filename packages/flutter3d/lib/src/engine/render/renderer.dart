@@ -2,9 +2,9 @@ import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import '../geometry/mesh_geometry.dart';
 import '../scene/camera_node.dart';
 import '../scene/light_buffer.dart';
@@ -14,14 +14,14 @@ import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
-import 'lighting_model.dart';
-import 'material.dart';
-import 'render_list.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
-import 'render_node.dart';
+import 'lighting_model.dart';
+import 'material.dart';
 import 'pass_contributor.dart';
+import 'render_list.dart';
+import 'render_node.dart';
 import 'render_view.dart';
 import 'shadow_slots.dart';
 
@@ -2492,8 +2492,12 @@ final class Renderer implements RenderServices {
 
       final activeVertexShader =
           skinned ? skinnedVertexShader : vertexShader;
+      // Typed, because `Matrix4.operator*` returns `dynamic`: without the
+      // annotation `.storage` here is an unchecked call on an untyped value,
+      // and a typo in it would compile and fail at the draw.
+      final vm.Matrix4 mvp = viewProjection * modelMatrix;
       encoder.bindUniformBlock(activeVertexShader, _kFrameInfoBlock, {
-        'mvp': (viewProjection * modelMatrix).storage,
+        'mvp': mvp.storage,
         'model': modelMatrix.storage,
         'normal_matrix': normalMatrix.storage,
       });
@@ -2800,7 +2804,7 @@ final class Renderer implements RenderServices {
   }) {
     final hdr = _hdrColor!;
     var culled = 0;
-    var debugLines = 0;
+    final debugLines = 0;
     var lightOverflow = 0;
     // No multisampling while the surface buffer is wanted, and that is a
     // correctness matter rather than a budget one. Attachments in one target

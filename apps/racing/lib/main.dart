@@ -400,8 +400,8 @@ class _RaceScreenState extends State<RaceScreen>
     for (var i = 1; i < _cars.length; i++) {
       // How far the player is up the road from this car, wrapped, which is what
       // the rubber band reads.
-      var gap = (player.progressAlong(track.length) -
-              race.progress[i].progressAlong(track.length));
+      var gap = player.progressAlong(track.length) -
+              race.progress[i].progressAlong(track.length);
       if (gap.abs() > track.length / 2) {
         gap -= gap.sign * track.length;
       }

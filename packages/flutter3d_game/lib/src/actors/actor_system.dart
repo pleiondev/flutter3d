@@ -30,9 +30,9 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import '../ecs/ecs_world.dart';
 import '../nav/navigation.dart';
 import '../physics/layers.dart';

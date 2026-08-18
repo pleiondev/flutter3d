@@ -16,14 +16,13 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d/src/engine/assets/f3d/f3d.dart';
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/key_sort.dart';
 import 'package:flutter3d/src/engine/scene/bvh.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// Runs [body] enough times to be measurable and reports per-iteration cost.
 Future<void> bench(

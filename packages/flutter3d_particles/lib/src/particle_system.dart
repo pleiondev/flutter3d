@@ -3,13 +3,12 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
-import 'particle_random.dart';
-
 import 'flipbook.dart';
-import 'particle.dart';
 import 'light_emitter.dart';
+import 'particle.dart';
 import 'particle_affector.dart';
 import 'particle_emitter.dart';
+import 'particle_random.dart';
 
 /// A recipe for a burst: what is emitted, and what happens to it.
 ///

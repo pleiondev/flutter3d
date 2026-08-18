@@ -23,12 +23,11 @@
 
 import 'dart:typed_data';
 
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d_particles/src/particle.dart';
 import 'package:flutter3d_particles/src/particle_affector.dart';
 import 'package:flutter3d_particles/src/particle_emitter.dart';
 import 'package:flutter3d_particles/src/particle_system.dart';
+import 'package:vector_math/vector_math.dart';
 
 void bench(String name, int iterations, void Function() body,
     {int? items, String unit = 'particle'}) {

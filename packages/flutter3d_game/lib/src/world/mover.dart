@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
+import '../physics/layers.dart';
 import 'mechanism.dart';
 import 'rider.dart';
-import '../physics/layers.dart';
 
 /// Where a mover is in its trip.
 ///

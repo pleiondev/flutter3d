@@ -16,9 +16,9 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// Bigger than the comparison runs at. The fixture's own size is chosen to keep
 /// a golden cheap; this is chosen to be looked at.

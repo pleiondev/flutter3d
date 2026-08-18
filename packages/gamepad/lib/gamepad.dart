@@ -32,16 +32,16 @@
 /// not exist.
 library;
 
+import 'src/deadzone.dart';
+import 'src/gamepad_platform_interface.dart';
+import 'src/pad_button.dart';
+import 'src/pad_snapshot.dart';
+
 export 'src/deadzone.dart';
 export 'src/gamepad_platform_interface.dart'
     show GamepadPlatform, PadConnection, UnsupportedGamepad;
 export 'src/pad_button.dart';
 export 'src/pad_snapshot.dart';
-
-import 'src/deadzone.dart';
-import 'src/gamepad_platform_interface.dart';
-import 'src/pad_button.dart';
-import 'src/pad_snapshot.dart';
 
 /// The gamepad a player is holding.
 final class Gamepad {

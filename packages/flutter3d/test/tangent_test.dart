@@ -1,7 +1,6 @@
+import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
-
-import 'package:flutter3d/src/engine/geometry/geometry.dart';
 
 /// Reads attribute [name] of vertex [index] as a Vector4, zero-padded.
 Vector4 attributeAt(MeshData mesh, String name, int index) {

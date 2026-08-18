@@ -30,9 +30,9 @@
 /// systems ask.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import '../ecs/ecs_world.dart';
 import '../ecs/entity.dart';
 import '../world/rider.dart';

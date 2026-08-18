@@ -339,7 +339,9 @@ void main() {
         Vector3(0.0, 1.0, 0.0),
       );
       final projection = makePerspectiveMatrix(camera.fov, 4 / 3, 0.3, 1000.0);
-      final viewProjection = projection * view;
+      // Typed: `Matrix4.operator*` returns `dynamic`, so `transform` below it
+      // would be a call the compiler cannot check.
+      final Matrix4 viewProjection = projection * view;
 
       input
         ..throttle = 0.6

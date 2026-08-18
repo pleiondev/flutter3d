@@ -1,10 +1,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:flutter3d/src/engine/assets/model_loader.dart';
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 const String kSamples = 'assets/samples';
 

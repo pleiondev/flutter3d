@@ -1,8 +1,8 @@
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../actors/actor.dart';
 import '../actors/actor_system.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import '../world/mechanism.dart';
 import 'level.dart';
 

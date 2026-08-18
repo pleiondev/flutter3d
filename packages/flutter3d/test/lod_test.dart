@@ -1,11 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/material.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 MeshNode level(String name) => MeshNode(
       CpuMesh(CuboidShape().build()),

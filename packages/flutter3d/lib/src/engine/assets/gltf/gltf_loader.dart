@@ -233,7 +233,11 @@ final class GltfLoader {
       }
 
       final node = nodes[nodeIndex];
-      final world = parentTransform * _localTransform(node);
+      // Typed, because `Matrix4.operator*` in vector_math is declared to take
+      // and return `dynamic` — so without this the world transform is an
+      // untyped value and every `world.determinant()` below it is a call
+      // nothing checks.
+      final Matrix4 world = parentTransform * _localTransform(node);
 
       final skinIndex = _asInt(node['skin']);
       final meshIndex = _asInt(node['mesh']);
@@ -610,7 +614,7 @@ final class GltfLoader {
       }
 
       if (primitive['extensions'] is Map) {
-        final extensions = (primitive['extensions'] as Map).keys;
+        final extensions = (primitive['extensions']! as Map).keys;
         for (final name in extensions) {
           if (name == 'KHR_draco_mesh_compression' ||
               name == 'EXT_meshopt_compression') {

@@ -23,8 +23,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
-import 'package:vector_math/vector_math.dart';
 import 'package:flutter_test/flutter_test.dart' show test;
+import 'package:vector_math/vector_math.dart';
 
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the

@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:flutter3d/src/engine/render/shadow_slots.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// Stands in for a `LightNode`. The allocator compares by identity and reads
 /// nothing else, so a named box is a truer test subject than a real light —

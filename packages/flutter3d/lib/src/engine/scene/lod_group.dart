@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
+import '../geometry/mesh_geometry.dart';
 import '../render/material.dart';
 import 'camera_node.dart';
-import '../geometry/mesh_geometry.dart';
 import 'mesh_node.dart';
 import 'scene.dart';
 import 'scene_node.dart';

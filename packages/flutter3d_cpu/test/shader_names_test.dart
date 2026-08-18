@@ -13,9 +13,9 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('every name the engine asks for is answered', () {

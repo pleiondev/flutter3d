@@ -18,8 +18,8 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

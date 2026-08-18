@@ -16,9 +16,9 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// Average luminance per cell, row-major from the top, as Impeller drew the
 /// `plain` fixture.

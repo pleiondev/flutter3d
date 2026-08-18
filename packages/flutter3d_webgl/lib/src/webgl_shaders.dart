@@ -76,7 +76,7 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     _gl.shaderSource(shader, source);
     _gl.compileShader(shader);
     final ok = _gl.getShaderParameter(
-        shader, web.WebGLRenderingContext.COMPILE_STATUS) as JSBoolean;
+        shader, web.WebGLRenderingContext.COMPILE_STATUS)! as JSBoolean;
     if (!ok.toDart) {
       // Loudly. A stage that failed to compile and came back null would look
       // exactly like a stage the bundle never had, and the two need different
@@ -125,7 +125,7 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     _gl.attachShader(program, (fragment.backend as WebGlShader).shader);
     _gl.linkProgram(program);
     final linked = _gl.getProgramParameter(
-        program, web.WebGLRenderingContext.LINK_STATUS) as JSBoolean;
+        program, web.WebGLRenderingContext.LINK_STATUS)! as JSBoolean;
     if (!linked.toDart) {
       throw StateError(
         'linking ${vertex.name} with ${fragment.name} failed:\n'
@@ -150,7 +150,7 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// [WebGlProgram.attributes].
   List<WebGlAttribute> _reflectAttributes(web.WebGLProgram program) {
     final count = (_gl.getProgramParameter(
-            program, web.WebGLRenderingContext.ACTIVE_ATTRIBUTES) as JSNumber)
+            program, web.WebGLRenderingContext.ACTIVE_ATTRIBUTES)! as JSNumber)
         .toDartInt;
     final found = <WebGlAttribute>[];
     for (var i = 0; i < count; i++) {
@@ -187,27 +187,27 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// has spent the most time on.
   Map<String, WebGlBlock> _reflectBlocks(web.WebGLProgram program) {
     final count = (_gl.getProgramParameter(program,
-            web.WebGL2RenderingContext.ACTIVE_UNIFORM_BLOCKS) as JSNumber)
+            web.WebGL2RenderingContext.ACTIVE_UNIFORM_BLOCKS)! as JSNumber)
         .toDartInt;
     final blocks = <String, WebGlBlock>{};
     for (var index = 0; index < count; index++) {
       final name = _gl.getActiveUniformBlockName(program, index);
       if (name == null) continue;
       final size = (_gl.getActiveUniformBlockParameter(program, index,
-              web.WebGL2RenderingContext.UNIFORM_BLOCK_DATA_SIZE) as JSNumber)
+              web.WebGL2RenderingContext.UNIFORM_BLOCK_DATA_SIZE)! as JSNumber)
           .toDartInt;
 
       final indices = _gl.getActiveUniformBlockParameter(
           program,
           index,
           web.WebGL2RenderingContext
-              .UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES) as JSUint32Array;
+              .UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES)! as JSUint32Array;
       final members = indices.toDart;
       final offsets = _gl.getActiveUniforms(
         program,
         members.map((int i) => i.toJS).toList().toJS,
         web.WebGL2RenderingContext.UNIFORM_OFFSET,
-      ) as JSArray<JSNumber>;
+      )! as JSArray<JSNumber>;
 
       final byName = <String, int>{};
       for (var i = 0; i < members.length; i++) {
@@ -234,7 +234,7 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// differs between draws.
   Map<String, int> _reflectSamplers(web.WebGLProgram program) {
     final count = (_gl.getProgramParameter(
-            program, web.WebGLRenderingContext.ACTIVE_UNIFORMS) as JSNumber)
+            program, web.WebGLRenderingContext.ACTIVE_UNIFORMS)! as JSNumber)
         .toDartInt;
     final samplers = <String, int>{};
     for (var i = 0; i < count; i++) {

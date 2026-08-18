@@ -22,7 +22,10 @@ AssetUriResolver fileUriResolver(String baseDirectory) {
     }
 
     final file = File('$baseDirectory/$relative');
-    if (!await file.exists()) {
+    // Synchronous, because an async `exists` is a round trip through the
+    // event loop to answer a question the filesystem answers immediately —
+    // and this one is asked once per referenced buffer and image.
+    if (!file.existsSync()) {
       throw FileSystemException('glTF resource not found', file.path);
     }
     return file.readAsBytes();

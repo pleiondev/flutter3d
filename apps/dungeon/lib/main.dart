@@ -2,33 +2,32 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 // `Material` exists in both flutter/material.dart and flutter3d. This file
 // wants Flutter's, for the widgets; the files under `src/` that build the
 // engine's do not import flutter/material.dart at all and so need no such
 // dance.
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_shooter/bridge.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_shooter/sample.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:gamepad/gamepad.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
-
-import 'package:flutter3d_audio/flutter3d_audio.dart';
 
 import 'src/backend.dart';
 import 'src/effects.dart';
-import 'src/hud.dart';
-import 'src/scene_surface.dart';
 import 'src/fixture_looks.dart';
+import 'src/hud.dart';
 import 'src/monster_looks.dart';
+import 'src/scene_surface.dart';
 import 'src/sounds.dart';
 import 'src/weapon_models.dart';
-import 'package:flutter3d_shooter/sample.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
-import 'package:flutter3d_ui/flutter3d_ui.dart';
-import 'package:gamepad/gamepad.dart' show PadButton;
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
 /// with.

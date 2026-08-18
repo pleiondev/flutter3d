@@ -46,8 +46,22 @@ linter:
   # that is the part `flutter analyze` on 3.47 rewrites in place — see the note
   # above. Rules go here.
   rules:
-    # avoid_print: false  # Uncomment to disable the `avoid_print` rule
-    # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - avoid_slow_async_io
+    - cast_nullable_to_non_nullable
+    - collection_methods_unrelated_type
+    - directives_ordering
+    - no_adjacent_strings_in_list
+    - only_throw_errors
+    - prefer_final_locals
+    - throw_in_finally
+    - unawaited_futures
+    - unnecessary_await_in_return
+    - unnecessary_parenthesis
+    - unnecessary_statements
+    - unrelated_type_equality_checks
+    - use_string_in_part_of_directives
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options

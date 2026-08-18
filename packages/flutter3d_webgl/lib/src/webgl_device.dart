@@ -450,7 +450,7 @@ final class WebGlDevice implements GraphicsDevice {
       web.WebGLRenderingContext.UNSIGNED_BYTE,
       js,
     );
-    final read = (js.toDart).sublist(0, 16);
+    final read = js.toDart.sublist(0, 16);
     final error = _gl.getError();
     final nonZero = read.where((int b) => b != 0).length;
     return 'canvas ${_canvas.width}x${_canvas.height} '

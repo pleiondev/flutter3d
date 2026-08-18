@@ -2,13 +2,12 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter3d/flutter3d.dart';
 import 'package:path/path.dart' as p;
 
-import 'package:flutter3d/flutter3d.dart';
-
+import 'golden_scenes.dart';
 import 'golden_store.dart';
 import 'png.dart';
-import 'golden_scenes.dart';
 
 /// Renders one [GoldenScene] and compares it against a stored reference.
 ///

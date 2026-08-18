@@ -268,13 +268,13 @@ final class EcsWorld {
       ..clear()
       ..addAll(<int>[
         for (final value in from['generations'] as List? ?? const <Object?>[])
-          (value as num).toInt(),
+          (value! as num).toInt(),
       ]);
     _free
       ..clear()
       ..addAll(<int>[
         for (final value in from['free'] as List? ?? const <Object?>[])
-          (value as num).toInt(),
+          (value! as num).toInt(),
       ]);
     _live = _generations.length - _free.length;
 

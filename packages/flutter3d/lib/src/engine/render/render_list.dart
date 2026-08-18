@@ -2,13 +2,13 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
-import 'packed_keys.dart';
 import '../scene/bvh.dart';
-import '../scene/scene_spheres.dart';
 import '../scene/mesh_node.dart';
 import '../scene/scene.dart';
+import '../scene/scene_spheres.dart';
 import 'key_sort.dart';
 import 'material.dart';
+import 'packed_keys.dart';
 import 'render_view.dart';
 
 /// One entry in a render list.

@@ -3,12 +3,12 @@ import 'package:vector_math/vector_math.dart';
 
 import 'blocks.dart';
 import 'checkpoint.dart';
+import 'collectible.dart';
 import 'crate.dart';
 import 'enemy.dart';
+import 'hazard.dart';
 import 'spring.dart';
 import 'surfaces.dart';
-import 'collectible.dart';
-import 'hazard.dart';
 
 /// The words a platformer's levels use beyond the format's own.
 ///

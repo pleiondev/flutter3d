@@ -1,9 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:flutter3d/src/engine/render/key_sort.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// Builds a packed buffer from (key, payload) pairs.
 Int64List pack(List<(int, int)> entries) {

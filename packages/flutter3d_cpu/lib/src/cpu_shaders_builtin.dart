@@ -78,14 +78,14 @@ final class MeshVertexShader implements CpuVertexShader {
     final normalMatrix = bindings.mat4('FrameInfo', 'normal_matrix');
 
     final local = Vector4(a[_position], a[_position + 1], a[_position + 2], 1.0);
-    final world = model * local;
+    final Vector4 world = model * local;
     out[_vWorld] = world.x;
     out[_vWorld + 1] = world.y;
     out[_vWorld + 2] = world.z;
 
     // `mat3(normal_matrix) * normal`: the upper-left three by three, so the
     // translation does not move a direction.
-    final n = normalMatrix.getRotation() *
+    final Vector3 n = normalMatrix.getRotation() *
         Vector3(a[_normal], a[_normal + 1], a[_normal + 2]);
     out[_vNormal] = n.x;
     out[_vNormal + 1] = n.y;
@@ -100,7 +100,7 @@ final class MeshVertexShader implements CpuVertexShader {
     // The tangent transforms with the model matrix, not the normal matrix: it
     // lies *in* the surface, so it stretches with the geometry rather than
     // staying perpendicular to it.
-    final t = model.getRotation() *
+    final Vector3 t = model.getRotation() *
         Vector3(a[_tangent], a[_tangent + 1], a[_tangent + 2]);
     out[_vTangent] = t.x;
     out[_vTangent + 1] = t.y;
@@ -400,7 +400,7 @@ double _shadowFactor(_Surface s, ShaderBindings b, int lightIndex) {
           ? 'shadow_matrix'
           : (which == 1 ? 'shadow_matrix_far' : 'shadow_matrix_farthest'),
     );
-    final lightSpace = matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
+    final Vector4 lightSpace = matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
     if (lightSpace.w <= 0.0) continue;
     final candidate = Vector3(lightSpace.x, lightSpace.y, lightSpace.z)
       ..scale(1.0 / lightSpace.w);
@@ -517,7 +517,7 @@ double _pointShadowFactor(
   }
 
   final matrix = b.mat4('PointShadow', 'faces', at: slot * 6 + face);
-  final clip = matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
+  final Vector4 clip = matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
   if (clip.w <= 0.0) return 1.0;
   final ndcX = clip.x / clip.w;
   final ndcY = clip.y / clip.w;
@@ -1143,7 +1143,7 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
     // The weights are renormalised rather than trusted: an exporter that
     // writes three of four and leaves the fourth at zero is common, and a
     // total below one shrinks the vertex towards the origin.
-    var total = a[_weights] + a[_weights + 1] + a[_weights + 2] + a[_weights + 3];
+    final total = a[_weights] + a[_weights + 1] + a[_weights + 2] + a[_weights + 3];
     final w = total > 1e-5
         ? <double>[
             a[_weights] / total,
@@ -1168,14 +1168,14 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
     final normalMatrix = bindings.mat4('FrameInfo', 'normal_matrix');
 
     final local = Vector4(a[_position], a[_position + 1], a[_position + 2], 1.0);
-    final skinned = skin * local;
-    final world = model * skinned;
+    final Vector4 skinned = skin * local;
+    final Vector4 world = model * skinned;
     out[_vWorld] = world.x;
     out[_vWorld + 1] = world.y;
     out[_vWorld + 2] = world.z;
 
     final skinRotation = skin.getRotation();
-    final n = normalMatrix.getRotation() *
+    final Vector3 n = normalMatrix.getRotation() *
         (skinRotation * Vector3(a[_normal], a[_normal + 1], a[_normal + 2]));
     out[_vNormal] = n.x;
     out[_vNormal + 1] = n.y;
@@ -1187,7 +1187,7 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
       out[_vColour + i] = a[_colour + i];
     }
 
-    final t = model.getRotation() *
+    final Vector3 t = model.getRotation() *
         (skinRotation *
             Vector3(a[_tangent], a[_tangent + 1], a[_tangent + 2]));
     out[_vTangent] = t.x;
@@ -1454,7 +1454,7 @@ final class ReflectionsShader implements CpuFragmentShader {
 
     final inverse = b.mat4('ReflectionInfo', 'inverse_view_projection');
     final ndc = Vector4(u * 2.0 - 1.0, w * 2.0 - 1.0, surface.w, 1.0);
-    final worldH = inverse * ndc;
+    final Vector4 worldH = inverse * ndc;
     final position =
         Vector3(worldH.x, worldH.y, worldH.z)..scale(1.0 / worldH.w);
 
@@ -1483,7 +1483,7 @@ final class ReflectionsShader implements CpuFragmentShader {
     // a constant bound. Kept so the two loops end in the same place.
     for (var i = 0; i < 64; i++) {
       if (i >= steps) break;
-      final clip = viewProjection * Vector4(march.x, march.y, march.z, 1.0);
+      final Vector4 clip = viewProjection * Vector4(march.x, march.y, march.z, 1.0);
       if (clip.w <= 0.0) break;
       final nx = clip.x / clip.w;
       final ny = clip.y / clip.w;

@@ -1,10 +1,9 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d/src/engine/scene/camera_node.dart';
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
-
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
 
 /// Projects through a bare matrix, mirroring what the renderer does with a
 /// view-projection product.

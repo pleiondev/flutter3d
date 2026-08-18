@@ -8,9 +8,8 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('kRequiredShaders matches the bundle manifest', () {

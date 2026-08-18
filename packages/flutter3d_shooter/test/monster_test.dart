@@ -1,23 +1,22 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d_game/src/actors/damageable.dart';
-import 'package:flutter3d_game/src/actors/health.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
-import 'package:flutter3d_game/src/world/key_ring.dart';
-
 import 'package:flutter3d_game/src/actors/actor.dart';
 import 'package:flutter3d_game/src/actors/actor_system.dart';
+import 'package:flutter3d_game/src/actors/damageable.dart';
+import 'package:flutter3d_game/src/actors/health.dart';
+import 'package:flutter3d_game/src/physics/layers.dart';
+import 'package:flutter3d_game/src/world/key_ring.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
-import 'package:flutter3d_game/src/physics/layers.dart';
-import 'package:flutter3d_shooter/sample.dart';
 
 /// What an actor is doing, for a game whose actors are monsters.
 ///
 /// The engine hands back an `Actor`; the six states are a `ChaseBrain`'s, and
 /// reading them means saying which game this is. That is the seam working.
-ChaseBrain _mind(Actor actor) => actor.brain as ChaseBrain;
+ChaseBrain _mind(Actor actor) => actor.brain! as ChaseBrain;
 
 const double _dt = 1.0 / 60.0;
 

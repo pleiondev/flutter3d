@@ -1,6 +1,6 @@
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'lighting_model.dart';
 
 /// How a material treats the alpha channel, mirroring glTF's `alphaMode`.

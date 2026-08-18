@@ -61,6 +61,10 @@ class TitleCard extends StatelessWidget {
         // Positions, not printed labels: this game cannot know whether the pad
         // in the player's hands calls its lower face button `A` or Cross, and
         // deliberately does not try to find out.
+        // One sentence over two lines, not two entries missing a comma —
+        // which is the mistake the lint exists to catch, and it cannot tell
+        // them apart.
+        // ignore: no_adjacent_strings_in_list
         'Or a controller: left stick to move, the lower face button to jump, '
             'the right one to dash.',
         dashOnPointer

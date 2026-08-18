@@ -20,9 +20,9 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platformer/src/staging.dart';
 import 'package:platformer/src/sounds.dart';
 import 'package:platformer/src/soundtrack.dart';
+import 'package:platformer/src/staging.dart';
 import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;

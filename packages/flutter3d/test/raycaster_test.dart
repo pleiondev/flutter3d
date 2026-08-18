@@ -1,11 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
-
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/material.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// A unit cube on the CPU: no GPU anywhere in this file, which is the point of
 /// [MeshGeometry].

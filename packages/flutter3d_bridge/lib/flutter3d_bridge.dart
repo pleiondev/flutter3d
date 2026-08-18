@@ -20,7 +20,7 @@
 /// only a shooter could want.
 library;
 
+export 'src/actor_visuals.dart';
 export 'src/fixture_visuals.dart';
 export 'src/level_loader.dart';
-export 'src/actor_visuals.dart';
 export 'src/shared_meshes.dart';

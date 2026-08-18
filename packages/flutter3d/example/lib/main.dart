@@ -3,17 +3,17 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter3d/flutter3d.dart' as engine;
+import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:vector_math/vector_math.dart'
     show Aabb3, Vector2, Vector3, Vector4;
 
-import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d/flutter3d.dart' as engine;
+import 'src/spike/backend.dart';
 import 'src/spike/frame_capture.dart';
 import 'src/spike/golden_extras.dart';
 import 'src/spike/golden_runner.dart';
 import 'src/spike/orbit_gestures.dart';
-import 'src/spike/backend.dart';
 import 'src/spike/scene_source.dart';
 
 void main() => runApp(const Flutter3dApp());
@@ -461,10 +461,13 @@ class _SpikePageState extends State<SpikePage>
       },
     );
 
-    if (_renderer != null) _selectSource(_startupSourceIndex());
+    // Deliberately not awaited: the first frame must not wait for a model to
+    // decode. `unawaited` says so rather than leaving it to be read as a
+    // forgotten `await`.
+    if (_renderer != null) unawaited(_selectSource(_startupSourceIndex()));
 
     if (const bool.fromEnvironment('FLUTTER3D_MRT_PROBE')) {
-      _renderer?.probeMultipleRenderTargets().then(debugPrint);
+      unawaited(_renderer?.probeMultipleRenderTargets().then(debugPrint));
     }
 
     SchedulerBinding.instance.addTimingsCallback(_onFrameTimings);

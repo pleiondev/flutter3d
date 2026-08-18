@@ -27,9 +27,9 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
+import 'package:vector_math/vector_math.dart' show Vector4;
 
 const int kWidth = 256;
 const int kHeight = 192;

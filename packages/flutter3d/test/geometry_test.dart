@@ -1,10 +1,9 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
-
-import 'package:flutter3d/src/engine/geometry/geometry.dart';
 
 /// Reads a vertex normal for the standard position/normal/texcoord layout.
 Vector3 normalAt(MeshData mesh, int index) {

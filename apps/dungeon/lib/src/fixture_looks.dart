@@ -2,8 +2,8 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_shooter/flutter3d_shooter.dart';
-import 'package:vector_math/vector_math.dart';
 import 'package:flutter3d_shooter/sample.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// What this game's fixtures look like.
 ///

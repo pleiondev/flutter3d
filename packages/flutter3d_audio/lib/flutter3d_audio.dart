@@ -11,5 +11,5 @@ export 'src/backend.dart';
 export 'src/engine_sound.dart';
 export 'src/listener.dart';
 export 'src/mixer.dart';
-export 'src/sound.dart';
 export 'src/soloud_backend.dart';
+export 'src/sound.dart';

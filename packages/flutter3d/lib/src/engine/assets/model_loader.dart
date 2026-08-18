@@ -1,10 +1,9 @@
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:isolate';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../geometry/geometry.dart';
@@ -89,7 +88,9 @@ final class FileAssetSource extends AssetSource {
       if (uri.startsWith('data:')) return decodeDataUri(uri);
       final relative = _safeRelative(uri);
       final file = File('$directory/$relative');
-      if (!await file.exists()) {
+      // Synchronous: see the note in `gltf_resolvers.dart`. This runs on an
+      // isolate of its own, so there is nothing here for it to block.
+      if (!file.existsSync()) {
         throw FileSystemException('Referenced file not found', file.path);
       }
       return file.readAsBytes();
@@ -191,9 +192,9 @@ Future<ModelDocument> _decodeModelInIsolate(
 
   final requests = ReceivePort();
   final subscription = requests.listen((Object? message) async {
-    final envelope = message as List<Object?>;
-    final uri = envelope[0] as String;
-    final reply = envelope[1] as SendPort;
+    final envelope = message! as List<Object?>;
+    final uri = envelope[0]! as String;
+    final reply = envelope[1]! as SendPort;
     try {
       reply.send(await resolve(uri));
     } catch (error) {

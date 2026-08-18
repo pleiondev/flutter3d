@@ -11,10 +11,10 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/services.dart'
-    show DeviceOrientation, SystemChrome, SystemUiMode;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart'
+    show DeviceOrientation, SystemChrome, SystemUiMode;
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
@@ -22,12 +22,12 @@ import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:gamepad/gamepad.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
-import 'src/soundtrack.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
@@ -38,8 +38,8 @@ import 'src/reactions.dart';
 import 'src/runner_looks.dart';
 import 'src/save_file.dart';
 import 'src/scene_surface.dart';
-import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'src/sounds.dart';
+import 'src/soundtrack.dart';
 import 'src/staging.dart';
 import 'src/title_card.dart';
 

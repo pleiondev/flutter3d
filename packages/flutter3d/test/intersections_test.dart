@@ -1,9 +1,8 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d/src/engine/math/intersections.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
-
-import 'package:flutter3d/src/engine/math/intersections.dart';
 
 void main() {
   Ray down(double x, double y, double z) =>

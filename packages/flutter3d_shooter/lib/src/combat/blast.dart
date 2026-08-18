@@ -1,6 +1,5 @@
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// An explosion's shape: how far it reaches and how hard.
 final class Blast {

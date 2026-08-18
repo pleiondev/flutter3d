@@ -1,12 +1,11 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/debug_draw.dart';
 import 'package:flutter3d/src/engine/scene/camera_node.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// Reads a vertex out of the packed line buffer.
 ({Vector3 position, Vector4 color}) _vertexAt(DebugDraw draw, int index) {

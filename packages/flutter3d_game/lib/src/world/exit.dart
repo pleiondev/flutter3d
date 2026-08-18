@@ -13,9 +13,9 @@
 /// to being walked into would need all of that written again.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'mechanism.dart';
 
 final class Exit extends Mechanism with CollisionListener {

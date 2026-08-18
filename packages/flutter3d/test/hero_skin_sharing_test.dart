@@ -34,15 +34,14 @@ library;
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:vector_math/vector_math.dart' hide Ray;
-
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/model_asset.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/lighting_model.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart' hide Ray;
 
 import 'fake_backend.dart';
 

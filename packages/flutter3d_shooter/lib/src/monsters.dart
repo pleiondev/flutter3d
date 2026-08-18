@@ -14,9 +14,8 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:vector_math/vector_math.dart';
-
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:vector_math/vector_math.dart';
 
 import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';

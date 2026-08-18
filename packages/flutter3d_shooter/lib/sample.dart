@@ -16,14 +16,14 @@
 /// deliverable; where the sample content sits is bookkeeping.
 library;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'src/entity_kinds.dart';
-import 'src/monsters.dart';
 import 'src/combat/weapon.dart';
 import 'src/combat/weapon_behaviour.dart';
-import 'package:flutter3d_game/flutter3d_game.dart';
+import 'src/entity_kinds.dart';
 import 'src/gift.dart';
+import 'src/monsters.dart';
 
 /// The roster.
 abstract final class Monsters {

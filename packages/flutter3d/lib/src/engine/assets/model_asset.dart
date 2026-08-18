@@ -1,9 +1,8 @@
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../animation/animation.dart';
 import '../geometry/geometry.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
-import 'texture_upload.dart';
 import '../render/lighting_model.dart';
 import '../render/material.dart';
 import '../scene/mesh_node.dart';
@@ -11,6 +10,7 @@ import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import '../scene/skeleton.dart';
 import 'model_document.dart';
+import 'texture_upload.dart';
 
 /// One drawable piece of a model: geometry, appearance, and where it sits
 /// relative to the model's own origin.

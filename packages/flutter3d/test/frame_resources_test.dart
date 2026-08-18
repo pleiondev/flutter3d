@@ -16,11 +16,10 @@
 /// something to reason about into a `StateError` with a stack.
 library;
 
-import 'package:flutter_test/flutter_test.dart';
-
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/frame_resources.dart';
+import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 const ResourceId colour = ResourceId('colour');
 const ResourceId atlas = ResourceId('atlas');

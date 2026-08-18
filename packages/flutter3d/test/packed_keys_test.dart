@@ -13,10 +13,9 @@
 /// observe.
 library;
 
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:flutter3d/src/engine/render/key_sort.dart';
 import 'package:flutter3d/src/engine/render/packed_keys.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('ordering', () {
