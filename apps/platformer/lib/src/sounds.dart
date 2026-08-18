@@ -90,6 +90,21 @@ abstract final class Sounds {
     priority: 10,
   );
 
+  /// Everything to load before the game starts.
+  ///
+  /// **Six of these were missing, and the game was quietly half silent.** Every
+  /// footstep, every spring, every crumbling shelf and the fanfare at the exit
+  /// were declared, had their `.wav` on disk, were shipped in the bundle, were
+  /// asked for by `Soundtrack` — and were never preloaded, so `SoLoudBackend`
+  /// had no source to start and returned no voice at all.
+  ///
+  /// It also leaked. An emitter with no voice is neither stopped nor finished,
+  /// and `AudioScene.update` retires only those two — so every footstep left one
+  /// behind for the length of the run, roughly one per two metres walked.
+  ///
+  /// A list beside a list, with nothing comparing them. `sounds_test.dart` is
+  /// that comparison now: it reads the definitions out of this file and refuses
+  /// any that this list has forgotten.
   static const List<SoundDef> all = <SoundDef>[
     coin,
     jump,
@@ -99,6 +114,12 @@ abstract final class Sounds {
     death,
     checkpoint,
     music,
+    stepMoss,
+    stepStone,
+    stepIce,
+    spring,
+    crumble,
+    exit,
   ];
 
   /// A footstep, by what is underfoot.
