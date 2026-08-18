@@ -319,6 +319,41 @@ void main() {
       );
     });
 
+    test('with a point that is not three numbers is refused, and numbered', () {
+      // **Two bad doors, and the registry exists to replace both with a
+      // sentence.** An unchecked `as num` threw a `TypeError` out of
+      // `spawnInto`, which the application reports as "that level would not
+      // load" with a cast message; and a short row was dropped in silence,
+      // which — if it left fewer than two points — omitted the enemy from the
+      // level with nothing said at all.
+      final errors = _errors(_entity(PlatformerEntities.enemy,
+          <String, Object?>{
+            'route': <Object?>[
+              <double>[1.0, 0.0, 0.0],
+              <Object?>['east', 0.0, 0.0],
+              <double>[2.0, 0.0],
+            ],
+          }));
+
+      expect(errors, hasLength(2), reason: 'both bad points, not just the first');
+      expect(errors.first, contains('point 1'),
+          reason: 'a refusal that does not say which point is a search');
+      expect(errors.last, contains('point 2'));
+    });
+
+    test('and a route of good points says nothing', () {
+      expect(
+        _errors(_entity(PlatformerEntities.enemy, <String, Object?>{
+          'route': <Object?>[
+            <double>[1.0, 0.0, 0.0],
+            <int>[2, 0, 0],
+          ],
+        })),
+        isEmpty,
+        reason: 'an integer is a number, and a document may write one',
+      );
+    });
+
     test('of a kind this game does not have is refused, and named', () {
       // Mutation: accept any string. The level loads, the entity spawns as a
       // patrol, and the author never learns that "flyer" did nothing.

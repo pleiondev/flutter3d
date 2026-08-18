@@ -595,6 +595,33 @@ final class EnemyKind extends EntityKind {
         ),
       );
     }
+    // **Each row, not just the list.** `spawn` reads three numbers out of every
+    // row, and a row that is not three numbers used to leave by one of two bad
+    // doors: an unchecked `as num` threw a `TypeError` out of `spawnInto`,
+    // which the application reports as "that level would not load" with a cast
+    // message; or a short row was dropped in silence, and if that left fewer
+    // than two points the enemy was simply not in the level, with nothing said.
+    // A registry exists to turn both of those into a sentence naming the file.
+    if (route is List) {
+      for (var i = 0; i < route.length; i++) {
+        final row = route[i];
+        final ok = row is List &&
+            row.length >= 3 &&
+            row[0] is num &&
+            row[1] is num &&
+            row[2] is num;
+        if (ok) continue;
+        out.add(
+          LevelIssue(
+            LevelIssueSeverity.error,
+            'has a route whose point $i is not three numbers, and every point '
+            'is a place in the world',
+            where: scope.describe(entity),
+          ),
+        );
+      }
+    }
+
     final kind = entity.string('kind');
     if (kind != null && kind != 'patrol' && kind != 'leaper') {
       out.add(
@@ -613,15 +640,17 @@ final class EnemyKind extends EntityKind {
     final rows = entity.properties['route'];
     if (rows is! List || rows.isEmpty) return;
 
+    // Read defensively even so: `validate` is what names a bad row to the
+    // author, and this is what stops a document that skipped validation from
+    // taking the level down with a cast error instead.
     final route = <Vector3>[entity.position.clone()];
     for (final row in rows) {
-      if (row is List && row.length >= 3) {
-        route.add(Vector3(
-          (row[0] as num).toDouble(),
-          (row[1] as num).toDouble(),
-          (row[2] as num).toDouble(),
-        ));
-      }
+      if (row is! List || row.length < 3) continue;
+      final x = row[0];
+      final y = row[1];
+      final z = row[2];
+      if (x is! num || y is! num || z is! num) continue;
+      route.add(Vector3(x.toDouble(), y.toDouble(), z.toDouble()));
     }
     if (route.length < 2) return;
 
