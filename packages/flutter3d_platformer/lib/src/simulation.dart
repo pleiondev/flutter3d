@@ -53,6 +53,14 @@ final class PlatformerSimulation {
 
   final Runner runner;
   final CollisionWorld collision;
+
+  /// The order the world is stepped in, which three games had written out — see
+  /// [WorldStep]. What is left in `step` below is this game's own half.
+  late final WorldStep _world = WorldStep(
+    collision: collision,
+    mechanisms: mechanisms,
+    dynamics: dynamics,
+  );
   final InputState input;
   final MechanismWorld? mechanisms;
   final Dynamics? dynamics;
@@ -167,20 +175,16 @@ final class PlatformerSimulation {
 
     elapsed += dt;
 
-    // Doors and lifts move, and the broadphase learns where they are, before
-    // the runner sweeps against them. The same order and the same reason as
-    // the shooter's; a mover that has not been reindexed is a mover the sweep
-    // finds in last step's place.
-    mechanisms?.step(dt);
+    _world.movers(dt);
 
-    // Actors after the movers and **before the broadphase catches up**, for the
-    // same reason and with the same consequence: an actor that has moved and
-    // not been reindexed is an actor the runner's sweep finds in last step's
-    // place, which is a patrol you can walk through half the time.
+    // Actors with the movers and **before the broadphase catches up**: an actor
+    // that has moved and not been reindexed is one the runner's sweep finds in
+    // last step's place, which is a patrol you can walk through half the time.
+    // The shooter puts them at the other end of the step, and `WorldStep` says
+    // why neither is wrong.
     actors?.step(dt, focus: runner.position, focusBody: runner.body.collider);
 
-    collision.reindex();
-    dynamics?.step(dt);
+    _world.index(dt);
 
     runner.step(dt, input, cameraYaw: cameraYaw);
 
@@ -190,18 +194,11 @@ final class PlatformerSimulation {
     _readFloor();
     _readActors(dt);
 
-    // Overlaps dispatch here: collectibles are taken, hazards bite, checkpoints
-    // light up. All three run from inside this call, which is why each of them
-    // reports through a flag rather than returning anything.
-    collision.update();
-    collision.clearKinematicDeltas();
-
-    // What the machinery did this step, asked for rather than assumed. Without
-    // this the events are the empty lists they were initialised with, and every
-    // consequence read out of them — the coin sound, a trigger's message —
-    // silently never happens, while the purse fills up and the door opens. The
-    // shooter's step ends with the same call for the same reason.
-    mechanisms?.publish();
+    // Overlaps dispatch, and then the machinery is asked what it did — see
+    // `WorldStep.settle`, which carries the reason both of those are here and
+    // in this order.
+    _world.settle();
+    _world.publish();
 
     _readCheckpoints();
     _readCollectibles();

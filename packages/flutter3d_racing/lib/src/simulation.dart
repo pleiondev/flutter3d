@@ -54,6 +54,14 @@ final class RacingSimulation {
 
   final CollisionWorld collision;
 
+  /// The order the world is stepped in, shared with the other two games — see
+  /// [WorldStep], which carries the reasons.
+  late final WorldStep _world = WorldStep(
+    collision: collision,
+    mechanisms: mechanisms,
+    dynamics: dynamics,
+  );
+
   /// The cars, in a fixed order. Nought is the player's.
   ///
   /// Fixed because the order is part of the answer: cars are pushed apart in
@@ -113,9 +121,8 @@ final class RacingSimulation {
     final racing = _runLights(dt);
     race.elapsed += dt;
 
-    mechanisms?.step(dt);
-    collision.reindex();
-    dynamics?.step(dt);
+    _world.movers(dt);
+    _world.index(dt);
 
     for (var i = 0; i < vehicles.length; i++) {
       vehicles[i].step(dt, racing ? inputs[i] : _revvingOnly(inputs[i]));
@@ -138,9 +145,8 @@ final class RacingSimulation {
       _readProgress(i, dt, racing);
     }
 
-    collision.update();
-    collision.clearKinematicDeltas();
-    mechanisms?.publish();
+    _world.settle();
+    _world.publish();
 
     for (var i = 0; i < vehicles.length; i++) {
       _recover(i, dt);

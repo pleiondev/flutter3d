@@ -49,6 +49,7 @@ export 'src/level/spawn_context.dart';
 export 'src/world/exit.dart';
 export 'src/world/rider.dart';
 export 'src/world/takeable.dart';
+export 'src/world/world_step.dart';
 export 'src/world/key_ring.dart';
 export 'src/world/light_fixture.dart';
 export 'src/world/mechanism.dart';

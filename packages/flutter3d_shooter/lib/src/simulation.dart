@@ -83,6 +83,14 @@ final class GameSimulation {
 
   final Player player;
   final CollisionWorld collision;
+
+  /// The order the world is stepped in — see [WorldStep]. This game is where
+  /// the order was argued out; the argument moved and the calls stayed.
+  late final WorldStep _world = WorldStep(
+    collision: collision,
+    mechanisms: mechanisms,
+    dynamics: dynamics,
+  );
   final InputState input;
 
   /// All nullable: a game may have no doors, no monsters, no rockets and no
@@ -185,42 +193,11 @@ final class GameSimulation {
       _wish.setZero();
     }
 
-    // Doors and lifts move first, and the world is re-indexed before the player
-    // sweeps against them.
-    //
-    // **One of these two orderings is under test and one is not, and it is
-    // worth saying which.**
-    //
-    // `clearKinematicDeltas` after `body.step` is tested: a platform moving
-    // *sideways* carries its passenger only through the delta, and clearing it
-    // early leaves the player standing while the floor departs. Note sideways.
-    // The comment this replaces claimed a rising lift could not carry you, and
-    // that is measurably false — a lift penetrates the capsule on it and the
-    // controller pushes it out, upwards, delta or no delta.
-    //
-    // `reindex` before `body.step` is **not** under test, and no test here
-    // pretends otherwise. It keeps the broadphase consistent with geometry
-    // that already moved this step, which is right; but the narrow phase reads
-    // live positions, a broadphase cell is four metres, and `update` at the end
-    // of the previous step already rebuilt the grid. So a stale index loses a
-    // mover only if it left its cell within one step, which nothing that calls
-    // itself a door does. Ordering by argument rather than by test, said out
-    // loud rather than dressed up as a caught bug.
-    final doors = mechanisms;
-    doors?.step(dt);
-    collision.reindex();
-
-    // Between the doors and the player: a crate falling onto a lift that moved
-    // this step should land on where the lift is now, and the player sweeping a
-    // moment later should be stopped by where the crate is now.
-    //
-    // **Ordering by argument, not by test** — said out loud rather than dressed
-    // up. Moving this after `body.step` breaks nothing any test here can see,
-    // for the same reason `reindex` does not: the narrow phase reads live
-    // positions, so being a step out of date costs a fraction of a crate's
-    // travel and is recovered on the next step. It is still the right order,
-    // and `Dynamics` re-indexes the broadphase itself when it is done.
-    dynamics?.step(dt);
+    // The order this game worked out and the other two copied — see
+    // [WorldStep], which holds the whole argument now, including which half of
+    // it a test will catch and which half is reasoning said out loud.
+    _world.movers(dt);
+    _world.index(dt);
 
     player.body.step(
       dt,
@@ -234,14 +211,15 @@ final class GameSimulation {
       dynamics?.push(player.body.collider, player.body.velocity);
     }
 
-    collision.update();
-    collision.clearKinematicDeltas();
+    _world.settle();
 
+    final doors = mechanisms;
     if (doors != null) {
       if (playing && input.pressed(GameAction.use)) _use(doors);
       // Last, because the use key above can start a door: publishing before it
-      // would report that door a step late, every time.
-      doors.publish();
+      // would report that door a step late, every time. It is why `WorldStep`
+      // keeps this apart from `settle` instead of bundling the two.
+      _world.publish();
       _readExits(doors);
     }
 
