@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'surfaces.dart';
+
 /// Something that walks a route and will not walk off the end of the world.
 ///
 /// The whole brain a platformer's first enemy needs, and deliberately not more:
@@ -116,7 +118,15 @@ base class Patrol extends Brain {
       _down,
       _hit,
       ignore: body.collider,
-      mask: CollisionLayers.world,
+      // **One-way platforms are floors, and this probe could not see them.**
+      // `OneWayKind` puts its box on `PlatformerLayers.oneWay` and nothing
+      // else, so a mask of `world` alone reported no floor ahead to a patrol
+      // standing on or walking towards one — which turned it round, every step,
+      // for ever. `ascent.json` ships both.
+      //
+      // Only these two: a trigger is not something to stand on, and neither is
+      // another actor.
+      mask: CollisionLayers.world | PlatformerLayers.oneWay,
     );
   }
 

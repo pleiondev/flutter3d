@@ -207,6 +207,52 @@ void main() {
       expect(enemy.position!.y, greaterThan(-1.0), reason: 'it fell off');
       expect(enemy.position!.x, lessThan(8.0), reason: 'it walked past the edge');
     });
+
+    test('but a one-way platform is a floor, and it used to be a ledge', () {
+      // **The probe could not see the floor the game says is there.** It swept
+      // with `mask: CollisionLayers.world`, and `OneWayKind` puts its box on
+      // `PlatformerLayers.oneWay` and nothing else — so a patrol walking
+      // towards one found no floor ahead, turned, and did it again on the next
+      // step, for ever. `ascent.json` ships both one-way platforms and enemies.
+      //
+      // The same sixteen-metre floor as above, with a one-way bridge continuing
+      // it: with the ledge probe blind to that layer the patrol stops at the
+      // edge exactly as if the bridge were not there.
+      final run = _Run(
+        floorWidth: 16.0,
+        extras: <EntityDef>[
+          EntityDef(
+            type: PlatformerEntities.oneWay,
+            name: 'the bridge',
+            // Top flush with the floor, so it can be walked on to rather than
+            // stepped up on to — this is about seeing it, not about climbing.
+            position: Vector3(11.0, -0.15, 0.0),
+            properties: <String, Object?>{
+              'size': <double>[6.0, 0.3, 6.0],
+            },
+          ),
+          _patrol(at: Vector3(-6.0, 0.0, 0.0), route: <List<double>>[
+            <double>[26.0, 0.0, 0.0],
+          ]),
+        ],
+        startAt: Vector3(0.0, 0.0, -8.0),
+      );
+      final enemy = run.enemy;
+
+      // How far it *got*, not where it happens to be at the end: a patrol walks
+      // its route and comes back, so the last position is a matter of timing.
+      var furthest = double.negativeInfinity;
+      for (var i = 0; i < 1200; i++) {
+        run.run(1);
+        final x = enemy.position?.x;
+        if (x != null && x > furthest) furthest = x;
+      }
+
+      expect(enemy.position!.y, greaterThan(-1.0), reason: 'it fell off');
+      expect(furthest, greaterThan(9.0),
+          reason: 'it stopped at the floor edge ($furthest), so the bridge was '
+              'invisible to the ledge probe');
+    });
   });
 
   group('a leaper', () {
