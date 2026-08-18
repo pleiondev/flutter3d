@@ -4,18 +4,18 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// How the camera trails the runner.
-final class FollowTuning {
+final class FollowTuning extends RigTuning {
   const FollowTuning({
-    this.distance = 7.0,
-    this.height = 2.6,
-    this.aimHeight = 1.2,
-    this.lag = 9.0,
+    super.distance = 7.0,
+    super.height = 2.6,
+    super.aimHeight = 1.2,
+    super.lag = 9.0,
     this.pitch = -0.22,
     this.minPitch = -1.2,
     this.maxPitch = 0.9,
     this.sensitivity = 0.0035,
-    this.nearClearance = 0.35,
-    this.minDistance = 1.2,
+    super.nearClearance = 0.35,
+    super.minDistance = 1.2,
     this.impulseDecay = 9.0,
     this.recentre = 1.6,
     this.recentreAbove = 3.0,
@@ -41,19 +41,8 @@ final class FollowTuning {
   /// worth seeing.
   final double recentreAbove;
 
-  final double distance;
-  final double height;
 
-  /// How far up the runner the camera looks. Its middle, not its feet, or the
-  /// horizon sits in the wrong place the whole game.
-  final double aimHeight;
 
-  /// How fast the camera catches up, in units a second of the remaining gap.
-  ///
-  /// Exponential rather than a fixed speed, so it is frame-rate independent and
-  /// so it never overshoots — a camera that oscillates around the player is a
-  /// camera that makes people ill.
-  final double lag;
 
   final double pitch;
   final double minPitch;
@@ -62,11 +51,7 @@ final class FollowTuning {
   /// Radians of turn per unit of look delta.
   final double sensitivity;
 
-  /// How far in front of a wall the camera stops.
-  final double nearClearance;
 
-  /// How close to the runner the camera may be pulled before giving up.
-  final double minDistance;
 
   /// How fast a kick, a widening and a shake fade, per second.
   final double impulseDecay;

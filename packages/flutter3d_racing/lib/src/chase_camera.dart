@@ -7,12 +7,12 @@ import 'track.dart';
 import 'vehicle/vehicle_controller.dart';
 
 /// How the camera trails the car.
-final class ChaseTuning {
+final class ChaseTuning extends RigTuning {
   const ChaseTuning({
-    this.distance = 8.0,
-    this.height = 3.0,
-    this.aimHeight = 1.0,
-    this.lag = 7.0,
+    super.distance = 8.0,
+    super.height = 3.0,
+    super.aimHeight = 1.0,
+    super.lag = 7.0,
     this.headingBlend = 0.75,
     this.headingFrom = 4.0,
     this.headingTo = 14.0,
@@ -21,18 +21,12 @@ final class ChaseTuning {
     this.baseFov = 1.05,
     this.fovPerSpeed = 0.006,
     this.maxFov = 1.45,
-    this.nearClearance = 0.4,
-    this.minDistance = 2.0,
+    super.nearClearance = 0.4,
+    super.minDistance = 2.0,
   });
 
-  final double distance;
-  final double height;
 
-  /// How far up the car the camera looks. Over the body rather than at the
-  /// floor, or the horizon sits in the wrong place the whole race.
-  final double aimHeight;
 
-  final double lag;
 
   /// How far the camera swings from behind the nose towards behind the
   /// direction of travel, from nought to one.
@@ -80,8 +74,6 @@ final class ChaseTuning {
   /// reads as a fish-eye rather than as speed.
   final double maxFov;
 
-  final double nearClearance;
-  final double minDistance;
 }
 
 /// A camera behind a car: behind where it is *going*, looking into the corner.
