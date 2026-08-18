@@ -594,6 +594,7 @@ final class Runner with KeyHolder
       body.suppressFloorSnap();
       _airJumpsLeft = tuning.airJumps;
       jumpedThisStep = true;
+      _ownRise = true;
       return;
     }
     if (input.pressed(PlatformerActions.dropThrough)) {
@@ -723,6 +724,7 @@ final class Runner with KeyHolder
   /// fast the runner was falling would reward height instead of timing.
   void bounce() {
     body.velocity.y = _jumpHeld ? tuning.stompBounceHeld : tuning.stompBounce;
+    _ownRise = false;
     // Landing on a head is landing, so the body is usually *grounded* at this
     // moment and a floor snap would happily keep it there. Saying so is the
     // only way the controller can tell this apart from a stair edge.
@@ -737,6 +739,20 @@ final class Runner with KeyHolder
 
   /// Whether the jump button was down as of this step's input.
   bool _jumpHeld = false;
+
+  /// Whether the rise the runner is in is one they asked for.
+  ///
+  /// **A held jump released mid-flight used to cut a spring in half.**
+  /// `_cutJumpShort` fired on any upward speed, and a spring is documented as
+  /// "a promise about height — the level author placed it to reach a particular
+  /// ledge". Jump is held almost constantly in a platformer, so running onto a
+  /// pad with it down and letting go in the air multiplied a 15 m/s throw by
+  /// 0.45 and fell short of the ledge the level was built around. The held
+  /// stomp bounce had it too.
+  ///
+  /// So the cut applies to a jump and to nothing else: set by every way of
+  /// jumping, cleared by every way of being thrown.
+  bool _ownRise = false;
 
   /// Asks to fall through the one-way platform underfoot.
   ///
@@ -925,6 +941,7 @@ final class Runner with KeyHolder
       _airJumpsLeft = tuning.airJumps;
       _buffer = 0.0;
       jumpedThisStep = true;
+      _ownRise = true;
       wallJumpedThisStep = true;
       return;
     } else if (_airJumpsLeft > 0) {
@@ -938,11 +955,15 @@ final class Runner with KeyHolder
 
     _buffer = 0.0;
     jumpedThisStep = true;
+    _ownRise = true;
   }
 
   void _cutJumpShort(InputState input) {
     if (!input.released(GameAction.jump)) return;
     if (body.velocity.y <= 0.0) return;
+    // Only a rise the player asked for — see [_ownRise]. Cutting a spring is
+    // cutting the level's own arithmetic.
+    if (!_ownRise) return;
     body.velocity.y *= tuning.jumpCut;
   }
 
@@ -1022,6 +1043,7 @@ final class Runner with KeyHolder
   @override
   void launch(double speed) {
     body.velocity.y = speed;
+    _ownRise = false;
     // A pad is walked over, so the feet are on the floor under it when this
     // fires: without this line a body with a floor snap set would be entitled
     // to keep that floor, and a launch that meets anything overhead — a

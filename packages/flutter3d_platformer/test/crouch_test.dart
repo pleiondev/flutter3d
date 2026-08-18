@@ -251,6 +251,37 @@ void main() {
       expect(run.runner.isPounding, isFalse);
     });
 
+    test('and a spring is not a jump to cut short', () {
+      // **A promise about height.** `Launchable.launch` says a spring is "a
+      // promise about height — the level author placed it to reach a particular
+      // ledge", and jump is held almost constantly in a platformer. Running
+      // onto a pad with it down and letting go in the air multiplied the throw
+      // by `jumpCut` and fell short of the ledge the level was built around.
+      final run = _Run();
+      run.step(holding: <GameAction>{GameAction.jump});
+      run.runner.launch(15.0);
+      expect(run.runner.body.velocity.y, closeTo(15.0, 1e-6));
+
+      // Let go, mid-flight, exactly as a player holding jump would.
+      run.step();
+
+      expect(run.runner.body.velocity.y, greaterThan(12.0),
+          reason: 'the spring was cut to jump height');
+    });
+
+    test('and a jump still is', () {
+      // The other half, or the fix is "never cut anything" and passes.
+      final run = _Run();
+      run.step(holding: <GameAction>{GameAction.jump});
+      final rising = run.runner.body.velocity.y;
+      expect(rising, greaterThan(0.0), reason: 'it never left the ground');
+
+      run.step();
+
+      expect(run.runner.body.velocity.y, lessThan(rising * 0.6),
+          reason: 'releasing jump no longer shortens a jump');
+    });
+
     test('and dying in one does not carry it into the next life', () {
       // **A pound ends when the runner is out of it, and dying is out of it.**
       // `_pounding` was cleared only by landing, and dying mid-pound is the

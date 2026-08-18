@@ -1,5 +1,4 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import 'purse.dart';
 
