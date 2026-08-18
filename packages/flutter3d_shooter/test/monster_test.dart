@@ -67,6 +67,54 @@ CollisionWorld _room({bool wall = false}) {
   );
 }
 
+/// Whether a projectile fired at a target crossing in front of it connects.
+///
+/// Driven through the whole path rather than by inspecting an aim vector: the
+/// bestiary spawns the monster, `ActorSystem` measures the focus's movement,
+/// the brain decides where to fire, and the projectile system flies it. What is
+/// asserted is the only thing that matters — whether it arrived.
+bool _hitsACrossingTarget({required double sideways}) {
+  final world = _room();
+  final projectiles = ProjectileSystem(world: world);
+  final player = world.add(
+    Collider(
+      shape: CollisionBox(Vector3(0.35, 0.9, 0.35)),
+      position: Vector3(0.0, 0.9, 0.0),
+      kind: ColliderKind.kinematic,
+      layer: CollisionLayers.player,
+    ),
+  );
+  world.update();
+  final random = math.Random(7);
+  final system = ActorSystem(world: world, random: random);
+  Bestiary(
+    actors: system,
+    shot: WeaponShot(
+      world: world,
+      hitscan: Hitscan(world: world, random: random),
+      projectiles: projectiles,
+    ),
+    catalog: Monsters.byName,
+  ).spawn(Monsters.shooter, Vector3(0.0, 0.0, -14.0));
+
+  final at = Vector3(0.0, 0.9, 0.0);
+  var hit = false;
+  for (var step = 0; step < 480; step++) {
+    at.x += sideways * _dt;
+    player.position.setFrom(at);
+    world.update();
+    system.step(_dt, focus: at + Vector3(0.0, 0.7, 0.0), focusBody: player);
+    projectiles.step(_dt);
+    for (final blast in projectiles.detonations) {
+      if (blast.damage.keys.any((Collider c) => identical(c, player))) {
+        hit = true;
+      }
+    }
+    if (hit) break;
+  }
+  return hit;
+}
+
 void main() {
   _damageableTests();
 
@@ -174,6 +222,27 @@ void main() {
       }
 
       expect(_mind(monster).state, MonsterState.idle);
+    });
+
+    test('a fireball leads a target that is crossing in front of it', () {
+      // **It used to miss every single time.** The aim was the vector to where
+      // the player *is*, and a fireball takes the better part of a second to
+      // cross a room — so anybody moving sideways was untouchable by standing
+      // still and walking. That is not difficulty; it is the monster being
+      // unable to see what everybody else can.
+      //
+      // Mutation: delete `_lead`. This fails and the one below still passes,
+      // which is the pair that says the lead is doing something rather than
+      // the shot merely being generous.
+      expect(_hitsACrossingTarget(sideways: 3.0), isTrue,
+          reason: 'a fireball at a crossing target still misses');
+    });
+
+    test('and still hits one that is standing still', () {
+      // The obvious way to break the fix: lead by the wrong sign, or by the
+      // focus's position instead of its velocity, and the shot sails past
+      // somebody who is not moving at all.
+      expect(_hitsACrossingTarget(sideways: 0.0), isTrue);
     });
 
     test('being shot wakes it even with no line of sight', () {

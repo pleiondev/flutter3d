@@ -224,14 +224,25 @@ final class ChaseBrain extends Brain {
     attackCooldown = weapon.cooldownSeconds;
 
     if (!it.actor.eyeLevel(_eye)) return;
-    _aim
-      ..setFrom(it.toFocus)
-      ..y = 0.0;
+    _aim.setFrom(it.toFocus);
+    _lead(it, weapon);
+    _aim.y = 0.0;
     if (_aim.length2 < 1e-6) return;
+    final horizontal = _aim.length;
     _aim.normalize();
-    // Aim slightly up at the player's head rather than dead level, or a
-    // fireball launched from chest height sails under them on a slope.
-    _aim.y = (it.toFocus.y * 0.15).clamp(-0.4, 0.4);
+    // **A slope, not a height.** This used to be `height * 0.15`, which is a
+    // fixed angle whatever the range: right enough at a metre and hopeless at
+    // fourteen, where a fireball aimed a tenth of a unit upwards clears the
+    // player's head by a metre and a half. Every shot the shooter has ever
+    // fired across a room has gone over the top, and it looked like a monster
+    // that was hard to be hit by rather than one that could not aim.
+    //
+    // Clamped, so something directly below does not fire straight up: at ±0.4
+    // that is about twenty-two degrees, which reaches anything on a stair and
+    // nothing on a ladder.
+    _aim.y = horizontal < 1e-6
+        ? 0.0
+        : (_ledHeight / horizontal).clamp(-0.4, 0.4);
     _aim.normalize();
 
     shot.begin(weapon, _eye, _aim, shooter: it.actor.body?.collider);
@@ -245,6 +256,43 @@ final class ChaseBrain extends Brain {
       }
     }
   }
+
+  /// Where the target will be, rather than where it is.
+  ///
+  /// **A fireball at a player running sideways used to miss every time.** The
+  /// aim was `toFocus` — the vector to where they are *now* — and a projectile
+  /// takes the better part of a second to cross a room, by which time they are
+  /// somewhere else. That is not difficulty, it is the monster being unable to
+  /// see what everyone else can, and it made the shooter the least dangerous
+  /// thing in the game while looking exactly like the hardest to hit.
+  ///
+  /// First-order lead and no more: where the target is going, times how long
+  /// the shot takes to get there, ignoring that leading changes the distance
+  /// and therefore the time. Iterating that converges on a monster that never
+  /// misses, which is a different bug.
+  ///
+  /// Only for projectiles. A hitscan arrives on the step it is fired and
+  /// [WeaponDef.projectileSpeed] is zero for one, so the guard is the same
+  /// question as "is there any flight time".
+  void _lead(Mind it, WeaponDef weapon) {
+    _ledHeight = it.toFocus.y;
+    final speed = weapon.projectileSpeed;
+    if (speed <= 0.0) return;
+    final travel = it.distance / speed;
+    final moving = it.system.focusVelocity;
+    _aim
+      ..x += moving.x * travel
+      ..z += moving.z * travel;
+    // Height is led as well, and then thrown away by the pitch clamp below —
+    // kept because the clamp is about a fireball from chest height on a slope,
+    // and a target that is falling is a different question the clamp should
+    // still see the answer to.
+    _ledHeight += moving.y * travel;
+  }
+
+  /// The vertical part of the lead, kept apart because the aim is flattened
+  /// before the pitch is put back on it.
+  double _ledHeight = 0.0;
 
   void _enter(MonsterState next) {
     if (state == next) return;

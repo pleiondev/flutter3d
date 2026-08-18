@@ -112,6 +112,31 @@ final class ActorSystem {
   final Vector3 _focus = Vector3.zero();
   Collider? focusBody;
 
+  /// How fast the focus is moving, in metres per second.
+  ///
+  /// **Measured here rather than asked of a body**, because a focus is a point:
+  /// callers pass one, and what it belongs to is optional. Measuring it is one
+  /// subtraction a step for the whole system, and asking every brain to
+  /// remember where the focus was last time would be one copy of that per
+  /// brain.
+  ///
+  /// Zero for the step after a jump. A level load, a respawn or a lift moves
+  /// the focus further in one step than anything can travel, and a velocity
+  /// worked out from that is a number in the hundreds — which, to anything
+  /// leading a shot, means firing at the horizon.
+  Vector3 get focusVelocity => _focusVelocity;
+  final Vector3 _focusVelocity = Vector3.zero();
+  final Vector3 _lastFocus = Vector3.zero();
+  bool _hasLastFocus = false;
+
+  /// How far the focus may move in one step before it is treated as a jump
+  /// rather than as movement.
+  ///
+  /// Two metres is a hundred and twenty metres a second at sixty hertz, which
+  /// nothing in any of these games approaches — and a level load moves it much
+  /// further than that.
+  static const double _teleport = 2.0;
+
   /// From the actor currently being thought about to the focus.
   Vector3 get toFocus => _toFocus;
   double get distanceToFocus => _distance;
@@ -188,6 +213,19 @@ final class ActorSystem {
     Collider? focusBody,
   }) {
     _tick++;
+    if (_hasLastFocus && dt > 0.0) {
+      _focusVelocity
+        ..setFrom(focus)
+        ..sub(_lastFocus);
+      if (_focusVelocity.length > _teleport) {
+        _focusVelocity.setZero();
+      } else {
+        _focusVelocity.scale(1.0 / dt);
+      }
+    }
+    _lastFocus.setFrom(focus);
+    _hasLastFocus = true;
+
     _focus.setFrom(focus);
     this.focusBody = focusBody;
     damageToFocusThisStep = 0.0;
