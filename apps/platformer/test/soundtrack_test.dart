@@ -117,6 +117,18 @@ void main() {
         reason: 'a thousand metres of running and not one footstep');
   });
 
+  test('and coming down from a jump is heard', () {
+    // The sound the widget used to play by itself, which is why it is being
+    // asked about for the first time here. Mutation: delete the
+    // `landedThisStep` branch. A game where jumping makes a noise and landing
+    // makes none feels like the floor is not there.
+    final run = _Run();
+    run.runner.body.teleport(Vector3(0.0, 6.0, 0.0));
+    run.run(90, forward: false);
+
+    expect(run.names, contains('land'), reason: 'it fell and nothing happened');
+  });
+
   test('footsteps are paid for in metres, not in seconds', () {
     // Mutation: count time instead of distance in `Soundtrack._step`. A runner
     // standing still then makes footsteps for ever, which is the single most

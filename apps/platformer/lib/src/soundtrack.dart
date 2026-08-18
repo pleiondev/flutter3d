@@ -71,6 +71,13 @@ final class Soundtrack {
     if (sim.stompedThisStep) out.add(Heard(Sounds.land, at));
     if (sim.reachedCheckpointThisStep) out.add(Heard(Sounds.checkpoint, at));
 
+    // **Decided here, and it was the one sound that was not.** The application
+    // played this itself, beside the camera kick that goes with it, which left
+    // two homes for "what does this step sound like" — and the second one was
+    // in a widget, so the landing was the one sound in the game no test could
+    // ask about. The camera's half stays where it is; only the decision moved.
+    if (runner.landedThisStep) out.add(Heard(Sounds.land, at));
+
     if (sim.diedThisStep) out.add(Heard(Sounds.death, at));
 
     // **The level's own machinery, which had particles and no sound.** A pad

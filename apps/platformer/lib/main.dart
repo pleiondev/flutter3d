@@ -1190,7 +1190,8 @@ class _GameScreenState extends State<GameScreen>
     // the application used to work it out from whether the runner was grounded
     // last frame, which cannot know the speed.
     if (runner.landedThisStep) {
-      _audio.play(Sounds.land, at);
+      // The sound is `Soundtrack`'s, with every other sound in the game. What
+      // is left here is what a landing does to the camera and to the dust.
       _feelLanding(runner.landingSpeed, pounded: runner.poundedThisStep);
       if (runner.poundedThisStep) {
         _particles.burst(Effects.slam, at);
