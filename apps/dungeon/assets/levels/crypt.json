@@ -1,152 +1,203 @@
 {
   "version": 1,
-  "name": "The Lower Crypt",
+  "name": "The Crypt",
+  "generatedBy": "apps/dungeon/tool/make_crypt.py",
   "fogColor": [0.034, 0.034, 0.034],
   "fogDensity": 0.035,
-
   "materials": {
     "floor": {
-      "baseColor": [0.62, 0.60, 0.56, 1.0], "roughness": 0.9,
+      "baseColor": [0.62, 0.6, 0.56, 1.0],
+      "roughness": 0.9,
       "texelsPerMetre": 0.5,
       "albedo": "assets/textures/floor_albedo.jpg",
       "normal": "assets/textures/floor_normal.png",
       "orm": "assets/textures/floor_orm.png"
     },
     "wall": {
-      "baseColor": [0.70, 0.66, 0.60, 1.0], "roughness": 0.85,
+      "baseColor": [0.7, 0.66, 0.6, 1.0],
+      "roughness": 0.85,
       "texelsPerMetre": 0.4,
       "albedo": "assets/textures/wall_albedo.jpg",
       "normal": "assets/textures/wall_normal.png",
       "orm": "assets/textures/wall_orm.png"
     },
     "ceiling": {
-      "baseColor": [0.34, 0.32, 0.30, 1.0], "roughness": 0.95,
+      "baseColor": [0.34, 0.32, 0.3, 1.0],
+      "roughness": 0.95,
       "texelsPerMetre": 0.35,
       "albedo": "assets/textures/ceiling_albedo.jpg",
       "normal": "assets/textures/ceiling_normal.png",
       "orm": "assets/textures/ceiling_orm.png"
     },
     "stone": {
-      "baseColor": [0.68, 0.65, 0.60, 1.0], "roughness": 0.8,
+      "baseColor": [0.68, 0.65, 0.6, 1.0],
+      "roughness": 0.8,
       "texelsPerMetre": 0.7,
       "albedo": "assets/textures/stone_albedo.jpg",
       "normal": "assets/textures/stone_normal.png",
       "orm": "assets/textures/stone_orm.png"
     },
-    "keymetal": {
-      "baseColor": [0.92, 0.72, 0.26, 1.0], "roughness": 0.35, "metallic": 0.9
-    },
     "iron": {
-      "baseColor": [0.72, 0.70, 0.68, 1.0], "roughness": 0.6,
+      "baseColor": [0.72, 0.7, 0.68, 1.0],
+      "roughness": 0.6,
       "texelsPerMetre": 1.2,
       "albedo": "assets/textures/metal_albedo.jpg",
       "normal": "assets/textures/metal_normal.png",
       "orm": "assets/textures/metal_orm.png"
-    }
+    },
+    "keymetal": {"baseColor": [0.92, 0.72, 0.26, 1.0], "roughness": 0.35, "metallic": 0.9}
   },
-
   "brushes": [
-    { "at": [0, -0.5, 6], "size": [14, 1, 14], "material": "floor" },
-    { "at": [0, 5.5, 6], "size": [14, 1, 14], "material": "ceiling" },
-    { "at": [-4.5, 2.5, -1], "size": [5, 5, 1], "material": "wall" },
-    { "at": [4.5, 2.5, -1], "size": [5, 5, 1], "material": "wall" },
-    { "at": [0, 2.5, 13], "size": [15, 5, 1], "material": "wall" },
-    { "at": [-7, 2.5, 6], "size": [1, 5, 14], "material": "wall" },
-    { "at": [7, 2.5, 0.5], "size": [1, 5, 3], "material": "wall" },
-    { "at": [7, 2.5, 9.5], "size": [1, 5, 7], "material": "wall" },
-
-    { "at": [0, -0.5, -7], "size": [6, 1, 14], "material": "floor" },
-    { "at": [0, 5.5, -7], "size": [6, 1, 14], "material": "ceiling" },
-    { "at": [-3, 2.5, -7], "size": [1, 5, 14], "material": "wall" },
-    { "at": [3, 2.5, -7], "size": [1, 5, 14], "material": "wall" },
-
-    { "at": [11.5, -0.5, 4], "size": [9, 1, 4], "material": "floor" },
-    { "at": [11.5, 5.5, 4], "size": [9, 1, 4], "material": "ceiling" },
-    { "at": [11.5, 2.5, 1.5], "size": [10, 5, 1], "material": "wall" },
-    { "at": [11.5, 2.5, 6.5], "size": [10, 5, 1], "material": "wall" },
-    { "at": [16.5, 2.5, 4], "size": [1, 5, 6], "material": "wall" },
-
-    { "at": [0, -0.5, -23], "size": [20, 1, 20], "material": "floor" },
-    { "at": [0, 5.5, -23], "size": [20, 1, 20], "material": "ceiling" },
-    { "at": [0, 2.5, -33], "size": [21, 5, 1], "material": "wall" },
-    { "at": [-6, 2.5, -13], "size": [8, 5, 1], "material": "wall" },
-    { "at": [6, 2.5, -13], "size": [8, 5, 1], "material": "wall" },
-    { "at": [-10, 2.5, -23], "size": [1, 5, 20], "material": "wall" },
-    { "at": [10, 2.5, -23], "size": [1, 5, 20], "material": "wall" },
-
-    { "at": [-6, 2.5, -18], "size": [1.2, 5, 1.2], "material": "stone" },
-    { "at": [6, 2.5, -18], "size": [1.2, 5, 1.2], "material": "stone" },
-    { "at": [-6, 2.5, -28], "size": [1.2, 5, 1.2], "material": "stone" },
-    { "at": [6, 2.5, -28], "size": [1.2, 5, 1.2], "material": "stone" },
-
-    { "at": [0, 0.175, -18.6], "size": [6, 0.35, 1.2], "material": "stone" },
-    { "at": [0, 0.35, -19.8], "size": [6, 0.7, 1.2], "material": "stone" },
-    { "at": [0, 0.525, -21.0], "size": [6, 1.05, 1.2], "material": "stone" },
-    { "at": [0, 0.7, -22.2], "size": [6, 1.4, 1.2], "material": "stone" },
-    { "at": [0, 0.7, -28.5], "size": [8, 1.4, 11.4], "material": "stone" },
-
-    { "at": [8.15, 3.25, -19.0], "size": [2.7, 0.5, 5], "material": "stone" },
-    { "at": [8.15, 3.25, -28.0], "size": [2.7, 0.5, 6], "material": "stone" }
+    {"at": [0.0, -0.5, 8.0], "size": [14.0, 1.0, 14.0], "material": "floor"},
+    {"at": [0.0, 4.5, 8.0], "size": [14.0, 1.0, 14.0], "material": "ceiling"},
+    {"at": [-4.5, 2.0, 1.5], "size": [5.0, 4.0, 1.0], "material": "wall"},
+    {"at": [4.5, 2.0, 1.5], "size": [5.0, 4.0, 1.0], "material": "wall"},
+    {"at": [0.0, 2.0, 14.5], "size": [14.0, 4.0, 1.0], "material": "wall"},
+    {"at": [6.5, 2.0, 8.0], "size": [1.0, 4.0, 12.0], "material": "wall"},
+    {"at": [-6.5, 2.0, 8.0], "size": [1.0, 4.0, 12.0], "material": "wall"},
+    {"at": [0.0, -0.5, 0.0], "size": [6.0, 1.0, 6.0], "material": "floor"},
+    {"at": [0.0, 4.5, 0.0], "size": [6.0, 1.0, 6.0], "material": "ceiling"},
+    {"at": [-2.5, 2.0, -2.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [2.5, 2.0, -2.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [-2.5, 2.0, 2.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [2.5, 2.0, 2.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [2.5, 2.0, 0.0], "size": [1.0, 4.0, 4.0], "material": "wall"},
+    {"at": [-2.5, 2.0, 0.0], "size": [1.0, 4.0, 4.0], "material": "wall"},
+    {"at": [0.0, -0.5, -8.0], "size": [18.0, 1.0, 14.0], "material": "floor"},
+    {"at": [0.0, 4.5, -8.0], "size": [18.0, 1.0, 14.0], "material": "ceiling"},
+    {"at": [-6.0, 2.0, -14.5], "size": [6.0, 4.0, 1.0], "material": "wall"},
+    {"at": [6.0, 2.0, -14.5], "size": [6.0, 4.0, 1.0], "material": "wall"},
+    {"at": [-5.5, 2.0, -1.5], "size": [7.0, 4.0, 1.0], "material": "wall"},
+    {"at": [5.5, 2.0, -1.5], "size": [7.0, 4.0, 1.0], "material": "wall"},
+    {"at": [8.5, 2.0, -11.75], "size": [1.0, 4.0, 4.5], "material": "wall"},
+    {"at": [8.5, 3.5, -8.0], "size": [1.0, 1.0, 3.0], "material": "wall"},
+    {"at": [8.5, 2.0, -4.25], "size": [1.0, 4.0, 4.5], "material": "wall"},
+    {"at": [-8.5, 2.0, -8.0], "size": [1.0, 4.0, 12.0], "material": "wall"},
+    {"at": [-4.0, 2.0, -10.0], "size": [1.2, 4.0, 1.2], "material": "stone"},
+    {"at": [4.0, 2.0, -10.0], "size": [1.2, 4.0, 1.2], "material": "stone"},
+    {"at": [14.0, -0.5, -8.0], "size": [12.0, 1.0, 12.0], "material": "floor"},
+    {"at": [14.0, 4.5, -8.0], "size": [12.0, 1.0, 12.0], "material": "ceiling"},
+    {"at": [14.0, 2.0, -13.5], "size": [12.0, 4.0, 1.0], "material": "wall"},
+    {"at": [14.0, 2.0, -2.5], "size": [12.0, 4.0, 1.0], "material": "wall"},
+    {"at": [19.5, 2.0, -8.0], "size": [1.0, 4.0, 10.0], "material": "wall"},
+    {"at": [8.5, 2.0, -11.25], "size": [1.0, 4.0, 3.5], "material": "wall"},
+    {"at": [8.5, 3.5, -8.0], "size": [1.0, 1.0, 3.0], "material": "wall"},
+    {"at": [8.5, 2.0, -4.75], "size": [1.0, 4.0, 3.5], "material": "wall"},
+    {"at": [0.0, -0.5, -17.5], "size": [6.0, 1.0, 7.0], "material": "floor"},
+    {"at": [0.0, 4.5, -17.5], "size": [6.0, 1.0, 7.0], "material": "ceiling"},
+    {"at": [-2.5, 2.0, -20.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [2.5, 2.0, -20.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [-2.5, 2.0, -14.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [2.5, 2.0, -14.5], "size": [1.0, 4.0, 1.0], "material": "wall"},
+    {"at": [2.5, 2.0, -17.5], "size": [1.0, 4.0, 5.0], "material": "wall"},
+    {"at": [-2.5, 2.0, -17.5], "size": [1.0, 4.0, 5.0], "material": "wall"},
+    {"at": [0.0, -0.5, -26.0], "size": [12.0, 1.0, 14.0], "material": "floor"},
+    {"at": [0.0, 6.5, -26.0], "size": [12.0, 1.0, 14.0], "material": "ceiling"},
+    {"at": [0.0, 3.0, -32.5], "size": [12.0, 6.0, 1.0], "material": "wall"},
+    {"at": [-4.0, 3.0, -19.5], "size": [4.0, 6.0, 1.0], "material": "wall"},
+    {"at": [0.0, 5.0, -19.5], "size": [4.0, 2.0, 1.0], "material": "wall"},
+    {"at": [4.0, 3.0, -19.5], "size": [4.0, 6.0, 1.0], "material": "wall"},
+    {"at": [5.5, 3.0, -26.0], "size": [1.0, 6.0, 12.0], "material": "wall"},
+    {"at": [-5.5, 3.0, -26.0], "size": [1.0, 6.0, 12.0], "material": "wall"}
   ],
-
   "lights": [
-    { "type": "point", "at": [-6.0, 2.9, 8], "color": [1.0, 0.68, 0.34], "intensity": 6.5, "range": 13, "castsShadow": true, "name": "entry_torch" },
-    { "type": "point", "at": [-2.0, 2.9, -6], "color": [1.0, 0.68, 0.34], "intensity": 5.0, "range": 11, "castsShadow": true, "name": "corridor_torch" },
-    { "type": "point", "at": [-9.0, 2.9, -18], "color": [1.0, 0.70, 0.36], "intensity": 7.0, "range": 15, "castsShadow": true, "name": "pillar_torch" },
-    { "type": "point", "at": [6, 3.2, -28], "color": [0.55, 0.75, 1.0], "intensity": 20, "range": 16, "name": "cold_window" },
-    { "type": "point", "at": [13, 2.9, 2.6], "color": [1.0, 0.66, 0.30], "intensity": 5.0, "range": 9, "castsShadow": true, "name": "passage_torch" },
-    { "type": "point", "at": [8.15, 4.6, -28], "color": [1.0, 0.72, 0.38], "intensity": 15, "range": 10, "name": "gallery_lamp" },
-    { "type": "directional", "at": [0, 12, 0], "direction": [0.3, -1.0, 0.2], "color": [0.5, 0.58, 0.78], "intensity": 0.25 }
+    {
+      "type": "point",
+      "at": [-5.4, 2.8, 10.0],
+      "color": [1.0, 0.68, 0.34],
+      "intensity": 6.5,
+      "range": 13.0,
+      "castsShadow": true,
+      "name": "hall_west"
+    },
+    {
+      "type": "point",
+      "at": [5.4, 2.8, 10.0],
+      "color": [1.0, 0.68, 0.34],
+      "intensity": 6.5,
+      "range": 13.0,
+      "castsShadow": true,
+      "name": "hall_east"
+    },
+    {
+      "type": "point",
+      "at": [-7.4, 2.8, -8.0],
+      "color": [1.0, 0.68, 0.34],
+      "intensity": 6.5,
+      "range": 13.0,
+      "castsShadow": true,
+      "name": "guard_west"
+    },
+    {
+      "type": "point",
+      "at": [7.4, 2.8, -12.0],
+      "color": [1.0, 0.68, 0.34],
+      "intensity": 5.0,
+      "range": 13.0,
+      "castsShadow": true,
+      "name": "guard_east"
+    },
+    {
+      "type": "point",
+      "at": [14.0, 2.8, -12.4],
+      "color": [1.0, 0.68, 0.34],
+      "intensity": 6.5,
+      "range": 13.0,
+      "castsShadow": true,
+      "name": "vault_north"
+    },
+    {
+      "type": "point",
+      "at": [-4.4, 3.0, -28.0],
+      "color": [0.55, 0.78, 1.0],
+      "intensity": 5.0,
+      "range": 13.0,
+      "castsShadow": true,
+      "name": "stair_west"
+    }
   ],
-
   "entities": [
-    { "type": "player_spawn", "at": [0, 1.0, 10], "yaw": 0 },
-
-    { "type": "torch", "at": [-6.35, 2.6, 8], "yaw": -1.5708, "light": "entry_torch" },
-    { "type": "torch", "at": [-2.35, 2.6, -6], "yaw": -1.5708, "light": "corridor_torch" },
-    { "type": "torch", "at": [-9.35, 2.6, -18], "yaw": -1.5708, "light": "pillar_torch" },
-    { "type": "torch", "at": [13, 2.6, 2.15], "yaw": 3.14159, "light": "passage_torch" },
-
-    { "type": "key", "at": [14, 0.9, 4], "color": "iron", "name": "iron_key",
-      "model": "assets/models/key.glb", "material": "keymetal",
-      "size": [0.7, 0.7, 0.7], "tint": [0.95, 0.60, 0.20] },
-
-    { "type": "door", "at": [0, 2.5, -13], "name": "crypt_door", "key": "iron",
-      "size": [4, 5, 1], "travel": [0, 4.4, 0], "speed": 2.2, "wait": 4,
-      "material": "iron" },
-
-    { "type": "trigger", "at": [0, 1.5, -11.4], "size": [4, 3, 2],
-      "target": "crypt_door", "once": false },
-
-    { "type": "lift", "at": [8.15, 0.25, -15.0], "size": [2.6, 0.5, 3],
-      "travel": [0, 3, 0], "speed": 1.5, "wait": 5, "name": "gallery_lift",
-      "material": "iron" },
-
-    { "type": "button", "at": [9.35, 1.5, -15.0], "size": [0.25, 0.7, 0.7],
-      "target": "gallery_lift" },
-
-    { "type": "platform", "at": [8.15, 3.3, -22.5], "size": [2.6, 0.4, 2],
-      "travel": [0, 0, -1.5], "speed": 0.9, "wait": 2,
-      "material": "stone" },
-
-    { "type": "note", "at": [6.4, 1.6, 4], "yaw": 1.5708,
-      "text": "The stair keeps its own hours. Do not be on it at the turning." },
-
-    { "type": "monster", "at": [-6, 1.0, -20], "kind": "runner" },
-    { "type": "monster", "at": [6, 1.0, -24], "kind": "runner" },
-    { "type": "monster", "at": [0, 2.4, -30], "kind": "shooter" },
-
-    { "type": "pickup", "at": [-8, 0.8, -16], "gives": "health", "amount": 25 },
-    { "type": "pickup", "at": [8, 0.8, -16], "gives": "shells", "amount": 8 },
-    { "type": "pickup", "at": [8.15, 4.0, -28], "gives": "rockets", "amount": 4 },
-
-    { "type": "lamp", "at": [8.15, 4.5, -28], "light": "gallery_lamp",
-      "color": [1.0, 0.78, 0.42] },
-
-    { "type": "window", "at": [9.42, 3.2, -28], "yaw": 0,
-      "light": "cold_window", "size": [0.15, 2.4, 1.6],
-      "color": [0.55, 0.78, 1.0], "glow": 4.0 },
-
-    { "type": "exit", "at": [0, 2.4, -32], "name": "way_down" }
-  ]
+    {"type": "player_spawn", "at": [0.0, 0.0, 12.0], "yaw": 0.0},
+    {"type": "torch", "at": [-5.75, 2.8, 10.0], "yaw": 1.5708, "light": "hall_west"},
+    {"type": "torch", "at": [5.75, 2.8, 10.0], "yaw": -1.5708, "light": "hall_east"},
+    {
+      "type": "note",
+      "at": [0.0, 1.6, 2.6],
+      "yaw": 0.0,
+      "text": "They sealed the lower door and took the key down with them. It is still down there."
+    },
+    {"type": "torch", "at": [-7.75, 2.8, -8.0], "yaw": 1.5708, "light": "guard_west"},
+    {"type": "torch", "at": [7.75, 2.8, -12.0], "yaw": -1.5708, "light": "guard_east"},
+    {"type": "monster", "at": [0.0, 1.0, -12.0], "kind": "runner"},
+    {"type": "pickup", "at": [-6.0, 0.8, -5.0], "gives": "health", "amount": 25},
+    {
+      "type": "door",
+      "at": [0.0, 2.5, -14.0],
+      "name": "crypt_door",
+      "size": [6.0, 5.0, 1.0],
+      "travel": [0.0, 4.6, 0.0],
+      "speed": 2.2,
+      "wait": 4.0,
+      "material": "iron",
+      "key": "iron"
+    },
+    {"type": "trigger", "at": [0.0, 1.5, -12.4], "size": [4.0, 3.0, 2.0], "target": "crypt_door", "once": false},
+    {"type": "torch", "at": [14.0, 2.8, -12.75], "yaw": 0.0, "light": "vault_north"},
+    {"type": "monster", "at": [16.0, 1.0, -10.0], "kind": "shooter"},
+    {"type": "pickup", "at": [11.0, 0.8, -6.0], "gives": "bullets", "amount": 20},
+    {
+      "type": "key",
+      "at": [14.0, 0.9, -8.0],
+      "color": "iron",
+      "name": "iron_key",
+      "model": "assets/models/key.glb",
+      "material": "keymetal",
+      "size": [0.7, 0.7, 0.7],
+      "tint": [0.95, 0.6, 0.2]
+    },
+    {"type": "torch", "at": [-4.75, 3.0, -28.0], "yaw": 1.5708, "light": "stair_west"},
+    {"type": "pickup", "at": [3.0, 0.8, -24.0], "gives": "armour", "amount": 25},
+    {"type": "exit", "at": [0.0, 2.4, -30.0], "name": "way_down"}
+  ],
+  "next": "assets/levels/vaults.json"
 }

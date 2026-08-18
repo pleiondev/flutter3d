@@ -168,8 +168,14 @@ void main() {
       expect(mine.where((Sustained s) => s.what == Voice.begin), hasLength(1),
           reason: 'the door ground once per step rather than once');
       expect(mine.first.sound, Sounds.stoneMove);
-      expect(run.loops.map((Sustained s) => s.key).toSet(), hasLength(2),
-          reason: 'two mechanisms moving shared one voice');
+      // One voice per mechanism, stated as distinctness rather than as a
+      // count: the count was `2` while the crypt was hand-written and had a
+      // lift starting at load, which made this an assertion about that
+      // document rather than about the rule.
+      final begins =
+          run.loops.where((Sustained s) => s.what == Voice.begin).toList();
+      expect(begins.map((Sustained s) => s.key).toSet(), hasLength(begins.length),
+          reason: 'two mechanisms shared one voice');
       // And followed for as long as it moved, or the grinding stays where the
       // door started while the door goes elsewhere.
       expect(mine.where((Sustained s) => s.what == Voice.follow), isNotEmpty,

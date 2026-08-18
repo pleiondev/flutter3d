@@ -182,7 +182,15 @@ void main() {
     expect(game.sim.state, GameState.playing);
     expect(game.mechanisms['crypt_door'], isA<Door>());
     expect(game.mechanisms['way_down'], isA<Exit>());
-    expect(game.actors.actors, hasLength(3));
+    // Counted from the document rather than written down here. The number was
+    // `3` until the crypt was rebuilt by a generator, at which point the test
+    // was asserting a memory of a level nobody ships any more.
+    expect(
+      game.actors.actors,
+      hasLength(game.level.entities
+          .where((EntityDef e) => e.type == ShooterEntities.monster)
+          .length),
+    );
     expect(game.player.isAlive, isTrue);
   });
 
@@ -227,6 +235,12 @@ void main() {
       reason: 'never reached the exit at ${exit.collider.position}',
     );
     expect(game.sim.state, GameState.complete);
-    expect(game.sim.nextLevel, isNull, reason: 'the crypt says nothing next');
+    // The crypt is the first of three now, and what it names has to be there:
+    // a chain that points at a missing document is a game that ends with an
+    // error screen rather than with a second level.
+    final next = game.sim.nextLevel;
+    expect(next, isNotNull, reason: 'the crypt leads nowhere');
+    expect(File(next!).existsSync(), isTrue,
+        reason: 'the crypt names $next, which is not there');
   });
 }
