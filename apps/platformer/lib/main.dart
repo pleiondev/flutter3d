@@ -1427,7 +1427,7 @@ class _GameScreenState extends State<GameScreen>
                     actions: _rebindable,
                     waitingFor: settings.waitingFor,
                     onRebind: _settings.rebind,
-                    credits: const CreditsSection(),
+                    credits: const CreditsSection(credits: Credits.models),
                     onResetControls: () => _settings.resetControls(_bindings()),
                   );
                 },

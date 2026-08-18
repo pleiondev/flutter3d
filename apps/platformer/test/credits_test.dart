@@ -39,7 +39,7 @@ Widget _panel({GameConfig? config, bool padConnected = false}) => MaterialApp(
           waitingFor: null,
           onRebind: (GameAction? action) {},
           onResetControls: () {},
-          credits: const CreditsSection(),
+          credits: const CreditsSection(credits: Credits.models),
         ),
       ),
     );

@@ -16,6 +16,7 @@
 /// the caller's, and the panel has never known what a coin or a monster is.
 library;
 
+export 'src/credits.dart';
 export 'src/owned_bindings.dart';
 export 'src/rebinding.dart';
 export 'src/save_file.dart';

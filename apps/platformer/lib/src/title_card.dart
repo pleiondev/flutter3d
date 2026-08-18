@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 import 'credits.dart';
 
@@ -131,7 +132,7 @@ class TitleCard extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 26),
-                const CreditsSection(),
+                const CreditsSection(credits: Credits.models),
                 const SizedBox(height: 26),
                 Text(
                   prompt,

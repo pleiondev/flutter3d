@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 import 'credits.dart';
 
@@ -231,7 +232,7 @@ class Ending extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 26),
-                const CreditsSection(heading: 'Art in this game'),
+                const CreditsSection(credits: Credits.models, heading: 'Art in this game'),
                 const SizedBox(height: 22),
                 Text(
                   'Press R to climb it again.',
