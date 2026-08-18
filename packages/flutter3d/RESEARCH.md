@@ -150,7 +150,7 @@ textureType, enableRenderTargetUsage, enableShaderReadUsage, enableShaderWriteUs
 | Available | What it means for the engine |
 |---|---|
 | `sampleCount` + `doesSupportOffscreenMSAA` | MSAA for offscreen targets is available |
-| `TextureType.textureCube` | IBL and cube shadow maps are possible |
+| `TextureType.textureCube` | IBL and cube shadow maps are possible — both now built: cube shadows on all three backends, and `createCubeTextureFromPixels` behind the sky's cube map |
 | `r16g16b16a16Float`, `r32g32b32a32Float` | a full HDR pipeline and tonemapping |
 | `d24UnormS8Uint`, `d32FloatS8UInt`, `s8UInt` | depth + stencil, hence portals, outlines, decals, reversed-Z |
 | A complete stencil API (per-face) | outlines, masks, CSG effects |
@@ -303,8 +303,10 @@ choose an engine.
       submeshes.
 - [x] **P0** Primitives: box, plane, sphere (UV + ico), cylinder, cone, torus, capsule, quad,
       grid. Built on the `Shape` abstraction, plus `LatheShape`.
-- [ ] **P1** Utilities: normal recomputation, tangent generation (mandatory for normal maps),
-      vertex welding/deduplication, merge, flip, AABB/sphere computation.
+- [ ] **P1** Utilities: vertex welding/deduplication, merge, flip. Normal recomputation and
+      tangent generation are done — `gltf_loader.dart` generates tangents for a normal-mapped
+      primitive that ships without them, which is what `teapot-generated-normals.png` pins —
+      and AABB/sphere computation is what `Scene.computeBounds` and `MeshNode.worldBounds` are.
 - [x] **P1** Skinning: bone matrices in a uniform buffer (mind the size limit!) or in a texture.
       A uniform array of 64 `mat4`, since the spike proved arrays survive Impeller — the texture
       fallback was never needed. Four weights a vertex, renormalized in the shader.

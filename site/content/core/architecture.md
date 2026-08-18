@@ -45,14 +45,14 @@ final renderer = Renderer.create(
 | Backend | Runs on | Entry point | Status |
 |---|---|---|---|
 | **`flutter3d_impeller`** | `flutter_gpu` — Metal on Apple platforms, Vulkan elsewhere | `GpuRenderBackend.create()` | The production one. Everything in these docs runs on it |
-| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs both games. Slower, and at a fixed internal resolution |
-| **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice()` | Complete for the golden set. A dev dependency of both games |
+| **`flutter3d_webgl`** | WebGL2, in the browser | `WebGlDevice` | Runs the shooter and the platformer. Slower, at a fixed resolution |
+| **`flutter3d_cpu`** | Nothing. It rasterises in Dart | `CpuDevice()` | Complete for the golden set. A dev dependency of every game |
 
 Each exists for a different reason, and none of them is a fallback for another.
 
 **`flutter3d_impeller`** is the real one. Nothing else in the stack names `flutter_gpu`, which is the property that package exists to hold.
 
-**`flutter3d_webgl`** is how you find out whether the HAL is a seam or a description of Impeller. A fake backend can only confirm that an interface is *callable*, never that it is *implementable*. Both games run on it, at a fixed internal resolution and a lower frame rate; [the platformer](/platformer/demo/) and [the shooter](/shooter/demo/) are embedded in these docs.
+**`flutter3d_webgl`** is how you find out whether the HAL is a seam or a description of Impeller. A fake backend can only confirm that an interface is *callable*, never that it is *implementable*. Two of the three games run on it, at a fixed internal resolution and a lower frame rate; [the platformer](/platformer/demo/) and [the shooter](/shooter/demo/) are embedded in these docs. [The racing game](/racing/demo/) renders and is too slow to drive, which is an open problem rather than a portability one.
 
 Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`, and nothing checks that the generated file is current. That is the same bargain the compiled Impeller bundle makes, and it has already cost one silent failure.
 

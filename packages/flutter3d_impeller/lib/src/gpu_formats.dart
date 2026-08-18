@@ -50,6 +50,15 @@ extension StorageModeFromGpu on gpu.StorageMode {
       };
 }
 
+extension TextureTypeToGpu on TextureType {
+  gpu.TextureType toGpu() => switch (this) {
+        TextureType.texture2D => gpu.TextureType.texture2D,
+        TextureType.texture2DMultisample => gpu.TextureType.texture2DMultisample,
+        TextureType.textureCube => gpu.TextureType.textureCube,
+        TextureType.textureExternalOES => gpu.TextureType.textureExternalOES,
+      };
+}
+
 extension TextureFormatToGpu on TextureFormat {
   gpu.PixelFormat toGpu() => switch (this) {
         TextureFormat.unknown => gpu.PixelFormat.unknown,

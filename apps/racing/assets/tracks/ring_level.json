@@ -3,11 +3,11 @@
  "name": "ring",
  "generatedBy": "tool/make_track.py",
  "fogColor": [
-  0.62,
-  0.71,
-  0.82
+  0.66,
+  0.75,
+  0.85
  ],
- "fogDensity": 0.0016,
+ "fogDensity": 0.0042,
  "materials": {
   "grass": {
    "baseColor": [
@@ -36,9 +36,9 @@
     0.0
    ],
    "size": [
-    548.0,
+    1009.6,
     4.0,
-    548.0
+    1009.6
    ],
    "material": "grass",
    "surface": "grass"
@@ -360,16 +360,16 @@
   {
    "type": "directional",
    "direction": [
-    -0.4,
-    -0.8,
-    0.45
+    -0.769,
+    -0.559,
+    0.311
    ],
    "color": [
     1.0,
-    0.97,
-    0.9
+    0.95,
+    0.86
    ],
-   "intensity": 3.0,
+   "intensity": 3.1,
    "castsShadow": true
   }
  ],

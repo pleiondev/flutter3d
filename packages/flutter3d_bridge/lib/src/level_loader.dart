@@ -170,7 +170,14 @@ final class LevelLoader {
   ) async {
     try {
       final bytes = await rootBundle.load(path);
-      return await uploadEncodedImage(device, bytes.buffer.asUint8List());
+      // Mipmapped: a level's walls and floors are the surfaces most often seen
+      // small and at a glancing angle, which is exactly where a single level
+      // crawls as the camera moves.
+      return await uploadEncodedImage(
+        device,
+        bytes.buffer.asUint8List(),
+        sampling: const TextureSampling(),
+      );
     } catch (error) {
       // A missing texture leaves the material flat rather than stopping the
       // level. Losing a wall texture should not cost the play-test.
@@ -184,7 +191,10 @@ final class LevelLoader {
   /// A wall fourteen metres wide at half a metre per tile has texture
   /// coordinates running from zero to twenty-eight, and clamping would stretch
   /// the atlas's last texel across the whole thing.
-  static const SamplerOptions _tiling = SamplerOptions.linearRepeat;
+  /// Trilinear, so the chain built at upload is blended rather than merely
+  /// allocated: with `MipFilter.nearest` — the default — the levels are there
+  /// and the picture is the one that has no levels at all.
+  static const SamplerOptions _tiling = SamplerOptions.trilinearRepeat;
 
   /// Interleaves the level package's plain arrays into the engine's layout.
   ///

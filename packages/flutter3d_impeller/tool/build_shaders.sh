@@ -278,12 +278,18 @@ strings -n 3 "$OUT" |
 
       slots = ""
       rest = $0
-      while (match(rest, /constant [A-Za-z]+&|texture2d<float> [a-z_]+/)) {
+      # texturecube as well as texture2d: a cube sampler is emitted as
+      # texturecube<float>, and a table blind to it reports a stage as binding
+      # nothing while the stage binds a sampler. That is exactly backwards from
+      # what this table is for — it is the thing consulted when the metadata and
+      # the compiled function disagree.
+      while (match(rest, /constant [A-Za-z]+&|texture(2d|cube)<float> [a-z_]+/)) {
         slot = substr(rest, RSTART, RLENGTH)
         rest = substr(rest, RSTART + RLENGTH)
         sub(/^constant /, "", slot)
         sub(/&$/, "", slot)
         sub(/^texture2d<float> /, "", slot)
+        sub(/^texturecube<float> /, "", slot)
         if (!(name "/" slot in used)) {
           used[name "/" slot] = 1
           slots = slots (slots == "" ? "" : " ") slot

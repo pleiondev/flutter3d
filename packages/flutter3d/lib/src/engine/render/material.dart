@@ -41,6 +41,8 @@ final class Material {
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
     this.drawBucket = 0,
+    this.depthWrite,
+    this.depthCompare,
   })  : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
         emissive = emissive ?? Vector3.zero();
 
@@ -100,9 +102,85 @@ final class Material {
   /// Coarse manual ordering, borrowed from PlayCanvas: it outranks every other
   /// sort term, so a skybox or an overlay can be forced to a fixed position
   /// without touching the sorting policy.
+  ///
+  /// Signed, and negative is the useful half: ordinary materials sit at zero,
+  /// so the only way to be drawn *before* the scene is to ask for less than it.
+  /// The usable range is −128 to 127 and values outside it are clamped.
   int drawBucket;
 
+  /// Overrides whether this surface writes depth. Null lets transparency
+  /// decide, which is what every ordinary material wants.
+  ///
+  /// Null rather than `true` for the same reason [PassState]'s fields are
+  /// optional: unset means *the pass's own answer*, and the pass's answer is
+  /// "opaque writes, blended does not". Saying `false` here is a different
+  /// statement from being transparent — it is a surface that is drawn and then
+  /// stops existing as far as everything after it is concerned.
+  ///
+  /// What it is for: a backdrop. A sky drawn on a small dome around the camera
+  /// is nearer than everything it is supposed to be behind, so it must be drawn
+  /// first and leave the depth buffer untouched. Without this the dome writes a
+  /// few metres of depth across the whole frame and the level behind it is
+  /// clipped away.
+  bool? depthWrite;
+
+  /// Overrides the depth test. Null keeps the pass's own, which is
+  /// [CompareFunction.less].
+  ///
+  /// The other half of a backdrop: with [depthWrite] off and this left alone a
+  /// dome still has to *pass* the test to be drawn, which it does only where
+  /// nothing has been drawn yet — fine when the sky goes first, wrong the
+  /// moment anything wants to be drawn after the scene. [CompareFunction.always]
+  /// is the honest statement for a surface whose depth is not a fact about the
+  /// world.
+  ///
+  /// Applies to the scene pass only. The shadow pass draws casters with its own
+  /// state and has no use for either of these — a surface that should not
+  /// occlude in a shadow map says so with `MeshNode.castsShadow`.
+  CompareFunction? depthCompare;
+
   bool get isTransparent => alphaMode == MaterialAlphaMode.blend;
+
+  /// An independent copy: the vectors are cloned, the textures are shared.
+  ///
+  /// Here rather than where it is used, and that is the whole point of moving
+  /// it. It lived in `ModelAsset` as a private helper listing every field by
+  /// hand, so each new field was a field that copied silently as its default —
+  /// `depthWrite` and `depthCompare` were lost the day they were added, and the
+  /// symptom would have been a model whose materials behave differently from
+  /// the ones it was built from, in one game, on one asset. A copy that lives
+  /// beside the fields is a copy the next field is added next to.
+  ///
+  /// Textures are shared on purpose: they are device handles, and two materials
+  /// pointing at one uploaded image is the arrangement everything downstream
+  /// already assumes.
+  Material copy() => Material(
+        name: name,
+        lighting: lighting,
+        baseColor: baseColor.clone(),
+        metallic: metallic,
+        roughness: roughness,
+        albedo: albedo,
+        albedoSampler: albedoSampler,
+        normal: normal,
+        normalSampler: normalSampler,
+        normalScale: normalScale,
+        metallicRoughness: metallicRoughness,
+        metallicRoughnessSampler: metallicRoughnessSampler,
+        occlusion: occlusion,
+        occlusionSampler: occlusionSampler,
+        occlusionStrength: occlusionStrength,
+        emissiveTexture: emissiveTexture,
+        emissiveSampler: emissiveSampler,
+        emissive: emissive.clone(),
+        emissiveStrength: emissiveStrength,
+        alphaMode: alphaMode,
+        alphaCutoff: alphaCutoff,
+        doubleSided: doubleSided,
+        drawBucket: drawBucket,
+        depthWrite: depthWrite,
+        depthCompare: depthCompare,
+      );
 }
 
 /// Assigns small dense integers to materials for use as a sort key.

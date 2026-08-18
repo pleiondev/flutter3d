@@ -69,6 +69,16 @@ const NAV = [
     ],
   },
   {
+    section: 'Racing',
+    slug: 'racing',
+    badge: 'genre',
+    pages: [
+      { file: 'racing/index.md', url: '/racing/', title: 'What a racing game adds' },
+      { file: 'racing/tutorial.md', url: '/racing/tutorial/', title: 'Tutorial: build a racer', kind: 'tutorial' },
+      { file: 'racing/demo.md', url: '/racing/demo/', title: 'Playable demo', kind: 'demo' },
+    ],
+  },
+  {
     section: 'Reference',
     slug: 'reference',
     pages: [

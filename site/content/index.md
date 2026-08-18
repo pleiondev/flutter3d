@@ -4,9 +4,9 @@ description: A 3D engine on Flutter GPU, a game layer on top of it, and two ship
 
 <p class="hero-kicker">A 3D engine on Flutter GPU</p>
 
-# Two games, one engine, no edits in between
+# Three games, one engine, no edits in between
 
-flutter3d is a renderer, a game layer, and two finished games of different genres. The second game, a third-person platformer, was built without changing a line in the first one's engine packages.
+flutter3d is a renderer, a game layer, and three finished games of different genres. The second and third were built without changing a line in the first one's engine packages.
 
 <div class="frameband">
   <p class="frameband-label"><span>One frame, as this engine encodes it</span><span>one command buffer per pass</span></p>
@@ -22,7 +22,7 @@ flutter3d is a renderer, a game layer, and two finished games of different genre
 </div>
 
 <dl class="stats">
-  <div><dt>Tests</dt><dd>1242<small>across 15 packages</small></dd></div>
+  <div><dt>Tests</dt><dd>1805<small>across 16 packages</small></dd></div>
   <div><dt>Need a GPU</dt><dd>~30<small>the Impeller goldens only</small></dd></div>
   <div><dt>Lighting models</dt><dd>6<small>one shader each</small></dd></div>
   <div><dt>Model load</dt><dd>1.1 µs<small>.f3d vs 4.54 ms as OBJ</small></dd></div>
@@ -60,24 +60,31 @@ flutter3d is a renderer, a game layer, and two finished games of different genre
     <h3>Platformer</h3>
     <p>A double jump with coyote time, wall slides, ice and conveyors, springs, checkpoints.</p>
   </a></li>
+  <li><a href="/racing/">
+    <span class="card-kind">Genre</span>
+    <h3>Racing</h3>
+    <p>A track as a measured curve, a tire that falls away past its peak, laps that cannot be cheated, AI drivers and ghosts.</p>
+  </a></li>
 </ul>
 
-Both games run in a browser on the WebGL2 backend. They are embedded on their demo pages, and each page lists what the browser costs.
+The shooter and the platformer run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game renders there and is not fast enough to drive; [its demo page says what was measured](/racing/demo/).
 
 ## The package split
 
-Fifteen packages. Each boundary is a rule that a test enforces.
+Sixteen packages. Each boundary is a rule that a test enforces.
 
 ```mermaid
 flowchart TB
   subgraph app["applications"]
     dungeon["apps/dungeon<br>the shooter"]
     platformer["apps/platformer<br>the platformer"]
+    racing["apps/racing<br>the racing game"]
   end
 
   subgraph genre["genres — vocabulary"]
     shooter["flutter3d_shooter<br>weapons, monsters, inventory"]
     plat["flutter3d_platformer<br>runner, springs, surfaces"]
+    race["flutter3d_racing<br>track, car, tire, lap"]
   end
 
   bridge["flutter3d_bridge<br>the only package that may see both sides"]
@@ -97,8 +104,10 @@ flowchart TB
 
   dungeon --> shooter & bridge
   platformer --> plat & bridge
+  racing --> race & bridge
   shooter --> game
   plat --> game
+  race --> game
   bridge --> f3d & game
   f3d --> gfx
   impeller --> gfx
@@ -122,8 +131,8 @@ The renderer talks to a hardware abstraction layer and never to a graphics API. 
 | Backend | Runs on | Status |
 |---|---|---|
 | `flutter3d_impeller` | `flutter_gpu`: Metal on Apple platforms, Vulkan elsewhere | Complete. Both games ship on it |
-| `flutter3d_webgl` | WebGL2, in the browser | Runs both games, slower and at a fixed internal resolution |
-| `flutter3d_cpu` | Nothing. It rasterises in Dart | Complete for the golden set. A dev dependency of both games |
+| `flutter3d_webgl` | WebGL2, in the browser | Runs the shooter and the platformer, slower and at a fixed resolution. The racing game renders and is too slow to play |
+| `flutter3d_cpu` | Nothing. It rasterises in Dart | Complete for the golden set. A dev dependency of every game |
 
 An application names one of them in its pubspec and hands the device to `Renderer.create`. Moving between them is that line and one constructor call.
 
@@ -142,6 +151,7 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 | Scene | Version-stamped nodes, a BVH shared by culling and picking, LOD groups by screen coverage, orbit and follow cameras, CPU raycasting |
 | Simulation | A fixed step with interpolation, device-agnostic input with latched edges, a level format with a validator, mechanisms, actors and brains, a navigation grid with flow fields, an ECS, snapshots |
 | Physics | Overlap, sweeps and rays over a uniform-grid broadphase, a character controller that walks, jumps, climbs a step and rides a lift, and rigid bodies without rotation |
+| Driving | A track as a spline with width, camber and surface bands, a sphere-and-frame vehicle, a tire curve with a friction circle, lap counting through checkpoints, AI drivers and ghost tapes |
 | Extras | A pooled particle system that draws in one call, positional audio with attenuation, panning, occlusion and voice limiting |
 
 ## What it does not do

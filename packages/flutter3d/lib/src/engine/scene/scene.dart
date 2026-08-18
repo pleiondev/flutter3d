@@ -91,7 +91,16 @@ final class Scene {
   }
 
   /// World-space bounds of every visible mesh, for framing a camera.
-  Aabb3 computeBounds({bool visibleOnly = true}) {
+  ///
+  /// [castersOnly] narrows it to meshes that actually cast a shadow, which is
+  /// what the shadow pass wants and what "the size of the scene" means to it.
+  /// The two are not the same question and used to be answered by the same
+  /// call: a mesh marked `castsShadow = false` is invisible to the shadow pass
+  /// but was still enlarging the volume that pass is fitted to. One sky dome
+  /// round the camera — a kilometre of nothing that casts nothing — would
+  /// coarsen every distant shadow in the level, because the last cascade covers
+  /// the whole scene and its texel size is that radius over the resolution.
+  Aabb3 computeBounds({bool visibleOnly = true, bool castersOnly = false}) {
     var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
     var maxX = -double.infinity,
         maxY = -double.infinity,
@@ -101,6 +110,7 @@ final class Scene {
     for (var i = 0; i < _meshes.length; i++) {
       final node = _meshes[i];
       if (visibleOnly && !node.visibleInHierarchy) continue;
+      if (castersOnly && !node.castsShadow) continue;
       final bounds = node.worldBounds;
       any = true;
       if (bounds.min.x < minX) minX = bounds.min.x;

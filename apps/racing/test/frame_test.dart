@@ -53,9 +53,10 @@ final class _Shown {
     this.race,
     this.chase,
     this.camera,
+    this.sky,
   );
 
-  static Future<_Shown> build({int cars = 2}) async {
+  static Future<_Shown> build({int cars = 2, SkyPreset? sky}) async {
     final device = CpuDevice(
       width: _width,
       height: _height,
@@ -80,6 +81,7 @@ final class _Shown {
           as Map<String, Object?>,
     );
     final track = document.track;
+    final hour = sky ?? document.sky;
 
     final world = CollisionWorld();
     document.level?.addTo(world);
@@ -91,13 +93,19 @@ final class _Shown {
     // A sun, or every surface is the colour of nothing. Aimed rather than
     // given a vector: a light points along its node's local -Z, the same
     // forward axis a camera uses.
+    //
+    // Taken from the sky preset rather than typed out here, which is the point
+    // of the preset: this file used to carry its own copy of the sun's
+    // direction, and a copy in a test is the copy nobody updates — the picture
+    // being asserted was lit from somewhere the game was not.
     scene.add(
       LightNode(
-        color: Vector3(1.0, 0.97, 0.9),
-        intensity: 3.0,
+        color: hour.sunColor,
+        intensity: hour.sunIntensity,
         name: 'sun',
-      )..lookAt(Vector3(-0.4, -0.8, 0.45)),
+      )..lookAt(hour.sunDirection),
     );
+    scene.ambientIntensity = hour.ambientIntensity;
 
     final field = TrackField(track: track, world: world);
     final race = RaceState(
@@ -152,6 +160,7 @@ final class _Shown {
       race,
       ChaseCamera(world: world, track: track),
       camera,
+      hour,
     );
   }
 
@@ -166,6 +175,35 @@ final class _Shown {
   final RaceState race;
   final ChaseCamera chase;
   final CameraNode camera;
+  final SkyPreset sky;
+
+  /// The preset as the renderer's own sky, exactly as `main.dart` builds it.
+  SkySettings get skySettings => SkySettings(
+        enabled: true,
+        zenith: sky.zenith,
+        horizon: sky.horizon,
+        nadir: sky.belowHorizon,
+        directionToSun: sky.directionToSun,
+        sunColor: sky.sunColor,
+        glowExponent: sky.glowWide,
+        glowStrength: sky.glowStrength,
+        sunIntensity: sky.sunDisc,
+      );
+
+  /// Which way the camera is looking, kept because the sky and the haze both
+  /// depend on it — exactly as `main.dart` keeps it.
+  final Vector3 gaze = Vector3(0.0, 0.0, 1.0);
+
+  /// Points the camera by hand, for the tests that are about the air rather
+  /// than about the driving.
+  void aim({required Vector3 from, required Vector3 towards}) {
+    camera
+      ..setPositionFrom(from)
+      ..lookAt(towards);
+    gaze
+      ..setFrom(towards)
+      ..sub(from);
+  }
 
   /// Drives everyone forwards for [seconds], the way the application does.
   void run(double seconds, {double throttle = 0.8}) {
@@ -206,30 +244,44 @@ final class _Shown {
     camera
       ..setPositionFrom(chase.eye)
       ..lookAt(chase.target);
+    gaze
+      ..setFrom(chase.target)
+      ..sub(chase.eye);
   }
 
-  Future<Uint8List> draw({String? hiding}) async {
+  /// [hazeAlong] overrides the direction the haze is worked out for, leaving
+  /// the camera where it is — the one way to see what the fog colour alone is
+  /// doing, since moving the camera changes the sky, the geometry and the
+  /// lighting all at once.
+  Future<Uint8List> draw({String? hiding, Vector3? hazeAlong}) async {
     if (hiding != null) {
       for (final MeshNode piece in scene.meshes) {
         if (piece.name == hiding) piece.visible = false;
       }
     }
+    // The sky and the haze the application draws with, worked out the same way:
+    // from the preset, along the direction the camera is looking. Without any
+    // fog at all the background is black, and so is a tarmac road under a low
+    // sun — the first draft of this file counted eighty percent of the frame as
+    // road and was counting the empty sky.
+    final background = sky.colourAt(gaze);
     final result = renderer.render(
       width: _width,
       height: _height,
       scene: scene,
       views: <RenderView>[
-        RenderView(camera: camera, clearColor: Vector4(0.62, 0.71, 0.82, 1.0)),
-      ],
-      // The same fog the application draws with. Without it the background is
-      // black, and so is a tarmac road under a low sun — the first draft of
-      // this file counted eighty percent of the frame as road and was counting
-      // the empty sky.
-      settings: RenderSettings(
-        fog: FogSettings(
-          color: Vector3(0.62, 0.71, 0.82),
-          density: 0.0016,
+        RenderView(
+          camera: camera,
+          clearColor: Vector4(background.x, background.y, background.z, 1.0),
         ),
+      ],
+      settings: RenderSettings(
+        sky: skySettings,
+        fog: FogSettings(
+          color: sky.inScatterAlong(hazeAlong ?? gaze),
+          density: sky.fogDensity,
+        ),
+        exposure: sky.exposure,
       ),
     );
     final pixels = await device.readPixels(result.frame);
@@ -363,4 +415,183 @@ void main() {
     expect(toCar.length, lessThan(14.0));
     expect(toCar.normalized().dot(look.normalized()), greaterThan(0.7));
   });
+
+  group('the sky', () {
+    test('the hour changes the picture', () async {
+      // Two presets, one pose, one circuit. Everything the sky decides — the
+      // background, the haze, the sun's colour and angle, the exposure — is in
+      // this difference, and none of it is in the geometry.
+      //
+      // A difference rather than an absolute, because an absolute would be a
+      // golden by another name and would fail the next time anybody moves a
+      // control point.
+      final golden = await _Shown.build(sky: SkyPresets.golden);
+      golden.run(3.0);
+      final atGolden = await golden.draw();
+
+      final noon = await _Shown.build(sky: SkyPresets.noon);
+      noon.run(3.0);
+      final atNoon = await noon.draw();
+
+      // Measured as colour rather than as brightness. Both skies are bright —
+      // the tone curve sees to that, and the first draft of this assertion
+      // found only ten levels between them and was really measuring the
+      // exposure. What separates an evening from a midday is not how much light
+      // there is but what colour it is, and that difference is enormous.
+      expect(_skyWarmth(atGolden) - _skyWarmth(atNoon), greaterThan(40.0),
+          reason: 'a low evening sun is warm and a high one is blue');
+    });
+
+    test('turning into the sun is a different place from turning away',
+        () async {
+      // Two ends of one axis, from one spot. Everything the direction of the
+      // view decides is in this difference: the background, the haze, and which
+      // side of every surface the sun is on.
+      final shown = await _Shown.build(sky: SkyPresets.golden);
+      shown.run(3.0);
+
+      final toSun = shown.sky.directionToSun;
+      final flat = Vector3(toSun.x, 0.0, toSun.z).normalized();
+      final from = shown.cars[0].position + Vector3(0.0, 4.0, 0.0);
+
+      shown.aim(from: from, towards: from + flat * 100.0);
+      final into = await shown.draw();
+
+      shown.aim(from: from, towards: from - flat * 100.0);
+      final away = await shown.draw();
+
+      expect(_brightnessOf(into) - _brightnessOf(away), greaterThan(15.0));
+    });
+
+    test('the haze itself carries the direction, not just the background',
+        () async {
+      // The test above would pass on the strength of the background alone, and
+      // the background is the easy half. This one holds the camera still and
+      // changes only which way the *air* is lit, so the difference can come
+      // from nowhere but `FogSettings.color` reaching the frame.
+      //
+      // Mutation: return `horizonFogColour` from `inScatterAlong` and ignore
+      // the view direction — which is what the engine's own fog does, and what
+      // makes distance the same grey whichever way a car is pointing. Nothing
+      // else in the repository notices; the frames here go identical.
+      final shown = await _Shown.build(sky: SkyPresets.golden);
+      shown.run(3.0);
+
+      final toSun = shown.sky.directionToSun;
+      final away = Vector3(-toSun.x, -toSun.y, -toSun.z);
+
+      final lit = await shown.draw(hazeAlong: toSun);
+      final unlit = await shown.draw(hazeAlong: away);
+
+      expect(_brightnessOf(lit) - _brightnessOf(unlit), greaterThan(2.0),
+          reason: 'the fog colour never reached the renderer');
+    });
+  });
+
+  group('the track file', () {
+    test('its sky block is the preset it names', () async {
+      // Mutation: change a number in `SKY_PRESETS` in `make_track.py` and not
+      // in `sky.dart`. The generated circuit and the fallback every fixture
+      // uses would then be two different afternoons, and nothing else in the
+      // repository compares them.
+      final document = jsonDecode(
+        File('assets/tracks/ring.json').readAsStringSync(),
+      ) as Map<String, Object?>;
+      final block = document['sky'];
+      expect(block, isA<Map<String, Object?>>(),
+          reason: 'run tool/make_track.py');
+
+      final written = SkyPreset.fromJson(block! as Map<String, Object?>);
+      final named = SkyPresets.byName(written.name);
+      expect(named, isNotNull,
+          reason: '"${written.name}" is not a preset sky.dart knows');
+
+      expect(written.fogDensity, closeTo(named!.fogDensity, 1e-9));
+      expect(written.sunElevationDeg, closeTo(named.sunElevationDeg, 1e-9));
+      expect(written.sunAzimuthDeg, closeTo(named.sunAzimuthDeg, 1e-9));
+      expect(written.exposure, closeTo(named.exposure, 1e-9));
+      expect(written.sunDisc, closeTo(named.sunDisc, 1e-9));
+      expect(written.ambientIntensity, closeTo(named.ambientIntensity, 1e-9));
+      expect((written.horizon - named.horizon).length, lessThan(1e-6));
+      expect((written.zenith - named.zenith).length, lessThan(1e-6));
+      expect((written.sunColor - named.sunColor).length, lessThan(1e-6));
+    });
+
+    test('the sun in the level is the sun in the sky', () async {
+      // The level's one directional light is derived from the preset by the
+      // generator. If it ever stops being, shadows fall one way and the glow in
+      // the sky sits the other, which is the sort of wrongness a person sees
+      // without being able to name.
+      final document = jsonDecode(
+        File('assets/tracks/ring.json').readAsStringSync(),
+      ) as Map<String, Object?>;
+      final level = document['level']! as Map<String, Object?>;
+      final light = (level['lights']! as List<Object?>).first!
+          as Map<String, Object?>;
+      final written = (light['direction']! as List<Object?>)
+          .map((Object? v) => (v! as num).toDouble())
+          .toList();
+
+      final sky = SkyPreset.fromJson(document['sky']! as Map<String, Object?>);
+      final expected = sky.sunDirection;
+      expect(Vector3(written[0], written[1], written[2]).normalized()
+          .dot(expected.normalized()), closeTo(1.0, 1e-3));
+    });
+
+    test('the ground reaches past where the haze hides its edge', () async {
+      // The ground is a square and past its edge there is nothing at all. What
+      // stops that showing is the haze, so the two are one decision: the
+      // generator sizes the ground from the density, and this is the assertion
+      // that it actually did.
+      //
+      // Mutation: put the reach back to a literal. A preset with clearer air
+      // would then end in a visible line halfway to the horizon, and every
+      // other test in this file would pass.
+      final document = jsonDecode(
+        File('assets/tracks/ring.json').readAsStringSync(),
+      ) as Map<String, Object?>;
+      final level = document['level']! as Map<String, Object?>;
+      final brushes = level['brushes']! as List<Object?>;
+      final ground = brushes.first! as Map<String, Object?>;
+      final size = (ground['size']! as List<Object?>)
+          .map((Object? v) => (v! as num).toDouble())
+          .toList();
+
+      final sky = SkyPreset.fromJson(document['sky']! as Map<String, Object?>);
+      final reach = size[0] / 2;
+      expect(math.exp(-sky.fogDensity * reach), lessThan(0.15),
+          reason: 'the edge of the ground is still visible through the air');
+    });
+  });
+}
+
+/// Mean luminance of the whole frame, 0 to 255.
+double _brightnessOf(Uint8List rgba, {int fromRow = 0, int toRow = _height}) {
+  var total = 0.0;
+  var count = 0;
+  for (var y = fromRow; y < toRow; y++) {
+    for (var x = 0; x < _width; x++) {
+      final i = (y * _width + x) * 4;
+      total += 0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2];
+      count++;
+    }
+  }
+  return total / count;
+}
+
+/// How warm the top eighth of the frame is: mean red minus mean blue.
+///
+/// The top eighth behind a chase camera is sky and haze and nothing else, and
+/// red-minus-blue is what "what time is it" looks like in bytes.
+double _skyWarmth(Uint8List rgba) {
+  var total = 0.0;
+  var count = 0;
+  for (var y = 0; y < _height ~/ 8; y++) {
+    for (var x = 0; x < _width; x++) {
+      final i = (y * _width + x) * 4;
+      total += rgba[i] - rgba[i + 2];
+      count++;
+    }
+  }
+  return total / count;
 }

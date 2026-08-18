@@ -107,6 +107,44 @@ final class CpuDevice implements GraphicsDevice {
   bool get supportsMipmaps => true;
 
   @override
+  // Nothing to probe: a cube here is six arrays of floats and a table saying
+  // which of them a direction lands on.
+  bool get supportsCubeTextures => true;
+
+  @override
+  TextureHandle? createCubeTextureFromPixels({
+    required int size,
+    required TextureFormat format,
+    required List<ByteData> faces,
+  }) {
+    if (faces.length != 6) return null;
+    final expected = size * size * 4;
+
+    final built = <CpuTexture>[];
+    for (final face in faces) {
+      if (face.lengthInBytes < expected) return null;
+      final texture = CpuTexture(size, size, format);
+      final bytes = face.buffer.asUint8List(face.offsetInBytes, expected);
+      for (var i = 0; i < expected; i++) {
+        texture.pixels[i] = bytes[i] / 255.0;
+      }
+      built.add(texture);
+    }
+
+    // The handle's own texture is face zero, so anything that samples this as
+    // an ordinary 2D texture gets +X rather than nothing. The six live beside
+    // it, and `BoundTexture.sampleCube` is what reaches them.
+    final cube = built[0]..faces = built;
+    return TextureHandle(
+      backend: cube,
+      width: size,
+      height: size,
+      format: format,
+      type: TextureType.textureCube,
+    );
+  }
+
+  @override
   TextureHandle createTexture(RenderTargetSpec spec) => TextureHandle(
         backend: CpuTexture(spec.width, spec.height, spec.format),
         width: spec.width,

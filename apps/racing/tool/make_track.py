@@ -152,8 +152,12 @@ def ground(points):
     road rises and falls, and a ground plane at zero would be *above* it wherever
     it dips — burying the track in the scenery, which looks like the road
     disappearing into a hillside and drives like a wall.
+
+    How far it reaches is not a taste: it is the haze. The ground is a square and
+    past its edge there is nothing, so the edge has to fall somewhere the air has
+    already swallowed — see `ground_reach`.
     """
-    reach = BASE_RADIUS + LOBE_TWO + 90.0
+    reach = ground_reach()
     floor = min(y for _, y, _ in points) - 1.5
     thickness = 4.0
     brushes = [
@@ -170,7 +174,7 @@ def ground(points):
     # reach is scenery a car will hit.
     for i in range(24):
         angle = 2 * math.pi * i / 24
-        radius = BASE_RADIUS + LOBE_TWO + 55.0
+        radius = PILLAR_RADIUS
         brushes.append(
             {
                 "at": rounded(
@@ -193,15 +197,215 @@ MATERIALS = {
     "stone": {"baseColor": [0.45, 0.44, 0.42, 1.0], "roughness": 0.9},
 }
 
-LIGHTS = [
-    {
-        "type": "directional",
-        "direction": [-0.4, -0.8, 0.45],
-        "color": [1.0, 0.97, 0.9],
-        "intensity": 3.0,
-        "castsShadow": True,
-    }
-]
+# --- The sky ----------------------------------------------------------------
+#
+# One preset decides the sun, the gradient, the haze and the exposure, and
+# everything else about the light is *derived* from it here. That is the whole
+# point of this section, and it is a repair: the atmosphere used to be written
+# in four places that could not agree — a sky colour in `main.dart`, a fog
+# density beside it, a `fogColor`/`fogDensity` in this file that nothing ever
+# read, and a sun direction typed out here and again in `frame_test.dart`.
+# Changing the hour meant changing four numbers, and getting one wrong meant a
+# circuit lit from the east and hazed from the west.
+#
+# These five are the same five as `SkyPresets` in
+# `packages/flutter3d_racing/lib/src/sky.dart`, and `frame_test.dart` compares
+# the block written below against the Dart constant of the same name — so the
+# copy cannot drift without a test saying so. The Dart side exists because a
+# track file with no `"sky"` block still has to have weather.
+SKY_PRESETS = {
+    "dawn": {
+        "name": "dawn",
+        "sunElevationDeg": 4.0,
+        "sunAzimuthDeg": 95.0,
+        "sunColor": [1.0, 0.62, 0.38],
+        "sunIntensity": 2.1,
+        "zenith": [0.16, 0.24, 0.42],
+        "horizon": [0.72, 0.52, 0.44],
+        "belowHorizon": [0.16, 0.15, 0.17],
+        "glowWide": 5.0,
+        "glowStrength": 0.55,
+        "fogDensity": 0.006,
+        "fogBacklitExponent": 5.0,
+        "fogBacklitStrength": 0.45,
+        "ambientIntensity": 0.08,
+        "exposure": 1.85,
+        "sunDisc": 26.0,
+    },
+    "morning": {
+        "name": "morning",
+        "sunElevationDeg": 34.0,
+        "sunAzimuthDeg": 112.0,
+        "sunColor": [1.0, 0.95, 0.86],
+        "sunIntensity": 3.1,
+        "zenith": [0.26, 0.42, 0.72],
+        "horizon": [0.66, 0.75, 0.85],
+        "belowHorizon": [0.2, 0.21, 0.22],
+        "glowWide": 6.0,
+        "glowStrength": 0.3,
+        "fogDensity": 0.0042,
+        "fogBacklitExponent": 6.0,
+        "fogBacklitStrength": 0.35,
+        "ambientIntensity": 0.1,
+        "exposure": 1.6,
+        "sunDisc": 14.0,
+    },
+    "noon": {
+        "name": "noon",
+        "sunElevationDeg": 78.0,
+        "sunAzimuthDeg": 150.0,
+        "sunColor": [1.0, 0.99, 0.96],
+        "sunIntensity": 3.6,
+        "zenith": [0.2, 0.38, 0.76],
+        "horizon": [0.62, 0.72, 0.86],
+        "belowHorizon": [0.22, 0.23, 0.24],
+        "glowWide": 8.0,
+        "glowStrength": 0.18,
+        "fogDensity": 0.003,
+        "fogBacklitExponent": 8.0,
+        "fogBacklitStrength": 0.22,
+        "ambientIntensity": 0.12,
+        "exposure": 1.45,
+        "sunDisc": 9.0,
+    },
+    "golden": {
+        "name": "golden",
+        "sunElevationDeg": 11.0,
+        "sunAzimuthDeg": 285.0,
+        "sunColor": [1.0, 0.78, 0.52],
+        "sunIntensity": 2.6,
+        "zenith": [0.22, 0.34, 0.6],
+        "horizon": [0.86, 0.62, 0.4],
+        "belowHorizon": [0.2, 0.17, 0.15],
+        "glowWide": 4.5,
+        "glowStrength": 0.7,
+        "fogDensity": 0.005,
+        "fogBacklitExponent": 4.5,
+        "fogBacklitStrength": 0.6,
+        "ambientIntensity": 0.09,
+        "exposure": 1.75,
+        "sunDisc": 34.0,
+    },
+    "dusk": {
+        "name": "dusk",
+        "sunElevationDeg": -2.0,
+        "sunAzimuthDeg": 292.0,
+        "sunColor": [0.72, 0.6, 0.66],
+        "sunIntensity": 1.2,
+        "zenith": [0.1, 0.14, 0.3],
+        "horizon": [0.44, 0.38, 0.48],
+        "belowHorizon": [0.09, 0.09, 0.12],
+        "glowWide": 4.0,
+        "glowStrength": 0.4,
+        "fogDensity": 0.0075,
+        "fogBacklitExponent": 4.0,
+        "fogBacklitStrength": 0.3,
+        "ambientIntensity": 0.14,
+        "exposure": 2.05,
+        "sunDisc": 0.0,
+    },
+}
+
+# Which hour this circuit is raced at. The one line to change.
+PRESET = "morning"
+
+# How much of the far edge of the ground may still show through the haze.
+#
+# `exp(-density * reach)` is exactly how much of it survives, so this number and
+# the preset's density between them decide how big the ground has to be. A tenth
+# is below what anybody notices against a horizon of the same colour.
+GROUND_FADE = 0.12
+
+# And the ground is not free at any size: `Scene.computeBounds` takes it, the
+# last shadow cascade is fitted to the scene, and its texels grow with it. Clear
+# air would ask for a kilometre; it does not get one, and the cost of the clamp
+# is a faint seam at the horizon on the clearest presets.
+GROUND_MIN = 300.0
+GROUND_MAX = 700.0
+
+
+def sky():
+    return SKY_PRESETS[PRESET]
+
+
+def direction_to_sun(preset):
+    """A unit vector pointing up at the sun. Mirrors `SkyPreset.directionToSun`."""
+    elevation = math.radians(preset["sunElevationDeg"])
+    azimuth = math.radians(preset["sunAzimuthDeg"])
+    flat = math.cos(elevation)
+    return (
+        flat * math.sin(azimuth),
+        math.sin(elevation),
+        flat * math.cos(azimuth),
+    )
+
+
+def sky_colour_at(preset, direction):
+    """The sky in `direction`. Mirrors `SkyPreset.colourAt`."""
+    length = math.dist((0.0, 0.0, 0.0), direction)
+    if length <= 0.0:
+        return list(preset["horizon"])
+    y = max(-1.0, min(1.0, direction[1] / length))
+
+    horizon = preset["horizon"]
+    other = preset["zenith"] if y >= 0.0 else preset["belowHorizon"]
+    t = abs(y)
+    t = t * t * (3.0 - 2.0 * t)
+    base = [horizon[i] + (other[i] - horizon[i]) * t for i in range(3)]
+
+    to_sun = direction_to_sun(preset)
+    towards = sum(direction[i] * to_sun[i] for i in range(3)) / length
+    if towards <= 0.0:
+        return base
+    lobe = preset["glowStrength"] * towards ** preset["glowWide"]
+    return [base[i] + preset["sunColor"][i] * lobe for i in range(3)]
+
+
+def horizon_fog_colour(preset):
+    """What distance settles to: the sky at the horizon, across the sun.
+
+    **Deliberately not a field anybody sets.** The reason the far side of the
+    circuit does not end in a visible band is that the haze and the sky are the
+    same arithmetic, and the only way to keep that true is to make it impossible
+    to author them apart. Mirrors `SkyPreset.horizonFogColour`.
+    """
+    to_sun = direction_to_sun(preset)
+    across = (to_sun[2], 0.0, -to_sun[0])
+    length = math.dist((0.0, 0.0, 0.0), across)
+    if length < 1e-5:
+        across = (1.0, 0.0, 0.0)
+        length = 1.0
+    unit = tuple(component / length for component in across)
+    return sky_colour_at(preset, unit)
+
+
+def ground_reach():
+    """Half the width of the ground, in metres, sized by the haze."""
+    preset = sky()
+    reach = math.log(1.0 / GROUND_FADE) / preset["fogDensity"]
+    return round(max(GROUND_MIN, min(GROUND_MAX, reach)), 1)
+
+
+# Scenery a car can reach is scenery a car will hit, so the pillars stand well
+# outside the widest part of the circuit — and inside the ground, or they would
+# be posts driven into nothing.
+PILLAR_RADIUS = min(BASE_RADIUS + LOBE_TWO + 55.0, ground_reach() - 30.0)
+
+
+def lights():
+    """The one sun, derived from the preset rather than typed out beside it."""
+    preset = sky()
+    to_sun = direction_to_sun(preset)
+    return [
+        {
+            "type": "directional",
+            # Where the light goes, which is away from where the sun is.
+            "direction": rounded([-to_sun[0], -to_sun[1], -to_sun[2]]),
+            "color": list(preset["sunColor"]),
+            "intensity": preset["sunIntensity"],
+            "castsShadow": True,
+        }
+    ]
 
 
 def main():
@@ -245,15 +449,21 @@ def main():
             ],
             "grid": {"s": -14.0, "columns": 2, "rowGap": 7.0, "columnGap": 4.0},
         },
+        "sky": sky(),
         "level": {
             "version": 1,
             "name": "ring",
             "generatedBy": "tool/make_track.py",
-            "fogColor": [0.62, 0.71, 0.82],
-            "fogDensity": 0.0016,
+            # Both derived from the sky above, and neither read back by the
+            # application: it asks the preset, which knows which way the camera
+            # is pointing and can therefore answer something a file cannot.
+            # Written anyway so that anything else loading this level alone —
+            # an editor, a thumbnail, a test — gets air of the right colour.
+            "fogColor": rounded(horizon_fog_colour(sky())),
+            "fogDensity": sky()["fogDensity"],
             "materials": MATERIALS,
             "brushes": ground(points),
-            "lights": LIGHTS,
+            "lights": lights(),
             "entities": [],
         },
     }

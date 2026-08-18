@@ -81,6 +81,13 @@ final class CpuTexture {
   /// wrong, and that one is invisible when it is.
   List<CpuTexture>? levels;
 
+  /// The six faces of a cube, in the order the graphics interface documents:
+  /// **+X, −X, +Y, −Y, +Z, −Z**. Null for every ordinary texture.
+  ///
+  /// Held as whole textures for the same reason [levels] is: sampling a face is
+  /// then the same code as sampling anything else.
+  List<CpuTexture>? faces;
+
   Float32List depthBuffer() =>
       depth ??= Float32List(width * height)..fillRange(0, width * height, 1.0);
 
@@ -112,6 +119,82 @@ final class BoundTexture {
   int get width => texture.width;
   int get height => texture.height;
   Float32List get pixels => texture.pixels;
+
+  /// Samples a cube in [direction], which need not be normalised.
+  ///
+  /// The face is the one the largest component points at, and the two
+  /// coordinates on it are the other two divided by that component's magnitude.
+  /// The table of which axis goes where, and with which sign, is **the GL
+  /// specification's** and is written out rather than derived: one wrong sign
+  /// mirrors a face, and a mirrored face is a sky that is complete, seamless
+  /// and wrong. `flutter3d_conformance` draws six known directions against six
+  /// known colours precisely because nothing in a picture says which.
+  ///
+  /// Edges are clamped rather than filtered across the seam. Metal and WebGL2
+  /// both filter across it, so at a face boundary this backend blends two
+  /// copies of the edge texel where they reach into the neighbour. On a smooth
+  /// sky the difference is far below the cross-backend tolerance; on a detailed
+  /// one it would not be, and the fix — rebuilding the direction for each of
+  /// the four half-texel offsets — costs four times a tap and is not worth
+  /// building before something measures it.
+  Vector4 sampleCube(double x, double y, double z) {
+    final cube = texture.faces;
+    if (cube == null || cube.length != 6) {
+      // A 2D texture asked for a direction: sample it as though the direction
+      // were a coordinate rather than returning nothing, so a misconfigured
+      // bind is visible as a wrong picture rather than as a black one.
+      return sample(x, y);
+    }
+
+    final ax = x.abs();
+    final ay = y.abs();
+    final az = z.abs();
+
+    final int face;
+    final double sc;
+    final double tc;
+    final double ma;
+    if (ax >= ay && ax >= az) {
+      ma = ax;
+      if (x > 0.0) {
+        face = 0; // +X
+        sc = -z;
+        tc = -y;
+      } else {
+        face = 1; // -X
+        sc = z;
+        tc = -y;
+      }
+    } else if (ay >= az) {
+      ma = ay;
+      if (y > 0.0) {
+        face = 2; // +Y
+        sc = x;
+        tc = z;
+      } else {
+        face = 3; // -Y
+        sc = x;
+        tc = -z;
+      }
+    } else {
+      ma = az;
+      if (z > 0.0) {
+        face = 4; // +Z
+        sc = x;
+        tc = -y;
+      } else {
+        face = 5; // -Z
+        sc = -x;
+        tc = -y;
+      }
+    }
+
+    if (ma <= 0.0) return Vector4.zero();
+    final u = (sc / ma + 1.0) * 0.5;
+    final v = (tc / ma + 1.0) * 0.5;
+    return BoundTexture(cube[face], SamplerOptions.linearClamp)
+        ._sampleLevel(cube[face], u, v);
+  }
 
   /// One texel address, wrapped or clamped as the sampler says.
   int _address(int i, int size, SamplerAddressMode mode) => switch (mode) {

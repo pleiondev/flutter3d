@@ -23,14 +23,14 @@ final class TextureSampling {
   final bool magLinear;
   final bool minLinear;
 
-  /// Assets almost always request mipmapped minification. Recorded and, so far,
-  /// ignored by the renderer — the visible cost is aliasing on minified
-  /// surfaces.
+  /// Assets almost always request mipmapped minification, and this is now
+  /// acted on: `uploadEncodedImage` builds a chain when this is set, and
+  /// `samplerOptionsFor` sets the mip filter from the same field so the chain
+  /// is blended rather than merely allocated.
   ///
-  /// Not a fact about rendering: one backend exposes no mip levels, another has
-  /// them. The engine builds none either way today, so the field is carried
-  /// rather than acted on, and honouring it would start with asking the device
-  /// rather than assuming this.
+  /// Still not a fact about rendering on its own — a device is asked whether it
+  /// samples a hand-built chain at all, because one that does not returns black
+  /// rather than unfiltered. See `buildsMipChain`.
   final bool useMipmaps;
 
   final TextureWrap wrapS;

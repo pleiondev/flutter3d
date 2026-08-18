@@ -145,6 +145,13 @@ final class _RecordingServices implements RenderServices {
     shadows.add(SceneShadows.from(frame, casterIndex: casterIndex));
     viewProjections.add(viewProjection);
   }
+
+  /// Recorded rather than ignored: a contributor that started drawing
+  /// full-screen would be doing something this test could otherwise not see.
+  final List<FullscreenDraw> fullscreens = <FullscreenDraw>[];
+
+  @override
+  void drawFullscreen(FullscreenDraw draw) => fullscreens.add(draw);
 }
 
 /// A mesh already on the device, as far as the contributor can tell.

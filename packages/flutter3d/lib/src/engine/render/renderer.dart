@@ -24,6 +24,7 @@ import 'render_list.dart';
 import 'render_node.dart';
 import 'render_view.dart';
 import 'shadow_slots.dart';
+import 'sky_settings.dart';
 
 /// Uniform-block names as seen by shader reflection.
 ///
@@ -32,6 +33,7 @@ import 'shadow_slots.dart';
 /// the variable name instead is not an error at bind time — it just reflects as
 /// a missing block, which surfaces much later as "no uniform block named ...".
 const String _kReflectionInfoBlock = 'ReflectionInfo';
+const String _kSsaoInfoBlock = 'SsaoInfo';
 const String _kFrameInfoBlock = 'FrameInfo';
 const String _kFragInfoBlock = 'FragInfo';
 const String _kFogInfoBlock = 'FogInfo';
@@ -50,6 +52,7 @@ const String _kShadowTextureSlot = 'shadow_texture';
 const String _kPostSourceSlot = 'source_texture';
 const String _kSceneTextureSlot = 'scene_texture';
 const String _kBloomTextureSlot = 'bloom_texture';
+const String _kAoTextureSlot = 'ao_texture';
 
 /// Scene-wide shading knobs that are not per-material.
 /// Screen-space reflections.
@@ -91,6 +94,54 @@ final class ReflectionSettings {
   /// floor turned out to be the point light, and the reflection was
   /// contributing nothing at all.
   final bool debugOnly;
+}
+
+/// Screen-space ambient occlusion.
+///
+/// What it darkens is the ambient term, and that is why it arrived *after* the
+/// hemispheric ambient rather than before: with one grey scalar at 0.06, a
+/// correctly applied occlusion took six per cent off the corners of the frame
+/// and was invisible. The temptation then is to apply it to everything, which
+/// is no longer occlusion but dirt in the corners, and it reads as a mistake
+/// under direct light.
+///
+/// **Off by default, and switching it on changes more than the corners.**
+/// Reading the surface buffer turns MSAA off for the whole scene pass — the
+/// average of two octahedral normals encodes no normal — so the antialiasing of
+/// the entire frame changes with it. That is measured and written down here
+/// rather than discovered by a reviewer who blames the occlusion for the edges.
+final class AmbientOcclusionSettings {
+  const AmbientOcclusionSettings({
+    this.enabled = false,
+    this.radius = 0.5,
+    this.samples = 12,
+    this.strength = 0.8,
+    this.bias = 0.02,
+  });
+
+  final bool enabled;
+
+  /// How far, in world metres, a surface looks for things blocking its sky.
+  ///
+  /// The one setting that has to suit the scene rather than the renderer: half
+  /// a metre is a room, and on a level built in centimetres it is the whole
+  /// level.
+  final double radius;
+
+  /// Taps per pixel. The shader's loop is bounded at twelve whatever this
+  /// says, for the reason `ReflectionSettings.steps` is bounded — a loop a
+  /// uniform can lengthen without limit is a hang.
+  final int samples;
+
+  /// How dark a fully enclosed corner goes, where 1 is black.
+  final double strength;
+
+  /// How far, in metres, the sample origin is lifted off its own surface.
+  ///
+  /// In metres rather than in window depth on purpose: a bias in depth units is
+  /// a different physical distance at every range, so one tuned against a near
+  /// wall leaves acne on a far one.
+  final double bias;
 }
 
 /// Distance fog.
@@ -138,7 +189,9 @@ final class RenderSettings {
     this.showShadowMap = false,
     this.showPointShadowDebug = false,
     this.reflections = const ReflectionSettings(),
+    this.ambientOcclusion = const AmbientOcclusionSettings(),
     this.fog = const FogSettings(),
+    this.sky = const SkySettings(),
   });
 
   final double specular;
@@ -194,7 +247,16 @@ final class RenderSettings {
 
   final ReflectionSettings reflections;
 
+  /// Darkens the ambient term where a surface cannot see the sky.
+  final AmbientOcclusionSettings ambientOcclusion;
+
   final FogSettings fog;
+
+  /// What is behind everything, when there is anything.
+  ///
+  /// Off by default: a sky changes every pixel a frame did not otherwise draw,
+  /// and sixty golden images are recorded against there being none.
+  final SkySettings sky;
 
   /// Composites the shadow map instead of the scene.
   ///
@@ -277,7 +339,9 @@ final class RenderSettings {
     bool? showShadowMap,
     bool? showPointShadowDebug,
     ReflectionSettings? reflections,
+    AmbientOcclusionSettings? ambientOcclusion,
     FogSettings? fog,
+    SkySettings? sky,
   }) =>
       RenderSettings(
         specular: specular ?? this.specular,
@@ -295,7 +359,9 @@ final class RenderSettings {
         showPointShadowDebug:
             showPointShadowDebug ?? this.showPointShadowDebug,
         reflections: reflections ?? this.reflections,
+        ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
         fog: fog ?? this.fog,
+        sky: sky ?? this.sky,
       );
 }
 
@@ -327,12 +393,12 @@ enum ShadowCasterFaces {
 final class ShadowSettings {
   const ShadowSettings({
     this.enabled = true,
-    this.resolution = 2048,
+    this.resolution = 1024,
     this.bias = 0.0015,
     this.normalOffset = 0.02,
     this.strength = 1.0,
     this.depthPadding = 1.2,
-    this.cascades = 1,
+    this.cascades = 3,
     this.cascadeSplit = 0.7,
     this.viewDistance = 60.0,
     this.pointBias = 0.08,
@@ -345,11 +411,25 @@ final class ShadowSettings {
 
   /// How many cascades the directional map is split into, one to three.
   ///
-  /// **One by default, and that is not timidity.** One cascade is the exact
-  /// behaviour this renderer has always had — the same single square map, the
-  /// same matrix, the same texel — so every golden image and every parity
-  /// number in the repository still holds, and a scene that never asked for
-  /// cascades pays nothing for their existence.
+  /// **Three by default, at a thousand-pixel tile.** It was one for a while,
+  /// and the argument then was compatibility: one cascade is the exact
+  /// behaviour this renderer started with, so every recorded golden held. That
+  /// argument expired the moment the goldens were re-recorded deliberately —
+  /// and it had been paying for itself with a default nobody chose, since both
+  /// shipped applications set cascades themselves.
+  ///
+  /// The pairing with [resolution] is the whole decision, because the atlas is
+  /// `resolution × cascades` wide and eight bytes a pixel:
+  ///
+  /// | setting | atlas | memory |
+  /// |---|---|---|
+  /// | 1 × 2048 (the old default) | 2048 × 2048 | 33 MB |
+  /// | 3 × 2048 (the naive rise) | 6144 × 2048 | 100 MB |
+  /// | **3 × 1024 (this)** | 3072 × 1024 | **25 MB** |
+  ///
+  /// So the default is better *and* cheaper than what it replaced, and the
+  /// trap it avoids is the middle row: raising the count without lowering the
+  /// tile triples the bill for a picture that is only a little better.
   ///
   /// What they buy: a directional map fitted to the whole scene spends its
   /// resolution on ground the camera cannot see. On a level a hundred and
@@ -362,11 +442,10 @@ final class ShadowSettings {
   /// They are laid out side by side in one texture, so the pass count does not
   /// change and neither does the number of samplers the fragment shader binds.
   ///
-  /// **The atlas is [resolution] × [cascades] wide**, which is the one number to
-  /// keep an eye on: three cascades at the default two thousand is a
-  /// six-thousand-pixel HDR texture and a hundred megabytes. A game usually
-  /// wants a smaller tile *and* cascades rather than a large tile without them
-  /// — three tiles of a thousand cover a level far better than one of four.
+  /// A game that raises this raises its atlas with it, so raise [resolution]
+  /// only against a measurement: the platformer asks for 2048 and says in the
+  /// same breath which shadow it looked at, which is the form that argument has
+  /// to take to be worth a hundred megabytes.
   final int cascades;
 
   /// How the view distance is divided between cascades, from 0 to 1.
@@ -496,9 +575,12 @@ final class ShadowSettings {
 
   final bool enabled;
 
-  /// Edge length of the shadow map. One map, not a cascade: cascades are a
-  /// second problem, and a single map fitted to the scene is enough to show
-  /// whether the pass works at all.
+  /// Edge length of **one cascade's tile**, not of the whole atlas.
+  ///
+  /// A thousand rather than two, and that is a reduction only on paper. The
+  /// atlas is `resolution × cascades` wide, so the pairing is what matters:
+  /// three tiles of a thousand cover a level far better than one tile of two
+  /// thousand, and cost less doing it — see [cascades] for the arithmetic.
   final int resolution;
 
   /// Depth bias, in the shadow camera's normalized depth. Fights the acne that
@@ -715,6 +797,7 @@ final class Renderer implements RenderServices {
     required this.bloomUpsampleShader,
     required this.compositeShader,
     required this.reflectionShader,
+    required this.ssaoShader,
     required this.fallbackAlbedo,
     required this.fallbackNormal,
     required this.msaaEnabled,
@@ -775,6 +858,9 @@ final class Renderer implements RenderServices {
 
   /// The screen-space reflection pass.
   final ShaderHandle reflectionShader;
+
+  /// The ambient occlusion pass.
+  final ShaderHandle ssaoShader;
 
   /// 1x1 opaque white, bound when a material has no base-colour texture.
   ///
@@ -858,7 +944,6 @@ final class Renderer implements RenderServices {
   TextureHandle? _hdrColor;
   TextureHandle? _hdrMsaa;
   TextureHandle? _ldrColor;
-  PipelineHandle? _reflectionPipeline;
   final Float32List _reflectionParams = Float32List(4);
   final Float32List _reflectionScreen = Float32List(4);
   final Float32List _reflectionCameraData = Float32List(4);
@@ -889,13 +974,26 @@ final class Renderer implements RenderServices {
 
   PipelineHandle? _shadowPipeline;
   PipelineHandle? _skinnedShadowPipeline;
-  PipelineHandle? _bloomThresholdPipeline;
-  PipelineHandle? _bloomDownsamplePipeline;
   PipelineHandle? _bloomUpsamplePipeline;
   PipelineHandle? _compositePipeline;
 
   /// Positions and UVs of the one triangle every full-screen pass draws.
   GeometryBuffer? _fullscreenVertices;
+
+  /// The same triangle with positions only, for the sky. See [_skyTriangle].
+  GeometryBuffer? _skyVertices;
+
+  /// Built the first time a frame asks for a sky, and never if none does.
+  ///
+  /// Lazy, and deliberately absent from the eager list `Renderer.create`
+  /// resolves: an application whose shader bundle predates the sky would
+  /// otherwise fail to start rather than fail to draw a sky it never asked for.
+  /// That is the same argument `renderer_create_test.dart` already pins for the
+  /// particle stages.
+  PipelineHandle? _skyPipeline;
+
+  /// The textured half of the same pair, built only if a cube is ever set.
+  PipelineHandle? _skyCubePipeline;
 
   /// World space to the shadow camera's clip space, rebuilt each frame the
   /// light or the scene moves.
@@ -947,6 +1045,7 @@ final class Renderer implements RenderServices {
   /// nobody asked for.
   final Float32List _bloomParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
+  final Float32List _compositeAoTexel = Float32List(4);
 
   /// Builds a renderer on [device].
   ///
@@ -989,6 +1088,7 @@ final class Renderer implements RenderServices {
       bloomUpsampleShader: require('BloomUpsample'),
       compositeShader: require('Composite'),
       reflectionShader: require('Reflections'),
+      ssaoShader: require('Ssao'),
       fallbackAlbedo: fallbackAlbedo,
       fallbackNormal: fallbackNormal,
       msaaEnabled: device.supportsOffscreenMsaa,
@@ -1291,18 +1391,50 @@ final class Renderer implements RenderServices {
       _cubeLight[2] = position.z;
       _cubeLight[3] = range;
 
+      // A spot is a cube with five of its faces switched off: one column, aimed
+      // where the light aims, opened to the cone rather than to ninety degrees.
+      // Sharing the row rather than taking an atlas of its own is what keeps
+      // the lit shaders at the two samplers they already bind — a third would
+      // have to be declared by every one of them, and a declared sampler that
+      // nobody binds is a native crash on Metal rather than a black texture.
+      final spotTanHalf = _cubeLightAim[slot * 4 + 3];
+      final isSpot = spotTanHalf > 0.0;
+
       final projection = PerspectiveProjection(
-        fovYRadians: math.pi / 2,
+        // `atan(tan(θ)) == θ`, so this is the cone's own opening angle taken
+        // the long way round — the tangent is what the shader and the filter
+        // want, and it is stored once rather than derived in three places.
+        fovYRadians: isSpot ? 2.0 * math.atan(spotTanHalf) : math.pi / 2,
         near: 0.05,
         far: range,
       ).toMatrix(1.0);
 
-      for (var face = 0; face < _cubeFaces.length; face++) {
+      final faceCount = isSpot ? 1 : _cubeFaces.length;
+      for (var face = 0; face < faceCount; face++) {
         // The matrix is recorded for every face, drawn or not: the shading
         // projects through it whatever this frame chose to redraw, and a face
         // left out of the schedule still holds a picture that has to be read
         // with the matrix that made it.
-        final (faceAim, faceUp) = _cubeFaces[face];
+        final vm.Vector3 faceAim;
+        final vm.Vector3 faceUp;
+        if (isSpot) {
+          faceAim = _spotAim
+            ..setValues(
+              _cubeLightAim[slot * 4],
+              _cubeLightAim[slot * 4 + 1],
+              _cubeLightAim[slot * 4 + 2],
+            );
+          // Chosen against the aim rather than fixed at +Y, because `_lookAt`
+          // of a straight-down spot with a +Y up vector is a cross product of
+          // two parallel vectors — a zero-length basis, and a matrix of NaN.
+          // A downlight is the single most ordinary spot there is, so the
+          // degenerate case here is the common one, not the exotic one.
+          faceUp = faceAim.y.abs() > 0.99
+              ? (_spotUp..setValues(0.0, 0.0, 1.0))
+              : (_spotUp..setValues(0.0, 1.0, 0.0));
+        } else {
+          (faceAim, faceUp) = _cubeFaces[face];
+        }
         final faceView = _lookAt(position, position + faceAim, faceUp);
         _cubeMatrix
           ..setFrom(projection)
@@ -1458,6 +1590,68 @@ final class Renderer implements RenderServices {
   static const int kShadowedLights = 4;
 
   final Float32List _cubeFaceMatrices = Float32List(16 * 6 * kShadowedLights);
+
+  /// What a surface facing up, and one facing down, receive from the
+  /// environment. Recomputed once a frame — see [_updateAmbient].
+  final Float32List _ambientSky = Float32List(4);
+  final Float32List _ambientGround = Float32List(4);
+
+  /// Resolves the two ends of the hemispheric ambient for this frame.
+  ///
+  /// White at both ends unless a sky says otherwise, and that is what keeps
+  /// this change invisible until somebody asks for it: `mix(white, white, t)`
+  /// is white for every t, so a scene with no sky shades exactly as it did when
+  /// ambient was one grey scalar.
+  ///
+  /// **Built from the gradient rather than from [SkySettings.sample].** Sample
+  /// includes the sun disc, and the disc is the one part of a sky that must not
+  /// reach ambient: a sun near the zenith would hand every upward-facing
+  /// surface the disc's intensity — which is far above white, deliberately —
+  /// and the scene would blow out for no reason a reader could see.
+  ///
+  /// Half the zenith and half the horizon, rather than either alone, because a
+  /// hemisphere seen by a flat surface is mostly the band near the horizon and
+  /// the strip overhead in roughly equal measure. It is an approximation of an
+  /// integral this engine does not compute, and it is named as one rather than
+  /// dressed up: proper irradiance is what IBL will bring, and it needs the mip
+  /// chains that only just started being built.
+  void _updateAmbient(Scene scene, RenderSettings settings) {
+    final tint = scene.ambientColor;
+    final sky = settings.sky;
+
+    var upX = 1.0, upY = 1.0, upZ = 1.0;
+    var downX = 1.0, downY = 1.0, downZ = 1.0;
+    if (sky.enabled) {
+      final zenith = sky.resolvedZenith;
+      final horizon = sky.resolvedHorizon;
+      final nadir = sky.resolvedNadir;
+      upX = (zenith.x + horizon.x) * 0.5;
+      upY = (zenith.y + horizon.y) * 0.5;
+      upZ = (zenith.z + horizon.z) * 0.5;
+      // Below the horizon a sky is haze, not ground, so this is a stand-in for
+      // a bounce nothing here computes. It is dimmer than the upper half, which
+      // is the half of the effect that reads.
+      downX = (horizon.x + nadir.x) * 0.5;
+      downY = (horizon.y + nadir.y) * 0.5;
+      downZ = (horizon.z + nadir.z) * 0.5;
+    }
+
+    _ambientSky[0] = upX * tint.x;
+    _ambientSky[1] = upY * tint.y;
+    _ambientSky[2] = upZ * tint.z;
+    _ambientGround[0] = downX * tint.x;
+    _ambientGround[1] = downY * tint.y;
+    _ambientGround[2] = downZ * tint.z;
+  }
+
+  /// Per atlas row: xyz the direction a spot aims, w the tangent of half its
+  /// frustum — or w negative when the row belongs to a point light.
+  ///
+  /// Separate from [_cubeLightData] rather than widening it, because that array
+  /// is uploaded to the shader as `lights[]` and this is not: the shading reads
+  /// a spot's tile through the matrix in `faces[]`, which already carries the
+  /// aim. This is what the *pass* needs in order to build that matrix.
+  final Float32List _cubeLightAim = Float32List(4 * kShadowedLights);
   final Float32List _cubeLightData = Float32List(4 * kShadowedLights);
 
   /// One vec4 per light the shading knows about; x is its atlas row or -1.
@@ -1477,6 +1671,38 @@ final class Renderer implements RenderServices {
       ShadowFaceScheduler(tileCount: kShadowedLights * 6);
   final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
   final vm.Vector3 _shadowEye = vm.Vector3.zero();
+  final vm.Vector3 _shadowAim = vm.Vector3.zero();
+  final vm.Vector3 _spotAim = vm.Vector3.zero();
+  final vm.Vector3 _spotUp = vm.Vector3.zero();
+
+  /// How much wider than its cone a spot's shadow frustum is drawn.
+  ///
+  /// The shader bails with "lit" for a fragment that projects outside its tile,
+  /// which is right for a cube face — a neighbouring face holds that direction
+  /// — and is the last thing wanted at the rim of a cone, where outside the
+  /// tile is simply where the light stops.
+  ///
+  /// Fitted exactly, a fragment at the very edge of the cone lands at |ndc| of
+  /// one, and the test is `> 1.0`, so in exact arithmetic it does not fire.
+  /// This is insurance against that arithmetic being float32 in one place and
+  /// float64 in another, on a ring where the cone's own falloff has nearly
+  /// closed anyway.
+  ///
+  /// **Stated honestly: no test here tells 1.06 from 1.0.** The mutation was
+  /// applied and `spot_shadow_test.dart` stayed green. It is kept because a few
+  /// per cent of angle costs a few per cent of texel density, and the failure
+  /// it guards against would be a thin bright ring that reads as a shader bug
+  /// rather than as a fitting one.
+  static const double _kSpotFrustumMargin = 1.06;
+
+  /// The signature of a tile that holds nothing and is meant to keep holding
+  /// nothing: the five columns beside a spot's own.
+  ///
+  /// A constant rather than null, because null means "no row here at all" and
+  /// leaves whatever the last owner drew. Any value would do as long as it
+  /// never collides with a real one; this one is far from anything
+  /// [_bakeKeyFor] produces from centimetres and thousandths.
+  static const int _kBlankTileSignature = 0x5B1A4E;
 
   /// Builds this frame's list of lights asking for an atlas row.
   ///
@@ -1494,7 +1720,9 @@ final class Renderer implements RenderServices {
     primary.camera.readWorldPosition(_shadowEye);
 
     for (final light in scene.lights) {
-      if (light.type != LightType.point || !light.castsShadow) continue;
+      final spot = light.type == LightType.spot;
+      if (light.type != LightType.point && !spot) continue;
+      if (!light.castsShadow) continue;
       if (!light.visibleInHierarchy || light.intensity <= 0.0) continue;
 
       light.readWorldPosition(_cubePosition);
@@ -1505,12 +1733,25 @@ final class Renderer implements RenderServices {
       // rule PlayCanvas sorts by, and the reason a torch at the far end of a
       // corridor yields to one in this room. Clamped away from zero so a light
       // the camera is standing inside scores high rather than dividing by it.
-      final priority = range / math.max(distance, 0.05);
+      var priority = range / math.max(distance, 0.05);
 
+      // A cone lights a fraction of what a sphere of the same range does, and
+      // the two compete for the same four rows. Unscaled, a tight downlight
+      // outscores the point light filling the room, because both are measured
+      // by a range neither spends the same way. `sin` of the half-angle is the
+      // radius of the lit disc at unit distance — the same "how much of the
+      // frame does this cover" the rest of the expression asks — and it is 1
+      // for a hemisphere, which keeps a wide-open spot competing as a point.
+      if (spot) {
+        priority *= math.sin(light.outerConeAngle.clamp(0.0, math.pi / 2));
+      }
+
+      light.readDirection(_shadowAim);
       _shadowCandidates.add(ShadowCandidate(
         light: light,
         priority: priority,
-        bakeKey: _bakeKeyFor(_cubePosition, range),
+        bakeKey: _bakeKeyFor(_cubePosition, range,
+            spot ? _shadowAim : null, spot ? light.outerConeAngle : 0.0),
       ));
     }
   }
@@ -1545,11 +1786,30 @@ final class Renderer implements RenderServices {
         _cubeLightData[slot * 4 + 1],
         _cubeLightData[slot * 4 + 2],
       );
+      final spotTanHalf = _cubeLightAim[slot * 4 + 3];
+      final isSpot = spotTanHalf > 0.0;
+      _shadowAim.setValues(
+        _cubeLightAim[slot * 4],
+        _cubeLightAim[slot * 4 + 1],
+        _cubeLightAim[slot * 4 + 2],
+      );
+
       // The light's own placement is part of every one of its faces: move the
       // light and every face of that row draws something different.
-      final base = _bakeKeyFor(_cubePosition, range);
+      final base = isSpot
+          ? _bakeKeyFor(_cubePosition, range, _shadowAim, spotTanHalf)
+          : _bakeKeyFor(_cubePosition, range);
       for (var face = 0; face < faces; face++) {
-        _faceSignatures[slot * faces + face] = base;
+        // A spot uses one column, and the five beside it are not "unused" in
+        // the sense that a whole empty row is: they hold whatever the previous
+        // owner of this row drew there. Null would mean "never redraw" and the
+        // stale picture would stay — invisible in the shading, which never
+        // looks at them, and plainly visible in `showShadowMap`, which is the
+        // one view anybody debugs this subsystem through. A constant redraws
+        // them once, blank, and then leaves them alone for as long as the spot
+        // holds the row.
+        _faceSignatures[slot * faces + face] =
+            isSpot && face > 0 ? _kBlankTileSignature : base;
       }
 
       for (final node in scene.meshes) {
@@ -1566,10 +1826,13 @@ final class Renderer implements RenderServices {
         if (distance - radius > range) continue;
 
         final hash = _casterKeyFor(node);
+        // How many columns this row's shape can put a caster in, and which
+        // directions they point. One for a spot, six for a cube.
+        final drawn = isSpot ? 1 : faces;
         if (distance <= radius || distance < 1e-6) {
           // The light is inside the caster's sphere, so it may show on any
-          // face. No direction to test against.
-          for (var face = 0; face < faces; face++) {
+          // face it has. No direction to test against.
+          for (var face = 0; face < drawn; face++) {
             final at = slot * faces + face;
             _faceSignatures[at] = _mix(_faceSignatures[at]!, hash);
           }
@@ -1577,11 +1840,17 @@ final class Renderer implements RenderServices {
         }
 
         _shadowToCaster.scale(1.0 / distance);
+        // The half-angle from the axis to the corner of the tile. A ninety
+        // degree square frustum reaches atan(sqrt(2)); a cone drawn through a
+        // square tile reaches atan(tan θ · sqrt 2), which is the same formula
+        // with the cube's `tan 45° = 1` written out.
+        final cornerAngle =
+            isSpot ? math.atan(spotTanHalf * math.sqrt2) : faceHalfAngle;
         final limit =
-            faceHalfAngle + math.asin((radius / distance).clamp(0.0, 1.0));
+            cornerAngle + math.asin((radius / distance).clamp(0.0, 1.0));
         final cosLimit = limit >= math.pi ? -1.0 : math.cos(limit);
-        for (var face = 0; face < faces; face++) {
-          final (aim, _) = _cubeFaces[face];
+        for (var face = 0; face < drawn; face++) {
+          final aim = isSpot ? _shadowAim : _cubeFaces[face].$1;
           if (_shadowToCaster.dot(aim) < cosLimit) continue;
           final at = slot * faces + face;
           _faceSignatures[at] = _mix(_faceSignatures[at]!, hash);
@@ -1679,12 +1948,17 @@ final class Renderer implements RenderServices {
       ..addNode(shadow)
       ..addNode(scene);
 
-    for (final node in nodes.all) {
+    for (final node in nodes.of(FramePhase.overlay)) {
       graph.addNode(node);
     }
     if (s.reflections.enabled) {
       graph.addNode(_ReflectionsNode(this, view));
     }
+    // Before bloom, because the composite reads both and the registration order
+    // is the version chain. Registered whether or not it is switched on, for
+    // the reason bloom is: a name has to be known for a read of it to compile,
+    // and the composite reads the occlusion.
+    graph.addNode(_SsaoNode(this, view, s));
     // Then bloom, so it reads the scene as everything before it left it — the
     // registration order *is* the version chain — and the composite last, so it
     // reads the end of that chain and the glow taken from it.
@@ -1698,6 +1972,15 @@ final class Renderer implements RenderServices {
     graph
       ..addNode(bloom)
       ..addNode(composite);
+
+    // After the composite, which is the whole of what [FramePhase.present]
+    // means: registration order is the version chain, so a node here reads the
+    // version the composite wrote and produces the next one. Nothing about the
+    // node changes between the two phases — it is where it is registered that
+    // decides what it sees.
+    for (final node in nodes.of(FramePhase.present)) {
+      graph.addNode(node);
+    }
 
     return graph.compile(outputs: <ResourceId>[
       FrameResourceIds.frame,
@@ -1715,10 +1998,28 @@ final class Renderer implements RenderServices {
   /// invalidated its view of the walls and re-baking on floating-point noise
   /// would mean re-baking every frame — which is the whole cost the split
   /// exists to avoid.
-  static int _bakeKeyFor(vm.Vector3 position, double range) {
+  ///
+  /// [aim] and [coneAngle] are what a spot light adds, and leaving them out is
+  /// the trap this signature has that a point light's has not: a cube sees in
+  /// every direction, so where it *looks* is not part of what it captures — but
+  /// a spot that only turns keeps its position and its range exactly, and a key
+  /// built from those two alone never changes. The bake would then hold the
+  /// walls as they looked through the old aim, for as long as the level runs,
+  /// and nothing would report it. Null for a point light, so the key it
+  /// produces is bit-identical to the one it produced before spots existed.
+  static int _bakeKeyFor(vm.Vector3 position, double range,
+      [vm.Vector3? aim, double coneAngle = 0.0]) {
     var hash = 17;
     for (final value in <double>[position.x, position.y, position.z, range]) {
       hash = hash * 31 + (value * 100.0).round();
+    }
+    if (aim != null) {
+      // A thousandth rather than the centimetre above: this is a unit vector,
+      // so its components are fractions, and a hundredth would call a five
+      // degree turn no turn at all.
+      for (final value in <double>[aim.x, aim.y, aim.z, coneAngle]) {
+        hash = hash * 31 + (value * 1000.0).round();
+      }
     }
     return hash;
   }
@@ -1794,7 +2095,11 @@ final class Renderer implements RenderServices {
     if (!settings.enabled || settings.strength <= 0.0) return false;
     if (casterIndex < 0) return false;
 
-    final bounds = scene.computeBounds();
+    // Casters only. The last cascade is fitted to this, so anything counted
+    // here that cannot cast a shadow spends texels on nothing: a sky dome or a
+    // camera-locked backdrop would blow the volume out to its own radius and
+    // coarsen every shadow in the level without contributing a single one.
+    final bounds = scene.computeBounds(castersOnly: true);
     if (!bounds.min.x.isFinite) return false;
 
     final sceneCentre = (bounds.min + bounds.max)..scale(0.5);
@@ -2139,6 +2444,141 @@ final class Renderer implements RenderServices {
         GeometryUsage.vertices,
       );
 
+  /// Draws the sky, if the frame asked for one.
+  ///
+  /// Encoded into the scene pass rather than a pass of its own, and that is not
+  /// a shortcut. `DepthTarget` has no load action — every pass clears depth on
+  /// entry and discards it on exit — so a sky drawn upstream would have no
+  /// world depth to test against, and one drawn downstream would have no depth
+  /// buffer at all. With MSAA the scene's colour is a multisample texture that
+  /// cannot be pre-filled either.
+  ///
+  /// **No `setDepthCompare`.** `sky.vert` puts the triangle at 0.999999, which
+  /// passes the pass's own `less` against a buffer cleared to 1.0 and fails
+  /// against anything already drawn. So the tracker is untouched and stays
+  /// `less`, and a frame with no sky in it is byte-for-byte what it was.
+  void _encodeSky({
+    required PassEncoder pass,
+    required RenderSettings settings,
+    required vm.Matrix4 viewProjection,
+    required FramePassState state,
+  }) {
+    final sky = settings.sky;
+    if (!sky.enabled) return;
+
+    // Two fragment stages behind one vertex stage: the ray is the same either
+    // way, and which one runs is decided by whether there is a cube to sample.
+    final cubemap = sky.cubemap;
+    final textured = cubemap != null;
+    final fragmentName = textured ? 'SkyCube' : 'Sky';
+
+    final shaders = device.shaders;
+    final vertex = shaders['SkyVertex'];
+    final fragment = shaders[fragmentName];
+    if (vertex == null || fragment == null) {
+      throw StateError(
+        'RenderSettings.sky is enabled but the bundle has no "SkyVertex"/'
+        '"$fragmentName" entry. Rebuild the backend\'s shader bundle — for the '
+        'web backend that means re-running tool/generate_shaders.dart, which '
+        'nothing checks for you.',
+      );
+    }
+    if (textured && cubemap.type != TextureType.textureCube) {
+      throw StateError(
+        'RenderSettings.sky.cubemap is a ${cubemap.type.name} rather than a '
+        'cube. Build it with GraphicsDevice.createCubeTextureFromPixels; a 2D '
+        'texture bound to a cube sampler is black on one backend and rubbish '
+        'on another.',
+      );
+    }
+
+    // Blending named explicitly. `_kSceneViewState` deliberately leaves it out,
+    // so with an empty opaque half this pass would still be carrying whatever
+    // the previous one set — and on WebGL that is global GL state.
+    pass.setBlend(null);
+    pass.setCullMode(CullMode.none);
+    pass.setDepthWrite(false);
+
+    final inverse = vm.Matrix4.copy(viewProjection)..invert();
+
+    pass.bindPipeline(textured
+        ? (_skyCubePipeline ??= device.createPipeline(vertex, fragment))
+        : (_skyPipeline ??= device.createPipeline(vertex, fragment)));
+    // The tracker described a pipeline this just replaced; the next mesh has to
+    // bind its own rather than trust a stale answer.
+    state.invalidatePipeline();
+
+    pass.bindVertexBuffer(_skyTriangle, 3);
+    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
+
+    pass.bindUniformBlock(vertex, 'SkyRay', {
+      'inverse_view_projection': inverse.storage,
+    });
+
+    if (textured) {
+      pass.bindTexture(fragment, 'sky_texture', cubemap,
+          sampler: SamplerOptions.linearClamp);
+      final tint = sky.resolvedTint;
+      pass.bindUniformBlock(fragment, 'SkyCubeInfo', {
+        'tint': _skyVec(_skyTint, tint, w: 1.0),
+      });
+      pass.draw();
+      state.drawCalls++;
+      return;
+    }
+
+    final toSun = sky.resolvedDirectionToSun.normalized();
+    pass.bindUniformBlock(fragment, 'SkyInfo', {
+      'zenith': _skyVec(_skyZenith, sky.resolvedZenith),
+      'horizon': _skyVec(_skyHorizon, sky.resolvedHorizon),
+      'nadir': _skyVec(_skyNadir, sky.resolvedNadir),
+      'sun': _skyVec(_skySun, toSun, w: sky.glowExponent),
+      'glow': _skyVec(_skyGlow, sky.resolvedSunColor, w: sky.glowStrength),
+      'disc': (_skyDisc
+        ..[0] = sky.discInnerCosine
+        ..[1] = sky.discOuterCosine
+        ..[2] = sky.sunIntensity
+        ..[3] = 0.0),
+    });
+
+    pass.draw();
+    state.drawCalls++;
+  }
+
+  static Float32List _skyVec(Float32List into, vm.Vector3 rgb,
+      {double w = 0.0}) {
+    into[0] = rgb.x;
+    into[1] = rgb.y;
+    into[2] = rgb.z;
+    into[3] = w;
+    return into;
+  }
+
+  final Float32List _skyZenith = Float32List(4);
+  final Float32List _skyHorizon = Float32List(4);
+  final Float32List _skyNadir = Float32List(4);
+  final Float32List _skySun = Float32List(4);
+  final Float32List _skyGlow = Float32List(4);
+  final Float32List _skyDisc = Float32List(4);
+  final Float32List _skyTint = Float32List(4);
+
+  /// The same triangle, with positions and nothing else.
+  ///
+  /// A second buffer for three vertices, and the reason is not tidiness: a
+  /// backend takes the vertex layout from the shader's `in` declarations, so an
+  /// attribute a stage never reads is one the compiler may drop — and dropping
+  /// it changes the stride the buffer is read with. `sky.vert` needs no UV, so
+  /// it gets a buffer with no UV rather than an unread declaration that has to
+  /// survive optimisation.
+  GeometryBuffer get _skyTriangle => _skyVertices ??= device.uploadGeometry(
+        Float32List.fromList(<double>[
+          -1.0, -1.0, //
+          3.0, -1.0, //
+          -1.0, 3.0, //
+        ]).buffer.asByteData(),
+        GeometryUsage.vertices,
+      );
+
   PipelineHandle _postPipeline(
     PipelineHandle? cached,
     ShaderHandle fragment,
@@ -2148,6 +2588,49 @@ final class Renderer implements RenderServices {
     final pipeline = device.createPipeline(fullscreenVertexShader, fragment);
     store(pipeline);
     return pipeline;
+  }
+
+  /// Pipelines for full-screen stages this class does not have a field for.
+  ///
+  /// The engine's own effects each keep theirs in a named field, which is fine
+  /// while the set is fixed and closed. An application's stage has no field to
+  /// live in, and building the pipeline per frame is the one mistake this
+  /// helper exists to make impossible.
+  final Map<ShaderHandle, PipelineHandle> _fullscreenPipelines =
+      <ShaderHandle, PipelineHandle>{};
+
+  @override
+  void drawFullscreen(FullscreenDraw draw) {
+    // One encoder per pass, because Metal allows a single encoder open at a
+    // time and the encoder offers no way to end one. Passes submitted to the
+    // same queue execute in submission order, which is the ordering these
+    // passes need.
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(texture: draw.target, loadAction: draw.loadAction),
+      ],
+    ));
+
+    // Off the target rather than off the frame: a half-resolution effect says
+    // nothing about its size beyond which texture it draws into, and the two
+    // used to be passed separately and could disagree.
+    final rect = ScreenRect.of(draw.target);
+    pass.setState(_kFullscreenState.copyWith(viewport: rect, scissor: rect));
+
+    pass.bindPipeline(_fullscreenPipelines[draw.fragment] ??=
+        device.createPipeline(fullscreenVertexShader, draw.fragment));
+    pass.bindVertexBuffer(_fullscreenTriangle, 3);
+    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
+
+    draw.textures.forEach((slot, texture) {
+      pass.bindTexture(draw.fragment, slot, texture, sampler: draw.sampler);
+    });
+    draw.uniforms.forEach((block, members) {
+      pass.bindUniformBlock(draw.fragment, block, members);
+    });
+
+    pass.draw();
+    pass.submit();
   }
 
   /// The diagnostic overlay: lines, on top of everything.
@@ -2244,56 +2727,6 @@ final class Renderer implements RenderServices {
     depthCompare: CompareFunction.always,
   );
 
-  /// Runs one full-screen pass into [target].
-  ///
-  /// Every post stage is the same shape — bind the triangle, bind a source
-  /// texture, write a small uniform block, draw three vertices — so it is
-  /// written once and parameterized.
-  void _drawFullscreen({
-    required TextureHandle target,
-    required PipelineHandle pipeline,
-    required ShaderHandle fragment,
-    required Map<String, TextureHandle> textures,
-    required String uniformBlock,
-    required Float32List uniformData,
-    required String uniformMember,
-  }) {
-    // One encoder per pass, because Metal allows a single encoder open at a
-    // time and the encoder offers no way to end one. Passes submitted to the
-    // same queue execute in submission order, which is the ordering these
-    // passes need.
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          // Nothing under a full-screen pass survives it, so discarding what
-          // was there is both correct and cheaper than loading it.
-          loadAction: LoadAction.dontCare,
-        ),
-      ],
-    ));
-
-    pass.setState(_kFullscreenState.copyWith(
-      viewport: ScreenRect.of(target),
-      scissor: ScreenRect.of(target),
-    ));
-
-    pass.bindPipeline(pipeline);
-    pass.bindVertexBuffer(_fullscreenTriangle, 3);
-    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
-
-    textures.forEach((slot, texture) {
-      pass.bindTexture(fragment, slot, texture, sampler: _clampSampler);
-    });
-
-    pass.bindUniformBlock(fragment, uniformBlock, {
-      uniformMember: uniformData,
-    });
-
-    pass.draw();
-    pass.submit();
-  }
-
   /// Clamped and linear: a post pass reading outside the source would otherwise
   /// wrap the opposite edge of the screen into the glow.
   static const SamplerOptions _clampSampler = SamplerOptions.linearClamp;
@@ -2339,19 +2772,14 @@ final class Renderer implements RenderServices {
       _bloomParams[3] = level == 0 ? settings.knee : 0.0;
 
       final isFirst = level == 0;
-      _drawFullscreen(
+      drawFullscreen(FullscreenDraw(
         target: target,
-        pipeline: isFirst
-            ? _postPipeline(_bloomThresholdPipeline, bloomThresholdShader,
-                (p) => _bloomThresholdPipeline = p)
-            : _postPipeline(_bloomDownsamplePipeline, bloomDownsampleShader,
-                (p) => _bloomDownsamplePipeline = p),
         fragment: isFirst ? bloomThresholdShader : bloomDownsampleShader,
         textures: <String, TextureHandle>{_kPostSourceSlot: source},
-        uniformBlock: _kBloomInfoBlock,
-        uniformData: _bloomParams,
-        uniformMember: 'params',
-      );
+        uniforms: <String, Map<String, Float32List>>{
+          _kBloomInfoBlock: <String, Float32List>{'params': _bloomParams},
+        },
+      ));
 
       chain.add(target);
       source = target;
@@ -2480,8 +2908,19 @@ final class Renderer implements RenderServices {
 
       final blend = material.alphaMode == MaterialAlphaMode.blend;
       encoder.setBlend(blend ? BlendState.alphaBlend : null);
-      // Transparent surfaces must not occlude what is behind them.
-      encoder.setDepthWrite(!blend);
+      // Transparent surfaces must not occlude what is behind them — unless the
+      // material has an opinion, which is how a backdrop says it is drawn but
+      // is not there.
+      encoder.setDepthWrite(material.depthWrite ?? !blend);
+
+      // Only when it changes. A scene where nothing overrides the test never
+      // emits this call, so the pass's own `less` stands and every frame the
+      // golden sets were recorded from is byte-identical.
+      final depthCompare = material.depthCompare ?? CompareFunction.less;
+      if (state.depthCompare != depthCompare) {
+        encoder.setDepthCompare(depthCompare);
+        state.depthCompare = depthCompare;
+      }
 
       encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
       encoder.bindIndexBuffer(
@@ -2634,6 +3073,8 @@ final class Renderer implements RenderServices {
           'shadow_matrix_far': _shadowMatrixFar.storage,
           'shadow_matrix_farthest': _shadowMatrixFarthest.storage,
           'shadow_cascades': _shadowCascades,
+          'ambient_sky': _ambientSky,
+          'ambient_ground': _ambientGround,
         });
       }
 
@@ -2890,6 +3331,11 @@ final class Renderer implements RenderServices {
         scissor: viewRect,
         polygonMode: wireframe ? PolygonMode.line : PolygonMode.fill,
       ));
+      // That state names the depth test, so the tracker has to agree with it or
+      // the first material of the next view would skip a call it needs. The
+      // debug overlay at the end of a view leaves the test on `always`, which
+      // is exactly the case this catches.
+      passState.depthCompare = CompareFunction.less;
 
       final camera = view.camera;
       final aspect = vw / vh;
@@ -2934,10 +3380,7 @@ final class Renderer implements RenderServices {
       _cameraData[2] = cameraPosition.z;
 
       developer.Timeline.startSync('Renderer.encodeDraws');
-      for (final indices in <List<int>>[
-        _renderList.opaque,
-        _renderList.transparent,
-      ]) {
+      void encodeHalf(List<int> indices) {
         for (var i = 0; i < indices.length; i++) {
           final node = _renderList.itemAt(indices[i]).requireNode;
           _encodeNode(
@@ -2951,6 +3394,21 @@ final class Renderer implements RenderServices {
           );
         }
       }
+
+      encodeHalf(_renderList.opaque);
+      // Between the two halves, which is the one place it can go. After the
+      // opaque half, so every pixel already covered by geometry fails the depth
+      // test before the sky's fragment stage runs — the software rasteriser
+      // tests depth before calling the fragment shader, so this is real work
+      // saved on the backend that can least afford it. Before the transparent
+      // half, so glass has something behind it to blend with.
+      _encodeSky(
+        pass: pass,
+        settings: settings,
+        viewProjection: viewProjection,
+        state: passState,
+      );
+      encodeHalf(_renderList.transparent);
       developer.Timeline.finishSync();
 
       for (final plugin in contributors) {
@@ -3050,6 +3508,8 @@ final class Renderer implements RenderServices {
     //
     // Every row is decided before any of the atlas is drawn, because one pass
     // draws all of them: a pass per light would clear the rows already there.
+    _updateAmbient(scene, settings);
+
     _collectShadowCandidates(scene, views);
     final assignment = _shadowSlotAllocator.assign(_shadowCandidates);
 
@@ -3068,8 +3528,50 @@ final class Renderer implements RenderServices {
       _cubeLightData[row * 4 + 1] = _cubePosition.y;
       _cubeLightData[row * 4 + 2] = _cubePosition.z;
       _cubeLightData[row * 4 + 3] = owner.range > 0.0 ? owner.range : 20.0;
+
+      final spot = owner.type == LightType.spot;
+      // The frustum this row is drawn and read through. A cube face is ninety
+      // degrees, so `tan(45°)` is exactly one; a cone opens to twice its outer
+      // angle, and the margin is what keeps the very edge of the cone inside
+      // the tile. Without it the shader's own `abs(ndc) > 1` bail — written to
+      // catch a fragment outside the face — fires along the rim and quietly
+      // returns "lit", which reads as the shadow being trimmed to a slightly
+      // narrower cone than the light.
+      final tanHalf = spot
+          ? math.tan(
+              (owner.outerConeAngle * _kSpotFrustumMargin).clamp(0.02, 1.5))
+          : 1.0;
+      if (spot) owner.readDirection(_shadowAim);
+      _cubeLightAim[row * 4] = spot ? _shadowAim.x : 0.0;
+      _cubeLightAim[row * 4 + 1] = spot ? _shadowAim.y : 0.0;
+      _cubeLightAim[row * 4 + 2] = spot ? _shadowAim.z : 0.0;
+      // Negative marks "not a spot", which is what the atlas pass branches on.
+      // A tangent is never negative, so the flag and the value share a channel
+      // without either being able to impersonate the other.
+      _cubeLightAim[row * 4 + 3] = spot ? tanHalf : -1.0;
+
       // Which atlas row this light's shader index should read.
       _shadowSlots[index * 4] = row.toDouble();
+      // Which shape it is: 0 a cube, 1 a single cone-shaped tile. The shader
+      // needs this before it can pick a face, and it cannot be inferred from
+      // the tangent beside it — a spot opening to exactly forty-five degrees
+      // has a tangent of one, the same as every cube face.
+      _shadowSlots[index * 4 + 1] = spot ? 1.0 : 0.0;
+      // The tangent again, this time for the filter rather than the pass. It
+      // has to be *written* rather than left at the −1 the clear above puts
+      // there, because the penumbra estimate divides by it. Written next to the
+      // row and not in a branch: the two are read together, and a slot with a
+      // row but no angle is a black light.
+      //
+      // The depth bias is deliberately **not** scaled by this, and the reason
+      // is a measurement rather than a preference. The argument for scaling it
+      // is sound on paper — a cone's texel covers less world, so a bias fixed
+      // in metres is relatively larger and should lift the shadow off its
+      // caster's foot. It was probed: a post standing on a floor, lit once as a
+      // point and once as a cone of 0.6 and then of 0.22 radians, put its
+      // shadow in the same cells every time, contact included. A separate
+      // `spotBias` would have been a knob nothing turns.
+      _shadowSlots[index * 4 + 2] = tanHalf;
       slot = math.max(slot, row + 1);
     }
     // Which rows are occupied, and therefore whether the atlas is worth
@@ -3164,6 +3666,16 @@ final class Renderer implements RenderServices {
         id: FrameResourceIds.bloom,
         format: hdrFormat,
         size: const FrameFraction(2),
+      ))
+      // Half again, and the same format for the same reason: HDR is the one
+      // format every backend here is known to render into. A single channel
+      // would do — the pass writes occlusion four times over — but "known to
+      // work on three backends" beats "three quarters smaller" for a target
+      // that is a quarter of the frame to begin with.
+      ..declare(ResourceDesc(
+        id: FrameResourceIds.ao,
+        format: hdrFormat,
+        size: const FrameFraction(2),
       ));
 
     // A pass that throws leaves the frame's textures lent out, and the pool has
@@ -3215,7 +3727,17 @@ final class Renderer implements RenderServices {
     final scenePass = sceneNode.result!;
     final debugLines = scenePass.debugLines + compositeNode.overlayLines;
 
-    final frame = _ldrColor!;
+    // Out of the graph, not out of this object's field. They are the same
+    // texture while the composite is the last thing that writes `frame`, and
+    // the point is that nothing here should be relying on that: a pass
+    // registered after it produces a newer version, and returning `_ldrColor`
+    // would hand the caller the composite's output while the later pass drew
+    // into a texture nobody ever looked at.
+    //
+    // The fallback is for a frame whose composite was culled — a graph that
+    // produced no version of `frame` at all — where the engine's own target is
+    // genuinely all there is.
+    final frame = resources.output(FrameResourceIds.frame) ?? _ldrColor!;
     frameClock.stop();
     developer.Timeline.finishSync();
 
@@ -3235,6 +3757,68 @@ final class Renderer implements RenderServices {
     );
   }
 
+  /// Draws ambient occlusion into [target] from the surface buffer.
+  ///
+  /// A node that *produces* a resource, the way bloom does, rather than one
+  /// that reads the scene and rewrites it, the way reflections does. Two
+  /// reasons, and the second is the one that decided it: a full-size HDR target
+  /// per frame is a real cost for a signal that is low-frequency by nature, and
+  /// multiplying the scene here would put the occlusion *before* bloom, so a
+  /// glowing crack in a corner would stop glowing. The composite applies it
+  /// after the glow is taken.
+  void _encodeSsao({
+    required TextureHandle target,
+    required TextureHandle surface,
+    required AmbientOcclusionSettings options,
+    required RenderView view,
+  }) {
+    developer.Timeline.startSync('Renderer.ssao');
+
+    // Taken from the surface buffer rather than from the frame, and that is the
+    // coupling worth having: the matrix inverted here has to be the one the
+    // depths in that buffer were written with, so the shape it assumes should
+    // come from the buffer itself. A frame that resized between the scene pass
+    // and this one would otherwise reconstruct every point somewhere else.
+    final aspect =
+        surface.height == 0 ? 1.0 : surface.width / surface.height;
+    final viewProjection = _viewProjection(view.camera, aspect);
+    final inverse = vm.Matrix4.copy(viewProjection)..invert();
+
+    _ssaoParams[0] = options.radius;
+    _ssaoParams[1] = options.samples.toDouble();
+    // z is the composite's to apply; see the block's docstring in ssao.frag.
+    _ssaoParams[2] = 0.0;
+    _ssaoParams[3] = options.bias;
+    _ssaoScreen[0] = 1.0 / math.max(target.width, 1);
+    _ssaoScreen[1] = 1.0 / math.max(target.height, 1);
+
+    drawFullscreen(FullscreenDraw(
+      target: target,
+      fragment: ssaoShader,
+      textures: <String, TextureHandle>{'surface_texture': surface},
+      uniforms: <String, Map<String, Float32List>>{
+        _kSsaoInfoBlock: <String, Float32List>{
+          'inverse_view_projection': inverse.storage,
+          'view_projection': viewProjection.storage,
+          'params': _ssaoParams,
+          'screen': _ssaoScreen,
+        },
+      },
+      // **Unfiltered**, unlike every other full-screen read in this renderer,
+      // and measured rather than assumed: with linear filtering an isolated
+      // convex slab against an empty background darkened by six levels at its
+      // edges, which `ssao_test.dart` catches. A filtered tap at a silhouette
+      // averages a foreground depth with the cleared background, and the result
+      // is a depth at which nothing stands — nearer than the surface, so it
+      // counts as an occluder.
+      sampler: SamplerOptions.nearestClamp,
+    ));
+    developer.Timeline.finishSync();
+  }
+
+  final Float32List _ssaoParams = Float32List(4);
+  final Float32List _ssaoScreen = Float32List(4);
+
   /// Adds screen-space reflections, returning the texture the rest of the
   /// chain should treat as the scene.
   ///
@@ -3253,21 +3837,6 @@ final class Renderer implements RenderServices {
     developer.Timeline.startSync('Renderer.reflections');
 
     final target = _reflectionColor!;
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(texture: target, loadAction: LoadAction.dontCare),
-      ],
-    ));
-
-    final full = ScreenRect(width: width, height: height);
-    pass.setState(_kFullscreenState.copyWith(viewport: full, scissor: full));
-    pass.bindPipeline(
-      _postPipeline(_reflectionPipeline, reflectionShader,
-          (p) => _reflectionPipeline = p),
-    );
-    pass.bindVertexBuffer(_fullscreenTriangle, 3);
-    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
-
     final aspect = height == 0 ? 1.0 : width / height;
     final viewProjection = _viewProjection(view.camera, aspect);
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
@@ -3286,20 +3855,23 @@ final class Renderer implements RenderServices {
     _reflectionCameraData[1] = _reflectionCamera.y;
     _reflectionCameraData[2] = _reflectionCamera.z;
 
-    pass.bindUniformBlock(reflectionShader, _kReflectionInfoBlock, {
-      'view_projection': viewProjection.storage,
-      'inverse_view_projection': inverse.storage,
-      'camera': _reflectionCameraData,
-      'params': _reflectionParams,
-      'screen': _reflectionScreen,
-    });
-    pass.bindTexture(reflectionShader, 'scene_texture', scene,
-        sampler: _clampSampler);
-    pass.bindTexture(reflectionShader, 'surface_texture', surface,
-        sampler: _clampSampler);
-
-    pass.draw();
-    pass.submit();
+    drawFullscreen(FullscreenDraw(
+      target: target,
+      fragment: reflectionShader,
+      textures: <String, TextureHandle>{
+        'scene_texture': scene,
+        'surface_texture': surface,
+      },
+      uniforms: <String, Map<String, Float32List>>{
+        _kReflectionInfoBlock: <String, Float32List>{
+          'view_projection': viewProjection.storage,
+          'inverse_view_projection': inverse.storage,
+          'camera': _reflectionCameraData,
+          'params': _reflectionParams,
+          'screen': _reflectionScreen,
+        },
+      },
+    ));
     developer.Timeline.finishSync();
     return target;
   }
@@ -3315,6 +3887,7 @@ final class Renderer implements RenderServices {
     required TextureHandle target,
     required TextureHandle scene,
     required TextureHandle? bloom,
+    required TextureHandle? ao,
     required TextureHandle? surface,
     required TextureHandle? shadowView,
     required Scene sceneGraph,
@@ -3375,8 +3948,27 @@ final class Renderer implements RenderServices {
       mix.usesGlow ? bloom! : scene,
       sampler: _clampSampler,
     );
+    // The same shape as the glow above, with the opposite neutral: unoccluded
+    // is white, and `fallbackAlbedo` is a 1×1 opaque white that already exists
+    // for exactly this kind of "a sampler must have something in it". The
+    // strength is zeroed alongside it, so the stand-in is multiplied out rather
+    // than relied upon — either alone would do, and having both means a
+    // mismatch between them cannot darken anything.
+    final occlusion =
+        ao != null && settings.ambientOcclusion.enabled ? ao : null;
+    _compositeParams[3] =
+        occlusion == null ? 0.0 : settings.ambientOcclusion.strength;
+    _compositeAoTexel[0] = 1.0 / math.max(occlusion?.width ?? 1, 1);
+    _compositeAoTexel[1] = 1.0 / math.max(occlusion?.height ?? 1, 1);
+    pass.bindTexture(
+      compositeShader,
+      _kAoTextureSlot,
+      occlusion ?? fallbackAlbedo,
+      sampler: _clampSampler,
+    );
     pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, {
       'params': _compositeParams,
+      'ao_texel': _compositeAoTexel,
     });
     pass.draw();
 
@@ -4046,6 +4638,54 @@ final class _ReflectionsNode extends RenderNode {
 ///
 /// Switching bloom off is [isActive], not a null return: nothing produces the
 /// glow, so the node is culled and costs no pass, no texture and no branch.
+/// Ambient occlusion, as a producer of one resource.
+///
+/// `reads: [surfaceBuffer]` is doing more work than it looks. The scene pass
+/// only attaches the surface buffer when somebody consumes it — `isConsumed` on
+/// the graph decides — so declaring the read here is what switches the
+/// attachment on. No flag is threaded anywhere, which is the thing the frame
+/// graph was built for and the first place it has paid for itself twice: the
+/// same declaration also turns MSAA off for the scene pass, because the two are
+/// the same decision.
+final class _SsaoNode extends RenderNode {
+  _SsaoNode(this._renderer, this._view, this._settings);
+
+  final Renderer _renderer;
+  final RenderView _view;
+  final RenderSettings _settings;
+
+  @override
+  String get name => 'ssao';
+
+  @override
+  bool get isActive =>
+      _settings.ambientOcclusion.enabled &&
+      _settings.ambientOcclusion.strength > 0.0;
+
+  @override
+  List<ResourceId> get reads =>
+      const <ResourceId>[FrameResourceIds.surfaceBuffer];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
+
+  @override
+  void execute(NodeFrame frame) {
+    final surface = frame.resources.tryTexture(FrameResourceIds.surfaceBuffer);
+    // The buffer is a hard read, so this should not happen — but a node that
+    // drew occlusion from a texture it did not get would produce plausible
+    // darkness out of stale pixels, and that is the kind of wrong that survives
+    // review. Fully lit is the honest answer to "no geometry described".
+    if (surface == null) return;
+    _renderer._encodeSsao(
+      target: frame.resources.texture(FrameResourceIds.ao),
+      surface: surface,
+      options: _settings.ambientOcclusion,
+      view: _view,
+    );
+  }
+}
+
 final class _BloomNode extends RenderNode {
   _BloomNode(this._renderer, this._settings);
 
@@ -4114,6 +4754,11 @@ final class _CompositeNode extends RenderNode {
   @override
   List<ResourceId> get optionalReads => <ResourceId>[
         FrameResourceIds.bloom,
+        // Unconditional, unlike the surface buffer below: the occlusion node
+        // decides for itself whether it is active, and reading a resource
+        // nobody produced is what `optionalReads` is for. Gating it here as
+        // well would put the same switch in two places.
+        FrameResourceIds.ao,
         // Only when it is going to show it. An unconditional read would make
         // the buffer look wanted on every frame, and what wants it is what
         // decides whether the scene pass attaches it at all.
@@ -4155,6 +4800,10 @@ final class _CompositeNode extends RenderNode {
       target: target,
       scene: frame.resources.texture(FrameResourceIds.hdrColour),
       bloom: frame.resources.tryTexture(FrameResourceIds.bloom),
+      // Optional in the same way the glow is: with the node culled nobody
+      // produced it, and the graph answering null is a fact it derived rather
+      // than a flag this pass was handed.
+      ao: frame.resources.tryTexture(FrameResourceIds.ao),
       surface: _showsSurface
           ? frame.resources.tryTexture(FrameResourceIds.surfaceBuffer)
           : null,

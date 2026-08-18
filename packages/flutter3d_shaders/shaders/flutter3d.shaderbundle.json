@@ -91,6 +91,10 @@
     "type": "fragment",
     "file": "shaders/post/reflections.frag"
   },
+  "Ssao": {
+    "type": "fragment",
+    "file": "shaders/post/ssao.frag"
+  },
   "ShadowDistance": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance.frag"
@@ -102,5 +106,17 @@
   "ShadowTileResetVertex": {
     "type": "vertex",
     "file": "shaders/lighting/shadow_tile_reset.vert"
+  },
+  "SkyVertex": {
+    "type": "vertex",
+    "file": "shaders/sky.vert"
+  },
+  "Sky": {
+    "type": "fragment",
+    "file": "shaders/sky.frag"
+  },
+  "SkyCube": {
+    "type": "fragment",
+    "file": "shaders/sky_cube.frag"
   }
 }

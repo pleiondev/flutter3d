@@ -302,6 +302,25 @@ final class FakeBackend implements GraphicsDevice {
   @override
   bool get supportsMipmaps => true;
 
+  @override
+  bool get supportsCubeTextures => true;
+
+  @override
+  TextureHandle? createCubeTextureFromPixels({
+    required int size,
+    required TextureFormat format,
+    required List<ByteData> faces,
+  }) =>
+      faces.length == 6
+          ? TextureHandle(
+              backend: const Object(),
+              width: size,
+              height: size,
+              format: format,
+              type: TextureType.textureCube,
+            )
+          : null;
+
   /// The engine's own convention, so a fake never exercises the remap. The
   /// backends that need the other one are covered by running them.
   @override

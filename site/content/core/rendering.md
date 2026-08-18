@@ -203,7 +203,7 @@ FogSettings(
 )
 ```
 
-Applied in the composite pass, in linear space, before the encode. A level document can carry its own `fogColor` and `fogDensity`, which is how both games get theirs.
+Applied in the composite pass, in linear space, before the encode. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
 
 ## Observability
 

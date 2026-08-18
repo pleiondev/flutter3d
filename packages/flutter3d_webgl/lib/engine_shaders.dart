@@ -332,12 +332,103 @@ void main() {
 }
 
 ''',
+    'SkyVertex': r'''#version 300 es
+
+// Vertex stage for the sky: one full-screen triangle, and a world-space ray per
+// corner.
+//
+// Its own stage rather than `post/fullscreen.vert` for two reasons, and both
+// are load-bearing.
+//
+// **The depth.** A post pass writes `gl_Position.z = 0.0`, which is the *near*
+// plane; the sky belongs at the far one. This writes 0.999999 — the far plane,
+// less a hair. Strictly less than 1.0 so that the ordinary `less` test passes
+// against a buffer cleared to 1.0, which is what lets the sky be drawn with the
+// pass's own depth state and no `setDepthCompare` at all. With depth writes off
+// it never occludes anything, and because it is drawn after the opaque half,
+// every pixel already covered by geometry fails the test before the fragment
+// stage runs.
+//
+// **The ray.** The direction is computed here, per corner, and interpolated —
+// which for a perspective camera is exact, because the direction is affine in
+// the screen position. Doing it in the fragment shader would mean
+// reconstructing NDC from a UV, and that is where `reflections.frag` and this
+// renderer's own full-screen triangle disagree about which way Y runs. Nothing
+// here has to know.
+//
+// The two sample depths are 0.5 and 1.0, and that is deliberate: both are valid
+// in **either** depth convention. This engine runs zero-to-one on Impeller and
+// on the software rasteriser and minus-one-to-one on WebGL, so a ray built from
+// the near plane would need to know which. The difference of two points on the
+// same eye ray is the same direction wherever the two points sit.
+//
+// One attribute, not two. The vertex layout is taken from these declarations,
+// so an `in vec2 texcoord` that this stage never reads is one the compiler is
+// free to drop — and dropping it changes the stride the buffer is read with.
+// Hence a vertex buffer of its own, holding positions and nothing else.
+//
+// ---------------------------------------------------------------------------
+// **This stage does not work on Impeller, and the cause is not known.** The
+// software rasteriser and this file agree completely; the picture Impeller
+// draws is a flat wash of one colour, because `v_ray` barely varies. What
+// follows is what was measured rather than what was guessed, so that the next
+// person starts from the end of this rather than the beginning.
+//
+// Measured *correct* on Impeller, each against the software rasteriser reading
+// the identical bytes, pixel for pixel:
+//
+//  * the `position` attribute, emitted straight through this varying;
+//  * the varying itself, as `vec3` and as `vec2`;
+//  * `SkyInfo`'s colour members, read by `sky.frag`.
+//
+// Measured *wrong* on Impeller, in every arrangement tried:
+//
+//  * `SkyRay` bound here — the shader read a constant that did not change when
+//    three different matrices were bound: the real one, a probe, and a probe of
+//    hundreds. The software rasteriser tracked all three. Reflection reported
+//    `size=64 offset=0`, which is exactly right, and `bindUniform` was reached.
+//  * the same matrix moved into `sky.frag`'s own block as a `mat4` — the
+//    colours beside it arrived, the matrix read as zero, and `normalize` of the
+//    zero ray is a NaN that paints the sky black.
+//  * the same matrix as four `vec4` members of that block — black again.
+//  * the same four members moved to the end of the block — **one build drew a
+//    correct gradient and the next drew black, from identical source.** That
+//    is the finding that rules out layout: the behaviour is not stable, so no
+//    ordering of members is a fix.
+//  * the ray computed on the CPU and passed as a second vertex attribute
+//    alongside `position` — flat wash again, which is why this file still has
+//    one attribute.
+//
+// So: colours in a uniform block arrive, a single vertex attribute arrives, and
+// this pipeline's camera data does not, in any form tried. `RenderSettings.sky`
+// is off by default and no golden is recorded for it, so nothing ships broken —
+// except a racing game that turns it on, which is where this matters.
+// ---------------------------------------------------------------------------
+in vec2 position;
+
+layout(std140) uniform SkyRay {
+  mat4 inverse_view_projection;
+}
+sky_ray;
+
+out vec3 v_ray;
+
+void main() {
+  vec4 near = sky_ray.inverse_view_projection * vec4(position, 0.5, 1.0);
+  vec4 far = sky_ray.inverse_view_projection * vec4(position, 1.0, 1.0);
+  v_ray = far.xyz / far.w - near.xyz / near.w;
+
+  gl_Position = vec4(position, 0.999999, 1.0);
+}
+
+''',
   },
   <String, String>{
     'Unlit': r'''#version 300 es
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Albedo only. Useful as a baseline: whatever this shows is purely texture and
 // tint, with no lighting term involved.
@@ -599,6 +690,25 @@ layout(std140) uniform FragInfo {
   /// shadow_params.x is one texel of the whole atlas, and with more than one
   /// cascade those differ.
   vec4 shadow_cascades;
+
+  /// rgb: what a surface facing straight up receives from the environment.
+  /// w unused.
+  ///
+  /// Appended after everything else on purpose: std140 lays a block out in
+  /// declaration order, so adding here leaves every offset above unchanged and
+  /// the three backends do not have to agree about anything they did not
+  /// already agree about.
+  vec4 ambient_sky;
+
+  /// rgb: what a surface facing straight down receives — bounce off the ground
+  /// rather than the ground itself. w unused.
+  ///
+  /// Two colours rather than one is the whole of what makes ambient look like
+  /// light instead of like a lifted black level. Outdoors the sky is blue and
+  /// bright and the ground is warm and dim, and a flat grey for both leaves
+  /// every underside as pale as every upward face — which reads as the model
+  /// being flat, and gets blamed on the normals.
+  vec4 ambient_ground;
 }
 frag_info;
 
@@ -616,7 +726,7 @@ struct Surface {
   float roughness;  // perceptual
   float occlusion;  // 1 means unoccluded
   vec3 emissive;    // linear, added after shading
-  float ambient;
+  vec3 ambient;     // hemispheric, already scaled by the scene's strength
   float exposure;
 };
 
@@ -656,7 +766,19 @@ Surface ReadSurface() {
 
   s.metallic = clamp(frag_info.material.x, 0.0, 1.0);
   s.roughness = clamp(frag_info.material.y, 0.02, 1.0);
-  s.ambient = frag_info.material.z;
+  // Hemispheric: the sky above, the ground below, blended by which way this
+  // surface faces. `material.z` stays the overall strength, so the two are
+  // separable — a scene dims its ambient without changing its colour, which is
+  // what the one control used to do on its own.
+  //
+  // The blend runs on the geometric normal deliberately, before
+  // `ApplyMaterialMaps` perturbs it. A normal map describes millimetres of
+  // surface relief, and ambient of this kind describes which half of the world
+  // a face can see; letting bump detail swing it makes a brick wall's mortar
+  // lines pick up sky and reads as noise.
+  s.ambient = mix(frag_info.ambient_ground.rgb, frag_info.ambient_sky.rgb,
+                  s.n.y * 0.5 + 0.5) *
+              frag_info.material.z;
   s.exposure = max(frag_info.frame_params.x, 0.0);
 
   // Neutral until ApplyMaterialMaps says otherwise, so a model that samples no
@@ -789,8 +911,18 @@ layout(std140) uniform PointShadow {
   /// Per slot. xyz: the light's world position. w: its range.
   vec4 lights[kShadowSlots];
 
-  /// Per light, in the order the lighting knows them: x is the atlas row it
-  /// owns, or negative when it has none. A fifth torch in a room lands here.
+  /// Per light, in the order the lighting knows them.
+  ///
+  /// x: the atlas row it owns, or negative when it has none — a fifth torch in
+  /// a room lands there. z: the tangent of half the frustum's opening angle,
+  /// which is what converts a world width into a fraction of a tile. y and w
+  /// are unwritten.
+  ///
+  /// **z is exactly one for a point light**, because a cube face is a ninety
+  /// degree frustum and `tan(45°) == 1`. That is not a convention chosen to be
+  /// tidy: it is what lets a narrower frustum share this whole path, since
+  /// multiplying by one in IEEE 754 changes no bit of the result. Whatever else
+  /// a spot light will need, it does not need a second copy of the filter.
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
@@ -872,8 +1004,16 @@ vec2 PointShadowOffset(int i, float ca, float sa, float radius) {
 /// The blocker search runs at the **widest** penumbra allowed, since a blocker
 /// outside that circle cannot widen the result anyway, and searching narrower
 /// would miss the very blockers that make an edge soft.
+///
+/// [tanHalf] is where the ninety degrees stop being assumed. The span above is
+/// `2 * r` only for a right-angled frustum; in general it is `2 * r * tan(θ/2)`,
+/// and for a cube face that factor is one. A narrower frustum covers less world
+/// per tile, so the same world width is a *larger* fraction of it — which is
+/// why this divides rather than multiplies, and why getting it upside down
+/// would make a tight cone's shadows harden instead of soften.
 float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
-                          float ca, float sa, out float blockerOut) {
+                          float ca, float sa, float tanHalf,
+                          out float blockerOut) {
   blockerOut = -1.0;
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
@@ -899,7 +1039,7 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float blocker = max(sum / count, 1e-4);
   blockerOut = blocker;
   float world = lightRadius * max(receiver - blocker, 0.0) / blocker;
-  return clamp(world / (2.0 * receiver), minRadius, maxRadius);
+  return clamp(world / (2.0 * receiver * tanHalf), minRadius, maxRadius);
 }
 
 /// How lit [world] is by the point light that owns the cube atlas.
@@ -940,14 +1080,22 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
 
   // The dominant axis picks the face, in the order the renderer wrote them:
   // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom.
-  vec3 a = abs(toFragment);
-  int face;
-  if (a.x >= a.y && a.x >= a.z) {
-    face = toFragment.x > 0.0 ? 0 : 1;
-  } else if (a.y >= a.z) {
-    face = toFragment.y > 0.0 ? 2 : 3;
-  } else {
-    face = toFragment.z > 0.0 ? 4 : 5;
+  //
+  // A spot has one column and no choice to make. Asking the dominant axis
+  // anyway would be worse than pointless: a fragment below and to the side of
+  // a downlight has −Y dominant, which is column 3, and column 3 of a spot's
+  // row is deliberately blank — so the whole cone would read as unshadowed
+  // except for the wedge where the aim happens to be the dominant axis.
+  int face = 0;
+  if (point_shadow.slots[lightIndex].y < 0.5) {
+    vec3 a = abs(toFragment);
+    if (a.x >= a.y && a.x >= a.z) {
+      face = toFragment.x > 0.0 ? 0 : 1;
+    } else if (a.y >= a.z) {
+      face = toFragment.y > 0.0 ? 2 : 3;
+    } else {
+      face = toFragment.z > 0.0 ? 4 : 5;
+    }
   }
 
   vec4 clip = point_shadow.faces[slot * 6 + face] * vec4(origin, 1.0);
@@ -976,9 +1124,15 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float ca = cos(angle);
   float sa = sin(angle);
 
+  // Guarded rather than read straight, because a zero here divides by zero and
+  // a NaN radius poisons the filter into a black fragment. Zero is what an
+  // unwritten channel holds, and "unwritten" is a state this block has been in
+  // before: every slot is cleared to −1 each frame.
+  float tanHalf = max(point_shadow.slots[lightIndex].z, 1e-4);
+
   float blocker = -1.0;
   float radius =
-      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, blocker);
+      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, tanHalf, blocker);
 
   // The debug channel, and the reason it exists: two explanations for why the
   // estimate collapses were argued from the finished picture and both were
@@ -1061,6 +1215,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Pure diffuse. The cheapest model that still reads as three-dimensional, and
 // the reference point for judging whether the fancier models are worth their
@@ -1342,6 +1497,25 @@ layout(std140) uniform FragInfo {
   /// shadow_params.x is one texel of the whole atlas, and with more than one
   /// cascade those differ.
   vec4 shadow_cascades;
+
+  /// rgb: what a surface facing straight up receives from the environment.
+  /// w unused.
+  ///
+  /// Appended after everything else on purpose: std140 lays a block out in
+  /// declaration order, so adding here leaves every offset above unchanged and
+  /// the three backends do not have to agree about anything they did not
+  /// already agree about.
+  vec4 ambient_sky;
+
+  /// rgb: what a surface facing straight down receives — bounce off the ground
+  /// rather than the ground itself. w unused.
+  ///
+  /// Two colours rather than one is the whole of what makes ambient look like
+  /// light instead of like a lifted black level. Outdoors the sky is blue and
+  /// bright and the ground is warm and dim, and a flat grey for both leaves
+  /// every underside as pale as every upward face — which reads as the model
+  /// being flat, and gets blamed on the normals.
+  vec4 ambient_ground;
 }
 frag_info;
 
@@ -1359,7 +1533,7 @@ struct Surface {
   float roughness;  // perceptual
   float occlusion;  // 1 means unoccluded
   vec3 emissive;    // linear, added after shading
-  float ambient;
+  vec3 ambient;     // hemispheric, already scaled by the scene's strength
   float exposure;
 };
 
@@ -1399,7 +1573,19 @@ Surface ReadSurface() {
 
   s.metallic = clamp(frag_info.material.x, 0.0, 1.0);
   s.roughness = clamp(frag_info.material.y, 0.02, 1.0);
-  s.ambient = frag_info.material.z;
+  // Hemispheric: the sky above, the ground below, blended by which way this
+  // surface faces. `material.z` stays the overall strength, so the two are
+  // separable — a scene dims its ambient without changing its colour, which is
+  // what the one control used to do on its own.
+  //
+  // The blend runs on the geometric normal deliberately, before
+  // `ApplyMaterialMaps` perturbs it. A normal map describes millimetres of
+  // surface relief, and ambient of this kind describes which half of the world
+  // a face can see; letting bump detail swing it makes a brick wall's mortar
+  // lines pick up sky and reads as noise.
+  s.ambient = mix(frag_info.ambient_ground.rgb, frag_info.ambient_sky.rgb,
+                  s.n.y * 0.5 + 0.5) *
+              frag_info.material.z;
   s.exposure = max(frag_info.frame_params.x, 0.0);
 
   // Neutral until ApplyMaterialMaps says otherwise, so a model that samples no
@@ -1532,8 +1718,18 @@ layout(std140) uniform PointShadow {
   /// Per slot. xyz: the light's world position. w: its range.
   vec4 lights[kShadowSlots];
 
-  /// Per light, in the order the lighting knows them: x is the atlas row it
-  /// owns, or negative when it has none. A fifth torch in a room lands here.
+  /// Per light, in the order the lighting knows them.
+  ///
+  /// x: the atlas row it owns, or negative when it has none — a fifth torch in
+  /// a room lands there. z: the tangent of half the frustum's opening angle,
+  /// which is what converts a world width into a fraction of a tile. y and w
+  /// are unwritten.
+  ///
+  /// **z is exactly one for a point light**, because a cube face is a ninety
+  /// degree frustum and `tan(45°) == 1`. That is not a convention chosen to be
+  /// tidy: it is what lets a narrower frustum share this whole path, since
+  /// multiplying by one in IEEE 754 changes no bit of the result. Whatever else
+  /// a spot light will need, it does not need a second copy of the filter.
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
@@ -1615,8 +1811,16 @@ vec2 PointShadowOffset(int i, float ca, float sa, float radius) {
 /// The blocker search runs at the **widest** penumbra allowed, since a blocker
 /// outside that circle cannot widen the result anyway, and searching narrower
 /// would miss the very blockers that make an edge soft.
+///
+/// [tanHalf] is where the ninety degrees stop being assumed. The span above is
+/// `2 * r` only for a right-angled frustum; in general it is `2 * r * tan(θ/2)`,
+/// and for a cube face that factor is one. A narrower frustum covers less world
+/// per tile, so the same world width is a *larger* fraction of it — which is
+/// why this divides rather than multiplies, and why getting it upside down
+/// would make a tight cone's shadows harden instead of soften.
 float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
-                          float ca, float sa, out float blockerOut) {
+                          float ca, float sa, float tanHalf,
+                          out float blockerOut) {
   blockerOut = -1.0;
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
@@ -1642,7 +1846,7 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float blocker = max(sum / count, 1e-4);
   blockerOut = blocker;
   float world = lightRadius * max(receiver - blocker, 0.0) / blocker;
-  return clamp(world / (2.0 * receiver), minRadius, maxRadius);
+  return clamp(world / (2.0 * receiver * tanHalf), minRadius, maxRadius);
 }
 
 /// How lit [world] is by the point light that owns the cube atlas.
@@ -1683,14 +1887,22 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
 
   // The dominant axis picks the face, in the order the renderer wrote them:
   // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom.
-  vec3 a = abs(toFragment);
-  int face;
-  if (a.x >= a.y && a.x >= a.z) {
-    face = toFragment.x > 0.0 ? 0 : 1;
-  } else if (a.y >= a.z) {
-    face = toFragment.y > 0.0 ? 2 : 3;
-  } else {
-    face = toFragment.z > 0.0 ? 4 : 5;
+  //
+  // A spot has one column and no choice to make. Asking the dominant axis
+  // anyway would be worse than pointless: a fragment below and to the side of
+  // a downlight has −Y dominant, which is column 3, and column 3 of a spot's
+  // row is deliberately blank — so the whole cone would read as unshadowed
+  // except for the wedge where the aim happens to be the dominant axis.
+  int face = 0;
+  if (point_shadow.slots[lightIndex].y < 0.5) {
+    vec3 a = abs(toFragment);
+    if (a.x >= a.y && a.x >= a.z) {
+      face = toFragment.x > 0.0 ? 0 : 1;
+    } else if (a.y >= a.z) {
+      face = toFragment.y > 0.0 ? 2 : 3;
+    } else {
+      face = toFragment.z > 0.0 ? 4 : 5;
+    }
   }
 
   vec4 clip = point_shadow.faces[slot * 6 + face] * vec4(origin, 1.0);
@@ -1719,9 +1931,15 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float ca = cos(angle);
   float sa = sin(angle);
 
+  // Guarded rather than read straight, because a zero here divides by zero and
+  // a NaN radius poisons the filter into a black fragment. Zero is what an
+  // unwritten channel holds, and "unwritten" is a state this block has been in
+  // before: every slot is cleared to −1 each frame.
+  float tanHalf = max(point_shadow.slots[lightIndex].z, 1e-4);
+
   float blocker = -1.0;
   float radius =
-      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, blocker);
+      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, tanHalf, blocker);
 
   // The debug channel, and the reason it exists: two explanations for why the
   // estimate collapses were argued from the finished picture and both were
@@ -1987,6 +2205,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Blinn-Phong: diffuse plus a half-vector specular lobe.
 //
@@ -2270,6 +2489,25 @@ layout(std140) uniform FragInfo {
   /// shadow_params.x is one texel of the whole atlas, and with more than one
   /// cascade those differ.
   vec4 shadow_cascades;
+
+  /// rgb: what a surface facing straight up receives from the environment.
+  /// w unused.
+  ///
+  /// Appended after everything else on purpose: std140 lays a block out in
+  /// declaration order, so adding here leaves every offset above unchanged and
+  /// the three backends do not have to agree about anything they did not
+  /// already agree about.
+  vec4 ambient_sky;
+
+  /// rgb: what a surface facing straight down receives — bounce off the ground
+  /// rather than the ground itself. w unused.
+  ///
+  /// Two colours rather than one is the whole of what makes ambient look like
+  /// light instead of like a lifted black level. Outdoors the sky is blue and
+  /// bright and the ground is warm and dim, and a flat grey for both leaves
+  /// every underside as pale as every upward face — which reads as the model
+  /// being flat, and gets blamed on the normals.
+  vec4 ambient_ground;
 }
 frag_info;
 
@@ -2287,7 +2525,7 @@ struct Surface {
   float roughness;  // perceptual
   float occlusion;  // 1 means unoccluded
   vec3 emissive;    // linear, added after shading
-  float ambient;
+  vec3 ambient;     // hemispheric, already scaled by the scene's strength
   float exposure;
 };
 
@@ -2327,7 +2565,19 @@ Surface ReadSurface() {
 
   s.metallic = clamp(frag_info.material.x, 0.0, 1.0);
   s.roughness = clamp(frag_info.material.y, 0.02, 1.0);
-  s.ambient = frag_info.material.z;
+  // Hemispheric: the sky above, the ground below, blended by which way this
+  // surface faces. `material.z` stays the overall strength, so the two are
+  // separable — a scene dims its ambient without changing its colour, which is
+  // what the one control used to do on its own.
+  //
+  // The blend runs on the geometric normal deliberately, before
+  // `ApplyMaterialMaps` perturbs it. A normal map describes millimetres of
+  // surface relief, and ambient of this kind describes which half of the world
+  // a face can see; letting bump detail swing it makes a brick wall's mortar
+  // lines pick up sky and reads as noise.
+  s.ambient = mix(frag_info.ambient_ground.rgb, frag_info.ambient_sky.rgb,
+                  s.n.y * 0.5 + 0.5) *
+              frag_info.material.z;
   s.exposure = max(frag_info.frame_params.x, 0.0);
 
   // Neutral until ApplyMaterialMaps says otherwise, so a model that samples no
@@ -2460,8 +2710,18 @@ layout(std140) uniform PointShadow {
   /// Per slot. xyz: the light's world position. w: its range.
   vec4 lights[kShadowSlots];
 
-  /// Per light, in the order the lighting knows them: x is the atlas row it
-  /// owns, or negative when it has none. A fifth torch in a room lands here.
+  /// Per light, in the order the lighting knows them.
+  ///
+  /// x: the atlas row it owns, or negative when it has none — a fifth torch in
+  /// a room lands there. z: the tangent of half the frustum's opening angle,
+  /// which is what converts a world width into a fraction of a tile. y and w
+  /// are unwritten.
+  ///
+  /// **z is exactly one for a point light**, because a cube face is a ninety
+  /// degree frustum and `tan(45°) == 1`. That is not a convention chosen to be
+  /// tidy: it is what lets a narrower frustum share this whole path, since
+  /// multiplying by one in IEEE 754 changes no bit of the result. Whatever else
+  /// a spot light will need, it does not need a second copy of the filter.
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
@@ -2543,8 +2803,16 @@ vec2 PointShadowOffset(int i, float ca, float sa, float radius) {
 /// The blocker search runs at the **widest** penumbra allowed, since a blocker
 /// outside that circle cannot widen the result anyway, and searching narrower
 /// would miss the very blockers that make an edge soft.
+///
+/// [tanHalf] is where the ninety degrees stop being assumed. The span above is
+/// `2 * r` only for a right-angled frustum; in general it is `2 * r * tan(θ/2)`,
+/// and for a cube face that factor is one. A narrower frustum covers less world
+/// per tile, so the same world width is a *larger* fraction of it — which is
+/// why this divides rather than multiplies, and why getting it upside down
+/// would make a tight cone's shadows harden instead of soften.
 float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
-                          float ca, float sa, out float blockerOut) {
+                          float ca, float sa, float tanHalf,
+                          out float blockerOut) {
   blockerOut = -1.0;
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
@@ -2570,7 +2838,7 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float blocker = max(sum / count, 1e-4);
   blockerOut = blocker;
   float world = lightRadius * max(receiver - blocker, 0.0) / blocker;
-  return clamp(world / (2.0 * receiver), minRadius, maxRadius);
+  return clamp(world / (2.0 * receiver * tanHalf), minRadius, maxRadius);
 }
 
 /// How lit [world] is by the point light that owns the cube atlas.
@@ -2611,14 +2879,22 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
 
   // The dominant axis picks the face, in the order the renderer wrote them:
   // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom.
-  vec3 a = abs(toFragment);
-  int face;
-  if (a.x >= a.y && a.x >= a.z) {
-    face = toFragment.x > 0.0 ? 0 : 1;
-  } else if (a.y >= a.z) {
-    face = toFragment.y > 0.0 ? 2 : 3;
-  } else {
-    face = toFragment.z > 0.0 ? 4 : 5;
+  //
+  // A spot has one column and no choice to make. Asking the dominant axis
+  // anyway would be worse than pointless: a fragment below and to the side of
+  // a downlight has −Y dominant, which is column 3, and column 3 of a spot's
+  // row is deliberately blank — so the whole cone would read as unshadowed
+  // except for the wedge where the aim happens to be the dominant axis.
+  int face = 0;
+  if (point_shadow.slots[lightIndex].y < 0.5) {
+    vec3 a = abs(toFragment);
+    if (a.x >= a.y && a.x >= a.z) {
+      face = toFragment.x > 0.0 ? 0 : 1;
+    } else if (a.y >= a.z) {
+      face = toFragment.y > 0.0 ? 2 : 3;
+    } else {
+      face = toFragment.z > 0.0 ? 4 : 5;
+    }
   }
 
   vec4 clip = point_shadow.faces[slot * 6 + face] * vec4(origin, 1.0);
@@ -2647,9 +2923,15 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float ca = cos(angle);
   float sa = sin(angle);
 
+  // Guarded rather than read straight, because a zero here divides by zero and
+  // a NaN radius poisons the filter into a black fragment. Zero is what an
+  // unwritten channel holds, and "unwritten" is a state this block has been in
+  // before: every slot is cleared to −1 each frame.
+  float tanHalf = max(point_shadow.slots[lightIndex].z, 1e-4);
+
   float blocker = -1.0;
   float radius =
-      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, blocker);
+      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, tanHalf, blocker);
 
   // The debug channel, and the reason it exists: two explanations for why the
   // estimate collapses were argued from the finished picture and both were
@@ -2921,6 +3203,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Metal-rough physically based shading: Cook-Torrance specular with the GGX
 // distribution, height-correlated Smith visibility and a Schlick Fresnel.
@@ -3207,6 +3490,25 @@ layout(std140) uniform FragInfo {
   /// shadow_params.x is one texel of the whole atlas, and with more than one
   /// cascade those differ.
   vec4 shadow_cascades;
+
+  /// rgb: what a surface facing straight up receives from the environment.
+  /// w unused.
+  ///
+  /// Appended after everything else on purpose: std140 lays a block out in
+  /// declaration order, so adding here leaves every offset above unchanged and
+  /// the three backends do not have to agree about anything they did not
+  /// already agree about.
+  vec4 ambient_sky;
+
+  /// rgb: what a surface facing straight down receives — bounce off the ground
+  /// rather than the ground itself. w unused.
+  ///
+  /// Two colours rather than one is the whole of what makes ambient look like
+  /// light instead of like a lifted black level. Outdoors the sky is blue and
+  /// bright and the ground is warm and dim, and a flat grey for both leaves
+  /// every underside as pale as every upward face — which reads as the model
+  /// being flat, and gets blamed on the normals.
+  vec4 ambient_ground;
 }
 frag_info;
 
@@ -3224,7 +3526,7 @@ struct Surface {
   float roughness;  // perceptual
   float occlusion;  // 1 means unoccluded
   vec3 emissive;    // linear, added after shading
-  float ambient;
+  vec3 ambient;     // hemispheric, already scaled by the scene's strength
   float exposure;
 };
 
@@ -3264,7 +3566,19 @@ Surface ReadSurface() {
 
   s.metallic = clamp(frag_info.material.x, 0.0, 1.0);
   s.roughness = clamp(frag_info.material.y, 0.02, 1.0);
-  s.ambient = frag_info.material.z;
+  // Hemispheric: the sky above, the ground below, blended by which way this
+  // surface faces. `material.z` stays the overall strength, so the two are
+  // separable — a scene dims its ambient without changing its colour, which is
+  // what the one control used to do on its own.
+  //
+  // The blend runs on the geometric normal deliberately, before
+  // `ApplyMaterialMaps` perturbs it. A normal map describes millimetres of
+  // surface relief, and ambient of this kind describes which half of the world
+  // a face can see; letting bump detail swing it makes a brick wall's mortar
+  // lines pick up sky and reads as noise.
+  s.ambient = mix(frag_info.ambient_ground.rgb, frag_info.ambient_sky.rgb,
+                  s.n.y * 0.5 + 0.5) *
+              frag_info.material.z;
   s.exposure = max(frag_info.frame_params.x, 0.0);
 
   // Neutral until ApplyMaterialMaps says otherwise, so a model that samples no
@@ -3397,8 +3711,18 @@ layout(std140) uniform PointShadow {
   /// Per slot. xyz: the light's world position. w: its range.
   vec4 lights[kShadowSlots];
 
-  /// Per light, in the order the lighting knows them: x is the atlas row it
-  /// owns, or negative when it has none. A fifth torch in a room lands here.
+  /// Per light, in the order the lighting knows them.
+  ///
+  /// x: the atlas row it owns, or negative when it has none — a fifth torch in
+  /// a room lands there. z: the tangent of half the frustum's opening angle,
+  /// which is what converts a world width into a fraction of a tile. y and w
+  /// are unwritten.
+  ///
+  /// **z is exactly one for a point light**, because a cube face is a ninety
+  /// degree frustum and `tan(45°) == 1`. That is not a convention chosen to be
+  /// tidy: it is what lets a narrower frustum share this whole path, since
+  /// multiplying by one in IEEE 754 changes no bit of the result. Whatever else
+  /// a spot light will need, it does not need a second copy of the filter.
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
@@ -3480,8 +3804,16 @@ vec2 PointShadowOffset(int i, float ca, float sa, float radius) {
 /// The blocker search runs at the **widest** penumbra allowed, since a blocker
 /// outside that circle cannot widen the result anyway, and searching narrower
 /// would miss the very blockers that make an edge soft.
+///
+/// [tanHalf] is where the ninety degrees stop being assumed. The span above is
+/// `2 * r` only for a right-angled frustum; in general it is `2 * r * tan(θ/2)`,
+/// and for a cube face that factor is one. A narrower frustum covers less world
+/// per tile, so the same world width is a *larger* fraction of it — which is
+/// why this divides rather than multiplies, and why getting it upside down
+/// would make a tight cone's shadows harden instead of soften.
 float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
-                          float ca, float sa, out float blockerOut) {
+                          float ca, float sa, float tanHalf,
+                          out float blockerOut) {
   blockerOut = -1.0;
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
@@ -3507,7 +3839,7 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float blocker = max(sum / count, 1e-4);
   blockerOut = blocker;
   float world = lightRadius * max(receiver - blocker, 0.0) / blocker;
-  return clamp(world / (2.0 * receiver), minRadius, maxRadius);
+  return clamp(world / (2.0 * receiver * tanHalf), minRadius, maxRadius);
 }
 
 /// How lit [world] is by the point light that owns the cube atlas.
@@ -3548,14 +3880,22 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
 
   // The dominant axis picks the face, in the order the renderer wrote them:
   // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom.
-  vec3 a = abs(toFragment);
-  int face;
-  if (a.x >= a.y && a.x >= a.z) {
-    face = toFragment.x > 0.0 ? 0 : 1;
-  } else if (a.y >= a.z) {
-    face = toFragment.y > 0.0 ? 2 : 3;
-  } else {
-    face = toFragment.z > 0.0 ? 4 : 5;
+  //
+  // A spot has one column and no choice to make. Asking the dominant axis
+  // anyway would be worse than pointless: a fragment below and to the side of
+  // a downlight has −Y dominant, which is column 3, and column 3 of a spot's
+  // row is deliberately blank — so the whole cone would read as unshadowed
+  // except for the wedge where the aim happens to be the dominant axis.
+  int face = 0;
+  if (point_shadow.slots[lightIndex].y < 0.5) {
+    vec3 a = abs(toFragment);
+    if (a.x >= a.y && a.x >= a.z) {
+      face = toFragment.x > 0.0 ? 0 : 1;
+    } else if (a.y >= a.z) {
+      face = toFragment.y > 0.0 ? 2 : 3;
+    } else {
+      face = toFragment.z > 0.0 ? 4 : 5;
+    }
   }
 
   vec4 clip = point_shadow.faces[slot * 6 + face] * vec4(origin, 1.0);
@@ -3584,9 +3924,15 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float ca = cos(angle);
   float sa = sin(angle);
 
+  // Guarded rather than read straight, because a zero here divides by zero and
+  // a NaN radius poisons the filter into a black fragment. Zero is what an
+  // unwritten channel holds, and "unwritten" is a state this block has been in
+  // before: every slot is cleared to −1 each frame.
+  float tanHalf = max(point_shadow.slots[lightIndex].z, 1e-4);
+
   float blocker = -1.0;
   float radius =
-      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, blocker);
+      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, tanHalf, blocker);
 
   // The debug channel, and the reason it exists: two explanations for why the
   // estimate collapses were argued from the finished picture and both were
@@ -3892,6 +4238,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Cel shading: the diffuse response is quantized into bands and a rim term
 // fakes a backlight.
@@ -4177,6 +4524,25 @@ layout(std140) uniform FragInfo {
   /// shadow_params.x is one texel of the whole atlas, and with more than one
   /// cascade those differ.
   vec4 shadow_cascades;
+
+  /// rgb: what a surface facing straight up receives from the environment.
+  /// w unused.
+  ///
+  /// Appended after everything else on purpose: std140 lays a block out in
+  /// declaration order, so adding here leaves every offset above unchanged and
+  /// the three backends do not have to agree about anything they did not
+  /// already agree about.
+  vec4 ambient_sky;
+
+  /// rgb: what a surface facing straight down receives — bounce off the ground
+  /// rather than the ground itself. w unused.
+  ///
+  /// Two colours rather than one is the whole of what makes ambient look like
+  /// light instead of like a lifted black level. Outdoors the sky is blue and
+  /// bright and the ground is warm and dim, and a flat grey for both leaves
+  /// every underside as pale as every upward face — which reads as the model
+  /// being flat, and gets blamed on the normals.
+  vec4 ambient_ground;
 }
 frag_info;
 
@@ -4194,7 +4560,7 @@ struct Surface {
   float roughness;  // perceptual
   float occlusion;  // 1 means unoccluded
   vec3 emissive;    // linear, added after shading
-  float ambient;
+  vec3 ambient;     // hemispheric, already scaled by the scene's strength
   float exposure;
 };
 
@@ -4234,7 +4600,19 @@ Surface ReadSurface() {
 
   s.metallic = clamp(frag_info.material.x, 0.0, 1.0);
   s.roughness = clamp(frag_info.material.y, 0.02, 1.0);
-  s.ambient = frag_info.material.z;
+  // Hemispheric: the sky above, the ground below, blended by which way this
+  // surface faces. `material.z` stays the overall strength, so the two are
+  // separable — a scene dims its ambient without changing its colour, which is
+  // what the one control used to do on its own.
+  //
+  // The blend runs on the geometric normal deliberately, before
+  // `ApplyMaterialMaps` perturbs it. A normal map describes millimetres of
+  // surface relief, and ambient of this kind describes which half of the world
+  // a face can see; letting bump detail swing it makes a brick wall's mortar
+  // lines pick up sky and reads as noise.
+  s.ambient = mix(frag_info.ambient_ground.rgb, frag_info.ambient_sky.rgb,
+                  s.n.y * 0.5 + 0.5) *
+              frag_info.material.z;
   s.exposure = max(frag_info.frame_params.x, 0.0);
 
   // Neutral until ApplyMaterialMaps says otherwise, so a model that samples no
@@ -4367,8 +4745,18 @@ layout(std140) uniform PointShadow {
   /// Per slot. xyz: the light's world position. w: its range.
   vec4 lights[kShadowSlots];
 
-  /// Per light, in the order the lighting knows them: x is the atlas row it
-  /// owns, or negative when it has none. A fifth torch in a room lands here.
+  /// Per light, in the order the lighting knows them.
+  ///
+  /// x: the atlas row it owns, or negative when it has none — a fifth torch in
+  /// a room lands there. z: the tangent of half the frustum's opening angle,
+  /// which is what converts a world width into a fraction of a tile. y and w
+  /// are unwritten.
+  ///
+  /// **z is exactly one for a point light**, because a cube face is a ninety
+  /// degree frustum and `tan(45°) == 1`. That is not a convention chosen to be
+  /// tidy: it is what lets a narrower frustum share this whole path, since
+  /// multiplying by one in IEEE 754 changes no bit of the result. Whatever else
+  /// a spot light will need, it does not need a second copy of the filter.
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
@@ -4450,8 +4838,16 @@ vec2 PointShadowOffset(int i, float ca, float sa, float radius) {
 /// The blocker search runs at the **widest** penumbra allowed, since a blocker
 /// outside that circle cannot widen the result anyway, and searching narrower
 /// would miss the very blockers that make an edge soft.
+///
+/// [tanHalf] is where the ninety degrees stop being assumed. The span above is
+/// `2 * r` only for a right-angled frustum; in general it is `2 * r * tan(θ/2)`,
+/// and for a cube face that factor is one. A narrower frustum covers less world
+/// per tile, so the same world width is a *larger* fraction of it — which is
+/// why this divides rather than multiplies, and why getting it upside down
+/// would make a tight cone's shadows harden instead of soften.
 float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
-                          float ca, float sa, out float blockerOut) {
+                          float ca, float sa, float tanHalf,
+                          out float blockerOut) {
   blockerOut = -1.0;
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
@@ -4477,7 +4873,7 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float blocker = max(sum / count, 1e-4);
   blockerOut = blocker;
   float world = lightRadius * max(receiver - blocker, 0.0) / blocker;
-  return clamp(world / (2.0 * receiver), minRadius, maxRadius);
+  return clamp(world / (2.0 * receiver * tanHalf), minRadius, maxRadius);
 }
 
 /// How lit [world] is by the point light that owns the cube atlas.
@@ -4518,14 +4914,22 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
 
   // The dominant axis picks the face, in the order the renderer wrote them:
   // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom.
-  vec3 a = abs(toFragment);
-  int face;
-  if (a.x >= a.y && a.x >= a.z) {
-    face = toFragment.x > 0.0 ? 0 : 1;
-  } else if (a.y >= a.z) {
-    face = toFragment.y > 0.0 ? 2 : 3;
-  } else {
-    face = toFragment.z > 0.0 ? 4 : 5;
+  //
+  // A spot has one column and no choice to make. Asking the dominant axis
+  // anyway would be worse than pointless: a fragment below and to the side of
+  // a downlight has −Y dominant, which is column 3, and column 3 of a spot's
+  // row is deliberately blank — so the whole cone would read as unshadowed
+  // except for the wedge where the aim happens to be the dominant axis.
+  int face = 0;
+  if (point_shadow.slots[lightIndex].y < 0.5) {
+    vec3 a = abs(toFragment);
+    if (a.x >= a.y && a.x >= a.z) {
+      face = toFragment.x > 0.0 ? 0 : 1;
+    } else if (a.y >= a.z) {
+      face = toFragment.y > 0.0 ? 2 : 3;
+    } else {
+      face = toFragment.z > 0.0 ? 4 : 5;
+    }
   }
 
   vec4 clip = point_shadow.faces[slot * 6 + face] * vec4(origin, 1.0);
@@ -4554,9 +4958,15 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float ca = cos(angle);
   float sa = sin(angle);
 
+  // Guarded rather than read straight, because a zero here divides by zero and
+  // a NaN radius poisons the filter into a black fragment. Zero is what an
+  // unwritten channel holds, and "unwritten" is a state this block has been in
+  // before: every slot is cleared to −1 each frame.
+  float tanHalf = max(point_shadow.slots[lightIndex].z, 1e-4);
+
   float blocker = -1.0;
   float radius =
-      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, blocker);
+      PointShadowPenumbra(uv, tile, range, receiver, ca, sa, tanHalf, blocker);
 
   // The debug channel, and the reason it exists: two explanations for why the
   // estimate collapses were argued from the finished picture and both were
@@ -4839,6 +5249,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Debug view: world-space normal mapped into RGB.
 //
@@ -5038,6 +5449,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Fragment stage for the debug line overlay: the vertex colour, unchanged.
 //
@@ -5064,6 +5476,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // First step of the bloom chain: keep what is brighter than the threshold, at
 // half resolution.
@@ -5123,6 +5536,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Halves the resolution with a 13-tap filter.
 //
@@ -5185,6 +5599,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Doubles the resolution with a 3x3 tent filter, for the way back up the chain.
 //
@@ -5231,6 +5646,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // The last pass: add the bloom, tone map, encode to sRGB.
 //
@@ -5251,9 +5667,21 @@ uniform sampler2D scene_texture;
 /// The bloom chain's top level, or a black texture when bloom is off.
 uniform sampler2D bloom_texture;
 
+/// Ambient occlusion at half resolution, or a white texture when it is off.
+///
+/// White rather than absent, because a sampler a shader declares and nobody
+/// binds is a native crash on Metal rather than a black texture — the same rule
+/// that kept the sky's cube map out of `sky.frag`. One white texel costs
+/// nothing and removes the branch.
+uniform sampler2D ao_texture;
+
 layout(std140) uniform CompositeInfo {
-  /// x: exposure, y: bloom intensity, z: 1 to tone map, w unused.
+  /// x: exposure, y: bloom intensity, z: 1 to tone map, w: how much of the
+  /// occlusion to apply, 0 for none.
   vec4 params;
+
+  /// x, y: one texel of the ao texture. z, w unused.
+  vec4 ao_texel;
 }
 composite_info;
 
@@ -5296,9 +5724,34 @@ void main() {
   vec4 scene = texture(scene_texture, v_uv);
   vec3 bloom = texture(bloom_texture, v_uv).rgb;
 
-  // Additive, because bloom is light that scattered inside the lens rather than
-  // a filter over the image: it adds to what is already there.
-  vec3 color = scene.rgb + bloom * composite_info.params.y;
+  // Four taps in a 2×2, which is not a general-purpose blur: the occlusion pass
+  // rotates its kernel by the parity of the pixel, leaving a 2×2 pattern, and
+  // this averages exactly that away. The size is derived from the artefact
+  // rather than tuned against it, so the two have to move together — widening
+  // one without the other either leaves the pattern or smears the contact
+  // shadows this whole pass exists to draw.
+  vec2 half_texel = composite_info.ao_texel.xy * 0.5;
+  float ao = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)).r +
+                     texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)).r +
+                     texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)).r +
+                     texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)).r);
+  // Lerped towards one by the strength, so "off" is exactly one and multiplies
+  // nothing — every golden in the repository depends on that being exact rather
+  // than nearly so.
+  ao = mix(1.0, ao, clamp(composite_info.params.w, 0.0, 1.0));
+
+  // Applied to the scene and **not** to the bloom, which is the whole reason
+  // this lives in the composite rather than in a pass that reads and rewrites
+  // the HDR colour. Multiplying before bloom would take the glow out of a lit
+  // crack along with the ambient, and a crack that stops glowing is a worse
+  // error than a crack that stays bright.
+  //
+  // The cost, stated rather than left to be discovered: this multiplies the
+  // *sum* of the light, not the indirect part of it alone. Separating them
+  // would mean a third attachment and rewriting all six lit stages. So an
+  // emissive strip in a corner dims, which is physically wrong — the same
+  // compromise `pbr.frag` already makes with the occlusion map from a glTF.
+  vec3 color = scene.rgb * ao + bloom * composite_info.params.y;
 
   // Exposure before the tone map, so it behaves like a camera stop — it moves
   // which part of the scene's range lands in the mapper's shoulder instead of
@@ -5315,6 +5768,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // PROBE, not part of the pipeline: does Impeller honour more than one colour
 // attachment?
@@ -5347,6 +5801,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // The shadow pass: write depth, nothing else.
 //
@@ -5554,6 +6009,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Particles, as a procedural round sprite.
 //
@@ -5622,6 +6078,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Particles with a texture, beside the procedural one rather than replacing it.
 //
@@ -5691,6 +6148,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Mesh particles: additive, fogged, and shaded by which way each face points.
 //
@@ -5763,6 +6221,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Screen-space reflections.
 //
@@ -5914,10 +6373,203 @@ void main() {
 }
 
 ''',
+    'Ssao': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// Screen-space ambient occlusion, read out of the surface buffer.
+//
+// What it measures is how much of the sky a point can see. That is the same
+// question the hemispheric ambient in `lib/surface.glsl` answers by looking at
+// the normal alone, and the reason the two belong together: ambient without
+// occlusion lifts the inside of a corner exactly as much as the outside of one,
+// and no amount of colour makes that read as light.
+//
+// **Nothing here needs a depth texture, and that is not a preference.**
+// flutter_gpu cannot sample a depth attachment at all, so the engine's depth
+// lives in the alpha channel of the surface buffer — see `WriteSurfaceGeometry`
+// in `lib/color.glsl`. Every screen-space effect in this renderer is built on
+// that one decision, and this stage inherits it rather than working around it.
+//
+// The cost that must be stated rather than discovered: reading the surface
+// buffer turns MSAA off for the whole scene pass, because the average of two
+// octahedral normals is not the encoding of any normal. Switching this on
+// therefore changes the antialiasing of the entire frame, not just the shading
+// in its corners.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+uniform sampler2D surface_texture;
+
+layout(std140) uniform SsaoInfo {
+  /// Screen to world, for turning a stored depth back into a point.
+  mat4 inverse_view_projection;
+
+  /// World to screen, for finding where a sampled point lands.
+  mat4 view_projection;
+
+  /// x: radius in world metres. y: how many samples. w: bias in metres, which
+  /// keeps a flat surface from occluding itself.
+  ///
+  /// z is unused: the strength belongs to the composite, which is the pass that
+  /// has to make "off" mean a multiplier of exactly one. It is left in place
+  /// rather than removed so the block's layout does not depend on that staying
+  /// true.
+  vec4 params;
+
+  /// x: 1/width, y: 1/height of *this* target, which is half the scene's.
+  /// z, w unused.
+  vec4 screen;
+}
+ssao_info;
+
+vec3 DecodeOctahedral(vec2 e) {
+  e = e * 2.0 - 1.0;
+  vec3 n = vec3(e.xy, 1.0 - abs(e.x) - abs(e.y));
+  float t = max(-n.z, 0.0);
+  n.x += n.x >= 0.0 ? -t : t;
+  n.y += n.y >= 0.0 ? -t : t;
+  return normalize(n);
+}
+
+vec3 WorldFromDepth(vec2 uv, float depth) {
+  vec4 ndc = vec4(uv * 2.0 - 1.0, depth, 1.0);
+  vec4 world = ssao_info.inverse_view_projection * ndc;
+  return world.xyz / world.w;
+}
+
+/// Twelve directions on a hemisphere, as a fixed table.
+///
+/// A table rather than a hash of the fragment coordinate, and the reason is the
+/// conformance suite rather than taste: the cross-backend budgets in this
+/// repository are measured in hundredths of a per cent, and a float hash agrees
+/// between a GPU and a software rasteriser nowhere. A table is the same twelve
+/// numbers everywhere.
+///
+/// Lengths vary deliberately, packing more samples near the origin: occlusion
+/// falls off with distance, so uniform spacing spends most of its taps where
+/// they matter least.
+vec3 KernelTap(int i) {
+  if (i == 0) return vec3(0.5381, 0.1856, 0.4319);
+  if (i == 1) return vec3(0.1379, 0.2486, 0.4430);
+  if (i == 2) return vec3(0.3371, 0.5679, 0.0057);
+  if (i == 3) return vec3(-0.6999, -0.0451, 0.0019);
+  if (i == 4) return vec3(0.0689, -0.1598, -0.8547);
+  if (i == 5) return vec3(0.0560, 0.0069, -0.1843);
+  if (i == 6) return vec3(-0.0146, 0.1402, 0.0762);
+  if (i == 7) return vec3(0.0100, -0.1924, -0.0344);
+  if (i == 8) return vec3(-0.3577, -0.5301, -0.4358);
+  if (i == 9) return vec3(-0.3169, 0.1063, 0.0158);
+  if (i == 10) return vec3(0.0103, -0.5869, 0.0046);
+  return vec3(-0.0897, -0.4940, 0.3287);
+}
+
+/// One of four rotations, chosen by the parity of the pixel.
+///
+/// Four constants rather than a random angle, for the same reason the kernel is
+/// a table. It leaves a 2×2 pattern in the result, which is exactly what the
+/// composite's 2×2 average cancels — the blur is sized to the artefact rather
+/// than guessed at, and the two have to change together or neither works.
+vec2 Rotation(vec2 uv) {
+  vec2 pixel = floor(uv / ssao_info.screen.xy);
+  bool oddX = mod(pixel.x, 2.0) >= 1.0;
+  bool oddY = mod(pixel.y, 2.0) >= 1.0;
+  if (oddX && oddY) return vec2(-0.7071, -0.7071);
+  if (oddX) return vec2(0.7071, -0.7071);
+  if (oddY) return vec2(-0.7071, 0.7071);
+  return vec2(1.0, 0.0);
+}
+
+void main() {
+  vec4 surface = texture(surface_texture, v_uv);
+
+  // Nothing was drawn here. The buffer is cleared to zero and a zero alpha is
+  // the sky, not a surface sitting on the near plane — the same test
+  // `reflections.frag` makes, and for the same reason.
+  if (surface.a <= 0.0) {
+    frag_color = vec4(1.0);
+    return;
+  }
+
+  vec3 normal = DecodeOctahedral(surface.rg);
+
+  float radius = max(ssao_info.params.x, 1e-4);
+  int samples = clamp(int(ssao_info.params.y + 0.5), 1, 12);
+
+  // Lifted off the surface along its own normal, and this is where the bias
+  // goes rather than into the depth comparison below. A bias in window depth is
+  // a different number of millimetres at every distance from the camera —
+  // that is what a projection matrix does — so a value tuned on a near wall
+  // leaves acne on a far one. A metre is a metre anywhere.
+  vec3 origin = WorldFromDepth(v_uv, surface.a) + normal * ssao_info.params.w;
+
+  vec2 rot = Rotation(v_uv);
+  float occluded = 0.0;
+
+  for (int i = 0; i < 12; i++) {
+    if (i >= samples) break;
+
+    vec3 tap = KernelTap(i);
+    // Rotated about the vertical axis of the kernel's own space, before it is
+    // oriented to the surface: rotating afterwards would turn the hemisphere
+    // off the normal and let taps fall behind the surface.
+    vec3 spun =
+        vec3(tap.x * rot.x - tap.y * rot.y, tap.x * rot.y + tap.y * rot.x, tap.z);
+
+    // Flipped into the hemisphere the surface faces, rather than built from a
+    // tangent frame. A frame needs a tangent, this pass has none, and any it
+    // invented would rotate along a silhouette and shimmer.
+    if (dot(spun, normal) < 0.0) spun = -spun;
+
+    vec3 at = origin + spun * radius;
+
+    vec4 clip = ssao_info.view_projection * vec4(at, 1.0);
+    if (clip.w <= 0.0) continue;
+    vec3 ndc = clip.xyz / clip.w;
+    if (abs(ndc.x) > 1.0 || abs(ndc.y) > 1.0) continue;
+
+    vec2 uv = ndc.xy * 0.5 + 0.5;
+    vec4 there = texture(surface_texture, uv);
+    // The sky occludes nothing: a sample that lands on it is a sample looking
+    // out of the scene, which is the opposite of being enclosed.
+    if (there.a <= 0.0) continue;
+
+    // Nearer to the camera than the point we sampled towards means something
+    // stands between them. Compared in window depth, which is what the buffer
+    // holds and what `ndc.z` already is — reconstructing both to world space
+    // and measuring there would be the same test with two extra matrix
+    // multiplies and a division.
+    if (there.a >= ndc.z) continue;
+
+    // The range check, and the reason a version without one draws haloes: a
+    // wall four metres behind a railing is nearer to the camera than every
+    // sample taken around the railing, and would occlude all of them. Distance
+    // measured in the world, because "four metres behind" is a world fact and
+    // the depth buffer's answer to it depends on where the camera is.
+    vec3 seen = WorldFromDepth(uv, there.a);
+    occluded +=
+        smoothstep(0.0, 1.0, radius / max(distance(seen, origin), 1e-4));
+  }
+
+  // Raw, with no strength applied. The strength lives in the composite, and it
+  // lives in exactly one place on purpose: applied here as well it would be
+  // squared, and — more to the point — "off" has to mean a multiplier of
+  // exactly one, which is a property of the composite's `mix` rather than of
+  // any arithmetic done here.
+  frag_color = vec4(clamp(1.0 - occluded / float(samples), 0.0, 1.0));
+}
+
+''',
     'ShadowDistance': r'''#version 300 es
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // The depth pass for a point light: radial distance rather than clip depth.
 //
@@ -6128,6 +6780,7 @@ void main() {
 precision highp float;
 precision highp int;
 precision highp sampler2D;
+precision highp samplerCube;
 
 // Clearing one tile of the shadow atlas, by drawing over it.
 //
@@ -6152,6 +6805,169 @@ layout(location = 0) out vec4 frag_color;
 
 void main() {
   frag_color = vec4(1.0);
+}
+
+''',
+    'Sky': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The sky, evaluated per pixel from the view ray.
+//
+// What this buys over a painted dome, which is the thing it replaces: a sun
+// disc. A disc is about half a degree across — two, if you are being generous
+// about glare — and a dome fine enough to resolve one would need rings a
+// fraction of a degree apart. Here the shape is analytic and its size is a
+// number, so it costs the same at any angular radius.
+//
+// It also escapes the fog. `ApplyFog` lives inside `WriteSurface` in
+// `lib/color.glsl` and every lit model goes through it, so a dome ten metres
+// across is fogged by ten metres of air whether that makes sense or not. This
+// stage includes none of that.
+//
+// **Deliberately not including `lib/color.glsl`.** That header declares the
+// five varyings `mesh.vert` emits, and a fragment shader whose inputs disagree
+// with its vertex stage's outputs does not link — there is no partial-match
+// rule. `shadow_depth.frag` includes it *because* it runs off `mesh.vert`; this
+// runs off `sky.vert`, which emits one varying. So the two outputs are declared
+// here instead, in the same slots and with the same meanings.
+precision highp float;
+
+in vec3 v_ray;
+
+layout(location = 0) out vec4 frag_color;
+
+// The surface buffer, written as zero rather than left alone.
+//
+// Zero alpha is how `reflections.frag` recognises "nothing was drawn here", and
+// the attachment is cleared to zero, so not writing would give the same answer
+// — on a backend that guarantees an untouched attachment keeps its cleared
+// value. Writing it costs nothing and does not depend on that. When the scene
+// draws into one attachment rather than two, the extra output is discarded; the
+// renderer decides whether anyone is listening.
+layout(location = 1) out vec4 frag_surface;
+
+layout(std140) uniform SkyInfo {
+  /// rgb: the sky straight up. a: unused.
+  vec4 zenith;
+  /// rgb: the sky level with the horizon. a: unused.
+  vec4 horizon;
+  /// rgb: the sky straight down — haze rather than ground. a: unused.
+  vec4 nadir;
+  /// xyz: unit vector pointing at the sun. w: how tight the scattering lobe is.
+  vec4 sun;
+  /// rgb: the sun's own colour. a: how bright the lobe is.
+  vec4 glow;
+  /// x: cosine of the disc's angular radius. y: cosine of the radius plus its
+  /// soft edge — smaller than x, since cosine falls as the angle grows.
+  /// z: how bright the disc is, which may be far above white. w: unused.
+  vec4 disc;
+}
+sky_info;
+
+void main() {
+  vec3 direction = normalize(v_ray);
+
+  // The gradient, smoothstepped in height rather than linear: the first fifteen
+  // degrees above the horizon are most of what anybody looks at, and a straight
+  // ramp spends its range on the part they do not.
+  float height = clamp(direction.y, -1.0, 1.0);
+  vec3 far = height >= 0.0 ? sky_info.zenith.rgb : sky_info.nadir.rgb;
+  float t = abs(height);
+  t = t * t * (3.0 - 2.0 * t);
+  vec3 colour = mix(sky_info.horizon.rgb, far, t);
+
+  float towards = dot(direction, sky_info.sun.xyz);
+
+  // The wide scattering lobe. Guarded, because `pow` of a negative base is
+  // undefined and a NaN here is a pixel that is black on one backend and white
+  // on another.
+  if (towards > 0.0) {
+    colour += sky_info.glow.rgb * (sky_info.glow.a * pow(towards, sky_info.sun.w));
+  }
+
+  // And the disc itself, added on top of the lobe rather than replacing it: the
+  // sun is a bright thing seen through the glow around it, not instead of it.
+  // Its brightness is free to sit above one — this target is HDR, and a sun
+  // that cannot blow out is a sun bloom has nothing to find.
+  //
+  // Guarded, and the guard is not defensive programming. `smoothstep` is
+  // undefined when its two edges are equal — GLSL says so, and Metal computes
+  // `(x - e0) / (e1 - e0)`, which is 0/0 and therefore NaN. The two edges here
+  // are cosines of angles a third of a degree apart, so they are equal for any
+  // caller who leaves the disc at its default size, and a single NaN channel
+  // poisons the whole pixel through the tone map. A sky is exactly where that
+  // is least visible as a NaN and most visible as "the gradient went away".
+  float disc = sky_info.disc.x > sky_info.disc.y
+      ? smoothstep(sky_info.disc.y, sky_info.disc.x, towards)
+      : 0.0;
+  colour += sky_info.glow.rgb * (disc * sky_info.disc.z);
+
+  frag_color = vec4(colour, 1.0);
+  frag_surface = vec4(0.0);
+}
+
+''',
+    'SkyCube': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// A textured sky: the same view ray, sampled out of a cube map.
+//
+// A second fragment stage rather than a branch inside `sky.frag`, and rather
+// than a new vertex stage. The ray `sky.vert` emits is already a world-space
+// direction, which is exactly what a cube sampler takes — so the whole of the
+// difference between a procedural sky and a photographed one is this file.
+//
+// A branch would have been the wrong shape twice over. The uniform block would
+// have had to carry both descriptions whichever was in use, and every pixel
+// would have paid for a sampler bind that half the callers never fill; and a
+// shader that declares a sampler nobody binds is a native crash on Metal rather
+// than a black texture. Two entry points, one manifest, one pipeline each.
+//
+// **The faces are +X, −X, +Y, −Y, +Z, −Z.** That order is documented once, on
+// `GraphicsDevice.createCubeTextureFromPixels`, and it is what every backend
+// here uploads in — Impeller by slice index, WebGL by consecutive face target,
+// the software rasteriser by the table in `BoundTexture.sampleCube`. Nothing in
+// a picture says whether two of them are transposed, which is why the
+// conformance suite draws six known directions against six known colours.
+precision highp float;
+
+in vec3 v_ray;
+
+layout(location = 0) out vec4 frag_color;
+
+// Zero, for the same reason `sky.frag` writes it: a zero alpha is how the
+// reflection pass recognises that nothing was drawn here, and the sky is
+// nothing to reflect off.
+layout(location = 1) out vec4 frag_surface;
+
+uniform samplerCube sky_texture;
+
+layout(std140) uniform SkyCubeInfo {
+  /// rgb: multiplied into the sample, so one cube can serve several hours of
+  /// the day. a: unused.
+  vec4 tint;
+}
+sky_cube_info;
+
+void main() {
+  // Decoded from sRGB, because a cube map is an image and an image is authored
+  // in display space — the same rule `lib/surface.glsl` applies to a base
+  // colour texture, and the same rule a vertex colour is exempt from. Without
+  // this a photographed sky arrives with its midtones lifted, which reads as
+  // haze rather than as a colour-space mistake.
+  vec3 texel = texture(sky_texture, normalize(v_ray)).rgb;
+  vec3 linear = mix(texel / 12.92,
+                    pow((texel + 0.055) / 1.055, vec3(2.4)),
+                    step(vec3(0.04045), texel));
+
+  frag_color = vec4(linear * sky_cube_info.tint.rgb, 1.0);
+  frag_surface = vec4(0.0);
 }
 
 ''',

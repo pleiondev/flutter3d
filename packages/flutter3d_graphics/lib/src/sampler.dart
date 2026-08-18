@@ -72,6 +72,24 @@ final class SamplerOptions {
     heightAddressMode: SamplerAddressMode.clampToEdge,
   );
 
+  /// Unfiltered and clamped: for a buffer whose texels are *data* rather than
+  /// colour.
+  ///
+  /// The surface buffer is the case this exists for. Its rg is an octahedral
+  /// normal and its alpha is window depth, and the average of two of either is
+  /// not a value of that kind — the average of two normals across a silhouette
+  /// encodes no direction, and the average of a foreground depth and the
+  /// cleared background is a depth at which nothing stands. It is the same
+  /// argument that turns MSAA off for any pass that writes this buffer, applied
+  /// to the read side, and skipping it draws a dark rim around every silhouette
+  /// in the frame.
+  static const SamplerOptions nearestClamp = SamplerOptions(
+    minFilter: MinMagFilter.nearest,
+    magFilter: MinMagFilter.nearest,
+    widthAddressMode: SamplerAddressMode.clampToEdge,
+    heightAddressMode: SamplerAddressMode.clampToEdge,
+  );
+
   @override
   bool operator ==(Object other) =>
       other is SamplerOptions &&

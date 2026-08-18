@@ -280,31 +280,7 @@ final class ModelAsset {
     );
   }
 
-  static Material _copyMaterial(Material source) => Material(
-        name: source.name,
-        lighting: source.lighting,
-        baseColor: source.baseColor.clone(),
-        metallic: source.metallic,
-        roughness: source.roughness,
-        albedo: source.albedo,
-        albedoSampler: source.albedoSampler,
-        normal: source.normal,
-        normalSampler: source.normalSampler,
-        normalScale: source.normalScale,
-        metallicRoughness: source.metallicRoughness,
-        metallicRoughnessSampler: source.metallicRoughnessSampler,
-        occlusion: source.occlusion,
-        occlusionSampler: source.occlusionSampler,
-        occlusionStrength: source.occlusionStrength,
-        emissiveTexture: source.emissiveTexture,
-        emissiveSampler: source.emissiveSampler,
-        emissive: source.emissive.clone(),
-        emissiveStrength: source.emissiveStrength,
-        alphaMode: source.alphaMode,
-        alphaCutoff: source.alphaCutoff,
-        doubleSided: source.doubleSided,
-        drawBucket: source.drawBucket,
-      );
+  static Material _copyMaterial(Material source) => source.copy();
 
   /// Wraps a single procedurally generated mesh.
   factory ModelAsset.fromMesh(
@@ -341,22 +317,35 @@ final class ModelAsset {
     // Surfaces may share a MeshData, and materials may share an image; upload
     // each distinct one once.
     final meshCache = <MeshData, DeviceMesh>{};
-    final textureCache = <int, TextureHandle?>{};
+    // Keyed on the image **and on whether it carries a chain**, not on the
+    // image alone. One image can be bound by two materials that sample it
+    // differently — a decal atlas sampled without mips in one place and with
+    // them in another — and the chain is part of the texture rather than part
+    // of the sampler. Keying on the index alone would hand the second caller
+    // whichever answer the first happened to ask for.
+    final textureCache = <(int, bool), TextureHandle?>{};
     final materialCache = <int, Material>{};
 
-    Future<TextureHandle?> textureFor(int imageIndex) async {
+    Future<TextureHandle?> textureFor(
+      int imageIndex,
+      TextureSampling sampling,
+    ) async {
       if (imageIndex < 0 || imageIndex >= document.images.length) return null;
-      if (textureCache.containsKey(imageIndex)) return textureCache[imageIndex];
+      final key = (imageIndex, sampling.useMipmaps);
+      if (textureCache.containsKey(key)) return textureCache[key];
 
-      final uploaded =
-          await uploadEncodedImage(device, document.images[imageIndex].bytes);
+      final uploaded = await uploadEncodedImage(
+        device,
+        document.images[imageIndex].bytes,
+        sampling: sampling,
+      );
       if (uploaded == null) {
         warnings.add(
           'images[$imageIndex] could not be decoded; the material falls back to '
           'its base colour factor.',
         );
       }
-      textureCache[imageIndex] = uploaded;
+      textureCache[key] = uploaded;
       return uploaded;
     }
 
@@ -406,7 +395,7 @@ final class ModelAsset {
   static Future<Material> _convertMaterial(
     SurfaceMaterial source, {
     required LightingModel lighting,
-    required Future<TextureHandle?> Function(int) textureFor,
+    required Future<TextureHandle?> Function(int, TextureSampling) textureFor,
   }) async {
     /// Resolves one texture slot, returning both the image and its sampler.
     ///
@@ -418,7 +407,7 @@ final class ModelAsset {
     ) async {
       if (binding == null) return (null, null);
       return (
-        await textureFor(binding.imageIndex),
+        await textureFor(binding.imageIndex, binding.sampling),
         samplerOptionsFor(binding.sampling),
       );
     }

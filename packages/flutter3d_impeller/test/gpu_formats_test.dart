@@ -257,6 +257,12 @@ void main() {
     gpu.BlendOperation.values,
     (v) => v.toGpu(),
   );
+  checkForward(
+    'TextureType',
+    TextureType.values,
+    gpu.TextureType.values,
+    (v) => v.toGpu(),
+  );
 
   group('SamplerOptions', () {
     test('every field is carried across, and none is crossed with another', () {

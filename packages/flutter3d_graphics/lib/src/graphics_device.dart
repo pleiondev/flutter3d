@@ -97,6 +97,16 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// nothing logged anywhere.
   bool get supportsMipmaps;
 
+  /// Whether a cube texture can be created and sampled.
+  ///
+  /// Asked rather than assumed for the same reason as [supportsMipmaps]: no
+  /// backend here reports it as a capability, so the honest answer is a probe
+  /// or a constant, and which of the two it is belongs to the backend. A caller
+  /// that gets false has to have something to fall back to — for the sky that
+  /// is the procedural gradient, which is why the textured sky is an option on
+  /// top of it rather than a replacement for it.
+  bool get supportsCubeTextures;
+
   /// Whether [PolygonMode.line] can be drawn.
   ///
   /// False on OpenGL ES, which has no `glPolygonMode` — wireframe there means
@@ -180,6 +190,30 @@ abstract interface class GraphicsDevice implements TextureAllocator {
     required TextureFormat format,
     required ByteData pixels,
     List<ByteData>? mipLevels,
+  });
+
+  /// Uploads six square images as one cube texture.
+  ///
+  /// [faces] are in the order every graphics API in use agrees on:
+  /// **+X, −X, +Y, −Y, +Z, −Z**. Documented once, here, because it is the piece
+  /// of this that has no natural check: a table with two entries transposed
+  /// produces a sky that is complete, seamless and wrong, and it looks like a
+  /// sky somebody authored badly rather than like a bug. The conformance suite
+  /// draws six known directions against six known colours for exactly this.
+  ///
+  /// Every face is [size] by [size] — cube faces are square by definition, and
+  /// a rectangular one is a mistake worth refusing rather than resizing.
+  ///
+  /// Null when the device cannot do it, or when a face is not the size its
+  /// description says. Null rather than a throw for the same reason
+  /// [createTextureFromPixels] returns null: an asset that disagrees about its
+  /// own dimensions should cost a texture, not the frame.
+  ///
+  /// Ask [supportsCubeTextures] first.
+  TextureHandle? createCubeTextureFromPixels({
+    required int size,
+    required TextureFormat format,
+    required List<ByteData> faces,
   });
 
   /// Tells the backend a new frame is starting.

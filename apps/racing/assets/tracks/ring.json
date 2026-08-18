@@ -333,16 +333,50 @@
    "columnGap": 4.0
   }
  },
+ "sky": {
+  "name": "morning",
+  "sunElevationDeg": 34.0,
+  "sunAzimuthDeg": 112.0,
+  "sunColor": [
+   1.0,
+   0.95,
+   0.86
+  ],
+  "sunIntensity": 3.1,
+  "zenith": [
+   0.26,
+   0.42,
+   0.72
+  ],
+  "horizon": [
+   0.66,
+   0.75,
+   0.85
+  ],
+  "belowHorizon": [
+   0.2,
+   0.21,
+   0.22
+  ],
+  "glowWide": 6.0,
+  "glowStrength": 0.3,
+  "fogDensity": 0.0042,
+  "fogBacklitExponent": 6.0,
+  "fogBacklitStrength": 0.35,
+  "ambientIntensity": 0.1,
+  "exposure": 1.6,
+  "sunDisc": 14.0
+ },
  "level": {
   "version": 1,
   "name": "ring",
   "generatedBy": "tool/make_track.py",
   "fogColor": [
-   0.62,
-   0.71,
-   0.82
+   0.66,
+   0.75,
+   0.85
   ],
-  "fogDensity": 0.0016,
+  "fogDensity": 0.0042,
   "materials": {
    "grass": {
     "baseColor": [
@@ -371,9 +405,9 @@
      0.0
     ],
     "size": [
-     548.0,
+     1009.6,
      4.0,
-     548.0
+     1009.6
     ],
     "material": "grass",
     "surface": "grass"
@@ -695,16 +729,16 @@
    {
     "type": "directional",
     "direction": [
-     -0.4,
-     -0.8,
-     0.45
+     -0.769,
+     -0.559,
+     0.311
     ],
     "color": [
      1.0,
-     0.97,
-     0.9
+     0.95,
+     0.86
     ],
-    "intensity": 3.0,
+    "intensity": 3.1,
     "castsShadow": true
    }
   ],

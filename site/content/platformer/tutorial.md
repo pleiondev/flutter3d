@@ -527,7 +527,7 @@ test('a frame renders', () {
 ```
 
 <div class="why">
-<p>Three bugs shipped that every simulation test passed and a single rendered frame would have caught. That is why <code>flutter3d_cpu</code> is a dev dependency of both games rather than a curiosity.</p>
+<p>Three bugs shipped that every simulation test passed and a single rendered frame would have caught. That is why <code>flutter3d_cpu</code> is a dev dependency of the games rather than a curiosity.</p>
 </div>
 
 ## Where to go from here
@@ -535,4 +535,4 @@ test('a frame renders', () {
 - [What a platformer adds](/platformer/): the reference for every type used here
 - [Shooter tutorial](/shooter/tutorial/): the same core, a completely different game
 - [Simulation layer](/core/simulation/): the machinery both share
-- [Testing](/reference/testing/): how the 1242 tests are written, and why
+- [Testing](/reference/testing/): how the tests are written, and why

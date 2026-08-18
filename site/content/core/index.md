@@ -1,10 +1,10 @@
 ---
-description: The engine under both games — the HAL and its three backends, the renderer, scene graph, geometry, assets, the fixed step and collision.
+description: The engine under all three games: the HAL and its three backends, the renderer, scene graph, geometry, assets, the fixed step and collision.
 ---
 
 # What core is
 
-Core is everything both games use and neither game owns. Five packages that never learn what a monster or a coin is, plus three backends that never learn what a scene is.
+Core is everything all three games use and none of them owns. Five packages that never learn what a monster, a coin or a lap is, plus three backends that never learn what a scene is.
 
 Nothing in this section is genre knowledge. That is not a stylistic preference. It is the property that made the second game possible to write, and every page here says which test enforces it.
 
@@ -23,7 +23,7 @@ Nothing in this section is genre knowledge. That is not a stylistic preference. 
 | Backend | Runs on |
 |---|---|
 | `flutter3d_impeller` | `flutter_gpu` — Metal and Vulkan. The production one |
-| `flutter3d_webgl` | WebGL2 in the browser. Runs both games, at a fixed resolution and a lower frame rate |
+| `flutter3d_webgl` | WebGL2 in the browser. Runs the shooter and the platformer at a fixed resolution and a lower frame rate |
 | `flutter3d_cpu` | Nothing — it rasterises in Dart, which is how thirty golden scenes are checkable with no GPU in the room |
 
 `flutter3d_conformance` is the suite any fourth one would have to pass, and [Writing a HAL backend](/core/backends/) is the guide for writing that fourth one.

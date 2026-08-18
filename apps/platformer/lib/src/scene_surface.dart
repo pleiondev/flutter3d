@@ -41,19 +41,16 @@ class SceneSurface extends StatelessWidget {
             // by two hundred and sixty and one map over that is fourteen
             // centimetres of world per texel — which drew the runner's own
             // shadow as a blurred slab beside them, and was reported as the
-            // character being drawn twice.
+            // character being drawn twice. Three is the engine default now, and
+            // it is still written out here because the tile size beside it only
+            // means anything stated together with it.
             //
-            // A thousand and twenty-four rather than the default two thousand:
-            // the atlas is `resolution × cascades` wide, so three cascades at
-            // the default would be a six-thousand-pixel HDR texture — a hundred
-            // megabytes, on the machine that already had to be taught not to
-            // allocate its frame targets late. Three tiles of 1024 cover about
-            // forty metres each, which is four centimetres of world per texel
-            // against the old fourteen.
-            // 2048 rather than 1024, which is a real cost — the atlas is
-            // `resolution × cascades` wide, so this is 6144 × 2048 — and it is
-            // what the character's own shadow reads as soft rather than as a
-            // staircase. At 1024 the near cascade is 1.9 cm of world per texel
+            // 2048 rather than the default 1024, which is a real cost — the
+            // atlas is `resolution × cascades` wide, so this is 6144 × 2048, a
+            // hundred megabytes of HDR texture on the machine that already had
+            // to be taught not to allocate its frame targets late. What it buys
+            // is the character's own shadow reading as soft rather than as a
+            // staircase: at 1024 the near cascade is 1.9 cm of world per texel
             // and the penguin's shadow is a visible flight of steps beside it.
             shadows: const ShadowSettings(cascades: 3, resolution: 2048),
           ),

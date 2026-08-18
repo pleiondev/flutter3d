@@ -28,9 +28,11 @@ final class GoldenScene {
     this.surfaceBuffer = false,
     this.shadowMap = false,
     this.pointShadow = false,
+    this.spotShadow = false,
     this.extraPointShadows = 0,
     this.moverFrames = 0,
     this.groundDrop = 0.0,
+    this.sky = const SkySettings(),
   });
 
   /// File name, without an extension, under `test/goldens/`.
@@ -49,9 +51,24 @@ final class GoldenScene {
   /// Shows the shadow map instead of the lit image.
   final bool shadowMap;
 
+  /// What is behind everything. Off in every scene but one, which is what keeps
+  /// the rest of this set recorded: a sky changes every pixel the scene did not
+  /// otherwise draw.
+  final SkySettings sky;
+
   /// Makes the scene's first point light a shadow caster, so the cube atlas
   /// has something in it.
   final bool pointShadow;
+
+  /// The same for the spot light, which takes a row of the same atlas and uses
+  /// one of its six columns.
+  ///
+  /// Separate from [pointShadow] rather than folded into it, because the two
+  /// answer different questions of the same machinery: a cube writes six
+  /// columns and picks between them by dominant axis, a cone writes one and
+  /// must not pick at all. A scene with both on cannot tell which of them drew
+  /// the shadow it is looking at.
+  final bool spotShadow;
 
   /// How far to lower the ground below the model, in model radii.
   ///
@@ -475,6 +492,34 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     groundDrop: 2.5,
   ),
 
+  // A cone rather than a cube, which nothing above draws.
+  //
+  // A spot borrows the whole point-shadow path — the atlas, the slot pool, the
+  // distance format, the contact-hardening filter — and switches five of its
+  // six columns off. That reuse is the argument for building it this way and
+  // also the reason it can be wrong quietly: the shader picks a cube's column
+  // by dominant axis, and for a spot aimed down from above, the dominant axis
+  // is the one column that is deliberately blank. On the software rasteriser
+  // that mistake shows as no shadow at all; here it shows as no shadow at all
+  // too, which is why the pair is worth recording rather than either alone.
+  //
+  // The spot alone, with the fill light off: two lights on a small model fill
+  // in each other's shadows, and a scene where they do says nothing about which
+  // of them drew what.
+  const GoldenScene(
+    name: 'spot-shadow',
+    source: 'Teapot',
+    bloom: false,
+    lights: <String>{'spot light'},
+    spotShadow: true,
+    // Held clear of the floor for the same reason `cube-shadow-gap` is: a
+    // caster resting on its receiver has no gap for the penumbra to open in,
+    // and a cone's filter is the place where the ninety-degree assumption used
+    // to be baked in. With the model on the ground this would pass whether or
+    // not `tanHalf` reached the estimate at all.
+    groundDrop: 2.5,
+  ),
+
   // Six casters for four rows, which is the case the allocator exists for.
   //
   // Until it existed the rows went to the first four point lights in scene
@@ -491,6 +536,34 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     shadowMap: true,
     pointShadow: true,
     extraPointShadows: 5,
+  ),
+
+  // The sky, which is the only scene in this set that has one.
+  //
+  // Every other scene draws against the clear colour, and that is what keeps
+  // sixty recorded images valid: `SkySettings.enabled` is false by default and
+  // the disabled path emits nothing at all. Turning it on anywhere else would
+  // re-baseline the lot in a commit about something else.
+  //
+  // What it pins: the gradient, the sun's disc — which is analytic and half a
+  // degree across, so it is the part most sensitive to the ray being built
+  // wrongly — and the fact that the sky lands *behind* the teapot rather than
+  // over it.
+  //
+  // **Bloom off, and the disc kept modest.** The first recording of this scene
+  // asked for intensity 40 with bloom on, and the result was a flat lilac wash:
+  // the glow swallowed the gradient it was supposed to be sitting in, and the
+  // golden pinned a picture in which nothing about the sky could be read. A
+  // reference nobody can read is a reference that cannot fail usefully.
+  //
+  // The colours are the defaults, because `Vector3` has no const constructor
+  // and a scene that had to be built at runtime would be the only one here.
+  const GoldenScene(
+    name: 'sky',
+    source: 'Teapot',
+    ground: false,
+    bloom: false,
+    sky: SkySettings(enabled: true, sunIntensity: 6.0),
   ),
 ];
 

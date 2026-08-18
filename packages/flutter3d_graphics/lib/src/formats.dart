@@ -34,6 +34,29 @@
 /// translation file appears beside `gpu_formats.dart`.
 library;
 
+/// What shape a texture is.
+///
+/// Names and order follow flutter_gpu's own `TextureType` value for value, for
+/// the reason the library docstring gives: `gpu_formats_test.dart` checks that
+/// each maps onto the value of the same name, and a test that only checked
+/// "distinct" would pass a swapped pair.
+///
+/// Only two of these are reachable through this package today.
+/// [texture2DMultisample] is expressed by `sampleCount` on the handle rather
+/// than by this, and [textureExternalOES] has no call site at all — both are
+/// here because the enums must line up one for one, which is what the test
+/// asserts and what makes the mapping worth trusting.
+enum TextureType {
+  texture2D,
+  texture2DMultisample,
+
+  /// Six square faces, sampled by direction rather than by coordinate. What a
+  /// sky, an environment map or a point-light shadow is drawn into.
+  textureCube,
+
+  textureExternalOES,
+}
+
 /// Where an allocation lives and how it may be used.
 enum StorageMode {
   /// Mappable into the host's address space and usable by the device.

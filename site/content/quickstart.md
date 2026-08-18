@@ -25,7 +25,7 @@ Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of th
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all fifteen packages against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all sixteen packages against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/dzolotov/flutter3d.git
@@ -58,6 +58,9 @@ The script calls `impellerc` directly rather than going through Native Assets, a
 
 # The platformer
 (cd apps/platformer && flutter run -d macos)
+
+# The racing game
+(cd apps/racing && flutter run -d macos)
 ```
 
 <div class="note">
@@ -72,7 +75,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-1242 tests across fifteen packages, and only about thirty of them need a GPU — the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
+1805 tests across sixteen packages, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
 
 ## Your own application
 

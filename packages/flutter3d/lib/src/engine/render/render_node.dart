@@ -81,24 +81,77 @@ abstract base class RenderNode extends FrameGraphNode {
   void execute(NodeFrame frame);
 }
 
+/// Where in the frame an application's node is registered.
+///
+/// Not a priority number — the thing the frame graph exists to replace — and
+/// not an ordering the graph could derive either. Registration order is what
+/// turns a chain of writes to one name into a chain of versions, so *where* a
+/// node is registered decides which version it reads, and no declaration a node
+/// could make would say that on its own.
+///
+/// Two positions, because there are two, and each is defined by what has
+/// already been drawn when the node runs.
+enum FramePhase {
+  /// Before the post chain: the scene is drawn, in HDR, and nothing has been
+  /// tone mapped.
+  ///
+  /// Where every application node went before this enum existed, and still the
+  /// default. A node here writes light — decals, a held weapon, anything that
+  /// belongs to the world and should bloom and tone map with it.
+  overlay,
+
+  /// After the composite: the image is tone mapped, sRGB, and is what the
+  /// caller is about to be handed.
+  ///
+  /// Registration here was impossible rather than merely awkward, which is the
+  /// gap this closes. Registered in the [overlay] slot, a node declaring
+  /// `reads: [frame]` bound to a version the composite had not written yet;
+  /// declaring only `writes: [frame]` put it *first*, where the composite then
+  /// overwrote it with `LoadAction.dontCare`. So the pass ran, cost its time,
+  /// and left nothing — the failure mode that looks exactly like working code.
+  ///
+  /// A node here reads display-referred colour. Anything physical — a light, a
+  /// glow, anything meant to blow out — belongs in [overlay]; this is for
+  /// things that are honestly about the finished picture: a colour grade, a
+  /// vignette, a letterbox, a watermark.
+  present,
+}
+
 /// The nodes a renderer runs, and the order it runs them in.
 ///
-/// Ordering is derived by the frame graph from what each node declares, not by
-/// a priority number — that is the whole reason the graph exists. This holds
-/// the set; `Renderer` compiles it.
+/// Ordering *within* a phase is derived by the frame graph from what each node
+/// declares, not by a priority number — that is the whole reason the graph
+/// exists. What a phase decides is something the graph cannot: which of the
+/// engine's own passes have already produced their versions. This holds the
+/// set; `Renderer` compiles it.
 final class RenderNodeRegistry {
   final List<RenderNode> _nodes = <RenderNode>[];
+  final Map<RenderNode, FramePhase> _phases = <RenderNode, FramePhase>{};
 
   List<RenderNode> get all => List<RenderNode>.unmodifiable(_nodes);
 
+  /// The nodes registered for [phase], in the order they were added.
+  List<RenderNode> of(FramePhase phase) => <RenderNode>[
+        for (final node in _nodes)
+          if ((_phases[node] ?? FramePhase.overlay) == phase) node,
+      ];
+
   int get length => _nodes.length;
 
-  T add<T extends RenderNode>(T node) {
+  T add<T extends RenderNode>(T node,
+      {FramePhase phase = FramePhase.overlay}) {
     _nodes.add(node);
+    _phases[node] = phase;
     return node;
   }
 
-  bool remove(RenderNode node) => _nodes.remove(node);
+  bool remove(RenderNode node) {
+    _phases.remove(node);
+    return _nodes.remove(node);
+  }
 
-  void clear() => _nodes.clear();
+  void clear() {
+    _phases.clear();
+    _nodes.clear();
+  }
 }

@@ -333,4 +333,4 @@ The names live here instead of in `flutter3d_physics`, because a collision world
 ## Next
 
 - [Collision & physics](/core/physics/): what a body sweeps against
-- [Shooter](/shooter/) and [Platformer](/platformer/): two genres built on all of this
+- [Shooter](/shooter/), [Platformer](/platformer/) and [Racing](/racing/): three genres built on all of this

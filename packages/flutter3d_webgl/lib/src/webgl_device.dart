@@ -25,10 +25,22 @@ import 'webgl_shaders.dart';
 /// becomes an ordinary renderbuffer, which is the closest honest thing: not
 /// sampleable, attachment only.
 final class WebGlTexture {
-  WebGlTexture({this.texture, this.renderbuffer});
+  WebGlTexture({
+    this.texture,
+    this.renderbuffer,
+    this.target = web.WebGLRenderingContext.TEXTURE_2D,
+  });
 
   final web.WebGLTexture? texture;
   final web.WebGLRenderbuffer? renderbuffer;
+
+  /// What this is bound as: `TEXTURE_2D`, or `TEXTURE_CUBE_MAP` for a cube.
+  ///
+  /// Carried rather than assumed at each call site. Every `bindTexture`,
+  /// `texParameteri` and upload in this file used to name `TEXTURE_2D`
+  /// literally, and a cube bound as a 2D texture is not an error — it is a
+  /// different texture object, so the draw samples nothing and shows black.
+  final int target;
 
   bool get isSampleable => texture != null;
 }
@@ -224,6 +236,65 @@ final class WebGlDevice implements GraphicsDevice {
   // device this capability exists to warn about is an OpenGL ES 2 one, which
   // this backend does not run on at all.
   bool get supportsMipmaps => true;
+
+  @override
+  // WebGL2 has had cube maps since WebGL1, and samples across their edges
+  // seamlessly without an extension. Nothing to probe.
+  bool get supportsCubeTextures => true;
+
+  @override
+  TextureHandle? createCubeTextureFromPixels({
+    required int size,
+    required TextureFormat format,
+    required List<ByteData> faces,
+  }) {
+    if (faces.length != 6) return null;
+    for (final face in faces) {
+      // RGBA8, four bytes a texel, as everywhere the CPU uploads.
+      if (face.lengthInBytes != size * size * 4) return null;
+    }
+
+    final texture = _gl.createTexture();
+    _gl.bindTexture(web.WebGLRenderingContext.TEXTURE_CUBE_MAP, texture);
+    _gl.texStorage2D(
+      web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
+      1,
+      textureFormatToGl(format),
+      size,
+      size,
+    );
+
+    // The six face targets are **consecutive constants** starting at
+    // `TEXTURE_CUBE_MAP_POSITIVE_X`, in the order +X, −X, +Y, −Y, +Z, −Z — the
+    // same order the interface documents and the same order Impeller's slices
+    // take. That the two agree is what the conformance check is for; that they
+    // are consecutive is what makes this a loop rather than a table.
+    for (var i = 0; i < 6; i++) {
+      final bytes = faces[i];
+      _gl.texSubImage2D(
+        web.WebGLRenderingContext.TEXTURE_CUBE_MAP_POSITIVE_X + i,
+        0,
+        0,
+        0,
+        size.toJS,
+        size.toJS,
+        web.WebGLRenderingContext.RGBA.toJS,
+        web.WebGLRenderingContext.UNSIGNED_BYTE,
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
+      );
+    }
+
+    return TextureHandle(
+      backend: WebGlTexture(
+        texture: texture,
+        target: web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
+      ),
+      width: size,
+      height: size,
+      format: format,
+      type: TextureType.textureCube,
+    );
+  }
 
   @override
   PipelineHandle createPipeline(
@@ -1022,11 +1093,11 @@ final class WebGlEncoder implements CommandEncoder {
 
     final unit = _nextTextureUnit++;
     _gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + unit);
-    _gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
+    _gl.bindTexture(backend.target, backend.texture);
 
     final options = sampler ?? SamplerOptions.linearRepeat;
-    void set(int name, int value) => _gl.texParameteri(
-        web.WebGLRenderingContext.TEXTURE_2D, name, value);
+    void set(int name, int value) =>
+        _gl.texParameteri(backend.target, name, value);
     set(web.WebGLRenderingContext.TEXTURE_MIN_FILTER,
         minMagFilterToGl(options.minFilter));
     set(web.WebGLRenderingContext.TEXTURE_MAG_FILTER,

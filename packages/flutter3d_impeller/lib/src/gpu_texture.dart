@@ -22,9 +22,15 @@ import 'gpu_formats.dart';
 /// handles therefore answers the question callers actually mean.
 ///
 /// The argument list mirrors `gpuContext.createTexture` — including its
-/// defaults — so a call site that moves here reads the same. `textureType` is
-/// left out: flutter_gpu infers it from [sampleCount], and nothing in this
-/// engine wants a type the sample count does not already imply.
+/// defaults — so a call site that moves here reads the same.
+///
+/// [type] is passed through rather than inferred. flutter_gpu derives a
+/// multisample type from [sampleCount] on its own, but a cube is not something
+/// any other argument implies, and it changes what the texture *is*:
+/// `gpu.Texture.sliceCount` becomes six, and `overwrite` starts taking a face
+/// index. A cube also asks for [enableRenderTargetUsage] false at every call
+/// site there is — nothing renders into a face, because `ColorTarget` has no
+/// slice to render into.
 TextureHandle createGpuTexture(
   StorageMode storageMode,
   int width,
@@ -34,12 +40,23 @@ TextureHandle createGpuTexture(
   bool enableRenderTargetUsage = true,
   bool enableShaderReadUsage = true,
   int mipLevelCount = 1,
+  TextureType type = TextureType.texture2D,
 }) {
   final texture = gpu.gpuContext.createTexture(
     storageMode.toGpu(),
     width,
     height,
     format: format.toGpu(),
+    // Multisampling still decides the type when the caller has no opinion, and
+    // that is not a nicety — passing a plain `texture2D` with a sample count
+    // above one is a combination flutter_gpu refuses, and it refuses it as
+    // "Texture creation failed" with nothing about which argument was wrong.
+    // This line used to be absent for exactly that reason; a cube is the first
+    // type no other argument implies, so the type is passed *and* the old
+    // inference is kept.
+    textureType: type == TextureType.texture2D && sampleCount > 1
+        ? gpu.TextureType.texture2DMultisample
+        : type.toGpu(),
     sampleCount: sampleCount,
     // Clamped to what the device will allocate. `fullMipCount` stops one short
     // of one-by-one, and asking for more than it throws — so the trim happens
@@ -59,6 +76,7 @@ TextureHandle createGpuTexture(
     format: format,
     sampleCount: sampleCount,
     storageMode: storageMode,
+    type: type,
   );
 }
 

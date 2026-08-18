@@ -232,6 +232,28 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// Only their presence matters here; the texture unit is assigned per bind,
   /// because the engine binds a slot when its material declares one and the set
   /// differs between draws.
+  /// Whether a GL uniform type is one of the sampler types.
+  ///
+  /// The list is the WebGL2 set. Named by value rather than by constant because
+  /// `package:web` exposes only the two this backend uses.
+  static bool _isSampler(int type) => const <int>[
+        0x8B5E, // SAMPLER_2D
+        0x8B60, // SAMPLER_CUBE
+        0x8DC1, // SAMPLER_2D_ARRAY
+        0x8B62, // SAMPLER_2D_SHADOW
+        0x8DC4, // SAMPLER_2D_ARRAY_SHADOW
+        0x8DC5, // SAMPLER_CUBE_SHADOW
+        0x8DCA, // INT_SAMPLER_2D
+        0x8DCF, // INT_SAMPLER_2D_ARRAY
+        0x8DD2, // UNSIGNED_INT_SAMPLER_2D
+        0x8DD7, // UNSIGNED_INT_SAMPLER_2D_ARRAY
+        0x8B5F, // SAMPLER_3D
+        0x8DCB, // INT_SAMPLER_3D
+        0x8DD3, // UNSIGNED_INT_SAMPLER_3D
+        0x8DCC, // INT_SAMPLER_CUBE
+        0x8DD4, // UNSIGNED_INT_SAMPLER_CUBE
+      ].contains(type);
+
   Map<String, int> _reflectSamplers(web.WebGLProgram program) {
     final count = (_gl.getProgramParameter(
             program, web.WebGLRenderingContext.ACTIVE_UNIFORMS)! as JSNumber)
@@ -240,8 +262,29 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     for (var i = 0; i < count; i++) {
       final info = _gl.getActiveUniform(program, i);
       if (info == null) continue;
-      if (info.type != web.WebGLRenderingContext.SAMPLER_2D) continue;
-      samplers[info.name] = i;
+      final type = info.type;
+      if (type == web.WebGLRenderingContext.SAMPLER_2D ||
+          type == web.WebGLRenderingContext.SAMPLER_CUBE) {
+        samplers[info.name] = i;
+        continue;
+      }
+      // Anything else is not something this reflection knows how to bind, and
+      // dropping it silently is how a sampler stops working with nothing said.
+      //
+      // That is not hypothetical: this line read `!= SAMPLER_2D` and skipped
+      // the rest, so a `samplerCube` never reached `samplers`, `bindTexture`
+      // then found no location and returned, and the draw sampled whatever was
+      // left in texture unit zero. Impeller and the software rasteriser drew
+      // the right picture; the web drew rubbish and logged nothing. Throwing
+      // means the next non-2D sampler is a message rather than a mystery.
+      if (_isSampler(type)) {
+        throw StateError(
+          'The shader declares "${info.name}", a sampler of GL type 0x'
+          '${type.toRadixString(16)} that this backend cannot bind. Teach '
+          '_reflectSamplers and bindTexture about it, or the draw will sample '
+          'whatever was in the texture unit.',
+        );
+      }
     }
     return samplers;
   }

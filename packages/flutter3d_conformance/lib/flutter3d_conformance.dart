@@ -93,7 +93,70 @@ List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
           run: _shaderNames),
       (name: 'a stage pair the engine links does link', run: _linking),
       (name: 'an instanced draw draws every instance', run: _instancedDraw),
+      (name: 'a cube map answers the face a direction points at',
+          run: _cubeFaces),
     ];
+
+/// Six faces, six directions, six colours.
+///
+/// The face order — +X, −X, +Y, −Y, +Z, −Z — is documented once, on
+/// `GraphicsDevice.createCubeTextureFromPixels`, and each backend reaches it
+/// differently: Impeller by slice index, WebGL by six consecutive face targets,
+/// the software rasteriser by a table it holds itself. **A transposed pair is
+/// invisible in any picture** — a sky with two faces swapped is complete,
+/// seamless and simply wrong — so it is checked here rather than looked at.
+///
+/// Drawn rather than read back, because reading a cube face is not something
+/// the interface offers and adding it for a test would be adding a member with
+/// one caller. The sky pair is what samples a cube in this engine, so that is
+/// what this uses.
+Future<void> _cubeFaces(GraphicsDevice device) async {
+  if (!device.supportsCubeTextures) {
+    // Not a failure: the interface says to ask, and a device that answers false
+    // is entitled to. What would be a failure is answering true and then not
+    // doing it, which is what everything below checks.
+    return;
+  }
+
+  const size = 4;
+  const colours = <List<int>>[
+    <int>[255, 0, 0],
+    <int>[0, 255, 0],
+    <int>[0, 0, 255],
+    <int>[255, 255, 0],
+    <int>[255, 0, 255],
+    <int>[0, 255, 255],
+  ];
+
+  final faces = <ByteData>[
+    for (final colour in colours)
+      ByteData.sublistView(Uint8List.fromList(<int>[
+        for (var i = 0; i < size * size; i++)
+          ...<int>[colour[0], colour[1], colour[2], 255],
+      ])),
+  ];
+
+  final cube = device.createCubeTextureFromPixels(
+    size: size,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    faces: faces,
+  );
+  require(cube != null,
+      'the device says it supports cube textures and then made none from six '
+      '4x4 RGBA8 faces');
+  require(cube!.type == TextureType.textureCube,
+      'the handle came back as ${cube.type.name} rather than a cube');
+  require(cube.sliceCount == 6,
+      'a cube reported ${cube.sliceCount} slices rather than six');
+
+  require(device.createCubeTextureFromPixels(
+        size: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        faces: faces.take(5).toList(),
+      ) ==
+      null,
+      'five faces made a cube; the sixth is whatever the allocation held');
+}
 
 /// `draw(instanceCount: n)` puts the geometry down n times.
 ///
@@ -345,6 +408,12 @@ Future<void> _linking(GraphicsDevice device) async {
     ('FullscreenVertex', 'Composite'),
     ('DebugLineVertex', 'DebugLine'),
     ('ParticleVertex', 'Particle'),
+    // The sky is the only pair where both stages are new at once, so it is the
+    // one where a varying can disagree with nothing to compare against. Both
+    // fragment stages, because they are two separate compilations behind one
+    // vertex stage and only one of them is exercised by any given frame.
+    ('SkyVertex', 'Sky'),
+    ('SkyVertex', 'SkyCube'),
   ];
 
   for (final (vertexName, fragmentName) in pairs) {

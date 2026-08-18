@@ -222,7 +222,13 @@ final class RenderList {
   /// means, and it gets it for free.
   int _sortKey(DrawItem item, SortMode mode) {
     final material = item.material;
-    final bucket = material.drawBucket & 0xFF;
+    // Biased and clamped, not masked. The field is signed and the point of it
+    // is to force something out of the ordinary order — and the ordinary order
+    // is bucket zero, so the only way to be *before* everything is a negative
+    // bucket. `& 0xFF` sent −1 to 255 and drew the thing dead last, silently:
+    // a sky asked to go first went behind nothing and in front of everything.
+    // Clamping rather than wrapping for the same reason at the other end.
+    final bucket = (material.drawBucket + 128).clamp(0, 255);
 
     switch (mode) {
       case SortMode.stateThenDepth:

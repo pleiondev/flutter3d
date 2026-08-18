@@ -73,8 +73,27 @@ const Map<String, double> _budgets = <String, double>{
   // multisampling on edges, so a budget above the particle floor is the shape
   // of the fixture rather than a fault in it — measured at 0.716%.
   'particles-mesh': 0.75,
-  'normal-mapping': 1.1,
-  'cube-shadow-mover': 0.55,
+  // 1.417% measured once model textures started carrying a mip chain. The rise
+  // is the one difference this backend cannot close: it picks a level from a
+  // per-triangle gradient, where hardware differences a quad of neighbouring
+  // fragments — stated in `BoundTexture.sample`'s own docstring. Before the
+  // chain existed every sample came from the base level, so the two backends
+  // agreed by having nothing to disagree about.
+  'normal-mapping': 1.5,
+  // 0.490% measured. Shadow edges are where these two backends differ most,
+  // one having multisampling and the other not, so anything that sharpens an
+  // edge moves this number: fitting the volume to casters only pushed it to
+  // 0.582%, and three cascades at a 1024 tile brought it back down, the near
+  // cascade covering less world than one 2048 tile did. Set just above the
+  // measurement, as every budget in this file is.
+  // 0.398% measured, which is the number worth reading here rather than the
+  // budget: it sits inside the band the cube-shadow scenes occupy (0.39 to
+  // 0.49), and a cone that borrowed the point path correctly is a cone that
+  // disagrees between backends by exactly as much as that path already did.
+  // A spot that had gone its own way somewhere would show up as a scene with
+  // its own noise floor.
+  'spot-shadow': 0.46,
+  'cube-shadow-mover': 0.56,
   'cube-shadow-lit': 0.55,
   'shadow-teapot': 0.52,
   'particle-one': 0.45,

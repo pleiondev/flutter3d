@@ -219,6 +219,12 @@ class _SpikePageState extends State<SpikePage>
   final bool _showSurfaceBuffer =
       GoldenRunner.fromEnvironment()?.scene.surfaceBuffer ?? false;
 
+  /// The sky the golden scene asks for, or none at all — which is what every
+  /// scene but one asks for, and what this application shows when it is being
+  /// driven by hand rather than by the golden runner.
+  final SkySettings _sky =
+      GoldenRunner.fromEnvironment()?.scene.sky ?? const SkySettings();
+
   final bool _showShadowMap =
       GoldenRunner.fromEnvironment()?.scene.shadowMap ?? false;
 
@@ -370,6 +376,9 @@ class _SpikePageState extends State<SpikePage>
       innerConeAngle: 0.25,
       outerConeAngle: 0.5,
       name: 'spot light',
+      // Same reasoning as the fill light above: a caster takes a row of the
+      // cube atlas, and only the golden that wants to look at one asks for it.
+      castsShadow: GoldenRunner.fromEnvironment()?.scene.spotShadow ?? false,
     );
     _scene
       ..add(_fill)
@@ -880,6 +889,7 @@ class _SpikePageState extends State<SpikePage>
                             tonemap: _lighting != LightingModel.normals,
                             showSurfaceBuffer: _showSurfaceBuffer,
                             showShadowMap: _showShadowMap,
+                            sky: _sky,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;

@@ -64,6 +64,16 @@ final class _RecordingServices implements RenderServices {
     shadows.add(SceneShadows.from(frame, casterIndex: casterIndex));
     viewProjections.add(viewProjection);
   }
+
+  /// What a node asked to be drawn full-screen, in order.
+  ///
+  /// Recorded rather than ignored for the same reason `encodeScene` is: a node
+  /// handed a fake service is assertable without a GPU, and a post effect's
+  /// whole behaviour is which target it names and what it binds to it.
+  final List<FullscreenDraw> fullscreens = <FullscreenDraw>[];
+
+  @override
+  void drawFullscreen(FullscreenDraw draw) => fullscreens.add(draw);
 }
 
 /// The lit scene, as the frame would have it.

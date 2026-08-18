@@ -81,19 +81,64 @@ class _RaceScreenState extends State<RaceScreen>
   static const PerspectiveProjection _lens =
       PerspectiveProjection(fovYRadians: 1.05, near: 0.3, far: 1600.0);
   final CameraNode _camera = CameraNode(projection: _lens);
-  /// The view, with a sky rather than a void behind it.
+  /// The view, and the one colour behind the sky.
+  ///
+  /// Nearly nothing shows this now: the sky is drawn per pixel and covers every
+  /// pixel the scene did not. It still matters for the frames before the
+  /// circuit has loaded — the application draws from the first frame on
+  /// purpose, and a window that opens black and turns blue a second later reads
+  /// as a fault.
   ///
   /// `RenderView` clears to a very dark blue by default, which is right for a
-  /// dungeon and wrong for anywhere outdoors: it put the horizon of a circuit
-  /// against something darker than the tarmac, so the road and the sky were the
-  /// same colour and the track appeared to end at the fog. Matched to the fog,
-  /// so the far side of the lap fades into the sky instead of into a hole.
+  /// dungeon and wrong for anywhere outdoors. Kept in step with the sky's own
+  /// horizon by [_skyColour], though it is authored in sRGB and the sky is not
+  /// — see [_skySettings].
   late final RenderView _view = RenderView(
     camera: _camera,
-    clearColor: Vector4(_sky.x, _sky.y, _sky.z, 1.0),
+    // Daylight from the first frame. This is `late` and so is worked out when
+    // the first frame is built, which is before any circuit has loaded — and a
+    // window that opens black and turns blue a second later reads as a fault.
+    clearColor: _skyColour(),
   );
 
-  static final Vector3 _sky = Vector3(0.62, 0.71, 0.82);
+  /// The preset, as the renderer's own sky.
+  ///
+  /// One model rather than two: the gradient the shader evaluates per pixel is
+  /// the gradient `SkyPreset.colourAt` computes on the CPU, so the haze the far
+  /// side of the circuit fades into and the sky above it cannot drift apart.
+  /// What the shader adds is the sun's own disc, which is half a degree across
+  /// and could not be drawn on any dome this game could afford.
+  ///
+  /// The colours go across untouched, because both sides of this are linear:
+  /// vertex colours, fog and now the sky are all scene-referred, and only
+  /// `RenderView.clearColor` is sRGB — which is why the clear colour is now
+  /// only what shows before the first circuit has loaded.
+  SkySettings _skySettings() => SkySettings(
+        enabled: true,
+        zenith: _sky.zenith,
+        horizon: _sky.horizon,
+        nadir: _sky.belowHorizon,
+        directionToSun: _sky.directionToSun,
+        sunColor: _sky.sunColor,
+        glowExponent: _sky.glowWide,
+        glowStrength: _sky.glowStrength,
+        sunIntensity: _sky.sunDisc,
+      );
+
+  Vector4 _skyColour() {
+    final colour = _sky.colourAt(_gaze);
+    return Vector4(colour.x, colour.y, colour.z, 1.0);
+  }
+
+  /// The hour this circuit is raced at, and everything that follows from it.
+  ///
+  /// Replaced when the track file is read; the default is here so that the
+  /// first frames — drawn before the circuit has loaded, on purpose — are drawn
+  /// in daylight rather than in a black void.
+  SkyPreset _sky = SkyPresets.morning;
+
+  /// Which way the camera is looking, kept between [_place] and [build].
+  final Vector3 _gaze = Vector3(0.0, 0.0, 1.0);
 
   TrackSpline? _track;
   RaceState? _race;
@@ -305,7 +350,14 @@ class _RaceScreenState extends State<RaceScreen>
         }
       }
 
+      // The one light in the level was written from this same preset by the
+      // generator, so the sun the shadows fall from and the sun the sky glows
+      // around are the same sun by construction rather than by agreement.
+      scene.ambientIntensity = document.sky.ambientIntensity;
+
+
       setState(() {
+        _sky = document.sky;
         _scene = scene;
         _track = track;
         _race = race;
@@ -437,6 +489,15 @@ class _RaceScreenState extends State<RaceScreen>
       ..setPositionFrom(chase.eye)
       ..lookAt(chase.target)
       ..projection = _lens.copyWith(fovYRadians: chase.fov);
+
+    // The sky, once a frame, from where the camera ended up. The engine's fog
+    // is one colour with no idea of direction; giving it the colour of the air
+    // *along this view* is what stops distance being the same grey whichever
+    // way the car is pointing.
+    _gaze
+      ..setFrom(chase.target)
+      ..sub(chase.eye);
+    _view.clearColor = _skyColour();
   }
 
   /// What the race sounds like this frame.
@@ -536,10 +597,17 @@ class _RaceScreenState extends State<RaceScreen>
               renderer: renderer,
               scene: scene,
               view: _view,
-              // Matched to the sky the level was written with, and dense enough
-              // that the far side of a kilometre of circuit fades rather than
-              // ending in mid-air.
-              fog: FogSettings(color: _sky, density: 0.0016),
+              // Not a colour anybody typed: the haze at the horizon, brightened
+              // towards the sun along the direction the camera is looking. It
+              // is the same arithmetic the sky above is drawn with, so the far
+              // side of the lap fades into the background instead of into a
+              // band of a slightly different grey.
+              fog: FogSettings(
+                color: _sky.inScatterAlong(_gaze),
+                density: _sky.fogDensity,
+              ),
+              exposure: _sky.exposure,
+              sky: _skySettings(),
               onBeforeFrame: () {},
             ),
             // A platform view takes the pointer events over it, so the click

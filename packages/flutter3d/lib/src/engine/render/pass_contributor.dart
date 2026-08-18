@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
@@ -19,6 +21,18 @@ import 'renderer.dart';
 final class FramePassState {
   LightingModel? boundPipeline;
   bool? boundSkinned;
+
+  /// The depth test the pass is currently set to.
+  ///
+  /// Tracked rather than set per mesh so that a scene where no material
+  /// overrides it emits no `setDepthCompare` at all — which is not an
+  /// optimisation but the property the golden sets depend on: unset means
+  /// *emit nothing*, and a redundant call has flipped behaviour on two of the
+  /// three backends before now (see `PassState`'s own history).
+  ///
+  /// Seeded with what the scene pass establishes for itself, and reseeded
+  /// wherever that state is re-established.
+  CompareFunction depthCompare = CompareFunction.less;
   int drawCalls = 0;
   int pipelineSwitches = 0;
   int skinnedDraws = 0;
@@ -115,6 +129,61 @@ final class SceneShadows {
   final TextureHandle? pointStatic;
 }
 
+/// One full-screen pass, described rather than assembled.
+///
+/// The plumbing a post-processing pass needs is not interesting and there is a
+/// lot of it: a triangle covering the target, an index buffer for it, a pass
+/// state with depth and culling off, a pipeline built from the shared
+/// full-screen vertex stage and cached so it is not rebuilt every frame, a
+/// clamped sampler, a viewport. All of it was private to `Renderer`, and a node
+/// is handed a [GraphicsDevice] rather than a `Renderer` — deliberately, so a
+/// plugin cannot reach past what it was offered. The effect was that the one
+/// shape every post effect has could not be expressed outside the file that
+/// already had three of them.
+///
+/// A description rather than a builder, because everything here is a fact about
+/// one draw and none of it is a decision made in stages.
+final class FullscreenDraw {
+  const FullscreenDraw({
+    required this.target,
+    required this.fragment,
+    this.textures = const <String, TextureHandle>{},
+    this.uniforms = const <String, Map<String, Float32List>>{},
+    this.sampler = SamplerOptions.linearClamp,
+    this.loadAction = LoadAction.dontCare,
+  });
+
+  /// What is drawn into. Its size is the viewport — a half-resolution effect
+  /// needs to say nothing else.
+  final TextureHandle target;
+
+  /// The fragment stage. The vertex stage is the engine's own, which is what
+  /// makes the triangle somebody else's problem.
+  final ShaderHandle fragment;
+
+  /// Slot name to texture, bound with [sampler].
+  final Map<String, TextureHandle> textures;
+
+  /// Uniform block name, to member name, to the data for that member.
+  ///
+  /// Nested because a block is the unit a backend binds and a member is the
+  /// unit it reflects an offset for. A single flat map would have to guess
+  /// which of the two a key was.
+  final Map<String, Map<String, Float32List>> uniforms;
+
+  /// Clamped and linear by default: a post pass reading outside its source
+  /// would otherwise wrap the far edge onto the near one. An effect reading a
+  /// buffer of *data* rather than colour wants
+  /// [SamplerOptions.nearestClamp] — see the surface buffer.
+  final SamplerOptions sampler;
+
+  /// Discarding by default, because nothing under a full-screen pass survives
+  /// it and loading what was there costs bandwidth for pixels about to be
+  /// overwritten. An effect that blends with what it lands on wants
+  /// [LoadAction.load].
+  final LoadAction loadAction;
+}
+
 /// What the renderer lends a contributor or a node.
 ///
 /// One method, and that is the whole of it now. It used to carry two more —
@@ -159,6 +228,33 @@ abstract interface class RenderServices {
     required vm.Vector3 cameraPosition,
     int casterIndex = -1,
   });
+
+  /// Draws one full-screen pass, described by [draw].
+  ///
+  /// The second thing only the renderer can answer, and for the same reason as
+  /// the first: it owns the triangle, the shared vertex stage and the pipeline
+  /// cache. A node could open its own pass — it is handed a device — and would
+  /// then be rebuilding a pipeline every frame and re-deriving a covering
+  /// triangle from nothing.
+  ///
+  /// The engine's own bloom, reflections and occlusion passes go through this.
+  /// That is not tidiness: an extension point that its author's own three
+  /// callers do not use is an extension point nobody has checked, and the first
+  /// plugin to try it finds out what it cannot express.
+  ///
+  /// **Where the fragment stage comes from differs per backend**, and all three
+  /// answers are worth having in one place, because the question arrives as
+  /// "why does my effect work in tests and not on the device":
+  ///
+  ///  * the software rasteriser takes a Dart object — add it to the map handed
+  ///    to `CpuShaderLibrary` alongside `builtinCpuShaders()`;
+  ///  * WebGL compiles GLSL at runtime — put the source in the `ShaderSources`
+  ///    handed to `WebGlDevice.create`;
+  ///  * Impeller compiles ahead of time, so an application ships its own bundle
+  ///    and names it in `GpuRenderBackend.create(extraBundles: [...])`. Those
+  ///    are searched before the engine's, so a stage sharing a name with one of
+  ///    the engine's replaces it.
+  void drawFullscreen(FullscreenDraw draw);
 }
 
 /// Everything something drawing **into someone else's pass** is given.

@@ -122,7 +122,9 @@ final class _Surface {
   double alpha;
   Vector3 normal;
   final Vector3 world;
-  final double ambient;
+  /// Hemispheric and already scaled by the scene's strength: the sky above,
+  /// the ground bounce below, blended by which way the surface faces.
+  final Vector3 ambient;
   double metallic;
   double roughness;
 
@@ -173,12 +175,25 @@ _Surface _readSurface(Float32List v, ShaderBindings bindings) {
   final viewLength = view.length;
   if (viewLength > 1e-6) view.scale(1.0 / viewLength);
 
+  // Hemispheric, blended on the geometric normal before any map perturbs it:
+  // ambient of this kind says which half of the world a face can see, and
+  // millimetres of bump relief are not an answer to that.
+  final sky = bindings.vec4('FragInfo', 'ambient_sky', Vector4(1, 1, 1, 1));
+  final ground =
+      bindings.vec4('FragInfo', 'ambient_ground', Vector4(1, 1, 1, 1));
+  final up = normal.y * 0.5 + 0.5;
+  final ambient = Vector3(
+    (ground.x + (sky.x - ground.x) * up) * material.z,
+    (ground.y + (sky.y - ground.y) * up) * material.z,
+    (ground.z + (sky.z - ground.z) * up) * material.z,
+  );
+
   return _Surface(
     albedo,
     alpha,
     normal,
     world,
-    material.z,
+    ambient,
     material.x.clamp(0.0, 1.0),
     material.y.clamp(0.02, 1.0),
     view,
@@ -505,15 +520,22 @@ double _pointShadowFactor(
   if (distance >= range) return 1.0;
 
   // The dominant axis picks the face, in the order the renderer wrote them:
-  // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom.
-  final a = Vector3(toFragment.x.abs(), toFragment.y.abs(), toFragment.z.abs());
+  // +X, -X, +Y, -Y, +Z, -Z, left to right then top to bottom. A spot has one
+  // column and no choice to make — and asking anyway would send most of a
+  // downlight's cone to column 3, which for a spot is deliberately blank.
   final int face;
-  if (a.x >= a.y && a.x >= a.z) {
-    face = toFragment.x > 0.0 ? 0 : 1;
-  } else if (a.y >= a.z) {
-    face = toFragment.y > 0.0 ? 2 : 3;
+  if (slotEntry.y >= 0.5) {
+    face = 0;
   } else {
-    face = toFragment.z > 0.0 ? 4 : 5;
+    final a =
+        Vector3(toFragment.x.abs(), toFragment.y.abs(), toFragment.z.abs());
+    if (a.x >= a.y && a.x >= a.z) {
+      face = toFragment.x > 0.0 ? 0 : 1;
+    } else if (a.y >= a.z) {
+      face = toFragment.y > 0.0 ? 2 : 3;
+    } else {
+      face = toFragment.z > 0.0 ? 4 : 5;
+    }
   }
 
   final matrix = b.mat4('PointShadow', 'faces', at: slot * 6 + face);
@@ -545,6 +567,12 @@ double _pointShadowFactor(
   final minRadius = params2.x;
   final maxRadius = params2.z;
 
+  // The tangent of half the frustum's opening angle, which turns a world width
+  // into a fraction of a tile. Exactly one for a cube face — ninety degrees —
+  // and guarded because zero is what an unwritten channel holds, and a division
+  // by it would come back NaN rather than merely wrong.
+  final tanHalf = math.max(slotEntry.z, 1e-4);
+
   double radius;
   if (lightRadius <= 0.0) {
     radius = minRadius;
@@ -569,7 +597,11 @@ double _pointShadowFactor(
     if (count < 0.5) return 1.0;
     final blocker = math.max(sum / count, 1e-4);
     final worldWidth = lightRadius * math.max(receiver - blocker, 0.0) / blocker;
-    radius = (worldWidth / (2.0 * receiver)).clamp(minRadius, maxRadius);
+    // `2 * r` is the span of a right-angled frustum at distance r; in general
+    // it is `2 * r * tan(θ/2)`. A narrower cone covers less world per tile, so
+    // the same width is a larger fraction of it.
+    radius =
+        (worldWidth / (2.0 * receiver * tanHalf)).clamp(minRadius, maxRadius);
   }
 
   double tap(double ox, double oy) {
@@ -647,6 +679,55 @@ void _writeSurface(FragmentContext c, Vector3 normal, double roughness) {
       Vector4(encoded.x, encoded.y, roughness.clamp(0.0, 1.0), c.coord.z);
 }
 
+/// `ApplyFog` from `color.glsl`: fades [colour] toward the fog with distance.
+///
+/// Exponential rather than linear, for the reason the GLSL gives: linear fog
+/// has a visible plane where it starts. The early return at zero density is
+/// not an optimisation — it is what keeps a scene with no fog byte-identical,
+/// which is what the golden sets are recorded against.
+Vector3 _applyFog(Vector3 colour, Float32List v, ShaderBindings b) {
+  final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
+  final density = fog.w;
+  if (density <= 0.0) return colour;
+
+  final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
+  final dx = v[_vWorld] - eye.x;
+  final dy = v[_vWorld + 1] - eye.y;
+  final dz = v[_vWorld + 2] - eye.z;
+  final distance = math.sqrt(dx * dx + dy * dy + dz * dz);
+  final t = math.exp(-density * distance).clamp(0.0, 1.0);
+
+  return Vector3(
+    fog.x * (1.0 - t) + colour.x * t,
+    fog.y * (1.0 - t) + colour.y * t,
+    fog.z * (1.0 - t) + colour.z * t,
+  );
+}
+
+/// `WriteSurface` from `color.glsl`: the lit colour, faded by the fog, written
+/// beside the surface geometry.
+///
+/// One function rather than two calls at each of five sites, because that is
+/// what the GLSL is — there the fog and the geometry are written together, and
+/// a transcription that splits them is one where a shader can be fogged and the
+/// next one forgotten. That is exactly what had happened: of everything drawn,
+/// only the three particle shaders faded with distance, and every road, wall
+/// and car was drawn at full contrast to the horizon. A test that passed
+/// `FogSettings` to this rasteriser was measuring a renderer with no weather.
+Vector4 _writeLit(
+  FragmentContext c,
+  Float32List v,
+  ShaderBindings b, {
+  required Vector3 colour,
+  required double alpha,
+  required Vector3 normal,
+  required double roughness,
+}) {
+  _writeSurface(c, normal, roughness);
+  final fogged = _applyFog(colour, v, b);
+  return Vector4(fogged.x, fogged.y, fogged.z, alpha);
+}
+
 /// `unlit.frag`: the albedo, written into the HDR target as light.
 final class UnlitShader implements CpuFragmentShader {
   const UnlitShader();
@@ -656,8 +737,8 @@ final class UnlitShader implements CpuFragmentShader {
     final s = _readSurface(v, bindings);
     // Fully rough, which is what WriteSurface's one-argument form means: a
     // surface that cannot say how polished it is should not be reflected off.
-    _writeSurface(c, s.normal, 1.0);
-    return Vector4(s.albedo.x, s.albedo.y, s.albedo.z, s.alpha);
+    return _writeLit(c, v, bindings,
+        colour: s.albedo, alpha: s.alpha, normal: s.normal, roughness: 1.0);
   }
 }
 
@@ -791,10 +872,13 @@ final class LambertShader implements CpuFragmentShader {
     final lit = _accumulateLights(s, b, c,
             shade: (s, light) => s.albedo, shadowed: true)
         .scaled(s.occlusion);
-    final ambient = s.albedo * (s.ambient * s.occlusion);
-    _writeSurface(c, s.normal, s.roughness);
+    final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
-    return Vector4(total.x, total.y, total.z, s.alpha);
+    return _writeLit(c, v, b,
+        colour: total,
+        alpha: s.alpha,
+        normal: s.normal,
+        roughness: s.roughness);
   }
 }
 
@@ -821,10 +905,13 @@ final class BlinnPhongShader implements CpuFragmentShader {
           s.albedo.z + specular);
     }).scaled(s.occlusion);
 
-    final ambient = s.albedo * (s.ambient * s.occlusion);
-    _writeSurface(c, s.normal, s.roughness);
+    final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
-    return Vector4(total.x, total.y, total.z, s.alpha);
+    return _writeLit(c, v, b,
+        colour: total,
+        alpha: s.alpha,
+        normal: s.normal,
+        roughness: s.roughness);
   }
 }
 
@@ -903,10 +990,13 @@ final class PbrShader implements CpuFragmentShader {
     // Not physical; with no IBL the flat ambient is far too weak for an
     // occlusion map to be visible otherwise.
     final diffuseColour = s.albedo * (1.0 - s.metallic.clamp(0.0, 1.0));
-    final ambient = diffuseColour * (s.ambient * s.occlusion);
-    _writeSurface(c, s.normal, s.roughness);
+    final ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
-    return Vector4(total.x, total.y, total.z, s.alpha);
+    return _writeLit(c, v, b,
+        colour: total,
+        alpha: s.alpha,
+        normal: s.normal,
+        roughness: s.roughness);
   }
 }
 
@@ -939,10 +1029,13 @@ final class ToonShader implements CpuFragmentShader {
         b.vec4('FragInfo', 'material', Vector4.zero()).w;
     final rim =
         math.pow(1.0 - s.nDotV, 3.0).toDouble() * specularStrength * 0.35;
-    final ambient = s.albedo * (s.ambient * s.occlusion);
-    _writeSurface(c, s.normal, s.roughness);
+    final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
     final total = lit + ambient + Vector3.all(rim) + s.emissive;
-    return Vector4(total.x, total.y, total.z, s.alpha);
+    return _writeLit(c, v, b,
+        colour: total,
+        alpha: s.alpha,
+        normal: s.normal,
+        roughness: s.roughness);
   }
 }
 
@@ -995,6 +1088,117 @@ final class FullscreenVertexShader implements CpuVertexShader {
   }
 }
 
+/// `sky.vert`: a full-screen triangle at the far plane, and a world ray.
+///
+/// The two constants that have to match the GLSL are the sample depths (0.5 and
+/// 1.0, both valid in either depth convention) and the output depth 0.999999 —
+/// the far plane less a hair, so the ordinary `less` test passes against a
+/// buffer cleared to 1.0. `sky_frame_test.dart` pins the last of those against
+/// the text of the shader itself, because a drift between the two is a sky that
+/// is either invisible or in front of the world, and nothing else would say so.
+final class SkyVertexShader implements CpuVertexShader {
+  const SkyVertexShader();
+
+  @override
+  int get varyingCount => 3;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    final inverse = bindings.mat4('SkyRay', 'inverse_view_projection');
+    final near = inverse.transform(Vector4(a[0], a[1], 0.5, 1.0));
+    final far = inverse.transform(Vector4(a[0], a[1], 1.0, 1.0));
+
+    out[0] = far.x / far.w - near.x / near.w;
+    out[1] = far.y / far.w - near.y / near.w;
+    out[2] = far.z / far.w - near.z / near.w;
+
+    return Vector4(a[0], a[1], 0.999999, 1.0);
+  }
+}
+
+/// `sky.frag`: the gradient, the scattering lobe and the disc.
+///
+/// Transcribed rather than shared with the engine's own copy of this model, and
+/// that is the standing arrangement here: `flutter3d` is a dev dependency of
+/// this package and not a dependency, because a software backend that needs the
+/// engine to draw a triangle is not a backend. `_tonemapNeutral` above is the
+/// same bargain. What keeps the two honest is a test that evaluates both.
+final class SkyShader implements CpuFragmentShader {
+  const SkyShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final length = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    final scale = length > 0.0 ? 1.0 / length : 0.0;
+    final dx = v[0] * scale;
+    final dy = v[1] * scale;
+    final dz = v[2] * scale;
+
+    final zenith = b.vec4('SkyInfo', 'zenith', Vector4.zero());
+    final horizon = b.vec4('SkyInfo', 'horizon', Vector4.zero());
+    final nadir = b.vec4('SkyInfo', 'nadir', Vector4.zero());
+    final sun = b.vec4('SkyInfo', 'sun', Vector4(0.0, 1.0, 0.0, 6.0));
+    final glow = b.vec4('SkyInfo', 'glow', Vector4.zero());
+    final disc = b.vec4('SkyInfo', 'disc', Vector4.zero());
+
+    final height = dy.clamp(-1.0, 1.0);
+    final far = height >= 0.0 ? zenith : nadir;
+    final magnitude = height.abs();
+    final t = magnitude * magnitude * (3.0 - 2.0 * magnitude);
+
+    var r = horizon.x + (far.x - horizon.x) * t;
+    var g = horizon.y + (far.y - horizon.y) * t;
+    var bl = horizon.z + (far.z - horizon.z) * t;
+
+    final towards = dx * sun.x + dy * sun.y + dz * sun.z;
+    if (towards > 0.0) {
+      final lobe = glow.w * math.pow(towards, sun.w).toDouble();
+      r += glow.x * lobe;
+      g += glow.y * lobe;
+      bl += glow.z * lobe;
+    }
+
+    final edge = _smoothstep(disc.y, disc.x, towards) * disc.z;
+    r += glow.x * edge;
+    g += glow.y * edge;
+    bl += glow.z * edge;
+
+    // Zero, not left alone: zero alpha is how the reflection pass recognises
+    // that nothing was drawn, and the sky is nothing to reflect off.
+    c.surface = Vector4.zero();
+    return Vector4(r, g, bl, 1.0);
+  }
+}
+
+/// `sky_cube.frag`: the same ray, sampled out of a cube map.
+///
+/// The face table is `BoundTexture.sampleCube`'s, not this file's — written
+/// once, where the conformance suite can check it against the other two
+/// backends rather than against a reading of the code.
+final class SkyCubeShader implements CpuFragmentShader {
+  const SkyCubeShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    c.surface = Vector4.zero();
+
+    final map = b.textures['sky_texture'];
+    // A stage bound no cube: black rather than a crash, and black rather than a
+    // plausible sky, which is what makes it reportable.
+    if (map == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+
+    final texel = map.sampleCube(v[0], v[1], v[2]);
+    final tint = b.vec4('SkyCubeInfo', 'tint', Vector4(1.0, 1.0, 1.0, 1.0));
+
+    return Vector4(
+      _toLinear(texel.x) * tint.x,
+      _toLinear(texel.y) * tint.y,
+      _toLinear(texel.z) * tint.z,
+      1.0,
+    );
+  }
+}
+
 /// The Khronos PBR Neutral tone mapper, from `composite.frag`.
 ///
 /// Transcribed rather than replaced with something simpler: this is the one
@@ -1038,6 +1242,30 @@ final class CompositeShader implements CpuFragmentShader {
 
     final sampled = scene.sample(v[0], v[1]);
     var colour = Vector3(sampled.x, sampled.y, sampled.z);
+
+    // Occlusion first, then the glow — the order matters and it is the order
+    // `composite.frag` uses. Four taps in a 2×2, sized to the artefact rather
+    // than tuned against it: the occlusion pass rotates its kernel by the
+    // parity of the pixel, and this averages exactly that pattern away.
+    //
+    // Applied to the scene and **not** to the glow, so a lit crack in a corner
+    // keeps glowing. Adding the bloom first and scaling both — which is what
+    // the first draft of this function did — dims the one thing in a dark
+    // corner that should not dim.
+    final ao = bindings.textures['ao_texture'];
+    final strength = params.w.clamp(0.0, 1.0);
+    if (ao != null && strength > 0.0) {
+      final texel =
+          bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
+      final hx = texel.x * 0.5;
+      final hy = texel.y * 0.5;
+      final occlusion = 0.25 *
+          (ao.sample(v[0] + hx, v[1] + hy).x +
+              ao.sample(v[0] - hx, v[1] + hy).x +
+              ao.sample(v[0] + hx, v[1] - hy).x +
+              ao.sample(v[0] - hx, v[1] - hy).x);
+      colour.scale(1.0 + (occlusion - 1.0) * strength);
+    }
 
     // Additive, and unconditional: the engine binds a black texture when bloom
     // is off rather than leaving the sampler unbound, so there is no branch to
@@ -1422,6 +1650,131 @@ Vector3 _decodeOctahedral(double ex, double ey) {
 /// flip. Reproducing it exactly is the job here — if the two conventions
 /// genuinely disagree that is a finding about the engine, and it is not one a
 /// backend gets to decide by quietly picking the other one.
+/// The twelve kernel taps of `ssao.frag`, in the same order.
+///
+/// A table on both sides rather than a hash, and the reason is this file: the
+/// cross-backend budgets are measured in hundredths of a per cent, and a float
+/// hash agrees between a GPU and this rasteriser nowhere at all.
+const List<List<double>> _ssaoKernel = <List<double>>[
+  <double>[0.5381, 0.1856, 0.4319],
+  <double>[0.1379, 0.2486, 0.4430],
+  <double>[0.3371, 0.5679, 0.0057],
+  <double>[-0.6999, -0.0451, 0.0019],
+  <double>[0.0689, -0.1598, -0.8547],
+  <double>[0.0560, 0.0069, -0.1843],
+  <double>[-0.0146, 0.1402, 0.0762],
+  <double>[0.0100, -0.1924, -0.0344],
+  <double>[-0.3577, -0.5301, -0.4358],
+  <double>[-0.3169, 0.1063, 0.0158],
+  <double>[0.0103, -0.5869, 0.0046],
+  <double>[-0.0897, -0.4940, 0.3287],
+];
+
+/// `ssao.frag`: how much of the sky a point can see.
+///
+/// The transcription that makes the software rasteriser an oracle for this
+/// pass. Everything it needs comes out of the surface buffer — octahedral
+/// normal in rg, window depth in a — because flutter_gpu cannot sample a depth
+/// attachment and the whole engine is built around that one fact.
+final class SsaoShader implements CpuFragmentShader {
+  const SsaoShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final surfaceMap = b.textures['surface_texture'];
+    if (surfaceMap == null) return Vector4(1.0, 1.0, 1.0, 1.0);
+
+    final u = v[0];
+    final w = v[1];
+    final surface = surfaceMap.sample(u, w);
+
+    // Nothing was drawn here: the buffer is cleared to zero, and a zero alpha
+    // is the sky rather than a surface on the near plane.
+    if (surface.w <= 0.0) return Vector4(1.0, 1.0, 1.0, 1.0);
+
+    final params = b.vec4('SsaoInfo', 'params', Vector4.zero());
+    final screen = b.vec4('SsaoInfo', 'screen', Vector4.zero());
+    final radius = math.max(params.x, 1e-4);
+    final samples = (params.y + 0.5).floor().clamp(1, 12);
+
+    final inverse = b.mat4('SsaoInfo', 'inverse_view_projection');
+    final projection = b.mat4('SsaoInfo', 'view_projection');
+
+    Vector3 worldFrom(double uu, double vv, double depth) {
+      final Vector4 h = inverse * Vector4(uu * 2.0 - 1.0, vv * 2.0 - 1.0, depth, 1.0);
+      return Vector3(h.x, h.y, h.z)..scale(1.0 / h.w);
+    }
+
+    final normal = _decodeOctahedral(surface.x, surface.y);
+    // Lifted along the normal, in metres: a bias in window depth is a different
+    // physical distance at every range.
+    final origin = worldFrom(u, w, surface.w)..addScaled(normal, params.w);
+
+    // One of four rotations by the parity of the pixel, which leaves a 2×2
+    // pattern that the composite's 2×2 average cancels exactly.
+    final px = (u / (screen.x == 0.0 ? 1.0 : screen.x)).floor();
+    final py = (w / (screen.y == 0.0 ? 1.0 : screen.y)).floor();
+    final oddX = px % 2 != 0;
+    final oddY = py % 2 != 0;
+    final double rotX, rotY;
+    if (oddX && oddY) {
+      rotX = -0.7071;
+      rotY = -0.7071;
+    } else if (oddX) {
+      rotX = 0.7071;
+      rotY = -0.7071;
+    } else if (oddY) {
+      rotX = -0.7071;
+      rotY = 0.7071;
+    } else {
+      rotX = 1.0;
+      rotY = 0.0;
+    }
+
+    var occluded = 0.0;
+    for (var i = 0; i < samples; i++) {
+      final tap = _ssaoKernel[i];
+      var spun = Vector3(
+        tap[0] * rotX - tap[1] * rotY,
+        tap[0] * rotY + tap[1] * rotX,
+        tap[2],
+      );
+      // Flipped into the hemisphere the surface faces rather than built from a
+      // tangent frame: this pass has no tangent, and any it invented would
+      // rotate along a silhouette and shimmer.
+      if (spun.dot(normal) < 0.0) spun = -spun;
+
+      final at = origin + spun * radius;
+      final Vector4 clip = projection * Vector4(at.x, at.y, at.z, 1.0);
+      if (clip.w <= 0.0) continue;
+      final ndcX = clip.x / clip.w;
+      final ndcY = clip.y / clip.w;
+      final ndcZ = clip.z / clip.w;
+      if (ndcX.abs() > 1.0 || ndcY.abs() > 1.0) continue;
+
+      final su = ndcX * 0.5 + 0.5;
+      final sv = ndcY * 0.5 + 0.5;
+      final there = surfaceMap.sample(su, sv);
+      // The sky occludes nothing: a tap that lands on it is looking out of the
+      // scene, which is the opposite of being enclosed.
+      if (there.w <= 0.0) continue;
+      if (there.w >= ndcZ) continue;
+
+      // The range check, without which every silhouette gains a dark outline:
+      // a wall four metres behind a railing is nearer to the camera than the
+      // taps around the railing and would occlude all of them.
+      final seen = worldFrom(su, sv, there.w);
+      occluded += _smoothstep(
+          0.0, 1.0, radius / math.max(seen.distanceTo(origin), 1e-4));
+    }
+
+    // Raw, with no strength: the strength belongs to the composite, which is
+    // the pass that has to make "off" mean a multiplier of exactly one.
+    final ao = (1.0 - occluded / samples).clamp(0.0, 1.0);
+    return Vector4(ao, ao, ao, ao);
+  }
+}
+
 final class ReflectionsShader implements CpuFragmentShader {
   const ReflectionsShader();
 
@@ -1589,6 +1942,7 @@ Map<String, CpuStage> builtinCpuShaders() {
         const CpuStage.fragment(ParticleTexturedShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
+    'Ssao': const CpuStage.fragment(SsaoShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
@@ -1596,6 +1950,9 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),
     'ShadowTileResetVertex':
         const CpuStage.vertex(ShadowTileResetVertexShader()),
+    'SkyVertex': const CpuStage.vertex(SkyVertexShader()),
+    'Sky': const CpuStage.fragment(SkyShader()),
+    'SkyCube': const CpuStage.fragment(SkyCubeShader()),
   };
 
   for (final name in kUnimplementedCpuVertexShaders) {

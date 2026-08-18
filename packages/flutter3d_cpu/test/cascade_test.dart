@@ -127,14 +127,22 @@ Set<int> _shadowed(List<int> grid) => <int>{
     };
 
 void main() {
-  test('one cascade is the shadow this renderer has always drawn', () {
-    // The compatibility guard, and the reason `cascades` defaults to one: every
-    // golden image and every parity number in the repository was recorded
-    // against this path, and a change of default would have re-baselined them
-    // all in a commit about something else.
+  test('the default is three tiles of a thousand, not one of two', () {
+    // These two numbers only mean anything together, which is why one test
+    // asserts both. The atlas is `resolution × cascades` wide, so the default
+    // is 3072 × 1024 of HDR — 25 MB, against the 33 MB that one 2048 tile cost
+    // and the 100 MB that three of them would. The default got better *and*
+    // cheaper, and it is the arithmetic rather than taste that says so.
     //
-    // Mutation: default `cascades` to 3.
-    expect(const ShadowSettings().cascades, 1);
+    // This test used to assert `cascades == 1`, and its reason was that every
+    // golden in the repository had been recorded against that path. That reason
+    // is spent: both sets were re-recorded deliberately, in a commit about this
+    // and nothing else, and the six shadowed scenes that moved were read first.
+    //
+    // Mutation: raise the tile back to 2048 while leaving three cascades. The
+    // picture is fine and the atlas is a hundred megabytes.
+    expect(const ShadowSettings().cascades, 3);
+    expect(const ShadowSettings().resolution, 1024);
   });
 
   test('three cascades shadow the same things as one', () async {
@@ -145,7 +153,12 @@ void main() {
     // Mutation: drop the texel snapping, or fit a cascade around the camera
     // rather than along its line of sight — the post's shadow slides.
     final room = _longRoom();
-    final single = await _grid(_engine(), room, const ShadowSettings());
+    // Both counts spelled out, neither taken from the default. When the default
+    // was one, `const ShadowSettings()` stood for the single-cascade side here;
+    // the day it became three this test would have compared three against three
+    // and passed by having nothing to say.
+    final single =
+        await _grid(_engine(), room, const ShadowSettings(cascades: 1));
     final many =
         await _grid(_engine(), room, const ShadowSettings(cascades: 3));
 

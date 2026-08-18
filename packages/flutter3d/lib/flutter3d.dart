@@ -18,8 +18,9 @@
 /// the backend that can read it. The GLSL it is built from is shared. Moving it
 /// is a question about where shader sources live, which is worth answering on
 /// its own rather than as a side effect of the package split.
-/// `packages/flutter3d/tool/build_shaders.sh` builds it, and it has to be
-/// rebuilt after every Flutter SDK change.
+/// `packages/flutter3d_impeller/tool/build_shaders.sh` builds it — beside the
+/// backend that needs it, not beside this package — and it has to be rebuilt
+/// after every Flutter SDK change.
 library;
 
 // The graphics vocabulary, re-exported from `flutter3d_graphics`.
@@ -76,6 +77,7 @@ export 'src/engine/render/render_node.dart';
 export 'src/engine/render/render_view.dart';
 export 'src/engine/render/renderer.dart';
 export 'src/engine/render/shadow_slots.dart';
+export 'src/engine/render/sky_settings.dart';
 export 'src/engine/render/view_model_node.dart';
 // The scene graph and everything that walks it.
 export 'src/engine/scene/bvh.dart';
@@ -91,3 +93,4 @@ export 'src/engine/scene/scene_graph.dart';
 export 'src/engine/scene/scene_node.dart';
 export 'src/engine/scene/scene_spheres.dart';
 export 'src/engine/scene/skeleton.dart';
+export 'src/engine/scene/sky.dart';

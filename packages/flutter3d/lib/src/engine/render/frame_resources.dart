@@ -278,6 +278,26 @@ final class FrameResources {
   TextureHandle? tryTexture(ResourceId id) =>
       _live[ResourceVersion(id, _versionFor(id))];
 
+  /// The texture behind a frame *output*, once every node has run.
+  ///
+  /// The one read that legitimately happens outside a node, and the only one:
+  /// the frame itself has finished, and what it asks for is the newest version
+  /// of a name rather than the version some node was entitled to see. Every
+  /// other read from outside a node is closed on purpose — see [_versionFor] —
+  /// because a node reading a name it never declared would be handed whatever
+  /// was lying around.
+  ///
+  /// This exists because the renderer used to return its own `_ldrColor` field
+  /// as the finished frame, which is the texture the composite happens to draw
+  /// into. Nothing was wrong with the picture while the composite was last;
+  /// what was wrong was that it was last *by assumption*. A pass registered
+  /// after it would draw a correct image into a new version of `frame`, and the
+  /// caller would be handed the composite's output regardless — the effect
+  /// running, costing its time, and being invisible. That is the worst failure
+  /// available here, because everything about it looks like it works.
+  TextureHandle? output(ResourceId id) =>
+      _live[ResourceVersion(id, graph.currentVersionOf(id))];
+
   /// Whether the texture [tryTexture] would hand back was drawn this frame or
   /// is maintained across frames; null when there is no texture at all.
   ///

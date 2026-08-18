@@ -50,6 +50,7 @@ final class TextureHandle {
     required this.format,
     this.sampleCount = 1,
     this.storageMode = StorageMode.devicePrivate,
+    this.type = TextureType.texture2D,
   });
 
   /// The backend's own object for this texture.
@@ -71,6 +72,19 @@ final class TextureHandle {
   /// engine can say that at its own call site rather than finding out inside
   /// the backend.
   final StorageMode storageMode;
+
+  /// What shape this is: a plain 2D image, or six faces sampled by direction.
+  ///
+  /// Here and **not** on `RenderTargetSpec`, which is deliberate. That spec is
+  /// the key of the render target pool's map, and two textures with equal specs
+  /// are by definition interchangeable — so a cube that matched a 2D target on
+  /// every other field would be lent out in its place, and nothing about the
+  /// resulting picture would say why. Cubes are created directly and never come
+  /// from the pool.
+  final TextureType type;
+
+  /// How many faces this texture has: six for a cube, one otherwise.
+  int get sliceCount => type == TextureType.textureCube ? 6 : 1;
 
   @override
   String toString() => 'TextureHandle(${width}x$height, ${format.name}, '

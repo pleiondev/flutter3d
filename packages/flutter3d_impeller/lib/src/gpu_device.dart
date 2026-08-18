@@ -33,15 +33,33 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// bundle became asynchronous in flutter_gpu 3.47 and a factory constructor
   /// cannot be. The name is kept so every call site reads the same with an
   /// `await` in front of it.
+  /// [extraBundles] are the application's own compiled bundles, searched before
+  /// the engine's — see [_GpuShaderLibrary]. Each is loaded the same way and
+  /// each has to exist: a bundle named and not found is a stage that will come
+  /// back null at the first draw, which on this backend is a pipeline built
+  /// from nothing.
   static Future<GpuRenderBackend> create({
     String bundleAsset = defaultBundleAsset,
+    List<String> extraBundles = const <String>[],
   }) async {
     final library = await gpu.ShaderLibrary.fromAsset(bundleAsset);
     if (library == null) {
       throw StateError('Failed to load the shader bundle: $bundleAsset');
     }
+    final extra = <gpu.ShaderLibrary>[];
+    for (final asset in extraBundles) {
+      final loaded = await gpu.ShaderLibrary.fromAsset(asset);
+      if (loaded == null) {
+        // Thrown rather than skipped, and named. The failure this avoids is an
+        // application whose effect silently falls back to the engine's stage of
+        // the same name, or to nothing — both of which look like the effect
+        // being wrong rather than the bundle being absent.
+        throw StateError('Failed to load an extra shader bundle: $asset');
+      }
+      extra.add(loaded);
+    }
     return GpuRenderBackend._(
-      _GpuShaderLibrary(library),
+      _GpuShaderLibrary(library, extra),
       // Per-frame uniform allocators, rotated rather than reset in place.
       //
       // `CommandBuffer.submit` is asynchronous. Resetting a bump allocator
@@ -113,6 +131,68 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   @override
   bool get supportsMipmaps => gpu.gpuContext.doesSupportManuallyMippedTextures;
+
+  /// Probed once, because flutter_gpu reports no capability for it.
+  ///
+  /// Every other `supports` here answers from `gpuContext`; there is no
+  /// `doesSupportCubeTextures`. Allocating a one-by-one cube is the cheapest
+  /// question that gets a real answer from the driver, and the alternative —
+  /// returning a constant true — is a claim about every device this ever runs
+  /// on, made by someone who tested one.
+  @override
+  bool get supportsCubeTextures => _cubesWork ??= _probeCubes();
+
+  bool? _cubesWork;
+
+  bool _probeCubes() {
+    try {
+      gpu.gpuContext.createTexture(
+        gpu.StorageMode.hostVisible,
+        1,
+        1,
+        textureType: gpu.TextureType.textureCube,
+        enableRenderTargetUsage: false,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  TextureHandle? createCubeTextureFromPixels({
+    required int size,
+    required TextureFormat format,
+    required List<ByteData> faces,
+  }) {
+    // Six, in the order the interface documents: +X, −X, +Y, −Y, +Z, −Z. A
+    // shorter list is a caller bug rather than a device one, and refusing it
+    // here is what stops five faces and one of whatever the allocation happened
+    // to contain.
+    if (faces.length != 6) return null;
+    if (!supportsCubeTextures) return null;
+
+    final texture = createGpuTexture(
+      StorageMode.hostVisible,
+      size,
+      size,
+      format: format,
+      type: TextureType.textureCube,
+      // Nothing renders into a face: `ColorTarget` carries no slice, so a cube
+      // can only ever be filled from the host. Asking for render-target usage
+      // would be asking for an allocation nothing can use.
+      enableRenderTargetUsage: false,
+    );
+
+    final expected = texture.gpuTexture.getBaseMipLevelSizeInBytes();
+    for (final face in faces) {
+      if (face.lengthInBytes != expected) return null;
+    }
+    for (var i = 0; i < 6; i++) {
+      texture.gpuTexture.overwrite(faces[i], slice: i);
+    }
+    return texture;
+  }
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec) => createGpuTexture(
@@ -292,15 +372,33 @@ final class GpuRenderBackend implements GraphicsDevice {
 /// same handle. Nothing depends on that today — unlike `TextureHandle`,
 /// identity carries no contract here — but a map lookup is cheaper than an
 /// allocation on a path the particle contributor takes every frame.
+/// The engine's bundle, and any an application brought with it.
+///
+/// The application's are searched **first**, which is the only ordering that
+/// makes them useful: a plugin shipping its own `Composite` is saying it wants
+/// that one, and a lookup that found the engine's first would silently ignore
+/// the file the author compiled. It is also the ordering that can go wrong
+/// quietly, so it is stated here rather than left to the loop.
+///
+/// Why this exists at all: shaders on this backend are compiled ahead of time
+/// into a bundle asset. The software rasteriser takes a Dart object and WebGL
+/// takes GLSL at runtime, so on both an application can simply hand its stage
+/// over — and on Impeller it could not, at all, which made "write your own post
+/// effect" a thing that worked on two backends out of three.
 final class _GpuShaderLibrary implements ShaderLibrary {
-  _GpuShaderLibrary(this._library);
+  _GpuShaderLibrary(this._library, [this._extra = const <gpu.ShaderLibrary>[]]);
 
   final gpu.ShaderLibrary _library;
+  final List<gpu.ShaderLibrary> _extra;
   final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
 
   @override
   ShaderHandle? operator [](String name) =>
       _handles.putIfAbsent(name, () {
+        for (final library in _extra) {
+          final shader = library[name];
+          if (shader != null) return ShaderHandle(backend: shader, name: name);
+        }
         final shader = _library[name];
         return shader == null
             ? null
@@ -359,34 +457,38 @@ final class _GpuCommandEncoder implements CommandEncoder {
 
   /// **`false` does not work, and the reason is not here.**
   ///
-  /// `flutter_gpu`'s native setter ignores its argument and writes the literal
-  /// `true`, so this call can only ever switch depth writes *on*:
+  /// **Fixed upstream, and this note is kept because what it says was true.**
+  /// Until recently `flutter_gpu`'s native setter ignored its argument and
+  /// wrote the literal `true`, so the call could only ever switch depth writes
+  /// *on*. As of the SDK this repository builds with (3.47.0, pinned in
+  /// `mise.toml`) it passes the flag through:
   ///
   /// ```cpp
-  /// // bin/cache/pkg/flutter_gpu/render_pass.cc:538
+  /// // bin/cache/pkg/flutter_gpu/render_pass.cc:560
   /// void InternalFlutterGpu_RenderPass_SetDepthWriteEnable(
   ///     flutter::gpu::RenderPass* wrapper,
   ///     bool enable) {
   ///   auto& depth = wrapper->GetDepthAttachmentDescriptor();
-  ///   depth.depth_write_enabled = true;
+  ///   depth.depth_write_enabled = enable;
   /// }
   /// ```
   ///
-  /// Verified against the SDK this repository builds with (3.44.6). Passing the
-  /// flag through correctly, which is what this line does, is therefore not
-  /// enough and nothing on the Dart side can be.
+  /// Worth knowing rather than deleting, for two reasons. It is the whole
+  /// argument for `PassState`'s fields being optional — a redundant
+  /// `setDepthWrite(false)` flipped behaviour on two backends out of three
+  /// while this bug was live — and it is what a backdrop rests on:
+  /// `Material.depthWrite` is a promise this backend could not keep until now.
   ///
-  /// What it costs: the particle pass asks for depth writes off so that
-  /// additive particles do not occlude each other, and on this backend they do
-  /// — a burst comes out about three percent dimmer than it should, and eight
-  /// particles stacked at one point draw as one. The `particle-stack` golden is
-  /// the minimal reproduction and will change when this is fixed upstream; it
-  /// is deliberately recorded showing the wrong picture.
-  ///
-  /// A fresh `RenderPass` starts with writes off, so the real fix is for a pass
-  /// that needs them off never to ask for them on — which for particles means
-  /// their own pass rather than a contribution to the scene's. That is an
-  /// engine change rather than a backend one.
+  /// **Settled on a machine with a GPU, and the note it replaces was wrong.**
+  /// `particle-stack` used to be recorded deliberately showing the broken
+  /// picture — eight additive particles at one point drawing as one, a burst
+  /// about three per cent dim — and this docstring said so. Checked directly:
+  /// the recorded frame shows the stack as a blown-out core with a warm halo,
+  /// which is eight particles accumulating, and the cross-backend budget puts
+  /// it 0.431% from the software rasteriser, the same noise floor every other
+  /// scene sits at. The rasteriser honours `depthWrite` in its own code, so
+  /// agreement to that tolerance is the flag arriving here too. Nothing is
+  /// pending.
   @override
   void setDepthWrite(bool enabled) => _pass.setDepthWriteEnable(enabled);
 

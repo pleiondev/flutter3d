@@ -1,10 +1,22 @@
 ---
-description: Two independent golden sets, mutation-checking every new test, determinism and snapshots, and why only thirty of 1242 tests need a GPU.
+description: Two independent golden sets, mutation-checking every new test, determinism and snapshots, and why only thirty of 1805 tests need a GPU.
 ---
 
 # Testing
 
-1242 tests across fifteen packages. About thirty of them need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+1805 tests across sixteen packages, counted by running each package's suite. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+
+| Package | Tests | | Package | Tests |
+|---|---|---|---|---|
+| `flutter3d` | 604 | | `flutter3d_platformer` | 134 |
+| `flutter3d_shooter` | 247 | | `flutter3d_physics` | 96 |
+| `flutter3d_game` | 178 | | `flutter3d_impeller` | 78 |
+| `flutter3d_racing` | 140 | | `flutter3d_particles` | 68 |
+| `flutter3d_cpu` | 64 | | `flutter3d_audio` | 45 |
+| `mouse_capture` | 17 | | `flutter3d_graphics` | 15 |
+| `flutter3d_webgl` | 11 | | `flutter3d_shaders` | 1 |
+| `apps/platformer` | 77 | | `apps/racing` | 23 |
+| `apps/dungeon` | 3 | | `flutter3d_bridge` | 4 |
 
 ```bash
 tool/ci.sh                                   # shaders, analyze, every test
@@ -66,7 +78,7 @@ Everything except the Impeller goldens. In practice that means:
 | Decoders: glTF, OBJ, `.f3d` | Yes | The decoding layer names no graphics API |
 | Draw-call sorting | Yes | `key_sort.dart` is arithmetic |
 | Collision, sweeps, the character controller | Yes | Plain Dart under `dart test` |
-| The whole simulation, both games | Yes | Including playing a level to its exit |
+| The whole simulation, all three games | Yes | Including playing a level to its exit |
 | A rendered frame | Yes | Through `flutter3d_cpu` |
 | Impeller output | No | |
 
@@ -92,7 +104,7 @@ test('the crypt can be finished', () {
 ## And draw one frame anyway
 
 <div class="warn">
-<p>Three bugs shipped that every simulation test passed and a single rendered frame would have caught. That is why <code>flutter3d_cpu</code> is a dev dependency of both games rather than a curiosity, and why <code>test/frame_test.dart</code> exists in each.</p>
+<p>Three bugs shipped that every simulation test passed and a single rendered frame would have caught. That is why <code>flutter3d_cpu</code> is a dev dependency of the games rather than a curiosity, and why <code>test/frame_test.dart</code> exists in each.</p>
 </div>
 
 ```dart

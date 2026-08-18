@@ -21,12 +21,26 @@ class SceneSurface extends StatelessWidget {
     required this.view,
     required this.fog,
     required this.onBeforeFrame,
+    this.exposure = 1.6,
+    this.sky = const SkySettings(),
   });
 
   final Renderer renderer;
   final Scene scene;
   final RenderView view;
   final FogSettings fog;
+
+  /// How much light the camera is set for. The default is the renderer's own.
+  ///
+  /// Here rather than left alone because the hour of the day changes it: a low
+  /// sun puts far less light on a circuit than a high one, and a picture shot at
+  /// one exposure through both is either a washed-out noon or a dusk nobody can
+  /// see the road in.
+  final double exposure;
+
+  /// What is behind everything. Off by default, which is what every other
+  /// application in this repository still wants.
+  final SkySettings sky;
   final VoidCallback onBeforeFrame;
 
   @override
@@ -42,6 +56,8 @@ class SceneSurface extends StatelessWidget {
           views: <RenderView>[view],
           settings: RenderSettings(
             fog: fog,
+            exposure: exposure,
+            sky: sky,
             // Three cascades over a circuit a kilometre round. One map over
             // that is metres of world per texel, which draws a car's own shadow
             // as a slab beside it; three tiles put the near one over the part

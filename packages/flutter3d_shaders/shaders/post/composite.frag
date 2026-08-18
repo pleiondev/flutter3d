@@ -19,9 +19,21 @@ uniform sampler2D scene_texture;
 /// The bloom chain's top level, or a black texture when bloom is off.
 uniform sampler2D bloom_texture;
 
+/// Ambient occlusion at half resolution, or a white texture when it is off.
+///
+/// White rather than absent, because a sampler a shader declares and nobody
+/// binds is a native crash on Metal rather than a black texture — the same rule
+/// that kept the sky's cube map out of `sky.frag`. One white texel costs
+/// nothing and removes the branch.
+uniform sampler2D ao_texture;
+
 uniform CompositeInfo {
-  /// x: exposure, y: bloom intensity, z: 1 to tone map, w unused.
+  /// x: exposure, y: bloom intensity, z: 1 to tone map, w: how much of the
+  /// occlusion to apply, 0 for none.
   vec4 params;
+
+  /// x, y: one texel of the ao texture. z, w unused.
+  vec4 ao_texel;
 }
 composite_info;
 
@@ -64,9 +76,34 @@ void main() {
   vec4 scene = texture(scene_texture, v_uv);
   vec3 bloom = texture(bloom_texture, v_uv).rgb;
 
-  // Additive, because bloom is light that scattered inside the lens rather than
-  // a filter over the image: it adds to what is already there.
-  vec3 color = scene.rgb + bloom * composite_info.params.y;
+  // Four taps in a 2×2, which is not a general-purpose blur: the occlusion pass
+  // rotates its kernel by the parity of the pixel, leaving a 2×2 pattern, and
+  // this averages exactly that away. The size is derived from the artefact
+  // rather than tuned against it, so the two have to move together — widening
+  // one without the other either leaves the pattern or smears the contact
+  // shadows this whole pass exists to draw.
+  vec2 half_texel = composite_info.ao_texel.xy * 0.5;
+  float ao = 0.25 * (texture(ao_texture, v_uv + vec2(half_texel.x, half_texel.y)).r +
+                     texture(ao_texture, v_uv + vec2(-half_texel.x, half_texel.y)).r +
+                     texture(ao_texture, v_uv + vec2(half_texel.x, -half_texel.y)).r +
+                     texture(ao_texture, v_uv + vec2(-half_texel.x, -half_texel.y)).r);
+  // Lerped towards one by the strength, so "off" is exactly one and multiplies
+  // nothing — every golden in the repository depends on that being exact rather
+  // than nearly so.
+  ao = mix(1.0, ao, clamp(composite_info.params.w, 0.0, 1.0));
+
+  // Applied to the scene and **not** to the bloom, which is the whole reason
+  // this lives in the composite rather than in a pass that reads and rewrites
+  // the HDR colour. Multiplying before bloom would take the glow out of a lit
+  // crack along with the ambient, and a crack that stops glowing is a worse
+  // error than a crack that stays bright.
+  //
+  // The cost, stated rather than left to be discovered: this multiplies the
+  // *sum* of the light, not the indirect part of it alone. Separating them
+  // would mean a third attachment and rewriting all six lit stages. So an
+  // emissive strip in a corner dims, which is physically wrong — the same
+  // compromise `pbr.frag` already makes with the occlusion map from a glTF.
+  vec3 color = scene.rgb * ao + bloom * composite_info.params.y;
 
   // Exposure before the tone map, so it behaves like a camera stop — it moves
   // which part of the scene's range lands in the mapper's shoulder instead of

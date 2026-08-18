@@ -8,7 +8,7 @@ repository; nothing here is imported by it.
 A static documentation site for the flutter3d engine, published at
 **https://flutter3d.pleion.dev/** behind basic auth.
 
-Twenty-two pages of Markdown and one build script, with no framework and no
+Twenty-five pages of Markdown and one build script, with no framework and no
 client-side router. Every page is a file on disk, so nginx serves it with
 `try_files` and nothing else, and a broken page is a broken page instead of a
 blank screen.
@@ -170,7 +170,9 @@ turns invisible on light.
 
 ## The playable demos
 
-Both games are built for the web against `flutter3d_webgl` and served from `/demo/`, embedded in `content/*/demo.md` through an iframe.
+The games are built for the web against `flutter3d_webgl` and served from `/demo/`, embedded in `content/*/demo.md` through an iframe.
+
+The shooter and the platformer are playable. **The racing game is not**: it renders correctly and runs at well under one frame a second, and dropping to 480×270 with a single 512 shadow tile changed nothing measurable, so the cost is not fill rate. Its demo page says that plainly instead of embedding it as though it worked. If the cause is found, that page is the one to correct first.
 
 ```bash
 tool/deploy-demos.sh     # regenerate shaders, build both, rsync to bob
@@ -190,7 +192,7 @@ Three traps, each of which cost a build:
 | nginx | `/etc/nginx/sites-available/flutter3d.pleion.dev`, listening on `127.0.0.1:8790` |
 | Basic auth | `/etc/nginx/.htpasswd-flutter3d`, user `flutter3d` |
 | Tunnel | `cloudflared-flutter3d.service`, config `/etc/cloudflared/flutter3d.yml`, tunnel `ebe796b0-5109-4645-87cf-8ca1698fcc15` |
-| Demos | `bob:/opt/flutter3d/demo/platformer` and `.../demo/shooter`, about 100 MB together |
+| Demos | `bob:/opt/flutter3d/demo/{platformer,shooter,racing}`, about 160 MB together |
 
 Cloudflare terminates TLS, so nginx serves plain HTTP on a loopback port and is
 not reachable from outside the machine. A redeploy replaces files only —
@@ -232,9 +234,15 @@ grep -o 'data-lang="[a-z]*"' dist/<page>/index.html | sort -u # code fences tagg
 Then open it. The build cannot tell you that a diagram clipped its labels or
 that a table went off the edge, and both have happened.
 
-## Scope
+## Keeping the counts honest
 
-**Racing is deliberately absent.** `packages/flutter3d_racing` exists but holds
-only track geometry — a spline, a track field, a reader, layers. No vehicle, no
-simulation, no laps. Adding a Racing section means adding a group to `NAV`, and
-it should wait until there is a game to document rather than a plan.
+Three numbers on this site go stale on their own, and all three were wrong once:
+
+- **Test count.** Measured by running every package's suite, not copied from a
+  README. It was 1242 and is 1805; the per-package table on
+  `reference/testing.md` is the record. Re-measure rather than adjust.
+- **Package and game counts.** Sixteen packages, three applications, three
+  genres. "Two games" was hard-coded into a dozen sentences and the home page
+  headline; grep for it before assuming.
+- **Backend status.** What each of the three backends can actually run, which
+  is not the same as what its library docstring claims.

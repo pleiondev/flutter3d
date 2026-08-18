@@ -40,6 +40,13 @@ abstract final class FrameResourceIds {
   /// The bloom pyramid.
   static const ResourceId bloom = ResourceId('bloom');
 
+  /// Ambient occlusion, at half the scene's resolution.
+  ///
+  /// Half because occlusion is low-frequency by nature — it is the shape of a
+  /// corner, not the detail in it — and because the pass reads the surface
+  /// buffer twelve times per pixel.
+  static const ResourceId ao = ResourceId('ao');
+
   /// What is shown.
   static const ResourceId frame = ResourceId('frame');
 }

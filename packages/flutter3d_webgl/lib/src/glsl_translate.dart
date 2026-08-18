@@ -129,7 +129,11 @@ String translateGlsl(
     header
       ..writeln('precision highp float;')
       ..writeln('precision highp int;')
-      ..writeln('precision highp sampler2D;');
+      ..writeln('precision highp sampler2D;')
+      // And the cube sampler, for the same reason: a sampler type with no
+      // declared precision is a shader that does not compile, and the sky is
+      // the first stage here to declare one.
+      ..writeln('precision highp samplerCube;');
   }
   header.write(text);
   return header.toString();
