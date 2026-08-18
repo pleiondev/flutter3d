@@ -35,6 +35,16 @@ linter:
   # or a specific dart file by using the `// ignore: name_of_lint` and
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
+  # **One home, and every other package points here.** The eighteen other
+  # `analysis_options.yaml` in this tree are each a two-line `include:` of this
+  # file rather than a copy of it — before, they were nineteen identical copies
+  # of the SDK's boilerplate, which meant enabling a rule was a nineteen-file
+  # commit and nobody ever did it. Zero rules beyond `flutter_lints` have ever
+  # been on.
+  #
+  # The per-package files keep their own `analyzer: exclude:` block, because
+  # that is the part `flutter analyze` on 3.47 rewrites in place — see the note
+  # above. Rules go here.
   rules:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
