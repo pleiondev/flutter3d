@@ -27,6 +27,7 @@ import 'src/hud.dart';
 import 'src/monster_looks.dart';
 import 'src/scene_surface.dart';
 import 'src/sounds.dart';
+import 'src/staging.dart';
 import 'src/weapon_models.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
@@ -132,18 +133,7 @@ class _GameScreenState extends State<GameScreen>
   GameSimulation? _sim;
   GameState _shown = GameState.playing;
 
-  final Inventory _inventory = Inventory(
-    arsenal: Arsenal(
-      slots: Weapons.all,
-      owned: <WeaponDef>[...Weapons.all],
-      ammo: <AmmoType, int>{
-        AmmoType.bullets: 90,
-        AmmoType.shells: 30,
-        AmmoType.rockets: 12,
-      },
-      startingSlot: 1,
-    ),
-  );
+  final Inventory _inventory = startingInventory();
 
   /// Everything a document in this game's levels may name.
   ///
@@ -454,56 +444,11 @@ class _GameScreenState extends State<GameScreen>
         registry: _entityKinds,
         rules: sampleRules(),
       );
-      final start = loaded.level.playerStart;
-
-      final hitscan = Hitscan(world: loaded.collision);
-      // One entity world for everything that has moved onto components, so
-      // that one save covers the lot. Two would be a save covering half the
-      // game, which the simulation refuses out loud rather than discovering on
-      // a load.
-      final entities = EcsWorld();
-      final projectiles =
-          ProjectileSystem(world: loaded.collision, entities: entities);
-      final actors =
-          ActorSystem(world: loaded.collision, entities: entities);
-      final bestiary = Bestiary(
-        actors: actors,
-        shot: WeaponShot(
-          world: loaded.collision,
-          hitscan: hitscan,
-          projectiles: projectiles,
-        ),
-        catalog: Monsters.byName,
-      );
-      // The one registry validates the level and then spawns it, so the two
-      // cannot disagree about what a document may contain. The bestiary is
-      // attached here rather than at construction because it needs a world to
-      // put monsters in, and there is no world until the level has loaded.
-      (_entityKinds[ShooterEntities.monster] as MonsterKind?)?.bestiary =
-          bestiary;
-      // Baked from the level's brushes and deliberately not from
-      // `loaded.collision`: the collision world holds the doors and the lift,
-      // and whichever position they happen to be in at load would be frozen
-      // into the grid — a closed door becoming a wall nothing ever paths
-      // through again.
-      //
-      // Quarter-metre cells, not the default half. Measured on this level: at
-      // half a metre a one-metre corridor is two cells, both of them touching
-      // a wall, so every cell in it has a clearance of one — and a monster
-      // 0.7 wide, which physically fits, is refused the whole passage. The
-      // grid then silently falls back to walking straight at the player in
-      // exactly the places a route is worth having. Four times the cells and
-      // twice the bake, both of which are load-time and both of which are
-      // small.
-      final navIssues = <LevelIssue>[];
-      actors.navigation =
-          Navigation.bake(loaded.level, cellSize: 0.25, issues: navIssues);
       final visuals = ActorVisuals(
         loaded.scene,
         appearance: const DungeonMonsters(),
         device: _device!,
       );
-      final mechanisms = MechanismWorld(loaded.collision);
       final fixtures = FixtureVisuals(
         loaded.scene,
         loaded,
@@ -514,65 +459,32 @@ class _GameScreenState extends State<GameScreen>
         // Before spawning, so a torch can find the light it drives.
         ..bindLights();
 
-      // The level's entities become actors. Which entity becomes what is the
-      // entity kind's business, in flutter3d_game; all the application supplies
-      // is what they look like, which is the one thing the simulation cannot
-      // know.
-      loaded.level.spawnInto(
-        // The vocabulary this game speaks. The package no longer ships a
-        // registry of its own — it named this game's monsters, its pickups and
-        // its torches, so a second game inherited all of it.
+      // Everything that is not drawing — see `stage`, which is where the rest
+      // of this used to be written out longhand, in this file and again in the
+      // one test this application has.
+      final staged = stage(
+        loaded.level,
+        loaded.collision,
+        input: _input,
         registry: _entityKinds,
-        SpawnContext(
-          world: loaded.collision,
-          actors: actors,
-          mechanisms: mechanisms,
-          onActorSpawned: visuals.add,
-          onFixture: fixtures.add,
-        ),
-      );
-      final body = CharacterController(
-        world: loaded.collision,
-        // Lifted by half the body height: a spawn is authored where the
-        // player's feet go, which is the only place an author can see.
-        position: (start?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0),
-      );
-      // Who the collider *is*, rather than what it happens to be carrying.
-      // A locked door reads the keys off the player, and a rocket asks the
-      // player to take damage, without the physics knowing what either is.
-      _player = Player(
-        body: body,
         inventory: _inventory,
+        onActorSpawned: visuals.add,
+        onFixture: fixtures.add,
         eyeOffset: _eyeOffset,
         lookSensitivity: _lookSensitivity,
       );
-
-      final sim = GameSimulation(
-        player: _player!,
-        collision: loaded.collision,
-        input: _input,
-        mechanisms: mechanisms,
-        actors: actors,
-        projectiles: projectiles,
-        shot: WeaponShot(
-          world: loaded.collision,
-          hitscan: hitscan,
-          projectiles: projectiles,
-        ),
-        levelNext: loaded.level.next,
-      );
+      _player = staged.player;
 
       if (!mounted) return;
       setState(() {
-        _sim = sim;
+        _sim = staged.sim;
         _loaded = loaded;
-        _body = body;
-        _actors = actors;
+        _body = staged.player.body;
+        _actors = staged.actors;
         _actorVisuals = visuals;
-        _mechanisms = mechanisms;
+        _mechanisms = staged.mechanisms;
         _fixtureVisuals = fixtures;
-        _player!.yaw = start?.yaw ?? 0.0;
-        _smoothedPosition.jumpTo(body.position);
+        _smoothedPosition.jumpTo(staged.player.body.position);
         // Loading blocked the ticker for a couple of seconds, and all of that
         // time is sitting in the accumulator. None of it happened in the game,
         // so it is dropped rather than simulated — otherwise the first frame
@@ -583,7 +495,7 @@ class _GameScreenState extends State<GameScreen>
 
       _startAmbience();
 
-      for (final issue in loaded.issues.followedBy(navIssues)) {
+      for (final issue in loaded.issues.followedBy(staged.navIssues)) {
         debugPrint('level: $issue');
       }
     } catch (error, stack) {

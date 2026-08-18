@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter3d_shooter/sample.dart';
@@ -31,65 +32,33 @@ Level _crypt() => Level.fromJson(
 
 /// Everything `main.dart` builds, minus everything that draws.
 final class _Game {
-  _Game(this.level, {required EntityRegistry registry}) {
+  _Game(this.level, {required EntityRegistry registry, Inventory? inventory}) {
     level.addTo(world);
-    actors = ActorSystem(world: world, entities: entities)
-      ..navigation = Navigation.bake(level, cellSize: 0.25);
-    (registry[ShooterEntities.monster] as MonsterKind?)?.bestiary = Bestiary(
-      actors: actors,
-      shot: WeaponShot(
-        world: world,
-        hitscan: Hitscan(world: world),
-        projectiles: projectiles,
-      ),
-      catalog: Monsters.byName,
-    );
-    mechanisms = MechanismWorld(world);
-    level.spawnInto(
-      SpawnContext(world: world, actors: actors, mechanisms: mechanisms),
-      registry: registry,
-    );
-
-    final start = level.playerStart!;
-    player = Player(
-      body: CharacterController(
-        world: world,
-        // A spawn is authored where the feet go, which is the only place an
-        // author can see.
-        position: start.position + Vector3(0.0, 0.9, 0.0),
-      ),
-      inventory: Inventory(arsenal: sampleArsenal()),
-    )..yaw = start.yaw;
-
-    sim = GameSimulation(
-      player: player,
-      collision: world,
+    // **The game's own assembly, not a copy of it.** The copy this replaces had
+    // drifted in four places, and the loudest was the loadout: it started the
+    // player with fists, a pistol and forty bullets, so "the crypt can be
+    // finished" was proved with equipment the game never hands anybody.
+    staged = stage(
+      level,
+      world,
       input: input,
-      mechanisms: mechanisms,
-      actors: actors,
-      projectiles: projectiles,
-      shot: WeaponShot(
-        world: world,
-        hitscan: Hitscan(world: world),
-        projectiles: projectiles,
-      ),
-      levelNext: level.next,
+      registry: registry,
+      inventory: inventory ?? startingInventory(),
     );
     world.update();
   }
 
+  late final Staged staged;
+  EcsWorld get entities => staged.entities;
+  ProjectileSystem get projectiles => staged.projectiles;
+  ActorSystem get actors => staged.actors;
+  MechanismWorld get mechanisms => staged.mechanisms;
+  Player get player => staged.player;
+  GameSimulation get sim => staged.sim;
+
   final Level level;
   final CollisionWorld world = CollisionWorld();
 
-  /// One entity world for both systems; two would be a save covering half the
-  /// game.
-  final EcsWorld entities = EcsWorld();
-  late final ProjectileSystem projectiles =
-      ProjectileSystem(world: world, entities: entities);
-  late final ActorSystem actors;
-  late final MechanismWorld mechanisms;
-  late final Player player;
-  late final GameSimulation sim;
   final InputState input = InputState();
 
   /// This test's own routing, kept apart from `monsters.navigation` on purpose.
