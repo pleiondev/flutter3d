@@ -940,7 +940,20 @@ class _GameScreenState extends State<GameScreen>
         fallbackAlbedo: SolidColorTexture.white.upload(device),
         name: _runnerModel,
       );
-      if (!mounted) return;
+      // **`mounted` is not enough, and the gap is a whole level.** Reading and
+      // uploading eighteen clips takes long enough that the player can finish
+      // the level, die into a reload, or press restart while it is happening —
+      // and every one of those builds a new scene and a new runner, leaving
+      // this call holding the old pair. The widget is still mounted, so the
+      // model went into a scene nobody draws, `_runnerNode` was pointed at it,
+      // and `_runnerAnimation` drove it: the level being played kept the
+      // orange box it started with, permanently, and the pose logic ran
+      // against a node in the dark.
+      //
+      // Compared by identity against the scene the game is showing, because
+      // that is what `setState` at the end of `_readLevel` swaps — one field,
+      // written in the same batch as the runner this was given.
+      if (!mounted || !identical(scene, _scene)) return;
 
       final instance = asset.instantiate(scene, name: 'runner');
       final box = _runnerNode;
