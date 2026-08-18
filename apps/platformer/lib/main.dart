@@ -23,6 +23,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gamepad/gamepad.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -149,13 +150,16 @@ class _GameScreenState extends State<GameScreen>
   final InputState _input = InputState();
   late final DesktopInput _devices;
   late final PadInput _pad;
-  late final Rebinding _rebinding = Rebinding(bindings: _devices.bindings);
+  /// The settings screen, which is a state machine and now says so.
+  ///
+  /// Built in [initState] rather than inline, because it needs the devices and
+  /// the pad to exist before it can apply anything to them.
+  late final SettingsCubit _settings;
 
   AudioScene _audio = AudioScene(backend: SilentBackend());
   final AudioListener _ears = AudioListener();
   SoLoudBackend? _soloud;
 
-  bool _showSettings = false;
   late final GameLoop _loop;
   /// Nullable, because the device may never open.
   ///
@@ -313,11 +317,13 @@ class _GameScreenState extends State<GameScreen>
     // keyboard should be reading from the first key press, not from the first
     // rebind.
     _config = _settingsFile.read();
+    // **One table, and it is the config's** — see `ownedBindings`, which is
+    // named after the bug this replaces: the ternary that used to be here
+    // handed the keyboard a fresh table on a first launch, so a rebind worked
+    // until the player quit and was then gone.
     _devices = DesktopInput(
       state: _input,
-      bindings: _config.bindings.length > 0
-          ? _config.bindings
-          : _bindings(),
+      bindings: ownedBindings(_config, _bindings),
     );
     // A saved config written before the gamepad existed has no `pad:` in it, and
     // a player should not have to delete their settings to use a controller. The
@@ -326,8 +332,12 @@ class _GameScreenState extends State<GameScreen>
     // One table for both devices, because a player's bindings are one file.
     _pad = PadInput(state: _input, bindings: _devices.bindings)
       ..applySettings(_config);
-    _applyVolumes();
-    _applyAccessibility();
+    _settings = SettingsCubit(
+      config: _config,
+      file: _settingsFile,
+      apply: _applyConfig,
+    );
+    _applyConfig(_config);
     _loop = GameLoop(
       input: _input,
       onStep: _step,
@@ -499,6 +509,19 @@ class _GameScreenState extends State<GameScreen>
     _audio.play(Sounds.music, _ears.position);
   }
 
+  /// Puts the config onto everything that is playing.
+  ///
+  /// **One function called from one place**, which it was not: the volumes went
+  /// on in one method, the pad's dead zone in another and the accessibility
+  /// numbers in a third, and each caller picked the subset it thought it
+  /// needed. Moving a volume never re-applied the dead zone; nothing depended
+  /// on that, and nothing said so either.
+  void _applyConfig(GameConfig config) {
+    _applyVolumes();
+    _pad.applySettings(config);
+    _applyAccessibility();
+  }
+
   /// Copies the saved volumes into the mixer the scene is reading.
   void _applyVolumes() {
     for (final bus in <AudioBus>[AudioBus.master, AudioBus.music, AudioBus.sfx]) {
@@ -506,13 +529,8 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  void _setVolume(AudioBus bus, double volume) {
-    setState(() {
-      _audio.mixer.setVolume(bus, volume);
-      _config.setVolume(bus.name, volume);
-    });
-    _settingsFile.write(_config);
-  }
+  void _setVolume(AudioBus bus, double volume) =>
+      _settings.setVolume(bus.name, volume);
 
   /// Everything that has to happen before a settings panel is on screen.
   ///
@@ -548,12 +566,8 @@ class _GameScreenState extends State<GameScreen>
   /// Saves immediately: a rebinding that survived only until the next launch
   /// would be worse than none, because a player would set it, believe it, and
   /// find out during a run.
-  bool _capture(InputSource source) {
-    if (!_rebinding.capture(source)) return false;
-    setState(() {});
-    _settingsFile.write(_config);
-    return true;
-  }
+  /// Saving is `SettingsCubit`'s, and so is the rebuild.
+  bool _capture(InputSource source) => _settings.capture(source);
 
   /// Puts the accessibility settings where they take effect.
   ///
@@ -577,15 +591,10 @@ class _GameScreenState extends State<GameScreen>
   ///
   /// Applied before it is written, because the point of a dead-zone slider is
   /// that the player moves it and feels the stick change — a setting that took
-  /// effect on the next launch could not be chosen at all.
-  void _setSetting(String name, double value) {
-    setState(() {
-      _config.setSetting(name, value);
-      _pad.applySettings(_config);
-      _applyAccessibility();
-    });
-    _settingsFile.write(_config);
-  }
+  /// effect on the next launch could not be chosen at all. That order is
+  /// `SettingsCubit`'s promise now rather than this method's.
+  void _setSetting(String name, double value) =>
+      _settings.setSetting(name, value);
 
   /// Loads [asset], and shows why if it cannot.
   ///
@@ -782,7 +791,7 @@ class _GameScreenState extends State<GameScreen>
     // A pad button offered to a waiting rebinding, so a controller can be
     // remapped from the controller rather than from the keyboard — which is the
     // whole point for a player who has only one of the two.
-    if (_rebinding.waitingFor != null) {
+    if (_settings.state.waitingFor != null) {
       _capture(InputSource.pad(_pad.heldButtons.first.id));
       return;
     }
@@ -963,7 +972,7 @@ class _GameScreenState extends State<GameScreen>
     // ways this line has been wrong and a test for each.
     _loop.paused = shouldPause(
       ready: _sim != null,
-      menuOpen: _showSettings,
+      menuOpen: _settings.state.isOpen,
       pointerIsTheGate: Playing.capturesPointer,
       pointerHeld: _devices.isCaptured,
       padConnected: _pad.isConnected,
@@ -1182,6 +1191,7 @@ class _GameScreenState extends State<GameScreen>
     _saveRun();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
+    unawaited(_settings.close());
     _keyboard.dispose();
     _ticker?.dispose();
     unawaited(_devices.dispose());
@@ -1249,9 +1259,9 @@ class _GameScreenState extends State<GameScreen>
           }
           // A rebinding takes the next key, before anything else looks at it —
           // including Escape below, which is how a player says "not that one".
-          if (event is KeyDownEvent && _rebinding.waitingFor != null) {
+          if (event is KeyDownEvent && _settings.state.waitingFor != null) {
             if (event.logicalKey == LogicalKeyboardKey.escape) {
-              setState(_rebinding.cancel);
+              _settings.rebind(null);
             } else {
               _capture(InputSource.key(event.logicalKey.keyId));
             }
@@ -1269,8 +1279,8 @@ class _GameScreenState extends State<GameScreen>
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape &&
               _started) {
-            if (!_showSettings) _openSettings();
-            setState(() => _showSettings = !_showSettings);
+            if (!_settings.state.isOpen) _openSettings();
+            _settings.toggle();
             return KeyEventResult.handled;
           }
           // **With the panel open the keys belong to the panel.** Handing them
@@ -1279,7 +1289,7 @@ class _GameScreenState extends State<GameScreen>
           // reach a slider at all — and a key held as the panel opened stays
           // held in the `InputState`, so closing it sends the player walking
           // off on their own.
-          if (_showSettings) return KeyEventResult.ignored;
+          if (_settings.state.isOpen) return KeyEventResult.ignored;
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
@@ -1359,7 +1369,7 @@ class _GameScreenState extends State<GameScreen>
               // takes the pointers that land on it, so a thumb on the stick is
               // never also a turn of the camera. Everything the drag layer
               // still sees is screen the controls are not on.
-              if (Playing.touch && _started && !_showSettings)
+              if (Playing.touch && _started && !_settings.state.isOpen)
                 TouchControls(
                   state: _input,
                   buttons: const <TouchAction>[
@@ -1380,48 +1390,49 @@ class _GameScreenState extends State<GameScreen>
                   touch: Playing.touch,
                   resuming: _resumed,
                 ),
-              if (_showSettings)
-                SettingsPanel(
-                  mixer: _audio.mixer,
-                  bindings: _devices.bindings,
-                  config: _config,
-                  padConnected: _pad.isConnected,
-                  onVolume: _setVolume,
-                  onSetting: _setSetting,
-                  onClose: () {
-                    // A rebinding left waiting would eat the next key press in
-                    // the game, which reads as the game ignoring the player.
-                    _rebinding.cancel();
-                    setState(() => _showSettings = false);
-                  },
-                  actions: _rebindable,
-                  waitingFor: _rebinding.waitingFor,
-                  onRebind: (GameAction? action) => setState(() {
-                    action == null
-                        ? _rebinding.cancel()
-                        : _rebinding.start(action);
-                  }),
-                  credits: const CreditsSection(),
-                  onResetControls: () {
-                    setState(() => _rebinding.reset(_bindings()));
-                    _settingsFile.write(_config);
-                  },
-                )
-              // Not over the title card, which carries the same settings on it
-              // and is the one screen a stray gear icon has nothing to add to.
-              else if (_started)
-                Positioned(
-                  right: 18,
-                  top: 16,
-                  child: IconButton(
-                    onPressed: () {
-                      _openSettings();
-                      setState(() => _showSettings = true);
-                    },
-                    tooltip: 'Settings',
-                    icon: const Icon(Icons.settings, color: Colors.white70),
-                  ),
-                ),
+              // The panel and the gear are the same piece of state seen twice,
+              // so they are built from it rather than from two flags that have
+              // to be kept opposite.
+              BlocBuilder<SettingsCubit, SettingsState>(
+                bloc: _settings,
+                builder: (BuildContext context, SettingsState settings) {
+                  if (!settings.isOpen) {
+                    // Not over the title card, which carries the same settings
+                    // on it and is the one screen a stray gear has nothing to
+                    // add to.
+                    if (!_started) return const SizedBox.shrink();
+                    return Positioned(
+                      right: 18,
+                      top: 16,
+                      child: IconButton(
+                        onPressed: () {
+                          _openSettings();
+                          _settings.show();
+                        },
+                        tooltip: 'Settings',
+                        icon: const Icon(Icons.settings, color: Colors.white70),
+                      ),
+                    );
+                  }
+                  return SettingsPanel(
+                    mixer: _audio.mixer,
+                    bindings: _devices.bindings,
+                    config: _config,
+                    padConnected: _pad.isConnected,
+                    onVolume: _setVolume,
+                    onSetting: _setSetting,
+                    // Cancelling a waiting rebind is the cubit's, because a
+                    // panel closed any other way — Escape, the pad — has to do
+                    // the same thing and used not to.
+                    onClose: _settings.hide,
+                    actions: _rebindable,
+                    waitingFor: settings.waitingFor,
+                    onRebind: _settings.rebind,
+                    credits: const CreditsSection(),
+                    onResetControls: () => _settings.resetControls(_bindings()),
+                  );
+                },
+              ),
             ],
           ),
         ),

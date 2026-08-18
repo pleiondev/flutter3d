@@ -54,6 +54,14 @@ dependencies:
     path: ../../packages/gamepad
 
   vector_math: ^2.2.0
+  # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
+  # What goes through it is the screen: loading, pause, settings, the run's
+  # state and what the HUD shows. What does **not** is the sixty-hertz step,
+  # the camera, the particles and the scene; a state object per simulation step
+  # is an allocation and a rebuild sixty times a second, and keeping the
+  # renderer's frame rate out of the fixed step is the whole point of
+  # `GameSimulation`.
+  flutter_bloc: ^9.1.1
 
 dev_dependencies:
   flutter_test:

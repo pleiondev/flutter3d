@@ -28,6 +28,16 @@ dependencies:
   # `localStorage`, which is where a browser build keeps what a player changed.
   # Already used by flutter3d_webgl and by the gamepad's web backend.
   web: ^1.1.0
+  # State management. The screens here are state machines — a panel that is
+  # open, a rebinding that is waiting for a key, a settings document that has
+  # been written — and they lived in `setState` inside two applications, which
+  # is where a state machine goes to stop being testable. A cubit is reachable
+  # from a plain `test()`.
+  #
+  # The exception to `docs/SPEC.md` §2.4, and a narrow one: pure Dart, no FFI,
+  # so it does not break the web build — which is what that section's argument
+  # is actually about.
+  flutter_bloc: ^9.1.1
 
 dev_dependencies:
   flutter_test:
