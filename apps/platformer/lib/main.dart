@@ -37,7 +37,6 @@ import 'src/pace.dart';
 import 'src/pause_gate.dart';
 import 'src/reactions.dart';
 import 'src/runner_looks.dart';
-import 'src/save_file.dart';
 import 'src/scene_surface.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
@@ -275,7 +274,7 @@ class _GameScreenState extends State<GameScreen>
   Duration _lastTick = Duration.zero;
   double _elapsed = 0.0;
 
-  final SaveFile _saveFile = SaveFile();
+  final SaveFile _saveFile = SaveFile(appName: 'platformer');
 
   /// What a step sounds like. See `soundtrack.dart` for why this is a class
   /// and not a method: a decision can be tested, an effect inside a widget

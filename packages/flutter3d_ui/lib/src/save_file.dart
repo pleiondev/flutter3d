@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
-import 'package:flutter3d_ui/flutter3d_ui.dart';
+
+import 'settings_file.dart';
+import 'storage/storage.dart';
 
 /// Where a run in progress is kept between launches.
 ///
@@ -17,9 +19,19 @@ import 'package:flutter3d_ui/flutter3d_ui.dart';
 /// that mean nothing here, so the runner arrives inside a wall of a level they
 /// were never in. So the level's asset path is stored beside it and checked on
 /// the way back in.
+/// **Moved here when the second game wanted one**, which is this repository's
+/// habit rather than a new rule. Nothing in it was ever the platformer's: a
+/// level's path and a `Snapshot` are what any game that can be quit halfway
+/// through has to keep, and the only thing that differed was the name of the
+/// directory — which is what [appName] is.
 final class SaveFile {
-  SaveFile({Storage? storage})
-      : storage = storage ?? defaultStorage('platformer');
+  SaveFile({required this.appName, Storage? storage})
+      : storage = storage ?? defaultStorage(appName);
+
+  /// Which game's save this is. Two games served from one browser origin would
+  /// otherwise resume into each other's levels — see [SettingsFile.appName],
+  /// which had the same problem and the same answer.
+  final String appName;
 
   /// Where the document is kept, which differs per platform — see [Storage].
   ///

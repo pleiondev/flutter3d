@@ -7,7 +7,7 @@ import 'dart:io';
 import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platformer/src/save_file.dart';
+
 
 void main() {
   late Directory temporary;
@@ -19,7 +19,7 @@ void main() {
     // A real directory, because what these tests are about is a document that
     // survives a process — see `Storage`, which is what decides where one goes.
     storage = FileStorage(appName: 'platformer', directory: temporary);
-    saves = SaveFile(storage: storage);
+    saves = SaveFile(appName: 'test', storage: storage);
   });
 
   tearDown(() => temporary.deleteSync(recursive: true));
