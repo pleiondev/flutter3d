@@ -12,7 +12,13 @@ script calls it before it builds anything.
 """
 
 import json
+import sys
 from pathlib import Path
+
+# The shared writer, at the repository root: `dump` and `rounded` had a second
+# consumer the day `apps/dungeon/tool/cryptkit.py` was written.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tool"))
+from leveldoc import dump, rounded  # noqa: E402
 
 LEVELS = Path(__file__).resolve().parent.parent / "assets" / "levels"
 COIN = "assets/models/coin.glb"
@@ -90,7 +96,7 @@ def fill(at, size, material, surface=None):
 
 
 def _r(v):
-    return [round(float(x), 3) for x in v]
+    return rounded(v)
 
 
 def coin(at, name=None):
@@ -281,25 +287,6 @@ SUN = {
 }
 
 
-def dump(value, indent):
-    """Compact where compact reads better: one line per brush, per entity."""
-    pad = "  " * indent
-    if isinstance(value, dict):
-        inner = json.dumps(value, separators=(", ", ": "))
-        if len(inner) <= 110 and not any(isinstance(v, (dict, list)) and
-                                         len(json.dumps(v)) > 60
-                                         for v in value.values()):
-            return pad + inner
-        rows = [f'{pad}  {json.dumps(k)}: '
-                f'{dump(v, indent + 1).lstrip() if isinstance(v, (dict, list)) else json.dumps(v)}'
-                for k, v in value.items()]
-        return pad + "{\n" + ",\n".join(rows) + "\n" + pad + "}"
-    if isinstance(value, list):
-        if all(isinstance(v, (int, float, str)) for v in value):
-            return pad + json.dumps(value, separators=(", ", ": "))
-        return pad + "[\n" + ",\n".join(dump(v, indent + 1) for v in value) + \
-            "\n" + pad + "]"
-    return pad + json.dumps(value)
 
 
 # Things a player is meant to reach. A brush through one of these is a coin
