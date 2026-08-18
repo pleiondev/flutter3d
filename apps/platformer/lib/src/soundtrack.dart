@@ -41,7 +41,6 @@ final class Soundtrack {
   final double stride;
 
   double _sinceStep = 0.0;
-  int _deathsSeen = 0;
   bool _wasFinished = false;
 
   final Vector3 _wasAt = Vector3.zero();
@@ -72,10 +71,7 @@ final class Soundtrack {
     if (sim.stompedThisStep) out.add(Heard(Sounds.land, at));
     if (sim.reachedCheckpointThisStep) out.add(Heard(Sounds.checkpoint, at));
 
-    if (sim.deaths != _deathsSeen) {
-      _deathsSeen = sim.deaths;
-      out.add(Heard(Sounds.death, at));
-    }
+    if (sim.diedThisStep) out.add(Heard(Sounds.death, at));
 
     // **The level's own machinery, which had particles and no sound.** A pad
     // that throws you and a shelf that gives way under you are the two loudest
@@ -132,7 +128,6 @@ final class Soundtrack {
   /// For a level change or a restart: a fresh run makes its own noises.
   void reset() {
     _sinceStep = 0.0;
-    _deathsSeen = 0;
     _wasFinished = false;
     _placed = false;
   }

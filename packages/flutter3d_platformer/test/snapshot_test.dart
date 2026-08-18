@@ -288,4 +288,52 @@ void _progressTests() {
       expect(fresh.sim.elapsed, 91.5);
     });
   });
+
+  group('a death is an event, not a difference between two numbers', () {
+    // **Three readers each kept their own copy of `deaths`** — the camera, the
+    // particles and the soundtrack — and compared it against the simulation's
+    // to decide whether one had just happened. That works exactly as long as
+    // every run starts at nought, and runs stopped doing that the day a tally
+    // began carrying into the next level: the first step of level two fired a
+    // death for one that happened on level one, and starting over fired one for
+    // a death that had just been undone.
+
+    test('a run that begins with deaths on it has not just died', () {
+      final world = _World(lives: 3, deaths: 5);
+
+      world.step();
+
+      expect(world.sim.deaths, 5, reason: 'the tally is carried, not reset');
+      expect(world.sim.diedThisStep, isFalse,
+          reason: 'a carried death fired the death sound on arrival');
+    });
+
+    test('and a death is true for the step it happened in', () {
+      // Fallen off the world: the ordinary way a run ends a life.
+      final world = _World(lives: 3);
+      var died = false;
+      for (var i = 0; i < 240 && !died; i++) {
+        world.run(1, forward: true);
+        died = world.sim.diedThisStep;
+      }
+
+      expect(died, isTrue, reason: 'nothing killed the runner in four seconds');
+      expect(world.sim.deaths, greaterThan(0));
+    });
+
+    test('and false on the step after', () {
+      final world = _World(lives: 3);
+      var died = false;
+      for (var i = 0; i < 240 && !died; i++) {
+        world.run(1, forward: true);
+        died = world.sim.diedThisStep;
+      }
+      expect(died, isTrue);
+
+      world.step();
+
+      expect(world.sim.diedThisStep, isFalse,
+          reason: 'the flag stayed up, so the burst plays every frame');
+    });
+  });
 }

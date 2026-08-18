@@ -55,8 +55,14 @@ void main() {
       DeviceOrientation.landscapeRight,
     ]));
     // The status bar over a game is a strip of the level nobody can see, and
-    // the navigation bar is a place to lose a thumb. `edgeToEdge` rather than
-    // `immersive`, so a swipe brings them back rather than being eaten.
+    // the navigation bar is a place to lose a thumb. `immersiveSticky` rather
+    // than `edgeToEdge`: the bars go away and a swipe brings them back as an
+    // overlay that fades, rather than pushing the game's layout about every
+    // time somebody reaches for the corner.
+    //
+    // The comment here used to argue for `edgeToEdge` while the call said
+    // `immersiveSticky`, which is worse than either being wrong — the next
+    // reader trusts the sentence.
     unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky));
   }
   runApp(const PlatformerApp());
@@ -149,7 +155,14 @@ class _GameScreenState extends State<GameScreen>
 
   bool _showSettings = false;
   late final GameLoop _loop;
-  late final Ticker _ticker;
+  /// Nullable, because the device may never open.
+  ///
+  /// It used to be `late final`, assigned only on the success path of
+  /// `_openGraphics` — and `dispose` called it unconditionally. So a player who
+  /// met "The renderer did not start", read it, and closed the screen got a
+  /// `LateInitializationError` thrown over the top of the real error, which is
+  /// the one moment a game can least afford a second failure.
+  Ticker? _ticker;
 
   final CameraNode _camera = CameraNode(projection: Lens.base);
   late final RenderView _view;
@@ -255,7 +268,6 @@ class _GameScreenState extends State<GameScreen>
   final Vector3 _scratch = Vector3.zero();
   Duration _lastTick = Duration.zero;
   double _elapsed = 0.0;
-  int _deathsSeen = 0;
 
   final SaveFile _saveFile = SaveFile();
 
@@ -722,7 +734,6 @@ class _GameScreenState extends State<GameScreen>
     // changed.
     if (resume != null) {
       _sim?.restore(resume);
-      _deathsSeen = _sim?.deaths ?? 0;
       _followCamera?.cut();
       _drawnAt.jumpTo(runner.body.position);
     }
@@ -1012,8 +1023,7 @@ class _GameScreenState extends State<GameScreen>
     sim.step(dt);
     _hear(sim, runner);
 
-    if (sim.deaths != _deathsSeen) {
-      _deathsSeen = sim.deaths;
+    if (sim.diedThisStep) {
       // A cut rather than a chase: easing from where they died to where they
       // came back is a second of the level flying past for no reason.
       camera.cut();
@@ -1143,7 +1153,7 @@ class _GameScreenState extends State<GameScreen>
     if (sim.reachedCheckpointThisStep) {
       _particles.burst(Effects.checkpoint, at, direction: _up);
     }
-    if (sim.deaths != _deathsSeen) {
+    if (sim.diedThisStep) {
       _particles.burst(Effects.death, at);
       camera?.shake(0.5, seconds: 0.4);
     }
@@ -1261,7 +1271,7 @@ class _GameScreenState extends State<GameScreen>
     _audio.stopAll();
     unawaited(_soloud?.dispose());
     _keyboard.dispose();
-    _ticker.dispose();
+    _ticker?.dispose();
     unawaited(_devices.dispose());
     super.dispose();
   }

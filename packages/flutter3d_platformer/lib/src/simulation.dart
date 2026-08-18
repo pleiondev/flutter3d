@@ -154,6 +154,21 @@ final class PlatformerSimulation {
   /// True on the step the runner landed on something and killed it.
   bool stompedThisStep = false;
 
+  /// The runner died during this step.
+  ///
+  /// **A flag rather than a number three readers each watch.** A death used to
+  /// be inferred by comparing [deaths] against a copy kept by whoever cared —
+  /// the camera kept one, the particles kept one, the soundtrack kept a third —
+  /// and every one of them was wrong the moment a run began with deaths already
+  /// on it. Carrying a tally into the next level fired a death on its first
+  /// step; starting over fired one for a death that had been undone. Neither is
+  /// a counter bug, both are the counter.
+  ///
+  /// This is how the rest of this class already reports what happened, and it
+  /// cannot be got wrong in the same way: it is true for the step it happened
+  /// in and false afterwards, whatever [deaths] says.
+  bool diedThisStep = false;
+
   /// Damage a second from standing against an enemy.
   ///
   /// A rate rather than a lump, exactly as a hazard's is, and for the same
@@ -165,6 +180,7 @@ final class PlatformerSimulation {
     saidThisStep.clear();
     reachedCheckpointThisStep = false;
     stompedThisStep = false;
+    diedThisStep = false;
 
     if (state == RunState.finished || state == RunState.lost) return;
 
@@ -213,6 +229,7 @@ final class PlatformerSimulation {
 
   void _revive() {
     deaths += 1;
+    diedThisStep = true;
     if (lives > 0) {
       lives -= 1;
       if (lives == 0) {
