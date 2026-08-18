@@ -786,8 +786,14 @@ final class Runner with KeyHolder
       _probe
         ..setFrom(side)
         ..scale(tuning.wallProbe);
+      // **Through the same filter the body moves by.** Without it this sweep
+      // sees the side of a one-way platform as a wall — so a runner falling
+      // past its edge slows to a wall slide and can jump off nothing. That is
+      // the invisible lip `_countsAsSolid` was written to abolish, arrived at
+      // from the other direction: the body obeyed the rule and the probe asking
+      // about the body did not.
       if (!body.world.sweep(body.shape, body.position, _probe, _hit,
-          ignore: body.collider)) {
+          ignore: body.collider, allow: _countsAsSolid)) {
         continue;
       }
       // A floor or a ceiling is not a wall, however close it is.
@@ -844,6 +850,14 @@ final class Runner with KeyHolder
       ..y = feet + tuning.mantleHigh + half.y;
 
     // Straight down from above the tallest ledge worth taking.
+    //
+    // **Deliberately not through `_countsAsSolid`**, unlike the wall probe
+    // above. That filter answers "does this stop me moving", and part of its
+    // answer is `velocity.y <= 0` — which is false at exactly the moment a
+    // mantle happens, on the way up. This sweep asks a different question:
+    // "is there a surface here I could stand on", and the top of a one-way
+    // platform is one. Passing the movement filter would make every one-way
+    // ledge unmantleable while rising, which is every time.
     _probe.setValues(0.0, -(tuning.mantleHigh - tuning.mantleLow), 0.0);
     if (!body.world.sweep(body.shape, _mantleAt, _probe, _hit,
         ignore: body.collider)) {

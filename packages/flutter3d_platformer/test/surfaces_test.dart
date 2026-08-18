@@ -24,6 +24,7 @@ final class _Run {
     bool oneWay = false,
     Vector3? conveyor,
     double startY = 0.9,
+    double startX = 0.0,
   }) {
     final level = Level(
       name: 'a floor',
@@ -74,7 +75,7 @@ final class _Run {
     runner = Runner(
       body: CharacterController(
         world: world,
-        position: Vector3(0.0, startY, 0.0),
+        position: Vector3(startX, startY, 0.0),
       ),
       surfaces: Surfaces.common(),
     );
@@ -320,6 +321,54 @@ void main() {
         expect(table.tuningFor(name), isNot(same(table.fallback)),
             reason: '$name is listed and walks like plain ground');
       }
+    });
+  });
+
+  group('falling past the side of a one-way platform', () {
+    // **The rule the filter exists for, applied to the probe that forgot it.**
+    // `_countsAsSolid` says a one-way platform is solid only as a floor —
+    // "jumping up through it, and running into its side in mid-air, both find
+    // nothing" — and its own doc explains that this is why it is a predicate
+    // rather than a layer mask: with a mask "a player sprinting past one stops
+    // dead on an invisible lip at chest height".
+    //
+    // The body obeys that, because the filter is its `solidFilter`. The wall
+    // probe ran its own sweep without it, so the side of a one-way platform was
+    // a wall to cling to and to jump off — the invisible lip, arrived at from
+    // the other direction.
+
+    test('is not a wall to cling to', () {
+      // Beside the platform's right edge at x = 3, close enough for a 0.14
+      // probe to reach it from a body 0.35 wide, and high enough to fall past.
+      final run = _Run(oneWay: true, startX: 3.42, startY: 7.0);
+
+      var clung = false;
+      for (var i = 0; i < 120 && !clung; i++) {
+        run.step();
+        clung = run.runner.isOnWall;
+      }
+
+      expect(clung, isFalse,
+          reason: 'the side of a one-way platform was treated as a wall, so a '
+              'runner falling past its edge slows to a wall slide and can jump '
+              'off nothing');
+    });
+
+    test('and a real wall still is one', () {
+      // The other half, or the fix is "never find a wall" and passes the same.
+      // Its face at x = 0.45, which a 0.14 probe reaches from a body whose own
+      // face is at 0.35. Checked while still falling: a grounded runner is
+      // never on a wall, and the floor is 60 metres wide.
+      final run = _Run(startX: 0.0, startY: 6.0);
+      run.world.addBox(Vector3(0.95, 5.0, 0.0), Vector3(1.0, 8.0, 4.0));
+
+      var clung = false;
+      for (var i = 0; i < 40 && !clung; i++) {
+        run.step(holding: <GameAction>{GameAction.moveRight});
+        clung = run.runner.isOnWall;
+      }
+
+      expect(clung, isTrue, reason: 'nothing is a wall any more');
     });
   });
 }
