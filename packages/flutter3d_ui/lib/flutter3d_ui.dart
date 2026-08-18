@@ -16,7 +16,9 @@
 /// the caller's, and the panel has never known what a coin or a monster is.
 library;
 
+export 'src/owned_bindings.dart';
 export 'src/rebinding.dart';
+export 'src/settings_cubit.dart';
 export 'src/settings_file.dart';
 export 'src/settings_panel.dart';
 export 'src/storage/storage.dart';

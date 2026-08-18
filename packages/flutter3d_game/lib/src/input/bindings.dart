@@ -119,6 +119,19 @@ final class Bindings {
 
   int get length => _sources.length;
 
+  /// Becomes a copy of [other], in place.
+  ///
+  /// **In place is the whole point.** This table is shared — the keyboard, the
+  /// pad and the file that saves it all hold the same object on purpose, so
+  /// that a rebind takes effect on the next key press rather than on the next
+  /// launch. Replacing the object would leave each of them holding a different
+  /// one, which is the failure this method exists to make unwriteable.
+  void takeFrom(Bindings other) {
+    _sources
+      ..clear()
+      ..addAll(other._sources);
+  }
+
   Bindings copy() => Bindings(Map<InputSource, GameAction>.of(_sources));
 
   Map<String, Object?> toJson() {

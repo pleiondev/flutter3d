@@ -60,12 +60,6 @@ final class Rebinding {
   /// to a key you then cannot reach.
   void reset(Bindings defaults) {
     _waiting = null;
-    for (final source in bindings.sources.toList()) {
-      bindings.unbind(source);
-    }
-    for (final source in defaults.sources) {
-      final action = defaults[source];
-      if (action != null) bindings.bind(source, action);
-    }
+    bindings.takeFrom(defaults);
   }
 }
