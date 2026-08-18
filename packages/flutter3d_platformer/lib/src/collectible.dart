@@ -1,108 +1,51 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:vector_math/vector_math.dart';
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 
 import 'purse.dart';
 
-/// A coin, a star, a scrap of whatever this game counts.
+/// Something the runner walks into and keeps.
 ///
-/// The same mechanism a shooter's pickup is, and deliberately not the same
-/// class: that one grants a [Gift] into an `Inventory` full of ammunition, and
-/// arriving at a shared abstraction over "adds ammo" and "adds a coin" would
-/// mean inventing a word neither game says. What they genuinely share —
-/// [Mechanism], the trigger collider, removal from the world, `taken` on
-/// [MechanismEvents] — is in the engine, and both of these are forty lines.
-final class Collectible extends Mechanism with CollisionListener {
+/// **Almost all of this is [Takeable] now**, which the shooter's `Pickup` is
+/// too: the trigger, the "taken once and only once" bookkeeping, the fade after
+/// it is gone, and the rule that a refusal leaves the world exactly as it was.
+/// What is left here is the two lines that make it this game's — a count into a
+/// purse, and the key that some of them carry.
+///
+/// The class keeps its name because the application asks `mechanism is
+/// Collectible` to decide how to draw it. That is why [Takeable] is a base to
+/// extend rather than a class to configure.
+final class Collectible extends Takeable {
   Collectible({
     super.name,
     required this.what,
-    required this.collider,
+    required super.collider,
     this.howMany = 1,
     this.key,
-  }) {
-    collider
-      ..kind = ColliderKind.trigger
-      ..userData = this
-      ..listener = this;
-  }
+  });
 
-  /// What it counts as in a [Purse]: `coin`, `star`, whatever the level says.
+  /// What it counts as in the purse. A name rather than a type, so a level
+  /// document can invent one without this file changing.
   final String what;
 
   final int howMany;
 
-  /// A key this also grants, or null.
-  ///
-  /// One class rather than two, because a key *is* a thing on the floor you
-  /// walk over — everything about picking it up is identical and only where it
-  /// lands differs. What makes that honest rather than lazy is that a taker
-  /// answers two questions separately: [Gatherer] for the count, [KeyTaker] for
-  /// the key, and a game may implement either alone.
+  /// Which door it opens, if it opens one.
   final String? key;
 
-  final Collider collider;
-
-  bool _taken = false;
-  bool get isTaken => _taken;
-
-  /// True on the step it was collected, so a game can say so once.
-  bool justTaken = false;
-
-  /// Seconds since it was taken, and infinite while it is still there.
-  ///
-  /// The simulation has no opinion about how a coin leaves — that is a look —
-  /// but only the simulation knows *when* it left, so it counts and the game
-  /// decides what to do with the number.
-  double sinceTaken = double.infinity;
-
   @override
-  Vector3 get origin => collider.position;
+  bool offerTo(Object? taker) {
+    // Narrowed through a second name rather than by promoting the parameter,
+    // because a `Gatherer` does not narrow again to a `KeyTaker` — the two are
+    // unrelated interfaces and the same taker answers to both. The original did
+    // exactly this, by reading `userData` twice.
+    final gatherer = taker;
+    if (gatherer is! Gatherer) return false;
+    if (!gatherer.purse.add(what, howMany)) return false;
 
-  @override
-  void collect(MechanismEvents into) {
-    if (justTaken) into.taken.add(this);
-  }
-
-  @override
-  ActivationOutcome activate(Activation by) {
-    if (_taken) return const NothingToDo();
-    final who = by.by?.userData;
-    if (who is! Gatherer) return const NothingToDo();
-    if (!who.purse.add(what, howMany)) return const NothingToDo();
+    // After the purse, not before: a key handed out for a pickup that was then
+    // refused is a door that opens for nothing.
     final unlocks = key;
-    final taker = by.by?.userData;
     if (unlocks != null && taker is KeyTaker) taker.keyRing.take(unlocks);
-
-    _taken = true;
-    justTaken = true;
-    sinceTaken = 0.0;
-    // Out of the world rather than merely disabled, and after the step, because
-    // this runs from inside the overlap dispatch.
-    world.collisions.removeLater(collider);
-    return const Activated();
-  }
-
-  @override
-  void onCollisionStart(Collider self, Collider other) {
-    activate(world.activationBy(other));
-  }
-
-  @override
-  void step(double dt) {
-    justTaken = false;
-    if (_taken && sinceTaken.isFinite) sinceTaken += dt;
-  }
-
-  @override
-  Map<String, Object?> save() => <String, Object?>{'taken': _taken};
-
-  @override
-  void restore(Map<String, Object?> from) {
-    _taken = from['taken'] == true;
-    justTaken = false;
-    // Whatever it was doing when the save happened, a coin taken before it has
-    // finished shrinking by the time it is loaded: restoring mid-animation
-    // would put a half-sized coin in a room the player has already cleared.
-    sinceTaken = double.infinity;
-    if (_taken) world.collisions.removeLater(collider);
+    return true;
   }
 }
