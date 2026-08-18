@@ -251,6 +251,48 @@ void main() {
       expect(run.runner.isPounding, isFalse);
     });
 
+    test('and dying in one does not carry it into the next life', () {
+      // **A pound ends when the runner is out of it, and dying is out of it.**
+      // `_pounding` was cleared only by landing, and dying mid-pound is the
+      // ordinary way a pound kills you — into a hazard, or past the kill plane.
+      // So the flag survived the respawn, and the first *ordinary* landing
+      // after it reported a pound: the slam particles, the camera shake, and
+      // `PlatformerSimulation` shattering whatever `Breakable` happened to be
+      // under the checkpoint.
+      final run = _Run();
+      run.runner.body.teleport(Vector3(0.0, 12.0, 0.0));
+      run.run(5);
+      run.step(holding: <GameAction>{_crouch});
+      expect(run.runner.isPounding, isTrue, reason: 'it never started');
+
+      run.runner.reviveAt(Vector3(0.0, 0.0, 0.0));
+      expect(run.runner.isPounding, isFalse,
+          reason: 'the pound came back to life with the runner');
+
+      var landed = false;
+      for (var i = 0; i < 120 && !landed; i++) {
+        run.step();
+        landed = run.runner.poundedThisStep;
+      }
+      expect(landed, isFalse,
+          reason: 'an ordinary landing after a respawn reported a pound');
+    });
+
+    test('and dashing out of one ends it too', () {
+      // The other exit. Dashing zeroed the vertical speed and left the flag up,
+      // so the landing at the end of the dash was a pound the player did not
+      // make.
+      final run = _Run();
+      run.runner.body.teleport(Vector3(0.0, 12.0, 0.0));
+      run.run(5);
+      run.step(holding: <GameAction>{_crouch});
+      expect(run.runner.isPounding, isTrue);
+
+      run.step(holding: <GameAction>{PlatformerActions.dash});
+
+      expect(run.runner.isPounding, isFalse);
+    });
+
     test('a landing reports how hard it was', () {
       // The number E3's dust and squash are fed from, and the reason it is read
       // before the step: landing is where the controller turns downward speed

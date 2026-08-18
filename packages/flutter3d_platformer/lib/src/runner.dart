@@ -968,6 +968,11 @@ final class Runner with KeyHolder
       // A flat dash, so an air dash buys distance rather than height and the
       // ground friction is what ends it.
       ..y = 0.0;
+    // The other way out of a pound, and it used to leave the flag up: the
+    // landing at the end of the dash was then reported as a pound the player
+    // did not make. Zeroing the downward speed already ends it in every sense
+    // but the one the rest of this file reads.
+    _pounding = false;
     _dashCooldown = tuning.dashCooldown;
     dashedThisStep = true;
   }
@@ -1043,6 +1048,13 @@ final class Runner with KeyHolder
     health.restore(<String, Object?>{'current': health.maximum, 'armour': 0.0});
     _buffer = 0.0;
     _dashCooldown = 0.0;
+    // **A pound ends when the runner is out of it, and dying is out of it.**
+    // This was cleared only by landing, and dying mid-pound is the ordinary way
+    // a pound kills you — into a hazard, or past the kill plane. So it survived
+    // the respawn, and the first *ordinary* landing afterwards reported a
+    // pound: the slam, the shake, and whatever `Breakable` was under the
+    // checkpoint shattered by a landing nobody aimed.
+    _pounding = false;
     _land();
   }
 
