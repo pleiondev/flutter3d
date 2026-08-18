@@ -27,8 +27,14 @@ final class Heard {
 ///
 /// The same split `RunnerLooks` uses for the pose and `PlatformerLooks` for the
 /// coin: deciding is a pure function of the simulation, and playing is an
-/// effect somebody else performs. Particles and camera shake stay in the widget
-/// — they have their own lifetimes and are already covered by the frame tests.
+/// effect somebody else performs.
+///
+/// This used to end by saying that particles and camera shake stay in the
+/// widget because they "are already covered by the frame tests". They were
+/// not: no test in this application mentioned a particle, an effect or a
+/// shake. They are `Reactions` now, beside this — a sentence that excuses a
+/// gap is worth less than no sentence, because it stops the next person from
+/// looking.
 final class Soundtrack {
   Soundtrack({this.stride = 2.2});
 

@@ -34,6 +34,7 @@ import 'src/lens.dart';
 import 'src/looks.dart';
 import 'src/pace.dart';
 import 'src/pause_gate.dart';
+import 'src/reactions.dart';
 import 'src/runner_looks.dart';
 import 'src/save_file.dart';
 import 'src/scene_surface.dart';
@@ -275,6 +276,9 @@ class _GameScreenState extends State<GameScreen>
   /// and not a method: a decision can be tested, an effect inside a widget
   /// cannot.
   final Soundtrack _soundtrack = Soundtrack();
+
+  /// What a step looks like. A class for the same reason [Soundtrack] is one.
+  final Reactions _reactions = Reactions();
 
   /// The last thing the level said, and how much longer to say it for.
   ///
@@ -1034,7 +1038,7 @@ class _GameScreenState extends State<GameScreen>
     // The camera owns "forward", and the simulation takes it as a number.
     sim.cameraYaw = camera.yaw;
     sim.step(dt);
-    _hear(sim, runner);
+    _react(sim, runner);
 
     if (sim.diedThisStep) {
       // A cut rather than a chase: easing from where they died to where they
@@ -1107,15 +1111,16 @@ class _GameScreenState extends State<GameScreen>
   static final Vector3 _up = Vector3(0.0, 1.0, 0.0);
   final Vector3 _flameAt = Vector3.zero();
 
-  /// Turns a step's events into sounds. Nothing here decides anything.
-  void _hear(PlatformerSimulation sim, Runner runner) {
-    final at = runner.position;
+  /// Turns a step's events into sound and spectacle. Nothing here decides.
+  ///
+  /// Both halves are somebody else's: `Soundtrack` says what a step sounds
+  /// like and `Reactions` says what it looks like, because a decision inside a
+  /// widget needs a device, a renderer and a window to ask about — and this
+  /// game shipped mute, and then shipped without a particle for a collected
+  /// coin, with nothing red either time.
+  void _react(PlatformerSimulation sim, Runner runner) {
     final camera = _followCamera;
 
-    // **What to play is decided in `Ears` and only performed here.** It used to
-    // be decided here too, inside a widget, where nothing could ask what a step
-    // ought to sound like without a device and a window — so the game being
-    // mute was undetectable. See `ears.dart`.
     for (final Heard heard in _soundtrack.listen(sim, runner)) {
       _audio.play(heard.sound, heard.at);
     }
@@ -1127,90 +1132,19 @@ class _GameScreenState extends State<GameScreen>
       _sayFor = 3.0;
     }
 
-    if (runner.dashedThisStep) {
-      _particles.burst(Effects.dash, at);
-      camera?.widen(0.1);
+    // Everything the step showed, decided in `Reactions` and only performed
+    // here — the same split as the sound above, and for the same reason: what
+    // a coin looks like when it is taken was a private method of a widget
+    // nothing can mount, so nothing checked that it looked like anything.
+    final reaction = _reactions.listen(sim, runner);
+    for (final Shown shown in reaction.bursts) {
+      _particles.burst(shown.effect, shown.at, direction: shown.direction);
     }
-    if (runner.wallJumpedThisStep) _particles.burst(Effects.dust, at);
-
-    // **Three flags the runner has always set and nobody has ever read**, which
-    // is the same shape of gap as the silent coin: the simulation was right and
-    // the game said nothing. Each one is a moment a player commits to something
-    // and deserves to be told it landed.
-    if (runner.longJumpedThisStep) {
-      // A long jump is a commitment — low, far, and no steering. It gets a wide
-      // skirt of dust, because it is the slide it came out of, launched.
-      _particles.burst(Effects.dust, at);
-      camera?.widen(0.08);
-    }
-    if (runner.grabbedThisStep) {
-      // Catching a rope or a ladder: the camera settles rather than kicking,
-      // because the runner has just stopped falling.
-      _particles.burst(Effects.dust, at);
-    }
-    if (runner.bouncedThisStep) {
-      // The hop off something stomped. `sim.stompedThisStep` says an enemy
-      // died; this says the runner was thrown by it, and they are not the same
-      // event — a bounce off a held jump goes higher, and that is what the kick
-      // is scaled by.
-      camera?.kick(Vector3(0.0, 0.05, 0.0));
-      _particles.burst(Effects.spring, at, direction: _up);
-    }
-    for (var i = 0; i < sim.takenThisStep.length; i++) {
-      _particles.burst(Effects.coin, sim.takenThisStep[i].origin);
-    }
-    if (sim.stompedThisStep) {
-      _particles.burst(Effects.slam, at);
-      camera?.kick(Vector3(0.0, -0.12, 0.0));
-    }
-    if (sim.reachedCheckpointThisStep) {
-      _particles.burst(Effects.checkpoint, at, direction: _up);
-    }
-    if (sim.diedThisStep) {
-      _particles.burst(Effects.death, at);
-      camera?.shake(0.5, seconds: 0.4);
-    }
-
-    // Everything the level's own machinery did this step. A spring that throws
-    // somebody and a shelf that gives way are both events nobody was watching
-    // for until there was something to show for them.
-    for (final Mechanism mechanism in sim.mechanisms?.all ?? const <Mechanism>[]) {
-      if (mechanism is Spring && mechanism.firedThisStep) {
-        _particles.burst(Effects.spring, mechanism.origin, direction: _up);
-      }
-      if (mechanism is Crumbling && mechanism.crumbledThisStep) {
-        _particles.burst(Effects.crumble, mechanism.origin);
-      }
-      if (mechanism is Breakable && mechanism.brokeThisStep) {
-        _particles.burst(Effects.slam, mechanism.origin);
+    if (camera != null) {
+      for (final Felt felt in reaction.jolts) {
+        felt.applyTo(camera);
       }
     }
-
-    // Landing is an event the simulation reports now, and it reports how hard:
-    // the application used to work it out from whether the runner was grounded
-    // last frame, which cannot know the speed.
-    if (runner.landedThisStep) {
-      // The sound is `Soundtrack`'s, with every other sound in the game. What
-      // is left here is what a landing does to the camera and to the dust.
-      _feelLanding(runner.landingSpeed, pounded: runner.poundedThisStep);
-      if (runner.poundedThisStep) {
-        _particles.burst(Effects.slam, at);
-      } else if (runner.landingSpeed > 6.0) {
-        _particles.burst(Effects.dust, at);
-      }
-    }
-  }
-
-  /// What a landing does to the camera. The pose is `RunnerLooks`' business.
-  void _feelLanding(double speed, {required bool pounded}) {
-    final camera = _followCamera;
-    if (camera == null) return;
-    // Below walking pace nothing happens: a camera that dips every time the
-    // player steps off a kerb is a camera nobody can look at.
-    if (speed < 6.0 && !pounded) return;
-    final hardness = (speed / 20.0).clamp(0.0, 1.0);
-    camera.kick(Vector3(0.0, -0.18 * hardness, 0.0));
-    if (pounded) camera.shake(0.22, seconds: 0.3);
   }
 
   void _placeCamera(double dt) {
