@@ -100,14 +100,34 @@ final class Crumbling extends Mechanism with CollisionListener {
         'away': _away,
       };
 
+  /// **Restoring is a move in both directions, and it used only to go one.**
+  ///
+  /// The collider is not in the saved state — [_fallen] is, and the world's
+  /// copy of it is a consequence the block keeps in step. So a restore that
+  /// only ever removed was right exactly as long as every restore was into a
+  /// freshly loaded level, where nothing had fallen yet. Load a checkpoint
+  /// taken *before* a platform crumbled, into a session where it since had,
+  /// and the block came back solid-looking, walk-through, and unrecoverable:
+  /// `_fallen` is false, so [step] returns at the first line and never adds it
+  /// back. A floor the player can see and fall through.
+  ///
+  /// Compared against the previous value rather than asked of the world,
+  /// because [_fallen] is what the block has always used to mean "the collider
+  /// is out" — asking twice would be a second answer to the same question.
   @override
   void restore(Map<String, Object?> from) {
+    final wasFallen = _fallen;
     final since = from['since'];
     sinceTouched = since is num ? since.toDouble() : double.infinity;
     _fallen = from['fallen'] == true;
     final away = from['away'];
     _away = away is num ? away.toDouble() : 0.0;
-    if (_fallen) world.collisions.removeLater(collider);
+    if (_fallen == wasFallen) return;
+    if (_fallen) {
+      world.collisions.removeLater(collider);
+    } else {
+      world.collisions.add(collider);
+    }
   }
 }
 
@@ -156,11 +176,21 @@ final class Breakable extends Mechanism {
   @override
   Map<String, Object?> save() => <String, Object?>{'broken': _broken};
 
+  /// Both directions, for the reason written out at [Crumbling.restore].
+  ///
+  /// Worse here than there, because nothing ever un-breaks a broken block: a
+  /// restore that could only remove had no second chance to put it right.
   @override
   void restore(Map<String, Object?> from) {
+    final wasBroken = _broken;
     _broken = from['broken'] == true;
     brokeThisStep = false;
-    if (_broken) world.collisions.removeLater(collider);
+    if (_broken == wasBroken) return;
+    if (_broken) {
+      world.collisions.removeLater(collider);
+    } else {
+      world.collisions.add(collider);
+    }
   }
 }
 

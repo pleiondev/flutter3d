@@ -399,6 +399,44 @@ void main() {
 
       expect(block.isBroken, isFalse);
     });
+
+    test('and a checkpoint taken before the pound puts the block back', () {
+      // **Restoring only ever took the collider away, never gave it back.**
+      // Load a save written before the block broke, in a session where it
+      // since had, and `isBroken` said "solid" while the world had no collider
+      // in it — and nothing un-breaks a block, so there was no later step that
+      // could put it right. A wall the player can see and walk through.
+      final run = _Run(extras: <EntityDef>[
+        EntityDef(
+          type: PlatformerEntities.breakable,
+          name: 'the block',
+          position: Vector3(0.0, 1.0, 0.0),
+          properties: <String, Object?>{
+            'size': <double>[2.0, 2.0, 2.0],
+          },
+        ),
+      ]);
+      final block = run.mechanisms['the block']! as Breakable;
+      final whole = block.save();
+
+      run.runner.body.teleport(Vector3(0.0, 8.0, 0.0));
+      run.run(5);
+      run.step(holding: <GameAction>{_crouch});
+      run.run(120);
+      expect(block.isBroken, isTrue, reason: 'the pound did not break it');
+
+      block.restore(whole);
+      run.runner.body.teleport(Vector3(0.0, 4.0, 0.0));
+      run.run(60);
+
+      expect(block.isBroken, isFalse);
+      // Height rather than `isGrounded`, because there is a floor under the
+      // block and landing on *that* is grounded too — the first draft of this
+      // test passed with the collider still missing. The block's top is at two
+      // metres; the floor is at nothing.
+      expect(run.runner.position.y, greaterThan(1.5),
+          reason: 'the block is back, and the runner fell through it');
+    });
   });
 
   group('a crumbling platform', () {
@@ -440,6 +478,27 @@ void main() {
 
       run.run(90);
       expect(theShelf.hasFallen, isFalse, reason: 'it never came back');
+    });
+
+    test('and a checkpoint taken before it fell puts it back', () {
+      // The same hole as the block above, and the reason it is worth testing
+      // twice: a shelf that comes back on its own hides it for a second and a
+      // half, and then does not.
+      final run = _Run(extras: <EntityDef>[aShelf()]);
+      final theShelf = run.mechanisms['the shelf']! as Crumbling;
+      final standing = theShelf.save();
+
+      run.runner.body.teleport(Vector3(0.0, 4.2, 0.0));
+      run.run(60);
+      expect(theShelf.hasFallen, isTrue, reason: 'it never gave way');
+
+      theShelf.restore(standing);
+      run.runner.body.teleport(Vector3(0.0, 4.2, 0.0));
+      run.run(10);
+
+      expect(theShelf.hasFallen, isFalse);
+      expect(run.runner.isGrounded, isTrue,
+          reason: 'restored standing, and the runner fell through it');
     });
 
     test('a platform nobody stood on never falls', () {
