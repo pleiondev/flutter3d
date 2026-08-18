@@ -38,6 +38,7 @@ final class WeaponDef {
     this.falloffEnd = 0.0,
     this.minimumDamageFraction = 0.25,
     this.knockback = 0.0,
+    this.loudness = 18.0,
     this.projectileSpeed = 0.0,
     this.splashRadius = 0.0,
     this.splashMinimumFraction = 0.0,
@@ -81,6 +82,20 @@ final class WeaponDef {
 
   /// Impulse applied to what is hit, along the ray.
   final double knockback;
+
+  /// How far this is heard, in metres.
+  ///
+  /// **Here rather than worked out from the damage**, and the roster is why the
+  /// first attempt at that was wrong: a shotgun does 11 per pellet across eight
+  /// of them and the fists do 20 in one go, so damage says the fists are the
+  /// loudest thing in the game. Loudness is not a consequence of anything else
+  /// on this record — it is its own number, adjusted by feel like the rest of
+  /// them, and that is exactly what this class is for.
+  ///
+  /// The default is an ordinary gunshot. A melee weapon sets it low; something
+  /// silenced would set it to nothing at all, which is a design this leaves
+  /// room for without having a word for it.
+  final double loudness;
 
   /// Metres per second, for a weapon that launches something.
   ///

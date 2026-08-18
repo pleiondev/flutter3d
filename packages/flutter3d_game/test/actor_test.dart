@@ -74,6 +74,14 @@ final class _Counting extends Brain {
   void act(Mind it) => onAct();
 }
 
+/// A brain that only remembers what it heard.
+final class _Listening extends Brain {
+  final List<Vector3> heard = <Vector3>[];
+
+  @override
+  void onNoise(Mind it, Vector3 at) => heard.add(at.clone());
+}
+
 /// Something a game might care about and this package has never heard of.
 final class _Suspicion {
   _Suspicion(this.level);
@@ -340,6 +348,64 @@ void main() {
       expect(eye.y, greaterThan(tall.position!.y));
       expect(eye.y - tall.position!.y,
           closeTo(tall.body!.halfExtents.y * 0.32, 1e-6));
+    });
+  });
+
+  group('hearing', () {
+    // **The sense these actors did not have.** A brain reacted to being seen or
+    // being hurt and to nothing else, so a fight in the next room was something
+    // it stood through. What counts as loud and how far it carries is the
+    // caller's; this layer knows only that something happened somewhere.
+    ActorSystem quietRoom() {
+      final world = CollisionWorld()
+        ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(80.0, 1.0, 80.0));
+      return ActorSystem(world: world);
+    }
+
+    Actor listener(ActorSystem system, {double at = 0.0}) => system.spawn(
+          body: CharacterController(
+            world: system.world,
+            position: Vector3(at, 0.9, 0.0),
+          ),
+          health: Health(30.0),
+          brain: _Listening(),
+          facing: Facing(),
+        );
+
+    test('reaches everything inside the radius', () {
+      final system = quietRoom();
+      final near = listener(system, at: 3.0);
+
+      system.hear(Vector3.zero(), radius: 10.0);
+
+      expect((near.brain! as _Listening).heard, hasLength(1));
+      expect((near.brain! as _Listening).heard.first, Vector3.zero());
+    });
+
+    test('and nothing outside it', () {
+      // Mutation: drop the distance check. Every actor in the level wakes on
+      // the first noise, which is a level with no pacing left in it.
+      final system = quietRoom();
+      final far = listener(system, at: 30.0);
+
+      system.hear(Vector3.zero(), radius: 10.0);
+
+      expect((far.brain! as _Listening).heard, isEmpty);
+    });
+
+    test('and the dead are not told', () {
+      // A corpse that turns towards a noise is a corpse that gets back up as
+      // far as anything reading its brain is concerned. Guarded here rather
+      // than left to each brain: every brain would have to remember, and the
+      // one that forgets is the one nobody looks at.
+      final system = quietRoom();
+      final dead = listener(system);
+      system.hurt(dead, 999.0);
+      expect(dead.isAlive, isFalse);
+
+      system.hear(Vector3.zero(), radius: 10.0);
+
+      expect((dead.brain! as _Listening).heard, isEmpty);
     });
   });
 }

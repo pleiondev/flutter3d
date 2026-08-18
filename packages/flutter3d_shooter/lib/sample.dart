@@ -38,6 +38,7 @@ abstract final class Monsters {
     sightRange: 24.0,
     attack: WeaponDef(
       name: 'claws',
+      loudness: 4.0,
       behaviour: MeleeBehaviour(),
       ammo: AmmoType.none,
       damage: 9.0,
@@ -82,6 +83,7 @@ abstract final class Monsters {
     hurtDuration: 0.18,
     attack: WeaponDef(
       name: 'slam',
+      loudness: 12.0,
       behaviour: MeleeBehaviour(arcDegrees: 100.0),
       ammo: AmmoType.none,
       damage: 34.0,
@@ -106,6 +108,8 @@ abstract final class Weapons {
   /// Free, short, and the reason running out of ammo is a setback rather than
   /// a dead end.
   static const WeaponDef fists = WeaponDef(
+    // Bare hands. Heard across a room and not through a wall.
+    loudness: 5.0,
     name: 'Fists',
     behaviour: MeleeBehaviour(),
     ammo: AmmoType.none,
@@ -116,6 +120,7 @@ abstract final class Weapons {
   );
 
   static const WeaponDef pistol = WeaponDef(
+    loudness: 16.0,
     name: 'Pistol',
     behaviour: HitscanBehaviour(),
     ammo: AmmoType.bullets,
@@ -129,6 +134,8 @@ abstract final class Weapons {
 
   /// Eight pellets, and all of the reason to close the distance.
   static const WeaponDef shotgun = WeaponDef(
+    // The loudest thing a player carries, and the reason a corridor answers.
+    loudness: 28.0,
     name: 'Shotgun',
     behaviour: HitscanBehaviour(),
     ammo: AmmoType.shells,
@@ -144,6 +151,7 @@ abstract final class Weapons {
   );
 
   static const WeaponDef rocketLauncher = WeaponDef(
+    loudness: 26.0,
     name: 'Rocket Launcher',
     behaviour: ProjectileBehaviour(),
     ammo: AmmoType.rockets,

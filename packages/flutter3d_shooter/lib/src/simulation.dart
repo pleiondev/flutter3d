@@ -225,7 +225,19 @@ final class GameSimulation {
     player.inventory.step(dt);
     if (playing) _weapon(dt);
 
+    // **A shot is a noise, and until now nothing in the level could tell.** A
+    // monster noticed being seen or being hit and nothing else, so a player
+    // could empty a shotgun in the next room and walk in on something still
+    // asleep. Reported before the actors think, so the ones that heard it are
+    // already moving on the step it happened.
     final actors = this.actors;
+    final fired = firedThisStep;
+    if (fired != null && actors != null) {
+      if (fired.loudness > 0.0) {
+        actors.hear(firedFrom, radius: fired.loudness);
+      }
+    }
+
     if (actors != null && player.isAlive) {
       player.eye(_eye);
       actors.step(dt, focus: _eye, focusBody: player.body.collider);

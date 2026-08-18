@@ -245,6 +245,63 @@ void main() {
       expect(_hitsACrossingTarget(sideways: 0.0), isTrue);
     });
 
+    test('a shot in the next room wakes it, and a wall does not stop that', () {
+      // **The sense these monsters did not have.** One noticed being seen or
+      // being hit and nothing else, so a player could empty a shotgun on the
+      // other side of a wall and walk in on something still asleep — which
+      // reads as a monster that is switched off rather than one that is
+      // unaware.
+      //
+      // Through the wall on purpose: sound goes round corners and sight does
+      // not, and that is the entire point. A line-of-sight test here would make
+      // hearing a slower copy of seeing.
+      final world = _room(wall: true);
+      final it = _harness(world, playerAt: Vector3(0.0, 0.0, 20.0));
+      final monster = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, -20.0));
+      it.system.step(_dt, focus: it.eye, focusBody: it.player);
+      expect((monster.brain! as ChaseBrain).state, MonsterState.idle,
+          reason: 'it saw through a wall, so this proves nothing');
+
+      it.system.hear(Vector3(0.0, 1.5, 19.0), radius: 60.0);
+
+      expect((monster.brain! as ChaseBrain).state, MonsterState.chase);
+    });
+
+    test('and it goes to look rather than opening fire', () {
+      // A monster that heard a shotgun two rooms away and started shooting
+      // would be one that can see through walls, which is the failure this is
+      // meant to fix rather than the one it should cause.
+      final it = _harness(_room(wall: true), playerAt: Vector3(0.0, 0.0, 20.0));
+      final monster = it.bestiary.spawn(Monsters.shooter, Vector3(0.0, 0.0, -20.0));
+
+      it.system.hear(Vector3(0.0, 1.5, 19.0), radius: 60.0);
+
+      expect((monster.brain! as ChaseBrain).state, isNot(MonsterState.attack));
+    });
+
+    test('and a noise too far away is not heard', () {
+      // Mutation: drop the radius check in `hear`. Every monster in the level
+      // wakes on the first shot, which is a level with no pacing in it.
+      final it = _harness(_room(), playerAt: Vector3(0.0, 0.0, 40.0));
+      final monster = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, -40.0));
+
+      it.system.hear(Vector3(0.0, 1.5, 39.0), radius: 20.0);
+
+      expect((monster.brain! as ChaseBrain).state, MonsterState.idle);
+    });
+
+    test('and a louder weapon is heard further', () {
+      // **The first version of this derived loudness from damage**, and the
+      // roster said no: a shotgun does 11 a pellet across eight of them and the
+      // fists do 20 in one go, so damage makes bare hands the loudest thing in
+      // the game. It is a number on the weapon now.
+      expect(Weapons.shotgun.loudness, greaterThan(Weapons.pistol.loudness));
+      expect(Weapons.pistol.loudness, greaterThan(Weapons.fists.loudness));
+      expect(Monsters.runner.attack.loudness,
+          lessThan(Monsters.tank.attack.loudness),
+          reason: 'a claw is quieter than something slamming into the floor');
+    });
+
     test('being shot wakes it even with no line of sight', () {
       // Otherwise a player can whittle down a monster round a corner and it
       // never reacts, which reads as the game being broken rather than as an

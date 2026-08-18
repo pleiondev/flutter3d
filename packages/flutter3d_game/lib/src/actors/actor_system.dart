@@ -296,6 +296,34 @@ final class ActorSystem {
     return false;
   }
 
+  /// Tells every actor within [radius] that something loud happened at [at].
+  ///
+  /// **The sense these actors did not have.** A brain that reacts only to being
+  /// seen or being shot stands about while a fight happens next door, and a
+  /// player who has just fired a shotgun knows they made a noise — a monster
+  /// that did not notice reads as one that is switched off rather than one that
+  /// is unaware.
+  ///
+  /// **Through walls on purpose.** Sound goes round corners and sight does not,
+  /// which is the entire point: a line-of-sight test here would make this a
+  /// slower copy of [canSee]. What a brain does about it is its own business,
+  /// and the sensible thing is to go and look rather than to open fire.
+  ///
+  /// The dead are not told. Radius is in metres and is the caller's: a shotgun
+  /// carries further than a footstep, and this layer has no opinion about
+  /// either.
+  void hear(Vector3 at, {required double radius}) {
+    final squared = radius * radius;
+    for (final actor in actors.toList(growable: false)) {
+      if (!actor.isAlive) continue;
+      final where = actor.position;
+      if (where == null) continue;
+      if (where.distanceToSquared(at) > squared) continue;
+      _mind.actor = actor;
+      actor.brain?.onNoise(_mind, at);
+    }
+  }
+
   /// Puts corpses back to being solid or not, after a snapshot has restored
   /// health it did not restore collider kinds for.
   ///

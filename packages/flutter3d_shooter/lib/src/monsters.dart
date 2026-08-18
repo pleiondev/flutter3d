@@ -216,6 +216,24 @@ final class ChaseBrain extends Brain {
     }
   }
 
+  /// A shot, a door, something breaking. Worth getting up for.
+  ///
+  /// **It goes and looks; it does not open fire.** A monster that heard a
+  /// shotgun two rooms away and immediately started shooting would be a monster
+  /// that can see through walls, which is the failure this is supposed to fix
+  /// rather than the one it should cause. `chase` walks it towards the focus,
+  /// and what it finds when it arrives is the ordinary business of `think`.
+  ///
+  /// Only from `idle`. A monster already alert, chasing or swinging has nothing
+  /// to learn from a noise, and one that is hurt is staggering — interrupting
+  /// that would cancel the flinch the player just earned.
+  @override
+  void onNoise(Mind it, Vector3 at) {
+    if (state != MonsterState.idle) return;
+    hasNoticed = true;
+    _enter(MonsterState.chase);
+  }
+
   @override
   void onDeath(Mind it) => _enter(MonsterState.dead);
 

@@ -49,6 +49,19 @@ abstract base class Brain {
   /// Something hurt this actor and it lived.
   void onHurt(Mind it, double amount) {}
 
+  /// Something loud happened at [at], within earshot.
+  ///
+  /// **Hearing, which is the sense these actors did not have.** A brain that
+  /// only reacts to being seen or being shot is one that stands still while a
+  /// fight happens in the next room — and a player who has just fired knows
+  /// perfectly well that they made a noise, so a monster that did not notice
+  /// reads as one that is not switched on rather than one that is unaware.
+  ///
+  /// The caller decides what counts as loud and how far it carries; this is
+  /// told only that it happened and where. Distance is already applied: a
+  /// brain is not called for a noise it could not have heard.
+  void onNoise(Mind it, Vector3 at) {}
+
   /// Something hurt this actor and it did not.
   void onDeath(Mind it) {}
 
