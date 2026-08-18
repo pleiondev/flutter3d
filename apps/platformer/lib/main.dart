@@ -40,6 +40,7 @@ import 'src/save_file.dart';
 import 'src/scene_surface.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'src/sounds.dart';
+import 'src/staging.dart';
 import 'src/title_card.dart';
 
 void main() {
@@ -638,11 +639,9 @@ class _GameScreenState extends State<GameScreen>
     // every level of every run, which is the same as not having one.
     _pace.reset(_loop.clock.droppedSteps);
 
-    // One registry validates the document and then spawns it. Two could
-    // disagree about what a document may contain, which is the failure this
-    // seam was built to remove — so the crate kind is told where bodies go
-    // *after* there is a world, exactly as the shooter tells its monster kind
-    // where the bestiary is.
+    // One registry validates the document and then spawns it — see `stage`,
+    // which is where the rest of this used to be written out longhand, in this
+    // file and in four test harnesses that each had their own copy.
     final kinds = platformerRegistry();
     final loaded = await LevelLoader().load(
       asset,
@@ -652,11 +651,6 @@ class _GameScreenState extends State<GameScreen>
     );
     if (!mounted) return;
 
-    final dynamics = Dynamics(world: loaded.collision);
-    (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
-
-    final actors = ActorSystem(world: loaded.collision);
-    final mechanisms = MechanismWorld(loaded.collision);
     final fixtures = FixtureVisuals(
       loaded.scene,
       loaded,
@@ -664,33 +658,18 @@ class _GameScreenState extends State<GameScreen>
       device: device,
     )..bindLights();
 
-    loaded.level.spawnInto(
-      SpawnContext(
-        world: loaded.collision,
-        actors: actors,
-        mechanisms: mechanisms,
-        onFixture: fixtures.add,
-      ),
+    final staged = stage(
+      loaded.level,
+      loaded.collision,
+      input: _input,
       registry: kinds,
+      onFixture: fixtures.add,
+      coins: _carried?.coins ?? 0,
+      lives: _carried?.lives ?? _lives,
+      deaths: _carried?.deaths ?? 0,
+      elapsed: _carried?.elapsed ?? 0.0,
     );
-
-    // The authored point is where the feet go; the body is a box about its
-    // middle.
-    final start = loaded.level.playerStart?.position ?? Vector3.zero();
-    final runner = Runner(
-      body: CharacterController(
-        world: loaded.collision,
-        position: start + Vector3(0.0, 0.9, 0.0),
-      ),
-      // What this game's floors are made of. The names live in the level
-      // document, on the brushes, beside the material that paints them.
-      surfaces: Surfaces.common(),
-      // Seeded so the purse is the run's total rather than this level's, which
-      // is what the HUD has always claimed it was and what the ending totals.
-      // Through the purse rather than beside it, so `sim.save()` carries it and
-      // a resumed run is not a run that lost its coins.
-      purse: Purse()..add('coin', _carried?.coins ?? 0),
-    );
+    final runner = staged.runner;
 
     // A box now, the model when it arrives. `FixtureVisuals` does the same for
     // a modelled fixture, and doing it any other way is what turned out to
@@ -705,22 +684,7 @@ class _GameScreenState extends State<GameScreen>
       _fixtures = fixtures;
       _runnerNode = node;
       _runner = runner;
-      _sim = PlatformerSimulation(
-        runner: runner,
-        collision: loaded.collision,
-        input: _input,
-        // Built since this game began and stepped by nobody, which is why a
-        // platformer carrying a whole actor system had no enemies in it.
-        actors: actors,
-        // The authored point: feet on the floor. See Runner.reviveAt.
-        startAt: start,
-        mechanisms: mechanisms,
-        dynamics: dynamics,
-        levelNext: loaded.level.next,
-        lives: _carried?.lives ?? _lives,
-        deaths: _carried?.deaths ?? 0,
-        elapsed: _carried?.elapsed ?? 0.0,
-      );
+      _sim = staged.sim;
       _followCamera = FollowCamera(world: loaded.collision);
       // A camera is built per level, so the setting has to be put back on it.
       _applyAccessibility();

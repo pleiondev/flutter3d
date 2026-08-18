@@ -85,6 +85,10 @@ List<_Riser> _risersIn(Level level, double limit) {
 /// The shipped level, the shipped simulation, and a runner put on a ledge.
 final class _Walk {
   _Walk() {
+    // **Deliberately not `stage`.** This measures the shipped level's *shape*
+    // — brushes and the runner walking over them — so spawning its entities
+    // would put a crate or a patrolling enemy in the way of the geometry the
+    // test is about. The narrowing is the point, not an oversight.
     level.addTo(world);
     runner = Runner(
       body: CharacterController(world: world, position: Vector3.zero()),

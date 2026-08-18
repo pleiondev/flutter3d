@@ -55,6 +55,10 @@ Level _shipped([String path = 'assets/levels/first_steps.json']) =>
 final class _Walk {
   _Walk([String path = 'assets/levels/first_steps.json'])
       : level = _shipped(path) {
+    // **Deliberately not `stage`.** This measures the shipped level's *shape*
+    // — brushes and the runner walking over them — so spawning its entities
+    // would put a crate or a patrolling enemy in the way of the geometry the
+    // test is about. The narrowing is the point, not an oversight.
     level.addTo(world);
     final start = level.playerStart?.position ?? Vector3.zero();
     runner = Runner(

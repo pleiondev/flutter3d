@@ -32,6 +32,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platformer/src/staging.dart';
 import 'package:platformer/src/looks.dart';
 import 'package:platformer/src/runner_looks.dart';
 import 'package:vector_math/vector_math.dart';
@@ -43,8 +44,7 @@ const double _dt = 1.0 / 60.0;
 /// Everything `main.dart` assembles, including the half that draws.
 final class _Shown {
   _Shown._(this.device, this.renderer, this.level, this.scene, this.world,
-      this.mechanisms, this.dynamics, this.fixtures, this.runner, this.sim,
-      this.runnerNode, this.camera, this.actors);
+      this.staged, this.fixtures, this.runnerNode, this.camera, this._input);
 
   static Future<_Shown> build({
     String level = 'assets/levels/ascent.json',
@@ -80,11 +80,6 @@ final class _Shown {
     final world = loaded.collision;
     final scene = loaded.scene;
     final document = loaded.level;
-    final dynamics = Dynamics(world: world);
-    (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
-
-    final mechanisms = MechanismWorld(world);
-    final actors = ActorSystem(world: world);
     final fixtures = FixtureVisuals(
       scene,
       loaded,
@@ -92,24 +87,21 @@ final class _Shown {
       device: device,
     )..bindLights();
 
-    document.spawnInto(
-      SpawnContext(
-        world: world,
-        actors: actors,
-        mechanisms: mechanisms,
-        onFixture: fixtures.add,
-      ),
+    // Assembled by `stage`, which is the call `main.dart` makes on the line
+    // after this one. The forty lines that used to be here were the game's
+    // assembly copied by hand, and the copy is what a frame test cannot afford
+    // to be: the picture is only worth checking if it is the picture of the
+    // game.
+    final input = InputState();
+    final staged = stage(
+      document,
+      world,
+      input: input,
       registry: kinds,
+      onFixture: fixtures.add,
     );
+    final runner = staged.runner;
 
-    final start = document.playerStart?.position ?? Vector3.zero();
-    final runner = Runner(
-      body: CharacterController(
-        world: world,
-        position: start + Vector3(0.0, 0.9, 0.0),
-      ),
-      surfaces: Surfaces.common(),
-    );
     // A box, which is what the real game draws until the model arrives.
     final runnerNode = MeshNode(
       SharedMeshes(device).box(runner.body.halfExtents * 2.0),
@@ -122,19 +114,8 @@ final class _Shown {
     );
     scene.add(runnerNode);
 
-    final sim = PlatformerSimulation(
-      runner: runner,
-      collision: world,
-      input: InputState(),
-      startAt: start,
-      mechanisms: mechanisms,
-      dynamics: dynamics,
-      actors: actors,
-    );
-
-    return _Shown._(device, renderer, document, scene, world, mechanisms,
-        dynamics,
-        fixtures, runner, sim, runnerNode, CameraNode(), actors);
+    return _Shown._(device, renderer, document, scene, world, staged,
+        fixtures, runnerNode, CameraNode(), input);
   }
 
   final CpuDevice device;
@@ -142,16 +123,18 @@ final class _Shown {
   final Level level;
   final Scene scene;
   final CollisionWorld world;
-  final MechanismWorld mechanisms;
-  final Dynamics dynamics;
+  final Staged staged;
   final FixtureVisuals fixtures;
-  final Runner runner;
-  final PlatformerSimulation sim;
   final MeshNode runnerNode;
   final CameraNode camera;
-  final ActorSystem actors;
 
-  final InputState _input = InputState();
+  MechanismWorld get mechanisms => staged.mechanisms;
+  Dynamics get dynamics => staged.dynamics;
+  ActorSystem get actors => staged.actors;
+  Runner get runner => staged.runner;
+  PlatformerSimulation get sim => staged.sim;
+
+  final InputState _input;
   double _elapsed = 0.0;
   bool _forward = false;
 

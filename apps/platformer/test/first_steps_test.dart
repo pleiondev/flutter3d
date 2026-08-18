@@ -23,6 +23,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platformer/src/staging.dart';
 import 'package:platformer/src/save_file.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -36,46 +37,24 @@ Level _level() => Level.fromJson(
 final class _Game {
   /// [startAt] is the runner's feet. Defaults to the level's own spawn.
   _Game({Vector3? startAt}) {
-    final kinds = platformerRegistry();
     LevelValidator(registry: kinds, rules: platformerRules()).assertValid(level);
-
     level.addTo(world);
-    mechanisms = MechanismWorld(world);
-    actors = ActorSystem(world: world);
-    (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
-    level.spawnInto(
-      SpawnContext(world: world, actors: actors, mechanisms: mechanisms),
-      registry: kinds,
-    );
-
-    final start = startAt ?? level.playerStart?.position ?? Vector3.zero();
-    runner = Runner(
-      body: CharacterController(
-        world: world,
-        position: start + Vector3(0.0, 0.9, 0.0),
-      ),
-      surfaces: Surfaces.common(),
-    );
-    sim = PlatformerSimulation(
-      runner: runner,
-      collision: world,
-      input: input,
-      startAt: start,
-      mechanisms: mechanisms,
-      dynamics: dynamics,
-      actors: actors,
-      levelNext: level.next,
-    );
+    // `stage` is what `main.dart` calls, so this harness is the game rather
+    // than a hand copy of it that can drift away from it.
+    staged = stage(level, world, input: input, registry: kinds, startAt: startAt);
   }
+
+  final EntityRegistry kinds = platformerRegistry();
+  late final Staged staged;
+  Dynamics get dynamics => staged.dynamics;
+  MechanismWorld get mechanisms => staged.mechanisms;
+  ActorSystem get actors => staged.actors;
+  Runner get runner => staged.runner;
+  PlatformerSimulation get sim => staged.sim;
 
   final Level level = _level();
   final CollisionWorld world = CollisionWorld();
-  late final Dynamics dynamics = Dynamics(world: world);
   final InputState input = InputState();
-  late final MechanismWorld mechanisms;
-  late final ActorSystem actors;
-  late final Runner runner;
-  late final PlatformerSimulation sim;
 
   final Set<GameAction> _held = <GameAction>{};
 

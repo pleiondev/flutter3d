@@ -39,6 +39,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:platformer/src/staging.dart';
 import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
@@ -51,42 +52,23 @@ Level _shipped() => Level.fromJson(
 /// The shipped level, the shipped registry, and a runner that can be steered.
 final class _Climb {
   _Climb() {
-    final kinds = platformerRegistry();
     level.addTo(world);
-    (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
-    level.spawnInto(
-      SpawnContext(world: world, mechanisms: mechanisms, actors: actors),
-      registry: kinds,
-    );
-
-    final start = level.ofType(EntityTypes.playerSpawn).first.position;
-    runner = Runner(
-      body: CharacterController(
-        world: world,
-        position: start + Vector3(0.0, 0.9, 0.0),
-      ),
-      surfaces: Surfaces.common(),
-    );
-    sim = PlatformerSimulation(
-      runner: runner,
-      collision: world,
-      input: input,
-      startAt: start,
-      mechanisms: mechanisms,
-      dynamics: dynamics,
-      actors: actors,
-      levelNext: level.next,
-    );
+    // `stage` is what `main.dart` calls. A harness that assembles the level its
+    // own way is a harness that agrees with any bug the game has.
+    staged = stage(level, world, input: input, registry: kinds);
   }
+
+  final EntityRegistry kinds = platformerRegistry();
+  late final Staged staged;
+  Dynamics get dynamics => staged.dynamics;
+  MechanismWorld get mechanisms => staged.mechanisms;
+  ActorSystem get actors => staged.actors;
+  Runner get runner => staged.runner;
+  PlatformerSimulation get sim => staged.sim;
 
   final Level level = _shipped();
   final CollisionWorld world = CollisionWorld();
-  late final Dynamics dynamics = Dynamics(world: world);
   final InputState input = InputState();
-  late final MechanismWorld mechanisms = MechanismWorld(world);
-  late final ActorSystem actors = ActorSystem(world: world);
-  late final Runner runner;
-  late final PlatformerSimulation sim;
 
   final Set<GameAction> _held = <GameAction>{};
 
