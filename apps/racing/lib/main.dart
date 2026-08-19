@@ -39,6 +39,7 @@ import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/sounds.dart';
+import 'src/touch_drive.dart';
 
 
 /// How many cars line up, the player included.
@@ -938,6 +939,19 @@ class _RaceScreenState extends State<RaceScreen>
               ),
             ),
             if (_race != null) RaceHud(readout: _readout()),
+            // A phone has no keyboard and this game had nothing else to offer
+            // it: the wheel and the pedals, above the frame and below the
+            // panel. Hidden while the settings are open, or a thumb reaching
+            // for a slider holds the throttle down behind it.
+            if (Playing.touch && _race != null && !_settings.state.isOpen)
+              TouchDrive(
+                state: _input,
+                steerLeft: _Drive.left,
+                steerRight: _Drive.right,
+                throttle: _Drive.throttle,
+                brake: _Drive.brake,
+                handbrake: _Drive.handbrake,
+              ),
             // The panel and the gear are the same piece of state seen twice, so
             // they are built from it rather than from two flags that have to be
             // kept opposite.
