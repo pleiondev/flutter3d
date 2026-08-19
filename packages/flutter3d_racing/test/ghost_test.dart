@@ -126,7 +126,7 @@ void main() {
       final player = GhostPlayer(straightLine());
       final out = GhostFrame();
 
-      for (final frame in player.tape.frames) {
+      for (final frame in player.tape.poses) {
         expect(player.sampleAt(frame.time, out), isTrue);
         expect(out.position.x, closeTo(frame.position.x, 1e-6));
       }
@@ -211,7 +211,7 @@ void main() {
     });
 
     test('an empty tape draws nothing rather than throwing', () {
-      final player = GhostPlayer(const GhostTape(frames: [], lapTime: 0.0));
+      final player = GhostPlayer(const GhostTape(poses: [], seconds: 0.0));
 
       expect(player.sampleAt(0.0, GhostFrame()), isFalse);
     });
@@ -243,26 +243,26 @@ void main() {
       }
       final tape = recorder.finish(5.0);
 
-      final copy = GhostTape.fromJson(
+      final copy = ghostTapeFromJson(
         jsonDecode(jsonEncode(tape.toJson())) as Map<String, Object?>,
       );
 
       expect(copy.lapTime, tape.lapTime);
-      expect(copy.frames.length, tape.frames.length);
-      for (var i = 0; i < copy.frames.length; i++) {
+      expect(copy.poses.length, tape.poses.length);
+      for (var i = 0; i < copy.poses.length; i++) {
         // Written to the millimetre, which is far below what a shape in the
         // distance shows and several times smaller a file.
-        expect(copy.frames[i].position.x,
-            closeTo(tape.frames[i].position.x, 0.001));
-        expect(copy.frames[i].yaw, closeTo(tape.frames[i].yaw, 0.001));
-        expect(copy.frames[i].time, closeTo(tape.frames[i].time, 0.001));
+        expect(copy.poses[i].position.x,
+            closeTo(tape.poses[i].position.x, 0.001));
+        expect(copy.poses[i].yaw, closeTo(tape.poses[i].yaw, 0.001));
+        expect(copy.poses[i].time, closeTo(tape.poses[i].time, 0.001));
       }
     });
 
     test('a tape written by an older build without camber still reads', () {
       // Forwards compatibility in the one direction that matters: a player's
       // best lap is the thing they would most mind losing to a format change.
-      final copy = GhostTape.fromJson(<String, Object?>{
+      final copy = ghostTapeFromJson(<String, Object?>{
         'version': 1,
         'lapTime': 40.0,
         'frames': <Map<String, Object?>>[
@@ -274,7 +274,7 @@ void main() {
         ],
       });
 
-      expect(copy.frames.single.up.y, 1.0);
+      expect(copy.poses.single.up.y, 1.0);
     });
   });
 }

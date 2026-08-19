@@ -57,6 +57,7 @@ export 'src/nav/nav_grid.dart';
 export 'src/nav/navigation.dart';
 export 'src/physics/layers.dart';
 export 'src/save/game_random.dart';
+export 'src/save/replay.dart';
 export 'src/save/snapshot.dart';
 export 'src/world/exit.dart';
 export 'src/world/key_ring.dart';
