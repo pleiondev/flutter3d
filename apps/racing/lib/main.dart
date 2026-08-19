@@ -14,7 +14,6 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -39,12 +38,9 @@ import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/sounds.dart';
+import 'src/staging.dart';
 import 'src/touch_drive.dart';
 
-
-/// How many cars line up, the player included.
-const int _fieldSize = 4;
-const int _lapsInARace = 3;
 
 void main() => runApp(const RacingApp());
 
@@ -454,41 +450,20 @@ class _RaceScreenState extends State<RaceScreen>
         registry: EntityRegistry(const <EntityKind>[]),
       );
 
-      final track = document.track;
+      // The one assembly this game has. What is left here is what needs a
+      // device: the road mesh, the car boxes and the scene they go in.
+      final staged = stage(document, loaded.collision);
+      final track = staged.track;
       final scene = loaded.scene;
       addTrackTo(scene, track, device: device);
       scene.add(_camera);
 
-      final field = TrackField(track: track, world: loaded.collision);
-      final race = RaceState(
-        mode: RaceMode.race,
-        track: track,
-        racers: _fieldSize,
-        laps: _lapsInARace,
-      );
-
-      final position = Vector3.zero();
-      final forward = Vector3.zero();
-      for (var i = 0; i < _fieldSize; i++) {
-        track.startSlot(i, position, forward);
-        final car = SphereVehicle(
-          world: loaded.collision,
-          ground: field,
-          position: position.clone()..y += 0.6,
-          headingYaw: math.atan2(forward.x, forward.z),
-        );
-        car.placeAt(
-          car.position,
-          car.headingYaw,
-          trackDistance: track.centre.wrap(track.grid.s),
-        );
-        _cars.add(car);
-
+      _cars.addAll(staged.cars);
+      for (var i = 0; i < _cars.length; i++) {
         final node = carBox(device, Looks.rival(i), name: 'car-$i');
         scene.add(node);
         _carNodes.add(node);
-        // The box is a metre tall and centred on its origin.
-        _carLift.add(0.5 - car.tuning.rideHeight);
+        _carLift.add(liftFor(_cars[i]));
       }
 
       _ghosts = _keeperFor(_circuit)..load();
@@ -510,15 +485,11 @@ class _RaceScreenState extends State<RaceScreen>
         _sky = document.sky;
         _scene = scene;
         _track = track;
-        _race = race;
+        _race = staged.race;
         _outline = trackOutline(track);
-        _simulation = RacingSimulation(
-          collision: loaded.collision,
-          vehicles: _cars,
-          race: race,
-        );
-        _chase = ChaseCamera(world: loaded.collision, track: track);
-        _ai = AiDriver(track: track);
+        _simulation = staged.sim;
+        _chase = staged.chase;
+        _ai = staged.ai;
       });
 
       unawaited(_dressPlayer(device, scene));

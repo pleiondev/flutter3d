@@ -33,6 +33,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_racing/flutter3d_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:racing/src/looks.dart';
+import 'package:racing/src/staging.dart';
 import 'package:vector_math/vector_math.dart';
 
 const int _width = 240;
@@ -107,36 +108,16 @@ final class _Shown {
     );
     scene.ambientIntensity = hour.ambientIntensity;
 
-    final field = TrackField(track: track, world: world);
-    final race = RaceState(
-      mode: RaceMode.race,
-      track: track,
-      racers: cars,
-      laps: 3,
-    );
-
-    final vehicles = <SphereVehicle>[];
-    final nodes = <MeshNode>[];
-    final position = Vector3.zero();
-    final forward = Vector3.zero();
-    for (var i = 0; i < cars; i++) {
-      track.startSlot(i, position, forward);
-      final car = SphereVehicle(
-        world: world,
-        ground: field,
-        position: position.clone()..y += 0.6,
-        headingYaw: math.atan2(forward.x, forward.z),
-      );
-      car.placeAt(
-        car.position,
-        car.headingYaw,
-        trackDistance: track.centre.wrap(track.grid.s),
-      );
-      vehicles.add(car);
-
-      final node = carBox(device, Looks.rival(i), name: 'car-$i');
+    // The shipped assembly, not this file's own. What is left here is the half
+    // that needs a device.
+    final staged = stage(document, world, cars: cars);
+    final vehicles = staged.cars;
+    final nodes = <MeshNode>[
+      for (var i = 0; i < cars; i++)
+        carBox(device, Looks.rival(i), name: 'car-$i'),
+    ];
+    for (final node in nodes) {
       scene.add(node);
-      nodes.add(node);
     }
 
     final camera = CameraNode(
@@ -156,9 +137,9 @@ final class _Shown {
       world,
       vehicles,
       nodes,
-      RacingSimulation(collision: world, vehicles: vehicles, race: race),
-      race,
-      ChaseCamera(world: world, track: track),
+      staged.sim,
+      staged.race,
+      staged.chase,
       camera,
       hour,
     );

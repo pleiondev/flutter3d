@@ -25,6 +25,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_racing/flutter3d_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:racing/src/staging.dart';
 import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
@@ -41,35 +42,15 @@ final class _Session {
     String circuit = 'ring',
   }) {
     final document = _shipped(circuit);
-    track = document.track;
     document.level?.addTo(world);
 
-    final field = TrackField(track: track, world: world);
-    race = RaceState(mode: mode, track: track, racers: cars, laps: 1);
-
-    final position = Vector3.zero();
-    final forward = Vector3.zero();
-    for (var i = 0; i < cars; i++) {
-      track.startSlot(i, position, forward);
-      final car = SphereVehicle(
-        world: world,
-        ground: field,
-        position: position.clone()..y += 0.6,
-        headingYaw: math.atan2(forward.x, forward.z),
-      );
-      car.placeAt(
-        car.position,
-        car.headingYaw,
-        trackDistance: track.centre.wrap(track.grid.s),
-      );
-      cars_.add(car);
-    }
-
-    simulation = RacingSimulation(
-      collision: world,
-      vehicles: cars_,
-      race: race,
-    );
+    // The shipped assembly. A harness that lines its own grid up is a harness
+    // that agrees with any bug the game's has.
+    final staged = stage(document, world, cars: cars, mode: mode, laps: 1);
+    track = staged.track;
+    race = staged.race;
+    cars_.addAll(staged.cars);
+    simulation = staged.sim;
   }
 
   final CollisionWorld world = CollisionWorld();
