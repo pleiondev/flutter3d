@@ -279,6 +279,14 @@ class _GameScreenState extends State<GameScreen>
   /// What a step of this game sounds like. A class rather than eight calls
   /// scattered through this file: a decision can be tested, an effect inside a
   /// widget cannot.
+  /// Whether the machine is keeping up, and what it cost when it was not.
+  ///
+  /// `FixedStep.droppedSteps` was shown here as a raw count in the debug line,
+  /// which is a number nobody reads. What it means is **silent slow motion**:
+  /// the loop refuses to run more than a few steps for one frame, and the time
+  /// it will not run is thrown away.
+  final Pace _pace = Pace();
+
   final Soundtrack _soundtrack = Soundtrack();
 
   /// What a step looks like. A class for the same reason [_soundtrack] is one.
@@ -521,6 +529,10 @@ class _GameScreenState extends State<GameScreen>
     // whole budget catching up, and the dropped-step counter reads as a
     // performance problem for the rest of the session.
     _loop.clock.reset();
+    // A load takes far longer than a frame and drops simulated time every time.
+    // Counting that against the machine would light the warning on every level
+    // of every run, which is the same as not having one.
+    _pace.reset(_loop.clock.droppedSteps);
     _startAmbience();
     // **On entering a level, and on quitting, and at no other time.** This game
     // has no checkpoints — the platformer saves when its respawn point moves,
@@ -649,19 +661,24 @@ class _GameScreenState extends State<GameScreen>
       unawaited(_run.restart());
     }
     _padPressing = padPressing;
-    // A player on a controller never captures the pointer, so a gate that only
-    // knew about the mouse would leave them looking at a frozen dungeon.
-    // The same gate the platformer names in `pause_gate.dart`, minus its menu:
-    // this game has no settings panel to open, which is the one clause that
-    // file adds. When it grows one, that clause comes with it.
-    // A menu is open, or the player is somewhere else. The platformer's
-    // `pause_gate.dart` carries the three ways this line has been wrong; the
-    // menu clause is the one that arrived with the panel below.
-    _loop.paused = _settings.state.isOpen ||
-        (Playing.capturesPointer &&
-            !_devices.isCaptured &&
-            !_pad.isConnected);
+    // The shared gate, which this game used to write out by hand. Two things
+    // came with it: the comment beside the copy still said this game had no
+    // settings panel — it has had one for a while — and the copy had **no
+    // `ready` clause at all**, so the loop accumulated simulated time while a
+    // level was still loading and threw it away on arrival.
+    _loop.paused = shouldPause(
+      ready: _sim != null,
+      menuOpen: _settings.state.isOpen,
+      pointerIsTheGate: Playing.capturesPointer,
+      pointerHeld: _devices.isCaptured,
+      padConnected: _pad.isConnected,
+    );
     _steps = _loop.advance(dt);
+    _pace.note(
+      dropped: _loop.clock.droppedSteps,
+      dt: dt,
+      stepSeconds: _loop.clock.stepSeconds,
+    );
     // Once a frame, not once a step: this is display, and the simulation does
     // not care where the capsules are.
     _actorVisuals?.sync();
@@ -1115,6 +1132,7 @@ class _GameScreenState extends State<GameScreen>
                 fps: _fps,
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,
+                behind: _pace.behind,
                 voices: _audio.voiceCount,
                 particles: _particles.aliveCount,
                 position: body.position,

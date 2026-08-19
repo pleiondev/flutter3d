@@ -7,8 +7,8 @@
 /// Each of the three is a test below, named as the player would describe it.
 library;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platformer/src/pause_gate.dart';
 
 /// The desktop build, where the pointer is the gate.
 bool desktop({

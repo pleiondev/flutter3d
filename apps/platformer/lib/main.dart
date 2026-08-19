@@ -34,8 +34,6 @@ import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
 import 'src/looks.dart';
-import 'src/pace.dart';
-import 'src/pause_gate.dart';
 import 'src/reactions.dart';
 import 'src/runner_looks.dart';
 import 'src/sounds.dart';

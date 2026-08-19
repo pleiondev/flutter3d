@@ -39,3 +39,5 @@ dev_dependencies:
 # lets all of this be tested without a GPU — the same rule that already holds
 # for the engine's own geometry and scene layers. `flutter3d_bridge` is where
 # the two meet, and it depends on this package rather than the other way round.
+  flutter3d_platformer: any
+  platformer: any

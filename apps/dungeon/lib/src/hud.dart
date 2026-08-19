@@ -24,6 +24,7 @@ class Hud extends StatelessWidget {
     required this.fps,
     required this.steps,
     required this.dropped,
+    this.behind = false,
     required this.voices,
     required this.particles,
     required this.position,
@@ -47,6 +48,14 @@ class Hud extends StatelessWidget {
   final double fps;
   final int steps;
   final int dropped;
+
+  /// Whether the machine is not keeping up.
+  ///
+  /// **A count of dropped steps is a number nobody reads**, and this game has
+  /// had one in its debug line for as long as it has existed. What it means is
+  /// that the game is running in slow motion and saying nothing about it, which
+  /// is worth a sentence rather than an integer.
+  final bool behind;
 
   /// Sounds actually playing. Zero with no audio device, and the only thing on
   /// screen that says whether the mixer is doing anything at all.
@@ -337,6 +346,21 @@ class Hud extends StatelessWidget {
                 'Click to look around  ·  WASD to move  ·  Space to jump  ·  '
                 'E to use  ·  Esc to release the pointer',
                 style: TextStyle(color: Colors.white54),
+              ),
+            ),
+          ),
+        if (behind)
+          Positioned(
+            right: 24,
+            top: 24,
+            child: Text(
+              'This machine is behind — the game is running slowly.',
+              style: TextStyle(
+                color: Colors.amber.withValues(alpha: 0.9),
+                fontSize: 13,
+                shadows: const <Shadow>[
+                  Shadow(blurRadius: 8, color: Colors.black87),
+                ],
               ),
             ),
           ),

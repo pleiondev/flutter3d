@@ -10,10 +10,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_platformer/flutter3d_platformer.dart' show RunState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/hud.dart';
-import 'package:platformer/src/pace.dart';
 
 const double _step = 1.0 / 60.0;
 const double _frame = 1.0 / 60.0;
