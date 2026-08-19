@@ -66,6 +66,11 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
 
+  # Also only the tests: a car stands on a collider, so a stand-in for one has
+  # to build the same thing the real one holds.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
 # Two traps this repository has paid for before, one of them already sprung
 # here: `FLTEnableFlutterGPU` and `FLTEnableImpeller` have to be in the macOS
 # `Info.plist` or the window comes up empty — they are; and when sound is added,

@@ -47,6 +47,24 @@ abstract final class Looks {
         lighting: LightingModel.pbr,
       );
 
+  /// The lap somebody already drove, drawn beside the one they are driving.
+  ///
+  /// Translucent and pale, in a colour no rival wears: a ghost has to be
+  /// readable as *not a car you can hit* at the glance a driver can spare, and
+  /// the two ways to say that are through it and unlike everything else.
+  ///
+  /// `blend` puts it in the transparent half of the render list, so the road
+  /// shows through rather than being drawn over.
+  static Material ghost() => Material(
+        baseColor: Vector4(0.65, 0.85, 1.0, 0.32),
+        roughness: 0.3,
+        alphaMode: MaterialAlphaMode.blend,
+        // Nothing writes depth through a ghost: two of them overlapping should
+        // be brighter, not a hole in the one behind.
+        depthWrite: false,
+        lighting: LightingModel.unlit,
+      );
+
   /// What a car is before its model has loaded, and what the other cars are.
   ///
   /// A box is not a placeholder that got left in: a field of eight of these

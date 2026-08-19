@@ -33,6 +33,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
+import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/sounds.dart';
@@ -151,6 +152,16 @@ class _RaceScreenState extends State<RaceScreen>
   AiDriver? _ai;
   final List<SphereVehicle> _cars = <SphereVehicle>[];
   final List<SceneNode> _carNodes = <SceneNode>[];
+
+  /// The best lap driven here, and the car it is drawn as.
+  ///
+  /// **Written, tested and never used**: the ghost has been in the racing
+  /// package since it existed and this game called none of it.
+  late final GhostKeeper _ghosts = GhostKeeper(
+    storage: defaultStorage('racing'),
+    track: _trackAsset,
+  );
+  GhostCar? _ghostCar;
 
   /// How far above the body's own origin each car is drawn, in metres.
   ///
@@ -421,6 +432,9 @@ class _RaceScreenState extends State<RaceScreen>
         _carLift.add(0.5 - car.tuning.rideHeight);
       }
 
+      _ghosts.load();
+      _ghostCar = GhostCar.build(device, scene);
+
       {
         for (final car in _cars) {
           _voices.add(CarVoice(scene: _audio, vehicle: car));
@@ -526,6 +540,11 @@ class _RaceScreenState extends State<RaceScreen>
     _readDriver(simulation);
     _driveTheRest(simulation, race);
     simulation.step(stepSeconds);
+
+    // Recorded always, not only when the lap is going to be a good one:
+    // whether it was the best is knowable when it ends, and by then it is too
+    // late to have been writing it down.
+    _ghosts.stepped(race.progress[0], _cars[0]);
   }
 
   /// The player's keys, as a car's controls.
@@ -576,6 +595,18 @@ class _RaceScreenState extends State<RaceScreen>
       node
         ..setPositionFrom(_drawAt)
         ..setRotation(Quaternion.fromRotation(car.visualBasis));
+    }
+
+    // The lap somebody already drove, where it was at this point of the lap
+    // being driven now. Hidden when there is nothing to race against, and when
+    // the recording has run out — a ghost that stops where the tape ended reads
+    // as a car parked on the racing line.
+    final tape = _ghosts.best;
+    final race = _race;
+    if (tape != null && race != null) {
+      _ghostCar?.showAt(race.progress[0].lapTime, tape, _carLift[0]);
+    } else {
+      _ghostCar?.node.visible = false;
     }
 
     final chase = _chase;
