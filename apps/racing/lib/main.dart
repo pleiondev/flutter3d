@@ -27,9 +27,12 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_racing/bridge.dart';
 import 'package:flutter3d_racing/flutter3d_racing.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
+import 'src/credits.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/sounds.dart';
@@ -160,8 +163,33 @@ class _RaceScreenState extends State<RaceScreen>
   final List<double> _carLift = <double>[];
 
   final InputState _input = InputState();
+
+  /// What the player has changed, and where it is kept.
+  ///
+  /// **This game had none of it**: no volumes, no rebinding, no way to turn
+  /// anything down — the only settings it has ever had were the ones its author
+  /// compiled in. The panel is shared with the other two games; what is here is
+  /// the wiring and the two lists that are this game's own.
+  final SettingsFile _settingsFile = SettingsFile(appName: 'racing');
+  late final GameConfig _config;
+  late final SettingsCubit _settings;
+
+  /// What a player can move, in the order the panel lists it.
+  ///
+  /// A driver's words rather than a walker's: this game has a throttle and a
+  /// brake where the others have a forward and a back.
+  static const List<GameAction> _rebindable = <GameAction>[
+    _Drive.throttle,
+    _Drive.brake,
+    _Drive.left,
+    _Drive.right,
+    _Drive.handbrake,
+  ];
+
+  /// What the player has already told the operating system.
+  Accommodations _system = const Accommodations();
   late final DesktopInput _devices =
-      DesktopInput(state: _input, bindings: _keys());
+      DesktopInput(state: _input, bindings: ownedBindings(_config, _keys));
   /// The loop, rather than a bare `FixedStep`.
   ///
   /// **This game drove the clock itself and got none of the loop's services**:
@@ -169,13 +197,6 @@ class _RaceScreenState extends State<RaceScreen>
   /// never worked here at all — and no reading of the simulated time the clock
   /// refused to run.
   late final GameLoop _loop = GameLoop(input: _input, onStep: _driveOneStep);
-
-  /// Whether the player has asked the game to stand still.
-  ///
-  /// Fed to [shouldPause] as its menu clause, because that is what it is: a
-  /// statement about the player's attention that does not depend on any device.
-  /// When this game grows a settings panel, the panel sets the same flag.
-  bool _paused = false;
 
   /// Whether the machine is keeping up, and what it cost when it was not.
   final Pace _pace = Pace();
@@ -190,7 +211,11 @@ class _RaceScreenState extends State<RaceScreen>
   /// one, which is why every use of this is behind a null check rather than a
   /// try.
   SoLoudBackend? _speakers;
-  AudioScene? _audio;
+
+  /// Silent until the device opens, and the **mixer survives the swap**: the
+  /// settings panel turns volumes before there is a sound card, and a mixer
+  /// built with the backend would lose whatever the player had set.
+  AudioScene _audio = AudioScene(backend: SilentBackend());
   final AudioListener _ears = AudioListener();
 
   /// Held so the keyboard can be given back after a click.
@@ -205,12 +230,28 @@ class _RaceScreenState extends State<RaceScreen>
 
   @override
   void initState() {
+    // Settings before devices: the bindings a player saved are the ones the
+    // keyboard should read from the first key press, not from the first rebind.
+    _config = _settingsFile.read();
+    _settings = SettingsCubit(
+      config: _config,
+      file: _settingsFile,
+      apply: _applyConfig,
+    );
     super.initState();
     unawaited(_open());
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _system = Accommodations.of(context);
+    _applyAccessibility();
+  }
+
+  @override
   void dispose() {
+    unawaited(_settings.close());
     _keyboard.dispose();
     _ticker?.dispose();
     for (final voice in _voices) {
@@ -218,6 +259,25 @@ class _RaceScreenState extends State<RaceScreen>
     }
     unawaited(_speakers?.dispose());
     super.dispose();
+  }
+
+  /// Puts the config onto everything that is playing.
+  void _applyConfig(GameConfig config) {
+    for (final bus in <AudioBus>[AudioBus.master, AudioBus.music, AudioBus.sfx]) {
+      _audio.mixer.setVolume(bus, config.volumeOf(bus.name));
+    }
+    _applyAccessibility();
+  }
+
+  /// Puts the accessibility settings where they take effect.
+  ///
+  /// **A racing camera moves more than either of the other two**: it leans into
+  /// corners, widens with speed and is kicked by every kerb. Somebody who has
+  /// turned reduce-motion on has said something about exactly that, and this
+  /// game was not listening.
+  void _applyAccessibility() {
+    _chase?.motion =
+        _config.settingOf('a11y.cameraMotion', _system.cameraMotion);
   }
 
   /// The driving keys.
@@ -291,7 +351,8 @@ class _RaceScreenState extends State<RaceScreen>
     }
     if (!mounted) return;
 
-    final scene = AudioScene(backend: speakers, maxVoices: 24);
+    final scene =
+        AudioScene(backend: speakers, maxVoices: 24, mixer: _audio.mixer);
     await scene.preload(Sounds.all);
     if (!mounted) return;
 
@@ -360,10 +421,9 @@ class _RaceScreenState extends State<RaceScreen>
         _carLift.add(0.5 - car.tuning.rideHeight);
       }
 
-      final audio = _audio;
-      if (audio != null) {
+      {
         for (final car in _cars) {
-          _voices.add(CarVoice(scene: audio, vehicle: car));
+          _voices.add(CarVoice(scene: _audio, vehicle: car));
         }
       }
 
@@ -438,7 +498,7 @@ class _RaceScreenState extends State<RaceScreen>
 
     _loop.paused = shouldPause(
       ready: _simulation != null,
-      menuOpen: _paused,
+      menuOpen: _settings.state.isOpen,
       // This game never captures the pointer — it is driven from the keyboard —
       // so the pointer is not the gate here and saying otherwise would freeze
       // it on every desktop build.
@@ -541,24 +601,21 @@ class _RaceScreenState extends State<RaceScreen>
   /// Read from the same flags the display reads, once, after the steps: a sound
   /// played from inside a step is a sound played several times on a slow frame.
   void _listen(RaceState race) {
-    final audio = _audio;
-    if (audio == null) return;
-
     for (var i = 0; i < _voices.length && i < race.progress.length; i++) {
       _voices[i].update(offRoad: race.progress[i].offRoad);
     }
 
     final player = race.progress[0];
     if (race.countdownTickThisStep) {
-      audio.play(race.countdown > 0.0 ? Sounds.count : Sounds.go, _ears.position);
+      _audio.play(race.countdown > 0.0 ? Sounds.count : Sounds.go, _ears.position);
     }
     if (player.bestLapThisStep) {
-      audio.play(Sounds.best, _ears.position);
+      _audio.play(Sounds.best, _ears.position);
     } else if (player.lapCompletedThisStep) {
-      audio.play(Sounds.lap, _ears.position);
+      _audio.play(Sounds.lap, _ears.position);
     }
     if (player.checkpointThisStep) {
-      audio.play(Sounds.checkpoint, _ears.position);
+      _audio.play(Sounds.checkpoint, _ears.position);
     }
 
     // Along the camera's own forward rather than through a yaw: `aimAt` reads
@@ -567,7 +624,7 @@ class _RaceScreenState extends State<RaceScreen>
     if (chase != null) {
       _ears.aimAlong(chase.eye, chase.target - chase.eye);
     }
-    audio.update(_ears);
+    _audio.update(_ears);
   }
 
   RaceReadout _readout() {
@@ -575,7 +632,7 @@ class _RaceScreenState extends State<RaceScreen>
     final player = race.progress[0];
     return RaceReadout(
                 behind: _pace.behind,
-                paused: _paused,
+                paused: _settings.state.isOpen,
       speed: _cars[0].speed,
       lap: player.lap,
       laps: race.laps,
@@ -627,18 +684,32 @@ class _RaceScreenState extends State<RaceScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (FocusNode node, KeyEvent event) {
-          // **This game could not be paused at all.** Escape does it now, and
-          // it is the same clause a settings panel will set when there is one:
-          // a statement about where the player's attention is, which does not
-          // depend on any device.
+          // A rebinding takes the next key, before anything else looks at it —
+          // including Escape, which is how a player says "not that one".
+          if (event is KeyDownEvent && _settings.state.waitingFor != null) {
+            if (event.logicalKey == LogicalKeyboardKey.escape) {
+              _settings.rebind(null);
+            } else {
+              _settings.capture(InputSource.key(event.logicalKey.keyId));
+            }
+            return KeyEventResult.handled;
+          }
+          // **This game could not be paused at all**, and had no settings to
+          // pause into. Escape opens them, and opening them is what stops the
+          // race — the same clause `shouldPause` calls a menu.
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.escape) {
-            setState(() => _paused = !_paused);
             // The keys the car was holding are let go, or it comes back
             // accelerating into a wall.
             _input.clear();
+            _settings.toggle();
             return KeyEventResult.handled;
           }
+          // **With the panel open the keys belong to the panel.** Handing them
+          // to the game costs two things at once: Flutter's focus traversal
+          // never sees Tab or the arrows, so a player with no mouse cannot
+          // reach a slider — and a key held as the panel opened stays held.
+          if (_settings.state.isOpen) return KeyEventResult.ignored;
           return _devices.handleKeyEvent(event);
         },
         child: Stack(
@@ -684,6 +755,46 @@ class _RaceScreenState extends State<RaceScreen>
               ),
             ),
             if (_race != null) RaceHud(readout: _readout()),
+            // The panel and the gear are the same piece of state seen twice, so
+            // they are built from it rather than from two flags that have to be
+            // kept opposite.
+            BlocBuilder<SettingsCubit, SettingsState>(
+              bloc: _settings,
+              builder: (BuildContext context, SettingsState settings) {
+                if (!settings.isOpen) {
+                  return Positioned(
+                    right: 18,
+                    top: 16,
+                    child: IconButton(
+                      tooltip: 'Settings',
+                      onPressed: () {
+                        _input.clear();
+                        _settings.show();
+                      },
+                      icon: const Icon(Icons.settings, color: Colors.white70),
+                    ),
+                  );
+                }
+                return SettingsPanel(
+                  mixer: _audio.mixer,
+                  bindings: _devices.bindings,
+                  config: _config,
+                  padConnected: false,
+                  actions: _rebindable,
+                  waitingFor: settings.waitingFor,
+                  onVolume: (AudioBus bus, double volume) =>
+                      _settings.setVolume(bus.name, volume),
+                  onSetting: _settings.setSetting,
+                  onRebind: _settings.rebind,
+                  onResetControls: () => _settings.resetControls(_keys()),
+                  onClose: _settings.hide,
+                  // **The licence asks for this and the game did not do it.**
+                  // The car is CC BY 4.0, whose text says attribution must
+                  // appear wherever the work does.
+                  credits: const CreditsSection(credits: Credits.models),
+                );
+              },
+            ),
           ],
         ),
       ),
