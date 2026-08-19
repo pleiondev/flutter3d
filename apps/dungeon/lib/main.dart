@@ -182,10 +182,7 @@ class _GameScreenState extends State<GameScreen>
   Object? _initError;
 
   /// Whether the run has ended, either way. Read by the two restarts.
-  bool get _runIsOver => switch (_run.state) {
-        RunPlaying(:final isOver) => isOver,
-        _ => false,
-      };
+  bool get _runIsOver => _run.isOver;
 
   /// Whether the pad was holding anything last frame, for the edge above.
   bool _padPressing = false;
@@ -481,7 +478,7 @@ class _GameScreenState extends State<GameScreen>
   /// chain — starting, dying, restarting, moving on, quitting and coming back —
   /// without a window.
   void _openRun(GraphicsDevice device) {
-    _run = RunCubit(
+    _run = RunCubit(DungeonRun(
       firstLevel: _firstLevel,
       registry: _entityKinds,
       input: _input,
@@ -512,7 +509,7 @@ class _GameScreenState extends State<GameScreen>
           // Before spawning, so a torch can find the light it drives.
           ..bindLights(),
       ),
-    );
+    ));
   }
 
   /// Everything the widget has to do when a level arrives.
@@ -866,28 +863,33 @@ class _GameScreenState extends State<GameScreen>
   }
 
   @override
-  Widget build(BuildContext context) => BlocConsumer<RunCubit, RunState>(
+  Widget build(BuildContext context) =>
+      BlocConsumer<RunCubit, RunStatus<LevelReady>>(
         bloc: _renderer == null ? null : _run,
         // The three things that have to happen *when* the run changes rather
         // than every time it is drawn: a new level needs its camera put where
         // the player is, and an ended one needs saying out loud.
-        listener: (BuildContext context, RunState run) {
+        listener: (BuildContext context, RunStatus<LevelReady> run) {
           switch (run) {
-            case RunPlaying(:final level, outcome: GameState.playing):
+            case RunPlaying<LevelReady>(
+                  :final level,
+                  outcome: RunOutcome.playing,
+                ):
               _levelArrived(level);
-            case RunPlaying(outcome: GameState.dead):
+            case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
               _say('You died. Press R to try again.');
-            case RunPlaying(:final level, outcome: GameState.complete):
+            case RunPlaying<LevelReady>(:final level, outcome: RunOutcome.won):
               final next = level.staged.sim.nextLevel;
               _say(next == null ? 'You are out.' : 'Level complete.');
-            case RunLoading() || RunFailed():
+            case RunLoading<LevelReady>() || RunFailed<LevelReady>():
               break;
           }
         },
-        builder: (BuildContext context, RunState run) => _game(run),
+        builder: (BuildContext context, RunStatus<LevelReady> run) =>
+            _game(run),
       );
 
-  Widget _game(RunState run) {
+  Widget _game(RunStatus<LevelReady> run) {
     final renderer = _renderer;
     final loaded = _loaded;
     final body = _body;
@@ -909,7 +911,7 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
-    if (run is RunFailed) {
+    if (run is RunFailed<LevelReady>) {
       // **This used to be a black screen for ever**: the load caught its own
       // throw and printed it, which is a line in a console nobody playing the
       // game can see. Every one of these is a content mistake — the failure a

@@ -1,0 +1,266 @@
+import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
+
+/// What a game is doing, as far as a screen is concerned.
+///
+/// Named `RunStatus` and not `RunState`, which is taken:
+/// `flutter3d_platformer` exports an enum of that name, and an application that
+/// imported both would have to hide one of them in every file.
+sealed class RunStatus<L> {
+  const RunStatus();
+}
+
+/// Before the first level, and between one and the next.
+final class RunLoading<L> extends RunStatus<L> {
+  const RunLoading({this.asset});
+
+  /// Which one is coming, when that is known. Null on the very first load,
+  /// before anything has been asked for.
+  final String? asset;
+}
+
+/// A level is up. [outcome] is the simulation's own answer, republished so a
+/// screen can watch one thing.
+final class RunPlaying<L> extends RunStatus<L> {
+  const RunPlaying(this.asset, this.level, {this.outcome = RunOutcome.playing});
+
+  /// Which document this is. Kept because a save is a level and a snapshot
+  /// together, and a snapshot restored into the wrong level is worse than no
+  /// save at all.
+  final String asset;
+
+  /// Whatever the game got back from loading it: a scene, a simulation, the
+  /// visuals. This class never looks inside.
+  final L level;
+
+  final RunOutcome outcome;
+}
+
+/// Nothing is up, and this is why.
+///
+/// **A level that will not read used to be a black screen for ever** in two of
+/// the three games: the load caught its own throw and printed it, which is a
+/// line in a console nobody playing the game can see.
+final class RunFailed<L> extends RunStatus<L> {
+  const RunFailed(this.asset, this.error);
+
+  final String asset;
+  final Object error;
+}
+
+/// The run: which level is up, what happened to it, and where to go next.
+///
+/// ## What this replaces
+///
+/// Three games, three answers, none of them shared:
+///
+/// | | |
+/// |---|---|
+/// | dungeon | a 278-line cubit with nine tests |
+/// | platformer | nine private methods and five fields inside a 1441-line widget |
+/// | racing | nothing at all |
+///
+/// The same sequence in each: load a document, say why if it will not read,
+/// start again, move on when the level says there is somewhere to move on to,
+/// write the run down, put it back, and tell the screen how it ended.
+///
+/// ## Why the awkward parts are here
+///
+/// Everything in this class that is longer than a line is a rule that has been
+/// got wrong at least once:
+///
+/// * **[advance] does nothing twice.** A finished level stays finished for
+///   every frame until the next one is up, and without the guard each of those
+///   frames starts another load — a dozen of them on a slow disk.
+/// * **[begin] falls back.** A save naming a level that no longer exists is a
+///   player whose game will not start, and renaming a level file should not
+///   brick every save that mentions it.
+/// * **[save] refuses a finished run.** A save written at the exit is a save
+///   the next launch resumes, putting the player back at the end of a level
+///   they already beat.
+/// * **[restart] rebuilds rather than resumes.** A run that begins with the
+///   health you died at is not a restart.
+///
+/// ## Not a cubit
+///
+/// An ordinary class, so this package makes no choice about state management
+/// for the games above it. Two of the three wrap it in a cubit; [onChanged]
+/// fires on every transition and each transition builds a fresh [RunStatus], so
+/// a `Cubit.emit` of it is a distinct state and rebuilds.
+///
+/// [L] is whatever a game gets back from loading a level. This class never
+/// looks inside it — the five methods below are how it asks.
+abstract base class RunSession<L> {
+  RunSession({
+    required this.firstLevel,
+    required this.saves,
+    this.onChanged,
+  });
+
+  /// Where a new game starts.
+  final String firstLevel;
+
+  final SaveFile saves;
+
+  /// Called after every transition. A cubit passes its own `emit` through here.
+  void Function(RunStatus<L> status)? onChanged;
+
+  RunStatus<L> get status => _status;
+  RunStatus<L> _status = RunLoading<L>();
+
+  /// The level that is up, or null.
+  L? get level => switch (_status) {
+        RunPlaying<L>(:final level) => level,
+        _ => null,
+      };
+
+  /// Whether the run has ended, either way.
+  bool get isOver => switch (_status) {
+        RunPlaying<L>(:final outcome) => outcome.isOver,
+        _ => false,
+      };
+
+  /// Guards the one-way trip out of a finished level.
+  bool _movingOn = false;
+
+  // ── What a game has to answer ──────────────────────────────────────────────
+
+  /// Reads [asset] and builds everything it takes to play it.
+  ///
+  /// Throwing is the way to say it could not be read; the caller lands in
+  /// [RunFailed] with the error, and the player sees the filename rather than
+  /// a black screen.
+  Future<L> open(String asset);
+
+  /// How the run in [level] is going, in the words every game shares.
+  RunOutcome outcomeOf(L level);
+
+  /// Which document comes after this one, or null for the end of the game.
+  String? nextOf(L level);
+
+  /// The run so far, for the save file.
+  Snapshot snapshotOf(L level);
+
+  /// Puts a saved run back into a freshly loaded level.
+  ///
+  /// Called **after** the level is fully built rather than during it: restoring
+  /// moves bodies and re-indexes the broadphase, and doing that while a level
+  /// is still being populated leaves the grid describing a world that has since
+  /// changed.
+  void restoreInto(L level, Snapshot snapshot);
+
+  /// What the player takes with them into [next]. Empty by default.
+  ///
+  /// Called on the level being left, before the next one is read — which is the
+  /// only moment both are knowable. The dungeon empties the key ring here; the
+  /// platformer copies the lives, the deaths and the elapsed time.
+  void carryFrom(L level, String next) {}
+
+  /// What a fresh run starts with. Empty by default.
+  ///
+  /// Called by [restart] and by [begin] when there is nothing to resume.
+  void startFresh() {}
+
+  // ── What this class does with the answers ─────────────────────────────────
+
+  /// Starts a game: the saved run if there is one, otherwise [firstLevel].
+  ///
+  /// Returns whether it resumed, which is what a title card wants to say.
+  Future<bool> begin() async {
+    final saved = saves.read();
+    if (saved == null) {
+      startFresh();
+      await load(firstLevel);
+      return false;
+    }
+    await load(saved.level, resume: saved.run);
+    if (_status is RunFailed<L>) {
+      // A save naming a level that is gone. The player gets a game rather than
+      // an error, and the broken save goes with it — keeping it would fail the
+      // same way on every launch from here on.
+      saves.clear();
+      startFresh();
+      await load(firstLevel);
+      return false;
+    }
+    return true;
+  }
+
+  /// Reads [asset] and puts it on screen.
+  ///
+  /// [resume] is a run to put back into it, and is only ever a snapshot saved
+  /// from *this* level — [SaveFile] stores the two together for that reason.
+  Future<void> load(String asset, {Snapshot? resume}) async {
+    _emit(RunLoading<L>(asset: asset));
+    try {
+      final level = await open(asset);
+      if (resume != null) restoreInto(level, resume);
+      _movingOn = false;
+      _emit(RunPlaying<L>(asset, level));
+    } catch (error, trace) {
+      debugPrint('level: could not load $asset: $error\n$trace');
+      _emit(RunFailed<L>(asset, error));
+    }
+  }
+
+  /// Reads how the run is going and republishes it if it changed.
+  ///
+  /// Call once per step. **Only on a change**, and that is not an optimisation:
+  /// a finished run stays finished for every frame afterwards, so a status
+  /// emitted per step would rebuild the tree sixty times a second.
+  void observe() {
+    final playing = _status;
+    if (playing is! RunPlaying<L>) return;
+    final now = outcomeOf(playing.level);
+    if (now == playing.outcome) return;
+    _emit(RunPlaying<L>(playing.asset, playing.level, outcome: now));
+  }
+
+  /// Puts the current level back the way it started.
+  Future<void> restart() async {
+    final here = switch (_status) {
+      RunPlaying<L>(:final asset) => asset,
+      RunFailed<L>(:final asset) => asset,
+      _ => firstLevel,
+    };
+    saves.clear();
+    startFresh();
+    await load(here);
+  }
+
+  /// Moves on if the level said there is somewhere to move on to.
+  ///
+  /// Call once per frame. Does nothing until the run is won, and nothing twice.
+  Future<void> advance() async {
+    final playing = _status;
+    if (playing is! RunPlaying<L> || _movingOn) return;
+    if (playing.outcome != RunOutcome.won) return;
+
+    _movingOn = true;
+    final next = nextOf(playing.level);
+    if (next == null) {
+      // The end of the game. The save goes, or the next launch resumes a run
+      // that is already over.
+      saves.clear();
+      return;
+    }
+    carryFrom(playing.level, next);
+    await load(next);
+    // Written once the level is up, so the save describes where the player
+    // actually is rather than a level they have not entered.
+    save();
+  }
+
+  /// Writes where the run has got to, if there is one worth writing.
+  void save() {
+    final playing = _status;
+    if (playing is! RunPlaying<L> || playing.outcome.isOver) return;
+    saves.write(playing.asset, snapshotOf(playing.level));
+  }
+
+  void _emit(RunStatus<L> next) {
+    _status = next;
+    onChanged?.call(next);
+  }
+}

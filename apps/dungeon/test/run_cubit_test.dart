@@ -24,7 +24,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_shooter/sample.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -66,7 +66,7 @@ final class _Storage implements Storage {
   final storage = _Storage();
   return (
     storage: storage,
-    run: RunCubit(
+    run: RunCubit(DungeonRun(
       firstLevel: first,
       registry: sampleRegistry(),
       input: InputState(),
@@ -95,7 +95,7 @@ final class _Storage implements Storage {
           device: device,
         ),
       ),
-    ),
+    )),
   );
 }
 
@@ -109,9 +109,9 @@ void main() {
     expect(await it.run.begin(), isFalse, reason: 'resumed nothing');
 
     final state = it.run.state;
-    expect(state, isA<RunPlaying>());
-    expect((state as RunPlaying).level.asset, _crypt);
-    expect(state.outcome, GameState.playing);
+    expect(state, isA<RunPlaying<LevelReady>>());
+    expect((state as RunPlaying<LevelReady>).asset, _crypt);
+    expect(state.outcome, RunOutcome.playing);
   });
 
   test('a level that is not there fails loudly rather than silently', () async {
@@ -122,8 +122,8 @@ void main() {
 
     await it.run.begin();
 
-    expect(it.run.state, isA<RunFailed>());
-    expect((it.run.state as RunFailed).asset, contains('no_such_level'));
+    expect(it.run.state, isA<RunFailed<LevelReady>>());
+    expect((it.run.state as RunFailed<LevelReady>).asset, contains('no_such_level'));
   });
 
   test('and a save naming a level that is gone gives a game, not an error',
@@ -137,8 +137,8 @@ void main() {
 
     expect(await it.run.begin(), isFalse);
 
-    expect(it.run.state, isA<RunPlaying>());
-    expect((it.run.state as RunPlaying).level.asset, _crypt);
+    expect(it.run.state, isA<RunPlaying<LevelReady>>());
+    expect((it.run.state as RunPlaying<LevelReady>).asset, _crypt);
     expect(it.storage.documents['save.json'], isNull,
         reason: 'the broken save was kept and will fail again next launch');
   });
@@ -149,7 +149,7 @@ void main() {
       // the application.
       final it = _game();
       await it.run.begin();
-      final first = (it.run.state as RunPlaying).level;
+      final first = it.run.state as RunPlaying<LevelReady>;
 
       // Spend some health so the restart has something to undo.
       it.run.inventory.damage(40.0);
@@ -157,9 +157,9 @@ void main() {
 
       await it.run.restart();
 
-      final second = (it.run.state as RunPlaying).level;
+      final second = it.run.state as RunPlaying<LevelReady>;
       expect(second.asset, first.asset, reason: 'restarted a different level');
-      expect(identical(second.staged, first.staged), isFalse,
+      expect(identical(second.level.staged, first.level.staged), isFalse,
           reason: 'the same simulation was handed back');
       expect(it.run.inventory.health.isAlive, isTrue);
       expect(it.run.inventory.health.current, 100.0,
@@ -191,7 +191,7 @@ void main() {
       final resumed = _game();
       resumed.storage.documents.addAll(it.storage.documents);
       expect(await resumed.run.begin(), isTrue, reason: 'did not resume');
-      expect((resumed.run.state as RunPlaying).level.asset, _crypt);
+      expect((resumed.run.state as RunPlaying<LevelReady>).asset, _crypt);
     });
 
     test('is not written for a run that is already over', () async {
@@ -200,13 +200,13 @@ void main() {
       // level they have already beaten.
       final it = _game();
       await it.run.begin();
-      final sim = (it.run.state as RunPlaying).level.staged.sim;
+      final sim = (it.run.state as RunPlaying<LevelReady>).level.staged.sim;
 
       // Kill the player, then let the simulation notice on its next step.
       it.run.inventory.damage(999.0);
       sim.step(1.0 / 60.0);
       it.run.observe();
-      expect((it.run.state as RunPlaying).outcome, GameState.dead);
+      expect((it.run.state as RunPlaying<LevelReady>).outcome, RunOutcome.lost);
 
       it.run.save();
 
@@ -221,11 +221,11 @@ void main() {
       // the boundary this application draws around `flutter_bloc`.
       final it = _game();
       await it.run.begin();
-      final emitted = <RunState>[];
+      final emitted = <RunStatus<LevelReady>>[];
       final subscription = it.run.stream.listen(emitted.add);
       addTearDown(subscription.cancel);
 
-      final sim = (it.run.state as RunPlaying).level.staged.sim;
+      final sim = (it.run.state as RunPlaying<LevelReady>).level.staged.sim;
       for (var i = 0; i < 30; i++) {
         sim.step(1.0 / 60.0);
         it.run.observe();
@@ -248,7 +248,7 @@ void main() {
       await it.run.advance();
       await it.run.advance();
 
-      expect(it.run.state, isA<RunPlaying>(),
+      expect(it.run.state, isA<RunPlaying<LevelReady>>(),
           reason: 'a level with no next unloaded itself');
     });
   });
