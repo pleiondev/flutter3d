@@ -980,8 +980,6 @@ final class Renderer implements RenderServices {
   /// Positions and UVs of the one triangle every full-screen pass draws.
   GeometryBuffer? _fullscreenVertices;
 
-  /// The same triangle with positions only, for the sky. See [_skyTriangle].
-  GeometryBuffer? _skyVertices;
 
   /// Built the first time a frame asks for a sky, and never if none does.
   ///
@@ -2473,11 +2471,15 @@ final class Renderer implements RenderServices {
     final fragmentName = textured ? 'SkyCube' : 'Sky';
 
     final shaders = device.shaders;
-    final vertex = shaders['SkyVertex'];
+    // Two vertex stages, one per fragment stage: the layout each draw carries
+    // is derived from the stage's own declarations, and the gradient and the
+    // cube want different things on their vertices. See `sky.vert`.
+    final vertexName = textured ? 'SkyCubeVertex' : 'SkyVertex';
+    final vertex = shaders[vertexName];
     final fragment = shaders[fragmentName];
     if (vertex == null || fragment == null) {
       throw StateError(
-        'RenderSettings.sky is enabled but the bundle has no "SkyVertex"/'
+        'RenderSettings.sky is enabled but the bundle has no "$vertexName"/'
         '"$fragmentName" entry. Rebuild the backend\'s shader bundle — for the '
         'web backend that means re-running tool/generate_shaders.dart, which '
         'nothing checks for you.',
@@ -2508,76 +2510,146 @@ final class Renderer implements RenderServices {
     // bind its own rather than trust a stale answer.
     state.invalidatePipeline();
 
-    pass.bindVertexBuffer(_skyTriangle, 3);
-    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
-
-    pass.bindUniformBlock(vertex, 'SkyRay', {
-      'inverse_view_projection': inverse.storage,
-    });
-
     if (textured) {
+      pass.bindVertexData(
+        _skyVertexBytes(inverse, sky, textured: true),
+        3,
+      );
+      pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
       pass.bindTexture(fragment, 'sky_texture', cubemap,
           sampler: SamplerOptions.linearClamp);
-      final tint = sky.resolvedTint;
-      pass.bindUniformBlock(fragment, 'SkyCubeInfo', {
-        'tint': _skyVec(_skyTint, tint, w: 1.0),
-      });
       pass.draw();
       state.drawCalls++;
       return;
     }
 
-    final toSun = sky.resolvedDirectionToSun.normalized();
-    pass.bindUniformBlock(fragment, 'SkyInfo', {
-      'zenith': _skyVec(_skyZenith, sky.resolvedZenith),
-      'horizon': _skyVec(_skyHorizon, sky.resolvedHorizon),
-      'nadir': _skyVec(_skyNadir, sky.resolvedNadir),
-      'sun': _skyVec(_skySun, toSun, w: sky.glowExponent),
-      'glow': _skyVec(_skyGlow, sky.resolvedSunColor, w: sky.glowStrength),
-      'disc': (_skyDisc
-        ..[0] = sky.discInnerCosine
-        ..[1] = sky.discOuterCosine
-        ..[2] = sky.sunIntensity
-        ..[3] = 0.0),
-    });
+    pass.bindVertexData(_skyVertexBytes(inverse, sky, textured: false), 3);
+    pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
     pass.draw();
     state.drawCalls++;
   }
 
-  static Float32List _skyVec(Float32List into, vm.Vector3 rgb,
-      {double w = 0.0}) {
-    into[0] = rgb.x;
-    into[1] = rgb.y;
-    into[2] = rgb.z;
-    into[3] = w;
-    return into;
+  /// The three corners of the sky's triangle, with everything the stages need.
+  ///
+  /// **Everything, because a uniform block does not reach this pipeline on
+  /// Impeller** — see the note at the top of `sky.vert`, which lists what was
+  /// measured. A vertex attribute does, so the ray and the preset travel that
+  /// way: the ray differs per corner and interpolates to the pixel's own
+  /// direction, and the preset is written identically on all three, so any
+  /// interpolation of it returns exactly what was written.
+  ///
+  /// Rebuilt every frame through the transient allocator rather than uploaded once:
+  /// the rays follow the camera, and 348 bytes a frame is less than the uniform
+  /// upload it replaces.
+  ByteData _skyVertexBytes(
+    vm.Matrix4 inverse,
+    SkySettings sky, {
+    required bool textured,
+  }) {
+    final data = _skyVertexData;
+    // The clip-space corners of the full-screen triangle.
+    const corners = <double>[-1.0, -1.0, 3.0, -1.0, -1.0, 3.0];
+    // The stride is the stage's own, not the larger of the two: the cube's
+    // vertex is nine floats and the gradient's twenty-nine, and writing the
+    // second stride into the first buffer puts two of the three vertices where
+    // nothing reads them.
+    final stride = textured ? _kSkyCubeVertexFloats : _kSkyVertexFloats;
+
+    final toSun = sky.resolvedDirectionToSun.normalized();
+    final zenith = sky.resolvedZenith;
+    final horizon = sky.resolvedHorizon;
+    final nadir = sky.resolvedNadir;
+    final glow = sky.resolvedSunColor;
+    final tint = sky.resolvedTint;
+
+    for (var i = 0; i < 3; i++) {
+      final x = corners[i * 2];
+      final y = corners[i * 2 + 1];
+      var at = i * stride;
+
+      data[at++] = x;
+      data[at++] = y;
+
+      _skyCornerRay(inverse, x, y, _skyRay);
+      data[at++] = _skyRay.x;
+      data[at++] = _skyRay.y;
+      data[at++] = _skyRay.z;
+
+      if (textured) {
+        data[at++] = tint.x;
+        data[at++] = tint.y;
+        data[at++] = tint.z;
+        data[at++] = 1.0;
+        continue;
+      }
+
+      data[at++] = zenith.x;
+      data[at++] = zenith.y;
+      data[at++] = zenith.z;
+      data[at++] = 0.0;
+
+      data[at++] = horizon.x;
+      data[at++] = horizon.y;
+      data[at++] = horizon.z;
+      data[at++] = 0.0;
+
+      data[at++] = nadir.x;
+      data[at++] = nadir.y;
+      data[at++] = nadir.z;
+      data[at++] = 0.0;
+
+      data[at++] = toSun.x;
+      data[at++] = toSun.y;
+      data[at++] = toSun.z;
+      data[at++] = sky.glowExponent;
+
+      data[at++] = glow.x;
+      data[at++] = glow.y;
+      data[at++] = glow.z;
+      data[at++] = sky.glowStrength;
+
+      // The disc's inner cosine, then **how much softer its edge is** rather
+      // than the outer cosine itself. Both are within a hair of one — a disc a
+      // third of a degree across has cosines differing by about two parts in a
+      // hundred thousand — and a varying carries them through an interpolation
+      // in single precision, which rounds the two together and leaves the
+      // shader's `inner > outer` guard false. A sun that never draws.
+      data[at++] = sky.discInnerCosine;
+      data[at++] = sky.discInnerCosine - sky.discOuterCosine;
+      data[at++] = sky.sunIntensity;
+      data[at++] = 0.0;
+    }
+
+    // Element indices, not bytes: the source is a Float32List.
+    return ByteData.sublistView(data, 0, 3 * stride);
   }
 
-  final Float32List _skyZenith = Float32List(4);
-  final Float32List _skyHorizon = Float32List(4);
-  final Float32List _skyNadir = Float32List(4);
-  final Float32List _skySun = Float32List(4);
-  final Float32List _skyGlow = Float32List(4);
-  final Float32List _skyDisc = Float32List(4);
-  final Float32List _skyTint = Float32List(4);
-
-  /// The same triangle, with positions and nothing else.
+  /// The world-space view ray at one clip-space corner.
   ///
-  /// A second buffer for three vertices, and the reason is not tidiness: a
-  /// backend takes the vertex layout from the shader's `in` declarations, so an
-  /// attribute a stage never reads is one the compiler may drop — and dropping
-  /// it changes the stride the buffer is read with. `sky.vert` needs no UV, so
-  /// it gets a buffer with no UV rather than an unread declaration that has to
-  /// survive optimisation.
-  GeometryBuffer get _skyTriangle => _skyVertices ??= device.uploadGeometry(
-        Float32List.fromList(<double>[
-          -1.0, -1.0, //
-          3.0, -1.0, //
-          -1.0, 3.0, //
-        ]).buffer.asByteData(),
-        GeometryUsage.vertices,
-      );
+  /// Two points on the same eye ray, subtracted. The depths are 0.5 and 1.0
+  /// because both are valid in **either** depth convention — this engine runs
+  /// zero-to-one on Impeller and on the software rasteriser and minus-one-to-one
+  /// on WebGL, and the difference of two points on one ray is the same direction
+  /// wherever the two points sit.
+  static void _skyCornerRay(vm.Matrix4 inverse, double x, double y,
+      vm.Vector3 out) {
+    final near = inverse.transform(vm.Vector4(x, y, 0.5, 1.0));
+    final far = inverse.transform(vm.Vector4(x, y, 1.0, 1.0));
+    out.setValues(
+      far.x / far.w - near.x / near.w,
+      far.y / far.w - near.y / near.w,
+      far.z / far.w - near.z / near.w,
+    );
+  }
+
+  /// Floats per vertex: two of clip position, three of ray, then six vec4s of
+  /// preset — or one vec4 of tint for the cube.
+  static const int _kSkyVertexFloats = 2 + 3 + 6 * 4;
+  static const int _kSkyCubeVertexFloats = 2 + 3 + 4;
+
+  final Float32List _skyVertexData = Float32List(3 * _kSkyVertexFloats);
+  final vm.Vector3 _skyRay = vm.Vector3.zero();
 
   PipelineHandle _postPipeline(
     PipelineHandle? cached,

@@ -1,10 +1,30 @@
 #version 460 core
 
-// Vertex stage for the sky: one full-screen triangle, and a world-space ray per
-// corner.
+// Vertex stage for the sky: one full-screen triangle, and everything the
+// fragment stage needs, carried on the vertices.
 //
-// Its own stage rather than `post/fullscreen.vert` for two reasons, and both
-// are load-bearing.
+// **The sky's data travels as attributes because uniforms do not reach this
+// pipeline on Impeller.** That is not a guess and not a workaround chosen for
+// taste; it is the one channel that was measured to work. What was measured,
+// each against a frame recorded from a real Metal device with the golden runner
+// (`tool/golden.sh sky`), and each with the picture read back rather than eyed:
+//
+//  * a uniform block bound to this stage — an identity matrix was bound and the
+//    shader read something else, so the picture never changed;
+//  * a uniform block bound to the fragment stage — a pure red zenith was bound
+//    and the shader saw something that was not red;
+//  * a vertex attribute — arrived exactly, to the value bound;
+//  * a varying — interpolated across the triangle exactly.
+//
+// The same two binds work everywhere else in this renderer, in the same pass,
+// in the same frame: every mesh takes its matrices this way and every
+// post-processing stage takes its settings this way. Why this pipeline is
+// different is not known. What is known is which door is open.
+//
+// The cost is a vertex buffer of three vertices rebuilt each frame, which is
+// 348 bytes through the transient allocator — less than one uniform upload.
+//
+// ---------------------------------------------------------------------------
 //
 // **The depth.** A post pass writes `gl_Position.z = 0.0`, which is the *near*
 // plane; the sky belongs at the far one. This writes 0.999999 — the far plane,
@@ -15,74 +35,46 @@
 // every pixel already covered by geometry fails the test before the fragment
 // stage runs.
 //
-// **The ray.** The direction is computed here, per corner, and interpolated —
-// which for a perspective camera is exact, because the direction is affine in
-// the screen position. Doing it in the fragment shader would mean
-// reconstructing NDC from a UV, and that is where `reflections.frag` and this
-// renderer's own full-screen triangle disagree about which way Y runs. Nothing
-// here has to know.
-//
-// The two sample depths are 0.5 and 1.0, and that is deliberate: both are valid
-// in **either** depth convention. This engine runs zero-to-one on Impeller and
-// on the software rasteriser and minus-one-to-one on WebGL, so a ray built from
-// the near plane would need to know which. The difference of two points on the
-// same eye ray is the same direction wherever the two points sit.
-//
-// One attribute, not two. The vertex layout is taken from these declarations,
-// so an `in vec2 texcoord` that this stage never reads is one the compiler is
-// free to drop — and dropping it changes the stride the buffer is read with.
-// Hence a vertex buffer of its own, holding positions and nothing else.
-//
-// ---------------------------------------------------------------------------
-// **This stage does not work on Impeller, and the cause is not known.** The
-// software rasteriser and this file agree completely; the picture Impeller
-// draws is a flat wash of one colour, because `v_ray` barely varies. What
-// follows is what was measured rather than what was guessed, so that the next
-// person starts from the end of this rather than the beginning.
-//
-// Measured *correct* on Impeller, each against the software rasteriser reading
-// the identical bytes, pixel for pixel:
-//
-//  * the `position` attribute, emitted straight through this varying;
-//  * the varying itself, as `vec3` and as `vec2`;
-//  * `SkyInfo`'s colour members, read by `sky.frag`.
-//
-// Measured *wrong* on Impeller, in every arrangement tried:
-//
-//  * `SkyRay` bound here — the shader read a constant that did not change when
-//    three different matrices were bound: the real one, a probe, and a probe of
-//    hundreds. The software rasteriser tracked all three. Reflection reported
-//    `size=64 offset=0`, which is exactly right, and `bindUniform` was reached.
-//  * the same matrix moved into `sky.frag`'s own block as a `mat4` — the
-//    colours beside it arrived, the matrix read as zero, and `normalize` of the
-//    zero ray is a NaN that paints the sky black.
-//  * the same matrix as four `vec4` members of that block — black again.
-//  * the same four members moved to the end of the block — **one build drew a
-//    correct gradient and the next drew black, from identical source.** That
-//    is the finding that rules out layout: the behaviour is not stable, so no
-//    ordering of members is a fix.
-//  * the ray computed on the CPU and passed as a second vertex attribute
-//    alongside `position` — flat wash again, which is why this file still has
-//    one attribute.
-//
-// So: colours in a uniform block arrive, a single vertex attribute arrives, and
-// this pipeline's camera data does not, in any form tried. `RenderSettings.sky`
-// is off by default and no golden is recorded for it, so nothing ships broken —
-// except a racing game that turns it on, which is where this matters.
-// ---------------------------------------------------------------------------
+// **The ray.** One direction per corner, computed on the CPU from the inverse
+// view-projection and interpolated across the triangle — which for a
+// perspective camera is exact, because the direction is affine in the screen
+// position. The renderer builds them; see `Renderer._skyCornerRay`.
+precision highp float;
+
 in vec2 position;
 
-uniform SkyRay {
-  mat4 inverse_view_projection;
-}
-sky_ray;
+// The world-space view ray at this corner.
+in vec3 corner_ray;
+
+// The preset, replicated on all three vertices. Constant across the triangle,
+// so any interpolation of it returns exactly what was written.
+in vec4 zenith;
+in vec4 horizon;
+in vec4 nadir;
+/// xyz: unit vector pointing at the sun. w: how tight the scattering lobe is.
+in vec4 sun;
+/// rgb: the sun's own colour. a: how bright the lobe is.
+in vec4 glow;
+/// x: cosine of the disc's angular radius. y: cosine of the radius plus its
+/// soft edge. z: how bright the disc is. w: unused.
+in vec4 disc;
 
 out vec3 v_ray;
+out vec4 v_zenith;
+out vec4 v_horizon;
+out vec4 v_nadir;
+out vec4 v_sun;
+out vec4 v_glow;
+out vec4 v_disc;
 
 void main() {
-  vec4 near = sky_ray.inverse_view_projection * vec4(position, 0.5, 1.0);
-  vec4 far = sky_ray.inverse_view_projection * vec4(position, 1.0, 1.0);
-  v_ray = far.xyz / far.w - near.xyz / near.w;
+  v_ray = corner_ray;
+  v_zenith = zenith;
+  v_horizon = horizon;
+  v_nadir = nadir;
+  v_sun = sun;
+  v_glow = glow;
+  v_disc = disc;
 
   gl_Position = vec4(position, 0.999999, 1.0);
 }

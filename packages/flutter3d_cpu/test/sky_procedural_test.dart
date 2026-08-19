@@ -335,12 +335,13 @@ void main() {
     expect(match, isNotNull, reason: 'sky.vert no longer writes a literal depth');
 
     final fromGlsl = double.parse(match!.group(1)!);
-    final out = Float32List(3);
-    // Four floats: position then texcoord, as the shared full-screen buffer
-    // holds them. The UV is the centre of the frame, which is the ray this
-    // assertion is about.
-    final position = Float32List.fromList(<double>[0.0, 0.0, 0.5, 0.5]);
-    final clip = const SkyVertexShader().run(
+    final stage = const SkyVertexShader();
+    final out = Float32List(stage.varyingCount);
+    // A whole vertex: the clip-space corner, then everything the fragment
+    // stage reads — the ray and the preset, which this stage passes through.
+    // Zeros will do; what is being read back is the depth.
+    final position = Float32List(2 + stage.varyingCount);
+    final clip = stage.run(
       position,
       const ShaderBindings(
         <String, Map<String, Float32List>>{},

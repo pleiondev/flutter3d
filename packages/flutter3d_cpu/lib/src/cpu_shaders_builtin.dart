@@ -1088,30 +1088,51 @@ final class FullscreenVertexShader implements CpuVertexShader {
   }
 }
 
-/// `sky.vert`: a full-screen triangle at the far plane, and a world ray.
+/// `sky.vert`: a full-screen triangle at the far plane, carrying its own data.
 ///
-/// The two constants that have to match the GLSL are the sample depths (0.5 and
-/// 1.0, both valid in either depth convention) and the output depth 0.999999 —
-/// the far plane less a hair, so the ordinary `less` test passes against a
-/// buffer cleared to 1.0. `sky_frame_test.dart` pins the last of those against
-/// the text of the shader itself, because a drift between the two is a sky that
-/// is either invisible or in front of the world, and nothing else would say so.
+/// **Everything the fragment stage needs arrives on the vertices, and it is not
+/// this backend that needed that.** The GLSL this transcribes used to take a
+/// matrix and a preset as uniform blocks; on Impeller those never reached the
+/// sky's pipeline — see the note at the top of `sky.vert` for what was measured
+/// — and a vertex attribute did. This backend could have kept reading uniforms
+/// and been right on its own, which is exactly the kind of divergence that
+/// makes a transcription stop being one.
+///
+/// The two constants that have to match the GLSL are the output depth 0.999999
+/// — the far plane less a hair, so the ordinary `less` test passes against a
+/// buffer cleared to 1.0 — and the layout below. `sky_frame_test.dart` pins the
+/// depth against the text of the shader itself, because a drift between the two
+/// is a sky that is either invisible or in front of the world.
 final class SkyVertexShader implements CpuVertexShader {
   const SkyVertexShader();
 
+  /// The ray, then the six vec4s of preset.
   @override
-  int get varyingCount => 3;
+  int get varyingCount => 3 + 6 * 4;
 
   @override
   Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
-    final inverse = bindings.mat4('SkyRay', 'inverse_view_projection');
-    final near = inverse.transform(Vector4(a[0], a[1], 0.5, 1.0));
-    final far = inverse.transform(Vector4(a[0], a[1], 1.0, 1.0));
+    // Attribute 0..1 is the clip-space corner; the rest is what the fragment
+    // stage reads, passed straight through.
+    for (var i = 0; i < varyingCount; i++) {
+      out[i] = a[2 + i];
+    }
+    return Vector4(a[0], a[1], 0.999999, 1.0);
+  }
+}
 
-    out[0] = far.x / far.w - near.x / near.w;
-    out[1] = far.y / far.w - near.y / near.w;
-    out[2] = far.z / far.w - near.z / near.w;
+/// `sky_cube.vert`: the same triangle, carrying a tint instead of a preset.
+final class SkyCubeVertexShader implements CpuVertexShader {
+  const SkyCubeVertexShader();
 
+  @override
+  int get varyingCount => 3 + 4;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    for (var i = 0; i < varyingCount; i++) {
+      out[i] = a[2 + i];
+    }
     return Vector4(a[0], a[1], 0.999999, 1.0);
   }
 }
@@ -1134,12 +1155,14 @@ final class SkyShader implements CpuFragmentShader {
     final dy = v[1] * scale;
     final dz = v[2] * scale;
 
-    final zenith = b.vec4('SkyInfo', 'zenith', Vector4.zero());
-    final horizon = b.vec4('SkyInfo', 'horizon', Vector4.zero());
-    final nadir = b.vec4('SkyInfo', 'nadir', Vector4.zero());
-    final sun = b.vec4('SkyInfo', 'sun', Vector4(0.0, 1.0, 0.0, 6.0));
-    final glow = b.vec4('SkyInfo', 'glow', Vector4.zero());
-    final disc = b.vec4('SkyInfo', 'disc', Vector4.zero());
+    // The preset, off the varyings rather than out of a uniform block — see
+    // [SkyVertexShader].
+    final zenith = Vector4(v[3], v[4], v[5], v[6]);
+    final horizon = Vector4(v[7], v[8], v[9], v[10]);
+    final nadir = Vector4(v[11], v[12], v[13], v[14]);
+    final sun = Vector4(v[15], v[16], v[17], v[18]);
+    final glow = Vector4(v[19], v[20], v[21], v[22]);
+    final disc = Vector4(v[23], v[24], v[25], v[26]);
 
     final height = dy.clamp(-1.0, 1.0);
     final far = height >= 0.0 ? zenith : nadir;
@@ -1158,14 +1181,21 @@ final class SkyShader implements CpuFragmentShader {
       bl += glow.z * lobe;
     }
 
-    final edge = _smoothstep(disc.y, disc.x, towards) * disc.z;
+    // `disc.y` is the width of the soft edge, not the outer cosine: see the
+    // renderer, which writes it that way because a varying cannot carry two
+    // cosines this close together.
+    final edge =
+        disc.y > 0.0 ? _smoothstep(disc.x - disc.y, disc.x, towards) * disc.z : 0.0;
     r += glow.x * edge;
     g += glow.y * edge;
     bl += glow.z * edge;
 
-    // Zero, not left alone: zero alpha is how the reflection pass recognises
-    // that nothing was drawn, and the sky is nothing to reflect off.
-    c.surface = Vector4.zero();
+    // **The surface is left alone, and that is a transcription of a fix.** The
+    // GLSL this mirrors used to declare a second output and write zero into it;
+    // on Impeller, in the usual single-attachment pass, that killed the
+    // process. Nothing is lost either way — the attachment is cleared to zero,
+    // which is the value this was writing — and the two backends have to say
+    // the same thing or the transcription stops being one.
     return Vector4(r, g, bl, 1.0);
   }
 }
@@ -1180,15 +1210,16 @@ final class SkyCubeShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    c.surface = Vector4.zero();
-
+    // No surface written, for the reason [SkyShader] gives: the GLSL this
+    // mirrors no longer declares a second output.
     final map = b.textures['sky_texture'];
     // A stage bound no cube: black rather than a crash, and black rather than a
     // plausible sky, which is what makes it reportable.
     if (map == null) return Vector4(0.0, 0.0, 0.0, 1.0);
 
     final texel = map.sampleCube(v[0], v[1], v[2]);
-    final tint = b.vec4('SkyCubeInfo', 'tint', Vector4(1.0, 1.0, 1.0, 1.0));
+    // Off the varyings, as the preset is — see [SkyVertexShader].
+    final tint = Vector4(v[3], v[4], v[5], v[6]);
 
     return Vector4(
       _toLinear(texel.x) * tint.x,
@@ -1951,6 +1982,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ShadowTileResetVertex':
         const CpuStage.vertex(ShadowTileResetVertexShader()),
     'SkyVertex': const CpuStage.vertex(SkyVertexShader()),
+    'SkyCubeVertex': const CpuStage.vertex(SkyCubeVertexShader()),
     'Sky': const CpuStage.fragment(SkyShader()),
     'SkyCube': const CpuStage.fragment(SkyCubeShader()),
   };

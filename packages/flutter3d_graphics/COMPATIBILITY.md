@@ -156,3 +156,26 @@ drew a scene with no light in it, with nothing anywhere reporting a problem.
 This is also the limit on extensions: an application that builds its own bundle
 can add a lighting model today, because `LightingModel` is a value class rather
 than an enum. An extension that does not control the bundle cannot.
+
+## Two rules a fragment stage keeps, learned the expensive way
+
+Both were found in the sky, which is the only stage in this engine that was ever
+written against a target it did not match, and both cost days rather than
+minutes because the symptom was a picture rather than an error.
+
+**A fragment stage declares exactly the outputs its target has.** The scene pass
+carries one colour attachment when nothing reads the surface buffer and two when
+something does; `lib/color.glsl` already guarded its second output behind
+`F3D_NO_SURFACE_BUFFER` for the shadow pass, and `sky.frag` declared one anyway.
+On `flutter3d_impeller` that kills the process — inside Metal, at
+`setFragmentBuffer:offset:atIndex:`, with an address that is not a pointer — and
+when it survives long enough to draw a frame, every uniform the stage reads is
+rubbish. Nothing above the driver reports anything.
+
+**A uniform block reaches every pipeline except one, and that one is measured
+rather than assumed.** The sky's blocks — bound with the same call every mesh
+and every post stage uses, in the same pass, in the same frame, with the
+reflection reporting the right size and the right member offsets — never arrive
+on Impeller. What does arrive is vertex attributes and the varyings built from
+them, which is how the sky is fed now: see the note at the top of `sky.vert` for
+the measurements, each read back off a recorded frame rather than eyed.

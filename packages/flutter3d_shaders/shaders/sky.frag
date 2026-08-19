@@ -17,41 +17,53 @@
 // five varyings `mesh.vert` emits, and a fragment shader whose inputs disagree
 // with its vertex stage's outputs does not link — there is no partial-match
 // rule. `shadow_depth.frag` includes it *because* it runs off `mesh.vert`; this
-// runs off `sky.vert`, which emits one varying. So the two outputs are declared
-// here instead, in the same slots and with the same meanings.
+// runs off `sky.vert`, whose varyings are its own.
+//
+// **The preset arrives on the varyings rather than in a uniform block**, and
+// `sky.vert` sets out at length what was measured to make that the design: on
+// Impeller a uniform block bound to this pipeline never arrives, in either
+// stage, while an attribute does.
 precision highp float;
 
 in vec3 v_ray;
+in vec4 v_zenith;
+in vec4 v_horizon;
+in vec4 v_nadir;
+in vec4 v_sun;
+in vec4 v_glow;
+in vec4 v_disc;
 
 layout(location = 0) out vec4 frag_color;
 
-// The surface buffer, written as zero rather than left alone.
+// **The surface buffer is deliberately not written here, and the sentence this
+// replaces cost a working sky.**
 //
-// Zero alpha is how `reflections.frag` recognises "nothing was drawn here", and
-// the attachment is cleared to zero, so not writing would give the same answer
-// — on a backend that guarantees an untouched attachment keeps its cleared
-// value. Writing it costs nothing and does not depend on that. When the scene
-// draws into one attachment rather than two, the extra output is discarded; the
-// renderer decides whether anyone is listening.
-layout(location = 1) out vec4 frag_surface;
+// It used to say: "Writing it costs nothing and does not depend on that. When
+// the scene draws into one attachment rather than two, the extra output is
+// discarded; the renderer decides whether anyone is listening." Every clause of
+// that is wrong on Impeller. Measured, both ways round, in the `sky` golden
+// scene:
+//
+//  * one attachment (the usual path — no screen-space effect asked for the
+//    surface buffer, so the pass multisamples instead) and this shader
+//    declaring `frag_surface`: **the process dies**, inside Metal, at
+//    `-[AGXG15XFamilyRenderContext setFragmentBuffer:offset:atIndex:]` with a
+//    bad address. When it survives long enough to draw, `SkyInfo` and `SkyRay`
+//    arrive as rubbish, which is a flat maroon sky over a racing circuit.
+//  * two attachments (`surfaceBuffer: true`), same shader: draws correctly.
+//
+// `lib/color.glsl` already knew — "a pipeline declaring an output its target has
+// no slot for is a mismatch worth avoiding rather than discovering" — and
+// guards its own second output behind `F3D_NO_SURFACE_BUFFER` for the shadow
+// pass. This file was the one place that declared it anyway.
+//
+// Nothing is lost by leaving it out. The attachment is cleared to zero and zero
+// alpha is exactly what `reflections.frag` reads as "nothing was drawn here" —
+// the same answer this shader was writing by hand.
 
-uniform SkyInfo {
-  /// rgb: the sky straight up. a: unused.
-  vec4 zenith;
-  /// rgb: the sky level with the horizon. a: unused.
-  vec4 horizon;
-  /// rgb: the sky straight down — haze rather than ground. a: unused.
-  vec4 nadir;
-  /// xyz: unit vector pointing at the sun. w: how tight the scattering lobe is.
-  vec4 sun;
-  /// rgb: the sun's own colour. a: how bright the lobe is.
-  vec4 glow;
-  /// x: cosine of the disc's angular radius. y: cosine of the radius plus its
-  /// soft edge — smaller than x, since cosine falls as the angle grows.
-  /// z: how bright the disc is, which may be far above white. w: unused.
-  vec4 disc;
-}
-sky_info;
+// **No uniform block, and `sky.vert` says at length why.** Its members reach
+// this stage as varyings, written on all three vertices of the full-screen
+// triangle: the only channel measured to arrive on this pipeline.
 
 void main() {
   vec3 direction = normalize(v_ray);
@@ -60,18 +72,18 @@ void main() {
   // degrees above the horizon are most of what anybody looks at, and a straight
   // ramp spends its range on the part they do not.
   float height = clamp(direction.y, -1.0, 1.0);
-  vec3 far = height >= 0.0 ? sky_info.zenith.rgb : sky_info.nadir.rgb;
+  vec3 far = height >= 0.0 ? v_zenith.rgb : v_nadir.rgb;
   float t = abs(height);
   t = t * t * (3.0 - 2.0 * t);
-  vec3 colour = mix(sky_info.horizon.rgb, far, t);
+  vec3 colour = mix(v_horizon.rgb, far, t);
 
-  float towards = dot(direction, sky_info.sun.xyz);
+  float towards = dot(direction, v_sun.xyz);
 
   // The wide scattering lobe. Guarded, because `pow` of a negative base is
   // undefined and a NaN here is a pixel that is black on one backend and white
   // on another.
   if (towards > 0.0) {
-    colour += sky_info.glow.rgb * (sky_info.glow.a * pow(towards, sky_info.sun.w));
+    colour += v_glow.rgb * (v_glow.a * pow(towards, v_sun.w));
   }
 
   // And the disc itself, added on top of the lobe rather than replacing it: the
@@ -86,11 +98,11 @@ void main() {
   // caller who leaves the disc at its default size, and a single NaN channel
   // poisons the whole pixel through the tone map. A sky is exactly where that
   // is least visible as a NaN and most visible as "the gradient went away".
-  float disc = sky_info.disc.x > sky_info.disc.y
-      ? smoothstep(sky_info.disc.y, sky_info.disc.x, towards)
+  float disc = v_disc.y > 0.0
+      ? smoothstep(v_disc.x - v_disc.y, v_disc.x, towards)
       : 0.0;
-  colour += sky_info.glow.rgb * (disc * sky_info.disc.z);
+  colour += v_glow.rgb * (disc * v_disc.z);
 
   frag_color = vec4(colour, 1.0);
-  frag_surface = vec4(0.0);
+
 }

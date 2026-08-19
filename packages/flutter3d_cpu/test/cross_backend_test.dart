@@ -57,6 +57,11 @@ const Map<String, double> _budgets = <String, double>{
   // 0.431%, except `particles-recycled` at 0.417%. Set just above, which is
   // the rule this file is built on — a budget far from what was measured has
   // stopped watching.
+  // The sky itself agrees exactly — every pixel of gradient, lobe and disc is
+  // the same number on both backends, which is what a transcription is for.
+  // What differs is the teapot's silhouette against it: 392 pixels of edge,
+  // where one backend multisamples and the other does not. Measured 0.227%.
+  'sky': 0.24,
   'particle-stack': 0.45,
   'particles-burst': 0.45,
   // A pool that has been round several times, which every other particle

@@ -111,6 +111,10 @@
     "type": "vertex",
     "file": "shaders/sky.vert"
   },
+  "SkyCubeVertex": {
+    "type": "vertex",
+    "file": "shaders/sky_cube.vert"
+  },
   "Sky": {
     "type": "fragment",
     "file": "shaders/sky.frag"

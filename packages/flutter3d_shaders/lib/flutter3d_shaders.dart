@@ -52,6 +52,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'Sky', fragment: true),
   (name: 'SkyCube', fragment: true),
   (name: 'SkyVertex', fragment: false),
+  (name: 'SkyCubeVertex', fragment: false),
   (name: 'Toon', fragment: true),
   (name: 'Unlit', fragment: true),
 ];

@@ -22,22 +22,16 @@
 precision highp float;
 
 in vec3 v_ray;
+in vec4 v_tint;
 
 layout(location = 0) out vec4 frag_color;
 
-// Zero, for the same reason `sky.frag` writes it: a zero alpha is how the
-// reflection pass recognises that nothing was drawn here, and the sky is
-// nothing to reflect off.
-layout(location = 1) out vec4 frag_surface;
+// No second output — see `sky.frag`.
 
 uniform samplerCube sky_texture;
 
-uniform SkyCubeInfo {
-  /// rgb: multiplied into the sample, so one cube can serve several hours of
-  /// the day. a: unused.
-  vec4 tint;
-}
-sky_cube_info;
+// **No uniform block, and `sky.vert` says at length why.** The tint arrives as
+// a varying, written on all three vertices of the full-screen triangle.
 
 void main() {
   // Decoded from sRGB, because a cube map is an image and an image is authored
@@ -50,6 +44,5 @@ void main() {
                     pow((texel + 0.055) / 1.055, vec3(2.4)),
                     step(vec3(0.04045), texel));
 
-  frag_color = vec4(linear * sky_cube_info.tint.rgb, 1.0);
-  frag_surface = vec4(0.0);
+  frag_color = vec4(linear * v_tint.rgb, 1.0);
 }
