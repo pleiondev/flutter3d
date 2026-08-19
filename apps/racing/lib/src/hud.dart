@@ -30,6 +30,8 @@ class RaceReadout {
     required this.mode,
     required this.outline,
     required this.carsOnMap,
+    this.behind = false,
+    this.paused = false,
   });
 
   /// Metres per second. Turned into something a driver reads at the last
@@ -54,6 +56,17 @@ class RaceReadout {
 
   /// Where each car is, in the same space. The first is the player.
   final List<Vector2> carsOnMap;
+
+  /// Whether the machine is not keeping up.
+  ///
+  /// A count of dropped steps means nothing to a player; what it means is that
+  /// the race is running in slow motion and saying nothing about it. This game
+  /// could not tell at all until the loop arrived.
+  final bool behind;
+
+  /// Whether the player has stopped the race.
+  final bool paused;
+
 }
 
 String formatLapTime(double seconds) {
@@ -144,7 +157,34 @@ class RaceHud extends StatelessWidget {
                 ),
               ),
             ),
-        ],
+          if (readout.behind)
+          Positioned(
+            right: 24,
+            top: 24,
+            child: Text(
+              'This machine is behind — the race is running slowly.',
+              style: TextStyle(
+                color: Colors.amber.withValues(alpha: 0.9),
+                fontSize: 13,
+                shadows: const <Shadow>[
+                  Shadow(blurRadius: 8, color: Colors.black87),
+                ],
+              ),
+            ),
+          ),
+        if (readout.paused)
+          const Positioned.fill(
+            child: ColoredBox(
+              color: Color(0xAA000000),
+              child: Center(
+                child: Text(
+                  'Paused — Escape to drive on',
+                  style: TextStyle(color: Colors.white, fontSize: 22),
+                ),
+              ),
+            ),
+          ),
+      ],
       ),
     );
   }

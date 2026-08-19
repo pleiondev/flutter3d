@@ -18,7 +18,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart' show LogicalKeyboardKey, rootBundle;
+import 'package:flutter/services.dart'
+    show KeyDownEvent, LogicalKeyboardKey, rootBundle;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -161,7 +162,23 @@ class _RaceScreenState extends State<RaceScreen>
   final InputState _input = InputState();
   late final DesktopInput _devices =
       DesktopInput(state: _input, bindings: _keys());
-  final FixedStep _step = FixedStep();
+  /// The loop, rather than a bare `FixedStep`.
+  ///
+  /// **This game drove the clock itself and got none of the loop's services**:
+  /// no pause, no `beginStep`/`endStep` around a step — so `InputState.pressed`
+  /// never worked here at all — and no reading of the simulated time the clock
+  /// refused to run.
+  late final GameLoop _loop = GameLoop(input: _input, onStep: _driveOneStep);
+
+  /// Whether the player has asked the game to stand still.
+  ///
+  /// Fed to [shouldPause] as its menu clause, because that is what it is: a
+  /// statement about the player's attention that does not depend on any device.
+  /// When this game grows a settings panel, the panel sets the same flag.
+  bool _paused = false;
+
+  /// Whether the machine is keeping up, and what it cost when it was not.
+  final Pace _pace = Pace();
 
   List<Vector2> _outline = const <Vector2>[];
   final Vector3 _drawAt = Vector3.zero();
@@ -416,20 +433,39 @@ class _RaceScreenState extends State<RaceScreen>
         : (now - _lastTick).inMicroseconds / 1e6;
     _lastTick = now;
 
-    final simulation = _simulation;
     final race = _race;
-    if (simulation == null || race == null) return;
+    if (_simulation == null || race == null) return;
 
-    final steps = _step.advance(dt.clamp(0.0, 0.25));
-    for (var i = 0; i < steps; i++) {
-      _readDriver(simulation);
-      _driveTheRest(simulation, race);
-      simulation.step(_step.stepSeconds);
-    }
+    _loop.paused = shouldPause(
+      ready: _simulation != null,
+      menuOpen: _paused,
+      // This game never captures the pointer — it is driven from the keyboard —
+      // so the pointer is not the gate here and saying otherwise would freeze
+      // it on every desktop build.
+      pointerIsTheGate: false,
+      pointerHeld: false,
+      padConnected: false,
+    );
+    _loop.advance(dt.clamp(0.0, 0.25));
+    _pace.note(
+      dropped: _loop.clock.droppedSteps,
+      dt: dt,
+      stepSeconds: _loop.clock.stepSeconds,
+    );
 
     _place(dt);
     _listen(race);
     setState(() {});
+  }
+
+  /// One step of the race. Called by the loop, once per fixed step.
+  void _driveOneStep(double stepSeconds) {
+    final simulation = _simulation;
+    final race = _race;
+    if (simulation == null || race == null) return;
+    _readDriver(simulation);
+    _driveTheRest(simulation, race);
+    simulation.step(stepSeconds);
   }
 
   /// The player's keys, as a car's controls.
@@ -538,6 +574,8 @@ class _RaceScreenState extends State<RaceScreen>
     final race = _race!;
     final player = race.progress[0];
     return RaceReadout(
+                behind: _pace.behind,
+                paused: _paused,
       speed: _cars[0].speed,
       lap: player.lap,
       laps: race.laps,
@@ -588,8 +626,21 @@ class _RaceScreenState extends State<RaceScreen>
       body: Focus(
         focusNode: _keyboard,
         autofocus: true,
-        onKeyEvent: (FocusNode node, KeyEvent event) =>
-            _devices.handleKeyEvent(event),
+        onKeyEvent: (FocusNode node, KeyEvent event) {
+          // **This game could not be paused at all.** Escape does it now, and
+          // it is the same clause a settings panel will set when there is one:
+          // a statement about where the player's attention is, which does not
+          // depend on any device.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            setState(() => _paused = !_paused);
+            // The keys the car was holding are let go, or it comes back
+            // accelerating into a wall.
+            _input.clear();
+            return KeyEventResult.handled;
+          }
+          return _devices.handleKeyEvent(event);
+        },
         child: Stack(
           fit: StackFit.expand,
           children: <Widget>[
