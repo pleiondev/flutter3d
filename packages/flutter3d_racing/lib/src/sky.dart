@@ -5,9 +5,9 @@
 /// and angles, and the two things it answers are "what colour is the sky in
 /// this direction" and "what colour is the haze between here and that hill".
 ///
-/// **Why the fog needs help.** The engine's fog is one constant colour mixed in
-/// by distance (`color.glsl`: `mix(fog.rgb, colour, exp(-density * d))`). It has
-/// no idea which way the camera is pointing, so a corner taken into the sun and
+/// **Why the fog needs help, and still does.** The engine's fog is one constant
+/// colour mixed in by distance (`color.glsl`: `mix(fog.rgb, colour, exp(-density
+/// * d))`). It has no idea which way the camera is pointing, so a corner taken into the sun and
 /// the same corner taken away from it fade into exactly the same grey. That is
 /// the failure Hoffman and Preetham named in 2002, and it is what makes distance
 /// look like a wash rather than like air. The fix does not need a shader: the
@@ -15,22 +15,37 @@
 /// is looking, by [inScatterAlong]. The shader stays a mix; the thing being
 /// mixed toward becomes directional.
 ///
-/// **What a preset deliberately does not have.**
-/// - *An ambient colour.* The renderer writes exactly one number for ambient and
-///   the surface shader reads it as a scalar, so an ambient *colour* would be a
-///   field that changes nothing on any of the three backends. Only
-///   [ambientIntensity] is real.
-/// - *A sun disc.* A disc is about two degrees across. With no sky dome there is
-///   nowhere to put one, and at any tessellation a dome could afford it would
-///   land between vertices anyway. What survives is the wide scattering lobe
-///   around the sun ([glowWide]), which is the part that reads at speed.
+/// **Two things this file used to say it could not have, and now has.** Both
+/// arrived in the engine after this was written, and the paragraph stood
+/// unchanged long enough to be worth naming as a hazard: a comment that
+/// explains why something is impossible is exactly the comment nobody rereads.
 ///
-/// And there is no sky dome, on purpose. A sphere around the camera is a shadow
-/// caster by default and, worse, `Scene.computeBounds` counts it: the scene
-/// radius jumps by a kilometre and a half, the last shadow cascade is fitted to
-/// that, and the texel snapping that exists to stop shadow edges crawling stops
-/// holding. The horizon is the view's clear colour instead, which costs nothing
-/// and cannot be wrong at the horizon — see [colourAt].
+/// - *An ambient colour.* It said the renderer wrote one number and the shader
+///   read it as a scalar, so a colour would change nothing. The shader now
+///   blends [ambient_sky] and [ambient_ground] by which way a surface faces,
+///   and the renderer builds both from the sky's own gradient — so a preset
+///   already tints the ambient, through [zenith], [horizon] and [belowHorizon],
+///   and [ambientIntensity] is what it always was: the overall strength. A
+///   separate ambient colour would now be a *second* answer to a question the
+///   gradient already answers, which is a better reason to leave it out than
+///   the old one.
+/// - *A sun disc.* It said there was nowhere to put one without a dome. The
+///   renderer draws the sky itself now, in the shader, so the disc costs no
+///   geometry — and [sunDisc] is a real field that four of the five presets set.
+///   The wide scattering lobe ([glowWide]) is still what reads at speed; the
+///   disc is what makes a low sun something a driver squints at.
+///
+/// There is still no sky *dome*, and that reasoning has not aged: a sphere
+/// around the camera is a shadow caster by default and, worse,
+/// `Scene.computeBounds` counts it — the scene radius jumps by a kilometre and
+/// a half, the last shadow cascade is fitted to that, and the texel snapping
+/// that stops shadow edges crawling stops holding. What the engine draws is not
+/// a dome; it is the background, evaluated per pixel.
+///
+/// [colourAt] is still the CPU's copy of that gradient, and still earns its
+/// place twice over: the view's clear colour before the first circuit has
+/// loaded, and the fog colour below — which is the one thing the engine's sky
+/// does *not* do for us.
 library;
 
 import 'dart:math' as math;

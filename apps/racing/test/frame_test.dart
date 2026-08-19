@@ -234,7 +234,11 @@ final class _Shown {
   /// the camera where it is — the one way to see what the fog colour alone is
   /// doing, since moving the camera changes the sky, the geometry and the
   /// lighting all at once.
-  Future<Uint8List> draw({String? hiding, Vector3? hazeAlong}) async {
+  Future<Uint8List> draw({
+    String? hiding,
+    Vector3? hazeAlong,
+    SkySettings? withSky,
+  }) async {
     if (hiding != null) {
       for (final MeshNode piece in scene.meshes) {
         if (piece.name == hiding) piece.visible = false;
@@ -257,7 +261,7 @@ final class _Shown {
         ),
       ],
       settings: RenderSettings(
-        sky: skySettings,
+        sky: withSky ?? skySettings,
         fog: FogSettings(
           color: sky.inScatterAlong(hazeAlong ?? gaze),
           density: sky.fogDensity,
@@ -269,6 +273,23 @@ final class _Shown {
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
     return pixels!.buffer.asUint8List();
   }
+}
+
+
+/// The average colour of whatever reads as tarmac, for the ambient above.
+Vector3 _averageRoad(Uint8List rgba) {
+  var r = 0.0, g = 0.0, b = 0.0, n = 0;
+  for (var i = 0; i < rgba.length; i += 4) {
+    final rr = rgba[i], gg = rgba[i + 1], bb = rgba[i + 2];
+    if (rr > 12 && rr < 150 && (gg - rr).abs() < 16 && (bb - gg).abs() < 26) {
+      r += rr;
+      g += gg;
+      b += bb;
+      n++;
+    }
+  }
+  expect(n, greaterThan(200), reason: 'there is no road in this frame to read');
+  return Vector3(r / n, g / n, b / n);
 }
 
 /// How many pixels read as tarmac: mid-dark, and grey rather than green.
@@ -442,6 +463,29 @@ void main() {
       final away = await shown.draw();
 
       expect(_brightnessOf(into) - _brightnessOf(away), greaterThan(15.0));
+    });
+
+    test('and the road is lit by this circuit\'s own sky, not by a grey', () async {
+      // **The claim the preset's doc comment used to say was impossible.** It
+      // said the renderer wrote one number for ambient and the shader read it
+      // as a scalar, so a coloured sky could not reach a surface. That stopped
+      // being true when the shader learned to blend an upper and a lower
+      // ambient from the sky's own gradient — and nothing here had ever checked
+      // it, which is how the comment survived being wrong.
+      final it = await _Shown.build(sky: SkyPresets.golden);
+      it.run(2.0);
+
+      final lit = _averageRoad(await it.draw());
+      final grey =
+          _averageRoad(await it.draw(withSky: const SkySettings(enabled: false)));
+
+      // A golden-hour gradient is nowhere near white, so its ambient is both
+      // dimmer and warmer than the default. Five per cent is well above the
+      // frame-to-frame noise of two renders of the same scene, which is none.
+      expect((lit.x - grey.x).abs() / grey.x, greaterThan(0.05),
+          reason: 'the sky the circuit is raced under does not light it');
+      expect(lit.x, lessThan(grey.x),
+          reason: 'a coloured sky lit the road more brightly than white did');
     });
 
     test('the haze itself carries the direction, not just the background',
