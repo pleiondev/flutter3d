@@ -37,6 +37,12 @@ is cheaper than every game carrying both backends.
 **A state-management choice.** `RunSession` is an ordinary class. Two of the
 three games wrap it in a cubit and the package neither knows nor cares.
 
+**The third game's season.** Racing moves from one circuit to the next and keeps
+where somebody got to, which looks like a `RunSession` and is not one: nobody
+resumes a race half a lap in, so `snapshotOf` and `restoreInto` would be two
+required overrides returning nothing. A base class whose contract half its users
+have to stub is a base class that has been stretched one game too far.
+
 ## The rule this package exists to keep
 
 **One assembly per game.** Every game has exactly one function that turns a

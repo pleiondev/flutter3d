@@ -28,6 +28,13 @@ final class Circuit {
 /// that anything ever ended. Two circuits is the smallest number that makes the
 /// difference visible — and the second one is not a variant of the first: it is
 /// tighter, hillier, narrower and raced at a different hour.
+/// **Why this is not a `RunSession`.** The other two games load a level,
+/// snapshot it, restore it and move on, and `flutter3d_session` holds that shape
+/// for them. A season is the same idea with the middle taken out: nobody resumes
+/// a race half a lap in, so `snapshotOf` and `restoreInto` would be two required
+/// overrides returning nothing — ceremony that reads as a feature. What is
+/// actually kept between launches is which circuit and which best lap, and both
+/// are one line of their own file.
 abstract final class Season {
   static const List<Circuit> circuits = <Circuit>[
     Circuit(name: 'ring', title: 'The Ring'),
