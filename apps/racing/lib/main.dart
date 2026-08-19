@@ -25,12 +25,12 @@ import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_racing/bridge.dart';
 import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
-import 'src/scene_surface.dart';
 import 'src/sounds.dart';
 
 const String _trackAsset = 'assets/tracks/ring.json';
@@ -597,18 +597,31 @@ class _RaceScreenState extends State<RaceScreen>
               renderer: renderer,
               scene: scene,
               view: _view,
-              // Not a colour anybody typed: the haze at the horizon, brightened
-              // towards the sun along the direction the camera is looking. It
-              // is the same arithmetic the sky above is drawn with, so the far
-              // side of the lap fades into the background instead of into a
-              // band of a slightly different grey.
-              fog: FogSettings(
-                color: _sky.inScatterAlong(_gaze),
-                density: _sky.fogDensity,
-              ),
-              exposure: _sky.exposure,
-              sky: _skySettings(),
               onBeforeFrame: () {},
+              settings: () => RenderSettings(
+                // Not a colour anybody typed: the haze at the horizon,
+                // brightened towards the sun along the direction the camera is
+                // looking. It is the same arithmetic the sky above is drawn
+                // with, so the far side of the lap fades into the background
+                // instead of into a band of a slightly different grey.
+                fog: FogSettings(
+                  color: _sky.inScatterAlong(_gaze),
+                  density: _sky.fogDensity,
+                ),
+                // The hour of the day changes it: a low sun puts far less light
+                // on a circuit than a high one, and one exposure through both is
+                // either a washed-out noon or a dusk nobody can see the road in.
+                exposure: _sky.exposure,
+                sky: _skySettings(),
+                // Three cascades over a circuit a kilometre round. One map over
+                // that is metres of world per texel, which draws a car's own
+                // shadow as a slab beside it; three tiles put the near one over
+                // the part of the track anybody is looking at.
+                shadows: const ShadowSettings(
+                  cascades: kShadowCascades,
+                  resolution: kShadowResolution,
+                ),
+              ),
             ),
             // A platform view takes the pointer events over it, so the click
             // that hands the keyboard back has to be caught above the frame

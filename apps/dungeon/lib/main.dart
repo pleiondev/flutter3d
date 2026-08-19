@@ -13,6 +13,7 @@ import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_shooter/bridge.dart';
 import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter3d_shooter/sample.dart';
@@ -29,7 +30,6 @@ import 'src/hud.dart';
 import 'src/monster_looks.dart';
 import 'src/reactions.dart';
 import 'src/run_cubit.dart';
-import 'src/scene_surface.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/staging.dart';
@@ -997,11 +997,26 @@ class _GameScreenState extends State<GameScreen>
                 renderer: renderer,
                 scene: loaded.scene,
                 view: _view,
-                fog: FogSettings(
-                  color: loaded.level.fogColor,
-                  density: _fogOn ? loaded.level.fogDensity : 0.0,
-                ),
                 onBeforeFrame: _placeCamera,
+                settings: () => RenderSettings(
+                  // Off until the surface buffer carries roughness. Without it
+                  // the shader reflects off rough stone as readily as off a wet
+                  // floor, and the walls light up instead of the floor.
+                  //
+                  // Off for a second reason too: the march tests only the
+                  // front-most depth, so a ray passing behind a wall counts as
+                  // hitting it and picks up whatever is drawn at that pixel — a
+                  // highlight straight through solid stone. It needs a
+                  // view-space test, not a depth-space one.
+                  reflections: const ReflectionSettings(),
+                  // Straight from the document. A crypt without fog is a crypt
+                  // with a visible far wall, and the far wall is the thing an
+                  // author least wants seen.
+                  fog: FogSettings(
+                    color: loaded.level.fogColor,
+                    density: _fogOn ? loaded.level.fogDensity : 0.0,
+                  ),
+                ),
               ),
               // Hold to fire and drag to aim, which is what a captured pointer
               // already does at once — so the two are the same gesture here

@@ -53,6 +53,12 @@ dependencies:
   gamepad:
     path: ../../packages/gamepad
 
+  # The surface a frame reaches Flutter through, and the run being played —
+  # the part that is neither the simulation nor the screens. See its README for
+  # why it cannot live in either of its two neighbours.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
   # What goes through it is the screen: loading, pause, settings, the run's

@@ -40,6 +40,12 @@ dependencies:
   flutter3d_bridge:
     path: ../../packages/flutter3d_bridge
 
+  # The surface a frame reaches Flutter through, and the run being played —
+  # the part that is neither the simulation nor the screens. See its README for
+  # why it cannot live in either of its two neighbours.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
   vector_math: ^2.2.0
 
 dev_dependencies:

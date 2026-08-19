@@ -28,6 +28,7 @@ workspace:
   - packages/flutter3d_racing
   - packages/flutter3d_physics
   - packages/flutter3d_ui
+  - packages/flutter3d_session
   - packages/gamepad
   - packages/gamepad/example
   - packages/mouse_capture

@@ -1,0 +1,48 @@
+name: flutter3d_session
+description: "What a game on this engine is as an application: the surface a frame is handed to Flutter through, and the run being played."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+repository: https://github.com/dzolotov/flutter3d
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Reading a level and building a scene from it: `LevelLoader`, `FixtureVisuals`,
+  # `ActorVisuals`. This is the half a session needs that renders.
+  flutter3d_bridge:
+    path: ../flutter3d_bridge
+
+  # Where a run in progress is kept: `SaveFile` and the storage under it. This is
+  # the half a session needs that persists. **Neither package knows about the
+  # other**, which is the whole reason this one exists rather than one of them
+  # growing to hold both.
+  flutter3d_ui:
+    path: ../flutter3d_ui
+
+  # The simulation's vocabulary: `Snapshot`, `RunOutcome`, `GameLoop`.
+  flutter3d_game:
+    path: ../flutter3d_game
+
+  # The renderer, for `RenderSettings` and `Scene` — which the surface hands over
+  # and never interprets.
+  flutter3d:
+    path: ../flutter3d
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # A renderer with no GPU under it, so the surface can be mounted and pumped.
+  flutter3d_cpu:
+    path: ../flutter3d_cpu
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
