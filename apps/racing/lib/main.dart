@@ -29,6 +29,7 @@ import 'package:flutter3d_racing/flutter3d_racing.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:gamepad/gamepad.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
@@ -220,6 +221,26 @@ class _RaceScreenState extends State<RaceScreen>
   Accommodations _system = const Accommodations();
   late final DesktopInput _devices =
       DesktopInput(state: _input, bindings: ownedBindings(_config, _keys));
+
+  /// The controller, which this game did not read.
+  ///
+  /// **Everything it needs was already written.** `VehicleInput` has held a
+  /// throttle, a brake and a steering angle as `double` since the genre package
+  /// existed, and `PadRoutes.driving` was written for a game that never asked
+  /// for it — so a wheel that is half over and a trigger that is a third down
+  /// went to a game reading `held ? 1.0 : 0.0`.
+  late final PadInput _pad = PadInput(
+    state: _input,
+    // One table for both devices, because a player's bindings are one file.
+    bindings: _devices.bindings,
+    // The stick steers; the pedals are bound like the buttons they also are, so
+    // a player can move them. Which way the stick turns the car is not
+    // something anybody rebinds.
+    routes: PadRoutes.driving(
+      steerLeft: _Drive.left,
+      steerRight: _Drive.right,
+    ),
+  )..applySettings(_config);
   /// The loop, rather than a bare `FixedStep`.
   ///
   /// **This game drove the clock itself and got none of the loop's services**:
@@ -263,6 +284,10 @@ class _RaceScreenState extends State<RaceScreen>
     // Settings before devices: the bindings a player saved are the ones the
     // keyboard should read from the first key press, not from the first rebind.
     _config = _settingsFile.read();
+    // A config saved before this game read a controller has no `pad:` in it,
+    // and nobody should have to delete their settings to plug one in. The
+    // rebindings they did make are left alone.
+    if (!PadInput.knowsPad(_devices.bindings)) _padBindings(_devices.bindings);
     _settings = SettingsCubit(
       config: _config,
       file: _settingsFile,
@@ -309,6 +334,19 @@ class _RaceScreenState extends State<RaceScreen>
     _chase?.motion =
         _config.settingOf('a11y.cameraMotion', _system.cameraMotion);
   }
+
+  /// The driving pad.
+  ///
+  /// The triggers where every racing game has put them for twenty years, the
+  /// handbrake on the face button a thumb is already resting on, and the
+  /// engine's own defaults left out: this game does not walk, and a d-pad bound
+  /// to `moveForward` here would be a control that means nothing.
+  static Bindings _padBindings(Bindings bindings) => bindings
+    ..bind(InputSource.pad(PadButton.triggerRight.id), _Drive.throttle)
+    ..bind(InputSource.pad(PadButton.triggerLeft.id), _Drive.brake)
+    ..bind(InputSource.pad(PadButton.faceSouth.id), _Drive.handbrake)
+    ..bind(InputSource.pad(PadButton.dpadLeft.id), _Drive.left)
+    ..bind(InputSource.pad(PadButton.dpadRight.id), _Drive.right);
 
   /// The driving keys.
   ///
@@ -593,6 +631,11 @@ class _RaceScreenState extends State<RaceScreen>
         : (now - _lastTick).inMicroseconds / 1e6;
     _lastTick = now;
 
+    // Before the loop advances, so a step and the intent it is stepping with
+    // belong to the same frame — see [PadInput].
+    _pad.tick(dt);
+    _padRebinding();
+
     final race = _race;
     if (_simulation == null || race == null) return;
 
@@ -604,7 +647,7 @@ class _RaceScreenState extends State<RaceScreen>
       // it on every desktop build.
       pointerIsTheGate: false,
       pointerHeld: false,
-      padConnected: false,
+      padConnected: _pad.isConnected,
     );
     _loop.advance(dt.clamp(0.0, 0.25));
     _pace.note(
@@ -634,15 +677,36 @@ class _RaceScreenState extends State<RaceScreen>
     if (race.progress[0].finishedThisStep) _finishedHere();
   }
 
+  /// A pad button offered to a waiting rebinding.
+  ///
+  /// So a controller can be remapped from the controller, which is the whole
+  /// point for a player who has one of the two devices. Read as an edge here
+  /// rather than bound to an invented action, so the table holds only words the
+  /// game actually reads.
+  void _padRebinding() {
+    final pressing = _pad.heldButtons.isNotEmpty;
+    final wasPressing = _padPressing;
+    _padPressing = pressing;
+    if (!pressing || wasPressing) return;
+    if (_settings.state.waitingFor == null) return;
+    _settings.capture(InputSource.pad(_pad.heldButtons.first.id));
+  }
+
+  /// Whether the pad was holding anything last frame, for the edge above.
+  bool _padPressing = false;
+
   /// The player's keys, as a car's controls.
   void _readDriver(RacingSimulation simulation) {
+    // **How hard, not whether.** `value` is a key's full press and a trigger's
+    // actual travel, so the same three lines drive a car from a keyboard and
+    // from a controller — and a wheel a third over asks for a third of the
+    // lock, which is the whole reason `VehicleInput` holds doubles.
     final input = simulation.inputs[0];
     input
-      ..throttle = _input.held(_Drive.throttle) ? 1.0 : 0.0
-      ..brake = _input.held(_Drive.brake) ? 1.0 : 0.0
+      ..throttle = _input.value(_Drive.throttle)
+      ..brake = _input.value(_Drive.brake)
       ..handbrake = _input.held(_Drive.handbrake)
-      ..steer = (_input.held(_Drive.right) ? 1.0 : 0.0) -
-          (_input.held(_Drive.left) ? 1.0 : 0.0);
+      ..steer = _input.value(_Drive.right) - _input.value(_Drive.left);
   }
 
   void _driveTheRest(RacingSimulation simulation, RaceState race) {

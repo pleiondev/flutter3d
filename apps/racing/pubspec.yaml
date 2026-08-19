@@ -44,6 +44,11 @@ dependencies:
   flutter3d_ui:
     path: ../../packages/flutter3d_ui
 
+  # The controller. Only for the names of the buttons this game says out loud —
+  # the translation lives in `flutter3d_game`, which already depends on it.
+  gamepad:
+    path: ../../packages/gamepad
+
   # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
   flutter_bloc: ^9.1.1
 
