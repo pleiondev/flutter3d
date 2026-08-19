@@ -5,17 +5,6 @@ import 'package:vector_math/vector_math.dart';
 
 import 'sounds.dart';
 
-/// One sound, and where it happened.
-final class Heard {
-  const Heard(this.sound, this.at);
-
-  final SoundDef sound;
-  final Vector3 at;
-
-  @override
-  String toString() => 'Heard(${sound.name})';
-}
-
 /// What a step of this game sounds like.
 ///
 /// **Split out of `main.dart` so that silence can fail a test.** The decisions

@@ -5,17 +5,6 @@ import 'package:vector_math/vector_math.dart';
 
 import 'sounds.dart';
 
-/// One sound, and where it happened.
-final class Heard {
-  const Heard(this.sound, this.at);
-
-  final SoundDef sound;
-  final Vector3 at;
-
-  @override
-  String toString() => 'Heard(${sound.name})';
-}
-
 /// What is happening to a sound that has a lifetime.
 enum Voice {
   /// Start it, at [Sustained.at].
@@ -30,6 +19,13 @@ enum Voice {
 
 /// A sound with a lifetime: it starts, it follows the thing making it, and it
 /// stops.
+///
+/// **Still this game's, while [Heard] moved to the audio package.** The rule is
+/// the second consumer, and there is not one: the platformer has no sound that
+/// outlives a step, and the racing game's engine is not this shape either — it
+/// is one voice per car that never stops and is modulated rather than begun and
+/// ended. Moving this on the strength of one user would be guessing what the
+/// second one needs, and the second one is exactly what makes a shape right.
 ///
 /// **Not the same as a [Heard], and the difference is the whole reason this
 /// class exists.** A shot is over before the next step; a stone door grinding

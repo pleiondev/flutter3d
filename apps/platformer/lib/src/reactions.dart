@@ -5,17 +5,6 @@ import 'package:vector_math/vector_math.dart';
 
 import 'effects.dart';
 
-/// One burst, where it happens, and which way it goes.
-final class Shown {
-  const Shown(this.effect, this.at, {this.direction});
-
-  final ParticleEffect effect;
-  final Vector3 at;
-
-  /// Up, for the things that throw somebody up. Null is the effect's own shape.
-  final Vector3? direction;
-}
-
 /// What the camera does about something, as a description rather than a call.
 ///
 /// Three verbs, because `FollowCamera` has three: a [kick] is a nudge the

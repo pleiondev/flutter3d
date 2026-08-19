@@ -21,6 +21,7 @@ import 'dart:io';
 import 'package:dungeon/src/sounds.dart';
 import 'package:dungeon/src/soundtrack.dart';
 import 'package:dungeon/src/staging.dart';
+import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter3d_shooter/sample.dart';

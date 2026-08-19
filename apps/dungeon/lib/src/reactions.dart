@@ -4,18 +4,6 @@ import 'package:vector_math/vector_math.dart';
 
 import 'effects.dart';
 
-/// One burst, where it happens, and which way it goes.
-final class Shown {
-  const Shown(this.effect, this.at, {this.direction});
-
-  final ParticleEffect effect;
-  final Vector3 at;
-
-  /// The surface normal, the barrel's line — whatever the effect should lean
-  /// along. Null is the effect's own shape.
-  final Vector3? direction;
-}
-
 /// Something that keeps emitting for a while after the event that caused it.
 ///
 /// A rocket's smoke outlives its fire by the best part of a second, and a burst
@@ -36,6 +24,12 @@ final class Lingering {
 }
 
 /// Everything one step showed, and how hard the screen should flash about it.
+///
+/// **Per game, and it should be.** [Shown] moved into the particles package
+/// because both applications had written it identically; this did not, because
+/// they had not: the platformer's carries what the camera does about it, and
+/// this one's carries what lingers and whether the screen flashes. A shared
+/// class covering both would be four fields where each game reads two.
 final class Reaction {
   const Reaction(this.bursts, this.lingering, {this.flash = false});
 
