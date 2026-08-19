@@ -33,12 +33,11 @@ import 'src/credits.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
-import 'src/looks.dart';
 import 'src/reactions.dart';
+import 'src/run.dart';
 import 'src/runner_looks.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
-import 'src/staging.dart';
 import 'src/title_card.dart';
 
 void main() {
@@ -115,7 +114,6 @@ class _GameScreenState extends State<GameScreen>
   /// How many falls a run survives. Negative would mean "endless", which is
   /// what the package defaults to and what every test written before
   /// progression existed relies on.
-  static const int _lives = 3;
   /// Who the player is looking at.
   ///
   /// **Back to the penguin.** `hero.glb` is rigged and carries eighteen clips,
@@ -191,10 +189,15 @@ class _GameScreenState extends State<GameScreen>
   /// that combination fails to allocate — every frame, from the first — which
   /// is the same trap the runner's model fell into and is documented on
   /// `_dressRunner`.
-  Scene _scene = Scene();
+  /// Empty until a level is up, so the first frames have something to draw.
+  final Scene _empty = Scene();
 
-  LoadedLevel? _loaded;
-  FixtureVisuals? _fixtures;
+  /// What the render loop reads, all of it owned by [_run]. Getters rather than
+  /// fields assigned together in one `setState`, so there is one answer to
+  /// "which level is this" instead of five that have to agree.
+  Scene get _scene => _level?.scene ?? _empty;
+  LoadedLevel? get _loaded => _level?.loaded;
+  FixtureVisuals? get _fixtures => _level?.fixtures;
 
   /// What the player sees themselves as. A model when one loads, a box when it
   /// does not — the game is playable either way, and a missing asset should not
@@ -225,8 +228,8 @@ class _GameScreenState extends State<GameScreen>
   /// way. A number rather than a re-authored mesh.
   double _runnerFacing = 0.0;
 
-  Runner? _runner;
-  PlatformerSimulation? _sim;
+  Runner? get _runner => _level?.runner;
+  PlatformerSimulation? get _sim => _level?.sim;
   FollowCamera? _followCamera;
 
   /// Dust, sparks and flame. One pool for the whole game, one draw call.
@@ -274,6 +277,12 @@ class _GameScreenState extends State<GameScreen>
 
   final SaveFile _saveFile = SaveFile(appName: 'platformer');
 
+  /// The run: which level is up, how it is going, and where next.
+  ///
+  /// Built in [initState]; its `open` waits on [_deviceReady], so the first
+  /// level may be asked for before the renderer has finished opening.
+  late final PlatformerRun _run;
+
   /// What a step sounds like. See `soundtrack.dart` for why this is a class
   /// and not a method: a decision can be tested, an effect inside a widget
   /// cannot.
@@ -290,7 +299,12 @@ class _GameScreenState extends State<GameScreen>
   double _sayFor = 0.0;
 
   /// Which level is being played. Written by [_loadLevel], read by the save.
-  String _levelAsset = _firstLevel;
+  LevelReady? get _level => _run.level;
+  String get _levelAsset => switch (_run.status) {
+        RunPlaying<LevelReady>(:final asset) => asset,
+        RunFailed<LevelReady>(:final asset) => asset,
+        _ => _firstLevel,
+      };
 
   /// Where the run was standing when it was last written to disk.
   ///
@@ -299,11 +313,6 @@ class _GameScreenState extends State<GameScreen>
   /// would put a file write in the frame budget; writing only on quit loses the
   /// whole run to a crash.
   Vector3? _savedFrom;
-
-  /// Guards the one-way trip out of a finished run: the state stays `finished`
-  /// for every frame until the next level is up, and without this each of them
-  /// would start loading it.
-  bool _movingOn = false;
 
 
   @override
@@ -461,17 +470,37 @@ class _GameScreenState extends State<GameScreen>
       }
     });
 
+    _run = PlatformerRun(
+      firstLevel: _firstLevel,
+      saves: _saveFile,
+      input: _input,
+      openDevice: () => _deviceReady.future,
+      onLevelBuilt: (LevelReady level, GraphicsDevice device) =>
+          setState(() => _levelArrived(level, device)),
+    );
+    _run.onChanged = (RunStatus<LevelReady> status) {
+      if (!mounted) return;
+      setState(() {
+        if (status is RunFailed<LevelReady>) {
+          // A device that never opened is reported as itself, once, by
+          // `_openGraphics` — not a second time here as a level that would not
+          // load.
+          if (_initError != null) return;
+          _levelError = status.error;
+          _levelErrorAsset = status.asset;
+        }
+      });
+    };
+
     _ticker = createTicker(_onTick)..start();
 
     // A run in progress beats a fresh one, and the file says which level it was
     // in — see `SaveFile`, which refuses to hand back a snapshot without one.
-    final saved = _saveFile.read();
-    _resumed = saved != null;
-    unawaited(
-      saved == null
-          ? _loadLevel(_firstLevel)
-          : _loadLevel(saved.level, resume: saved.run),
-    );
+    // `begin` also falls back when the saved level is gone, which this game
+    // used to handle by showing an error screen with a button on it.
+    unawaited(_run.begin().then((bool resumed) {
+      if (mounted) setState(() => _resumed = resumed);
+    }));
   }
 
   /// Starts SoLoud and swaps it in behind the mixer.
@@ -602,115 +631,34 @@ class _GameScreenState extends State<GameScreen>
   /// and offering nothing to do about it. Every one of those is a *content*
   /// mistake — the failure a person editing a level makes, which is to say the
   /// most likely failure this game has.
-  /// What a run has come to so far, carried from one level into the next.
+  /// Everything the widget has to do when a level arrives.
   ///
-  /// **Three lives used to mean three lives per level**, and the clock on the
-  /// summit read as the time for the last climb: every level built a fresh
-  /// simulation with the constant, and the tally of the run before it went
-  /// nowhere. A run spans levels and a simulation does not — only this file
-  /// knows what the level after this one is, so only this file can carry it.
-  ///
-  /// Null for a run that is starting. Cleared when one ends, either way.
-  ({int lives, int deaths, double elapsed, int coins})? _carried;
-
-  Future<void> _loadLevel(String asset, {Snapshot? resume}) async {
-    try {
-      await _readLevel(asset, resume: resume);
-    } catch (error, trace) {
-      debugPrint('level: could not load $asset: $error\n$trace');
-      // A device that never opened is reported as itself, once, by
-      // `_openGraphics` — not a second time here as a level that would not load.
-      if (mounted && _initError == null) {
-        setState(() {
-          _levelError = error;
-          _levelErrorAsset = asset;
-        });
-      }
-    }
-  }
-
-  /// The seam where the engine, the genre and this game's content meet.
-  ///
-  /// [asset] is which level; [resume] is a run to put back into it, which is
-  /// only ever a snapshot saved from *this* level — [SaveFile] refuses to hand
-  /// over one from another.
-  Future<void> _readLevel(String asset, {Snapshot? resume}) async {
-    // Waited for rather than given up on — see [_deviceReady].
-    final device = await _deviceReady.future;
-    if (!mounted) return;
-    _levelAsset = asset;
+  /// Handed to [PlatformerRun] rather than done at the tail of a load, because
+  /// the load happens in the run now and every one of these is an effect on
+  /// something the run does not own.
+  void _levelArrived(LevelReady level, GraphicsDevice device) {
+    final runner = level.runner;
     _levelError = null;
     // A load takes far longer than a frame and drops simulated time every time.
     // Counting that against the machine would light the slow-machine warning on
     // every level of every run, which is the same as not having one.
     _pace.reset(_loop.clock.droppedSteps);
 
-    // One registry validates the document and then spawns it — see `stage`,
-    // which is where the rest of this used to be written out longhand, in this
-    // file and in four test harnesses that each had their own copy.
-    final kinds = platformerRegistry();
-    final loaded = await LevelLoader().load(
-      asset,
-      device: device,
-      registry: kinds,
-      rules: platformerRules(),
+    // A box now, the model when it arrives. Doing it any other way is what
+    // turned out to matter: awaiting the model here puts it in the scene before
+    // the renderer has ever built its frame targets, and on this machine that
+    // combination fails to allocate them — every frame, from the first.
+    _runnerNode = _boxRunner(device, level.scene, runner);
+    _followCamera = FollowCamera(world: level.loaded.collision);
+    // A camera is built per level, so the setting has to be put back on it.
+    _applyAccessibility();
+    unawaited(_dressRunner(device, level.scene, runner));
+    _drawnAt = InterpolatedVector3(
+      initial: runner.body.position,
+      stepLimit: runner.body.tuning.stepHeight,
     );
-    if (!mounted) return;
-
-    final fixtures = FixtureVisuals(
-      loaded.scene,
-      loaded,
-      appearance: const PlatformerLooks(),
-      device: device,
-    )..bindLights();
-
-    final staged = stage(
-      loaded.level,
-      loaded.collision,
-      input: _input,
-      registry: kinds,
-      onFixture: fixtures.add,
-      coins: _carried?.coins ?? 0,
-      lives: _carried?.lives ?? _lives,
-      deaths: _carried?.deaths ?? 0,
-      elapsed: _carried?.elapsed ?? 0.0,
-    );
-    final runner = staged.runner;
-
-    // A box now, the model when it arrives. `FixtureVisuals` does the same for
-    // a modelled fixture, and doing it any other way is what turned out to
-    // matter: awaiting the model here puts it in the scene before the renderer
-    // has ever built its frame targets, and on this machine that combination
-    // fails to allocate them — every frame, from the first.
-    final node = _boxRunner(device, loaded.scene, runner);
-
-    setState(() {
-      _loaded = loaded;
-      _scene = loaded.scene;
-      _fixtures = fixtures;
-      _runnerNode = node;
-      _runner = runner;
-      _sim = staged.sim;
-      _followCamera = FollowCamera(world: loaded.collision);
-      // A camera is built per level, so the setting has to be put back on it.
-      _applyAccessibility();
-      unawaited(_dressRunner(device, loaded.scene, runner));
-      _drawnAt = InterpolatedVector3(
-        initial: runner.body.position,
-        stepLimit: runner.body.tuning.stepHeight,
-      );
-      _drawnYaw.jumpTo(runner.yaw);
-    });
-
-    // After the scene is built rather than during it: `restore` moves bodies
-    // and re-indexes the broadphase, and doing that while the fixtures are
-    // still being added would leave the grid describing a world that has since
-    // changed.
-    if (resume != null) {
-      _sim?.restore(resume);
-      _followCamera?.cut();
-      _drawnAt.jumpTo(runner.body.position);
-    }
+    _drawnYaw.jumpTo(runner.yaw);
+    _followCamera?.cut();
     _savedFrom = null;
     _soundtrack.reset();
     // The other of the two racers: the device may have opened before there was
@@ -719,58 +667,17 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// Writes the run out when it has reached somewhere new to come back to.
+  ///
+  /// **This game's own trigger, and it stays here.** The crypt saves on entering
+  /// a level because it has no checkpoints; a platformer has them, and what a
+  /// checkpoint means is exactly that the respawn point moved.
   void _keepSaved() {
     final sim = _sim;
     if (sim == null) return;
     final at = sim.respawnPoint;
     if (_savedFrom != null && _savedFrom!.distanceToSquared(at) < 1e-6) return;
     _savedFrom = at.clone();
-    _saveRun();
-  }
-
-  /// Puts the run on disk. Called on a checkpoint and when the window closes.
-  ///
-  /// Cheap enough to do on every checkpoint and nowhere near cheap enough to do
-  /// every frame, which is what `_sinceSaved` is for.
-  void _saveRun() {
-    final sim = _sim;
-    if (sim == null) return;
-    if (sim.state == RunState.finished || sim.state == RunState.lost) return;
-    _saveFile.write(_levelAsset, sim.save());
-  }
-
-  /// What happens when a level is finished or a run is lost.
-  ///
-  /// Finished with somewhere to go loads it; finished with nowhere to go and
-  /// lost both stop, and the save is cleared either way — a run that has ended
-  /// is not one to resume into.
-  void _endOfRun() {
-    final sim = _sim;
-    if (sim == null || _movingOn) return;
-    if (sim.state != RunState.finished && sim.state != RunState.lost) return;
-
-    _movingOn = true;
-    _saveFile.clear();
-    final next = sim.state == RunState.finished ? sim.nextLevel : null;
-    if (next == null) {
-      // The run is over, whichever way. The next one starts from nothing.
-      _carried = null;
-      return;
-    }
-    _carried = (
-      lives: sim.lives,
-      deaths: sim.deaths,
-      elapsed: sim.elapsed,
-      coins: _runner?.purse['coin'] ?? 0,
-    );
-
-    // A beat on the results screen before the next level: arriving in a new
-    // place in the same frame the last one ended reads as a glitch.
-    Future<void>.delayed(const Duration(milliseconds: 1400), () async {
-      if (!mounted) return;
-      await _loadLevel(next);
-      if (mounted) _movingOn = false;
-    });
+    _run.save();
   }
 
   /// What the pad means to a screen rather than to the runner.
@@ -849,13 +756,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// Starts the run over, from the top of the level being played.
-  void _restart() {
-    _saveFile.clear();
-    // A new run, not a continuation of the one that ended.
-    _carried = null;
-    _movingOn = false;
-    unawaited(_loadLevel(_levelAsset));
-  }
+  void _restart() => unawaited(_run.restart());
 
   /// Back to the beginning, from a level that would not load.
   ///
@@ -864,12 +765,11 @@ class _GameScreenState extends State<GameScreen>
   /// helps is throwing the save away and going back to the first one.
   void _startOver() {
     _saveFile.clear();
-    _movingOn = false;
     setState(() {
       _levelError = null;
       _levelErrorAsset = null;
     });
-    unawaited(_loadLevel(_firstLevel));
+    unawaited(_run.load(_firstLevel));
   }
 
   /// A box, right away, so the game can be played while the model loads.
@@ -994,7 +894,7 @@ class _GameScreenState extends State<GameScreen>
     _fixtures?.sync(_elapsed);
     _burnLamps();
     _keepSaved();
-    _endOfRun();
+    unawaited(_run.advance());
     if (mounted) setState(() {});
   }
 
@@ -1185,7 +1085,7 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
-    _saveRun();
+    _run.save();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
     unawaited(_settings.close());

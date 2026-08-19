@@ -162,6 +162,26 @@ abstract base class RunSession<L> {
   /// Called by [restart] and by [begin] when there is nothing to resume.
   void startFresh() {}
 
+  /// What a game does about a run that ended badly. Nothing by default.
+  ///
+  /// **The two genres disagree here and both are right.** A platformer has
+  /// lives, so losing ends the *run* and the save goes with it — coming back to
+  /// a save from before the last life would undo the loss. A crypt has no
+  /// lives, so dying is a setback and the save is where you come back to.
+  ///
+  /// So this is a hook rather than a rule: the shared part is noticing, and
+  /// what it means belongs to the game.
+  void onLost(L level) {}
+
+  /// A beat before the next level is read. Immediate by default.
+  ///
+  /// The platformer waits on its results screen: arriving somewhere new in the
+  /// same frame the last place ended reads as a glitch. Awaited here rather
+  /// than slept through by the caller, because the guard against moving on
+  /// twice has to be held for the whole wait — which is exactly when a second
+  /// frame would try.
+  Future<void> beforeNext(String next) async {}
+
   // ── What this class does with the answers ─────────────────────────────────
 
   /// Starts a game: the saved run if there is one, otherwise [firstLevel].
@@ -235,9 +255,13 @@ abstract base class RunSession<L> {
   Future<void> advance() async {
     final playing = _status;
     if (playing is! RunPlaying<L> || _movingOn) return;
-    if (playing.outcome != RunOutcome.won) return;
+    if (!playing.outcome.isOver) return;
 
     _movingOn = true;
+    if (playing.outcome == RunOutcome.lost) {
+      onLost(playing.level);
+      return;
+    }
     final next = nextOf(playing.level);
     if (next == null) {
       // The end of the game. The save goes, or the next launch resumes a run
@@ -246,6 +270,7 @@ abstract base class RunSession<L> {
       return;
     }
     carryFrom(playing.level, next);
+    await beforeNext(next);
     await load(next);
     // Written once the level is up, so the save describes where the player
     // actually is rather than a level they have not entered.

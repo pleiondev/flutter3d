@@ -158,19 +158,30 @@ void main() {
     expect(_clock(tester), isNull);
   });
 
-  // **Skipped, and the reason is a wall rather than a preference.** Everything
-  // up to the level loads: the application mounts, the device opens, the title
-  // card comes up, a touch takes it down, and the touch controls appear. Then
-  // `LevelLoader().load` never returns under `testWidgets` — not throwing,
-  // which would be reported, and not waiting on time, because feeding it real
-  // milliseconds through `runAsync` and interleaving frames changes nothing. It
-  // completes in an ordinary `test()`, which is how `frame_test.dart` draws the
-  // same levels, so what differs is the fake-async zone `testWidgets` runs in.
+  // **Still skipped, and the reason is now understood rather than suspected.**
   //
-  // Left here rather than deleted because it is written, it names what it would
-  // check, and whoever gets past that wall inherits the assertions instead of
-  // starting from nothing. The pause it would prove is the bug this file was
-  // written for.
+  // Everything up to the level loads: the application mounts, the device opens,
+  // the title card comes up, a touch takes it down, and the touch controls
+  // appear. Then `LevelLoader().load` never returns — not throwing, which would
+  // be reported, and not waiting on time, because feeding it real milliseconds
+  // through `runAsync` changes nothing.
+  //
+  // **Moving the load out of the widget did not help, and that was worth
+  // finding out.** It is `PlatformerRun` now, an ordinary class in
+  // `flutter3d_session` — but this test still *mounts the application*, and the
+  // load is still started from `initState`, which is inside the fake-async zone
+  // `testWidgets` runs in. Where it lives was never the problem; who starts it
+  // is.
+  //
+  // What the move did buy is `run_test.dart` beside this file: the same
+  // sequence — begin, resume, restart, move on, save — driven from a plain
+  // `test()` with a `CpuDevice`, where the loader completes perfectly well. The
+  // dungeon proved that route first and this game now has it.
+  //
+  // So what is left here is only what genuinely needs a widget: the pause gate
+  // seen through a real settings panel, and a touch drag reaching the runner.
+  // Left rather than deleted because it names those, and whoever gets past the
+  // zone inherits the assertions.
   playing('and a run goes: begin, play, pause, come back, walk', (
     WidgetTester tester,
   ) async {
@@ -225,7 +236,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(_clock(tester), isNotNull, reason: 'the run ended while walking');
-  }, skip: 'LevelLoader does not complete under testWidgets — see above');
+  }, skip: 'the load starts inside the fake-async zone — see above');
 }
 
 /// A test of the touch build, with the platform put back afterwards.
