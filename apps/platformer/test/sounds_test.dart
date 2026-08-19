@@ -38,10 +38,16 @@ Set<String> _declared() {
       .toSet();
 }
 
-/// The names `Sounds.all` carries, matched back to their declarations by asset.
+/// The names inside the bank's own literal.
+///
+/// Still read from the source, and still necessary: a `SoundBank` removes the
+/// *second list* — there is nothing left that has to agree with anything — but
+/// it cannot see a constant declared beside it and left out. No type can. This
+/// is the check that catches that, and it is the check the platformer needed
+/// and did not have when six of its fourteen went missing.
 Set<String> _loaded() {
   final source = File('lib/src/sounds.dart').readAsStringSync();
-  final list = RegExp(r'static const List<SoundDef> all = <SoundDef>\[(.*?)\];',
+  final list = RegExp(r'static final SoundBank all = SoundBank\(<SoundDef>\[(.*?)\]\);',
           dotAll: true)
       .firstMatch(source)!
       .group(1)!;

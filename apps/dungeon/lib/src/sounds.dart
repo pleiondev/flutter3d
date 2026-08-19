@@ -133,7 +133,13 @@ abstract final class Sounds {
     maxInstances: 4,
   );
 
-  static const List<SoundDef> all = <SoundDef>[
+  /// Every sound this game has, and the only list of them.
+  ///
+  /// A [SoundBank] rather than a `List` beside the constants above, because a
+  /// second list is a second thing to keep in step — and this game's sibling
+  /// once lost six definitions out of fourteen that way, and was half mute for
+  /// months with nothing to notice.
+  static final SoundBank all = SoundBank(<SoundDef>[
     pistol,
     shotgun,
     stoneMove,
@@ -146,5 +152,5 @@ abstract final class Sounds {
     rocket,
     punch,
     step,
-  ];
+  ]);
 }
