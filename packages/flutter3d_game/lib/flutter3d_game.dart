@@ -48,6 +48,7 @@ export 'src/level/spawn_context.dart';
 export 'src/loop/fixed_step.dart';
 export 'src/loop/game_loop.dart';
 export 'src/loop/interpolated.dart';
+export 'src/loop/run_outcome.dart';
 export 'src/math/spline.dart';
 export 'src/nav/flow_field.dart';
 export 'src/nav/nav_grid.dart';

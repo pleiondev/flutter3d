@@ -544,4 +544,24 @@ void main() {
       }
     });
   });
+
+  group('the outcome every game shares', () {
+    test('counts the countdown as playing', () {
+      // The grid with the lights on is a moment inside a race, not an outcome.
+      expect(RacePhase.countdown.outcome, RunOutcome.playing);
+      expect(RacePhase.running.outcome, RunOutcome.playing);
+    });
+
+    test('and a race has no losing phase, which is the genre', () {
+      // Everybody who starts crosses the line eventually, and coming last is a
+      // position rather than a defeat. A time limit would grow one, and this
+      // test is where somebody would notice they had.
+      expect(RacePhase.finished.outcome, RunOutcome.won);
+      expect(
+        RacePhase.values.map((RacePhase p) => p.outcome),
+        isNot(contains(RunOutcome.lost)),
+      );
+    });
+  });
+
 }

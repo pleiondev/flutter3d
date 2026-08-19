@@ -63,7 +63,14 @@ enum GameState {
   dead,
 
   /// An [Exit] was reached. See [GameSimulation.nextLevel].
-  complete,
+  complete;
+
+  /// The same answer in the words every game shares.
+  RunOutcome get outcome => switch (this) {
+        GameState.playing => RunOutcome.playing,
+        GameState.dead => RunOutcome.lost,
+        GameState.complete => RunOutcome.won,
+      };
 }
 
 final class GameSimulation {

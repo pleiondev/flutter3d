@@ -22,7 +22,16 @@ enum RunState {
   /// Distinct from [finished] because they are opposite outcomes that a game
   /// has to show differently, and distinct from [fallen] because that one is
   /// one step long and this one waits for the player.
-  lost,
+  lost;
+
+  /// The same answer in the words every game shares. `fallen` is still
+  /// [RunOutcome.playing]: it is one step of a run that is going on, not an
+  /// outcome — a runner who has just died has not lost until the lives do.
+  RunOutcome get outcome => switch (this) {
+        RunState.running || RunState.fallen => RunOutcome.playing,
+        RunState.lost => RunOutcome.lost,
+        RunState.finished => RunOutcome.won,
+      };
 }
 
 /// A platformer's step, in the order it has to happen in.

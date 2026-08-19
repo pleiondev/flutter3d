@@ -10,14 +10,7 @@
 /// red. The permutation is named in each.
 library;
 
-import 'package:flutter3d_game/src/input/game_action.dart';
-import 'package:flutter3d_game/src/input/input_state.dart';
-import 'package:flutter3d_game/src/physics/layers.dart';
-import 'package:flutter3d_game/src/world/exit.dart';
-import 'package:flutter3d_game/src/world/mechanism.dart';
-import 'package:flutter3d_game/src/world/mover.dart';
-import 'package:flutter3d_game/src/world/signals.dart';
-import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -326,5 +319,20 @@ void main() {
       expect(h.sim.state, GameState.complete);
     });
   });
+
+  group('the outcome every game shares', () {
+    test('says the same three things this enum says', () {
+      expect(GameState.playing.outcome, RunOutcome.playing);
+      expect(GameState.dead.outcome, RunOutcome.lost);
+      expect(GameState.complete.outcome, RunOutcome.won);
+    });
+
+    test('and a finished run is over, whichever way it went', () {
+      expect(GameState.dead.outcome.isOver, isTrue);
+      expect(GameState.complete.outcome.isOver, isTrue);
+      expect(GameState.playing.outcome.isOver, isFalse);
+    });
+  });
+
 }
 

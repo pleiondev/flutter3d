@@ -336,4 +336,30 @@ void _progressTests() {
           reason: 'the flag stayed up, so the burst plays every frame');
     });
   });
+
+  group('the outcome every game shares', () {
+    test('is playing while the run is going, dead runner and all', () {
+      // `fallen` is one step of a run that is going on, not an outcome: a
+      // runner who has just died has not lost until the lives do. Getting this
+      // wrong writes "you lost" over a respawn.
+      expect(RunState.running.outcome, RunOutcome.playing);
+      expect(RunState.fallen.outcome, RunOutcome.playing);
+    });
+
+    test('and tells the two endings apart', () {
+      expect(RunState.lost.outcome, RunOutcome.lost);
+      expect(RunState.finished.outcome, RunOutcome.won);
+    });
+
+    test('and every state has one', () {
+      // The switch is exhaustive, so this fails to compile rather than at run
+      // time if a state is added — and this asserts the other half: that a new
+      // state was thought about rather than mapped to `playing` to shut the
+      // compiler up.
+      for (final state in RunState.values) {
+        expect(state.outcome, isNotNull);
+      }
+    });
+  });
+
 }
