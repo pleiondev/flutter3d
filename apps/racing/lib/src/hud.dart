@@ -32,6 +32,7 @@ class RaceReadout {
     required this.carsOnMap,
     this.behind = false,
     this.paused = false,
+    this.notice,
   });
 
   /// Metres per second. Turned into something a driver reads at the last
@@ -66,6 +67,13 @@ class RaceReadout {
 
   /// Whether the player has stopped the race.
   final bool paused;
+
+  /// What is said across the screen between circuits, and when the season ends.
+  ///
+  /// A race that is won and says nothing is a race that looks broken, which is
+  /// what this game did: the finish line was crossed, the simulation marked it,
+  /// and the car kept driving round an empty circuit forever.
+  final String? notice;
 
 }
 
@@ -135,6 +143,23 @@ class RaceHud extends StatelessWidget {
                     fontSize: 34,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 3,
+                  ),
+                ),
+              ),
+            ),
+          if (readout.notice != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 90,
+              child: Center(
+                child: Text(
+                  readout.notice!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 2,
                   ),
                 ),
               ),

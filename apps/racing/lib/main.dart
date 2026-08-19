@@ -32,14 +32,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
+import 'src/circuits.dart';
 import 'src/credits.dart';
 import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
 import 'src/sounds.dart';
 
-const String _trackAsset = 'assets/tracks/ring.json';
-const String _levelAsset = 'assets/tracks/ring_level.json';
 
 /// How many cars line up, the player included.
 const int _fieldSize = 4;
@@ -68,6 +67,10 @@ class RaceScreen extends StatefulWidget {
 class _RaceScreenState extends State<RaceScreen>
     with SingleTickerProviderStateMixin {
   Renderer? _renderer;
+
+  /// Kept because a season has a second circuit to build, and building it means
+  /// uploading meshes to the device the first one was built on.
+  GraphicsDevice? _device;
   Ticker? _ticker;
   Object? _initError;
 
@@ -153,15 +156,31 @@ class _RaceScreenState extends State<RaceScreen>
   final List<SphereVehicle> _cars = <SphereVehicle>[];
   final List<SceneNode> _carNodes = <SceneNode>[];
 
+  /// Which circuit is being raced, and how far into the season that is.
+  ///
+  /// **The game had one `const` asset path and no idea that anything ever
+  /// ended.** A race could be won and nothing happened: no next circuit,
+  /// nothing that remembered having been anywhere, and a car going round a
+  /// finished race forever.
+  late final SeasonProgress _season =
+      SeasonProgress(storage: defaultStorage('racing'));
+  late Circuit _circuit = _season.read();
+
+  /// What is said across the screen between circuits, and at the end.
+  String? _notice;
+
   /// The best lap driven here, and the car it is drawn as.
   ///
   /// **Written, tested and never used**: the ghost has been in the racing
-  /// package since it existed and this game called none of it.
-  late final GhostKeeper _ghosts = GhostKeeper(
-    storage: defaultStorage('racing'),
-    track: _trackAsset,
-  );
+  /// package since it existed and this game called none of it. Rebuilt with the
+  /// circuit, because a lap of one circuit means nothing on another.
+  late GhostKeeper _ghosts = _keeperFor(_circuit);
   GhostCar? _ghostCar;
+
+  GhostKeeper _keeperFor(Circuit circuit) => GhostKeeper(
+        storage: defaultStorage('racing'),
+        track: circuit.track,
+      );
 
   /// How far above the body's own origin each car is drawn, in metres.
   ///
@@ -323,6 +342,7 @@ class _RaceScreenState extends State<RaceScreen>
       return;
     }
     if (!mounted) return;
+    _device = device;
 
     setState(() {
       try {
@@ -382,12 +402,12 @@ class _RaceScreenState extends State<RaceScreen>
       // The circuit and the scenery are two halves of one document, written by
       // one script and read by two loaders: the spline is this genre's and the
       // level is the engine's, which has read brushes since the first game.
-      final text = await rootBundle.loadString(_trackAsset);
+      final text = await rootBundle.loadString(_circuit.track);
       final document = TrackDocument.fromJson(
         jsonDecode(text) as Map<String, Object?>,
       );
       final loaded = await const LevelLoader().load(
-        _levelAsset,
+        _circuit.level,
         device: device,
         // This circuit places no entities — the scenery is brushes — so the
         // registry is empty rather than absent: the loader validates against
@@ -432,7 +452,7 @@ class _RaceScreenState extends State<RaceScreen>
         _carLift.add(0.5 - car.tuning.rideHeight);
       }
 
-      _ghosts.load();
+      _ghosts = _keeperFor(_circuit)..load();
       _ghostCar = GhostCar.build(device, scene);
 
       {
@@ -473,6 +493,72 @@ class _RaceScreenState extends State<RaceScreen>
   ///
   /// If it does not, the game is still playable as a box — a car that will not
   /// start because an asset moved is worse than a car that is a rectangle.
+  /// The player has finished the race. On to the next circuit, or that was the
+  /// season.
+  ///
+  /// Saved before the next circuit is loaded rather than after: the moment a
+  /// save is for is the one where the machine might not reach the end of the
+  /// load, and a player who is put back on the circuit they have just won has
+  /// lost the race they won.
+  void _finishedHere() {
+    final next = Season.after(_circuit);
+    if (next == null) {
+      // The season starts again next launch. A deliberate clear rather than a
+      // name meaning "done": a saved file naming a circuit this build does not
+      // ship already reads as the first one, and one meaning is easier to keep
+      // true than two.
+      _season.clear();
+      setState(() => _notice = 'Season complete');
+      return;
+    }
+
+    _season.reached(next);
+    setState(() => _notice = '${next.title} next');
+    unawaited(_moveOn(next));
+  }
+
+  /// How long the finished circuit stays on screen before the next one.
+  ///
+  /// The same pause the platformer takes between levels, for the same reason: a
+  /// race that cuts away on the frame it is won reads as a crash rather than as
+  /// a result.
+  static const Duration _pauseBetweenCircuits = Duration(milliseconds: 1800);
+
+  Future<void> _moveOn(Circuit next) async {
+    final device = _device;
+    if (device == null) return;
+    await Future<void>.delayed(_pauseBetweenCircuits);
+    if (!mounted) return;
+
+    // Everything that belonged to the circuit just raced. The voices are
+    // stopped rather than dropped: a car that is no longer in the world still
+    // has an engine running in the mixer.
+    for (final voice in _voices) {
+      voice.stop();
+    }
+    _voices.clear();
+    _cars.clear();
+    _carNodes.clear();
+    _carLift.clear();
+    _ghostCar = null;
+
+    setState(() {
+      _circuit = next;
+      _notice = null;
+      // An empty scene rather than none: the surface has to keep drawing
+      // through the load or Flutter GPU never learns its own pixel format —
+      // see [_scene].
+      _scene = Scene()..add(_camera);
+      _race = null;
+      _simulation = null;
+      _track = null;
+      _chase = null;
+      _ai = null;
+    });
+
+    await _loadCircuit(device);
+  }
+
   Future<void> _dressPlayer(GraphicsDevice device, Scene scene) async {
     try {
       final document = await decodeModelInIsolate(
@@ -545,6 +631,7 @@ class _RaceScreenState extends State<RaceScreen>
     // whether it was the best is knowable when it ends, and by then it is too
     // late to have been writing it down.
     _ghosts.stepped(race.progress[0], _cars[0]);
+    if (race.progress[0].finishedThisStep) _finishedHere();
   }
 
   /// The player's keys, as a car's controls.
@@ -664,6 +751,7 @@ class _RaceScreenState extends State<RaceScreen>
     return RaceReadout(
                 behind: _pace.behind,
                 paused: _settings.state.isOpen,
+                notice: _notice,
       speed: _cars[0].speed,
       lap: player.lap,
       laps: race.laps,

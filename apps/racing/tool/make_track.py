@@ -18,50 +18,77 @@ Run: python3 tool/make_track.py
 
 import json
 import math
+from dataclasses import dataclass
 from pathlib import Path
 
 TRACKS = Path(__file__).resolve().parent.parent / "assets" / "tracks"
 
-# How many control points the curve is authored with. Enough that the corners
-# are corners rather than polygons, few enough that the file is readable.
-POINTS = 32
 
-# The shape. `base` sets how big the circuit is; the two lobes are what turn a
-# ring into a lap with corners worth naming.
-BASE_RADIUS = 150.0
-LOBE_TWO = 34.0
-LOBE_THREE = 22.0
+@dataclass(frozen=True)
+class Circuit:
+    """Everything that makes one circuit different from another.
 
-# How much the circuit climbs and falls, top to bottom.
-RELIEF = 9.0
+    **These were module constants and one circuit, and the game had one track.**
+    A second one is not a second script: every number below was already the only
+    thing that varied, and a copy would have been a copy of four hundred lines of
+    sky arithmetic to change nine of them.
+    """
 
-WIDEST = 18.0
-NARROWEST = 11.0
+    name: str
 
-# How far the ground either side stays part of the track before the level takes
-# over. Wide enough to run wide and get back on.
-SHOULDER = 5.0
+    # Which hour this circuit is raced at.
+    preset: str
 
-# The most a corner is tilted, in degrees, at the tightest radius on the lap.
-MAX_BANK = 7.0
+    # How many control points the curve is authored with. Enough that the
+    # corners are corners rather than polygons, few enough that the file is
+    # readable.
+    points: int = 32
 
-LAP_CHECKPOINTS = 4
+    # The shape. `base` sets how big the circuit is; the two lobes are what turn
+    # a ring into a lap with corners worth naming.
+    base_radius: float = 150.0
+    lobe_two: float = 34.0
+    lobe_three: float = 22.0
+
+    # How much the circuit climbs and falls, top to bottom.
+    relief: float = 9.0
+
+    widest: float = 18.0
+    narrowest: float = 11.0
+
+    # How far the ground either side stays part of the track before the level
+    # takes over. Wide enough to run wide and get back on.
+    shoulder: float = 5.0
+
+    # The most a corner is tilted, in degrees, at the tightest radius on the lap.
+    max_bank: float = 7.0
+
+    lap_checkpoints: int = 4
+
+    # Walls, as fractions of a lap, down the outside of the corners a car
+    # arrives at fastest.
+    barriers: tuple = ((0.08, 0.22), (0.58, 0.72))
+
+    # How far out the pillars stand, as metres beyond the widest part of the
+    # circuit. Scenery a car can reach is scenery a car will hit.
+    pillar_clearance: float = 55.0
 
 
-def centre_line():
+def centre_line(circuit):
     """The control points, as (position, curvature) pairs."""
     points = []
-    for i in range(POINTS):
-        angle = 2 * math.pi * i / POINTS
+    for i in range(circuit.points):
+        angle = 2 * math.pi * i / circuit.points
         radius = (
-            BASE_RADIUS
-            + LOBE_TWO * math.cos(2 * angle)
-            + LOBE_THREE * math.cos(3 * angle)
+            circuit.base_radius
+            + circuit.lobe_two * math.cos(2 * angle)
+            + circuit.lobe_three * math.cos(3 * angle)
         )
         points.append(
             (
                 radius * math.cos(angle),
-                RELIEF * 0.5 * math.sin(angle) - RELIEF * 0.25 * math.cos(2 * angle),
+                circuit.relief * 0.5 * math.sin(angle)
+                - circuit.relief * 0.25 * math.cos(2 * angle),
                 radius * math.sin(angle),
             )
         )
@@ -94,8 +121,8 @@ def curvature_at(points, i):
     return turn / ((la + lb) / 2)
 
 
-def build():
-    points = centre_line()
+def build(circuit):
+    points = centre_line(circuit)
     curves = [curvature_at(points, i) for i in range(len(points))]
     sharpest = max(abs(c) for c in curves) or 1.0
 
@@ -107,7 +134,11 @@ def build():
                 "at": rounded([x, y, z]),
                 # The road closes down through the tight stuff, which is what
                 # makes a slow corner feel slow.
-                "width": round(WIDEST - (WIDEST - NARROWEST) * tightness, 2),
+                "width": round(
+                    circuit.widest
+                    - (circuit.widest - circuit.narrowest) * tightness,
+                    2,
+                ),
                 # Tilted into the turn. The sign matters and is easy to get
                 # backwards: a positive camber raises the road's right-hand
                 # edge, and a left-hand corner — which is a positive curvature
@@ -116,7 +147,9 @@ def build():
                 # produces a circuit that is off-camber everywhere, which does
                 # not look wrong and puts the car off the road at every corner
                 # tight enough to matter.
-                "bank": round(MAX_BANK * tightness * sign(curves[i]), 2),
+                "bank": round(
+                    circuit.max_bank * tightness * sign(curves[i]), 2
+                ),
             }
         )
     return entries
@@ -145,7 +178,7 @@ def lap_length(points):
     return total
 
 
-def ground(points):
+def ground(circuit, points):
     """The level around the circuit: something to land on off the road.
 
     Its top sits below the lowest point of the circuit rather than at zero. The
@@ -157,7 +190,7 @@ def ground(points):
     past its edge there is nothing, so the edge has to fall somewhere the air has
     already swallowed — see `ground_reach`.
     """
-    reach = ground_reach()
+    reach = ground_reach(circuit)
     floor = min(y for _, y, _ in points) - 1.5
     thickness = 4.0
     brushes = [
@@ -174,7 +207,7 @@ def ground(points):
     # reach is scenery a car will hit.
     for i in range(24):
         angle = 2 * math.pi * i / 24
-        radius = PILLAR_RADIUS
+        radius = pillar_radius(circuit)
         brushes.append(
             {
                 "at": rounded(
@@ -306,9 +339,6 @@ SKY_PRESETS = {
     },
 }
 
-# Which hour this circuit is raced at. The one line to change.
-PRESET = "morning"
-
 # How much of the far edge of the ground may still show through the haze.
 #
 # `exp(-density * reach)` is exactly how much of it survives, so this number and
@@ -324,8 +354,8 @@ GROUND_MIN = 300.0
 GROUND_MAX = 700.0
 
 
-def sky():
-    return SKY_PRESETS[PRESET]
+def sky(circuit):
+    return SKY_PRESETS[circuit.preset]
 
 
 def direction_to_sun(preset):
@@ -379,22 +409,29 @@ def horizon_fog_colour(preset):
     return sky_colour_at(preset, unit)
 
 
-def ground_reach():
+def ground_reach(circuit):
     """Half the width of the ground, in metres, sized by the haze."""
-    preset = sky()
+    preset = sky(circuit)
     reach = math.log(1.0 / GROUND_FADE) / preset["fogDensity"]
     return round(max(GROUND_MIN, min(GROUND_MAX, reach)), 1)
 
 
-# Scenery a car can reach is scenery a car will hit, so the pillars stand well
-# outside the widest part of the circuit — and inside the ground, or they would
-# be posts driven into nothing.
-PILLAR_RADIUS = min(BASE_RADIUS + LOBE_TWO + 55.0, ground_reach() - 30.0)
+def pillar_radius(circuit):
+    """Where the pillars stand.
+
+    Scenery a car can reach is scenery a car will hit, so they stand well
+    outside the widest part of the circuit — and inside the ground, or they
+    would be posts driven into nothing.
+    """
+    return min(
+        circuit.base_radius + circuit.lobe_two + circuit.pillar_clearance,
+        ground_reach(circuit) - 30.0,
+    )
 
 
-def lights():
+def lights(circuit):
     """The one sun, derived from the preset rather than typed out beside it."""
-    preset = sky()
+    preset = sky(circuit)
     to_sun = direction_to_sun(preset)
     return [
         {
@@ -408,18 +445,54 @@ def lights():
     ]
 
 
-def main():
-    points = centre_line()
+CIRCUITS = (
+    # The circuit this game has always been raced on, unchanged: it is what
+    # every recorded lap, every golden frame and every playthrough test is of,
+    # and a "tidy up while I am here" here would be a change nobody asked for
+    # spread across all of them.
+    Circuit(name="ring", preset="morning"),
+    # And somewhere else to drive. Not a variation on the ring: tighter, twice
+    # the climb, a road that narrows to nine metres in the slow corners, and
+    # raced at the end of the day — so the same car, on the same tyres, is a
+    # different car to hold on to. Two more checkpoints because a lap with this
+    # many corners can be cut in more ways.
+    #
+    # **How tight is decided by what can be driven, not by taste.** The first
+    # draft closed to a 36-metre radius, and the reference driver in
+    # `playthrough_test.dart` went off at the same corner on every lap: a bend
+    # that tightens from ninety metres to thirty-six inside the distance a car
+    # at speed looks ahead cannot be braked for, by that driver or by a person.
+    # Sixty-eight is a corner slower than anything on the ring and still a
+    # corner. A circuit nobody can get round is not a second circuit.
+    Circuit(
+        name="gorge",
+        preset="golden",
+        base_radius=120.0,
+        lobe_two=34.0,
+        lobe_three=18.0,
+        relief=18.0,
+        widest=15.0,
+        narrowest=9.0,
+        max_bank=9.0,
+        lap_checkpoints=6,
+        barriers=((0.03, 0.17), (0.41, 0.55), (0.70, 0.86)),
+        pillar_clearance=70.0,
+    ),
+)
+
+
+def write(circuit):
+    points = centre_line(circuit)
     length = lap_length(points)
-    entries = build()
+    entries = build(circuit)
 
     document = {
         "version": 1,
-        "name": "ring",
+        "name": circuit.name,
         "generatedBy": "tool/make_track.py",
         "track": {
             "closed": True,
-            "shoulder": SHOULDER,
+            "shoulder": circuit.shoulder,
             "points": entries,
             "surfaces": [
                 {
@@ -429,47 +502,43 @@ def main():
                     "shoulder": "grass",
                 }
             ],
-            # Walls down the outside of the two fastest corners, where a car
-            # that has run out of road has run out of it at speed.
+            # Walls down the outside of the fastest corners, where a car that
+            # has run out of road has run out of it at speed.
             "barriers": [
                 {
-                    "fromS": round(length * 0.08, 2),
-                    "toS": round(length * 0.22, 2),
+                    "fromS": round(length * start, 2),
+                    "toS": round(length * end, 2),
                     "right": True,
-                },
-                {
-                    "fromS": round(length * 0.58, 2),
-                    "toS": round(length * 0.72, 2),
-                    "right": True,
-                },
+                }
+                for start, end in circuit.barriers
             ],
             "checkpoints": [
-                {"s": round(length * i / LAP_CHECKPOINTS, 2)}
-                for i in range(1, LAP_CHECKPOINTS)
+                {"s": round(length * i / circuit.lap_checkpoints, 2)}
+                for i in range(1, circuit.lap_checkpoints)
             ],
             "grid": {"s": -14.0, "columns": 2, "rowGap": 7.0, "columnGap": 4.0},
         },
-        "sky": sky(),
+        "sky": sky(circuit),
         "level": {
             "version": 1,
-            "name": "ring",
+            "name": circuit.name,
             "generatedBy": "tool/make_track.py",
             # Both derived from the sky above, and neither read back by the
             # application: it asks the preset, which knows which way the camera
             # is pointing and can therefore answer something a file cannot.
             # Written anyway so that anything else loading this level alone —
             # an editor, a thumbnail, a test — gets air of the right colour.
-            "fogColor": rounded(horizon_fog_colour(sky())),
-            "fogDensity": sky()["fogDensity"],
+            "fogColor": rounded(horizon_fog_colour(sky(circuit))),
+            "fogDensity": sky(circuit)["fogDensity"],
             "materials": MATERIALS,
-            "brushes": ground(points),
-            "lights": lights(),
+            "brushes": ground(circuit, points),
+            "lights": lights(circuit),
             "entities": [],
         },
     }
 
     TRACKS.mkdir(parents=True, exist_ok=True)
-    out = TRACKS / "ring.json"
+    out = TRACKS / f"{circuit.name}.json"
     out.write_text(json.dumps(document, indent=1) + "\n")
 
     # And the level on its own, for `LevelLoader` — which reads an asset whose
@@ -477,7 +546,7 @@ def main():
     # mesh nodes and uploaded textures. Written from the same object as the
     # section above rather than built twice, so the two cannot disagree about
     # where the ground is.
-    level_out = TRACKS / "ring_level.json"
+    level_out = TRACKS / f"{circuit.name}_level.json"
     level_out.write_text(json.dumps(document["level"], indent=1) + "\n")
 
     widths = [e["width"] for e in entries]
@@ -487,8 +556,14 @@ def main():
         f"about {length:.0f} m round, "
         f"width {min(widths):.1f}-{max(widths):.1f} m, "
         f"camber up to {max(banks):.1f} degrees, "
-        f"{LAP_CHECKPOINTS - 1} checkpoints"
+        f"{circuit.lap_checkpoints - 1} checkpoints, "
+        f"{circuit.preset}"
     )
+
+
+def main():
+    for circuit in CIRCUITS:
+        write(circuit)
 
 
 if __name__ == "__main__":

@@ -29,14 +29,18 @@ import 'package:vector_math/vector_math.dart';
 
 const double _dt = 1.0 / 60.0;
 
-TrackDocument _shipped() => TrackDocument.fromJson(
-      jsonDecode(File('assets/tracks/ring.json').readAsStringSync())
+TrackDocument _shipped([String circuit = 'ring']) => TrackDocument.fromJson(
+      jsonDecode(File('assets/tracks/$circuit.json').readAsStringSync())
           as Map<String, Object?>,
     );
 
 final class _Session {
-  _Session({int cars = 1, RaceMode mode = RaceMode.timeTrial}) {
-    final document = _shipped();
+  _Session({
+    int cars = 1,
+    RaceMode mode = RaceMode.timeTrial,
+    String circuit = 'ring',
+  }) {
+    final document = _shipped(circuit);
     track = document.track;
     document.level?.addTo(world);
 
@@ -182,6 +186,52 @@ void main() {
           'by a lot — which may well be right, and should be a deliberate '
           'edit to these numbers rather than a surprise',
     );
+  });
+
+  group('the second circuit', () {
+    // **A circuit nothing drives is a circuit nobody has driven.** The gorge
+    // came out of the same generator as the ring with nine numbers changed,
+    // which is exactly the kind of change that produces a road with a corner
+    // too tight to hold, a checkpoint in a wall, or a lap that cannot be
+    // completed at all — and none of that shows in a file that parses.
+    test('is a road, and a different one from the ring', () {
+      final gorge = _shipped('gorge').track;
+      final ring = _shipped().track;
+
+      expect(gorge.length, greaterThan(500.0));
+      expect(gorge.length, lessThan(ring.length),
+          reason: 'the tighter circuit came out longer than the open one');
+      expect(gorge.checkpoints.length, greaterThan(ring.checkpoints.length));
+
+      // Narrower, and still wide enough for the grid it starts.
+      var narrowest = double.infinity;
+      for (var s = 0.0; s < gorge.length; s += 5.0) {
+        narrowest = math.min(narrowest, gorge.widthAt(s));
+      }
+      expect(narrowest, greaterThan(8.0));
+      expect(narrowest, lessThan(11.0), reason: 'it is not the tighter one');
+    });
+
+    test('and can be driven all the way round', () {
+      final it = _Session(circuit: 'gorge');
+      var respawns = 0;
+      var offRoadSteps = 0;
+
+      it.driveFor(
+        120.0,
+        watch: () {
+          if (it.player.respawnedThisStep) respawns += 1;
+          if (it.player.offRoad) offRoadSteps += 1;
+        },
+      );
+
+      expect(it.player.lap, greaterThanOrEqualTo(1),
+          reason: 'the second circuit cannot be got round');
+      expect(respawns, 0);
+      // The same tenth the ring is held to: this road is narrower and hillier,
+      // and a driver that cannot stay on it is a road that cannot be raced.
+      expect(offRoadSteps / (120.0 / _dt), lessThan(0.1));
+    });
   });
 
   test('the checkpoints are all passed on the way round', () {
