@@ -45,5 +45,7 @@ spawns a level. The platformer had six copies of that assembly and they had
 drifted; the dungeon had two, and one of them proved the crypt finishable with a
 loadout the game never gives anybody.
 
-It is checked rather than remembered: see `one_assembly_test.dart` in each
-application, which is a file scan in the shape of `no_genre_test.dart`.
+It is checked rather than remembered: `test/one_assembly_test.dart` here reads
+all three applications, in the shape of `no_genre_test.dart` — one rule about
+three games, so one file rather than three. The racing game was the third
+offender and was found by that scan being written.
