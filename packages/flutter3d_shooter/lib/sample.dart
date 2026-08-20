@@ -130,6 +130,9 @@ abstract final class Weapons {
     falloffStart: 25.0,
     falloffEnd: 70.0,
     minimumDamageFraction: 0.4,
+    // Half a degree a shot, back down in a fifth of a second. Four a second is
+    // a rate a player can hold, so the sight flinches rather than climbing.
+    recoil: 0.009,
   );
 
   /// Eight pellets, and all of the reason to close the distance.
@@ -148,6 +151,11 @@ abstract final class Weapons {
     falloffEnd: 26.0,
     minimumDamageFraction: 0.2,
     knockback: 2.0,
+    // A shove rather than a flinch, and slow to come back: the pause between
+    // shells is what the weapon is, and it should be spent waiting for the
+    // sight as much as for the pump.
+    recoil: 0.05,
+    recoilRecovery: 4.5,
   );
 
   static const WeaponDef rocketLauncher = WeaponDef(
@@ -162,6 +170,8 @@ abstract final class Weapons {
     projectileSpeed: 34.0,
     splashRadius: 4.5,
     splashMinimumFraction: 0.15,
+    recoil: 0.045,
+    recoilRecovery: 4.0,
   );
 
   /// In keyboard order: slot n is `all[n]`.

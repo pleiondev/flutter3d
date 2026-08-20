@@ -399,6 +399,16 @@ final class GameSimulation {
   void _weapon(double dt) {
     final arsenal = player.inventory.arsenal;
     arsenal.advanceTime(dt);
+    // Before the shot, not after: the kick from this shot must not move the
+    // shot that is about to leave, or a single tap would fire high.
+    //
+    // Empty hands settle at the ordinary rate: a player who has just run out
+    // still has a sight to bring back down, and `Arsenal.current` throws rather
+    // than inventing a weapon to ask.
+    player.settleRecoil(
+      dt,
+      perSecond: arsenal.isEmpty ? 7.0 : arsenal.current.recoilRecovery,
+    );
 
     final slot = input.slotRequest;
     if (slot != null) arsenal.selectSlot(slot);
@@ -410,7 +420,12 @@ final class GameSimulation {
           pressed: input.pressed(ShooterActions.fire),
         )) {
       final weapon = arsenal.fire();
-      if (weapon != null) _fire(shot, weapon);
+      if (weapon != null) {
+        _fire(shot, weapon);
+        // After the shot has left. A burst climbs because this is applied ten
+        // times a second and only pulled back at the weapon's own recovery.
+        player.kick(weapon.recoil);
+      }
     }
 
     // Only when the trigger is idle: switching weapons out from under a player

@@ -241,13 +241,45 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
 
   /// The unit vector the crosshair points along — a shot, a use ray, and what
   /// the camera looks at.
+  ///
+  /// Includes [recoilPitch], which is why firing moves where the bullets go
+  /// rather than only what the screen shows.
   void aim(Vector3 out) {
-    final cosPitch = math.cos(_pitch);
+    final pitch = (_pitch + recoilPitch).clamp(-pitchLimit, pitchLimit);
+    final cosPitch = math.cos(pitch);
     out.setValues(
       -math.sin(yaw) * cosPitch,
-      math.sin(_pitch),
+      math.sin(pitch),
       -math.cos(yaw) * cosPitch,
     );
+  }
+
+  /// How far the sight has been kicked above where it is being held, in
+  /// radians.
+  ///
+  /// **Separate from [pitch], and that is the design rather than an
+  /// implementation detail.** Adding recoil into the player's own aim would
+  /// mean the game silently moving the thing the player is holding: they let go
+  /// of the trigger and are left looking at the ceiling, having never asked to.
+  /// This is added on top and eased back to nothing, so a burst climbs while it
+  /// is held and the sight returns to where they were pointing.
+  double recoilPitch = 0.0;
+
+  /// Kicks the sight up by [radians].
+  void kick(double radians) {
+    if (radians <= 0.0) return;
+    recoilPitch += radians;
+  }
+
+  /// Eases the kick away at [perSecond].
+  ///
+  /// Frame-rate independent, through the same `easeFactor` every camera in this
+  /// repository uses: a weapon that climbed differently at thirty and at a
+  /// hundred and forty-four frames would be a different weapon on two machines.
+  void settleRecoil(double dt, {double perSecond = 7.0}) {
+    if (recoilPitch <= 0.0) return;
+    recoilPitch -= recoilPitch * easeFactor(perSecond, dt);
+    if (recoilPitch < 1e-5) recoilPitch = 0.0;
   }
 
   /// Where forward is on the ground, ignoring pitch.

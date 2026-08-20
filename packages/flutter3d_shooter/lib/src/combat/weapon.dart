@@ -39,12 +39,36 @@ final class WeaponDef {
     this.minimumDamageFraction = 0.25,
     this.knockback = 0.0,
     this.loudness = 18.0,
+    this.recoil = 0.0,
+    this.recoilRecovery = 7.0,
     this.projectileSpeed = 0.0,
     this.splashRadius = 0.0,
     this.splashMinimumFraction = 0.0,
   });
 
   final String name;
+
+  /// How far the sight jumps on each shot, in radians.
+  ///
+  /// **The sight, not the model.** A weapon whose picture kicks and whose aim
+  /// does not is a weapon with no recoil at all wearing an animation: the
+  /// second shot of a burst goes exactly where the first did, and a player who
+  /// notices that stops looking at the screen and starts holding the trigger.
+  /// This moves where the bullets go.
+  ///
+  /// Zero by default, which keeps every weapon that has not been given a number
+  /// behaving as it did. A pistol is a hundredth of a radian or so — about half
+  /// a degree — and an automatic climbs because that is applied ten times a
+  /// second and only pulled back at [recoilRecovery].
+  final double recoil;
+
+  /// How fast the sight comes back down, per second.
+  ///
+  /// Recovery rather than a spring: the kick is added and eased away, so a
+  /// burst climbs while it is held and settles when it stops. Fast enough that
+  /// single shots feel like a flinch and slow enough that automatic fire has to
+  /// be controlled.
+  final double recoilRecovery;
 
   /// How a shot is delivered. See [WeaponBehaviour] for why this is an object
   /// and the numbers below are not.
