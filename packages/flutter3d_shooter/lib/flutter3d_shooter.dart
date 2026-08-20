@@ -18,6 +18,7 @@ library;
 export 'src/actions.dart';
 export 'src/collector.dart';
 export 'src/combat/blast.dart';
+export 'src/combat/hit_zones.dart';
 export 'src/combat/hitscan.dart';
 export 'src/combat/projectile.dart';
 export 'src/combat/weapon.dart';

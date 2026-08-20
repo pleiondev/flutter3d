@@ -136,6 +136,27 @@ final class Actor implements Damageable, Rider {
     return true;
   }
 
+  /// Where up the body [point] is: nought at the feet, one at the crown.
+  ///
+  /// **Geometry, and deliberately not anatomy.** Which fractions are a head, a
+  /// chest or a knee is a genre's business — a shooter has hit zones and a
+  /// platformer has none — and an engine that named them would be an engine
+  /// written for one kind of game. What is here is the measurement every such
+  /// table needs and none of them should do twice.
+  ///
+  /// Clamped, so a shot that grazes the very top or scuffs the floor under the
+  /// feet still answers with something a table can be indexed by. Null when
+  /// there is no body to measure against, which a caller must handle rather
+  /// than treat as the middle.
+  double? fractionUp(Vector3 point) {
+    final body = this.body;
+    if (body == null) return null;
+    final half = body.halfExtents.y;
+    if (half <= 0.0) return 0.5;
+    final feet = body.position.y - half;
+    return ((point.y - feet) / (half * 2.0)).clamp(0.0, 1.0);
+  }
+
   /// Two handles to the same entity are the same actor.
   ///
   /// They are made freshly on every lookup, so identity has to be the entity's

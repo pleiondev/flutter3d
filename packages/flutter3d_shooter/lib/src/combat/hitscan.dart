@@ -94,12 +94,21 @@ final class Hitscan {
   /// Summed per target rather than per ray, because that is what applying it
   /// needs: eight pellets in the same monster is one death, and telling the
   /// health system eight times invites eight death animations.
-  static Map<Collider, double> damageByTarget(List<ShotHit> hits) {
+  static Map<Collider, double> damageByTarget(
+    List<ShotHit> hits, {
+    double Function(ShotHit hit)? scale,
+  }) {
     final totals = <Collider, double>{};
     for (final hit in hits) {
       final collider = hit.collider;
       if (collider == null || hit.damage <= 0.0) continue;
-      totals[collider] = (totals[collider] ?? 0.0) + hit.damage;
+      // Scaled per pellet and summed after, which is the whole reason [scale]
+      // is here rather than at the call site: eight pellets in the same monster
+      // arrive as one number, and by then where each of them landed is gone.
+      // A shotgun with two pellets in the head is worth more than one with
+      // eight in the shins, and a sum taken first cannot tell the two apart.
+      final damage = scale == null ? hit.damage : hit.damage * scale(hit);
+      totals[collider] = (totals[collider] ?? 0.0) + damage;
     }
     return totals;
   }

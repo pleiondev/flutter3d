@@ -44,6 +44,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'actions.dart';
+import 'combat/hit_zones.dart';
 import 'combat/hitscan.dart';
 import 'combat/projectile.dart';
 import 'combat/weapon.dart';
@@ -85,7 +86,17 @@ final class GameSimulation {
     this.dynamics,
     this.levelNext,
     this.random,
+    this.zones = const HitZones(),
   });
+
+  /// What a shot is worth depending on where it lands.
+  ///
+  /// **Only what the player fires.** A monster's claw and a rocket's blast are
+  /// deliberately even: a blast has no single point of contact worth talking
+  /// about, and a game where a monster can headshot the player is a game where
+  /// the damage a player takes depends on something they cannot see and did not
+  /// choose. Aiming is the player's skill; being aimed at is not.
+  final HitZones zones;
 
   final Player player;
   final CollisionWorld collision;
@@ -345,7 +356,10 @@ final class GameSimulation {
 
     // Pellets landing in the same monster are summed before they are applied,
     // or eight of them are eight deaths.
-    for (final entry in Hitscan.damageByTarget(hits).entries) {
+    for (final entry in Hitscan.damageByTarget(
+      hits,
+      scale: (ShotHit hit) => zones.forHitOn(hit.collider?.userData, hit.point),
+    ).entries) {
       final target = entry.key.userData;
       // The player did this one, which is what stops a monster shot by them
       // from turning on the monster next to it.
