@@ -173,6 +173,28 @@ void main() {
   // `testWidgets` runs in. Where it lives was never the problem; who starts it
   // is.
   //
+  // **Two more routes were tried since, and both are dead ends worth writing
+  // down rather than trying again.**
+  //
+  // *Mounting inside `runAsync`.* It works — the load completes and the first
+  // test passes. It also takes twenty-one minutes, because `runAsync` hands the
+  // clock back to the machine: every `pump` then draws a software frame in real
+  // time instead of on the fake clock, and this game's frame is not cheap. Six
+  // seconds became twenty-one minutes for one test.
+  //
+  // *Loading the level outside the zone and handing it in*, through a seam of
+  // the same shape as `openGraphics`. That does get past the load — the run
+  // begins, which the zone had made impossible — and the play-through still
+  // does not finish. So the zone was not the only thing in the way, and what
+  // else is has not been established. The seam was reverted with it; a seam
+  // that buys a test which still hangs is production surface for nothing.
+  //
+  // *And why any frame here is expensive*, which is worth knowing before
+  // anybody tries again: the game draws three shadow cascades at 2048, which is
+  // a 6144 × 2048 atlas. A GPU fills that in microseconds; `CpuDevice` fills it
+  // in about a minute. Whoever gets past the zone will want that number down
+  // first.
+  //
   // What the move did buy is `run_test.dart` beside this file: the same
   // sequence — begin, resume, restart, move on, save — driven from a plain
   // `test()` with a `CpuDevice`, where the loader completes perfectly well. The
