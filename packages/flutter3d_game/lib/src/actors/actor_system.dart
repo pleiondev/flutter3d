@@ -212,12 +212,50 @@ final class ActorSystem {
     return count;
   }
 
+  /// Forgets what happened last step: the dead, the hurt, and what the focus
+  /// took.
+  ///
+  /// **Called by the game at the top of its own step, not by [step], and that
+  /// is a bug fix rather than a preference.** These lists used to be cleared
+  /// here at the start of `step`, which is halfway through a game's step — and
+  /// in the shooter the player's own shot is fired *before* the actors think.
+  /// So a monster killed by the player was added to [died] and wiped again in
+  /// the same step, before anything downstream could look: no death sound for
+  /// anything the player killed, no sparks, and nothing to count. The monster
+  /// was dead and the news never left the building.
+  ///
+  /// Whoever owns the step owns the clearing, which is the rule every other
+  /// per-step flag in this repository keeps — `InputState.beginStep`,
+  /// `RaceState.clearStepFlags`, and the genre simulations' own.
+  void beginStep() {
+    damageToFocusThisStep = 0.0;
+    died.clear();
+    hurtThisStep.clear();
+    _begun = true;
+  }
+
+  /// Whether [beginStep] has been called since the last [step].
+  ///
+  /// Only for the assertion below. A caller who forgets does not crash — the
+  /// lists simply grow and the damage counter keeps climbing, which is a slow
+  /// leak and a wrong number rather than a failure, and exactly the kind of
+  /// thing that is found six months later.
+  bool _begun = false;
+
   /// Advances every actor.
   void step(
     double dt, {
     required Vector3 focus,
     Collider? focusBody,
   }) {
+    assert(
+      _begun,
+      'call ActorSystem.beginStep() at the top of your own step. It forgets '
+      'last step\'s dead and hurt; step() no longer does, because it runs '
+      'halfway through a game\'s step and was wiping deaths the game had not '
+      'read yet.',
+    );
+    _begun = false;
     _tick++;
     if (_hasLastFocus && dt > 0.0) {
       _focusVelocity
@@ -234,9 +272,6 @@ final class ActorSystem {
 
     _focus.setFrom(focus);
     this.focusBody = focusBody;
-    damageToFocusThisStep = 0.0;
-    died.clear();
-    hurtThisStep.clear();
 
     // Once for the whole system, not once per actor: everything is walking to
     // the same place, which is the entire reason this is a field and not one

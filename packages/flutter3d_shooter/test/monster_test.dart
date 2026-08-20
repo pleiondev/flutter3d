@@ -103,6 +103,7 @@ bool _hitsACrossingTarget({required double sideways}) {
     at.x += sideways * _dt;
     player.position.setFrom(at);
     world.update();
+    system.beginStep();
     system.step(_dt, focus: at + Vector3(0.0, 0.7, 0.0), focusBody: player);
     projectiles.step(_dt);
     for (final blast in projectiles.detonations) {
@@ -193,6 +194,7 @@ void main() {
       final h = _harness(world);
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
+      h.system.beginStep();
       h.system.step(_dt, focus: h.eye, focusBody: h.player);
 
       expect(_mind(monster).state, MonsterState.alert);
@@ -206,6 +208,7 @@ void main() {
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
       for (var i = 0; i < 60; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
@@ -218,6 +221,7 @@ void main() {
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -40.0));
 
       for (var i = 0; i < 30; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
@@ -258,6 +262,7 @@ void main() {
       final world = _room(wall: true);
       final it = _harness(world, playerAt: Vector3(0.0, 0.0, 20.0));
       final monster = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, -20.0));
+      it.system.beginStep();
       it.system.step(_dt, focus: it.eye, focusBody: it.player);
       expect((monster.brain! as ChaseBrain).state, MonsterState.idle,
           reason: 'it saw through a wall, so this proves nothing');
@@ -323,10 +328,12 @@ void main() {
       final h = _harness(world);
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
 
+      h.system.beginStep();
       h.system.step(_dt, focus: h.eye, focusBody: h.player);
       expect(_mind(monster).state, MonsterState.alert);
 
       for (var i = 0; i < 30; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
       expect(_mind(monster).state, MonsterState.chase);
@@ -341,6 +348,7 @@ void main() {
 
       final before = monster.position!.z;
       for (var i = 0; i < 120; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
@@ -361,6 +369,7 @@ void main() {
       final startX = monster.position!.x;
       var furthest = 0.0;
       for (var i = 0; i < 180; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
         furthest = math.max(furthest, (monster.position!.x - startX).abs());
       }
@@ -378,6 +387,7 @@ void main() {
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.5));
 
       for (var i = 0; i < 40; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
       expect(_mind(monster).state, MonsterState.attack);
@@ -385,6 +395,7 @@ void main() {
       // The player runs away.
       final farEye = Vector3(0.0, 0.7, 20.0);
       for (var i = 0; i < 10; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: farEye, focusBody: h.player);
       }
 
@@ -400,6 +411,7 @@ void main() {
 
       var total = 0.0;
       for (var i = 0; i < 120; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
         total += h.system.damageToFocusThisStep;
       }
@@ -414,6 +426,7 @@ void main() {
 
       var total = 0.0;
       for (var i = 0; i < 40; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
         total += h.system.damageToFocusThisStep;
       }
@@ -447,6 +460,7 @@ void main() {
 
       final eye = Vector3(0.0, 0.7, 0.0);
       for (var i = 0; i < 180; i++) {
+        system.beginStep();
         system.step(_dt, focus: eye, focusBody: player);
       }
 
@@ -461,6 +475,8 @@ void main() {
         h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
         var total = 0.0;
         for (var t = 0.0; t < seconds; t += step) {
+          h.system.beginStep();
+          h.system.beginStep();
           h.system.step(step, focus: h.eye, focusBody: h.player);
           total += h.system.damageToFocusThisStep;
         }
@@ -502,6 +518,7 @@ void main() {
 
       var total = 0.0;
       for (var i = 0; i < 120; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
         total += h.system.damageToFocusThisStep;
       }
@@ -511,13 +528,22 @@ void main() {
     });
 
     test('the dead list covers one step only', () {
+      // **Cleared by `beginStep`, not by `step`**, and the difference is a bug
+      // that shipped: the shooter fires the player's shot before the actors
+      // think, so a monster the player killed used to be wiped inside the same
+      // step and reported to nobody.
       final world = _room();
       final h = _harness(world);
       final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
+      h.system.beginStep();
       h.system.hurt(monster, 1000.0);
 
       expect(h.system.died, hasLength(1));
       h.system.step(_dt, focus: h.eye, focusBody: h.player);
+      expect(h.system.died, hasLength(1),
+          reason: 'the news was lost inside the step it happened in');
+
+      h.system.beginStep();
       expect(h.system.died, isEmpty);
     });
 
@@ -546,6 +572,7 @@ void main() {
       var staggeredSteps = 0;
       for (var i = 0; i < 240; i++) {
         h.system.hurt(tank, 1.0);
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
         if (_mind(tank).state == MonsterState.hurt) staggeredSteps++;
       }
@@ -575,6 +602,7 @@ void main() {
       final monster = h.bestiary.spawn(Monsters.shooter, Vector3(0.0, 0.9, -25.0));
 
       for (var i = 0; i < 40; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
 
@@ -593,6 +621,7 @@ void main() {
 
       final watch = Stopwatch()..start();
       for (var i = 0; i < 300; i++) {
+        h.system.beginStep();
         h.system.step(_dt, focus: h.eye, focusBody: h.player);
       }
       watch.stop();

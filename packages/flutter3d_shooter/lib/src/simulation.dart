@@ -50,6 +50,7 @@ import 'combat/projectile.dart';
 import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';
 import 'player.dart';
+import 'secret.dart';
 
 /// Whether the game is being played, lost, or finished.
 ///
@@ -151,6 +152,69 @@ final class GameSimulation {
   /// is one flash.
   double damageTakenThisStep = 0.0;
 
+  /// What this level has been worth so far.
+  ///
+  /// **A shooter with nothing to show at the end of a level**, which is half of
+  /// what the genre is: the walk to the exit is the game, and the three numbers
+  /// on the way out are what say whether it was played or merely survived.
+  ///
+  /// Counted here rather than by the application, because the events it counts
+  /// are this step's and are gone by the time a widget is asked to draw. Names
+  /// rather than fields — see [Tally] — so a game that counts something else
+  /// adds a line rather than a class.
+  final Tally tally = Tally();
+
+  /// Names this simulation counts under. Constants because a typo in one place
+  /// and not the other is a counter that reads nought for ever.
+  static const String kills = 'kills';
+  static const String secrets = 'secrets';
+
+  /// How many monsters this level started with, and how many secrets it holds.
+  ///
+  /// The other half of a count: three of five is a sentence and three is not.
+  /// Read from the world at the first step rather than passed in, because the
+  /// only thing that knows is what was actually spawned — a level that says it
+  /// has four monsters and spawns three would otherwise be reported as
+  /// unfinishable for ever.
+  int get monsterCount => _monsterCount;
+  int _monsterCount = 0;
+
+  int get secretCount => _secretCount;
+  int _secretCount = 0;
+
+  bool _counted = false;
+
+  /// Counts what the level holds, once, on the first step.
+  void _countTheLevel() {
+    if (_counted) return;
+    _counted = true;
+    _monsterCount = actors?.actors.length ?? 0;
+    final doors = mechanisms;
+    if (doors != null) {
+      for (final mechanism in doors.all) {
+        if (mechanism is Secret) _secretCount++;
+      }
+    }
+  }
+
+  /// Adds up the secrets entered this step.
+  ///
+  /// Read off the mechanisms rather than pushed by them, because a secret is a
+  /// trigger and triggers report through a flag — the same shape everything
+  /// else in the world uses, and the reason `publish` exists.
+  void _countSecrets(MechanismWorld doors) {
+    for (final mechanism in doors.all) {
+      if (mechanism is Secret && mechanism.justFound) {
+        tally.add(secrets);
+        foundThisStep = mechanism;
+      }
+    }
+  }
+
+  /// The secret entered this step, for a message and a sound. Null on every
+  /// other step, which is all of them.
+  Secret? foundThisStep;
+
   /// What came of pressing the use key, or null if it was not pressed or
   /// reached nothing.
   ///
@@ -196,7 +260,14 @@ final class GameSimulation {
     firedThisStep = null;
     usedThisStep = null;
     damageTakenThisStep = 0.0;
+    foundThisStep = null;
     hits.clear();
+    // Last step's dead and hurt, forgotten here rather than inside
+    // `ActorSystem.step` — which is halfway through this step, after the
+    // player's own shot has already killed something. See
+    // [ActorSystem.beginStep].
+    this.actors?.beginStep();
+    _countTheLevel();
 
     final playing = _state == GameState.playing;
 
@@ -243,6 +314,7 @@ final class GameSimulation {
       // keeps this apart from `settle` instead of bundling the two.
       _world.publish();
       _readExits(doors);
+      _countSecrets(doors);
     }
 
     player.inventory.step(dt);
@@ -265,6 +337,9 @@ final class GameSimulation {
       player.eye(_eye);
       actors.step(dt, focus: _eye, focusBody: player.body.collider);
       _hurtPlayer(actors.damageToFocusThisStep);
+      // Counted where the news is, which is the step it happened on: `died` is
+      // cleared at the top of the next one.
+      if (actors.died.isNotEmpty) tally.add(kills, actors.died.length);
     }
 
     // After the weapon, so a rocket fired this step is not moved until the

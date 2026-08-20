@@ -61,6 +61,7 @@ export 'src/physics/layers.dart';
 export 'src/save/game_random.dart';
 export 'src/save/replay.dart';
 export 'src/save/snapshot.dart';
+export 'src/save/tally.dart';
 export 'src/world/exit.dart';
 export 'src/world/key_ring.dart';
 export 'src/world/light_fixture.dart';

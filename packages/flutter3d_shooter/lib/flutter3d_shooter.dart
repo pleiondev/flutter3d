@@ -29,4 +29,5 @@ export 'src/inventory.dart';
 export 'src/monsters.dart';
 export 'src/pickup.dart';
 export 'src/player.dart';
+export 'src/secret.dart';
 export 'src/simulation.dart';

@@ -452,6 +452,7 @@ void main() {
       final eye = playerAt + Vector3(0.0, 0.7, 0.0);
       var best = double.infinity;
       for (var i = 0; i < 900; i++) {
+        system.beginStep();
         system.step(_dt, focus: eye, focusBody: player);
         world.update();
         final gap = (monster.position! - playerAt).length;

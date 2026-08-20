@@ -61,6 +61,7 @@ ChaseBrain _brainOf(Actor actor) => actor.brain! as ChaseBrain;
 void _step(ActorSystem system, Vector3 focus, {int times = 1}) {
   for (var i = 0; i < times; i++) {
     system.world.reindex();
+    system.beginStep();
     system.step(_dt, focus: focus);
     system.world.update();
   }

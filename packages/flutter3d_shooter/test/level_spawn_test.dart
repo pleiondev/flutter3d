@@ -127,6 +127,7 @@ void main() {
         layer: CollisionLayers.player,
       );
       for (var i = 0; i < 30; i++) {
+        result.actors.beginStep();
         result.actors.step(
           1.0 / 60.0,
           focus: Vector3(0.0, 1.6, 30.0),

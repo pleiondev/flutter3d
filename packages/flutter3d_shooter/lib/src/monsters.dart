@@ -39,6 +39,12 @@ abstract final class ShooterEntities {
   /// that exists.
   static const String pickup = 'pickup';
   static const String note = 'note';
+
+  /// A volume that counts as found when somebody walks into it.
+  ///
+  /// A word this genre owns for the same reason `monster` is: a racing game has
+  /// no secrets and a platformer's are collectibles, which it already has.
+  static const String secret = 'secret';
 }
 
 /// What a monster is doing.

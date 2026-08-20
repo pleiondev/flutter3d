@@ -190,6 +190,9 @@ final class PlatformerSimulation {
     reachedCheckpointThisStep = false;
     stompedThisStep = false;
     diedThisStep = false;
+    // The dead and the hurt, forgotten here with everything else this step
+    // reports — see [ActorSystem.beginStep] for why it is not `step`'s job.
+    actors?.beginStep();
 
     if (state == RunState.finished || state == RunState.lost) return;
 

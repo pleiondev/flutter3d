@@ -4,6 +4,7 @@ import 'package:vector_math/vector_math.dart';
 import 'gift.dart';
 import 'monsters.dart';
 import 'pickup.dart';
+import 'secret.dart';
 
 /// The kinds of entity a shooter's levels contain beyond the format's own.
 ///
@@ -86,6 +87,34 @@ final class PickupKind extends EntityKind {
       mechanism: pickup,
       size: entity.vector('size') ?? defaultSize,
     );
+  }
+}
+
+/// Places a [Secret]: a trigger volume that is counted the first time somebody
+/// walks into it.
+///
+/// No fields to validate — a secret is a place and nothing else. What is behind
+/// it is whatever else the author put there, which is the whole idea: the
+/// reward is the room, not the trigger.
+final class SecretKind extends EntityKind {
+  const SecretKind() : super(ShooterEntities.secret);
+
+  /// Big enough to be walked into rather than stepped over, and no bigger: a
+  /// secret the size of the room it is in would be found from the doorway.
+  static final Vector3 defaultSize = Vector3(2.0, 2.5, 2.0);
+
+  @override
+  void spawn(EntityDef entity, SpawnContext context) {
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.trigger,
+      layer: CollisionLayers.trigger,
+      mask: CollisionLayers.player,
+      fallbackSize: defaultSize,
+    );
+    context.mechanisms.add(Secret(name: entity.name, collider: collider));
+    // Nothing is revealed: a secret a player can see is not one.
   }
 }
 

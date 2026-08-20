@@ -91,6 +91,48 @@ final class _Suspicion {
 }
 
 void main() {
+  test('a death is still news after the step it happened in', () {
+    // **The bug this method exists to prevent.** These lists used to be cleared
+    // at the top of `ActorSystem.step`, which is halfway through a game's step
+    // — and in the shooter the player's own shot is fired *before* the actors
+    // think. So a monster the player killed was added to `died` and wiped again
+    // in the same step, and everything downstream read an empty list: no death
+    // sound, no sparks, nothing counted. The monster was dead and the news
+    // never left the building.
+    final world = _ground();
+    final system = ActorSystem(world: world);
+    final actor = system.spawn(
+      body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+      health: Health(10.0),
+    );
+
+    system.beginStep();
+    // Killed part-way through the game's step, as a shot does it.
+    actor.applyDamage(50.0);
+    system.step(1 / 60.0, focus: Vector3(0.0, 0.9, 20.0));
+
+    expect(system.died, hasLength(1),
+        reason: 'the death was forgotten inside the step it happened in');
+  });
+
+  test('and is forgotten when the next step begins', () {
+    final world = _ground();
+    final system = ActorSystem(world: world);
+    final actor = system.spawn(
+      body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+      health: Health(10.0),
+    );
+
+    system.beginStep();
+    actor.applyDamage(50.0);
+    system.step(1 / 60.0, focus: Vector3.zero());
+    expect(system.died, hasLength(1));
+
+    system.beginStep();
+
+    expect(system.died, isEmpty, reason: 'it would be reported twice');
+  });
+
   test('an actor turns the short way round the wrap point', () {
     // **Nothing checked this, and the extraction is what found it.** Replacing
     // the shared `shortestAngle` with a plain subtraction left every test in
@@ -126,6 +168,7 @@ void main() {
       var east = walker.position!.x;
       var west = walker.position!.x;
       for (var i = 0; i < 400; i++) {
+        system.beginStep();
         system.step(_dt, focus: nowhere);
         if (walker.position!.x > east) east = walker.position!.x;
         if (walker.position!.x < west) west = walker.position!.x;
@@ -147,6 +190,7 @@ void main() {
       // short enough that it has not reached the end of its patrol and turned
       // back — which it does in about forty.
       for (var i = 0; i < 20; i++) {
+        system.beginStep();
         system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
       }
       // Forward is −Z at yaw zero, so facing +X is a quarter turn.
@@ -197,6 +241,7 @@ void main() {
       // Far enough to have turned round at least once, so the flag is not
       // simply its initial value.
       for (var i = 0; i < 100; i++) {
+        system.beginStep();
         system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
       }
       final wasHeading = (walker.brain! as _Patrol).eastward;
@@ -227,6 +272,7 @@ void main() {
       system.hurt(walker, 100.0);
 
       for (var i = 0; i < 120; i++) {
+        system.beginStep();
         system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
       }
       expect(walker.position!.y, closeTo(0.9, 0.1));
@@ -252,6 +298,7 @@ void main() {
       expect(system.died, <Actor>[barrel]);
 
       // And it steps without complaint alongside everything else.
+      system.beginStep();
       system.step(_dt, focus: Vector3.zero());
     });
 
@@ -279,6 +326,7 @@ void main() {
       );
 
       for (var i = 0; i < 60; i++) {
+        system.beginStep();
         system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
       }
       expect(drifter.yaw, 0.0);
@@ -293,6 +341,7 @@ void main() {
       system.spawn(brain: _Counting(() => thoughts++));
 
       for (var i = 0; i < 10; i++) {
+        system.beginStep();
         system.step(_dt, focus: Vector3.zero());
       }
       expect(thoughts, 10);
