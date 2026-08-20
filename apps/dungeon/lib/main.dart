@@ -942,32 +942,20 @@ class _GameScreenState extends State<GameScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
-          // A rebinding takes the next key, before anything else looks at it —
-          // including Escape, which is how a player says "not that one".
-          if (event is KeyDownEvent && _settings.state.waitingFor != null) {
-            if (event.logicalKey == LogicalKeyboardKey.escape) {
-              _settings.rebind(null);
-            } else {
-              _capture(InputSource.key(event.logicalKey.keyId));
-            }
-            return KeyEventResult.handled;
-          }
-          // **R, and before Escape**, because a dead player pressing keys is
-          // looking for a way back into the game rather than into a menu. This
-          // was the whole of what was missing: dying printed a word and left
-          // the only exit as closing the application.
+          // The settings get the key first — the rebinding, Escape, and the
+          // panel keeping the keys while it is open. See `settingsKeys` for why
+          // that is the order.
+          final settingsSay =
+              settingsKeys(event, _settings, opening: _openSettings);
+          if (settingsSay != null) return settingsSay;
+          // **R**, because a dead player pressing keys is looking for a way
+          // back into the game rather than into a menu. This was the whole of
+          // what was missing: dying printed a word and left the only exit as
+          // closing the application.
           if (event is KeyDownEvent &&
               event.logicalKey == LogicalKeyboardKey.keyR &&
               _runIsOver) {
             unawaited(_run.restart());
-            return KeyEventResult.handled;
-          }
-          // Escape opens the settings as well as letting the pointer go, so a
-          // player on a controller — who never took the pointer — has a way in.
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.escape) {
-            if (!_settings.state.isOpen) _openSettings();
-            _settings.toggle();
             return KeyEventResult.handled;
           }
           // F toggles the fog in place. A before-and-after has to come from
@@ -977,13 +965,6 @@ class _GameScreenState extends State<GameScreen>
               event.logicalKey == LogicalKeyboardKey.keyF) {
             setState(() => _fogOn = !_fogOn);
           }
-          // **With the panel open the keys belong to the panel.** Handing them
-          // to the game costs two things at once: Flutter's focus traversal
-          // never sees Tab or the arrows, so a player with no mouse cannot
-          // reach a slider at all — and a key held as the panel opened stays
-          // held in the `InputState`, so closing it sends the player walking
-          // off on their own.
-          if (_settings.state.isOpen) return KeyEventResult.ignored;
           return _devices.handleKeyEvent(event);
         },
         child: Listener(

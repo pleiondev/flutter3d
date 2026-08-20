@@ -18,7 +18,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart'
-    show KeyDownEvent, LogicalKeyboardKey, rootBundle;
+    show LogicalKeyboardKey, rootBundle;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -854,32 +854,15 @@ class _RaceScreenState extends State<RaceScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (FocusNode node, KeyEvent event) {
-          // A rebinding takes the next key, before anything else looks at it —
-          // including Escape, which is how a player says "not that one".
-          if (event is KeyDownEvent && _settings.state.waitingFor != null) {
-            if (event.logicalKey == LogicalKeyboardKey.escape) {
-              _settings.rebind(null);
-            } else {
-              _settings.capture(InputSource.key(event.logicalKey.keyId));
-            }
-            return KeyEventResult.handled;
-          }
           // **This game could not be paused at all**, and had no settings to
           // pause into. Escape opens them, and opening them is what stops the
-          // race — the same clause `shouldPause` calls a menu.
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.escape) {
-            // The keys the car was holding are let go, or it comes back
-            // accelerating into a wall.
-            _input.clear();
-            _settings.toggle();
-            return KeyEventResult.handled;
-          }
-          // **With the panel open the keys belong to the panel.** Handing them
-          // to the game costs two things at once: Flutter's focus traversal
-          // never sees Tab or the arrows, so a player with no mouse cannot
-          // reach a slider — and a key held as the panel opened stays held.
-          if (_settings.state.isOpen) return KeyEventResult.ignored;
+          // race — the same clause `shouldPause` calls a menu. The order the
+          // three clauses go in is `settingsKeys`; what is this game's is the
+          // opening itself: the keys the car was holding are let go, or it
+          // comes back accelerating into a wall.
+          final settingsSay =
+              settingsKeys(event, _settings, opening: _input.clear);
+          if (settingsSay != null) return settingsSay;
           return _devices.handleKeyEvent(event);
         },
         child: Stack(

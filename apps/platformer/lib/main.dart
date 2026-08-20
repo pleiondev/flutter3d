@@ -1138,6 +1138,16 @@ class _GameScreenState extends State<GameScreen>
         focusNode: _keyboard,
         autofocus: true,
         onKeyEvent: (_, KeyEvent event) {
+          // The settings get the key first — see `settingsKeys` for the order
+          // and for the bug this call fixed here: R sat above the rebinding, so
+          // a player at the end of a run could not bind R to anything.
+          //
+          // The panel is offered only once the game has started; the title card
+          // carries the same credits and is the one screen a panel over the top
+          // of it adds nothing to.
+          final settingsSay =
+              settingsKeys(event, _settings, opening: _openSettings, canOpen: _started);
+          if (settingsSay != null) return settingsSay;
           // R starts a finished run over. Handled here rather than through a
           // binding because it is not a verb the runner has: the simulation it
           // would be asking is the one that has stopped.
@@ -1151,39 +1161,6 @@ class _GameScreenState extends State<GameScreen>
             _restart();
             return KeyEventResult.handled;
           }
-          // A rebinding takes the next key, before anything else looks at it —
-          // including Escape below, which is how a player says "not that one".
-          if (event is KeyDownEvent && _settings.state.waitingFor != null) {
-            if (event.logicalKey == LogicalKeyboardKey.escape) {
-              _settings.rebind(null);
-            } else {
-              _capture(InputSource.key(event.logicalKey.keyId));
-            }
-            return KeyEventResult.handled;
-          }
-          // Escape opens the settings, which the title card has been promising
-          // and nothing was doing. Before `DesktopInput` sees it, because that
-          // is where Escape gives the pointer back, and giving it back is half
-          // of what opening a panel means: a settings panel you cannot point at
-          // has no way out of it.
-          //
-          // Only once the game has started. The title card carries the same
-          // credits and is the one screen a panel over the top of it adds
-          // nothing to.
-          if (event is KeyDownEvent &&
-              event.logicalKey == LogicalKeyboardKey.escape &&
-              _started) {
-            if (!_settings.state.isOpen) _openSettings();
-            _settings.toggle();
-            return KeyEventResult.handled;
-          }
-          // **With the panel open the keys belong to the panel.** Handing them
-          // to the game costs two things at once: Flutter's focus traversal
-          // never sees Tab or the arrows, so a player with no mouse cannot
-          // reach a slider at all — and a key held as the panel opened stays
-          // held in the `InputState`, so closing it sends the player walking
-          // off on their own.
-          if (_settings.state.isOpen) return KeyEventResult.ignored;
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
