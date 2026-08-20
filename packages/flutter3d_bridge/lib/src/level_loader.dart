@@ -65,12 +65,30 @@ final class LevelLoader {
     required GraphicsDevice device,
     required EntityRegistry registry,
     List<LevelRule> rules = const <LevelRule>[],
-  }) async {
-    final text = await rootBundle.loadString(assetPath);
-    final level = Level.fromJson(
-      jsonDecode(text) as Map<String, Object?>,
-    );
+  }) async =>
+      build(
+        Level.fromJson(
+          jsonDecode(await rootBundle.loadString(assetPath))
+              as Map<String, Object?>,
+        ),
+        device: device,
+        registry: registry,
+        rules: rules,
+      );
 
+  /// Everything [load] does except finding the document.
+  ///
+  /// **The read and the build were one method, and a level had to be an asset
+  /// to be drawn at all.** A game only ever has bundled levels, so nothing
+  /// noticed — but an editor holds a document it has just changed and has no
+  /// asset to point at, and a test that wants to draw a level it built in
+  /// memory had the same problem. Splitting them costs one call and gives both.
+  Future<LoadedLevel> build(
+    Level level, {
+    required GraphicsDevice device,
+    required EntityRegistry registry,
+    List<LevelRule> rules = const <LevelRule>[],
+  }) async {
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
     // twenty minutes in is worse than not starting.

@@ -1,0 +1,56 @@
+name: editor
+description: "A level editor: open a document, move what is in it, write it back."
+publish_to: 'none'
+version: 0.1.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # **Desktop only, and there is no web half.** The other three applications
+  # pick a backend at compile time because they ship to a browser; this one
+  # exists to write a file back to the disk it came from, which a browser will
+  # not do. One backend, named here, and no `backend_web.dart`.
+  flutter3d_impeller:
+    path: ../../packages/flutter3d_impeller
+
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # The document, its validator, and the input the camera is flown with.
+  flutter3d_game:
+    path: ../../packages/flutter3d_game
+
+  # Level geometry to mesh nodes. `LevelLoader.build` is what an editor needs
+  # and what a game never did: a level drawn from a document in memory rather
+  # than from an asset.
+  flutter3d_bridge:
+    path: ../../packages/flutter3d_bridge
+
+  # What a brush is, for picking one by pointing at it.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
+  # The surface a frame reaches Flutter through.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Draws a level without a GPU, which is how the one thing this application
+  # does that a unit test cannot reach — turning a document into a scene — is
+  # checked at all.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+flutter:
+  uses-material-design: true
