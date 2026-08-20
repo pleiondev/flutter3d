@@ -61,6 +61,15 @@ final class PlacedCar implements VehicleController {
     collider.position.setFrom(at);
     headingYaw = yaw;
   }
+
+  /// A stand-in car keeps nothing between steps, so there is nothing to save.
+  /// The interface still asks, because a race that can be saved has to be able
+  /// to save whatever is driving in it.
+  @override
+  Map<String, Object?> save() => const <String, Object?>{};
+
+  @override
+  void restore(Map<String, Object?> from) {}
 }
 
 /// Settles the camera, so that a test reads where it ended up rather than where

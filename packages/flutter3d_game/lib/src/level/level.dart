@@ -250,12 +250,12 @@ final class Brush {
   factory Brush.fromJson(Map<String, Object?> json) => Brush(
         centre: json.vector3('at'),
         size: json.vector3('size'),
-        material: json.text('material') ?? 'default',
+        material: json.textOrNull('material') ?? 'default',
         solid: json.flagOr('solid', fallback: true),
         castsShadow: json.flagOr('castsShadow', fallback: true),
-        surface: json.text('surface'),
-        layer: json.integer('layer'),
-        ramp: _rampFromName(json.text('ramp')),
+        surface: json.textOrNull('surface'),
+        layer: json.integerOrNull('layer'),
+        ramp: _rampFromName(json.textOrNull('ramp')),
         source: json,
       );
 
@@ -357,9 +357,9 @@ final class LevelMaterial {
         metallic: json.numberOr('metallic', 0.0),
         emissive: json.numberOr('emissive', 0.0),
         texelsPerMetre: json.numberOr('texelsPerMetre', 1.0),
-        albedo: json.text('albedo'),
-        normal: json.text('normal'),
-        orm: json.text('orm'),
+        albedo: json.textOrNull('albedo'),
+        normal: json.textOrNull('normal'),
+        orm: json.textOrNull('orm'),
         source: json,
       );
 
@@ -431,7 +431,7 @@ final class LevelLight {
         intensity: json.numberOr('intensity', 1.0),
         range: json.numberOr('range', 0.0),
         castsShadow: json.flagOr('castsShadow'),
-        name: json.text('name'),
+        name: json.textOrNull('name'),
         source: json,
       );
 
@@ -536,7 +536,7 @@ final class EntityDef {
       type: type,
       position: json.vector3('at', fallback: Vector3.zero()),
       yaw: json.numberOr('yaw', 0.0),
-      name: json.text('name'),
+      name: json.textOrNull('name'),
       properties: properties,
       source: json,
     );
@@ -631,7 +631,7 @@ final class Level {
     }
 
     return Level(
-      name: json.text('name') ?? 'untitled',
+      name: json.textOrNull('name') ?? 'untitled',
       brushes: json.objects('brushes').map(Brush.fromJson).toList(),
       entities: json.objects('entities').map(EntityDef.fromJson).toList(),
       lights: json.objects('lights').map(LevelLight.fromJson).toList(),
@@ -647,8 +647,8 @@ final class Level {
         fallback: Vector3(0.05, 0.04, 0.06),
       ),
       fogDensity: json.numberOr('fogDensity', 0.0),
-      music: json.text('music'),
-      next: json.text('next'),
+      music: json.textOrNull('music'),
+      next: json.textOrNull('next'),
       source: json,
     );
   }

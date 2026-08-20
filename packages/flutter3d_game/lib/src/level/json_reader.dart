@@ -8,6 +8,14 @@ import 'level.dart' show LevelFormatException;
 /// it wants — `json.vector3('at')` — instead of threading the map through
 /// something that has to be named for it.
 ///
+/// **The names carry the policy**, because both readers are extensions on the
+/// same type and any name they share is ambiguous the moment a file can see
+/// both. `numberOr` and `flagOr` take a fallback; `integerOrNull` and
+/// `textOrNull` answer null; the short names — `number`, `integer`, `flag`,
+/// `text` — belong to `SnapshotFields`, which is lenient by design. One file
+/// already worked around the collision with an extension override at the call
+/// site, which is the sort of fix that stays until somebody reads it.
+///
 /// Strict about types and lenient about absence, on purpose. A missing optional
 /// field takes its default; a field of the wrong type is an error that names
 /// the key. The alternative — quietly accepting a string where a number belongs
@@ -64,14 +72,14 @@ extension JsonObjectReader on Map<String, Object?> {
   ///
   /// Reads a `num` and rounds, because JSON has one number type and `4` in a
   /// hand-written document is as likely to arrive as `4.0`.
-  int? integer(String key) {
+  int? integerOrNull(String key) {
     final value = this[key];
     if (value == null) return null;
     if (value is! num) throw LevelFormatException('"$key" must be a number');
     return value.round();
   }
 
-  String? text(String key) {
+  String? textOrNull(String key) {
     final value = this[key];
     if (value == null) return null;
     if (value is! String) throw LevelFormatException('"$key" must be a string');
@@ -114,7 +122,7 @@ extension JsonObjectReader on Map<String, Object?> {
     T fallback, {
     required String describedAs,
   }) {
-    final name = text(key);
+    final name = textOrNull(key);
     if (name == null) return fallback;
     for (final value in values) {
       if (value.name == name) return value;

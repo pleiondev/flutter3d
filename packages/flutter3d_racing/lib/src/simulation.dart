@@ -406,6 +406,61 @@ final class RacingSimulation {
     return delta;
   }
 
+  /// The race, the cars, and what this class remembers between steps.
+  ///
+  /// **The racing game could not be saved at all**, alone among the three:
+  /// `save`/`restore` did not appear anywhere in the package. The other two
+  /// have had them since they were written, and a snapshot is the same object
+  /// three times over — a save file, a network packet and the input to a
+  /// determinism test — so the gap was three gaps.
+  ///
+  /// What is here beyond the obvious is this class's own bookkeeping, and it is
+  /// the half that is easy to forget because it is invisible: how far round the
+  /// lap each car was last step, how long it has been going the wrong way, and
+  /// how long it has been off the road. Drop them and a restored race
+  /// immediately tells the leader they are going backwards, or gives a car that
+  /// was one second from being put back on the track a fresh four.
+  Map<String, Object?> save() => <String, Object?>{
+        'race': race.save(),
+        'cars': <Map<String, Object?>>[
+          for (final vehicle in vehicles) vehicle.save(),
+        ],
+        'previousS': List<double>.of(_previousS),
+        'backwards': List<double>.of(_backwards),
+        'offRoadFor': List<double>.of(_offRoadFor),
+      };
+
+  void restore(Map<String, Object?> from) {
+    final saved = from.object('race');
+    if (saved != null) race.restore(saved);
+
+    final cars = from['cars'];
+    if (cars is List) {
+      for (var i = 0; i < vehicles.length && i < cars.length; i++) {
+        final row = cars[i];
+        if (row is Map) vehicles[i].restore(row.cast<String, Object?>());
+      }
+    }
+
+    _restoreDoubles(from['previousS'], _previousS);
+    _restoreDoubles(from['backwards'], _backwards);
+    _restoreDoubles(from['offRoadFor'], _offRoadFor);
+
+    // The broadphase now disagrees with every car that moved, and the first
+    // sweep after a restore is what would find out — the same call the
+    // platformer's own restore makes, and for the same reason.
+    collision.reindex();
+    finishedThisStep = false;
+  }
+
+  static void _restoreDoubles(Object? from, List<double> into) {
+    if (from is! List) return;
+    for (var i = 0; i < into.length && i < from.length; i++) {
+      final value = from[i];
+      if (value is num) into[i] = value.toDouble();
+    }
+  }
+
   final List<double> _previousS = <double>[];
   final List<double> _backwards = <double>[];
   final List<double> _offRoadFor = <double>[];

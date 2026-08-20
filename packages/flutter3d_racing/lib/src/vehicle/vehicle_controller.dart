@@ -113,4 +113,22 @@ abstract interface class VehicleController {
   /// carried between steps is dropped, so that a car returning from a spin does
   /// not arrive still spinning.
   void placeAt(Vector3 position, double headingYaw, {double? trackDistance});
+
+  /// Everything about this car that a race is made of.
+  ///
+  /// **Part of the interface rather than of one implementation**, because a
+  /// race that can be saved has to be able to save whatever is driving in it.
+  /// A game may bring its own vehicle — that is what this interface is for —
+  /// and one that could not be written down would be a car that turns into a
+  /// stationary copy of itself the moment somebody loads a save.
+  ///
+  /// What belongs here is what changes as the race runs. Tuning, grips and the
+  /// body's shape are what the game *is*, and they come back from the circuit
+  /// that was loaded; see `RacingSimulation.save`.
+  Map<String, Object?> save();
+
+  /// Reads back what [save] wrote, leniently: a field that is missing keeps
+  /// whatever the car has now, which is what lets a save from an older build
+  /// load at all.
+  void restore(Map<String, Object?> from);
 }

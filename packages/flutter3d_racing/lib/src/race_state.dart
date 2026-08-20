@@ -113,6 +113,45 @@ final class RacerProgress {
   /// How long the lap just completed took.
   double lastLap = 0.0;
 
+  /// What this car has done so far.
+  ///
+  /// **The step flags are deliberately not here.** They say what happened on
+  /// one step, and they are cleared at the top of the next one — a save that
+  /// carried them would make a restored race announce a lap, a checkpoint and a
+  /// respawn that happened before it was written down. What is saved is the
+  /// state; the edges belong to the step that produced them.
+  Map<String, Object?> save() => <String, Object?>{
+        's': s,
+        'lap': lap,
+        'nextCheckpoint': nextCheckpoint,
+        'wrongWay': wrongWay,
+        'offRoad': offRoad,
+        'lateral': lateral,
+        'lapTime': lapTime,
+        if (bestLap != null) 'bestLap': bestLap,
+        'totalTime': totalTime,
+        if (finishedAt != null) 'finishedAt': finishedAt,
+        'lastLap': lastLap,
+      };
+
+  void restore(Map<String, Object?> from) {
+    s = from.number('s');
+    lap = from.integer('lap');
+    nextCheckpoint = from.integer('nextCheckpoint');
+    wrongWay = from.flag('wrongWay');
+    offRoad = from.flag('offRoad');
+    lateral = from.number('lateral');
+    lapTime = from.number('lapTime');
+    // Absent means never set, which is not the same as nought: a car with a
+    // best lap of zero has driven a perfect lap in no time at all, and every
+    // ranking that reads it puts them first for ever.
+    bestLap = from['bestLap'] is num ? from.number('bestLap') : null;
+    totalTime = from.number('totalTime');
+    finishedAt = from['finishedAt'] is num ? from.number('finishedAt') : null;
+    lastLap = from.number('lastLap');
+    clearStepFlags();
+  }
+
   void clearStepFlags() {
     lapCompletedThisStep = false;
     bestLapThisStep = false;
@@ -203,6 +242,39 @@ final class RaceState {
       if (lap != null && (best == null || lap < best)) best = lap;
     }
     return best;
+  }
+
+  /// The race itself, written down.
+  ///
+  /// **The mode, the track and the number of laps are not here**, and that is
+  /// the same boundary `Snapshot` draws: a save restores into the level it was
+  /// taken in. What a race *is* comes from the circuit that was loaded; what
+  /// this carries is how far into it everybody has got.
+  Map<String, Object?> save() => <String, Object?>{
+        'phase': phase.name,
+        'countdown': countdown,
+        'elapsed': elapsed,
+        'progress': <Map<String, Object?>>[
+          for (final racer in progress) racer.save(),
+        ],
+      };
+
+  /// Reads a race back into the field it was saved from.
+  ///
+  /// Cars that are not in this world are ignored, and cars this world has that
+  /// the save did not are left where they are — the same leniency the rest of
+  /// the snapshot machinery keeps, so that a save from a build with a smaller
+  /// grid loads rather than refuses.
+  void restore(Map<String, Object?> from) {
+    phase = from.enumOf('phase', RacePhase.values, phase);
+    countdown = from.number('countdown', countdown);
+    elapsed = from.number('elapsed');
+    final rows = from['progress'];
+    if (rows is! List) return;
+    for (var i = 0; i < progress.length && i < rows.length; i++) {
+      final row = rows[i];
+      if (row is Map) progress[i].restore(row.cast<String, Object?>());
+    }
   }
 
   void clearStepFlags() {

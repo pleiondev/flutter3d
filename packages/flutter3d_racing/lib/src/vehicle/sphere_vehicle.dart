@@ -293,6 +293,53 @@ final class SphereVehicle implements VehicleController {
     _buildFrame();
   }
 
+  /// Everything about this car that a lap is made of.
+  ///
+  /// **Not the tuning and not the grips**: those are what the game is, not what
+  /// the race is, and a save that carried them would restore a car built by an
+  /// older balance patch into a game that has since been tuned. The same rule
+  /// the level format keeps — a snapshot restores into the world it was taken
+  /// in, and the world says what a car weighs.
+  ///
+  /// The wheel speed is here and it is not decoration: it is the difference
+  /// between the wheels and the road, which is what the tyre model reads. Drop
+  /// it and a restored car at a hundred miles an hour has wheels that are not
+  /// turning, which is a car that spends the next second locked up in a slide
+  /// it never made.
+  @override
+  Map<String, Object?> save() => <String, Object?>{
+        'at': <double>[position.x, position.y, position.z],
+        'velocity': <double>[velocity.x, velocity.y, velocity.z],
+        'yaw': _headingYaw,
+        'wheelSpeed': _wheelSpeed,
+        'slipAngle': _slipAngle,
+        'slipRatio': _slipRatio,
+        'grounded': _grounded,
+        'underPower': _underPower,
+        // Where the car is round the lap. Worked out by the ground field every
+        // step, and restored anyway: the first step after a restore reads it
+        // before it writes it, and a car that starts the lap at nought is a car
+        // that has just driven backwards past the finish line.
+        'trackDistance': _ground.s,
+      };
+
+  @override
+  void restore(Map<String, Object?> from) {
+    from.vectorInto('at', collider.position);
+    from.vectorInto('velocity', velocity);
+    _headingYaw = from.number('yaw', _headingYaw);
+    _wheelSpeed = from.number('wheelSpeed');
+    _slipAngle = from.number('slipAngle');
+    _slipRatio = from.number('slipRatio');
+    _grounded = from.flag('grounded');
+    _underPower = from.flag('underPower');
+    _ground.s = from.number('trackDistance', _ground.s);
+    // The basis is derived, not saved: it follows from the heading and the
+    // ground's normal, and rebuilding it is how a restored car is drawn the
+    // right way up on the first frame rather than the second.
+    _buildFrame();
+  }
+
   // --- the step, in the order above ------------------------------------------
 
   void _readGround(bool found) {

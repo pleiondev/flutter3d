@@ -63,6 +63,15 @@ final class _Car implements VehicleController {
 
   @override
   void placeAt(Vector3 at, double yaw, {double? trackDistance}) {}
+
+  /// A stand-in car keeps nothing between steps, so there is nothing to save.
+  /// The interface still asks, because a race that can be saved has to be able
+  /// to save whatever is driving in it.
+  @override
+  Map<String, Object?> save() => const <String, Object?>{};
+
+  @override
+  void restore(Map<String, Object?> from) {}
 }
 
 ({CarVoice voice, _Car car, AudioScene scene, SilentBackend backend}) heard() {
@@ -83,6 +92,7 @@ double loudnessOf(SilentBackend backend, String asset) {
   for (final voice in backend.live) {
     if (voice.asset.endsWith(asset)) total += voice.gain;
   }
+
   return total;
 }
 

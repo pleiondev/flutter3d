@@ -94,8 +94,8 @@ TrackSpline _trackFromJson(Map<String, Object?> json) {
           toS: band.numberOr('toS', centre.length),
           // Spelt out because `Snapshot`'s reader is on the same type and also
           // has a `text`, and the two are exported through one barrel.
-          centre: JsonObjectReader(band).text('centre'),
-          shoulder: JsonObjectReader(band).text('shoulder'),
+          centre: band.textOrNull('centre'),
+          shoulder: band.textOrNull('shoulder'),
         ),
     ],
     barriers: <BarrierBand>[
@@ -120,7 +120,7 @@ StartGrid _gridFromJson(Map<String, Object?> json) {
   if (grid == null) return const StartGrid();
 
   final fields = grid.asJsonObject('grid');
-  final columns = JsonObjectReader(fields).integer('columns') ?? 2;
+  final columns = JsonObjectReader(fields).integerOrNull('columns') ?? 2;
   if (columns < 1) {
     throw LevelFormatException('"grid.columns" must be at least one');
   }
