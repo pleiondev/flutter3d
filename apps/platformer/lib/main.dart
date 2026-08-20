@@ -584,14 +584,6 @@ class _GameScreenState extends State<GameScreen>
     GameAction.use,
   ];
 
-  /// Takes a control the player has just offered for the waiting action.
-  ///
-  /// Saves immediately: a rebinding that survived only until the next launch
-  /// would be worse than none, because a player would set it, believe it, and
-  /// find out during a run.
-  /// Saving is `SettingsCubit`'s, and so is the rebuild.
-  bool _capture(InputSource source) => _settings.capture(source);
-
   /// Puts the accessibility settings where they take effect.
   ///
   /// Called after the config is read and again whenever a slider moves, because
@@ -679,23 +671,11 @@ class _GameScreenState extends State<GameScreen>
 
   /// What the pad means to a screen rather than to the runner.
   ///
-  /// Two things the simulation has no verb for: taking down the title card, and
-  /// starting over once the run is finished. Read as edges here rather than
-  /// bound to invented actions, so the binding table holds only words the game
-  /// logic actually reads.
+  /// Two things the simulation has no verb for: taking down the title card and
+  /// starting over once the run is finished. The edge, and the settings' first
+  /// refusal of it, are `PadPresses`.
   void _padScreenButtons() {
-    final pressing = _pad.heldButtons.isNotEmpty;
-    final wasPressing = _padPressing;
-    _padPressing = pressing;
-    if (!pressing || wasPressing) return;
-
-    // A pad button offered to a waiting rebinding, so a controller can be
-    // remapped from the controller rather than from the keyboard — which is the
-    // whole point for a player who has only one of the two.
-    if (_settings.state.waitingFor != null) {
-      _capture(InputSource.pad(_pad.heldButtons.first.id));
-      return;
-    }
+    if (!_presses.offer(_pad, _settings)) return;
 
     // Any button begins, which is also how a browser reveals the pad to the
     // page in the first place: it stays invisible until one is pressed.
@@ -706,8 +686,8 @@ class _GameScreenState extends State<GameScreen>
     if (_runIsOver && _pad.heldButtons.contains(PadButton.start)) _restart();
   }
 
-  /// Whether the pad was holding anything last frame, for the edge above.
-  bool _padPressing = false;
+  /// The pad's presses, told apart from its holds.
+  final PadPresses _presses = PadPresses();
 
   /// What the player has already told the operating system.
   Accommodations _system = const Accommodations();

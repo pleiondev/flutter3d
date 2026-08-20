@@ -667,20 +667,13 @@ class _RaceScreenState extends State<RaceScreen>
   /// A pad button offered to a waiting rebinding.
   ///
   /// So a controller can be remapped from the controller, which is the whole
-  /// point for a player who has one of the two devices. Read as an edge here
-  /// rather than bound to an invented action, so the table holds only words the
-  /// game actually reads.
-  void _padRebinding() {
-    final pressing = _pad.heldButtons.isNotEmpty;
-    final wasPressing = _padPressing;
-    _padPressing = pressing;
-    if (!pressing || wasPressing) return;
-    if (_settings.state.waitingFor == null) return;
-    _settings.capture(InputSource.pad(_pad.heldButtons.first.id));
-  }
+  /// point for a player who has one of the two devices. There is nothing else
+  /// on screen here for a pad button to mean — no title card to take down and
+  /// no run to start over — so what `PadPresses` hands back is dropped.
+  void _padRebinding() => _presses.offer(_pad, _settings);
 
-  /// Whether the pad was holding anything last frame, for the edge above.
-  bool _padPressing = false;
+  /// The pad's presses, told apart from its holds.
+  final PadPresses _presses = PadPresses();
 
   /// The player's keys, as a car's controls.
   void _readDriver(RacingSimulation simulation) {

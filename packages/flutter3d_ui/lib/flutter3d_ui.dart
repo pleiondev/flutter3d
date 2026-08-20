@@ -18,6 +18,7 @@ library;
 
 export 'src/credits.dart';
 export 'src/owned_bindings.dart';
+export 'src/pad_presses.dart';
 export 'src/rebinding.dart';
 export 'src/save_file.dart';
 export 'src/settings_cubit.dart';

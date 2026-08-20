@@ -184,8 +184,8 @@ class _GameScreenState extends State<GameScreen>
   /// Whether the run has ended, either way. Read by the two restarts.
   bool get _runIsOver => _run.isOver;
 
-  /// Whether the pad was holding anything last frame, for the edge above.
-  bool _padPressing = false;
+  /// The pad's presses, told apart from its holds.
+  final PadPresses _presses = PadPresses();
 
   /// How far the eye sits above the centre of the player's box.
   static const double _eyeOffset = 0.7;
@@ -593,10 +593,6 @@ class _GameScreenState extends State<GameScreen>
   void _setSetting(String name, double value) =>
       _settings.setSetting(name, value);
 
-  /// Takes a control the player has just offered for the waiting action.
-  /// Saving is `SettingsCubit`'s, and so is the rebuild.
-  bool _capture(InputSource source) => _settings.capture(source);
-
   /// What the player has already told the operating system.
   ///
   /// **The whole of this game's accessibility settings, and deliberately.** The
@@ -637,21 +633,16 @@ class _GameScreenState extends State<GameScreen>
     // paused by not owning it.
     // Before the loop, so the frame that reads the pad is the frame it moves in.
     _pad.tick(dt);
-    // A pad button offered to a waiting rebinding, so a controller can be
-    // remapped from the controller.
-    if (_settings.state.waitingFor != null && _pad.heldButtons.isNotEmpty) {
-      _capture(InputSource.pad(_pad.heldButtons.first.id));
-    }
-    // Start restarts a finished run, on the edge rather than while held — a
-    // player who dies with a thumb on Start would otherwise restart for ever.
-    final padPressing = _pad.heldButtons.isNotEmpty;
-    if (_runIsOver &&
-        !_padPressing &&
-        padPressing &&
+    // Start restarts a finished run, and a pad button offered to a waiting
+    // rebinding takes precedence over it — `PadPresses` holds both, and holds
+    // the edge this game did not have on the rebinding: a controller resting
+    // against something used to bind itself to whatever the panel was waiting
+    // for, because the button was read as held rather than as pressed.
+    if (_presses.offer(_pad, _settings) &&
+        _runIsOver &&
         _pad.heldButtons.contains(PadButton.start)) {
       unawaited(_run.restart());
     }
-    _padPressing = padPressing;
     // The shared gate, which this game used to write out by hand. Two things
     // came with it: the comment beside the copy still said this game had no
     // settings panel — it has had one for a while — and the copy had **no
