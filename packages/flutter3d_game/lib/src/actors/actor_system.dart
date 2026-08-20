@@ -34,6 +34,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../ecs/ecs_world.dart';
+import '../math/motion.dart';
 import '../nav/navigation.dart';
 import '../physics/layers.dart';
 import 'actor.dart';
@@ -401,22 +402,10 @@ final class ActorSystem {
   void turnTowards(Actor actor, double x, double z, double dt) {
     if (x == 0.0 && z == 0.0) return;
     if (actor.facing == null) return;
-    final wanted = math.atan2(-x, -z);
-    final delta = _shortestAngle(actor.yaw, wanted);
-    final step = actor.turnRate * dt;
-    actor.yaw += delta.abs() <= step ? delta : (delta.isNegative ? -step : step);
+    actor.yaw =
+        turnedTowards(actor.yaw, math.atan2(-x, -z), actor.turnRate * dt);
   }
 
-  static double _shortestAngle(double from, double to) {
-    const twoPi = 2.0 * math.pi;
-    var delta = (to - from) % twoPi;
-    if (delta > math.pi) {
-      delta -= twoPi;
-    } else if (delta < -math.pi) {
-      delta += twoPi;
-    }
-    return delta;
-  }
 
   /// Whether an actor has a clear line to the focus.
   ///

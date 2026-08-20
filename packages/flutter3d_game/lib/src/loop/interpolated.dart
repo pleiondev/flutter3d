@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import '../math/motion.dart';
+
 /// A position the simulation writes at a fixed rate and the renderer reads at
 /// the display's rate.
 ///
@@ -148,18 +150,8 @@ final class InterpolatedAngle {
 
   double read(double alpha) {
     final t = alpha.clamp(0.0, 1.0);
-    return _previous + _shortestDelta(_previous, _current) * t;
+    return _previous + shortestAngle(_previous, _current) * t;
   }
 
   /// The signed distance from [from] to [to], never longer than half a turn.
-  static double _shortestDelta(double from, double to) {
-    const twoPi = 2.0 * math.pi;
-    var delta = (to - from) % twoPi;
-    if (delta > math.pi) {
-      delta -= twoPi;
-    } else if (delta < -math.pi) {
-      delta += twoPi;
-    }
-    return delta;
-  }
 }

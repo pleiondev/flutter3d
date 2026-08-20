@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../layers.dart';
@@ -396,14 +396,14 @@ final class SphereVehicle implements VehicleController {
       // Locked. The wheels stop; the car does not. Everything that follows from
       // that — the grip budget going to the locked wheels, the back coming
       // round — is the tyre model's doing and not a special case here.
-      _wheelSpeed = _towards(_wheelSpeed, 0.0, tuning.brakeStrength * 2.0 * dt);
+      _wheelSpeed = approach(_wheelSpeed, 0.0, tuning.brakeStrength * 2.0 * dt);
       return;
     }
 
     if (brake > 0.0) {
       final target = forwardSpeed > 0.5 ? 0.0 : -tuning.maxReverse;
       _wheelSpeed =
-          _towards(_wheelSpeed, target, tuning.brakeStrength * brake * dt);
+          approach(_wheelSpeed, target, tuning.brakeStrength * brake * dt);
       return;
     }
 
@@ -414,7 +414,7 @@ final class SphereVehicle implements VehicleController {
     }
 
     // Coasting: the wheels fall back to whatever the road is doing.
-    _wheelSpeed = _towards(_wheelSpeed, forwardSpeed, tuning.rollingDrag * dt);
+    _wheelSpeed = approach(_wheelSpeed, forwardSpeed, tuning.rollingDrag * dt);
   }
 
   void _measureSlip(double forwardSpeed, double lateralSpeed) {
@@ -539,14 +539,8 @@ final class SphereVehicle implements VehicleController {
   void _settle(double dt, bool found) {
     if (!found || !_grounded) return;
     final target = _ground.height + tuning.rideHeight;
-    final blend = 1.0 - math.exp(-tuning.suspensionRate * dt);
+    final blend = easeFactor(tuning.suspensionRate, dt);
     collider.position.y += (target - collider.position.y) * blend;
-  }
-
-  static double _towards(double value, double target, double step) {
-    if (value < target) return math.min(value + step, target);
-    if (value > target) return math.max(value - step, target);
-    return value;
   }
 
   bool _underPower = false;

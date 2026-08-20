@@ -184,18 +184,12 @@ final class FollowCamera {
     if (speed < tuning.recentreAbove) return;
 
     final wanted = math.atan2(travelling.x, travelling.z);
-    var away = wanted - _yaw;
-    while (away > math.pi) {
-      away -= 2.0 * math.pi;
-    }
-    while (away < -math.pi) {
-      away += 2.0 * math.pi;
-    }
+    final away = shortestAngle(_yaw, wanted);
 
     // Scaled by how much faster than the threshold: a runner ambling barely
     // moves the camera, and one at a sprint gets it behind them promptly.
     final urgency = ((speed - tuning.recentreAbove) / 4.0).clamp(0.0, 1.0);
-    _yaw += away * (1.0 - math.exp(-tuning.recentre * urgency * dt));
+    _yaw += away * easeFactor(tuning.recentre * urgency, dt);
   }
 
   final Vector3 _wantedEye = Vector3.zero();

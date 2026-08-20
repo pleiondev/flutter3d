@@ -6,6 +6,8 @@
 /// use. If that were not true the split would be a rename.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter3d_game/src/actors/actor.dart';
 import 'package:flutter3d_game/src/actors/actor_components.dart';
 import 'package:flutter3d_game/src/actors/actor_system.dart';
@@ -89,6 +91,30 @@ final class _Suspicion {
 }
 
 void main() {
+  test('an actor turns the short way round the wrap point', () {
+    // **Nothing checked this, and the extraction is what found it.** Replacing
+    // the shared `shortestAngle` with a plain subtraction left every test in
+    // this package and in both genre packages passing, while an actor asked to
+    // face a hair the other side of south turns almost the whole way round —
+    // once, visibly, in front of whoever is watching.
+    final world = _ground();
+    final system = ActorSystem(world: world);
+    final actor = system.spawn(
+      body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+      health: Health(10.0),
+      facing: Facing(yaw: math.pi - 0.05, turnRate: 100.0),
+    );
+
+    // A heading a hair the other side of the wrap point. The sign is the one
+    // `turnTowards` takes: it faces *away* from the direction handed to it, so
+    // this asks for a yaw of -pi + 0.05.
+    system.turnTowards(actor, -math.sin(-math.pi + 0.05), -math.cos(-math.pi + 0.05), 1 / 60.0);
+
+    final moved = (actor.yaw - (math.pi - 0.05)).abs();
+    expect(moved, lessThan(0.5),
+        reason: 'it went the long way round: yaw ${actor.yaw}');
+  });
+
   group('an actor with a brain that is not a monster', () {
     test('walks its patrol, turns round, and comes back', () {
       final world = _ground();

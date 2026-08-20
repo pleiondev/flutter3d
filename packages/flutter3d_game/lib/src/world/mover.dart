@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../math/motion.dart';
 import '../physics/layers.dart';
 import 'mechanism.dart';
 import 'rider.dart';
@@ -130,7 +131,7 @@ abstract base class Mover extends Mechanism {
     // A zero-length trip would divide by zero and is meaningless anyway; the
     // validator warns about it, and here it simply arrives.
     final rate = _span < 1e-6 ? double.infinity : speed / _span;
-    final next = _towards(_progress, goal, rate * dt);
+    final next = approach(_progress, goal, rate * dt);
 
     _at(next, _candidate);
     if (_isBlocked(_candidate)) {
@@ -210,13 +211,6 @@ abstract base class Mover extends Mechanism {
       return true;
     }
     return false;
-  }
-
-  static double _towards(double from, double to, double by) {
-    if (by.isInfinite) return to;
-    final delta = to - from;
-    if (delta.abs() <= by) return to;
-    return from + by * (delta < 0.0 ? -1.0 : 1.0);
   }
 
   final Vector3 _candidate = Vector3.zero();

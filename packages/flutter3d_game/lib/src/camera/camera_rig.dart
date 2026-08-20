@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../math/motion.dart';
 import '../physics/layers.dart';
 
 /// The part of a chasing camera that every chasing camera has.
@@ -158,7 +159,7 @@ final class CameraRig {
       _shown.setFrom(desiredEye);
       _placed = true;
     } else {
-      final t = 1.0 - math.exp(-lag * dt);
+      final t = easeFactor(lag, dt);
       _eye
         ..x += (desiredEye.x - _eye.x) * t
         ..y += (desiredEye.y - _eye.y) * t
@@ -195,7 +196,7 @@ final class CameraRig {
 
   void _decay(double dt) {
     _shakeTime += dt;
-    final gone = 1.0 - math.exp(-impulseDecay * dt);
+    final gone = easeFactor(impulseDecay, dt);
     _kick.scale(1.0 - gone);
     _fov *= 1.0 - gone;
     if (_shakeSeconds > 0.0) {

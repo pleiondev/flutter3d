@@ -1,6 +1,7 @@
-import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
+
+import '../math/motion.dart';
 
 /// Where something was at one moment.
 ///
@@ -216,7 +217,7 @@ final class Playback {
     // Angles take the short way round. A ghost crossing the wrap point with a
     // plain blend spins almost all the way round the wrong way, once a lap,
     // wherever the track happens to point south.
-    out.yaw = a.yaw + _shortestDelta(a.yaw, b.yaw) * t;
+    out.yaw = a.yaw + shortestAngle(a.yaw, b.yaw) * t;
     out.time = time;
 
     out.up
@@ -277,16 +278,6 @@ final class Playback {
           (2 * a - 5 * b + 4 * c - d) * t2 +
           (-a + 3 * b - 3 * c + d) * t3);
 
-  static double _shortestDelta(double from, double to) {
-    const twoPi = 2.0 * math.pi;
-    var delta = (to - from) % twoPi;
-    if (delta > math.pi) {
-      delta -= twoPi;
-    } else if (delta < -math.pi) {
-      delta += twoPi;
-    }
-    return delta;
-  }
 
   final Vector3 _p0 = Vector3.zero();
   final Vector3 _p3 = Vector3.zero();

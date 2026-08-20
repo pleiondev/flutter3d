@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../track.dart';
@@ -153,7 +154,7 @@ final class AiDriver {
       ..setFrom(_aim)
       ..sub(self.position);
     final wanted = math.atan2(_toAim.x, _toAim.z);
-    final error = _shortestDelta(self.headingYaw, wanted);
+    final error = shortestAngle(self.headingYaw, wanted);
 
     final pace = _pace(at, playerGap);
 
@@ -248,16 +249,6 @@ final class AiDriver {
     return gap;
   }
 
-  static double _shortestDelta(double from, double to) {
-    const twoPi = 2.0 * math.pi;
-    var delta = (to - from) % twoPi;
-    if (delta > math.pi) {
-      delta -= twoPi;
-    } else if (delta < -math.pi) {
-      delta += twoPi;
-    }
-    return delta;
-  }
 
   final TrackFrame _frame = TrackFrame();
   final TrackFrame _here = TrackFrame();

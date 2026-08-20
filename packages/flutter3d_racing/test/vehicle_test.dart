@@ -93,6 +93,33 @@ void driveUpTo(SphereVehicle car, double target, {double limit = 25.0}) {
 }
 
 void main() {
+  test('the suspension settles the same at any frame rate', () {
+    // **Written because an extraction found the hole.** The ride height eases
+    // towards the road by `1 - exp(-rate * dt)`, which was retyped at six call
+    // sites across four packages before it became `easeFactor`. Replacing it
+    // with a plain `rate * dt` — the mistake it exists to prevent — left every
+    // test in this package passing, and a car whose suspension is stiffer on a
+    // slow machine is a car that handles differently on two computers running
+    // the same replay.
+    double settleFrom(double dt, int steps) {
+      final it = onFlat();
+      // Dropped a quarter of a metre, then left to settle for a fixed sixth of
+      // a second of *simulated* time at two different step sizes.
+      it.car.collider.position.y += 0.25;
+      for (var i = 0; i < steps; i++) {
+        it.car.step(dt, VehicleInput());
+      }
+      return it.car.collider.position.y;
+    }
+
+    final slow = settleFrom(1 / 30.0, 5);
+    final fast = settleFrom(1 / 240.0, 40);
+
+    expect(fast, closeTo(slow, 1e-3),
+        reason: 'the same sixth of a second settled to $slow at 30 Hz and '
+            '$fast at 240');
+  });
+
   group('going in a straight line', () {
     test('the throttle gathers speed and the drag ends it', () {
       // Mutation: leave the air drag out. Top speed would then be whatever

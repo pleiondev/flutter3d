@@ -1023,16 +1023,7 @@ final class Runner with KeyHolder
 
   void _face(double dt) {
     if (_wish.x == 0.0 && _wish.z == 0.0) return;
-    final wanted = math.atan2(_wish.x, _wish.z);
-    var difference = wanted - yaw;
-    while (difference > math.pi) {
-      difference -= 2 * math.pi;
-    }
-    while (difference < -math.pi) {
-      difference += 2 * math.pi;
-    }
-    final step = tuning.turnRate * dt;
-    yaw += difference.abs() <= step ? difference : step * difference.sign;
+    yaw = turnedTowards(yaw, math.atan2(_wish.x, _wish.z), tuning.turnRate * dt);
   }
 
   /// Thrown by a spring.

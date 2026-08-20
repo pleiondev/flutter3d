@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'combat/weapon.dart';
@@ -116,7 +117,7 @@ final class WeaponView {
     } else {
       // Eased back to centre rather than snapped: stopping dead mid-swing is
       // more noticeable than the sway itself.
-      _bobOffset += (0.0 - _bobOffset) * (1.0 - math.exp(-8.0 * dt));
+      _bobOffset += (0.0 - _bobOffset) * easeFactor(8.0, dt);
     }
 
     if (_recoil > 0.0) {

@@ -51,6 +51,7 @@ export 'src/loop/interpolated.dart';
 export 'src/loop/pace.dart';
 export 'src/loop/pause_gate.dart';
 export 'src/loop/run_outcome.dart';
+export 'src/math/motion.dart';
 export 'src/math/spline.dart';
 export 'src/nav/flow_field.dart';
 export 'src/nav/nav_grid.dart';

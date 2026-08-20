@@ -191,21 +191,11 @@ final class ChaseCamera {
         .clamp(0.0, 1.0);
 
     return car.headingYaw +
-        _shortestDelta(car.headingYaw, travelling) *
+        shortestAngle(car.headingYaw, travelling) *
             reach *
             tuning.headingBlend;
   }
 
-  static double _shortestDelta(double from, double to) {
-    const twoPi = 2.0 * math.pi;
-    var delta = (to - from) % twoPi;
-    if (delta > math.pi) {
-      delta -= twoPi;
-    } else if (delta < -math.pi) {
-      delta += twoPi;
-    }
-    return delta;
-  }
 
   final Vector3 _wantedEye = Vector3.zero();
   final Vector3 _wantedTarget = Vector3.zero();
