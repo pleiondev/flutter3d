@@ -696,15 +696,19 @@ class _RaceScreenState extends State<RaceScreen>
   final PadPresses _presses = PadPresses();
 
   /// The player's keys, as a car's controls.
-  /// The one thing a driver can change about the car without leaving it.
+  /// The pit stop: fresh tyres and a car put back together.
   ///
   /// Read on the step rather than in the key handler, because whether it is
   /// allowed depends on how fast the car is going — which is a fact the
   /// simulation owns and a widget would have to go and fetch.
+  ///
+  /// One key for both, because a car that has stopped for repairs is a car that
+  /// gets tyres. A driver who wants the set they are already on presses it
+  /// three times, which is free while standing still.
   void _readPitStop() {
     if (!_input.pressed(_Drive.tyres)) return;
     final car = _cars[0];
-    if (car.fitTyres(Tyres.after(car.tyres))) {
+    if (car.pitStop(Tyres.after(car.tyres))) {
       _audio.play(Sounds.checkpoint, _ears.position);
       _refusedFor = 0.0;
     } else {
@@ -848,6 +852,7 @@ class _RaceScreenState extends State<RaceScreen>
       recordJustSet: _celebrateFor > 0.0,
       tyres: _cars[0].tyres.name,
       tyresRefused: _refusedFor > 0.0,
+      damage: _cars[0].damage,
       wrongWay: player.wrongWay,
       countdown:
           race.phase == RacePhase.countdown ? race.countdown : null,

@@ -19,6 +19,7 @@ import 'package:vector_math/vector_math.dart' show Vector2;
 RaceReadout _readout({
   String tyres = 'road',
   bool refused = false,
+  double damage = 0.0,
 }) =>
     RaceReadout(
       speed: 20.0,
@@ -31,6 +32,7 @@ RaceReadout _readout({
       record: null,
       tyres: tyres,
       tyresRefused: refused,
+      damage: damage,
       wrongWay: false,
       countdown: null,
       mode: RaceMode.race,
@@ -59,14 +61,28 @@ void main() {
     expect(find.text('ROAD'), findsNothing);
   });
 
+  testWidgets('and says nothing about damage until there is some',
+      (WidgetTester tester) async {
+    // A line reading NONE every lap of every clean race is a line a driver
+    // stops seeing, and this one has to be noticed the once.
+    await _show(tester, _readout());
+    expect(find.text('DAMAGE'), findsNothing);
+
+    await _show(tester, _readout(damage: 0.24));
+    expect(find.text('DAMAGE'), findsOneWidget);
+    expect(find.text('24%'), findsOneWidget);
+  });
+
   test('and the game is the thing that offers the choice', () {
     // The same scan the ghost needs, for the same reason: the call sits in a
     // private method of a widget no test can mount, and a suite full of green
     // ticks would say nothing about a game that quietly stopped asking.
     final game = File('lib/main.dart').readAsStringSync();
 
-    expect(game, contains('fitTyres('),
+    expect(game, contains('pitStop('),
         reason: 'three sets of tyres, and no way to put any of them on');
+    expect(game, contains('.damage'),
+        reason: 'cars get broken and the screen never says so');
     expect(game, contains("GameAction('tyres')"),
         reason: 'the verb is not in the table, so it cannot be rebound');
     expect(game, contains('_Drive.tyres'),

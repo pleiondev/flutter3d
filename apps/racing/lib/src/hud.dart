@@ -27,6 +27,7 @@ class RaceReadout {
     required this.bestLap,
     required this.record,
     required this.tyres,
+    required this.damage,
     this.recordJustSet = false,
     this.tyresRefused = false,
     required this.wrongWay,
@@ -61,6 +62,11 @@ class RaceReadout {
 
   /// What the car is standing on the road with.
   final String tyres;
+
+  /// How broken the car is, from nought to one. Shown only once there is
+  /// something to show: a line reading NONE every lap of every clean race is a
+  /// line a driver stops seeing, and this one has to be noticed the once.
+  final double damage;
 
   /// Whether a change was asked for and refused, which happens at any speed
   /// above a walk. Said rather than ignored: a key that does nothing and says
@@ -149,6 +155,15 @@ class RaceHud extends StatelessWidget {
                     accent: readout.recordJustSet,
                   ),
                 ],
+                if (readout.damage > 0.02)
+                  _Line(
+                    label: 'DAMAGE',
+                    value: '${(readout.damage * 100).round()}%',
+                    // A quarter gone is a car losing a tenth of its engine and
+                    // a driver who can still race. Past a half it is a decision
+                    // about whether to stop.
+                    accent: readout.damage > 0.5,
+                  ),
                 _Line(
                   label: 'TYRES',
                   value: readout.tyresRefused

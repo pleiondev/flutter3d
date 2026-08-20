@@ -28,6 +28,10 @@ final class VehicleTuning {
     this.steerFalloff = 26.0,
     this.wheelBase = 2.7,
     this.gravity = 20.0,
+    this.impactShrugged = 6.0,
+    this.impactCost = 0.017,
+    this.powerLostWhenWrecked = 0.45,
+    this.speedLostWhenWrecked = 0.25,
     this.groundStick = 0.45,
     this.suspensionRate = 18.0,
     this.slideAlignment = 2.2,
@@ -76,6 +80,28 @@ final class VehicleTuning {
   /// Deliberately above the real figure. Arcade cars jump, and a jump under
   /// real gravity hangs long enough to feel like a bug.
   final double gravity;
+
+  /// How much speed an impact can take out of the car, in metres per second,
+  /// before it counts as damage at all.
+  ///
+  /// Six, which is a car nudging a kerb or leaning on a barrier through a
+  /// corner. A racing line that touches things is a racing line, and a game
+  /// that charged for it would be a game about not racing.
+  final double impactShrugged;
+
+  /// How much damage each metre per second past [impactShrugged] does.
+  ///
+  /// A wreck at one. So a forty-mile-an-hour shunt — eighteen metres a second
+  /// gone in one step — costs a fifth of the car, and it takes five of those to
+  /// finish it. Enough to change a race, not enough to end one on a mistake.
+  final double impactCost;
+
+  /// How much of the engine a fully wrecked car has lost.
+  final double powerLostWhenWrecked;
+
+  /// How much of its top speed. Less than the power: a broken car should take
+  /// longer to get going rather than stop being a car.
+  final double speedLostWhenWrecked;
 
   /// How far below the car the ground still counts as under it.
   final double groundStick;
@@ -169,18 +195,9 @@ final class SphereVehicle implements VehicleController {
 
   /// Puts a different set of tyres on, if the car is standing still.
   ///
-  /// Returns whether they went on.
-  ///
-  /// **The standstill is the whole price.** A [Tyres] is a table of numbers and
-  /// nothing about swapping one mid-corner would go wrong mechanically — which
-  /// is exactly the problem: a driver who could change compound at speed would
-  /// hold slicks down the straight and knobbly tyres through the gravel, and a
-  /// choice with no cost is not a choice. Stopping costs the seconds that make
-  /// it one.
-  ///
-  /// Half a metre a second rather than nought, because a car resting against a
-  /// kerb is never quite still and a rule a player cannot satisfy is a rule
-  /// they think is broken.
+  /// Returns whether they went on. [pitStop] is this and the repairs together,
+  /// which is what the game offers a player; this is the half of it a test — or
+  /// a game that wants to charge for the two separately — can call on its own.
   bool fitTyres(Tyres set) {
     if (speed > 0.5) return false;
     tyres = set;
@@ -203,6 +220,15 @@ final class SphereVehicle implements VehicleController {
   /// of numbers — so swapping one for another mid-race is exactly as safe as
   /// having started on it.
   Tyres tyres;
+
+  /// How broken the car is, from nought to one.
+  ///
+  /// **Not a health bar with a death at the end of it.** A car that stopped
+  /// existing would take the race with it; what this does is make the car
+  /// slower, so a crash costs the thing a race is actually made of. Every car
+  /// carries it, including the ones nobody is driving — a rival that hit the
+  /// wall on lap one should be catchable on lap three.
+  double damage = 0.0;
 
   /// The curve, from the tyres that are on it.
   TireModel get tires => tyres.model;
@@ -286,6 +312,7 @@ final class SphereVehicle implements VehicleController {
   @override
   void step(double dt, VehicleInput input) {
     _scraped = 0.0;
+    _struck = 0.0;
     final found = ground.sample(position, _ground.s, _ground);
     _readGround(found);
     _buildFrame();
@@ -351,6 +378,11 @@ final class SphereVehicle implements VehicleController {
         // before it writes it, and a car that starts the lap at nought is a car
         // that has just driven backwards past the finish line.
         'trackDistance': _ground.s,
+        // **Saved, or a restored race hands every wreck back its engine.** The
+        // shooter's own snapshot test caught exactly this about a recoil the
+        // day it was added; a car is no different.
+        'damage': damage,
+        'tyres': tyres.name,
       };
 
   @override
@@ -364,6 +396,10 @@ final class SphereVehicle implements VehicleController {
     _grounded = from.flag('grounded');
     _underPower = from.flag('underPower');
     _ground.s = from.number('trackDistance', _ground.s);
+    damage = from.number('damage');
+    // A name this build no longer ships reads as the set every car starts on,
+    // rather than as a crash on the launch after an update.
+    tyres = Tyres.named(from['tyres'] as String?);
     // The basis is derived, not saved: it follows from the heading and the
     // ground's normal, and rebuilding it is how a restored car is drawn the
     // right way up on the first frame rather than the second.
@@ -485,8 +521,17 @@ final class SphereVehicle implements VehicleController {
     }
 
     if (throttle > 0.0) {
-      _wheelSpeed += tuning.enginePush * throttle * dt;
-      _wheelSpeed = _wheelSpeed.clamp(-tuning.maxReverse, tuning.maxSpeed);
+      // A broken car is a slower car, which is the only place damage is felt.
+      // Both of these are the engine's side of it: what the tyres can do with
+      // the power is unchanged, so a wreck still corners and still stops — it
+      // simply cannot get down the straight any more.
+      _wheelSpeed +=
+          tuning.enginePush * (1.0 - damage * tuning.powerLostWhenWrecked) *
+              throttle * dt;
+      _wheelSpeed = _wheelSpeed.clamp(
+        -tuning.maxReverse,
+        tuning.maxSpeed * (1.0 - damage * tuning.speedLostWhenWrecked),
+      );
       return;
     }
 
@@ -582,7 +627,17 @@ final class SphereVehicle implements VehicleController {
       if (into < 0.0) _delta.addScaled(_hit.normal, -into);
 
       final speedInto = velocity.dot(_hit.normal);
-      if (speedInto < 0.0) velocity.addScaled(_hit.normal, -speedInto);
+      if (speedInto < 0.0) {
+        velocity.addScaled(_hit.normal, -speedInto);
+        // **What the sweep used to throw away.** The speed driven into a wall
+        // was taken out of the car and nothing was told: a scrape down a track
+        // barrier threw sparks, and hitting one of the pillars the circuit is
+        // measured against was silent and free. The car reports it and the game
+        // decides what it looks like, which is the division `scrapedThisStep`
+        // already keeps.
+        _struck = math.max(_struck, -speedInto);
+        _hurt(-speedInto);
+      }
     }
   }
 
@@ -601,6 +656,52 @@ final class SphereVehicle implements VehicleController {
   double get scrapedThisStep => _scraped;
   double _scraped = 0.0;
 
+  /// How hard the car hit something solid this step, in metres per second taken
+  /// out of it head-on. Zero on a clean lap.
+  ///
+  /// A step edge like [scrapedThisStep], and the other half of the same
+  /// question: that one is the track's own barrier pushing the car back into
+  /// the road, this one is geometry — a pillar, a wall a level built out of
+  /// brushes, another car.
+  double get struckThisStep => _struck;
+  double _struck = 0.0;
+
+  /// Adds the damage an impact of [speed] metres per second does.
+  ///
+  /// Public because the barrier is dealt with somewhere else and a game may
+  /// have its own reasons to break a car; clamped here so that no caller can
+  /// invent a car more than wrecked or less than fresh.
+  void hurt(double speed) => _hurt(speed);
+
+  void _hurt(double speed) {
+    final past = speed - tuning.impactShrugged;
+    if (past <= 0.0) return;
+    damage = (damage + past * tuning.impactCost).clamp(0.0, 1.0);
+  }
+
+  /// Puts the car back together and puts the next set of tyres on it, if it is
+  /// standing still.
+  ///
+  /// Returns whether it happened. **One idea rather than two**: a car that has
+  /// stopped for repairs is a car that gets tyres, and a game with a key for
+  /// each would be a game asking a driver to press two.
+  ///
+  /// The standstill is the whole price. Nothing about swapping a table of
+  /// numbers mid-corner would go wrong mechanically, which is exactly the
+  /// problem — a driver who could do it at speed would hold slicks down the
+  /// straight and knobbly tyres through the gravel, and repair the car for
+  /// free on the way past. Stopping costs the seconds that make it a choice.
+  ///
+  /// Half a metre a second rather than nought, because a car resting against a
+  /// kerb is never quite still and a rule a player cannot satisfy is a rule
+  /// they think is broken.
+  bool pitStop(Tyres set) {
+    if (speed > 0.5) return false;
+    tyres = set;
+    damage = 0.0;
+    return true;
+  }
+
   void _holdInsideBarrier() {
     if (!_ground.barrier || _ground.halfWidth <= 0.0) return;
 
@@ -615,6 +716,10 @@ final class SphereVehicle implements VehicleController {
     if (into > 0.0) {
       _scraped = into;
       velocity.addScaled(_ground.lateralAxis, into * inward);
+      // The same speed taken out of a car by the same kind of wall. A barrier
+      // that only threw sparks while a pillar broke the car would say the two
+      // are different things, and to a driver arriving at either they are not.
+      _hurt(into);
     }
   }
 
