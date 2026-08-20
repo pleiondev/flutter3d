@@ -120,7 +120,7 @@ void main() {
     final keeper = _keeper(storage);
     _drive(keeper, seconds: 4.0);
 
-    expect(keeper.finished(4.0, wasBest: true), isTrue);
+    expect(keeper.finished(4.0), isTrue);
 
     final afterRelaunch = _keeper(storage)..load();
 
@@ -136,13 +136,17 @@ void main() {
   test('and a slower lap does not take its place', () {
     // Mutation: keep every lap. The ghost would be whatever was driven last,
     // which is the opposite of what a player is racing against.
+    //
+    // The keeper decides this itself now, against the record on disk. It used
+    // to be told, by a simulation whose "best so far" began each race empty —
+    // see the record's own test below for what that cost.
     final storage = _Storage();
     final keeper = _keeper(storage);
     _drive(keeper, seconds: 4.0);
-    keeper.finished(4.0, wasBest: true);
+    keeper.finished(4.0);
 
     _drive(keeper, seconds: 9.0, from: 500.0);
-    expect(keeper.finished(9.0, wasBest: false), isFalse);
+    expect(keeper.finished(9.0), isFalse);
 
     expect(keeper.best!.lapTime, closeTo(4.0, 1e-3));
     expect(_keeper(storage).let((k) => k..load()).best!.lapTime,
@@ -157,10 +161,10 @@ void main() {
     final storage = _Storage();
     final keeper = _keeper(storage);
     _drive(keeper, seconds: 4.0);
-    keeper.finished(4.0, wasBest: true);
+    keeper.finished(4.0);
 
     _drive(keeper, seconds: 3.0, from: 500.0);
-    keeper.finished(3.0, wasBest: true);
+    keeper.finished(3.0);
 
     expect(keeper.best!.poses.first.position.x, closeTo(500.0, 0.5),
         reason: 'the new lap starts where the old one did');
@@ -175,7 +179,7 @@ void main() {
     final keeper = _keeper(storage);
     _drive(keeper, seconds: 0.1);
 
-    expect(keeper.finished(0.1, wasBest: true), isFalse);
+    expect(keeper.finished(0.1), isFalse);
     expect(keeper.best, isNull);
     expect(storage.documents, isEmpty);
   });
@@ -186,7 +190,7 @@ void main() {
     final storage = _Storage();
     final ring = _keeper(storage, track: 'assets/tracks/ring.json');
     _drive(ring, seconds: 4.0);
-    ring.finished(4.0, wasBest: true);
+    ring.finished(4.0);
 
     final elsewhere = _keeper(storage, track: 'assets/tracks/other.json')
       ..load();
@@ -272,6 +276,93 @@ void main() {
     });
   });
 
+  group('the record', () {
+    test('is what a lap is measured against, not this session', () {
+      // **The bug the record found, and it destroyed things.** `finished` used
+      // to be handed the simulation's `bestLapThisStep`, and a race starts with
+      // no laps in it — so the first lap of every launch was the best one by
+      // definition. The out-lap somebody drove while getting used to the car
+      // took the place of a record set on another evening, and the ghost they
+      // were about to race went with it.
+      final storage = _Storage();
+      final keeper = _keeper(storage);
+      _drive(keeper, seconds: 4.0);
+      keeper.finished(4.0);
+
+      // A new launch: nothing in memory, everything on disk.
+      final relaunched = _keeper(storage)..load();
+      _drive(relaunched, seconds: 9.0, from: 500.0);
+
+      expect(relaunched.finished(9.0), isFalse,
+          reason: 'the out-lap of a new launch took the record');
+      expect(relaunched.record, closeTo(4.0, 1e-3));
+      expect(relaunched.best!.poses.first.position.x, closeTo(0.0, 0.5),
+          reason: 'the record is 4s and the ghost is the nine-second lap');
+    });
+
+    test('and is the tape\'s own time, so the two cannot disagree', () {
+      // One document. A record kept beside the ghost could say 1:58 with a
+      // two-minute car on the track, and there would be no telling which of the
+      // two was lying.
+      final keeper = _keeper(_Storage());
+      expect(keeper.record, isNull);
+
+      _drive(keeper, seconds: 4.0);
+      keeper.finished(4.0);
+
+      expect(keeper.record, keeper.best!.lapTime);
+    });
+
+    test('and a lap that beats it says so, once', () {
+      // What the screen is told. The line only flashes on the step the record
+      // moved: a game that said it every step would be a game that never
+      // stopped saying it.
+      final storage = _Storage();
+      final keeper = _keeper(storage);
+      final car = _Car();
+      final player = RacerProgress(index: 0);
+
+      for (var step = 0; step * (1 / 60.0) < 4.0; step++) {
+        player.lapTime = step / 60.0;
+        car.position.setValues(player.lapTime * 20.0, 0.0, 0.0);
+        expect(keeper.stepped(player, car), isFalse,
+            reason: 'a record was announced mid-lap');
+      }
+      player
+        ..lastLap = 4.0
+        ..lapTime = 0.0
+        ..lapCompletedThisStep = true;
+
+      expect(keeper.stepped(player, car), isTrue);
+
+      player.lapCompletedThisStep = false;
+      expect(keeper.stepped(player, car), isFalse,
+          reason: 'it went on announcing the same record');
+    });
+
+    test('and a lap that does not beat it says nothing', () {
+      final storage = _Storage();
+      final keeper = _keeper(storage);
+      _drive(keeper, seconds: 4.0);
+      keeper.finished(4.0);
+
+      final car = _Car();
+      final player = RacerProgress(index: 0);
+      for (var step = 0; step * (1 / 60.0) < 6.0; step++) {
+        player.lapTime = step / 60.0;
+        car.position.setValues(500.0 + player.lapTime * 20.0, 0.0, 0.0);
+        keeper.stepped(player, car);
+      }
+      player
+        ..lastLap = 6.0
+        ..lapTime = 0.0
+        ..lapCompletedThisStep = true;
+
+      expect(keeper.stepped(player, car), isFalse);
+      expect(keeper.record, closeTo(4.0, 1e-3));
+    });
+  });
+
   test('and the game itself is the thing that calls all of it', () {
     // **The failure this whole file is a fix for, and it has to be a scan.**
     // Every class here was written, tested and left uncalled for as long as the
@@ -287,6 +378,8 @@ void main() {
         reason: 'laps are recorded and kept, and nothing draws one');
     expect(game, contains('.load()'),
         reason: 'a best lap is written and never read back');
+    expect(game, contains('_ghosts.record'),
+        reason: 'the record is kept and the screen never says what it is');
   });
 
   group('the car it is drawn as', () {
@@ -294,7 +387,7 @@ void main() {
       final storage = _Storage();
       final keeper = _keeper(storage);
       _drive(keeper, seconds: 4.0);
-      keeper.finished(4.0, wasBest: true);
+      keeper.finished(4.0);
       return keeper.best!;
     }
 

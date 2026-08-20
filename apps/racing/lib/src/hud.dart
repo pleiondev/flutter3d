@@ -25,6 +25,8 @@ class RaceReadout {
     required this.racers,
     required this.lapTime,
     required this.bestLap,
+    required this.record,
+    this.recordJustSet = false,
     required this.wrongWay,
     required this.countdown,
     required this.mode,
@@ -45,6 +47,15 @@ class RaceReadout {
   final int racers;
   final double lapTime;
   final double? bestLap;
+
+  /// The quickest lap ever driven here, across every launch, or null before
+  /// there is one. **Not [bestLap]**, which starts again with every race: a
+  /// number that resets when the window closes is a readout, and what a driver
+  /// is actually chasing is the one that does not.
+  final double? record;
+
+  /// Whether that record was set a moment ago, so the line can say so.
+  final bool recordJustSet;
   final bool wrongWay;
 
   /// Seconds left on the lights, or null once they have gone out.
@@ -119,6 +130,13 @@ class RaceHud extends StatelessWidget {
                     value: readout.bestLap == null
                         ? '--:--.---'
                         : formatLapTime(readout.bestLap!),
+                  ),
+                  _Line(
+                    label: readout.recordJustSet ? 'RECORD!' : 'RECORD',
+                    value: readout.record == null
+                        ? '--:--.---'
+                        : formatLapTime(readout.record!),
+                    accent: readout.recordJustSet,
                   ),
                 ],
               ],
@@ -239,10 +257,14 @@ class _Panel extends StatelessWidget {
 }
 
 class _Line extends StatelessWidget {
-  const _Line({required this.label, required this.value});
+  const _Line({required this.label, required this.value, this.accent = false});
 
   final String label;
   final String value;
+
+  /// Whether this line has just become true. Colour, because a driver reading
+  /// it is doing something else at the time.
+  final bool accent;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -254,8 +276,8 @@ class _Line extends StatelessWidget {
               width: 52,
               child: Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFF9AA4B2),
+                style: TextStyle(
+                  color: accent ? _accent : const Color(0xFF9AA4B2),
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 1.5,
@@ -264,18 +286,24 @@ class _Line extends StatelessWidget {
             ),
             Text(
               value,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: accent ? _accent : Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 // Tabular figures, or the whole line jitters as the
                 // thousandths tick over.
-                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+                fontFeatures: const <FontFeature>[
+                  FontFeature.tabularFigures(),
+                ],
               ),
             ),
           ],
         ),
       );
+
+  /// The colour the flag is, which is the one thing on this screen that already
+  /// meant "you have done it".
+  static const Color _accent = Color(0xFFFFD166);
 }
 
 class _Speedometer extends StatelessWidget {

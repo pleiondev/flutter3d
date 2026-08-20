@@ -40,16 +40,29 @@ final class GhostKeeper {
   void watch(double lapTime, VehicleController car) =>
       _recorder.tick(lapTime, car);
 
-  /// A lap has ended. Keeps it if it beat what was there, and starts the next.
+  /// The lap to beat here, in seconds, or null before anybody has driven one.
+  ///
+  /// **The tape's own time, not a number kept beside it.** One document, so the
+  /// ghost a player is racing and the time they are chasing cannot come apart —
+  /// a record that says 1:58 with a two-minute car on the track would make a
+  /// liar of one of the two, and there would be no telling which.
+  double? get record => best?.lapTime;
+
+  /// A lap has ended. Keeps it if it beat the record, and starts the next.
   ///
   /// Returns whether it was kept, which is worth saying out loud to a player.
-  bool finished(double lapTime, {required bool wasBest}) {
-    if (!wasBest) {
-      _recorder.reset();
-      return false;
-    }
+  ///
+  /// **Against the record, not against this session.** It used to ask the
+  /// simulation whether the lap was the best *so far*, and a race begins with
+  /// no laps in it — so the first lap of every launch was the best by
+  /// definition, and the out-lap somebody drove while getting used to the car
+  /// overwrote a record they had spent an evening on. The ghost they were about
+  /// to race went with it.
+  bool finished(double lapTime) {
     final tape = _recorder.finish(lapTime);
     _recorder.reset();
+    final standing = record;
+    if (standing != null && lapTime >= standing) return false;
     // A lap with two samples in it is a lap somebody drove through a wall, and
     // a ghost of it would be a car sliding across the infield.
     if (tape.poses.length < 4) return false;
@@ -59,7 +72,8 @@ final class GhostKeeper {
   }
 
   /// One step of a race, from the keeper's side: close a lap if one ended,
-  /// then sample the one being driven.
+  /// then sample the one being driven. Returns whether the lap that ended is
+  /// the new record.
   ///
   /// The finishing step arrives with `lapTime` already back at nought — the
   /// simulation resets it as it counts the lap — so the lap is closed with
@@ -76,11 +90,11 @@ final class GhostKeeper {
   /// It lives here rather than in the game's step for the reason this whole
   /// file exists: a ghost that nothing calls is a ghost nobody sees, and a
   /// method can be tested where four lines inside a widget cannot.
-  void stepped(RacerProgress player, VehicleController car) {
-    if (player.lapCompletedThisStep) {
-      finished(player.lastLap, wasBest: player.bestLapThisStep);
-    }
+  bool stepped(RacerProgress player, VehicleController car) {
+    final record =
+        player.lapCompletedThisStep && finished(player.lastLap);
     watch(player.lapTime, car);
+    return record;
   }
 
   /// The lap to race against, or null the first time anybody drives here.

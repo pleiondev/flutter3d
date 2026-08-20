@@ -177,6 +177,14 @@ class _RaceScreenState extends State<RaceScreen>
   /// What is said across the screen between circuits, and at the end.
   String? _notice;
 
+  /// How long the record line goes on saying it has just been beaten.
+  ///
+  /// Seconds rather than laps: a driver who has just set one is looking at the
+  /// corner in front of them, and a line that changed for one frame changed for
+  /// nobody. It runs on the clock rather than on the simulation because it is
+  /// something being read, not something being driven.
+  double _celebrateFor = 0.0;
+
   /// The best lap driven here, and the car it is drawn as.
   ///
   /// **Written, tested and never used**: the ghost has been in the racing
@@ -635,6 +643,8 @@ class _RaceScreenState extends State<RaceScreen>
       stepSeconds: _loop.clock.stepSeconds,
     );
 
+    if (_celebrateFor > 0.0) _celebrateFor = (_celebrateFor - dt).clamp(0.0, 4.0);
+
     _particles.advance(dt);
     _place(dt);
     _listen(race);
@@ -653,7 +663,12 @@ class _RaceScreenState extends State<RaceScreen>
     // Recorded always, not only when the lap is going to be a good one:
     // whether it was the best is knowable when it ends, and by then it is too
     // late to have been writing it down.
-    _ghosts.stepped(race.progress[0], _cars[0]);
+    // **The record, not the session's best.** A race begins with no laps in
+    // it, so the lap somebody drives while getting used to the car was the
+    // best one by definition — and it used to take the place of a record that
+    // stood from another evening. The keeper compares against the disk now,
+    // and says when the disk changed.
+    if (_ghosts.stepped(race.progress[0], _cars[0])) _celebrateFor = 4.0;
 
     // What this step looks like, decided by something a test can call and
     // performed here. Per car: a rival locking up in front is as worth seeing
@@ -803,6 +818,8 @@ class _RaceScreenState extends State<RaceScreen>
       racers: race.progress.length,
       lapTime: player.lapTime,
       bestLap: player.bestLap,
+      record: _ghosts.record,
+      recordJustSet: _celebrateFor > 0.0,
       wrongWay: player.wrongWay,
       countdown:
           race.phase == RacePhase.countdown ? race.countdown : null,
