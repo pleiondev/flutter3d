@@ -203,6 +203,11 @@ final class GameSimulation {
     if (playing) {
       player.look(input.lookDelta);
       player.moveWish(input.moveAxis, _wish);
+      // Asked for every step rather than on an edge: standing up can be refused
+      // by a ceiling, and a player who let go under a crawlspace has to keep
+      // asking until there is room. See [Player.crouch].
+      player.crouch(held: input.held(ShooterActions.crouch));
+      _wish.scale(player.crouchThrottle);
       if (input.pressed(GameAction.jump)) player.body.requestJump();
     } else {
       // A dead player's input moves nothing. The world keeps going around
@@ -219,7 +224,7 @@ final class GameSimulation {
     player.body.step(
       dt,
       wishDirection: _wish,
-      sprint: playing && input.held(GameAction.sprint),
+      sprint: playing && !player.isCrouching && input.held(GameAction.sprint),
     );
 
     // After the player has moved, because what they shove depends on where

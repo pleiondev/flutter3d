@@ -45,7 +45,14 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
     Inventory? inventory,
     this.eyeOffset = 0.7,
     this.lookSensitivity = 0.0022,
+    this.crouchHeight = 0.55,
+    this.crouchSpeed = 1.9,
   }) : inventory = inventory ?? Inventory() {
+    _standing = body.collider.shape;
+    _crouching = CollisionCapsule(
+      radius: body.halfExtents.x,
+      halfHeight: math.max(0.01, crouchHeight - body.halfExtents.x),
+    );
     // The one line that makes this worth having: from here on, "who is this
     // collider" has one answer for every collider in the world.
     body.collider.userData = this;
@@ -84,6 +91,68 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// How far the eye sits above the centre of the body.
   final double eyeOffset;
 
+  /// Half the height of the body while crouched, in metres.
+  final double crouchHeight;
+
+  /// How fast it walks while crouched.
+  final double crouchSpeed;
+
+  /// Whether the body is down.
+  ///
+  /// **Held, not toggled.** A toggle is one more piece of state a player has to
+  /// track about themselves in a game where the interesting state is in front
+  /// of them, and it is what makes somebody walk into a fight still crawling.
+  bool get isCrouching => _crouched;
+  bool _crouched = false;
+
+  /// Set when a crouch could not be stood up out of, so the caller can say so —
+  /// or simply so it is tried again next step.
+  bool get wantsToStand => _wantsToStand;
+  bool _wantsToStand = false;
+
+  late final CollisionShape _standing;
+  late final CollisionShape _crouching;
+
+  /// Crouches or stands, as [held] asks and the ceiling allows.
+  ///
+  /// **Standing can be refused, and that is the whole reason this asks rather
+  /// than sets.** A player who crouched into a crawlspace and let go of the key
+  /// would otherwise stand up inside the rock and be ejected through it, which
+  /// is the oldest bug in the genre. `tryResize` answers the question and
+  /// changes nothing when the answer is no.
+  void crouch({required bool held}) {
+    if (held) {
+      _wantsToStand = false;
+      if (_crouched) return;
+      // Shrinking never fails, and the feet stay where they are: a crouch that
+      // dropped the whole body would sink it into the floor.
+      if (body.tryResize(_crouching)) _crouched = true;
+      return;
+    }
+
+    if (!_crouched) return;
+    if (body.tryResize(_standing)) {
+      _crouched = false;
+      _wantsToStand = false;
+    } else {
+      // There is something overhead. Stay down, and try again next step.
+      _wantsToStand = true;
+    }
+  }
+
+  /// How much of the walking speed a crouched player gets, from nought to one.
+  ///
+  /// **Through the length of the wish rather than by swapping the tuning**, and
+  /// the controller already says why it works: "the length of the request
+  /// scales the target speed, so half a stick deflection means half speed". A
+  /// second `MovementTuning` would be a second set of numbers to keep true, and
+  /// the floor's own surface already swaps that one.
+  ///
+  /// There is no crouch-sprint: a player holding both gets the slow one,
+  /// because that is what they asked for second and what the body is doing.
+  double get crouchThrottle =>
+      _crouched ? (crouchSpeed / body.tuning.walkSpeed).clamp(0.0, 1.0) : 1.0;
+
   /// Radians of view movement per unit of pointer motion.
   ///
   /// A field with a default rather than a constant, because it is a user
@@ -113,6 +182,12 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
         'inventory': inventory.save(),
         'yaw': yaw,
         'pitch': _pitch,
+        // **Saved, and `CharacterController.save` says why it has to be here
+        // rather than there**: a `CollisionShape` is not JSON, so a game that
+        // crouches saves that it was crouching and asks for the volume again on
+        // the way back. One that forgets restores a standing body inside a
+        // crawlspace and is thrown out of it on the first step.
+        'crouching': _crouched,
       };
 
   void restore(Map<String, Object?> from) {
@@ -123,6 +198,11 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
       this.inventory.restore(inventory.cast<String, Object?>());
     }
     yaw = (from['yaw'] as num?)?.toDouble() ?? yaw;
+    // Through the same call the key does, so the body ends up the size the save
+    // says it was — and if the room has changed under it, the resize refuses
+    // and it stays standing rather than being wedged into rock.
+    _crouched = false;
+    crouch(held: from['crouching'] == true);
     // Through the setter, so a snapshot written by a build with a different
     // pitch limit cannot restore a camera with no orientation.
     pitch = (from['pitch'] as num?)?.toDouble() ?? _pitch;
@@ -147,8 +227,17 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// Safe to call with [out] and [position] being the same vector.
   void eyeFrom(Vector3 position, Vector3 out) {
     out.setFrom(position);
-    out.y += eyeOffset;
+    // Scaled by how tall the body is now, so a crouch lowers the view rather
+    // than leaving the eye floating where the head used to be. The offset is
+    // authored against the standing body, which is what `eyeOffset` means.
+    out.y += _crouched
+        ? eyeOffset * (body.halfExtents.y / _standingHalfHeight)
+        : eyeOffset;
   }
+
+  /// Half the height of the standing body, kept because the eye is a fraction
+  /// of it and the body's own is whatever it is right now.
+  late final double _standingHalfHeight = _standing.boundsHalfExtents.y;
 
   /// The unit vector the crosshair points along — a shot, a use ray, and what
   /// the camera looks at.

@@ -11,4 +11,11 @@ abstract final class ShooterActions {
   /// Held for automatic weapons, and its press edge drives the semi-automatic
   /// ones.
   static const GameAction fire = GameAction('fire');
+
+  /// Held to crouch. Released to stand, if there is room to.
+  ///
+  /// This game's own rather than the engine's, for the reason the whole file
+  /// exists: a racing game has no use for it, and `GameAction.jump` is in the
+  /// engine only because every game with a body in it has one.
+  static const GameAction crouch = GameAction('crouch');
 }
