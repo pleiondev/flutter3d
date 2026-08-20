@@ -45,6 +45,7 @@ export 'src/level/level_collision.dart';
 export 'src/level/level_issue.dart';
 export 'src/level/level_validator.dart';
 export 'src/level/spawn_context.dart';
+export 'src/level/surface_table.dart';
 export 'src/loop/fixed_step.dart';
 export 'src/loop/game_loop.dart';
 export 'src/loop/interpolated.dart';

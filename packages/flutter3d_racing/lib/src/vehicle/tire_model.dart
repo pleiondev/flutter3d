@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:flutter3d_game/flutter3d_game.dart';
+
 import 'package:vector_math/vector_math.dart';
 
 /// How much of the grip available a tyre is actually using, given how much it
@@ -120,8 +122,12 @@ final class TireModel {
 /// worth. One number rather than a table here, because unlike walking — where
 /// ice is low friction *and* low acceleration *and* a different jump — driving
 /// on a loose surface is one idea, and it is "there is less grip".
-final class GripTable {
-  const GripTable(this._byName, {this.fallback = 1.0});
+///
+/// Sibling literally, now: both stand on [SurfaceTable], which is what was left
+/// once the two were put side by side — the map, the fallback, and the rule
+/// that a word nobody has heard of changes nothing.
+final class GripTable extends SurfaceTable<double> {
+  const GripTable(super.byName, {super.fallback = 1.0});
 
   /// Nothing named, everything the same. What a test fixture gets.
   const GripTable.plain() : this(const <String, double>{});
@@ -141,18 +147,7 @@ final class GripTable {
           'ice': 0.22,
         });
 
-  final Map<String, double> _byName;
-
-  /// What an unnamed surface, or one this table has never heard of, is worth.
-  ///
-  /// Full grip on purpose: a track may name a surface for its tyre noise alone,
-  /// and that must not quietly turn a straight into an ice rink.
-  final double fallback;
-
-  double gripFor(String? surface) =>
-      surface == null ? fallback : (_byName[surface] ?? fallback);
-
-  bool knows(String surface) => _byName.containsKey(surface);
-
-  Iterable<String> get names => _byName.keys;
+  /// How much grip [surface] offers. The old name for [SurfaceTable.of], kept
+  /// because a tyre model reads better for it.
+  double gripFor(String? surface) => of(surface);
 }

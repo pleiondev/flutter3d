@@ -11,8 +11,12 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 /// is every number in `MovementTuning` at once: ice is low friction *and* low
 /// acceleration, mud is low speed *and* high friction, and a slow-effect is
 /// both again. A friction multiplier would have been the first of five.
-final class Surfaces {
-  const Surfaces(this._byName, {this.fallback = const MovementTuning()});
+///
+/// The lookup itself is [SurfaceTable], which the racing game's `GripTable` is
+/// too: everything either of them did around the map was the same, including
+/// the rule about words it has never heard of.
+final class Surfaces extends SurfaceTable<MovementTuning> {
+  const Surfaces(super.byName, {super.fallback = const MovementTuning()});
 
   /// Nothing named, everything ordinary. What a game gets before it decides it
   /// wants ice.
@@ -37,22 +41,11 @@ final class Surfaces {
         ),
       });
 
-  final Map<String, MovementTuning> _byName;
-
-  /// The numbers for a floor nobody named, or one named nothing special.
-  final MovementTuning fallback;
-
-  /// What standing on [surface] feels like. A name this table has never heard
-  /// of is ordinary ground — a level may name a surface for its footstep sound
-  /// alone, and that must not silently change how it walks.
-  MovementTuning tuningFor(String? surface) =>
-      surface == null ? fallback : (_byName[surface] ?? fallback);
-
-  /// Whether this table has an opinion about [surface]. For a game deciding
-  /// whether a floor is worth a sound.
-  bool knows(String surface) => _byName.containsKey(surface);
-
-  Iterable<String> get names => _byName.keys;
+  /// What standing on [surface] feels like.
+  ///
+  /// The old name for [SurfaceTable.of], kept because a runner reads better for
+  /// it and because this package's tests say it out loud.
+  MovementTuning tuningFor(String? surface) => of(surface);
 }
 
 /// The collision bits this genre gives its own geometry.

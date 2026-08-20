@@ -499,8 +499,7 @@ final class Runner with KeyHolder
   /// The lookup is skipped while the name has not changed, which is almost
   /// always: a runner crosses one floor for seconds at a time.
   void _readSurface() {
-    final under = body.ground?.userData;
-    final name = under is Brush ? under.surface : null;
+    final name = surfaceUnder(body.ground);
     if (name == _standingOn) return;
     _standingOn = name;
     _surfaceTuning = name == null ? _ground : surfaces.tuningFor(name);

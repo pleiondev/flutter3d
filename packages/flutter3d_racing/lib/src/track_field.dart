@@ -191,10 +191,9 @@ final class TrackField implements GroundField {
 
     out.height = _ray.point.y;
     out.normal.setFrom(_ray.normal);
-    // The same way the platformer's runner reads what it is standing on: the
-    // collider carries the brush it came from, and the brush carries the word.
-    final under = _ray.collider?.userData;
-    out.surface = under is Brush ? under.surface : null;
+    // The same call the platformer's runner makes about what it is standing
+    // on, which is why it is a call now and not two lines in both places.
+    out.surface = surfaceUnder(_ray.collider);
     return true;
   }
 
