@@ -508,17 +508,15 @@ class _GameScreenState extends State<GameScreen>
   /// Failing is allowed and is not fatal: a machine with no audio device, or a
   /// CI runner, keeps the silent backend and plays the game.
   Future<void> _openAudio() async {
-    final backend = SoLoudBackend();
-    try {
-      await backend.open();
-    } catch (error) {
-      debugPrint('audio: could not start SoLoud: $error');
-      return;
-    }
-    if (!mounted) return;
-    _soloud = backend;
-    _audio = AudioScene(backend: backend, mixer: _audio.mixer);
-    await _audio.preload(Sounds.all);
+    // Opened by `flutter3d_audio`, which owns the trap: no device, no plugin,
+    // no native assets — every one of those is a launch that dies for want of a
+    // sound unless somebody catches it, and all three games had written the
+    // same catch. Null means silent, which is a perfectly good way to play.
+    final speakers = await openSpeakers(bank: Sounds.all, mixer: _audio.mixer);
+    if (speakers == null || !mounted) return;
+    _soloud = speakers.backend;
+    _audio = speakers.scene;
+    _applyVolumes();
     _startMusic();
   }
 
@@ -549,11 +547,10 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// Copies the saved volumes into the mixer the scene is reading.
-  void _applyVolumes() {
-    for (final bus in <AudioBus>[AudioBus.master, AudioBus.music, AudioBus.sfx]) {
-      _audio.mixer.setVolume(bus, _config.volumeOf(bus.name));
-    }
-  }
+  ///
+  /// The list of buses is `flutter3d_ui`'s, beside the panel that offers them:
+  /// there were four copies of it and they had already disagreed once.
+  void _applyVolumes() => applySavedVolumes(_config, _audio.mixer);
 
   void _setVolume(AudioBus bus, double volume) =>
       _settings.setVolume(bus.name, volume);

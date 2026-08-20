@@ -24,3 +24,4 @@ export 'src/settings_cubit.dart';
 export 'src/settings_file.dart';
 export 'src/settings_panel.dart';
 export 'src/storage/storage.dart';
+export 'src/volumes.dart';

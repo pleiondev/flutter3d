@@ -412,23 +412,19 @@ class _GameScreenState extends State<GameScreen>
   /// Failing is allowed and is not fatal: a machine with no audio device, or a
   /// CI runner, keeps the silent backend and plays the game.
   Future<void> _openAudio() async {
-    final backend = SoLoudBackend();
-    try {
-      await backend.open();
-    } catch (error) {
-      debugPrint('audio: could not start SoLoud: $error');
-      return;
-    }
-    if (!mounted) return;
-    _soloud = backend;
-    _audio = AudioScene(
-      backend: backend,
-      // The walls belong to the physics; the mixer must not learn about them.
-      // A wall between halves the sound rather than killing it, because a
-      // monster you cannot hear at all is a monster that teleports.
+    // Opened by `flutter3d_audio` — see `openSpeakers` for the trap all three
+    // games had written a catch for. The walls belong to the physics and the
+    // mixer must not learn about them, so occlusion arrives as a function: a
+    // wall between halves the sound rather than killing it, because a monster
+    // you cannot hear at all is a monster that teleports.
+    final speakers = await openSpeakers(
+      bank: Sounds.all,
       occlusion: _occlusionBetween,
     );
-    await _audio.preload(Sounds.all);
+    if (speakers == null || !mounted) return;
+    _soloud = speakers.backend;
+    _audio = speakers.scene;
+    _applyConfig(_config);
     _startAmbience();
   }
 
@@ -583,9 +579,7 @@ class _GameScreenState extends State<GameScreen>
   /// neither said so — which is how two half-applies stay correct right up
   /// until one of them grows a third thing.
   void _applyConfig(GameConfig config) {
-    for (final bus in <AudioBus>[AudioBus.master, AudioBus.music, AudioBus.sfx]) {
-      _audio.mixer.setVolume(bus, config.volumeOf(bus.name));
-    }
+    applySavedVolumes(config, _audio.mixer);
     _pad.applySettings(config);
     _input.setToggled(
       GameAction.sprint,

@@ -14,3 +14,4 @@ export 'src/mixer.dart';
 export 'src/soloud_backend.dart';
 export 'src/sound.dart';
 export 'src/sound_bank.dart';
+export 'src/speakers.dart';

@@ -325,9 +325,7 @@ class _RaceScreenState extends State<RaceScreen>
 
   /// Puts the config onto everything that is playing.
   void _applyConfig(GameConfig config) {
-    for (final bus in <AudioBus>[AudioBus.master, AudioBus.music, AudioBus.sfx]) {
-      _audio.mixer.setVolume(bus, config.volumeOf(bus.name));
-    }
+    applySavedVolumes(config, _audio.mixer);
     _applyAccessibility();
   }
 
@@ -420,26 +418,23 @@ class _RaceScreenState extends State<RaceScreen>
   /// only symptom is one line about "no available native assets" and then
   /// nothing. If that is what this prints, the answer is `flutter clean`.
   Future<void> _openAudio() async {
-    final speakers = SoLoudBackend();
-    try {
-      await speakers.open();
-    } catch (error) {
-      debugPrint('audio: could not start SoLoud, playing silent ($error)');
-      return;
-    }
-    if (!mounted) return;
-
-    final scene =
-        AudioScene(backend: speakers, maxVoices: 24, mixer: _audio.mixer);
-    await scene.preload(Sounds.all);
-    if (!mounted) return;
+    // Opened by `flutter3d_audio` — see `openSpeakers`, which holds the trap
+    // this game's own comment used to: a plugin added to an already built
+    // application does not bring its native framework with it, and the only
+    // symptom is one line about native assets and then silence.
+    final speakers = await openSpeakers(
+      bank: Sounds.all,
+      mixer: _audio.mixer,
+      maxVoices: 24,
+    );
+    if (speakers == null || !mounted) return;
 
     setState(() {
-      _speakers = speakers;
-      _audio = scene;
+      _speakers = speakers.backend;
+      _audio = speakers.scene;
       // Any cars that were built while the device was opening.
       for (final car in _cars) {
-        _voices.add(CarVoice(scene: scene, vehicle: car));
+        _voices.add(CarVoice(scene: _audio, vehicle: car));
       }
     });
   }

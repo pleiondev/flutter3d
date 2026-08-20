@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:gamepad/gamepad.dart' show Deadzone;
+import 'volumes.dart';
 
 
 /// Volume sliders and the keys, over the top of the paused game.
@@ -65,11 +66,9 @@ class SettingsPanel extends StatelessWidget {
   /// mixer has had the bus since the soundtrack landed and the application was
   /// already restoring its saved volume; the panel simply never offered it, so
   /// the one slider a player reaches for first was the one that did not exist.
-  static const List<AudioBus> _buses = <AudioBus>[
-    AudioBus.master,
-    AudioBus.music,
-    AudioBus.sfx,
-  ];
+  /// The list lives in `volumes.dart` now, beside the call that applies them —
+  /// see [settableBuses] for the day these two disagreed.
+  static const List<AudioBus> _buses = settableBuses;
 
   /// A dead zone above this is a controller with a hole in the middle of it.
   ///
