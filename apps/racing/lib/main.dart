@@ -23,6 +23,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_racing/bridge.dart';
 import 'package:flutter3d_racing/flutter3d_racing.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
@@ -37,6 +38,7 @@ import 'src/credits.dart';
 import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
+import 'src/reactions.dart';
 import 'src/sounds.dart';
 import 'src/staging.dart';
 import 'src/touch_drive.dart';
@@ -153,6 +155,14 @@ class _RaceScreenState extends State<RaceScreen>
   AiDriver? _ai;
   final List<SphereVehicle> _cars = <SphereVehicle>[];
   final List<SceneNode> _carNodes = <SceneNode>[];
+
+  /// What the cars throw into the air, and what decides it.
+  ///
+  /// **This game showed nothing at all**: no smoke off a locked wheel, no dirt
+  /// off the grass, no sparks down a barrier. One pool for every car, because
+  /// it is one draw call whatever is in it.
+  final ParticleSystem _particles = ParticleSystem(capacity: 1200);
+  final Reactions _reactions = Reactions();
 
   /// Which circuit is being raced, and how far into the season that is.
   ///
@@ -392,6 +402,8 @@ class _RaceScreenState extends State<RaceScreen>
     });
     if (_renderer == null) return;
 
+    _renderer?.addContributor(ParticleContributor(_particles));
+
     unawaited(_openAudio());
 
     // The ticker before the circuit, not after. Drawing has to start at once —
@@ -628,6 +640,7 @@ class _RaceScreenState extends State<RaceScreen>
       stepSeconds: _loop.clock.stepSeconds,
     );
 
+    _particles.advance(dt);
     _place(dt);
     _listen(race);
     setState(() {});
@@ -646,6 +659,13 @@ class _RaceScreenState extends State<RaceScreen>
     // whether it was the best is knowable when it ends, and by then it is too
     // late to have been writing it down.
     _ghosts.stepped(race.progress[0], _cars[0]);
+
+    // What this step looks like, decided by something a test can call and
+    // performed here. Per car: a rival locking up in front is as worth seeing
+    // as the player doing it.
+    for (final shown in _reactions.listen(race, _cars).bursts) {
+      _particles.burst(shown.effect, shown.at, direction: shown.direction);
+    }
     if (race.progress[0].finishedThisStep) _finishedHere();
   }
 

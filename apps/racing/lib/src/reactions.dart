@@ -1,0 +1,110 @@
+import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:vector_math/vector_math.dart';
+
+import 'effects.dart';
+
+/// Everything one step of this race is worth showing.
+final class Reaction {
+  const Reaction(this.bursts);
+
+  final List<Shown> bursts;
+}
+
+/// What a step of this game looks like.
+///
+/// **This game showed nothing at all.** A car could lock its wheels, slide
+/// across a kerb and scrape down a barrier at a hundred miles an hour, and the
+/// only thing that changed on screen was a number in the corner — no smoke, no
+/// dirt, no sparks, and no particles anywhere in the application.
+///
+/// The shape is the one the other two games settled on: deciding is a pure
+/// function of the simulation and can be tested without a device; bursting is
+/// an effect the widget performs. What that buys here is the same smoke alarm
+/// it bought there — a car that drifts and shows nothing fails a test, where
+/// before it was a thing somebody had to notice.
+///
+/// **Per car, not per player.** A rival locking up in front is exactly as worth
+/// seeing as the player doing it, and it is the one thing that makes a pack of
+/// cars read as a race rather than as scenery.
+final class Reactions {
+  Reactions({
+    this.smokeAbove = 0.35,
+    this.slideAbove = 0.22,
+    this.scrapeAbove = 1.5,
+    this.movingAbove = 3.0,
+  });
+
+  /// How far the wheels must be out of step with the road before it smokes.
+  ///
+  /// A tyre always slips a little under power; smoke at every touch of the
+  /// throttle is a car that appears to be permanently on fire.
+  final double smokeAbove;
+
+  /// How far sideways, in radians, counts as a slide rather than a corner.
+  ///
+  /// About thirteen degrees. A car takes a fast bend at a few degrees of slip
+  /// and nobody would call that a drift.
+  final double slideAbove;
+
+  /// How hard the barrier has to push back before it throws sparks, in metres
+  /// per second. A car merely leaning on a wall does not.
+  final double scrapeAbove;
+
+  /// Below this speed nothing is thrown up at all: a car creeping off the road
+  /// is not spraying dirt, and a stationary one with a wheel spinning would
+  /// otherwise smoke for ever.
+  final double movingAbove;
+
+  /// Called once per simulation step, in order. The list is what to burst.
+  Reaction listen(RaceState race, List<VehicleController> cars) {
+    final bursts = <Shown>[];
+
+    for (var i = 0; i < cars.length; i++) {
+      final car = cars[i];
+      if (!car.grounded || car.speed < movingAbove) continue;
+
+      final patch = _contactPatch(car);
+      final racer = i < race.progress.length ? race.progress[i] : null;
+
+      // Off the road: dirt, thrown by the wheel. Checked before the smoke so
+      // that a car sliding through the grass throws earth rather than rubber —
+      // it is the same slide, and what comes off it is what it is sliding on.
+      if (racer != null && racer.offRoad) {
+        bursts.add(Shown(Effects.dirt, patch, direction: _up));
+        continue;
+      }
+
+      final spinning = car.slipRatio.abs() > smokeAbove;
+      final sliding = car.slipAngle.abs() > slideAbove;
+      if (spinning || sliding) {
+        bursts.add(Shown(Effects.smoke, patch, direction: _up));
+      }
+    }
+
+    for (final car in cars) {
+      if (car is SphereVehicle && car.scrapedThisStep > scrapeAbove) {
+        bursts.add(Shown(Effects.sparks, _contactPatch(car)));
+      }
+    }
+
+    return Reaction(bursts);
+  }
+
+  /// Where the tyres are, which is not where the car is.
+  ///
+  /// A car is simulated as a sphere whose centre floats above the road, so
+  /// smoke emitted at `position` comes out of the roof. Down along the car's
+  /// own up rather than the world's, because on a banked corner the two differ
+  /// by most of a metre — the same reason the ghost is lifted that way.
+  Vector3 _contactPatch(VehicleController car) {
+    final up = car.visualBasis.getColumn(1);
+    return Vector3(
+      car.position.x - up.x * 0.5,
+      car.position.y - up.y * 0.5,
+      car.position.z - up.z * 0.5,
+    );
+  }
+}
+
+final Vector3 _up = Vector3(0.0, 1.0, 0.0);

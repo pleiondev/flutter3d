@@ -256,6 +256,7 @@ final class SphereVehicle implements VehicleController {
   /// 10. settle the body onto its ride height.
   @override
   void step(double dt, VehicleInput input) {
+    _scraped = 0.0;
     final found = ground.sample(position, _ground.s, _ground);
     _readGround(found);
     _buildFrame();
@@ -561,6 +562,16 @@ final class SphereVehicle implements VehicleController {
   /// The barrier is the track's own, not a piece of geometry — see
   /// `TrackSpline`. A level that builds real walls out of brushes gets those
   /// through the sweep above instead, and a track may do both.
+  /// How hard the barrier pushed back this step, in metres per second taken
+  /// out of the car sideways. Zero on a clean lap.
+  ///
+  /// A step edge, so it is cleared at the top of every step and never saved:
+  /// it says what happened, not what is. The game turns it into sparks and a
+  /// scrape; the car only reports it, which is the same division `slipRatio`
+  /// keeps.
+  double get scrapedThisStep => _scraped;
+  double _scraped = 0.0;
+
   void _holdInsideBarrier() {
     if (!_ground.barrier || _ground.halfWidth <= 0.0) return;
 
@@ -573,6 +584,7 @@ final class SphereVehicle implements VehicleController {
 
     final into = velocity.dot(_ground.lateralAxis) * -inward;
     if (into > 0.0) {
+      _scraped = into;
       velocity.addScaled(_ground.lateralAxis, into * inward);
     }
   }
