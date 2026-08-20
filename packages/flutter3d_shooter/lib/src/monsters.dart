@@ -136,11 +136,59 @@ final class ChaseBrain extends Brain {
   /// and over, which reads as a stutter rather than as caution.
   bool hasNoticed = false;
 
+  /// Another actor this one has turned on, or null while its business is with
+  /// the player.
+  ///
+  /// **Monsters could not hurt each other at all before this.** A monster's
+  /// shot collected its hits and then counted the damage only if the thing hit
+  /// was the focus — so a fireball crossing a room passed through anything
+  /// standing in the way, and the classic thing a crowded room does was
+  /// impossible.
+  ///
+  /// Kept as the actor rather than as a place, because the whole point is that
+  /// it moves and can die: a quarrel with a corpse is dropped on the next
+  /// thought.
+  Actor? quarrel;
+
   final Vector3 _eye = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
 
+  /// From this monster to whatever it is dealing with, and how far that is.
+  ///
+  /// The focus, unless it has a [quarrel]. Filled in at the top of every think
+  /// and act so the state machine below reads one thing rather than branching
+  /// on the quarrel five times.
+  final Vector3 _toTarget = Vector3.zero();
+  double _targetDistance = 0.0;
+
+  /// Where it is aiming, for the shot and for [Bestiary] to read back.
+  void _readTarget(Mind it) {
+    final other = quarrel;
+    final at = other?.position;
+    final mine = it.actor.position;
+    if (other == null || at == null || mine == null || !other.isAlive) {
+      // A quarrel with something dead, or with something that has no body any
+      // more, is over: back to the player.
+      quarrel = null;
+      _toTarget.setFrom(it.toFocus);
+      _targetDistance = it.distance;
+      return;
+    }
+    _toTarget
+      ..setFrom(at)
+      ..sub(mine);
+    _targetDistance = _toTarget.length;
+  }
+
+  /// Whether it can see what it is dealing with.
+  bool _canSeeTarget(Mind it) {
+    final at = quarrel?.position;
+    return at == null ? it.canSee() : it.canSeePoint(at);
+  }
+
   @override
   void think(Mind it) {
+    _readTarget(it);
     switch (state) {
       case MonsterState.dead:
       case MonsterState.hurt:
@@ -148,7 +196,7 @@ final class ChaseBrain extends Brain {
         return;
 
       case MonsterState.idle:
-        if (it.distance <= def.sightRange && it.canSee()) {
+        if (_targetDistance <= def.sightRange && _canSeeTarget(it)) {
           _enter(MonsterState.alert);
         }
 
@@ -156,19 +204,22 @@ final class ChaseBrain extends Brain {
         if (stateTime >= def.alertDuration) _enter(MonsterState.chase);
 
       case MonsterState.chase:
-        if (it.distance <= def.attack.range && it.canSee()) {
+        if (_targetDistance <= def.attack.range && _canSeeTarget(it)) {
           _enter(MonsterState.attack);
         }
 
       case MonsterState.attack:
         // Left as soon as the player is out of reach, so a monster does not
         // stand swinging at nothing.
-        if (it.distance > def.attack.range * 1.15) _enter(MonsterState.chase);
+        if (_targetDistance > def.attack.range * 1.15) {
+          _enter(MonsterState.chase);
+        }
     }
   }
 
   @override
   void act(Mind it) {
+    _readTarget(it);
     stateTime += it.dt;
     attackCooldown = math.max(0.0, attackCooldown - it.dt);
     painCooldown = math.max(0.0, painCooldown - it.dt);
@@ -182,11 +233,19 @@ final class ChaseBrain extends Brain {
         if (stateTime >= def.hurtDuration) _enter(MonsterState.chase);
 
       case MonsterState.alert:
-        it.turnTowards(it.toFocus.x, it.toFocus.z);
+        it.turnTowards(_toTarget.x, _toTarget.z);
 
       case MonsterState.chase:
-        it.steerTowardsFocus();
-        // Facing where it is going rather than where the player is. Around a
+        final other = quarrel?.position;
+        if (other == null) {
+          it.steerTowardsFocus();
+        } else {
+          // Straight at it, because the flow field is baked towards the focus
+          // and following it would walk this monster to the player instead of
+          // to the one it is fighting.
+          it.steerTowards(other);
+        }
+        // Facing where it is going rather than where the target is. Around a
         // corner those are different directions, and a monster sliding
         // sideways while staring through a wall is the tell that gives a flow
         // field away.
@@ -194,7 +253,7 @@ final class ChaseBrain extends Brain {
         it.turnTowards(heading.x, heading.z);
 
       case MonsterState.attack:
-        it.turnTowards(it.toFocus.x, it.toFocus.z);
+        it.turnTowards(_toTarget.x, _toTarget.z);
         if (attackCooldown <= 0.0) _attack(it);
     }
   }
@@ -203,6 +262,20 @@ final class ChaseBrain extends Brain {
   void onHurt(Mind it, double amount) {
     // Being shot is how a monster notices someone it could not see.
     hasNoticed = true;
+
+    // **Whoever did it, if it was one of its own.** The player arrives here as
+    // a `Player` and a lift as nothing at all; only another actor becomes a
+    // quarrel, which is what keeps a monster from turning on the person it is
+    // supposed to be chasing every time they land a shot.
+    final culprit = it.hurtBy;
+    if (culprit is Actor &&
+        !identical(culprit, it.actor) &&
+        culprit.isAlive) {
+      quarrel = culprit;
+      if (state == MonsterState.idle || state == MonsterState.alert) {
+        _enter(MonsterState.chase);
+      }
+    }
     if (state == MonsterState.idle) _enter(MonsterState.chase);
     if (painCooldown <= 0.0 &&
         state != MonsterState.hurt &&
@@ -242,8 +315,19 @@ final class ChaseBrain extends Brain {
     attackCooldown = weapon.cooldownSeconds;
 
     if (!it.actor.eyeLevel(_eye)) return;
-    _aim.setFrom(it.toFocus);
-    _lead(it, weapon);
+    // At whatever it is dealing with — the player, or the one it has turned
+    // on. Aiming at the focus regardless is what this did, and a monster in an
+    // argument then swung at a player across the room and hit nothing at all.
+    _readTarget(it);
+    _aim.setFrom(_toTarget);
+    // Led only when the target is the focus: the lead is built from the
+    // system's own idea of how fast the focus is moving, and there is no such
+    // number for anything else. A quarrel is close work anyway.
+    if (quarrel == null) {
+      _lead(it, weapon);
+    } else {
+      _ledHeight = _toTarget.y;
+    }
     _aim.y = 0.0;
     if (_aim.length2 < 1e-6) return;
     final horizontal = _aim.length;
@@ -270,8 +354,17 @@ final class ChaseBrain extends Brain {
     // reports nothing and arrives later, through the projectile system.
     for (final hit in shot.hits) {
       if (hit.collider == it.focusBody) {
+        // The focus is hurt by the game rather than here — it is the game that
+        // knows what a player is and what armour does about it.
         it.system.damageToFocusThisStep += hit.damage;
+        continue;
       }
+      // **Everything else it hit, which used to be nobody.** This loop counted
+      // the focus and dropped the rest on the floor, so a monster's shot passed
+      // straight through anything standing in the way. `from` is what lets the
+      // one that was hit know who to turn on.
+      final target = hit.collider?.userData;
+      if (target is Damageable) target.applyDamage(hit.damage, from: it.actor);
     }
   }
 

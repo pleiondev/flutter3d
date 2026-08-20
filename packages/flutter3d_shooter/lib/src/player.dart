@@ -76,7 +76,8 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   Collider? get carriedBy => body.groundBody;
 
   @override
-  bool applyDamage(double amount) => inventory.damage(amount);
+  bool applyDamage(double amount, {Object? from}) =>
+      inventory.damage(amount);
 
   bool get isAlive => inventory.health.isAlive;
 

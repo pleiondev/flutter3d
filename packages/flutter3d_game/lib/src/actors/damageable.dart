@@ -27,5 +27,15 @@ abstract interface class Damageable {
   /// with the news — a score, a sound, a door that opens when the room is
   /// clear — and asking afterwards means asking a thing that may already have
   /// been cleaned up.
-  bool applyDamage(double amount);
+  ///
+  /// [from] is whoever dealt it, as the collider's `userData` — which is to say
+  /// as whatever the game decided a body is. **Deliberately an `Object?`**: the
+  /// engine has no business knowing that a shooter has monsters or that a
+  /// racing game has cars, and the one thing every game agrees on is that
+  /// something can be hurt by something else.
+  ///
+  /// Null for damage with nobody behind it: a fall, a crushing lift, a pit.
+  /// That is not an oversight in the caller, it is the honest answer, and it is
+  /// why a brain must handle it rather than assume a culprit.
+  bool applyDamage(double amount, {Object? from});
 }

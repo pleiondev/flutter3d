@@ -95,7 +95,7 @@ final class Actor implements Damageable, Rider {
   ///
   /// A closure rather than a reference to the system, because that file already
   /// imports this one and naming it here would close a cycle.
-  bool Function(double amount)? onDamage;
+  bool Function(double amount, Object? from)? onDamage;
 
   /// Takes damage, if there is anything here to hurt.
   ///
@@ -103,9 +103,9 @@ final class Actor implements Damageable, Rider {
   /// piece with a collider. **Not an error**: a rocket asks everything in its
   /// radius, and "nothing happened" is the honest answer for a lamp post.
   @override
-  bool applyDamage(double amount) {
+  bool applyDamage(double amount, {Object? from}) {
     if (health == null) return false;
-    return onDamage?.call(amount) ?? health!.damage(amount);
+    return onDamage?.call(amount, from) ?? health!.damage(amount);
   }
 
   @override

@@ -44,9 +44,13 @@ import 'health.dart';
 
 /// An actor that took damage this step and survived it.
 final class ActorHurt {
-  ActorHurt(this.actor, this.amount);
+  ActorHurt(this.actor, this.amount, {this.from});
   final Actor actor;
   final double amount;
+
+  /// Whoever dealt it, as the collider's `userData`, or null for damage with
+  /// nobody behind it — a fall, a crushing lift, a pit.
+  final Object? from;
 
   /// Whether it visibly reacted. Set by whatever decided that it did — a
   /// caller can tell a grunt from a scream.
@@ -181,7 +185,8 @@ final class ActorSystem {
     if (brain != null) entities.set(entity, Thinking(brain));
 
     final actor = Actor(entities, entity)
-      ..onDamage = (double amount) => hurt(_handles[entity.index]!, amount);
+      ..onDamage = (double amount, Object? from) =>
+          hurt(_handles[entity.index]!, amount, from: from);
     _handles[entity.index] = actor;
     body?.collider.userData = actor;
     return actor;
@@ -275,13 +280,14 @@ final class ActorSystem {
   ///
   /// Returns true if this killed it. What being hurt *looks* like is the
   /// brain's: this reports it and asks.
-  bool hurt(Actor actor, double amount) {
+  bool hurt(Actor actor, double amount, {Object? from}) {
     final health = actor.health;
     // Nothing to hurt is not a failure: a rocket asks everything in its radius
     // and a lamp post is entitled to say no.
     if (health == null || !health.isAlive) return false;
 
     _mind.actor = actor;
+    _mind.hurtBy = from;
     final killed = health.damage(amount);
     if (killed) {
       // A corpse stops being an obstacle: walking into the bodies of everything
@@ -292,8 +298,9 @@ final class ActorSystem {
       return true;
     }
 
-    hurtThisStep.add(ActorHurt(actor, amount));
+    hurtThisStep.add(ActorHurt(actor, amount, from: from));
     actor.brain?.onHurt(_mind, amount);
+    _mind.hurtBy = null;
     return false;
   }
 
@@ -412,13 +419,22 @@ final class ActorSystem {
   /// Against the level only. A ray that stopped on another actor would mean a
   /// crowd blinds itself, and two of them standing in a doorway would each wait
   /// for the other to move.
-  bool canSee(Actor actor) {
+  bool canSee(Actor actor) => canSeePoint(actor, _focus);
+
+  /// Whether there is a clear line from [actor]'s eye to [point].
+  ///
+  /// The general form of [canSee], which is that with the focus. Split out
+  /// because an actor may care about something that is not what everybody else
+  /// is looking at — the one it has turned on, the noise it went to look at —
+  /// and a brain that could only ask about the focus had to charge blind at
+  /// anything else.
+  bool canSeePoint(Actor actor, Vector3 point) {
     final body = actor.body;
     // Nothing to see from. False rather than true: a brain that asks and gets
     // an unconditional yes charges at a player through a wall.
     if (body == null || !actor.eyeLevel(_eye)) return false;
     _aim
-      ..setFrom(_focus)
+      ..setFrom(point)
       ..sub(_eye);
     final distance = _aim.length;
     if (distance < 1e-4) return true;

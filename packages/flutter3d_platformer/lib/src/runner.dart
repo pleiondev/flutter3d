@@ -389,7 +389,7 @@ final class Runner with KeyHolder
   Collider? get carriedBy => body.groundBody;
 
   @override
-  bool applyDamage(double amount) => health.damage(amount);
+  bool applyDamage(double amount, {Object? from}) => health.damage(amount);
 
   static final List<Vector3> _sides = <Vector3>[
     Vector3(1.0, 0.0, 0.0),

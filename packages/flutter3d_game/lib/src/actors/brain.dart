@@ -47,6 +47,8 @@ abstract base class Brain {
   void act(Mind it) {}
 
   /// Something hurt this actor and it lived.
+  ///
+  /// Who did it is [Mind.hurtBy], which is only meaningful inside this call.
   void onHurt(Mind it, double amount) {}
 
   /// Something loud happened at [at], within earshot.
@@ -85,6 +87,16 @@ final class Mind {
   /// Whose decision this is.
   late Actor actor;
 
+  /// Whoever dealt the damage, during [Brain.onHurt] and nowhere else.
+  ///
+  /// **On the mind rather than in the signature**, and the choice is worth
+  /// stating: `onHurt(Mind, double, {Object? from})` would make every brain in
+  /// every game declare a parameter most of them do not read, and Dart requires
+  /// an override to repeat it. A field that is set for one call and cleared
+  /// after it is the smaller promise, and it is the same promise [toFocus]
+  /// already makes about being live and not to be kept.
+  Object? hurtBy;
+
   /// Seconds this step.
   late double dt;
 
@@ -114,6 +126,11 @@ final class Mind {
   /// crowd blinds itself, and two of them standing in a doorway would each wait
   /// for the other to move.
   bool canSee() => system.canSee(actor);
+
+  /// Whether there is a clear line from this actor's eye to [point].
+  ///
+  /// For an actor whose business is with something that is not the focus.
+  bool canSeePoint(Vector3 point) => system.canSeePoint(actor, point);
 
   /// Walk this way, on the ground. Length is speed: a half-length vector is a
   /// request to walk at half pace.

@@ -257,10 +257,14 @@ final class GameSimulation {
     if (projectiles != null) {
       projectiles.step(dt);
       for (final blast in projectiles.detonations) {
+        // Who fired it, as whatever that body is: a monster's rocket landing
+        // among its own is how a crowd turns on itself, and a blast with no
+        // owner — one that timed out in the open — has nobody to blame.
+        final firedBy = blast.owner?.userData;
         for (final entry in blast.damage.entries) {
           final target = entry.key.userData;
           if (target is! Damageable) continue;
-          target.applyDamage(entry.value);
+          target.applyDamage(entry.value, from: firedBy);
           if (identical(target, player)) damageTakenThisStep += entry.value;
         }
       }
@@ -343,7 +347,9 @@ final class GameSimulation {
     // or eight of them are eight deaths.
     for (final entry in Hitscan.damageByTarget(hits).entries) {
       final target = entry.key.userData;
-      if (target is Damageable) target.applyDamage(entry.value);
+      // The player did this one, which is what stops a monster shot by them
+      // from turning on the monster next to it.
+      if (target is Damageable) target.applyDamage(entry.value, from: player);
     }
   }
 
