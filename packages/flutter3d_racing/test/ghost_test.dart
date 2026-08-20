@@ -46,6 +46,9 @@ final class ScriptedCar implements VehicleController {
   bool grounded = true;
 
   @override
+  double impactThisStep = 0.0;
+
+  @override
   double rpm = 0.0;
 
   @override

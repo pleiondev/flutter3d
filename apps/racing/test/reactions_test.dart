@@ -25,6 +25,7 @@ final class _Car implements VehicleController {
     this.slipRatio = 0.0,
     this.slipAngle = 0.0,
     this.grounded = true,
+    this.impactThisStep = 0.0,
     Vector3? at,
   }) : collider = Collider(
           shape: CollisionSphere(0.7),
@@ -58,6 +59,9 @@ final class _Car implements VehicleController {
 
   @override
   bool grounded;
+
+  @override
+  double impactThisStep;
 
   @override
   double rpm = 0.0;
@@ -163,6 +167,29 @@ void main() {
     ]);
 
     expect(reaction.bursts.length, 2);
+  });
+
+  test('and a car that hits a wall throws sparks', () {
+    // Either wall. The track's barrier is a number in the document and a pillar
+    // is geometry; only the first of the two used to be reported at all, so a
+    // car bouncing off the scenery at ninety was the quietest thing on the
+    // circuit — and a fake car could not be given a crash to report, which is
+    // why there was no test here.
+    final reaction = Reactions().listen(_race(track, 1), <VehicleController>[
+      _Car(impactThisStep: 8.0),
+    ]);
+
+    expect(reaction.bursts.single.effect, same(Effects.sparks));
+  });
+
+  test('and leaning on one does not', () {
+    // A car merely resting against a barrier through a corner is not a crash,
+    // and a shower of sparks down every long right-hander would be.
+    final reaction = Reactions().listen(_race(track, 1), <VehicleController>[
+      _Car(impactThisStep: 0.4),
+    ]);
+
+    expect(reaction.bursts, isEmpty);
   });
 
   test('and the smoke comes off the tyres, not the roof', () {

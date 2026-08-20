@@ -666,6 +666,10 @@ final class SphereVehicle implements VehicleController {
   double get struckThisStep => _struck;
   double _struck = 0.0;
 
+  /// The harder of the two, which is what a game asks for.
+  @override
+  double get impactThisStep => math.max(_scraped, _struck);
+
   /// Adds the damage an impact of [speed] metres per second does.
   ///
   /// Public because the barrier is dealt with somewhere else and a game may

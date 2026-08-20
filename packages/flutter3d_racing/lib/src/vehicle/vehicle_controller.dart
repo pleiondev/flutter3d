@@ -90,6 +90,21 @@ abstract interface class VehicleController {
   /// Whether the car is on something.
   bool get grounded;
 
+  /// How hard something pushed the car back this step, in metres per second
+  /// taken out of it. Zero on a clean lap.
+  ///
+  /// **One number for both walls.** A circuit has two kinds and a driver
+  /// arriving at either has arrived at a wall: the track's own barrier, which
+  /// is a number in the document, and geometry — a pillar, a wall built out of
+  /// brushes, another car. Only the first of the two used to be reported, so
+  /// bouncing off the scenery at ninety was the quietest thing on the circuit.
+  ///
+  /// A step edge: it says what happened, not what is, and is cleared at the top
+  /// of every step. Here rather than on the implementation because what reads
+  /// it is a game deciding what a crash looks like, and a game should not have
+  /// to know which class it has.
+  double get impactThisStep;
+
   /// The engine's speed, from nought to one, for whoever is making the noise.
   double get rpm;
 

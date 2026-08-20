@@ -82,8 +82,13 @@ final class Reactions {
       }
     }
 
+    // **Both walls, not one.** The track's barrier is a number in the document
+    // and a pillar is geometry, and only the first of the two used to throw
+    // anything — so a car bouncing off the scenery at ninety was the quietest
+    // thing on the circuit. To a driver arriving at either they are the same
+    // wall, which is the same reason both break the car by the same amount.
     for (final car in cars) {
-      if (car is SphereVehicle && car.scrapedThisStep > scrapeAbove) {
+      if (car.impactThisStep > scrapeAbove) {
         bursts.add(Shown(Effects.sparks, _contactPatch(car)));
       }
     }
