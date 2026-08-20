@@ -39,7 +39,8 @@ final class FlatGround implements GroundField {
 /// A car on a flat floor, at rest at the origin, pointing along +z.
 ({SphereVehicle car, CollisionWorld world}) onFlat({
   String? surface,
-  GripTable grips = const GripTable.common(),
+  GripTable? grips,
+  Tyres? tyres,
   VehicleTuning tuning = const VehicleTuning(),
   double extent = double.infinity,
 }) {
@@ -49,7 +50,13 @@ final class FlatGround implements GroundField {
     ground: FlatGround(surface: surface, extent: extent),
     position: Vector3(0.0, tuning.rideHeight, 0.0),
     tuning: tuning,
-    grips: grips,
+    // A table on its own still reads as "what the surfaces are worth", which is
+    // what most of this file is about; the tyres it belongs to are the road
+    // ones unless a test says otherwise.
+    tyres: tyres ??
+        (grips == null
+            ? Tyres.road
+            : Tyres(name: 'test', grips: grips)),
   );
   return (car: car, world: world);
 }

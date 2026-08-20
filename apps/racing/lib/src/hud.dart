@@ -26,7 +26,9 @@ class RaceReadout {
     required this.lapTime,
     required this.bestLap,
     required this.record,
+    required this.tyres,
     this.recordJustSet = false,
+    this.tyresRefused = false,
     required this.wrongWay,
     required this.countdown,
     required this.mode,
@@ -56,6 +58,14 @@ class RaceReadout {
 
   /// Whether that record was set a moment ago, so the line can say so.
   final bool recordJustSet;
+
+  /// What the car is standing on the road with.
+  final String tyres;
+
+  /// Whether a change was asked for and refused, which happens at any speed
+  /// above a walk. Said rather than ignored: a key that does nothing and says
+  /// nothing is a key a player decides is broken.
+  final bool tyresRefused;
   final bool wrongWay;
 
   /// Seconds left on the lights, or null once they have gone out.
@@ -139,6 +149,13 @@ class RaceHud extends StatelessWidget {
                     accent: readout.recordJustSet,
                   ),
                 ],
+                _Line(
+                  label: 'TYRES',
+                  value: readout.tyresRefused
+                      ? 'STOP FIRST'
+                      : readout.tyres.toUpperCase(),
+                  accent: readout.tyresRefused,
+                ),
               ],
             ),
           ),

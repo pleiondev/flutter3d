@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart';
 import '../layers.dart';
 import '../track_field.dart';
 import 'tire_model.dart';
+import 'tyres.dart';
 import 'vehicle_controller.dart';
 
 /// The numbers that make one car feel different from another.
@@ -27,7 +28,6 @@ final class VehicleTuning {
     this.steerFalloff = 26.0,
     this.wheelBase = 2.7,
     this.gravity = 20.0,
-    this.gripLimit = 1.05,
     this.groundStick = 0.45,
     this.suspensionRate = 18.0,
     this.slideAlignment = 2.2,
@@ -76,9 +76,6 @@ final class VehicleTuning {
   /// Deliberately above the real figure. Arcade cars jump, and a jump under
   /// real gravity hangs long enough to feel like a bug.
   final double gravity;
-
-  /// How many gravities of grip the tyres have on a surface worth `1.0`.
-  final double gripLimit;
 
   /// How far below the car the ground still counts as under it.
   final double groundStick;
@@ -151,12 +148,11 @@ final class SphereVehicle implements VehicleController {
     required Vector3 position,
     double headingYaw = 0.0,
     this.tuning = const VehicleTuning(),
-    TireModel? tires,
-    this.grips = const GripTable.common(),
+    Tyres? tyres,
     int layer = RacingLayers.vehicle,
     int mask = Layers.all,
     Object? userData,
-  })  : tires = tires ?? TireModel(),
+  })  : tyres = tyres ?? Tyres.road,
         // ignore: prefer_initializing_formals
         _headingYaw = headingYaw,
         collider = Collider(
@@ -171,6 +167,26 @@ final class SphereVehicle implements VehicleController {
     _ground.s = 0.0;
   }
 
+  /// Puts a different set of tyres on, if the car is standing still.
+  ///
+  /// Returns whether they went on.
+  ///
+  /// **The standstill is the whole price.** A [Tyres] is a table of numbers and
+  /// nothing about swapping one mid-corner would go wrong mechanically — which
+  /// is exactly the problem: a driver who could change compound at speed would
+  /// hold slicks down the straight and knobbly tyres through the gravel, and a
+  /// choice with no cost is not a choice. Stopping costs the seconds that make
+  /// it one.
+  ///
+  /// Half a metre a second rather than nought, because a car resting against a
+  /// kerb is never quite still and a rule a player cannot satisfy is a rule
+  /// they think is broken.
+  bool fitTyres(Tyres set) {
+    if (speed > 0.5) return false;
+    tyres = set;
+    return true;
+  }
+
   final CollisionWorld world;
 
   /// Where the car asks what is underneath it. A track, usually; a flat plane
@@ -178,8 +194,21 @@ final class SphereVehicle implements VehicleController {
   final GroundField ground;
 
   final VehicleTuning tuning;
-  final TireModel tires;
-  final GripTable grips;
+
+  /// What the car is standing on the road with.
+  ///
+  /// Not final: a set of tyres is the one part of a car a driver is allowed to
+  /// change without building another car, and changing them is a decision the
+  /// game can put a price on. Nothing here is stateful — a [Tyres] is a table
+  /// of numbers — so swapping one for another mid-race is exactly as safe as
+  /// having started on it.
+  Tyres tyres;
+
+  /// The curve, from the tyres that are on it.
+  TireModel get tires => tyres.model;
+
+  /// What each surface is worth to the tyres that are on it.
+  GripTable get grips => tyres.grips;
 
   @override
   final Collider collider;
@@ -392,7 +421,7 @@ final class SphereVehicle implements VehicleController {
   double _gripLimit() {
     final grip = grips.gripFor(_ground.surface);
     final lean = _normal.y.clamp(0.2, 1.0);
-    return grip * tuning.gripLimit * tuning.gravity * lean;
+    return grip * tyres.limit * tuning.gravity * lean;
   }
 
   void _steer(double dt, VehicleInput input) {

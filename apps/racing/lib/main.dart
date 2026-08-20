@@ -230,6 +230,7 @@ class _RaceScreenState extends State<RaceScreen>
     _Drive.left,
     _Drive.right,
     _Drive.handbrake,
+    _Drive.tyres,
   ];
 
   /// What the player has already told the operating system.
@@ -358,6 +359,7 @@ class _RaceScreenState extends State<RaceScreen>
     ..bind(InputSource.pad(PadButton.triggerRight.id), _Drive.throttle)
     ..bind(InputSource.pad(PadButton.triggerLeft.id), _Drive.brake)
     ..bind(InputSource.pad(PadButton.faceSouth.id), _Drive.handbrake)
+    ..bind(InputSource.pad(PadButton.faceNorth.id), _Drive.tyres)
     ..bind(InputSource.pad(PadButton.dpadLeft.id), _Drive.left)
     ..bind(InputSource.pad(PadButton.dpadRight.id), _Drive.right);
 
@@ -381,6 +383,7 @@ class _RaceScreenState extends State<RaceScreen>
     bind(LogicalKeyboardKey.keyD, _Drive.right);
     bind(LogicalKeyboardKey.arrowRight, _Drive.right);
     bind(LogicalKeyboardKey.space, _Drive.handbrake);
+    bind(LogicalKeyboardKey.keyT, _Drive.tyres);
     return bindings;
   }
 
@@ -644,6 +647,7 @@ class _RaceScreenState extends State<RaceScreen>
     );
 
     if (_celebrateFor > 0.0) _celebrateFor = (_celebrateFor - dt).clamp(0.0, 4.0);
+    if (_refusedFor > 0.0) _refusedFor = (_refusedFor - dt).clamp(0.0, 2.0);
 
     _particles.advance(dt);
     _place(dt);
@@ -657,17 +661,18 @@ class _RaceScreenState extends State<RaceScreen>
     final race = _race;
     if (simulation == null || race == null) return;
     _readDriver(simulation);
+    _readPitStop();
     _driveTheRest(simulation, race);
     simulation.step(stepSeconds);
 
     // Recorded always, not only when the lap is going to be a good one:
     // whether it was the best is knowable when it ends, and by then it is too
-    // late to have been writing it down.
-    // **The record, not the session's best.** A race begins with no laps in
-    // it, so the lap somebody drives while getting used to the car was the
-    // best one by definition — and it used to take the place of a record that
-    // stood from another evening. The keeper compares against the disk now,
-    // and says when the disk changed.
+    // late to have been writing it down. **Against the record, not against the
+    // session's best.** A race begins with no laps in it, so
+    // the lap somebody drives while getting used to the car was the best one by
+    // definition, and it used to take the place of a record that stood from
+    // another evening. The keeper compares against the disk now, and says when
+    // the disk changed.
     if (_ghosts.stepped(race.progress[0], _cars[0])) _celebrateFor = 4.0;
 
     // What this step looks like, decided by something a test can call and
@@ -691,6 +696,27 @@ class _RaceScreenState extends State<RaceScreen>
   final PadPresses _presses = PadPresses();
 
   /// The player's keys, as a car's controls.
+  /// The one thing a driver can change about the car without leaving it.
+  ///
+  /// Read on the step rather than in the key handler, because whether it is
+  /// allowed depends on how fast the car is going — which is a fact the
+  /// simulation owns and a widget would have to go and fetch.
+  void _readPitStop() {
+    if (!_input.pressed(_Drive.tyres)) return;
+    final car = _cars[0];
+    if (car.fitTyres(Tyres.after(car.tyres))) {
+      _audio.play(Sounds.checkpoint, _ears.position);
+      _refusedFor = 0.0;
+    } else {
+      // Said rather than ignored. A key that does nothing and says nothing is a
+      // key a player decides is broken.
+      _refusedFor = 2.0;
+    }
+  }
+
+  /// How long the tyre line goes on saying the car has to stop first.
+  double _refusedFor = 0.0;
+
   void _readDriver(RacingSimulation simulation) {
     // **How hard, not whether.** `value` is a key's full press and a trigger's
     // actual travel, so the same three lines drive a car from a keyboard and
@@ -820,6 +846,8 @@ class _RaceScreenState extends State<RaceScreen>
       bestLap: player.bestLap,
       record: _ghosts.record,
       recordJustSet: _celebrateFor > 0.0,
+      tyres: _cars[0].tyres.name,
+      tyresRefused: _refusedFor > 0.0,
       wrongWay: player.wrongWay,
       countdown:
           race.phase == RacePhase.countdown ? race.countdown : null,
@@ -989,4 +1017,8 @@ abstract final class _Drive {
   static const GameAction left = GameAction('steerLeft');
   static const GameAction right = GameAction('steerRight');
   static const GameAction handbrake = GameAction('handbrake');
+
+  /// Change tyres. A verb the car has rather than a screen, so it can be
+  /// rebound like every other one and so a pad has it too.
+  static const GameAction tyres = GameAction('tyres');
 }

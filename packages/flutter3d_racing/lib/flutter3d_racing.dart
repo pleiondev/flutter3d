@@ -28,4 +28,5 @@ export 'src/track_field.dart';
 export 'src/track_reader.dart';
 export 'src/vehicle/sphere_vehicle.dart';
 export 'src/vehicle/tire_model.dart';
+export 'src/vehicle/tyres.dart';
 export 'src/vehicle/vehicle_controller.dart';
