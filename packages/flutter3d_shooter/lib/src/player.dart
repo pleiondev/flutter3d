@@ -188,6 +188,12 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
         // the way back. One that forgets restores a standing body inside a
         // crawlspace and is thrown out of it on the first step.
         'crouching': _crouched,
+        // **Saved because it moves where the bullets go.** The snapshot test
+        // caught this within minutes of the recoil being written: a restored
+        // world had its sight level while the one it was taken from was still
+        // coming down from a shot, so the two aimed differently and the
+        // monsters took different damage from the same trigger.
+        'recoil': recoilPitch,
       };
 
   void restore(Map<String, Object?> from) {
@@ -203,6 +209,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
     // and it stays standing rather than being wedged into rock.
     _crouched = false;
     crouch(held: from['crouching'] == true);
+    recoilPitch = from.number('recoil');
     // Through the setter, so a snapshot written by a build with a different
     // pitch limit cannot restore a camera with no orientation.
     pitch = (from['pitch'] as num?)?.toDouble() ?? _pitch;
