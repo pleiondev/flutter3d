@@ -100,15 +100,47 @@ extension SnapshotFields on Map<String, Object?> {
     ];
   }
 
-  /// Reads a vector into [out], leaving it alone when the field is missing.
-  void vectorInto(String key, Vector3 out) {
+  /// A nested object, or null when the field is missing or is not one.
+  ///
+  /// **The one idiom this extension was missing**, and it is written out in
+  /// every restore in the repository: read the field, check it is a map, cast
+  /// it, hand it on. The cast is the half people leave out, and the half that
+  /// fails at a distance — a map of `dynamic` keys passed to something
+  /// expecting `String` ones throws in the callee rather than here.
+  Map<String, Object?>? object(String key) {
     final value = this[key];
-    if (value is! List || value.length < 3) return;
-    out.setValues(
-      (value[0] as num).toDouble(),
-      (value[1] as num).toDouble(),
-      (value[2] as num).toDouble(),
-    );
+    return value is Map ? value.cast<String, Object?>() : null;
+  }
+
+  /// Reads a vector into [out], leaving it alone when the field is missing,
+  /// and says whether it found one.
+  ///
+  /// **Lenient about the contents as well as the key**, which it was not: a
+  /// list holding anything but numbers used to throw out of a restore, and a
+  /// snapshot is exactly the document that must not do that — see the note on
+  /// [Snapshot] about older builds. The strictness lived here and in the
+  /// shooter's projectiles, both since fixed.
+  bool vectorInto(String key, Vector3 out) {
+    final value = this[key];
+    if (value is! List || value.length < 3) return false;
+    final x = value[0], y = value[1], z = value[2];
+    if (x is! num || y is! num || z is! num) return false;
+    out.setValues(x.toDouble(), y.toDouble(), z.toDouble());
+    return true;
+  }
+
+  /// The value of [values] whose name was written down, or [orElse].
+  ///
+  /// An enum saved by name rather than by index, which is what this repository
+  /// does everywhere: an index is a promise never to reorder a declaration,
+  /// and nobody keeps that promise.
+  T enumOf<T extends Enum>(String key, List<T> values, T orElse) {
+    final name = this[key];
+    if (name is! String) return orElse;
+    for (final value in values) {
+      if (value.name == name) return value;
+    }
+    return orElse;
   }
 }
 

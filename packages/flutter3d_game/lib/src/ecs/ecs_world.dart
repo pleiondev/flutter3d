@@ -41,7 +41,9 @@ final class _Store {
   Object? Function(Object value)? encode;
 
   /// Builds the component from data. For components that are values.
-  Object Function(Object? data)? decode;
+  ///
+  /// May answer null: see [register].
+  Object? Function(Object? data)? decode;
 
   /// Writes data back into the component that is already there. For components
   /// that own something live — a body in a collision world, a brain that is
@@ -78,10 +80,18 @@ final class EcsWorld {
   /// [decode] receives whatever [encode] produced, after a round trip through
   /// JSON if one happened — so it must accept the JSON forms of what it wrote:
   /// a `List<double>` comes back as a `List<dynamic>`.
+  ///
+  /// **It may answer null, and that means "not this one".** The row is left
+  /// unrestored, exactly as a component this build does not know is — the
+  /// neighbouring rule in [restore]. It was non-nullable, and the one decoder
+  /// that could not be written honestly under that signature threw instead: the
+  /// shooter's projectiles read a required field with `!` and a save missing it
+  /// took the whole game down rather than one rocket. A decoder that answers
+  /// null for a row it cannot read is the shape that lets it be lenient.
   void register<T extends Object>(
     String name, {
     required Object? Function(T value) encode,
-    required T Function(Object? data) decode,
+    required T? Function(Object? data) decode,
   }) {
     final existing = _byName[name];
     if (existing != null && existing != T) {
@@ -302,7 +312,13 @@ final class EcsWorld {
         final index = int.tryParse('${row.key}');
         if (index == null) continue;
         if (decode != null) {
-          store.values[index] = decode(row.value);
+          // Null means the decoder could not read this row, and the component
+          // is simply not restored — the same answer this loop gives a
+          // component type it has never heard of. A store of non-null values
+          // is what makes that expressible: the slot stays empty rather than
+          // holding a half-read thing.
+          final value = decode(row.value);
+          if (value != null) store.values[index] = value;
           continue;
         }
         // In place: whatever is there keeps its identity and takes the numbers.

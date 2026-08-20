@@ -41,28 +41,34 @@ final class InFlight {
         },
       };
 
-  static InFlight fromJson(Object? data) {
-    final row = (data! as Map).cast<String, Object?>();
-    final blast = (row['blast']! as Map).cast<String, Object?>();
-    return InFlight(
-      position: _vector(row['at']),
-      velocity: _vector(row['velocity']),
-      life: (row['life']! as num).toDouble(),
-      blast: Blast(
-        radius: (blast['radius']! as num).toDouble(),
-        damage: (blast['damage']! as num).toDouble(),
-        minimumFraction: (blast['minimumFraction'] as num?)?.toDouble() ?? 0.0,
-        knockback: (blast['knockback'] as num?)?.toDouble() ?? 0.0,
-      ),
-    );
-  }
+  /// Reads one rocket back, or nothing if the row cannot be read.
+  ///
+  /// **This used to throw**, alone in the repository: `row['life']! as num` on
+  /// a save written before the field existed is a `TypeError` out of a restore,
+  /// which is a game that will not load rather than a game that loads without
+  /// one rocket. `Snapshot`'s own rule says the opposite — a missing field
+  /// takes its default — and `SnapshotFields` is now where that rule lives.
+  static InFlight? fromJson(Object? data) {
+    if (data is! Map) return null;
+    final row = data.cast<String, Object?>();
+    final blast = row.object('blast');
+    if (blast == null) return null;
 
-  static Vector3 _vector(Object? value) {
-    final row = value! as List;
-    return Vector3(
-      (row[0] as num).toDouble(),
-      (row[1] as num).toDouble(),
-      (row[2] as num).toDouble(),
+    final at = Vector3.zero();
+    final velocity = Vector3.zero();
+    if (!row.vectorInto('at', at)) return null;
+    row.vectorInto('velocity', velocity);
+
+    return InFlight(
+      position: at,
+      velocity: velocity,
+      life: row.number('life'),
+      blast: Blast(
+        radius: blast.number('radius'),
+        damage: blast.number('damage'),
+        minimumFraction: blast.number('minimumFraction'),
+        knockback: blast.number('knockback'),
+      ),
     );
   }
 }

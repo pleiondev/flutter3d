@@ -387,18 +387,12 @@ final class PlatformerSimulation {
     if (saved is Map<String, Object?>) runner.restore(saved);
     final seed = data['random'];
     if (seed is num) random.state = seed.toInt();
-    state = RunState.values.firstWhere(
-      (RunState s) => s.name == data['state'],
-      orElse: () => RunState.running,
-    );
-    final at = data['respawn'];
-    if (at is List && at.length >= 3) {
-      _respawn.setValues(
-        (at[0] as num).toDouble(),
-        (at[1] as num).toDouble(),
-        (at[2] as num).toDouble(),
-      );
-    }
+    state = data.enumOf('state', RunState.values, RunState.running);
+    // Through the reader rather than by hand: this one used to cast each
+    // component with `as num`, which throws on a save holding anything else
+    // where a number belongs — the same strictness the shooter's projectiles
+    // had, in the one document that must never refuse to load.
+    data.vectorInto('respawn', _respawn);
     final died = data['deaths'];
     if (died is num) deaths = died.toInt();
     final left = data['lives'];

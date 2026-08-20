@@ -1125,21 +1125,12 @@ final class Runner with KeyHolder
     final held = from['purse'];
     if (held is Map<String, Object?>) purse.restore(held);
     keyRing.restore(from['keys']);
-    yaw = _number(from['yaw']);
-    _coyote = _number(from['coyote']);
-    _buffer = _number(from['buffer']);
-    _airJumpsLeft = _number(from['airJumps']).round();
-    _dashCooldown = _number(from['dashCooldown']);
-    _wallCoyote = _number(from['wallCoyote']);
-    final away = from['wallAway'];
-    if (away is List && away.length >= 3) {
-      _wallAway.setValues(
-        _number(away[0]),
-        _number(away[1]),
-        _number(away[2]),
-      );
-    }
+    yaw = from.number('yaw');
+    _coyote = from.number('coyote');
+    _buffer = from.number('buffer');
+    _airJumpsLeft = from.number('airJumps').round();
+    _dashCooldown = from.number('dashCooldown');
+    _wallCoyote = from.number('wallCoyote');
+    from.vectorInto('wallAway', _wallAway);
   }
-
-  static double _number(Object? value) => value is num ? value.toDouble() : 0.0;
 }
