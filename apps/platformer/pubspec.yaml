@@ -29,8 +29,8 @@ dependencies:
 
   # The genre. The whole of the game's own vocabulary is here and none of it is
   # in the two above, which is the point stage 5 was making.
-  flutter3d_platformer:
-    path: ../../packages/flutter3d_platformer
+  flutter3d_game_platformer:
+    path: ../../packages/flutter3d_game_platformer
 
   # Sound. Depends on neither the renderer nor the game engine.
   flutter3d_audio:

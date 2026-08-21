@@ -1,7 +1,7 @@
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 
 import 'looks.dart';

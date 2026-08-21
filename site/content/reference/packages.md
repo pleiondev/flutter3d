@@ -76,7 +76,7 @@ Three barrels: `flutter3d_game_shooter.dart` (nothing imports the renderer), `br
 
 → [What a shooter adds](/shooter/) · [Tutorial](/shooter/tutorial/)
 
-### `flutter3d_platformer`
+### `flutter3d_game_platformer`
 `Runner` and `RunnerTuning`, `Surfaces`, `Purse`, collectibles, checkpoints, hazards, springs, one-way platforms, conveyors, crumbling and breakable blocks, climbables, crates, `Patrol` and `Leaper` enemies, `FollowCamera`, and `PlatformerSimulation`.
 
 Nothing here imports the renderer, so all of it runs in a test with no device.
@@ -128,7 +128,7 @@ The engine's own demo: a model browser with every feature switchable, and the fr
 
 ```mermaid
 flowchart TB
-  apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_platformer"]
+  apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_game_platformer"]
   apps --> bridge["flutter3d_bridge"]
   apps --> backend["one backend<br><i>impeller · webgl · cpu</i>"]
   genres --> game["flutter3d_game"]

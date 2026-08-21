@@ -60,8 +60,8 @@ dev_dependencies:
   # the mistake `EntityRegistry`'s own doc records somebody already making.
   flutter3d_game_shooter:
     path: ../../packages/flutter3d_game_shooter
-  flutter3d_platformer:
-    path: ../../packages/flutter3d_platformer
+  flutter3d_game_platformer:
+    path: ../../packages/flutter3d_game_platformer
 
 flutter:
   uses-material-design: true

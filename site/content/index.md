@@ -83,7 +83,7 @@ flowchart TB
 
   subgraph genre["genres — vocabulary"]
     shooter["flutter3d_game_shooter<br>weapons, monsters, inventory"]
-    plat["flutter3d_platformer<br>runner, springs, surfaces"]
+    plat["flutter3d_game_platformer<br>runner, springs, surfaces"]
     race["flutter3d_racing<br>track, car, tire, lap"]
   end
 

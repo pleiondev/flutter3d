@@ -26,7 +26,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// that was allowed to grow the wrong way for a month.
 const List<String> _genres = <String>[
   'flutter3d_game_shooter',
-  'flutter3d_platformer',
+  'flutter3d_game_platformer',
   'flutter3d_racing',
 ];
 

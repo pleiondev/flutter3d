@@ -2,7 +2,7 @@ import 'package:flutter3d/flutter3d.dart'
     show Material, MeshNode, SphereShape, TextureHandle;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// What this game's furniture looks like.

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 
 import 'credits.dart';

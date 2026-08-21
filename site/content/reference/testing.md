@@ -8,7 +8,7 @@ description: Two independent golden sets, mutation-checking every new test, dete
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 604 | | `flutter3d_platformer` | 134 |
+| `flutter3d` | 604 | | `flutter3d_game_platformer` | 134 |
 | `flutter3d_game_shooter` | 247 | | `flutter3d_physics` | 96 |
 | `flutter3d_game` | 178 | | `flutter3d_impeller` | 78 |
 | `flutter3d_racing` | 140 | | `flutter3d_particles` | 68 |

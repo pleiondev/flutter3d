@@ -1,4 +1,4 @@
-# flutter3d_platformer
+# flutter3d_game_platformer
 
 A jump with a memory, a purse, a crate to push, and the floors all of it happens
 on.

@@ -1,6 +1,6 @@
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'sounds.dart';

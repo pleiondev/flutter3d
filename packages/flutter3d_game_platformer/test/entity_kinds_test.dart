@@ -20,7 +20,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// One entity, in the smallest level that can hold it.

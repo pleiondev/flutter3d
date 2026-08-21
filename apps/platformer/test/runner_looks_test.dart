@@ -11,7 +11,7 @@ library;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/runner_looks.dart';
 import 'package:vector_math/vector_math.dart';

@@ -1,4 +1,4 @@
-name: flutter3d_platformer
+name: flutter3d_game_platformer
 description: "A second genre: a runner who jumps twice and dashes, things to collect, hazards to fall into, and checkpoints to come back at."
 version: 0.1.0
 publish_to: 'none'

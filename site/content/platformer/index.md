@@ -1,5 +1,5 @@
 ---
-description: What flutter3d_platformer adds, a runner with eleven verbs, surface tuning, one-way platforms, springs, checkpoints, a follow camera and its own step order.
+description: What flutter3d_game_platformer adds, a runner with eleven verbs, surface tuning, one-way platforms, springs, checkpoints, a follow camera and its own step order.
 ---
 
 # What a platformer adds

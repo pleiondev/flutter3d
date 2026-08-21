@@ -30,7 +30,7 @@ const Set<String> _mayDraw = <String>{
 /// so, since `pub` cannot say what was never declared.
 const List<String> _otherGenres = <String>[
   'flutter3d_game_shooter',
-  'flutter3d_platformer',
+  'flutter3d_game_platformer',
 ];
 
 Iterable<File> _dartFilesIn(String path) {

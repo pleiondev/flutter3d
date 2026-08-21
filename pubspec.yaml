@@ -24,7 +24,7 @@ workspace:
   - packages/flutter3d_bridge
   - packages/flutter3d_game
   - packages/flutter3d_game_shooter
-  - packages/flutter3d_platformer
+  - packages/flutter3d_game_platformer
   - packages/flutter3d_racing
   - packages/flutter3d_physics
   - packages/flutter3d_ui

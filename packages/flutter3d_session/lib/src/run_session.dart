@@ -5,7 +5,7 @@ import 'package:flutter3d_ui/flutter3d_ui.dart';
 /// What a game is doing, as far as a screen is concerned.
 ///
 /// Named `RunStatus` and not `RunState`, which is taken:
-/// `flutter3d_platformer` exports an enum of that name, and an application that
+/// `flutter3d_game_platformer` exports an enum of that name, and an application that
 /// imported both would have to hide one of them in every file.
 sealed class RunStatus<L> {
   const RunStatus();

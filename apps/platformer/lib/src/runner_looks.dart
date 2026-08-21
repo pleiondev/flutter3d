@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d_platformer/flutter3d_platformer.dart';
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// How the runner is drawn, worked out from what it is doing.
