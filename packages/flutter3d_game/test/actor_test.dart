@@ -133,6 +133,45 @@ void main() {
     expect(system.died, isEmpty, reason: 'it would be reported twice');
   });
 
+  test('stepping without beginning says so in every build', () {
+    // **A protocol between two objects, not an invariant of one**, and that is
+    // why it throws rather than asserts. A game that forgets `beginStep` grows
+    // its dead and hurt lists for ever and keeps adding to its damage counter:
+    // a slow leak and a wrong number rather than a crash, found six months
+    // later. An `assert` says that in debug and says nothing in the build a
+    // player runs — which is the build where six months happen.
+    final world = CollisionWorld();
+    final system = ActorSystem(world: world)
+      ..spawn(
+        body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+        health: Health(10.0),
+      );
+
+    expect(
+      () => system.step(1 / 60.0, focus: Vector3.zero()),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test('and beginning it once is enough for one step and not two', () {
+    // The other half: the flag is consumed, so a second step without a second
+    // beginning is the same mistake and is caught the same way.
+    final world = CollisionWorld();
+    final system = ActorSystem(world: world)
+      ..spawn(
+        body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+        health: Health(10.0),
+      );
+
+    system.beginStep();
+    system.step(1 / 60.0, focus: Vector3.zero());
+
+    expect(
+      () => system.step(1 / 60.0, focus: Vector3.zero()),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test('an actor turns the short way round the wrap point', () {
     // **Nothing checked this, and the extraction is what found it.** Replacing
     // the shared `shortestAngle` with a plain subtraction left every test in

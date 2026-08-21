@@ -248,13 +248,21 @@ final class ActorSystem {
     required Vector3 focus,
     Collider? focusBody,
   }) {
-    assert(
-      _begun,
-      'call ActorSystem.beginStep() at the top of your own step. It forgets '
-      'last step\'s dead and hurt; step() no longer does, because it runs '
-      'halfway through a game\'s step and was wiping deaths the game had not '
-      'read yet.',
-    );
+    // **Thrown, not asserted, and the difference is the whole point.** This is
+    // a protocol between two objects, not an invariant of one: a game that
+    // calls `step` without `beginStep` is a game whose dead and hurt lists grow
+    // for ever and whose damage counter keeps climbing — a slow leak and a
+    // wrong number rather than a crash, found six months later. An `assert`
+    // says that out loud in debug and says nothing at all in the build a player
+    // runs, which is the build where six months happen.
+    if (!_begun) {
+      throw StateError(
+        'call ActorSystem.beginStep() at the top of your own step. It forgets '
+        "last step's dead and hurt; step() no longer does, because it runs "
+        "halfway through a game's step and was wiping deaths the game had not "
+        'read yet.',
+      );
+    }
     _begun = false;
     _tick++;
     if (_hasLastFocus && dt > 0.0) {
