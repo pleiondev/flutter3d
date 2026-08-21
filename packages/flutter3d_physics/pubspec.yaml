@@ -11,6 +11,10 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # The rule that this package names no genre, as a test it runs against itself.
+  flutter3d_boundaries:
+    path: ../flutter3d_boundaries
+
   test: ^1.25.0
   flutter_lints: ^6.0.0
 
