@@ -32,6 +32,7 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart' show Ticker;
 import 'package:flutter/services.dart' show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:vector_math/vector_math.dart' show Vector3;
 

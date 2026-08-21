@@ -69,7 +69,6 @@ export 'src/engine/render/frame_resources.dart';
 export 'src/engine/render/key_sort.dart';
 export 'src/engine/render/lighting_model.dart';
 export 'src/engine/render/material.dart';
-export 'src/engine/render/parity_scene.dart';
 export 'src/engine/render/pass_contributor.dart';
 export 'src/engine/render/procedural_texture.dart';
 export 'src/engine/render/render_list.dart';

@@ -16,6 +16,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 
 void main() => runApp(const ParityApp());

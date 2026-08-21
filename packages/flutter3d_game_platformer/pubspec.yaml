@@ -15,8 +15,6 @@ dependencies:
   flutter3d_game:
     path: ../flutter3d_game
 
-  flutter3d_physics:
-    path: ../flutter3d_physics
 
   vector_math: ^2.2.0
 

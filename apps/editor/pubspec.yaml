@@ -32,8 +32,6 @@ dependencies:
     path: ../../packages/flutter3d_bridge
 
   # What a brush is, for picking one by pointing at it.
-  flutter3d_physics:
-    path: ../../packages/flutter3d_physics
 
   # The surface a frame reaches Flutter through.
   flutter3d_session:

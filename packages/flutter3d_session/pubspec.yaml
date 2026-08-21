@@ -12,11 +12,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Reading a level and building a scene from it: `LevelLoader`, `FixtureVisuals`,
-  # `ActorVisuals`. This is the half a session needs that renders.
-  flutter3d_bridge:
-    path: ../flutter3d_bridge
-
   # Where a run in progress is kept: `SaveFile` and the storage under it. This is
   # the half a session needs that persists. **Neither package knows about the
   # other**, which is the whole reason this one exists rather than one of them
@@ -33,7 +28,6 @@ dependencies:
   flutter3d:
     path: ../flutter3d
 
-  vector_math: ^2.2.0
 
 dev_dependencies:
   # The rule that this package names no genre, as a test it runs against itself.
