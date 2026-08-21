@@ -226,4 +226,26 @@ void main() {
       expect(SkyPresets.byName('midnight'), isNull);
     });
   });
+
+  test('a colour with a word in it is the fallback, not partly black', () {
+    // **It used to come out partly black**: each component that was not a
+    // number became nought on its own, so a sky whose zenith was written
+    // `[0.2, "blue", 0.9]` loaded as a colour nobody chose — dark in one
+    // channel and right in the others, which reads as a bug in the renderer
+    // rather than a mistake in the file.
+    final preset = SkyPreset.fromJson(<String, Object?>{
+      'name': 'hand-edited',
+      'zenith': <Object?>[0.2, 'blue', 0.9],
+    });
+
+    expect(preset.zenith, SkyPresets.morning.zenith);
+  });
+
+  test('and a colour that is three numbers is read', () {
+    final preset = SkyPreset.fromJson(<String, Object?>{
+      'zenith': <double>[0.1, 0.2, 0.3],
+    });
+
+    expect(preset.zenith, Vector3(0.1, 0.2, 0.3));
+  });
 }

@@ -130,14 +130,15 @@ final class Look {
         ],
       );
 
+  /// A vector this document may or may not carry.
+  ///
+  /// `readVector` rather than a fourth copy of the same six lines: a look is a
+  /// file somebody edits by hand, which is the same kind of document a save is,
+  /// and it wants the same answer — nothing, rather than an exception or a
+  /// vector that is partly read.
   static Vector3? _vector(Object? value) {
-    if (value is! List || value.length < 3) return null;
-    if (value.any((Object? it) => it is! num)) return null;
-    return Vector3(
-      (value[0]! as num).toDouble(),
-      (value[1]! as num).toDouble(),
-      (value[2]! as num).toDouble(),
-    );
+    final out = Vector3.zero();
+    return readVector(value, out) ? out : null;
   }
 }
 

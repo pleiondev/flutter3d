@@ -50,6 +50,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A time of day: the sun, the gradient, the haze and the exposure that go with
@@ -259,14 +260,13 @@ final class SkyPreset {
       return value is num ? value.toDouble() : fallbackValue;
     }
 
+    // **A colour with a word in it used to come out partly black**, because
+    // each component that was not a number became nought on its own. The
+    // shared reader takes all three or none, which for a preset means the time
+    // of day it was falling back to anyway.
     Vector3 colour(String key, Vector3 fallbackValue) {
-      final value = json[key];
-      if (value is! List || value.length < 3) return fallbackValue;
-      final numbers = <double>[
-        for (final component in value.take(3))
-          component is num ? component.toDouble() : 0.0,
-      ];
-      return Vector3(numbers[0], numbers[1], numbers[2]);
+      final out = Vector3.zero();
+      return readVector(json[key], out) ? out : fallbackValue;
     }
 
     final name = json['name'];
