@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../math/tolerances.dart';
 import 'level.dart';
 
 /// The triangles of every brush sharing one material *and* one answer about
@@ -347,7 +348,7 @@ final class _BrushIndex {
   /// Strictly: a point exactly on another brush's surface does not count, so
   /// two brushes that merely share a face both keep their faces.
   bool containsPoint(double x, double y, double z, Brush except) {
-    const epsilon = 1e-4;
+    const epsilon = Tolerance.sameSurface;
     final bucket = _cells[((x / cellSize).floor() << 32) ^
         ((z / cellSize).floor() & 0xFFFFFFFF)];
     if (bucket == null) return false;

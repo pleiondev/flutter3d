@@ -1,6 +1,7 @@
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import '../math/tolerances.dart';
 import '../physics/layers.dart';
 import '../world/exit.dart';
 import '../world/light_fixture.dart';
@@ -176,7 +177,7 @@ abstract base class EntityKind {
       );
       return;
     }
-    if (travel.length < 1e-6) {
+    if (travel.length < Tolerance.zeroLength) {
       out.add(
         LevelIssue(
           LevelIssueSeverity.warning,

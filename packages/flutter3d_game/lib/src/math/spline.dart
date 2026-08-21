@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
+import 'tolerances.dart';
 
 /// A smooth curve through a list of control points, measured in metres.
 ///
@@ -124,14 +125,14 @@ final class CatmullRom {
     final u = _toU(s);
     _derivative(u, out);
     var scale = out.length;
-    if (scale < 1e-9) {
+    if (scale < Tolerance.divisor) {
       // Coincident control points can flatten the derivative to nothing. Step a
       // hair along the curve rather than inventing a direction, so that a
       // duplicated point in the track file is a wobble and not a car facing
       // north for one step.
       _derivative(u + 1e-4, out);
       scale = out.length;
-      if (scale < 1e-9) {
+      if (scale < Tolerance.divisor) {
         out.setValues(0.0, 0.0, 1.0);
         return;
       }
@@ -151,7 +152,7 @@ final class CatmullRom {
     _secondDerivative(u, _second);
 
     final speed = _first.length;
-    if (speed < 1e-9) return 0.0;
+    if (speed < Tolerance.divisor) return 0.0;
 
     // Written out rather than through `cross`, which allocates a vector: an AI
     // asks this several times per car per step.

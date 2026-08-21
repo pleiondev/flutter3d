@@ -43,6 +43,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../level/level.dart';
 import '../level/level_issue.dart';
+import '../math/tolerances.dart';
 
 /// A lattice of standing places, and how much room each one has.
 final class NavGrid {
@@ -217,13 +218,13 @@ final class NavGrid {
       final brush = solid[b];
       // A boundary hit exactly is a zero-width overlap, which is not one.
       final x0 = _clampInt(
-          (((brush.min.x - minX) / cellSize) + 1e-6).floor(), 0, columns - 1);
+          (((brush.min.x - minX) / cellSize) + Tolerance.gridBias).floor(), 0, columns - 1);
       final x1 = _clampInt(
-          (((brush.max.x - minX) / cellSize) - 1e-6).floor(), 0, columns - 1);
+          (((brush.max.x - minX) / cellSize) - Tolerance.gridBias).floor(), 0, columns - 1);
       final z0 = _clampInt(
-          (((brush.min.z - minZ) / cellSize) + 1e-6).floor(), 0, rows - 1);
+          (((brush.min.z - minZ) / cellSize) + Tolerance.gridBias).floor(), 0, rows - 1);
       final z1 = _clampInt(
-          (((brush.max.z - minZ) / cellSize) - 1e-6).floor(), 0, rows - 1);
+          (((brush.max.z - minZ) / cellSize) - Tolerance.gridBias).floor(), 0, rows - 1);
       for (var cz = z0; cz <= z1; cz++) {
         final row = cz * columns;
         for (var cx = x0; cx <= x1; cx++) {
@@ -266,7 +267,7 @@ final class NavGrid {
       var previous = double.negativeInfinity;
 
       for (final top in tops) {
-        if ((top - previous).abs() < 1e-4) continue;
+        if ((top - previous).abs() < Tolerance.sameSurface) continue;
         previous = top;
 
         var ceiling = top + maxHeadroom;
@@ -275,8 +276,8 @@ final class NavGrid {
           final other = solid[b];
           // Entirely at or below the surface, including the brush whose top
           // this is.
-          if (other.max.y <= top + 1e-4) continue;
-          if (other.min.y <= top + 1e-4) {
+          if (other.max.y <= top + Tolerance.sameSurface) continue;
+          if (other.min.y <= top + Tolerance.sameSurface) {
             blocked = true;
             break;
           }
