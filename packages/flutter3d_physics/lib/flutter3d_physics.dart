@@ -30,4 +30,5 @@ export 'src/collision_world.dart';
 export 'src/contact.dart';
 export 'src/dynamics.dart';
 export 'src/rigid_body.dart';
+export 'src/snapshot.dart';
 export 'src/spatial_grid.dart';

@@ -13,14 +13,17 @@ import 'package:vector_math/vector_math.dart';
 /// [out] as it was, which is the position the body already had — a body that
 /// stays where it is is a bug a player can walk out of, and a `TypeError` from
 /// a `as num` on a half-written array is a game that will not start.
-void readVector(Object? value, Vector3 out) {
-  if (value is! List || value.length < 3) return;
+/// Returns whether it read one, for a caller that treats "the field was there"
+/// differently from "the field says where the body already is".
+bool readVector(Object? value, Vector3 out) {
+  if (value is! List || value.length < 3) return false;
   final x = value[0], y = value[1], z = value[2];
   // All three checked before any is written: a half-read vector is a position
   // that is partly where the body was saved and partly where it happens to be,
   // which is somewhere nobody has ever been.
-  if (x is! num || y is! num || z is! num) return;
+  if (x is! num || y is! num || z is! num) return false;
   out.setValues(x.toDouble(), y.toDouble(), z.toDouble());
+  return true;
 }
 
 /// A number from a snapshot, or nought.

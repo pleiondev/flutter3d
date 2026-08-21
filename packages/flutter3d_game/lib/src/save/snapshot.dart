@@ -27,6 +27,7 @@
 /// and a newer reader treats a missing field as its default.
 library;
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Thrown when a snapshot cannot be read at all.
@@ -120,14 +121,13 @@ extension SnapshotFields on Map<String, Object?> {
   /// snapshot is exactly the document that must not do that — see the note on
   /// [Snapshot] about older builds. The strictness lived here and in the
   /// shooter's projectiles, both since fixed.
-  bool vectorInto(String key, Vector3 out) {
-    final value = this[key];
-    if (value is! List || value.length < 3) return false;
-    final x = value[0], y = value[1], z = value[2];
-    if (x is! num || y is! num || z is! num) return false;
-    out.setValues(x.toDouble(), y.toDouble(), z.toDouble());
-    return true;
-  }
+  ///
+  /// The reading itself is `flutter3d_physics`'s `readVector`, which two bodies
+  /// there restore themselves with. **The primitive lives in the package
+  /// underneath**, because that is the direction the dependency runs: a
+  /// character controller cannot reach up to a save file, and a save file can
+  /// always reach down to a vector.
+  bool vectorInto(String key, Vector3 out) => readVector(this[key], out);
 
   /// The value of [values] whose name was written down, or [orElse].
   ///

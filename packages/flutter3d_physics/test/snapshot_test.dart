@@ -59,6 +59,17 @@ void main() {
     expect(out.x, 7.0, reason: 'the first component was written anyway');
   });
 
+  test('and it says whether it found one', () {
+    // `flutter3d_game`'s `vectorInto` is this and nothing else, and its callers
+    // read the answer: "the field was there" and "the field says where the body
+    // already is" are different facts about a save.
+    final out = Vector3.zero();
+
+    expect(readVector(<double>[1.0, 2.0, 3.0], out), isTrue);
+    expect(readVector(null, out), isFalse);
+    expect(readVector(<Object?>[1.0, 2.0, 'three'], out), isFalse);
+  });
+
   test('a number that is not a number is nought', () {
     expect(readNumber(0.25), 0.25);
     expect(readNumber(3), 3.0);
