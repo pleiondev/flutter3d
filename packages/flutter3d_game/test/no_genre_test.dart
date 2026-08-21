@@ -174,6 +174,23 @@ void main() {
     );
   });
 
+  test('and this package depends on no application at all', () {
+    // **It did, and the pubspec said otherwise four lines above.** Two
+    // `dev_dependencies` — on a genre package and on the `platformer`
+    // application — existed so that one test could mount that game's HUD, which
+    // also meant importing `package:platformer/src/hud.dart`: another package's
+    // private half. A cycle, a genre and a `lib/src`, in two lines.
+    //
+    // The mechanism is tested here and the sentence on the screen is tested in
+    // the game that says it.
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+
+    for (final app in <String>['dungeon', 'platformer', 'racing', 'editor']) {
+      expect(RegExp('^\\s+$app:', multiLine: true).hasMatch(pubspec), isFalse,
+          reason: 'this package depends on the $app application');
+    }
+  });
+
   test('the detector fires on input that breaks the rule', () {
     // The scan above passes trivially if `_reaches` is wrong, and a rule nobody
     // can see fail is a rule nobody is keeping. So: prove it on a file that

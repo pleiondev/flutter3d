@@ -7,13 +7,17 @@
 /// with nothing reading it, a game that fell behind ran in silent slow motion
 /// and a run timer counting simulated seconds quietly stopped agreeing with the
 /// clock on the wall.
+///
+/// **What a player is told about it is tested in the game that tells them.**
+/// This file used to mount the platformer's HUD, which meant this package —
+/// the one whose pubspec says in as many words that the dependency runs the
+/// other way — dev-depended on a genre package *and on an application*, and
+/// imported `package:platformer/src/hud.dart`, another package's `lib/src`.
+/// Three rules at once, in two lines, under a comment saying it was not so.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_platformer/flutter3d_platformer.dart' show RunState;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platformer/src/hud.dart';
 
 const double _step = 1.0 / 60.0;
 const double _frame = 1.0 / 60.0;
@@ -89,56 +93,4 @@ void main() {
       pace.note(dropped: 120, dt: _frame, stepSeconds: _step);
       expect(pace.lost, 0.0);
     });
-  });
-
-  group('what the player is told', () {
-    Widget hud({bool behind = false, double lost = 0.0, RunState? state}) =>
-        MaterialApp(
-          home: Hud(
-            coins: 0,
-            deaths: 0,
-            lives: 3,
-            elapsed: 61.0,
-            state: state ?? RunState.running,
-            captured: true,
-            levelName: 'Ascent',
-            behind: behind,
-            lost: lost,
-          ),
-        );
-
-    testWidgets('a slow machine is named as the slow thing', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(hud(behind: true));
-
-      expect(find.textContaining('running slowly'), findsOneWidget);
-    });
-
-    testWidgets('and nothing is said when it is keeping up', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(hud());
-
-      expect(find.textContaining('running slowly'), findsNothing);
-    });
-
-    testWidgets('a finished run owns up to the time it lost', (
-      WidgetTester tester,
-    ) async {
-      // The clock counts simulated seconds, so a run that dropped four of them
-      // took four seconds longer than it says.
-      await tester.pumpWidget(hud(lost: 4.2, state: RunState.finished));
-
-      expect(find.textContaining('lost 4s'), findsOneWidget);
-    });
-
-    testWidgets('and says nothing about a fraction of a second', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(hud(lost: 0.2, state: RunState.finished));
-
-      expect(find.textContaining('lost'), findsNothing);
-    });
-  });
-}
+  });}
