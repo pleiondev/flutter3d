@@ -753,7 +753,9 @@ class _GameScreenState extends State<GameScreen>
     );
 
     _burnTorches();
-    _particles.advance(dt);
+    // The frame the loop accepted — see `GameLoop.lastFrame`. This game had no
+    // limit of its own at all.
+    _particles.advance(_loop.lastFrame);
 
     // Last, so every source has already moved this step. The listener is the
     // simulated eye rather than the interpolated one: the mix should follow

@@ -639,7 +639,7 @@ class _RaceScreenState extends State<RaceScreen>
       pointerHeld: false,
       padConnected: _pad.isConnected,
     );
-    _loop.advance(dt.clamp(0.0, 0.25));
+    _loop.advance(dt);
     _pace.note(
       dropped: _loop.clock.droppedSteps,
       dt: dt,
@@ -649,7 +649,12 @@ class _RaceScreenState extends State<RaceScreen>
     if (_celebrateFor > 0.0) _celebrateFor = (_celebrateFor - dt).clamp(0.0, 4.0);
     if (_refusedFor > 0.0) _refusedFor = (_refusedFor - dt).clamp(0.0, 2.0);
 
-    _particles.advance(dt);
+    // **What the loop accepted, not what the clock said.** A frame longer than
+    // the loop's own limit is a window that was dragged or a laptop that was
+    // shut; the simulation refuses it, and anything drawn beside the simulation
+    // has to refuse the same amount or it ends up showing a world that has not
+    // happened yet.
+    _particles.advance(_loop.lastFrame);
     _place(dt);
     _listen(race);
     setState(() {});

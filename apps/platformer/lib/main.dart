@@ -851,7 +851,7 @@ class _GameScreenState extends State<GameScreen>
       pointerHeld: _devices.isCaptured,
       padConnected: _pad.isConnected,
     );
-    _loop.advance(dt.clamp(0.0, 0.25));
+    _loop.advance(dt);
     // The loop has always counted the simulated time it could not run. Nobody
     // read it, so a machine that could not keep up ran the game slowly and said
     // nothing about it.
@@ -865,7 +865,8 @@ class _GameScreenState extends State<GameScreen>
       _sayFor -= dt;
       if (_sayFor <= 0.0) _said = null;
     }
-    _particles.advance(dt);
+    // The frame the loop accepted — see `GameLoop.lastFrame`.
+    _particles.advance(_loop.lastFrame);
     _animateRunner(dt);
     _placeCamera(dt);
     _fixtures?.sync(_elapsed);

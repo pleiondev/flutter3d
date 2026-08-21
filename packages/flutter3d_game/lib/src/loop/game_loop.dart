@@ -19,6 +19,7 @@ final class GameLoop {
     required this.onStep,
     FixedStep? clock,
     this.drainLook,
+    this.longestFrame = 0.25,
   }) : clock = clock ?? FixedStep();
 
   final FixedStep clock;
@@ -53,6 +54,32 @@ final class GameLoop {
 
   bool _wasPaused = false;
 
+  /// The longest real frame the simulation will accept, in seconds.
+  ///
+  /// **A quarter of a second, and the number belongs here rather than at each
+  /// call site.** A frame that took longer than this is not a slow frame, it is
+  /// a window that was dragged, a laptop that was shut, or a debugger that was
+  /// sitting at a breakpoint — and handing the whole of it to a fixed step is
+  /// asking for fifteen seconds of simulation in one frame, which arrives as
+  /// everything in the world teleporting.
+  ///
+  /// Three games clamped this themselves, at `0.25`, at `0.1`, and — in one —
+  /// not at all.
+  final double longestFrame;
+
+  /// How much time the last [advance] actually took, after clamping.
+  ///
+  /// **What everything else in the frame must use.** Particles, camera easing
+  /// and anything else advanced beside the simulation are showing the world the
+  /// simulation is in; given the raw frame time instead they run ahead of it.
+  /// All three games did exactly that — `_particles.advance(dt)` with the
+  /// unclamped number, one line after `advance(dt.clamp(0.0, 0.25))` — so after
+  /// a hitch the smoke was somewhere the car had not been.
+  ///
+  /// Zero while paused, because no time passed in the game.
+  double get lastFrame => _lastFrame;
+  double _lastFrame = 0.0;
+
   /// How far through the current step the next frame should draw.
   double get alpha => clock.alpha;
 
@@ -60,6 +87,7 @@ final class GameLoop {
   int advance(double dt) {
     if (paused) {
       _wasPaused = true;
+      _lastFrame = 0.0;
       // Taken and thrown away. A pause can last minutes, and motion that piled
       // up behind a menu would arrive as one turn of the camera on the frame
       // the game came back. This is the opposite of what a frame too short to
@@ -80,7 +108,10 @@ final class GameLoop {
       clock.reset();
     }
 
-    final steps = clock.advance(dt);
+    // Clamped once, here, and published as [lastFrame] so that nothing else in
+    // the frame has to remember to do it — or gets to do it differently.
+    _lastFrame = dt.isNaN ? 0.0 : dt.clamp(0.0, longestFrame);
+    final steps = clock.advance(_lastFrame);
     if (steps == 0) {
       // Nothing is drained. On a display faster than the simulation most frames
       // run no step at all, and taking the mouse motion here would throw it

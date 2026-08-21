@@ -162,6 +162,67 @@ void main() {
     expect(ran, 2);
   });
 
+  group('the longest frame', () {
+    test('a window that was dragged does not arrive as a hundred steps', () {
+      // **Not a slow frame — a laptop that was shut, or a debugger sitting at a
+      // breakpoint.** Handing fifteen seconds to a fixed step is fifteen seconds
+      // of simulation in one frame, which arrives as everything in the world
+      // teleporting.
+      final loop = build();
+
+      final steps = loop.advance(15.0);
+
+      expect(steps, lessThanOrEqualTo((0.25 * 60).ceil()));
+      expect(loop.lastFrame, 0.25);
+    });
+
+    test('and an ordinary frame passes through untouched', () {
+      final loop = build();
+
+      loop.advance(1 / 60);
+
+      expect(loop.lastFrame, closeTo(1 / 60, 1e-9));
+    });
+
+    test('and what it accepted is what everything else in the frame gets', () {
+      // **The bug this exists for.** All three games advanced their particles
+      // with the raw frame time one line after clamping the simulation's — so
+      // after a hitch the smoke was somewhere the car had not been. Nothing
+      // else has to remember to clamp now, and nothing gets to clamp it
+      // differently.
+      final loop = build();
+
+      loop.advance(9.0);
+
+      expect(loop.lastFrame, loop.longestFrame);
+    });
+
+    test('and a paused frame took no time at all', () {
+      // Run one real frame first: a loop that has never advanced reports zero
+      // anyway, so pausing a fresh one proves nothing — which is how the first
+      // version of this test passed with the line it was written for deleted.
+      final loop = build();
+      loop.advance(1 / 60);
+      expect(loop.lastFrame, greaterThan(0.0));
+
+      loop.paused = true;
+      loop.advance(1 / 60);
+
+      expect(loop.lastFrame, 0.0,
+          reason: 'the world stood still and the smoke did not');
+    });
+
+    test('and a frame of nothing is a frame of nothing', () {
+      // `Duration.zero` on the first tick, and a `NaN` from a clock that has
+      // been asked what time it was before it started.
+      final loop = build();
+
+      loop.advance(double.nan);
+
+      expect(loop.lastFrame, 0.0);
+    });
+  });
+
   test('alpha comes from the clock rather than being recomputed', () {
     final loop = build();
     loop.advance(1.5 / 60.0);
