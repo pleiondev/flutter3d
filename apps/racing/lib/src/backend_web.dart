@@ -2,7 +2,6 @@
 library;
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 
 /// Whether this build renders at a fixed internal resolution.
@@ -34,24 +33,11 @@ const int kShadowCascades = 2;
 const int kShadowResolution = 1024;
 
 /// Opens the backend, or throws with something worth putting on screen.
+///
+/// The whole of it is `flutter3d_webgl`'s: what a browser has to provide is
+/// that package's knowledge, and three games had been repeating it.
 Future<GraphicsDevice> openDevice({
   required int width,
   required int height,
-}) async {
-  final device = WebGlDevice.create(
-    width: width,
-    height: height,
-    // GLSL ES 3.00, translated from `flutter3d_shaders` by
-    // `flutter3d_webgl/tool/generate_shaders.dart`. There is no compiled
-    // bundle on this backend: a browser compiles GLSL itself, so a "bundle" is
-    // a map from the engine's entry point names to source text.
-    sources: engineShaders,
-  );
-  if (device == null) {
-    throw StateError(
-      'WebGL2 is not available in this browser. The engine needs WebGL2 '
-      '(not WebGL1) and EXT_color_buffer_float for its HDR target.',
-    );
-  }
-  return device;
-}
+}) =>
+    openWebGl(width: width, height: height);

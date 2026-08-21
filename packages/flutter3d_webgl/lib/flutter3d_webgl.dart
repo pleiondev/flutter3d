@@ -14,5 +14,6 @@
 /// pretending.
 library;
 
+export 'src/open.dart';
 export 'src/webgl_device.dart';
 export 'src/webgl_shaders.dart';
