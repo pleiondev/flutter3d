@@ -24,7 +24,6 @@ import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -552,9 +551,6 @@ class _GameScreenState extends State<GameScreen>
   /// there were four copies of it and they had already disagreed once.
   void _applyVolumes() => applySavedVolumes(_config, _audio.mixer);
 
-  void _setVolume(AudioBus bus, double volume) =>
-      _settings.setVolume(bus.name, volume);
-
   /// Everything that has to happen before a settings panel is on screen.
   ///
   /// Letting the mouse go, because a panel you cannot point at has no way out of
@@ -608,9 +604,6 @@ class _GameScreenState extends State<GameScreen>
   /// that the player moves it and feels the stick change — a setting that took
   /// effect on the next launch could not be chosen at all. That order is
   /// `SettingsCubit`'s promise now rather than this method's.
-  void _setSetting(String name, double value) =>
-      _settings.setSetting(name, value);
-
   /// Loads [asset], and shows why if it cannot.
   ///
   /// **A level that will not read used to be a black screen for ever.** There
@@ -1257,48 +1250,19 @@ class _GameScreenState extends State<GameScreen>
                   touch: Playing.touch,
                   resuming: _resumed,
                 ),
-              // The panel and the gear are the same piece of state seen twice,
-              // so they are built from it rather than from two flags that have
-              // to be kept opposite.
-              BlocBuilder<SettingsCubit, SettingsState>(
-                bloc: _settings,
-                builder: (BuildContext context, SettingsState settings) {
-                  if (!settings.isOpen) {
-                    // Not over the title card, which carries the same settings
-                    // on it and is the one screen a stray gear has nothing to
-                    // add to.
-                    if (!_started) return const SizedBox.shrink();
-                    return Positioned(
-                      right: 18,
-                      top: 16,
-                      child: IconButton(
-                        onPressed: () {
-                          _openSettings();
-                          _settings.show();
-                        },
-                        tooltip: 'Settings',
-                        icon: const Icon(Icons.settings, color: Colors.white70),
-                      ),
-                    );
-                  }
-                  return SettingsPanel(
-                    mixer: _audio.mixer,
-                    bindings: _devices.bindings,
-                    config: _config,
-                    padConnected: _pad.isConnected,
-                    onVolume: _setVolume,
-                    onSetting: _setSetting,
-                    // Cancelling a waiting rebind is the cubit's, because a
-                    // panel closed any other way — Escape, the pad — has to do
-                    // the same thing and used not to.
-                    onClose: _settings.hide,
-                    actions: _rebindable,
-                    waitingFor: settings.waitingFor,
-                    onRebind: _settings.rebind,
-                    credits: const CreditsSection(credits: Credits.models),
-                    onResetControls: () => _settings.resetControls(_bindings()),
-                  );
-                },
+              SettingsOverlay(
+                settings: _settings,
+                mixer: _audio.mixer,
+                bindings: _devices.bindings,
+                config: _config,
+                padConnected: _pad.isConnected,
+                actions: _rebindable,
+                defaultBindings: _bindings,
+                opening: _openSettings,
+                credits: const CreditsSection(credits: Credits.models),
+                // Not over the title card, which carries the same settings on
+                // it and is the one screen a stray gear has nothing to add to.
+                canOpen: _started,
               ),
             ],
           ),

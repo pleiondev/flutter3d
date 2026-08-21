@@ -67,7 +67,6 @@ dependencies:
   # is an allocation and a rebuild sixty times a second, and keeping the
   # renderer's frame rate out of the fixed step is the whole point of
   # `GameSimulation`.
-  flutter_bloc: ^9.1.1
 
 dev_dependencies:
   flutter_test:

@@ -60,7 +60,6 @@ dependencies:
     path: ../../packages/flutter3d_physics
 
   # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
-  flutter_bloc: ^9.1.1
 
   # The surface a frame reaches Flutter through, and the run being played —
   # the part that is neither the simulation nor the screens. See its README for

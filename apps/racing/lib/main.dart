@@ -28,7 +28,6 @@ import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pad_input/pad_input.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -969,50 +968,23 @@ class _RaceScreenState extends State<RaceScreen>
                 brake: _Drive.brake,
                 handbrake: _Drive.handbrake,
               ),
-            // The panel and the gear are the same piece of state seen twice, so
-            // they are built from it rather than from two flags that have to be
-            // kept opposite.
-            BlocBuilder<SettingsCubit, SettingsState>(
-              bloc: _settings,
-              builder: (BuildContext context, SettingsState settings) {
-                if (!settings.isOpen) {
-                  return Positioned(
-                    right: 18,
-                    top: 16,
-                    child: IconButton(
-                      tooltip: 'Settings',
-                      onPressed: () {
-                        _input.clear();
-                        _settings.show();
-                      },
-                      icon: const Icon(Icons.settings, color: Colors.white70),
-                    ),
-                  );
-                }
-                return SettingsPanel(
-                  mixer: _audio.mixer,
-                  bindings: _devices.bindings,
-                  config: _config,
-                  // Asked, not assumed. This said `false` while the same
-                  // widget three lines away in the other two games asked the
-                  // pad — so a driver with a controller plugged in read
-                  // "Gamepad (none connected)" over the sliders that set its
-                  // dead zone.
-                  padConnected: _pad.isConnected,
-                  actions: _rebindable,
-                  waitingFor: settings.waitingFor,
-                  onVolume: (AudioBus bus, double volume) =>
-                      _settings.setVolume(bus.name, volume),
-                  onSetting: _settings.setSetting,
-                  onRebind: _settings.rebind,
-                  onResetControls: () => _settings.resetControls(_keys()),
-                  onClose: _settings.hide,
-                  // **The licence asks for this and the game did not do it.**
-                  // The car is CC BY 4.0, whose text says attribution must
-                  // appear wherever the work does.
-                  credits: const CreditsSection(credits: Credits.models),
-                );
-              },
+            SettingsOverlay(
+              settings: _settings,
+              mixer: _audio.mixer,
+              bindings: _devices.bindings,
+              config: _config,
+              // Asked, not assumed. This said `false` while the same widget in
+              // the other two games asked the pad — so a driver with a
+              // controller plugged in read "Gamepad (none connected)" over the
+              // sliders that set its dead zone.
+              padConnected: _pad.isConnected,
+              actions: _rebindable,
+              defaultBindings: _keys,
+              opening: _input.clear,
+              // **The licence asks for this and the game did not do it.** The
+              // car is CC BY 4.0, whose text says attribution must appear
+              // wherever the work does.
+              credits: const CreditsSection(credits: Credits.models),
             ),
           ],
         ),
