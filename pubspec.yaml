@@ -37,3 +37,4 @@ workspace:
   - apps/editor
   - apps/platformer
   - apps/racing
+  - apps/template_app

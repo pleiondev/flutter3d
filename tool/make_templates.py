@@ -232,6 +232,33 @@ TEMPLATES = {
 }
 
 
+# The application a new project starts as, copied into the editor's bundle so
+# it can be written into a project.
+#
+# **A real application in this repository, not a string in a scaffolder.** A
+# `main.dart` that only ever exists as text is one that stops compiling six
+# months later and nobody finds out until somebody creates a project;
+# `apps/template_app` is analysed by CI like everything else, and this copies
+# it. One source, one regeneration, one diff.
+APP = {
+    'app.main.dart.txt': ('apps/template_app/lib/main.dart', 'lib/main.dart'),
+    'app.backend.dart.txt': (
+        'apps/template_app/lib/src/backend.dart',
+        'lib/src/backend.dart',
+    ),
+}
+
+
+def copy_app(where):
+    """Puts the seed application beside a template, as text."""
+    for name, (source, _) in APP.items():
+        with open(os.path.join(HERE, source)) as file:
+            text = file.read()
+        os.makedirs(where, exist_ok=True)
+        with open(os.path.join(where, name), 'w') as out:
+            out.write(text)
+
+
 def dump(document, path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, 'w') as file:
@@ -277,9 +304,11 @@ def main():
         # The manifest: what to copy, and where it lands in a new project. A
         # file missing from `pubspec.yaml`'s `assets:` throws at scaffold time
         # in front of somebody; a test walks this list instead.
+        copy_app(where)
         files = {
             'editor.json': 'assets/editor.json',
             'level.first.json': 'assets/levels/first.json',
+            **{name: destination for name, (_, destination) in APP.items()},
         }
         for name in sorted(MODELS.get(genre, {})):
             files[f'model.{name}.glb'] = f'assets/models/{name}.glb'

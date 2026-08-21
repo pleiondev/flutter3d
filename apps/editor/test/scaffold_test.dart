@@ -122,6 +122,47 @@ void main() {
     });
   });
 
+  group('the application it starts as', () {
+    test('is there, and is a Dart file that says what it is', () {
+      // **A seed, not a game**: a level you can walk around, which is what a
+      // project has to be before it can be anything else.
+      final project = _project();
+
+      expect(project.keys, contains('lib/main.dart'));
+      expect(project.keys, contains('lib/src/backend.dart'));
+      expect(_text(project, 'lib/main.dart'), contains('void main()'));
+    });
+
+    test('and is the application this repository keeps compiling', () {
+      // **The failure this shape prevents.** A `main.dart` that exists only as
+      // a string in a scaffolder stops compiling the first time a package it
+      // uses is renamed, and nobody finds out until somebody creates a project
+      // — by which time it is a stranger's problem. `apps/template_app` is a
+      // real application, analysed by CI like every other, and the template is
+      // a copy of it.
+      expect(
+        _text(_project(), 'lib/main.dart'),
+        File('../template_app/lib/main.dart').readAsStringSync(),
+      );
+    });
+
+    test('and the pubspec names every package that file imports', () {
+      // The two drift apart silently: an import added to the seed is a
+      // scaffolded project that will not resolve, and the error names a package
+      // rather than a template.
+      final project = _project();
+      final pubspec = _text(project, 'pubspec.yaml');
+      final source = _text(project, 'lib/main.dart') +
+          _text(project, 'lib/src/backend.dart');
+
+      for (final match
+          in RegExp(r"package:(flutter3d\w*)/").allMatches(source)) {
+        expect(pubspec, contains('${match.group(1)}:'),
+            reason: '${match.group(1)} is imported and not depended on');
+      }
+    });
+  });
+
   group('the pubspec', () {
     test('is the project\'s name, not the template\'s', () {
       expect(_text(_project(name: 'Deep Mine'), 'pubspec.yaml'),

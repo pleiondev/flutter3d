@@ -205,14 +205,23 @@ flutter run -d macos --dart-define=level=<this directory>/assets/levels/first.js
 
 ## Running it
 
-There is no application here yet — this is the content half of a game. To make
-one:
-
 ```sh
 flutter create --platforms=macos .   # adds the platform folders, leaves the rest
 flutter pub get
+flutter run -d macos
 ```
 
-and write `lib/main.dart`. The three games in the flutter3d checkout are the
-worked examples; the shortest of them is the racing one.
+`flutter create` adds the platform folders to what is already here and leaves
+`pubspec.yaml` and `lib/` alone.
+
+## What `lib/main.dart` is, and is not
+
+**A seed, not a game.** It reads the level, builds it, and puts a body in it
+that walks, looks and jumps. What it deliberately does not do is anything a
+*genre* does: no weapons, no monsters, no coins, no doors that open, no score,
+no menu, no saving.
+
+Those live in `flutter3d_shooter` and `flutter3d_platformer`, and wiring one up
+is the next thing to do. Each of the three games in the flutter3d checkout keeps
+that wiring in its own `lib/src/staging.dart`, which is the file to read first.
 ''';
