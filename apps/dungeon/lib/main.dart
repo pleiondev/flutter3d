@@ -40,7 +40,7 @@ import 'src/weapon_models.dart';
 ///
 /// Deliberately thin. Everything that could live in a package does — the
 /// renderer in `flutter3d`, the clock and the input in `flutter3d_game`, the
-/// pointer capture in `mouse_capture` — and what is left here is the part that
+/// pointer capture in `pointer_lock` — and what is left here is the part that
 /// is specific to this game. Right now that is a handful of boxes, because the
 /// level format does not exist yet.
 ///

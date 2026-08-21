@@ -20,7 +20,7 @@ import 'package:gamepad/src/standard_mapping.dart';
 
 /// A gamepad that does whatever a test says.
 ///
-/// Modelled on `mouse_capture`'s fake, and for the reason that one gives: the
+/// Modelled on `pointer_lock`'s fake, and for the reason that one gives: the
 /// parts that are easy to get wrong live above the channel and would otherwise
 /// only be reachable by running a game and waving a controller at it.
 final class FakePad extends GamepadPlatform {

@@ -98,7 +98,7 @@ Positional audio: attenuation curves, panning, occlusion through a callback, voi
 
 → [Particles & audio](/core/extras/)
 
-### `mouse_capture`
+### `pointer_lock`
 Relative mouse deltas, which Flutter offers on no desktop platform. On macOS it turns off the association between the physical mouse and the on-screen cursor, so `mouseMoved` events keep arriving with their deltas while the cursor stays put.
 
 ### `gamepad`
@@ -139,7 +139,7 @@ flowchart TB
   backend --> gfx
   backend --> shaders["flutter3d_shaders"]
   extras["flutter3d_particles<br>flutter3d_audio"] -.-> engine
-  game --> devices["mouse_capture<br>gamepad<br><i>devices only</i>"]
+  game --> devices["pointer_lock<br>gamepad<br><i>devices only</i>"]
 
   classDef forbidden stroke-dasharray: 4 3
   game -.-x engine

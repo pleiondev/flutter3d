@@ -13,7 +13,7 @@ description: Two independent golden sets, mutation-checking every new test, dete
 | `flutter3d_game` | 178 | | `flutter3d_impeller` | 78 |
 | `flutter3d_game_racing` | 140 | | `flutter3d_particles` | 68 |
 | `flutter3d_cpu` | 64 | | `flutter3d_audio` | 45 |
-| `mouse_capture` | 17 | | `flutter3d_graphics` | 15 |
+| `pointer_lock` | 17 | | `flutter3d_graphics` | 15 |
 | `flutter3d_webgl` | 11 | | `flutter3d_shaders` | 1 |
 | `apps/platformer` | 77 | | `apps/racing` | 23 |
 | `apps/dungeon` | 3 | | `flutter3d_bridge` | 4 |

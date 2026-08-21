@@ -100,7 +100,7 @@ public class GamepadPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
       })
 
     // Losing the player, which is not the same as losing the pad. Handled
-    // natively, as `MouseCapturePlugin` handles focus loss and for its reason:
+    // natively, as `PointerLockPlugin` handles focus loss and for its reason:
     // the last values before the window went away are the ones the pad would
     // otherwise stay in, and a stick left half over keeps walking behind
     // whatever is now on screen.

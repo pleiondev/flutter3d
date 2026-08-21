@@ -74,7 +74,7 @@ abstract final class MyActions {
 `setStickAxis` is the seam a gamepad or touch backend would write to. None exists yet.
 
 <div class="note">
-<p>Relative mouse deltas need pointer lock, which Flutter exposes on no desktop platform. <code>packages/mouse_capture</code> supplies it on macOS by breaking the association between the physical mouse and the on-screen cursor, so <code>mouseMoved</code> events keep arriving with their deltas while the cursor stays put.</p>
+<p>Relative mouse deltas need pointer lock, which Flutter exposes on no desktop platform. <code>packages/pointer_lock</code> supplies it on macOS by breaking the association between the physical mouse and the on-screen cursor, so <code>mouseMoved</code> events keep arriving with their deltas while the cursor stays put.</p>
 </div>
 
 ## The level format

@@ -213,7 +213,7 @@ class GamepadPlugin :
     // One typed list rather than a map, because this is the hot path: a stick in
     // motion sends a sample per frame and a `HashMap` per frame with it would be
     // the only allocation in the whole package that scales with play. The Dart
-    // side tells the messages apart by type, as `mouse_capture` does.
+    // side tells the messages apart by type, as `pointer_lock` does.
     sink.success(sample.copyOfRange(0, at))
   }
 
@@ -240,7 +240,7 @@ class GamepadPlugin :
   /**
    * Releases everything when the application goes to the background.
    *
-   * Handled natively, as `mouse_capture` handles focus loss, and for its reason:
+   * Handled natively, as `pointer_lock` handles focus loss, and for its reason:
    * the last event before the window went away is the state the pad stays in
    * otherwise, so a stick left half over keeps walking behind whatever is now on
    * screen. The pad is reported as still attached, because it is — the player is

@@ -12,10 +12,10 @@ dependencies:
     sdk: flutter
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
-  mouse_capture:
-    path: ../mouse_capture
+  pointer_lock:
+    path: ../pointer_lock
 
-  # Sticks, triggers and buttons. A device package, exactly as mouse_capture is:
+  # Sticks, triggers and buttons. A device package, exactly as pointer_lock is:
   # it knows nothing about actions or games, and `pad_input.dart` is the
   # translator — the same shape `DesktopInput` has beside the keyboard.
   gamepad:

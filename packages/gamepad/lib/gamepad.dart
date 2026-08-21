@@ -24,7 +24,7 @@
 ///
 /// It knows nothing about games: no actions, no bindings, no vocabulary. What
 /// turns `face.south` into "jump" lives in the game layer beside the keyboard's
-/// equivalent, for the same reason `mouse_capture` reports deltas and lets
+/// equivalent, for the same reason `pointer_lock` reports deltas and lets
 /// `DesktopInput` decide what they mean.
 ///
 /// Deliberately absent: more than one pad at a time, rumble, motion sensors and

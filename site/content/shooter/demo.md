@@ -45,7 +45,7 @@ The platformer made the opposite call. There the pointer is the dash, a single d
 | **Frame rate** | Around 15–30 fps here against 60 on Impeller. The crypt is the heavier of the two: more lights, more shadow casters, particles on every torch, and a second pass for the view model |
 | **Fixed resolution** | 1280×720 internally, stretched by CSS. A `WebGlDevice` owns its canvas and a WebGL canvas resets its drawing buffer when resized |
 | **No sound** | `flutter_soloud` does not start in this build; `AudioScene` keeps its `SilentBackend` and the game plays on |
-| **No pointer lock** | `mouse_capture` is a macOS plugin, reports itself unsupported, and no-ops |
+| **No pointer lock** | `pointer_lock` is a macOS plugin, reports itself unsupported, and no-ops |
 | **Download** | About 52 MB |
 
 <div class="why">
@@ -104,7 +104,7 @@ Each was a real defect instead of a web caveat, and each is fixed in the reposit
 
 1. **The generated GLSL was stale.** `flutter3d_webgl/lib/engine_shaders.dart` had not been regenerated since cascaded shadows added `shadow_matrix_far`, so the backend could not draw one sphere. [The detail is on the platformer's demo page](/platformer/demo/#the-bug-this-demo-found).
 2. **The canvas took the pointer.** A WebGL canvas is a display surface, not a control, and left interactive it swallowed every event the widgets above it needed. It now carries `pointer-events: none`.
-3. **`mouse_capture` threw where it promised not to.** `MouseCapture` documents that it no-ops on a platform without an implementation, and it does — except that its constructor subscribes to an event channel, which is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" actually means.
+3. **`pointer_lock` threw where it promised not to.** `MouseCapture` documents that it no-ops on a platform without an implementation, and it does — except that its constructor subscribes to an event channel, which is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" actually means.
 
 ## Building it yourself
 

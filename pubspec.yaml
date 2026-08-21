@@ -31,8 +31,8 @@ workspace:
   - packages/flutter3d_session
   - packages/gamepad
   - packages/gamepad/example
-  - packages/mouse_capture
-  - packages/mouse_capture/example
+  - packages/pointer_lock
+  - packages/pointer_lock/example
   - apps/dungeon
   - apps/editor
   - apps/platformer

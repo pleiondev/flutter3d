@@ -172,7 +172,7 @@ not answer.
 
 It knows nothing about games — no actions, no bindings, no vocabulary. What
 turns `face.south` into "jump" belongs beside the keyboard's equivalent in the
-game layer, for the same reason `mouse_capture` reports deltas and lets its
+game layer, for the same reason `pointer_lock` reports deltas and lets its
 caller decide what they mean.
 
 Deliberately absent, each for the same reason — no consumer, and each would
@@ -195,7 +195,7 @@ no test shows. That is true of the platform channel and false of everything
 above it, so everything above it is tested: the dead zone in both directions,
 the trigger's travel, a disconnection zeroing before it announces itself, and
 the button vocabulary's own spelling. `test/gamepad_test.dart` supplies a fake
-platform, as `mouse_capture` does.
+platform, as `pointer_lock` does.
 
 The browser's mapping table is tested too, and separately from the browser: the
 seventeen button indices and four axis indices live in

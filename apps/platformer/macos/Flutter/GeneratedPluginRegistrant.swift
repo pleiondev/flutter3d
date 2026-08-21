@@ -6,9 +6,9 @@ import FlutterMacOS
 import Foundation
 
 import gamepad
-import mouse_capture
+import pointer_lock
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
   GamepadPlugin.register(with: registry.registrar(forPlugin: "GamepadPlugin"))
-  MouseCapturePlugin.register(with: registry.registrar(forPlugin: "MouseCapturePlugin"))
+  PointerLockPlugin.register(with: registry.registrar(forPlugin: "PointerLockPlugin"))
 }

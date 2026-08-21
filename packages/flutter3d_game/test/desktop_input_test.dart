@@ -10,10 +10,10 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mouse_capture/mouse_capture.dart';
+import 'package:pointer_lock/pointer_lock.dart';
 
 /// A pointer capture that does nothing and can be told to change its mind.
-final class _FakeCapture extends MouseCapturePlatform {
+final class _FakeCapture extends PointerLockPlatform {
   final StreamController<CaptureState> _states =
       StreamController<CaptureState>.broadcast();
 
@@ -55,9 +55,9 @@ void main() {
 
   setUp(() {
     platform = _FakeCapture();
-    MouseCapturePlatform.instance = platform;
+    PointerLockPlatform.instance = platform;
     state = InputState();
-    input = DesktopInput(state: state, capture: MouseCapture(platform: platform));
+    input = DesktopInput(state: state, capture: PointerLock(platform: platform));
   });
 
   tearDown(() => input.dispose());
@@ -87,7 +87,7 @@ void main() {
     // without this the player keeps walking forward after alt-tabbing.
     //
     // Mutation: drop the `state.clear()` in `_onCaptureChanged`. This fails.
-    // Captured first, because `MouseCapture` forwards a *change* of state and
+    // Captured first, because `PointerLock` forwards a *change* of state and
     // starts uncaptured — releasing something never held says nothing, which
     // is correct and is not what this test is about.
     await platform.capture();

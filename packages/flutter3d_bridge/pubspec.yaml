@@ -27,7 +27,7 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 # This is the one package allowed to depend on both. `flutter3d_game` depends on
-# `flutter`, `mouse_capture` and `vector_math` and on nothing else — that is what
+# `flutter`, `pointer_lock` and `vector_math` and on nothing else — that is what
 # keeps its simulation headless and testable without a device — and `flutter3d`
 # must never learn what a monster is. The mapping between them has to live
 # somewhere, and this is it.

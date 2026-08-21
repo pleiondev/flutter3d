@@ -68,7 +68,7 @@ Stated rather than discovered, because a demo that hides its trade-offs is an ad
 | | |
 |---|---|
 | **Fixed resolution** | A `WebGlDevice` owns the canvas it was created with, and a WebGL canvas resets its drawing buffer when resized. So the frame is drawn at 1280×720 and the element is stretched to the layout by CSS, which is why `present` takes a `BoxFit` |
-| **No pointer lock** | `mouse_capture` is a macOS plugin. It reports itself unsupported here and no-ops, exactly as it promises, so the drag stands in |
+| **No pointer lock** | `pointer_lock` is a macOS plugin. It reports itself unsupported here and no-ops, exactly as it promises, so the drag stands in |
 | **No sound** | `flutter_soloud` does not start in this build. `AudioScene` keeps its `SilentBackend` and the game plays on, which is the arrangement that exists so a machine with no audio device is not a machine that cannot play |
 | **No settings or saves** | Both are files, and there is no filesystem. `SettingsFile` and `SaveFile` already promise never to throw and to fall back to defaults; they now resolve their directory lazily so that promise holds where `Platform.environment` does not exist |
 | **Download** | About 50 MB, most of it textures and models |

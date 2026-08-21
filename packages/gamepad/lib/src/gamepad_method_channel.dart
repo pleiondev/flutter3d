@@ -123,7 +123,7 @@ final class MethodChannelGamepad extends GamepadPlatform {
 
   /// Handles one event from the native side.
   ///
-  /// The payload's **type** says what it is, which is `mouse_capture`'s trick
+  /// The payload's **type** says what it is, which is `pointer_lock`'s trick
   /// and for its reason: a motion sample is the hot path and deserves one typed
   /// list rather than a map with a discriminator in it.
   ///

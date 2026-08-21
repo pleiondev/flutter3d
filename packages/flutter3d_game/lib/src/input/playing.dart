@@ -25,7 +25,7 @@ import 'package:flutter/foundation.dart';
 abstract final class Playing {
   /// Whether the pointer can be taken, so the mouse reports motion.
   ///
-  /// `mouse_capture` serves macOS and nothing else; a browser has no pointer to
+  /// `pointer_lock` serves macOS and nothing else; a browser has no pointer to
   /// take and a phone has no pointer at all. **This is the gate the game pauses
   /// on**, and getting it wrong is a game that never starts.
   ///

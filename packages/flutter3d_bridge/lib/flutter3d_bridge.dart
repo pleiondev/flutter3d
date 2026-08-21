@@ -1,6 +1,6 @@
 /// The binding between the renderer and the simulation.
 ///
-/// `flutter3d_game` depends on `flutter`, `mouse_capture` and `vector_math` and
+/// `flutter3d_game` depends on `flutter`, `pointer_lock` and `vector_math` and
 /// on nothing else — not on `flutter3d`, not on `flutter_gpu` — which is what
 /// makes its simulation headless and testable without a device. `flutter3d`, in
 /// return, must never learn what a monster is. Neither rule leaves anywhere for

@@ -713,7 +713,7 @@ fallback and not the design.
 
 This was not guesswork: [helgoboss/pointer_lock](https://github.com/helgoboss/pointer_lock)
 (MIT, unpublished on pub.dev) already does it this way across four platforms, and
-is where the technique came from. Our own `packages/mouse_capture` exists because
+is where the technique came from. Our own `packages/pointer_lock` exists because
 three of its gaps matter to a game — no observer for focus loss, so Cmd+Tab
 strands the cursor system-wide; one platform-channel message per mouse event at a
 1000 Hz polling rate; and no `isSupported`, which a build targeting mobile needs.

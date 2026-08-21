@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
-import 'package:mouse_capture/mouse_capture.dart';
+import 'package:pointer_lock/pointer_lock.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'bindings.dart';
@@ -22,10 +22,10 @@ import 'input_state.dart';
 final class DesktopInput {
   DesktopInput({
     required this.state,
-    MouseCapture? capture,
+    PointerLock? capture,
     Bindings? bindings,
     Map<LogicalKeyboardKey, int>? slotKeys,
-  })  : capture = capture ?? MouseCapture.instance,
+  })  : capture = capture ?? PointerLock.instance,
         bindings = bindings ?? defaultBindings(),
         slotKeys = slotKeys ?? Map.of(defaultSlotKeys) {
     _stateSubscription = this.capture.onStateChanged.listen(_onCaptureChanged);
@@ -74,7 +74,7 @@ final class DesktopInput {
   };
 
   final InputState state;
-  final MouseCapture capture;
+  final PointerLock capture;
 
   /// What each key does. Mutable, and saved by the application: see
   /// [Bindings.toJson].
