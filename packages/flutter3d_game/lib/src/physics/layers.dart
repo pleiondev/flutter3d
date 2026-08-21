@@ -7,9 +7,20 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 /// physics package keeps the rule — two colliders meet when each is in the
 /// other's mask — and [Layers.all], which means the same thing everywhere.
 ///
-/// **These five are a default, not a law.** A game with vehicles or water adds
-/// bits six upwards, or declares its own set and ignores this one; nothing in
-/// either package reads these names.
+/// **These five are a default, and thirteen places in this package read them.**
+/// That sentence used to end "nothing in either package reads these names",
+/// which stopped being true and was the most expensive kind of comment: it
+/// invited a game to "declare its own set and ignore this one", and a game that
+/// did would silently lose camera wall-avoidance ([CameraRig.wallMask]), the
+/// push a mover gives what it carries ([Mover]), the ground an actor stands on
+/// ([ActorSystem]) and the layer every unlabelled brush in every level is built
+/// on ([levelCollision]) — four systems, all failing as "the physics feels
+/// wrong" rather than as an error.
+///
+/// So: a game with vehicles or water **adds** bits, and the bits below stay
+/// what they are. Bit three is free — see [reserved] — and a set of one's own
+/// means passing `layer:` and `mask:` at every one of those thirteen places,
+/// which is a thing to do deliberately rather than by ignoring a default.
 ///
 /// Two of the original six are absent. `projectile` and `solid` — the latter
 /// being `world | player | actor` — had no user anywhere in the workspace, so
@@ -40,6 +51,19 @@ abstract final class CollisionLayers {
 
   /// A volume that causes something when it is walked into.
   static const int trigger = 1 << 5;
+
+  /// Bit three, which nothing uses.
+  ///
+  /// **Named because the gap was not.** The list jumps from `actor` at two to
+  /// `pickup` at four, and the doc above tells an extender to add bits "six
+  /// upwards" — so one person filling the hole and another following the
+  /// instructions produce two different bits meaning two different things, and
+  /// the collision they cause is between a pickup and a piece of scenery rather
+  /// than in the source.
+  ///
+  /// It is a real free bit and it is available. Taking it is a change to this
+  /// file, which is the point of it having a name.
+  static const int reserved = 1 << 3;
 
   /// Every bit, forwarded so a call site needs only one of these two classes.
   static const int all = Layers.all;
