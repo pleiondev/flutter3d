@@ -39,8 +39,34 @@ final class PointerLock {
     }
   }
 
-  /// The instance the application uses.
-  static final PointerLock instance = PointerLock();
+  /// The instance an application uses when it has not made its own.
+  ///
+  /// **One per process, and everything in it is shared**: the accumulated
+  /// motion, the captured flag, the subscription to the platform's state. That
+  /// is right for a game, which is one window with one pointer, and wrong for
+  /// anything with two — a second window reading this drains the first window's
+  /// motion. An application with two of them constructs two, which the
+  /// constructor has always allowed.
+  ///
+  /// Made on first use rather than at load, so a build that never captures a
+  /// pointer never subscribes to a platform channel — and so that
+  /// [disposeInstance] can be followed by another [instance].
+  static PointerLock get instance => _instance ??= PointerLock();
+  static PointerLock? _instance;
+
+  /// Drops the shared instance, cancelling its subscriptions.
+  ///
+  /// **For tests, and for a reason a test binary makes unavoidable:** a dozen
+  /// test files share one process, so an `instance` created by the first one
+  /// keeps listening to a platform channel through every file that follows —
+  /// and a fake platform installed by the second file is one the already-built
+  /// instance never sees. `late final` subscriptions outliving the test that
+  /// caused them is the shape of half the flaky tests there are.
+  static Future<void> disposeInstance() async {
+    final existing = _instance;
+    _instance = null;
+    await existing?.dispose();
+  }
 
   final PointerLockPlatform _platform;
 

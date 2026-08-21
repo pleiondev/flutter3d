@@ -50,9 +50,30 @@ final class Gamepad {
         // ignore: prefer_initializing_formals
         deadzone = deadzone;
 
-  /// The one a game uses. Constructed lazily so a build that never touches a
-  /// gamepad never touches a platform channel either.
-  static final Gamepad instance = Gamepad();
+  /// The one a game uses when it has not made its own.
+  ///
+  /// Constructed on first use, so a build that never touches a gamepad never
+  /// touches a platform channel either.
+  ///
+  /// **The dead zone on it is shared by everything in the process**, which is
+  /// the point where "one per process" stops being a convenience: it is a
+  /// slider in a settings panel, so a second window's panel would be moving the
+  /// first window's stick. A game is one window and this is right for it;
+  /// anything else constructs its own, which the constructor has always
+  /// allowed.
+  static Gamepad get instance => _instance ??= Gamepad();
+  static Gamepad? _instance;
+
+  /// Drops the shared instance, releasing the platform's listeners.
+  ///
+  /// For tests: a dozen files share one process, and an instance built by the
+  /// first of them holds a platform it was given before the second file
+  /// installed its own fake.
+  static Future<void> disposeInstance() async {
+    final existing = _instance;
+    _instance = null;
+    await existing?.dispose();
+  }
 
   final GamepadPlatform _platform;
 

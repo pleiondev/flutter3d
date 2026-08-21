@@ -242,4 +242,44 @@ void main() {
       expect(unsupported.calls, isEmpty);
     });
   });
+
+  group('the shared instance', () {
+    tearDown(PointerLock.disposeInstance);
+
+    test('is made on first use, not at load', () {
+      // A build that never captures a pointer never subscribes to a platform
+      // channel — which on a plugin with a native half is the difference
+      // between "unused" and "installed".
+      PointerLockPlatform.instance = FakePointerLockPlatform();
+
+      final platform = PointerLockPlatform.instance as FakePointerLockPlatform;
+      expect(platform.calls, isEmpty);
+
+      PointerLock.instance;
+
+      expect(platform.calls, contains('reset'),
+          reason: 'the instance never reached the platform it was given');
+    });
+
+    test('and is the same one twice', () {
+      PointerLockPlatform.instance = FakePointerLockPlatform();
+
+      expect(identical(PointerLock.instance, PointerLock.instance), isTrue);
+    });
+
+    test('and can be dropped, so the next caller gets a fresh one', () async {
+      // **What this is for.** A dozen test files share one process: an instance
+      // built by the first of them goes on listening to the platform it was
+      // handed, through every file that follows — so a fake installed later is
+      // one the live instance never sees.
+      PointerLockPlatform.instance = FakePointerLockPlatform();
+      final first = PointerLock.instance;
+
+      await PointerLock.disposeInstance();
+      PointerLockPlatform.instance = FakePointerLockPlatform();
+      final second = PointerLock.instance;
+
+      expect(identical(first, second), isFalse);
+    });
+  });
 }

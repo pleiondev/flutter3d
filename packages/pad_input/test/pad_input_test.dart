@@ -441,4 +441,29 @@ void main() {
       expect(snapshot.connected, isTrue);
     });
   });
+
+  group('the shared instance', () {
+    tearDown(Gamepad.disposeInstance);
+
+    test('is one pad, with one dead zone', () {
+      // Which is right for a game — one window, one player, one settings panel
+      // — and is exactly why it must be droppable: the dead zone is a slider,
+      // so anything with two windows would be moving the other one's stick.
+      GamepadPlatform.instance = FakePad();
+
+      expect(identical(Gamepad.instance, Gamepad.instance), isTrue);
+    });
+
+    test('and a dropped one is not the next one', () async {
+      GamepadPlatform.instance = FakePad();
+      final first = Gamepad.instance..deadzone = const Deadzone(stick: 0.3);
+
+      await Gamepad.disposeInstance();
+      GamepadPlatform.instance = FakePad();
+
+      expect(identical(first, Gamepad.instance), isFalse);
+      expect(Gamepad.instance.deadzone.stick, const Deadzone().stick,
+          reason: 'a setting from a previous test survived into this one');
+    });
+  });
 }

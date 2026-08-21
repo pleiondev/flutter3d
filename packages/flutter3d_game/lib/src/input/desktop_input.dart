@@ -27,7 +27,7 @@ final class DesktopInput {
     Map<LogicalKeyboardKey, int>? slotKeys,
   })  : capture = capture ?? PointerLock.instance,
         bindings = bindings ?? defaultBindings(),
-        slotKeys = slotKeys ?? Map.of(defaultSlotKeys) {
+        slotKeys = slotKeys ?? defaultSlotKeys() {
     _stateSubscription = this.capture.onStateChanged.listen(_onCaptureChanged);
   }
 
@@ -65,7 +65,13 @@ final class DesktopInput {
   ///
   /// Weapons in a shooter, and this map was called `_weaponKeys` and was
   /// private, so a game with items instead of weapons could not have them.
-  static final Map<LogicalKeyboardKey, int> defaultSlotKeys =
+  ///
+  /// A function for the same reason [defaultBindings] is, three lines above: a
+  /// `Map` is mutable, and one shared instance means the first caller to change
+  /// a slot changes it for the menu, the second window and the next level. The
+  /// one caller here copies it defensively, which is the tell — a default
+  /// nobody dares hand out unwrapped should not be a value.
+  static Map<LogicalKeyboardKey, int> defaultSlotKeys() =>
       <LogicalKeyboardKey, int>{
     LogicalKeyboardKey.digit1: 0,
     LogicalKeyboardKey.digit2: 1,
