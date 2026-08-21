@@ -26,6 +26,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Per-scene ceiling on the share of pixels differing by more than [_channel].
@@ -170,28 +171,15 @@ void main() {
       final pb = await _rgba(b);
       expect(pa.length, pb.length, reason: 'the two are different sizes');
 
-      var differing = 0;
-      var worst = 0;
-      for (var i = 0; i < pa.length; i += 4) {
-        var d = 0;
-        for (var c = 0; c < 3; c++) {
-          final delta = (pa[i + c] - pb[i + c]).abs();
-          if (delta > d) d = delta;
-        }
-        if (d > _channel) differing++;
-        if (d > worst) worst = d;
-      }
-      final pixels = pa.length ~/ 4;
-      final percent = 100.0 * differing / pixels;
+      final difference = compareFrames(pa, pb, channel: _channel);
 
       // Printed whether it passes or not. A comparison whose number nobody
       // sees is a threshold nobody can judge.
       // ignore: avoid_print
-      print('${entry.key}: $differing of $pixels differ by more than '
-          '$_channel (${percent.toStringAsFixed(3)}%, budget '
-          '${entry.value}%), worst channel $worst');
+      print('${entry.key}: $difference by more than $_channel, budget '
+          '${entry.value}%');
 
-      expect(percent, lessThanOrEqualTo(entry.value),
+      expect(difference.percent, lessThanOrEqualTo(entry.value),
           reason: 'the software backend moved away from the hardware one');
     });
   }

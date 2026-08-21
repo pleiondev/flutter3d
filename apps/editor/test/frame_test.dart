@@ -106,19 +106,12 @@ final class _Shown {
 }
 
 /// How many pixels differ by more than a rounding wobble.
-int _differences(Uint8List a, Uint8List b) {
-  expect(a.length, b.length);
-  var count = 0;
-  for (var i = 0; i < a.length; i += 4) {
-    for (var channel = 0; channel < 3; channel++) {
-      if ((a[i + channel] - b[i + channel]).abs() > 2) {
-        count++;
-        break;
-      }
-    }
-  }
-  return count;
-}
+///
+/// Two, not the shared default of eight: nothing here is animated, so two
+/// renders of an unchanged scene are byte-identical and anything above the
+/// noise floor is a real move.
+int _differences(Uint8List a, Uint8List b) =>
+    differingPixels(a, b, channel: 2);
 
 void main() {
   test('a brush that moves moves in the picture', () async {

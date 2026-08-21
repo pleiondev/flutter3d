@@ -328,17 +328,11 @@ int _playerPixels(Uint8List rgba) {
   return count;
 }
 
-int _differences(Uint8List a, Uint8List b, {int threshold = 12}) {
-  var count = 0;
-  for (var i = 0; i < a.length; i += 4) {
-    if ((a[i] - b[i]).abs() > threshold ||
-        (a[i + 1] - b[i + 1]).abs() > threshold ||
-        (a[i + 2] - b[i + 2]).abs() > threshold) {
-      count++;
-    }
-  }
-  return count;
-}
+/// Twelve rather than the shared default of eight: what these tests ask is
+/// "did the picture change", and this backend's own dithering moves a channel
+/// by a few steps between frames that are meant to be identical.
+int _differences(Uint8List a, Uint8List b, {int threshold = 12}) =>
+    differingPixels(a, b, channel: threshold);
 
 void main() {
   test('the circuit is drawn at all', () async {

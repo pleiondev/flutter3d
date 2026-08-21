@@ -12,3 +12,4 @@ export 'src/cpu_device.dart';
 export 'src/cpu_png.dart';
 export 'src/cpu_shader.dart';
 export 'src/cpu_shaders_builtin.dart';
+export 'src/frame_difference.dart';
