@@ -410,10 +410,17 @@ Future<void> _linking(GraphicsDevice device) async {
     ('ParticleVertex', 'Particle'),
     // The sky is the only pair where both stages are new at once, so it is the
     // one where a varying can disagree with nothing to compare against. Both
-    // fragment stages, because they are two separate compilations behind one
-    // vertex stage and only one of them is exercised by any given frame.
+    // pairs, because only one of them is exercised by any given frame.
+    //
+    // **This table said `SkyVertex` for both, and had stopped being true.** The
+    // cube grew a vertex stage of its own when the gradient's vertices changed
+    // shape — the gradient carries six colours per vertex now and the cube
+    // carries one tint — so `SkyCube` reads a `v_tint` that `SkyVertex` has
+    // never written. A browser refuses to link exactly that, which is what this
+    // check is for; nothing caught it because these tests only run in a browser
+    // and nothing ran them.
     ('SkyVertex', 'Sky'),
-    ('SkyVertex', 'SkyCube'),
+    ('SkyCubeVertex', 'SkyCube'),
   ];
 
   for (final (vertexName, fragmentName) in pairs) {

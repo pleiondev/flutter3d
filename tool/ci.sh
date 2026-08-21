@@ -74,6 +74,19 @@ for package in packages/*/; do
   fi
 done
 
+# **Five test files that nothing had ever run.** `flutter3d_webgl` marks them
+# `@TestOn('browser')` — the conformance suite, the parity comparison against
+# Impeller, a whole engine frame — so the loop above skips every one of them and
+# reports the package green off its one platform-agnostic file. The first run of
+# this step failed: the conformance table still paired the sky's cube fragment
+# with a vertex stage it stopped sharing, which a browser refuses to link and
+# which nothing else in the repository can see.
+#
+# Chrome, because that is what `flutter test --platform chrome` drives. A
+# machine without it fails this step rather than skipping it, for the reason the
+# shader bundle does.
+step "test flutter3d_webgl (browser)" in_dir packages/flutter3d_webgl flutter test --platform chrome
+
 # An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance
 # is walked with, and a test CI never runs is a test that rots.
