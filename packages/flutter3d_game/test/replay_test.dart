@@ -186,4 +186,23 @@ void main() {
 
     expect(copy.up.y, 1.0);
   });
+
+  test('and a tape truncated mid-write still reads', () {
+    // **Every field here was a `!` and an `as num`.** What is on the disk is a
+    // best run somebody spent an evening on, and a machine that lost power
+    // halfway through writing it turned loading into a `TypeError` — the game
+    // taken down by the file that was meant to be the reward.
+    for (final broken in <Map<String, Object?>>[
+      <String, Object?>{},
+      <String, Object?>{'t': null, 'p': null, 'y': null},
+      <String, Object?>{'t': 'soon', 'p': <Object?>[1.0], 'y': 0.0},
+      <String, Object?>{'t': 1.0, 'p': <Object?>[1.0, null, 3.0], 'y': 0.0},
+    ]) {
+      final pose = Pose.fromJson(broken);
+
+      expect(pose.time, isNotNull);
+      expect(pose.position.x.isFinite, isTrue);
+      expect(pose.up.y, 1.0, reason: 'the up was left broken rather than up');
+    }
+  });
 }

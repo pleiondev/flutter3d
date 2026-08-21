@@ -272,20 +272,27 @@ final class EcsWorld {
     };
   }
 
+  /// The integers in [value], skipping anything that is not one.
+  static List<int> _integers(Object? value) => <int>[
+        if (value is List)
+          for (final item in value)
+            if (item is num) item.toInt(),
+      ];
+
   /// Replaces everything with what [from] describes.
   void restore(Map<String, Object?> from) {
+    // **Both of these read `value! as num`**, in a method whose own comments
+    // three lines below explain that a save from another build is expected and
+    // survivable. A null or a string in either list — a truncated write, a hand
+    // edit — was a `TypeError` thrown out of a restore, which is the one thing
+    // this method is written not to do. A row it cannot read is dropped, the
+    // same answer it already gives a component type it has never heard of.
     _generations
       ..clear()
-      ..addAll(<int>[
-        for (final value in from['generations'] as List? ?? const <Object?>[])
-          (value! as num).toInt(),
-      ]);
+      ..addAll(_integers(from['generations']));
     _free
       ..clear()
-      ..addAll(<int>[
-        for (final value in from['free'] as List? ?? const <Object?>[])
-          (value! as num).toInt(),
-      ]);
+      ..addAll(_integers(from['free']));
     _live = _generations.length - _free.length;
 
     for (final store in _stores.values) {

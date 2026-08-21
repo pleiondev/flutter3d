@@ -273,4 +273,22 @@ void main() {
       expect(() => _world().restore(saved), returnsNormally);
     });
   });
+
+  test('a snapshot with rubbish in its free list still restores', () {
+    // **`(value! as num).toInt()`, in a method whose own comments explain that
+    // a save from another build is expected and survivable.** A null or a
+    // string in either list — a truncated write, a hand edit — threw out of the
+    // restore instead. A row it cannot read is dropped, which is the answer
+    // this loop already gives a component type it has never heard of.
+    final world = EcsWorld();
+
+    expect(
+      () => world.restore(<String, Object?>{
+        'generations': <Object?>[1, null, 'two', 3],
+        'free': <Object?>['none'],
+        'components': <String, Object?>{},
+      }),
+      returnsNormally,
+    );
+  });
 }

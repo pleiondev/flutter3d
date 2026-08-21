@@ -1,7 +1,9 @@
 
+import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
 import '../math/motion.dart';
+import 'snapshot.dart';
 
 /// Where something was at one moment.
 ///
@@ -42,25 +44,24 @@ final class Pose {
         'u': <double>[_round(up.x), _round(up.y), _round(up.z)],
       };
 
+  /// **Read leniently, because this is a file from somebody's disk.** Every
+  /// field used to be a `!` and an `as num`, so a tape truncated by a machine
+  /// that lost power threw a `TypeError` out of a load — and what is on that
+  /// disk is a best run somebody spent an evening on, whose worst possible
+  /// failure is being forgotten, not taking the game down with it.
+  ///
+  /// A pose it cannot read is a pose at the origin at time nought, which a
+  /// playback either interpolates through or drops off the end of.
   factory Pose.fromJson(Map<String, Object?> json) {
     final pose = Pose(
-      time: (json['t']! as num).toDouble(),
-      yaw: (json['y']! as num).toDouble(),
+      time: json.number('t'),
+      yaw: json.number('y'),
     );
-    final position = json['p']! as List<Object?>;
-    pose.position.setValues(
-      (position[0]! as num).toDouble(),
-      (position[1]! as num).toDouble(),
-      (position[2]! as num).toDouble(),
-    );
-    final up = json['u'] as List<Object?>?;
-    if (up != null) {
-      pose.up.setValues(
-        (up[0]! as num).toDouble(),
-        (up[1]! as num).toDouble(),
-        (up[2]! as num).toDouble(),
-      );
-    }
+    readVector(json['p'], pose.position);
+    // The up is optional: tapes written before there was one still read, which
+    // matters in the direction that counts — what is on disk was written by an
+    // older build.
+    readVector(json['u'], pose.up);
     return pose;
   }
 
