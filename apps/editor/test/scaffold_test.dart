@@ -163,6 +163,21 @@ void main() {
     });
   });
 
+  test('and it comes with a test, under the name that stops another appearing',
+      () {
+    // **`flutter create` writes a `test/widget_test.dart` referring to a
+    // `MyApp` that does not exist here** into any project that has no file by
+    // that name — so a new project failed `flutter analyze` immediately after
+    // the two commands its own README gives. Taking the name is the only thing
+    // that stops it, and what goes in it is worth having anyway: a level is a
+    // document and a document can be wrong.
+    final project = _project();
+
+    expect(project.keys, contains('test/widget_test.dart'));
+    expect(_text(project, 'test/widget_test.dart'), contains('first.json'));
+    expect(_text(project, 'test/widget_test.dart'), isNot(contains('MyApp')));
+  });
+
   group('the pubspec', () {
     test('is the project\'s name, not the template\'s', () {
       expect(_text(_project(name: 'Deep Mine'), 'pubspec.yaml'),

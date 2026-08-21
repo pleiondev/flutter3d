@@ -114,6 +114,12 @@ Map<String, Uint8List> scaffold({
 
   out['pubspec.yaml'] = _bytes(_pubspec(name, packagesAt));
   out['README.md'] = _bytes(_readme(name, template));
+  // **Named `widget_test.dart` on purpose.** `flutter create` writes one of
+  // those — referring to a `MyApp` that does not exist here — into any project
+  // that does not already have a file by that name, and a new project would
+  // then fail `flutter analyze` immediately after the two commands its README
+  // gives. Taking the name is the only thing that stops it.
+  out['test/widget_test.dart'] = _bytes(_test());
   return out;
 }
 
@@ -135,6 +141,52 @@ Uint8List _disown(Uint8List level) {
 }
 
 Uint8List _bytes(String text) => Uint8List.fromList(utf8.encode(text));
+
+/// A test the project comes with.
+///
+/// **Two reasons, and the second one is the surprise.** A level is a document
+/// and a document can be wrong: this asks the questions the game asks before it
+/// starts, so a level that will not load says so in a second rather than in a
+/// window.
+///
+/// And `flutter create` writes its own `test/widget_test.dart` — referring to a
+/// `MyApp` that does not exist here — into any project that has no `test/`
+/// directory. A new project would then fail `flutter analyze` immediately after
+/// the two commands its README gives, which is a poor way to begin. A project
+/// that already has a test keeps it.
+String _test() => '''
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// The level this game ships, read the way the game reads it.
+void main() {
+  final text = File('assets/levels/first.json').readAsStringSync();
+  final level = Level.fromJson(jsonDecode(text) as Map<String, Object?>);
+
+  test('the level is a document this engine understands', () {
+    expect(level.brushes, isNotEmpty, reason: 'nothing to stand on');
+    expect(level.entities.where((EntityDef it) => it.type.contains('spawn')),
+        hasLength(1), reason: 'a level starts somewhere, exactly once');
+  });
+
+  test('and every model it names is a file that is really there', () {
+    // A path with a typo draws nothing and says nothing.
+    final looks = jsonDecode(File('assets/editor.json').readAsStringSync())
+        as Map<String, Object?>;
+    for (final entry in looks.entries) {
+      final described = entry.value;
+      if (described is! Map<String, Object?>) continue;
+      final model = described['model'];
+      if (model is! String) continue;
+      expect(File(model).existsSync(), isTrue,
+          reason: '\${entry.key} names \$model, which is not there');
+    }
+  });
+}
+''';
 
 String _pubspec(String name, String packagesAt) => '''
 name: $name
@@ -212,7 +264,12 @@ flutter run -d macos
 ```
 
 `flutter create` adds the platform folders to what is already here and leaves
-`pubspec.yaml` and `lib/` alone.
+`pubspec.yaml`, `lib/` and `test/` alone.
+
+**Use the same Flutter the checkout uses.** A different one writes a macOS
+project targeting an older system than the packages support, and the build then
+fails with a deployment-target error that has nothing to do with this project.
+`flutter --version` in the checkout says which one that is.
 
 ## What `lib/main.dart` is, and is not
 

@@ -32,6 +32,46 @@ games use, and lets somebody fly around it and change it.
 | `⌘Z` | undo |
 | `⌘S`, `⇧⌘S` | save, save a copy |
 
+## Starting a game
+
+Point the editor at a path that does not exist and it offers a **template**
+instead of an error:
+
+```sh
+flutter run -d macos --dart-define=level=/where/i/keep/things/deep_mine/assets/levels/first.json
+```
+
+Picking one writes a project there — a vocabulary, a first level, a model per
+kind of thing, a `pubspec.yaml`, a `README.md` and an application that runs —
+and opens the level in it.
+
+**This is not the editor learning a vocabulary**, and the distinction is the
+whole of why it is allowed to exist. A template is data: it is copied into the
+new project and read back from *there*, by the same `Looks.parse` that reads the
+crypt's file. The editor's own code still contains no genre word — only the name
+of a file. The genre packages are in this application's `dev_dependencies`, so
+the words are proved against the packages that own them, at the sizes those
+packages give as their defaults, and never linked into the program. Put them in
+`dependencies` instead and you have compiled a vocabulary into an editor whose
+whole design is not having one, which is the mistake `EntityRegistry`'s own doc
+records somebody already making.
+
+The starter level is checked hard, because `LevelLoader.build` throws on a
+validator error and a warning is a new project greeting its author with a
+complaint: **zero errors and zero warnings**, against each genre's real registry
+and rules. Its walls surround the floor rather than standing on it — shared
+faces, no shared volume — and its light has a range.
+
+Templates are written by `tool/make_templates.py` and their models by
+`tool/make_models.py`, which writes real glTF out of primitives: no textures, no
+skins, no animation, no licences, and coordinates quantised onto a 1/4096 m grid
+so the bytes are the same on every machine. `ci.sh` regenerates both and fails if
+what comes out is not what is committed.
+
+There is no racing template. A circuit is a second document — points, widths,
+banks, barriers, checkpoints, a starting grid — and editing one is a different
+editor.
+
 ## The palette
 
 Down the left, built from the document. A level with lifts offers lifts; a game
