@@ -16,7 +16,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart' show kPrimaryButton, kSecondaryButton;
+import 'package:flutter/gestures.dart'
+    show PointerScrollEvent, PointerSignalEvent;
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -178,6 +179,7 @@ class _EditorScreenState extends State<EditorScreen>
       final editing = Editing.parse(await File(found).readAsString(),
           path: found);
       _editing = editing;
+      _standWhereThePlayerWould(editing.level);
       await _build();
       if (!mounted) return;
       setState(() {
@@ -187,6 +189,50 @@ class _EditorScreenState extends State<EditorScreen>
     } catch (error) {
       if (mounted) setState(() => _error = error);
     }
+  }
+
+  /// Puts the camera where somebody would be standing.
+  ///
+  /// **A level opened from above the ceiling is a level nobody can find their
+  /// way around.** The camera used to start at four metres up looking down;
+  /// four metres in a crypt is inside the ceiling, so the first thing anybody
+  /// saw was the floor from inside the stonework.
+  ///
+  /// The spawn point if the document has one, because that is the one place in
+  /// a level somebody has already decided is worth standing — and it is where
+  /// whatever is being edited will be seen from. Otherwise the middle of what
+  /// the brushes cover, backed off far enough to see some of it.
+  void _standWhereThePlayerWould(Level level) {
+    const eye = 1.7;
+    for (final entity in level.entities) {
+      if (!entity.type.contains('spawn')) continue;
+      _fly.position.setValues(
+        entity.position.x,
+        entity.position.y + eye,
+        entity.position.z,
+      );
+      _fly.yaw = 0.0;
+      _fly.pitch = 0.0;
+      return;
+    }
+
+    if (level.brushes.isEmpty) return;
+    var minX = double.infinity, minZ = double.infinity, floor = double.infinity;
+    var maxX = -double.infinity, maxZ = -double.infinity;
+    for (final brush in level.brushes) {
+      minX = math.min(minX, brush.min.x);
+      maxX = math.max(maxX, brush.max.x);
+      minZ = math.min(minZ, brush.min.z);
+      maxZ = math.max(maxZ, brush.max.z);
+      floor = math.min(floor, brush.max.y);
+    }
+    _fly.position.setValues(
+      (minX + maxX) / 2,
+      floor + eye,
+      maxZ + math.max(maxX - minX, 8.0) * 0.25,
+    );
+    _fly.yaw = 0.0;
+    _fly.pitch = 0.0;
   }
 
   /// Draws the document again, from the document.
@@ -218,29 +264,36 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   /// Puts the selection box around whatever is selected, or takes it away.
+  ///
+  /// **Two marks, because one of them is useless half the time.** The engine
+  /// draws twelve lines around anything handed to `RenderSettings.highlighted`,
+  /// which is right for a brush somebody is standing inside — a wall, a floor,
+  /// a ceiling, and that is most of a level. It is nearly invisible for a small
+  /// brush across a dark room, which is the other half. So the node is also
+  /// drawn, in a colour nothing in a crypt is and lit by itself so a dark
+  /// corridor cannot swallow it.
+  ///
+  /// A hair larger than the brush, or the two surfaces fight for the same depth
+  /// and the mark appears in stripes. Seen from inside it disappears — a box's
+  /// inside faces are culled — and that is exactly when the twelve lines are
+  /// the ones doing the work.
   void _placeMarker() {
     final device = _device;
     final scene = _scene;
     final brush = _editing?.brush;
     if (device == null || scene == null) return;
 
-    if (brush == null) {
-      final marker = _marker;
-      if (marker != null) scene.remove(marker);
-      _marker = null;
-      return;
-    }
-
     final marker = _marker;
     if (marker != null) scene.remove(marker);
-    // A little larger than the brush, or the two surfaces fight for the same
-    // depth and the box appears in stripes.
+    _marker = null;
+    if (brush == null) return;
+
     final node = MeshNode(
-      SharedMeshes(device).box(brush.size * 1.02),
+      SharedMeshes(device).box(brush.size * 1.01),
       engine.Material(
         name: 'selection',
-        baseColor: Vector4(1.0, 0.55, 0.1, 1.0),
-        emissive: Vector3(0.9, 0.4, 0.05),
+        baseColor: Vector4(1.0, 0.45, 0.05, 1.0),
+        emissive: Vector3(1.2, 0.5, 0.05),
       ),
       name: 'selection',
     )
@@ -285,26 +338,47 @@ class _EditorScreenState extends State<EditorScreen>
 
   // --- what the mouse does ---------------------------------------------------
 
+  /// Where the pointer went down, and how far it has travelled since.
+  ///
+  /// **One button, and the difference between looking and selecting is the
+  /// drag.** The first version put looking on the right button, which is a
+  /// two-finger press-and-drag on a trackpad and was undiscoverable enough that
+  /// the person it was built for could not get down the first corridor. A click
+  /// that does not move is a click; a click that moves is a look. Nothing to
+  /// hold, nothing to know.
   Offset? _dragged;
+  double _travelled = 0.0;
 
-  void _pointerDown(PointerDownEvent event, Size size) {
+  /// How far a pointer may move and still count as a click, in pixels.
+  static const double _slop = 4.0;
+
+  void _pointerDown(PointerDownEvent event) {
     _keyboard.requestFocus();
-    if (event.buttons & kSecondaryButton != 0) {
-      _dragged = event.localPosition;
-      return;
-    }
-    if (event.buttons & kPrimaryButton == 0) return;
-    _pick(event.localPosition, size);
+    _dragged = event.localPosition;
+    _travelled = 0.0;
   }
 
   void _pointerMove(PointerMoveEvent event) {
     final from = _dragged;
-    if (from == null || event.buttons & kSecondaryButton == 0) return;
-    _fly.look(Vector2(
-      event.localPosition.dx - from.dx,
-      event.localPosition.dy - from.dy,
-    ));
+    if (from == null) return;
+    final by = event.localPosition - from;
+    _travelled += by.distance;
     _dragged = event.localPosition;
+    if (_travelled < _slop) return;
+    _fly.look(Vector2(by.dx, by.dy));
+  }
+
+  void _pointerUp(PointerUpEvent event, Size size) {
+    final from = _dragged;
+    _dragged = null;
+    if (from == null || _travelled >= _slop) return;
+    _pick(event.localPosition, size);
+  }
+
+  /// The wheel flies, because a trackpad has one and a corridor is long.
+  void _pointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    _fly.position.addScaled(_fly.forward, -event.scrollDelta.dy * 0.05);
   }
 
   /// Selects whatever is under [at].
@@ -369,9 +443,16 @@ class _EditorScreenState extends State<EditorScreen>
         editing.nudge(Vector3(0.0, 0.0, -step));
       case LogicalKeyboardKey.arrowDown:
         editing.nudge(Vector3(0.0, 0.0, step));
+      // **R and F as well as the page keys**, because on the keyboard this is
+      // being used on, Page Up is Fn and an arrow — a two-handed way to say
+      // "up" while the other hand is on the mouse. The page keys stay: a
+      // desktop keyboard has them, and taking a binding away from somebody who
+      // has learnt it is worse than having two.
       case LogicalKeyboardKey.pageUp:
+      case LogicalKeyboardKey.keyR:
         editing.nudge(Vector3(0.0, step, 0.0));
       case LogicalKeyboardKey.pageDown:
+      case LogicalKeyboardKey.keyF:
         editing.nudge(Vector3(0.0, -step, 0.0));
       case LogicalKeyboardKey.minus:
         editing.grow(_along(-step));
@@ -416,7 +497,13 @@ class _EditorScreenState extends State<EditorScreen>
     }
 
     _placeMarker();
-    _changed(_describe(editing));
+    // Named rather than silent: a key that appears to do nothing is a key
+    // somebody decides is broken, and the commonest reason one does nothing
+    // here is that it is asking about a brush nobody has picked yet.
+    _changed(editing.brush == null
+        ? 'nothing selected — click a wall first'
+        : 'at ${_metres(editing.brush!.centre)} · '
+            '${_metres(editing.brush!.size)}');
     return KeyEventResult.handled;
   }
 
@@ -426,10 +513,18 @@ class _EditorScreenState extends State<EditorScreen>
         _Axis.z => Vector3(0.0, 0.0, amount),
       };
 
-  String _describe(Editing editing) {
-    final brush = editing.brush;
-    if (brush == null) return 'nothing selected';
-    return 'at ${_metres(brush.centre)} · ${_metres(brush.size)}';
+  /// What is selected, for the strip that always says it.
+  ///
+  /// **Separate from the message**, because the two answer different questions
+  /// and one used to overwrite the other: after pressing G the corner said "off
+  /// the grid" and the fact that a brush was selected at all had scrolled away.
+  String get _selection {
+    final editing = _editing;
+    final brush = editing?.brush;
+    if (editing == null) return '';
+    if (brush == null) return 'nothing selected — click a wall';
+    return 'brush ${editing.selected} · ${brush.material} · '
+        'at ${_metres(brush.centre)} · ${_metres(brush.size)}';
   }
 
   static String _metres(Vector3 v) => '${v.x.toStringAsFixed(2)}, '
@@ -507,10 +602,10 @@ class _EditorScreenState extends State<EditorScreen>
             final size = constraints.biggest;
 
             return Listener(
-              onPointerDown: (PointerDownEvent event) =>
-                  _pointerDown(event, size),
+              onPointerDown: _pointerDown,
               onPointerMove: _pointerMove,
-              onPointerUp: (_) => _dragged = null,
+              onPointerUp: (PointerUpEvent event) => _pointerUp(event, size),
+              onPointerSignal: _pointerSignal,
               child: Stack(
                 fit: StackFit.expand,
                 children: <Widget>[
@@ -548,9 +643,26 @@ class _EditorScreenState extends State<EditorScreen>
         child: Row(
           children: <Widget>[
             Expanded(
-              child: Text(
-                '${editing?.path ?? ''}${editing?.isDirty ?? false ? ' •' : ''}',
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    '${editing?.path ?? ''}'
+                    '${(editing?.isDirty ?? false) ? '  — unsaved' : ''}',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    _selection,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: editing?.brush == null
+                          ? const Color(0xFF9AA4B2)
+                          : const Color(0xFF7ED957),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(width: 12),
@@ -561,14 +673,35 @@ class _EditorScreenState extends State<EditorScreen>
     );
   }
 
+  String get _gridSaid {
+    final grid = _editing?.grid ?? 0.0;
+    return grid == 0.0 ? 'off' : '$grid m';
+  }
+
   Widget _legend() => Container(
         color: const Color(0xCC0E1013),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Text(
-          'arrows move · page up/down raises · 1 2 3 pick an axis (${_axis.name}) '
-          '· − = resize · N new · ⌘D duplicate · ⌫ delete · G grid · ⌘Z undo '
-          '· ⌘S save · ⇧⌘S save a copy',
-          style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            // **Getting about comes first and never leaves the screen.** It was
+            // said once, in the message line, and the first thing anybody does
+            // replaced it — so the one thing somebody needs before they can do
+            // anything at all was the one thing they could not read.
+            const Text(
+              'W A S D fly · Q E down and up · shift faster · '
+              'scroll forward · drag to look · click to select',
+              style: TextStyle(color: Color(0xFFCBD3DD), fontSize: 12),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'arrows move · R F raises and lowers · 1 2 3 axis (${_axis.name}) '
+              '· − = resize · N new · ⌘D duplicate · ⌫ delete '
+              '· G grid ($_gridSaid) · ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
+              style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
+            ),
+          ],
         ),
       );
 }

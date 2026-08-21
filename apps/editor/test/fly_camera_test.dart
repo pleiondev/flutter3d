@@ -32,7 +32,7 @@ void _fly(FlyCamera camera, InputState input, {double seconds = 1.0}) =>
     );
 
 void main() {
-  test('flying forward goes where it is looking', () {
+  test('walking forward goes where it is facing', () {
     final camera = FlyCamera(at: Vector3.zero(), pitch: 0.0);
     final input = InputState()..press(_forward);
 
@@ -41,6 +41,46 @@ void main() {
     expect(camera.position.z, closeTo(-camera.speed, 1e-6),
         reason: 'a camera at rest looks down -Z, as every node here does');
     expect(camera.position.x, closeTo(0.0, 1e-6));
+  });
+
+  test('and looking at the floor does not walk into it', () {
+    // **The complaint this is a fix for, in one sentence**: "I am looking at
+    // the floor and W flies me through it". A camera that moves where it looks
+    // is unusable in a corridor, because looking at a thing and walking past
+    // another thing are two different directions — and the one edit somebody
+    // makes most is to a floor, which they have to look down at to see.
+    final camera = FlyCamera(at: Vector3(0.0, 5.0, 0.0), pitch: -1.2);
+    final input = InputState()..press(_forward);
+
+    _fly(camera, input);
+
+    expect(camera.position.y, closeTo(5.0, 1e-6),
+        reason: 'it walked into the floor');
+    expect(camera.position.z, lessThan(-1.0),
+        reason: 'it went nowhere: looking down took all the movement');
+  });
+
+  test('and looking at the ceiling does not fly off into the sky', () {
+    final camera = FlyCamera(at: Vector3(0.0, 5.0, 0.0), pitch: 1.4);
+    final input = InputState()..press(_forward);
+
+    _fly(camera, input);
+
+    expect(camera.position.y, closeTo(5.0, 1e-6));
+  });
+
+  test('and straight up still leaves a direction to walk in', () {
+    // The degenerate case: with the view exactly vertical there is no
+    // horizontal part of it to walk along, and the answer comes from the
+    // heading instead of from nothing.
+    final camera = FlyCamera(at: Vector3.zero(), yaw: 0.0, pitch: 0.0);
+    camera.look(Vector2(0.0, -100000.0));
+    final input = InputState()..press(_forward);
+
+    _fly(camera, input);
+
+    expect(camera.position.length, greaterThan(1.0),
+        reason: 'it stood still because it was looking up');
   });
 
   test('and turning ninety degrees turns what forward means', () {

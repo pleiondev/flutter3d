@@ -13,8 +13,8 @@ import 'package:vector_math/vector_math.dart';
 /// pushed itself out of geometry would be a camera that cannot be flown to the
 /// brush somebody wants to move.
 final class FlyCamera {
-  FlyCamera({Vector3? at, this.yaw = 0.0, this.pitch = -0.3})
-      : position = at?.clone() ?? Vector3(0.0, 4.0, 8.0);
+  FlyCamera({Vector3? at, this.yaw = 0.0, this.pitch = 0.0})
+      : position = at?.clone() ?? Vector3(0.0, 1.7, 8.0);
 
   final Vector3 position;
 
@@ -40,9 +40,15 @@ final class FlyCamera {
   final Vector3 _forward = Vector3(0.0, 0.0, -1.0);
   final Vector3 _right = Vector3(1.0, 0.0, 0.0);
   final Vector3 _up = Vector3(0.0, 1.0, 0.0);
+  final Vector3 _ground = Vector3(0.0, 0.0, -1.0);
 
   /// Which way it is looking. Recomputed by [step]; do not write to it.
+  ///
+  /// This is what a click is traced along; [ground] is what W walks along.
   Vector3 get forward => _forward;
+
+  /// Which way it is facing, with the tilt taken out.
+  Vector3 get ground => _ground;
   Vector3 get right => _right;
   Vector3 get up => _up;
 
@@ -54,9 +60,19 @@ final class FlyCamera {
 
   /// Moves for [dt] seconds, given what is held.
   ///
-  /// The vertical pair are absolute — Q and E go straight down and up whatever
-  /// the camera is looking at — because an editor flying to the top of a tower
-  /// wants to go up, not forwards while pointing up.
+  /// **Along the ground, not along the view, and that is the whole difference
+  /// between a camera somebody can use and one they cannot.** A fly camera
+  /// moves where it looks; look down at the floor to see what you are about to
+  /// move and the next press of W puts you underneath the level. The first
+  /// person to try this got exactly that — "I am looking at the floor and W
+  /// flies me through it" — and it is not a preference: in a corridor you look
+  /// at things and walk past other things, and those are two different
+  /// directions.
+  ///
+  /// So the horizontal keys keep the height they were at, and the vertical pair
+  /// are absolute: Q and E go straight down and up whatever the camera is
+  /// looking at. Nothing here stops at a wall — see the note on the class about
+  /// why an editor's camera goes into geometry on purpose.
   void step(
     double dt,
     InputState input, {
@@ -73,8 +89,8 @@ final class FlyCamera {
     void go(Vector3 axis, double amount) =>
         position.addScaled(axis, amount * metres);
 
-    if (input.held(forward)) go(_forward, 1.0);
-    if (input.held(back)) go(_forward, -1.0);
+    if (input.held(forward)) go(_ground, 1.0);
+    if (input.held(back)) go(_ground, -1.0);
     if (input.held(right)) go(_right, 1.0);
     if (input.held(left)) go(_right, -1.0);
     if (input.held(up)) position.y += metres;
@@ -106,5 +122,14 @@ final class FlyCamera {
     _up
       ..setFrom(_right.cross(_forward))
       ..normalize();
+    // Straight ahead at this heading, level with the floor. Falls back to the
+    // last one when the camera is looking exactly up or down, where "ahead"
+    // horizontally is not a thing the view can answer.
+    _ground.setValues(_forward.x, 0.0, _forward.z);
+    if (_ground.length2 > 1e-9) {
+      _ground.normalize();
+    } else {
+      _ground.setValues(math.sin(yaw), 0.0, -math.cos(yaw));
+    }
   }
 }

@@ -15,10 +15,13 @@ games use, and lets somebody fly around it and change it.
 
 | | |
 |---|---|
-| `W A S D`, `Q E` | fly; hold shift to fly fast |
-| right-drag | look |
+| `W A S D` | walk, along the ground rather than along the view |
+| `Q` `E` | down and up |
+| shift | four times faster |
+| drag, scroll | look, and move forward |
 | click | select a brush |
-| arrows, page up/down | move it, on the grid |
+| arrows | move it on the grid, in X and Z |
+| `R` `F`, page up/down | raise and lower it |
 | `1` `2` `3`, `−` `=` | pick an axis and resize along it |
 | `N`, `⌘D`, `⌫` | new, duplicate, delete |
 | `G` | grid: 0.25 m, 1 m, off |
@@ -65,6 +68,21 @@ check is geometry, materials and lights.
   the games and exactly wrong for this.
 * `src/vocabulary.dart` — see above.
 * `main.dart` — the window, the keys and the mouse.
+
+## Getting about
+
+**W walks along the ground, not along the view.** A camera that moves where it
+looks is unusable in a corridor: the edit somebody makes most is to a floor,
+which they have to look down at to see, and the next press of W then puts them
+underneath the level. Looking at a thing and walking past another thing are two
+different directions, so they are two different keys — `Q` and `E` are the only
+way to change height, and they are absolute.
+
+It opens **where the player spawns**, at eye height, looking level. A level
+opened from four metres up looking down is a level nobody can find their way
+around: four metres in a crypt is inside the ceiling.
+
+Nothing stops the camera at a wall, on purpose — see `fly_camera.dart`.
 
 ## What it does not do yet
 
