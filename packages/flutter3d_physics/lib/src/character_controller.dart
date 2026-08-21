@@ -6,6 +6,7 @@ import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
 import 'snapshot.dart';
+import 'tolerances.dart';
 
 /// Every number that decides how the player feels, in one place.
 ///
@@ -379,9 +380,9 @@ final class CharacterController {
       position.z,
     );
 
-    final grows = will.x > was.x + 1e-9 ||
-        will.y > was.y + 1e-9 ||
-        will.z > was.z + 1e-9;
+    final grows = will.x > was.x + Nearly.same ||
+        will.y > was.y + Nearly.same ||
+        will.z > was.z + Nearly.same;
     if (grows) {
       world.overlap(
         to,
@@ -533,14 +534,14 @@ final class CharacterController {
     _wish.setValues(wishDirection.x, 0.0, wishDirection.z);
     final wishLength = _wish.length;
 
-    if (wishLength < 1e-6) {
+    if (wishLength < Nearly.still) {
       // Nothing asked for: bleed off horizontal speed. Only on the ground —
       // stopping dead in mid-air is what makes a jump feel like a lift.
       if (!_grounded) return;
       final speed = math.sqrt(
         velocity.x * velocity.x + velocity.z * velocity.z,
       );
-      if (speed <= 1e-6) {
+      if (speed <= Nearly.still) {
         velocity.x = 0.0;
         velocity.z = 0.0;
         return;
@@ -585,7 +586,7 @@ final class CharacterController {
     // sake of an exploit that needs a surface to work.
     if (!_grounded) return;
     final speed = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-    if (speed > requested && speed > 1e-6) {
+    if (speed > requested && speed > Nearly.still) {
       final scale = requested / speed;
       velocity.x *= scale;
       velocity.z *= scale;
@@ -670,7 +671,7 @@ final class CharacterController {
         (_stepPosition.x - position.x) * _delta.x +
         (_stepPosition.z - position.z) * _delta.z;
 
-    if (stepProgress > plainProgress + 1e-6) {
+    if (stepProgress > plainProgress + Nearly.still) {
       // Before the assignment, because this is how far the body was lifted and
       // [position] is still where it was lifted from.
       _steppedUp = math.max(0.0, _stepPosition.y - position.y);

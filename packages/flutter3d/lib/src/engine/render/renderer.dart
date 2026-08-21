@@ -587,7 +587,26 @@ final class ShadowSettings {
   /// atlas is `resolution × cascades` wide, so the pairing is what matters:
   /// three tiles of a thousand cover a level far better than one tile of two
   /// thousand, and cost less doing it — see [cascades] for the arithmetic.
+  ///
+  /// **Two ranges, one number, and both are deliberate.** The cascade pass
+  /// clamps this to [minResolution]–[maxResolution]; the cube atlas clamps the
+  /// same number to [minCubeTile]–[maxCubeTile], because it holds six faces of
+  /// four lights — twenty-four tiles rather than three — so the ceiling that
+  /// gives a cascade a reasonable texture gives the cube atlas a 24,576-pixel
+  /// one. A game asking for 2048 therefore gets 2048 for the sun and 1024 for
+  /// its lamps. That was true before it was written down anywhere, which is
+  /// what this paragraph is for: two clamps with different numbers and no
+  /// explanation read as one of them being a typo.
   final int resolution;
+
+  /// What the cascade pass will accept as a tile size.
+  static const int minResolution = 256;
+  static const int maxResolution = 4096;
+
+  /// What the cube atlas will accept, which is lower for the reason in
+  /// [resolution]: it has twenty-four of these side by side.
+  static const int minCubeTile = 128;
+  static const int maxCubeTile = 1024;
 
   /// Depth bias, in the shadow camera's normalized depth. Fights the acne that
   /// comes from a surface being sampled at a slightly different depth than it
@@ -1270,7 +1289,8 @@ final class Renderer implements RenderServices {
   /// that costs nothing: each of them needs the texture before it can draw, and
   /// neither may assume the other ran. See [_CubeShadowStaticNode].
   void _ensureCubeAtlas(ShadowSettings settings) {
-    final tile = settings.resolution.clamp(128, 1024);
+    final tile = settings.resolution
+        .clamp(ShadowSettings.minCubeTile, ShadowSettings.maxCubeTile);
     if (_cubeShadow != null && _cubeShadowTile == tile) return;
     // A six-by-four grid of square tiles: the face across, the light down.
     // Square because a ninety-degree frustum is square, and any other aspect

@@ -38,6 +38,7 @@ import 'collision_shape.dart';
 import 'collision_world.dart';
 import 'contact.dart';
 import 'rigid_body.dart';
+import 'tolerances.dart';
 
 /// What a contact needed last step.
 final class _Held {
@@ -246,7 +247,7 @@ final class Dynamics {
   /// and standing on one must not drive it downwards.
   void push(Collider by, Vector3 velocity, {double strength = 1.0}) {
     final speed = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
-    if (speed < 1e-4) return;
+    if (speed < Nearly.moving) return;
 
     world.overlap(
       _inflated(by.shape),
@@ -273,7 +274,7 @@ final class Dynamics {
       // walker, which is exactly the direction to shove.
       _scratch.setValues(_contact.normal.x, 0.0, _contact.normal.z);
       final flat = _scratch.length;
-      if (flat < 1e-4) continue;
+      if (flat < Nearly.moving) continue;
       _scratch.scale(1.0 / flat);
 
       // Only if the walker is actually heading into it.
@@ -414,7 +415,7 @@ final class Dynamics {
         if (otherBody.velocity.length2 > sleepSpeed * sleepSpeed) return true;
         continue;
       }
-      if (other.delta.length2 <= 1e-12) continue;
+      if (other.delta.length2 <= Nearly.parallel) continue;
       // Other bodies do not count, and that is the whole subtlety. A settled
       // stack still moves a fraction of a millimetre every step — gravity
       // pushes it in, the penetration correction pushes it out — so a crate
@@ -507,7 +508,7 @@ final class Dynamics {
         final along = _scratch.dot(pair.normal);
         _scratch.addScaled(pair.normal, -along);
         final speed = _scratch.length;
-        if (speed < 1e-6) continue;
+        if (speed < Nearly.still) continue;
         _scratch.scale(1.0 / speed);
 
         var jt = -speed / inverseSum;

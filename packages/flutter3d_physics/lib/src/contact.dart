@@ -22,6 +22,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import 'collision_shape.dart';
+import 'tolerances.dart';
 
 /// Two shapes, overlapping.
 final class Contact {
@@ -103,7 +104,7 @@ void _sphereSphere(
   if (squared >= within * within) return;
 
   final distance = math.sqrt(squared);
-  if (distance < 1e-6) {
+  if (distance < Nearly.still) {
     // Exactly concentric, which has no direction of its own. Up is chosen
     // because a stack of two crates spawned at the same place should come
     // apart vertically rather than shoot sideways.
@@ -130,7 +131,7 @@ void _sphereBox(
   var dz = sphereAt.z - (boxAt.z + cz);
   final squared = dx * dx + dy * dy + dz * dz;
 
-  if (squared > 1e-12) {
+  if (squared > Nearly.parallel) {
     final reach = sphere.radius + out.margin;
     if (squared >= reach * reach) return;
     final distance = math.sqrt(squared);

@@ -6,6 +6,7 @@ import 'package:vector_math/vector_math.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'spatial_grid.dart';
+import 'tolerances.dart';
 
 /// Whether a contact counts, asked of the collider and the way it faces.
 ///
@@ -135,11 +136,11 @@ final class CollisionWorld {
   /// How far inside a face a point may be and still count as touching it, in
   /// metres.
   ///
-  /// A micrometre: far enough to swallow the float noise on a position that
-  /// was placed exactly on a surface, far short of the millimetre of clearance
-  /// a contact backs off by, and nothing a player can be at any of those
-  /// scales.
-  static const double _touching = 1e-6;
+  /// A micrometre — [Nearly.still], under the name this file reads it by.
+  ///
+  /// The alias stays because "touching" is what the ray code is asking, and
+  /// the shared constant is where the argument for the number lives.
+  static const double _touching = Nearly.still;
 
   /// Adds a collider and returns it, so the call can be inlined into a field.
   Collider add(Collider collider) {
@@ -461,7 +462,7 @@ final class CollisionWorld {
       final outside =
           nx * origin.x + ny * origin.y + nz * origin.z - _planes[base + 3];
 
-      if (approach.abs() < 1e-12) {
+      if (approach.abs() < Nearly.parallel) {
         // Travelling parallel to this face: either the right side of it for the
         // whole sweep, or never.
         if (outside > 0.0) return 1.0;

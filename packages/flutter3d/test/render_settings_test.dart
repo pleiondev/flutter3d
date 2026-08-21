@@ -79,4 +79,26 @@ void main() {
         reason: 'changing the exposure switched reflections off, which is the '
             'shape of the bug this file exists for');
   });
+
+  test('the shadow resolution has two ceilings, and both are named', () {
+    // **One number, two legal ranges, and neither was written down.** The
+    // cascade pass clamped to 256–4096 and the cube atlas to 128–1024, in two
+    // files, as literals — which reads as one of them being a typo. It is not:
+    // the cube atlas holds six faces of four lights side by side, so the tile
+    // size that gives a cascade a 4096-pixel texture would give the atlas a
+    // 24,576-pixel one.
+    expect(ShadowSettings.maxCubeTile * 6,
+        lessThanOrEqualTo(ShadowSettings.maxResolution * 6 ~/ 2),
+        reason: 'the cube ceiling stopped being the lower of the two');
+    expect(ShadowSettings.minCubeTile, lessThan(ShadowSettings.minResolution));
+    expect(ShadowSettings.maxCubeTile, lessThan(ShadowSettings.maxResolution));
+
+    // And the shipped default sits inside both, which is what stops a game
+    // that changes nothing from being clamped by either.
+    const settings = ShadowSettings();
+    expect(settings.resolution,
+        inInclusiveRange(ShadowSettings.minResolution,
+            ShadowSettings.maxResolution));
+    expect(settings.resolution, greaterThanOrEqualTo(ShadowSettings.minCubeTile));
+  });
 }

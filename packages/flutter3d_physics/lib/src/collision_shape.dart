@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
+import 'tolerances.dart';
 
 /// A collision volume, positioned by whatever owns it.
 ///
@@ -184,7 +185,7 @@ sealed class CollisionShape {
       final o = origin[axis];
       final d = direction[axis];
 
-      if (d.abs() < 1e-12) {
+      if (d.abs() < Nearly.parallel) {
         if (o < lo || o > hi) return -1.0;
         continue;
       }
@@ -732,7 +733,7 @@ final class CollisionWedge extends CollisionShape {
       final outside =
           nx * origin.x + ny * origin.y + nz * origin.z - scratch[base + 3];
 
-      if (approach.abs() < 1e-12) {
+      if (approach.abs() < Nearly.parallel) {
         if (outside > 0.0) return -1.0;
         continue;
       }

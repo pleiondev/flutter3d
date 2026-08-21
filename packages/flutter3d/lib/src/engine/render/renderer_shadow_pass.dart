@@ -370,7 +370,8 @@ extension _ShadowPasses on Renderer {
         ? vm.Vector3(0.0, 0.0, 1.0)
         : vm.Vector3(0.0, 1.0, 0.0);
     final padding = math.max(settings.depthPadding, 1.0);
-    final resolution = settings.resolution.clamp(256, 4096);
+    final resolution = settings.resolution
+        .clamp(ShadowSettings.minResolution, ShadowSettings.maxResolution);
     final count = settings.cascades.clamp(1, 3);
 
     // Where each cascade looks, and how much it covers.
