@@ -96,7 +96,7 @@ if (kIsWeb)
   ),
 ```
 
-Nothing in `flutter3d`, `flutter3d_game`, `flutter3d_physics` or `flutter3d_shooter` changed to make this run.
+Nothing in `flutter3d`, `flutter3d_game`, `flutter3d_physics` or `flutter3d_game_shooter` changed to make this run.
 
 ## Three things that had to be fixed
 

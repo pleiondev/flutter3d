@@ -1,6 +1,6 @@
 /// A genre package is two libraries, and only one of them may see a renderer.
 ///
-/// `flutter3d_shooter.dart` is the simulation: monsters, weapons, the
+/// `flutter3d_game_shooter.dart` is the simulation: monsters, weapons, the
 /// inventory, the step order. It is held to the same rule as `flutter3d_game`
 /// — no `flutter3d`, no `flutter_gpu` — because that is what lets three hundred
 /// tests in this package run without a device, and because a collision that

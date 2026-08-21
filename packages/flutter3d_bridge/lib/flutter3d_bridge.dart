@@ -15,7 +15,7 @@
 /// The caveat this doc used to end on — that extracting the package did not
 /// make the stack content-free, because the game layer still shipped a monster
 /// roster and a weapon roster and this package referenced them — has been
-/// answered. Those live in `flutter3d_shooter` now, and the view model of a
+/// answered. Those live in `flutter3d_game_shooter` now, and the view model of a
 /// weapon held in the hands went with them: it was the one thing in here that
 /// only a shooter could want.
 library;

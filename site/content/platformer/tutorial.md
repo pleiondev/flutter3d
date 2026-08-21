@@ -34,7 +34,7 @@ dependencies:
   vector_math: ^2.2.0
 ```
 
-Note what is *not* there: `flutter3d_shooter`. A genre is a package, and this game inherits none of the other one's vocabulary.
+Note what is *not* there: `flutter3d_game_shooter`. A genre is a package, and this game inherits none of the other one's vocabulary.
 
 ## Bind the two keys the genre adds {.step}
 

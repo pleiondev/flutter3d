@@ -103,7 +103,7 @@ Simulation, input and collision have nothing to say about how a frame is drawn, 
 
 ### A genre is a package
 
-`flutter3d_shooter` holds what only a shooter wants: monsters, weapons, an inventory, pickups, and the order a shooter's step runs in. A platformer inherits none of it.
+`flutter3d_game_shooter` holds what only a shooter wants: monsters, weapons, an inventory, pickups, and the order a shooter's step runs in. A platformer inherits none of it.
 
 This was not free. `Monster` and `MonsterSystem` lived in the game layer for a while, which meant the engine knew what an alert pause was, that attacking involves a weapon, and that being hurt involves a chance of flinching. A platformer has none of those, and the first thing that would have happened when one was written is that half the file would have been unusable and the other half copied.
 

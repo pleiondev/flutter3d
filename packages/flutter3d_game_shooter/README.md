@@ -1,4 +1,4 @@
-# flutter3d_shooter
+# flutter3d_game_shooter
 
 What a monster is, what a shotgun does, what a medkit gives, and what order a
 shooter's step runs in.

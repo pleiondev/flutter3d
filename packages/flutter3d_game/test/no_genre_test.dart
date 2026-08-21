@@ -25,7 +25,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// name in a list is nothing and the cost of finding out later is a package
 /// that was allowed to grow the wrong way for a month.
 const List<String> _genres = <String>[
-  'flutter3d_shooter',
+  'flutter3d_game_shooter',
   'flutter3d_platformer',
   'flutter3d_racing',
 ];
@@ -199,16 +199,16 @@ void main() {
     addTearDown(() => temp.deleteSync(recursive: true));
     final offender = File('${temp.path}/offender.dart')
       ..writeAsStringSync(
-        "import 'package:flutter3d_shooter/flutter3d_shooter.dart';\n",
+        "import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';\n",
       );
 
-    expect(_reaches(offender, 'flutter3d_shooter'), isTrue);
+    expect(_reaches(offender, 'flutter3d_game_shooter'), isTrue);
 
     // And not on a mention that is not an import: a doc comment naming the
     // package is how half this repository explains itself.
     final innocent = File('${temp.path}/innocent.dart')
-      ..writeAsStringSync('/// See flutter3d_shooter for the monsters.\n');
-    expect(_reaches(innocent, 'flutter3d_shooter'), isFalse);
+      ..writeAsStringSync('/// See flutter3d_game_shooter for the monsters.\n');
+    expect(_reaches(innocent, 'flutter3d_game_shooter'), isFalse);
   });
 
   test('nothing in this package says a genre word either', () {

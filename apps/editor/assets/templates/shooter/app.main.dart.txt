@@ -6,8 +6,8 @@
 /// builds it, and puts a body in it that walks, looks and jumps. What it
 /// deliberately does not do is anything a *genre* does: no weapons, no
 /// monsters, no coins, no doors that open, no score, no menu, no saving. Those
-/// live in `flutter3d_shooter` and `flutter3d_platformer`, and wiring one up is
-/// the next thing to do here — the three games in this repository are the
+/// live in `flutter3d_game_shooter` and `flutter3d_platformer`, and wiring one
+/// up is the next thing to do here — the three games in this repository are the
 /// worked examples, and each of them keeps that wiring in its own
 /// `lib/src/staging.dart`.
 ///

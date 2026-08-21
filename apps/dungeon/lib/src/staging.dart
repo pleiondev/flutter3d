@@ -1,10 +1,10 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 // The roster. Not a parameter beside [registry], because the two must agree
 // about what a `monster` entity may name and two arguments that must agree are
 // two chances to pass one of them from somewhere else. It becomes a parameter
 // the day there is a second roster, and not before.
-import 'package:flutter3d_shooter/sample.dart';
+import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// What the player starts a game holding.

@@ -58,8 +58,8 @@ dev_dependencies:
   # validator and rules. Putting these in `dependencies:` instead would compile
   # a vocabulary into an editor whose whole design is not having one, which is
   # the mistake `EntityRegistry`'s own doc records somebody already making.
-  flutter3d_shooter:
-    path: ../../packages/flutter3d_shooter
+  flutter3d_game_shooter:
+    path: ../../packages/flutter3d_game_shooter
   flutter3d_platformer:
     path: ../../packages/flutter3d_platformer
 

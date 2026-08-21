@@ -4,7 +4,7 @@
 /// was actually being broken: this package shipped a `WeaponView`, so the
 /// mapping between renderer and simulation knew what a weapon was. Its own
 /// library doc even admitted the problem and called it "a separate problem".
-/// It is not separate any more — the view model is in `flutter3d_shooter`,
+/// It is not separate any more — the view model is in `flutter3d_game_shooter`,
 /// which is allowed to know, and this scan is what keeps the next one out.
 ///
 /// Deliberately a file scan. The rule is textual, and a scan says which file
@@ -16,7 +16,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 const List<String> _genres = <String>[
-  'flutter3d_shooter',
+  'flutter3d_game_shooter',
   'flutter3d_platformer',
   'flutter3d_racing',
 ];
@@ -178,16 +178,16 @@ void main() {
     addTearDown(() => temp.deleteSync(recursive: true));
     final offender = File('${temp.path}/offender.dart')
       ..writeAsStringSync(
-        "import 'package:flutter3d_shooter/flutter3d_shooter.dart';\n",
+        "import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';\n",
       );
 
-    expect(_reaches(offender, 'flutter3d_shooter'), isTrue);
+    expect(_reaches(offender, 'flutter3d_game_shooter'), isTrue);
 
     // And not on a mention that is not an import: a doc comment naming the
     // package is how half this repository explains itself.
     final innocent = File('${temp.path}/innocent.dart')
-      ..writeAsStringSync('/// See flutter3d_shooter for the monsters.\n');
-    expect(_reaches(innocent, 'flutter3d_shooter'), isFalse);
+      ..writeAsStringSync('/// See flutter3d_game_shooter for the monsters.\n');
+    expect(_reaches(innocent, 'flutter3d_game_shooter'), isFalse);
   });
 
   test('nothing in this package says a genre word either', () {

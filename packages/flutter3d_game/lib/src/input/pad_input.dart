@@ -29,7 +29,7 @@ enum PadStickUse {
 ///
 /// **Not a [Bindings] entry**, and that is the important part: binding half an
 /// axis as an [InputSource] would run it through `press`/`held` and make every
-/// stick digital, which is exactly what `flutter3d_shooter`'s "half a deflection
+/// stick digital, which is exactly what `flutter3d_game_shooter`'s "half a deflection
 /// is half a wish" test forbids.
 final class PadAxisPair {
   const PadAxisPair({required this.negative, required this.positive});
@@ -83,7 +83,7 @@ final class PadRoutes {
   /// Odd-looking, and deliberately so. [InputState.lookDelta] is in whatever the
   /// device reports and the camera applies one sensitivity to all of it, so a
   /// stick that arrives in a currency of its own would be a second sensitivity
-  /// nobody can see. `flutter3d_shooter`'s player turns 0.0022 radians per unit,
+  /// nobody can see. `flutter3d_game_shooter`'s player turns 0.0022 radians per unit,
   /// which puts this default at about 2.4 radians per second — a brisk but
   /// controllable turn.
   ///

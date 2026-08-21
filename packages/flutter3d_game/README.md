@@ -19,7 +19,7 @@ event is a Flutter type. Everything else is plain Dart over `vector_math`.
 
 | Directory | What it holds |
 |---|---|
-| `loop/` | `FixedStep`, `GameLoop`, interpolation. **A step *order* is a genre's** — see `GameSimulation` in [`flutter3d_shooter`](../flutter3d_shooter) |
+| `loop/` | `FixedStep`, `GameLoop`, interpolation. **A step *order* is a genre's** — see `GameSimulation` in [`flutter3d_game_shooter`](../flutter3d_game_shooter) |
 | `input/` | `GameAction`, `InputState` (latched edges, analogue axis, look delta), `DesktopInput` |
 | `level/` | `Level` format v1, `EntityKind` and its registry, `LevelValidator`, brush→geometry, `SpawnContext` |
 | `world/` | `Mechanism`, `Signal`, `Mover` (door, lift, platform), `Button`, `TriggerVolume`, `Exit`, `Rider`, `KeyRing`, `LightFixture` |
@@ -89,7 +89,7 @@ and the other half copied.
 
 The shooter's chase-and-attack machine — six states, `MonsterDef`, the flinch
 roll, `Bestiary`, `MonsterKind` — is in
-[`flutter3d_shooter`](../flutter3d_shooter), and so are the weapons, the
+[`flutter3d_game_shooter`](../flutter3d_game_shooter), and so are the weapons, the
 inventory, the pickup and the step order that drives them. It used to be
 `lib/shooter.dart` here, unexported by the barrel, which was a rule rather than
 a boundary: the file still resolved from inside this package, and the four
@@ -128,7 +128,7 @@ What the validator still checks by itself is true of any level whatever the
 game is: names unique, references resolving, brushes not degenerate, something
 to stand on, something to see by.
 
-`flutter3d_shooter/lib/sample.dart` holds the roster this repository's own game
+`flutter3d_game_shooter/lib/sample.dart` holds the roster this repository's own game
 uses, and the two hundred-odd tests written against those numbers went with it.
 
 That is also why four suites covering *this* package's machinery — the level

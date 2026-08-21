@@ -31,7 +31,7 @@ dependencies:
   vector_math: ^2.2.0
 ```
 
-No `flutter3d_shooter` and no `flutter3d_platformer`. A genre is a package, and this one inherits nothing from either.
+No `flutter3d_game_shooter` and no `flutter3d_platformer`. A genre is a package, and this one inherits nothing from either.
 
 ## Decide what a driver may ask for {.step}
 

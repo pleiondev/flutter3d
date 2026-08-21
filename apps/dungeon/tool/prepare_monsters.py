@@ -36,7 +36,7 @@ MODELS = HERE.parent / "assets" / "models"
 #: Which download becomes which monster, and how tall it should end up.
 #:
 #: The heights are `MonsterDef.height` from
-#: `packages/flutter3d_shooter/lib/sample.dart`, and matching them is not
+#: `packages/flutter3d_game_shooter/lib/sample.dart`, and matching them is not
 #: cosmetic: the capsule these replace is the collision shape, so a model taller
 #: than its own hitbox is a monster you shoot over the head of.
 ROSTER = (

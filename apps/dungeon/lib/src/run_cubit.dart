@@ -1,7 +1,7 @@
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'staging.dart';

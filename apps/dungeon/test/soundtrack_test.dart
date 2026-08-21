@@ -23,8 +23,8 @@ import 'package:dungeon/src/soundtrack.dart';
 import 'package:dungeon/src/staging.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
-import 'package:flutter3d_shooter/sample.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Every `SoundDef` this game declares, read from the source.

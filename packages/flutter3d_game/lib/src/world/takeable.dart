@@ -6,7 +6,7 @@ import 'mechanism.dart';
 /// Something lying in the world that one toucher can take, once.
 ///
 /// **Two games had written this class, and they had written the same one.**
-/// `flutter3d_shooter`'s `Pickup` and `flutter3d_platformer`'s `Collectible`
+/// `flutter3d_game_shooter`'s `Pickup` and `flutter3d_platformer`'s `Collectible`
 /// were a hundred lines each with the same base, the same trigger wiring in the
 /// constructor, the same `_taken`/`justTaken` bookkeeping, the same `collect`,
 /// and the same shape of `activate` — take the toucher's `userData`, ask whether

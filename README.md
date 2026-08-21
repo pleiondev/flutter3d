@@ -11,7 +11,7 @@ engine is one.
 | [`packages/flutter3d`](packages/flutter3d) | The renderer: scene graph, glTF/OBJ/`.f3d` loading, six lighting models, shadows, bloom, skinning, BVH culling, picking. [README](packages/flutter3d/README.md), [RESEARCH](packages/flutter3d/RESEARCH.md) |
 | [`packages/flutter3d_game`](packages/flutter3d_game) | The game layer: a fixed timestep, interpolation, input that has forgotten which device it came from, levels and mechanisms. [README](packages/flutter3d_game/README.md) |
 | [`packages/flutter3d_physics`](packages/flutter3d_physics) | Collision shapes, a broadphase, queries and a character controller. Plain Dart — no Flutter, no renderer |
-| [`packages/flutter3d_shooter`](packages/flutter3d_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
+| [`packages/flutter3d_game_shooter`](packages/flutter3d_game_shooter) | One genre: monsters, weapons, an inventory, the step order that ties them together, and the weapon held in the hands |
 | [`packages/flutter3d_platformer`](packages/flutter3d_platformer) | A second genre, and the instrument that tests the first: a runner who jumps twice, coins, hazards and checkpoints |
 | [`packages/flutter3d_bridge`](packages/flutter3d_bridge) | Where the two meet: level geometry to mesh nodes, an actor to its visual, a fixture to the light it drives |
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
@@ -25,7 +25,7 @@ engine is one.
 The split is not filing. `flutter3d_game` does not depend on `flutter3d`, and
 most of it does not depend on Flutter at all — simulation, input and collision
 have nothing to say about how a frame is drawn. The same cut runs the other
-way: **a genre is a package too.** `flutter3d_shooter` holds what only a shooter
+way: **a genre is a package too.** `flutter3d_game_shooter` holds what only a shooter
 wants, so a platformer or a racing game inherits none of this one's vocabulary
 — and two scans, `flutter3d_game/test/no_genre_test.dart` and its twin in the
 bridge, keep that a fact rather than a habit. That is what lets the parts

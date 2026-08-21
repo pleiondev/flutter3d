@@ -2,7 +2,7 @@
 /// by reading the files.
 ///
 /// The first is that only the visual half draws. It is the same arrangement
-/// `flutter3d_shooter` has: the simulation is held to the rule
+/// `flutter3d_game_shooter` has: the simulation is held to the rule
 /// `flutter3d_game` keeps — no `flutter3d`, no `flutter_gpu` — which is what
 /// lets every test here run without a device, and `bridge.dart` is the one
 /// place the two halves are allowed to meet. The allowlist below is that place,
@@ -29,7 +29,7 @@ const Set<String> _mayDraw = <String>{
 /// The other genres. Sibling packages, not dependencies — and this is what says
 /// so, since `pub` cannot say what was never declared.
 const List<String> _otherGenres = <String>[
-  'flutter3d_shooter',
+  'flutter3d_game_shooter',
   'flutter3d_platformer',
 ];
 

@@ -16,7 +16,7 @@ import 'package:editor/src/editing.dart';
 import 'package:editor/src/looks.dart';
 import 'package:editor/src/scaffold.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_shooter/sample.dart';
+import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The shipped shooter template, read off the disk the way every other test

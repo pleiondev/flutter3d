@@ -39,7 +39,7 @@ abstract final class CollisionLayers {
   /// own doc comment, four lines up, says that a collision world knowing what a
   /// monster is cannot be used by a game that has none. It knew. The bit is the
   /// same bit; what changed is that the engine now names the mechanism, and the
-  /// fiction stays in `flutter3d_shooter`.
+  /// fiction stays in `flutter3d_game_shooter`.
   static const int actor = 1 << 2;
 
   /// A volume that gives something up when it is walked into.

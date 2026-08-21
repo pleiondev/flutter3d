@@ -82,7 +82,7 @@ flowchart TB
   end
 
   subgraph genre["genres — vocabulary"]
-    shooter["flutter3d_shooter<br>weapons, monsters, inventory"]
+    shooter["flutter3d_game_shooter<br>weapons, monsters, inventory"]
     plat["flutter3d_platformer<br>runner, springs, surfaces"]
     race["flutter3d_racing<br>track, car, tire, lap"]
   end
@@ -119,7 +119,7 @@ flowchart TB
 Three rules hold the picture up, and a test checks each one.
 
 - **`flutter3d_game` does not depend on `flutter3d`.** Simulation, input and collision say nothing about how a frame is drawn. That is what lets the failures which never show up in a screenshot be reached from a plain unit test: a collision that passes through a wall once in a thousand steps, a jump that is a different height on a faster monitor, a press swallowed at a low frame rate.
-- **A genre is a package.** `flutter3d_shooter` holds what only a shooter wants, so a platformer inherits none of its vocabulary. `test/no_genre_test.dart` and its twin in the bridge check it.
+- **A genre is a package.** `flutter3d_game_shooter` holds what only a shooter wants, so a platformer inherits none of its vocabulary. `test/no_genre_test.dart` and its twin in the bridge check it.
 - **The engine names no graphics API.** `flutter3d` is written against a hardware abstraction layer, `flutter3d_graphics`, and three backends implement it. Checked by `test/backend_is_contained_test.dart`.
 
 The bridge exists because neither of the first two rules leaves anywhere for the mapping to live. Level geometry has to become mesh nodes and an actor has to get a visual, while the game layer must not learn what a mesh is and the renderer must not learn what a monster is. One package is allowed to know both.

@@ -7,7 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 /// The colours the HUD draws a carried key in.

@@ -36,7 +36,7 @@ enum RunState {
 
 /// A platformer's step, in the order it has to happen in.
 ///
-/// The sibling of `GameSimulation` in `flutter3d_shooter`, and the reason that
+/// The sibling of `GameSimulation` in `flutter3d_game_shooter`, and the reason that
 /// one had to leave the engine: its step reads a weapon, an arsenal, a use key
 /// and an exit, and four of those five mean nothing here. What the two share is
 /// the *order* — mechanisms move, the broadphase catches up, dynamics run, the

@@ -52,7 +52,7 @@ void main() {
 
   group('a stick', () {
     test('half over asks for half, not for everything', () {
-      // `flutter3d_shooter`'s own test calls this "half a deflection is half a
+      // `flutter3d_game_shooter`'s own test calls this "half a deflection is half a
       // wish": a stick pushed halfway walks, and a translator that ran it
       // through press/held would make it run.
       final fake = FakePad()..state.setAxis(PadAxis.leftStickY, -0.5);

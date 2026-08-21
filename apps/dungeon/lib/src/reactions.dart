@@ -1,5 +1,5 @@
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'effects.dart';

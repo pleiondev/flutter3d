@@ -7,7 +7,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 /// something a runner carries, and a run's total is the thing the ending adds
 /// up.
 ///
-/// Not an inventory. `Inventory` in `flutter3d_shooter` holds health, armour,
+/// Not an inventory. `Inventory` in `flutter3d_game_shooter` holds health, armour,
 /// ammunition by type and a set of weapons, and every one of those is a
 /// shooter's idea; a platformer counts coins and stars and does not care what
 /// they are for. The two were the same class once, which is how the engine came

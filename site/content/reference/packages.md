@@ -69,10 +69,10 @@ Collision shapes, a uniform-grid broadphase, sweeps and rays that do not tunnel,
 
 ## Genres
 
-### `flutter3d_shooter`
+### `flutter3d_game_shooter`
 Weapons, an arsenal, hitscan, projectiles and blasts, monsters with a six-state brain, an inventory, gifts and pickups, and `GameSimulation`, a shooter's step order.
 
-Three barrels: `flutter3d_shooter.dart` (nothing imports the renderer), `bridge.dart` (`WeaponView`, which does), and `sample.dart` (this repository's own roster, so the package itself ships no content).
+Three barrels: `flutter3d_game_shooter.dart` (nothing imports the renderer), `bridge.dart` (`WeaponView`, which does), and `sample.dart` (this repository's own roster, so the package itself ships no content).
 
 → [What a shooter adds](/shooter/) · [Tutorial](/shooter/tutorial/)
 
@@ -128,7 +128,7 @@ The engine's own demo: a model browser with every feature switchable, and the fr
 
 ```mermaid
 flowchart TB
-  apps["apps/*"] --> genres["flutter3d_shooter<br>flutter3d_platformer"]
+  apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_platformer"]
   apps --> bridge["flutter3d_bridge"]
   apps --> backend["one backend<br><i>impeller · webgl · cpu</i>"]
   genres --> game["flutter3d_game"]

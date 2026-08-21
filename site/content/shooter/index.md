@@ -1,5 +1,5 @@
 ---
-description: What flutter3d_shooter adds on top of core — weapons, an arsenal, hitscan and projectiles, monsters with a six-state brain, an inventory, gifts and the step order that drives them.
+description: What flutter3d_game_shooter adds on top of core — weapons, an arsenal, hitscan and projectiles, monsters with a six-state brain, an inventory, gifts and the step order that drives them.
 ---
 
 # What a shooter adds

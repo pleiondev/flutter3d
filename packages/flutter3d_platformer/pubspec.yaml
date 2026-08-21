@@ -29,4 +29,4 @@ dev_dependencies:
 # whole of it is reachable from a test with no device — which is what makes it
 # the instrument SPEC stage 5 wanted: a game that is not a shooter, finding out
 # what the engine assumed. When it grows a visual half it grows a `bridge.dart`
-# beside the barrel, as `flutter3d_shooter` has.
+# beside the barrel, as `flutter3d_game_shooter` has.

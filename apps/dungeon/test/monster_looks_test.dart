@@ -19,8 +19,8 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dungeon/src/monster_looks.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
-import 'package:flutter3d_shooter/sample.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The clip names inside a GLB, read from its JSON chunk.

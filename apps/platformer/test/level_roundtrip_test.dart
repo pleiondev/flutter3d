@@ -4,7 +4,7 @@
 ///
 /// **There is no writer today.** `Level.toJson()` is called nowhere outside
 /// tests, and the test that looks like it proves a round trip
-/// (`packages/flutter3d_shooter/test/level_test.dart`) starts from a `Level`
+/// (`packages/flutter3d_game_shooter/test/level_test.dart`) starts from a `Level`
 /// built in Dart: it proves the writer is a fixed point of itself and says
 /// nothing about a document on disk.
 ///

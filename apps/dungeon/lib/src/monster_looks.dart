@@ -1,7 +1,7 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_shooter/flutter3d_shooter.dart';
+import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// What this game's monsters are made of, and what they are doing.

@@ -278,7 +278,7 @@ that walks, looks and jumps. What it deliberately does not do is anything a
 *genre* does: no weapons, no monsters, no coins, no doors that open, no score,
 no menu, no saving.
 
-Those live in `flutter3d_shooter` and `flutter3d_platformer`, and wiring one up
+Those live in `flutter3d_game_shooter` and `flutter3d_platformer`, and wiring one up
 is the next thing to do. Each of the three games in the flutter3d checkout keeps
 that wiring in its own `lib/src/staging.dart`, which is the file to read first.
 ''';
