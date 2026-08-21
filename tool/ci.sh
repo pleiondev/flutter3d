@@ -48,6 +48,12 @@ step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
 # tracks — this one covers the four applications' icons.
 step "icons" bash -c 'python3 tool/make_icons.py >/dev/null && git diff --exit-code -- "apps/*/macos/Runner/Assets.xcassets" "apps/*/web/icons" "apps/*/web/favicon.png"'
 
+# The models a template gives a new game. Regenerated and compared for the
+# same reason the icons are — and for one more: `math.sin` is libm, so a
+# generator that did not quantise its coordinates produces different bytes on a
+# different machine, and this is the step that would say so.
+step "models" bash -c 'python3 tool/make_models.py >/dev/null && git diff --exit-code -- "apps/editor/assets/templates"'
+
 step "analyze" flutter analyze
 
 for package in packages/*/; do

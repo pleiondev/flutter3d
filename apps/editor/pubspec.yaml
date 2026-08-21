@@ -54,3 +54,13 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # What a template gives a new game. **One line per directory, because a
+  # directory entry is not recursive** — a forgotten line is a `rootBundle`
+  # that throws in front of somebody creating a project, with nothing to warn
+  # about it at compile time. `assets/templates/index.json` lists every file
+  # and a test loads each one, so the forgetting fails in CI instead.
+  assets:
+    - assets/templates/
+    - assets/templates/shooter/
+    - assets/templates/platformer/
