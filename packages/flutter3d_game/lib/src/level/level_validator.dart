@@ -402,8 +402,13 @@ final class LevelValidator {
         issues.add(
           LevelIssue(
             LevelIssueSeverity.warning,
+            // **A message from an engine package, so it says nothing about
+            // anybody's fiction.** It used to end "the falloff a dungeon relies
+            // on", which reads oddly to somebody writing a racing game and is
+            // the same rule `no_genre_test` keeps everywhere else — a word list
+            // that scans identifiers and not strings simply did not catch it.
             'is a point light with unbounded range, which lights the whole '
-            'level and defeats the falloff a dungeon relies on',
+            'level through its own walls',
             where: 'lights[$i]',
           ),
         );

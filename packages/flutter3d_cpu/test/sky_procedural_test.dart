@@ -177,6 +177,7 @@ double _mean(Uint8List rgba, {required int channel}) {
 }
 
 void main() {
+  _hardEdgedSun();
   test('no sky is byte-identical to the sky nobody asked for', () async {
     // The property sixty goldens rest on: a frame with no sky in it is the
     // frame this renderer has always drawn.
@@ -363,4 +364,62 @@ double _linearToSrgb(double value) {
   return clamped <= 0.0031308
       ? clamped * 12.92
       : 1.055 * math.pow(clamped, 1.0 / 2.4).toDouble() - 0.055;
+}
+
+/// A sun with no soft edge at all.
+///
+/// **A hard-edged sun draws in the model and not in either shader**, which is
+/// the divergence this file exists to find. `sunSoftnessDegrees: 0` is an
+/// ordinary thing to ask for — a sun with no penumbra — and it makes the two
+/// cosines the shader is given equal. The shader's guard against that division
+/// returns *no disc at all*, so the sun disappears; `SkySettings.sample` guards
+/// the same division and returns a hard edge, so the sun is there.
+///
+/// One of the two has to be wrong, and it is not the one that draws a sun when
+/// asked for a sun.
+void _hardEdgedSun() {
+  test('a sun with no soft edge is still a sun in both transcriptions', () async {
+    final sky = _sky().copyWith(sunSoftnessDegrees: 0.0);
+    final it = _engine();
+    final world = _world(wall: false);
+    world.camera.lookAt(sky.resolvedDirectionToSun);
+
+    final frame = await _draw(it, world, sky: sky);
+    final centre = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
+    final drawn = Vector3(
+      frame[centre] / 255.0,
+      frame[centre + 1] / 255.0,
+      frame[centre + 2] / 255.0,
+    );
+
+    final linear = sky.sample(sky.resolvedDirectionToSun)..scale(1.6);
+    final expected = Vector3(
+      _linearToSrgb(linear.x),
+      _linearToSrgb(linear.y),
+      _linearToSrgb(linear.z),
+    );
+
+    for (final channel in <int>[0, 1, 2]) {
+      expect((drawn[channel] - expected[channel]).abs(), lessThan(0.02),
+          reason: 'channel $channel: drawn $drawn against expected $expected — '
+              'a sun asked for with a hard edge');
+    }
+  });
+
+  test('and the model itself does not answer with a NaN', () {
+    // The other half of the same division. A NaN in a colour multiplies through
+    // the tone map and arrives as a black pixel nobody can trace back.
+    final sky = _sky().copyWith(sunSoftnessDegrees: 0.0);
+
+    for (final direction in <Vector3>[
+      sky.resolvedDirectionToSun,
+      Vector3(0.0, 1.0, 0.0),
+      Vector3(1.0, 0.0, 0.0),
+    ]) {
+      final colour = sky.sample(direction);
+      expect(colour.x.isNaN, isFalse, reason: 'looking at $direction');
+      expect(colour.y.isNaN, isFalse);
+      expect(colour.z.isNaN, isFalse);
+    }
+  });
 }

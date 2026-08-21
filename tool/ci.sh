@@ -54,6 +54,13 @@ step "icons" bash -c 'python3 tool/make_icons.py >/dev/null && git diff --exit-c
 # different machine, and this is the step that would say so.
 step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/editor/assets/templates"'
 
+# **The WebGL table is generated and nothing checked that it was current.** Its
+# own header says so — "there is no check that this file is current" — and when
+# somebody finally regenerated it, it turned out to be holding a sky shader from
+# before the sky was rewritten: the browser was drawing a different sky from
+# Impeller and no test could see it. Same shape as the icons and the models.
+step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/generate_shaders.dart >/dev/null && git diff --exit-code -- lib/engine_shaders.dart'
+
 step "analyze" flutter analyze
 
 for package in packages/*/; do

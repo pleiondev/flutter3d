@@ -98,9 +98,15 @@ void main() {
   // caller who leaves the disc at its default size, and a single NaN channel
   // poisons the whole pixel through the tone map. A sky is exactly where that
   // is least visible as a NaN and most visible as "the gradient went away".
+  //
+  // **The other branch was `0.0`, and that turned the sun off.** A soft edge of
+  // nothing is a sun with a hard edge — which is a thing to ask for — and the
+  // answer to it is a step, not an absence. `SkySettings.sample`, which is the
+  // same model written in Dart, has always drawn one; this drew nothing, so a
+  // hard-edged sun existed in the fog colour and not in the sky.
   float disc = v_disc.y > 0.0
       ? smoothstep(v_disc.x - v_disc.y, v_disc.x, towards)
-      : 0.0;
+      : step(v_disc.x, towards);
   colour += v_glow.rgb * (disc * v_disc.z);
 
   frag_color = vec4(colour, 1.0);

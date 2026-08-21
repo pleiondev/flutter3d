@@ -1040,6 +1040,12 @@ final class ToonShader implements CpuFragmentShader {
 }
 
 double _smoothstep(double edge0, double edge1, double x) {
+  // **Two equal edges are a step, not a division.** GLSL leaves this
+  // undefined; Dart does not, and what it does is `0/0`, which is a NaN that
+  // multiplies through the rest of the shader and comes out as a black pixel
+  // nobody can trace back. The engine's own copy in `sky_settings.dart` has had
+  // this line since it was written and this one lost it.
+  if (edge0 == edge1) return x < edge0 ? 0.0 : 1.0;
   final t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
   return t * t * (3.0 - 2.0 * t);
 }
@@ -1184,8 +1190,12 @@ final class SkyShader implements CpuFragmentShader {
     // `disc.y` is the width of the soft edge, not the outer cosine: see the
     // renderer, which writes it that way because a varying cannot carry two
     // cosines this close together.
-    final edge =
-        disc.y > 0.0 ? _smoothstep(disc.x - disc.y, disc.x, towards) * disc.z : 0.0;
+    // A soft edge of nothing is a hard edge, not an absent sun — see the same
+    // branch in `sky.frag`, which had the same hole.
+    final edge = (disc.y > 0.0
+            ? _smoothstep(disc.x - disc.y, disc.x, towards)
+            : (towards >= disc.x ? 1.0 : 0.0)) *
+        disc.z;
     r += glow.x * edge;
     g += glow.y * edge;
     bl += glow.z * edge;
