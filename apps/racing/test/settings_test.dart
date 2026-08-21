@@ -9,6 +9,8 @@
 /// walker's.
 library;
 
+import 'dart:io';
+
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
@@ -57,6 +59,19 @@ Bindings _keys() => Bindings(<InputSource, GameAction>{})
 }
 
 void main() {
+  test('the panel is told whether a pad is connected, rather than assuming', () {
+    // **A scan, because the call is inside a widget nothing mounts.** This game
+    // passed a constant `false` where the other two ask the pad, so a driver
+    // with a controller plugged in read "Gamepad (none connected)" above the
+    // sliders that set its dead zone. Nothing failed; the screen simply lied.
+    final game = File('lib/main.dart').readAsStringSync();
+
+    expect(game, isNot(contains('padConnected: false')),
+        reason: 'the settings panel is being told there is no pad');
+    expect('padConnected: _pad.isConnected'.allMatches(game).length, 2,
+        reason: 'the panel and the pause gate both have to ask');
+  });
+
   test('a driver rebinds a throttle, not a forward', () {
     // The engine's default table names walking, and a car has a throttle and a
     // brake. Those are the actions the panel lists, and they are this game's.

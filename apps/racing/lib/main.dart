@@ -993,7 +993,12 @@ class _RaceScreenState extends State<RaceScreen>
                   mixer: _audio.mixer,
                   bindings: _devices.bindings,
                   config: _config,
-                  padConnected: false,
+                  // Asked, not assumed. This said `false` while the same
+                  // widget three lines away in the other two games asked the
+                  // pad — so a driver with a controller plugged in read
+                  // "Gamepad (none connected)" over the sliders that set its
+                  // dead zone.
+                  padConnected: _pad.isConnected,
                   actions: _rebindable,
                   waitingFor: settings.waitingFor,
                   onVolume: (AudioBus bus, double volume) =>
