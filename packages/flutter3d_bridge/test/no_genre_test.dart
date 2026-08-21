@@ -164,6 +164,32 @@ void main() {
     );
   });
 
+  test('the detector fires on input that breaks the rule', () {
+    // **This test was missing from this copy, and its absence is the whole
+    // argument for it.** The scan above passes trivially if `_reaches` is
+    // wrong — a scan that always finds nothing looks exactly like a package
+    // that is clean. The sibling copy in `flutter3d_game` has had this since it
+    // was written; the two files are otherwise the same two hundred lines, and
+    // this is what drifted.
+    //
+    // So: prove the detector on a file that does break the rule, written here
+    // rather than committed.
+    final temp = Directory.systemTemp.createTempSync('no_genre_test');
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final offender = File('${temp.path}/offender.dart')
+      ..writeAsStringSync(
+        "import 'package:flutter3d_shooter/flutter3d_shooter.dart';\n",
+      );
+
+    expect(_reaches(offender, 'flutter3d_shooter'), isTrue);
+
+    // And not on a mention that is not an import: a doc comment naming the
+    // package is how half this repository explains itself.
+    final innocent = File('${temp.path}/innocent.dart')
+      ..writeAsStringSync('/// See flutter3d_shooter for the monsters.\n');
+    expect(_reaches(innocent, 'flutter3d_shooter'), isFalse);
+  });
+
   test('nothing in this package says a genre word either', () {
     // The scan above reads imports, and an import is not how this rule gets
     // broken. A constant is.
