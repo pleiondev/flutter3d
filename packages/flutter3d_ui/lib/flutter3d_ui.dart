@@ -18,6 +18,7 @@ library;
 
 export 'src/clock_text.dart';
 export 'src/credits.dart';
+export 'src/drag_look.dart';
 export 'src/owned_bindings.dart';
 export 'src/pad_presses.dart';
 export 'src/rebinding.dart';

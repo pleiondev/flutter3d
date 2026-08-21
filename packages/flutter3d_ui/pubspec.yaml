@@ -25,6 +25,9 @@ dependencies:
   pad_input:
     path: ../pad_input
 
+  # A drag is two numbers, and the camera that reads them speaks `Vector2`.
+  vector_math: ^2.2.0
+
   # `localStorage`, which is where a browser build keeps what a player changed.
   # Already used by flutter3d_webgl and by the gamepad's web backend.
   web: ^1.1.0

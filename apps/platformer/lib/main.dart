@@ -420,21 +420,8 @@ class _GameScreenState extends State<GameScreen>
   /// `autofocus` only covers the first frame.
   final FocusNode _keyboard = FocusNode(debugLabel: 'game');
 
-  final Vector2 _dragLook = Vector2.zero();
-  bool _dragging = false;
-
-  /// Takes the drag accumulated since the last frame.
-  ///
-  /// Read by the camera rather than handed to [GameLoop], and the reason is
-  /// worth knowing: the loop gives its delta to [InputState], and `endStep`
-  /// clears that at the end of every step — so by the time a frame draws, the
-  /// motion has already been thrown away. On the captured-pointer path the
-  /// simulation is the only reader and that is fine; here the camera is.
-  Vector2 _takeDragLook() {
-    final taken = _dragLook.clone();
-    _dragLook.setZero();
-    return taken;
-  }
+  /// Mouse motion picked up from a drag, where there is no pointer to lock.
+  final DragLook _dragLook = DragLook();
 
   Future<void> _openGraphics() async {
     final GraphicsDevice device;
@@ -986,7 +973,7 @@ class _GameScreenState extends State<GameScreen>
 
     // A captured pointer reports through the loop; a drag reports here.
     // A captured pointer reports through the loop; a drag reports here.
-    camera.look(Playing.dragLook ? _takeDragLook() : _input.lookDelta);
+    camera.look(Playing.dragLook ? _dragLook.take() : _input.lookDelta);
     _drawnAt.read(_loop.alpha, _scratch);
     // The way the runner is *going*, so the camera drifts round behind them
     // over a long level instead of having to be steered by hand at every
@@ -1184,14 +1171,12 @@ class _GameScreenState extends State<GameScreen>
                     onPointerDown: (_) {
                       _keyboard.requestFocus();
                       _begin();
-                      _dragging = true;
+                      _dragLook.begin();
                     },
-                    onPointerMove: (PointerMoveEvent event) {
-                      if (!_dragging) return;
-                      _dragLook.add(Vector2(event.delta.dx, event.delta.dy));
-                    },
-                    onPointerUp: (_) => _dragging = false,
-                    onPointerCancel: (_) => _dragging = false,
+                    onPointerMove: (PointerMoveEvent event) =>
+                        _dragLook.moved(event.delta),
+                    onPointerUp: (_) => _dragLook.end(),
+                    onPointerCancel: (_) => _dragLook.end(),
                   ),
                 ),
               // Not behind the title card: the tallies and its own "Click to

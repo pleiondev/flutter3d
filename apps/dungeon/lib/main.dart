@@ -242,13 +242,7 @@ class _GameScreenState extends State<GameScreen>
   final FocusNode _keyboard = FocusNode(debugLabel: 'game');
 
   /// Mouse motion picked up from a drag, where there is no pointer to lock.
-  final Vector2 _dragLook = Vector2.zero();
-  bool _dragging = false;
-
-  void _drainDragLook(Vector2 out) {
-    out.setFrom(_dragLook);
-    _dragLook.setZero();
-  }
+  final DragLook _dragLook = DragLook();
 
   /// The mouse's motion — or the drag's, in a browser — plus the pad's.
   ///
@@ -259,7 +253,7 @@ class _GameScreenState extends State<GameScreen>
   /// view by the sum.
   void _drainLook(Vector2 out) {
     if (Playing.dragLook) {
-      _drainDragLook(out);
+      _dragLook.drainInto(out);
     } else {
       _devices.drainLook(out);
     }
@@ -999,23 +993,21 @@ class _GameScreenState extends State<GameScreen>
                     behavior: HitTestBehavior.opaque,
                     onPointerDown: (_) {
                       _keyboard.requestFocus();
-                      _dragging = true;
+                      _dragLook.begin();
                       if (!Playing.touch) {
                         _devices.pressPointer(ShooterActions.fire);
                       }
                     },
-                    onPointerMove: (PointerMoveEvent event) {
-                      if (!_dragging) return;
-                      _dragLook.add(Vector2(event.delta.dx, event.delta.dy));
-                    },
+                    onPointerMove: (PointerMoveEvent event) =>
+                        _dragLook.moved(event.delta),
                     onPointerUp: (_) {
-                      _dragging = false;
+                      _dragLook.end();
                       if (!Playing.touch) {
                         _devices.releasePointer(ShooterActions.fire);
                       }
                     },
                     onPointerCancel: (_) {
-                      _dragging = false;
+                      _dragLook.end();
                       if (!Playing.touch) {
                         _devices.releasePointer(ShooterActions.fire);
                       }
