@@ -145,6 +145,16 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   bool? _cubesWork;
 
+  /// **The texture it makes is dropped, and that is not a leak.** A reviewer
+  /// asked; the answer is that `flutter_gpu`'s `Texture` is a native field
+  /// wrapper with no `dispose` — there is no way to release one, and the object
+  /// going out of scope is how every texture in this backend is freed. One
+  /// pixel, once per process, is the price of the only question that gets a
+  /// real answer from the driver.
+  ///
+  /// The `catch` cannot tell "this driver has no cube textures" from "something
+  /// else went wrong", and deliberately does not try: both answers mean the
+  /// same thing to a caller deciding whether to build a cube map.
   bool _probeCubes() {
     try {
       gpu.gpuContext.createTexture(
