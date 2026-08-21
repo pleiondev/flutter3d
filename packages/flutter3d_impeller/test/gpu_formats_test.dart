@@ -328,4 +328,28 @@ void main() {
       expect(identical(a.toGpu(), c.toGpu()), isFalse);
     });
   });
+
+  group('the colour format the context stops reporting', () {
+    // **A trap with a timer on it.** `gpu.gpuContext.defaultColorFormat`
+    // answers `b8g8r8a8UNormInt` for about a second after launch and `unknown`
+    // for the rest of the process — while the depth format and the MSAA
+    // capability keep answering, so it does not read as a context that has gone
+    // away. The three games reach their first frame inside that second; the
+    // editor reads a level off the disk first and did not, so every frame threw
+    // `Texture creation failed` from a descriptor whose format was `unknown`.
+    test('is substituted when it has gone', () {
+      expect(colorFormatOrFallback(TextureFormat.unknown),
+          TextureFormat.b8g8r8a8UNormInt);
+    });
+
+    test('and a real answer is kept exactly', () {
+      for (final format in <TextureFormat>[
+        TextureFormat.b8g8r8a8UNormInt,
+        TextureFormat.r8g8b8a8UNormInt,
+        TextureFormat.r16g16b16a16Float,
+      ]) {
+        expect(colorFormatOrFallback(format), format);
+      }
+    });
+  });
 }

@@ -107,17 +107,40 @@ TextureHandle createGpuTexture(
 /// swapchain, it has to be an eight-bit colour format that exists.
 /// Named for the context rather than for the device, because the device has a
 /// member of the same name and this is what it answers with.
-TextureFormat get defaultColorFormatOfContext =>
-    _defaultColorFormat ??= _readDefaultColorFormat();
+TextureFormat get defaultColorFormatOfContext => _defaultColorFormat ??=
+    colorFormatOrFallback(gpu.gpuContext.defaultColorFormat.toEngine());
 
 TextureFormat? _defaultColorFormat;
 
-TextureFormat _readDefaultColorFormat() {
-  final reported = gpu.gpuContext.defaultColorFormat.toEngine();
-  return reported == TextureFormat.unknown
-      ? TextureFormat.b8g8r8a8UNormInt
-      : reported;
-}
+/// Forgets the cached answer, so the next reader asks the context again.
+///
+/// **For tests, and it is not a nicety.** The cache above is process-wide and
+/// written once, so without this the *first* test to touch a context decides
+/// the colour format for every test that runs after it in the same process —
+/// which makes the order of a test file part of what it asserts. A test that
+/// passes alone and fails in a suite, or the reverse, is the most expensive
+/// kind there is.
+///
+/// It is deliberately not called by anything in `lib/`: inside a running
+/// application the whole point is that the answer is taken once, while the
+/// context is still willing to give it.
+void forgetDefaultColorFormat() => _defaultColorFormat = null;
+
+/// What to use when the context reports [TextureFormat.unknown].
+///
+/// Separate from the reading so that it can be checked without a GPU: the
+/// substitution is the part with a decision in it, and the part that would
+/// otherwise only ever be exercised on a device, on the second of the two
+/// seconds the context is willing to answer.
+///
+/// `b8g8r8a8UNormInt` is the one format every Metal surface here has ever
+/// reported. What it feeds is an offscreen texture that becomes a `ui.Image`;
+/// it does not have to match a swapchain, it has to be an eight-bit colour
+/// format that exists.
+TextureFormat colorFormatOrFallback(TextureFormat reported) =>
+    reported == TextureFormat.unknown
+        ? TextureFormat.b8g8r8a8UNormInt
+        : reported;
 
 /// The depth/stencil format the device prefers, as an engine value.
 ///
