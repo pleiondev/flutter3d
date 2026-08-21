@@ -10,6 +10,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
+import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 
 /// Everything the display needs, gathered once a frame.
@@ -104,15 +105,8 @@ class RaceReadout {
 
 }
 
-String formatLapTime(double seconds) {
-  if (seconds <= 0) return '--:--.---';
-  final minutes = seconds ~/ 60;
-  final rest = seconds - minutes * 60;
-  final whole = rest.floor();
-  final thousandths = ((rest - whole) * 1000).round();
-  return '$minutes:${whole.toString().padLeft(2, '0')}'
-      '.${thousandths.toString().padLeft(3, '0')}';
-}
+/// A lap, to the thousandth, and `--:--.---` when nobody has driven one.
+String formatLapTime(double seconds) => clockText(seconds, thousandths: true);
 
 class RaceHud extends StatelessWidget {
   const RaceHud({super.key, required this.readout});

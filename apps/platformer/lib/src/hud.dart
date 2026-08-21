@@ -391,13 +391,9 @@ class _Banner extends StatelessWidget {
 ///
 /// A free function so the results screen and the tally show the same thing: two
 /// formatters is two formats, and the second one is always the one on the
-/// screenshot.
-String clock(double seconds) {
-  final whole = seconds.floor();
-  final minutes = whole ~/ 60;
-  final rest = whole % 60;
-  return '$minutes:${rest.toString().padLeft(2, '0')}';
-}
+/// screenshot. Now three screens and `flutter3d_ui`'s, for the same reason one
+/// step further out — the racing game had the other half of it.
+String clock(double seconds) => clockText(seconds, none: '0:00');
 
 /// What a run came to. Shown when it ends, either way.
 class _Results extends StatelessWidget {
