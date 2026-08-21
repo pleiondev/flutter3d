@@ -5,6 +5,7 @@ import 'package:vector_math/vector_math.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
+import 'snapshot.dart';
 
 /// Every number that decides how the player feels, in one place.
 ///
@@ -335,29 +336,17 @@ final class CharacterController {
   };
 
   void restore(Map<String, Object?> from) {
-    _readVector(from['at'], position);
-    _readVector(from['velocity'], velocity);
+    readVector(from['at'], position);
+    readVector(from['velocity'], velocity);
     collider.position.setFrom(position);
     collider.refreshBounds();
     collider.clearDelta();
     _grounded = from['grounded'] == true;
     _ground = null;
     _snapSuppressed = false;
-    _coyote = _readNumber(from['coyote']);
-    _jumpBuffer = _readNumber(from['jumpBuffer']);
+    _coyote = readNumber(from['coyote']);
+    _jumpBuffer = readNumber(from['jumpBuffer']);
   }
-
-  static void _readVector(Object? value, Vector3 out) {
-    if (value is! List || value.length < 3) return;
-    out.setValues(
-      (value[0] as num).toDouble(),
-      (value[1] as num).toDouble(),
-      (value[2] as num).toDouble(),
-    );
-  }
-
-  static double _readNumber(Object? value) =>
-      value is num ? value.toDouble() : 0.0;
 
   /// Swaps the body's volume, keeping its feet where they are.
   ///

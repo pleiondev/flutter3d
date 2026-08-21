@@ -33,6 +33,7 @@ import 'package:vector_math/vector_math.dart';
 import 'collider.dart';
 import 'collision_shape.dart';
 import 'collision_world.dart';
+import 'snapshot.dart';
 
 final class RigidBody {
   RigidBody({
@@ -132,21 +133,12 @@ final class RigidBody {
   };
 
   void restore(Map<String, Object?> from) {
-    _read(from['at'], collider.position);
-    _read(from['velocity'], velocity);
+    readVector(from['at'], collider.position);
+    readVector(from['velocity'], velocity);
     collider.refreshBounds();
     collider.clearDelta();
     _asleep = from['asleep'] == true;
     _still = (from['still'] as num?)?.toDouble() ?? 0.0;
-  }
-
-  static void _read(Object? value, Vector3 out) {
-    if (value is! List || value.length < 3) return;
-    out.setValues(
-      (value[0] as num).toDouble(),
-      (value[1] as num).toDouble(),
-      (value[2] as num).toDouble(),
-    );
   }
 
   /// Advances the sleep clock. Called by the world, not by a game.
