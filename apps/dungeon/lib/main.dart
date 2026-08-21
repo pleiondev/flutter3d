@@ -19,7 +19,7 @@ import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:gamepad/gamepad.dart' show PadButton;
+import 'package:pad_input/pad_input.dart' show PadButton;
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';

@@ -5,7 +5,7 @@
 import FlutterMacOS
 import Foundation
 
-import gamepad
+import pad_input
 import pointer_lock
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {

@@ -29,8 +29,8 @@ workspace:
   - packages/flutter3d_physics
   - packages/flutter3d_ui
   - packages/flutter3d_session
-  - packages/gamepad
-  - packages/gamepad/example
+  - packages/pad_input
+  - packages/pad_input/example
   - packages/pointer_lock
   - packages/pointer_lock/example
   - apps/dungeon

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:gamepad/gamepad.dart' show Deadzone;
+import 'package:pad_input/pad_input.dart' show Deadzone;
 import 'volumes.dart';
 
 

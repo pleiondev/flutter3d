@@ -74,7 +74,7 @@ for package in packages/*/; do
   fi
 done
 
-# An example with tests, which until `packages/gamepad/example` there was none of.
+# An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance
 # is walked with, and a test CI never runs is a test that rots.
 for example in packages/*/example/; do

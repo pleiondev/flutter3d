@@ -18,8 +18,8 @@ dependencies:
   # Sticks, triggers and buttons. A device package, exactly as pointer_lock is:
   # it knows nothing about actions or games, and `pad_input.dart` is the
   # translator — the same shape `DesktopInput` has beside the keyboard.
-  gamepad:
-    path: ../gamepad
+  pad_input:
+    path: ../pad_input
 
   # Collision, queries and the character controller. Extracted because it
   # imported nothing from here, and because a collision world that knows what a

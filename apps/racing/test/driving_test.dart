@@ -19,7 +19,7 @@ import 'dart:io';
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:gamepad/gamepad.dart';
+import 'package:pad_input/pad_input.dart';
 
 /// A gamepad that does whatever the test says.
 final class _FakePad extends GamepadPlatform {

@@ -22,8 +22,8 @@ dependencies:
 
   # For the dead zone's own default, so the panel and the pad cannot disagree
   # about what "unset" means.
-  gamepad:
-    path: ../gamepad
+  pad_input:
+    path: ../pad_input
 
   # `localStorage`, which is where a browser build keeps what a player changed.
   # Already used by flutter3d_webgl and by the gamepad's web backend.

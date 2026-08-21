@@ -34,7 +34,7 @@ export 'src/input/bindings.dart';
 export 'src/input/desktop_input.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
-export 'src/input/pad_input.dart';
+export 'src/input/pad_actions.dart';
 export 'src/input/playing.dart';
 export 'src/input/touch_controls.dart';
 export 'src/level/brush_geometry.dart';

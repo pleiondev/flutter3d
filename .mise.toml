@@ -34,7 +34,7 @@
 # takes it out of the SDK: `build_shaders.sh` and `tool/bench` both reach
 # `<SDK>/bin/cache/dart-sdk/bin/dart` explicitly, for exactly this reason.
 # **Java is pinned for the same reason, and it was found the same way.** The
-# Android runner in `packages/gamepad/example` would not build at all against the
+# Android runner in `packages/pad_input/example` would not build at all against the
 # JDK that happened to be on the machine — 26 — because the Android Gradle
 # Plugin's `core-for-system-modules` transform runs `jlink --disable-plugin
 # system-modules`, which that JDK refuses. The error names neither Java nor the

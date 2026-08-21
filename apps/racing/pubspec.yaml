@@ -46,8 +46,8 @@ dependencies:
 
   # The controller. Only for the names of the buttons this game says out loud —
   # the translation lives in `flutter3d_game`, which already depends on it.
-  gamepad:
-    path: ../../packages/gamepad
+  pad_input:
+    path: ../../packages/pad_input
 
   # What a locked wheel and a car off the road throw into the air. This game
   # had no particles at all until it had smoke.

@@ -50,8 +50,8 @@ dependencies:
 
   # The controller. Only for the two names on the pad this game says out loud —
   # the translation lives in `flutter3d_game`, which already depends on it.
-  gamepad:
-    path: ../../packages/gamepad
+  pad_input:
+    path: ../../packages/pad_input
 
   # The surface a frame reaches Flutter through, and the run being played —
   # the part that is neither the simulation nor the screens. See its README for
