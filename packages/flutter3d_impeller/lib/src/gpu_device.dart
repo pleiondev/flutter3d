@@ -100,8 +100,9 @@ final class GpuRenderBackend implements GraphicsDevice {
   ShaderLibrary get shaders => _library;
 
   @override
-  TextureFormat get defaultColorFormat =>
-      gpu.gpuContext.defaultColorFormat.toEngine();
+  // Through `gpu_texture.dart`, which keeps the first answer — see the note
+  // there about a context that stops reporting one.
+  TextureFormat get defaultColorFormat => defaultColorFormatOfContext;
 
   @override
   TextureFormat get defaultDepthStencilFormat =>

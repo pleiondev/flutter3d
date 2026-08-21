@@ -82,11 +82,42 @@ TextureHandle createGpuTexture(
 
 /// The colour format the device prefers, as an engine value.
 ///
-/// A getter and not a constant on purpose: it is a runtime property of the
-/// context, and the whole point of asking is that the answer differs by
-/// platform. See `graphics/formats.dart`.
-TextureFormat get defaultColorFormat =>
-    gpu.gpuContext.defaultColorFormat.toEngine();
+/// A runtime property of the context and not a constant, because the answer
+/// differs by platform. See `graphics/formats.dart`.
+///
+/// **Asked once, because the context stops answering.** This was measured, and
+/// it is a trap with a timer on it: `gpu.gpuContext.defaultColorFormat` reports
+/// `b8g8r8a8UNormInt` for about a second after launch and `unknown` for the
+/// rest of the process. Nothing else goes with it — the depth format and the
+/// MSAA capability keep answering — so it does not read as a context that has
+/// gone away.
+///
+/// Nothing noticed for as long as this repository held only games, and that is
+/// luck rather than design: `Renderer._ensureTargets` reads this when it builds
+/// the frame targets, which happens on the first frame and then only when the
+/// window is resized. A game gets there in a few hundred milliseconds. The
+/// fourth application here reads a level document off the disk first, and its
+/// first frame arrives after the answer has gone — so every frame threw
+/// `Texture creation failed` from a descriptor whose format was `unknown`, for
+/// the life of the window, on a machine where the three games are fine.
+///
+/// So: the first answer is kept, and an `unknown` first answer becomes the one
+/// format every Metal surface here has ever reported. The target this feeds is
+/// an offscreen texture that becomes a `ui.Image`; it does not have to match a
+/// swapchain, it has to be an eight-bit colour format that exists.
+/// Named for the context rather than for the device, because the device has a
+/// member of the same name and this is what it answers with.
+TextureFormat get defaultColorFormatOfContext =>
+    _defaultColorFormat ??= _readDefaultColorFormat();
+
+TextureFormat? _defaultColorFormat;
+
+TextureFormat _readDefaultColorFormat() {
+  final reported = gpu.gpuContext.defaultColorFormat.toEngine();
+  return reported == TextureFormat.unknown
+      ? TextureFormat.b8g8r8a8UNormInt
+      : reported;
+}
 
 /// The depth/stencil format the device prefers, as an engine value.
 ///

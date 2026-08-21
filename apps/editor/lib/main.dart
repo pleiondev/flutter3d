@@ -28,6 +28,7 @@ import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
+import 'src/documents.dart';
 import 'src/editing.dart';
 import 'src/fly_camera.dart';
 import 'src/picking.dart';
@@ -160,11 +161,22 @@ class _EditorScreenState extends State<EditorScreen>
         fallbackNormal: SolidColorTexture.flatNormal.upload(device),
       );
 
-      final file = File(kLevelPath);
-      final editing = Editing.parse(
-        await file.readAsString(),
-        path: file.absolute.path,
+      // Where the document actually is — see `Documents`, and the launch that
+      // found nothing because a bundle's working directory is `/`.
+      final tried = Documents.searchFrom();
+      final found = Documents.find(
+        kLevelPath,
+        from: tried,
+        exists: (String path) => File(path).existsSync(),
       );
+      if (found == null) {
+        throw FileSystemException(Documents.couldNotFind(
+          kLevelPath,
+          Documents.candidates(kLevelPath, from: tried),
+        ));
+      }
+      final editing = Editing.parse(await File(found).readAsString(),
+          path: found);
       _editing = editing;
       await _build();
       if (!mounted) return;
@@ -493,6 +505,7 @@ class _EditorScreenState extends State<EditorScreen>
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
             final size = constraints.biggest;
+
             return Listener(
               onPointerDown: (PointerDownEvent event) =>
                   _pointerDown(event, size),
