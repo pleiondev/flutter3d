@@ -210,12 +210,12 @@ final class Editing {
   /// naming a material the level does not have draws as grey and reads as a
   /// bug — the validator says so, and an editor that produced them by default
   /// would be an editor whose first act is a warning.
-  void add(Vector3 at, {Vector3? size}) {
+  void add(Vector3 at, {Vector3? size, String? material}) {
     _remember();
     level.brushes.add(Brush(
       centre: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
       size: size ?? Vector3(2.0, 2.0, 2.0),
-      material: commonestMaterial,
+      material: material ?? commonestMaterial,
     ));
     kind = Piece.brush;
     selected = level.brushes.length - 1;
@@ -293,6 +293,41 @@ final class Editing {
     ));
     kind = Piece.light;
     selected = level.lights.length - 1;
+  }
+
+  /// Puts one of [it] at [at], and selects it.
+  ///
+  /// **An entity is placed by copying one**, for the reason [duplicate] gives:
+  /// the editor cannot know what a `monster` needs in it, and a bare one with
+  /// the right `type` and nothing else is a monster that may not spawn. The
+  /// last one in the document is the model, because the last one placed is
+  /// usually the one somebody has just got right. A type with nothing to copy
+  /// — which cannot come from a palette, but can come from a caller — is made
+  /// bare rather than refused.
+  ///
+  /// A brush is placed in the material the row names, which is what makes a
+  /// palette row mean something: `wall` puts down a wall.
+  void place(Placeable it, Vector3 at) {
+    final snapped = Vector3(_snap(at.x), _snap(at.y), _snap(at.z));
+    switch (it.kind) {
+      case Piece.brush:
+        add(snapped, material: it.what);
+      case Piece.light:
+        addLight(snapped);
+      case Piece.entity:
+        _remember();
+        final model = level.entities.lastWhere(
+          (EntityDef entity) => entity.type == it.what,
+          orElse: () => EntityDef(type: it.what),
+        );
+        level.entities.add(EntityDef.fromJson(<String, Object?>{
+          ...model.toJson(),
+          'type': it.what,
+          'at': <double>[snapped.x, snapped.y, snapped.z],
+        }));
+        kind = Piece.entity;
+        selected = level.entities.length - 1;
+    }
   }
 
   /// Makes the selected light stronger or weaker, by a factor.

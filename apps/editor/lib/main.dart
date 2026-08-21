@@ -95,6 +95,11 @@ class _EditorScreenState extends State<EditorScreen>
 
   Editing? _editing;
 
+  /// The directory this document's `assets/…` paths are relative to, if it has
+  /// one. Null for a level with no application around it, which draws in the
+  /// flat colours its materials name and is a perfectly good way to edit.
+  String? _assetRoot;
+
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
 
@@ -125,6 +130,20 @@ class _EditorScreenState extends State<EditorScreen>
   bool _rebuilding = false;
 
   _Axis _axis = _Axis.x;
+
+  /// What the next click in the scene puts down, or null to select instead.
+  ///
+  /// The row itself rather than its name: a row carries which of the three
+  /// lists it adds to, and a name alone cannot — a material called `light`
+  /// would be a level that could never place a lamp again.
+  ///
+  /// **A palette rather than a key per kind**, which is what this was first.
+  /// Two keys for the two things an engine defines is a rule that stops at
+  /// two: a game with lifts, doors and six kinds of monster cannot have a key
+  /// each, and a key that only somebody who has read the source knows about is
+  /// not a way to place anything. The palette is built from the document, so it
+  /// lists exactly what this level is made of.
+  Placeable? _placing;
 
   /// The last thing that happened, for the strip along the bottom.
   String _said = 'W A S D fly · right-drag looks · click selects';
@@ -179,6 +198,13 @@ class _EditorScreenState extends State<EditorScreen>
       }
       final editing = Editing.parse(await File(found).readAsString(),
           path: found);
+      // Where this document's own `assets/…` live. A game never has to work
+      // this out; an editor always does, because the level it has open belongs
+      // to another application.
+      _assetRoot = Documents.assetRootFor(
+        found,
+        hasAssets: (String path) => Directory(path).existsSync(),
+      );
       _editing = editing;
       _standWhereThePlayerWould(editing.level);
       await _build();
@@ -254,16 +280,29 @@ class _EditorScreenState extends State<EditorScreen>
         editing.level,
         device: device,
         registry: vocabularyOf(editing.level),
+        readAsset: _readAsset,
       );
       if (!mounted) return;
       _scene = loaded.scene..add(_camera);
+      _textures = loaded.materialTextures;
       _marker = null;
       _gizmos.clear();
       _placeGizmos();
       _placeMarker();
+      unawaited(_dressGizmos());
     } finally {
       _rebuilding = false;
     }
+  }
+
+  /// Reads one of the edited application's own files.
+  ///
+  /// Off the disk rather than out of a bundle, because the bundle belongs to
+  /// this editor and the file belongs to the game.
+  Future<ByteData> _readAsset(String path) async {
+    final root = _assetRoot;
+    if (root == null) throw StateError('no application around $path');
+    return ByteData.sublistView(await File('$root/$path').readAsBytes());
   }
 
   /// Puts the selection box around whatever is selected, or takes it away.
@@ -334,31 +373,131 @@ class _EditorScreenState extends State<EditorScreen>
 
     for (final handle in handlesOf(editing.level)) {
       if (handle.kind == Piece.brush) continue;
+      final entity =
+          handle.kind == Piece.entity ? editing.level.entities[handle.index] : null;
+
+      // **Drawn as what it is, when the document says what it is.** A door
+      // names a material the level already loaded, and a lift names the size it
+      // moves at — so the editor can show the iron door as an iron door rather
+      // than as a coloured box where an iron door goes. What has neither gets
+      // the mark, which is the only thing a coordinate and a word can be shown
+      // as.
+      final named = entity?.string('material');
+      final material = named == null
+          ? null
+          : editing.level.materials[named];
+
       final node = MeshNode(
         SharedMeshes(device).box(handle.size),
-        engine.Material(
-          name: 'gizmo',
-          baseColor: Vector4(
-            handle.tint.x,
-            handle.tint.y,
-            handle.tint.z,
-            1.0,
-          ),
-          // Lit by itself, or a mark in an unlit corner is a mark nobody can
-          // find — and an unlit corner is where somebody is most likely to be
-          // looking for the light they meant to put there.
-          emissive: handle.tint * 0.9,
-        ),
+        material == null
+            ? engine.Material(
+                name: 'gizmo',
+                baseColor: Vector4(
+                  handle.tint.x,
+                  handle.tint.y,
+                  handle.tint.z,
+                  1.0,
+                ),
+                // Lit by itself, or a mark in an unlit corner is a mark nobody
+                // can find — and an unlit corner is where somebody is most
+                // likely to be looking for the light they meant to put there.
+                emissive: handle.tint * 0.9,
+              )
+            : LevelLoader.materialFrom(material, _textures, name: named),
         name: 'gizmo',
       )
         ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
         ..castsShadow = false;
+      if (entity != null && entity.yaw != 0.0) {
+        node.setRotation(
+          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw),
+        );
+      }
       scene.add(node);
       _gizmos.add(node);
     }
   }
 
+  /// Replaces the marks of everything that names a model with the model.
+  ///
+  /// **After the boxes rather than instead of them**, and the reason is that a
+  /// glTF takes long enough to read that a level would appear empty while it
+  /// happened. The box goes down first, the model replaces it when it arrives,
+  /// and a model that will not read leaves the box — which is exactly what
+  /// somebody wants to see when a path in their document is wrong.
+  Future<void> _dressGizmos() async {
+    final device = _device;
+    final editing = _editing;
+    final root = _assetRoot;
+    if (device == null || editing == null || root == null) return;
+
+    final scene = _scene;
+    for (final handle in handlesOf(editing.level)) {
+      if (handle.kind != Piece.entity) continue;
+      final entity = editing.level.entities[handle.index];
+      final path = entity.string('model');
+      if (path == null) continue;
+
+      final asset = await _models.putIfAbsent(
+        path,
+        () => _loadModel(device, '$root/$path'),
+      );
+      // The level may have been rebuilt while this was reading — a keypress is
+      // faster than a glTF — and putting a model into a scene nobody draws is
+      // the platformer's own bug, written down in its `_dressRunner`.
+      if (!mounted || asset == null || !identical(scene, _scene)) return;
+
+      final instance = asset.instantiate(_scene!, name: 'model');
+      instance.root
+        ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+        ..setRotation(
+          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw),
+        );
+      _gizmos.add(instance.root);
+      // The mark it stands in for. Found by where it is, because that is what
+      // the two have in common and the list is short.
+      for (final gizmo in _gizmos) {
+        if (gizmo.name != 'gizmo') continue;
+        final at = gizmo.localMatrix.getTranslation();
+        if ((at - handle.centre).length2 < 1e-6) {
+          gizmo.visible = false;
+          break;
+        }
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<ModelAsset?> _loadModel(GraphicsDevice device, String path) async {
+    try {
+      final document = await decodeModelInIsolate(
+        ModelLoadRequest(source: FileAssetSource(path)),
+      );
+      return await ModelAsset.fromDocument(
+        document,
+        device: device,
+        fallbackAlbedo: SolidColorTexture.white.upload(device),
+        name: path,
+      );
+    } catch (error) {
+      debugPrint('editor: could not read the model "$path" ($error)');
+      return null;
+    }
+  }
+
   final List<SceneNode> _gizmos = <SceneNode>[];
+
+  /// Every map the level named, already uploaded by the loader. What lets a
+  /// door be drawn in the iron the document says it is made of.
+  Map<String, TextureHandle?> _textures = const <String, TextureHandle?>{};
+
+  /// Models named by entities, loaded once each.
+  ///
+  /// **Keyed by the path the document wrote**, so two hundred and sixty-one
+  /// coins are one file read and one upload — the platformer's own level says
+  /// `assets/models/coin.glb` two hundred and sixty-one times.
+  final Map<String, Future<ModelAsset?>> _models =
+      <String, Future<ModelAsset?>>{};
 
   void _changed(String said) {
     _stale = true;
@@ -429,7 +568,12 @@ class _EditorScreenState extends State<EditorScreen>
     final from = _dragged;
     _dragged = null;
     if (from == null || _travelled >= _slop) return;
-    _pick(event.localPosition, size);
+    final placing = _placing;
+    if (placing == null) {
+      _pick(event.localPosition, size);
+      return;
+    }
+    _put(placing, event.localPosition, size);
   }
 
   /// The wheel flies, because a trackpad has one and a corridor is long.
@@ -438,12 +582,10 @@ class _EditorScreenState extends State<EditorScreen>
     _fly.position.addScaled(_fly.forward, -event.scrollDelta.dy * 0.05);
   }
 
-  /// Selects whatever is under [at].
-  void _pick(Offset at, Size size) {
-    final editing = _editing;
-    if (editing == null) return;
+  /// Which way a click at [at] points, in the world.
+  Vector3 _rayThrough(Offset at, Size size) {
     final projection = _camera.projection;
-    final along = Picking.through(
+    return Picking.through(
       Vector2(at.dx, at.dy),
       size: Vector2(size.width, size.height),
       forward: _fly.forward,
@@ -453,6 +595,41 @@ class _EditorScreenState extends State<EditorScreen>
           ? projection.fovYRadians
           : math.pi / 4,
     );
+  }
+
+  /// Puts one of whatever the palette is holding where the click landed.
+  ///
+  /// **On the surface that was clicked, not in the air in front of the
+  /// camera.** A monster belongs on a floor and a torch on a wall, and asking
+  /// somebody to place a thing in mid-air and then nudge it down to the ground
+  /// is asking them to do the arithmetic a ray already did. Half a metre back
+  /// along the ray, so the new thing stands on the surface rather than inside
+  /// it.
+  ///
+  /// A click at the sky — or at nothing, in a level with a hole in it — puts it
+  /// six metres ahead, which is far enough to see and near enough to walk to.
+  void _put(Placeable what, Offset at, Size size) {
+    final editing = _editing;
+    if (editing == null) return;
+    final along = _rayThrough(at, size);
+    final hit = Picking.at(handlesOf(editing.level), _fly.position, along);
+    final distance = hit == null
+        ? 6.0
+        : math.max(
+            0.5,
+            (Picking.hit(hit.min, hit.max, _fly.position, along) ?? 6.0) - 0.5,
+          );
+
+    editing.place(what, _fly.position + along * distance);
+    _placeMarker();
+    _changed('placed ${editing.says}');
+  }
+
+  /// Selects whatever is under [at].
+  void _pick(Offset at, Size size) {
+    final editing = _editing;
+    if (editing == null) return;
+    final along = _rayThrough(at, size);
     final found = Picking.at(handlesOf(editing.level), _fly.position, along);
     editing.selectHandle(found);
     _placeMarker();
@@ -483,6 +660,23 @@ class _EditorScreenState extends State<EditorScreen>
     }
     if (command && key == LogicalKeyboardKey.keyS) {
       unawaited(_save(copy: pressed.isShiftPressed));
+      return KeyEventResult.handled;
+    }
+
+    // Escape puts the palette down, and then gives up the selection. Two
+    // meanings for one key in the order somebody wants them: the thing you
+    // most want to undo is the one you did last.
+    if (key == LogicalKeyboardKey.escape) {
+      setState(() {
+        if (_placing != null) {
+          _placing = null;
+          _said = 'nothing to place';
+        } else {
+          editing.select(null, null);
+          _placeMarker();
+          _said = 'nothing selected';
+        }
+      });
       return KeyEventResult.handled;
     }
 
@@ -695,6 +889,12 @@ class _EditorScreenState extends State<EditorScreen>
                     onBeforeFrame: () => _fly.placeOn(_camera),
                   ),
                   Positioned(left: 0, right: 0, top: 0, child: _bar()),
+                  // Below the bar and above the legend, so nothing it covers is
+                  // anything the other two are saying.
+                  Positioned(left: 0, top: 64, bottom: 64, child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _palette(),
+                  )),
                   Positioned(left: 0, right: 0, bottom: 0, child: _legend()),
                 ],
               ),
@@ -750,6 +950,78 @@ class _EditorScreenState extends State<EditorScreen>
     return grid == 0.0 ? 'off' : '$grid m';
   }
 
+  /// What can be put into this level, and what is holding.
+  ///
+  /// Down the left, always there, and built from the document — so it lists
+  /// exactly what this level is made of and nothing a different game would
+  /// have. The count beside each is worth its space: a level with no exit and a
+  /// level with three are both worth noticing before playing it.
+  Widget _palette() {
+    final editing = _editing;
+    if (editing == null) return const SizedBox.shrink();
+    return Container(
+      width: 168,
+      color: const Color(0xCC0E1013),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(12, 0, 12, 6),
+            child: Text(
+              'PLACE',
+              style: TextStyle(
+                color: Color(0xFF6F7885),
+                fontSize: 11,
+                letterSpacing: 1.6,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          // **Scrolls, because a level decides how long this is.** The crypt
+          // has nine kinds in it and the platformer's ascent has more than fit
+          // on the screen — the first version of this was a plain column and
+          // the second level anybody opened overflowed it by a hundred and
+          // sixty-nine pixels, which in Flutter means the rows past the bottom
+          // simply do not exist.
+          Flexible(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (final it in paletteOf(editing.level))
+                    _PaletteRow(
+                      it: it,
+                      held: _placing?.what == it.what,
+                      onTap: () => setState(() {
+                        // Tapping what is already held puts it down, which is
+                        // the only way out somebody will guess at before they
+                        // find Escape.
+                        _placing =
+                            _placing?.what == it.what ? null : it;
+                        _said = _placing == null
+                            ? 'nothing to place'
+                            : 'click in the level to place a ${it.label}';
+                      }),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Text(
+              'click a row, then click in the level · esc puts it down',
+              style: TextStyle(color: Color(0xFF6F7885), fontSize: 10),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _legend() => Container(
         color: const Color(0xCC0E1013),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -770,11 +1042,67 @@ class _EditorScreenState extends State<EditorScreen>
             Text(
               'arrows move · R F raise · 1 2 3 axis (${_axis.name}) '
               '· − = size or brightness · , . turn '
-              '· N brush · L light · ⌘D copy (a monster too) · ⌫ delete '
+              '· ⌘D copy · ⌫ delete '
               '· G grid ($_gridSaid) · ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
               style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
             ),
           ],
+        ),
+      );
+}
+
+/// One row of the palette: a swatch, a word, and how many the level has.
+class _PaletteRow extends StatelessWidget {
+  const _PaletteRow({required this.it, required this.held, required this.onTap});
+
+  final Placeable it;
+
+  /// Whether this is what the next click will put down.
+  final bool held;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+          color: held ? const Color(0x33FFB74D) : null,
+          child: Row(
+            children: <Widget>[
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: Color.fromARGB(
+                    255,
+                    (it.tint.x * 255).round().clamp(0, 255),
+                    (it.tint.y * 255).round().clamp(0, 255),
+                    (it.tint.z * 255).round().clamp(0, 255),
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  it.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: held
+                        ? const Color(0xFFFFB74D)
+                        : const Color(0xFFE6EAF0),
+                    fontSize: 12,
+                    fontWeight: held ? FontWeight.w700 : FontWeight.w400,
+                  ),
+                ),
+              ),
+              Text(
+                '${it.count}',
+                style: const TextStyle(color: Color(0xFF6F7885), fontSize: 11),
+              ),
+            ],
+          ),
         ),
       );
 }

@@ -23,7 +23,7 @@ games use, and lets somebody fly around it and change it.
 | arrows | move it on the grid, in X and Z |
 | `R` `F`, page up/down | raise and lower it |
 | `1` `2` `3`, `−` `=` | pick an axis and resize along it |
-| `N`, `L` | a new brush, a new light |
+| palette, then click | put one down where you clicked |
 | `⌘D` | copy what is selected — a monster, a lift, a lamp |
 | `−` `=` | a brush's size, or a light's brightness |
 | `,` `.` | turn an entity |
@@ -31,6 +31,36 @@ games use, and lets somebody fly around it and change it.
 | `G` | grid: 0.25 m, 1 m, off |
 | `⌘Z` | undo |
 | `⌘S`, `⇧⌘S` | save, save a copy |
+
+## The palette
+
+Down the left, built from the document. A level with lifts offers lifts; a game
+this repository has never heard of gets an editor that knows its words without a
+line being written about it. Click a row to pick something up, click in the level
+to put one down where you clicked, `esc` to put it down.
+
+**A brush is offered as its materials rather than as the word "brush"**, and the
+question that caused that is worth keeping: *is brush a wall?* It is not. A brush
+is a box; what makes it a wall rather than a floor is the material it names. So
+the palette lists `wall`, `floor`, `ceiling`, `iron` — in the colours those are
+actually painted — and a row puts down a brush of that material.
+
+A light is the other thing the editor may invent, because a `LevelLight` is
+something the engine defines. Everything else is placed by copying the last one
+of its type, with everything it was carrying.
+
+## What it draws
+
+**The level's own textures**, read off the disk beside the document rather than
+out of this application's bundle — a game's assets are in the game's bundle, and
+the editor is always looking at somebody else's. Without it the one program whose
+job is to show what a level looks like showed it in flat grey.
+
+**A door as a door.** Anything whose document entry carries a `size` is drawn at
+that size, and in the material it names if the level has one — so a six-metre
+iron door is a six-metre iron door and a lift is a platform. Anything carrying a
+`model` is drawn as the model, read from the game's own `assets/models`. What has
+neither is a coloured mark, which is all a coordinate and a word can be.
 
 ## Half a level is not geometry
 

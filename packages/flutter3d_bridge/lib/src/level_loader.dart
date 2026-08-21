@@ -52,6 +52,17 @@ final class LoadedLevel {
 /// Nothing here knows what game it is loading. A level is brushes, materials,
 /// lights and entities; which entity means what is the game's business, and it
 /// is settled elsewhere.
+/// How a level's own files are found.
+///
+/// **A level belongs to an application, and it is not always the one running.**
+/// A game reads its textures out of its own bundle, which is why this was
+/// `rootBundle.load` written into the loader — and an editor opens a document
+/// belonging to a *different* application, whose textures are on the disk
+/// beside it and in nobody's bundle. Without this the crypt draws in flat grey
+/// in the one program whose whole job is to show somebody what their level
+/// looks like.
+typedef AssetBytes = Future<ByteData> Function(String path);
+
 final class LevelLoader {
   const LevelLoader();
 
@@ -65,6 +76,7 @@ final class LevelLoader {
     required GraphicsDevice device,
     required EntityRegistry registry,
     List<LevelRule> rules = const <LevelRule>[],
+    AssetBytes? readAsset,
   }) async =>
       build(
         Level.fromJson(
@@ -74,6 +86,7 @@ final class LevelLoader {
         device: device,
         registry: registry,
         rules: rules,
+        readAsset: readAsset,
       );
 
   /// Everything [load] does except finding the document.
@@ -88,6 +101,7 @@ final class LevelLoader {
     required GraphicsDevice device,
     required EntityRegistry registry,
     List<LevelRule> rules = const <LevelRule>[],
+    AssetBytes? readAsset,
   }) async {
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
@@ -107,7 +121,7 @@ final class LevelLoader {
     for (final source in level.materials.values) {
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
-        textures[path] = await _upload(device, path);
+        textures[path] = await _upload(device, path, readAsset ?? rootBundle.load);
       }
     }
 
@@ -185,9 +199,10 @@ final class LevelLoader {
   static Future<TextureHandle?> _upload(
     GraphicsDevice device,
     String path,
+    AssetBytes read,
   ) async {
     try {
-      final bytes = await rootBundle.load(path);
+      final bytes = await read(path);
       // Mipmapped: a level's walls and floors are the surfaces most often seen
       // small and at a glancing angle, which is exactly where a single level
       // crawls as the camera moves.

@@ -77,6 +77,32 @@ abstract final class Documents {
         if (tried.length > 8) '  … and ${tried.length - 8} more',
       ].join('\n');
 
+  /// The directory a level's own `assets/…` paths are relative to.
+  ///
+  /// **A document says `assets/textures/floor_albedo.jpg` and means its own
+  /// application's**, which for `apps/dungeon/assets/levels/crypt.json` is
+  /// `apps/dungeon`. A game never has to work this out — its assets are in its
+  /// own bundle — and an editor always does, because the document it has open
+  /// belongs to somebody else.
+  ///
+  /// Found by climbing until a directory has an `assets` in it, rather than by
+  /// counting two levels up: `assets/levels/` is this repository's habit and
+  /// not a rule, and a document sitting directly in `assets/` would break a
+  /// count.
+  static String? assetRootFor(
+    String levelPath, {
+    required bool Function(String) hasAssets,
+  }) {
+    var directory = _parent(_normalise(levelPath));
+    while (directory != null) {
+      if (hasAssets('$directory/assets')) return directory;
+      final parent = _parent(directory);
+      if (parent == directory) return null;
+      directory = parent;
+    }
+    return null;
+  }
+
   static bool _isAbsolute(String path) => path.startsWith('/');
 
   static String? _parent(String path) {
