@@ -32,6 +32,7 @@ import 'src/backend.dart';
 import 'src/documents.dart';
 import 'src/editing.dart';
 import 'src/fly_camera.dart';
+import 'src/gizmos.dart';
 import 'src/picking.dart';
 import 'src/vocabulary.dart';
 
@@ -257,6 +258,8 @@ class _EditorScreenState extends State<EditorScreen>
       if (!mounted) return;
       _scene = loaded.scene..add(_camera);
       _marker = null;
+      _gizmos.clear();
+      _placeGizmos();
       _placeMarker();
     } finally {
       _rebuilding = false;
@@ -273,23 +276,26 @@ class _EditorScreenState extends State<EditorScreen>
   /// drawn, in a colour nothing in a crypt is and lit by itself so a dark
   /// corridor cannot swallow it.
   ///
-  /// A hair larger than the brush, or the two surfaces fight for the same depth
+  /// A hair larger than the thing, or the two surfaces fight for the same depth
   /// and the mark appears in stripes. Seen from inside it disappears — a box's
   /// inside faces are culled — and that is exactly when the twelve lines are
   /// the ones doing the work.
   void _placeMarker() {
     final device = _device;
     final scene = _scene;
-    final brush = _editing?.brush;
-    if (device == null || scene == null) return;
+    final editing = _editing;
+    if (device == null || scene == null || editing == null) return;
 
     final marker = _marker;
     if (marker != null) scene.remove(marker);
     _marker = null;
-    if (brush == null) return;
+
+    final at = editing.where;
+    if (at == null) return;
+    final size = editing.brush?.size ?? Vector3.all(kGizmoSize);
 
     final node = MeshNode(
-      SharedMeshes(device).box(brush.size * 1.01),
+      SharedMeshes(device).box(size * 1.06),
       engine.Material(
         name: 'selection',
         baseColor: Vector4(1.0, 0.45, 0.05, 1.0),
@@ -297,11 +303,62 @@ class _EditorScreenState extends State<EditorScreen>
       ),
       name: 'selection',
     )
-      ..setPosition(brush.centre.x, brush.centre.y, brush.centre.z)
+      ..setPosition(at.x, at.y, at.z)
       ..castsShadow = false;
     scene.add(node);
     _marker = node;
   }
+
+  /// Draws a mark for everything the renderer does not.
+  ///
+  /// **Half a level is invisible to a level editor, and it is the half that
+  /// makes it a level.** Geometry draws itself; a monster, a lift, a door, a
+  /// trigger and the point the player starts at are coordinates in a document,
+  /// and a light is a coordinate that changes other things and shows nothing of
+  /// itself. Before these marks the editor could open the crypt and show a
+  /// corridor with nothing in it, which is exactly what the game shows before
+  /// it spawns anything.
+  ///
+  /// Their colours come from the type's own name — see [tintFor] — because this
+  /// application is not allowed to know what a `monster` is.
+  void _placeGizmos() {
+    final device = _device;
+    final scene = _scene;
+    final editing = _editing;
+    if (device == null || scene == null || editing == null) return;
+
+    for (final gizmo in _gizmos) {
+      scene.remove(gizmo);
+    }
+    _gizmos.clear();
+
+    for (final handle in handlesOf(editing.level)) {
+      if (handle.kind == Piece.brush) continue;
+      final node = MeshNode(
+        SharedMeshes(device).box(handle.size),
+        engine.Material(
+          name: 'gizmo',
+          baseColor: Vector4(
+            handle.tint.x,
+            handle.tint.y,
+            handle.tint.z,
+            1.0,
+          ),
+          // Lit by itself, or a mark in an unlit corner is a mark nobody can
+          // find — and an unlit corner is where somebody is most likely to be
+          // looking for the light they meant to put there.
+          emissive: handle.tint * 0.9,
+        ),
+        name: 'gizmo',
+      )
+        ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+        ..castsShadow = false;
+      scene.add(node);
+      _gizmos.add(node);
+    }
+  }
+
+  final List<SceneNode> _gizmos = <SceneNode>[];
 
   void _changed(String said) {
     _stale = true;
@@ -396,14 +453,10 @@ class _EditorScreenState extends State<EditorScreen>
           ? projection.fovYRadians
           : math.pi / 4,
     );
-    final found = Picking.brushAt(editing.level.brushes, _fly.position, along);
-    editing.select(found);
+    final found = Picking.at(handlesOf(editing.level), _fly.position, along);
+    editing.selectHandle(found);
     _placeMarker();
-    setState(() {
-      _said = found == null
-          ? 'nothing there'
-          : 'brush $found, ${editing.brush!.material}';
-    });
+    setState(() => _said = found == null ? 'nothing there' : editing.says);
   }
 
   // --- what the keys do ------------------------------------------------------
@@ -454,10 +507,29 @@ class _EditorScreenState extends State<EditorScreen>
       case LogicalKeyboardKey.pageDown:
       case LogicalKeyboardKey.keyF:
         editing.nudge(Vector3(0.0, -step, 0.0));
+      // **The same two keys, and what they mean depends on what is selected.**
+      // A brush has a size; a light has a strength and no size at all. Giving
+      // each its own pair would be two more keys to learn for one idea, which
+      // is "more of this, less of this".
       case LogicalKeyboardKey.minus:
-        editing.grow(_along(-step));
+        editing.kind == Piece.light
+            ? editing.brighten(0.8)
+            : editing.grow(_along(-step));
       case LogicalKeyboardKey.equal:
-        editing.grow(_along(step));
+        editing.kind == Piece.light
+            ? editing.brighten(1.25)
+            : editing.grow(_along(step));
+      case LogicalKeyboardKey.comma:
+        editing.turn(-math.pi / 8);
+      case LogicalKeyboardKey.period:
+        editing.turn(math.pi / 8);
+      case LogicalKeyboardKey.keyL:
+        // Four metres in front, which is far enough to light a room and near
+        // enough to be the room somebody is standing in.
+        editing.addLight(_fly.position + _fly.ground * 4.0);
+        _placeMarker();
+        _changed('added ${editing.says}');
+        return KeyEventResult.handled;
       case LogicalKeyboardKey.digit1:
         setState(() => _axis = _Axis.x);
         return KeyEventResult.handled;
@@ -500,10 +572,10 @@ class _EditorScreenState extends State<EditorScreen>
     // Named rather than silent: a key that appears to do nothing is a key
     // somebody decides is broken, and the commonest reason one does nothing
     // here is that it is asking about a brush nobody has picked yet.
-    _changed(editing.brush == null
-        ? 'nothing selected — click a wall first'
-        : 'at ${_metres(editing.brush!.centre)} · '
-            '${_metres(editing.brush!.size)}');
+    final at = editing.where;
+    _changed(at == null
+        ? 'nothing selected — click something first'
+        : 'at ${_metres(at)}');
     return KeyEventResult.handled;
   }
 
@@ -520,11 +592,11 @@ class _EditorScreenState extends State<EditorScreen>
   /// the grid" and the fact that a brush was selected at all had scrolled away.
   String get _selection {
     final editing = _editing;
-    final brush = editing?.brush;
     if (editing == null) return '';
-    if (brush == null) return 'nothing selected — click a wall';
-    return 'brush ${editing.selected} · ${brush.material} · '
-        'at ${_metres(brush.centre)} · ${_metres(brush.size)}';
+    final at = editing.where;
+    if (at == null) return editing.says;
+    return '${editing.says} · at ${_metres(at)}'
+        '${editing.brush == null ? '' : ' · ${_metres(editing.brush!.size)}'}';
   }
 
   static String _metres(Vector3 v) => '${v.x.toStringAsFixed(2)}, '
@@ -657,7 +729,7 @@ class _EditorScreenState extends State<EditorScreen>
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      color: editing?.brush == null
+                      color: editing?.piece == null
                           ? const Color(0xFF9AA4B2)
                           : const Color(0xFF7ED957),
                     ),
@@ -696,8 +768,9 @@ class _EditorScreenState extends State<EditorScreen>
             ),
             const SizedBox(height: 2),
             Text(
-              'arrows move · R F raises and lowers · 1 2 3 axis (${_axis.name}) '
-              '· − = resize · N new · ⌘D duplicate · ⌫ delete '
+              'arrows move · R F raise · 1 2 3 axis (${_axis.name}) '
+              '· − = size or brightness · , . turn '
+              '· N brush · L light · ⌘D copy (a monster too) · ⌫ delete '
               '· G grid ($_gridSaid) · ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
               style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
             ),

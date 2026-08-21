@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'gizmos.dart';
+
 /// A ray, and what it hits.
 ///
 /// **Against the brushes rather than against the collision world**, which is
@@ -13,6 +15,43 @@ import 'package:vector_math/vector_math.dart';
 /// alcoves, the lip of a step: exactly the decoration somebody opens an editor
 /// to move, and it would have been the one thing they could not click on.
 abstract final class Picking {
+  /// Which handle [from] pointing [along] hits first, or null.
+  ///
+  /// **A tie between a wall and something standing against it goes to the
+  /// thing, not to the wall**, and that is not a nicety: a torch is on a wall, a
+  /// monster stands on a floor, and a lift's marker sits inside the block it
+  /// moves. Sorted strictly by distance, every one of those would be
+  /// unclickable — the surface they are attached to is always a little nearer.
+  /// So among everything within [prefer] metres of the nearest hit, anything
+  /// that is not geometry wins.
+  static Handle? at(
+    List<Handle> handles,
+    Vector3 from,
+    Vector3 along, {
+    double prefer = 1.2,
+  }) {
+    Handle? nearest;
+    var nearestAt = double.infinity;
+    Handle? thing;
+    var thingAt = double.infinity;
+
+    for (final handle in handles) {
+      final distance = hit(handle.min, handle.max, from, along);
+      if (distance == null) continue;
+      if (distance < nearestAt) {
+        nearestAt = distance;
+        nearest = handle;
+      }
+      if (handle.kind != Piece.brush && distance < thingAt) {
+        thingAt = distance;
+        thing = handle;
+      }
+    }
+
+    if (thing != null && thingAt <= nearestAt + prefer) return thing;
+    return nearest;
+  }
+
   /// Which brush [from] pointing [along] hits first, or null.
   ///
   /// Ties go to the nearer one; a ray that starts inside a brush hits it at
@@ -21,7 +60,7 @@ abstract final class Picking {
     int? best;
     var nearest = double.infinity;
     for (var index = 0; index < brushes.length; index++) {
-      final distance = _hit(brushes[index], from, along);
+      final distance = hit(brushes[index].min, brushes[index].max, from, along);
       if (distance == null || distance >= nearest) continue;
       nearest = distance;
       best = index;
@@ -29,16 +68,15 @@ abstract final class Picking {
     return best;
   }
 
-  /// How far along [along] the ray enters [brush], or null if it never does.
+  /// How far along [along] the ray enters the box [min]–[max], or null if it
+  /// never does.
   ///
   /// The slab test: clip the ray against each pair of parallel faces in turn
   /// and see whether anything is left. A ramp is treated as its whole box,
   /// deliberately — the half a wedge does not fill is still the space somebody
   /// is pointing at when they point at it, and an editor where a ramp can only
   /// be clicked on its lower half would be an editor that feels broken.
-  static double? _hit(Brush brush, Vector3 from, Vector3 along) {
-    final min = brush.min;
-    final max = brush.max;
+  static double? hit(Vector3 min, Vector3 max, Vector3 from, Vector3 along) {
     var enter = 0.0;
     var leave = double.infinity;
 

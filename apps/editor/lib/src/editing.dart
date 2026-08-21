@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'gizmos.dart';
+
 /// A level document, open and being changed.
 ///
 /// **Everything an editor does that is not drawing.** Selecting, moving,
@@ -29,18 +31,58 @@ final class Editing {
   /// Where it came from, for writing it back and for saying so on screen.
   final String path;
 
-  /// Which brush is being worked on, or null.
+  /// What is being worked on: which list, and which one in it.
   ///
-  /// An index rather than the brush itself: the list is what gets edited, and a
-  /// reference into a list that undo has just replaced is a reference to a
-  /// brush that is no longer in the document.
+  /// An index rather than the object itself, because the list is what gets
+  /// edited and a reference into a list that undo has just replaced is a
+  /// reference to something no longer in the document.
+  ///
+  /// **A kind as well as an index, because a level is three lists.** The first
+  /// version of this could only hold a brush, which meant an editor that could
+  /// not touch a light, a monster, a lift or the point the player starts at —
+  /// most of what a level *is* once its walls are up.
+  Piece? kind;
   int? selected;
 
-  Brush? get brush {
-    final index = selected;
-    if (index == null || index < 0 || index >= level.brushes.length) return null;
-    return level.brushes[index];
-  }
+  /// What is selected, whatever kind it is, or null.
+  Object? get piece => switch (kind) {
+        Piece.brush => brush,
+        Piece.light => light,
+        Piece.entity => entity,
+        null => null,
+      };
+
+  Brush? get brush =>
+      kind != Piece.brush ? null : _at(level.brushes, selected);
+
+  LevelLight? get light =>
+      kind != Piece.light ? null : _at(level.lights, selected);
+
+  EntityDef? get entity =>
+      kind != Piece.entity ? null : _at(level.entities, selected);
+
+  static T? _at<T>(List<T> list, int? index) =>
+      index == null || index < 0 || index >= list.length ? null : list[index];
+
+  /// Where the selected thing is, or null.
+  Vector3? get where => switch (piece) {
+        final Brush it => it.centre,
+        final LevelLight it => it.position,
+        final EntityDef it => it.position,
+        _ => null,
+      };
+
+  /// What to call it on screen.
+  String get says => switch (piece) {
+        final Brush it => 'brush $selected · ${it.material}',
+        final LevelLight it =>
+          'light $selected · ${it.type.name} · ${it.intensity.toStringAsFixed(1)}',
+        final EntityDef it =>
+          'entity $selected · ${it.type}${it.name == null ? '' : ' "${it.name}"'}',
+        _ => 'nothing selected — click something',
+      };
+
+
 
   /// Who wrote this document, if it says.
   ///
@@ -106,33 +148,51 @@ final class Editing {
   void undo() {
     if (_undo.isEmpty) return;
     level = Level.fromJson(_undo.removeLast());
-    final index = selected;
-    if (index != null && index >= level.brushes.length) selected = null;
+    // A selection that survives is what makes undoing a nudge feel like undoing
+    // a nudge; one that points past the end of a list that just got shorter is
+    // a crash waiting for the next key.
+    if (piece == null) {
+      kind = null;
+      selected = null;
+    }
     _dirty = true;
   }
 
-  /// Picks a brush, or nothing.
-  void select(int? index) {
-    if (index != null && (index < 0 || index >= level.brushes.length)) {
-      selected = null;
-      return;
-    }
+  /// Picks something, or nothing.
+  void select(Piece? kind, int? index) {
+    this.kind = kind;
     selected = index;
+    if (piece == null) {
+      this.kind = null;
+      selected = null;
+    }
   }
 
-  /// Moves the selected brush, snapping it to the grid.
+  /// Picks whatever a click found.
+  void selectHandle(Handle? handle) =>
+      select(handle?.kind, handle?.index);
+
+  /// Moves whatever is selected, snapping it to the grid.
+  ///
+  /// One method for all three, because a position is a position: the document
+  /// keeps a monster's in `at` and a brush's in `at`, and an editor that had a
+  /// separate verb per kind would be an editor with three places to get the
+  /// grid wrong.
   void nudge(Vector3 by) {
-    final it = brush;
-    if (it == null) return;
+    final at = where;
+    if (at == null) return;
     _remember();
-    it.centre.setValues(
-      _snap(it.centre.x + by.x),
-      _snap(it.centre.y + by.y),
-      _snap(it.centre.z + by.z),
+    at.setValues(
+      _snap(at.x + by.x),
+      _snap(at.y + by.y),
+      _snap(at.z + by.z),
     );
   }
 
   /// Grows or shrinks the selected brush about its own centre.
+  ///
+  /// Brushes only: a light has no size and a monster's is the game's business.
+  /// What the same two keys do to a light is [brighten].
   void grow(Vector3 by) {
     final it = brush;
     if (it == null) return;
@@ -157,37 +217,133 @@ final class Editing {
       size: size ?? Vector3(2.0, 2.0, 2.0),
       material: commonestMaterial,
     ));
+    kind = Piece.brush;
     selected = level.brushes.length - 1;
   }
 
-  /// Copies the selected brush, one of its own widths to the side.
+  /// Copies whatever is selected, a step to the side, and selects the copy.
   ///
-  /// Beside rather than on top: two brushes in the same place are one brush as
+  /// Beside rather than on top: two things in the same place are one thing as
   /// far as anybody can see, and an editor whose duplicate is invisible is an
   /// editor that appears not to have done anything.
+  ///
+  /// **This is how a level gets a second monster.** The editor has no
+  /// vocabulary of its own — it cannot know what a `monster` needs in it, or
+  /// which of a lift's twelve properties matter — so it does not invent one.
+  /// It copies one that the level already has, with everything it was carrying,
+  /// and lets somebody move it. A copy is honest about the things a program
+  /// cannot know.
   void duplicate() {
-    final it = brush;
+    final it = piece;
     if (it == null) return;
     _remember();
-    level.brushes.add(Brush(
-      centre: it.centre + Vector3(it.size.x, 0.0, 0.0),
-      size: it.size,
-      material: it.material,
-      surface: it.surface == it.material ? null : it.surface,
-      solid: it.solid,
-      castsShadow: it.castsShadow,
-      layer: it.layer,
-      ramp: it.ramp,
-    ));
-    selected = level.brushes.length - 1;
+    switch (it) {
+      case final Brush brush:
+        level.brushes.add(Brush(
+          centre: brush.centre + Vector3(brush.size.x, 0.0, 0.0),
+          size: brush.size,
+          material: brush.material,
+          surface: brush.surface == brush.material ? null : brush.surface,
+          solid: brush.solid,
+          castsShadow: brush.castsShadow,
+          layer: brush.layer,
+          ramp: brush.ramp,
+        ));
+        selected = level.brushes.length - 1;
+      case final LevelLight light:
+        level.lights.add(LevelLight.fromJson(<String, Object?>{
+          ...light.toJson(),
+          'at': <double>[
+            light.position.x + _step,
+            light.position.y,
+            light.position.z,
+          ],
+        }));
+        selected = level.lights.length - 1;
+      case final EntityDef entity:
+        level.entities.add(EntityDef.fromJson(<String, Object?>{
+          ...entity.toJson(),
+          'at': <double>[
+            entity.position.x + _step,
+            entity.position.y,
+            entity.position.z,
+          ],
+        }));
+        selected = level.entities.length - 1;
+    }
   }
 
-  /// Deletes the selected brush.
+  /// How far a copy lands from what it was copied from, when the thing has no
+  /// size to step by.
+  double get _step => grid <= 0.0 ? 1.0 : grid * 4;
+
+  /// Adds a light where somebody is looking.
+  ///
+  /// **A light the editor may invent, unlike an entity.** A `LevelLight` is a
+  /// typed thing the engine defines — a place, a colour, a strength and a
+  /// reach — so writing a new one down is not the editor guessing at a game's
+  /// vocabulary. What a `monster` needs in it is not knowable here; what a
+  /// point light needs is.
+  void addLight(Vector3 at, {double intensity = 4.0, double range = 8.0}) {
+    _remember();
+    level.lights.add(LevelLight(
+      position: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
+      intensity: intensity,
+      range: range,
+    ));
+    kind = Piece.light;
+    selected = level.lights.length - 1;
+  }
+
+  /// Makes the selected light stronger or weaker, by a factor.
+  ///
+  /// A factor rather than an amount, because light is read that way: the step
+  /// from 1 to 2 is the step from 8 to 16, and an editor that added a constant
+  /// would be useless at one end and unusable at the other.
+  ///
+  /// Never quite to nothing: a light of zero is a light that cannot be found
+  /// again except by reading the file.
+  void brighten(double by) {
+    final it = light;
+    if (it == null) return;
+    _remember();
+    level.lights[selected!] = LevelLight.fromJson(<String, Object?>{
+      ...it.toJson(),
+      'intensity': double.parse(
+        (it.intensity * by).clamp(0.05, 1000.0).toStringAsFixed(3),
+      ),
+    });
+  }
+
+  /// Turns the selected entity about the vertical, in radians.
+  ///
+  /// Entities only: a brush has no facing in this format, and a light's is its
+  /// direction rather than a yaw.
+  void turn(double by) {
+    final it = entity;
+    if (it == null) return;
+    _remember();
+    final turned = it.yaw + by;
+    level.entities[selected!] = EntityDef.fromJson(<String, Object?>{
+      ...it.toJson(),
+      'yaw': double.parse(turned.toStringAsFixed(4)),
+    });
+  }
+
+  /// Deletes whatever is selected.
   void remove() {
     final index = selected;
-    if (index == null || index >= level.brushes.length) return;
+    if (piece == null || index == null) return;
     _remember();
-    level.brushes.removeAt(index);
+    switch (kind!) {
+      case Piece.brush:
+        level.brushes.removeAt(index);
+      case Piece.light:
+        level.lights.removeAt(index);
+      case Piece.entity:
+        level.entities.removeAt(index);
+    }
+    kind = null;
     selected = null;
   }
 

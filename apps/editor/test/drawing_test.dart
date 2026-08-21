@@ -12,6 +12,7 @@ library;
 import 'dart:convert';
 
 import 'package:editor/src/editing.dart';
+import 'package:editor/src/gizmos.dart';
 import 'package:editor/src/vocabulary.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -74,7 +75,7 @@ void main() {
     // material's mesh and there is nothing smaller to rebuild — and an editor
     // whose picture and document disagree is the one thing it must never be.
     final editing = Editing.parse(_document(), path: '/levels/test.json')
-      ..select(0);
+      ..select(Piece.brush, 0);
 
     editing.nudge(Vector3(0.0, 4.0, 0.0));
 

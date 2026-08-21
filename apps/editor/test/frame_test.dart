@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:editor/src/editing.dart';
+import 'package:editor/src/gizmos.dart';
 import 'package:editor/src/vocabulary.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -127,7 +128,7 @@ void main() {
   test('a brush that moves moves in the picture', () async {
     final shown = _Shown.open();
     final editing = Editing.parse(_document(), path: '/levels/test.json')
-      ..select(1);
+      ..select(Piece.brush, 1);
 
     final before = await shown.draw(editing);
     editing.nudge(Vector3(2.0, 0.0, 0.0));
@@ -154,7 +155,7 @@ void main() {
   test('and one that is deleted goes', () async {
     final shown = _Shown.open();
     final editing = Editing.parse(_document(), path: '/levels/test.json')
-      ..select(1);
+      ..select(Piece.brush, 1);
 
     final before = await shown.draw(editing);
     editing.remove();
@@ -163,6 +164,24 @@ void main() {
     expect(_differences(before, after), greaterThan(20),
         reason: 'the brush in front of the camera was deleted and the picture '
             'kept it');
+  });
+
+  test('and a light that is added lights the room', () async {
+    // **The one edit whose effect is not where the edit is.** Moving a brush
+    // changes the pixels the brush covers; adding a light changes every pixel
+    // it reaches. If the level were not rebuilt from the document, this is the
+    // test that would still pass by accident — so it counts a large change
+    // rather than any change.
+    final shown = _Shown.open();
+    final editing = Editing.parse(_document(), path: '/levels/test.json');
+
+    final before = await shown.draw(editing);
+    editing.addLight(Vector3(0.0, 2.0, -4.0), intensity: 40.0, range: 20.0);
+    final after = await shown.draw(editing);
+
+    final lit = _differences(before, after);
+    expect(lit, greaterThan(_width * _height ~/ 8),
+        reason: 'a lamp in the middle of the room changed $lit pixels');
   });
 
   test('and a document nobody touched draws the same twice', () async {

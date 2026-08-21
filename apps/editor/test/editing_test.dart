@@ -10,6 +10,7 @@ library;
 import 'dart:convert';
 
 import 'package:editor/src/editing.dart';
+import 'package:editor/src/gizmos.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -102,7 +103,7 @@ void main() {
 
   group('moving a brush', () {
     test('moves it', () {
-      final editing = _open()..select(1);
+      final editing = _open()..select(Piece.brush, 1);
 
       editing.nudge(Vector3(0.0, 1.0, 0.0));
 
@@ -125,7 +126,7 @@ void main() {
       // level here came out of a generator writing rounded numbers, and a brush
       // sitting a millionth of a metre off is a diff nobody can read and a seam
       // a player can see light through.
-      final editing = _open()..select(0);
+      final editing = _open()..select(Piece.brush, 0);
       editing.brush!.centre.setValues(0.31, 0.0, 0.0);
 
       editing.nudge(Vector3(0.0, 0.0, 0.0));
@@ -134,7 +135,7 @@ void main() {
     });
 
     test('and the grid can be turned off for something that needs it', () {
-      final editing = _open()..select(0);
+      final editing = _open()..select(Piece.brush, 0);
       editing.grid = 0.0;
 
       editing.nudge(Vector3(0.31, 0.0, 0.0));
@@ -149,7 +150,7 @@ void main() {
 
   group('resizing one', () {
     test('grows and shrinks it about its own centre', () {
-      final editing = _open()..select(0);
+      final editing = _open()..select(Piece.brush, 0);
       final where = editing.brush!.centre.clone();
 
       editing.grow(Vector3(2.0, 0.0, 0.0));
@@ -160,7 +161,7 @@ void main() {
 
     test('and never past nothing', () {
       // A brush of zero is invisible, unclickable and impossible to get back.
-      final editing = _open()..select(0);
+      final editing = _open()..select(Piece.brush, 0);
 
       editing.grow(Vector3(-100.0, -100.0, -100.0));
 
@@ -194,7 +195,7 @@ void main() {
     test('and a duplicate lands beside the original, not inside it', () {
       // Two brushes in the same place are one brush as far as anybody can see,
       // and an editor whose duplicate is invisible appears not to have worked.
-      final editing = _open()..select(0);
+      final editing = _open()..select(Piece.brush, 0);
       final from = editing.level.brushes[0];
 
       editing.duplicate();
@@ -207,7 +208,7 @@ void main() {
 
   group('undo', () {
     test('puts a move back', () {
-      final editing = _open()..select(0);
+      final editing = _open()..select(Piece.brush, 0);
       final where = editing.brush!.centre.clone();
 
       editing.nudge(Vector3(4.0, 0.0, 0.0));
@@ -219,7 +220,7 @@ void main() {
     test('and brings back a deleted brush', () {
       // The one an editor is judged on. Delete is the only key that can lose
       // work in a keystroke.
-      final editing = _open()..select(1);
+      final editing = _open()..select(Piece.brush, 1);
 
       editing.remove();
       expect(editing.level.brushes.length, 1);
@@ -231,7 +232,7 @@ void main() {
     });
 
     test('and goes back more than one step', () {
-      final editing = _open()..select(0);
+      final editing = _open()..select(Piece.brush, 0);
 
       editing.nudge(Vector3(1.0, 0.0, 0.0));
       editing.nudge(Vector3(1.0, 0.0, 0.0));
@@ -264,7 +265,7 @@ void main() {
   });
 
   test('and the document knows it has been changed', () {
-    final editing = _open()..select(0);
+    final editing = _open()..select(Piece.brush, 0);
     expect(editing.isDirty, isFalse);
 
     editing.nudge(Vector3(1.0, 0.0, 0.0));
@@ -278,7 +279,7 @@ void main() {
     // The round trip that matters: whatever the editor wrote has to be
     // something the game can open. A writer that produced a document its own
     // reader rejects would be found out by a player rather than by this.
-    final editing = _open()..select(0);
+    final editing = _open()..select(Piece.brush, 0);
     editing
       ..nudge(Vector3(1.0, 0.0, 0.0))
       ..add(Vector3(8.0, 2.0, 0.0));

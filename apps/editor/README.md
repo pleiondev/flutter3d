@@ -23,10 +23,39 @@ games use, and lets somebody fly around it and change it.
 | arrows | move it on the grid, in X and Z |
 | `R` `F`, page up/down | raise and lower it |
 | `1` `2` `3`, `−` `=` | pick an axis and resize along it |
-| `N`, `⌘D`, `⌫` | new, duplicate, delete |
+| `N`, `L` | a new brush, a new light |
+| `⌘D` | copy what is selected — a monster, a lift, a lamp |
+| `−` `=` | a brush's size, or a light's brightness |
+| `,` `.` | turn an entity |
+| `⌫` | delete |
 | `G` | grid: 0.25 m, 1 m, off |
 | `⌘Z` | undo |
 | `⌘S`, `⇧⌘S` | save, save a copy |
+
+## Half a level is not geometry
+
+The crypt is fifty-one brushes and sixteen other things: a spawn point, six
+torches, two monsters, three pickups, a door, a key, a trigger, a note and the
+way out. The renderer draws none of them — a monster is a coordinate and a word
+until the game spawns something — so an editor that could only touch what is on
+screen could not place one.
+
+Everything with nothing to show gets a **mark**: a half-metre box, coloured by
+its type's own name (six torches are six of the same colour), green for wherever
+the player starts, and a light wears the colour it casts. The mark is both what
+gets drawn and what a click hits.
+
+A click **prefers the thing to the wall**. A torch is authored inside the
+stonework, a monster stands on a floor, a lift's marker sits in the block it
+moves — sorted strictly by distance the surface always wins, which would mean
+every torch in the crypt is unclickable.
+
+**Copy is how a level gets a second monster.** The editor has no vocabulary: it
+cannot know what a `monster` needs in it or which of a lift's properties matter.
+So it does not invent one — `⌘D` copies one the level already has, with
+everything it was carrying, and you move the copy. A light it *may* invent,
+because a `LevelLight` is something the engine defines: a place, a colour, a
+strength and a reach.
 
 ## Three decisions worth the words
 
