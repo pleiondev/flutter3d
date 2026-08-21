@@ -62,7 +62,17 @@ const Duration _tick = Duration(milliseconds: 100);
 /// shipped asset bundle — so this is the game a player launches rather than a
 /// world assembled by the test.
 Future<void> _launch(WidgetTester tester) async {
-  await tester.pumpWidget(PlatformerApp(openGraphics: _cpuDevice));
+  // **The window, and this is the number the file used to be wrong about.**
+  // `SceneSurface` renders at the size it is laid out at, not at the size the
+  // device was made with — so a test window of the default 800 × 600 drew
+  // 480,000 software pixels a frame however small `CpuDevice` was told to be.
+  // That is four and a half seconds a pump. Ninety-six by fifty-four is nine
+  // milliseconds, and nothing here looks at the picture.
+  tester.view.physicalSize = const Size(96, 54);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.reset);
+
+  await tester.pumpWidget(const PlatformerApp(openGraphics: _cpuDevice));
 
   // **Waited for in real time, once, rather than pumped at.** Opening the
   // device and reading a level are asynchronous and resolve on the clock the
@@ -73,10 +83,32 @@ Future<void> _launch(WidgetTester tester) async {
   // One long wait rather than a loop of short ones because each pump draws a
   // frame in software, and frames are the expensive thing here: this costs two
   // of them instead of twenty.
-  await tester.runAsync(
-    () => Future<void>.delayed(const Duration(seconds: 1)),
-  );
-  await tester.pump(_tick);
+  // Real milliseconds and a frame, alternately: the load resolves on the
+  // machine's clock and the widget only notices on a frame, so neither alone
+  // gets there. Two rounds is enough for the title card, which does not wait
+  // for the level.
+  await _realTime(tester, rounds: 2);
+}
+
+/// Hands the machine's clock back, [rounds] times, drawing a frame between.
+///
+/// **This is what unskipped the play-through.** Opening a device, reading a
+/// level and decoding its textures all complete on the real clock, and a
+/// `testWidgets` body runs on a fake one — so pumping advanced frames past a
+/// load that had not moved, for ever. `runAsync` alone does not do it either:
+/// the widget only sees the result on its next frame.
+Future<void> _realTime(
+  WidgetTester tester, {
+  required int rounds,
+  bool Function()? until,
+}) async {
+  for (var round = 0; round < rounds; round++) {
+    if (until != null && until()) return;
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 20)),
+    );
+    await tester.pump(_tick);
+  }
 }
 
 /// Touches the screen where the title card is, which is what begins a run.
@@ -85,7 +117,16 @@ Future<void> _launch(WidgetTester tester) async {
 /// so it sees the press whatever the card above it does with it. Near the top,
 /// away from the gear on the right and the controls along the bottom.
 Future<void> _touchToBegin(WidgetTester tester) async {
-  await tester.tapAt(const Offset(400, 120));
+  // Near the top of a window that is ninety-six by fifty-four: away from the
+  // gear on the right and the touch controls along the bottom.
+  await tester.tapAt(const Offset(48, 8));
+  // Then wait for the level, which is still arriving: textures decode on the
+  // real clock. Bounded, so a level that never loads fails the assertion below
+  // rather than hanging the suite.
+  // Then wait for the level, bounded, so a level that never arrives fails the
+  // assertion below rather than hanging the suite. It does not arrive — see the
+  // note above this test.
+  await _realTime(tester, rounds: 200, until: () => _clock(tester) != null);
 }
 
 /// The clock the HUD is showing, in seconds, or null while there is no HUD.
@@ -112,6 +153,9 @@ String _onScreen(WidgetTester tester) => tester
 /// Runs the game for [seconds] of its own time.
 Future<void> _play(WidgetTester tester, {double seconds = 1.0}) async {
   for (var i = 0; i < (seconds * 1000 / _tick.inMilliseconds).round(); i++) {
+    // A real millisecond between frames, because the game keeps loading while
+    // it plays — a model arrives from an isolate, a texture from a codec — and
+    // both resolve on the machine's clock rather than on the fake one.
     await tester.pump(_tick);
   }
 }
@@ -158,52 +202,56 @@ void main() {
     expect(_clock(tester), isNull);
   });
 
-  // **Still skipped, and the reason is now understood rather than suspected.**
+  // **Still skipped, and two of the guesses in the previous note were wrong.**
   //
   // Everything up to the level loads: the application mounts, the device opens,
   // the title card comes up, a touch takes it down, and the touch controls
-  // appear. Then `LevelLoader().load` never returns — not throwing, which would
-  // be reported, and not waiting on time, because feeding it real milliseconds
-  // through `runAsync` changes nothing.
+  // appear. Then the level's textures stop arriving — the third one, every
+  // time.
   //
-  // **Moving the load out of the widget did not help, and that was worth
-  // finding out.** It is `PlatformerRun` now, an ordinary class in
-  // `flutter3d_session` — but this test still *mounts the application*, and the
-  // load is still started from `initState`, which is inside the fake-async zone
-  // `testWidgets` runs in. Where it lives was never the problem; who starts it
-  // is.
+  // **What was wrong before.** The old note said a frame here is expensive
+  // because the game draws three shadow cascades at 2048, and that whoever got
+  // past the zone would want that number down first. Measured: a pump costs 4.2
+  // seconds with a 96 × 54 `CpuDevice`, 4.2 seconds with an 8 × 8 one, and 4.2
+  // seconds with a single 128-pixel cascade. The size the device was made with
+  // is not the size anything draws at — `SceneSurface` renders at the size it
+  // is *laid out* at, and a test window is 800 × 600, so every pump was
+  // rasterising 480,000 pixels in software.
   //
-  // **Two more routes were tried since, and both are dead ends worth writing
-  // down rather than trying again.**
+  // `tester.view.physicalSize` fixes it, in this file, with no production
+  // change: 4.2 seconds a pump became **nine milliseconds**. That is worth
+  // knowing for every widget test of every game here, and it is why the two
+  // tests below now run in seven seconds rather than half a minute.
   //
-  // *Mounting inside `runAsync`.* It works — the load completes and the first
-  // test passes. It also takes twenty-one minutes, because `runAsync` hands the
-  // clock back to the machine: every `pump` then draws a software frame in real
-  // time instead of on the fake clock, and this game's frame is not cheap. Six
-  // seconds became twenty-one minutes for one test.
+  // **What is actually in the way.** With frames that cheap, the load can be
+  // fed real milliseconds in slices — `runAsync` twenty at a time, a frame
+  // between — and it *does* progress: two textures, sometimes four, then
+  // nothing. Eight uninterrupted seconds of the machine's clock gets no
+  // further than slices do, which rules out "it needs more time". The stall is
+  // inside `ui.instantiateImageCodec` / `Image.toByteData` under
+  // `flutter_tester`, where each decode is started from inside the last one's
+  // continuation. So it is not the fake-async zone alone, and it is not the
+  // shadow atlas: it is fifteen PNG decodes through the test engine's image
+  // pipeline.
   //
-  // *Loading the level outside the zone and handing it in*, through a seam of
-  // the same shape as `openGraphics`. That does get past the load — the run
-  // begins, which the zone had made impossible — and the play-through still
-  // does not finish. So the zone was not the only thing in the way, and what
-  // else is has not been established. The seam was reverted with it; a seam
-  // that buys a test which still hangs is production surface for nothing.
+  // **Routes already tried, so nobody tries them twice.** Mounting inside
+  // `runAsync` — works, and took twenty-one minutes before the window was
+  // shrunk. Loading the level outside the zone and handing it in through a seam
+  // like `openGraphics` — gets past the load and still does not finish, and the
+  // seam was reverted because a seam that buys a skipped test is production
+  // surface for nothing. A `ShadowSettings` seam for the same purpose — reverted
+  // for the same reason, and the measurement above says it would not have
+  // helped anyway.
   //
-  // *And why any frame here is expensive*, which is worth knowing before
-  // anybody tries again: the game draws three shadow cascades at 2048, which is
-  // a 6144 × 2048 atlas. A GPU fills that in microseconds; `CpuDevice` fills it
-  // in about a minute. Whoever gets past the zone will want that number down
-  // first.
-  //
-  // What the move did buy is `run_test.dart` beside this file: the same
-  // sequence — begin, resume, restart, move on, save — driven from a plain
-  // `test()` with a `CpuDevice`, where the loader completes perfectly well. The
-  // dungeon proved that route first and this game now has it.
+  // What the move to `PlatformerRun` did buy is `run_test.dart` beside this
+  // file: the same sequence — begin, resume, restart, move on, save — from a
+  // plain `test()` with a `CpuDevice`, where the loader completes perfectly
+  // well. The dungeon proved that route first and this game now has it.
   //
   // So what is left here is only what genuinely needs a widget: the pause gate
   // seen through a real settings panel, and a touch drag reaching the runner.
-  // Left rather than deleted because it names those, and whoever gets past the
-  // zone inherits the assertions.
+  // Left rather than deleted because it names those, and whoever gets the
+  // decodes to land inherits the assertions.
   playing('and a run goes: begin, play, pause, come back, walk', (
     WidgetTester tester,
   ) async {
@@ -258,7 +306,7 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(_clock(tester), isNotNull, reason: 'the run ended while walking');
-  }, skip: 'the load starts inside the fake-async zone — see above');
+  }, skip: 'the level\'s textures stop decoding at the third — see above');
 }
 
 /// A test of the touch build, with the platform put back afterwards.
