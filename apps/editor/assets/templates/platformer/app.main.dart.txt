@@ -93,7 +93,8 @@ class _LevelScreenState extends State<LevelScreen>
   Offset? _dragged;
 
   Ticker? _ticker;
-  Duration _lastTick = Duration.zero;
+  /// How long since the last frame, and how long since the first.
+  final FrameClock _frames = FrameClock();
 
   @override
   void initState() {
@@ -147,10 +148,7 @@ class _LevelScreenState extends State<LevelScreen>
   }
 
   void _onTick(Duration now) {
-    final dt = _lastTick == Duration.zero
-        ? 1 / 60
-        : (now - _lastTick).inMicroseconds / 1e6;
-    _lastTick = now;
+    final dt = _frames.secondsSince(now);
 
     final body = _body;
     if (body == null) return;

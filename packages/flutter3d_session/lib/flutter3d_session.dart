@@ -29,5 +29,6 @@
 ///   would be a package deciding something it cannot see.
 library;
 
+export 'src/frame_clock.dart';
 export 'src/run_session.dart';
 export 'src/scene_surface.dart';

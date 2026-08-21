@@ -292,7 +292,8 @@ class _RaceScreenState extends State<RaceScreen>
   /// that will not start. `autofocus` only covers the first frame.
   final FocusNode _keyboard = FocusNode(debugLabel: 'drive');
   final List<CarVoice> _voices = <CarVoice>[];
-  Duration _lastTick = Duration.zero;
+  /// How long since the last frame, and how long since the first.
+  final FrameClock _frames = FrameClock();
 
   @override
   void initState() {
@@ -615,10 +616,7 @@ class _RaceScreenState extends State<RaceScreen>
   }
 
   void _onTick(Duration now) {
-    final dt = _lastTick == Duration.zero
-        ? 1 / 60
-        : (now - _lastTick).inMicroseconds / 1e6;
-    _lastTick = now;
+    final dt = _frames.secondsSince(now);
 
     // Before the loop advances, so a step and the intent it is stepping with
     // belong to the same frame — see [PadInput].

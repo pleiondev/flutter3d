@@ -271,8 +271,8 @@ class _GameScreenState extends State<GameScreen>
   String? _levelErrorAsset;
 
   final Vector3 _scratch = Vector3.zero();
-  Duration _lastTick = Duration.zero;
-  double _elapsed = 0.0;
+  /// How long since the last frame, and how long since the first.
+  final FrameClock _frames = FrameClock();
 
   final SaveFile _saveFile = SaveFile(appName: 'platformer');
 
@@ -819,11 +819,7 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _onTick(Duration now) {
-    final dt = _lastTick == Duration.zero
-        ? 1.0 / 60.0
-        : (now - _lastTick).inMicroseconds / 1e6;
-    _lastTick = now;
-    _elapsed += dt;
+    final dt = _frames.secondsSince(now);
 
     // Paused whenever the mouse is not ours: a game that keeps running behind
     // a menu is a game that kills the player while they are reading it.
@@ -862,7 +858,7 @@ class _GameScreenState extends State<GameScreen>
     _particles.advance(_loop.lastFrame);
     _animateRunner(dt);
     _placeCamera(dt);
-    _fixtures?.sync(_elapsed);
+    _fixtures?.sync(_frames.elapsed);
     _burnLamps();
     _keepSaved();
     unawaited(_run.advance());

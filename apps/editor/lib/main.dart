@@ -136,7 +136,8 @@ class _EditorScreenState extends State<EditorScreen>
   SceneNode? _marker;
 
   Ticker? _ticker;
-  Duration _lastTick = Duration.zero;
+  /// How long since the last frame, and how long since the first.
+  final FrameClock _frames = FrameClock();
 
   /// Whether the document has changed since the scene was built from it.
   bool _stale = false;
@@ -723,10 +724,7 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   void _onTick(Duration now) {
-    final dt = _lastTick == Duration.zero
-        ? 1 / 60
-        : (now - _lastTick).inMicroseconds / 1e6;
-    _lastTick = now;
+    final dt = _frames.secondsSince(now);
 
     _fly.step(
       dt.clamp(0.0, 0.1),

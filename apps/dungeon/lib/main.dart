@@ -192,9 +192,9 @@ class _GameScreenState extends State<GameScreen>
 
   final InterpolatedVector3 _smoothedPosition = InterpolatedVector3();
 
-  Duration _lastTick = Duration.zero;
+  /// How long since the last frame, and how long since the first.
+  final FrameClock _frames = FrameClock();
   int _steps = 0;
-  double _fps = 0.0;
 
   // Scratch vectors, reused every step. Allocating these per frame is the
   // easiest way to hand the collector work it does not need.
@@ -227,10 +227,6 @@ class _GameScreenState extends State<GameScreen>
   /// flicker, and it is the fire's own rather than a sine's.
   static const double _flamePower = 0.34;
   final RayHit _soundRay = RayHit();
-
-  /// Wall-clock seconds since the game started, for anything that only has to
-  /// look alive — a turning pickup, a flickering torch.
-  double _elapsed = 0.0;
 
   /// The mixer. Built with the silent backend so a build that cannot open an
   /// audio device still runs — and replaced with the real one once SoLoud is
@@ -607,15 +603,9 @@ class _GameScreenState extends State<GameScreen>
   }
 
   void _onTick(Duration elapsed) {
-    final dt = _lastTick == Duration.zero
-        ? 0.0
-        : (elapsed - _lastTick).inMicroseconds / 1e6;
-    _lastTick = elapsed;
-    if (dt > 0.0) _fps = _fps * 0.9 + (1.0 / dt) * 0.1;
-
-    _elapsed += dt;
+    final dt = _frames.secondsSince(elapsed);
     if (_fogAlternates) {
-      final phase = (_elapsed / 2.0).floor().isEven;
+      final phase = (_frames.elapsed / 2.0).floor().isEven;
       if (phase != _fogOn) _fogOn = phase;
     }
     // Paused exactly when the pointer is not captured, which is what Escape
@@ -662,7 +652,7 @@ class _GameScreenState extends State<GameScreen>
     // an animation is display, and playing it on the fixed step would make a
     // monster's stride depend on how far behind the machine is.
     _actorVisuals?.animate(dt);
-    _fixtureVisuals?.sync(_elapsed);
+    _fixtureVisuals?.sync(_frames.elapsed);
     setState(() {});
   }
 
@@ -1064,7 +1054,7 @@ class _GameScreenState extends State<GameScreen>
               Hud(
                 // Nothing to capture in a browser, so nothing to prompt for.
                 captured: !Playing.capturesPointer || _devices.isCaptured,
-                fps: _fps,
+                fps: _frames.fps,
                 steps: _steps,
                 dropped: _loop.clock.droppedSteps,
                 behind: _pace.behind,
