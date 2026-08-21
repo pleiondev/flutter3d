@@ -89,11 +89,14 @@ final class SkySettings {
       directionToSun ?? _defaultDirectionToSun;
   Vector3 get resolvedSunColor => sunColor ?? _defaultSunColor;
 
-  static final Vector3 _defaultZenith = Vector3(0.10, 0.22, 0.52);
-  static final Vector3 _defaultHorizon = Vector3(0.42, 0.50, 0.62);
-  static final Vector3 _defaultNadir = Vector3(0.06, 0.06, 0.07);
-  static final Vector3 _defaultDirectionToSun = Vector3(0.34, 0.56, 0.76);
-  static final Vector3 _defaultSunColor = Vector3(1.0, 0.95, 0.86);
+  // Getters rather than `static final`: a `Vector3` is mutable, so a shared one
+  // is a global variable that looks like a constant — and these are handed
+  // straight to a caller's settings object, which is free to scale them.
+  static Vector3 get _defaultZenith => Vector3(0.10, 0.22, 0.52);
+  static Vector3 get _defaultHorizon => Vector3(0.42, 0.50, 0.62);
+  static Vector3 get _defaultNadir => Vector3(0.06, 0.06, 0.07);
+  static Vector3 get _defaultDirectionToSun => Vector3(0.34, 0.56, 0.76);
+  static Vector3 get _defaultSunColor => Vector3(1.0, 0.95, 0.86);
 
   /// The wide scattering lobe around the sun: how tight, and how bright.
   final double glowExponent;
@@ -131,7 +134,7 @@ final class SkySettings {
 
   Vector3 get resolvedTint => tint ?? _defaultTint;
 
-  static final Vector3 _defaultTint = Vector3(1.0, 1.0, 1.0);
+  static Vector3 get _defaultTint => Vector3(1.0, 1.0, 1.0);
 
   /// The colour of the sky in [direction], on the CPU.
   ///

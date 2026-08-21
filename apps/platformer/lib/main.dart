@@ -927,7 +927,7 @@ class _GameScreenState extends State<GameScreen>
     }
   }
 
-  static final Vector3 _up = Vector3(0.0, 1.0, 0.0);
+  static Vector3 get _up => Vector3(0.0, 1.0, 0.0);
   final Vector3 _flameAt = Vector3.zero();
 
   /// Turns a step's events into sound and spectacle. Nothing here decides.

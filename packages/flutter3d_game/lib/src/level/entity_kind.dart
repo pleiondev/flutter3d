@@ -351,7 +351,7 @@ final class ButtonKind extends EntityKind {
   const ButtonKind() : super(EntityTypes.button);
 
   /// A panel, not a block: a button is something on a wall.
-  static final Vector3 defaultSize = Vector3(0.6, 0.6, 0.15);
+  static Vector3 get defaultSize => Vector3(0.6, 0.6, 0.15);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {

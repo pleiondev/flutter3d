@@ -20,7 +20,7 @@ final class PickupKind extends EntityKind {
   final GiftRegistry gifts;
 
   /// A panel of light on the floor, roughly the size of what it represents.
-  static final Vector3 defaultSize = Vector3(0.45, 0.45, 0.45);
+  static Vector3 get defaultSize => Vector3(0.45, 0.45, 0.45);
 
   /// What a document may ask for, taken from the registry rather than listed
   /// again here: two lists of the same names is one list too many.
@@ -101,7 +101,7 @@ final class SecretKind extends EntityKind {
 
   /// Big enough to be walked into rather than stepped over, and no bigger: a
   /// secret the size of the room it is in would be found from the doorway.
-  static final Vector3 defaultSize = Vector3(2.0, 2.5, 2.0);
+  static Vector3 get defaultSize => Vector3(2.0, 2.5, 2.0);
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
@@ -123,7 +123,7 @@ final class KeyKind extends EntityKind {
 
   /// Small enough to walk past without collecting by accident, big enough to
   /// walk into on purpose.
-  static final Vector3 defaultSize = Vector3(0.4, 0.4, 0.4);
+  static Vector3 get defaultSize => Vector3(0.4, 0.4, 0.4);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {

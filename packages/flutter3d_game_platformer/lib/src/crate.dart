@@ -34,7 +34,7 @@ final class Crate {
 
   /// Big enough to climb on, light enough to move: a crate that is neither is
   /// scenery.
-  static final Vector3 defaultSize = Vector3(1.2, 1.2, 1.2);
+  static Vector3 get defaultSize => Vector3(1.2, 1.2, 1.2);
 
   final RigidBody body;
 

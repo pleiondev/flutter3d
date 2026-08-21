@@ -53,7 +53,7 @@ final class CollectibleKind extends EntityKind {
   bool get mustBeReachable => true;
   const CollectibleKind() : super(PlatformerEntities.collectible);
 
-  static final Vector3 defaultSize = Vector3(0.5, 0.5, 0.5);
+  static Vector3 get defaultSize => Vector3(0.5, 0.5, 0.5);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -103,7 +103,7 @@ final class CollectibleKind extends EntityKind {
 final class HazardKind extends EntityKind {
   const HazardKind() : super(PlatformerEntities.hazard);
 
-  static final Vector3 defaultSize = Vector3(2.0, 1.0, 2.0);
+  static Vector3 get defaultSize => Vector3(2.0, 1.0, 2.0);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -160,10 +160,10 @@ final class HazardKind extends EntityKind {
 final class CheckpointKind extends EntityKind {
   const CheckpointKind() : super(PlatformerEntities.checkpoint);
 
-  static final Vector3 defaultSize = Vector3(1.5, 2.5, 1.5);
+  static Vector3 get defaultSize => Vector3(1.5, 2.5, 1.5);
 
   /// What is drawn: a post, whatever the trigger's size is.
-  static final Vector3 markerSize = Vector3(0.35, 2.2, 0.35);
+  static Vector3 get markerSize => Vector3(0.35, 2.2, 0.35);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -261,7 +261,7 @@ final class SpringKind extends EntityKind {
   const SpringKind() : super(PlatformerEntities.spring);
 
   /// Wide and flat: a pad you can miss is a pad that reads as broken.
-  static final Vector3 defaultSize = Vector3(1.6, 0.4, 1.6);
+  static Vector3 get defaultSize => Vector3(1.6, 0.4, 1.6);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -320,7 +320,7 @@ final class KeyKind extends EntityKind {
   bool get mustBeReachable => true;
   const KeyKind() : super(EntityTypes.key);
 
-  static final Vector3 defaultSize = Vector3(0.5, 0.5, 0.5);
+  static Vector3 get defaultSize => Vector3(0.5, 0.5, 0.5);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -368,7 +368,7 @@ final class OneWayKind extends EntityKind {
   const OneWayKind() : super(PlatformerEntities.oneWay);
 
   /// Thin, because thickness is what a player misjudges when jumping through.
-  static final Vector3 defaultSize = Vector3(4.0, 0.3, 4.0);
+  static Vector3 get defaultSize => Vector3(4.0, 0.3, 4.0);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -410,7 +410,7 @@ final class OneWayKind extends EntityKind {
 final class ConveyorKind extends EntityKind {
   const ConveyorKind() : super(PlatformerEntities.conveyor);
 
-  static final Vector3 defaultSize = Vector3(4.0, 0.4, 8.0);
+  static Vector3 get defaultSize => Vector3(4.0, 0.4, 8.0);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -459,7 +459,7 @@ final class ConveyorKind extends EntityKind {
 final class CrumblingKind extends EntityKind {
   const CrumblingKind() : super(PlatformerEntities.crumbling);
 
-  static final Vector3 defaultSize = Vector3(3.0, 0.4, 3.0);
+  static Vector3 get defaultSize => Vector3(3.0, 0.4, 3.0);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -501,7 +501,7 @@ final class CrumblingKind extends EntityKind {
 final class BreakableKind extends EntityKind {
   const BreakableKind() : super(PlatformerEntities.breakable);
 
-  static final Vector3 defaultSize = Vector3(2.0, 2.0, 2.0);
+  static Vector3 get defaultSize => Vector3(2.0, 2.0, 2.0);
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
@@ -524,7 +524,7 @@ final class ClimbableKind extends EntityKind {
   const ClimbableKind() : super(PlatformerEntities.climbable);
 
   /// Narrow and tall: a ladder is a line you stand on, not a room.
-  static final Vector3 defaultSize = Vector3(1.0, 6.0, 1.0);
+  static Vector3 get defaultSize => Vector3(1.0, 6.0, 1.0);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -580,7 +580,7 @@ final class EnemyKind extends EntityKind {
   const EnemyKind() : super(PlatformerEntities.enemy);
 
   /// Shorter than the runner, so a stomp reads as landing *on* something.
-  static final Vector3 defaultSize = Vector3(0.7, 0.7, 0.7);
+  static Vector3 get defaultSize => Vector3(0.7, 0.7, 0.7);
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {

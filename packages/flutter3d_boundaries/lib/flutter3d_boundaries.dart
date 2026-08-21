@@ -301,3 +301,83 @@ void expectNoGenre({
     expect(genreWordsIn('int coins = 0;'), isNotEmpty);
   });
 }
+
+/// A `static final` holding something mutable, which is a global variable
+/// wearing a constant's clothes.
+///
+/// `Vector3`, `Matrix4` and their relatives are mutable. A `static final` one
+/// is written once and shared for the life of the process, so the first caller
+/// to write `Colors.bounds.scale(2)` or `Kind.defaultSize.setValues(...)`
+/// changes it for every other caller, in a declaration that reads like a
+/// constant and that nothing marks as changeable. The compiler has nothing to
+/// say about it: `final` is about the reference.
+///
+/// Thirty-two of these existed across the repository when this rule was
+/// written, twelve of them sizes handed straight to entities that a level could
+/// have scaled. None was being mutated, which is why writing the rule was
+/// cheap. A getter returning a fresh value costs one allocation and cannot be
+/// shared at all.
+///
+/// Public so its own test can prove it fires — the same reason [genreWordsIn]
+/// is.
+List<String> sharedMutablesIn(String source) {
+  final found = <String>[];
+  for (final match in _sharedMutable.allMatches(source)) {
+    found.add(match.group(0)!.trim());
+  }
+  return found;
+}
+
+/// `static final Vector3 name = …`, and the same for the other mutable value
+/// types this repository uses.
+///
+/// Deliberately not "any `static final`": a `static final List` of constants, a
+/// `static final RegExp`, a `static final Map` used as a lookup are all
+/// ordinary and none of them is a value somebody scales in place. What this
+/// catches is the vector-maths types, which are mutable *and* look like maths.
+final RegExp _sharedMutable = RegExp(
+  r'static final (Vector[234]|Matrix[234]|Quaternion|Aabb[23])\s+\w+\s*=',
+);
+
+/// The rule that this package holds no shared mutable value pretending to be a
+/// constant.
+///
+/// Two tests: the scan, and the proof that the scan fires.
+void expectNoSharedMutables({List<String> allowing = const <String>[]}) {
+  test('nothing in this package shares a mutable value as a constant', () {
+    final offenders = <String>[
+      for (final file in _dartFilesIn('lib'))
+        for (final said in sharedMutablesIn(file.readAsStringSync()))
+          if (!allowing.any(said.contains)) '${file.path}: $said',
+    ];
+
+    expect(offenders, isEmpty,
+        reason: 'a `static final Vector3` is a global variable that reads as a '
+            'constant — the first caller to scale it in place changes it for '
+            'the whole process. Return a fresh one from a getter.');
+  });
+
+  test('and that detector fires too', () {
+    expect(sharedMutablesIn('static final Vector3 up = Vector3(0.0, 1.0, 0.0);'),
+        isNotEmpty);
+    expect(sharedMutablesIn('static final Matrix4 identity = Matrix4.zero();'),
+        isNotEmpty);
+
+    // And stays quiet on the shapes that are not this mistake.
+    expect(sharedMutablesIn('static Vector3 get up => Vector3(0.0, 1.0, 0.0);'),
+        isEmpty,
+        reason: 'the fix was reported as the fault');
+    expect(sharedMutablesIn('final Vector3 position = Vector3.zero();'), isEmpty,
+        reason: 'an instance field is not shared with anybody');
+    expect(sharedMutablesIn('static const double gravity = -9.8;'), isEmpty);
+    expect(sharedMutablesIn('static final RegExp _key = RegExp(r"a");'), isEmpty,
+        reason: 'a compiled pattern is not a value anybody scales');
+  });
+}
+
+/// Every rule in this package, for a caller with nothing to say about its own
+/// case.
+void expectPackageBoundaries() {
+  expectNoGenre();
+  expectNoSharedMutables();
+}

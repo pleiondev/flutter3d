@@ -1,6 +1,7 @@
-/// This package names no genre.
+/// The rules this package keeps: it names no genre, and it shares no mutable
+/// value as a constant.
 ///
-///     flutter test test/no_genre_test.dart
+///     flutter test test/boundaries_test.dart
 ///
 /// The rule and its detector live in `flutter3d_boundaries`, because they were
 /// two hundred lines in two copies and one of the copies had already lost the
@@ -10,4 +11,4 @@ library;
 
 import 'package:flutter3d_boundaries/flutter3d_boundaries.dart';
 
-void main() => expectNoGenre();
+void main() => expectPackageBoundaries();

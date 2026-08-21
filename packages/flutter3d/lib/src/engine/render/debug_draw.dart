@@ -69,15 +69,22 @@ final class DebugDrawOptions {
 
 /// Colours used by the built-in overlays, so a screenshot is readable without a
 /// legend.
+///
+/// **Getters, not `static final`, and this is a rule rather than a style.** A
+/// `Vector4` is mutable, so a `static final` one is a global variable wearing a
+/// constant's clothes: the first caller to write `DebugColors.bounds.scale(2)`
+/// changes the colour for every overlay in the process, for the rest of its
+/// life, in a field nothing declares as changeable. None of them is mutated
+/// today, which is exactly why today is the cheap day to make it impossible.
 abstract final class DebugColors {
-  static final Vector4 bounds = Vector4(0.25, 0.85, 1.0, 1.0);
-  static final Vector4 normal = Vector4(1.0, 0.45, 0.15, 1.0);
-  static final Vector4 light = Vector4(1.0, 0.92, 0.35, 1.0);
-  static final Vector4 frustum = Vector4(0.65, 0.45, 1.0, 1.0);
-  static final Vector4 selection = Vector4(0.35, 1.0, 0.45, 1.0);
-  static final Vector4 axisX = Vector4(1.0, 0.25, 0.25, 1.0);
-  static final Vector4 axisY = Vector4(0.25, 1.0, 0.35, 1.0);
-  static final Vector4 axisZ = Vector4(0.3, 0.5, 1.0, 1.0);
+  static Vector4 get bounds => Vector4(0.25, 0.85, 1.0, 1.0);
+  static Vector4 get normal => Vector4(1.0, 0.45, 0.15, 1.0);
+  static Vector4 get light => Vector4(1.0, 0.92, 0.35, 1.0);
+  static Vector4 get frustum => Vector4(0.65, 0.45, 1.0, 1.0);
+  static Vector4 get selection => Vector4(0.35, 1.0, 0.45, 1.0);
+  static Vector4 get axisX => Vector4(1.0, 0.25, 0.25, 1.0);
+  static Vector4 get axisY => Vector4(0.25, 1.0, 0.35, 1.0);
+  static Vector4 get axisZ => Vector4(0.3, 0.5, 1.0, 1.0);
 }
 
 /// Accumulates debug line segments into one reusable interleaved buffer.
