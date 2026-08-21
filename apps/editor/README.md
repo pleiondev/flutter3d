@@ -56,6 +56,29 @@ out of this application's bundle — a game's assets are in the game's bundle, a
 the editor is always looking at somebody else's. Without it the one program whose
 job is to show what a level looks like showed it in flat grey.
 
+**What the game says its own words look like.** A document says `type: torch`
+and where it is; what a torch *looks* like is in the game's code — the crypt
+builds one out of primitives and a light, and there is no torch model anywhere
+for anybody to find. The editor cannot work that out and must not guess, so the
+game tells it, in an optional `assets/editor.json` beside its other assets:
+
+```json
+{
+  "monster": { "model": "assets/models/monster_{kind}.glb", "size": [0.9, 1.9, 0.9] },
+  "torch":   { "size": [0.22, 0.75, 0.22], "tint": [1.0, 0.55, 0.12] }
+}
+```
+
+`{kind}` is any property of the entity, put into the path: one line covers three
+monsters, and a fourth is a file rather than a mapping. **This is not the editor
+learning a vocabulary** — it reads a file whose words it does not understand,
+exactly as it reads a level. A game that writes none gets marks. The file is
+beside the game's asset directories rather than in one, so no player downloads
+it.
+
+What the entity itself says always wins: a level that names a model on one
+particular door has said something about that door.
+
 **A door as a door.** Anything whose document entry carries a `size` is drawn at
 that size, and in the material it names if the level has one — so a six-metre
 iron door is a six-metre iron door and a lift is a platform. Anything carrying a

@@ -33,6 +33,7 @@ import 'src/documents.dart';
 import 'src/editing.dart';
 import 'src/fly_camera.dart';
 import 'src/gizmos.dart';
+import 'src/looks.dart';
 import 'src/picking.dart';
 import 'src/vocabulary.dart';
 
@@ -99,6 +100,9 @@ class _EditorScreenState extends State<EditorScreen>
   /// one. Null for a level with no application around it, which draws in the
   /// flat colours its materials name and is a perfectly good way to edit.
   String? _assetRoot;
+
+  /// What this game says its own words look like, if it says anything.
+  Looks _looks = Looks.none;
 
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
@@ -205,6 +209,7 @@ class _EditorScreenState extends State<EditorScreen>
         found,
         hasAssets: (String path) => Directory(path).existsSync(),
       );
+      _looks = await _readLooks(_assetRoot);
       _editing = editing;
       _standWhereThePlayerWould(editing.level);
       await _build();
@@ -295,6 +300,23 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
+  /// Reads the game's own `editor.json`, if it keeps one.
+  ///
+  /// Never throws: a game that has not written one is the ordinary case, and a
+  /// game whose file will not parse should lose its marks rather than its
+  /// editor.
+  static Future<Looks> _readLooks(String? root) async {
+    if (root == null) return Looks.none;
+    final file = File('$root/$kLooksFile');
+    try {
+      if (!file.existsSync()) return Looks.none;
+      return Looks.parse(await file.readAsString());
+    } catch (error) {
+      debugPrint('editor: could not read $kLooksFile ($error)');
+      return Looks.none;
+    }
+  }
+
   /// Reads one of the edited application's own files.
   ///
   /// Off the disk rather than out of a bundle, because the bundle belongs to
@@ -371,7 +393,7 @@ class _EditorScreenState extends State<EditorScreen>
     }
     _gizmos.clear();
 
-    for (final handle in handlesOf(editing.level)) {
+    for (final handle in handlesOf(editing.level, looks: _looks)) {
       if (handle.kind == Piece.brush) continue;
       final entity =
           handle.kind == Piece.entity ? editing.level.entities[handle.index] : null;
@@ -383,12 +405,21 @@ class _EditorScreenState extends State<EditorScreen>
       // the mark, which is the only thing a coordinate and a word can be shown
       // as.
       final named = entity?.string('material');
+      final isLight = handle.kind == Piece.light;
       final material = named == null
           ? null
           : editing.level.materials[named];
 
       final node = MeshNode(
-        SharedMeshes(device).box(handle.size),
+        // **A light is a ball, everything else is a box**, because a lamp drawn
+        // as a cube beside a torch drawn as a cube is two cubes, and the
+        // question somebody asks at that point is which of them is which.
+        isLight
+            ? SharedMeshes(device).shape(
+                'gizmo-light',
+                () => SphereShape(radius: kGizmoSize * 0.45),
+              )
+            : SharedMeshes(device).box(handle.size),
         material == null
             ? engine.Material(
                 name: 'gizmo',
@@ -432,10 +463,11 @@ class _EditorScreenState extends State<EditorScreen>
     if (device == null || editing == null || root == null) return;
 
     final scene = _scene;
-    for (final handle in handlesOf(editing.level)) {
+    for (final handle in handlesOf(editing.level, looks: _looks)) {
       if (handle.kind != Piece.entity) continue;
       final entity = editing.level.entities[handle.index];
-      final path = entity.string('model');
+      // What the entity says, else what the game says this type is.
+      final path = _looks.modelFor(entity);
       if (path == null) continue;
 
       final asset = await _models.putIfAbsent(
@@ -612,7 +644,7 @@ class _EditorScreenState extends State<EditorScreen>
     final editing = _editing;
     if (editing == null) return;
     final along = _rayThrough(at, size);
-    final hit = Picking.at(handlesOf(editing.level), _fly.position, along);
+    final hit = Picking.at(handlesOf(editing.level, looks: _looks), _fly.position, along);
     final distance = hit == null
         ? 6.0
         : math.max(
@@ -630,7 +662,7 @@ class _EditorScreenState extends State<EditorScreen>
     final editing = _editing;
     if (editing == null) return;
     final along = _rayThrough(at, size);
-    final found = Picking.at(handlesOf(editing.level), _fly.position, along);
+    final found = Picking.at(handlesOf(editing.level, looks: _looks), _fly.position, along);
     editing.selectHandle(found);
     _placeMarker();
     setState(() => _said = found == null ? 'nothing there' : editing.says);

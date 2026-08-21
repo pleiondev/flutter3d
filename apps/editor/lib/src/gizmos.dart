@@ -1,6 +1,8 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'looks.dart';
+
 /// What a level is made of, from an editor's side.
 enum Piece {
   /// Geometry. The only one of the three that is drawn by the game.
@@ -60,7 +62,7 @@ const double kGizmoSize = 0.5;
 /// One list rather than three, because a click is one question — "what is under
 /// this pixel" — and answering it from three lists means three sets of the same
 /// arithmetic and three chances to disagree about which is nearest.
-List<Handle> handlesOf(Level level) => <Handle>[
+List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
       for (var i = 0; i < level.brushes.length; i++)
         Handle(
           kind: Piece.brush,
@@ -83,14 +85,14 @@ List<Handle> handlesOf(Level level) => <Handle>[
           kind: Piece.entity,
           index: i,
           centre: level.entities[i].position,
-          // **Its own size when the document gives it one.** A door is six
-          // metres by five, a lift is a platform somebody stands on, and both
-          // say so in `size` — the game builds them at that size and draws them
-          // with that material. Marking one with a half-metre cube would be an
-          // editor showing a lift as a dot and asking somebody to imagine the
-          // rest of it.
-          size: level.entities[i].vector('size') ?? Vector3.all(kGizmoSize),
-          tint: tintFor(level.entities[i].type),
+          // **Its own size when the document gives it one**, then whatever the
+          // game said this type is, then a mark. A door is six metres by five
+          // and a lift is a platform somebody stands on, and both say so in
+          // `size`; a torch says nothing, and the game's `editor.json` can say
+          // it is a slim upright thing rather than a cube.
+          size: looks.sizeFor(level.entities[i]) ?? Vector3.all(kGizmoSize),
+          tint: looks.tintFor(level.entities[i]) ??
+              tintFor(level.entities[i].type),
         ),
     ];
 

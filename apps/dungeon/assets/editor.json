@@ -1,0 +1,25 @@
+{
+  "monster": {
+    "model": "assets/models/monster_{kind}.glb",
+    "size": [0.9, 1.9, 0.9]
+  },
+  "torch": {
+    "size": [0.22, 0.75, 0.22],
+    "tint": [1.0, 0.55, 0.12]
+  },
+  "player_spawn": {
+    "size": [0.7, 1.8, 0.7]
+  },
+  "pickup": {
+    "size": [0.45, 0.45, 0.45]
+  },
+  "note": {
+    "size": [0.5, 0.66, 0.06]
+  },
+  "exit": {
+    "size": [1.8, 2.6, 0.4]
+  },
+  "door": {
+    "tint": [0.6, 0.62, 0.7]
+  }
+}
