@@ -43,6 +43,11 @@ step "pub get" flutter pub get
 # traps that test exists to catch.
 step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
 
+# The generators reproduce what is committed, or the committed thing is not
+# the thing the generator makes any more. Same rule as the levels and the
+# tracks — this one covers the four applications' icons.
+step "icons" bash -c 'python3 tool/make_icons.py >/dev/null && git diff --exit-code -- "apps/*/macos/Runner/Assets.xcassets" "apps/*/web/icons" "apps/*/web/favicon.png"'
+
 step "analyze" flutter analyze
 
 for package in packages/*/; do

@@ -867,15 +867,22 @@ class _EditorScreenState extends State<EditorScreen>
           builder: (BuildContext context, BoxConstraints constraints) {
             final size = constraints.biggest;
 
-            return Listener(
-              onPointerDown: _pointerDown,
-              onPointerMove: _pointerMove,
-              onPointerUp: (PointerUpEvent event) => _pointerUp(event, size),
-              onPointerSignal: _pointerSignal,
-              child: Stack(
-                fit: StackFit.expand,
-                children: <Widget>[
-                  SceneSurface(
+            return Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                // **Only the picture listens.** The panels used to sit inside
+                // this listener, so a click on a palette row was also a click
+                // into the level behind it — picking whatever happened to be
+                // under the panel, or placing a second one of whatever the row
+                // had just picked up. A scroll over the list flew the camera at
+                // the same time as scrolling.
+                Listener(
+                  onPointerDown: _pointerDown,
+                  onPointerMove: _pointerMove,
+                  onPointerUp: (PointerUpEvent event) =>
+                      _pointerUp(event, size),
+                  onPointerSignal: _pointerSignal,
+                  child: SceneSurface(
                     renderer: renderer,
                     scene: scene,
                     view: _view,
@@ -888,16 +895,21 @@ class _EditorScreenState extends State<EditorScreen>
                     ),
                     onBeforeFrame: () => _fly.placeOn(_camera),
                   ),
-                  Positioned(left: 0, right: 0, top: 0, child: _bar()),
-                  // Below the bar and above the legend, so nothing it covers is
-                  // anything the other two are saying.
-                  Positioned(left: 0, top: 64, bottom: 64, child: Align(
+                ),
+                Positioned(left: 0, right: 0, top: 0, child: _bar()),
+                // Below the bar and above the legend, so nothing it covers is
+                // anything the other two are saying.
+                Positioned(
+                  left: 0,
+                  top: 64,
+                  bottom: 64,
+                  child: Align(
                     alignment: Alignment.centerLeft,
                     child: _palette(),
-                  )),
-                  Positioned(left: 0, right: 0, bottom: 0, child: _legend()),
-                ],
-              ),
+                  ),
+                ),
+                Positioned(left: 0, right: 0, bottom: 0, child: _legend()),
+              ],
             );
           },
         ),
