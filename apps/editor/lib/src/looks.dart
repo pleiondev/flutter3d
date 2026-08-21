@@ -67,6 +67,24 @@ final class Looks {
   /// name.
   Vector3? tintFor(EntityDef entity) => _byType[entity.type]?.tint;
 
+  /// The shapes this type is built out of, or empty.
+  ///
+  /// **For the things a game builds rather than models.** The crypt's torch is
+  /// a plate, an angled shaft and a cup with fire over it — real geometry, made
+  /// out of the engine's own primitives by twenty lines of the game's code.
+  /// There is no file to point at and there never will be, so a game that wants
+  /// its torch to look like a torch in an editor writes down the same handful
+  /// of shapes.
+  ///
+  /// **This is a second copy of a silhouette, and that is worth saying out
+  /// loud.** The game's version and this one can drift, and nothing will catch
+  /// it. It buys the thing the marks could not: a wall with a torch on it
+  /// rather than a wall with a box on it. The way to remove the copy is to make
+  /// the game build its fixtures from this list too, which is a change to the
+  /// game rather than to the editor.
+  List<Part> partsFor(EntityDef entity) =>
+      _byType[entity.type]?.parts ?? const <Part>[];
+
   /// Puts `{property}` into a path from the entity's own properties.
   ///
   /// A missing property leaves the path alone rather than half-substituted:
@@ -83,16 +101,25 @@ final class Looks {
 
 /// What one type looks like.
 final class Look {
-  const Look({this.model, this.size, this.tint});
+  const Look({this.model, this.size, this.tint, this.parts = const <Part>[]});
 
   final String? model;
   final Vector3? size;
   final Vector3? tint;
 
+  /// The shapes it is built out of, for a thing with no model.
+  final List<Part> parts;
+
   factory Look.fromJson(Map<String, Object?> json) => Look(
         model: json['model'] is String ? json['model']! as String : null,
         size: _vector(json['size']),
         tint: _vector(json['tint']),
+        parts: <Part>[
+          for (final part in json['parts'] is List
+              ? json['parts']! as List<Object?>
+              : const <Object?>[])
+            if (part is Map<String, Object?>) Part.fromJson(part),
+        ],
       );
 
   static Vector3? _vector(Object? value) {
@@ -104,6 +131,60 @@ final class Look {
       (value[2]! as num).toDouble(),
     );
   }
+}
+
+/// One shape in a silhouette.
+///
+/// The primitives are the engine's own, which is what makes this data rather
+/// than a drawing: a game names `cylinder` and a size, and the editor asks the
+/// same `CylinderShape` the game would have asked for.
+final class Part {
+  const Part({
+    required this.shape,
+    required this.at,
+    required this.size,
+    required this.radius,
+    required this.height,
+    required this.pitch,
+    required this.colour,
+    required this.glows,
+  });
+
+  /// `box`, `cylinder`, `sphere` or `cone`. Anything else is drawn as a box,
+  /// because a shape nobody recognises is still somewhere a thing is.
+  final String shape;
+
+  /// Where it sits, in the entity's own space: +Z into the wall it is on, so
+  /// the level's yaw turns the whole thing.
+  final Vector3 at;
+
+  final Vector3 size;
+  final double radius;
+  final double height;
+
+  /// Tilt about the entity's X, in radians. What holds a torch's shaft up and
+  /// out of the wall.
+  final double pitch;
+
+  final Vector3 colour;
+
+  /// Whether this part is the light rather than the thing holding it. Drawn so
+  /// that a dark corridor cannot swallow it, which is the whole point of a
+  /// flame.
+  final bool glows;
+
+  factory Part.fromJson(Map<String, Object?> json) => Part(
+        shape: json['shape'] is String ? json['shape']! as String : 'box',
+        at: Look._vector(json['at']) ?? Vector3.zero(),
+        size: Look._vector(json['size']) ?? Vector3.all(0.1),
+        radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
+        height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
+        pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
+        colour: Look._vector(json['colour']) ??
+            Look._vector(json['glow']) ??
+            Vector3(0.6, 0.6, 0.62),
+        glows: json['glow'] != null,
+      );
 }
 
 /// Where a game keeps the file, if it keeps one.

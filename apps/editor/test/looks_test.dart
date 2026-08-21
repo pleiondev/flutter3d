@@ -130,6 +130,67 @@ void main() {
     });
   });
 
+  group('a silhouette', () {
+    // **For the things a game builds rather than models.** The crypt's torch is
+    // a plate, an angled shaft and a cup with fire over it: real geometry, made
+    // out of the engine's own primitives by twenty lines of the game's code.
+    // There is no file to point at and there never will be.
+    final described = Looks.parse('''
+    {
+      "torch": {
+        "parts": [
+          { "shape": "box", "size": [0.16, 0.3, 0.06], "at": [0, -0.18, 0.06],
+            "colour": [0.16, 0.15, 0.14] },
+          { "shape": "cylinder", "radius": 0.035, "height": 0.42,
+            "at": [0, -0.06, -0.08], "pitch": -0.5 },
+          { "shape": "sphere", "radius": 0.085, "at": [0, 0.19, -0.24],
+            "glow": [1.0, 0.55, 0.14] }
+        ]
+      }
+    }
+    ''');
+
+    test('is a list of the engine\'s own shapes', () {
+      final parts = described.partsFor(_entity('torch'));
+
+      expect(parts.length, 3);
+      expect(parts.map((Part it) => it.shape),
+          <String>['box', 'cylinder', 'sphere']);
+    });
+
+    test('and a part that is on fire says so', () {
+      // A flame is the light rather than the thing holding it: drawn lit by
+      // itself, or a dark corridor swallows the one part that is the point.
+      final parts = described.partsFor(_entity('torch'));
+
+      expect(parts.last.glows, isTrue);
+      expect(parts.first.glows, isFalse);
+      expect(parts.last.colour.x, greaterThan(parts.last.colour.z));
+    });
+
+    test('and an angle, which is what holds a torch out of a wall', () {
+      expect(described.partsFor(_entity('torch'))[1].pitch, closeTo(-0.5, 1e-9));
+    });
+
+    test('and a type nobody drew has none, which is a mark', () {
+      expect(described.partsFor(_entity('monster')), isEmpty);
+    });
+
+    test('and the crypt describes its torch', () {
+      final said = Looks.parse(
+        File('../dungeon/assets/editor.json').readAsStringSync(),
+      );
+
+      expect(said.partsFor(_entity('torch')), isNotEmpty,
+          reason: 'the wall is back to having a box on it');
+      expect(
+        said.partsFor(_entity('torch')).where((Part it) => it.glows),
+        isNotEmpty,
+        reason: 'a torch with nothing burning on it',
+      );
+    });
+  });
+
   test('and the handles are the size the game said', () {
     // The whole point of the file, at the place it lands: what a click hits and
     // what gets drawn are the same box, so describing a torch makes it both

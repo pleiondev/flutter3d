@@ -410,6 +410,17 @@ class _EditorScreenState extends State<EditorScreen>
           ? null
           : editing.level.materials[named];
 
+      // A silhouette the game described: a torch's plate, shaft, cup and
+      // flame, built out of the engine's own primitives. Drawn instead of the
+      // mark, not beside it.
+      final parts = entity == null
+          ? const <Part>[]
+          : _looks.partsFor(entity);
+      if (parts.isNotEmpty) {
+        _buildParts(device, scene, parts, handle, entity!);
+        continue;
+      }
+
       final node = MeshNode(
         // **A light is a ball, everything else is a box**, because a lamp drawn
         // as a cube beside a torch drawn as a cube is two cubes, and the
@@ -448,6 +459,71 @@ class _EditorScreenState extends State<EditorScreen>
       _gizmos.add(node);
     }
   }
+
+  /// Puts one described silhouette into the scene.
+  ///
+  /// Under a holder at the entity's place, turned by its yaw, so a part's
+  /// position is written the way the game writes it: local +Z into the wall.
+  void _buildParts(
+    GraphicsDevice device,
+    Scene scene,
+    List<Part> parts,
+    Handle handle,
+    EntityDef entity,
+  ) {
+    final holder = SceneNode(name: 'gizmo')
+      ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+      ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw));
+    scene.add(holder);
+    _gizmos.add(holder);
+
+    final meshes = SharedMeshes(device);
+    for (final part in parts) {
+      final node = MeshNode(
+        _meshFor(meshes, part),
+        engine.Material(
+          name: part.glows ? 'flame' : 'part',
+          baseColor: Vector4(
+            part.colour.x,
+            part.colour.y,
+            part.colour.z,
+            1.0,
+          ),
+          // A flame is the light rather than the thing holding it, and a dark
+          // corridor would otherwise swallow the one part that is the point.
+          emissive: part.glows ? part.colour * 1.4 : null,
+        ),
+        name: part.shape,
+      )..setPosition(part.at.x, part.at.y, part.at.z);
+      if (part.pitch != 0.0) {
+        node.setRotation(
+          Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), part.pitch),
+        );
+      }
+      node.castsShadow = false;
+      holder.add(node);
+    }
+  }
+
+  static DeviceMesh _meshFor(SharedMeshes meshes, Part part) => switch (part.shape) {
+        'cylinder' => meshes.shape(
+            'part-cyl-${part.radius}-${part.height}',
+            () => CylinderShape(
+              radiusTop: part.radius,
+              radiusBottom: part.radius,
+              height: part.height,
+            ),
+          ),
+        'cone' => meshes.shape(
+            'part-cone-${part.radius}-${part.height}',
+            () => ConeShape(radius: part.radius, height: part.height),
+          ),
+        'sphere' => meshes.shape(
+            'part-ball-${part.radius}',
+            () => SphereShape(radius: part.radius),
+          ),
+        _ => meshes.box(part.size),
+      };
 
   /// Replaces the marks of everything that names a model with the model.
   ///
