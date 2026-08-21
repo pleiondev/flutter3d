@@ -176,6 +176,13 @@ void main() {
     expect(project.keys, contains('test/widget_test.dart'));
     expect(_text(project, 'test/widget_test.dart'), contains('first.json'));
     expect(_text(project, 'test/widget_test.dart'), isNot(contains('MyApp')));
+    // **And it is a file, not a string.** It used to be written out inside
+    // `scaffold.dart`, which is the one place in this repository where nothing
+    // compiles what it holds — the same argument `main.dart` next door already
+    // makes about itself. It is `apps/template_app/test/widget_test.dart` now,
+    // run by CI like any other test, and copied here by `make_templates.py`.
+    expect(_text(project, 'test/widget_test.dart'),
+        contains('the level is a document this engine understands'));
   });
 
   group('the pubspec', () {

@@ -246,6 +246,13 @@ APP = {
         'apps/template_app/lib/src/backend.dart',
         'lib/src/backend.dart',
     ),
+    # The test a new project comes with. Same argument as `main.dart` above,
+    # and it used to be a string inside the scaffolder — which is the one
+    # place in this repository where nothing compiles what it holds.
+    'app.test.dart.txt': (
+        'apps/template_app/test/widget_test.dart',
+        'test/widget_test.dart',
+    ),
 }
 
 

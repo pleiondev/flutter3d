@@ -6,6 +6,7 @@
     "level.first.json": "assets/levels/first.json",
     "app.main.dart.txt": "lib/main.dart",
     "app.backend.dart.txt": "lib/src/backend.dart",
+    "app.test.dart.txt": "test/widget_test.dart",
     "model.key.glb": "assets/models/key.glb",
     "model.lamp.glb": "assets/models/lamp.glb",
     "model.monster.glb": "assets/models/monster.glb",

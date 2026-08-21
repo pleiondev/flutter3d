@@ -6,6 +6,7 @@
     "level.first.json": "assets/levels/first.json",
     "app.main.dart.txt": "lib/main.dart",
     "app.backend.dart.txt": "lib/src/backend.dart",
+    "app.test.dart.txt": "test/widget_test.dart",
     "model.checkpoint.glb": "assets/models/checkpoint.glb",
     "model.collectible.glb": "assets/models/collectible.glb",
     "model.enemy.glb": "assets/models/enemy.glb",
