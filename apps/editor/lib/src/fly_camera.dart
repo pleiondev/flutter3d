@@ -113,11 +113,19 @@ final class FlyCamera {
       -math.cos(yaw) * cosPitch,
     );
     _forward.normalize();
+    // **`forward × up`, and the sign is not a detail.** Written the other way
+    // round this is a camera whose right is left: strafing goes the wrong way,
+    // and — because the up vector is built from it — a click ray comes out
+    // rotated a half turn, so pointing at a wall selects whatever is behind
+    // you. Every test this file had passed anyway, because each one asked
+    // about a property the mirrored vectors also have: that the horizon stays
+    // level, that the length is one, that strafing does not change height.
+    //
     // Across the world's up rather than the camera's, so the horizon stays
     // level: a right vector built from the tilted up rolls the whole view as
     // soon as the camera looks anywhere but straight ahead.
     _right
-      ..setValues(_forward.z, 0.0, -_forward.x)
+      ..setValues(-_forward.z, 0.0, _forward.x)
       ..normalize();
     _up
       ..setFrom(_right.cross(_forward))

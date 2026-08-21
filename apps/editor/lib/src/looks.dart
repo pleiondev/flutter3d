@@ -41,6 +41,14 @@ final class Looks {
 
   bool get isEmpty => _byType.isEmpty;
 
+  /// Every type the game described, whether this level has one or not.
+  ///
+  /// **What a palette offers.** Without it the palette can only list what is
+  /// already in the document, which in a level nobody has built yet is nothing
+  /// — and in an old level is every word except the one somebody opened the
+  /// editor to add.
+  Iterable<String> get types => _byType.keys;
+
   factory Looks.parse(String text) {
     final json = jsonDecode(text);
     if (json is! Map<String, Object?>) return none;

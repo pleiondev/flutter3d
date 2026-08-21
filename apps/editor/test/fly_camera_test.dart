@@ -123,6 +123,45 @@ void main() {
     expect(fast.position.length, greaterThan(slow.position.length * 2.0));
   });
 
+  test('and right is to the right, which nothing here used to check', () {
+    // **The bug this is written for.** `right` was `up × forward` rather than
+    // `forward × up` — a camera whose right is left. Strafing went the wrong
+    // way, and because `up` is built from `right`, a click ray came out rotated
+    // a half turn: pointing at a wall selected whatever was behind you.
+    //
+    // Every test in this file passed with it, because each asked about a
+    // property the mirrored vectors also have — the horizon stays level, the
+    // length is one, strafing does not change height. None of them asked which
+    // way.
+    final camera = FlyCamera(at: Vector3.zero(), pitch: 0.0);
+    final input = InputState()..press(_right);
+
+    _fly(camera, input);
+
+    // Facing -Z with Y up, right is +X. That is the whole assertion.
+    expect(camera.position.x, closeTo(camera.speed, 1e-6));
+  });
+
+  test('and up is up, not down', () {
+    final camera = FlyCamera(at: Vector3.zero(), pitch: 0.0);
+    camera.look(Vector2.zero());
+
+    expect(camera.up.y, closeTo(1.0, 1e-6));
+  });
+
+  test('and the three axes are a right-handed set', () {
+    // Said once, generally: whatever the yaw and the pitch, `right` is
+    // `forward × up` — which is the sentence the bug above breaks and the one
+    // a reader can check.
+    final camera = FlyCamera(at: Vector3.zero(), yaw: 0.9, pitch: -0.4);
+    camera.look(Vector2.zero());
+
+    final expected = camera.forward.cross(Vector3(0.0, 1.0, 0.0))..normalize();
+
+    expect(camera.right.x, closeTo(expected.x, 1e-6));
+    expect(camera.right.z, closeTo(expected.z, 1e-6));
+  });
+
   test('and looking up stops short of straight up', () {
     // At exactly vertical the horizontal direction stops existing and the view
     // rolls, which is a camera nobody can aim.

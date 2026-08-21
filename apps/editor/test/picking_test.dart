@@ -5,6 +5,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:editor/src/fly_camera.dart';
 import 'package:editor/src/picking.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,6 +86,59 @@ void main() {
       Picking.brushAt(brushes, Vector3.zero(), Vector3(1.0, 0.0, 0.0)),
       0,
     );
+  });
+
+  test('a click through the camera hits what is under it', () {
+    // **The test that would have caught a mirrored camera**, and the one this
+    // file was missing: everything else here passes the camera's axes in by
+    // hand, so it proved the ray maths and never the vectors it is given. The
+    // whole point of both is answering "what did they click on", so the two
+    // halves are asked together.
+    final camera = FlyCamera(at: Vector3.zero(), pitch: 0.0);
+    camera.look(Vector2.zero());
+    final size = Vector2(800.0, 600.0);
+
+    final brushes = <Brush>[
+      _brush(Vector3(-6.0, 0.0, -10.0), size: Vector3(4.0, 4.0, 4.0)),
+      _brush(Vector3(6.0, 0.0, -10.0), size: Vector3(4.0, 4.0, 4.0)),
+    ];
+
+    Vector3 ray(double x, double y) => Picking.through(
+          Vector2(x, y),
+          size: size,
+          forward: camera.forward,
+          right: camera.right,
+          up: camera.up,
+          fovY: 1.05,
+        );
+
+    expect(Picking.brushAt(brushes, camera.position, ray(700.0, 300.0)), 1,
+        reason: 'a click on the right of the screen chose the left brush');
+    expect(Picking.brushAt(brushes, camera.position, ray(100.0, 300.0)), 0,
+        reason: 'a click on the left of the screen chose the right brush');
+  });
+
+  test('and a click high on the screen hits what is high in the world', () {
+    final camera = FlyCamera(at: Vector3.zero(), pitch: 0.0);
+    camera.look(Vector2.zero());
+    final size = Vector2(800.0, 600.0);
+
+    final brushes = <Brush>[
+      _brush(Vector3(0.0, -5.0, -10.0), size: Vector3(4.0, 4.0, 4.0)),
+      _brush(Vector3(0.0, 5.0, -10.0), size: Vector3(4.0, 4.0, 4.0)),
+    ];
+
+    Vector3 ray(double y) => Picking.through(
+          Vector2(400.0, y),
+          size: size,
+          forward: camera.forward,
+          right: camera.right,
+          up: camera.up,
+          fovY: 1.05,
+        );
+
+    expect(Picking.brushAt(brushes, camera.position, ray(80.0)), 1);
+    expect(Picking.brushAt(brushes, camera.position, ray(520.0)), 0);
   });
 
   group('the direction a click points', () {

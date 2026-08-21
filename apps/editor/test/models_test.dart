@@ -47,6 +47,74 @@ void main() {
         reason: 'run tool/make_models.py');
   });
 
+  group('where a model sits on its own origin', () {
+    // **A model has no idea which way up it goes, and a document only says
+    // where its middle is.** So the anchor is a convention per kind, taken from
+    // where the games put these things — and getting it wrong looks like a
+    // lamp hanging upside down, which is what the platformer's first one did.
+    Future<Aabb3> boundsOf(String path) async {
+      final device = _device();
+      final document = await decodeModel(
+        ModelLoadRequest(source: FileAssetSource(path)),
+      );
+      final model = await ModelAsset.fromDocument(
+        document,
+        device: device,
+        fallbackAlbedo: SolidColorTexture.white.upload(device),
+        name: path,
+      );
+      return model.localBounds;
+    }
+
+    test('a spawn stands on it', () async {
+      // A spawn's `at` is the feet, not the middle: the crypt puts one at y = 0
+      // on a floor whose top is y = 0. Centred, it would be a player buried to
+      // the waist.
+      for (final genre in <String>['shooter', 'platformer']) {
+        final bounds =
+            await boundsOf('assets/templates/$genre/model.player_spawn.glb');
+        expect(bounds.min.y, closeTo(0.0, 0.05),
+            reason: '$genre: the spawn starts at ${bounds.min.y}');
+        expect(bounds.max.y, greaterThan(1.2));
+      }
+    });
+
+    test('and a monster is centred on it', () async {
+      // `at` is the middle of the capsule — the crypt's monsters are at y = 1.0
+      // on a floor at y = 0, with a body 1.7 tall.
+      final bounds = await boundsOf('assets/templates/shooter/model.monster.glb');
+      final middle = (bounds.min.y + bounds.max.y) / 2;
+
+      expect(middle, closeTo(0.0, 0.12), reason: 'its middle is at $middle');
+    });
+
+    test('and a lamp hangs in one game and stands in the other', () async {
+      // The same two parts the other way up, which is why they are two models:
+      // `DungeonFixtures` puts the stem above the globe and `PlatformerLooks`
+      // puts a post below it, and both draw the globe at the entity's own
+      // position.
+      final hanging = await boundsOf('assets/templates/shooter/model.lamp.glb');
+      final standing =
+          await boundsOf('assets/templates/platformer/model.lamp.glb');
+
+      expect(hanging.max.y, greaterThan(0.5),
+          reason: 'the crypt\'s lamp has nothing above its globe');
+      expect(standing.min.y, lessThan(-1.0),
+          reason: 'the platformer\'s lamp has no post under its globe');
+    });
+
+    test('and nothing is drawn miles away from where it is placed', () async {
+      // The general form: a model whose origin is outside itself is a thing
+      // that appears somewhere other than where it was put.
+      for (final file in models) {
+        final bounds = await boundsOf(file.path);
+        final size = bounds.max - bounds.min;
+        expect(bounds.min.length, lessThan(size.length + 0.5),
+            reason: '${file.path} sits ${bounds.min} from its own origin');
+      }
+    });
+  });
+
   test('and one of them, put in a scene, is something you can see', () async {
     // **Loading is not drawing.** Every check above is satisfied by a file the
     // renderer would show nothing for — a node with no mesh under it, a mesh

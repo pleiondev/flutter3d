@@ -352,18 +352,19 @@ def monster(mesh):
     """Something the height of a person and half again as wide as one.
 
     `MonsterDef` in the shooter's `sample.dart` says a runner is 0.35 across and
-    1.7 tall; this is that, in the crouch the models it stands in for have.
+    1.7 tall. **Centred on its own origin**, because a monster's `at` is the
+    middle of its capsule — the crypt puts one at y = 1.0 on a floor at y = 0.
     """
-    tube(mesh, 0.30, 0.34, 0.95, at=(0.0, -0.35, 0.0), colour=FLESH)
-    ball(mesh, 0.27, at=(0.0, 0.32, 0.0), colour=FLESH)
+    tube(mesh, 0.30, 0.34, 0.95, at=(0.0, -0.12, 0.0), colour=FLESH)
+    ball(mesh, 0.27, at=(0.0, 0.55, 0.0), colour=FLESH)
     # Eyes, lit, because a monster you can tell the front of is a monster you
     # can place facing the corridor.
-    ball(mesh, 0.055, at=(0.10, 0.36, -0.22), colour=(0.9, 0.9, 0.2),
+    ball(mesh, 0.055, at=(0.10, 0.59, -0.22), colour=(0.9, 0.9, 0.2),
          glow=(0.9, 0.75, 0.1))
-    ball(mesh, 0.055, at=(-0.10, 0.36, -0.22), colour=(0.9, 0.9, 0.2),
+    ball(mesh, 0.055, at=(-0.10, 0.59, -0.22), colour=(0.9, 0.9, 0.2),
          glow=(0.9, 0.75, 0.1))
-    box(mesh, (0.62, 0.14, 0.24), at=(0.0, 0.06, 0.0), colour=IRON)
-    tube(mesh, 0.09, 0.09, 0.5, at=(0.0, -0.82, 0.14), colour=FLESH)
+    box(mesh, (0.62, 0.14, 0.24), at=(0.0, 0.29, 0.0), colour=IRON)
+    tube(mesh, 0.09, 0.09, 0.55, at=(0.0, -0.60, 0.10), colour=FLESH)
 
 
 def pickup(mesh):
@@ -402,12 +403,31 @@ def torch(mesh):
          squash=1.5)
 
 
-def lamp(mesh):
-    """A globe on a stem, which is what both games' lamps are."""
-    ball(mesh, 0.17, at=(0.0, -0.55, 0.0), colour=(1.0, 0.93, 0.72),
-         glow=(0.9, 0.78, 0.5))
-    tube(mesh, 0.03, 0.03, 0.70, at=(0.0, -0.05, 0.0), colour=IRON)
-    box(mesh, (0.22, 0.06, 0.22), at=(0.0, 0.32, 0.0), colour=IRON)
+def hanging_lamp(mesh):
+    """A globe with its stem going **up**, which is what the crypt's lamp is.
+
+    `DungeonFixtures` puts the globe at the fixture's own origin and the stem
+    above it: the thing hangs. The platformer's lamp is the same two parts the
+    other way up and is a different model, because a model has no idea which
+    game it is in and the two are not the same object.
+    """
+    ball(mesh, 0.17, colour=(1.0, 0.93, 0.72), glow=(0.9, 0.78, 0.5))
+    tube(mesh, 0.03, 0.03, 0.60, at=(0.0, 0.47, 0.0), colour=IRON)
+    box(mesh, (0.22, 0.05, 0.22), at=(0.0, 0.79, 0.0), colour=IRON)
+
+
+def standing_lamp(mesh):
+    """A globe on a post going **down** to the floor: the platformer's.
+
+    `PlatformerLooks` draws the globe at the entity's own position and a post of
+    the whole height below it — so the lamp stands, and its `at` is the light
+    rather than the foot. The first version of this file gave both games the
+    hanging one, and a lamp in a platformer came out upside down: a stem in the
+    air with a bulb swinging under it.
+    """
+    ball(mesh, 0.20, colour=(1.0, 0.93, 0.72), glow=(0.9, 0.78, 0.5))
+    box(mesh, (0.11, 1.60, 0.11), at=(0.0, -0.80, 0.0), colour=(0.22, 0.20, 0.18))
+    box(mesh, (0.34, 0.06, 0.34), at=(0.0, -1.57, 0.0), colour=(0.22, 0.20, 0.18))
 
 
 def note(mesh):
@@ -417,11 +437,16 @@ def note(mesh):
 
 
 def spawn(mesh):
-    """Where the player starts: a figure, so it reads as somebody standing."""
-    tube(mesh, 0.20, 0.24, 0.90, at=(0.0, -0.35, 0.0), colour=(0.25, 0.55, 0.85))
-    ball(mesh, 0.20, at=(0.0, 0.28, 0.0), colour=(0.85, 0.72, 0.58))
-    tube(mesh, 0.34, 0.34, 0.04, at=(0.0, -0.86, 0.0), colour=(0.3, 0.8, 0.35),
+    """Where the player starts: a figure, **standing on** its own origin.
+
+    A spawn's `at` is the feet and not the middle: the crypt's is at y = 0 on a
+    floor whose top is y = 0. A figure centred on the origin would be a player
+    buried to the waist.
+    """
+    tube(mesh, 0.34, 0.34, 0.04, at=(0.0, 0.02, 0.0), colour=(0.3, 0.8, 0.35),
          glow=(0.12, 0.4, 0.15))
+    tube(mesh, 0.20, 0.24, 0.90, at=(0.0, 0.55, 0.0), colour=(0.25, 0.55, 0.85))
+    ball(mesh, 0.20, at=(0.0, 1.20, 0.0), colour=(0.85, 0.72, 0.58))
 
 
 def coin(mesh):
@@ -435,13 +460,13 @@ def coin(mesh):
 
 def enemy(mesh):
     """The platformer's, which is 0.7 of a cube and walks a route."""
-    box(mesh, (0.52, 0.42, 0.52), at=(0.0, -0.10, 0.0), colour=(0.55, 0.22, 0.5))
-    ball(mesh, 0.09, at=(0.14, 0.10, -0.24), colour=(1.0, 1.0, 1.0),
+    box(mesh, (0.52, 0.42, 0.52), at=(0.0, 0.05, 0.0), colour=(0.55, 0.22, 0.5))
+    ball(mesh, 0.09, at=(0.14, 0.16, -0.24), colour=(1.0, 1.0, 1.0),
          glow=(0.5, 0.5, 0.5))
-    ball(mesh, 0.09, at=(-0.14, 0.10, -0.24), colour=(1.0, 1.0, 1.0),
+    ball(mesh, 0.09, at=(-0.14, 0.16, -0.24), colour=(1.0, 1.0, 1.0),
          glow=(0.5, 0.5, 0.5))
-    box(mesh, (0.12, 0.16, 0.12), at=(0.20, -0.30, 0.0), colour=(0.3, 0.12, 0.3))
-    box(mesh, (0.12, 0.16, 0.12), at=(-0.20, -0.30, 0.0), colour=(0.3, 0.12, 0.3))
+    box(mesh, (0.12, 0.18, 0.12), at=(0.20, -0.26, 0.0), colour=(0.3, 0.12, 0.3))
+    box(mesh, (0.12, 0.18, 0.12), at=(-0.20, -0.26, 0.0), colour=(0.3, 0.12, 0.3))
 
 
 def checkpoint(mesh):
@@ -457,7 +482,7 @@ MODELS = {
         'pickup': pickup,
         'key': key,
         'torch': torch,
-        'lamp': lamp,
+        'lamp': hanging_lamp,
         'note': note,
         'player_spawn': spawn,
     },
@@ -465,7 +490,7 @@ MODELS = {
         'collectible': coin,
         'key': key,
         'enemy': enemy,
-        'lamp': lamp,
+        'lamp': standing_lamp,
         'checkpoint': checkpoint,
         'player_spawn': spawn,
     },

@@ -1308,7 +1308,7 @@ class _EditorScreenState extends State<EditorScreen>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  for (final it in paletteOf(editing.level))
+                  for (final it in paletteOf(editing.level, declared: _looks.types))
                     _PaletteRow(
                       it: it,
                       held: _placing?.what == it.what,
