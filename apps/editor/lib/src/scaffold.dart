@@ -52,6 +52,23 @@ final class Template {
   }
 }
 
+/// Where a project's directory is, given the level path somebody asked for.
+///
+/// **A path that does not exist is a request to make one**, and what it names
+/// is a level inside a project rather than the project. `…/my_game/assets/
+/// levels/first.json` means `my_game`; a bare `…/my_game/first.json` means the
+/// directory it is in, and the level lands where the layout says it goes.
+({String root, String level}) projectAt(String levelPath) {
+  const inside = '/assets/';
+  final at = levelPath.lastIndexOf(inside);
+  if (at > 0) {
+    return (root: levelPath.substring(0, at), level: levelPath);
+  }
+  final slash = levelPath.lastIndexOf('/');
+  final root = slash <= 0 ? levelPath : levelPath.substring(0, slash);
+  return (root: root, level: '$root/assets/levels/first.json');
+}
+
 /// The name a directory and a pub package can both have.
 ///
 /// Lower case, words joined by underscores, never starting with a digit. Pub is

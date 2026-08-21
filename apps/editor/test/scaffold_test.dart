@@ -162,6 +162,25 @@ void main() {
     });
   });
 
+  group('where a project goes', () {
+    test('is the directory above the assets the level sits in', () {
+      // A path that does not exist names a level inside a project rather than
+      // the project, and everything the editor resolves — models, the
+      // vocabulary — is resolved from the directory that has `assets` in it.
+      final where = projectAt('/games/deep_mine/assets/levels/first.json');
+
+      expect(where.root, '/games/deep_mine');
+      expect(where.level, '/games/deep_mine/assets/levels/first.json');
+    });
+
+    test('and a bare path gets the layout the editor knows how to open', () {
+      final where = projectAt('/games/deep_mine/mine.json');
+
+      expect(where.root, '/games/deep_mine');
+      expect(where.level, '/games/deep_mine/assets/levels/first.json');
+    });
+  });
+
   test('and a template that lists a file nobody shipped says so', () {
     // The failure a missing `assets:` line produces, caught where it can be
     // explained rather than where it throws.

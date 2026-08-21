@@ -243,6 +243,13 @@ def dump(document, path):
 
 
 def main():
+    # The list the editor reads first. A bundle cannot be listed, so what
+    # templates exist has to be written down like everything else.
+    dump(
+        {'templates': sorted(TEMPLATES)},
+        os.path.join(HERE, 'apps', 'editor', 'assets', 'templates', 'index.json'),
+    )
+
     for genre, template in TEMPLATES.items():
         where = os.path.join(HERE, 'apps', 'editor', 'assets', 'templates', genre)
 

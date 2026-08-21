@@ -13,6 +13,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -35,6 +36,7 @@ import 'src/fly_camera.dart';
 import 'src/gizmos.dart';
 import 'src/looks.dart';
 import 'src/picking.dart';
+import 'src/scaffold.dart';
 import 'src/vocabulary.dart';
 
 /// The document opened on launch.
@@ -103,6 +105,13 @@ class _EditorScreenState extends State<EditorScreen>
 
   /// What this game says its own words look like, if it says anything.
   Looks _looks = Looks.none;
+
+  /// The templates on offer, while there is nothing open.
+  ///
+  /// **A path that does not exist is a request to make one.** The editor used
+  /// to say "no level document at …" and list where it had looked, which is the
+  /// right answer for a typo and the wrong one for somebody starting a game.
+  List<Template>? _choosing;
 
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
@@ -195,11 +204,30 @@ class _EditorScreenState extends State<EditorScreen>
         exists: (String path) => File(path).existsSync(),
       );
       if (found == null) {
-        throw FileSystemException(Documents.couldNotFind(
-          kLevelPath,
-          Documents.candidates(kLevelPath, from: tried),
-        ));
+        final templates = await _readTemplates();
+        if (templates.isEmpty) {
+          throw FileSystemException(Documents.couldNotFind(
+            kLevelPath,
+            Documents.candidates(kLevelPath, from: tried),
+          ));
+        }
+        if (!mounted) return;
+        setState(() {
+          _choosing = templates;
+          _said = 'nothing at $kLevelPath yet';
+        });
+        return;
       }
+      await _openAt(found);
+      return;
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    }
+  }
+
+  /// Opens the document at [found], which is known to be there.
+  Future<void> _openAt(String found) async {
+    try {
       final editing = Editing.parse(await File(found).readAsString(),
           path: found);
       // Where this document's own `assets/…` live. A game never has to work
@@ -298,6 +326,88 @@ class _EditorScreenState extends State<EditorScreen>
     } finally {
       _rebuilding = false;
     }
+  }
+
+  /// Every template this editor ships, out of its own bundle.
+  ///
+  /// A bundle cannot be listed, so what exists is written down: one index of
+  /// the templates, one manifest each of their files.
+  static Future<List<Template>> _readTemplates() async {
+    try {
+      final index = jsonDecode(
+        await rootBundle.loadString('assets/templates/index.json'),
+      ) as Map<String, Object?>;
+      final names = (index['templates'] as List<Object?>? ?? const <Object?>[])
+          .whereType<String>();
+      return <Template>[
+        for (final name in names)
+          Template.parse(
+            name,
+            await rootBundle.loadString('assets/templates/$name/index.json'),
+          ),
+      ];
+    } catch (error) {
+      debugPrint('editor: could not read the templates ($error)');
+      return const <Template>[];
+    }
+  }
+
+  /// Writes a new project and opens the level in it.
+  Future<void> _create(Template template) async {
+    final where = projectAt(
+      File(kLevelPath).isAbsolute
+          ? kLevelPath
+          : '${Directory.current.path}/$kLevelPath',
+    );
+    try {
+      final directory = Directory(where.root);
+      if (directory.existsSync() && directory.listSync().isNotEmpty) {
+        setState(() => _said = '${where.root} is not empty');
+        return;
+      }
+
+      final project = scaffold(
+        template: template,
+        project: where.root.split('/').last,
+        sources: <String, Uint8List>{
+          for (final name in template.files.keys)
+            name: (await rootBundle.load('assets/templates/${template.id}/$name'))
+                .buffer
+                .asUint8List(),
+        },
+        packagesAt: _packagesAt() ?? '../../packages',
+      );
+
+      for (final entry in project.entries) {
+        final file = File('${where.root}/${entry.key}');
+        file.parent.createSync(recursive: true);
+        file.writeAsBytesSync(entry.value);
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _choosing = null;
+        _said = 'made ${project.length} files in ${where.root}';
+      });
+      await _openAt(where.level);
+    } catch (error) {
+      if (mounted) setState(() => _said = 'could not create it: $error');
+    }
+  }
+
+  /// Where this checkout keeps its packages, for a new project to point at.
+  ///
+  /// The same climb `Documents` does, looking for the one directory a project's
+  /// path dependencies have to name. Null when the editor is running somewhere
+  /// that is not a checkout, and then the project says so in its own pubspec
+  /// rather than pretending.
+  static String? _packagesAt() {
+    for (final directory in Documents.searchFrom()) {
+      if (Directory('$directory/packages/flutter3d').existsSync()) {
+        return '$directory/packages';
+      }
+    }
+    return null;
   }
 
   /// Reads the game's own `editor.json`, if it keeps one.
@@ -956,6 +1066,9 @@ class _EditorScreenState extends State<EditorScreen>
       );
     }
 
+    final choosing = _choosing;
+    if (choosing != null) return _chooser(choosing);
+
     final renderer = _renderer;
     final scene = _scene;
     if (renderer == null || scene == null) {
@@ -1068,6 +1181,90 @@ class _EditorScreenState extends State<EditorScreen>
   String get _gridSaid {
     final grid = _editing?.grid ?? 0.0;
     return grid == 0.0 ? 'off' : '$grid m';
+  }
+
+  /// The screen for a level that does not exist yet.
+  ///
+  /// **A path that is not there is a request to make one**, and answering it
+  /// with "no such file" and a list of the places looked is the right answer
+  /// for a typo and the wrong one for somebody starting a game. Both, then: the
+  /// templates, and underneath them the path that will be written.
+  Widget _chooser(List<Template> templates) {
+    final where = projectAt(
+      File(kLevelPath).isAbsolute
+          ? kLevelPath
+          : '${Directory.current.path}/$kLevelPath',
+    );
+    return Scaffold(
+      backgroundColor: const Color(0xFF14161A),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              const Text(
+                'Start a game',
+                style: TextStyle(
+                  color: Color(0xFFE6EAF0),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'There is nothing at ${where.level} yet. A template writes a '
+                'project there: a vocabulary, a first level and a model for '
+                'each kind of thing.',
+                style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 13),
+              ),
+              const SizedBox(height: 18),
+              for (final template in templates)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: InkWell(
+                    onTap: () => unawaited(_create(template)),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B1F26),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            template.name,
+                            style: const TextStyle(
+                              color: Color(0xFFFFB74D),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            template.about,
+                            style: const TextStyle(
+                              color: Color(0xFFCBD3DD),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Text(
+                _said,
+                style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   /// What can be put into this level, and what is holding.
