@@ -52,6 +52,17 @@ dev_dependencies:
   flutter3d_cpu:
     path: ../../packages/flutter3d_cpu
 
+  # **The genres, and only here.** A template ships each genre's vocabulary as
+  # data, and the test proves that data against the packages that own the
+  # words — every type exists, and the starter level passes that genre's own
+  # validator and rules. Putting these in `dependencies:` instead would compile
+  # a vocabulary into an editor whose whole design is not having one, which is
+  # the mistake `EntityRegistry`'s own doc records somebody already making.
+  flutter3d_shooter:
+    path: ../../packages/flutter3d_shooter
+  flutter3d_platformer:
+    path: ../../packages/flutter3d_platformer
+
 flutter:
   uses-material-design: true
 

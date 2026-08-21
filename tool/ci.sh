@@ -52,7 +52,7 @@ step "icons" bash -c 'python3 tool/make_icons.py >/dev/null && git diff --exit-c
 # same reason the icons are — and for one more: `math.sin` is libm, so a
 # generator that did not quantise its coordinates produces different bytes on a
 # different machine, and this is the step that would say so.
-step "models" bash -c 'python3 tool/make_models.py >/dev/null && git diff --exit-code -- "apps/editor/assets/templates"'
+step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/editor/assets/templates"'
 
 step "analyze" flutter analyze
 

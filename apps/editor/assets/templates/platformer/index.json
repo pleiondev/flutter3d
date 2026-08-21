@@ -1,0 +1,14 @@
+{
+  "name": "Platformer",
+  "about": "A room to jump around, coins to take and a way out.",
+  "files": {
+    "editor.json": "assets/editor.json",
+    "level.first.json": "assets/levels/first.json",
+    "model.checkpoint.glb": "assets/models/checkpoint.glb",
+    "model.collectible.glb": "assets/models/collectible.glb",
+    "model.enemy.glb": "assets/models/enemy.glb",
+    "model.key.glb": "assets/models/key.glb",
+    "model.lamp.glb": "assets/models/lamp.glb",
+    "model.player_spawn.glb": "assets/models/player_spawn.glb"
+  }
+}

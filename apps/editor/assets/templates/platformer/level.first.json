@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "name": "platformer start",
+  "generatedBy": "tool/make_templates.py",
+  "editor": {
+    "template": "platformer"
+  },
+  "fogColor": [
+    0.06,
+    0.07,
+    0.1
+  ],
+  "fogDensity": 0.0,
+  "materials": {
+    "floor": {
+      "baseColor": [
+        0.35,
+        0.45,
+        0.32,
+        1.0
+      ],
+      "roughness": 0.9
+    },
+    "wall": {
+      "baseColor": [
+        0.52,
+        0.44,
+        0.36,
+        1.0
+      ],
+      "roughness": 0.85
+    },
+    "ceiling": {
+      "baseColor": [
+        0.3,
+        0.34,
+        0.42,
+        1.0
+      ],
+      "roughness": 0.9
+    }
+  },
+  "brushes": [
+    {
+      "at": [
+        0.0,
+        -0.5,
+        0.0
+      ],
+      "size": [
+        16.0,
+        1.0,
+        16.0
+      ],
+      "material": "floor"
+    },
+    {
+      "at": [
+        0.0,
+        4.5,
+        0.0
+      ],
+      "size": [
+        16.0,
+        1.0,
+        16.0
+      ],
+      "material": "ceiling"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        -8.5
+      ],
+      "size": [
+        16.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall"
+    },
+    {
+      "at": [
+        0.0,
+        2.0,
+        8.5
+      ],
+      "size": [
+        16.0,
+        4.0,
+        1.0
+      ],
+      "material": "wall"
+    },
+    {
+      "at": [
+        -8.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        18.0
+      ],
+      "material": "wall"
+    },
+    {
+      "at": [
+        8.5,
+        2.0,
+        0.0
+      ],
+      "size": [
+        1.0,
+        4.0,
+        18.0
+      ],
+      "material": "wall"
+    }
+  ],
+  "lights": [
+    {
+      "type": "point",
+      "at": [
+        0.0,
+        3.2,
+        0.0
+      ],
+      "color": [
+        1.0,
+        0.92,
+        0.78
+      ],
+      "intensity": 9.0,
+      "range": 16.0
+    }
+  ],
+  "entities": [
+    {
+      "type": "player_spawn",
+      "at": [
+        0.0,
+        0.0,
+        5.0
+      ],
+      "yaw": 0.0
+    },
+    {
+      "type": "lamp",
+      "at": [
+        -6.0,
+        0.8,
+        -6.0
+      ],
+      "yaw": 0.0,
+      "size": [
+        0.4,
+        1.6,
+        0.4
+      ]
+    },
+    {
+      "type": "collectible",
+      "at": [
+        2.0,
+        0.8,
+        0.0
+      ],
+      "what": "coin"
+    },
+    {
+      "type": "collectible",
+      "at": [
+        3.5,
+        0.8,
+        0.0
+      ],
+      "what": "coin"
+    },
+    {
+      "type": "exit",
+      "at": [
+        0.0,
+        1.5,
+        -6.0
+      ],
+      "yaw": 0.0,
+      "size": [
+        5.0,
+        3.0,
+        5.0
+      ]
+    }
+  ]
+}

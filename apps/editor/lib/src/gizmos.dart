@@ -162,7 +162,12 @@ Vector3 _atLeast(Vector3 colour, double floor) {
 /// The light is the other exception. Both it and the brush are things the
 /// *engine* defines, which is what lets an editor invent one without guessing
 /// at anybody's vocabulary.
-List<Placeable> paletteOf(Level level) {
+/// [declared] is everything a game or a template says it has, whether this
+/// level contains one or not. **Without it a palette can only offer what is
+/// already there**, which is nothing at all in a level nobody has built yet —
+/// and it is why a game that describes a torch in its own `editor.json` could
+/// not place one in a level with no torches in it.
+List<Placeable> paletteOf(Level level, {Iterable<String> declared = const <String>[]}) {
   final byMaterial = <String, int>{};
   for (final brush in level.brushes) {
     byMaterial[brush.material] = (byMaterial[brush.material] ?? 0) + 1;
@@ -177,6 +182,9 @@ List<Placeable> paletteOf(Level level) {
   final counts = <String, int>{};
   for (final entity in level.entities) {
     counts[entity.type] = (counts[entity.type] ?? 0) + 1;
+  }
+  for (final type in declared) {
+    counts.putIfAbsent(type, () => 0);
   }
 
   return <Placeable>[
