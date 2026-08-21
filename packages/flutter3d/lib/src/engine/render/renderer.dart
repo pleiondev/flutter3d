@@ -20,6 +20,7 @@ import 'frame_resources.dart';
 import 'lighting_model.dart';
 import 'material.dart';
 import 'pass_contributor.dart';
+import 'procedural_texture.dart';
 import 'render_list.dart';
 import 'render_node.dart';
 import 'render_view.dart';
@@ -1056,10 +1057,21 @@ final class Renderer implements RenderServices {
   /// Which shaders it must contain is this package's business and is stated by
   /// name — see [LightingModel.shaderName] and the `require` calls below. Where
   /// those shaders come from, and in what format, is the backend's.
+  /// The two fallbacks are what a material without a map samples: white, so
+  /// that an untextured surface is its own base colour, and the neutral
+  /// tangent-space normal, so that sampling it perturbs nothing and the shader
+  /// needs no branch. **Optional, because every application in this repository
+  /// passed the same two** — `SolidColorTexture.white` and
+  /// `SolidColorTexture.flatNormal`, uploaded on the spot, in a dozen places
+  /// including four `main.dart`s that each did it twice. They are still
+  /// parameters: a renderer drawing into somebody else's colour space may want
+  /// its white somewhere other than 1.0, and that is not a decision this
+  /// package can take back. What it can do is stop asking for the answer it
+  /// already knows.
   factory Renderer.create({
     required GraphicsDevice device,
-    required TextureHandle fallbackAlbedo,
-    required TextureHandle fallbackNormal,
+    TextureHandle? fallbackAlbedo,
+    TextureHandle? fallbackNormal,
   }) {
     final library = device.shaders;
     ShaderHandle require(String name) {
@@ -1087,8 +1099,9 @@ final class Renderer implements RenderServices {
       compositeShader: require('Composite'),
       reflectionShader: require('Reflections'),
       ssaoShader: require('Ssao'),
-      fallbackAlbedo: fallbackAlbedo,
-      fallbackNormal: fallbackNormal,
+      fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
+      fallbackNormal:
+          fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
       msaaEnabled: device.supportsOffscreenMsaa,
     );
   }

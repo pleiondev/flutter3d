@@ -121,11 +121,7 @@ void main() {
     // whose triangles are degenerate, a material the size of a full stop. One
     // model, rendered, against a clear colour it is not.
     final device = _device();
-    final renderer = Renderer.create(
-      device: device,
-      fallbackAlbedo: SolidColorTexture.white.upload(device),
-      fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-    );
+    final renderer = Renderer.create(device: device);
     final scene = Scene();
     final camera = CameraNode(
       projection: const PerspectiveProjection(

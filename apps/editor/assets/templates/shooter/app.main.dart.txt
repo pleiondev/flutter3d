@@ -107,11 +107,7 @@ class _LevelScreenState extends State<LevelScreen>
     try {
       final device = await GpuRenderBackend.create();
       if (!mounted) return;
-      final renderer = Renderer.create(
-        device: device,
-        fallbackAlbedo: SolidColorTexture.white.upload(device),
-        fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-      );
+      final renderer = Renderer.create(device: device);
 
       // Read first, build second: the registry is made out of what the document
       // happens to name, which is not knowable before reading it.

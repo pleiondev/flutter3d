@@ -27,11 +27,7 @@ import 'package:flutter_test/flutter_test.dart';
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   return (
-    renderer: Renderer.create(
-      device: device,
-      fallbackAlbedo: SolidColorTexture.white.upload(device),
-      fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-    ),
+    renderer: Renderer.create(device: device),
     scene: Scene(),
     view: RenderView(camera: CameraNode()),
   );

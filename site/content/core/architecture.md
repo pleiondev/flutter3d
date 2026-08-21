@@ -33,11 +33,7 @@ An application names a backend in its pubspec and hands the device to `Renderer.
 
 ```dart
 final device = await GpuRenderBackend.create();   // flutter3d_impeller
-final renderer = Renderer.create(
-  device: device,
-  fallbackAlbedo: SolidColorTexture.white.upload(device),
-  fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-);
+final renderer = Renderer.create(device: device);
 ```
 
 ### The three backends

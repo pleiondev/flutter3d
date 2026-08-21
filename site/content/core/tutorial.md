@@ -118,14 +118,11 @@ class _SceneScreenState extends State<SceneScreen>
 
     setState(() {
       try {
-        _renderer = Renderer.create(
-          device: device,
-          // Neutral fallbacks instead of per-map flags. The shader then needs
-          // no branch and the engine no bookkeeping about which maps a
-          // material happens to have.
-          fallbackAlbedo: SolidColorTexture.white.upload(device),
-          fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-        );
+        // The fallbacks a material without a map samples are the renderer's
+        // own unless you pass others: neutral textures instead of per-map
+        // flags, so the shader needs no branch and the engine no bookkeeping
+        // about which maps a material happens to have.
+        _renderer = Renderer.create(device: device);
       } catch (error) {
         _initError = error;
       }

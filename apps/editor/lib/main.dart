@@ -190,11 +190,7 @@ class _EditorScreenState extends State<EditorScreen>
       final device = await GpuRenderBackend.create();
       if (!mounted) return;
       _device = device;
-      _renderer = Renderer.create(
-        device: device,
-        fallbackAlbedo: SolidColorTexture.white.upload(device),
-        fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-      );
+      _renderer = Renderer.create(device: device);
 
       // Where the document actually is — see `Documents`, and the launch that
       // found nothing because a bundle's working directory is `/`.

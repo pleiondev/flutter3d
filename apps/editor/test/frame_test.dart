@@ -65,11 +65,7 @@ final class _Shown {
       height: _height,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
-    final renderer = Renderer.create(
-      device: device,
-      fallbackAlbedo: SolidColorTexture.white.upload(device),
-      fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-    );
+    final renderer = Renderer.create(device: device);
     final camera = CameraNode(
       projection: const PerspectiveProjection(
         fovYRadians: 1.05,

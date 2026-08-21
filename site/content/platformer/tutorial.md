@@ -80,11 +80,7 @@ Future<void> _openGraphics() async {
   _device = device;
 
   setState(() {
-    _renderer = Renderer.create(
-      device: device,
-      fallbackAlbedo: SolidColorTexture.white.upload(device),
-      fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-    );
+    _renderer = Renderer.create(device: device);
     // One pool, one draw call, added once. Everything this game throws into
     // the air goes through it.
     _renderer?.addContributor(ParticleContributor(_particles));

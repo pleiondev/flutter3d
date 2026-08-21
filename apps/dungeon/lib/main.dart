@@ -379,11 +379,7 @@ class _GameScreenState extends State<GameScreen>
     // already been built.
     setState(() {
       try {
-        _renderer = Renderer.create(
-          device: device,
-          fallbackAlbedo: SolidColorTexture.white.upload(device),
-          fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-        );
+        _renderer = Renderer.create(device: device);
       } catch (error) {
         _initError = error;
       }

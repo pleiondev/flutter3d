@@ -369,6 +369,9 @@ final class FakeBackend implements GraphicsDevice {
   /// Pixel uploads, in order, so a test can assert what reached the device.
   final List<RenderTargetSpec> uploadedTextures = <RenderTargetSpec>[];
 
+  /// The bytes of each of those, for a test that cares what colour it was.
+  final List<ByteData> uploadedPixels = <ByteData>[];
+
   @override
   TextureHandle? createTextureFromPixels({
     required int width,
@@ -384,6 +387,7 @@ final class FakeBackend implements GraphicsDevice {
       storageMode: StorageMode.hostVisible,
     );
     uploadedTextures.add(spec);
+    uploadedPixels.add(pixels);
     return createTexture(spec);
   }
 

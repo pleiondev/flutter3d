@@ -400,11 +400,7 @@ class _RaceScreenState extends State<RaceScreen>
 
     setState(() {
       try {
-        _renderer = Renderer.create(
-          device: device,
-          fallbackAlbedo: SolidColorTexture.white.upload(device),
-          fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-        );
+        _renderer = Renderer.create(device: device);
       } catch (error) {
         _initError = error;
       }

@@ -116,13 +116,11 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 Future<Renderer> openRenderer() async {
   final device = await GpuRenderBackend.create();
-  return Renderer.create(
-    device: device,
-    // Neutral fallbacks rather than per-map flags: the shader then needs no
-    // branch and the engine no bookkeeping about which maps a material has.
-    fallbackAlbedo: SolidColorTexture.white.upload(device),
-    fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-  );
+  // The fallbacks a material without a map samples — white, and the neutral
+  // normal — are the renderer's own unless you hand it others. Neutral
+  // fallbacks rather than per-map flags: the shader then needs no branch and
+  // the engine no bookkeeping about which maps a material has.
+  return Renderer.create(device: device);
 }
 
 Scene buildScene(GraphicsDevice device) {

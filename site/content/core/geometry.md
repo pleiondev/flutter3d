@@ -168,7 +168,7 @@ final white = SolidColorTexture.white.upload(device);
 final flat  = SolidColorTexture.flatNormal.upload(device);
 ```
 
-Enough for the fallbacks, for placeholder materials, and for a level whose author has not decided yet.
+Enough for placeholder materials and for a level whose author has not decided yet. The renderer's own fallbacks are these two and it makes them itself — pass `fallbackAlbedo` or `fallbackNormal` only when neutral is not what you want.
 
 ## Next
 

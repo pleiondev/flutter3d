@@ -34,6 +34,50 @@ void main() {
     );
   }
 
+  test('the fallbacks it is not given are white and the neutral normal', () {
+    // **Every application in this repository passed the same two**, uploaded on
+    // the spot — four `main.dart`s did it twice each — so the required
+    // arguments were a question with one answer. They are still parameters: a
+    // renderer drawing into somebody else's colour space may want its white
+    // somewhere other than 1.0.
+    final device = FakeBackend();
+
+    final renderer = Renderer.create(device: device);
+
+    expect(renderer.fallbackAlbedo, isNotNull);
+    expect(renderer.fallbackNormal, isNotNull);
+    expect(device.uploadedPixels.length, 2);
+    expect(device.uploadedPixels[0].buffer.asUint8List(),
+        <int>[255, 255, 255, 255],
+        reason: 'an untextured surface is not its own base colour');
+    // (0, 0, 1) encoded into 0..1: sampling it perturbs nothing, which is why
+    // the shader needs no "has a normal map" branch.
+    expect(device.uploadedPixels[1].buffer.asUint8List(),
+        <int>[128, 128, 255, 255],
+        reason: 'the default normal map is not flat');
+  });
+
+  test('and the ones it is given are the ones it uses', () {
+    final device = FakeBackend();
+    final texel = device.createTextureFromPixels(
+      width: 1,
+      height: 1,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData(4),
+    )!;
+
+    final renderer = Renderer.create(
+      device: device,
+      fallbackAlbedo: texel,
+      fallbackNormal: texel,
+    );
+
+    expect(renderer.fallbackAlbedo, same(texel));
+    expect(renderer.fallbackNormal, same(texel));
+    expect(device.uploadedPixels.length, 1,
+        reason: 'it uploaded a fallback it had been handed');
+  });
+
   test('a renderer starts without the particle stages', () {
     // An application that draws no particles should not have to ship their
     // shaders. This is what stops the engine core from naming an extension.
