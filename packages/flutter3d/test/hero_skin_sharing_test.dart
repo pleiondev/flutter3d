@@ -39,7 +39,6 @@ import 'package:flutter3d/src/engine/assets/model_asset.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/lighting_model.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
@@ -61,13 +60,6 @@ Future<({ModelDocument document, ModelAsset asset})> loadHero() async {
   final asset = await ModelAsset.fromDocument(
     document,
     device: device,
-    fallbackAlbedo: device.createTexture(
-      const RenderTargetSpec(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-      ),
-    ),
     lighting: LightingModel.unlit,
   );
   return (document: document, asset: asset);

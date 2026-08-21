@@ -305,10 +305,17 @@ final class ModelAsset {
   /// with [SurfaceMaterial]s and [EncodedImage]s, so the upload path — mesh
   /// dedup, image dedup, material conversion — is written once. Adding a third
   /// format means writing a decoder, not touching this.
+  /// **There was a `fallbackAlbedo` here and nothing ever read it.** Required,
+  /// so every caller uploaded a one-pixel white texture to satisfy it — nine of
+  /// them, one per model load, each leaving a texture on the device that was
+  /// then dropped on the floor. It cannot have done anything since the day the
+  /// packages were split: a material with no base-colour map keeps a null
+  /// albedo all the way to the draw, where the *renderer* substitutes its own
+  /// fallback, which is the only place that can know what white this frame is
+  /// being lit against.
   static Future<ModelAsset> fromDocument(
     ModelDocument document, {
     required GraphicsDevice device,
-    required TextureHandle fallbackAlbedo,
     LightingModel lighting = LightingModel.pbr,
     String? name,
   }) async {

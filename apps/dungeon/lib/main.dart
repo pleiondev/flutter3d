@@ -486,14 +486,13 @@ class _GameScreenState extends State<GameScreen>
           loaded.scene,
           appearance: const DungeonMonsters(),
           device: device,
-        )..fallbackAlbedo = _renderer?.fallbackAlbedo,
+        ),
         fixtures: FixtureVisuals(
           loaded.scene,
           loaded,
           appearance: const DungeonFixtures(),
           device: device,
         )
-          ..fallbackAlbedo = _renderer?.fallbackAlbedo
           // Before spawning, so a torch can find the light it drives.
           ..bindLights(),
       ),

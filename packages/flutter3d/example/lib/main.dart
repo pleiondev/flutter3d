@@ -154,7 +154,6 @@ class _SpikePageState extends State<SpikePage>
   Object? _initError;
   StackTrace? _initStack;
 
-  TextureHandle? _fallbackAlbedo;
   TextureHandle? _checkerAlbedo;
 
   late final Scene _scene;
@@ -411,15 +410,8 @@ class _SpikePageState extends State<SpikePage>
     _view = RenderView(camera: _camera);
 
     try {
-      final fallback = SolidColorTexture.white.upload(device);
-      final checker = const CheckerboardTexture().upload(device);
-      _fallbackAlbedo = fallback;
-      _checkerAlbedo = checker;
-      _renderer = Renderer.create(
-        device: device,
-        fallbackAlbedo: fallback,
-        fallbackNormal: SolidColorTexture.flatNormal.upload(device),
-      );
+      _checkerAlbedo = const CheckerboardTexture().upload(device);
+      _renderer = Renderer.create(device: device);
     } catch (error, stack) {
       _initError = error;
       _initStack = stack;
@@ -464,7 +456,6 @@ class _SpikePageState extends State<SpikePage>
         final source = kSources.firstWhere((s) => s.label == label);
         return source.load(
           device: _device!,
-          fallbackAlbedo: _fallbackAlbedo!,
           checkerAlbedo: _checkerAlbedo!,
         );
       },

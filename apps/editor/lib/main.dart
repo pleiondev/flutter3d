@@ -691,7 +691,6 @@ class _EditorScreenState extends State<EditorScreen>
       return await ModelAsset.fromDocument(
         document,
         device: device,
-        fallbackAlbedo: SolidColorTexture.white.upload(device),
         name: path,
       );
     } catch (error) {

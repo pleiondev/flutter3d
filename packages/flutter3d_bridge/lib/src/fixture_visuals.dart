@@ -173,12 +173,6 @@ final class FixtureVisuals {
   /// resource outliving the level that owns it is a leak nobody notices.
   final Map<String, Future<ModelAsset?>> _models = <String, Future<ModelAsset?>>{};
 
-  /// Whatever the renderer hands out for a material with no albedo of its own.
-  ///
-  /// Wanted only because the model loader insists on one; every model here has
-  /// its material replaced immediately afterwards.
-  TextureHandle? fallbackAlbedo;
-
   /// The level's lights, by name, so a fixture can dim the one it owns.
   final Map<String, LightNode> _lights = <String, LightNode>{};
 
@@ -346,8 +340,6 @@ final class FixtureVisuals {
       return await ModelAsset.fromDocument(
         document,
         device: device,
-        fallbackAlbedo:
-            fallbackAlbedo ?? SolidColorTexture.white.upload(device),
         name: path,
       );
     } catch (error) {

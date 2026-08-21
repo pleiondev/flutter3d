@@ -345,7 +345,6 @@ Future<void> _dressRunner(GraphicsDevice device, Scene scene, Runner runner) asy
   );
   final asset = await ModelAsset.fromDocument(document,
       device: device,
-      fallbackAlbedo: SolidColorTexture.white.upload(device),
       name: 'hero');
   if (!mounted) return;
 

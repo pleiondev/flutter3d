@@ -33,7 +33,6 @@ final document = await decodeModelInIsolate(
 final asset = await ModelAsset.fromDocument(
   document,
   device: device,
-  fallbackAlbedo: SolidColorTexture.white.upload(device),
   name: 'hero',
 );
 

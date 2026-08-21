@@ -591,7 +591,6 @@ class _RaceScreenState extends State<RaceScreen>
       final asset = await ModelAsset.fromDocument(
         document,
         device: device,
-        fallbackAlbedo: SolidColorTexture.white.upload(device),
         name: kCarModel,
       );
       if (!mounted) return;

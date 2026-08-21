@@ -777,7 +777,6 @@ class _GameScreenState extends State<GameScreen>
       final asset = await ModelAsset.fromDocument(
         document,
         device: device,
-        fallbackAlbedo: SolidColorTexture.white.upload(device),
         name: _runnerModel,
       );
       // **`mounted` is not enough, and the gap is a whole level.** Reading and

@@ -61,7 +61,6 @@ const String _fixtures = '../flutter3d/test/fixtures';
     device: device,
     renderer: Renderer.create(
       device: device,
-      fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
       fallbackNormal: texel(<int>[128, 128, 255, 255]),
     ),
   );
@@ -75,12 +74,6 @@ Future<ModelAsset> _load(String name, CpuDevice device) async {
   return ModelAsset.fromDocument(
     document,
     device: device,
-    fallbackAlbedo: device.createTextureFromPixels(
-      width: 1,
-      height: 1,
-      format: TextureFormat.r8g8b8a8UNormInt,
-      pixels: ByteData.sublistView(Uint8List.fromList(<int>[255, 255, 255, 255])),
-    )!,
     name: name,
   );
 }

@@ -393,9 +393,7 @@ final fixtures = FixtureVisuals(
   loaded.scene, loaded,
   appearance: const DungeonFixtures(),
   device: device,
-)
-  ..fallbackAlbedo = renderer.fallbackAlbedo
-  ..bindLights();                        // before spawning: a torch finds its light
+)..bindLights();                       // before spawning: a torch finds its light
 
 loaded.level.spawnInto(
   SpawnContext(

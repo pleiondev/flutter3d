@@ -348,7 +348,6 @@ Future<void> _loadModel(GraphicsDevice device, Scene scene) async {
     final asset = await ModelAsset.fromDocument(
       document,
       device: device,
-      fallbackAlbedo: SolidColorTexture.white.upload(device),
       name: 'hero',
     );
     if (!mounted) return;

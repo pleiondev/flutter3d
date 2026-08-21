@@ -60,7 +60,6 @@ void main() {
       final model = await ModelAsset.fromDocument(
         document,
         device: device,
-        fallbackAlbedo: SolidColorTexture.white.upload(device),
         name: path,
       );
       return model.localBounds;
@@ -141,7 +140,6 @@ void main() {
     (await ModelAsset.fromDocument(
       document,
       device: device,
-      fallbackAlbedo: SolidColorTexture.white.upload(device),
       name: 'one',
     ))
         .instantiate(scene);
@@ -228,7 +226,6 @@ void main() {
         final model = await ModelAsset.fromDocument(
           document,
           device: device,
-          fallbackAlbedo: SolidColorTexture.white.upload(device),
           name: file.path,
         );
 

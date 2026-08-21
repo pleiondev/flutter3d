@@ -9,7 +9,6 @@ sealed class SceneSource {
 
   Future<ModelAsset> load({
     required GraphicsDevice device,
-    required TextureHandle fallbackAlbedo,
     required TextureHandle checkerAlbedo,
   });
 }
@@ -27,7 +26,6 @@ final class ProceduralSource extends SceneSource {
   @override
   Future<ModelAsset> load({
     required GraphicsDevice device,
-    required TextureHandle fallbackAlbedo,
     required TextureHandle checkerAlbedo,
   }) async {
     // Generation is fast enough to stay on the UI isolate: a 33k-vertex sphere
@@ -60,7 +58,6 @@ final class ModelFileSource extends SceneSource {
   @override
   Future<ModelAsset> load({
     required GraphicsDevice device,
-    required TextureHandle fallbackAlbedo,
     required TextureHandle checkerAlbedo,
   }) async {
     final document = await decodeModelInIsolate(
@@ -75,7 +72,6 @@ final class ModelFileSource extends SceneSource {
     return ModelAsset.fromDocument(
       document,
       device: device,
-      fallbackAlbedo: fallbackAlbedo,
       name: label,
     );
   }

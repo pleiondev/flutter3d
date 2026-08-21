@@ -78,10 +78,6 @@ final class ActorVisuals {
   final SharedMeshes _meshes;
   final GraphicsDevice _device;
 
-  /// The white pixel a model's untextured material falls back to. Set by the
-  /// caller when it has the renderer's own, so a monster and a wall are not
-  /// lit against two different whites.
-  TextureHandle? fallbackAlbedo;
   final Map<Actor, SceneNode> _nodes = <Actor, SceneNode>{};
 
   /// Every model asked for so far, by path. One load per file, however many
@@ -157,7 +153,6 @@ final class ActorVisuals {
       return await ModelAsset.fromDocument(
         document,
         device: _device,
-        fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(_device),
         name: path,
       );
     } catch (error) {
