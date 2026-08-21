@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -149,10 +148,16 @@ final class FixtureVisuals {
     this.level, {
     required this.appearance,
     required this.device,
-  }) : meshes = SharedMeshes(device);
+    IssueSink? onIssue,
+  })  : meshes = SharedMeshes(device),
+        onIssue = onIssue ?? printIssue;
 
   /// The backend everything here uploads through.
   final GraphicsDevice device;
+
+  /// Where this says what it could not draw — a door's model that would not
+  /// load, which leaves a box where a door should be.
+  final IssueSink onIssue;
 
   final Scene scene;
 
@@ -343,7 +348,7 @@ final class FixtureVisuals {
         name: path,
       );
     } catch (error) {
-      debugPrint('level: could not load model "$path": $error');
+      onIssue('level: could not load model "$path": $error');
       return null;
     }
   }

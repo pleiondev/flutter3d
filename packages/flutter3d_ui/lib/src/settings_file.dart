@@ -1,8 +1,8 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 // One type is all this file wants out of the game layer.
-import 'package:flutter3d_game/flutter3d_game.dart' show GameConfig;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show GameConfig, IssueSink, printIssue;
 
 import 'storage/storage.dart';
 
@@ -18,8 +18,12 @@ import 'storage/storage.dart';
 /// documented assumption rather than a dependency, and it keeps this testable
 /// with a map in memory.
 final class SettingsFile {
-  SettingsFile({required this.appName, Storage? storage})
-      : storage = storage ?? defaultStorage(appName);
+  SettingsFile({
+    required this.appName,
+    Storage? storage,
+    IssueSink? onIssue,
+  })  : onIssue = onIssue ?? printIssue,
+        storage = storage ?? defaultStorage(appName, onIssue: onIssue);
 
   /// Which game this is. Two applications sharing one document would have each
   /// overwrite the other's bindings, and finding that out takes a while because
@@ -28,6 +32,13 @@ final class SettingsFile {
 
   /// Where the document is kept, which differs per platform — see [Storage].
   final Storage storage;
+
+  /// Where this says what it could not read.
+  ///
+  /// Prints, unless the application wants to know — see [IssueSink]. A settings
+  /// document that will not parse costs a player their bindings, and the game
+  /// is the only thing here with a screen to say so on.
+  final IssueSink onIssue;
 
   static const String _name = 'settings.json';
 
@@ -47,7 +58,7 @@ final class SettingsFile {
       if (json is! Map<String, Object?>) return GameConfig();
       return GameConfig.fromJson(json);
     } catch (error) {
-      debugPrint('settings: could not be read, using defaults ($error)');
+      onIssue('settings: could not be read, using defaults ($error)');
       return GameConfig();
     }
   }

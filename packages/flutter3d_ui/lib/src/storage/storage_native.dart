@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show IssueSink, printIssue;
 
 import 'storage.dart';
 
@@ -66,11 +67,22 @@ String _parent(String path) {
 
 /// Documents kept as files, one per name, in a directory this platform owns.
 final class FileStorage implements Storage {
-  FileStorage({required this.appName, Directory? directory})
-      : _given = directory;
+  FileStorage({
+    required this.appName,
+    Directory? directory,
+    IssueSink? onIssue,
+  })  : _given = directory,
+        onIssue = onIssue ?? printIssue;
 
   final String appName;
   final Directory? _given;
+
+  /// Where this says what the platform would not let it do.
+  ///
+  /// A write that fails already comes back as `false`; what the boolean cannot
+  /// carry is *why*, and "no such directory" and "the disk is full" are
+  /// different days.
+  final IssueSink onIssue;
 
   /// Resolved on first use rather than in the constructor.
   ///
@@ -90,7 +102,7 @@ final class FileStorage implements Storage {
       );
       return path == null ? null : Directory(path);
     } catch (error) {
-      debugPrint('storage: no directory on this platform ($error)');
+      onIssue('storage: no directory on this platform ($error)');
       return null;
     }
   }
@@ -107,7 +119,7 @@ final class FileStorage implements Storage {
       if (file == null || !file.existsSync()) return null;
       return file.readAsStringSync();
     } catch (error) {
-      debugPrint('storage: could not read $name ($error)');
+      onIssue('storage: could not read $name ($error)');
       return null;
     }
   }
@@ -127,7 +139,7 @@ final class FileStorage implements Storage {
       temporary.renameSync(file.path);
       return true;
     } catch (error) {
-      debugPrint('storage: could not write $name ($error)');
+      onIssue('storage: could not write $name ($error)');
       return false;
     }
   }
@@ -138,10 +150,11 @@ final class FileStorage implements Storage {
       final file = _file(name);
       if (file != null && file.existsSync()) file.deleteSync();
     } catch (error) {
-      debugPrint('storage: could not clear $name ($error)');
+      onIssue('storage: could not clear $name ($error)');
     }
   }
 }
 
 /// The storage a build outside the browser gets.
-Storage defaultStorage(String appName) => FileStorage(appName: appName);
+Storage defaultStorage(String appName, {IssueSink? onIssue}) =>
+    FileStorage(appName: appName, onIssue: onIssue);

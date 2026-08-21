@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show IssueSink, Snapshot, printIssue;
 
 import 'settings_file.dart';
 import 'storage/storage.dart';
@@ -25,8 +25,12 @@ import 'storage/storage.dart';
 /// through has to keep, and the only thing that differed was the name of the
 /// directory — which is what [appName] is.
 final class SaveFile {
-  SaveFile({required this.appName, Storage? storage})
-      : storage = storage ?? defaultStorage(appName);
+  SaveFile({
+    required this.appName,
+    Storage? storage,
+    IssueSink? onIssue,
+  })  : onIssue = onIssue ?? printIssue,
+        storage = storage ?? defaultStorage(appName, onIssue: onIssue);
 
   /// Which game's save this is. Two games served from one browser origin would
   /// otherwise resume into each other's levels — see [SettingsFile.appName],
@@ -41,6 +45,14 @@ final class SaveFile {
   /// save". A checkpoint that is not written is indistinguishable from a player
   /// who has not reached one.
   final Storage storage;
+
+  /// Where this says what it could not read.
+  ///
+  /// **The one that costs a player something.** A save that will not parse is
+  /// where they got to, and swallowing it turns "your progress could not be
+  /// read" into "you have no progress" — the same screen a new player sees, so
+  /// nobody can tell the two apart, least of all the person it happened to.
+  final IssueSink onIssue;
 
   /// A separate document from the settings on purpose: settings are what a
   /// player chose and a save is where they got to, and one of those must survive
@@ -57,13 +69,23 @@ final class SaveFile {
     if (text == null) return null;
     try {
       final json = jsonDecode(text);
-      if (json is! Map<String, Object?>) return null;
+      // **These three said nothing at all**, which is worse than the `catch`
+      // below: a document that parses as JSON but is not a save — an empty
+      // object, a half-written file, a save from a build that named its keys
+      // differently — went back as "no save" without a word anywhere.
+      if (json is! Map<String, Object?>) {
+        onIssue('save: the document is not an object, starting fresh');
+        return null;
+      }
       final level = json['level'];
       final run = json['run'];
-      if (level is! String || run is! Map<String, Object?>) return null;
+      if (level is! String || run is! Map<String, Object?>) {
+        onIssue('save: no level and run in it, starting fresh');
+        return null;
+      }
       return (level: level, run: Snapshot(run));
     } catch (error) {
-      debugPrint('save: could not be read, starting fresh ($error)');
+      onIssue('save: could not be read, starting fresh ($error)');
       return null;
     }
   }

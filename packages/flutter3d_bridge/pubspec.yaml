@@ -24,6 +24,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # A `GraphicsDevice` with no GPU under it, so this package's own loader can be
+  # run in a test — which until now it never was.
+  flutter3d_cpu:
+    path: ../flutter3d_cpu
   # The rule that this package names no genre, as a test it runs against itself.
   flutter3d_boundaries:
     path: ../flutter3d_boundaries

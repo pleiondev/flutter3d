@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -118,10 +117,20 @@ final class LevelLoader {
     // load rather than to the process, so two levels never share a GPU
     // resource that one of them will outlive.
     final textures = <String, TextureHandle?>{};
+    // **A map that will not load is now a warning rather than a line in a
+    // console.** `LoadedLevel` has carried `issues` since the validator did,
+    // and this is the same kind of fact: the level plays, a wall is flat, and
+    // the person who renamed the file is the one who wants to hear about it.
+    final loadIssues = <LevelIssue>[];
     for (final source in level.materials.values) {
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
-        textures[path] = await _upload(device, path, readAsset ?? rootBundle.load);
+        textures[path] = await _upload(
+          device,
+          path,
+          readAsset ?? rootBundle.load,
+          loadIssues,
+        );
       }
     }
 
@@ -155,7 +164,7 @@ final class LevelLoader {
       level: level,
       scene: scene,
       collision: collision,
-      issues: validator.validate(level),
+      issues: <LevelIssue>[...validator.validate(level), ...loadIssues],
       drawCallCount: surfaces.length,
       materialTextures: textures,
     );
@@ -200,6 +209,7 @@ final class LevelLoader {
     GraphicsDevice device,
     String path,
     AssetBytes read,
+    List<LevelIssue> issues,
   ) async {
     try {
       final bytes = await read(path);
@@ -213,8 +223,14 @@ final class LevelLoader {
       );
     } catch (error) {
       // A missing texture leaves the material flat rather than stopping the
-      // level. Losing a wall texture should not cost the play-test.
-      debugPrint('level: could not load "$path": $error');
+      // level. Losing a wall texture should not cost the play-test — but it is
+      // said out loud now, because a flat wall and a wall that is meant to be
+      // flat look the same, and the difference is a file somebody renamed.
+      issues.add(LevelIssue(
+        LevelIssueSeverity.warning,
+        'could not be loaded, so the surface is untextured: $error',
+        where: 'texture "$path"',
+      ));
       return null;
     }
   }

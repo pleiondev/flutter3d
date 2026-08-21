@@ -274,7 +274,21 @@ class _GameScreenState extends State<GameScreen>
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
-  final SaveFile _saveFile = SaveFile(appName: 'platformer');
+  /// **A save that will not read used to become a new game, silently.** The
+  /// package said so to the console and handed back null, and null is also
+  /// what a player who has never played gets — so the one person who needed to
+  /// know saw the title card and assumed they had imagined saving.
+  late final SaveFile _saveFile = SaveFile(
+    appName: 'platformer',
+    onIssue: (String issue) {
+      printIssue(issue);
+      // Said on screen, through the same line the levels talk on. It outlives
+      // this frame because the run has not started yet: `_sayFor` counts down
+      // from the first tick, so the message is up while the title card is.
+      _said = 'Your saved run could not be read. Starting again.';
+      _sayFor = 6.0;
+    },
+  );
 
   /// The run: which level is up, how it is going, and where next.
   ///

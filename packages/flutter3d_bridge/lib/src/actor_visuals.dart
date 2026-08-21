@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -67,10 +66,20 @@ final class ActorVisuals {
     this.scene, {
     required this.appearance,
     required GraphicsDevice device,
+    IssueSink? onIssue,
   })  : _meshes = SharedMeshes(device),
-        _device = device;
+        _device = device,
+        onIssue = onIssue ?? printIssue;
 
   final Scene scene;
+
+  /// Where this says what it could not draw.
+  ///
+  /// A model that will not load leaves every actor that wanted it a capsule.
+  /// That is playable, which is why it is not an exception — and invisible,
+  /// which is why it must not be silent: a capsule is also what an actor with
+  /// no model at all looks like.
+  final IssueSink onIssue;
 
   /// The game's half: one material per monster and per state.
   final ActorAppearance appearance;
@@ -158,7 +167,7 @@ final class ActorVisuals {
     } catch (error) {
       // A missing or broken model leaves every actor that wanted it a capsule,
       // which is a level somebody can still play through and report.
-      debugPrint('actors: could not load $path, staying a capsule ($error)');
+      onIssue('actors: could not load $path, staying a capsule ($error)');
       return null;
     }
   }

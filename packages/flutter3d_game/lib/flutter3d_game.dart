@@ -28,6 +28,7 @@ export 'src/camera/camera_rig.dart';
 export 'src/camera/rig_tuning.dart';
 export 'src/config/accommodations.dart';
 export 'src/config/game_config.dart';
+export 'src/diagnostics/issues.dart';
 export 'src/ecs/ecs_world.dart';
 export 'src/ecs/entity.dart';
 export 'src/input/bindings.dart';

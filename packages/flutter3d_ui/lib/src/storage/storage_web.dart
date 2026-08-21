@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter3d_game/flutter3d_game.dart' show IssueSink, printIssue;
 import 'package:web/web.dart' as web;
 
 import 'storage.dart';
@@ -23,9 +23,14 @@ import 'storage.dart';
 /// origin — which is exactly how this repository's demos are deployed — would
 /// otherwise each overwrite the other's settings.
 final class WebStorage implements Storage {
-  WebStorage({required this.appName});
+  WebStorage({required this.appName, IssueSink? onIssue})
+      : onIssue = onIssue ?? printIssue;
 
   final String appName;
+
+  /// Where this says what the browser would not let it do — a private window
+  /// with storage disabled, or a quota that has run out.
+  final IssueSink onIssue;
 
   String _key(String name) => 'flutter3d/$appName/$name';
 
@@ -36,7 +41,7 @@ final class WebStorage implements Storage {
     } catch (error) {
       // Private browsing, or storage disabled by policy. Neither is a reason to
       // refuse to start the game.
-      debugPrint('storage: could not read $name ($error)');
+      onIssue('storage: could not read $name ($error)');
       return null;
     }
   }
@@ -49,7 +54,7 @@ final class WebStorage implements Storage {
     } catch (error) {
       // A quota that has run out is the usual one, and it arrives as an
       // exception rather than as a return value.
-      debugPrint('storage: could not write $name ($error)');
+      onIssue('storage: could not write $name ($error)');
       return false;
     }
   }
@@ -59,10 +64,11 @@ final class WebStorage implements Storage {
     try {
       web.window.localStorage.removeItem(_key(name));
     } catch (error) {
-      debugPrint('storage: could not clear $name ($error)');
+      onIssue('storage: could not clear $name ($error)');
     }
   }
 }
 
 /// The storage a browser build gets.
-Storage defaultStorage(String appName) => WebStorage(appName: appName);
+Storage defaultStorage(String appName, {IssueSink? onIssue}) =>
+    WebStorage(appName: appName, onIssue: onIssue);
