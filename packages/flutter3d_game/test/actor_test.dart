@@ -336,6 +336,17 @@ void main() {
       expect(system.hurt(barrel, 100.0), isTrue);
       expect(system.died, <Actor>[barrel]);
 
+      // **A second death is not a death.** Found by mutating the guard at the
+      // top of `hurt` to `return true` and watching the suite pass: a rocket
+      // asks everything in its radius, and something already dead — or a lamp
+      // post with no health at all — answering "yes, that killed it" is a
+      // score counted twice and a corpse killed again.
+      expect(system.hurt(barrel, 100.0), isFalse,
+          reason: 'the dead were killed a second time');
+      expect(system.died, <Actor>[barrel]);
+      expect(system.hurt(system.spawn(), 100.0), isFalse,
+          reason: 'something with no health reported a kill');
+
       // And it steps without complaint alongside everything else.
       system.beginStep();
       system.step(_dt, focus: Vector3.zero());

@@ -183,6 +183,13 @@ final class FlowField {
 
     final dx = _dx[cell];
     final dz = _dz[cell];
+    // **Belt and braces, and it is worth saying so.** A cell cheaper than
+    // `unreachable` was relaxed, and relaxing records a direction — so the only
+    // cell with a cost and no direction is the goal's own, which the line above
+    // has already sent away. Mutating this to `return true` breaks no test,
+    // because there is no way to reach it. It stays because the alternative,
+    // if the sweep ever does leave such a cell, is an agent walking along
+    // whatever the previous caller left in `out`.
     if (dx == 0 && dz == 0) return false;
 
     final next = (grid.cellZ(cell) + dz) * grid.columns + grid.cellX(cell) + dx;

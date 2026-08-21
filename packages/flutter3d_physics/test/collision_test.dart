@@ -767,4 +767,35 @@ void main() {
       expect(found.single.userData, 250);
     });
   });
+
+  group('exactly touching', () {
+    // **Found by mutating the comparisons and watching nothing fail.** Every
+    // overlap test here asks about a clear overlap and a clear gap, so the one
+    // case the code has to *decide* — the surfaces exactly meeting — was
+    // whatever the operator happened to be. It is a decision either way, and an
+    // undecided one turns into a body resting on a floor that alternately does
+    // and does not hold it.
+    //
+    // The answer is "not overlapping": a contact needs depth to resolve, and a
+    // zero-depth contact resolves to a zero-length push, which the solver reads
+    // as a body that is stuck.
+    test('two capsules exactly a radius apart do not overlap', () {
+      final a = CollisionCapsule(radius: 0.5, halfHeight: 1.0);
+      final b = CollisionCapsule(radius: 0.5, halfHeight: 1.0);
+
+      expect(a.overlaps(Vector3.zero(), b, Vector3(1.0, 0.0, 0.0)), isFalse,
+          reason: 'surfaces meeting exactly counted as an overlap');
+      expect(a.overlaps(Vector3.zero(), b, Vector3(0.999, 0.0, 0.0)), isTrue);
+    });
+
+    test('and a sphere exactly touching a box does not either', () {
+      final sphere = CollisionSphere(0.5);
+      final box = CollisionBox(Vector3(1.0, 1.0, 1.0));
+
+      expect(sphere.overlaps(Vector3(1.5, 0.0, 0.0), box, Vector3.zero()),
+          isFalse);
+      expect(sphere.overlaps(Vector3(1.49, 0.0, 0.0), box, Vector3.zero()),
+          isTrue);
+    });
+  });
 }
