@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 const List<String> _genres = <String>[
   'flutter3d_game_shooter',
   'flutter3d_game_platformer',
-  'flutter3d_racing',
+  'flutter3d_game_racing',
 ];
 
 /// Genre vocabulary, as words rather than as imports.

@@ -2,8 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_racing/bridge.dart';
-import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_game_racing/bridge.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

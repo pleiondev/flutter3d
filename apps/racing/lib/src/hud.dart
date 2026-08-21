@@ -9,7 +9,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
 
 /// Everything the display needs, gathered once a frame.

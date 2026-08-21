@@ -242,7 +242,7 @@ MATERIALS = {
 # circuit lit from the east and hazed from the west.
 #
 # These five are the same five as `SkyPresets` in
-# `packages/flutter3d_racing/lib/src/sky.dart`, and `frame_test.dart` compares
+# `packages/flutter3d_game_racing/lib/src/sky.dart`, and `frame_test.dart` compares
 # the block written below against the Dart constant of the same name — so the
 # copy cannot drift without a test saying so. The Dart side exists because a
 # track file with no `"sky"` block still has to have weather.

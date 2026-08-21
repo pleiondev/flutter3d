@@ -12,7 +12,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:racing/src/effects.dart';
 import 'package:racing/src/reactions.dart';

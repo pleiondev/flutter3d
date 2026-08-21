@@ -8,8 +8,8 @@ library;
 // Not hiding `Material`: this file draws a road rather than a widget, so the
 // one that matters here is the engine's.
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_racing/bridge.dart';
-import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_game_racing/bridge.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// The asset the player drives.

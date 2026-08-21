@@ -1,4 +1,4 @@
-# flutter3d_racing
+# flutter3d_game_racing
 
 A car, a road that is a curve rather than a floor, and a lap that only counts
 when it was driven all the way round.

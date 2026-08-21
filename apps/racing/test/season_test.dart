@@ -13,7 +13,7 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:racing/src/circuits.dart';

@@ -7,7 +7,7 @@
 /// simulation last put it.
 ///
 /// The division is the one the whole repository keeps. Nothing here decides how
-/// a car handles or when a lap counts; that is `flutter3d_racing`, and it is
+/// a car handles or when a lap counts; that is `flutter3d_game_racing`, and it is
 /// tested without a device. What is here is which key means throttle, what
 /// colour the tarmac is, and where the numbers go on the screen.
 library;
@@ -23,9 +23,9 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_game_racing/bridge.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:flutter3d_racing/bridge.dart';
-import 'package:flutter3d_racing/flutter3d_racing.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

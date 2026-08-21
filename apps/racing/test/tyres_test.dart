@@ -11,7 +11,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:racing/src/hud.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;

@@ -25,7 +25,7 @@ dependencies:
   flutter3d_impeller: { path: ../flutter3d/packages/flutter3d_impeller }
   flutter3d:          { path: ../flutter3d/packages/flutter3d }
   flutter3d_game:     { path: ../flutter3d/packages/flutter3d_game }
-  flutter3d_racing:   { path: ../flutter3d/packages/flutter3d_racing }
+  flutter3d_game_racing:   { path: ../flutter3d/packages/flutter3d_game_racing }
   flutter3d_bridge:   { path: ../flutter3d/packages/flutter3d_bridge }
   flutter3d_audio:    { path: ../flutter3d/packages/flutter3d_audio }
   vector_math: ^2.2.0

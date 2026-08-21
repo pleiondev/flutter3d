@@ -84,7 +84,7 @@ flowchart TB
   subgraph genre["genres — vocabulary"]
     shooter["flutter3d_game_shooter<br>weapons, monsters, inventory"]
     plat["flutter3d_game_platformer<br>runner, springs, surfaces"]
-    race["flutter3d_racing<br>track, car, tire, lap"]
+    race["flutter3d_game_racing<br>track, car, tire, lap"]
   end
 
   bridge["flutter3d_bridge<br>the only package that may see both sides"]

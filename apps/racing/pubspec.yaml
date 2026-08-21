@@ -29,8 +29,8 @@ dependencies:
     path: ../../packages/flutter3d_game
 
   # The genre. Cars, tracks, laps — none of which the two above have heard of.
-  flutter3d_racing:
-    path: ../../packages/flutter3d_racing
+  flutter3d_game_racing:
+    path: ../../packages/flutter3d_game_racing
 
   # Sound. Depends on neither the renderer nor the game engine.
   flutter3d_audio:

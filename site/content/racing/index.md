@@ -1,5 +1,5 @@
 ---
-description: What flutter3d_racing adds — a track as a measured curve rather than geometry, a sphere-and-frame car, a Pacejka-shaped tire, lap counting that cannot be cheated, AI drivers and ghosts.
+description: What flutter3d_game_racing adds — a track as a measured curve rather than geometry, a sphere-and-frame car, a Pacejka-shaped tire, lap counting that cannot be cheated, AI drivers and ghosts.
 ---
 
 # What a racing game adds

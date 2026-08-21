@@ -12,7 +12,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter3d_audio/flutter3d_audio.dart';
-import 'package:flutter3d_racing/flutter3d_racing.dart';
+import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 
 abstract final class Sounds {
   /// The engine, recorded at a third of the revs and at most of them.

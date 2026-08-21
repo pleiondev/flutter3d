@@ -18,7 +18,7 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'flutter3d_racing.dart';
+import 'flutter3d_game_racing.dart';
 
 /// How finely the road is cut into rings.
 final class RoadMeshSettings {

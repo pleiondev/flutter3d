@@ -10,7 +10,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 /// Bending the shared widget into this shape would have made it worse at the
 /// two games that already use it.
 ///
-/// It lives in this application rather than in `flutter3d_racing` for the rule
+/// It lives in this application rather than in `flutter3d_game_racing` for the rule
 /// the repository keeps everywhere else: there is one racing game. The day
 /// there are two, this moves.
 class TouchDrive extends StatelessWidget {
