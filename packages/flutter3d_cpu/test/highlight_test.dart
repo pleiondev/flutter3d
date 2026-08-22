@@ -112,4 +112,74 @@ void main() {
         reason: 'the outline\'s bottom edge is at ${green.bottom} and the '
             'box\'s is at ${white.bottom}');
   });
+
+  test('and a group is outlined by what is under it', () async {
+    // **What the editor's marker is**: a holder with twelve thin bars beneath
+    // it, not a mesh. The first version of the highlight drew axes a tenth of
+    // the *scene* long for anything that was not a `MeshNode` — three enormous
+    // lines through the middle of the level where a small box was wanted, which
+    // is what "now it started flickering" turned out to be.
+    final device = CpuDevice(
+      width: _width,
+      height: _height,
+      shaders: CpuShaderLibrary(builtinCpuShaders()),
+    );
+    final renderer = Renderer.create(device: device);
+
+    final scene = Scene();
+    // Something far away, so a scene-sized axis would be unmistakable.
+    scene.add(
+      MeshNode(
+        DeviceMesh.upload(
+            device, CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build()),
+        Material(name: 'far', lighting: LightingModel.unlit),
+        name: 'far',
+      )..setPosition(0.0, 0.0, -60.0),
+    );
+
+    final holder = SceneNode(name: 'marker')..setPosition(0.0, 0.0, -6.0);
+    holder.add(
+      MeshNode(
+        DeviceMesh.upload(
+            device, CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build()),
+        Material(
+          name: 'box',
+          baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
+          lighting: LightingModel.unlit,
+        ),
+        name: 'box',
+      ),
+    );
+    scene.add(holder);
+
+    final camera = CameraNode(
+      projection: const PerspectiveProjection(
+        fovYRadians: 1.0,
+        near: 0.1,
+        far: 200.0,
+      ),
+    );
+    camera.lookAt(Vector3(0.0, 0.0, -6.0));
+    scene.add(camera);
+
+    final result = renderer.render(
+      width: _width,
+      height: _height,
+      scene: scene,
+      views: <RenderView>[
+        RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+      ],
+      settings: RenderSettings(highlighted: <SceneNode>[holder]),
+    );
+    final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+
+    final white = _boundsOf(pixels, (r, g, b) => r > 200 && g > 200 && b > 200);
+    final green = _boundsOf(pixels, (r, g, b) => g > 120 && r < 140 && b < 140);
+
+    expect(green.count, greaterThan(20), reason: 'the group was not outlined');
+    expect((green.left - white.left).abs(), lessThanOrEqualTo(3),
+        reason: 'the outline is not round the box under the holder: outline '
+            '${green.left}..${green.right}, box ${white.left}..${white.right}');
+    expect((green.right - white.right).abs(), lessThanOrEqualTo(3));
+  });
 }

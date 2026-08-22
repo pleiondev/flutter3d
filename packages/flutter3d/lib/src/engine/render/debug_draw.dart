@@ -477,6 +477,28 @@ final class DebugDraw {
     return (u, v);
   }
 
+  /// The world bounds of everything drawable at or under [node], or null when
+  /// there is nothing drawable there.
+  static Aabb3? _boundsOf(SceneNode node) {
+    Aabb3? total;
+    void visit(SceneNode at) {
+      if (at is MeshNode) {
+        final bounds = at.worldBounds;
+        if (total == null) {
+          total = Aabb3.copy(bounds);
+        } else {
+          total!.hull(bounds);
+        }
+      }
+      for (final child in at.children) {
+        visit(child);
+      }
+    }
+
+    visit(node);
+    return total;
+  }
+
   /// Fills the buffer with the overlays [options] asks for.
   ///
   /// [activeCamera] is excluded from the frustum overlay: drawing the frustum of
@@ -536,9 +558,17 @@ final class DebugDraw {
     }
 
     for (final node in highlighted) {
-      if (node is MeshNode) {
-        addBox(node.worldBounds, DebugColors.selection);
+      // **A group is outlined by what is under it.** A caller marking a
+      // selection does not always hand over a mesh: an editor's marker is a
+      // holder with twelve thin bars beneath it, and the first version of this
+      // drew axes a tenth of the *scene* long through the middle of the level
+      // instead — three enormous lines where a small box was wanted.
+      final bounds = _boundsOf(node);
+      if (bounds != null) {
+        addBox(bounds, DebugColors.selection);
       } else {
+        // Nothing drawable under it at all: a light, an empty, a spawn point.
+        // Axes are the only thing a transform on its own can be shown as.
         addAxes(node.worldMatrix, size: math.max(sceneSize * 0.1, 0.1));
       }
     }
