@@ -168,7 +168,7 @@
     },
     {"type": "torch", "at": [-7.75, 2.8, -8.0], "yaw": 1.5708, "light": "guard_west"},
     {"type": "torch", "at": [7.75, 2.8, -12.0], "yaw": -1.5708, "light": "guard_east"},
-    {"type": "monster", "at": [0.0, 1.0, -12.0], "kind": "runner"},
+    {"type": "monster", "at": [0.0, 0.0, -12.0], "kind": "runner"},
     {"type": "pickup", "at": [-6.0, 0.8, -5.0], "gives": "health", "amount": 25},
     {
       "type": "door",
@@ -183,7 +183,7 @@
     },
     {"type": "trigger", "at": [0.0, 1.5, -12.4], "size": [6.0, 3.0, 2.0], "target": "crypt_door", "once": false},
     {"type": "torch", "at": [14.0, 2.8, -12.75], "yaw": 0.0, "light": "vault_north"},
-    {"type": "monster", "at": [16.0, 1.0, -10.0], "kind": "shooter"},
+    {"type": "monster", "at": [16.0, 0.0, -10.0], "kind": "shooter"},
     {"type": "pickup", "at": [11.0, 0.8, -6.0], "gives": "bullets", "amount": 20},
     {
       "type": "key",

@@ -225,8 +225,14 @@ final class ActorVisuals {
         continue;
       }
 
+      // A capsule is a shape about its middle and sits on the body's centre;
+      // a model of somebody standing has its feet at its origin. The same two
+      // conventions the platformer reconciles every frame for its runner —
+      // rooted at the centre, a monster's model hovers half its height off
+      // the floor from the moment it replaces its capsule.
+      final drop = node is MeshNode ? 0.0 : actor.body!.halfExtents.y;
       node
-        ..setPositionFrom(position)
+        ..setPosition(position.x, position.y - drop, position.z)
         ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), actor.yaw));
     }
   }
