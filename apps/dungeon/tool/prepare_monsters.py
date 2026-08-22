@@ -82,26 +82,117 @@ def write(document, binary, out: Path) -> None:
         f.write(struct.pack("<II", len(binary), 0x004E4942) + binary)
 
 
-def rendered_height(document) -> float:
-    """How tall the model comes out, in metres.
+#: glTF component types, as (struct code, size in bytes).
+_COMPONENTS = {5120: ("b", 1), 5121: ("B", 1), 5122: ("h", 2),
+               5123: ("H", 2), 5125: ("I", 4), 5126: ("f", 4)}
 
-    **Not the mesh bounds.** These are skinned, so the vertex positions are in
-    the skin's own space — a fiftieth of a metre — and the size comes from the
-    scale on the armature node above them. Reading one without the other is how
-    a two-metre monster measures four centimetres.
+#: How many components each accessor type holds.
+_COUNTS = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4, "MAT4": 16}
+
+
+def _elements(document, binary, index):
+    """Every element of accessor [index], as tuples."""
+    a = document["accessors"][index]
+    view = document["bufferViews"][a["bufferView"]]
+    code, size = _COMPONENTS[a["componentType"]]
+    count = _COUNTS[a["type"]]
+    stride = view.get("byteStride") or size * count
+    base = view.get("byteOffset", 0) + a.get("byteOffset", 0)
+    return [struct.unpack_from("<" + code * count, binary, base + i * stride)
+            for i in range(a["count"])]
+
+
+def _times(a, b):
+    """Column-major 4x4 product, `a * b`."""
+    out = [0.0] * 16
+    for column in range(4):
+        for row in range(4):
+            out[column * 4 + row] = sum(
+                a[k * 4 + row] * b[column * 4 + k] for k in range(4))
+    return out
+
+
+def _local(node):
+    """A node's own transform, as a column-major matrix."""
+    if "matrix" in node:
+        return list(node["matrix"])
+    tx, ty, tz = node.get("translation", [0.0, 0.0, 0.0])
+    x, y, z, w = node.get("rotation", [0.0, 0.0, 0.0, 1.0])
+    scale = node.get("scale", [1.0, 1.0, 1.0])
+    m = [1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w), 0,
+         2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w), 0,
+         2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y), 0,
+         0, 0, 0, 1]
+    for column in range(3):
+        for row in range(3):
+            m[column * 4 + row] *= scale[column]
+    m[12], m[13], m[14] = tx, ty, tz
+    return m
+
+
+def _world(document, parents, index):
+    m = _local(document["nodes"][index])
+    while index in parents:
+        index = parents[index]
+        m = _times(_local(document["nodes"][index]), m)
+    return m
+
+
+def rendered_height(document, binary) -> float:
+    """How tall the model comes out on screen, in metres.
+
+    **Skinned the way the shader skins it**, which is the whole point of this
+    function and the reason it is forty lines rather than four.
+
+    What was here before took the mesh's own bounding box and multiplied it by
+    the scale on the armature node — a proxy, and a wrong one. A skinned vertex
+    is not drawn where the accessor says it is: it is drawn at
+    `jointWorld * inverseBind * v`, blended over the joints it names, and the
+    two disagree whenever those matrices are not one shared transform — which
+    they are not, because this script's own `scale_root` scales the hierarchy
+    without touching the inverse binds it was authored against.
+
+    The proxy was out by 1.6x on the frog, 1.1x on the wizard and 0.95x on the
+    yeti, all in the same run: three monsters asked to be 1.7, 1.8 and 2.4 came
+    out 2.74, 2.03 and 2.28. The frog fills a four-metre corridor and the
+    player shoots over the head of a hitbox half its size.
+
+    So this does the arithmetic the vertex shader does. It is slow — every
+    vertex, in Python — and it runs three times, once per download.
     """
-    lo, hi = 1e9, -1e9
-    for mesh in document.get("meshes", []):
-        for prim in mesh.get("primitives", []):
-            a = document["accessors"][prim["attributes"]["POSITION"]]
-            lo = min(lo, a["min"][1])
-            hi = max(hi, a["max"][1])
-    scale = 1.0
+    parents = {}
+    for index, node in enumerate(document.get("nodes", [])):
+        for child in node.get("children", []):
+            parents[child] = index
+
+    low, high = 1e9, -1e9
     for node in document.get("nodes", []):
-        if node.get("name") == "CharacterArmature":
-            scale = node.get("scale", [1.0, 1.0, 1.0])[1]
-            break
-    return (hi - lo) * scale
+        if "mesh" not in node or "skin" not in node:
+            continue
+        skin = document["skins"][node["skin"]]
+        binds = _elements(document, binary, skin["inverseBindMatrices"])
+        joints = [_times(_world(document, parents, j), list(binds[k]))
+                  for k, j in enumerate(skin["joints"])]
+
+        for prim in document["meshes"][node["mesh"]]["primitives"]:
+            places = _elements(document, binary, prim["attributes"]["POSITION"])
+            named = _elements(document, binary, prim["attributes"]["JOINTS_0"])
+            weights = _elements(document, binary, prim["attributes"]["WEIGHTS_0"])
+            for place, uses, shares in zip(places, named, weights):
+                total = sum(shares) or 1.0
+                y = 0.0
+                for joint, share in zip(uses, shares):
+                    if share == 0.0:
+                        continue
+                    m = joints[joint]
+                    y += (share / total) * (
+                        m[1] * place[0] + m[5] * place[1] + m[9] * place[2]
+                        + m[13])
+                low, high = min(low, y), max(high, y)
+
+    if high < low:
+        raise SystemExit("no skinned mesh in this file")
+    return high - low
 
 
 def scale_root(document, factor: float) -> None:
@@ -154,7 +245,7 @@ def main() -> int:
             return 1
 
         document, binary = read(path)
-        was = rendered_height(document)
+        was = rendered_height(document, binary)
         scale_root(document, height / was)
         renamed = strip_clip_prefix(document)
         stamp(document, title=title, source=f"https://poly.pizza ({title})")
