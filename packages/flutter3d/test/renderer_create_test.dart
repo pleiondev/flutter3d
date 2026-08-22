@@ -13,7 +13,10 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter3d/src/engine/render/render_view.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';
+import 'package:flutter3d/src/engine/scene/camera_node.dart';
+import 'package:flutter3d/src/engine/scene/scene.dart';
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -97,5 +100,39 @@ void main() {
       throwsA(isA<StateError>().having(
         (e) => e.message, 'message', contains('MeshVertex'))),
     );
+  });
+
+  test('the frame it hands back is not the frame it draws next', () {
+    // **A frame you could watch being drawn.** The composite wrote into one
+    // texture, every frame, and presenting hands that same allocation to
+    // Flutter — which composites it on its own thread, on its own schedule. So
+    // the next frame's clear and passes landed in the texture the screen was
+    // reading. On a scene that changes nobody sees it; on a still one it
+    // flickers, which is how it was found: an editor holding a level with the
+    // camera parked.
+    final device = FakeBackend();
+    final renderer = Renderer.create(device: device);
+    final scene = Scene()..add(CameraNode());
+    final view = RenderView(camera: scene.cameras.single);
+
+    final frames = <Object?>[
+      for (var i = 0; i < Renderer.frameRing * 2; i++)
+        renderer.render(
+          width: 64,
+          height: 64,
+          scene: scene,
+          views: <RenderView>[view],
+        ).frame.backend,
+    ];
+
+    for (var i = 1; i < frames.length; i++) {
+      expect(identical(frames[i], frames[i - 1]), isFalse,
+          reason: 'frame $i was drawn into the texture frame ${i - 1} handed '
+              'to the compositor');
+    }
+    // And it is a ring rather than a new texture a frame: a window's worth of
+    // eight-bit target allocated sixty times a second is a leak with a clock
+    // on it.
+    expect(frames.toSet(), hasLength(Renderer.frameRing));
   });
 }

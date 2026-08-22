@@ -968,7 +968,31 @@ final class Renderer implements RenderServices {
   /// exactly what the old 8-bit target threw away.
   TextureHandle? _hdrColor;
   TextureHandle? _hdrMsaa;
-  TextureHandle? _ldrColor;
+
+  /// The finished frames, in rotation.
+  ///
+  /// **One texture was a frame you could watch being drawn.** The composite
+  /// writes the picture a caller presents, and presenting it hands the very
+  /// same allocation to Flutter, which composites it on its own thread on its
+  /// own schedule — so the next frame's clear and passes land in the texture
+  /// the screen is reading. On a scene that changes every frame nobody sees it:
+  /// a half-written frame is a mix of two pictures that differ by a millimetre
+  /// of camera. On a *still* scene it is unmissable, and that is how it was
+  /// found — an editor holding a level with the camera parked, flickering
+  /// between the picture and a partly drawn one.
+  ///
+  /// Three, not two. Two is enough for the obvious race — write B while the
+  /// compositor reads A — and it is not enough for a backend that queues its
+  /// work: the read of A may still be in flight when the writer comes back
+  /// round to A two frames later. The cost is two more full-size eight-bit
+  /// targets, which at 1600 × 1200 is about fifteen megabytes.
+  static const int frameRing = 3;
+
+  final List<TextureHandle> _ldrRing = <TextureHandle>[];
+  int _ldrSlot = 0;
+
+  /// The frame currently being drawn into.
+  TextureHandle? get _ldrColor => _ldrRing.isEmpty ? null : _ldrRing[_ldrSlot];
   final Float32List _reflectionParams = Float32List(4);
   final Float32List _reflectionScreen = Float32List(4);
   final Float32List _reflectionCameraData = Float32List(4);
@@ -1191,7 +1215,13 @@ final class Renderer implements RenderServices {
 
     // The final image is 8-bit and display-referred; it is what becomes the
     // ui.Image, so there is nothing to gain from more precision here.
-    _ldrColor = make(StorageMode.devicePrivate, device.defaultColorFormat);
+    _ldrRing
+      ..clear()
+      ..addAll(<TextureHandle>[
+        for (var slot = 0; slot < frameRing; slot++)
+          make(StorageMode.devicePrivate, device.defaultColorFormat),
+      ]);
+    _ldrSlot = 0;
 
     // The surface buffer: world-space normal and depth, for whatever runs after
     // the scene. Allocated with the rest rather than on demand, because a
@@ -2122,6 +2152,10 @@ final class Renderer implements RenderServices {
     developer.Timeline.startSync('Renderer.render');
     final frameClock = Stopwatch()..start();
     _ensureTargets(width, height);
+
+    // On to the next finished-frame texture, so that what is drawn now is not
+    // what a compositor is still reading — see [frameRing].
+    if (_ldrRing.isNotEmpty) _ldrSlot = (_ldrSlot + 1) % _ldrRing.length;
 
     // Rotates whatever the backend keeps per frame — on one of them, the ring
     // of uniform allocators. Before anything is encoded, and never in the
