@@ -272,6 +272,14 @@ abstract interface class PassEncoder {
   void setBlend(BlendState? state, {int attachment = 0});
 
   /// Binds the pair of stages the following draws run.
+  ///
+  /// **Bindings do not survive this call.** A backend is free to drop every
+  /// buffer, uniform and texture binding when the pipeline changes — the
+  /// flutter_gpu backend must, because its pass replays every binding it has
+  /// ever been handed at each draw, keyed by the shader that bound it, and a
+  /// stale block from the previous pipeline's shader can land on a slot the
+  /// new pipeline reads. Every site in this engine therefore binds what a
+  /// draw needs *after* binding its pipeline, never before.
   void bindPipeline(PipelineHandle pipeline);
 
   /// Binds geometry the device already holds — a mesh, or the one triangle

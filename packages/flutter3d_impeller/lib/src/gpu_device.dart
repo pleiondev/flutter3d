@@ -598,8 +598,29 @@ final class _GpuCommandEncoder implements CommandEncoder {
   }
 
   @override
-  void bindPipeline(PipelineHandle pipeline) =>
-      _pass.bindPipeline(pipeline.backend as gpu.RenderPipeline);
+  void bindPipeline(PipelineHandle pipeline) {
+    // Every binding this pass has been handed dies here, and it is not
+    // housekeeping — it is the fix for a monster drawn as a splinter.
+    //
+    // flutter_gpu's RenderPass accumulates uniform and texture bindings in a
+    // map keyed by the *shader* that bound them, and replays the whole map at
+    // every draw. Nothing removes an entry when the pipeline changes, so after
+    // a skinned mesh has drawn, a static mesh's draw replays the skinned
+    // stage's FrameInfo and SkinInfo as well as its own — two buffers claiming
+    // one slot, and which of them wins is the iteration order of an
+    // unordered_map. The corruption is deterministic within a run and moves
+    // when the scene does: a crypt's frog collapsing to a sliver, a box drawn
+    // somewhere its transform never was — but only ever in scenes that mix
+    // skinned and static pipelines, which is why a monster alone in a test
+    // scene was always innocent.
+    //
+    // Dropping the bindings on a pipeline switch is safe because of the
+    // contract written on [CommandEncoder.bindPipeline]: every site binds what
+    // its draw needs after binding the pipeline, never before.
+    _pass.clearBindings();
+    _indexCount = 0;
+    _pass.bindPipeline(pipeline.backend as gpu.RenderPipeline);
+  }
 
   /// How many indices the last index bind described.
   ///
