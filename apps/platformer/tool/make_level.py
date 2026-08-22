@@ -448,7 +448,17 @@ for i, z in enumerate((129.0, 133.0, 137.0, 141.0, 145.0)):
     crumbling(f"the shelf {i + 1}", [-24.0, 0.8, z])
 coin([-24.0, 1.8, 137.0])
 
-route([0.0, 1.8, 147.0], [12.0, 3.6, 3.0], "ice")
+# **The staircase to the cold pad, and its first step used to be unclimbable.**
+# It was two steps, tops at 3.6 and 6.0. A double jump rises 3.13 — measured in
+# `ascent_route_test.dart` rather than guessed — so the first step was half a
+# metre above anything that could reach it, and the spring on top of the second
+# one, with the coin above that, could only be got to by pushing a crate ten
+# metres and standing on it.
+#
+# Three steps now, and every climb has margin: 2.0 off the ice, then 2.2, then
+# 1.8.
+route([0.0, 1.0, 144.5], [12.0, 2.0, 3.0], "ice")
+route([0.0, 2.1, 148.0], [12.0, 4.2, 3.0], "ice")
 route([0.0, 3.0, 152.0], [12.0, 6.0, 4.0], "ice")
 route([-22.0, 1.5, 162.0], [12.0, 3.0, 8.0], "ice")
 route([22.0, 1.5, 162.0], [12.0, 3.0, 8.0], "ice")

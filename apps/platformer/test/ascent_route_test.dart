@@ -246,4 +246,71 @@ void main() {
           reason: 'the gap is ${far - near} m, which a dash does not');
     });
   });
+
+  test('a double jump rises 3.13 metres, and the level is built to that', () {
+    // **Reported as "part of the level cannot be reached", and it was.** The
+    // route above walks *past* the ice on the shore line, so nothing had ever
+    // asked whether the staircase in the middle of it could be climbed. Its
+    // first step's top was 3.6 — half a metre above anything that could reach
+    // it — so the spring on top of the staircase, and the coin above that, were
+    // reachable only by pushing a crate ten metres and standing on it.
+    //
+    // The number is measured here rather than taken from `runner.dart`, because
+    // what a jump is worth is not `jumpSpeed`: gravity, the air jump's own
+    // speed and the moment the second one is pressed all decide it. **Jump is
+    // held**, because releasing while rising cuts the jump short — a probe that
+    // presses and releases in one frame measures 0.47 m and believes it.
+    final climb = _Climb();
+    climb.runner.body.teleport(Vector3(0.0, 1.0, 143.0));
+    for (var i = 0; i < 120; i++) {
+      climb._step(<GameAction>{}, Vector3(0.0, 1.0, 143.0));
+    }
+    final ground = climb.runner.position.y;
+
+    double rise({required int secondAt}) {
+      climb.runner.body.teleport(Vector3(0.0, ground, 143.0));
+      for (var i = 0; i < 30; i++) {
+        climb._step(<GameAction>{}, Vector3(0.0, ground, 143.0));
+      }
+      var top = climb.runner.position.y;
+      for (var i = 0; i < 150; i++) {
+        // Held throughout, except for the one frame that gives the second jump
+        // an edge to fire on — near the apex, where the cut costs nothing.
+        final want = i == secondAt - 1
+            ? <GameAction>{}
+            : <GameAction>{GameAction.jump};
+        climb._step(want, Vector3(0.0, ground + 10.0, 143.0));
+        top = math.max(top, climb.runner.position.y);
+      }
+      return top - ground;
+    }
+
+    var reach = 0.0;
+    for (var at = 15; at <= 30; at++) {
+      reach = math.max(reach, rise(secondAt: at));
+    }
+
+    expect(reach, closeTo(3.13, 0.15),
+        reason: 'the jump changed, and every step in every level was measured '
+            'against the old number');
+
+    // And the staircase is built to it. Each climb is the gap between one
+    // standable top and the next, from the ice floor at zero.
+    final tops = <double>[
+      0.0,
+      for (final brush in climb.level.brushes)
+        if (brush.material == 'ice' &&
+            brush.centre.z > 143.0 &&
+            brush.centre.z < 154.0 &&
+            brush.size.x > 6.0)
+          brush.centre.y + brush.size.y / 2,
+    ]..sort();
+
+    expect(tops.length, greaterThan(2), reason: 'the staircase is not there');
+    for (var i = 1; i < tops.length; i++) {
+      expect(tops[i] - tops[i - 1], lessThan(reach - 0.3),
+          reason: 'the step from ${tops[i - 1]} to ${tops[i]} is more than a '
+              'double jump with anything to spare');
+    }
+  });
 }
