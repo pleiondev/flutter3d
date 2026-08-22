@@ -300,6 +300,21 @@ class _EditorScreenState extends State<EditorScreen>
   /// whose picture and document disagree, which is the one thing it must never
   /// be. Scheduled at most once a frame by [_onTick] instead, so holding an
   /// arrow key down does not queue fifty of them.
+  /// The editor's own light, which the level does not contain.
+  ///
+  /// **A level you cannot see is a level you cannot edit.** The crypt is lit by
+  /// six torches and is otherwise pitch black, which is right for a game and
+  /// useless here: half the rooms are a black rectangle with a mark floating in
+  /// it, and every question about what you are looking at starts with "is that
+  /// broken or is it just dark". So the editor carries a lamp — a soft light
+  /// pointing wherever the camera points — and says so, rather than quietly
+  /// changing the level's own lighting.
+  ///
+  /// Off with **B**, for anybody who wants to see the room the way a player
+  /// will.
+  LightNode? _lamp;
+  bool _lampOn = true;
+
   /// Types whose marks and models are not drawn.
   ///
   /// **Added while hunting a flicker one kind at a time**, and kept because
@@ -335,6 +350,11 @@ class _EditorScreenState extends State<EditorScreen>
       );
       if (!mounted) return;
       _scene = loaded.scene..add(_camera);
+      _lamp = LightNode(
+        color: Vector3(1.0, 0.98, 0.94),
+        intensity: 2.2,
+      );
+      loaded.scene.add(_lamp!);
       if (_levelOnly) {
         for (final light in List<LightNode>.of(loaded.scene.lights)) {
           loaded.scene.remove(light);
@@ -1084,6 +1104,12 @@ class _EditorScreenState extends State<EditorScreen>
         editing.turn(-math.pi / 8);
       case LogicalKeyboardKey.period:
         editing.turn(math.pi / 8);
+      case LogicalKeyboardKey.keyB:
+        setState(() => _lampOn = !_lampOn);
+        _said = _lampOn
+            ? 'the editor\'s lamp is on'
+            : 'the editor\'s lamp is off — this is the level\'s own light';
+        return KeyEventResult.handled;
       case LogicalKeyboardKey.keyL:
         // Four metres in front, which is far enough to light a room and near
         // enough to be the room somebody is standing in.
@@ -1559,7 +1585,8 @@ class _EditorScreenState extends State<EditorScreen>
               'arrows move · R F raise · 1 2 3 axis (${_axis.name}) '
               '· − = size or brightness · , . turn '
               '· ⌘D copy · ⌫ delete '
-              '· G grid ($_gridSaid) · ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
+              '· G grid ($_gridSaid) · B lamp (${_lampOn ? 'on' : 'off'}) '
+              '· ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
               style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
             ),
           ],
