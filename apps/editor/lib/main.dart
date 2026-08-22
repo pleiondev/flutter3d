@@ -746,6 +746,31 @@ class _EditorScreenState extends State<EditorScreen>
       if (asset == null) continue;
 
       final instance = asset.instantiate(_scene!, name: 'model');
+
+      // **Posed, or it stands there like a scarecrow.** A skinned model in a
+      // file is in its bind pose: arms out, legs apart, because that is the
+      // shape a rig is authored in and no exporter saves a "resting" one. The
+      // crypt's runner measures three and a third metres across like that, and
+      // its shooter collapses to three centimetres — the game never shows
+      // either, because the game plays a clip on the first frame.
+      //
+      // So does this, once, and never again: nothing here animates, and a
+      // model frozen on the first frame of a resting clip is what somebody
+      // placing it wants to see.
+      //
+      // "Idle" is not a word about any genre — it is what an animator calls the
+      // clip a character plays when it is doing nothing, in files this editor
+      // will never have seen. Anything without one takes its first clip, which
+      // is still a pose somebody authored rather than the rig's.
+      final player = instance.player;
+      final clips = player?.clipNames ?? const <String>[];
+      if (player != null && clips.isNotEmpty) {
+        final resting = clips.indexWhere(
+          (String name) => name.toLowerCase().contains('idle'),
+        );
+        player.play(resting < 0 ? 0 : resting);
+      }
+
       instance.root
         ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
         ..setRotation(
