@@ -1189,6 +1189,22 @@ class _EditorScreenState extends State<EditorScreen>
                       // whatever picking last selected" — and this is the first
                       // caller it has ever had.
                       highlighted: <SceneNode>[?_marker],
+                      // **No shadows, and not for speed.** With them on this
+                      // editor flickers: the picture alternates between the
+                      // scene and a nearly black one, on a camera nobody is
+                      // touching. Measured rather than guessed — fifteen
+                      // captures of the window are identical with shadows off
+                      // and every third one differs with them on, and the same
+                      // scene rendered ten times through `CpuDevice` is
+                      // identical either way, so what is wrong is in the
+                      // hardware backend's shadow path and not in what this
+                      // application asks for.
+                      //
+                      // An editor loses nothing by it. What it is for is where
+                      // things *are*: a shadow under a crate says nothing a
+                      // wireframe does not, and the crypt's own torches light
+                      // the rooms either way.
+                      shadows: const ShadowSettings(enabled: false),
                     ),
                     onBeforeFrame: () => _fly.placeOn(_camera),
                   ),
