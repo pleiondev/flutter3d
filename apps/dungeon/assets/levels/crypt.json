@@ -162,7 +162,7 @@
     {"type": "torch", "at": [5.75, 2.8, 10.0], "yaw": -1.5708, "light": "hall_east"},
     {
       "type": "note",
-      "at": [0.0, 1.6, 2.6],
+      "at": [-3.5, 1.6, 2.03],
       "yaw": 0.0,
       "text": "They sealed the lower door and took the key down with them. It is still down there."
     },

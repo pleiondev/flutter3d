@@ -46,6 +46,7 @@ import json
 import math
 import os
 import struct
+import zlib
 import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -65,13 +66,20 @@ class Mesh:
     def __init__(self):
         self.positions = []
         self.normals = []
+        self.uvs = []
         self.indices = []
         # One primitive per material: (first index, count, material)
         self.runs = []
         self.materials = []
+        # PNGs to embed, in the order the materials name them.
+        self.images = []
 
-    def part(self, colour, glow=None, roughness=0.8):
-        """Starts a run of triangles in a colour, and returns its index."""
+    def part(self, colour, glow=None, roughness=0.8, image=None):
+        """Starts a run of triangles in a colour, and returns its index.
+
+        [image] is PNG bytes to sample the base colour from — see `page`, the
+        one model that needs a picture rather than a colour.
+        """
         material = {
             'pbrMetallicRoughness': {
                 'baseColorFactor': [q(c) for c in colour] + [1.0],
@@ -80,24 +88,38 @@ class Mesh:
                 'roughnessFactor': q(roughness),
             },
         }
+        if image is not None:
+            self.images.append(image)
+            material['pbrMetallicRoughness']['baseColorTexture'] = {
+                'index': len(self.images) - 1,
+            }
         if glow is not None:
             material['emissiveFactor'] = [q(c) for c in glow]
         self.materials.append(material)
         self.runs.append([len(self.indices), 0, len(self.materials) - 1])
         return len(self.materials) - 1
 
-    def triangle(self, a, b, c, na=None, nb=None, nc=None):
+    def triangle(self, a, b, c, na=None, nb=None, nc=None,
+                 ta=None, tb=None, tc=None):
         normal = na or _normal(a, b, c)
         base = len(self.positions)
-        for point, n in ((a, na or normal), (b, nb or normal), (c, nc or normal)):
+        points = ((a, na or normal, ta), (b, nb or normal, tb),
+                  (c, nc or normal, tc))
+        for point, n, uv in points:
             self.positions.append([q(v) for v in point])
             self.normals.append([q(v) for v in n])
+            # **Every vertex gets one or none of them do.** A glTF attribute is
+            # per mesh, so a file with one textured face still needs a
+            # coordinate on every other vertex; nought is as good as any, since
+            # nothing samples them.
+            self.uvs.append([q(uv[0]), q(uv[1])] if uv else [0.0, 0.0])
         self.indices.extend([base, base + 1, base + 2])
         self.runs[-1][1] += 3
 
-    def quad(self, a, b, c, d, na=None, nb=None, nc=None, nd=None):
-        self.triangle(a, b, c, na, nb, nc)
-        self.triangle(a, c, d, na, nc, nd)
+    def quad(self, a, b, c, d, na=None, nb=None, nc=None, nd=None,
+             ta=None, tb=None, tc=None, td=None):
+        self.triangle(a, b, c, na, nb, nc, ta, tb, tc)
+        self.triangle(a, c, d, na, nc, nd, ta, tc, td)
 
 
 def _normal(a, b, c):
@@ -246,12 +268,13 @@ def write_glb(mesh, name, path):
             'buffer': 0,
             'byteOffset': offset,
             'byteLength': len(data),
-            'target': target,
+            **({'target': target} if target is not None else {}),
         })
         return len(views) - 1
 
     positions = b''.join(struct.pack('<fff', *p) for p in mesh.positions)
     normals = b''.join(struct.pack('<fff', *n) for n in mesh.normals)
+    uvs = b''.join(struct.pack('<ff', *t) for t in mesh.uvs)
     indices = b''.join(struct.pack('<H', i) for i in mesh.indices)
 
     low = [min(p[i] for p in mesh.positions) for i in range(3)]
@@ -274,6 +297,14 @@ def write_glb(mesh, name, path):
         'count': len(mesh.normals),
         'type': 'VEC3',
     })
+    textured = bool(mesh.images)
+    if textured:
+        accessors.append({
+            'bufferView': view(uvs, 34962),
+            'componentType': 5126,
+            'count': len(mesh.uvs),
+            'type': 'VEC2',
+        })
     index_view = view(indices, 34963)
 
     primitives = []
@@ -288,7 +319,9 @@ def write_glb(mesh, name, path):
             'type': 'SCALAR',
         })
         primitives.append({
-            'attributes': {'POSITION': 0, 'NORMAL': 1},
+            'attributes': {'POSITION': 0, 'NORMAL': 1, 'TEXCOORD_0': 2}
+                if textured
+                else {'POSITION': 0, 'NORMAL': 1},
             'indices': len(accessors) - 1,
             'material': material,
             'mode': 4,
@@ -297,6 +330,25 @@ def write_glb(mesh, name, path):
     while len(binary) % 4:
         binary.append(0)
 
+    # Images live in the binary chunk like everything else: a bufferView with
+    # no target, because a target is for vertex and index data.
+    images = []
+    samplers = []
+    textures = []
+    for png in mesh.images:
+        images.append({'bufferView': view(png, None), 'mimeType': 'image/png'})
+        textures.append({'sampler': 0, 'source': len(images) - 1})
+    if textures:
+        samplers.append({
+            # Linear, with mips: a page read at a glancing angle across a room
+            # is exactly where a nearest-neighbour sampler turns writing into
+            # noise.
+            'magFilter': 9729,
+            'minFilter': 9987,
+            'wrapS': 33071,
+            'wrapT': 33071,
+        })
+
     document = {
         'asset': {'version': '2.0', 'generator': 'tool/make_models.py'},
         'scene': 0,
@@ -304,6 +356,8 @@ def write_glb(mesh, name, path):
         'nodes': [{'mesh': 0, 'name': name}],
         'meshes': [{'name': name, 'primitives': primitives}],
         'materials': mesh.materials,
+        **({'images': images, 'samplers': samplers, 'textures': textures}
+           if textures else {}),
         'accessors': accessors,
         'bufferViews': views,
         'buffers': [{'byteLength': len(binary)}],
@@ -430,10 +484,104 @@ def standing_lamp(mesh):
     box(mesh, (0.34, 0.06, 0.34), at=(0.0, -1.57, 0.0), colour=(0.22, 0.20, 0.18))
 
 
+def _png(width, height, pixels):
+    """A PNG, out of the standard library.
+
+    Written here rather than shipped as a file for the same reason the geometry
+    is: a picture generated from a few lines of code is a picture that can be
+    regenerated and diffed, and one that arrives as bytes is a picture nobody
+    can change without opening a paint program.
+    """
+    raw = bytearray()
+    for y in range(height):
+        raw.append(0)  # filter: none, so the bytes are the pixels
+        for x in range(width):
+            raw.extend(pixels[y * width + x])
+    body = zlib.compress(bytes(raw), 9)
+
+    def chunk(kind, data):
+        return (struct.pack('>I', len(data)) + kind + data
+                + struct.pack('>I', zlib.crc32(kind + data) & 0xFFFFFFFF))
+
+    return (b'\x89PNG\r\n\x1a\n'
+            + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', body)
+            + chunk(b'IEND', b''))
+
+
+def _writing():
+    """A page of handwriting, as a texture.
+
+    **A blank page is not a note.** The model used to be a tan rectangle with a
+    batten across the top, which in an editor reads as a card, a plaque or a
+    piece of wood — anything but something to read. What makes it a note is
+    that there is writing on it, and at the size one is ever seen the writing
+    only has to be lines.
+
+    Ink is laid down as short runs with gaps, ragged at the right-hand end the
+    way a written line is, and the last line is short because a paragraph ends
+    where it ends. Nothing here is random: the runs are a fixed table, so the
+    file is the same bytes on every machine.
+    """
+    width, height = 48, 64
+    paper = (0xE8, 0xDF, 0xC4)
+    stain = (0xD8, 0xCB, 0xA6)
+    ink = (0x3A, 0x2E, 0x22)
+    pixels = [paper] * (width * height)
+
+    def line(y, x0, x1, colour=ink):
+        for x in range(max(0, x0), min(width, x1)):
+            pixels[y * width + x] = colour
+
+    # An older, browner edge, so the page does not read as printer paper.
+    for y in range(height):
+        for x in range(width):
+            edge = min(x, y, width - 1 - x, height - 1 - y)
+            if edge < 3:
+                pixels[y * width + x] = stain
+
+    # Eleven lines of writing, each a row of ink two pixels tall with a gap
+    # where a word ends.
+    rows = [
+        (8, [(7, 20), (22, 33), (35, 41)]),
+        (13, [(7, 15), (17, 30), (32, 40)]),
+        (18, [(7, 26), (28, 38)]),
+        (23, [(7, 13), (15, 31), (33, 41)]),
+        (28, [(7, 22), (24, 36)]),
+        (33, [(7, 18), (20, 29), (31, 40)]),
+        (38, [(7, 25), (27, 34)]),
+        (43, [(7, 16), (18, 33), (35, 39)]),
+        (48, [(7, 28), (30, 41)]),
+        (53, [(7, 14), (16, 27)]),
+    ]
+    for y, runs in rows:
+        for x0, x1 in runs:
+            line(y, x0, x1)
+            line(y + 1, x0, x1)
+
+    return _png(width, height, pixels)
+
+
 def note(mesh):
-    """A page on the wall. Nothing in either game draws one at all."""
+    """A page on the wall, with writing on it.
+
+    Nothing in either game draws one — a note is read, not drawn — so this is
+    the only picture of one that exists, and the editor is the only thing that
+    shows it.
+    """
     box(mesh, (0.34, 0.44, 0.02), colour=(0.86, 0.82, 0.70), roughness=0.9)
     box(mesh, (0.36, 0.04, 0.03), at=(0.0, 0.22, 0.0), colour=WOOD)
+
+    # The writing, on a quad a hair in front of the page so the two never
+    # argue about which is nearer.
+    mesh.part((1.0, 1.0, 1.0), roughness=0.9, image=_writing())
+    z = 0.011
+    mesh.quad(
+        (-0.15, -0.19, z), (0.15, -0.19, z), (0.15, 0.17, z), (-0.15, 0.17, z),
+        na=(0.0, 0.0, 1.0), nb=(0.0, 0.0, 1.0),
+        nc=(0.0, 0.0, 1.0), nd=(0.0, 0.0, 1.0),
+        ta=(0.0, 1.0), tb=(1.0, 1.0), tc=(1.0, 0.0), td=(0.0, 0.0),
+    )
 
 
 def spawn(mesh):

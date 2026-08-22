@@ -11,6 +11,7 @@
 /// that will not load is a file the generator was perfectly happy about.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -209,11 +210,32 @@ void main() {
       });
 
       test('and has nothing in it that a template promised not to have', () {
-        // No animations, no skins, no textures: a template model is a shape and
-        // a colour. Anything else is a file somebody has to have a licence for.
+        // No animations and no skins: a template model is a shape, a colour and
+        // — since the note learned to have writing on it — a picture generated
+        // beside it.
         expect(asset.animations, isEmpty);
         expect(asset.skins, isEmpty);
-        expect(asset.images, isEmpty);
+      });
+
+      test('and any picture in it was generated here, not brought in', () {
+        // **The rule was "no textures at all", and the reason was provenance**:
+        // anything else is a file somebody has to have a licence for. A
+        // generated one is not that. `make_models.py` writes the note's page
+        // out of a table of ink runs, CI regenerates every model and diffs the
+        // bytes, so a picture that came from anywhere else fails that step on
+        // the day it arrives.
+        //
+        // What still must not happen is a *reference* to a file outside the
+        // model: an image with a URI is an asset the project has to ship and
+        // account for, and none of these has one.
+        final bytes = file.readAsBytesSync();
+        final json = _gltfJsonOf(bytes);
+        for (final image in (json['images'] as List<Object?>? ?? const [])) {
+          final described = image! as Map<String, Object?>;
+          expect(described['uri'], isNull,
+              reason: '$name points at an image outside the file');
+          expect(described['bufferView'], isNotNull);
+        }
       });
 
       test('and reaches the device the same way a game\'s model does', () async {
@@ -241,3 +263,12 @@ void main() {
     });
   }
 }
+
+/// The JSON chunk of a GLB, which is where everything but the vertices lives.
+Map<String, Object?> _gltfJsonOf(Uint8List bytes) {
+  final data = ByteData.sublistView(bytes);
+  final length = data.getUint32(12, Endian.little);
+  return jsonDecode(utf8.decode(bytes.sublist(20, 20 + length)))
+      as Map<String, Object?>;
+}
+

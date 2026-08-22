@@ -56,8 +56,18 @@ def build():
     k.spawn((0.0, 0.0, 12.0))
     k.torch((-5.4, 2.8, 10.0), name="hall_west", yaw=1.5708)
     k.torch((5.4, 2.8, 10.0), name="hall_east", yaw=-1.5708)
+    # **On the wall, beside the doorway.** It used to hang at (0, 1.6, 2.6) —
+    # in the middle of the opening, two metres from anything, in mid-air. That
+    # went unnoticed for as long as the game was the only thing looking at this
+    # level: a note is read, not drawn, so nothing ever put a page there. The
+    # editor draws one now, and a page floating in a doorway is the first thing
+    # anybody sees.
+    #
+    # The hall's north wall runs at z = 1.5 and is a metre thick, so its inner
+    # face is z = 2.0; the doorway takes x from −2 to 2, and this sits on the
+    # panel west of it, facing into the room.
     k.note(
-        (0.0, 1.6, 2.6),
+        (-3.5, 1.6, 2.03),
         "They sealed the lower door and took the key down with them. "
         "It is still down there.",
     )

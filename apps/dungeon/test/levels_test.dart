@@ -13,6 +13,7 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:dungeon/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -137,5 +138,32 @@ void main() {
     expect(tanksIn(chain.first.level), 0,
         reason: 'the first level opens with the slowest, hardest thing');
     expect(tanksIn(chain.last.level), greaterThan(1));
+  });
+
+  test('nothing a player reads hangs in mid-air', () {
+    // **A note is read, not drawn**, so nothing in this game ever put a page
+    // where one of these is — and the crypt's sat in the middle of a doorway,
+    // two metres from anything, for as long as the level has existed. The
+    // editor draws models for the marks now, which is what made it visible.
+    //
+    // Against a wall means within a hand's width of some solid brush: this is
+    // asking "is it on something", not "is it exactly flush".
+    final level = Level.fromJson(
+        jsonDecode(File(_first).readAsStringSync()) as Map<String, Object?>);
+
+    for (final note in level.entities.where((EntityDef e) => e.type == 'note')) {
+      final at = note.position;
+      var nearest = double.infinity;
+      for (final brush in level.brushes) {
+        if (!brush.solid) continue;
+        final dx = math.max((at.x - brush.centre.x).abs() - brush.size.x / 2, 0.0);
+        final dy = math.max((at.y - brush.centre.y).abs() - brush.size.y / 2, 0.0);
+        final dz = math.max((at.z - brush.centre.z).abs() - brush.size.z / 2, 0.0);
+        nearest = math.min(nearest, math.sqrt(dx * dx + dy * dy + dz * dz));
+      }
+      expect(nearest, lessThan(0.2),
+          reason: 'the note at $at is ${nearest.toStringAsFixed(2)} m from the '
+              'nearest wall, which is a page floating in the air');
+    }
   });
 }
