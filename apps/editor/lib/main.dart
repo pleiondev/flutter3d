@@ -613,6 +613,12 @@ class _EditorScreenState extends State<EditorScreen>
       );
     }
 
+    // **The bars meet, they do not overlap.** Twelve full-length bars share a
+    // small cube at each corner, and two coplanar faces of the same colour lit
+    // from different sides fight for those pixels — which reads as stray
+    // triangles at the corners and was reported as exactly that. The four along
+    // X keep their length and the other eight give up a bar's width at each
+    // end, so the corner belongs to one of them.
     for (final y in <double>[-half.y, half.y]) {
       for (final z in <double>[-half.z, half.z]) {
         edge(Vector3(size.x, bar, bar), 0.0, y, z);
@@ -620,12 +626,12 @@ class _EditorScreenState extends State<EditorScreen>
     }
     for (final x in <double>[-half.x, half.x]) {
       for (final z in <double>[-half.z, half.z]) {
-        edge(Vector3(bar, size.y, bar), x, 0.0, z);
+        edge(Vector3(bar, math.max(size.y - bar * 2, bar), bar), x, 0.0, z);
       }
     }
     for (final x in <double>[-half.x, half.x]) {
       for (final y in <double>[-half.y, half.y]) {
-        edge(Vector3(bar, bar, size.z), x, y, 0.0);
+        edge(Vector3(bar, bar, math.max(size.z - bar * 2, bar)), x, y, 0.0);
       }
     }
   }
