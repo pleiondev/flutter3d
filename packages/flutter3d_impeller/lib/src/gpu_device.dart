@@ -14,6 +14,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 
 import 'gpu_formats.dart';
 import 'gpu_texture.dart';
+import 'host_buffer_grid.dart';
 
 /// flutter_gpu as a [GraphicsDevice].
 ///
@@ -21,7 +22,7 @@ import 'gpu_texture.dart';
 /// names flutter_gpu, which is what makes the import graph a property somebody
 /// can check: `test/backend_is_contained_test.dart` scans for it.
 final class GpuRenderBackend implements GraphicsDevice {
-  GpuRenderBackend._(this._library, this._transients);
+  GpuRenderBackend._(this._library, this._transients, this._granule);
 
   /// Loads [bundleAsset] and builds a backend around the running context.
   ///
@@ -66,10 +67,18 @@ final class GpuRenderBackend implements GraphicsDevice {
       // right after submit rewinds storage the GPU may still be reading, so the
       // next frame overwrites live uniforms. The symptom is flickering under
       // load, not a crash, which makes it hard to attribute.
+      //
+      // The block length is a whole number of granules, and every write is
+      // rounded to one. `host_buffer_grid.dart` says why: without it
+      // `HostBuffer.emplace` hands out ranges that run off the end of a block
+      // and throws in the middle of a frame.
       List<gpu.HostBuffer>.generate(
         _kFramesInFlight,
-        (_) => gpu.gpuContext.createHostBuffer(),
+        (_) => gpu.gpuContext.createHostBuffer(
+          blockLengthInBytes: blockLengthFor(granule),
+        ),
       ),
+      granule,
     );
   }
 
@@ -87,6 +96,40 @@ final class GpuRenderBackend implements GraphicsDevice {
       'packages/flutter3d_impeller/assets/shaders/flutter3d.shaderbundle';
 
   static const int _kFramesInFlight = 3;
+
+  /// What every write into a transient buffer is rounded up to.
+  ///
+  /// Asked of the backend rather than assumed: the alignment is a property of
+  /// the device, and a granule below it would let `emplace`'s own padding move
+  /// the cursor off the grid this depends on.
+  static int get granule =>
+      granuleFor(gpu.gpuContext.minimumUniformByteAlignment);
+
+  /// The granule these allocators were built on.
+  final int _granule;
+
+  /// Where each allocator's cursor is, mirrored so a write that would not fit
+  /// in what is left of a block can be pushed onto the next one. See
+  /// `host_buffer_grid.dart`.
+  late final List<BlockCursor> _cursors = List<BlockCursor>.generate(
+    _kFramesInFlight,
+    (_) => BlockCursor(
+      blockLength: blockLengthFor(_granule),
+      granule: _granule,
+    ),
+  );
+
+  /// Writes [bytes] into this frame's allocator without letting it hand back a
+  /// range that runs off the end of a block.
+  gpu.BufferView emplace(ByteData bytes) {
+    final host = _host;
+    final cursor = _cursors[_frame < 0 ? 0 : _frame];
+    final on = padded(bytes, _granule);
+    final filler = cursor.fillerBefore(on.lengthInBytes);
+    if (filler > 0) host.emplace(ByteData(filler));
+    cursor.took(on.lengthInBytes);
+    return host.emplace(on);
+  }
 
   final _GpuShaderLibrary _library;
   final List<gpu.HostBuffer> _transients;
@@ -319,6 +362,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     // Safe to rewind: this allocator was last written a full ring of frames
     // ago, so the GPU is done with it.
     _transients[_frame].reset();
+    _cursors[_frame].reset();
   }
 
   @override
@@ -327,7 +371,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     final pass = buffer.createRenderPass(_toRenderTarget(descriptor));
     final frame = _openFrame;
     frame.outstanding++;
-    return _GpuCommandEncoder(buffer, pass, _host, frame);
+    return _GpuCommandEncoder(buffer, pass, this, frame);
   }
 
   /// The frame being encoded, and the ones the GPU has not finished.
@@ -447,7 +491,7 @@ final class _GpuShaderLibrary implements ShaderLibrary {
 /// always been one buffer, one pass, one submit. See the note on
 /// [CommandEncoder].
 final class _GpuCommandEncoder implements CommandEncoder {
-  _GpuCommandEncoder(this._buffer, this._pass, this._host, this._frame);
+  _GpuCommandEncoder(this._buffer, this._pass, this._backend, this._frame);
 
   final _Frame _frame;
 
@@ -455,7 +499,11 @@ final class _GpuCommandEncoder implements CommandEncoder {
   final gpu.RenderPass _pass;
 
   /// This frame's uniform allocator, captured when the pass opened.
-  final gpu.HostBuffer _host;
+  /// Who owns the frame's transient storage, and the arithmetic that keeps a
+  /// write inside a block.
+  final GpuRenderBackend _backend;
+
+  gpu.BufferView _emplace(ByteData bytes) => _backend.emplace(bytes);
 
   @override
   void setViewport(ScreenRect rect) => _pass.setViewport(
@@ -570,7 +618,7 @@ final class _GpuCommandEncoder implements CommandEncoder {
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
-      _pass.bindVertexBuffer(_host.emplace(bytes), slot: slot);
+      _pass.bindVertexBuffer(_emplace(bytes), slot: slot);
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
@@ -580,7 +628,7 @@ final class _GpuCommandEncoder implements CommandEncoder {
 
   @override
   void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
-    _pass.bindIndexBuffer(_host.emplace(bytes), type.toGpu());
+    _pass.bindIndexBuffer(_emplace(bytes), type.toGpu());
     _indexCount = indexCount;
   }
 
@@ -608,7 +656,7 @@ final class _GpuCommandEncoder implements CommandEncoder {
       }
     });
 
-    _pass.bindUniform(slot, _host.emplace(data));
+    _pass.bindUniform(slot, _emplace(data));
     return true;
   }
 
