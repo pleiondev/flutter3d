@@ -20,6 +20,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:vector_math/vector_math.dart';
 
 const String _first = 'assets/levels/crypt.json';
 
@@ -209,6 +210,72 @@ void main() {
       }
     }
   });
+  test('and every door fills the doorway it is set into', () {
+    // **A door six metres wide in a hole four metres wide.** The crypt's
+    // author widened the locked door deliberately — the comment in
+    // `make_crypt.py` explains that a player arriving diagonally gets wedged
+    // in a four-metre one — and the widening did nothing for as long as the
+    // level existed, because the corridor on the other side cuts the same wall
+    // plane at four. Two openings on one plane intersect, so the gap stayed
+    // four and a metre of wall stood in front of the door on either side.
+    //
+    // Neither number is checked here. What is checked is the hole: nothing
+    // solid inside the door's own face, and wall immediately beyond its edges.
+    // A door that fits is a door whose two numbers agree with the geometry,
+    // however either of them was arrived at.
+    for (final (:path, :level) in _chain()) {
+      for (final door in level.entities.where((e) => e.type == 'door')) {
+        final at = door.position;
+        final size = door.vector('size')!;
+        // The wall's normal is the door's thinnest axis, and the door slides
+        // along the other one. Read rather than assumed, so a door set into an
+        // east wall is measured the same way as one in a north wall.
+        final along = size.x < size.z ? 2 : 0;
+        final width = along == 0 ? size.x : size.z;
+
+        var walled = 0;
+        for (var i = 1; i < 20; i++) {
+          for (var j = 1; j < 20; j++) {
+            final point = Vector3.copy(at);
+            point.y = at.y - size.y / 2 + size.y * j / 20;
+            final u = (along == 0 ? at.x : at.z) - width / 2 + width * i / 20;
+            if (along == 0) {
+              point.x = u;
+            } else {
+              point.z = u;
+            }
+            if (_solidAt(level, point)) walled++;
+          }
+        }
+        expect(walled, 0,
+            reason: '$path: ${door.name} is a door with wall standing in '
+                '$walled of the 361 places its own face covers');
+
+        // And the other way round: a doorway wider than its door is a gap
+        // beside it, which is a level a player walks through a locked door in.
+        for (final beyond in <Vector3>[
+          Vector3.copy(at)..[along] = (along == 0 ? at.x : at.z) - width / 2 - 0.3,
+          Vector3.copy(at)..[along] = (along == 0 ? at.x : at.z) + width / 2 + 0.3,
+          Vector3.copy(at)..y = at.y + size.y / 2 + 0.3,
+        ]) {
+          expect(_solidAt(level, beyond), isTrue,
+              reason: '$path: ${door.name} has a gap beside it at $beyond');
+        }
+      }
+    }
+  });
+}
+
+/// Whether any solid brush of [level] covers [point].
+bool _solidAt(Level level, Vector3 point) {
+  for (final brush in level.brushes) {
+    if (!brush.solid) continue;
+    if ((point.x - brush.centre.x).abs() > brush.size.x / 2) continue;
+    if ((point.y - brush.centre.y).abs() > brush.size.y / 2) continue;
+    if ((point.z - brush.centre.z).abs() > brush.size.z / 2) continue;
+    return true;
+  }
+  return false;
 }
 
 /// How tall the arch a way out is drawn as stands. `tool/cryptkit.py` says the

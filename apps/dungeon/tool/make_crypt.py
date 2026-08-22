@@ -79,7 +79,7 @@ def build():
     # ── The guard room. One runner, seen from the doorway. ──────────────────
     k.room(GUARD, (16.0, 0.0, 12.0), doors=[
         ("south", 0.0, 4.0, 4.0),   # back to the hall
-        ("north", 0.0, 6.0, 5.0),   # the locked door
+        ("north", 0.0, 6.0, 4.0),   # the locked door
         ("east", 0.0, 3.0, 3.0),    # the side passage
     ])
     k.torch((-7.4, 2.8, -8.0), name="guard_west", yaw=1.5708)
@@ -97,9 +97,20 @@ def build():
     # ends up wedged in the corner between the wall and the door's own edge —
     # a flow field aims at the goal, not at the opening. A doorway wide enough
     # to be arrived at sideways is a doorway a player never notices.
-    k.door("crypt_door", (0.0, 2.5, -14.0), key="iron",
-           size=(6.0, 5.0, 1.0), travel=(0.0, 4.6, 0.0))
-    k.trigger("crypt_door", (0.0, 1.5, -12.4), size=(4.0, 3.0, 2.0))
+    #
+    # **And a doorway is as wide as the narrowest thing that shares its wall.**
+    # Widening this one alone did nothing for a year: the corridor behind it
+    # cuts the same plane at four, so the two openings intersect and the gap a
+    # player walks through was four all along — with a metre of wall left
+    # standing on each side of a door that is six. The corridor is six now, and
+    # `levels_test.dart` measures the gap rather than trusting either number.
+    #
+    # Four tall, not five. The rooms are four tall; asking for five got a hole
+    # with no lintel above it and a door that stood a metre up through the
+    # ceiling.
+    k.door("crypt_door", (0.0, 2.0, -14.0), key="iron",
+           size=(6.0, 4.0, 1.0), travel=(0.0, 4.1, 0.0))
+    k.trigger("crypt_door", (0.0, 1.5, -12.4), size=(6.0, 3.0, 2.0))
 
     # ── The vault, through the guard room's east wall. ──────────────────────
     #
@@ -117,10 +128,10 @@ def build():
     k.key("iron", (14.0, 0.9, -8.0))
 
     # ── Down, and out. ─────────────────────────────────────────────────────
-    k.corridor((0.0, 0.0, -15.0), (0.0, 0.0, -20.0), width=4.0, height=4.0,
-               doors=[("north", 0.0, 4.0, 4.0), ("south", 0.0, 4.0, 4.0)])
+    k.corridor((0.0, 0.0, -15.0), (0.0, 0.0, -20.0), width=6.0, height=4.0,
+               doors=[("north", 0.0, 6.0, 4.0), ("south", 0.0, 6.0, 4.0)])
     k.room(STAIR, (10.0, 0.0, 12.0), height=6.0,
-           doors=[("south", 0.0, 4.0, 4.0)])
+           doors=[("south", 0.0, 6.0, 4.0)])
     k.torch((-4.4, 3.0, -28.0), name="stair_west", yaw=1.5708,
             colour=(0.55, 0.78, 1.0), intensity=5.0)
     k.pickup("armour", (3.0, 0.8, -24.0), amount=25)
