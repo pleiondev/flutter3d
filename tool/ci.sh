@@ -63,6 +63,13 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 
 step "analyze" flutter analyze
 
+# **A debug print, silenced and committed.** `avoid_print` is on, so the only
+# way one reaches an application's `lib/` is with an `// ignore:` above it —
+# which is what somebody writes while chasing a bug and forgets while fixing
+# it. Two of them shipped in the editor that way. Tools and examples are
+# exempt: their whole output is what they are for.
+step "no silenced prints" bash -c '! grep -rn "ignore.*avoid_print" apps/*/lib || (echo "a print in an application, with the lint silenced above it"; false)'
+
 # What `pub publish` would say about each package, without publishing anything.
 # Twenty-six seconds, and it is the only thing that notices a package losing its
 # licence, its changelog, or its version constraint on a sibling — none of which

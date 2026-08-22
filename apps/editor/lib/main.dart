@@ -300,11 +300,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// whose picture and document disagree, which is the one thing it must never
   /// be. Scheduled at most once a frame by [_onTick] instead, so holding an
   /// arrow key down does not queue fifty of them.
-  int _builds = 0;
-
   Future<void> _build() async {
-    // ignore: avoid_print
-    print('[editor] build #${++_builds}');
     final device = _device;
     final editing = _editing;
     if (device == null || editing == null) return;
@@ -715,11 +711,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// happened. The box goes down first, the model replaces it when it arrives,
   /// and a model that will not read leaves the box — which is exactly what
   /// somebody wants to see when a path in their document is wrong.
-  int _dressings = 0;
-
   Future<void> _dressGizmos() async {
-    // ignore: avoid_print
-    print('[editor] dress #${++_dressings}');
     final device = _device;
     final editing = _editing;
     final root = _assetRoot;
