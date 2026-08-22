@@ -65,6 +65,18 @@ const int _height = 64;
     )..lookAt(Vector3(-0.4, -1.0, -0.3)),
   );
 
+  // A lamp that casts, which is what a crypt is lit by and what the editor
+  // holds still while nothing moves.
+  scene.add(
+    LightNode(
+      type: LightType.point,
+      color: Vector3(1.0, 0.8, 0.5),
+      intensity: 8.0,
+      range: 24.0,
+      castsShadow: true,
+    )..setPosition(2.0, 3.0, -3.0),
+  );
+
   final camera = CameraNode(
     projection: const PerspectiveProjection(
       fovYRadians: 1.05,
@@ -139,6 +151,27 @@ void main() {
 
     final first = await _draw(it, settings);
     for (var frame = 2; frame <= 6; frame++) {
+      final next = await _draw(it, settings);
+      final difference = compareFrames(first, next, channel: 0);
+      expect(difference.differing, 0,
+          reason: 'frame $frame differs from the first: $difference');
+    }
+  });
+
+  test('and so are eight with a lamp that casts a shadow', () async {
+    // **The one the editor found.** A cube shadow is drawn into an atlas tile
+    // and kept until the tile's signature changes, and a static scene should
+    // therefore draw one tile once and reuse it for ever. If instead the tile
+    // is redrawn with a different answer on some frames, the room brightens and
+    // darkens with nobody touching anything — which is what "the editor
+    // flickers" looks like from the outside.
+    final it = _room();
+    const settings = RenderSettings(
+      shadows: ShadowSettings(cascades: 1, resolution: 256),
+    );
+
+    final first = await _draw(it, settings);
+    for (var frame = 2; frame <= 8; frame++) {
       final next = await _draw(it, settings);
       final difference = compareFrames(first, next, channel: 0);
       expect(difference.differing, 0,
