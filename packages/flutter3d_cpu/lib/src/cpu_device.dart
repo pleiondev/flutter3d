@@ -256,6 +256,13 @@ final class CpuDevice implements GraphicsDevice {
   }
 
   @override
+  void onFrameComplete(void Function() whenDone) {
+    // Straight away, and honestly: this backend rasterises on the calling
+    // thread, so by the time anybody could ask, the frame is finished.
+    whenDone();
+  }
+
+  @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
       CpuEncoder(descriptor);
 

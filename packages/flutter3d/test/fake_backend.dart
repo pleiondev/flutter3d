@@ -366,6 +366,33 @@ final class FakeBackend implements GraphicsDevice {
     );
   }
 
+  /// Frames whose work the GPU has not "finished".
+  ///
+  /// Held rather than run, so a test can decide when a frame is over — which is
+  /// the whole question the renderer's finished-frame textures turn on.
+  final List<void Function()> pendingFrames = <void Function()>[];
+
+  /// Whether [onFrameComplete] runs its callback at once.
+  ///
+  /// True by default, so every test that does not care about this sees a
+  /// backend that finishes as it goes.
+  bool completesImmediately = true;
+
+  @override
+  void onFrameComplete(void Function() whenDone) {
+    if (completesImmediately) {
+      whenDone();
+      return;
+    }
+    pendingFrames.add(whenDone);
+  }
+
+  /// Lets the oldest unfinished frame complete.
+  void finishOldestFrame() {
+    if (pendingFrames.isEmpty) return;
+    pendingFrames.removeAt(0)();
+  }
+
   /// Pixel uploads, in order, so a test can assert what reached the device.
   final List<RenderTargetSpec> uploadedTextures = <RenderTargetSpec>[];
 

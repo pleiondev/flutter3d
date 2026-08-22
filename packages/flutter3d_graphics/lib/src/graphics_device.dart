@@ -226,6 +226,22 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// this as nothing.
   void beginFrame();
 
+  /// Runs [whenDone] once the GPU has finished with the frame being encoded now.
+  ///
+  /// **The one thing a caller cannot work out for itself.** A finished frame is
+  /// handed to the window as a texture the backend still owns, and drawing into
+  /// that texture again while the compositor is reading it is a frame drawn
+  /// half-and-half. The only defence without this is to keep N of them and hope
+  /// N is enough — and what N has to be depends on the display's rate, the
+  /// build's speed and how far behind the GPU is, none of which the engine
+  /// knows. With this it does not have to guess: a texture goes back into
+  /// rotation when the work that read it is done.
+  ///
+  /// A backend whose submission is synchronous — the software rasteriser, and
+  /// WebGL, where the canvas is composited by the browser — calls [whenDone]
+  /// straight away, and is telling the truth when it does.
+  void onFrameComplete(void Function() whenDone);
+
   /// Opens a pass and returns the encoder that records into it.
   ///
   /// The returned encoder must be submitted; see [CommandEncoder.submit].

@@ -102,37 +102,63 @@ void main() {
     );
   });
 
-  test('the frame it hands back is not the frame it draws next', () {
-    // **A frame you could watch being drawn.** The composite wrote into one
-    // texture, every frame, and presenting hands that same allocation to
-    // Flutter — which composites it on its own thread, on its own schedule. So
-    // the next frame's clear and passes landed in the texture the screen was
-    // reading. On a scene that changes nobody sees it; on a still one it
-    // flickers, which is how it was found: an editor holding a level with the
-    // camera parked.
-    final device = FakeBackend();
+  test('a frame is drawn into a texture nothing is still reading', () {
+    // **A frame you could watch being drawn.** The composite writes the picture
+    // a caller presents, and presenting hands *that same allocation* to
+    // Flutter, which composites on its own thread on its own schedule — so the
+    // next frame's clear and passes land in the texture the screen is reading.
+    // On a moving scene nobody sees it; on a still one it flickers, which is
+    // how it was found: an editor holding a level with the camera parked.
+    //
+    // **A ring of a fixed depth is a guess, and every depth was wrong.** Three
+    // flickered, eight flickered less, sixteen stopped it on one machine —
+    // which says nothing about the next, because the depth depends on the
+    // display's rate, the build's speed and how far behind the GPU is. So the
+    // depth is not chosen: a texture comes back when the backend says the work
+    // that read it is done.
+    final device = FakeBackend()..completesImmediately = false;
     final renderer = Renderer.create(device: device);
     final scene = Scene()..add(CameraNode());
     final view = RenderView(camera: scene.cameras.single);
 
-    final frames = <Object?>[
-      for (var i = 0; i < Renderer.frameRing * 2; i++)
-        renderer.render(
+    Object? drawFrame() => renderer
+        .render(
           width: 64,
           height: 64,
           scene: scene,
           views: <RenderView>[view],
-        ).frame.backend,
-    ];
+        )
+        .frame
+        .backend;
 
-    for (var i = 1; i < frames.length; i++) {
-      expect(identical(frames[i], frames[i - 1]), isFalse,
-          reason: 'frame $i was drawn into the texture frame ${i - 1} handed '
-              'to the compositor');
+    // Nothing has finished, so each frame needs a texture of its own.
+    final frames = <Object?>[for (var i = 0; i < 4; i++) drawFrame()];
+    expect(frames.toSet(), hasLength(4),
+        reason: 'a frame was drawn into a texture the last one handed over');
+    expect(renderer.framesInFlight, 4);
+
+    // As frames finish, their textures come back and the count stops climbing:
+    // the depth is what this machine turned out to need.
+    for (var i = 0; i < 6; i++) {
+      device.finishOldestFrame();
+      drawFrame();
     }
-    // And it is a ring rather than a new texture a frame: a window's worth of
-    // eight-bit target allocated sixty times a second is a leak with a clock
-    // on it.
-    expect(frames.toSet(), hasLength(Renderer.frameRing));
+    expect(renderer.framesInFlight, 4,
+        reason: 'it kept allocating after the finished ones came back');
+
+    // And a backend that finishes as it goes needs exactly one.
+    final quick = FakeBackend();
+    final other = Renderer.create(device: quick);
+    final quickScene = Scene()..add(CameraNode());
+    for (var i = 0; i < 5; i++) {
+      other.render(
+        width: 64,
+        height: 64,
+        scene: quickScene,
+        views: <RenderView>[RenderView(camera: quickScene.cameras.single)],
+      );
+    }
+    expect(other.framesInFlight, 1,
+        reason: 'a synchronous backend was given a rotation it cannot need');
   });
 }

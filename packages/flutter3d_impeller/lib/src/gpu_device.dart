@@ -308,6 +308,13 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   @override
   void beginFrame() {
+    // The frame that was being encoded is now complete as far as this side is
+    // concerned: no more passes will be added to it, so if the GPU has already
+    // finished every buffer it holds, its callbacks can run.
+    _openFrame.encoded = true;
+    _openFrame.settleIfDone();
+    _openFrame = _Frame();
+
     _frame = (_frame + 1) % _kFramesInFlight;
     // Safe to rewind: this allocator was last written a full ring of frames
     // ago, so the GPU is done with it.
@@ -318,8 +325,24 @@ final class GpuRenderBackend implements GraphicsDevice {
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
     final buffer = gpu.gpuContext.createCommandBuffer();
     final pass = buffer.createRenderPass(_toRenderTarget(descriptor));
-    return _GpuCommandEncoder(buffer, pass, _host);
+    final frame = _openFrame;
+    frame.outstanding++;
+    return _GpuCommandEncoder(buffer, pass, _host, frame);
   }
+
+  /// The frame being encoded, and the ones the GPU has not finished.
+  ///
+  /// **A frame is not over when `submit` returns.** flutter_gpu hands the work
+  /// to the queue and comes straight back; what is on the screen is a texture
+  /// this backend still owns, and drawing into it again before the compositor
+  /// has read it is a picture made of two frames. Which is exactly what an
+  /// editor holding a still camera showed, and what three, and eight, and
+  /// sixteen buffers each made rarer without making impossible.
+  _Frame _openFrame = _Frame();
+
+  @override
+  void onFrameComplete(void Function() whenDone) =>
+      _openFrame.whenDone.add(whenDone);
 
   @override
   Widget present(
@@ -424,7 +447,9 @@ final class _GpuShaderLibrary implements ShaderLibrary {
 /// always been one buffer, one pass, one submit. See the note on
 /// [CommandEncoder].
 final class _GpuCommandEncoder implements CommandEncoder {
-  _GpuCommandEncoder(this._buffer, this._pass, this._host);
+  _GpuCommandEncoder(this._buffer, this._pass, this._host, this._frame);
+
+  final _Frame _frame;
 
   final gpu.CommandBuffer _buffer;
   final gpu.RenderPass _pass;
@@ -626,11 +651,37 @@ final class _GpuCommandEncoder implements CommandEncoder {
   }
 
   @override
-  void submit() => _buffer.submit();
+  void submit() => _buffer.submit(completionCallback: (bool ok) {
+        _frame.outstanding--;
+        _frame.settleIfDone();
+      });
 
   static gpu.BufferView _view(GeometryBuffer buffer) => gpu.BufferView(
         buffer.backend as gpu.DeviceBuffer,
         offsetInBytes: buffer.offsetInBytes,
         lengthInBytes: buffer.lengthInBytes,
       );
+}
+
+
+/// One frame's worth of submitted work, and who is waiting for it.
+///
+/// A frame is done when nothing this side will add to it and the GPU has
+/// reported every buffer it holds. Both halves matter: a frame with one pass
+/// submitted and another about to be is not finished, and a frame whose passes
+/// are all submitted is not finished either until the queue says so.
+final class _Frame {
+  int outstanding = 0;
+  bool encoded = false;
+  bool _settled = false;
+  final List<void Function()> whenDone = <void Function()>[];
+
+  void settleIfDone() {
+    if (_settled || !encoded || outstanding > 0) return;
+    _settled = true;
+    for (final callback in whenDone) {
+      callback();
+    }
+    whenDone.clear();
+  }
 }

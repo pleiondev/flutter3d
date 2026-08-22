@@ -445,6 +445,15 @@ final class WebGlDevice implements GraphicsDevice {
   void beginFrame() {}
 
   @override
+  void onFrameComplete(void Function() whenDone) {
+    // Straight away. WebGL's commands are queued, but what is presented here is
+    // the canvas the browser composites — the engine never hands a texture of
+    // its own to a compositor, so there is nothing for a later frame to
+    // overwrite under one.
+    whenDone();
+  }
+
+  @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) =>
       WebGlEncoder(this, _gl, descriptor);
 

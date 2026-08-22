@@ -969,30 +969,31 @@ final class Renderer implements RenderServices {
   TextureHandle? _hdrColor;
   TextureHandle? _hdrMsaa;
 
-  /// The finished frames, in rotation.
+  /// The finished frames, and which of them the compositor has let go of.
   ///
   /// **One texture was a frame you could watch being drawn.** The composite
-  /// writes the picture a caller presents, and presenting it hands the very
-  /// same allocation to Flutter, which composites it on its own thread on its
-  /// own schedule — so the next frame's clear and passes land in the texture
-  /// the screen is reading. On a scene that changes every frame nobody sees it:
-  /// a half-written frame is a mix of two pictures that differ by a millimetre
-  /// of camera. On a *still* scene it is unmissable, and that is how it was
-  /// found — an editor holding a level with the camera parked, flickering
-  /// between the picture and a partly drawn one.
+  /// writes the picture a caller presents, and presenting it hands *that same
+  /// allocation* to Flutter, which composites on its own thread on its own
+  /// schedule — so the next frame's clear and passes land in the texture the
+  /// screen is reading. On a scene that changes every frame nobody sees it: a
+  /// half-written frame is a mix of two pictures a millimetre of camera apart.
+  /// On a still scene — an editor holding a level with nobody touching the
+  /// keyboard — it is unmissable.
   ///
-  /// Three, not two. Two is enough for the obvious race — write B while the
-  /// compositor reads A — and it is not enough for a backend that queues its
-  /// work: the read of A may still be in flight when the writer comes back
-  /// round to A two frames later. The cost is two more full-size eight-bit
-  /// targets, which at 1600 × 1200 is about fifteen megabytes.
-  static const int frameRing = 3;
-
-  final List<TextureHandle> _ldrRing = <TextureHandle>[];
-  int _ldrSlot = 0;
+  /// **A ring of a fixed depth is a guess, and every depth was wrong.** Three
+  /// flickered, eight flickered less, sixteen stopped it on this machine —
+  /// which says nothing about the next one, because what the depth has to be
+  /// depends on the display's rate, the build's speed and how far behind the
+  /// GPU is. So the depth is not chosen: a texture goes back into rotation when
+  /// [GraphicsDevice.onFrameComplete] says the work that read it is done, and
+  /// a frame that finds none free makes one. On a machine that needs two, two
+  /// is what it keeps.
+  final List<TextureHandle> _ldrFrames = <TextureHandle>[];
+  final List<TextureHandle> _ldrFree = <TextureHandle>[];
+  TextureHandle? _ldrCurrent;
 
   /// The frame currently being drawn into.
-  TextureHandle? get _ldrColor => _ldrRing.isEmpty ? null : _ldrRing[_ldrSlot];
+  TextureHandle? get _ldrColor => _ldrCurrent;
   final Float32List _reflectionParams = Float32List(4);
   final Float32List _reflectionScreen = Float32List(4);
   final Float32List _reflectionCameraData = Float32List(4);
@@ -1215,13 +1216,16 @@ final class Renderer implements RenderServices {
 
     // The final image is 8-bit and display-referred; it is what becomes the
     // ui.Image, so there is nothing to gain from more precision here.
-    _ldrRing
-      ..clear()
-      ..addAll(<TextureHandle>[
-        for (var slot = 0; slot < frameRing; slot++)
-          make(StorageMode.devicePrivate, device.defaultColorFormat),
-      ]);
-    _ldrSlot = 0;
+    // The old ones are the wrong size now, and the compositor may still be
+    // holding one — so they are dropped rather than reused, and the first frame
+    // at the new size makes what it needs.
+    _ldrFrames.clear();
+    _ldrFree.clear();
+    _ldrCurrent = null;
+    _makeLdrFrame = () => make(
+          StorageMode.devicePrivate,
+          device.defaultColorFormat,
+        );
 
     // The surface buffer: world-space normal and depth, for whatever runs after
     // the scene. Allocated with the rest rather than on demand, because a
@@ -2136,6 +2140,25 @@ final class Renderer implements RenderServices {
       toDepthRange(camera.viewProjection(aspect), device.depthRange);
 
 
+  /// Makes another finished-frame texture, at the size the targets are.
+  ///
+  /// Set by [_ensureTargets], because the size and the format are its business
+  /// and a frame that needs one more should not have to ask twice.
+  TextureHandle Function()? _makeLdrFrame;
+
+  TextureHandle _takeLdrFrame() {
+    if (_ldrFree.isNotEmpty) return _ldrFree.removeLast();
+    final made = _makeLdrFrame!();
+    _ldrFrames.add(made);
+    return made;
+  }
+
+  /// How many finished-frame textures this machine turned out to need.
+  ///
+  /// One on a backend that finishes before it returns, and as many as the
+  /// display and the queue between them keep in the air on one that does not.
+  int get framesInFlight => _ldrFrames.length;
+
   FrameResult render({
     required int width,
     required int height,
@@ -2153,9 +2176,9 @@ final class Renderer implements RenderServices {
     final frameClock = Stopwatch()..start();
     _ensureTargets(width, height);
 
-    // On to the next finished-frame texture, so that what is drawn now is not
-    // what a compositor is still reading — see [frameRing].
-    if (_ldrRing.isNotEmpty) _ldrSlot = (_ldrSlot + 1) % _ldrRing.length;
+    // A texture nothing is reading, so that what is drawn now is not what a
+    // compositor is still showing — see [_ldrFrames].
+    _ldrCurrent = _takeLdrFrame();
 
     // Rotates whatever the backend keeps per frame — on one of them, the ring
     // of uniform allocators. Before anything is encoded, and never in the
@@ -2445,6 +2468,14 @@ final class Renderer implements RenderServices {
     // The frame is encoded and submitted: everything it released is in this
     // slot, and the next two frames must not touch it.
     _frameIndex++;
+
+    // And the picture goes back into rotation when the work that read it is
+    // done — not a fixed number of frames later, which is a guess this engine
+    // got wrong three times.
+    final drawnInto = _ldrCurrent;
+    if (drawnInto != null && _ldrFrames.contains(drawnInto)) {
+      device.onFrameComplete(() => _ldrFree.add(drawnInto));
+    }
     frameClock.stop();
     developer.Timeline.finishSync();
 

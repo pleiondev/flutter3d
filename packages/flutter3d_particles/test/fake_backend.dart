@@ -366,6 +366,9 @@ final class FakeBackend implements GraphicsDevice {
     );
   }
 
+  @override
+  void onFrameComplete(void Function() whenDone) => whenDone();
+
   /// Pixel uploads, in order, so a test can assert what reached the device.
   final List<RenderTargetSpec> uploadedTextures = <RenderTargetSpec>[];
 
