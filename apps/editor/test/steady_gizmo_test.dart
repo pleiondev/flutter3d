@@ -71,6 +71,14 @@ Level _level() => Level.fromJson(jsonDecode(jsonEncode(<String, Object?>{
           'at': <double>[3.0, 2.0, -13.25],
           'size': <double>[1.5, 2.0, 0.5],
         },
+        // A door: sized like the trigger and made of something, which is what
+        // tells the two apart.
+        <String, Object?>{
+          'type': 'door',
+          'at': <double>[-6.0, 2.0, -13.5],
+          'size': <double>[3.0, 4.0, 1.0],
+          'material': 'stone',
+        },
       ],
     })) as Map<String, Object?>);
 
@@ -87,8 +95,18 @@ void main() {
     }
     final entities = handles[Piece.entity]!;
 
-    expect(entities.where((Handle it) => it.volume), hasLength(2),
-        reason: 'the trigger and the note carry their own size');
+    expect(entities.where((Handle it) => it.volume), hasLength(3),
+        reason: 'the trigger, the note and the door carry their own size');
+
+    // **What separates a region from a thing is the material.** A door is
+    // sized exactly the way a trigger is, and it is something the level builds
+    // — so the editor draws it as the stone or iron it says it is made of,
+    // and drawing it as a wireframe was this rule's first mistake.
+    final door = level.entities.firstWhere((EntityDef e) => e.type == 'door');
+    expect(door.string('material'), isNotNull);
+    final trigger =
+        level.entities.firstWhere((EntityDef e) => e.type == 'trigger');
+    expect(trigger.string('material'), isNull);
     expect(
       entities.where((Handle it) => !it.volume).length,
       greaterThan(0),

@@ -537,7 +537,14 @@ class _EditorScreenState extends State<EditorScreen>
       // face lands on real geometry the two fight for the same pixels, which is
       // what "the editor flickers" turned out to be. A cage shows the extent
       // and hides nothing.
-      if (handle.volume) {
+      //
+      // **A sized thing that names a material is not a region**, and the first
+      // version of this rule made the crypt's iron door into a wireframe. Both
+      // carry their own size, and what tells them apart without knowing either
+      // word is that one says what it is made of: a door is a thing the level
+      // builds and the editor can show as itself, a trigger is a volume with
+      // nothing to draw.
+      if (handle.volume && material == null) {
         _buildCage(device, scene, handle);
         continue;
       }
