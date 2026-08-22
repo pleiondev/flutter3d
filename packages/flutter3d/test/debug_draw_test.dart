@@ -203,4 +203,87 @@ void main() {
       expect(next.normalLength, 0.5);
     });
   });
+
+  group('clipping to the near plane', () {
+    // **A line with an end behind the eye is a line drawn somewhere else.** The
+    // shader divides by w, and behind the camera w is negative — so the end
+    // lands mirrored at a meaningless place and the line still draws, wildly
+    // wrong and confidently. Reported as "the frame is offset from the object"
+    // by the first person to select a six-metre wall and stand next to it.
+    //
+    // Everything else in a frame is triangles, which the rasteriser clips. A
+    // line list is handed straight to the hardware.
+    Matrix4 lookingDownNegativeZ() {
+      final projection = makePerspectiveMatrix(1.0, 1.0, 0.1, 100.0);
+      final view = makeViewMatrix(
+        Vector3.zero(),
+        Vector3(0.0, 0.0, -1.0),
+        Vector3(0.0, 1.0, 0.0),
+      );
+      return projection * view;
+    }
+
+    ({double ax, double az, double bx, double bz}) endsOf(DebugDraw draw) {
+      final floats = draw.vertexBytes.buffer.asFloat32List(
+        draw.vertexBytes.offsetInBytes,
+        draw.vertexCount * DebugDraw.floatsPerVertex,
+      );
+      return (
+        ax: floats[0],
+        az: floats[2],
+        bx: floats[DebugDraw.floatsPerVertex],
+        bz: floats[DebugDraw.floatsPerVertex + 2],
+      );
+    }
+
+    test('a line that crosses it is cut where it crosses', () {
+      final draw = DebugDraw()
+        ..addLine(
+          Vector3(0.0, 0.0, 5.0), // behind the camera
+          Vector3(0.0, 0.0, -5.0), // in front of it
+          Vector4(1.0, 1.0, 1.0, 1.0),
+        );
+
+      draw.clipToNearPlane(lookingDownNegativeZ());
+      final ends = endsOf(draw);
+
+      expect(ends.az, lessThanOrEqualTo(0.0),
+          reason: 'the end behind the camera stayed behind it');
+      expect(ends.az, greaterThan(-0.01),
+          reason: 'it was cut far past the crossing: ${ends.az}');
+      expect(ends.bz, -5.0, reason: 'the end in front moved');
+    });
+
+    test('and a line entirely behind it draws nothing', () {
+      final draw = DebugDraw()
+        ..addLine(
+          Vector3(-2.0, 0.0, 5.0),
+          Vector3(2.0, 0.0, 7.0),
+          Vector4(1.0, 1.0, 1.0, 1.0),
+        );
+
+      draw.clipToNearPlane(lookingDownNegativeZ());
+      final ends = endsOf(draw);
+
+      expect(ends.ax, ends.bx, reason: 'the two ends are not the same point');
+      expect(ends.az, ends.bz);
+    });
+
+    test('and a line entirely in front is left alone', () {
+      final draw = DebugDraw()
+        ..addLine(
+          Vector3(-1.0, 0.0, -3.0),
+          Vector3(1.0, 0.0, -9.0),
+          Vector4(1.0, 1.0, 1.0, 1.0),
+        );
+
+      draw.clipToNearPlane(lookingDownNegativeZ());
+      final ends = endsOf(draw);
+
+      expect(ends.ax, -1.0);
+      expect(ends.az, -3.0);
+      expect(ends.bx, 1.0);
+      expect(ends.bz, -9.0);
+    });
+  });
 }

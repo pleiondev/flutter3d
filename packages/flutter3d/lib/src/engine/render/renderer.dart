@@ -2574,6 +2574,10 @@ final class Renderer implements RenderServices {
       aspect: aspect,
       highlighted: settings.highlighted,
     );
+    // Trimmed to what the camera can see before it is uploaded — see
+    // [DebugDraw.clipToNearPlane]. A line list goes straight to the hardware,
+    // so the near plane is the engine's to respect.
+    debugDraw.clipToNearPlane(viewProjection);
     developer.Timeline.finishSync();
     if (debugDraw.isEmpty) return false;
 

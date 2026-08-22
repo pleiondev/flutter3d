@@ -462,19 +462,18 @@ class _EditorScreenState extends State<EditorScreen>
     if (at == null) return;
     final size = editing.brush?.size ?? Vector3.all(kGizmoSize);
 
-    final node = MeshNode(
-      SharedMeshes(device).box(size * 1.06),
-      engine.Material(
-        name: 'selection',
-        baseColor: Vector4(1.0, 0.45, 0.05, 1.0),
-        emissive: Vector3(1.2, 0.5, 0.05),
-      ),
+    // **A cage, not a solid box.** A wall is six metres by five, and a glowing
+    // slab that size over the thing somebody just selected hides both it and
+    // the room — and a camera that ends up inside the slab sees a screen full
+    // of orange. Edges show the same extent and hide nothing.
+    _marker = _buildCage(
+      device,
+      scene,
+      at,
+      size * 1.06,
+      Vector3(1.0, 0.45, 0.05),
       name: 'selection',
-    )
-      ..setPosition(at.x, at.y, at.z)
-      ..castsShadow = false;
-    scene.add(node);
-    _marker = node;
+    );
   }
 
   /// Draws a mark for everything the renderer does not.
@@ -541,7 +540,9 @@ class _EditorScreenState extends State<EditorScreen>
       // builds and the editor can show as itself, a trigger is a volume with
       // nothing to draw.
       if (handle.volume && material == null) {
-        _buildCage(device, scene, handle);
+        _gizmos.add(
+          _buildCage(device, scene, handle.centre, handle.size, handle.tint),
+        );
         continue;
       }
 
@@ -589,13 +590,17 @@ class _EditorScreenState extends State<EditorScreen>
   /// Thin in proportion to the region rather than a fixed thickness: a trigger
   /// is metres across and a small volume is centimetres, and one width cannot
   /// be visible on the first and slender on the second.
-  void _buildCage(GraphicsDevice device, Scene scene, Handle handle) {
-    final holder = SceneNode(name: 'gizmo')
-      ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z);
+  SceneNode _buildCage(
+    GraphicsDevice device,
+    Scene scene,
+    Vector3 centre,
+    Vector3 size,
+    Vector3 tint, {
+    String name = 'gizmo',
+  }) {
+    final holder = SceneNode(name: name)
+      ..setPosition(centre.x, centre.y, centre.z);
     scene.add(holder);
-    _gizmos.add(holder);
-
-    final size = handle.size;
     final bar = math.max(
       0.02,
       math.min(size.x, math.min(size.y, size.z)) * 0.05,
@@ -603,9 +608,9 @@ class _EditorScreenState extends State<EditorScreen>
     final half = Vector3(size.x / 2.0, size.y / 2.0, size.z / 2.0);
     final meshes = SharedMeshes(device);
     final material = engine.Material(
-      name: 'gizmo',
-      baseColor: Vector4(handle.tint.x, handle.tint.y, handle.tint.z, 1.0),
-      emissive: handle.tint * 0.9,
+      name: name,
+      baseColor: Vector4(tint.x, tint.y, tint.z, 1.0),
+      emissive: tint * 0.9,
     );
 
     void edge(Vector3 extent, double x, double y, double z) {
@@ -637,6 +642,7 @@ class _EditorScreenState extends State<EditorScreen>
         edge(Vector3(bar, bar, math.max(size.z - bar * 2, bar)), x, y, 0.0);
       }
     }
+    return holder;
   }
 
   /// Puts one described silhouette into the scene.

@@ -128,6 +128,66 @@ final class DebugDraw {
 
   void clear() => _floats = 0;
 
+  /// Trims every line to the part of it the camera can actually see.
+  ///
+  /// **A line with an end behind the eye is a line drawn somewhere else.** The
+  /// vertex shader multiplies a world position by the view projection and
+  /// divides by w; behind the camera w is negative, and the division puts that
+  /// end at a mirrored, meaningless place on screen. The line still draws —
+  /// wildly wrong, and confidently. It was reported as "the frame is offset
+  /// from the object", by the first person to select a wall six metres wide and
+  /// stand next to it.
+  ///
+  /// Nothing else in the frame has this problem, because everything else is
+  /// made of triangles and the rasteriser clips those. A line list is handed
+  /// straight to the hardware, and the near plane is ours to respect.
+  ///
+  /// The intersection is found in clip space and applied to the *world*
+  /// endpoints, because world positions are what this buffer holds. A segment
+  /// with both ends behind the eye is collapsed to a point, which draws
+  /// nothing.
+  void clipToNearPlane(Matrix4 viewProjection, {double epsilon = 1e-4}) {
+    final m = viewProjection.storage;
+    double wOf(double x, double y, double z) =>
+        m[3] * x + m[7] * y + m[11] * z + m[15];
+
+    for (var line = 0; line + floatsPerLine <= _floats; line += floatsPerLine) {
+      final b = line + floatsPerVertex;
+      final ax = _data[line], ay = _data[line + 1], az = _data[line + 2];
+      final bx = _data[b], by = _data[b + 1], bz = _data[b + 2];
+      final wa = wOf(ax, ay, az);
+      final wb = wOf(bx, by, bz);
+
+      if (wa >= epsilon && wb >= epsilon) continue;
+
+      if (wa < epsilon && wb < epsilon) {
+        // Both behind: leave a degenerate line where the first end was, which
+        // rasterises to nothing.
+        _data[b] = ax;
+        _data[b + 1] = ay;
+        _data[b + 2] = az;
+        continue;
+      }
+
+      // One of them crosses. `w` is linear along the segment, so the crossing
+      // is where it reaches epsilon.
+      final t = (epsilon - wa) / (wb - wa);
+      final x = ax + (bx - ax) * t;
+      final y = ay + (by - ay) * t;
+      final z = az + (bz - az) * t;
+      if (wa < epsilon) {
+        _data[line] = x;
+        _data[line + 1] = y;
+        _data[line + 2] = z;
+      } else {
+        _data[b] = x;
+        _data[b + 1] = y;
+        _data[b + 2] = z;
+      }
+    }
+  }
+
+
   void addLine(Vector3 a, Vector3 b, Vector4 color) =>
       addLineXyz(a.x, a.y, a.z, b.x, b.y, b.z, color);
 
