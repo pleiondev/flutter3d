@@ -44,7 +44,7 @@ final class LoadedLevel {
 ///
 /// The oldest half of the bridge, and still the clearest statement of what the
 /// bridge is for: everything above it is simulation and everything below is
-/// rendering, and the whole binding is the interleaving in [_toMeshData] —
+/// rendering, and the whole binding is the interleaving in `_toMeshData` —
 /// about twenty lines, which is the price of keeping the two packages
 /// independent and worth paying.
 ///

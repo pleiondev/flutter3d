@@ -114,7 +114,7 @@ final class SkyPreset {
   final double glowWide;
   final double glowStrength;
 
-  /// Haze per metre, in the units [FogSettings] wants.
+  /// Haze per metre, in the units `FogSettings` wants.
   final double fogDensity;
 
   /// How much brighter the haze is when looking into the sun.

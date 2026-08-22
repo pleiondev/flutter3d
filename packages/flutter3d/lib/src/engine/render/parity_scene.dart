@@ -25,7 +25,7 @@ import 'package:vector_math/vector_math.dart';
 
 import '../../../flutter3d.dart';
 
-/// Builds the shared comparison scene on [device].
+/// Builds the shared comparison scene on `device`.
 ///
 /// Returns the scene and the camera to view it through; the caller supplies the
 /// renderer, because that is the part that differs.

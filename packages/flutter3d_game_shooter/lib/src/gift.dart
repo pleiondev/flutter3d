@@ -4,7 +4,7 @@ import 'inventory.dart';
 /// Something a pickup gives.
 ///
 /// A hierarchy rather than an enum with a switch, for the same reason
-/// [EntityKind] is one: every job that treats gifts differently — granting
+/// `EntityKind` is one: every job that treats gifts differently — granting
 /// them, wording the message, drawing the editor's dropdown — would otherwise
 /// grow its own switch over the same eight names in a different file, and the
 /// switches drift.

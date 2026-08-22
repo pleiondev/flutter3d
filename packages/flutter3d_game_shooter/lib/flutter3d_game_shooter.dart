@@ -6,8 +6,8 @@
 /// none of it, which is the whole reason the package exists.
 ///
 /// The line between the two is the one the game layer's own README already
-/// drew: **machinery stays, vocabulary moves.** [Mechanism], [Actor],
-/// [MechanismEvents.taken] and the level format are machinery. [Inventory],
+/// drew: **machinery stays, vocabulary moves.** `Mechanism`, `Actor`,
+/// `MechanismEvents.taken` and the level format are machinery. [Inventory],
 /// [Gift], [Arsenal] and [GameSimulation] answer the machinery with content,
 /// and content belongs to a genre.
 ///

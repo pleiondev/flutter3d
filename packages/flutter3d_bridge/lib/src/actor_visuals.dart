@@ -14,7 +14,7 @@ import 'shared_meshes.dart';
 /// answer with a shared material per kind, a brightened one for a monster that
 /// was just hit, or something built on the spot.
 abstract interface class ActorAppearance {
-  /// The material to draw [monster] with right now.
+  /// The material to draw `monster` with right now.
   Material materialFor(Actor actor);
 
   /// A key that two actors share exactly when they should share one capsule

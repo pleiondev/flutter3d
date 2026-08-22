@@ -13,7 +13,7 @@
 /// `handbrake` had the same choice. Neither is a choice an engine should be
 /// handing out.
 ///
-/// So it is a value class, open the same way [LightingModel] in the renderer is
+/// So it is a value class, open the same way `LightingModel` in the renderer is
 /// open: the constants below are the ones every game has, and a genre declares
 /// its own beside them.
 ///

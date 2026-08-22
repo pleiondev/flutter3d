@@ -117,7 +117,7 @@ final class SilentVoice {
   double gain;
   double pan;
 
-  /// What speed it is playing at. Set at the start, and moved by [update] for
+  /// What speed it is playing at. Set at the start, and moved by `update` for
   /// a loop whose speed is the point — see there.
   double rate;
   final bool loop;

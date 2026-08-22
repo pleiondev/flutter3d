@@ -98,7 +98,7 @@ abstract final class F3dRecord {
   static const int mesh = 24;
 
   /// u32 meshIndex, i32 materialIndex, u32 nameOffset, u32 nameLength,
-  /// u32 flags, f32[16] transform
+  /// u32 flags, f32`16` transform
   ///
   /// `flags` is bit 0 for flipWinding and the rest for the skin index plus one,
   /// so zero means "no skin".
@@ -111,8 +111,8 @@ abstract final class F3dRecord {
   /// u32 mimeOffset, u32 mimeLength
   static const int image = 24;
 
-  /// u32 nameOffset, u32 nameLength, f32[3] translation, f32[4] rotation,
-  /// f32[3] scale, u32 childOffset, u32 childCount, u32 surfaceOffset,
+  /// u32 nameOffset, u32 nameLength, f32`3` translation, f32`4` rotation,
+  /// f32`3` scale, u32 childOffset, u32 childCount, u32 surfaceOffset,
   /// u32 surfaceCount
   static const int node = 64;
 

@@ -192,7 +192,7 @@ final class FrameResources {
   /// order it sits.
   int _node = -1;
 
-  /// Says how to make [desc.id] if anything asks for it.
+  /// Says how to make `desc.id` if anything asks for it.
   ///
   /// Refuses a transient resource something declares a read on. `deviceTransient`
   /// is tile memory: it exists for the duration of the pass that writes it and

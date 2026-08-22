@@ -14,7 +14,7 @@ import 'package:flutter3d_physics/flutter3d_physics.dart';
 /// did would silently lose camera wall-avoidance ([CameraRig.wallMask]), the
 /// push a mover gives what it carries ([Mover]), the ground an actor stands on
 /// ([ActorSystem]) and the layer every unlabelled brush in every level is built
-/// on ([levelCollision]) — four systems, all failing as "the physics feels
+/// on (`levelCollision`) — four systems, all failing as "the physics feels
 /// wrong" rather than as an error.
 ///
 /// So: a game with vehicles or water **adds** bits, and the bits below stay

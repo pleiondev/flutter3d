@@ -49,7 +49,7 @@ class SettingsPanel extends StatelessWidget {
   /// Which action is listening for its new control, if any.
   final GameAction? waitingFor;
 
-  /// Starts listening for [action], or stops when handed null.
+  /// Starts listening for `action`, or stops when handed null.
   final void Function(GameAction? action) onRebind;
 
   final VoidCallback onResetControls;

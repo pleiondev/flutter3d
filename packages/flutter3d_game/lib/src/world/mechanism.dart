@@ -112,8 +112,8 @@ abstract base class Mechanism {
   /// somebody made, and the compiler now insists that somebody make it.
   ///
   /// **Identity is [name].** A save is a map from name to row, so a mechanism
-  /// with no name cannot be saved and is skipped — see the note on
-  /// [MechanismWorld.saveAll].
+  /// with no name cannot be saved and is skipped — the genre packages' own
+  /// simulations say so where they write the map.
   Map<String, Object?> save();
 
   /// Puts back what [save] took. Given the same map it produced.

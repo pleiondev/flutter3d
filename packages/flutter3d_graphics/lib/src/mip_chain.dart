@@ -58,7 +58,7 @@ abstract final class MipChain {
   /// they were linear darkens every level, and the darkening compounds down the
   /// chain until a distant surface is visibly murkier than a near one. If an
   /// sRGB format ever gets a chain, this is the line that has to learn about
-  /// it, and [format] is not taken here precisely so that adding it is a
+  /// it, and `format` is not taken here precisely so that adding it is a
   /// deliberate change rather than a default that was already wrong.
   ///
   /// Odd sizes round down, so a 5-wide level becomes 2 and the rightmost column

@@ -202,7 +202,7 @@ abstract interface class RenderServices {
   /// a first person weapon, a portal's far side — so it inherits materials,
   /// skinning and lighting instead of growing a second copy of them.
   ///
-  /// [shadows] is required and has no default, which is the point of it: what
+  /// `shadows` is required and has no default, which is the point of it: what
   /// a draw samples is now something the caller states out of the frame it
   /// declared, rather than something this method reaches for. [SceneShadows.none]
   /// is the way to say "none", and saying it is cheap; not being able to say

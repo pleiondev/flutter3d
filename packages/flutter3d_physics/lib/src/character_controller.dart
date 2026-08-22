@@ -87,7 +87,7 @@ final class MovementTuning {
   /// every tread: a measured run down forty 0.2 m steps spent 116 of its 600
   /// steps airborne. Airborne is not cosmetic — it means air acceleration
   /// instead of ground friction, no step-up when something is in the way, a
-  /// coyote timer draining, and whatever the game hangs off [isGrounded]
+  /// coyote timer draining, and whatever the game hangs off [CharacterController.isGrounded]
   /// flickering sixty times a second.
   ///
   /// Set it and the probe reaches this far instead — but **only when the feet
@@ -305,7 +305,7 @@ final class CharacterController {
   /// assigned to it.
   ///
   /// This body's own [_tryJump] needs no such announcement: it clears
-  /// [isGrounded] on the spot, which the probe reads as "not mine to keep". It
+  /// [CharacterController.isGrounded] on the spot, which the probe reads as "not mine to keep". It
   /// calls this anyway, so that the rule is one rule with one name rather than
   /// two spellings of it that can drift apart.
   ///
@@ -320,7 +320,7 @@ final class CharacterController {
   ///
   /// The four scalars beyond position and velocity are the ones whose absence
   /// is invisible for exactly one step and then wrong: a restore that forgot
-  /// [isGrounded] gives the player a free coyote jump, and one that forgot the
+  /// [CharacterController.isGrounded] gives the player a free coyote jump, and one that forgot the
   /// jump buffer eats a press made a frame before landing.
   ///
   /// [groundBody] is deliberately **not** here. It is a reference, it is

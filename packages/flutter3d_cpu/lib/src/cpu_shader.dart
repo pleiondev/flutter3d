@@ -120,7 +120,7 @@ final class BoundTexture {
   int get height => texture.height;
   Float32List get pixels => texture.pixels;
 
-  /// Samples a cube in [direction], which need not be normalised.
+  /// Samples a cube in `direction`, which need not be normalised.
   ///
   /// The face is the one the largest component points at, and the two
   /// coordinates on it are the other two divided by that component's magnitude.
