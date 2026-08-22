@@ -306,14 +306,29 @@ class _EditorScreenState extends State<EditorScreen>
   /// six torches and is otherwise pitch black, which is right for a game and
   /// useless here: half the rooms are a black rectangle with a mark floating in
   /// it, and every question about what you are looking at starts with "is that
-  /// broken or is it just dark". So the editor carries a lamp — a soft light
-  /// pointing wherever the camera points — and says so, rather than quietly
-  /// changing the level's own lighting.
+  /// broken or is it just dark". So the editor carries a lamp — a point light
+  /// held where the camera stands — and says so, rather than quietly changing
+  /// the level's own lighting.
+  ///
+  /// A point light with a range rather than a directional one, and the first
+  /// version of this got it wrong: a [LightNode] is directional unless told
+  /// otherwise, so the "lamp" was a sun along world −Z that never moved with
+  /// the camera. Every surface facing the camera's home orientation — the
+  /// crypt's iron door, squarely — caught it head on, blew past white and
+  /// bloomed, and was reported as a light in a doorway where the level has
+  /// none. A light carried at the eye falls off with distance instead, so the
+  /// room somebody is in is lit and the far end of the level is the level's
+  /// own business.
   ///
   /// Off with **B**, for anybody who wants to see the room the way a player
   /// will.
   LightNode? _lamp;
   bool _lampOn = true;
+
+  /// Bright enough to read a room by, dimmer than the crypt's own torches
+  /// (6.5 over 13 m), so the lamp shows the level without outshining it.
+  static const double _kLampIntensity = 3.0;
+  static const double _kLampRange = 12.0;
 
   /// Types whose marks and models are not drawn.
   ///
@@ -351,9 +366,11 @@ class _EditorScreenState extends State<EditorScreen>
       if (!mounted) return;
       _scene = loaded.scene..add(_camera);
       _lamp = LightNode(
+        type: LightType.point,
         color: Vector3(1.0, 0.98, 0.94),
-        intensity: 2.2,
-      );
+        intensity: _lampOn ? _kLampIntensity : 0.0,
+        range: _kLampRange,
+      )..setPosition(_fly.position.x, _fly.position.y, _fly.position.z);
       loaded.scene.add(_lamp!);
       if (_levelOnly) {
         for (final light in List<LightNode>.of(loaded.scene.lights)) {
@@ -1106,6 +1123,9 @@ class _EditorScreenState extends State<EditorScreen>
         editing.turn(math.pi / 8);
       case LogicalKeyboardKey.keyB:
         setState(() => _lampOn = !_lampOn);
+        // The node stays in the scene either way; a lamp at nought is a lamp
+        // off, and there is no add/remove pair to get out of step with _build.
+        _lamp?.intensity = _lampOn ? _kLampIntensity : 0.0;
         _said = _lampOn
             ? 'the editor\'s lamp is on'
             : 'the editor\'s lamp is off — this is the level\'s own light';
@@ -1325,7 +1345,16 @@ class _EditorScreenState extends State<EditorScreen>
                       // the rooms either way.
                       shadows: const ShadowSettings(enabled: false),
                     ),
-                    onBeforeFrame: () => _fly.placeOn(_camera),
+                    onBeforeFrame: () {
+                      _fly.placeOn(_camera);
+                      // The lamp travels with the eye rather than hanging where
+                      // the last rebuild happened to leave it.
+                      _lamp?.setPosition(
+                        _fly.position.x,
+                        _fly.position.y,
+                        _fly.position.z,
+                      );
+                    },
                   ),
                 ),
                 Positioned(left: 0, right: 0, top: 0, child: _bar()),
