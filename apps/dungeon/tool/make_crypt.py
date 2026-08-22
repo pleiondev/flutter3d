@@ -124,7 +124,7 @@ def build():
     k.torch((-4.4, 3.0, -28.0), name="stair_west", yaw=1.5708,
             colour=(0.55, 0.78, 1.0), intensity=5.0)
     k.pickup("armour", (3.0, 0.8, -24.0), amount=25)
-    k.exit_at("way_down", (0.0, 2.4, -30.0))
+    k.exit_at("way_down", (0.0, 0.0, -30.0))
 
     k.write("crypt.json", name="The Crypt", next_level="assets/levels/vaults.json",
             tool=TOOL)

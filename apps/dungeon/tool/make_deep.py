@@ -91,7 +91,7 @@ def build():
     # affords it.
     k.pickup("rockets", (0.0, 0.8, -30.0), amount=4)
     k.pickup("armour", (-7.0, 0.8, -30.0), amount=25)
-    k.exit_at("the_surface", (0.0, 2.4, -39.0))
+    k.exit_at("the_surface", (0.0, 0.0, -39.0))
 
     # No `next_level`: this is the end of the game.
     k.write("deep.json", name="The Deep", tool=TOOL)

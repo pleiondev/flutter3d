@@ -310,8 +310,33 @@ def note(at, text, *, yaw=0.0):
                      "yaw": round(yaw, 4), "text": text})
 
 
+# How tall the arch a way out is drawn as stands, in metres.
+#
+# `tool/make_models.py`'s `exit_arch`, which is centred on its own middle like
+# every other prop in that file — the spawn is the one exception and it says so.
+EXIT_HEIGHT = 2.6
+
+
 def exit_at(name, at):
-    entities.append({"type": "exit", "at": rounded(at), "name": name})
+    """A way out, standing on whatever the player is standing on at [at].
+
+    **[at] is where the feet go**, and that is the whole point of this
+    function. Written as a centre it was authored by eye — 2.4 in two levels
+    and 5.0 in the third — and the arch, whose model is centred, came out
+    hanging one and a tenth metres off the floor in both crypts. Nobody saw it
+    until the editor started drawing models instead of coloured cubes, because
+    the game never drew a way out at all.
+
+    The trigger the engine builds around it is 2.5 tall against the arch's 2.6,
+    so a doorway standing on the floor is also a doorway a walking player
+    enters — which the old one very nearly was not: it started at knee height
+    and ran up past the lintel.
+    """
+    x, y, z = at
+    entities.append({
+        "type": "exit", "name": name,
+        "at": rounded((x, y + EXIT_HEIGHT / 2.0, z)),
+    })
 
 
 # ── Writing it down ─────────────────────────────────────────────────────────

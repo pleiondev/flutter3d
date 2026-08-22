@@ -117,7 +117,10 @@ def build():
            travel=(0.0, 4.0, 0.0), speed=1.4, wait=5.0)
     k.button("shaft_lift", (0.0, 1.5, -31.4), size=(0.7, 0.7, 0.25))
     k.pickup("health", (-4.0, 0.8, -23.0), amount=25)
-    k.exit_at("deeper", (0.0, 5.0, -28.0))
+    # On the lift, at the top of its travel: the platform's top face is at
+    # 0.5 and it rises four, so a player who has ridden it up is standing at
+    # 4.5 and the way out stands there with them.
+    k.exit_at("deeper", (0.0, 4.5, -28.0))
 
     k.write("vaults.json", name="The Vaults",
             next_level="assets/levels/deep.json", tool=TOOL)

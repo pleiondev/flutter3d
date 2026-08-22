@@ -166,4 +166,51 @@ void main() {
               'nearest wall, which is a page floating in the air');
     }
   });
+
+  test('and neither does the way out of any of them', () {
+    // **The same mistake as the note, in all three documents at once.** A way
+    // out is drawn as an arch two metres and six tall, centred on its own
+    // middle; the position was authored as 2.4, 2.4 and 5.0 by eye, so every
+    // arch in the game hung one and a tenth metres off the ground. The game
+    // never drew one, which is why it survived three levels.
+    //
+    // Measured against whatever is under it — the crypt's floor, the vault's
+    // lift at the top of its travel — rather than against y = 0, because one
+    // of the three is a way out you ride up to.
+    for (final (:path, :level) in _chain()) {
+      for (final exit in level.entities.where((e) => e.type == 'exit')) {
+        final at = exit.position;
+        final base = at.y - _archHeight / 2.0;
+
+        var floor = double.negativeInfinity;
+        for (final brush in level.brushes) {
+          if (!brush.solid) continue;
+          if ((at.x - brush.centre.x).abs() > brush.size.x / 2) continue;
+          if ((at.z - brush.centre.z).abs() > brush.size.z / 2) continue;
+          final top = brush.centre.y + brush.size.y / 2;
+          if (top > base + 0.05) continue; // a ceiling is not a floor
+          floor = math.max(floor, top);
+        }
+        for (final mover in level.entities.where(
+          (e) => e.vector('size') != null && e.vector('travel') != null,
+        )) {
+          final size = mover.vector('size')!;
+          final travel = mover.vector('travel')!;
+          if ((at.x - mover.position.x).abs() > size.x / 2) continue;
+          if ((at.z - mover.position.z).abs() > size.z / 2) continue;
+          final top = mover.position.y + size.y / 2 + math.max(travel.y, 0.0);
+          if (top > base + 0.05) continue;
+          floor = math.max(floor, top);
+        }
+
+        expect(base - floor, closeTo(0.0, 0.05),
+            reason: '$path: the way out at $at stands '
+                '${(base - floor).toStringAsFixed(2)} m off the floor');
+      }
+    }
+  });
 }
+
+/// How tall the arch a way out is drawn as stands. `tool/cryptkit.py` says the
+/// same number, and `tool/make_models.py` builds it.
+const double _archHeight = 2.6;

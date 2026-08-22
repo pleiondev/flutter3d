@@ -186,6 +186,6 @@
     {"type": "monster", "at": [0.0, 1.0, -38.0], "kind": "shooter"},
     {"type": "pickup", "at": [0.0, 0.8, -30.0], "gives": "rockets", "amount": 4},
     {"type": "pickup", "at": [-7.0, 0.8, -30.0], "gives": "armour", "amount": 25},
-    {"type": "exit", "at": [0.0, 2.4, -39.0], "name": "the_surface"}
+    {"type": "exit", "name": "the_surface", "at": [0.0, 1.3, -39.0]}
   ]
 }

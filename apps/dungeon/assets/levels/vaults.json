@@ -284,7 +284,7 @@
     },
     {"type": "button", "at": [0.0, 1.5, -31.4], "size": [0.7, 0.7, 0.25], "target": "shaft_lift"},
     {"type": "pickup", "at": [-4.0, 0.8, -23.0], "gives": "health", "amount": 25},
-    {"type": "exit", "at": [0.0, 5.0, -28.0], "name": "deeper"}
+    {"type": "exit", "name": "deeper", "at": [0.0, 5.8, -28.0]}
   ],
   "next": "assets/levels/deep.json"
 }
