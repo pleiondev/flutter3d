@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
@@ -65,6 +66,37 @@ final class Skeleton {
   int get jointCount => joints.length;
 
   final Matrix4 _scratch = Matrix4.identity();
+  final Matrix4 _measure = Matrix4.identity();
+
+  /// How far one unit of the mesh's own space reaches once it is skinned.
+  ///
+  /// **A skinned mesh's vertex positions are not in metres.** A rig exported
+  /// from Blender routinely carries them at a hundredth of one: the size lives
+  /// in the joint hierarchy, and `jointWorld * inverseBind` is what carries a
+  /// vertex out into the world. So anything measured off the vertex buffer — a
+  /// bounding box, a bounding radius, a reach — is a number in that small space
+  /// and means nothing beside a joint position until it is brought out.
+  ///
+  /// Both models this repository ships are like that. The crypt's monsters are
+  /// authored at a hundredth and the platformer's hero at a fortieth, so a mesh
+  /// whose own radius reads 0.02 is a body that reaches half a metre off the
+  /// bone.
+  ///
+  /// Read off the first joint, because at any one moment every joint carries
+  /// the same skin-to-world scale — they differ in rotation and position, which
+  /// is what a pose is, not in how big the space is.
+  double get skinScale {
+    if (joints.isEmpty) return 1.0;
+    _measure
+      ..setFrom(joints.first.worldMatrix)
+      ..multiply(_inverseBind.first);
+    final storage = _measure.storage;
+    return math.sqrt(
+      storage[0] * storage[0] +
+          storage[1] * storage[1] +
+          storage[2] * storage[2],
+    );
+  }
 
   /// Recomputes [matrices] for the current pose.
   ///

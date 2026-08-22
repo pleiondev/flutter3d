@@ -26,11 +26,20 @@ final class MeshNode extends SceneNode {
   /// decision, so a mesh either has both or neither.
   Skeleton? skeleton;
 
-  /// How far the surface reaches from its joints, in world units.
+  /// How far the surface reaches from its joints, **in the mesh's own units**.
   ///
   /// Used to pad the skinned bounds. Zero would cull a character by the box
   /// around its bones, clipping the mesh hanging off them; measured from the
   /// bind pose at instantiation, so it costs nothing per frame.
+  ///
+  /// The units are the trap, and they cost this repository an afternoon. A
+  /// skinned mesh's vertex positions are in the rig's authoring space, which is
+  /// a hundredth of a metre for both models here — so the radius measured off
+  /// the buffer is a couple of centimetres for a body that reaches half a metre
+  /// off the bone. Taken as metres it padded the bone box by nothing at all,
+  /// and a monster you were standing next to blinked out whenever the camera
+  /// turned. [Skeleton.skinScale] is what carries it out into the world, and
+  /// [_refreshBounds] applies it.
   double skinReach = 0.0;
 
   /// Whether this node is drawn into the shadow map.
@@ -134,7 +143,7 @@ final class MeshNode extends SceneNode {
       _poseVersion = stamp;
       _boundsMesh = mesh;
 
-      final bounds = skin.computeBounds(reach: skinReach);
+      final bounds = skin.computeBounds(reach: skinReach * skin.skinScale);
       _worldBounds.min.setFrom(bounds.min);
       _worldBounds.max.setFrom(bounds.max);
       _boundsCentre
