@@ -46,6 +46,43 @@ abstract final class Credits {
       licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
       modified: true,
     ),
+    // **The editor's marks.** Generated here by `tool/make_models.py`, out of
+    // the same functions that build the shooter template's models — a note, a
+    // pickup, a way down and the point the player starts at. They exist because
+    // an editor that cannot know what a word means was drawing a coloured cube
+    // for every one of them.
+    Credit(
+      file: 'models/exit.glb',
+      work: 'A way down',
+      author: 'this repository',
+      source: 'tool/make_models.py',
+      licence: 'CC0 1.0',
+      licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    ),
+    Credit(
+      file: 'models/note.glb',
+      work: 'A page on a wall',
+      author: 'this repository',
+      source: 'tool/make_models.py',
+      licence: 'CC0 1.0',
+      licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    ),
+    Credit(
+      file: 'models/pickup.glb',
+      work: 'A crate of supplies',
+      author: 'this repository',
+      source: 'tool/make_models.py',
+      licence: 'CC0 1.0',
+      licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    ),
+    Credit(
+      file: 'models/player_spawn.glb',
+      work: 'Where the player starts',
+      author: 'this repository',
+      source: 'tool/make_models.py',
+      licence: 'CC0 1.0',
+      licenceUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+    ),
     Credit(
       file: 'models/key.glb',
       work: 'A key',

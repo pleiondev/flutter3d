@@ -75,6 +75,27 @@ Level _level() => Level.fromJson(jsonDecode(jsonEncode(<String, Object?>{
     })) as Map<String, Object?>);
 
 void main() {
+  test('a region the document sized is a cage, not a slab', () {
+    // **The editor's way of saying "this is a region" without knowing what a
+    // trigger is.** Something the author gave a size to is something whose
+    // extent is the point, and a solid box drawn over one hides what it
+    // contains and lies flat against the wall it was placed on.
+    final level = _level();
+    final handles = <Piece, List<Handle>>{};
+    for (final handle in handlesOf(level)) {
+      handles.putIfAbsent(handle.kind, () => <Handle>[]).add(handle);
+    }
+    final entities = handles[Piece.entity]!;
+
+    expect(entities.where((Handle it) => it.volume), hasLength(2),
+        reason: 'the trigger and the note carry their own size');
+    expect(
+      entities.where((Handle it) => !it.volume).length,
+      greaterThan(0),
+      reason: 'a monster has no size of its own and is not a region',
+    );
+  });
+
   test('a mark inside another mark draws the same on every frame', () async {
     final device = CpuDevice(
       width: _width,

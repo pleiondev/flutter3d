@@ -532,6 +532,16 @@ class _EditorScreenState extends State<EditorScreen>
         continue;
       }
 
+      // **A region is drawn as its edges.** A trigger four metres wide, filled
+      // in, is a wall in front of whatever it was placed around — and where its
+      // face lands on real geometry the two fight for the same pixels, which is
+      // what "the editor flickers" turned out to be. A cage shows the extent
+      // and hides nothing.
+      if (handle.volume) {
+        _buildCage(device, scene, handle);
+        continue;
+      }
+
       final node = MeshNode(
         // **A light is a ball, everything else is a box**, because a lamp drawn
         // as a cube beside a torch drawn as a cube is two cubes, and the
@@ -568,6 +578,55 @@ class _EditorScreenState extends State<EditorScreen>
       }
       scene.add(node);
       _gizmos.add(node);
+    }
+  }
+
+  /// The twelve edges of a region, as thin bars.
+  ///
+  /// Thin in proportion to the region rather than a fixed thickness: a trigger
+  /// is metres across and a small volume is centimetres, and one width cannot
+  /// be visible on the first and slender on the second.
+  void _buildCage(GraphicsDevice device, Scene scene, Handle handle) {
+    final holder = SceneNode(name: 'gizmo')
+      ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z);
+    scene.add(holder);
+    _gizmos.add(holder);
+
+    final size = handle.size;
+    final bar = math.max(
+      0.02,
+      math.min(size.x, math.min(size.y, size.z)) * 0.05,
+    );
+    final half = Vector3(size.x / 2.0, size.y / 2.0, size.z / 2.0);
+    final meshes = SharedMeshes(device);
+    final material = engine.Material(
+      name: 'gizmo',
+      baseColor: Vector4(handle.tint.x, handle.tint.y, handle.tint.z, 1.0),
+      emissive: handle.tint * 0.9,
+    );
+
+    void edge(Vector3 extent, double x, double y, double z) {
+      holder.add(
+        MeshNode(meshes.box(extent), material, name: 'edge')
+          ..setPosition(x, y, z)
+          ..castsShadow = false,
+      );
+    }
+
+    for (final y in <double>[-half.y, half.y]) {
+      for (final z in <double>[-half.z, half.z]) {
+        edge(Vector3(size.x, bar, bar), 0.0, y, z);
+      }
+    }
+    for (final x in <double>[-half.x, half.x]) {
+      for (final z in <double>[-half.z, half.z]) {
+        edge(Vector3(bar, size.y, bar), x, 0.0, z);
+      }
+    }
+    for (final x in <double>[-half.x, half.x]) {
+      for (final y in <double>[-half.y, half.y]) {
+        edge(Vector3(bar, bar, size.z), x, y, 0.0);
+      }
     }
   }
 
@@ -668,7 +727,12 @@ class _EditorScreenState extends State<EditorScreen>
       // The level may have been rebuilt while this was reading — a keypress is
       // faster than a glTF — and putting a model into a scene nobody draws is
       // the platformer's own bug, written down in its `_dressRunner`.
-      if (!mounted || asset == null || !identical(scene, _scene)) return;
+      if (!mounted || !identical(scene, _scene)) return;
+      // **One model that will not read is one mark left as a box**, and it used
+      // to be every mark after it: this was a `return`, so the first missing
+      // file ended the loop and everything later in the level stayed a coloured
+      // cube with no clue as to why.
+      if (asset == null) continue;
 
       final instance = asset.instantiate(_scene!, name: 'model');
       instance.root

@@ -32,6 +32,7 @@ final class Handle {
     required this.centre,
     required this.size,
     required this.tint,
+    this.volume = false,
   });
 
   final Piece kind;
@@ -45,6 +46,15 @@ final class Handle {
   /// What to draw it in. A light wears its own colour, which is the fastest way
   /// to see that a room is lit orange because somebody made it orange.
   final Vector3 tint;
+
+  /// Whether the *document* gave this a size of its own.
+  ///
+  /// **The editor's way of saying "this is a region, not a thing"** without
+  /// knowing what a trigger is. Something the author sized is something whose
+  /// extent is the point — a trigger volume, a lift's platform — and a solid
+  /// box drawn over one hides whatever it contains and lies flat against the
+  /// wall it was placed on. Those are drawn as a cage of edges instead.
+  final bool volume;
 
   Vector3 get min => centre - size / 2.0;
   Vector3 get max => centre + size / 2.0;
@@ -91,6 +101,7 @@ List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
           // `size`; a torch says nothing, and the game's `editor.json` can say
           // it is a slim upright thing rather than a cube.
           size: looks.sizeFor(level.entities[i]) ?? Vector3.all(kGizmoSize),
+          volume: level.entities[i].vector('size') != null,
           tint: looks.tintFor(level.entities[i]) ??
               tintFor(level.entities[i].type),
         ),

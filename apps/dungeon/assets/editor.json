@@ -27,16 +27,16 @@
         "at": [0.0, 0.46, 0.0], "colour": [0.16, 0.15, 0.14] }
     ]
   },
-  "player_spawn": {
+  "player_spawn": { "model": "assets/models/player_spawn.glb",
     "size": [0.7, 1.8, 0.7]
   },
-  "pickup": {
+  "pickup": { "model": "assets/models/pickup.glb",
     "size": [0.45, 0.45, 0.45]
   },
-  "note": {
+  "note": { "model": "assets/models/note.glb",
     "size": [0.5, 0.66, 0.06]
   },
-  "exit": {
+  "exit": { "model": "assets/models/exit.glb",
     "size": [1.8, 2.6, 0.4]
   },
   "door": {

@@ -82,3 +82,19 @@ in the same pass, so the two cannot drift.
 CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/. It replaced an
 untraceable model rather than tracing one, which is the entry the paragraph at
 the top of this file is about.
+
+## `exit.glb`, `note.glb`, `pickup.glb`, `player_spawn.glb` — generated here, CC0
+
+Written by `tool/make_models.py`, out of the same functions that build the
+editor's shooter template: boxes, tubes and balls, flat-shaded, coordinates
+quantised so the bytes are identical on any machine. Run it again and `git diff`
+says nothing, which is what CI checks.
+
+**They exist because the editor was drawing coloured cubes for half of what a
+level contains.** A note, a pickup, a way down and the point the player starts
+at are coordinates with a word attached, and the editor cannot know what any of
+those words mean — so what it drew was a box tinted from the word's own letters.
+The models are named in `assets/editor.json`, which is the file that tells the
+editor what this game's things look like.
+
+CC0 1.0 — https://creativecommons.org/publicdomain/zero/1.0/.
