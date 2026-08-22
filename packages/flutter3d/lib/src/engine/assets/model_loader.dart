@@ -147,7 +147,7 @@ final class ModelLoadRequest {
 /// Why it matters: decoding the 71 KB Utah teapot costs 5.39 ms of CPU, a third of
 /// a 60 Hz frame, and a real model runs into tens of milliseconds. That is jank on
 /// the UI isolate however fast the parser is — which is also why FFI would not have
-/// fixed it (see docs/FFI-analysis.md).
+/// fixed it (see doc/FFI-analysis.md).
 ///
 /// **File reads stay on this isolate.** The obvious alternative — wire the platform
 /// channel into the background isolate with `BackgroundIsolateBinaryMessenger` —

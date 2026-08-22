@@ -3,6 +3,7 @@ description: >-
   A software backend for flutter3d_graphics: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 
 environment:
@@ -12,22 +13,18 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter3d_graphics:
-    path: ../flutter3d_graphics
+  flutter3d_graphics: ^0.1.0
   vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  flutter3d_conformance:
-    path: ../flutter3d_conformance
+  flutter3d_conformance: ^0.1.0
   # Test-only, and deliberately so: the backend itself must not depend on the
   # engine. A backend that could not be compiled without it would not be an
   # implementation of an interface, it would be a part of the engine.
-  flutter3d:
-    path: ../flutter3d
-  flutter3d_shaders:
-    path: ../flutter3d_shaders
+  flutter3d: ^0.1.0
+  flutter3d_shaders: ^0.1.0
 
 resolution: workspace

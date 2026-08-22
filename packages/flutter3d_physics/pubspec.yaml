@@ -1,6 +1,7 @@
 name: flutter3d_physics
 description: "Collision shapes, a broadphase, queries and a character controller. No Flutter, no renderer, no game."
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 resolution: workspace
 
@@ -12,8 +13,7 @@ dependencies:
 
 dev_dependencies:
   # The rule that this package names no genre, as a test it runs against itself.
-  flutter3d_boundaries:
-    path: ../flutter3d_boundaries
+  flutter3d_boundaries: ^0.1.0
 
   test: ^1.25.0
   flutter_lints: ^6.0.0

@@ -3,7 +3,7 @@
 //   dart run tool/convert_asset.dart assets/samples/teapot.obj
 //   dart run tool/convert_asset.dart assets/samples/Box.glb -o build/box.f3d
 //
-// A CLI in Dart, not an FFI helper. `docs/FFI-analysis.md` measured the decoders
+// A CLI in Dart, not an FFI helper. `doc/FFI-analysis.md` measured the decoders
 // and concluded the format matters far more than the language: the same geometry
 // is 360x slower to load as OBJ text than as a binary buffer, and no amount of
 // native code closes that. This tool moves the parse off the device entirely,

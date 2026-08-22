@@ -1,6 +1,7 @@
 name: flutter3d_game
 description: "The game layer on top of flutter3d: a fixed timestep, device-independent input, collisions, levels and AI."
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 resolution: workspace
 
@@ -12,20 +13,17 @@ dependencies:
     sdk: flutter
 
   # Relative mouse deltas, which Flutter offers on no desktop platform.
-  pointer_lock:
-    path: ../pointer_lock
+  pointer_lock: ^0.1.0
 
   # Sticks, triggers and buttons. A device package, exactly as pointer_lock is:
   # it knows nothing about actions or games, and `pad_input.dart` is the
   # translator — the same shape `DesktopInput` has beside the keyboard.
-  pad_input:
-    path: ../pad_input
+  pad_input: ^0.1.0
 
   # Collision, queries and the character controller. Extracted because it
   # imported nothing from here, and because a collision world that knows what a
   # monster is cannot be used by a game that has none.
-  flutter3d_physics:
-    path: ../flutter3d_physics
+  flutter3d_physics: ^0.1.0
 
   vector_math: ^2.2.0
 
@@ -33,8 +31,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   # The rule that this package names no genre, as a test it runs against itself.
-  flutter3d_boundaries:
-    path: ../flutter3d_boundaries
+  flutter3d_boundaries: ^0.1.0
   flutter_lints: ^6.0.0
 
 # Deliberately no dependency on flutter3d. Simulation, input and collision have

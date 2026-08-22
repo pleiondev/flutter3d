@@ -13,17 +13,14 @@ dependencies:
     sdk: flutter
 
   # The vocabulary these screens edit: bindings, actions, the settings map.
-  flutter3d_game:
-    path: ../flutter3d_game
+  flutter3d_game: ^0.1.0
 
   # Volumes are a mixer's, and a settings panel is where they are turned.
-  flutter3d_audio:
-    path: ../flutter3d_audio
+  flutter3d_audio: ^0.1.0
 
   # For the dead zone's own default, so the panel and the pad cannot disagree
   # about what "unset" means.
-  pad_input:
-    path: ../pad_input
+  pad_input: ^0.1.0
 
   # A drag is two numbers, and the camera that reads them speaks `Vector2`.
   vector_math: ^2.2.0
@@ -44,8 +41,7 @@ dependencies:
 
 dev_dependencies:
   # The rule that this package names no genre, as a test it runs against itself.
-  flutter3d_boundaries:
-    path: ../flutter3d_boundaries
+  flutter3d_boundaries: ^0.1.0
 
   flutter_test:
     sdk: flutter

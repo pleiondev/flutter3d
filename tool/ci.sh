@@ -63,6 +63,13 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 
 step "analyze" flutter analyze
 
+# What `pub publish` would say about each package, without publishing anything.
+# Twenty-six seconds, and it is the only thing that notices a package losing its
+# licence, its changelog, or its version constraint on a sibling — none of which
+# an analyser or a test can see, and all of which are found at the worst
+# possible moment otherwise.
+step "publish check" bash tool/publish_check.sh
+
 for package in packages/*/; do
   name="$(basename "$package")"
   [ -d "$package/test" ] || continue

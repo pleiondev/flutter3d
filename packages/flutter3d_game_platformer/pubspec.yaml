@@ -1,6 +1,7 @@
 name: flutter3d_game_platformer
 description: "A second genre: a runner who jumps twice and dashes, things to collect, hazards to fall into, and checkpoints to come back at."
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 resolution: workspace
 
@@ -12,8 +13,7 @@ dependencies:
     sdk: flutter
 
   # The engine half. Everything here is content it takes as an argument.
-  flutter3d_game:
-    path: ../flutter3d_game
+  flutter3d_game: ^0.1.0
 
 
   vector_math: ^2.2.0

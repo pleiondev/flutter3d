@@ -1,6 +1,7 @@
 name: flutter3d_bridge
 description: "The binding between flutter3d and flutter3d_game: level geometry to mesh nodes, actors to visuals, weapons to view models."
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 resolution: workspace
 
@@ -12,12 +13,9 @@ dependencies:
     sdk: flutter
 
   # Both halves, which is the entire point of this package existing.
-  flutter3d:
-    path: ../flutter3d
-  flutter3d_particles:
-    path: ../flutter3d_particles
-  flutter3d_game:
-    path: ../flutter3d_game
+  flutter3d: ^0.1.0
+  flutter3d_particles: ^0.1.0
+  flutter3d_game: ^0.1.0
 
   vector_math: ^2.2.0
 
@@ -26,11 +24,9 @@ dev_dependencies:
     sdk: flutter
   # A `GraphicsDevice` with no GPU under it, so this package's own loader can be
   # run in a test — which until now it never was.
-  flutter3d_cpu:
-    path: ../flutter3d_cpu
+  flutter3d_cpu: ^0.1.0
   # The rule that this package names no genre, as a test it runs against itself.
-  flutter3d_boundaries:
-    path: ../flutter3d_boundaries
+  flutter3d_boundaries: ^0.1.0
   flutter_lints: ^6.0.0
 
 # This is the one package allowed to depend on both. `flutter3d_game` depends on

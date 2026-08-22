@@ -1,6 +1,7 @@
 name: flutter3d_graphics
 description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API."
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 resolution: workspace
 

@@ -2,8 +2,8 @@
 
 Date: 2026-08-08, item status updated 2026-08-09. Items marked `[x]` are implemented;
 unmarked ones are open. The scene architecture analysis lives in
-`docs/ARCHITECTURE-scene-camera.md`, the measurements and the FFI verdict in
-`docs/FFI-analysis.md`.
+`doc/ARCHITECTURE-scene-camera.md`, the measurements and the FFI verdict in
+`doc/FFI-analysis.md`.
 
 ---
 

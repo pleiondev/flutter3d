@@ -183,7 +183,7 @@ cover all three ways of storing the data. See
 
 ## The `.f3d` container
 
-`docs/FFI-analysis.md` measured the decoders and found the format matters far
+`doc/FFI-analysis.md` measured the decoders and found the format matters far
 more than the language: the same geometry is about 360x slower to load as OBJ
 text than as a binary buffer, and native code does not close that. `.f3d` moves
 the parse off the device entirely.
@@ -262,7 +262,7 @@ shaders/
   post/fullscreen.vert          the one triangle every post pass draws
   flutter3d.shaderbundle.json   bundle manifest
 tool/build_shaders.sh           calls impellerc directly, no Native Assets
-tool/bench/bench.dart           the AOT benchmark behind docs/FFI-analysis.md
+tool/bench/bench.dart           the AOT benchmark behind doc/FFI-analysis.md
 tool/convert_asset.dart         glTF / GLB / OBJ -> .f3d, run offline
 lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
 lib/src/engine/animation/       clips, tracks, sampling, the player
@@ -298,7 +298,7 @@ to 97 KB with seven.
 
 It also makes the pipeline the most expensive state change in a pass, which is why
 it is the **high-order term** when the render list is sorted — see
-[docs/FFI-analysis.md](docs/FFI-analysis.md) for the measurements behind that.
+[doc/FFI-analysis.md](doc/FFI-analysis.md) for the measurements behind that.
 
 The same constraint is why lighting is a uniform array rather than a permutation
 per light count. Verified rather than assumed: `vec4 lights[8]` survives into the

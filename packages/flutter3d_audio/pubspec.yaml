@@ -1,6 +1,7 @@
 name: flutter3d_audio
 description: "Positional audio for flutter3d: attenuation, panning and voice limiting, with a pluggable backend."
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 
 environment:
@@ -17,8 +18,7 @@ dependencies:
 
 dev_dependencies:
   # The rule that this package names no genre, as a test it runs against itself.
-  flutter3d_boundaries:
-    path: ../flutter3d_boundaries
+  flutter3d_boundaries: ^0.1.0
 
   flutter_test:
     sdk: flutter

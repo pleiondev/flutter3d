@@ -3,6 +3,7 @@ description: >-
   The rule that keeps the engine half of flutter3d from learning what a monster,
   a lap or a double jump is, as a test any package can run against itself.
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 
 environment:

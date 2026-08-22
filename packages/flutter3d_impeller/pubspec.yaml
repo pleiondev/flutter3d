@@ -1,6 +1,7 @@
 name: flutter3d_impeller
 description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_graphics, and the only place in the stack that names a graphics API."
 version: 0.1.0
+repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
 resolution: workspace
 
@@ -19,15 +20,13 @@ dependencies:
   flutter_gpu:
     sdk: flutter
 
-  flutter3d_graphics:
-    path: ../flutter3d_graphics
+  flutter3d_graphics: ^0.1.0
 
 
 dev_dependencies:
   # The behaviour flutter3d_graphics requires, as tests this backend runs
   # against itself. See flutter3d_conformance.
-  flutter3d_conformance:
-    path: ../flutter3d_conformance
+  flutter3d_conformance: ^0.1.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
