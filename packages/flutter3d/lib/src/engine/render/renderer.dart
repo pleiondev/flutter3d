@@ -2162,14 +2162,27 @@ final class Renderer implements RenderServices {
     // middle of one.
     device.beginFrame();
 
-    // This slot's textures were handed back a full ring ago, so the GPU is done
-    // with them; the same reasoning that governs the backend's own ring.
+    // **This slot's textures were handed back a full ring ago**, so the GPU is
+    // done with them; the same reasoning that governs the backend's own ring.
+    //
+    // That sentence was false for as long as it had been written. `_frameIndex`
+    // was incremented *here*, before any pass ran — so a texture released
+    // during frame N landed in slot `(N + 1) % 3`, which is the slot the top of
+    // frame N + 1 retires. One frame of deferral where three were intended, and
+    // one frame is not enough: the GPU is still reading a pooled target while
+    // the pool hands it to the next pass. What that looks like is a draw
+    // missing from a frame — a bar of a wireframe cage, a monster inside it —
+    // on a scene where nothing is moving, which is where a one-frame artefact
+    // stops hiding.
+    //
+    // The counter now advances at the *end* of the frame, so everything
+    // released during frame N goes into slot `N % 3` and is retired at the top
+    // of frame N + 3.
     final expired = _pendingRelease[_frameIndex % _kFramesInFlight];
     for (final texture in expired) {
       targetPool.release(texture);
     }
     expired.clear();
-    _frameIndex++;
 
 
     // Lights are gathered once up front now, because the shadow pass needs the
@@ -2429,6 +2442,9 @@ final class Renderer implements RenderServices {
     // produced no version of `frame` at all — where the engine's own target is
     // genuinely all there is.
     final frame = resources.output(FrameResourceIds.frame) ?? _ldrColor!;
+    // The frame is encoded and submitted: everything it released is in this
+    // slot, and the next two frames must not touch it.
+    _frameIndex++;
     frameClock.stop();
     developer.Timeline.finishSync();
 
