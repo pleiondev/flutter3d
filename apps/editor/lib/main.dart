@@ -1217,13 +1217,33 @@ class _EditorScreenState extends State<EditorScreen>
                       // **No shadows, and not for speed.** With them on this
                       // editor flickers: the picture alternates between the
                       // scene and a nearly black one, on a camera nobody is
-                      // touching. Measured rather than guessed — fifteen
-                      // captures of the window are identical with shadows off
-                      // and every third one differs with them on, and the same
-                      // scene rendered ten times through `CpuDevice` is
-                      // identical either way, so what is wrong is in the
-                      // hardware backend's shadow path and not in what this
-                      // application asks for.
+                      // touching.
+                      //
+                      // Two separate faults were behind that, and only one of
+                      // them is fixed. The first was the finished frame being
+                      // drawn into while the compositor still had it — see
+                      // `Renderer`'s finished-frame textures, which now come
+                      // back when the backend says the GPU is done rather than
+                      // after a guessed number of frames. Switching shadows
+                      // back on after that fix brought the flicker straight
+                      // back, so the second one is real and is somewhere in the
+                      // shadow path.
+                      //
+                      // What is known about it, so the next person starts here
+                      // rather than where this started:
+                      //
+                      //  * It needs the hardware backend. The same scene
+                      //    rendered ten times through `CpuDevice`, shadows and
+                      //    all, is byte for byte the same picture.
+                      //  * It needs a still camera, which is why no game shows
+                      //    it: a frame that differs from its neighbour by a
+                      //    millimetre of camera hides anything.
+                      //  * The tile scheduler is not redrawing anything —
+                      //    instrumented, zero tiles scheduled per frame in the
+                      //    steady state — so whatever changes is not the atlas
+                      //    being refreshed with different content.
+                      //  * Both atlases are `devicePrivate` and stored, so it
+                      //    is not tile memory losing its contents.
                       //
                       // An editor loses nothing by it. What it is for is where
                       // things *are*: a shadow under a crate says nothing a
