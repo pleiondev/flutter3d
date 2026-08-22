@@ -300,6 +300,27 @@ class _EditorScreenState extends State<EditorScreen>
   /// whose picture and document disagree, which is the one thing it must never
   /// be. Scheduled at most once a frame by [_onTick] instead, so holding an
   /// arrow key down does not queue fifty of them.
+  /// Types whose marks and models are not drawn.
+  ///
+  /// **Added while hunting a flicker one kind at a time**, and kept because
+  /// that is a thing an editor is asked for on its own account: a level with
+  /// two hundred coins in it is a level whose coins are in the way of the
+  /// brush behind them. Hidden by *type*, because that is the unit somebody
+  /// thinks in — "not the lights for a moment" — and because the palette
+  /// already lists exactly those.
+  final Set<String> _hidden = <String>{};
+
+  /// Diagnostic: what to draw besides the walls, the floor and the ceiling.
+  ///
+  ///  * `--dart-define=only=level` — nothing at all, and none of the
+  ///    document's lights either.
+  ///  * `--dart-define=only=lights` — the lights, and marks for the things
+  ///    that emit them: a handle the document calls a light, and an entity the
+  ///    game described a silhouette for.
+  static const String _only = String.fromEnvironment('only');
+  static const bool _levelOnly = _only == 'level';
+  static const bool _lightsOnly = _only == 'lights';
+
   Future<void> _build() async {
     final device = _device;
     final editing = _editing;
@@ -314,6 +335,11 @@ class _EditorScreenState extends State<EditorScreen>
       );
       if (!mounted) return;
       _scene = loaded.scene..add(_camera);
+      if (_levelOnly) {
+        for (final light in List<LightNode>.of(loaded.scene.lights)) {
+          loaded.scene.remove(light);
+        }
+      }
       _textures = loaded.materialTextures;
       _marker = null;
       _gizmos.clear();
@@ -449,6 +475,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// inside faces are culled — and that is exactly when the twelve lines are
   /// the ones doing the work.
   void _placeMarker() {
+    if (_levelOnly) return;
     final device = _device;
     final scene = _scene;
     final editing = _editing;
@@ -489,6 +516,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// Their colours come from the type's own name — see [tintFor] — because this
   /// application is not allowed to know what a `monster` is.
   void _placeGizmos() {
+    if (_levelOnly) return;
     final device = _device;
     final scene = _scene;
     final editing = _editing;
@@ -503,6 +531,12 @@ class _EditorScreenState extends State<EditorScreen>
       if (handle.kind == Piece.brush) continue;
       final entity =
           handle.kind == Piece.entity ? editing.level.entities[handle.index] : null;
+      if (_lightsOnly &&
+          handle.kind != Piece.light &&
+          (entity == null || _looks.partsFor(entity).isEmpty)) {
+        continue;
+      }
+      if (_hidden.contains(entity?.type ?? 'light')) continue;
 
       // **Drawn as what it is, when the document says what it is.** A door
       // names a material the level already loaded, and a lift names the size it
@@ -718,6 +752,7 @@ class _EditorScreenState extends State<EditorScreen>
   /// and a model that will not read leaves the box — which is exactly what
   /// somebody wants to see when a path in their document is wrong.
   Future<void> _dressGizmos() async {
+    if (_levelOnly || _lightsOnly) return;
     final device = _device;
     final editing = _editing;
     final root = _assetRoot;
@@ -728,6 +763,7 @@ class _EditorScreenState extends State<EditorScreen>
       if (handle.kind != Piece.entity) continue;
       final entity = editing.level.entities[handle.index];
       // What the entity says, else what the game says this type is.
+      if (_hidden.contains(entity.type)) continue;
       final path = _looks.modelFor(entity);
       if (path == null) continue;
 
@@ -746,6 +782,18 @@ class _EditorScreenState extends State<EditorScreen>
       if (asset == null) continue;
 
       final instance = asset.instantiate(_scene!, name: 'model');
+
+      // Diagnostic: `--dart-define=skinned=off` leaves anything with a rig as
+      // its mark, and `--dart-define=skip=a,b` leaves those types as theirs.
+      if (const String.fromEnvironment('skinned') == 'off' &&
+          asset.skins.isNotEmpty) {
+        continue;
+      }
+      if (const String.fromEnvironment('skip')
+          .split(',')
+          .contains(entity.type)) {
+        continue;
+      }
 
       // **Posed, or it stands there like a scarecrow.** A skinned model in a
       // file is in its bind pose: arms out, legs apart, because that is the
@@ -1449,6 +1497,19 @@ class _EditorScreenState extends State<EditorScreen>
                     _PaletteRow(
                       it: it,
                       held: _placing?.what == it.what,
+                      hidden: _hidden.contains(it.what),
+                      // **Alt-click hides the type.** A separate gesture rather
+                      // than a second column of buttons: the palette is a list
+                      // somebody reads, and a row of eyes down the side of it
+                      // is a row of eyes to read past every time.
+                      onHide: () {
+                        setState(() {
+                          if (!_hidden.remove(it.what)) _hidden.add(it.what);
+                        });
+                        _changed(_hidden.contains(it.what)
+                            ? '${it.label} hidden — alt-click again to show'
+                            : '${it.label} shown');
+                      },
                       onTap: () => setState(() {
                         // Tapping what is already held puts it down, which is
                         // the only way out somebody will guess at before they
@@ -1467,7 +1528,8 @@ class _EditorScreenState extends State<EditorScreen>
           const Padding(
             padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Text(
-              'click a row, then click in the level · esc puts it down',
+              'click a row, then click in the level · esc puts it down\n'
+              'alt-click a row to hide that type',
               style: TextStyle(color: Color(0xFF6F7885), fontSize: 10),
             ),
           ),
@@ -1507,21 +1569,34 @@ class _EditorScreenState extends State<EditorScreen>
 
 /// One row of the palette: a swatch, a word, and how many the level has.
 class _PaletteRow extends StatelessWidget {
-  const _PaletteRow({required this.it, required this.held, required this.onTap});
+  const _PaletteRow({
+    required this.it,
+    required this.held,
+    required this.hidden,
+    required this.onTap,
+    required this.onHide,
+  });
 
   final Placeable it;
 
   /// Whether this is what the next click will put down.
   final bool held;
 
+  /// Whether this type is currently not drawn.
+  final bool hidden;
+
   final VoidCallback onTap;
+  final VoidCallback onHide;
 
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: onTap,
+        onTap: () => HardwareKeyboard.instance.isAltPressed ? onHide() : onTap(),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           color: held ? const Color(0x33FFB74D) : null,
+          foregroundDecoration: hidden
+              ? const BoxDecoration(color: Color(0x99000000))
+              : null,
           child: Row(
             children: <Widget>[
               Container(
