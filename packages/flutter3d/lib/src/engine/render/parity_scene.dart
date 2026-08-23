@@ -59,6 +59,21 @@ enum ParityScene {
   /// does not match, the pass never got that far. One number cannot say which,
   /// and guessing between them is how an afternoon goes.
   pointShadowMap,
+
+  /// The **static** half of the cube atlas, composited instead of the lit image.
+  ///
+  /// **The split above was one short, and that cost six attempts.** There are
+  /// two cube atlases — the movers, redrawn every frame, and the things that
+  /// never move, drawn once at load — and `PointShadowDistance` samples both and
+  /// keeps the nearer occluder. `pointShadowMap` shows only the first. So a
+  /// backend whose *static* atlas was empty passed the atlas fixture, failed the
+  /// lit one, and every explanation offered for it was about the lookup, which
+  /// was fine.
+  ///
+  /// That is exactly what was happening in WebGL, and the note on the skipped
+  /// fixture said "the atlas is right" for six attempts on the strength of a
+  /// number that was measuring the other atlas.
+  pointShadowStaticMap,
 }
 
 ({Scene scene, CameraNode camera}) buildParityScene(
@@ -99,7 +114,20 @@ enum ParityScene {
         lighting: LightingModel.lambert,
       ),
       name: 'small',
-    )..setPosition(1.1, 1.0, 0.4),
+    )
+      ..setPosition(1.1, 1.0, 0.4)
+      // **One static caster, so that the second cube atlas is not empty.**
+      // A point light has two — the movers, redrawn every frame, and the things
+      // that never move, drawn once — and `PointShadowDistance` samples both.
+      // Every fixture here left both spheres dynamic, so the static atlas was
+      // white in every run on every backend, and the half of the lookup that
+      // reads it was covered by nothing at all.
+      //
+      // The large sphere stays dynamic on purpose: a fixture where one atlas is
+      // empty tests one atlas, whichever one it is.
+      ..shadowIsStatic = which == ParityScene.pointShadow ||
+          which == ParityScene.pointShadowMap ||
+          which == ParityScene.pointShadowStaticMap,
   );
 
   // A floor for anything that casts, and only then: an unlit scene with a
@@ -107,7 +135,8 @@ enum ParityScene {
   // feature under test.
   if (which == ParityScene.directionalShadow ||
       which == ParityScene.pointShadow ||
-      which == ParityScene.pointShadowMap) {
+      which == ParityScene.pointShadowMap ||
+      which == ParityScene.pointShadowStaticMap) {
     scene.root.add(
       MeshNode(
         DeviceMesh.upload(
@@ -149,6 +178,7 @@ enum ParityScene {
 
     case ParityScene.pointShadow:
     case ParityScene.pointShadowMap:
+    case ParityScene.pointShadowStaticMap:
       scene.root.add(
         LightNode(name: 'lamp', type: LightType.point)
           ..intensity = 12.0
@@ -187,6 +217,12 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
       ParityScene.pointShadowMap => const RenderSettings(
           bloom: BloomSettings(enabled: false),
           showShadowMap: true,
+        ),
+      // The other cube atlas, which nothing had ever looked at. See the note
+      // on `ParityScene.pointShadowStaticMap`.
+      ParityScene.pointShadowStaticMap => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          showStaticShadowMap: true,
         ),
     };
 

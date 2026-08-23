@@ -193,6 +193,7 @@ final class RenderSettings {
     this.surfaceBuffer = false,
     this.showSurfaceBuffer = false,
     this.showShadowMap = false,
+    this.showStaticShadowMap = false,
     this.showPointShadowDebug = false,
     this.reflections = const ReflectionSettings(),
     this.ambientOcclusion = const AmbientOcclusionSettings(),
@@ -269,7 +270,20 @@ final class RenderSettings {
   /// A shadow map is the one buffer in the renderer that nothing has ever
   /// shown. It is about to hold a cube atlas, and an atlas whose contents
   /// nobody can look at is an atlas whose layout nobody can check.
+  ///
+  /// Shows the cube atlas the movers are drawn into, or the directional map
+  /// when there is no cube. For the other cube atlas see [showStaticShadowMap].
   final bool showShadowMap;
+
+  /// Composites the **static** cube atlas instead of the scene.
+  ///
+  /// A separate switch rather than a mode of [showShadowMap], because the whole
+  /// value of these is that each answers one question. There are two cube
+  /// atlases — the movers, redrawn every frame, and the things that never move,
+  /// drawn once at load — and the lighting shader samples both and keeps the
+  /// nearer occluder. Showing only the first is how "the atlas is right" got
+  /// said about a backend whose second atlas nobody had looked at.
+  final bool showStaticShadowMap;
 
   /// Paints the point shadow's penumbra estimate into the surface buffer, and
   /// shows that instead of the lit image.
@@ -3270,6 +3284,10 @@ final class _CompositeNode extends RenderNode {
           FrameResourceIds.cubeShadow,
           FrameResourceIds.shadowMap,
         ],
+        // The other cube atlas, and a separate switch for the reason given on
+        // `RenderSettings.showStaticShadowMap`: there are two, the lighting
+        // shader samples both, and only one of them had ever been looked at.
+        if (_settings.showStaticShadowMap) FrameResourceIds.cubeShadowStatic,
       ];
 
   @override
@@ -3310,10 +3328,12 @@ final class _CompositeNode extends RenderNode {
       // asking for something the graph was told about on almost none of them.
       // That is what makes the setting fall back to the lit image instead of to
       // whatever a renderer field happened to be holding.
-      shadowView: _settings.showShadowMap
-          ? frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
-              frame.resources.tryTexture(FrameResourceIds.shadowMap)
-          : null,
+      shadowView: _settings.showStaticShadowMap
+          ? frame.resources.tryTexture(FrameResourceIds.cubeShadowStatic)
+          : _settings.showShadowMap
+              ? frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
+                  frame.resources.tryTexture(FrameResourceIds.shadowMap)
+              : null,
       sceneGraph: _scene,
       views: _views,
       settings: frame.settings,

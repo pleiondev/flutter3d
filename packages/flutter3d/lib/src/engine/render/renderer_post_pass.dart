@@ -283,7 +283,7 @@ extension _PostPasses on Renderer {
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
       showPointShadowDebug: settings.showPointShadowDebug,
-      showShadowMap: settings.showShadowMap,
+      showShadowMap: settings.showShadowMap || settings.showStaticShadowMap,
       hasShadowView: shadowView != null,
       hasGlow: bloom != null,
       exposure: settings.exposure,

@@ -104,10 +104,28 @@ const Map<ParityScene, List<int>> kImpellerGrids = <ParityScene, List<int>>{
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
   ],
   ParityScene.pointShadowMap: <int>[
-    255, 255, 255, 255, 255, 255, 255, 255, 99, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 111, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 201, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 186, 216, 255, 255, 255, 255, 255, 255, 255, 197, 255, 255,
+    255, 255, 255, 255, 186, 216, 255, 255, 255, 255, 255, 255, 255, 207, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+  ],
+  ParityScene.pointShadowStaticMap: <int>[
+    255, 255, 255, 255, 255, 255, 255, 255, 164, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 222, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -305,9 +323,32 @@ void main() {
         // question from the one this session opened, and a wrong note is worse
         // than no note: the next person would have started from "absent
         // lookup" and spent the same day.
+        //
+        // **Four more refuted since, all by measurement rather than argument**,
+        // and each is worth a line so nobody spends the afternoon again:
+        //
+        //   * *Stale bindings.* Clearing every binding in `bindPipeline`
+        //     changes this number not at all, and the conformance check that
+        //     said so was reporting the viewport instead.
+        //   * *Uniform packing.* The `PointShadow` block reflects at 1760 bytes
+        //     with `faces` at 0, `lights` at 1536, `slots` at 1600, `params` at
+        //     1728 and `params2` at 1744 — std140 exactly — and the values in
+        //     it are the light at (2.2, 2.6, 1.8) with range 12, slot 0, and a
+        //     tangent of one. All correct.
+        //   * *The other atlas.* There are two cube atlases and only one had
+        //     ever been compared. The second is compared now
+        //     (`pointShadowStaticMap`) and WebGL matches the software backend
+        //     on it exactly, as it does on the first: 330 dark pixels either
+        //     way, mean luminance 253.63 to the same two decimals.
+        //   * *Texture units.* No draw in this scene reaches unit twelve, so
+        //     nothing is falling off the end of the sampler table.
+        //
+        // What is left, and where somebody should start: the atlases agree, the
+        // uniforms agree, the shader source is the same file, and the lit pass
+        // disagrees anyway. That points at sampling — filtering or precision on
+        // a half-float atlas — rather than at anything the engine computes.
         skip: which == ParityScene.pointShadow
-            ? 'the lookup is misaimed, not absent — see the note above, '
-                'rewritten after the viewport fix moved it'
+            ? 'the lookup is misaimed, not absent — see the note above'
             : null);
   }
 }
