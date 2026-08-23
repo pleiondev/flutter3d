@@ -685,7 +685,7 @@ def main():
         mesh = Mesh()
         build(mesh)
         path = os.path.join(
-            HERE, 'apps', 'dungeon', 'assets', 'models', f'{name}.glb',
+            HERE, 'apps', 'flutter3d_demo_dungeon', 'assets', 'models', f'{name}.glb',
         )
         size = write_glb(mesh, name, path)
         print(f'dungeon/{name}: {len(mesh.indices) // 3} triangles, {size} bytes')

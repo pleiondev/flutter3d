@@ -25,7 +25,7 @@ Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of th
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all sixteen packages against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all twenty-one packages and five applications against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/dzolotov/flutter3d.git
@@ -54,13 +54,13 @@ The script calls `impellerc` directly rather than going through Native Assets, a
 (cd packages/flutter3d/example && flutter run -d macos)
 
 # The shooter
-(cd apps/dungeon && flutter run -d macos)
+(cd apps/flutter3d_demo_dungeon && flutter run -d macos)
 
 # The platformer
-(cd apps/platformer && flutter run -d macos)
+(cd apps/flutter3d_demo_platformer && flutter run -d macos)
 
 # The racing game
-(cd apps/racing && flutter run -d macos)
+(cd apps/flutter3d_demo_racing && flutter run -d macos)
 ```
 
 <div class="note">
@@ -75,7 +75,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-1805 tests across sixteen packages, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
+2721 tests across 18 packages and five applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
 
 ## Your own application
 
@@ -92,7 +92,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # The backend. The engine talks to a HAL (flutter3d_graphics) and never to a
+  # The backend. The engine talks to a HAL (flutter3d_hardware) and never to a
   # graphics API, so this is the one line that picks which one runs:
   #   flutter3d_impeller -> flutter_gpu (Metal, Vulkan)  <- the production one
   #   flutter3d_webgl    -> WebGL2, in the browser
@@ -148,9 +148,14 @@ Scene buildScene(GraphicsDevice device) {
 }
 ```
 
+<div class="note">
+<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_backend</code>, <code>flutter3d_session</code> and <code>flutter3d_ui</code>.</p>
+</div>
+
 ## Where to go next
 
 - [Core: what core is](/core/): the shape of the engine and which package owns what
 - [The frame](/core/rendering/): what the renderer actually does with a scene
 - [Tutorial: first scene](/core/tutorial/): the whole application, step by step
+- [Assembling an application](/core/session/): the device, frame surface and level lifecycle the shipped games actually use
 - [Pitfalls](/reference/pitfalls/): the conditions without which Flutter GPU silently renders nothing

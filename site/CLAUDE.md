@@ -38,9 +38,9 @@ This has already caught several plausible-looking mistakes: `DeviceMesh` has
 `Level` has an `addTo(world)` extension, not `buildCollision`. An example that does not compile is worse than no example, because a reader
 will trust it.
 
-The same goes for prose. Numbers on this site (1242 tests, 4.54 ms → 1.1 µs,
+The same goes for prose. Numbers on this site (2721 tests, 4.54 ms → 1.1 µs,
 fourteen centimetres per texel, 17.7 ms per frame) come from the repository's
-own READMEs, `docs/SPEC.md` and `flutter3d_graphics/COMPATIBILITY.md`. Do not
+own READMEs, `docs/SPEC.md` and `flutter3d_hardware/COMPATIBILITY.md`. Do not
 invent one, and do not round one someone measured.
 
 State unfinished things as unfinished, and re-check the claim before repeating

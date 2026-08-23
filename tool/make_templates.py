@@ -281,11 +281,11 @@ def main():
     # templates exist has to be written down like everything else.
     dump(
         {'templates': sorted(TEMPLATES)},
-        os.path.join(HERE, 'apps', 'editor', 'assets', 'templates', 'index.json'),
+        os.path.join(HERE, 'apps', 'flutter3d_editor', 'assets', 'templates', 'index.json'),
     )
 
     for genre, template in TEMPLATES.items():
-        where = os.path.join(HERE, 'apps', 'editor', 'assets', 'templates', genre)
+        where = os.path.join(HERE, 'apps', 'flutter3d_editor', 'assets', 'templates', genre)
 
         # The vocabulary, with every model path written the way it will be read:
         # from inside the project this gets copied into.

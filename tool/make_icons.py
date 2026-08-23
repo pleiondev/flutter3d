@@ -274,11 +274,16 @@ def editor(face, draw):
         draw.line([a, b], fill=green, width=width)
 
 
+# Keyed on the application directory, which is also its package name. The
+# `flutter3d_` prefix is not decoration here: `os.path.isdir` below silently
+# writes nothing for a key that does not match a directory, so a stale name
+# means an icon that quietly stops being regenerated — and the CI step that
+# diffs the output would go on passing, because nothing changed.
 DESIGNS = {
-    'platformer': ascent,
-    'dungeon': crypt,
-    'racing': ring,
-    'editor': editor,
+    'flutter3d_demo_platformer': ascent,
+    'flutter3d_demo_dungeon': crypt,
+    'flutter3d_demo_racing': ring,
+    'flutter3d_editor': editor,
 }
 
 
