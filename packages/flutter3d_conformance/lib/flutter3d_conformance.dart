@@ -12,11 +12,14 @@
 /// So they are executable now. A backend calls [runDeviceConformance] from its
 /// own test suite and finds out.
 ///
-/// Deliberately shader-free. Every check here works with clears, uploads and
-/// readback alone, so a backend can run them before it has a single shader
-/// compiled — which is when the answers are cheapest to act on. What needs a
-/// shader (an unbound sampler, a uniform block's members) stays in
-/// `COMPATIBILITY.md` for now, and is named there as such.
+/// **Two tiers, and the split is a correction.** This file used to say it was
+/// shader-free as a whole, and that stopped being true the day a check needed a
+/// pipeline: five of the twelve now link stages and draw. A new backend
+/// following the old promise would have met five failures it could do nothing
+/// about, so the lists say which is which — [coreChecks] needs clears, uploads
+/// and readback alone, [shaderChecks] needs the bundle. What still needs a
+/// shader and is not here (an unbound sampler, a uniform block's members) stays
+/// in `COMPATIBILITY.md`, and is named there as such.
 library;
 
 import 'dart:typed_data';
@@ -82,22 +85,46 @@ void runDeviceConformance({
   }
 }
 
-/// Every check, as plain functions, for a harness that is not a test runner.
-List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
+/// The checks a backend can run before it has compiled a single shader.
+///
+/// **This list is why the two exist separately.** The library used to say it
+/// was shader-free as a whole, and it stopped being true the day the third
+/// check needed a pipeline — so a new backend, following the promise, would
+/// have hit five failures it had no way to act on yet. Clears, uploads and
+/// readback only: the answers here are the cheapest ones to get, and they are
+/// the ones worth having first.
+List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
       (name: 'answers every capability query', run: _capabilities),
       (name: 'the HDR format it names is renderable', run: _hdrRenderable),
       (name: 'a clear covers the whole attachment', run: _clearCoversAll),
       (name: 'uploaded pixels keep their row order', run: _rowOrder),
       (name: 'a buffer is uploaded for its declared use', run: _geometryUsage),
+    ];
+
+/// The checks that need the shader bundle and a pipeline.
+///
+/// Run these once [coreChecks] pass and the bundle loads. What they cover is
+/// what no signature states: that a pass starts covering its own attachment and
+/// nothing else, that it inherits no clipping from the pass before it, and that
+/// a binding made for one pipeline does not follow the next.
+List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
       (name: 'the bundle answers to every name the engine asks for',
           run: _shaderNames),
       (name: 'a stage pair the engine links does link', run: _linking),
+      (name: 'a pass covers the whole of its attachment',
+          run: _passCoversItsAttachment),
+      (name: 'a pass does not inherit the previous pass\'s scissor',
+          run: _passDoesNotInheritScissor),
       (name: 'an instanced draw draws every instance', run: _instancedDraw),
       (name: 'a pipeline switch leaves no stale bindings',
           run: _pipelineSwitchKeepsBindingsApart),
       (name: 'a cube map answers the face a direction points at',
           run: _cubeFaces),
     ];
+
+/// Every check, as plain functions, for a harness that is not a test runner.
+List<ConformanceCheck> get conformanceChecks =>
+    <ConformanceCheck>[...coreChecks, ...shaderChecks];
 
 /// Six faces, six directions, six colours.
 ///
@@ -359,6 +386,152 @@ Future<void> _pipelineSwitchKeepsBindingsApart(GraphicsDevice device) async {
       'a particle draw bound the identity and landed off the frame — the '
       'debug-line pipeline\'s stale LineInfo followed it through the switch '
       '(centre came back $particle)');
+}
+
+/// A pass draws into the whole of its attachment, and no more.
+///
+/// **The check the pipeline-switch one was accidentally making**, and it took
+/// two wrong diagnoses to find that out. `runDeviceConformance` builds a 64×64
+/// device and several checks then draw into a 16×16 target; if a backend leaves
+/// the viewport at the size of its canvas, clip space is stretched across four
+/// times the attachment and every draw lands somewhere other than where its
+/// matrix said. Nothing in the engine caught it because every one of its passes
+/// sets a viewport before drawing, so the default was never exercised.
+///
+/// Half a quad rather than a full-screen triangle, because a shape that covers
+/// everything looks the same at any viewport. The left half of clip space is
+/// painted; the right half must come back as it was cleared.
+Future<void> _passCoversItsAttachment(GraphicsDevice device) async {
+  const size = 16;
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(vertex != null && fragment != null,
+      'the debug-line stages are missing, so this cannot draw anything');
+
+  // x from −1 to 0, y over the whole of it: the left half of the frame.
+  final leftHalf = Float32List.fromList(<double>[
+    -1, -1, 0.5, 0, 1, 0, 1, //
+    0, -1, 0.5, 0, 1, 0, 1,
+    0, 1, 0.5, 0, 1, 0, 1,
+    -1, 1, 0.5, 0, 1, 0, 1,
+  ]);
+  final indices = Uint16List.fromList(<int>[0, 1, 2, 0, 2, 3]);
+
+  final target = device.createTexture(const RenderTargetSpec(
+    width: size,
+    height: size,
+    format: TextureFormat.r8g8b8a8UNormInt,
+  ));
+  final pass = device.beginRenderPass(RenderPassDescriptor(
+    colors: <ColorTarget>[
+      ColorTarget(
+        texture: target,
+        loadAction: LoadAction.clear,
+        clearValue: Vector4.zero(),
+      ),
+    ],
+  ));
+  pass
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexData(ByteData.sublistView(leftHalf), 4)
+    ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 6)
+    ..draw();
+  pass.submit();
+
+  final pixels = await device.readPixels(target);
+  require(pixels != null, 'the target could not be read back');
+  final bytes = pixels!.buffer.asUint8List();
+  int green(int x, int y) => bytes[((y * size + x) * 4) + 1];
+
+  require(
+      green(size ~/ 4, size ~/ 2) > 128,
+      'the left quarter of the attachment is unpainted, so the pass drew into '
+      'less than its attachment — a viewport smaller than what it renders to '
+      '(came back ${green(size ~/ 4, size ~/ 2)})');
+  require(
+      green(size * 3 ~/ 4, size ~/ 2) < 128,
+      'the right quarter of the attachment is painted by a shape that stops at '
+      'the middle of clip space, so the pass drew into more than its '
+      'attachment — a viewport left at the size of something else, most likely '
+      'the canvas or the previous pass '
+      '(came back ${green(size * 3 ~/ 4, size ~/ 2)})');
+}
+
+/// A pass does not inherit the rectangle the previous one was clipped to.
+///
+/// **The half of the last check that costs a whole frame rather than a corner.**
+/// A backend that keeps the scissor test enabled between passes — which is the
+/// reasonable thing to do, since the engine sets one per shadow tile — starts
+/// each pass clipped to whatever tile the last one finished on. Everything drawn
+/// outside it is discarded, silently, and the symptom is a frame that is correct
+/// in one rectangle and untouched everywhere else.
+///
+/// Two passes on one device, because one pass cannot leak into itself.
+Future<void> _passDoesNotInheritScissor(GraphicsDevice device) async {
+  const size = 16;
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(vertex != null && fragment != null,
+      'the debug-line stages are missing, so this cannot draw anything');
+
+  final everything = Float32List.fromList(<double>[
+    -1, -1, 0.5, 0, 1, 0, 1, //
+    3, -1, 0.5, 0, 1, 0, 1,
+    -1, 3, 0.5, 0, 1, 0, 1,
+  ]);
+  final indices = Uint16List.fromList(<int>[0, 1, 2]);
+
+  Future<Uint8List> paintAll({ScreenRect? clippedTo}) async {
+    final target = device.createTexture(const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ));
+    final pass = device.beginRenderPass(RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ));
+    pass
+      ..setPrimitiveType(PrimitiveType.triangle)
+      ..setCullMode(CullMode.none);
+    // Only the first pass narrows itself. The second sets nothing, which is the
+    // whole question: what does a pass that says nothing about clipping get?
+    if (clippedTo != null) pass.setScissor(clippedTo);
+    pass
+      ..bindPipeline(device.createPipeline(vertex!, fragment!))
+      ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+        'view_projection': Float32List.fromList(Matrix4.identity().storage),
+      })
+      ..bindVertexData(ByteData.sublistView(everything), 3)
+      ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
+      ..draw();
+    pass.submit();
+    final pixels = await device.readPixels(target);
+    require(pixels != null, 'the target could not be read back');
+    return pixels!.buffer.asUint8List();
+  }
+
+  // A tile in the top-left corner, the shape a shadow atlas draws into.
+  await paintAll(
+      clippedTo: const ScreenRect(x: 0, y: 0, width: size ~/ 4, height: size ~/ 4));
+
+  final second = await paintAll();
+  final corner = second[((size ~/ 2) * size + (size ~/ 2)) * 4 + 1];
+  require(
+      corner > 128,
+      'a pass that set no scissor was clipped to the tile the previous pass '
+      'set: the middle of the attachment is unpainted by a draw that covers '
+      'all of clip space (came back $corner)');
 }
 
 Future<void> _capabilities(GraphicsDevice device) async {

@@ -245,6 +245,20 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Opens a pass and returns the encoder that records into it.
   ///
   /// The returned encoder must be submitted; see [CommandEncoder.submit].
+  ///
+  /// **A pass starts covering the whole of its attachment and nothing else.**
+  /// Both the viewport and the scissor are the full attachment until the caller
+  /// says otherwise, and neither carries over from the pass before it. This is
+  /// stated because it was assumed: every pass this engine opens sets a viewport
+  /// of its own before drawing, so a backend that inherited the last pass's
+  /// rectangle — or its canvas's — went unnoticed until
+  /// `flutter3d_conformance` asked. What it cost was a shadow-atlas tile
+  /// clipping every draw of the pass that followed it, discarded silently and
+  /// visible only as a frame that is right in one rectangle and untouched
+  /// everywhere else.
+  ///
+  /// The two checks that hold it are `a pass covers the whole of its
+  /// attachment` and `a pass does not inherit the previous pass's scissor`.
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor);
 
   /// A widget that shows the finished frame.

@@ -283,8 +283,31 @@ void main() {
         // texture size; the v convention (flipping it fixes the directional map
         // and moves this not at all); and a silently dropped uniform member,
         // which is now an error rather than a silence and does not fire here.
+        //
+        // **The paragraph above is history, and its conclusion is now wrong.**
+        // A pass on this backend never set a viewport or a scissor of its own,
+        // so both were whatever the previous pass had left — and for the cube
+        // atlas, which is 6144 by 4096 while the canvas is a hundred pixels
+        // wide, that is not a subtle error. Fixing it (see the note in
+        // `WebGlEncoder`'s constructor) changed this number for the first time
+        // in six attempts: the lookup is no longer absent.
+        //
+        // What it is now, measured: the top of the floor is shadowed and agrees
+        // with Impeller, and the bottom is lit where Impeller has it dark —
+        // rows 0, 7 and 15 of the sampled grid read 4 / 4,4,4,4,11,29,57,81 /
+        // 71…107, against a reference that is dark throughout the far half.
+        // Worst cell 15,7: WebGL 107, Impeller 14; mean 7.95 against a budget
+        // of 8. So it is a *misaimed* lookup, which is the thing the old note
+        // ruled out — one face of the cube, or one tile of the atlas, being
+        // read where its neighbour should be.
+        //
+        // Left skipped rather than chased here because it is now a different
+        // question from the one this session opened, and a wrong note is worse
+        // than no note: the next person would have started from "absent
+        // lookup" and spent the same day.
         skip: which == ParityScene.pointShadow
-            ? 'the atlas is right, the lookup into it is not'
+            ? 'the lookup is misaimed, not absent — see the note above, '
+                'rewritten after the viewport fix moved it'
             : null);
   }
 }

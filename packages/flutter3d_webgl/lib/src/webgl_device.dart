@@ -699,7 +699,10 @@ final class WebGlEncoder implements CommandEncoder {
   WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
       : _targetHeight = descriptor.colors.isNotEmpty
             ? descriptor.colors.first.texture.height
-            : (descriptor.depth?.texture.height ?? 0) {
+            : (descriptor.depth?.texture.height ?? 0),
+        _targetWidth = descriptor.colors.isNotEmpty
+            ? descriptor.colors.first.texture.width
+            : (descriptor.depth?.texture.width ?? 0) {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
 
@@ -772,12 +775,41 @@ final class WebGlEncoder implements CommandEncoder {
       );
     }
 
+    // **A pass starts covering the whole of what it draws into.** Neither
+    // rectangle was ever set here, so both were whatever the last pass left —
+    // and for the first pass of a frame, whatever size the canvas is.
+    //
+    // The engine did not notice because every one of its passes sets a viewport
+    // of its own before drawing. `flutter3d_conformance` is written against the
+    // contract rather than against this engine's habits, and its pipeline-switch
+    // check draws into a 16×16 target on a 64×64 device: the viewport stayed
+    // 64×64, so the centre pixel of the attachment was three quarters of the way
+    // out along the full-screen triangle, and the particle's radial falloff had
+    // faded to nothing by the time it got there. The check reported a stale
+    // uniform block, which is the one thing it was not — Impeller passes all ten
+    // and the block was bound correctly on both.
+    //
+    // The scissor matters more than the viewport and is why this is not
+    // cosmetic: SCISSOR_TEST goes back on immediately below, and the rectangle
+    // it went back on with belonged to the previous pass — a shadow-atlas tile,
+    // most of the time. Every draw of the next pass outside that tile was
+    // discarded.
+    _gl.viewport(0, 0, _targetWidth, _targetHeight);
+    _gl.scissor(0, 0, _targetWidth, _targetHeight);
+
     // Back on, because everything after this is a draw and the engine sets a
     // scissor per tile.
     _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
 
-    _gl.enable(web.WebGLRenderingContext.DEPTH_TEST);
-    _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
+    // Depth testing follows the attachment rather than being switched on for
+    // every pass. Without a depth buffer GL specifies the test as passing
+    // always, so leaving it enabled was harmless and dishonest; a pass that has
+    // no depth now says so, and does not inherit the last pass's answer.
+    if (depth != null) {
+      _gl.enable(web.WebGLRenderingContext.DEPTH_TEST);
+    } else {
+      _gl.disable(web.WebGLRenderingContext.DEPTH_TEST);
+    }
   }
 
   final WebGlDevice _device;
@@ -787,6 +819,9 @@ final class WebGlEncoder implements CommandEncoder {
   /// The attachment's height, for turning top-left rectangles into GL's
   /// bottom-left ones. See [_flipY].
   final int _targetHeight;
+
+  /// The attachment's width, for the viewport and scissor a pass starts with.
+  final int _targetWidth;
 
   final List<TextureHandle?> _resolves = <TextureHandle?>[];
   final List<TextureHandle> _sources = <TextureHandle>[];
