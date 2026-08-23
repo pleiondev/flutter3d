@@ -39,10 +39,10 @@ import 'package:flutter3d/src/engine/assets/model_asset.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/lighting_model.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_graphics/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
-import 'fake_backend.dart';
 
 // A fixture rather than a game's asset. It used to live in the platformer's
 // `assets/models/`, which is declared whole, so a rig the game stopped drawing

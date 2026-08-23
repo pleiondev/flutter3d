@@ -865,18 +865,7 @@ class _RaceScreenState extends State<RaceScreen>
   Widget build(BuildContext context) {
     final error = _initError;
     if (error != null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              '$error',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-        ),
-      );
+      return DidNotStart(error);
     }
 
     final renderer = _renderer;

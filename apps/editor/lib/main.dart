@@ -1249,15 +1249,12 @@ class _EditorScreenState extends State<EditorScreen>
   Widget build(BuildContext context) {
     final error = _error;
     if (error != null) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF14161A),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text('$error',
-                style: const TextStyle(color: Color(0xFFFF8A80))),
-          ),
-        ),
+      // The editor's own colours: a tool sits beside other tools, and black
+      // with grey text is a game's screen rather than an application's.
+      return DidNotStart(
+        error,
+        background: const Color(0xFF14161A),
+        foreground: const Color(0xFFFF8A80),
       );
     }
 

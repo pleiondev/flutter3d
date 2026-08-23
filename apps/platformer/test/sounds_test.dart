@@ -22,47 +22,31 @@ library;
 
 import 'dart:io';
 
+import 'package:flutter3d_audio/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/sounds.dart';
 
-/// Every `SoundDef` this game declares, by name, read out of the source.
+/// This game's sound table, read out of its own source.
 ///
-/// From the file rather than from a second list, because a second list is the
-/// bug. Dart has no reflection to ask a class what it holds, so the source is
-/// the only place that knows — and it is the same source the compiler reads.
-Set<String> _declared() {
-  final source = File('lib/src/sounds.dart').readAsStringSync();
-  return RegExp(r'static const SoundDef ([A-Za-z]+)')
-      .allMatches(source)
-      .map((RegExpMatch m) => m.group(1)!)
-      .toSet();
-}
-
-/// The names inside the bank's own literal.
+/// **The scan is `flutter3d_audio`'s now.** It was two regular expressions in
+/// each of three games, and the pair here was the third copy — a scan in three
+/// copies is two copies that stop matching the day somebody reformats a bank.
 ///
-/// Still read from the source, and still necessary: a `SoundBank` removes the
-/// *second list* — there is nothing left that has to agree with anything — but
-/// it cannot see a constant declared beside it and left out. No type can. This
-/// is the check that catches that, and it is the check the platformer needed
-/// and did not have when six of its fourteen went missing.
-Set<String> _loaded() {
-  final source = File('lib/src/sounds.dart').readAsStringSync();
-  final list = RegExp(r'static final SoundBank all = SoundBank\(<SoundDef>\[(.*?)\]\);',
-          dotAll: true)
-      .firstMatch(source)!
-      .group(1)!;
-  return RegExp(r'([A-Za-z]+),')
-      .allMatches(list)
-      .map((RegExpMatch m) => m.group(1)!)
-      .toSet();
-}
+/// What it catches is the one thing no type can: a `static const SoundDef`
+/// declared beside the bank and left out of it. `SoundBank` removes the second
+/// list, and Dart has no reflection to ask a class what it holds, so the source
+/// is the only place that knows. This game is the reason the check exists — six
+/// of its fourteen sounds were declared and never banked, and it was half mute
+/// for months.
+({Set<String> declared, Set<String> inTheBank}) _table() =>
+    soundTableIn('lib/src/sounds.dart');
 
 void main() {
   test('every sound the game declares is one the game loads', () {
     // **The one that was false.** A declared sound that is not preloaded is a
     // sound that can never play: the backend has no source for it, hands back
     // no voice, and the emitter waits for one for ever.
-    final missing = _declared().difference(_loaded());
+    final missing = _table().declared.difference(_table().inTheBank);
 
     expect(missing, isEmpty,
         reason: 'declared and never preloaded, so silent in the real build: '
@@ -70,7 +54,7 @@ void main() {
   });
 
   test('and nothing is loaded that was never declared', () {
-    expect(_loaded().difference(_declared()), isEmpty);
+    expect(_table().inTheBank.difference(_table().declared), isEmpty);
   });
 
   test('and every one of them has its file where it says', () {

@@ -1062,20 +1062,13 @@ class _GameScreenState extends State<GameScreen>
   Widget build(BuildContext context) {
     final error = _initError;
     if (error != null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              'The renderer did not start.\n\n$error\n\n'
-              'The shader bundle is built by '
-              'packages/flutter3d_impeller/tool/build_shaders.sh and is not '
-              'in the repository.',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-        ),
+      // The sentence is this game's; the screen is `flutter3d_session`'s,
+      // and it was the same four widgets in five applications.
+      return DidNotStart(
+        'The renderer did not start.\n\n$error',
+        explaining: 'The shader bundle is built by '
+            'packages/flutter3d_impeller/tool/build_shaders.sh and is not '
+            'in the repository.',
       );
     }
 

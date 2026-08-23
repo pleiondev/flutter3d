@@ -14,6 +14,11 @@ dependencies:
   # The backends. Named here on purpose: which one runs is decided by
   # `lib/src/backend.dart`, a conditional import, and these two lines are the
   # whole of the difference between a desktop build and a web one.
+  # Picks Impeller or WebGL at compile time, and holds the `openDevice` the
+  # three games had a copy of each. See flutter3d_backend.
+  flutter3d_backend:
+    path: ../../packages/flutter3d_backend
+
   flutter3d_impeller:
     path: ../../packages/flutter3d_impeller
 

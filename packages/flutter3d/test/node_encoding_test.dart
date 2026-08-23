@@ -31,10 +31,10 @@ import 'package:flutter3d/src/engine/scene/camera_node.dart';
 import 'package:flutter3d/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d/src/engine/scene/scene.dart';
 import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_graphics/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-import 'fake_backend.dart';
 
 /// Records the one call a node can make back into the renderer.
 ///

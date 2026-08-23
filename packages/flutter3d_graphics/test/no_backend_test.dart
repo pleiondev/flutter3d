@@ -40,6 +40,13 @@ const Map<String, String> _mayUseFlutter = <String, String>{
       'GraphicsDevice.present returns a widget showing the finished frame, '
           'which every backend must be able to produce and only Flutter can '
           'name',
+  // The rule found this the hour the file arrived, which is the argument for
+  // having it: `testing.dart` is a `GraphicsDevice` that draws nothing, so it
+  // has to answer `present` like any other — and the answer is a widget. It
+  // names Flutter for the same reason `graphics_device.dart` does, and for no
+  // other; everything else in it is this package's own vocabulary.
+  'testing.dart': 'FakeBackend implements GraphicsDevice.present, which is a '
+      'widget by the line above',
 };
 
 void main() {

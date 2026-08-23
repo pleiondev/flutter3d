@@ -14,12 +14,11 @@
 /// disk, and one reads the screen a player can reach.
 library;
 
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:flutter3d_ui/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:platformer/src/credits.dart';
 
@@ -48,19 +47,16 @@ void main() {
   test('every model the game ships is accounted for', () {
     // **From the directory, not from a list written beside the other list.**
     // The failure this catches is an asset added to the game and to nothing
-    // else, which is exactly how the untraced key arrived.
-    final shipped = Directory('assets/models')
-        .listSync()
-        .whereType<File>()
-        .map((File f) => 'models/${f.uri.pathSegments.last}')
-        .where((String name) => name.endsWith('.glb'))
-        .toSet();
-    final credited = Credits.models.map((Credit c) => c.file).toSet();
+    // else, which is exactly how an untraced key once arrived in two games.
+    //
+    // The comparison is `flutter3d_ui`'s: it was these twelve lines in three
+    // applications, down to the wording of the failures.
+    final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
 
-    expect(shipped, isNotEmpty, reason: 'no models found to check');
-    expect(credited.difference(shipped), isEmpty,
+    expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
+    expect(gaps.unshipped, isEmpty,
         reason: 'credited something the game does not ship');
-    expect(shipped.difference(credited), isEmpty,
+    expect(gaps.uncredited, isEmpty,
         reason: 'shipped a model nobody is credited for');
   });
 

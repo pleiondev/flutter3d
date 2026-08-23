@@ -22,39 +22,21 @@ import 'package:dungeon/src/sounds.dart';
 import 'package:dungeon/src/soundtrack.dart';
 import 'package:dungeon/src/staging.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
+import 'package:flutter3d_audio/testing.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Every `SoundDef` this game declares, read from the source.
+/// This game's sound table, read out of its own source.
 ///
-/// From the file rather than from a list here, because a list here is the bug:
-/// Dart has no reflection to ask a class what it holds, so the source is the
-/// only place that knows — and it is the same source the compiler reads.
-Set<String> _declared() => RegExp(r'static const SoundDef ([A-Za-z]+)')
-    .allMatches(File('lib/src/sounds.dart').readAsStringSync())
-    .map((RegExpMatch m) => m.group(1)!)
-    .toSet();
+/// **The scan is `flutter3d_audio`'s now**, and it was two regular expressions
+/// in three games. What it catches is the one thing no type can: a
+/// `static const SoundDef` declared beside the bank and left out of it. See
+/// `soundTableIn` for why the source is the only place that knows.
+({Set<String> declared, Set<String> inTheBank}) _table() =>
+    soundTableIn('lib/src/sounds.dart');
 
-/// The names inside the bank's own literal.
-///
-/// A `SoundBank` removes the *second list* — there is nothing left that has to
-/// agree with anything — but it cannot see a constant declared beside it and
-/// left out of it. No type can. This is the check that catches that, and it is
-/// the one the platformer did not have on the day six of its fourteen sounds
-/// went missing and the game was half mute for months.
-Set<String> _inTheBank() {
-  final source = File('lib/src/sounds.dart').readAsStringSync();
-  final list = RegExp(
-    r'static final SoundBank all = SoundBank\(<SoundDef>\[(.*?)\]\);',
-    dotAll: true,
-  ).firstMatch(source)!.group(1)!;
-  return RegExp(r'([A-Za-z]+),')
-      .allMatches(list)
-      .map((RegExpMatch m) => m.group(1)!)
-      .toSet();
-}
 
 const double _dt = 1.0 / 60.0;
 
@@ -237,7 +219,7 @@ void main() {
       // A declared sound that is not in the bank can never play: the backend
       // has no source for it, hands back no voice, and the emitter waits for
       // one for ever. It looks exactly like a sound nobody triggered.
-      final missing = _declared().difference(_inTheBank());
+      final missing = _table().declared.difference(_table().inTheBank);
 
       expect(missing, isEmpty,
           reason: 'declared and never preloaded, so silent in the real build: '
@@ -245,7 +227,7 @@ void main() {
     });
 
     test('and nothing in it was never declared', () {
-      expect(_inTheBank().difference(_declared()), isEmpty);
+      expect(_table().inTheBank.difference(_table().declared), isEmpty);
     });
 
     test('and every one of them has its file where it says', () {
