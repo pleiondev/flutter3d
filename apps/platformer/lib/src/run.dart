@@ -36,6 +36,44 @@ final class LevelReady {
 /// nowhere. A run spans levels and a simulation does not.
 typedef Carried = ({int lives, int deaths, double elapsed, int coins});
 
+/// Reads a level document and builds the half of it that draws.
+///
+/// **A named function rather than four lines inside [PlatformerRun.open],
+/// because `frame_test.dart` was the second copy of them.** Its copy happened
+/// to be right; the crypt's equivalent copy had lost `bindLights()`, so every
+/// torch in that harness lit nothing. A frame test is only worth having if the
+/// frame is the game's, and that means calling what the game calls rather than
+/// writing it out again beside it.
+///
+/// Deliberately *not* in `staging.dart`: everything here needs a
+/// [GraphicsDevice], and that file exists to be callable without one.
+Future<
+    ({
+      EntityRegistry kinds,
+      LoadedLevel loaded,
+      FixtureVisuals fixtures,
+    })> openLevel(
+  String asset, {
+  required GraphicsDevice device,
+}) async {
+  final kinds = platformerRegistry();
+  final loaded = await LevelLoader().load(
+    asset,
+    device: device,
+    registry: kinds,
+    rules: platformerRules(),
+  );
+  final fixtures = FixtureVisuals(
+    loaded.scene,
+    loaded,
+    appearance: const PlatformerLooks(),
+    device: device,
+    // Before spawning, so a light-bearing fixture can find the light it drives.
+  )..bindLights();
+
+  return (kinds: kinds, loaded: loaded, fixtures: fixtures);
+}
+
 /// This game's answers to the five questions a run asks.
 ///
 /// Starting, restarting, moving on, saving, resuming and the guards around them
@@ -75,19 +113,7 @@ final class PlatformerRun extends RunSession<LevelReady> {
   @override
   Future<LevelReady> open(String asset) async {
     final device = await openDevice();
-    final kinds = platformerRegistry();
-    final loaded = await LevelLoader().load(
-      asset,
-      device: device,
-      registry: kinds,
-      rules: platformerRules(),
-    );
-    final fixtures = FixtureVisuals(
-      loaded.scene,
-      loaded,
-      appearance: const PlatformerLooks(),
-      device: device,
-    )..bindLights();
+    final (:kinds, :loaded, :fixtures) = await openLevel(asset, device: device);
 
     final staged = stage(
       loaded.level,

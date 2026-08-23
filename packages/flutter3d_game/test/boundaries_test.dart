@@ -11,4 +11,10 @@ library;
 
 import 'package:flutter3d_boundaries/flutter3d_boundaries.dart';
 
-void main() => expectPackageBoundaries();
+void main() {
+  expectPackageBoundaries();
+  // The generator itself is what everything else is required to use.
+  expectRepeatableStep(allowing: const <String, String>{
+    'lib/src/save/game_random.dart': 'it is the seeded generator',
+  });
+}

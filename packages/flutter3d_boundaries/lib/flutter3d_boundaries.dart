@@ -35,10 +35,31 @@ import 'package:test/test.dart';
 /// Two of them do not exist yet. They are named anyway, because the cost of a
 /// name in a list is nothing and the cost of finding out later is a package
 /// that was allowed to grow the wrong way for a month.
-const List<String> _genres = <String>[
+///
+/// **Public, and that is the whole of how the repository keeps one list.** A
+/// checkout that adds a fourth genre has two places that must learn about it —
+/// this constant and the workspace in the root `pubspec.yaml` — and a
+/// repository-level test compares the two. Deriving the list from the pubspec
+/// instead was the other option and was rejected: this package is published,
+/// and a rule that only works inside one checkout is not a rule a consumer can
+/// keep.
+const List<String> genrePackages = <String>[
   'flutter3d_game_shooter',
   'flutter3d_game_platformer',
   'flutter3d_game_racing',
+];
+
+/// Every application in this repository.
+///
+/// Public for the reason [genrePackages] is, and it was inline in one test —
+/// four names in a loop, with `template_app` missing from it, which is exactly
+/// the drift a second copy produces.
+const List<String> applications = <String>[
+  'dungeon',
+  'editor',
+  'platformer',
+  'racing',
+  'template_app',
 ];
 
 /// Genre vocabulary, as words rather than as imports.
@@ -196,7 +217,7 @@ void expectNoGenre({
   test('nothing in this package names a genre', () {
     final offenders = <String>[
       for (final file in _dartFilesIn('lib'))
-        for (final genre in _genres)
+        for (final genre in genrePackages)
           if (reaches(file, genre)) '${file.path} reaches $genre',
     ];
 
@@ -219,7 +240,7 @@ void expectNoGenre({
     // the game that says it.
     final pubspec = File('pubspec.yaml').readAsStringSync();
 
-    for (final app in <String>['dungeon', 'platformer', 'racing', 'editor']) {
+    for (final app in applications) {
       expect(RegExp('^\\s+$app:', multiLine: true).hasMatch(pubspec), isFalse,
           reason: 'this package depends on the $app application');
     }
@@ -373,6 +394,182 @@ void expectNoSharedMutables({List<String> allowing = const <String>[]}) {
     expect(sharedMutablesIn('static final RegExp _key = RegExp(r"a");'), isEmpty,
         reason: 'a compiled pattern is not a value anybody scales');
   });
+}
+
+/// The two rules a genre package is held to.
+///
+/// **The mirror image of [expectNoGenre], and it was in three states at once.**
+/// A genre package is allowed to know what a monster is — that is what it is
+/// for — so the rule it keeps instead is that its *simulation* half draws
+/// nothing, and that it does not reach sideways into another genre. Racing kept
+/// both, the shooter kept one, and the platformer kept neither; each of the two
+/// that existed carried its own private copy of [reaches], which is the same
+/// two-copies-of-a-scan that made this package.
+///
+/// [mayDraw] names the renderer-facing files, one path at a time, relative to
+/// the package root. An allowlist rather than a directory rule, so that a second
+/// file needing a renderer is a deliberate line here rather than a `mv`.
+///
+/// [otherGenres] defaults to every entry of [genrePackages] that is not this
+/// package. `pub` cannot say what was never declared, and a `dev_dependency` on
+/// a sibling genre would tie the two together for as long as nobody looked.
+///
+/// Three tests, and the second is the one that keeps the first honest: an
+/// allowlist naming a file that no longer draws is a rule rotting into a
+/// description of work already done.
+void expectGenreIsolation({
+  Set<String> mayDraw = const <String>{},
+  List<String>? otherGenres,
+}) {
+  // Read inside the test rather than here. `expect` throws
+  // `OutsideTestException` when no test is running, and everything in this
+  // function body runs at registration time — the same trap
+  // `flutter3d_conformance` writes down on its own `require`, met from the
+  // other side.
+  List<String> siblings() =>
+      otherGenres ??
+      <String>[
+        for (final genre in genrePackages)
+          if (genre != _packageName()) genre,
+      ];
+
+  bool draws(File file) =>
+      reaches(file, 'package:flutter3d/') || reaches(file, 'flutter_gpu');
+
+  test('the simulation half draws nothing', () {
+    final offenders = <String>[
+      for (final file in _dartFilesIn('lib'))
+        if (!mayDraw.contains(file.path))
+          if (draws(file)) file.path,
+    ];
+
+    expect(offenders, isEmpty,
+        reason: 'move it into the bridge, or add it to mayDraw and say why — '
+            'the simulation half is what lets this package be tested without a '
+            'device, and a collision that lets a body through a wall once in a '
+            'thousand steps is not visible in a screenshot');
+  });
+
+  test('and the allowlist fails in both directions', () {
+    for (final path in mayDraw) {
+      final file = File(path);
+      expect(file.existsSync(), isTrue,
+          reason: '$path is allowed to draw and is not there');
+      expect(draws(file), isTrue,
+          reason: '$path no longer draws; take it off the list');
+    }
+  });
+
+  test('and this package does not reach into another genre', () {
+    final offenders = <String>[
+      for (final file in _dartFilesIn('lib'))
+        for (final genre in siblings())
+          if (reaches(file, genre)) '${file.path} reaches $genre',
+    ];
+
+    expect(offenders, isEmpty,
+        reason: 'a racing game borrowing a platformer\'s runner would compile, '
+            'and would tie the two together for as long as nobody looked');
+  });
+}
+
+/// What a step must not reach for, as patterns over the source.
+///
+/// An unseeded `Random()` and a system clock are the two things that make a
+/// step unrepeatable. A **seeded** `Random(n)` is not on trial — it is written
+/// down and comes back the same, which is the property being kept — so the
+/// pattern deliberately matches only the empty-argument form.
+///
+/// Public so its own test can prove it fires, the same reason [genreWordsIn]
+/// is.
+final Map<RegExp, String> stepMustNotReachFor = <RegExp, String>{
+  RegExp(r'\bRandom\(\s*\)'): 'an unseeded Random',
+  RegExp(r'\bDateTime\.now\(\)'): 'the system clock',
+  RegExp(r'\bStopwatch\('): 'a wall clock',
+};
+
+/// Whatever [source] reaches for that a step may not, or null.
+String? unrepeatableIn(String source) {
+  final code = _code(source);
+  for (final entry in stepMustNotReachFor.entries) {
+    if (entry.key.hasMatch(code)) return entry.value;
+  }
+  return null;
+}
+
+/// The rule that a step is repeatable from its inputs.
+///
+/// **SPEC §6.4 recorded this as already true and named the test as missing.**
+/// It was not true: `ActorSystem` and the shooter's `Hitscan` both defaulted to
+/// an unseeded `math.Random`, the shipped dungeon took both defaults, and its
+/// simulation's own generator was left null — so the crypt rolled dice nobody
+/// could write down and its saves restored none of them. Every part of that
+/// survived review for as long as the rule lived only in a document.
+///
+/// This is the half of the rule a scan can keep: it fails on the *next*
+/// `Random()` or `DateTime.now()` somebody writes, at the moment they write it,
+/// and names the file. What it cannot do is notice a simulation that diverges
+/// for some other reason — that is a behavioural test, and it belongs with the
+/// game whose step it is.
+///
+/// [allowing] exempts a file by path, and every entry should say why in the
+/// map's value. Not "anything outside `src/`": an exemption is for a file that
+/// is not part of a step at all — a loader, or the generator itself. A file
+/// that runs inside `step` and wants to be on the list is the bug.
+void expectRepeatableStep({
+  Map<String, String> allowing = const <String, String>{},
+}) {
+  test('nothing here reaches for a clock or for loose dice', () {
+    final scanned = _dartFilesIn('lib').toList();
+
+    // A scan of nothing passes. Without this the test goes green from the wrong
+    // working directory, which is how a rule quietly stops being kept.
+    expect(scanned, isNotEmpty, reason: 'run from the package root');
+
+    final offenders = <String>[
+      for (final file in scanned)
+        if (!allowing.containsKey(file.path))
+          if (unrepeatableIn(file.readAsStringSync()) case final String said)
+            '${file.path}: $said',
+    ];
+
+    expect(
+      offenders,
+      isEmpty,
+      reason: 'SPEC §6.4: a step takes its randomness from a generator it was '
+          'handed and never asks the system what time it is. Take a seeded '
+          'generator as a required parameter, or list the file in `allowing` '
+          'with the reason it is not part of a step',
+    );
+  });
+
+  test('and that detector fires on each of the three, and not on a seed', () {
+    // Mutation: match `Random(` rather than `Random()`, and the seeded form —
+    // which is the fix rather than the fault — is reported as the bug.
+    expect(unrepeatableIn('final r = Random();'), 'an unseeded Random');
+    expect(unrepeatableIn('final t = DateTime.now();'), 'the system clock');
+    expect(unrepeatableIn('final w = Stopwatch()..start();'), 'a wall clock');
+
+    expect(unrepeatableIn('final r = Random(7);'), isNull,
+        reason: 'a seed is written down and comes back the same');
+    expect(unrepeatableIn('final r = GameRandom(1);'), isNull);
+    expect(unrepeatableIn('// Random() would be wrong here.'), isNull,
+        reason: 'a comment explaining the rule must not break it');
+  });
+}
+
+/// This package's name, read from its own pubspec.
+///
+/// Read rather than passed, because a caller that had to name itself would name
+/// itself wrongly the first time a package was renamed — and the pubspec is the
+/// one place that cannot be wrong about it.
+String _packageName() {
+  final match = RegExp(r'^name:\s*(\S+)', multiLine: true)
+      .firstMatch(File('pubspec.yaml').readAsStringSync());
+  if (match == null) {
+    throw StateError('no `name:` in pubspec.yaml — run from the package root');
+  }
+  return match.group(1)!;
 }
 
 /// Every rule in this package, for a caller with nothing to say about its own

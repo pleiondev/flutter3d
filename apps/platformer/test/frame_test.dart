@@ -33,7 +33,7 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:platformer/src/looks.dart';
+import 'package:platformer/src/run.dart';
 import 'package:platformer/src/runner_looks.dart';
 import 'package:platformer/src/staging.dart';
 import 'package:vector_math/vector_math.dart';
@@ -67,26 +67,15 @@ final class _Shown {
       fallbackNormal: texel(<int>[128, 128, 255, 255]),
     );
 
-    // Loaded the way the game loads it, through the bridge: the same brush
-    // geometry, the same textures, the same validation. A test that built its
-    // own scene would be a test of a scene nobody ships.
-    final kinds = platformerRegistry();
-    final loaded = await LevelLoader().load(
-      level,
-      device: device,
-      registry: kinds,
-      rules: platformerRules(),
-    );
+    // Loaded and dressed by the game's own `openLevel`, not by a copy of it
+    // here. The four lines this replaces were right; the crypt's equivalent
+    // four were not — its copy had lost `bindLights()` — and a frame test that
+    // assembles its own picture is a frame test of a picture nobody ships.
+    final (:kinds, :loaded, :fixtures) = await openLevel(level, device: device);
 
     final world = loaded.collision;
     final scene = loaded.scene;
     final document = loaded.level;
-    final fixtures = FixtureVisuals(
-      scene,
-      loaded,
-      appearance: const PlatformerLooks(),
-      device: device,
-    )..bindLights();
 
     // Assembled by `stage`, which is the call `main.dart` makes on the line
     // after this one. The forty lines that used to be here were the game's

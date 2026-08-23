@@ -25,9 +25,7 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/effects.dart';
-import 'src/fixture_looks.dart';
 import 'src/hud.dart';
-import 'src/monster_looks.dart';
 import 'src/reactions.dart';
 import 'src/run_cubit.dart';
 import 'src/sounds.dart';
@@ -468,28 +466,7 @@ class _GameScreenState extends State<GameScreen>
       saves: SaveFile(appName: 'dungeon'),
       eyeOffset: _eyeOffset,
       lookSensitivity: _lookSensitivity,
-      loader: (String asset, EntityRegistry registry) =>
-          const LevelLoader().load(
-        asset,
-        device: device,
-        registry: registry,
-        rules: sampleRules(),
-      ),
-      openScene: (LoadedLevel loaded) => (
-        actors: ActorVisuals(
-          loaded.scene,
-          appearance: const DungeonMonsters(),
-          device: device,
-        ),
-        fixtures: FixtureVisuals(
-          loaded.scene,
-          loaded,
-          appearance: const DungeonFixtures(),
-          device: device,
-        )
-          // Before spawning, so a torch can find the light it drives.
-          ..bindLights(),
-      ),
+      device: device,
     ));
   }
 

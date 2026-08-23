@@ -24,6 +24,9 @@ dependencies:
 
 
 dev_dependencies:
+  # The rules this package keeps, as tests it runs against itself. See
+  # flutter3d_boundaries.
+  flutter3d_boundaries: ^0.1.0
   # The behaviour flutter3d_graphics requires, as tests this backend runs
   # against itself. See flutter3d_conformance.
   flutter3d_conformance: ^0.1.0

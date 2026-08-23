@@ -16,12 +16,9 @@
 /// loader never completes under `testWidgets`.
 library;
 
-import 'package:dungeon/src/fixture_looks.dart';
-import 'package:dungeon/src/monster_looks.dart';
 import 'package:dungeon/src/run_cubit.dart';
 import 'package:dungeon/src/staging.dart';
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
@@ -72,29 +69,13 @@ final class _Storage implements Storage {
       input: InputState(),
       inventory: startingInventory(),
       saves: SaveFile(appName: 'dungeon', storage: storage),
-      loader: (String asset, EntityRegistry registry) =>
-          const LevelLoader().load(
-        asset,
-        device: device,
-        registry: registry,
-        rules: sampleRules(),
-      ),
-      // The half that draws, which this test does not: the visuals are built
-      // over the loaded scene exactly as the game builds them, because their
-      // constructors are what a spawn callback is handed.
-      openScene: (LoadedLevel loaded) => (
-        actors: ActorVisuals(
-          loaded.scene,
-          appearance: const DungeonMonsters(),
-          device: device,
-        ),
-        fixtures: FixtureVisuals(
-          loaded.scene,
-          loaded,
-          appearance: const DungeonFixtures(),
-          device: device,
-        ),
-      ),
+      // **The device, and nothing else.** Forty lines of the game's own
+      // assembly used to sit here — the loader and both sets of visuals,
+      // copied — and the copy had lost `bindLights()`, so every torch in this
+      // harness lit nothing while the game's lit the room. That is what
+      // `one_assembly_test` is named after, and this file was outside the two
+      // calls it watched.
+      device: device,
     )),
   );
 }

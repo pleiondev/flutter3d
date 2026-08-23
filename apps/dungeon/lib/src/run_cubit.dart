@@ -1,9 +1,13 @@
+import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
+import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'fixture_looks.dart';
+import 'monster_looks.dart';
 import 'staging.dart';
 
 /// A level, drawn and playable.
@@ -40,8 +44,7 @@ final class DungeonRun extends RunSession<LevelReady> {
     required this.registry,
     required this.input,
     required this.inventory,
-    required this.loader,
-    required this.openScene,
+    required this.device,
     this.eyeOffset = 0.7,
     this.lookSensitivity = 0.0022,
   });
@@ -58,23 +61,47 @@ final class DungeonRun extends RunSession<LevelReady> {
   /// with no corridors in it.
   Inventory inventory;
 
-  /// Reads the document and builds the scene. A function rather than the class
-  /// so a test can hand over a device of its own.
-  final Future<LoadedLevel> Function(String asset, EntityRegistry registry)
-      loader;
-
-  /// Builds what draws, once there is a scene to build it in.
-  final ({ActorVisuals actors, FixtureVisuals fixtures}) Function(
-    LoadedLevel loaded,
-  ) openScene;
+  /// What the level is read through and what the visuals are built on.
+  ///
+  /// **A device rather than two callbacks, and that is a correction.** This used
+  /// to take a `loader` and an `openScene` so that a test could hand over a
+  /// `CpuDevice` — and the test handed over its own *assembly* along with it.
+  /// The copy in `run_cubit_test.dart` left out one line, `bindLights()`, so
+  /// every torch in the harness lit nothing and the harness agreed with any bug
+  /// about lights the game had. That is the failure `one_assembly_test` is named
+  /// after, met inside a game that the rule's own list did not reach.
+  ///
+  /// A device is what a test actually needs to vary. The assembly is the game's,
+  /// and there is now one of it.
+  final GraphicsDevice device;
 
   final double eyeOffset;
   final double lookSensitivity;
 
   @override
   Future<LevelReady> open(String asset) async {
-    final loaded = await loader(asset, registry);
-    final scene = openScene(loaded);
+    final loaded = await const LevelLoader().load(
+      asset,
+      device: device,
+      registry: registry,
+      rules: sampleRules(),
+    );
+
+    final scene = (
+      actors: ActorVisuals(
+        loaded.scene,
+        appearance: const DungeonMonsters(),
+        device: device,
+      ),
+      fixtures: FixtureVisuals(
+        loaded.scene,
+        loaded,
+        appearance: const DungeonFixtures(),
+        device: device,
+      )
+        // Before spawning, so a torch can find the light it drives.
+        ..bindLights(),
+    );
     final staged = stage(
       loaded.level,
       loaded.collision,
