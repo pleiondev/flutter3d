@@ -23,7 +23,7 @@ import 'particle_system.dart';
 /// Depth write off, and it means it. That sentence was untrue for most of this
 /// file's life — `flutter_gpu`'s setter ignored its argument until SDK 3.47, so
 /// additive particles occluded each other on two backends out of three. See
-/// `flutter3d_graphics/COMPATIBILITY.md`, which keeps the lesson.
+/// `flutter3d_hardware/COMPATIBILITY.md`, which keeps the lesson.
 ///
 /// A quad seen from behind is still a quad, which is why nothing is culled:
 /// culling would make half the particles vanish depending on which way the

@@ -1,6 +1,6 @@
 # What this package promises
 
-`flutter3d_graphics` is the interface a backend implements and the engine draws
+`flutter3d_hardware` is the interface a backend implements and the engine draws
 through. Three backends implement it today — `flutter3d_impeller`,
 `flutter3d_webgl` and `flutter3d_cpu` — and the whole point of naming a promise
 is that another can be written without reading the engine.

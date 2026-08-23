@@ -1,6 +1,6 @@
 /// Eleven primitives, four skins, one armature: what `instantiate` binds.
 ///
-/// `apps/platformer/assets/models/hero.glb` draws as a loose fan of triangles
+/// `apps/flutter3d_demo_platformer/assets/models/hero.glb` draws as a loose fan of triangles
 /// in the game, and the accusation this file was written to test was that
 /// [ModelAsset.instantiate] builds a *separate* [Skeleton] for every skinned
 /// mesh node — eleven of them for four skins whose joint arrays are
@@ -39,7 +39,7 @@ import 'package:flutter3d/src/engine/assets/model_asset.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/lighting_model.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
-import 'package:flutter3d_graphics/testing.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 

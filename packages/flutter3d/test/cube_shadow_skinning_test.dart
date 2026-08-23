@@ -25,8 +25,8 @@ import 'package:flutter3d/src/engine/scene/mesh_node.dart';
 import 'package:flutter3d/src/engine/scene/scene.dart';
 import 'package:flutter3d/src/engine/scene/scene_node.dart';
 import 'package:flutter3d/src/engine/scene/skeleton.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
-import 'package:flutter3d_graphics/testing.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 

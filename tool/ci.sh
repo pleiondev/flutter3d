@@ -35,6 +35,15 @@ in_dir() {
   ( cd "$dir" && "$@" )
 }
 
+# **First, because it is the only step that needs nothing.** Every rule in it
+# reads source text: no `pub get`, no shader bundle, no device, under a second.
+# Finding out that a package imports a genre after four minutes of building is
+# finding out late what could have been known before anything started.
+#
+# It replaced twenty-three test files and two `grep` steps that used to be
+# here. See tool/structure.dart for why they moved.
+step "structure" dart run tool/structure.dart
+
 step "pub get" flutter pub get
 
 # The shader bundle is gitignored and its format is tied to the SDK version, so
@@ -63,13 +72,6 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 
 step "analyze" flutter analyze
 
-# **A debug print, silenced and committed.** `avoid_print` is on, so the only
-# way one reaches an application's `lib/` is with an `// ignore:` above it —
-# which is what somebody writes while chasing a bug and forgets while fixing
-# it. Two of them shipped in the editor that way. Tools and examples are
-# exempt: their whole output is what they are for.
-step "no silenced prints" bash -c '! grep -rn "ignore.*avoid_print" apps/*/lib || (echo "a print in an application, with the lint silenced above it"; false)'
-
 # What `pub publish` would say about each package, without publishing anything.
 # Twenty-six seconds, and it is the only thing that notices a package losing its
 # licence, its changelog, or its version constraint on a sibling — none of which
@@ -79,7 +81,12 @@ step "publish check" bash tool/publish_check.sh
 
 for package in packages/*/; do
   name="$(basename "$package")"
-  [ -d "$package/test" ] || continue
+  # Matched on the files rather than on the directory, for the reason the
+  # example loop below already gives: an empty `test/` makes `flutter test`
+  # exit non-zero rather than skip. Two packages lost their only test when the
+  # structure rules moved out of them and turned this loop red for having
+  # nothing to run.
+  compgen -G "$package/test/*_test.dart" > /dev/null || continue
   # Plain Dart, and it is the point of that package that it needs no Flutter.
   if [ "$name" = "flutter3d_physics" ]; then
     step "test $name" in_dir "$package" dart test
@@ -113,34 +120,9 @@ for example in packages/*/example/; do
 done
 
 for app in apps/*/; do
-  [ -d "$app/test" ] || continue
+  compgen -G "$app/test/*_test.dart" > /dev/null || continue
   step "test $(basename "$app")" in_dir "$app" flutter test
 done
-
-# **The number in docs/SPEC.md §5.2 was wrong by a factor of two.** It said
-# "1230 tests in 12 packages"; there were 2718 in 23, and nothing had said so
-# because the figure is prose. A count is not a quality measure and is not
-# treated as one here — what this catches is a document quietly describing a
-# repository from a year ago, which is the same failure the generated files
-# above are checked for.
-#
-# `test(` and `testWidgets(` at the start of a line, which is how every test in
-# this repository is written. Tests generated inside a loop are counted once,
-# and that is the honest thing for a figure that is about the document rather
-# than about coverage.
-step "test count" bash -c '
-  counted=$(grep -rhoE "^[[:space:]]*(test|testWidgets)\(" \
-    packages/*/test packages/*/example/test apps/*/test 2>/dev/null | wc -l | tr -d " ")
-  # Russian inflects the noun by the number — 2732 теста, 2735 тестов — so the
-  # pattern matches the digits and lets the word be whatever it has to be.
-  claimed=$(grep -oE "\*\*[0-9]+ тест[а-я]*\*\*" docs/SPEC.md | grep -oE "[0-9]+")
-  if [ "$counted" != "$claimed" ]; then
-    echo "docs/SPEC.md §5.2 says $claimed tests; there are $counted."
-    echo "Update the document, or say why the count moved."
-    exit 1
-  fi
-  echo "$counted tests, which is what the document says"
-'
 
 echo ""
 if [ ${#FAILED[@]} -eq 0 ]; then

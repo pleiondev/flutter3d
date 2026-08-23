@@ -22,8 +22,8 @@ dependencies:
   # an entry point rather than by a test.
   flutter3d_conformance:
     path: ../../flutter3d_conformance
-  flutter3d_graphics:
-    path: ../../flutter3d_graphics
+  flutter3d_hardware:
+    path: ../../flutter3d_hardware
   # The same application on the web, drawing through the other backend. Only
   # src/spike/backend.dart names either of them.
   flutter3d_webgl:

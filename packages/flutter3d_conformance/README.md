@@ -1,6 +1,6 @@
 # flutter3d_conformance
 
-What `flutter3d_graphics` requires of a backend, as a suite the backend runs
+What `flutter3d_hardware` requires of a backend, as a suite the backend runs
 against itself.
 
 ```dart

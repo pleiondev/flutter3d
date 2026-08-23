@@ -4,7 +4,7 @@
 ///
 /// **SPEC §4.10 said this was already true and named the test as missing.** It
 /// was not true. `ActorSystem` and `flutter3d_game_shooter`'s `Hitscan` both
-/// defaulted to an unseeded `math.Random`, `apps/dungeon` took both defaults,
+/// defaulted to an unseeded `math.Random`, `apps/flutter3d_demo_dungeon` took both defaults,
 /// and its `GameSimulation.random` was left null — so the shipped crypt rolled
 /// dice nobody could write down and `save()` wrote none of them. Every part of
 /// that passed review for as long as the rule lived in a document.
@@ -12,11 +12,11 @@
 /// The rule is kept in three places, because no one of them can do the others'
 /// work:
 ///
-///   * **the scan**, `expectRepeatableStep` in `flutter3d_boundaries`, called
-///     from `boundaries_test.dart` here and in every other simulation package.
-///     It fails on the *next* `Random()` or `DateTime.now()` somebody writes,
-///     at the moment they write it, and names the file. It cannot tell whether
-///     a simulation actually diverges.
+///   * **the scan**, `a step reaches for no clock and no loose dice` in
+///     `tool/structure.dart`, which reads every simulation package before a
+///     build. It fails on the *next* `Random()` or `DateTime.now()` somebody
+///     writes, at the moment they write it, and names the file. It cannot tell
+///     whether a simulation actually diverges.
 ///   * **the behavioural tests**, which live with each game because a step is a
 ///     game's — see `flutter3d_game_shooter/test/snapshot_test.dart` and its
 ///     siblings. They cannot say *where* a leak is.

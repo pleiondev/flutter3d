@@ -1,6 +1,6 @@
 # flutter3d_impeller
 
-`flutter3d_graphics` over `flutter_gpu`: the backend a desktop or mobile build
+`flutter3d_hardware` over `flutter_gpu`: the backend a desktop or mobile build
 draws through.
 
 ```dart

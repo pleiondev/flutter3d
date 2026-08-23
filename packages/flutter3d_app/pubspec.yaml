@@ -1,0 +1,36 @@
+name: flutter3d_app
+description: "The layer an application is assembled from, as one import: which device to open, the frame surface and run lifecycle, the screens that are not the game, and the input devices Flutter itself does not cover."
+version: 0.1.0
+publish_to: 'none'
+resolution: workspace
+repository: https://github.com/dzolotov/flutter3d
+
+# A barrel over five packages the three games already imported individually —
+# flutter3d_backend, flutter3d_session, flutter3d_ui, pad_input, pointer_lock —
+# none of which know about each other and none of which should start to. This
+# package adds no code of its own; it exists so an application's own pubspec
+# and main.dart say "the assembly layer" once instead of five names, the way
+# `flutter3d` already says "the renderer" once instead of naming
+# `flutter3d_hardware` itself.
+#
+# What is deliberately not behind it: `flutter3d`, `flutter3d_bridge`,
+# `flutter3d_game` and a genre package. Those are content, not assembly, and a
+# shooter and a platformer need different ones — a single facade cannot pick a
+# genre on an application's behalf.
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  flutter3d_backend: ^0.1.0
+  flutter3d_session: ^0.1.0
+  flutter3d_ui: ^0.1.0
+  pad_input: ^0.1.0
+  pointer_lock: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

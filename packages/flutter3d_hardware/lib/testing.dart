@@ -22,14 +22,14 @@
 /// not ask the question those exist to answer, and nothing said so.
 ///
 /// This package rather than a new one, because that is what it depends on:
-/// `flutter3d_graphics` and `flutter/widgets`, and nothing else. A separate
+/// `flutter3d_hardware` and `flutter/widgets`, and nothing else. A separate
 /// `flutter3d_fakes` would be a twenty-second workspace entry holding one file.
 ///
 /// In `lib/` rather than in a shared `test/`, because a package cannot import
 /// another package's `test/` — which is the reason there were two copies.
 ///
 /// ```dart
-/// import 'package:flutter3d_graphics/testing.dart';
+/// import 'package:flutter3d_hardware/testing.dart';
 /// ```
 library;
 
@@ -37,7 +37,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// One thing recorded into a pass, in order.
 ///

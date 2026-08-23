@@ -8,7 +8,7 @@ import 'package:flutter3d_backend/flutter3d_backend.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-`openDevice` returns a `GraphicsDevice` from `flutter3d_graphics`. Neither
+`openDevice` returns a `GraphicsDevice` from `flutter3d_hardware`. Neither
 backend appears in any signature: on a desktop or a phone the device is
 `flutter3d_impeller`'s, in a browser it is `flutter3d_webgl`'s, and the choice is
 a conditional export rather than a runtime branch — `flutter_gpu` does not
@@ -29,7 +29,7 @@ The conditional import and `openDevice` were three files in each of three games,
 byte-identical in two of them down to the paragraph explaining the conditional.
 
 `flutter3d_session` was the obvious home and is the wrong one: it would have to
-depend on both backends, and then `apps/editor` — which opens a file, changes it
+depend on both backends, and then `apps/flutter3d_editor` — which opens a file, changes it
 and writes it back, and has no browser build to choose for — would pull WebGL
 through it. Session stays backend-neutral, which is what lets it be mounted over
 a `CpuDevice` in its own tests.

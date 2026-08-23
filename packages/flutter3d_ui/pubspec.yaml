@@ -40,8 +40,6 @@ dependencies:
   flutter_bloc: ^9.1.1
 
 dev_dependencies:
-  # The rule that this package names no genre, as a test it runs against itself.
-  flutter3d_boundaries: ^0.1.0
 
   flutter_test:
     sdk: flutter

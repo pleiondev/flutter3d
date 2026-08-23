@@ -1,6 +1,6 @@
 # flutter3d_webgl
 
-`flutter3d_graphics` over WebGL2, for a build that runs in a browser.
+`flutter3d_hardware` over WebGL2, for a build that runs in a browser.
 
 ```dart
 final device = await openWebGl(width: 1280, height: 720);

@@ -4,7 +4,7 @@
 /// Everything a consumer needs is exported here. The layout behind it is not
 /// arbitrary and is worth knowing before reaching past this file:
 ///
-/// - **This package names no graphics API.** It depends on `flutter3d_graphics` and
+/// - **This package names no graphics API.** It depends on `flutter3d_hardware` and
 ///   nothing below it, so an application chooses a backend package
 ///   today — and hands it to `Renderer.create`. That is checked, not intended:
 ///   `test/backend_is_contained_test.dart`.
@@ -23,7 +23,7 @@
 /// after every Flutter SDK change.
 library;
 
-// The graphics vocabulary, re-exported from `flutter3d_graphics`.
+// The graphics vocabulary, re-exported from `flutter3d_hardware`.
 //
 // Re-exported rather than left for a consumer to depend on separately, because
 // these names are all over this package's own API — a `Material` holds
@@ -35,7 +35,7 @@ library;
 // depends on one by name; there are two today and room for more.
 // That choice is the one thing that must stay visible in an application's
 // pubspec.
-export 'package:flutter3d_graphics/flutter3d_graphics.dart';
+export 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 // Animation: clips, tracks, sampling, playback.
 export 'src/engine/animation/animation.dart';

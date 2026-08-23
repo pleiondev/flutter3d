@@ -1,6 +1,6 @@
 name: flutter3d_cpu
 description: >-
-  A software backend for flutter3d_graphics: no GPU, no shading language, and
+  A software backend for flutter3d_hardware: no GPU, no shading language, and
   therefore the sharpest test of whether the interface is an interface.
 version: 0.1.0
 repository: https://github.com/dzolotov/flutter3d
@@ -13,13 +13,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter3d_graphics: ^0.1.0
+  flutter3d_hardware: ^0.1.0
   vector_math: ^2.2.0
 
 dev_dependencies:
-  # The rules this package keeps, as tests it runs against itself. See
-  # flutter3d_boundaries.
-  flutter3d_boundaries: ^0.1.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

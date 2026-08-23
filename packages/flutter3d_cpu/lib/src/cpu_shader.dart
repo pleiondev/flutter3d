@@ -1,7 +1,7 @@
 /// What a shader is on a backend with no shading language.
 ///
 /// The engine asks a library for entry points by name — `MeshVertex`, `Pbr`,
-/// `Composite` — and nothing in `flutter3d_graphics` says those names have to
+/// `Composite` — and nothing in `flutter3d_hardware` says those names have to
 /// resolve to GLSL. `PipelineHandle.backend` is an `Object`. So here they
 /// resolve to Dart, and whether that was ever really allowed is the question
 /// this whole package exists to answer.
@@ -10,7 +10,7 @@ library;
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// The uniform blocks and textures a draw was given, by the names the shader

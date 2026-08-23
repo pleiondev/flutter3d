@@ -18,7 +18,7 @@ library;
 
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/frame_resources.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const ResourceId colour = ResourceId('colour');

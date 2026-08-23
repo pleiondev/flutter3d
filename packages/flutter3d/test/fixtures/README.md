@@ -2,7 +2,7 @@
 
 Models the tests read and no application ships.
 
-`hero.glb` lived in `apps/platformer/assets/models/` until it did not: the
+`hero.glb` lived in `apps/flutter3d_demo_platformer/assets/models/` until it did not: the
 platformer stopped using it — the runner is `penguin.glb` — but the directory is
 declared whole in that game's pubspec, so 424 KB of rigged character went into
 every download of a game that never drew it. Two engine tests do draw it, which

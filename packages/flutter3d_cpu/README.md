@@ -1,6 +1,6 @@
 # flutter3d_cpu
 
-`flutter3d_graphics` rasterised in Dart, with no GPU under it.
+`flutter3d_hardware` rasterised in Dart, with no GPU under it.
 
 ```dart
 final device = CpuDevice(

@@ -9,7 +9,7 @@
 /// Two rules hold it in shape, and both are checked rather than intended:
 ///
 ///  * no `flutter_gpu` import anywhere in this package, ever —
-///    `flutter3d_graphics/test/no_backend_test.dart`;
+///    `flutter3d_hardware/test/no_backend_test.dart`;
 ///  * no `dart:ui` either, apart from one member on [GraphicsDevice] that has
 ///    to name it. The reason is written where the exception is.
 ///

@@ -1,4 +1,4 @@
-/// The behaviour `flutter3d_graphics` requires, as tests a backend runs against
+/// The behaviour `flutter3d_hardware` requires, as tests a backend runs against
 /// itself.
 ///
 /// The interface says what a backend must *have*. Half of what it must *do* is
@@ -24,7 +24,7 @@ library;
 
 import 'dart:typed_data';
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_shaders/flutter3d_shaders.dart';
 import 'package:flutter_test/flutter_test.dart' show test;
 import 'package:vector_math/vector_math.dart';

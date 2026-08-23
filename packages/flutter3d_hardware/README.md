@@ -1,4 +1,4 @@
-# flutter3d_graphics
+# flutter3d_hardware
 
 The vocabulary `flutter3d` writes a frame in: texture and buffer handles,
 formats, render targets, pipelines, a command encoder and a shader library.

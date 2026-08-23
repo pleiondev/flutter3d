@@ -1,5 +1,5 @@
 name: flutter3d_impeller
-description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_graphics, and the only place in the stack that names a graphics API."
+description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hardware, and the only place in the stack that names a graphics API."
 version: 0.1.0
 repository: https://github.com/dzolotov/flutter3d
 publish_to: 'none'
@@ -8,7 +8,7 @@ resolution: workspace
 # Depends on the HAL and on nothing else of ours — in particular **not** on
 # `flutter3d`. That is what makes it a backend rather than a part of the engine,
 # and it is the property a second backend needs: writing one means implementing
-# `flutter3d_graphics`, not understanding the renderer.
+# `flutter3d_hardware`, not understanding the renderer.
 environment:
   sdk: ^3.12.2
 
@@ -20,14 +20,11 @@ dependencies:
   flutter_gpu:
     sdk: flutter
 
-  flutter3d_graphics: ^0.1.0
+  flutter3d_hardware: ^0.1.0
 
 
 dev_dependencies:
-  # The rules this package keeps, as tests it runs against itself. See
-  # flutter3d_boundaries.
-  flutter3d_boundaries: ^0.1.0
-  # The behaviour flutter3d_graphics requires, as tests this backend runs
+  # The behaviour flutter3d_hardware requires, as tests this backend runs
   # against itself. See flutter3d_conformance.
   flutter3d_conformance: ^0.1.0
   flutter_test:

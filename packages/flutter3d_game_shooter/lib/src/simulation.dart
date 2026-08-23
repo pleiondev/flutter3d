@@ -244,7 +244,7 @@ final class GameSimulation {
   /// The generator every roll in this simulation comes out of.
   ///
   /// **It was optional, and the consequence was stated rather than hidden —
-  /// which did not stop the shipped game from taking it.** `apps/dungeon` built
+  /// which did not stop the shipped game from taking it.** `apps/flutter3d_demo_dungeon` built
   /// its world without one, so `save()` wrote no dice at all and every restored
   /// crypt diverged from the one that was saved at the first flinch roll. A
   /// documented trap is still a trap; what makes this one avoidable is that

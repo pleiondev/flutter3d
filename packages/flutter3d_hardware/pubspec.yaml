@@ -1,4 +1,4 @@
-name: flutter3d_graphics
+name: flutter3d_hardware
 description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API."
 version: 0.1.0
 repository: https://github.com/dzolotov/flutter3d
@@ -23,9 +23,6 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
-  # The rules this package keeps, as tests it runs against itself. See
-  # flutter3d_boundaries.
-  flutter3d_boundaries: ^0.1.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

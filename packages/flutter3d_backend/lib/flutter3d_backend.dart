@@ -4,12 +4,18 @@
 ///
 ///     final device = await openDevice(width: 1280, height: 720);
 ///
-/// The engine talks to `flutter3d_graphics` and never to a graphics API, so
-/// something has to pick — and this is that something. A conditional export
-/// rather than a runtime branch, because the two backends pull in incompatible
-/// worlds: `flutter_gpu` does not compile for the web and `dart:js_interop`
-/// does not compile for macOS, so a file that imported both could target
-/// neither.
+/// The engine talks to `flutter3d_hardware` and never to a graphics API, so
+/// something has to pick — and this is that something. **Two decisions, not
+/// one, and they are made two different ways:**
+///
+/// * **Web or native** is a conditional export, decided at compile time,
+///   because the two pull in incompatible worlds: `flutter_gpu` does not
+///   compile for the web and `dart:js_interop` does not compile for macOS, so a
+///   file that imported both could target neither.
+/// * **Impeller or software**, on the native half, is a `try`/`catch` at
+///   runtime, because `flutter_gpu` ships with the SDK and is always
+///   importable — whether it actually *starts* depends on the platform and how
+///   the engine was launched, which nothing at compile time can see.
 ///
 /// ## What it does not decide
 ///

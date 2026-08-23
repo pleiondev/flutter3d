@@ -13,7 +13,6 @@ workspace:
   - packages/flutter3d
   - packages/flutter3d_app
   - packages/flutter3d_backend
-  - packages/flutter3d_boundaries
   - packages/flutter3d_conformance
   - packages/flutter3d_cpu
   - packages/flutter3d_particles

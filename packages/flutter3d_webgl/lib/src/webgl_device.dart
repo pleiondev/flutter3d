@@ -1,7 +1,7 @@
 /// WebGL2 as an implementation of [GraphicsDevice].
 ///
 /// The second backend, and therefore the first real test of whether
-/// `flutter3d_graphics` is a seam or a description of Impeller wearing neutral
+/// `flutter3d_hardware` is a seam or a description of Impeller wearing neutral
 /// names. Where the two models differ the difference is written down here, at
 /// the line where it bites.
 library;
@@ -11,7 +11,7 @@ import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
 import 'webgl_formats.dart';

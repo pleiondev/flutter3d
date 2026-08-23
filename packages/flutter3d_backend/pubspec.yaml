@@ -1,5 +1,5 @@
 name: flutter3d_backend
-description: "Picks the graphics backend a build draws through: Impeller on a desktop, WebGL2 in a browser, chosen at compile time."
+description: "Picks the graphics backend a build draws through: Impeller on a desktop, WebGL2 in a browser, and a software rasteriser at runtime if Impeller will not start."
 version: 0.1.0
 publish_to: 'none'
 resolution: workspace
@@ -13,7 +13,7 @@ environment:
 # crypt and the platformer and differed by two constants in the racing game.
 #
 # Session was the obvious home and is the wrong one: it would have to depend on
-# both backends, and then `apps/editor` — which opens a file, writes it back, and
+# both backends, and then `apps/flutter3d_editor` — which opens a file, writes it back, and
 # has no browser build to choose for — would pull WebGL through it. A package
 # nothing but the three games depends on keeps the choice where it belongs and
 # leaves session backend-neutral, which is what lets it be mounted over a
@@ -24,19 +24,22 @@ dependencies:
 
   # The vocabulary the choice is made in. Neither backend appears in any
   # signature here — `openDevice` returns a `GraphicsDevice`.
-  flutter3d_graphics: ^0.1.0
+  flutter3d_hardware: ^0.1.0
 
-  # The two implementations. Only one is compiled: the conditional export in
-  # `flutter3d_backend.dart` picks by `dart.library.js_interop`, because the two
-  # pull in incompatible worlds — `flutter_gpu` does not compile for the web and
+  # The two implementations the conditional export in `flutter3d_backend.dart`
+  # picks between by `dart.library.js_interop`, because the two pull in
+  # incompatible worlds — `flutter_gpu` does not compile for the web and
   # `dart:js_interop` does not compile for macOS.
   flutter3d_impeller: ^0.1.0
   flutter3d_webgl: ^0.1.0
 
+  # The third one is not a branch of that export — it is what the native half
+  # falls back to at runtime when `flutter_gpu` fails to start. `flutter_gpu`
+  # ships with the SDK, so its absence is not a thing a conditional export can
+  # see; only trying tells you.
+  flutter3d_cpu: ^0.1.0
+
 dev_dependencies:
-  # The rules this package keeps, as tests it runs against itself. See
-  # flutter3d_boundaries.
-  flutter3d_boundaries: ^0.1.0
 
   flutter_test:
     sdk: flutter
