@@ -117,6 +117,31 @@ for app in apps/*/; do
   step "test $(basename "$app")" in_dir "$app" flutter test
 done
 
+# **The number in docs/SPEC.md §5.2 was wrong by a factor of two.** It said
+# "1230 tests in 12 packages"; there were 2718 in 23, and nothing had said so
+# because the figure is prose. A count is not a quality measure and is not
+# treated as one here — what this catches is a document quietly describing a
+# repository from a year ago, which is the same failure the generated files
+# above are checked for.
+#
+# `test(` and `testWidgets(` at the start of a line, which is how every test in
+# this repository is written. Tests generated inside a loop are counted once,
+# and that is the honest thing for a figure that is about the document rather
+# than about coverage.
+step "test count" bash -c '
+  counted=$(grep -rhoE "^[[:space:]]*(test|testWidgets)\(" \
+    packages/*/test packages/*/example/test apps/*/test 2>/dev/null | wc -l | tr -d " ")
+  # Russian inflects the noun by the number — 2732 теста, 2735 тестов — so the
+  # pattern matches the digits and lets the word be whatever it has to be.
+  claimed=$(grep -oE "\*\*[0-9]+ тест[а-я]*\*\*" docs/SPEC.md | grep -oE "[0-9]+")
+  if [ "$counted" != "$claimed" ]; then
+    echo "docs/SPEC.md §5.2 says $claimed tests; there are $counted."
+    echo "Update the document, or say why the count moved."
+    exit 1
+  fi
+  echo "$counted tests, which is what the document says"
+'
+
 echo ""
 if [ ${#FAILED[@]} -eq 0 ]; then
   echo "all green"
