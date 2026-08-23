@@ -23,7 +23,7 @@ the difference between those two sentences.
 * `LICENSE`, `CHANGELOG.md` and `README.md` in all twenty packages.
 * `repository:` pointing at the GitHub remote in every pubspec.
 * **Sibling dependencies are version constraints, not paths.** `pub publish`
-  refuses a path dependency, and a workspace resolves `flutter3d_graphics:
+  refuses a path dependency, and a workspace resolves `flutter3d_hardware:
   ^0.1.0` from the checkout anyway — so the same line works for a developer and
   for the server. This is why `flutter pub get` still works with nothing on
   pub.dev.
@@ -36,7 +36,7 @@ the difference between those two sentences.
 
 Dependencies first, or pub rejects a package whose sibling is not up yet:
 
-1. `flutter3d_graphics`, `flutter3d_shaders`, `pad_input`, `pointer_lock`
+1. `flutter3d_hardware`, `flutter3d_shaders`, `pad_input`, `pointer_lock`
 2. `flutter3d_conformance`, `flutter3d_boundaries`
 3. `flutter3d`
 4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`,

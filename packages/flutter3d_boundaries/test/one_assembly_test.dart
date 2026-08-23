@@ -22,7 +22,7 @@
 ///
 /// **It moved here from `flutter3d_session`**, which was the wrong home for two
 /// reasons that only show up outside this checkout: that package is published,
-/// so the test travelled with it to machines where `../../apps/platformer` does
+/// so the test travelled with it to machines where `../../apps/flutter3d_demo_platformer` does
 /// not exist, and it kept its own list of applications that had already drifted
 /// from the one in this package — `editor` in one, not the other, and
 /// `template_app` in neither. This package is where the repository's lists
@@ -197,11 +197,20 @@ void main() {
     // The other direction. A game with no shipped assembly passes both tests
     // above by having nothing to be the second copy of.
     //
-    // The three games, not every application: `editor` builds levels rather
-    // than playing one, and `template_app` is the seed a new project starts
-    // from. Neither has a run to assemble, and demanding one of them would be
-    // the rule describing work already done rather than work that must hold.
-    for (final app in <String>['dungeon', 'platformer', 'racing']) {
+    // The demo games, not every application: `flutter3d_editor` builds levels
+    // rather than playing one, and `flutter3d_template_app` is the seed a new
+    // project starts from. Neither has a run to assemble, and demanding one of
+    // them would be the rule describing work already done rather than work
+    // that must hold.
+    //
+    // Taken from the naming rather than from a fourth list. `_demo_` is what
+    // the prefix means — a game this repository ships to show the engine works
+    // — so a fourth demo is covered by being named like the other three, and a
+    // list here would be one more thing to forget.
+    final demos = applications.where((String a) => a.contains('_demo_'));
+    expect(demos, isNotEmpty, reason: 'no demo game is named `_demo_`');
+
+    for (final app in demos) {
       expect(File('${_pathTo(app)}/lib/src/staging.dart').existsSync(), isTrue,
           reason: '$app has no one place that assembles a run');
     }

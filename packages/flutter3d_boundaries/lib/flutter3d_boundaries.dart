@@ -55,11 +55,11 @@ const List<String> genrePackages = <String>[
 /// four names in a loop, with `template_app` missing from it, which is exactly
 /// the drift a second copy produces.
 const List<String> applications = <String>[
-  'dungeon',
-  'editor',
-  'platformer',
-  'racing',
-  'template_app',
+  'flutter3d_demo_dungeon',
+  'flutter3d_demo_platformer',
+  'flutter3d_demo_racing',
+  'flutter3d_editor',
+  'flutter3d_template_app',
 ];
 
 /// Genre vocabulary, as words rather than as imports.
@@ -233,7 +233,7 @@ void expectNoGenre({
     // **It did, and the pubspec said otherwise four lines above.** Two
     // `dev_dependencies` — on a genre package and on the `platformer`
     // application — existed so that one test could mount that game's HUD, which
-    // also meant importing `package:platformer/src/hud.dart`: another package's
+    // also meant importing `package:flutter3d_demo_platformer/src/hud.dart`: another package's
     // private half. A cycle, a genre and a `lib/src`, in two lines.
     //
     // The mechanism is tested here and the sentence on the screen is tested in

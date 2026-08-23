@@ -4,12 +4,12 @@
 ///
 /// **This file is the one a new project starts with**, copied into it by the
 /// editor's scaffolder — which is why it is here rather than being a string in
-/// `apps/editor/lib/src/scaffold.dart`. A test that only ever exists as text
+/// `apps/flutter3d_editor/lib/src/scaffold.dart`. A test that only ever exists as text
 /// is one that stops compiling six months later and nobody finds out until
 /// somebody creates a project, which is the same argument `main.dart` next
 /// door already makes about itself.
 ///
-/// It is also `apps/template_app`'s only test, and until now this application
+/// It is also `apps/flutter3d_template_app`'s only test, and until now this application
 /// had none — the one application in the repository whose whole job is to be
 /// copied.
 ///
@@ -52,7 +52,7 @@ void main() {
       expect(File(model).existsSync(), isTrue,
           reason: '${entry.key} names $model, which is not there');
     }
-    // **Skipped in `apps/template_app` and not in a project made from it**,
+    // **Skipped in `apps/flutter3d_template_app` and not in a project made from it**,
     // which is the honest shape: the looks and the models a project draws with
     // come from the template it was made from, and this application is what is
     // left when you take those away. Written as a skip rather than an early

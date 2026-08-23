@@ -11,12 +11,13 @@ environment:
 
 workspace:
   - packages/flutter3d
+  - packages/flutter3d_app
   - packages/flutter3d_backend
   - packages/flutter3d_boundaries
   - packages/flutter3d_conformance
   - packages/flutter3d_cpu
   - packages/flutter3d_particles
-  - packages/flutter3d_graphics
+  - packages/flutter3d_hardware
   - packages/flutter3d_shaders
   - packages/flutter3d_impeller
   - packages/flutter3d_webgl
@@ -35,8 +36,8 @@ workspace:
   - packages/pad_input/example
   - packages/pointer_lock
   - packages/pointer_lock/example
-  - apps/dungeon
-  - apps/editor
-  - apps/platformer
-  - apps/racing
-  - apps/template_app
+  - apps/flutter3d_demo_dungeon
+  - apps/flutter3d_editor
+  - apps/flutter3d_demo_platformer
+  - apps/flutter3d_demo_racing
+  - apps/flutter3d_template_app

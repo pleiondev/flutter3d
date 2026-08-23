@@ -18,8 +18,8 @@ engine is one.
 | [`packages/pad_input`](packages/pad_input) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/pad_input/README.md) |
 | [`packages/flutter3d_ui`](packages/flutter3d_ui) | The screens that are not the game: settings, volumes, rebinding, credits. Shared by both games |
 | [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas, which Flutter offers on no desktop platform |
-| [`apps/dungeon`](apps/dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
-| [`apps/platformer`](apps/platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
+| [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
+| [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`packages/flutter3d/example`](packages/flutter3d/example) | The engine's own demo: a model browser with every feature switchable |
 
 The split is not filing. `flutter3d_game` does not depend on `flutter3d`, and
@@ -49,10 +49,10 @@ flutter pub get
 (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 
 # The shooter
-(cd apps/dungeon && flutter run -d macos)
+(cd apps/flutter3d_demo_dungeon && flutter run -d macos)
 
 # The platformer
-(cd apps/platformer && flutter run -d macos)
+(cd apps/flutter3d_demo_platformer && flutter run -d macos)
 
 # The engine demo
 (cd packages/flutter3d/example && flutter run -d macos)
@@ -97,5 +97,5 @@ reason several things are built the way they are rather than the obvious way.
 The upgrade is worth one sentence of its own: `setDepthWrite(false)` did
 nothing until 3.47, so additive particles occluded each other on two backends
 out of three, and the software backend mirrored the bug on purpose so the two
-would stay comparable. `flutter3d_graphics/COMPATIBILITY.md` keeps that story
+would stay comparable. `flutter3d_hardware/COMPATIBILITY.md` keeps that story
 because the lesson outlives it.
