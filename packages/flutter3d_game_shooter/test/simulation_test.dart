@@ -42,6 +42,7 @@ CollisionWorld _ground() {
   world.update();
   return (
     sim: GameSimulation(
+      random: GameRandom(1),
       player: player,
       collision: world,
       input: input,
@@ -253,6 +254,7 @@ void main() {
       );
       final mechanisms = MechanismWorld(world);
       final sim = GameSimulation(
+        random: GameRandom(1),
         player: player,
         collision: world,
         input: input,

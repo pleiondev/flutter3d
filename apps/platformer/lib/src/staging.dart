@@ -64,6 +64,7 @@ Staged stage(
   int lives = -1,
   int deaths = 0,
   double elapsed = 0.0,
+  GameRandom? random,
 }) {
   // One registry validates the document and then spawns it. Two could disagree
   // about what a document may contain, which is the failure this seam was built
@@ -74,7 +75,14 @@ Staged stage(
   final dynamics = Dynamics(world: world);
   (kinds[PlatformerEntities.crate] as CrateKind?)?.dynamics = dynamics;
 
-  final actors = ActorSystem(world: world);
+  // **One generator for the whole world, and it is the same object the
+  // simulation snapshots.** `PlatformerSimulation` would make its own if this
+  // did not hand one over, and two generators are two sequences of which a save
+  // records one — so a restored run would agree about the runner and disagree
+  // about everything an enemy rolled for.
+  final dice = random ?? GameRandom(1);
+
+  final actors = ActorSystem(world: world, random: dice);
   final mechanisms = MechanismWorld(world);
 
   level.spawnInto(
@@ -121,6 +129,7 @@ Staged stage(
       mechanisms: mechanisms,
       dynamics: dynamics,
       levelNext: level.next,
+      random: dice,
       lives: lives,
       deaths: deaths,
       elapsed: elapsed,

@@ -118,10 +118,21 @@ Staged stage(
   void Function(Fixture fixture)? onFixture,
   double eyeOffset = 0.7,
   double lookSensitivity = 0.0022,
+  GameRandom? random,
 }) {
   final entities = EcsWorld();
+
+  // **One generator, shared by everything in this world that rolls.** It was
+  // three: `ActorSystem` and `Hitscan` each defaulted to an unseeded
+  // `math.Random`, and `GameSimulation.random` was left null, so `save()` wrote
+  // no dice at all. A crypt restored from a save agreed about where everything
+  // stood and disagreed about the first monster that decided whether to flinch
+  // — which is SPEC §6.4 not being kept by anything, in the game the document's
+  // performance budgets are written for.
+  final dice = random ?? GameRandom(1);
+
   final projectiles = ProjectileSystem(world: world, entities: entities);
-  final actors = ActorSystem(world: world, entities: entities);
+  final actors = ActorSystem(world: world, entities: entities, random: dice);
 
   // Baked from the level's brushes and deliberately not from the collision
   // world: that holds the doors and the lift, and whichever position they
@@ -142,7 +153,7 @@ Staged stage(
   // One ray-caster and one shot for the whole world. The application already
   // shared the ray-caster and built the shot twice; sharing both is the same
   // statement made once.
-  final hitscan = Hitscan(world: world);
+  final hitscan = Hitscan(world: world, random: dice);
   final shot = WeaponShot(
     world: world,
     hitscan: hitscan,
@@ -202,6 +213,7 @@ Staged stage(
     start: start,
     navIssues: navIssues,
     sim: GameSimulation(
+      random: dice,
       player: player,
       collision: world,
       input: input,

@@ -32,6 +32,7 @@ final class _Room {
     registerActorComponents(entities);
     entities.set(entities.spawn(), Physical(crate));
     sim = GameSimulation(
+      random: GameRandom(1),
       player: player,
       collision: world,
       input: input,

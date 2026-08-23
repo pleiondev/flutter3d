@@ -38,6 +38,7 @@ import '../math/motion.dart';
 import '../math/tolerances.dart';
 import '../nav/navigation.dart';
 import '../physics/layers.dart';
+import '../save/game_random.dart';
 import 'actor.dart';
 import 'actor_components.dart';
 import 'brain.dart';
@@ -61,10 +62,9 @@ final class ActorHurt {
 final class ActorSystem {
   ActorSystem({
     required this.world,
+    required this.random,
     EcsWorld? entities,
-    math.Random? random,
-  })  : entities = entities ?? EcsWorld(),
-        random = random ?? math.Random() {
+  }) : entities = entities ?? EcsWorld() {
     registerActorComponents(this.entities);
   }
 
@@ -75,7 +75,20 @@ final class ActorSystem {
   final EcsWorld entities;
 
   /// Randomness, shared so that a snapshot can carry where the dice were.
-  final math.Random random;
+  ///
+  /// **[GameRandom] and not `math.Random`, and the line above used to be a
+  /// lie.** `math.Random` has no readable state, so a snapshot cannot carry
+  /// where its dice were — which `GameRandom`'s own doc says in its first
+  /// paragraph, four files away. The two sat side by side in this package for
+  /// as long as nobody read them together.
+  ///
+  /// **Required and not defaulted**, which is the other half. It defaulted to
+  /// an unseeded `math.Random()`, and the shipped shooter took that default:
+  /// its saves restored everything except the flinch rolls, and SPEC §6.4 —
+  /// no randomness except through a `Random` that was handed in — was being
+  /// kept by nothing at all. A default is how a caller takes a decision without
+  /// making one.
+  final GameRandom random;
 
   /// One handle per entity, because [Actor.onDamage] is on it.
   final Map<int, Actor> _handles = <int, Actor>{};
