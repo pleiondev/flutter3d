@@ -99,7 +99,8 @@ final class DungeonRun extends RunSession<LevelReady> {
         appearance: const DungeonFixtures(),
         device: device,
       )
-        // Before spawning, so a torch can find the light it drives.
+        // Before spawning, so a torch can find the light it drives. Held by
+        // `run_cubit_test.dart`, which is where losing this line was found.
         ..bindLights(),
     );
     final staged = stage(

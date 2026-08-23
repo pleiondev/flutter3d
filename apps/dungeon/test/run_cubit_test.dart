@@ -233,4 +233,41 @@ void main() {
           reason: 'a level with no next unloaded itself');
     });
   });
+
+  test('the assembly binds the level lights to the torches that drive them',
+      () async {
+    // **The line this file used to be missing.** Forty lines of the game's
+    // assembly were copied here and the copy had lost `..bindLights()`, so
+    // every torch in this harness lit nothing while the game's lit the room —
+    // and nothing said so, because a crypt where the lights never move looks
+    // exactly the same either way.
+    //
+    // That is also why this is not a picture. The crypt's torches are
+    // `SteadyLight`: their brightness is one until something measures the fire,
+    // which is the particle system in the running game and nothing at all in a
+    // test. A frame drawn here is byte-identical with and without the binding
+    // — measured — so a frame test cannot hold this and this test can.
+    //
+    // Mutation: drop `..bindLights()` from `DungeonRun.open`. The named light
+    // stays at its authored intensity however far the torch has guttered.
+    final it = _game();
+    await it.run.begin();
+    final level = (it.run.state as RunPlaying<LevelReady>).level;
+
+    final torch = level.staged.mechanisms.all
+        .whereType<LightFixture>()
+        .firstWhere((LightFixture f) => f.light != null);
+    final lamp = level.loaded.scene.lights
+        .firstWhere((LightNode l) => l.name == torch.light);
+
+    final authored = lamp.intensity;
+    expect(authored, greaterThan(0.0), reason: 'the level light has no strength');
+
+    torch.measure(0.25);
+    level.fixtureVisuals.sync(0.0);
+
+    expect(lamp.intensity, closeTo(authored * 0.25, 1e-4),
+        reason: 'the torch guttered to a quarter and the light it names did '
+            'not move — the assembly never bound them');
+  });
 }

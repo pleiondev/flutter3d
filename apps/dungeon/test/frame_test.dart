@@ -173,10 +173,14 @@ void main() {
     // **Two mutations that do *not* fail, recorded so nobody claims them.**
     // Aiming the camera at the ceiling changes nothing measurable: a crypt has
     // brushes in every direction and all three numbers come back identical.
-    // Nor does dropping `..bindLights()` from `DungeonRun.open` — which was
-    // this session's find in the harness — because nothing within sight of the
-    // spawn is a light-bearing fixture. This file therefore does not cover
-    // that, and saying so is cheaper than a comment somebody trusts.
+    //
+    // Nor does dropping `..bindLights()` from `DungeonRun.open`, and the reason
+    // is worth having written down: the crypt's torches are `SteadyLight`, so
+    // their brightness is one until something measures the fire — the particle
+    // system in the running game, and nothing at all here. Binding a light and
+    // then scaling it by one leaves the same frame. `run_cubit_test.dart` holds
+    // that one instead, by guttering a torch and asking whether the light it
+    // names moved.
     final it = await _shown();
     final frame = _describe(await _drawFromTheStart(it));
     final total = _width * _height;
