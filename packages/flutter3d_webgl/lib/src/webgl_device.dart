@@ -51,6 +51,15 @@ final class WebGlDevice implements GraphicsDevice {
   /// back the clear colour. Not a scene missing its sky: black.
   final Set<int> enabledAttributeLocations = <int>{};
 
+  /// Vertex attribute locations currently carrying a non-zero divisor.
+  ///
+  /// Context state for the same reason as the set above, and it leaked the same
+  /// way: `vertexAttribDivisor` belongs to the location, survives the draw, the
+  /// buffer, the program and the pass, and an encoder that tracked its own put
+  /// back only what it had set — which is nothing, once the next pass is a new
+  /// encoder.
+  final Set<int> instancedAttributeLocations = <int>{};
+
   /// Builds a device over a canvas of [width] by [height].
   ///
   /// The canvas is the thing the browser composites; see [present]. It is

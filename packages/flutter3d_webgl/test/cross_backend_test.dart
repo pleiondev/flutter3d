@@ -26,7 +26,7 @@
 /// the browser pass drags this in and every case fails on a missing library
 /// rather than on a picture.
 ///
-/// **The budgets below are measurements, and five of them are defects.** That
+/// **The budgets below are measurements, and four of them are defects.** That
 /// distinction is the point of the file: a number near a fifth of a percent is
 /// multisampling on a silhouette and nothing to do; a number in whole percents
 /// is this backend drawing something else. They are listed as budgets anyway,
@@ -51,17 +51,23 @@ const int _channel = 8;
 /// and rounded up by a hair rather than to a round number: a budget far above
 /// what was observed has stopped watching.
 ///
-/// ## The five that are not multisampling
+/// ## The four that are not multisampling
 ///
-/// There were six. `lighting-unlit` was 11.1% — an empty frame, the sphere not
-/// drawn at all — because the translated shader declared a `PointShadow` block
-/// the engine correctly never bound, and WebGL2 discards every draw with an
-/// active block that has no buffer under it. Guarded at the header now, and the
-/// scene sits at 0.132% with the others.
+/// There were six, and two of them were this backend drawing the wrong thing
+/// rather than drawing it slightly differently.
 ///
-///  * **`particles-mesh`, 19.1%.** The instanced mesh-particle path. Every other
-///    particle scene agrees to within a rounding error, so this is the mesh
-///    variant rather than particles.
+/// `lighting-unlit` was 11.1% — an empty frame, the sphere not drawn at all —
+/// because the translated shader declared a `PointShadow` block the engine
+/// correctly never bound, and WebGL2 discards every draw with an active block
+/// that has no buffer under it.
+///
+/// `particles-mesh` was 19.1%, and the mesh particles were never the problem:
+/// the checkerboard cube behind them came back a flat average of itself. The
+/// mesh-particle draw is the engine's only instanced one, `vertexAttribDivisor`
+/// is state of an attribute location rather than of a draw, and nothing put it
+/// back — so the next frame's mesh read one texture coordinate for the whole
+/// quad. Both sit with the others now, at 0.132% and 0.138%.
+///
 ///  * **`bloom-sphere`, 7.4%.** The post chain, at a mean difference of 1.7 —
 ///    spread thinly over the glow rather than concentrated, which is what a
 ///    downsample chain of a different filter looks like.
@@ -75,7 +81,6 @@ const int _channel = 8;
 ///    one.
 ///  * **`debug-overlay`, 2.5%.** Line rendering.
 const Map<String, double> _budgets = <String, double>{
-  'particles-mesh': 19.2,
   'bloom-sphere': 7.5,
   'view-model-point-shadow': 2.7,
   'debug-overlay': 2.6,
@@ -96,6 +101,7 @@ const Map<String, double> _budgets = <String, double>{
   'lighting-lambert': 0.2,
   'skinned-figure': 0.1,
   'particles-textured': 0.1,
+  'particles-mesh': 0.2,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,
