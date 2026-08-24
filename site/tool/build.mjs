@@ -17,6 +17,10 @@ const root = join(here, '..');
 const contentDir = join(root, 'content');
 const distDir = join(root, 'dist');
 
+// Stated once. The footer, the topbar and the architecture link all point at the
+// same place, and three copies of a URL is three chances to update two of them.
+const GITHUB = 'https://github.com/pleiondev/flutter3d';
+
 // ---------------------------------------------------------------------------
 // The site's shape. One list, in reading order: the sidebar, the prev/next
 // links and the build order all come from it, so they cannot disagree.
@@ -46,6 +50,8 @@ const NAV = [
       { file: 'core/physics.md', url: '/core/physics/', title: 'Collision & physics' },
       { file: 'core/extras.md', url: '/core/extras/', title: 'Particles & audio' },
       { file: 'core/tutorial.md', url: '/core/tutorial/', title: 'Tutorial: first scene', kind: 'tutorial' },
+      { file: 'core/session.md', url: '/core/session/', title: 'Assembling an application', kind: 'guide' },
+      { file: 'core/editor.md', url: '/core/editor/', title: 'The level editor', kind: 'guide' },
     ],
   },
   {
@@ -226,7 +232,7 @@ function layout({ page, html, toc, index }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${page.title === 'flutter3d' ? 'flutter3d — a 3D engine on Flutter GPU' : `${page.title} · flutter3d`}</title>
-<meta name="description" content="${(page.description || 'A 3D engine on Flutter GPU, a game layer on top of it, and two games built from both.').replace(/"/g, '&quot;')}">
+<meta name="description" content="${(page.description || 'A 3D engine on Flutter GPU, a game layer on top of it, and three games built from both.').replace(/"/g, '&quot;')}">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/site.css">
 </head>
@@ -241,7 +247,9 @@ function layout({ page, html, toc, index }) {
   <button class="rail-toggle" aria-expanded="false" aria-controls="rail">Menu</button>
   <div class="topbar-meta">
     <span class="chip">Flutter 3.47 · Impeller</span>
-    <a class="chip chip-link" href="/reference/packages/">15 packages</a>
+    <a class="chip chip-link" href="/reference/packages/">22 packages</a>
+    <a class="chip chip-link" href="/docs/">API reference</a>
+    <a class="chip chip-link" href="${GITHUB}" rel="noopener">GitHub</a>
   </div>
 </header>
 
@@ -256,6 +264,17 @@ function layout({ page, html, toc, index }) {
     <footer class="foot">
       <p>flutter3d documentation. Flutter 3.47.0 stable, Dart 3.12.2.
          Source: <code>${page.file ?? 'site/content'}</code></p>
+      <p class="foot-links">
+        <a href="${GITHUB}" rel="noopener">GitHub</a> ·
+        <a href="/docs/">API reference</a> ·
+        <a href="${GITHUB}/blob/main/ARCHITECTURE.md" rel="noopener">Architecture</a>
+      </p>
+      <p class="foot-legal">
+        An independent implementation of a 3D engine for Flutter, not affiliated
+        with the Flutter team.<br>
+        © 2026 Dmitrii Zolotov. Released under the
+        <a href="${GITHUB}/blob/main/LICENSE" rel="noopener">MIT licence</a>.
+      </p>
     </footer>
   </main>
 

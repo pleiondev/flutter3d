@@ -28,7 +28,7 @@ Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of th
 The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all twenty-one packages and five applications against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
-git clone https://github.com/dzolotov/flutter3d.git
+git clone https://github.com/pleiondev/flutter3d.git
 cd flutter3d
 flutter pub get
 ```
@@ -75,7 +75,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-2721 tests across 18 packages and five applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
+2870 tests across 22 packages and five applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
 
 ## Your own application
 

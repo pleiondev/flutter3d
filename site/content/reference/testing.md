@@ -1,10 +1,10 @@
 ---
-description: Two independent golden sets, mutation-checking every new test, determinism and snapshots, and why only thirty of 2721 tests need a GPU.
+description: Two independent golden sets, mutation-checking every new test, determinism and snapshots, and why only thirty of 2870 tests need a GPU.
 ---
 
 # Testing
 
-2721 tests across 18 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call, checked against `docs/SPEC.md` §5.2 so the number cannot quietly describe a year-old repository. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+2870 tests across 22 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call, checked against `ARCHITECTURE.md` §13 so the number cannot quietly describe a year-old repository. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -109,7 +109,7 @@ import 'package:flutter3d_ui/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the fifteen checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the eighteen checks it.
 
 ## Play the game in a test
 
@@ -153,7 +153,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Fifteen rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Eighteen rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|
@@ -168,7 +168,9 @@ Fifteen rules, under a second. Nothing they read needs `pub get`, a shader bundl
 | `no test builds its own world` | A harness that is not the game, and so agrees with any bug the game has |
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
 
-Five more check the lists against the workspace, the applications for a silenced `print`, the Impeller conformance runner for rot, and the test count in `docs/SPEC.md` against the tree.
+| `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
+
+Seven more check the lists against the workspace, the applications for a silenced `print`, the Impeller conformance runner for rot, and three numbers that go stale on their own: the test count, the structure-rule count and the publishing order, each compared against the tree. A number in prose is a number nobody recounts.
 
 <div class="why">
 <p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>

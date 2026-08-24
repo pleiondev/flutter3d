@@ -137,7 +137,7 @@ loaded.level.spawnInto(
 
 There is no runtime shader compilation on this platform. `tool/build_shaders.sh` calls `impellerc` and produces a bundle; the application loads it as an asset. Everything below follows from that one fact.
 
-- **A material graph is impossible.** No `NodeMaterial`, no TSL. Every lighting model is a separate pre-built shader.
+- **A material graph is impossible** while the game runs. Every lighting model is a separate pre-built shader.
 - **Every shader is a separate `RenderPipeline`**, so a pipeline switch is the most expensive state change in a pass. That is why it is the high-order key when the render list is sorted.
 - **Lighting is a uniform array, not a permutation per light count.** `vec4 lights[8]` with the count as a uniform, so switching a light on or off never rebuilds a pipeline. A capture with three lights and one with a single light both report **one** pipeline.
 - **The bundle grows with every permutation** — 12.5 KB with one shader, 97 KB with seven.

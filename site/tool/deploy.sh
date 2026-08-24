@@ -14,11 +14,12 @@ cd "$here"
 npm run build
 
 # --delete, because a page removed from the nav must stop being reachable.
-# The playable builds live beside the site instead of inside dist/, which the
-# build wipes on every run; tool/deploy-demos.sh puts them there. The exclude
-# is anchored: an unanchored `demo/` also matches `platformer/demo/`, which is
-# a documentation page, and deleted both demo pages on the first deploy.
-rsync -az --delete --exclude '/demo/' dist/ "$host:$target/"
+# The playable builds and the generated API reference live beside the site
+# instead of inside dist/, which the build wipes on every run; tool/deploy-demos.sh
+# and tool/deploy-docs.sh put them there. Both excludes are anchored: an
+# unanchored `demo/` also matches `platformer/demo/`, which is a documentation
+# page, and deleted both demo pages on the first deploy.
+rsync -az --delete --exclude '/demo/' --exclude '/docs/' dist/ "$host:$target/"
 ssh "$host" "chown -R www-data:www-data $target"
 
 echo "deployed to https://flutter3d.pleion.dev/"

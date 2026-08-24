@@ -22,7 +22,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 </div>
 
 <dl class="stats">
-  <div><dt>Tests</dt><dd>2721<small>across 18 packages & 5 apps</small></dd></div>
+  <div><dt>Tests</dt><dd>2870<small>across 22 packages &amp; 5 apps</small></dd></div>
   <div><dt>Need a GPU</dt><dd>~30<small>the Impeller goldens only</small></dd></div>
   <div><dt>Lighting models</dt><dd>6<small>one shader each</small></dd></div>
   <div><dt>Model load</dt><dd>1.1 µs<small>.f3d vs 4.54 ms as OBJ</small></dd></div>
@@ -167,7 +167,7 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 
 ## What it does not do
 
-- **No runtime shader compilation.** Shaders are compiled ahead of time into a bundle, so a material graph in the style of Babylon's `NodeMaterial` or three.js TSL is not possible. Every lighting model is a separate pre-built shader and every shader is a separate pipeline.
+- **No runtime shader compilation.** Shaders are compiled ahead of time into a bundle, so a material graph assembled while the game runs is not possible. Every lighting model is a separate pre-built shader and every shader is a separate pipeline.
 - **No compressed textures, no compute passes, no rendering into a mip level.** These are what `flutter_gpu` still lacks.
 - **No navmesh, no flanking, no squads.** Navigation gets an agent there, not around you.
 - **No touch backend, and no gamepad or mouse capture on Windows or Linux.** `pad_input` covers macOS, iOS, Web and Android; `pointer_lock` covers macOS only. `InputState` is device-agnostic, so the remaining platforms are new implementations of an existing seam, not a design change.

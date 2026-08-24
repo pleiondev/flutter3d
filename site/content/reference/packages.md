@@ -55,6 +55,11 @@ Two tiers, and the split is a correction. The library said it was shader-free as
 
 → [Writing a HAL backend](/core/backends/)
 
+### `flutter3d_testing`
+Renders a scene through the software backend and compares it against a reference image, so a game built on the engine gets pixel regression tests on a machine with no display.
+
+Two calls: `renderFrame` builds a frame from a scene and a camera, `expectMatchesGolden` compares it against a PNG and records one when there is none. The tolerance defaults to **zero**, and that is the point — a software rasteriser has no driver, no clock and no thread to disagree with itself, so the same scene drawn twice is the same bytes twice, and a package telling its users to allow "a few pixels" would be telling them to stop watching.
+
 ## Simulation
 
 ### `flutter3d_game`
@@ -105,9 +110,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Fifteen rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Eighteen rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting fifteen green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting eighteen green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 
@@ -163,7 +168,7 @@ Sticks, triggers and buttons, read as a snapshot the caller asks for once per fr
 
 Button names are **physical positions** (`face.south`, not `a`), because the string lands in a player's config file and is read back years later, possibly on a different pad: Xbox's lower face button is `A`, PlayStation's is Cross, and Nintendo swaps `A` and `B`.
 
-Knows nothing about games. The translation into actions is `PadInput` in `flutter3d_game`, beside the keyboard's. The web backend is pure Dart over `navigator.getGamepads()`; macOS, iOS and Android wait for a controller in hand, for the reason `docs/SPEC.md` §4.6 records. Windows and Linux are not implemented yet.
+Knows nothing about games. The translation into actions is `PadInput` in `flutter3d_game`, beside the keyboard's. The web backend is pure Dart over `navigator.getGamepads()`; macOS, iOS and Android wait for a controller in hand, for the reason `ARCHITECTURE.md` §11.1 records. Windows and Linux are not implemented yet.
 
 ## Applications
 
