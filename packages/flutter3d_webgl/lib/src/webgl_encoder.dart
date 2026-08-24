@@ -257,9 +257,31 @@ final class WebGlEncoder implements CommandEncoder {
   @override
   void bindPipeline(PipelineHandle pipeline) {
     final program = pipeline.backend as WebGlProgram;
+    // **Attribute arrays are global state and outlive the program that enabled
+    // them.** A stage with more attributes than the next one leaves the extras
+    // switched on, pointing at whatever buffer follows — and in WebGL2 an
+    // enabled array with no buffer bound is `INVALID_OPERATION`, which drops
+    // the draw with nothing logged.
+    //
+    // The sky is what found this. Its vertex stage takes eight attributes
+    // against a mesh's five, so every draw after it — including the composite
+    // that puts the frame on screen — was silently discarded and the whole
+    // frame came back black. Not "a scene without a sky": black. Nothing had
+    // ever compared a sky between the backends, so nothing could see it.
+    if (!identical(program, _program)) {
+      for (final location in _enabledLocations) {
+        _gl.disableVertexAttribArray(location);
+      }
+      _enabledLocations.clear();
+    }
     _program = program;
     _gl.useProgram(program.program);
   }
+
+  /// Attribute locations switched on in this context, wherever they were
+  /// switched on. Held by the device, because the state is the context's — see
+  /// [WebGlDevice.enabledAttributeLocations].
+  Set<int> get _enabledLocations => _device.enabledAttributeLocations;
 
   @override
   void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
@@ -314,6 +336,7 @@ final class WebGlEncoder implements CommandEncoder {
       var offset = 0;
       for (final attribute in program.attributes) {
         _gl.enableVertexAttribArray(attribute.location);
+        _enabledLocations.add(attribute.location);
         _gl.vertexAttribPointer(
           attribute.location,
           attribute.componentCount,
@@ -342,6 +365,7 @@ final class WebGlEncoder implements CommandEncoder {
       // is merely more complete than it needs to be.
       if (location < 0) continue;
       _gl.enableVertexAttribArray(location);
+      _enabledLocations.add(location);
       _gl.vertexAttribPointer(
         location,
         attribute.format.componentCount,
@@ -498,6 +522,13 @@ final class WebGlEncoder implements CommandEncoder {
       _gl.vertexAttribDivisor(location, 0);
     }
     _instancedLocations.clear();
+    // Then the arrays themselves, for the reason `bindPipeline` gives: an
+    // enabled array with no buffer under it is `INVALID_OPERATION`, and this
+    // method unbinds the buffer two lines down.
+    for (final location in _enabledLocations) {
+      _gl.disableVertexAttribArray(location);
+    }
+    _enabledLocations.clear();
     _gl.bindBuffer(web.WebGLRenderingContext.ARRAY_BUFFER, null);
     _gl.bindBuffer(web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, null);
   }

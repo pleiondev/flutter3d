@@ -34,6 +34,23 @@ export 'webgl_types.dart';
 final class WebGlDevice implements GraphicsDevice {
   WebGlDevice._(this._gl, this._canvas, this._library);
 
+  /// Vertex attribute locations currently switched on in this context.
+  ///
+  /// **Context state, not pass state, and that distinction is the whole bug.**
+  /// `enableVertexAttribArray` acts on the context — on the default vertex
+  /// array object — so it outlives the encoder that called it, outlives the
+  /// pass, and outlives the frame. An encoder that tracked its own would put
+  /// back only what it had switched on itself, which is exactly nothing when
+  /// the next pass is a new encoder.
+  ///
+  /// The sky is what found it. Its vertex stage takes eight attributes against
+  /// a mesh's five and a post stage's none, so after the sky pass ended,
+  /// locations 5, 6 and 7 stayed on with no buffer under them — and in WebGL2 a
+  /// draw with an enabled array and no bound buffer is `INVALID_OPERATION`,
+  /// dropped with nothing logged. The composite never landed and the frame came
+  /// back the clear colour. Not a scene missing its sky: black.
+  final Set<int> enabledAttributeLocations = <int>{};
+
   /// Builds a device over a canvas of [width] by [height].
   ///
   /// The canvas is the thing the browser composites; see [present]. It is

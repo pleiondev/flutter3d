@@ -49,13 +49,24 @@ Three properties govern every decision below:
 - **Game code separated from the subsystems.** The simulation does not know how a
   frame is drawn.
 
-**Target platforms.** macOS and web are supported and exercised. Windows and Linux
-should work through the Impeller backend and are unverified. Android builds and is
-unverified by hand. iOS is not started.
+**Target platforms.** macOS and web are supported and exercised. All three games
+build for Android and for the iOS simulator, and none has been played on a
+handset — what a phone alone can answer is whether the on-screen stick is the
+right size, whether the buttons are reachable, whether there is enough screen
+left to turn the camera, and whether the device holds a frame. Windows and Linux
+should work through the Impeller backend and are unverified.
 
-Flutter GPU and Impeller are enabled **per application** through `Info.plist`
-(`FLTEnableFlutterGPU`, `FLTEnableImpeller`). An application that has not set them
-fails to initialise the shader library and draws nothing.
+**Flutter GPU is a per-application setting on every platform, and it fails
+silently.** Apple platforms want `FLTEnableFlutterGPU` in `Info.plist`; Android
+wants `io.flutter.embedding.android.EnableFlutterGPU` in the manifest, which the
+engine reads with a default of false. An application that has not set it fails to
+initialise the shader library and draws nothing, with nothing in the log naming
+the cause — which is why a scan checks every application against every platform
+it has ([§13](#13-how-correctness-is-held)). Two games had already shipped
+Android builds without it.
+
+`FLTEnableImpeller` is set beside it: Flutter GPU requires Impeller, which is not
+the default renderer on macOS, and a default is a thing that can change.
 
 **Dependencies are close to none.** The render core, the physics, the game layer,
 the software rasteriser and the particle system are written here. External:
@@ -185,7 +196,7 @@ Applications: `apps/flutter3d_demo_dungeon` (shooter),
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces eighteen rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces nineteen rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -512,6 +523,18 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   and a buffer uploaded as vertices can never be bound as indices; the attempt is
   an `INVALID_OPERATION`, the draw is dropped, and the frame comes back the clear
   colour with nothing logged.
+- **A pass leaves the vertex attributes it enabled switched on**, and a backend
+  built on a context rather than a command buffer has to put them back itself.
+  This is context state: it outlives the encoder, the pass and the frame. A stage
+  with more attributes than the next one leaves the extras on with no buffer under
+  them, which in WebGL2 is another `INVALID_OPERATION` and another dropped draw.
+  The sky found it — eight attributes against a mesh's five and a post stage's
+  none — and the symptom was not a missing sky but an entirely black frame,
+  because the composite that puts the picture on screen was one of the draws
+  being dropped. A shader that declares its attribute locations rather than
+  leaving them to the linker is the other half: an interleaved vertex written in
+  one order and read back in whatever order reflection happened to return is a
+  layout nobody stated.
 - **`setDepthWrite(false)` means depth writes are off**, on all three backends,
   since SDK 3.47. Before that flutter_gpu's native setter ignored its argument, and
   the software backend mirrored the bug deliberately: an honest implementation put
@@ -951,7 +974,7 @@ against whatever entities a game defines.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **2870 tests** across 22 packages and 5 applications |
-| Structure rules | 18, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 19, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 30 scenes against **two independent reference sets**,
@@ -1051,10 +1074,21 @@ animation state machine — a crossfade is useful on its own, and a state machin
 without one is not.
 
 **Shadows are one directional map rather than a cascade.** Point-light cube shadows
-in the browser do not match Impeller: one parity scene is skipped, with the
-divergence localised to sampling — filtering or precision on a half-float atlas —
-after bindings, uniform packing, the second atlas and the texture-unit limit were
-each ruled out by measurement.
+in the browser do not match Impeller: one parity fixture of nine is skipped, at a
+mean cell difference of 7.95 with one region 93 out. The divergence is localised
+to sampling — filtering or precision on a half-float atlas — after bindings,
+uniform packing, the second atlas, the texture-unit limit and the attribute-state
+bug below were each ruled out by measurement.
+
+**What the web backend is verified to draw is nine fixtures, not everything it
+can draw.** The conformance suite says it implements the interface, and the
+parity set says it draws the same picture as Impeller for two lit spheres, a
+directional shadow, both cube atlases, bloom, the sky, image-based lighting and
+the composite look. Particles, skinning, custom materials, fog, ambient occlusion
+and reflections have no web comparison — they are drawn, and nobody has checked
+they are drawn the same. The gap is worth stating because of what widening it by
+three fixtures found the first time it was tried: **the sky blacked out the
+entire frame on WebGL**, and had for as long as there was a sky.
 
 **No occlusion culling, SSAO, FXAA or TAA.**
 

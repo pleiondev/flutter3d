@@ -74,6 +74,32 @@ enum ParityScene {
   /// fixture said "the atlas is right" for six attempts on the strength of a
   /// number that was measuring the other atlas.
   pointShadowStaticMap,
+
+  /// The procedural sky behind the spheres.
+  ///
+  /// Its own pass, its own stage pair, and the one place in this engine written
+  /// against a target it did not match: the sky is fed through vertex
+  /// attributes because its uniform blocks do not arrive on Impeller, and a
+  /// stale translation once had the browser drawing a sky from the month
+  /// before while nothing could see it.
+  sky,
+
+  /// Two physical spheres lit by a prefiltered environment and nothing else.
+  ///
+  /// The direct light is off, so what the picture is *made of* is the cube and
+  /// the roughness chain — the whole of image-based lighting in one number. It
+  /// exercises what a backend finds hardest to get right quietly: a cube
+  /// sampler, a mip chain uploaded level by level, and a level count that is
+  /// also the "is there one" flag.
+  imageBasedLighting,
+
+  /// The plain scene with the composite look turned all the way up.
+  ///
+  /// Grading, vignette, grain and chromatic aberration are the last thing that
+  /// happens to a frame, they happen on every pixel, and they are the newest
+  /// thing in the post chain. The grain is a hash of the pixel rather than of
+  /// the clock, which is what makes this comparable at all.
+  look,
 }
 
 ({Scene scene, CameraNode camera}) buildParityScene(
@@ -92,7 +118,15 @@ enum ParityScene {
       Material(
         name: 'big',
         baseColor: Vector4(0.85, 0.25, 0.15, 1.0),
-        lighting: LightingModel.lambert,
+        // Physical only where the fixture is about what a surface reflects:
+        // Lambert has no response to an environment at all, so an IBL scene
+        // shaded that way would compare two flat colours and pass whatever the
+        // cube contained.
+        lighting: which == ParityScene.imageBasedLighting
+            ? LightingModel.pbr
+            : LightingModel.lambert,
+        metallic: 0.9,
+        roughness: 0.25,
       ),
       name: 'big',
     ),
@@ -111,7 +145,13 @@ enum ParityScene {
       Material(
         name: 'small',
         baseColor: Vector4(0.2, 0.5, 0.9, 1.0),
-        lighting: LightingModel.lambert,
+        lighting: which == ParityScene.imageBasedLighting
+            ? LightingModel.pbr
+            : LightingModel.lambert,
+        // Rougher than the big one, so the two read different levels of the
+        // chain. A fixture where every surface is a mirror tests level zero.
+        metallic: 1.0,
+        roughness: 0.55,
       ),
       name: 'small',
     )
@@ -186,6 +226,26 @@ enum ParityScene {
           ..castsShadow = true
           ..setPosition(2.2, 2.6, 1.8),
       );
+
+    case ParityScene.sky:
+    case ParityScene.look:
+      scene.root.add(
+        LightNode(name: 'key', type: LightType.directional)
+          ..intensity = 3.5
+          ..setPosition(1.5, 3.0, 2.0)
+          ..lookAt(Vector3.zero()),
+      );
+
+    case ParityScene.imageBasedLighting:
+      // **No direct light at all.** Everything in this picture came out of the
+      // cube, so a backend that binds no environment draws two silhouettes and
+      // the number says so, rather than being carried by a key light.
+      final environment = EnvironmentMap.fromSky(device, _paritySky);
+      if (environment != null) {
+        scene.environment = environment.texture;
+        scene.environmentLevels = environment.levels;
+      }
+      scene.ambientIntensity = 1.0;
   }
 
   final camera = CameraNode(name: 'eye')
@@ -224,4 +284,38 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
           bloom: BloomSettings(enabled: false),
           showStaticShadowMap: true,
         ),
+      ParityScene.sky => RenderSettings(
+          bloom: const BloomSettings(enabled: false),
+          shadows: const ShadowSettings(enabled: false),
+          sky: _paritySky,
+        ),
+      ParityScene.imageBasedLighting => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          shadows: ShadowSettings(enabled: false),
+        ),
+      // Turned up far past taste: a fixture that applied a look nobody could
+      // see would compare two pictures of the same thing and agree.
+      ParityScene.look => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          shadows: ShadowSettings(enabled: false),
+          look: LookSettings(
+            contrast: 1.35,
+            saturation: 1.4,
+            temperature: 0.25,
+            vignette: 0.6,
+            grain: 0.08,
+            chromaticAberration: 0.004,
+          ),
+        ),
     };
+
+/// The sky both sky fixtures use, and the one the environment is baked from.
+///
+/// One constant rather than two, because the point of the image-based fixture is
+/// that the cube is the sky: two sets of numbers would make a difference between
+/// them a difference about the fixtures.
+const SkySettings _paritySky = SkySettings(
+  enabled: true,
+  glowStrength: 0.35,
+  sunIntensity: 2.0,
+);
