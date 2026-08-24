@@ -973,7 +973,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **2873 tests** across 22 packages and 5 applications |
+| Unit tests | **2874 tests** across 22 packages and 5 applications |
 | Structure rules | 19, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
