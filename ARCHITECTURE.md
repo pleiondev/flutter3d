@@ -973,14 +973,36 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **2870 tests** across 22 packages and 5 applications |
+| Unit tests | **2872 tests** across 22 packages and 5 applications |
 | Structure rules | 19, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 30 scenes against **two independent reference sets**,
-Impeller and the software rasteriser, at zero differing pixels with a per-channel
-tolerance of 8. `cross_backend_test.dart` compares the two recorded sets with no
-device at all, which is the question that actually matters.
+**Golden render tests.** 32 scenes against **three independent reference sets** —
+Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
+against its own set, with a per-channel tolerance of 8. Each backend records its
+own because a shared set would need one tolerance doing two jobs: "did this
+backend change" and "do two backends still agree" are different questions, and a
+tolerance wide enough for the second stops watching the first.
+
+The agreeing is then measured with no device at all, over the committed sets:
+`flutter3d_cpu/test/cross_backend_test.dart` for the software backend and
+`flutter3d_webgl/test/cross_backend_test.dart` for the browser one. Those run in
+CI; recording needs the hardware, and for the browser set that means
+`flutter3d_webgl/tool/golden_web.sh`, which builds the example for the web,
+serves it, and drives Chrome once per scene — a page cannot open a file or write
+one, so it fetches its reference over HTTP and posts back what it drew.
+
+**What the third set found on the day it was recorded.** Six scenes disagree by
+whole percents rather than by a silhouette's worth: `lighting-unlit` at 11%,
+where this backend's frame has a mean luminance of 5 against Impeller's 25 and
+the sphere is very nearly not there; `particles-mesh` at 19%, the instanced
+mesh-particle path, where every other particle scene agrees to a rounding error;
+`bloom-sphere` at 7%; and `view-model-point-shadow`, `cube-shadow-mover` and
+`cube-shadow-lit`, which are the point-shadow lookup. Read those last three
+beside the three that are **exactly zero** — `cube-shadow`, `cube-shadow-many`
+and `cube-shadow-crowded` composite the atlas rather than light with it. The
+atlas is right and the reading of it is not, and the set says so across six
+scenes where one parity fixture said it across one.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
 in the test's comment. This is not a ritual: the rule regularly finds tests that

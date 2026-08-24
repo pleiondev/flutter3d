@@ -404,10 +404,43 @@ void main() {
         // a half-float atlas — rather than at anything the engine computes.
         //
         // **Re-measured after the attribute-state fix**, in case that was it: it
-        // was not. Mean 7.95, worst cell 93 — a picture that is nearly right
-        // with one region wrong, which is the same shape as before and not the
-        // whole-frame blackout the sky had. Recorded here so the next attempt
-        // starts from a number rather than from "does not converge".
+        // was not. Mean 7.95, worst cell 93.
+        //
+        // Then localised, and the localisation is worth more than the number.
+        // **Only the floor differs.** Row 0 and row 7 of the grid — the two
+        // spheres — are identical to the unit; row 15, which is the floor, is
+        // 14 on Impeller and 71 to 107 on WebGL. The floor is shadowed there
+        // and lit here, and nothing else in the picture disagrees at all.
+        //
+        // Four things it is **not**, each ruled out by probe rather than by
+        // argument:
+        //
+        //   * *The atlas pass.* Disabling `_renderCubeShadow` outright moves
+        //     `pointShadowMap` from 0.00 to 253.62 and leaves this fixture at
+        //     7.95 — so the lit pass was not reading what that pass wrote,
+        //     before or after.
+        //   * *The shadow strength.* Forcing `params.z` past the
+        //     `_cubeShadowLight < 0` guard changes nothing, so the block binds
+        //     and the strength arrives.
+        //   * *The face matrices.* Putting them through `toFramebufferOrigin`,
+        //     the way the directional cascade does, changes nothing either way.
+        //     That is itself a finding: the cube path's tile addressing is
+        //     origin-agnostic where the directional path's is not.
+        //   * *The static atlas.* Dropping it from the `min` in
+        //     `PointShadowDistance` changes nothing.
+        //
+        // What is measured: with `showPointShadowDebug`, the floor comes back
+        // r=132 g=19 b=17 on WebGL against r=173 g=219 b=165 on the software
+        // backend. Green is the blocker distance against the light's range, so
+        // WebGL is finding a blocker at about 0.07 of range where the software
+        // backend finds one at 0.86. A blocker that close makes the
+        // similar-triangles penumbra enormous, the filter smears the edge over
+        // the whole floor, and what is left looks exactly like no shadow.
+        //
+        // So the next question is why the sampled distance is an order of
+        // magnitude short, and the two candidates left are the atlas texture's
+        // format under a WebGL sampler and the tile-local uv the taps are
+        // clamped into. Neither has been probed yet.
         skip: which == ParityScene.pointShadow
             ? 'the lookup is misaimed, not absent — see the note above'
             : null);

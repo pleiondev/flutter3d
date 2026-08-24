@@ -26,6 +26,18 @@ void reportLine(String message) {
     web.document.body!.append(log);
   }
   log.textContent = '${log.textContent ?? ''}$message\n';
+
+  // And to the server, so a driver does not have to scrape a page to find out
+  // what happened. Fire and forget: a build opened by hand has nothing
+  // answering this route, and the line is already on the screen where a person
+  // can read it — the post is the machine's copy, not the only one.
+  web.window
+      .fetch(
+        'report'.toJS,
+        web.RequestInit(method: 'POST', body: message.toJS),
+      )
+      .toDart
+      .catchError((Object _) => web.Response());
 }
 
 /// The scene named in the page's URL, if any.
@@ -39,6 +51,13 @@ String? get sceneOverride {
   final name = Uri.base.queryParameters['golden'];
   return (name == null || name.isEmpty) ? null : name;
 }
+
+/// Whether this run records rather than compares, from the page's URL.
+///
+/// A run-time choice for the same reason [sceneOverride] is one: the suite is
+/// twenty-six scenes and rebuilding for each would be twenty-six dart2js runs.
+/// One build serves both directions, and the URL says which.
+bool get updateOverride => Uri.base.queryParameters['update'] == '1';
 
 /// Whether a run has to be told where the references live.
 ///
@@ -59,23 +78,41 @@ Future<Uint8List?> readReference(String directory, String name) async {
   return buffer.toDart.asUint8List();
 }
 
-/// Not available here, and saying so is better than pretending.
+/// Records a reference by handing it back to the server that served the page.
 ///
-/// Recording a reference means writing a file, and a page cannot. Goldens are
-/// recorded on the desktop build and *compared* here, which is the useful
-/// direction anyway: the question a browser run answers is whether this backend
-/// agrees with the one that recorded them.
+/// **A page cannot write a file, so it posts one.** This used to throw, on the
+/// grounds that goldens are recorded on the desktop build and only compared
+/// here — which was right while the browser had no reference set of its own.
+/// It has one now, and it has to be recorded through the backend that will be
+/// held to it: a set recorded on Impeller and called WebGL's would be the same
+/// tautology as one backend agreeing with itself.
+///
+/// `tool/golden_web.sh` is the other end. Nothing else answers this route, so a
+/// build opened by hand fails here rather than pretending it recorded.
 Future<String> writeReference(
     String directory, String name, Uint8List png) async {
-  throw UnsupportedError(
-    'a browser cannot record a golden. Record on the desktop build with '
-    'tool/golden.sh --update, then compare here.',
-  );
+  return _post('record/$name.png', png, 'reference');
 }
 
-/// Also not available, for the same reason. The verdict carries the numbers.
-Future<String> writeActual(String directory, String name, Uint8List png) async =>
-    '(not written: a browser has no filesystem)';
+/// The frame as drawn, beside the reference, when they disagree.
+Future<String> writeActual(String directory, String name, Uint8List png) async {
+  return _post('actual/$name.png', png, 'actual');
+}
+
+Future<String> _post(String route, Uint8List png, String what) async {
+  final response = await web.window
+      .fetch(
+        route.toJS,
+        web.RequestInit(method: 'POST', body: png.toJS),
+      )
+      .toDart;
+  if (!response.ok) {
+    return '(not written: the server refused $route with ${response.status}. '
+        'A golden is recorded through tool/golden_web.sh, which is what '
+        'answers that route.)';
+  }
+  return '$what written to $route';
+}
 
 /// There is no exit code to return, so the run simply stops.
 Never finish(int code) =>

@@ -96,7 +96,12 @@ final class GoldenRunner {
 
     return GoldenRunner._(
       scene,
-      update: const bool.fromEnvironment('FLUTTER3D_GOLDEN_UPDATE'),
+      // The store's answer wins where it has one. A desktop run takes the
+      // direction as a compile-time define, because `tool/golden.sh` rebuilds
+      // per scene anyway; a browser run takes it from the URL, because one
+      // build has to serve twenty-six scenes in both directions.
+      update: updateOverride ??
+          const bool.fromEnvironment('FLUTTER3D_GOLDEN_UPDATE'),
       directory: configured,
     );
   }

@@ -26,6 +26,11 @@ dependencies:
   vector_math: ^2.2.0
 
 dev_dependencies:
+  # For `compareFrames` alone, in `cross_backend_test.dart`, which measures this
+  # backend's committed reference set against Impeller's. A dev dependency and
+  # not a real one: nothing in `lib/` reaches it, and two backends that depended
+  # on each other at run time would not be two backends.
+  flutter3d_cpu: ^0.3.0
   # The behaviour flutter3d_hardware requires, as tests this backend runs
   # against itself. See flutter3d_conformance.
   flutter3d_conformance: ^0.3.0
