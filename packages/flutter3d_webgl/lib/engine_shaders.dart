@@ -458,6 +458,11 @@ precision highp samplerCube;
 
 // Albedo only. Useful as a baseline: whatever this shows is purely texture and
 // tint, with no lighting term involved.
+// This model has no shadow term, and `LightingModel.unlit` says so with
+// `usesMaterialMaps: false` — so the engine binds no `PointShadow` block. The
+// header must therefore not declare one: a block declared and unbound is a
+// dropped draw on WebGL2 and a phantom bind on Impeller. See surface.glsl.
+#define F3D_NO_POINT_SHADOW
 // --- lib/surface.glsl ---
 // Shared material and lighting interface for the lighting models.
 //
@@ -910,6 +915,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -1193,6 +1214,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -1717,6 +1750,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -2000,6 +2049,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -2709,6 +2770,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -2992,6 +3069,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -3716,6 +3805,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -3999,6 +4104,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -4795,6 +4912,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -5078,6 +5211,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);

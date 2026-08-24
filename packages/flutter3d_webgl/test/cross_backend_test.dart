@@ -26,7 +26,7 @@
 /// the browser pass drags this in and every case fails on a missing library
 /// rather than on a picture.
 ///
-/// **The budgets below are measurements, and six of them are defects.** That
+/// **The budgets below are measurements, and five of them are defects.** That
 /// distinction is the point of the file: a number near a fifth of a percent is
 /// multisampling on a silhouette and nothing to do; a number in whole percents
 /// is this backend drawing something else. They are listed as budgets anyway,
@@ -51,12 +51,14 @@ const int _channel = 8;
 /// and rounded up by a hair rather than to a round number: a budget far above
 /// what was observed has stopped watching.
 ///
-/// ## The six that are not multisampling
+/// ## The five that are not multisampling
 ///
-///  * **`lighting-unlit`, 11.1%.** The largest and the clearest: this backend's
-///    frame has a mean luminance of 5 where Impeller's has 25. The unlit sphere
-///    is very nearly not there. No parity fixture caught it because all of them
-///    shade with Lambert.
+/// There were six. `lighting-unlit` was 11.1% — an empty frame, the sphere not
+/// drawn at all — because the translated shader declared a `PointShadow` block
+/// the engine correctly never bound, and WebGL2 discards every draw with an
+/// active block that has no buffer under it. Guarded at the header now, and the
+/// scene sits at 0.132% with the others.
+///
 ///  * **`particles-mesh`, 19.1%.** The instanced mesh-particle path. Every other
 ///    particle scene agrees to within a rounding error, so this is the mesh
 ///    variant rather than particles.
@@ -74,7 +76,6 @@ const int _channel = 8;
 ///  * **`debug-overlay`, 2.5%.** Line rendering.
 const Map<String, double> _budgets = <String, double>{
   'particles-mesh': 19.2,
-  'lighting-unlit': 11.1,
   'bloom-sphere': 7.5,
   'view-model-point-shadow': 2.7,
   'debug-overlay': 2.6,
@@ -88,6 +89,7 @@ const Map<String, double> _budgets = <String, double>{
   'teapot-generated-normals': 0.2,
   'view-model-overlay': 0.2,
   'lighting-normals': 0.2,
+  'lighting-unlit': 0.2,
   'lighting-toon': 0.2,
   'lighting-pbr': 0.2,
   'lighting-blinnphong': 0.2,

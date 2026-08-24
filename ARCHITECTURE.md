@@ -973,7 +973,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **2872 tests** across 22 packages and 5 applications |
+| Unit tests | **2873 tests** across 22 packages and 5 applications |
 | Structure rules | 19, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -992,13 +992,19 @@ CI; recording needs the hardware, and for the browser set that means
 serves it, and drives Chrome once per scene — a page cannot open a file or write
 one, so it fetches its reference over HTTP and posts back what it drew.
 
-**What the third set found on the day it was recorded.** Six scenes disagree by
-whole percents rather than by a silhouette's worth: `lighting-unlit` at 11%,
-where this backend's frame has a mean luminance of 5 against Impeller's 25 and
-the sphere is very nearly not there; `particles-mesh` at 19%, the instanced
-mesh-particle path, where every other particle scene agrees to a rounding error;
-`bloom-sphere` at 7%; and `view-model-point-shadow`, `cube-shadow-mover` and
-`cube-shadow-lit`, which are the point-shadow lookup. Read those last three
+**What the third set found on the day it was recorded.** Six scenes disagreed by
+whole percents rather than by a silhouette's worth, and one of the six turned out
+to be a shader that drew nothing at all: `lighting-unlit` came back as an empty
+frame, because the translated stage declared a `PointShadow` uniform block the
+engine correctly never binds, and WebGL2 discards every draw with an active block
+that has no buffer under it. The declaration is guarded at the header now and the
+scene sits at 0.13% with the rest.
+
+Five remain: `particles-mesh` at 19%, the instanced mesh-particle path, where
+every other particle scene agrees to a rounding error; `bloom-sphere` at 7%;
+`debug-overlay` at 2.5%, which is line rendering; and
+`view-model-point-shadow`, `cube-shadow-mover` and `cube-shadow-lit`, which are
+the point-shadow lookup. Read those last three
 beside the three that are **exactly zero** — `cube-shadow`, `cube-shadow-many`
 and `cube-shadow-crowded` composite the atlas rather than light with it. The
 atlas is right and the reading of it is not, and the set says so across six
