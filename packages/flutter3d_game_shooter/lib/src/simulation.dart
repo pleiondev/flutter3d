@@ -51,6 +51,7 @@ import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';
 import 'player.dart';
 import 'secret.dart';
+import 'step_phases.dart';
 
 /// Whether the game is being played, lost, or finished.
 ///
@@ -255,6 +256,16 @@ final class GameSimulation {
   /// records one of them.
   final GameRandom random;
 
+  /// Rules this game adds to the step, which this package never heard of.
+  ///
+  /// **The plugin boundary for behaviour.** A game built on this genre gets a
+  /// curse that ticks, a score that decays, a hazard nobody here imagined —
+  /// without forking [step]. The phases it can hang them off are [ShooterPhases]
+  /// plus the two every genre has; each is announced below at the point its name
+  /// claims, and the order the announcements happen in is the order documented
+  /// there and here, which is to say it is part of the contract.
+  final StepSystems systems = StepSystems();
+
   final Vector3 _wish = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
   final Vector3 _aim = Vector3.zero();
@@ -272,6 +283,7 @@ final class GameSimulation {
     // [ActorSystem.beginStep].
     this.actors?.beginStep();
     _countTheLevel();
+    systems.run(StepPhase.begin, dt);
 
     final playing = _state == GameState.playing;
 
@@ -309,6 +321,7 @@ final class GameSimulation {
     }
 
     _world.settle();
+    systems.run(ShooterPhases.afterPlayer, dt);
 
     final doors = mechanisms;
     if (doors != null) {
@@ -320,6 +333,9 @@ final class GameSimulation {
       _readExits(doors);
       _countSecrets(doors);
     }
+    // Announced whether or not this level has mechanisms: a phase that exists
+    // only when the level happens to have a door is a phase nobody can rely on.
+    systems.run(ShooterPhases.afterWorld, dt);
 
     player.inventory.step(dt);
     if (playing) _weapon(dt);
@@ -336,6 +352,7 @@ final class GameSimulation {
         actors.hear(firedFrom, radius: fired.loudness);
       }
     }
+    systems.run(ShooterPhases.afterWeapons, dt);
 
     if (actors != null && player.isAlive) {
       player.eye(_eye);
@@ -345,6 +362,7 @@ final class GameSimulation {
       // cleared at the top of the next one.
       if (actors.died.isNotEmpty) tally.add(kills, actors.died.length);
     }
+    systems.run(ShooterPhases.afterActors, dt);
 
     // After the weapon, so a rocket fired this step is not moved until the
     // next one — otherwise it starts the game already a step down the corridor.
@@ -368,6 +386,9 @@ final class GameSimulation {
     if (_state == GameState.playing && !player.isAlive) {
       _state = GameState.dead;
     }
+    // Last, after the state is resolved, so a system reading `state` reads this
+    // step's answer rather than the previous one's.
+    systems.run(StepPhase.end, dt);
   }
 
   void _use(MechanismWorld mechanisms) {
