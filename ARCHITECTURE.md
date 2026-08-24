@@ -1108,17 +1108,22 @@ to sampling — filtering or precision on a half-float atlas — after bindings,
 uniform packing, the second atlas, the texture-unit limit and the attribute-state
 bug below were each ruled out by measurement.
 
-**What the web backend is verified to draw is nine fixtures, not everything it
-can draw.** The conformance suite says it implements the interface, and the
-parity set says it draws the same picture as Impeller for two lit spheres, a
-directional shadow, both cube atlases, bloom, the sky, image-based lighting and
-the composite look. Particles, skinning, custom materials, fog, ambient occlusion
-and reflections have no web comparison — they are drawn, and nobody has checked
-they are drawn the same. The gap is worth stating because of what widening it by
-three fixtures found the first time it was tried: **the sky blacked out the
-entire frame on WebGL**, and had for as long as there was a sky.
+**Five scenes are drawn differently on the web backend**, and the reference set
+is what says which. `particles-mesh` at 19%, `bloom-sphere` at 7%,
+`debug-overlay` at 2.5%, and the three that read the point-shadow atlas —
+`view-model-point-shadow`, `cube-shadow-mover` and `cube-shadow-lit`. The other
+twenty-seven sit at the silhouette's worth of difference that two rasterisers
+always have.
 
-**No occlusion culling, SSAO, FXAA or TAA.**
+Custom materials, fog, ambient occlusion and reflections still have no web
+comparison at all: they are drawn there, and nobody has checked they are drawn
+the same. That gap is worth stating for what closing part of it produced — three
+new parity fixtures found the sky blacking out every frame, and a reference set
+of thirty-two found a lighting model drawing nothing.
+
+**No occlusion culling, FXAA or TAA.** Screen-space ambient occlusion and
+reflections exist and are off by default; neither has a golden scene, so what
+is pinned about them is their settings and their shader, not their picture.
 
 **No convex hulls or triangle-mesh collision shapes**, and no joints.
 
