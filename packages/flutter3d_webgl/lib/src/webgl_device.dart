@@ -408,18 +408,21 @@ final class WebGlDevice implements GraphicsDevice {
     // call.
     while (_gl.getError() != 0) {}
 
-    // Flipped, by reading the source rectangle bottom to top. GL puts the
-    // origin of a framebuffer at the bottom left and the engine's frames are
-    // row-major from the top, so a straight blit presents the picture upside
-    // down — which readPixels on this backend already corrects for, and this
-    // path did not.
+    // **Not flipped**, and it used to be. The canvas wants row zero at the
+    // bottom and that is now exactly where a finished frame keeps it: the
+    // full-screen triangle is wound for this backend's origin, so the last pass
+    // in the chain leaves the picture the way GL stores one rather than the way
+    // Metal does. See `Renderer._fullscreenTriangle` for why that changed and
+    // what it fixed.
     //
     // Invisible to every pixel assertion written so far, because "the centre is
     // brighter than the corner" and "red dominates" are both true of a mirrored
     // frame. It took a person looking at a sphere and saying the light was
-    // coming from below.
+    // coming from below. Which is also why [readPixels] flips and this does
+    // not — the two are one decision made once, and splitting them is how a
+    // frame comes back right and presents upside down.
     _gl.blitFramebuffer(
-      0, frame.height, frame.width, 0, //
+      0, 0, frame.width, frame.height, //
       0, 0, _canvas.width, _canvas.height, //
       web.WebGLRenderingContext.COLOR_BUFFER_BIT,
       web.WebGLRenderingContext.NEAREST,
@@ -451,20 +454,37 @@ final class WebGlDevice implements GraphicsDevice {
     );
     _gl.deleteFramebuffer(framebuffer);
 
-    // Not flipped, and this is the subtle one. GL's own origin is lower-left,
-    // so the reflex is to flip — but the engine renders with clip space set up
-    // for Impeller, whose framebuffer origin is upper-left, so a frame it drew
-    // already has row 0 at the top of the picture. Flipping would turn a
-    // correct frame upside down.
+    // **Flipped for a frame, not for an upload**, and this is the subtle one.
+    // `glReadPixels` hands back rows from the bottom of the framebuffer up, and
+    // every caller here — a golden, a parity fixture, a comparison against
+    // another backend — reads row zero as the top of the picture. Since the
+    // full-screen triangle started being wound for this backend's origin, a
+    // finished frame is stored the way GL stores one, so its rows arrive in the
+    // opposite order to the one the engine states its images in.
     //
-    // The presenting blit does flip, and for the same reason from the other
-    // side: the canvas displays row 0 at the *bottom*, so getting a top-first
-    // image onto it means reading the source rectangle in reverse.
+    // An uploaded texture is not: `texImage2D` puts the first row it was given
+    // at texture coordinate zero, which is what a glTF UV expects and what
+    // `WebGlTexture.rendered` is carried to distinguish. One flip for both
+    // would trade a mirrored frame for a mirrored texture.
+    //
+    // The presenting blit does *not* flip, and for the same reason from the
+    // other side: the canvas displays row zero at the bottom, which is already
+    // where the frame keeps it. The two are one decision, and the way to check
+    // it is to make sure both agree — a frame that reads back correctly and
+    // presents upside down is this pair pulled apart.
     //
     // Established by measurement, not by reasoning about conventions, which is
     // the only way anybody gets this right: put the light above and check which
     // half of the returned image is lit.
-    return ByteData.sublistView(js.toDart);
+    final rows = Uint8List.fromList(js.toDart);
+    if (!backend.rendered) return ByteData.sublistView(rows);
+    final stride = texture.width * 4;
+    final flipped = Uint8List(rows.length);
+    for (var y = 0; y < texture.height; y++) {
+      final from = (texture.height - 1 - y) * stride;
+      flipped.setRange(y * stride, y * stride + stride, rows, from);
+    }
+    return ByteData.sublistView(flipped);
   }
 
   /// The GL error queue, drained, or null when it was empty.
