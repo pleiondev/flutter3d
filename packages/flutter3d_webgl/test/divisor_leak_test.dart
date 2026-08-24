@@ -102,7 +102,10 @@ void main() {
         });
     }
 
-    Future<Uint8List> run({required bool precededByInstanced}) async {
+    Future<Uint8List> run({
+      required bool precededByInstanced,
+      bool clearBetween = true,
+    }) async {
       final target = device.createTexture(const RenderTargetSpec(
         width: 32,
         height: 32,
@@ -127,10 +130,18 @@ void main() {
               3)
           ..bindVertexData(ByteData.sublistView(_perInstance), 2, slot: 1)
           ..bindIndexData(ByteData.sublistView(_indices), IndexType.int16, 3)
-          ..draw(instanceCount: 2)
-          // What every pass in this engine does between draws, and the only
-          // place a divisor can be put back.
-          ..clearBindings();
+          ..draw(instanceCount: 2);
+        // **Optional, and that is the point of the parameter.** This file used
+        // to call it unconditionally and describe it as "what every pass in
+        // this engine does between draws". The engine calls `clearBindings` in
+        // three places, and the mesh-particle contributor — the only instanced
+        // draw there is — calls it *before* its own draw rather than after. So
+        // the case the engine actually produces was the one case this test did
+        // not run, and the divisor outlived the frame: the next frame's mesh
+        // read one texture coordinate for a whole quad, and the checkerboard
+        // cube in `particles-mesh` came back a flat average of itself, 19% away
+        // from the hardware backend.
+        if (clearBetween) pass.clearBindings();
       }
 
       configure(pass, plain);
@@ -163,6 +174,21 @@ void main() {
         reason: 'every pixel came back the same value, so the vertex colours '
             'collapsed to corner zero — a divisor left behind by the instanced '
             'draw');
+
+    // **And again without the clear**, which is what the engine does. A divisor
+    // is put back when the draw that set it ends, not when somebody remembers
+    // to ask — so this has to hold with nothing between the two draws at all.
+    final afterWithoutClear = await run(
+      precededByInstanced: true,
+      clearBetween: false,
+    );
+    var flatUncleared = 0;
+    for (var i = 0; i < afterWithoutClear.length; i += 4) {
+      if (afterWithoutClear[i] == afterWithoutClear[0]) flatUncleared++;
+    }
+    expect(flatUncleared, lessThan(alone.length ~/ 4 - 100),
+        reason: 'the gradient collapsed when nothing called clearBindings '
+            'between the two draws, which is the sequence the engine emits');
 
     // And the gradients agree pixel for pixel once the constant is removed.
     var worst = 0;

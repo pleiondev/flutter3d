@@ -1000,11 +1000,16 @@ engine correctly never binds, and WebGL2 discards every draw with an active bloc
 that has no buffer under it. The declaration is guarded at the header now and the
 scene sits at 0.13% with the rest.
 
-Five remain: `particles-mesh` at 19%, the instanced mesh-particle path, where
-every other particle scene agrees to a rounding error; `bloom-sphere` at 7%;
-`debug-overlay` at 2.5%, which is line rendering; and
-`view-model-point-shadow`, `cube-shadow-mover` and `cube-shadow-lit`, which are
-the point-shadow lookup. Read those last three
+A second was the same kind of thing. `particles-mesh` was 19%, and the mesh
+particles were never the problem: the checkerboard cube behind them came back a
+flat average of itself, because the engine's only instanced draw left a vertex
+attribute divisor set and the next frame's mesh read one texture coordinate for
+a whole quad. Divisors are put back when a draw ends now, rather than when a
+caller remembers to ask.
+
+Four remain: `bloom-sphere` at 7%; `debug-overlay` at 2.5%, which is line
+rendering; and `view-model-point-shadow`, `cube-shadow-mover` and
+`cube-shadow-lit`, which are the point-shadow lookup. Read those last three
 beside the three that are **exactly zero** — `cube-shadow`, `cube-shadow-many`
 and `cube-shadow-crowded` composite the atlas rather than light with it. The
 atlas is right and the reading of it is not, and the set says so across six

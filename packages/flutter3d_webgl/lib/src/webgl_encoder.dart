@@ -384,8 +384,10 @@ final class WebGlEncoder implements CommandEncoder {
     }
   }
 
-  /// Attribute locations that currently carry a non-zero divisor.
-  final Set<int> _instancedLocations = <int>{};
+  /// Attribute locations carrying a non-zero divisor, wherever they were set.
+  /// Held by the device, because the state is the context's — see
+  /// [WebGlDevice.instancedAttributeLocations].
+  Set<int> get _instancedLocations => _device.instancedAttributeLocations;
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
@@ -547,6 +549,28 @@ final class WebGlEncoder implements CommandEncoder {
       _gl.drawElementsInstanced(
           _primitive, _indexCount, indexTypeToGl(_indexType), 0, instanceCount);
     }
+    // **Divisors go back here, not in `clearBindings`.** They are state of an
+    // attribute location: they survive the draw, the buffer, the program and
+    // the pass, so an ordinary draw that follows an instanced one reads one
+    // value for a whole triangle and the frame comes back flat, with every
+    // counter in the engine reporting the right numbers.
+    //
+    // `clearBindings` also puts them back, and `divisor_leak_test.dart` proved
+    // that it does — while calling it itself, and describing it as "what every
+    // pass in this engine does between draws". The engine calls it in three
+    // places, and the mesh-particle contributor calls it *before* its own draw
+    // rather than after. So the divisors outlived the frame, and the next
+    // frame's mesh read its texture coordinate once for the whole quad: the
+    // checkerboard cube in `particles-mesh` came back a flat average of itself.
+    //
+    // Undoing it here instead makes the leak structurally impossible rather
+    // than a thing each caller has to remember, which is what the enabled
+    // arrays above already learned.
+    for (final location in _instancedLocations) {
+      _gl.vertexAttribDivisor(location, 0);
+    }
+    _instancedLocations.clear();
+
     // A draw consumes the bindings that were set for it, in the sense that the
     // next one rebinds from scratch. Unit counters reset so a pass with many
     // draws does not run out of texture units.
