@@ -1,11 +1,8 @@
 /// The engine's own vocabulary for graphics state.
 ///
-/// **Nothing in `graphics/` may import `flutter_gpu`, ever.** That is the point
-/// of the directory and it is checkable:
-/// `test/graphics_is_backend_free_test.dart` reads every file here and fails if
-/// one does. `gpu/` already means "the files that talk to flutter_gpu", so a
-/// backend-free vocabulary could not live there without inverting that
-/// meaning.
+/// **Nothing here may import a graphics API, ever.** That is the point of the
+/// package and it is checkable: `tool/structure.dart` reads every file and
+/// fails if one does.
 ///
 /// The translation to flutter_gpu lives in exactly one file —
 /// `src/engine/gpu/gpu_formats.dart` — and in exactly one `switch` per enum. A

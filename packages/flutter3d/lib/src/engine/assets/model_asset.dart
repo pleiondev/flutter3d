@@ -10,63 +10,19 @@ import '../scene/scene.dart';
 import '../scene/scene_node.dart';
 import '../scene/skeleton.dart';
 import 'model_document.dart';
+import 'model_part.dart';
 import 'texture_upload.dart';
 
-/// One drawable piece of a model: geometry, appearance, and where it sits
-/// relative to the model's own origin.
-final class ModelPart {
-  ModelPart({
-    required this.mesh,
-    required this.material,
-    Matrix4? transform,
-    this.name,
-    this.skinIndex,
-    this.flipWinding = false,
-  }) : transform = transform ?? Matrix4.identity();
+// `ModelPart` is a plain value type with no coupling to the loading logic
+// below, so it is re-exported from its own file rather than declared here —
+// the same shape as `render_settings.dart` off `renderer.dart`. `instantiate`
+// is the opposite case: a genuine method of this class that has to stay
+// reachable through every existing import of this file, which is what a
+// `part` buys and an ordinary file cannot — see `model_instance.dart`'s doc
+// comment.
+export 'model_part.dart';
 
-  final DeviceMesh mesh;
-  final Material material;
-  final Matrix4 transform;
-  final String? name;
-
-  /// Index into [ModelAsset.skins], when this part is skinned.
-  final int? skinIndex;
-
-  final bool flipWinding;
-}
-
-/// One placement of a [ModelAsset] in a scene.
-///
-/// More than the root node, because animation needs the node map: a track says
-/// "move node 7", and 7 is an index into the asset's hierarchy, not a name. The
-/// player handed back here is already bound to this instance's nodes, so two
-/// copies of the same model animate independently.
-final class ModelInstance {
-  ModelInstance({
-    required this.root,
-    required this.nodes,
-    required this.meshes,
-    required this.skeletons,
-    required this.player,
-  });
-
-  /// The node the whole model hangs from.
-  final SceneNode root;
-
-  /// Scene node for each of the asset's nodes, index-aligned.
-  final List<SceneNode> nodes;
-
-  final List<MeshNode> meshes;
-
-  /// Skeletons bound to this instance's own nodes, so two copies of a rigged
-  /// model pose independently.
-  final List<Skeleton> skeletons;
-
-  /// Null when the model carries no clips.
-  final AnimationPlayer? player;
-
-  void removeFromScene() => root.removeFromParent();
-}
+part 'model_instance.dart';
 
 /// An immutable, GPU-resident model that can be placed in a scene any number of
 /// times.
@@ -150,137 +106,6 @@ final class ModelAsset {
     }
     return total;
   }
-
-  /// Adds this model to [scene] and returns the instance.
-  ///
-  /// The asset's hierarchy is rebuilt as scene nodes, so a node the model
-  /// animates moves everything below it. Mesh nodes sit at identity under the
-  /// node that draws them: the placement already lives in the hierarchy, and
-  /// applying `ModelPart.transform` here as well would compose it twice.
-  ///
-  /// Materials are shared by default, so tinting one instance would tint all of
-  /// them; pass `shareMaterials: false` when instances need to differ.
-  ModelInstance instantiate(
-    Scene scene, {
-    SceneNode? parent,
-    String? name,
-    bool shareMaterials = true,
-  }) {
-    final root = SceneNode(name: name ?? this.name ?? 'model');
-    (parent ?? scene.root).add(root);
-
-    final created = List<SceneNode?>.filled(nodes.length, null);
-    final meshNodes = <MeshNode>[];
-    final materials = <Material, Material>{};
-    // Skeletons are attached after the walk: a joint may be created later than
-    // the mesh that references it, so binding as we go would capture nulls.
-    final pendingSkins = <(MeshNode, int)>[];
-
-    Material materialFor(Material source) => shareMaterials
-        ? source
-        : materials.putIfAbsent(source, () => _copyMaterial(source));
-
-    // Iterative rather than recursive: a deep hierarchy from a generated asset
-    // should not be able to overflow the stack during a load.
-    final pending = <(int nodeIndex, SceneNode parent)>[
-      for (final rootIndex in roots.reversed)
-        if (rootIndex >= 0 && rootIndex < nodes.length) (rootIndex, root),
-    ];
-
-    while (pending.isNotEmpty) {
-      final (index, parentNode) = pending.removeLast();
-      // A malformed hierarchy could name the same node twice; building it once
-      // keeps the node map single-valued, which animation depends on.
-      if (created[index] != null) continue;
-
-      final model = nodes[index];
-      final node = SceneNode(name: model.name);
-      node.setPosition(
-        model.translation.x,
-        model.translation.y,
-        model.translation.z,
-      );
-      node.setRotation(model.rotation);
-      node.setScale(model.scale.x, model.scale.y, model.scale.z);
-      parentNode.add(node);
-      created[index] = node;
-
-      for (final surfaceIndex in model.surfaces) {
-        if (surfaceIndex < 0 || surfaceIndex >= parts.length) continue;
-        final part = parts[surfaceIndex];
-        final mesh = MeshNode(
-          part.mesh,
-          materialFor(part.material),
-          name: part.name,
-        );
-        node.add(mesh);
-        meshNodes.add(mesh);
-        if (part.skinIndex != null) pendingSkins.add((mesh, part.skinIndex!));
-      }
-
-      for (final child in model.children.reversed) {
-        if (child >= 0 && child < nodes.length) pending.add((child, node));
-      }
-    }
-
-    final skeletons = <Skeleton>[];
-    for (final (mesh, skinIndex) in pendingSkins) {
-      final skeleton = _buildSkeleton(skins[skinIndex], created);
-      if (skeleton == null) continue;
-      mesh
-        ..skeleton = skeleton
-        // Measured from the bind pose once, not per frame: it is how far the
-        // surface reaches from its bones, and that does not change as the model
-        // moves. Without it a character is culled by the box around its
-        // skeleton and clips as it leans.
-        ..skinReach = mesh.mesh.boundingRadius;
-      skeletons.add(skeleton);
-    }
-
-    return ModelInstance(
-      root: root,
-      nodes: <SceneNode>[
-        for (var i = 0; i < created.length; i++) created[i] ?? root,
-      ],
-      meshes: meshNodes,
-      skeletons: skeletons,
-      player: clips.isEmpty
-          ? null
-          : AnimationPlayer(
-              clips: clips,
-              targets: List<AnimationTarget?>.of(created),
-            ),
-    );
-  }
-
-  /// Binds a decoded skin to the nodes this instance created.
-  ///
-  /// Returns null when a joint is missing, which can only happen if the
-  /// hierarchy did not reach it — a skeleton with a hole would silently collapse
-  /// part of the mesh to the origin, and no skeleton at all leaves the mesh in
-  /// its bind pose, which is the more debuggable failure.
-  static Skeleton? _buildSkeleton(ModelSkin skin, List<SceneNode?> created) {
-    final joints = <SceneNode>[];
-    for (final index in skin.joints) {
-      if (index < 0 || index >= created.length) return null;
-      final node = created[index];
-      if (node == null) return null;
-      joints.add(node);
-    }
-    if (joints.length > Skeleton.maxJoints) return null;
-
-    final rootIndex = skin.skeletonRoot;
-    return Skeleton(
-      name: skin.name,
-      joints: joints,
-      inverseBindMatrices: skin.inverseBindMatrices,
-      skeletonRoot: rootIndex != null && rootIndex < created.length
-          ? created[rootIndex]
-          : null,
-    );
-  }
-
-  static Material _copyMaterial(Material source) => source.copy();
 
   /// Wraps a single procedurally generated mesh.
   factory ModelAsset.fromMesh(

@@ -130,9 +130,9 @@ void main() {
     // digital for as long as the game existed.
     final game = File('lib/main.dart').readAsStringSync();
 
-    expect(game, contains(r'_input.value(_Drive.throttle)'));
-    expect(game, contains(r'_input.value(_Drive.right) - _input.value(_Drive.left)'));
-    expect(game, isNot(contains(r'_input.held(_Drive.throttle)')),
+    expect(game, contains(r'_input.value(Drive.throttle)'));
+    expect(game, contains(r'_input.value(Drive.right) - _input.value(Drive.left)'));
+    expect(game, isNot(contains(r'_input.held(Drive.throttle)')),
         reason: 'the throttle is a switch again');
     expect(game, contains('PadRoutes.driving('),
         reason: 'the stick is not routed, so nothing steers from a pad');

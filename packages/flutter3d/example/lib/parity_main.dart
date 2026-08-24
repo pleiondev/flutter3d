@@ -92,6 +92,7 @@ class _ParityAppState extends State<ParityApp> {
       // ignore: avoid_print
       print(buffer);
       setState(() => _report = buffer.toString());
+      renderer.dispose();
     } catch (error, stack) {
       // ignore: avoid_print
       print('$error\n$stack');

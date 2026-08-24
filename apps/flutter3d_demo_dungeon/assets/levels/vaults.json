@@ -231,8 +231,8 @@
     },
     {"type": "torch", "at": [-25.75, 2.8, -8.0], "yaw": 1.5708, "light": "west_far"},
     {"type": "torch", "at": [-20.0, 2.8, -14.75], "yaw": 0.0, "light": "west_north"},
-    {"type": "monster", "at": [-22.0, 1.0, -12.0], "kind": "runner"},
-    {"type": "monster", "at": [-17.0, 1.0, -4.0], "kind": "runner"},
+    {"type": "monster", "at": [-22.0, 0.0, -12.0], "kind": "runner"},
+    {"type": "monster", "at": [-17.0, 0.0, -4.0], "kind": "runner"},
     {
       "type": "platform",
       "at": [-20.0, 0.3, -8.0],
@@ -256,9 +256,9 @@
     },
     {"type": "torch", "at": [25.75, 2.8, -2.0], "yaw": -1.5708, "light": "east_near"},
     {"type": "torch", "at": [25.75, 2.8, -14.0], "yaw": -1.5708, "light": "east_far"},
-    {"type": "monster", "at": [20.0, 1.0, -15.0], "kind": "shooter"},
-    {"type": "monster", "at": [24.0, 1.0, -2.0], "kind": "shooter"},
-    {"type": "monster", "at": [16.0, 1.0, -12.0], "kind": "runner"},
+    {"type": "monster", "at": [20.0, 0.0, -15.0], "kind": "shooter"},
+    {"type": "monster", "at": [24.0, 0.0, -2.0], "kind": "shooter"},
+    {"type": "monster", "at": [16.0, 0.0, -12.0], "kind": "runner"},
     {"type": "pickup", "at": [17.0, 0.8, -2.0], "gives": "bullets", "amount": 20},
     {"type": "pickup", "at": [24.0, 0.8, -16.0], "gives": "armour", "amount": 25},
     {

@@ -130,13 +130,19 @@ void main() {
     // happens in a private method of a widget no test can mount, and every
     // piece below has already been written once in this repository and left
     // uncalled.
+    //
+    // Split across two files now that the season lives in `RaceProgress`
+    // rather than in fields of the widget: what comes next and what is
+    // remembered about it are `race_cubit.dart`'s job, and the widget's own
+    // job is noticing the finish line at all and not hard-coding a circuit.
     final game = File('lib/main.dart').readAsStringSync();
+    final cubit = File('lib/src/race_cubit.dart').readAsStringSync();
 
-    expect(game, contains('Season.after('),
+    expect(cubit, contains('Season.after('),
         reason: 'nothing asks what comes next, so nothing ever does');
     expect(game, contains('finishedThisStep'),
         reason: 'the finish line is crossed and the game does not notice');
-    expect(game, contains('_season.reached('),
+    expect(cubit, contains('season.reached('),
         reason: 'the player moves on and nothing remembers it');
     expect(game, isNot(contains("'assets/tracks/ring.json'")),
         reason: 'the circuit is still nailed to one file');

@@ -2,7 +2,7 @@
 ///
 /// ## Why a format at all
 ///
-/// The measurement in `doc/FFI-analysis.md` is the whole argument. A GLB of the
+/// The measurement in `ARCHITECTURE.md` §14 is the whole argument. A GLB of the
 /// teapot's complexity loads in 14.8 us; the same geometry as OBJ takes 5.39 ms,
 /// a factor of about 360. That gap is not the language — it is the work. OBJ is
 /// text, so every number is parsed, every face is split, every vertex triple is

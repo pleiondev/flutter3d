@@ -9,7 +9,9 @@
 ///
 /// What is here is the shell: a window, a camera, a mouse and a keyboard. The
 /// parts that can lose somebody's work are in `src/editing.dart`, which needs
-/// no window and is tested without one.
+/// no window and is tested without one. Which screen to show, and what the
+/// strip along the bottom says, are in `src/editor_cubit.dart` — see its own
+/// doc comment for why that is a `Cubit` and this is not.
 library;
 
 import 'dart:async';
@@ -23,20 +25,27 @@ import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
-import 'package:flutter3d/flutter3d.dart' as engine show Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/documents.dart';
 import 'src/editing.dart';
+import 'src/editor_bar.dart';
+import 'src/editor_chooser.dart';
+import 'src/editor_cubit.dart';
+import 'src/editor_legend.dart';
+import 'src/editor_palette.dart';
 import 'src/fly_camera.dart';
 import 'src/gizmos.dart';
 import 'src/looks.dart';
+import 'src/palette_items.dart';
 import 'src/picking.dart';
 import 'src/scaffold.dart';
+import 'src/scene_dressing.dart';
 import 'src/vocabulary.dart';
 
 /// The document opened on launch.
@@ -79,9 +88,6 @@ abstract final class _Fly {
   static const GameAction fast = GameAction('flyFast');
 }
 
-/// Which axis the size keys work on.
-enum _Axis { x, y, z }
-
 class EditorScreen extends StatefulWidget {
   const EditorScreen({super.key});
 
@@ -91,27 +97,15 @@ class EditorScreen extends StatefulWidget {
 
 class _EditorScreenState extends State<EditorScreen>
     with SingleTickerProviderStateMixin {
+  /// Which document is open, why one is not, and what to say about the last
+  /// thing that happened. See `EditorCubit`'s own doc comment for what stays
+  /// out of it: the camera, the scene, and everything below that is read every
+  /// frame rather than rebuilt on.
+  final EditorCubit _cubit = EditorCubit();
+
   GraphicsDevice? _device;
   Renderer? _renderer;
   Scene? _scene;
-  Object? _error;
-
-  Editing? _editing;
-
-  /// The directory this document's `assets/…` paths are relative to, if it has
-  /// one. Null for a level with no application around it, which draws in the
-  /// flat colours its materials name and is a perfectly good way to edit.
-  String? _assetRoot;
-
-  /// What this game says its own words look like, if it says anything.
-  Looks _looks = Looks.none;
-
-  /// The templates on offer, while there is nothing open.
-  ///
-  /// **A path that does not exist is a request to make one.** The editor used
-  /// to say "no level document at …" and list where it had looked, which is the
-  /// right answer for a typo and the wrong one for somebody starting a game.
-  List<Template>? _choosing;
 
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
@@ -126,14 +120,10 @@ class _EditorScreenState extends State<EditorScreen>
     clearColor: Vector4(0.06, 0.07, 0.09, 1.0),
   );
 
-  /// The box drawn around whatever is selected.
-  ///
-  /// A node of its own rather than a highlight on the level's geometry, because
-  /// the level is not made of one node per brush: `BrushGeometry` batches every
-  /// brush of a material into a single mesh, which is what makes a level cheap
-  /// to draw and impossible to point at. This is the one thing in the scene
-  /// that is not the document.
-  SceneNode? _marker;
+  /// Draws the selection box, the gizmos and their models. Opened once a
+  /// device exists; everything it owns is the render loop's, not a screen
+  /// rebuild's — see its own doc comment.
+  SceneDressing? _dressing;
 
   Ticker? _ticker;
   /// How long since the last frame, and how long since the first.
@@ -143,24 +133,34 @@ class _EditorScreenState extends State<EditorScreen>
   bool _stale = false;
   bool _rebuilding = false;
 
-  _Axis _axis = _Axis.x;
-
-  /// What the next click in the scene puts down, or null to select instead.
+  /// The editor's own light, which the level does not contain.
   ///
-  /// The row itself rather than its name: a row carries which of the three
-  /// lists it adds to, and a name alone cannot — a material called `light`
-  /// would be a level that could never place a lamp again.
+  /// **A level you cannot see is a level you cannot edit.** The crypt is lit by
+  /// six torches and is otherwise pitch black, which is right for a game and
+  /// useless here: half the rooms are a black rectangle with a mark floating in
+  /// it, and every question about what you are looking at starts with "is that
+  /// broken or is it just dark". So the editor carries a lamp — a point light
+  /// held where the camera stands — and says so, rather than quietly changing
+  /// the level's own lighting.
   ///
-  /// **A palette rather than a key per kind**, which is what this was first.
-  /// Two keys for the two things an engine defines is a rule that stops at
-  /// two: a game with lifts, doors and six kinds of monster cannot have a key
-  /// each, and a key that only somebody who has read the source knows about is
-  /// not a way to place anything. The palette is built from the document, so it
-  /// lists exactly what this level is made of.
-  Placeable? _placing;
+  /// A point light with a range rather than a directional one, and the first
+  /// version of this got it wrong: a [LightNode] is directional unless told
+  /// otherwise, so the "lamp" was a sun along world −Z that never moved with
+  /// the camera. Every surface facing the camera's home orientation — the
+  /// crypt's iron door, squarely — caught it head on, blew past white and
+  /// bloomed, and was reported as a light in a doorway where the level has
+  /// none. A light carried at the eye falls off with distance instead, so the
+  /// room somebody is in is lit and the far end of the level is the level's
+  /// own business.
+  ///
+  /// Off with **B**, for anybody who wants to see the room the way a player
+  /// will.
+  LightNode? _lamp;
 
-  /// The last thing that happened, for the strip along the bottom.
-  String _said = 'W A S D fly · right-drag looks · click selects';
+  /// Bright enough to read a room by, dimmer than the crypt's own torches
+  /// (6.5 over 13 m), so the lamp shows the level without outshining it.
+  static const double _kLampIntensity = 3.0;
+  static const double _kLampRange = 12.0;
 
   @override
   void initState() {
@@ -185,12 +185,24 @@ class _EditorScreenState extends State<EditorScreen>
     return bindings;
   }
 
+  /// The document [_cubit] is open on, or null while there is none.
+  Editing? get _editing => _ready?.editing;
+
+  /// The cubit's state, narrowed to the one screen that has a document —
+  /// null in every other state, which every reader here already treats
+  /// [_editing] being null as standing for.
+  EditorReady? get _ready {
+    final state = _cubit.state;
+    return state is EditorReady ? state : null;
+  }
+
   Future<void> _open() async {
     try {
       final device = await GpuRenderBackend.create();
       if (!mounted) return;
       _device = device;
       _renderer = Renderer.create(device: device);
+      _dressing = SceneDressing(device);
 
       // Where the document actually is — see `Documents`, and the launch that
       // found nothing because a bundle's working directory is `/`.
@@ -209,16 +221,12 @@ class _EditorScreenState extends State<EditorScreen>
           ));
         }
         if (!mounted) return;
-        setState(() {
-          _choosing = templates;
-          _said = 'nothing at $kLevelPath yet';
-        });
+        _cubit.nothingFound(templates, path: kLevelPath);
         return;
       }
       await _openAt(found);
-      return;
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted) _cubit.failed(error);
     }
   }
 
@@ -230,21 +238,17 @@ class _EditorScreenState extends State<EditorScreen>
       // Where this document's own `assets/…` live. A game never has to work
       // this out; an editor always does, because the level it has open belongs
       // to another application.
-      _assetRoot = Documents.assetRootFor(
+      final assetRoot = Documents.assetRootFor(
         found,
         hasAssets: (String path) => Directory(path).existsSync(),
       );
-      _looks = await _readLooks(_assetRoot);
-      _editing = editing;
+      final looks = await _readLooks(assetRoot);
       _standWhereThePlayerWould(editing.level);
-      await _build();
       if (!mounted) return;
-      setState(() {
-        _said = 'opened ${editing.level.brushes.length} brushes'
-            '${editing.mayOverwrite ? '' : ' — written by ${editing.generatedBy}'}';
-      });
+      _cubit.opened(editing, assetRoot: assetRoot, looks: looks);
+      await _build();
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted) _cubit.failed(error);
     }
   }
 
@@ -300,61 +304,12 @@ class _EditorScreenState extends State<EditorScreen>
   /// whose picture and document disagree, which is the one thing it must never
   /// be. Scheduled at most once a frame by [_onTick] instead, so holding an
   /// arrow key down does not queue fifty of them.
-  /// The editor's own light, which the level does not contain.
-  ///
-  /// **A level you cannot see is a level you cannot edit.** The crypt is lit by
-  /// six torches and is otherwise pitch black, which is right for a game and
-  /// useless here: half the rooms are a black rectangle with a mark floating in
-  /// it, and every question about what you are looking at starts with "is that
-  /// broken or is it just dark". So the editor carries a lamp — a point light
-  /// held where the camera stands — and says so, rather than quietly changing
-  /// the level's own lighting.
-  ///
-  /// A point light with a range rather than a directional one, and the first
-  /// version of this got it wrong: a [LightNode] is directional unless told
-  /// otherwise, so the "lamp" was a sun along world −Z that never moved with
-  /// the camera. Every surface facing the camera's home orientation — the
-  /// crypt's iron door, squarely — caught it head on, blew past white and
-  /// bloomed, and was reported as a light in a doorway where the level has
-  /// none. A light carried at the eye falls off with distance instead, so the
-  /// room somebody is in is lit and the far end of the level is the level's
-  /// own business.
-  ///
-  /// Off with **B**, for anybody who wants to see the room the way a player
-  /// will.
-  LightNode? _lamp;
-  bool _lampOn = true;
-
-  /// Bright enough to read a room by, dimmer than the crypt's own torches
-  /// (6.5 over 13 m), so the lamp shows the level without outshining it.
-  static const double _kLampIntensity = 3.0;
-  static const double _kLampRange = 12.0;
-
-  /// Types whose marks and models are not drawn.
-  ///
-  /// **Added while hunting a flicker one kind at a time**, and kept because
-  /// that is a thing an editor is asked for on its own account: a level with
-  /// two hundred coins in it is a level whose coins are in the way of the
-  /// brush behind them. Hidden by *type*, because that is the unit somebody
-  /// thinks in — "not the lights for a moment" — and because the palette
-  /// already lists exactly those.
-  final Set<String> _hidden = <String>{};
-
-  /// Diagnostic: what to draw besides the walls, the floor and the ceiling.
-  ///
-  ///  * `--dart-define=only=level` — nothing at all, and none of the
-  ///    document's lights either.
-  ///  * `--dart-define=only=lights` — the lights, and marks for the things
-  ///    that emit them: a handle the document calls a light, and an entity the
-  ///    game described a silhouette for.
-  static const String _only = String.fromEnvironment('only');
-  static const bool _levelOnly = _only == 'level';
-  static const bool _lightsOnly = _only == 'lights';
-
   Future<void> _build() async {
     final device = _device;
-    final editing = _editing;
-    if (device == null || editing == null) return;
+    final dressing = _dressing;
+    final ready = _ready;
+    if (device == null || dressing == null || ready == null) return;
+    final editing = ready.editing;
     _rebuilding = true;
     try {
       final loaded = await LevelLoader().build(
@@ -368,21 +323,34 @@ class _EditorScreenState extends State<EditorScreen>
       _lamp = LightNode(
         type: LightType.point,
         color: Vector3(1.0, 0.98, 0.94),
-        intensity: _lampOn ? _kLampIntensity : 0.0,
+        intensity: ready.lampOn ? _kLampIntensity : 0.0,
         range: _kLampRange,
       )..setPosition(_fly.position.x, _fly.position.y, _fly.position.z);
       loaded.scene.add(_lamp!);
-      if (_levelOnly) {
+      if (kLevelOnly) {
         for (final light in List<LightNode>.of(loaded.scene.lights)) {
           loaded.scene.remove(light);
         }
       }
-      _textures = loaded.materialTextures;
-      _marker = null;
-      _gizmos.clear();
-      _placeGizmos();
-      _placeMarker();
-      unawaited(_dressGizmos());
+      dressing.textures = loaded.materialTextures;
+      dressing.reset();
+      dressing.placeGizmos(loaded.scene, editing,
+          looks: ready.looks, hidden: ready.hidden);
+      dressing.placeMarker(loaded.scene, editing);
+      unawaited(
+        dressing
+            .dressGizmos(
+              loaded.scene,
+              editing,
+              looks: ready.looks,
+              hidden: ready.hidden,
+              assetRoot: ready.assetRoot,
+              stillCurrent: () => mounted && identical(loaded.scene, _scene),
+            )
+            .then((_) {
+          if (mounted) setState(() {});
+        }),
+      );
     } finally {
       _rebuilding = false;
     }
@@ -422,7 +390,7 @@ class _EditorScreenState extends State<EditorScreen>
     try {
       final directory = Directory(where.root);
       if (directory.existsSync() && directory.listSync().isNotEmpty) {
-        setState(() => _said = '${where.root} is not empty');
+        _cubit.choosingSaid('${where.root} is not empty');
         return;
       }
 
@@ -445,13 +413,12 @@ class _EditorScreenState extends State<EditorScreen>
       }
 
       if (!mounted) return;
-      setState(() {
-        _choosing = null;
-        _said = 'made ${project.length} files in ${where.root}';
-      });
+      // Straight into the new project's level: the "made N files" moment
+      // is never on screen for it to be told apart from "opened N brushes" —
+      // the picture is still a spinner until `_build` finishes either way.
       await _openAt(where.level);
     } catch (error) {
-      if (mounted) setState(() => _said = 'could not create it: $error');
+      if (mounted) _cubit.choosingSaid('could not create it: $error');
     }
   }
 
@@ -492,423 +459,26 @@ class _EditorScreenState extends State<EditorScreen>
   /// Off the disk rather than out of a bundle, because the bundle belongs to
   /// this editor and the file belongs to the game.
   Future<ByteData> _readAsset(String path) async {
-    final root = _assetRoot;
+    final root = _ready?.assetRoot;
     if (root == null) throw StateError('no application around $path');
     return ByteData.sublistView(await File('$root/$path').readAsBytes());
   }
 
-  /// Puts the selection box around whatever is selected, or takes it away.
-  ///
-  /// **Two marks, because one of them is useless half the time.** The engine
-  /// draws twelve lines around anything handed to `RenderSettings.highlighted`,
-  /// which is right for a brush somebody is standing inside — a wall, a floor,
-  /// a ceiling, and that is most of a level. It is nearly invisible for a small
-  /// brush across a dark room, which is the other half. So the node is also
-  /// drawn, in a colour nothing in a crypt is and lit by itself so a dark
-  /// corridor cannot swallow it.
-  ///
-  /// A hair larger than the thing, or the two surfaces fight for the same depth
-  /// and the mark appears in stripes. Seen from inside it disappears — a box's
-  /// inside faces are culled — and that is exactly when the twelve lines are
-  /// the ones doing the work.
+  /// Puts the marker where the selection now is, or takes it away. A thin
+  /// wrapper over [SceneDressing.placeMarker] that supplies the scene and the
+  /// document, which is what most call sites already have to hand and none of
+  /// them want to null-check twice.
   void _placeMarker() {
-    if (_levelOnly) return;
-    final device = _device;
+    final dressing = _dressing;
     final scene = _scene;
     final editing = _editing;
-    if (device == null || scene == null || editing == null) return;
-
-    final marker = _marker;
-    if (marker != null) scene.remove(marker);
-    _marker = null;
-
-    final at = editing.where;
-    if (at == null) return;
-    final size = editing.brush?.size ?? Vector3.all(kGizmoSize);
-
-    // **A cage, not a solid box.** A wall is six metres by five, and a glowing
-    // slab that size over the thing somebody just selected hides both it and
-    // the room — and a camera that ends up inside the slab sees a screen full
-    // of orange. Edges show the same extent and hide nothing.
-    _marker = _buildCage(
-      device,
-      scene,
-      at,
-      size * 1.06,
-      Vector3(1.0, 0.45, 0.05),
-      name: 'selection',
-    );
+    if (dressing == null || scene == null || editing == null) return;
+    dressing.placeMarker(scene, editing);
   }
-
-  /// Draws a mark for everything the renderer does not.
-  ///
-  /// **Half a level is invisible to a level editor, and it is the half that
-  /// makes it a level.** Geometry draws itself; a monster, a lift, a door, a
-  /// trigger and the point the player starts at are coordinates in a document,
-  /// and a light is a coordinate that changes other things and shows nothing of
-  /// itself. Before these marks the editor could open the crypt and show a
-  /// corridor with nothing in it, which is exactly what the game shows before
-  /// it spawns anything.
-  ///
-  /// Their colours come from the type's own name — see [tintFor] — because this
-  /// application is not allowed to know what a `monster` is.
-  void _placeGizmos() {
-    if (_levelOnly) return;
-    final device = _device;
-    final scene = _scene;
-    final editing = _editing;
-    if (device == null || scene == null || editing == null) return;
-
-    for (final gizmo in _gizmos) {
-      scene.remove(gizmo);
-    }
-    _gizmos.clear();
-
-    for (final handle in handlesOf(editing.level, looks: _looks)) {
-      if (handle.kind == Piece.brush) continue;
-      final entity =
-          handle.kind == Piece.entity ? editing.level.entities[handle.index] : null;
-      if (_lightsOnly &&
-          handle.kind != Piece.light &&
-          (entity == null || _looks.partsFor(entity).isEmpty)) {
-        continue;
-      }
-      if (_hidden.contains(entity?.type ?? 'light')) continue;
-
-      // **Drawn as what it is, when the document says what it is.** A door
-      // names a material the level already loaded, and a lift names the size it
-      // moves at — so the editor can show the iron door as an iron door rather
-      // than as a coloured box where an iron door goes. What has neither gets
-      // the mark, which is the only thing a coordinate and a word can be shown
-      // as.
-      final named = entity?.string('material');
-      final isLight = handle.kind == Piece.light;
-      final material = named == null
-          ? null
-          : editing.level.materials[named];
-
-      // A silhouette the game described: a torch's plate, shaft, cup and
-      // flame, built out of the engine's own primitives. Drawn instead of the
-      // mark, not beside it.
-      final parts = entity == null
-          ? const <Part>[]
-          : _looks.partsFor(entity);
-      if (parts.isNotEmpty) {
-        _buildParts(device, scene, parts, handle, entity!);
-        continue;
-      }
-
-      // **A region is drawn as its edges.** A trigger four metres wide, filled
-      // in, is a wall in front of whatever it was placed around — and where its
-      // face lands on real geometry the two fight for the same pixels, which is
-      // what "the editor flickers" turned out to be. A cage shows the extent
-      // and hides nothing.
-      //
-      // **A sized thing that names a material is not a region**, and the first
-      // version of this rule made the crypt's iron door into a wireframe. Both
-      // carry their own size, and what tells them apart without knowing either
-      // word is that one says what it is made of: a door is a thing the level
-      // builds and the editor can show as itself, a trigger is a volume with
-      // nothing to draw.
-      if (handle.volume && material == null) {
-        _gizmos.add(
-          _buildCage(device, scene, handle.centre, handle.size, handle.tint),
-        );
-        continue;
-      }
-
-      final node = MeshNode(
-        // **A light is a ball, everything else is a box**, because a lamp drawn
-        // as a cube beside a torch drawn as a cube is two cubes, and the
-        // question somebody asks at that point is which of them is which.
-        isLight
-            ? SharedMeshes(device).shape(
-                'gizmo-light',
-                () => SphereShape(radius: kGizmoSize * 0.45),
-              )
-            : SharedMeshes(device).box(handle.size),
-        material == null
-            ? engine.Material(
-                name: 'gizmo',
-                baseColor: Vector4(
-                  handle.tint.x,
-                  handle.tint.y,
-                  handle.tint.z,
-                  1.0,
-                ),
-                // Lit by itself, or a mark in an unlit corner is a mark nobody
-                // can find — and an unlit corner is where somebody is most
-                // likely to be looking for the light they meant to put there.
-                emissive: handle.tint * 0.9,
-              )
-            : LevelLoader.materialFrom(material, _textures, name: named),
-        name: 'gizmo',
-      )
-        ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
-        ..castsShadow = false;
-      if (entity != null && entity.yaw != 0.0) {
-        node.setRotation(
-          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw),
-        );
-      }
-      scene.add(node);
-      _gizmos.add(node);
-    }
-  }
-
-  /// The twelve edges of a region, as thin bars.
-  ///
-  /// Thin in proportion to the region rather than a fixed thickness: a trigger
-  /// is metres across and a small volume is centimetres, and one width cannot
-  /// be visible on the first and slender on the second.
-  SceneNode _buildCage(
-    GraphicsDevice device,
-    Scene scene,
-    Vector3 centre,
-    Vector3 size,
-    Vector3 tint, {
-    String name = 'gizmo',
-  }) {
-    final holder = SceneNode(name: name)
-      ..setPosition(centre.x, centre.y, centre.z);
-    scene.add(holder);
-    final bar = math.max(
-      0.02,
-      math.min(size.x, math.min(size.y, size.z)) * 0.05,
-    );
-    final half = Vector3(size.x / 2.0, size.y / 2.0, size.z / 2.0);
-    final meshes = SharedMeshes(device);
-    final material = engine.Material(
-      name: name,
-      baseColor: Vector4(tint.x, tint.y, tint.z, 1.0),
-      emissive: tint * 0.9,
-    );
-
-    void edge(Vector3 extent, double x, double y, double z) {
-      holder.add(
-        MeshNode(meshes.box(extent), material, name: 'edge')
-          ..setPosition(x, y, z)
-          ..castsShadow = false,
-      );
-    }
-
-    // **The bars meet, they do not overlap.** Twelve full-length bars share a
-    // small cube at each corner, and two coplanar faces of the same colour lit
-    // from different sides fight for those pixels — which reads as stray
-    // triangles at the corners and was reported as exactly that. The four along
-    // X keep their length and the other eight give up a bar's width at each
-    // end, so the corner belongs to one of them.
-    for (final y in <double>[-half.y, half.y]) {
-      for (final z in <double>[-half.z, half.z]) {
-        edge(Vector3(size.x, bar, bar), 0.0, y, z);
-      }
-    }
-    for (final x in <double>[-half.x, half.x]) {
-      for (final z in <double>[-half.z, half.z]) {
-        edge(Vector3(bar, math.max(size.y - bar * 2, bar), bar), x, 0.0, z);
-      }
-    }
-    for (final x in <double>[-half.x, half.x]) {
-      for (final y in <double>[-half.y, half.y]) {
-        edge(Vector3(bar, bar, math.max(size.z - bar * 2, bar)), x, y, 0.0);
-      }
-    }
-    return holder;
-  }
-
-  /// Puts one described silhouette into the scene.
-  ///
-  /// Under a holder at the entity's place, turned by its yaw, so a part's
-  /// position is written the way the game writes it: local +Z into the wall.
-  void _buildParts(
-    GraphicsDevice device,
-    Scene scene,
-    List<Part> parts,
-    Handle handle,
-    EntityDef entity,
-  ) {
-    final holder = SceneNode(name: 'gizmo')
-      ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
-      ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw));
-    scene.add(holder);
-    _gizmos.add(holder);
-
-    final meshes = SharedMeshes(device);
-    for (final part in parts) {
-      final node = MeshNode(
-        _meshFor(meshes, part),
-        engine.Material(
-          name: part.glows ? 'flame' : 'part',
-          baseColor: Vector4(
-            part.colour.x,
-            part.colour.y,
-            part.colour.z,
-            1.0,
-          ),
-          // A flame is the light rather than the thing holding it, and a dark
-          // corridor would otherwise swallow the one part that is the point.
-          emissive: part.glows ? part.colour * 1.4 : null,
-        ),
-        name: part.shape,
-      )..setPosition(part.at.x, part.at.y, part.at.z);
-      if (part.pitch != 0.0) {
-        node.setRotation(
-          Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), part.pitch),
-        );
-      }
-      node.castsShadow = false;
-      holder.add(node);
-    }
-  }
-
-  static DeviceMesh _meshFor(SharedMeshes meshes, Part part) => switch (part.shape) {
-        'cylinder' => meshes.shape(
-            'part-cyl-${part.radius}-${part.height}',
-            () => CylinderShape(
-              radiusTop: part.radius,
-              radiusBottom: part.radius,
-              height: part.height,
-            ),
-          ),
-        'cone' => meshes.shape(
-            'part-cone-${part.radius}-${part.height}',
-            () => ConeShape(radius: part.radius, height: part.height),
-          ),
-        'sphere' => meshes.shape(
-            'part-ball-${part.radius}',
-            () => SphereShape(radius: part.radius),
-          ),
-        _ => meshes.box(part.size),
-      };
-
-  /// Replaces the marks of everything that names a model with the model.
-  ///
-  /// **After the boxes rather than instead of them**, and the reason is that a
-  /// glTF takes long enough to read that a level would appear empty while it
-  /// happened. The box goes down first, the model replaces it when it arrives,
-  /// and a model that will not read leaves the box — which is exactly what
-  /// somebody wants to see when a path in their document is wrong.
-  Future<void> _dressGizmos() async {
-    if (_levelOnly || _lightsOnly) return;
-    final device = _device;
-    final editing = _editing;
-    final root = _assetRoot;
-    if (device == null || editing == null || root == null) return;
-
-    final scene = _scene;
-    for (final handle in handlesOf(editing.level, looks: _looks)) {
-      if (handle.kind != Piece.entity) continue;
-      final entity = editing.level.entities[handle.index];
-      // What the entity says, else what the game says this type is.
-      if (_hidden.contains(entity.type)) continue;
-      final path = _looks.modelFor(entity);
-      if (path == null) continue;
-
-      final asset = await _models.putIfAbsent(
-        path,
-        () => _loadModel(device, '$root/$path'),
-      );
-      // The level may have been rebuilt while this was reading — a keypress is
-      // faster than a glTF — and putting a model into a scene nobody draws is
-      // the platformer's own bug, written down in its `_dressRunner`.
-      if (!mounted || !identical(scene, _scene)) return;
-      // **One model that will not read is one mark left as a box**, and it used
-      // to be every mark after it: this was a `return`, so the first missing
-      // file ended the loop and everything later in the level stayed a coloured
-      // cube with no clue as to why.
-      if (asset == null) continue;
-
-      final instance = asset.instantiate(_scene!, name: 'model');
-
-      // Diagnostic: `--dart-define=skinned=off` leaves anything with a rig as
-      // its mark, and `--dart-define=skip=a,b` leaves those types as theirs.
-      if (const String.fromEnvironment('skinned') == 'off' &&
-          asset.skins.isNotEmpty) {
-        continue;
-      }
-      if (const String.fromEnvironment('skip')
-          .split(',')
-          .contains(entity.type)) {
-        continue;
-      }
-
-      // **Posed, or it stands there like a scarecrow.** A skinned model in a
-      // file is in its bind pose: arms out, legs apart, because that is the
-      // shape a rig is authored in and no exporter saves a "resting" one. The
-      // crypt's runner measures three and a third metres across like that, and
-      // its shooter collapses to three centimetres — the game never shows
-      // either, because the game plays a clip on the first frame.
-      //
-      // So does this, once, and never again: nothing here animates, and a
-      // model frozen on the first frame of a resting clip is what somebody
-      // placing it wants to see.
-      //
-      // "Idle" is not a word about any genre — it is what an animator calls the
-      // clip a character plays when it is doing nothing, in files this editor
-      // will never have seen. Anything without one takes its first clip, which
-      // is still a pose somebody authored rather than the rig's.
-      final player = instance.player;
-      final clips = player?.clipNames ?? const <String>[];
-      if (player != null && clips.isNotEmpty) {
-        final resting = clips.indexWhere(
-          (String name) => name.toLowerCase().contains('idle'),
-        );
-        player.play(resting < 0 ? 0 : resting);
-      }
-
-      instance.root
-        ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
-        ..setRotation(
-          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw),
-        );
-      _gizmos.add(instance.root);
-      // The mark it stands in for. Found by where it is, because that is what
-      // the two have in common and the list is short.
-      for (final gizmo in _gizmos) {
-        if (gizmo.name != 'gizmo') continue;
-        final at = gizmo.localMatrix.getTranslation();
-        if ((at - handle.centre).length2 < 1e-6) {
-          gizmo.visible = false;
-          break;
-        }
-      }
-    }
-    if (mounted) setState(() {});
-  }
-
-  Future<ModelAsset?> _loadModel(GraphicsDevice device, String path) async {
-    try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: FileAssetSource(path)),
-      );
-      return await ModelAsset.fromDocument(
-        document,
-        device: device,
-        name: path,
-      );
-    } catch (error) {
-      debugPrint('editor: could not read the model "$path" ($error)');
-      return null;
-    }
-  }
-
-  final List<SceneNode> _gizmos = <SceneNode>[];
-
-  /// Every map the level named, already uploaded by the loader. What lets a
-  /// door be drawn in the iron the document says it is made of.
-  Map<String, TextureHandle?> _textures = const <String, TextureHandle?>{};
-
-  /// Models named by entities, loaded once each.
-  ///
-  /// **Keyed by the path the document wrote**, so two hundred and sixty-one
-  /// coins are one file read and one upload — the platformer's own level says
-  /// `assets/models/coin.glb` two hundred and sixty-one times.
-  final Map<String, Future<ModelAsset?>> _models =
-      <String, Future<ModelAsset?>>{};
 
   void _changed(String said) {
     _stale = true;
-    setState(() => _said = said);
+    _cubit.say(said);
   }
 
   void _onTick(Duration now) {
@@ -972,7 +542,7 @@ class _EditorScreenState extends State<EditorScreen>
     final from = _dragged;
     _dragged = null;
     if (from == null || _travelled >= _slop) return;
-    final placing = _placing;
+    final placing = _ready?.placing;
     if (placing == null) {
       _pick(event.localPosition, size);
       return;
@@ -1014,9 +584,10 @@ class _EditorScreenState extends State<EditorScreen>
   /// six metres ahead, which is far enough to see and near enough to walk to.
   void _put(Placeable what, Offset at, Size size) {
     final editing = _editing;
+    final looks = _ready?.looks ?? Looks.none;
     if (editing == null) return;
     final along = _rayThrough(at, size);
-    final hit = Picking.at(handlesOf(editing.level, looks: _looks), _fly.position, along);
+    final hit = Picking.at(handlesOf(editing.level, looks: looks), _fly.position, along);
     final distance = hit == null
         ? 6.0
         : math.max(
@@ -1032,12 +603,13 @@ class _EditorScreenState extends State<EditorScreen>
   /// Selects whatever is under [at].
   void _pick(Offset at, Size size) {
     final editing = _editing;
+    final looks = _ready?.looks ?? Looks.none;
     if (editing == null) return;
     final along = _rayThrough(at, size);
-    final found = Picking.at(handlesOf(editing.level, looks: _looks), _fly.position, along);
+    final found = Picking.at(handlesOf(editing.level, looks: looks), _fly.position, along);
     editing.selectHandle(found);
     _placeMarker();
-    setState(() => _said = found == null ? 'nothing there' : editing.says);
+    _cubit.say(found == null ? 'nothing there' : editing.says);
   }
 
   // --- what the keys do ------------------------------------------------------
@@ -1071,16 +643,13 @@ class _EditorScreenState extends State<EditorScreen>
     // meanings for one key in the order somebody wants them: the thing you
     // most want to undo is the one you did last.
     if (key == LogicalKeyboardKey.escape) {
-      setState(() {
-        if (_placing != null) {
-          _placing = null;
-          _said = 'nothing to place';
-        } else {
-          editing.select(null, null);
-          _placeMarker();
-          _said = 'nothing selected';
-        }
-      });
+      if (_ready?.placing != null) {
+        _cubit.setPlacing(null);
+      } else {
+        editing.select(null, null);
+        _placeMarker();
+        _cubit.say('nothing selected');
+      }
       return KeyEventResult.handled;
     }
 
@@ -1122,13 +691,10 @@ class _EditorScreenState extends State<EditorScreen>
       case LogicalKeyboardKey.period:
         editing.turn(math.pi / 8);
       case LogicalKeyboardKey.keyB:
-        setState(() => _lampOn = !_lampOn);
+        final on = _cubit.toggleLamp();
         // The node stays in the scene either way; a lamp at nought is a lamp
         // off, and there is no add/remove pair to get out of step with _build.
-        _lamp?.intensity = _lampOn ? _kLampIntensity : 0.0;
-        _said = _lampOn
-            ? 'the editor\'s lamp is on'
-            : 'the editor\'s lamp is off — this is the level\'s own light';
+        _lamp?.intensity = on ? _kLampIntensity : 0.0;
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyL:
         // Four metres in front, which is far enough to light a room and near
@@ -1138,13 +704,13 @@ class _EditorScreenState extends State<EditorScreen>
         _changed('added ${editing.says}');
         return KeyEventResult.handled;
       case LogicalKeyboardKey.digit1:
-        setState(() => _axis = _Axis.x);
+        _cubit.setAxis(EditorAxis.x);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.digit2:
-        setState(() => _axis = _Axis.y);
+        _cubit.setAxis(EditorAxis.y);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.digit3:
-        setState(() => _axis = _Axis.z);
+        _cubit.setAxis(EditorAxis.z);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyN:
         // Six metres in front, which is far enough to be looked at and near
@@ -1160,16 +726,12 @@ class _EditorScreenState extends State<EditorScreen>
         _changed('deleted');
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyG:
-        setState(() {
-          editing.grid = switch (editing.grid) {
-            0.25 => 1.0,
-            1.0 => 0.0,
-            _ => 0.25,
-          };
-          _said = editing.grid == 0.0
-              ? 'off the grid'
-              : 'grid ${editing.grid}m';
-        });
+        editing.grid = switch (editing.grid) {
+          0.25 => 1.0,
+          1.0 => 0.0,
+          _ => 0.25,
+        };
+        _cubit.say(editing.grid == 0.0 ? 'off the grid' : 'grid ${editing.grid}m');
         return KeyEventResult.handled;
       default:
         return _keys.handleKeyEvent(event);
@@ -1186,25 +748,11 @@ class _EditorScreenState extends State<EditorScreen>
     return KeyEventResult.handled;
   }
 
-  Vector3 _along(double amount) => switch (_axis) {
-        _Axis.x => Vector3(amount, 0.0, 0.0),
-        _Axis.y => Vector3(0.0, amount, 0.0),
-        _Axis.z => Vector3(0.0, 0.0, amount),
+  Vector3 _along(double amount) => switch (_ready?.axis ?? EditorAxis.x) {
+        EditorAxis.x => Vector3(amount, 0.0, 0.0),
+        EditorAxis.y => Vector3(0.0, amount, 0.0),
+        EditorAxis.z => Vector3(0.0, 0.0, amount),
       };
-
-  /// What is selected, for the strip that always says it.
-  ///
-  /// **Separate from the message**, because the two answer different questions
-  /// and one used to overwrite the other: after pressing G the corner said "off
-  /// the grid" and the fact that a brush was selected at all had scrolled away.
-  String get _selection {
-    final editing = _editing;
-    if (editing == null) return '';
-    final at = editing.where;
-    if (at == null) return editing.says;
-    return '${editing.says} · at ${_metres(at)}'
-        '${editing.brush == null ? '' : ' · ${_metres(editing.brush!.size)}'}';
-  }
 
   static String _metres(Vector3 v) => '${v.x.toStringAsFixed(2)}, '
       '${v.y.toStringAsFixed(2)}, ${v.z.toStringAsFixed(2)}';
@@ -1215,7 +763,7 @@ class _EditorScreenState extends State<EditorScreen>
     if (editing == null) return;
 
     if (!copy && !editing.mayOverwrite) {
-      setState(() => _said = 'written by ${editing.generatedBy} — '
+      _cubit.say('written by ${editing.generatedBy} — '
           'shift-save writes a copy instead');
       return;
     }
@@ -1229,9 +777,9 @@ class _EditorScreenState extends State<EditorScreen>
         editing.write(claiming: copy ? kAuthor : null),
       );
       editing.saved();
-      setState(() => _said = 'written to $path');
+      _cubit.say('written to $path');
     } catch (error) {
-      setState(() => _said = 'could not write $path: $error');
+      _cubit.say('could not write $path: $error');
     }
   }
 
@@ -1242,33 +790,41 @@ class _EditorScreenState extends State<EditorScreen>
   void dispose() {
     _ticker?.dispose();
     _keyboard.dispose();
+    unawaited(_keys.dispose());
+    unawaited(_cubit.close());
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final error = _error;
-    if (error != null) {
-      // The editor's own colours: a tool sits beside other tools, and black
-      // with grey text is a game's screen rather than an application's.
-      return DidNotStart(
-        error,
-        background: const Color(0xFF14161A),
-        foreground: const Color(0xFFFF8A80),
+  Widget build(BuildContext context) => BlocProvider.value(
+        value: _cubit,
+        child: BlocBuilder<EditorCubit, EditorState>(
+          bloc: _cubit,
+          builder: (BuildContext context, EditorState state) => switch (state) {
+            EditorFailed(:final error) => DidNotStart(
+                error,
+                // The editor's own colours: a tool sits beside other tools,
+                // and black with grey text is a game's screen rather than an
+                // application's.
+                background: const Color(0xFF14161A),
+                foreground: const Color(0xFFFF8A80),
+              ),
+            EditorChoosing() => EditorChooser(
+                state: state,
+                levelPath: kLevelPath,
+                onCreate: _create,
+              ),
+            EditorOpening() => const _Loading(),
+            EditorReady() => _editorScreen(state),
+          },
+        ),
       );
-    }
 
-    final choosing = _choosing;
-    if (choosing != null) return _chooser(choosing);
-
+  /// The document is open: the scene, and the three panels around it.
+  Widget _editorScreen(EditorReady state) {
     final renderer = _renderer;
     final scene = _scene;
-    if (renderer == null || scene == null) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF14161A),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
+    if (renderer == null || scene == null) return const _Loading();
 
     return Scaffold(
       backgroundColor: const Color(0xFF14161A),
@@ -1304,7 +860,7 @@ class _EditorScreenState extends State<EditorScreen>
                       // was anything to outline — its own doc says "typically
                       // whatever picking last selected" — and this is the first
                       // caller it has ever had.
-                      highlighted: <SceneNode>[?_marker],
+                      highlighted: <SceneNode>[?_dressing?.marker],
                       // **No shadows, and not for speed.** With them on this
                       // editor flickers: the picture alternates between the
                       // scene and a nearly black one, on a camera nobody is
@@ -1354,7 +910,12 @@ class _EditorScreenState extends State<EditorScreen>
                     },
                   ),
                 ),
-                Positioned(left: 0, right: 0, top: 0, child: _bar()),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: EditorBar(state: state),
+                ),
                 // Below the bar and above the legend, so nothing it covers is
                 // anything the other two are saying.
                 Positioned(
@@ -1363,10 +924,15 @@ class _EditorScreenState extends State<EditorScreen>
                   bottom: 64,
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: _palette(),
+                    child: EditorPalette(state: state),
                   ),
                 ),
-                Positioned(left: 0, right: 0, bottom: 0, child: _legend()),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: EditorLegend(state: state),
+                ),
               ],
             );
           },
@@ -1374,317 +940,16 @@ class _EditorScreenState extends State<EditorScreen>
       ),
     );
   }
-
-  Widget _bar() {
-    final editing = _editing;
-    return Container(
-      color: const Color(0xCC0E1013),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: DefaultTextStyle(
-        style: const TextStyle(color: Color(0xFFE6EAF0), fontSize: 13),
-        child: Row(
-          children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  Text(
-                    '${editing?.path ?? ''}'
-                    '${(editing?.isDirty ?? false) ? '  — unsaved' : ''}',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    _selection,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: editing?.piece == null
-                          ? const Color(0xFF9AA4B2)
-                          : const Color(0xFF7ED957),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(_said, style: const TextStyle(color: Color(0xFFFFB74D))),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String get _gridSaid {
-    final grid = _editing?.grid ?? 0.0;
-    return grid == 0.0 ? 'off' : '$grid m';
-  }
-
-  /// The screen for a level that does not exist yet.
-  ///
-  /// **A path that is not there is a request to make one**, and answering it
-  /// with "no such file" and a list of the places looked is the right answer
-  /// for a typo and the wrong one for somebody starting a game. Both, then: the
-  /// templates, and underneath them the path that will be written.
-  Widget _chooser(List<Template> templates) {
-    final where = projectAt(
-      File(kLevelPath).isAbsolute
-          ? kLevelPath
-          : '${Directory.current.path}/$kLevelPath',
-    );
-    return Scaffold(
-      backgroundColor: const Color(0xFF14161A),
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              const Text(
-                'Start a game',
-                style: TextStyle(
-                  color: Color(0xFFE6EAF0),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'There is nothing at ${where.level} yet. A template writes a '
-                'project there: a vocabulary, a first level and a model for '
-                'each kind of thing.',
-                style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 13),
-              ),
-              const SizedBox(height: 18),
-              for (final template in templates)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: InkWell(
-                    onTap: () => unawaited(_create(template)),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1B1F26),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            template.name,
-                            style: const TextStyle(
-                              color: Color(0xFFFFB74D),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            template.about,
-                            style: const TextStyle(
-                              color: Color(0xFFCBD3DD),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 10),
-              Text(
-                _said,
-                style: const TextStyle(color: Color(0xFFFFB74D), fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// What can be put into this level, and what is holding.
-  ///
-  /// Down the left, always there, and built from the document — so it lists
-  /// exactly what this level is made of and nothing a different game would
-  /// have. The count beside each is worth its space: a level with no exit and a
-  /// level with three are both worth noticing before playing it.
-  Widget _palette() {
-    final editing = _editing;
-    if (editing == null) return const SizedBox.shrink();
-    return Container(
-      width: 168,
-      color: const Color(0xCC0E1013),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 0, 12, 6),
-            child: Text(
-              'PLACE',
-              style: TextStyle(
-                color: Color(0xFF6F7885),
-                fontSize: 11,
-                letterSpacing: 1.6,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          // **Scrolls, because a level decides how long this is.** The crypt
-          // has nine kinds in it and the platformer's ascent has more than fit
-          // on the screen — the first version of this was a plain column and
-          // the second level anybody opened overflowed it by a hundred and
-          // sixty-nine pixels, which in Flutter means the rows past the bottom
-          // simply do not exist.
-          Flexible(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                mainAxisSize: MainAxisSize.min,
-                children: <Widget>[
-                  for (final it in paletteOf(editing.level, declared: _looks.types))
-                    _PaletteRow(
-                      it: it,
-                      held: _placing?.what == it.what,
-                      hidden: _hidden.contains(it.what),
-                      // **Alt-click hides the type.** A separate gesture rather
-                      // than a second column of buttons: the palette is a list
-                      // somebody reads, and a row of eyes down the side of it
-                      // is a row of eyes to read past every time.
-                      onHide: () {
-                        setState(() {
-                          if (!_hidden.remove(it.what)) _hidden.add(it.what);
-                        });
-                        _changed(_hidden.contains(it.what)
-                            ? '${it.label} hidden — alt-click again to show'
-                            : '${it.label} shown');
-                      },
-                      onTap: () => setState(() {
-                        // Tapping what is already held puts it down, which is
-                        // the only way out somebody will guess at before they
-                        // find Escape.
-                        _placing =
-                            _placing?.what == it.what ? null : it;
-                        _said = _placing == null
-                            ? 'nothing to place'
-                            : 'click in the level to place a ${it.label}';
-                      }),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Text(
-              'click a row, then click in the level · esc puts it down\n'
-              'alt-click a row to hide that type',
-              style: TextStyle(color: Color(0xFF6F7885), fontSize: 10),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _legend() => Container(
-        color: const Color(0xCC0E1013),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            // **Getting about comes first and never leaves the screen.** It was
-            // said once, in the message line, and the first thing anybody does
-            // replaced it — so the one thing somebody needs before they can do
-            // anything at all was the one thing they could not read.
-            const Text(
-              'W A S D fly · Q E down and up · shift faster · '
-              'scroll forward · drag to look · click to select',
-              style: TextStyle(color: Color(0xFFCBD3DD), fontSize: 12),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'arrows move · R F raise · 1 2 3 axis (${_axis.name}) '
-              '· − = size or brightness · , . turn '
-              '· ⌘D copy · ⌫ delete '
-              '· G grid ($_gridSaid) · B lamp (${_lampOn ? 'on' : 'off'}) '
-              '· ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
-              style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
-            ),
-          ],
-        ),
-      );
 }
 
-/// One row of the palette: a swatch, a word, and how many the level has.
-class _PaletteRow extends StatelessWidget {
-  const _PaletteRow({
-    required this.it,
-    required this.held,
-    required this.hidden,
-    required this.onTap,
-    required this.onHide,
-  });
-
-  final Placeable it;
-
-  /// Whether this is what the next click will put down.
-  final bool held;
-
-  /// Whether this type is currently not drawn.
-  final bool hidden;
-
-  final VoidCallback onTap;
-  final VoidCallback onHide;
+/// Shown while the device is opening and while a document is being read —
+/// nothing has gone wrong, there is simply nothing to draw yet.
+final class _Loading extends StatelessWidget {
+  const _Loading();
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: () => HardwareKeyboard.instance.isAltPressed ? onHide() : onTap(),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          color: held ? const Color(0x33FFB74D) : null,
-          foregroundDecoration: hidden
-              ? const BoxDecoration(color: Color(0x99000000))
-              : null,
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: Color.fromARGB(
-                    255,
-                    (it.tint.x * 255).round().clamp(0, 255),
-                    (it.tint.y * 255).round().clamp(0, 255),
-                    (it.tint.z * 255).round().clamp(0, 255),
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  it.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: held
-                        ? const Color(0xFFFFB74D)
-                        : const Color(0xFFE6EAF0),
-                    fontSize: 12,
-                    fontWeight: held ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                ),
-              ),
-              Text(
-                '${it.count}',
-                style: const TextStyle(color: Color(0xFF6F7885), fontSize: 11),
-              ),
-            ],
-          ),
-        ),
+  Widget build(BuildContext context) => const Scaffold(
+        backgroundColor: Color(0xFF14161A),
+        body: Center(child: CircularProgressIndicator()),
       );
 }

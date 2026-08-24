@@ -18,6 +18,7 @@ workspace:
   - packages/flutter3d_particles
   - packages/flutter3d_hardware
   - packages/flutter3d_shaders
+  - packages/flutter3d_testing
   - packages/flutter3d_impeller
   - packages/flutter3d_webgl
   - packages/flutter3d_webgl/example

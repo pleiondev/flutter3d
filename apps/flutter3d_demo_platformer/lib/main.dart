@@ -9,7 +9,6 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
@@ -22,17 +21,22 @@ import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
+import 'src/audio_cubit.dart';
 import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
+import 'src/level_error_screen.dart';
 import 'src/reactions.dart';
 import 'src/run.dart';
+import 'src/run_cubit.dart';
 import 'src/runner_looks.dart';
-import 'src/sounds.dart';
+import 'src/runner_visuals.dart';
+import 'src/screen_cubit.dart';
 import 'src/soundtrack.dart';
 import 'src/title_card.dart';
 
@@ -147,9 +151,13 @@ class _GameScreenState extends State<GameScreen>
   /// the pad to exist before it can apply anything to them.
   late final SettingsCubit _settings;
 
-  AudioScene _audio = AudioScene(backend: SilentBackend());
-  final AudioListener _ears = AudioListener();
-  SoLoudBackend? _soloud;
+  /// Everything the game is heard through — see [AudioCubit], which is where
+  /// the scene, the listener, the backend and the music flag now live.
+  final AudioCubit _audio = AudioCubit();
+
+  /// What the screen is showing, as opposed to what the loop is doing — see
+  /// [ScreenCubit] for where the line between the two is drawn.
+  final ScreenCubit _screen = ScreenCubit();
 
   late final GameLoop _loop;
   /// Nullable, because the device may never open.
@@ -175,7 +183,6 @@ class _GameScreenState extends State<GameScreen>
   /// a slow machine is the same race with worse luck.
   final Completer<GraphicsDevice> _deviceReady = Completer<GraphicsDevice>();
   Renderer? _renderer;
-  Object? _initError;
 
   /// The scene being drawn. Empty until the level arrives, and **never null**.
   ///
@@ -195,34 +202,12 @@ class _GameScreenState extends State<GameScreen>
   LoadedLevel? get _loaded => _level?.loaded;
   FixtureVisuals? get _fixtures => _level?.fixtures;
 
-  /// What the player sees themselves as. A model when one loads, a box when it
-  /// does not — the game is playable either way, and a missing asset should not
-  /// be the difference between playing and staring at an error.
-  SceneNode? _runnerNode;
-
-  /// The clips on the runner's model, when it has any.
-  AnimationPlayer? _runnerAnimation;
-
-  /// What is playing now, so a crossfade is asked for once rather than sixty
-  /// times a second.
-  String? _clip;
-
-  /// The loaded model, held so that nothing collects it out from under the
-  /// scene. `FixtureVisuals` keeps its assets in a cache for the same reason.
-  // ignore: unused_field
-  ModelAsset? _runnerAsset;
-
-  /// The model's own lowest point, in its local space.
+  /// What the player sees themselves as, and everything that decides it.
   ///
-  /// A body is a box about its middle; a model of somebody standing has its
-  /// feet at or near the origin. The same two conventions that produced the
-  /// respawn bug — reconciled every frame rather than once at load, because a
-  /// crouch moves the body's middle and a fixed offset does not follow it.
-  double _modelFloor = 0.0;
-
-  /// Added to the runner's yaw, for a model that was exported facing the other
-  /// way. A number rather than a re-authored mesh.
-  double _runnerFacing = 0.0;
+  /// Six fields and three methods lived here and only ever spoke to each other;
+  /// see [RunnerVisuals], which is now where they are.
+  late final RunnerVisuals _runnerVisuals =
+      RunnerVisuals(model: _runnerModel, modelFacing: _modelFacing);
 
   Runner? get _runner => _level?.runner;
   PlatformerSimulation? get _sim => _level?.sim;
@@ -250,22 +235,9 @@ class _GameScreenState extends State<GameScreen>
   /// Whether the machine is keeping up, and what it cost when it was not.
   final Pace _pace = Pace();
 
-  /// Whether the player has asked to play yet, which takes the title card down.
-  bool _started = false;
 
   /// Whether the music loop has been started. Once per session.
-  bool _musicPlaying = false;
 
-  /// Whether the run behind the title card came off the disk.
-  bool _resumed = false;
-
-  /// Why the level would not load, and which one it was.
-  ///
-  /// Separate from `_initError`, which is the renderer's, because the two want
-  /// different words: one is a build that is missing its shaders, and this is a
-  /// document somebody has just edited.
-  Object? _levelError;
-  String? _levelErrorAsset;
 
   final Vector3 _scratch = Vector3.zero();
   /// How long since the last frame, and how long since the first.
@@ -291,7 +263,7 @@ class _GameScreenState extends State<GameScreen>
   ///
   /// Built in [initState]; its `open` waits on [_deviceReady], so the first
   /// level may be asked for before the renderer has finished opening.
-  late final PlatformerRun _run;
+  late final RunCubit _run;
 
   /// What a step sounds like. See `soundtrack.dart` for why this is a class
   /// and not a method: a decision can be tested, an effect inside a widget
@@ -310,19 +282,9 @@ class _GameScreenState extends State<GameScreen>
 
   /// Which level is being played. Written by [_loadLevel], read by the save.
   LevelReady? get _level => _run.level;
-  String get _levelAsset => switch (_run.status) {
-        RunPlaying<LevelReady>(:final asset) => asset,
-        RunFailed<LevelReady>(:final asset) => asset,
-        _ => _firstLevel,
-      };
 
   /// Where the run was standing when it was last written to disk.
   ///
-  /// A save is worth writing when the respawn point *moves* — that is what
-  /// passing a checkpoint means — and at no other time. Writing every frame
-  /// would put a file write in the frame budget; writing only on quit loses the
-  /// whole run to a crash.
-  Vector3? _savedFrom;
 
 
   @override
@@ -446,7 +408,7 @@ class _GameScreenState extends State<GameScreen>
       // Told to whoever is waiting as well, or a level load blocks for ever on
       // a device that is never coming.
       if (!_deviceReady.isCompleted) _deviceReady.completeError(error);
-      if (mounted) setState(() => _initError = error);
+      if (mounted) _screen.failed(error);
       return;
     }
     if (!mounted) return;
@@ -459,31 +421,23 @@ class _GameScreenState extends State<GameScreen>
         // into the air goes through it.
         _renderer?.addContributor(ParticleContributor(_particles));
       } catch (error) {
-        _initError = error;
+        _screen.failed(error);
       }
     });
 
-    _run = PlatformerRun(
+    // A cubit and nothing more: `RunSession` decides nothing about state
+    // management, and this game happens to use BLoC — matching the dungeon,
+    // whose `RunCubit` this one mirrors. A level that will not load is read
+    // straight off `_run.state` in [build] rather than copied into fields
+    // here.
+    _run = RunCubit(PlatformerRun(
       firstLevel: _firstLevel,
       saves: _saveFile,
       input: _input,
       openDevice: () => _deviceReady.future,
       onLevelBuilt: (LevelReady level, GraphicsDevice device) =>
           setState(() => _levelArrived(level, device)),
-    );
-    _run.onChanged = (RunStatus<LevelReady> status) {
-      if (!mounted) return;
-      setState(() {
-        if (status is RunFailed<LevelReady>) {
-          // A device that never opened is reported as itself, once, by
-          // `_openGraphics` — not a second time here as a level that would not
-          // load.
-          if (_initError != null) return;
-          _levelError = status.error;
-          _levelErrorAsset = status.asset;
-        }
-      });
-    };
+    ));
 
     _ticker = createTicker(_onTick)..start();
 
@@ -492,7 +446,7 @@ class _GameScreenState extends State<GameScreen>
     // `begin` also falls back when the saved level is gone, which this game
     // used to handle by showing an error screen with a button on it.
     unawaited(_run.begin().then((bool resumed) {
-      if (mounted) setState(() => _resumed = resumed);
+      if (mounted) _screen.resumedFromDisk(resumed: resumed);
     }));
   }
 
@@ -500,32 +454,6 @@ class _GameScreenState extends State<GameScreen>
   ///
   /// Failing is allowed and is not fatal: a machine with no audio device, or a
   /// CI runner, keeps the silent backend and plays the game.
-  Future<void> _openAudio() async {
-    // Opened by `flutter3d_audio`, which owns the trap: no device, no plugin,
-    // no native assets — every one of those is a launch that dies for want of a
-    // sound unless somebody catches it, and all three games had written the
-    // same catch. Null means silent, which is a perfectly good way to play.
-    final speakers = await openSpeakers(bank: Sounds.all, mixer: _audio.mixer);
-    if (speakers == null || !mounted) return;
-    _soloud = speakers.backend;
-    _audio = speakers.scene;
-    _applyVolumes();
-    _startMusic();
-  }
-
-  /// Starts the loop, once, whichever of the two arrives second.
-  ///
-  /// The audio device and the first level open in parallel and either may win,
-  /// so both call this and the flag decides. Once only: a looping sound played
-  /// twice is the same sound out of phase with itself.
-  void _startMusic() {
-    if (_musicPlaying || _sim == null || _soloud == null) return;
-    _musicPlaying = true;
-    // Position is immaterial — the track carries [NoAttenuation] — and the
-    // listener is where a sound with no place in the world belongs.
-    _audio.play(Sounds.music, _ears.position);
-  }
-
   /// Puts the config onto everything that is playing.
   ///
   /// **One function called from one place**, which it was not: the volumes went
@@ -534,16 +462,11 @@ class _GameScreenState extends State<GameScreen>
   /// needed. Moving a volume never re-applied the dead zone; nothing depended
   /// on that, and nothing said so either.
   void _applyConfig(GameConfig config) {
-    _applyVolumes();
+    _audio.applyVolumes(_config);
     _pad.applySettings(config);
     _applyAccessibility();
   }
 
-  /// Copies the saved volumes into the mixer the scene is reading.
-  ///
-  /// The list of buses is `flutter3d_ui`'s, beside the panel that offers them:
-  /// there were four copies of it and they had already disagreed once.
-  void _applyVolumes() => applySavedVolumes(_config, _audio.mixer);
 
   /// Everything that has to happen before a settings panel is on screen.
   ///
@@ -601,8 +524,9 @@ class _GameScreenState extends State<GameScreen>
   /// Loads [asset], and shows why if it cannot.
   ///
   /// **A level that will not read used to be a black screen for ever.** There
-  /// was no `catch` here at all and `_initError` covers only the device and the
-  /// renderer, so a malformed document, a missing texture or a save naming a
+  /// was no `catch` here at all and `ScreenState.error` covers only the device
+  /// and the renderer, so a malformed document, a missing texture or a save
+  /// naming a
   /// level that no longer exists left the game drawing nothing, saying nothing,
   /// and offering nothing to do about it. Every one of those is a *content*
   /// mistake — the failure a person editing a level makes, which is to say the
@@ -614,7 +538,6 @@ class _GameScreenState extends State<GameScreen>
   /// something the run does not own.
   void _levelArrived(LevelReady level, GraphicsDevice device) {
     final runner = level.runner;
-    _levelError = null;
     // A load takes far longer than a frame and drops simulated time every time.
     // Counting that against the machine would light the slow-machine warning on
     // every level of every run, which is the same as not having one.
@@ -624,22 +547,39 @@ class _GameScreenState extends State<GameScreen>
     // turned out to matter: awaiting the model here puts it in the scene before
     // the renderer has ever built its frame targets, and on this machine that
     // combination fails to allocate them — every frame, from the first.
-    _runnerNode = _boxRunner(device, level.scene, runner);
+    _runnerVisuals.box(device, level.scene, runner);
     _followCamera = FollowCamera(world: level.loaded.collision);
     // A camera is built per level, so the setting has to be put back on it.
     _applyAccessibility();
-    unawaited(_dressRunner(device, level.scene, runner));
+    // **`mounted` is not enough, and the gap is a whole level.** Reading and
+    // uploading eighteen clips takes long enough that the player can finish the
+    // level, die into a reload, or press restart while it is happening — and
+    // every one of those builds a new scene and a new runner, leaving the load
+    // holding the old pair. The widget is still mounted, so the model went into
+    // a scene nobody draws, the runner node was pointed at it, and the animation
+    // drove it: the level being played kept the orange box it started with,
+    // permanently, and the pose logic ran against a node in the dark.
+    //
+    // Compared by identity against the scene the game is showing, because that
+    // is what `setState` at the end of `_readLevel` swaps.
+    unawaited(_runnerVisuals.dress(
+      device,
+      level.scene,
+      runner,
+      stillWanted: () => mounted && identical(level.scene, _scene),
+      onArrived: () => setState(() {}),
+    ));
     _drawnAt = InterpolatedVector3(
       initial: runner.body.position,
       stepLimit: runner.body.tuning.stepHeight,
     );
     _drawnYaw.jumpTo(runner.yaw);
     _followCamera?.cut();
-    _savedFrom = null;
+    _screen.forgetSave();
     _soundtrack.reset();
     // The other of the two racers: the device may have opened before there was
     // anything to play under.
-    _startMusic();
+    _audio.startMusic(levelReady: _sim != null);
   }
 
   /// Writes the run out when it has reached somewhere new to come back to.
@@ -650,9 +590,7 @@ class _GameScreenState extends State<GameScreen>
   void _keepSaved() {
     final sim = _sim;
     if (sim == null) return;
-    final at = sim.respawnPoint;
-    if (_savedFrom != null && _savedFrom!.distanceToSquared(at) < 1e-6) return;
-    _savedFrom = at.clone();
+    if (!_screen.shouldSave(sim.respawnPoint)) return;
     _run.save();
   }
 
@@ -666,7 +604,7 @@ class _GameScreenState extends State<GameScreen>
 
     // Any button begins, which is also how a browser reveals the pad to the
     // page in the first place: it stays invisible until one is pressed.
-    if (!_started) {
+    if (!_screen.state.started) {
       _begin();
       return;
     }
@@ -695,7 +633,7 @@ class _GameScreenState extends State<GameScreen>
   /// Once per session and never again: a card that comes back every time the
   /// pointer is released is a card in the middle of a run.
   void _begin() {
-    if (_started) return;
+    if (_screen.state.started) return;
     // **The audio starts here rather than at launch**, and that is the browser's
     // rule rather than a preference: a page may not make a sound until the
     // player has done something, and a build that opened its audio in
@@ -703,8 +641,8 @@ class _GameScreenState extends State<GameScreen>
     // first sound of the game was the one that got refused. This is the first
     // click, touch or pad button in every build, which is exactly the gesture
     // the browser is waiting for.
-    unawaited(_openAudio());
-    setState(() => _started = true);
+    unawaited(_audio.open(_config, stillWanted: () => mounted));
+    _screen.begin();
   }
 
   /// Whether the run has ended and nothing else is going to happen.
@@ -729,97 +667,12 @@ class _GameScreenState extends State<GameScreen>
   /// helps is throwing the save away and going back to the first one.
   void _startOver() {
     _saveFile.clear();
-    setState(() {
-      _levelError = null;
-      _levelErrorAsset = null;
-    });
     unawaited(_run.load(_firstLevel));
-  }
-
-  /// A box, right away, so the game can be played while the model loads.
-  SceneNode _boxRunner(GraphicsDevice device, Scene scene, Runner runner) {
-    final box = MeshNode(
-      SharedMeshes(device).box(runner.body.halfExtents * 2.0),
-      Material(
-        name: 'runner',
-        baseColor: Vector4(0.90, 0.42, 0.28, 1.0),
-        lighting: LightingModel.pbr,
-      )..roughness = 0.5,
-      name: 'runner box',
-    );
-    scene.add(box);
-    return box;
-  }
-
-  /// Swaps the box for the model once it has been read and uploaded.
-  ///
-  /// **Not awaited before the first frame, and that is the whole point.** The
-  /// model in the scene before the renderer has ever built its frame targets is
-  /// the arrangement that fails here: `_ensureTargets` cannot allocate, every
-  /// frame, from the first, and the picture is an error screen. The same file
-  /// through `FixtureVisuals` is fine, and the difference is that a modelled
-  /// fixture arrives *after* the frames have started — so this does too.
-  ///
-  /// The asset is authored at the size the game wants (`tool/prepare_models.py`
-  /// bakes the scale into its root), so there is no scale set at load either —
-  /// what `setScale` carries is the pose, and nothing else.
-  Future<void> _dressRunner(
-    GraphicsDevice device,
-    Scene scene,
-    Runner runner,
-  ) async {
-    try {
-      final document = await decodeModelInIsolate(
-        ModelLoadRequest(source: const BundleAssetSource(_runnerModel)),
-      );
-      final asset = await ModelAsset.fromDocument(
-        document,
-        device: device,
-        name: _runnerModel,
-      );
-      // **`mounted` is not enough, and the gap is a whole level.** Reading and
-      // uploading eighteen clips takes long enough that the player can finish
-      // the level, die into a reload, or press restart while it is happening —
-      // and every one of those builds a new scene and a new runner, leaving
-      // this call holding the old pair. The widget is still mounted, so the
-      // model went into a scene nobody draws, `_runnerNode` was pointed at it,
-      // and `_runnerAnimation` drove it: the level being played kept the
-      // orange box it started with, permanently, and the pose logic ran
-      // against a node in the dark.
-      //
-      // Compared by identity against the scene the game is showing, because
-      // that is what `setState` at the end of `_readLevel` swaps — one field,
-      // written in the same batch as the runner this was given.
-      if (!mounted || !identical(scene, _scene)) return;
-
-      final instance = asset.instantiate(scene, name: 'runner');
-      final box = _runnerNode;
-      setState(() {
-        _runnerAsset = asset;
-        _runnerNode = instance.root;
-        // **The line three stages of this game were waiting for.** The player
-        // has always been built by `instantiate` when the model has clips; the
-        // penguin had none, so it was thrown away and nobody noticed. This one
-        // has eighteen.
-        _runnerAnimation = instance.player;
-        _modelFloor = asset.localBounds.min.y;
-        _runnerFacing = _modelFacing;
-      });
-      if (box != null) scene.remove(box);
-    } catch (error) {
-      debugPrint('runner: could not load $_runnerModel, staying a box ($error)');
-    }
   }
 
   void _onTick(Duration now) {
     final dt = _frames.secondsSince(now);
 
-    // Paused whenever the mouse is not ours: a game that keeps running behind
-    // a menu is a game that kills the player while they are reading it.
-    // Paused whenever the mouse is not ours: a game that keeps running
-    // behind a menu is a game that kills the player while they are reading
-    // it. There is no pointer to own in a browser, so there the gate is
-    // only whether the level has loaded.
     // Before the loop, so the frame that reads the pad is the frame it moves in.
     _pad.tick(dt);
     _padScreenButtons();
@@ -849,11 +702,17 @@ class _GameScreenState extends State<GameScreen>
     }
     // The frame the loop accepted — see `GameLoop.lastFrame`.
     _particles.advance(_loop.lastFrame);
-    _animateRunner(dt);
+    _runnerVisuals.animate(dt, _runner);
     _placeCamera(dt);
     _fixtures?.sync(_frames.elapsed);
     _burnLamps();
     _keepSaved();
+    // The run's own state, republished on the step it changes — see
+    // `RunSession.observe`. **Missing here, this game's next level and its
+    // game-over screen would never arrive**: `advance` only acts once
+    // `_status.outcome` says the run is over, and nothing else moves that
+    // cached outcome off `RunOutcome.playing`.
+    _run.observe();
     unawaited(_run.advance());
     if (mounted) setState(() {});
   }
@@ -891,32 +750,6 @@ class _GameScreenState extends State<GameScreen>
   /// simulation runs at sixty hertz and the animation should run at whatever
   /// the display does. The state machine itself is `RunnerClips.forRunner`,
   /// which is a pure function and tested as one.
-  void _animateRunner(double dt) {
-    final player = _runnerAnimation;
-    final runner = _runner;
-    if (player == null || runner == null) return;
-
-    final wanted = RunnerClips.forRunner(runner);
-    if (wanted != _clip) {
-      // A short fade, and shorter still into a jump: a quarter of a second of
-      // blending into a take-off is a quarter of a second of the runner still
-      // standing there while the body is already in the air.
-      player.crossFadeToNamed(
-        wanted,
-        duration: wanted == RunnerClips.jump ? 0.06 : 0.14,
-      );
-      _clip = wanted;
-    }
-
-    final speed = math.sqrt(
-      runner.body.velocity.x * runner.body.velocity.x +
-          runner.body.velocity.z * runner.body.velocity.z,
-    );
-    player
-      ..speed = RunnerClips.rateFor(wanted, speed)
-      ..update(dt);
-  }
-
   /// Keeps every lamp's flame alight.
   ///
   /// Restated every frame rather than started once, because that is what
@@ -952,7 +785,7 @@ class _GameScreenState extends State<GameScreen>
     final camera = _followCamera;
 
     for (final Heard heard in _soundtrack.listen(sim, runner)) {
-      _audio.play(heard.sound, heard.at);
+      _audio.scene.play(heard.sound, heard.at);
     }
 
     // What the level said. It has been saying things since the engine had
@@ -979,7 +812,7 @@ class _GameScreenState extends State<GameScreen>
 
   void _placeCamera(double dt) {
     final camera = _followCamera;
-    final node = _runnerNode;
+    final node = _runnerVisuals.node;
     if (camera == null || node == null) return;
 
     // A captured pointer reports through the loop; a drag reports here.
@@ -1009,7 +842,7 @@ class _GameScreenState extends State<GameScreen>
         : _pose.drawnHeight(
             bodyY: _scratch.y,
             halfHeight: runner.body.halfExtents.y,
-            modelFloor: _modelFloor,
+            modelFloor: _runnerVisuals.modelFloor,
           );
 
     node
@@ -1018,7 +851,9 @@ class _GameScreenState extends State<GameScreen>
       ..setRotation(
         Quaternion.axisAngle(
               Vector3(0.0, 1.0, 0.0),
-              _drawnYaw.read(_loop.alpha) + _runnerFacing + _pose.spin,
+              _drawnYaw.read(_loop.alpha) +
+                  _runnerVisuals.facing +
+                  _pose.spin,
             ) *
             Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), _pose.lean) *
             Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), _pose.roll),
@@ -1039,15 +874,15 @@ class _GameScreenState extends State<GameScreen>
 
     // Along the camera's own forward rather than through a yaw: `aimAt` reads
     // an angle as a first-person camera's, and this one is not.
-    _ears.aimAlong(camera.eye, camera.target - camera.eye);
-    _audio.update(_ears);
+    _audio.ears.aimAlong(camera.eye, camera.target - camera.eye);
+    _audio.scene.update(_audio.ears);
   }
 
   @override
   void dispose() {
     _run.save();
-    _audio.stopAll();
-    unawaited(_soloud?.dispose());
+    unawaited(_audio.close());
+    unawaited(_screen.close());
     unawaited(_settings.close());
     _keyboard.dispose();
     _ticker?.dispose();
@@ -1057,7 +892,7 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   Widget build(BuildContext context) {
-    final error = _initError;
+    final error = _screen.state.error;
     if (error != null) {
       // The sentence is this game's; the screen is `flutter3d_session`'s,
       // and it was the same four widgets in five applications.
@@ -1069,15 +904,6 @@ class _GameScreenState extends State<GameScreen>
       );
     }
 
-    final levelError = _levelError;
-    if (levelError != null) {
-      return LevelErrorScreen(
-        asset: _levelErrorAsset ?? _levelAsset,
-        error: levelError,
-        onStartOver: _startOver,
-      );
-    }
-
     final renderer = _renderer;
     if (renderer == null) {
       return const Scaffold(
@@ -1085,6 +911,33 @@ class _GameScreenState extends State<GameScreen>
         body: Center(child: CircularProgressIndicator()),
       );
     }
+
+    // `_run` is assigned in the same synchronous stretch as `_renderer`, so by
+    // the time a frame actually reaches this widget it is there to read.
+    return BlocBuilder<RunCubit, RunStatus<LevelReady>>(
+      bloc: _run,
+      builder: (BuildContext context, RunStatus<LevelReady> run) {
+        if (run is RunFailed<LevelReady>) {
+          // **This used to be a black screen for ever**: the load caught its
+          // own throw and printed it, which is a line in a console nobody
+          // playing the game can see.
+          return LevelErrorScreen(
+            asset: run.asset,
+            error: run.error,
+            onStartOver: _startOver,
+          );
+        }
+        return _game(renderer);
+      },
+    );
+  }
+
+  /// The game itself, once the renderer is up and the level either loaded or
+  /// is loading.
+  ///
+  /// Split out of [build] so the `RunFailed` branch above can return early
+  /// without also having to indent everything else a level deeper.
+  Widget _game(Renderer renderer) {
     final scene = _scene;
     final sim = _sim;
 
@@ -1102,7 +955,7 @@ class _GameScreenState extends State<GameScreen>
           // carries the same credits and is the one screen a panel over the top
           // of it adds nothing to.
           final settingsSay =
-              settingsKeys(event, _settings, opening: _openSettings, canOpen: _started);
+              settingsKeys(event, _settings, opening: _openSettings, canOpen: _screen.state.started);
           if (settingsSay != null) return settingsSay;
           // R starts a finished run over. Handled here rather than through a
           // binding because it is not a verb the runner has: the simulation it
@@ -1186,7 +1039,7 @@ class _GameScreenState extends State<GameScreen>
               // Not behind the title card: the tallies and its own "Click to
               // play" banner showed through it, saying the same thing twice
               // and counting a run the player has not started.
-              if (sim != null && _started)
+              if (sim != null && _screen.state.started)
                 Hud(
                   coins: _runner?.purse['coin'] ?? 0,
                   deaths: sim.deaths,
@@ -1209,7 +1062,7 @@ class _GameScreenState extends State<GameScreen>
               // takes the pointers that land on it, so a thumb on the stick is
               // never also a turn of the camera. Everything the drag layer
               // still sees is screen the controls are not on.
-              if (Playing.touch && _started && !_settings.state.isOpen)
+              if (Playing.touch && _screen.state.started && !_settings.state.isOpen)
                 TouchControls(
                   state: _input,
                   buttons: const <TouchAction>[
@@ -1218,7 +1071,7 @@ class _GameScreenState extends State<GameScreen>
                     TouchAction(GameAction.jump, 'jump'),
                   ],
                 ),
-              if (!_started)
+              if (!_screen.state.started)
                 TitleCard(
                   prompt: Playing.touch
                       ? 'Touch to begin.'
@@ -1228,7 +1081,7 @@ class _GameScreenState extends State<GameScreen>
                           : 'Click to begin, or press a button on the pad.',
                   dashOnPointer: Playing.capturesPointer,
                   touch: Playing.touch,
-                  resuming: _resumed,
+                  resuming: _screen.state.resumed,
                 ),
               SettingsOverlay(
                 settings: _settings,
@@ -1242,7 +1095,7 @@ class _GameScreenState extends State<GameScreen>
                 credits: const CreditsSection(credits: Credits.models),
                 // Not over the title card, which carries the same settings on
                 // it and is the one screen a stray gear has nothing to add to.
-                canOpen: _started,
+                canOpen: _screen.state.started,
               ),
             ],
           ),

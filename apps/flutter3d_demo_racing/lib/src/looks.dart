@@ -65,12 +65,11 @@ abstract final class Looks {
         lighting: LightingModel.unlit,
       );
 
-  /// What a car is before its model has loaded, and what the other cars are.
+  /// The colour car [index] is painted, model and box alike.
   ///
-  /// A box is not a placeholder that got left in: a field of eight of these
-  /// draws in eight draw calls and reads perfectly well at the distance an
-  /// opponent is usually seen from.
-  static Material rival(int index) {
+  /// One list, read by both, so a rival does not change colour at the moment
+  /// its model arrives — the box it replaces was already wearing this.
+  static Vector4 carPaint(int index) {
     const palette = <List<double>>[
       <double>[0.85, 0.16, 0.12],
       <double>[0.12, 0.35, 0.85],
@@ -79,12 +78,72 @@ abstract final class Looks {
       <double>[0.70, 0.20, 0.75],
     ];
     final colour = palette[index % palette.length];
-    return Material(
-      baseColor: Vector4(colour[0], colour[1], colour[2], 1.0),
-      roughness: 0.4,
-      metallic: 0.2,
-      lighting: LightingModel.pbr,
-    );
+    return Vector4(colour[0], colour[1], colour[2], 1.0);
+  }
+
+  /// What a car is before its model has loaded.
+  ///
+  /// Every car on the grid is now a real one; this is what stands in for the
+  /// few frames between the grid being formed and the model being decoded and
+  /// uploaded, and what the whole field falls back to if that fails. A box that
+  /// is only ever seen for a moment still has to be the right colour, or the
+  /// field appears to change livery as it loads.
+  static Material rival(int index) => Material(
+        baseColor: carPaint(index),
+        roughness: 0.4,
+        metallic: 0.2,
+        lighting: LightingModel.pbr,
+      );
+
+  /// The materials of the car model that carry its livery.
+  ///
+  /// The asset is a real racing car with forty materials — tyres, glass, brake
+  /// discs, carbon, a steering wheel with an LCD on it. Painting all of them
+  /// would give a rival coloured tyres and a coloured windscreen, so only the
+  /// panels are painted, and they are found by the name the artist gave them.
+  ///
+  /// Matched on a substring rather than the whole name because the exporter
+  /// suffixes duplicates: the panels arrive as `car_chassis.005` and
+  /// `car_chassis2.005`, and a new export would renumber both.
+  static bool isBodywork(String? name) =>
+      name != null && name.toLowerCase().contains('chassis');
+
+  /// Paints [colour] onto the bodywork of one car.
+  ///
+  /// **Only ever call this on materials the instance owns.** [Material.baseColor]
+  /// multiplies the livery texture, and the materials of a model instantiated
+  /// with `shareMaterials: true` are the asset's own — painting those paints
+  /// every car drawn from that asset, which is the whole field.
+  ///
+  /// Set rather than multiplied, so that painting the same instance twice
+  /// leaves it the colour asked for instead of a darker one. Nothing does that
+  /// today; it is a cheap property to have and an unpleasant bug to find.
+  static void paint(List<MeshNode> meshes, Vector4 colour) {
+    for (final mesh in meshes) {
+      if (isBodywork(mesh.material.name)) mesh.material.baseColor.setFrom(colour);
+    }
+  }
+
+  /// Turns one car into the ghost of one.
+  ///
+  /// Every part, not the bodywork only: a ghost is one translucent shape rather
+  /// than a car with a livery, and a ghost with solid tyres and a solid engine
+  /// inside it would read as a car somebody could hit.
+  ///
+  /// **Replaces the materials rather than editing them.** [Looks.ghost] is
+  /// unlit, blended and writes no depth, and the model's own materials are
+  /// textured, opaque and lit — turning one into the other means changing more
+  /// than a colour. Replacing also drops the livery texture, which is the
+  /// point: a ghost is a shape, not a car with sponsors on it.
+  ///
+  /// One material across all forty parts, deliberately. Nothing colours a
+  /// ghost per part, and one material is one fewer state change per part in the
+  /// pass that draws it.
+  static void haunt(List<MeshNode> meshes) {
+    final look = ghost();
+    for (final mesh in meshes) {
+      mesh.material = look;
+    }
   }
 }
 

@@ -6,6 +6,7 @@ import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'exit_door.dart';
 import 'fixture_looks.dart';
 import 'monster_looks.dart';
 import 'staging.dart';
@@ -103,6 +104,11 @@ final class DungeonRun extends RunSession<LevelReady> {
         // `run_cubit_test.dart`, which is where losing this line was found.
         ..bindLights(),
     );
+
+    // The way out, which was a trigger with nothing to see. Awaited rather than
+    // left running: a doorway that appears a moment after the level does is a
+    // wall that turns into an exit while somebody is looking at it.
+    await addExitsTo(loaded.scene, loaded.level, device: device);
     final staged = stage(
       loaded.level,
       loaded.collision,

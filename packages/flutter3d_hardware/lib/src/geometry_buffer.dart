@@ -1,8 +1,7 @@
 /// Vertex and index storage the device already holds, and the geometry that
 /// has some.
 ///
-/// **Nothing in `graphics/` may import `flutter_gpu`** —
-/// `test/graphics_is_backend_free_test.dart` enforces it.
+/// **Nothing here may import a graphics API** — `tool/structure.dart` holds it.
 library;
 
 /// What a buffer will be bound as.

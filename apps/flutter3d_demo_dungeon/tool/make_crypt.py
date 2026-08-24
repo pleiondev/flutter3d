@@ -87,7 +87,7 @@ def build():
     k.pillar((-4.0, 2.0, -10.0))
     k.pillar((4.0, 2.0, -10.0))
     # Far enough that the pistol is the right answer and the fists are not.
-    k.monster("runner", (0.0, 1.0, -12.0))
+    k.monster("runner", (0.0, 0.0, -12.0))
     k.pickup("health", (-6.0, 0.8, -5.0), amount=25)
 
     # **The door before the key.** It is straight ahead of the way in, so it is
@@ -123,7 +123,7 @@ def build():
     k.torch((14.0, 2.8, -12.4), name="vault_north")
     # Guarded, and by the one that shoots: the side passage is where a player
     # learns that a corridor is cover.
-    k.monster("shooter", (16.0, 1.0, -10.0))
+    k.monster("shooter", (16.0, 0.0, -10.0))
     k.pickup("bullets", (11.0, 0.8, -6.0), amount=20)
     k.key("iron", (14.0, 0.9, -8.0))
 

@@ -41,23 +41,11 @@ import '../physics/layers.dart';
 import '../save/game_random.dart';
 import 'actor.dart';
 import 'actor_components.dart';
+import 'actor_hurt.dart';
 import 'brain.dart';
 import 'health.dart';
 
-/// An actor that took damage this step and survived it.
-final class ActorHurt {
-  ActorHurt(this.actor, this.amount, {this.from});
-  final Actor actor;
-  final double amount;
-
-  /// Whoever dealt it, as the collider's `userData`, or null for damage with
-  /// nobody behind it — a fall, a crushing lift, a pit.
-  final Object? from;
-
-  /// Whether it visibly reacted. Set by whatever decided that it did — a
-  /// caller can tell a grunt from a scream.
-  bool staggered = false;
-}
+export 'actor_hurt.dart';
 
 final class ActorSystem {
   ActorSystem({
@@ -84,7 +72,7 @@ final class ActorSystem {
   ///
   /// **Required and not defaulted**, which is the other half. It defaulted to
   /// an unseeded `math.Random()`, and the shipped shooter took that default:
-  /// its saves restored everything except the flinch rolls, and SPEC §6.4 —
+  /// its saves restored everything except the flinch rolls, and ARCHITECTURE.md §9.3 —
   /// no randomness except through a `Random` that was handed in — was being
   /// kept by nothing at all. A default is how a caller takes a decision without
   /// making one.

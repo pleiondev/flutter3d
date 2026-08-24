@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
+import 'package:flutter3d/src/engine/scene/projection.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';

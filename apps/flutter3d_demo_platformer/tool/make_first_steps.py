@@ -197,6 +197,34 @@ room(46.0, 58.0)
 route([-6.0, 3.0, 52.0], [10.0, 6.0, 10.0], "stone")
 route([6.0, 3.0, 52.0], [10.0, 6.0, 10.0], "stone")
 route([0.0, 3.0, 57.5], [2.0, 6.0, 1.0], "stone")
+
+# **A step into the slot, and it is here for the reason the double-jump room's
+# step is there.** That room shipped as a 2.6 m shelf across the whole width
+# with nothing before it, and a player who had not found the second jump walked
+# into it and stopped. This room shipped the same shape one mechanic later: six
+# metres of wall across twenty-two, one two-metre slot in it, and a climb only a
+# wall jump answers. Somebody played it and reported exactly that — "you cannot
+# jump over this wall" — standing at x = 4.5, which is in front of the
+# right-hand block and not in front of the slot at all.
+#
+# So this step is aimed at *finding the way in*, not at shortening the climb. It
+# sits inside the slot at the near end and is the only thing breaking a flat
+# floor in a flat room: the eye goes to it, and it is on the centre line, which
+# is where the opening is. From on top of it the coin ladder is straight ahead
+# and rising, which is the part that says "up".
+#
+# 1.6 m, because a single jump is 1.88 and this has to be climbable by somebody
+# who has learned nothing yet. It leaves 4.4 m above it, more than a double
+# jump's 3.13, so the shaft still asks for the wall jump and the lesson
+# survives. Both halves are pinned by tests, the pair the double-jump room has.
+#
+# **What this does not do**, said plainly because the header of this file
+# promises it: every room shows a verb somewhere it cannot hurt you and then
+# asks for it somewhere it can. The wall jump is still only ever *asked* for.
+# A harmless first instance — a shallow slot a metre or two up, with a coin on
+# top — is the fix that would keep that promise, and it is not here yet.
+route([0.0, 0.8, 48.0], [2.0, 1.6, 2.0], "stone")
+
 coin([0.0, 1.4, 52.0], "the shaft coin one")
 coin([0.0, 3.0, 52.0], "the shaft coin two")
 coin([0.0, 4.4, 52.0], "the shaft coin three")

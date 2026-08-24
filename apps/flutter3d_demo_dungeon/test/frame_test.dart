@@ -3,7 +3,7 @@
 ///     flutter test test/frame_test.dart
 ///
 /// **The other three applications had one of these and this one did not**, and
-/// it is the game the performance budgets in `docs/SPEC.md` §5.1 are written
+/// it is the game the performance budgets in `ARCHITECTURE.md` §14 are written
 /// for. What this repository already knows about the gap is written in §7.1:
 /// three bugs shipped in the platformer in one afternoon that every simulation
 /// test passed — no coin visible, no sound on a pickup, a gate that never

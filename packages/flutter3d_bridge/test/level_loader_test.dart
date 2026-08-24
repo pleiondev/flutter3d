@@ -9,6 +9,7 @@
 /// added for the editor, both exactly what a test wants.
 library;
 
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -16,8 +17,8 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// A level with one wall, in one material.
-Level _level({String? albedo}) => Level.fromJson(<String, Object?>{
+/// The document a level with one wall, in one material, parses from.
+Map<String, Object?> _levelJson({String? albedo}) => <String, Object?>{
       'version': 1,
       'materials': <String, Object?>{
         'wall': <String, Object?>{
@@ -42,7 +43,10 @@ Level _level({String? albedo}) => Level.fromJson(<String, Object?>{
           'range': 8.0,
         },
       ],
-    });
+    };
+
+/// A level with one wall, in one material.
+Level _level({String? albedo}) => Level.fromJson(_levelJson(albedo: albedo));
 
 void main() {
   final device = CpuDevice(
@@ -91,6 +95,27 @@ void main() {
     expect(loaded.issues, isEmpty,
         reason: 'a texture that loaded was reported as missing');
     expect(loaded.materialTextures['assets/textures/wall.png'], isNotNull);
+  });
+
+  test('load reads its document through readDocument, not just its textures',
+      () async {
+    // The editor's whole reason to want this: a level on disk, read the same
+    // way `readAsset` already lets its textures be. Nothing here touches the
+    // asset bundle, so a real one is never needed to prove it.
+    final read = <String>[];
+    final loaded = await const LevelLoader().load(
+      'levels/wall.level.json',
+      device: device,
+      registry: registry,
+      readDocument: (String path) async {
+        read.add(path);
+        return jsonEncode(_levelJson());
+      },
+    );
+
+    expect(read, <String>['levels/wall.level.json']);
+    expect(loaded.issues, isEmpty);
+    expect(loaded.drawCallCount, greaterThan(0));
   });
 }
 

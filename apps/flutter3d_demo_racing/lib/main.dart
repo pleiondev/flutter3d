@@ -17,8 +17,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart'
-    show LogicalKeyboardKey, rootBundle;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
@@ -26,14 +25,18 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/bridge.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/circuits.dart';
+import 'src/controls.dart';
 import 'src/credits.dart';
 import 'src/ghost_car.dart';
 import 'src/hud.dart';
 import 'src/looks.dart';
+import 'src/race_cubit.dart';
+import 'src/race_readout.dart';
 import 'src/reactions.dart';
 import 'src/sounds.dart';
 import 'src/staging.dart';
@@ -68,7 +71,6 @@ class _RaceScreenState extends State<RaceScreen>
   /// uploading meshes to the device the first one was built on.
   GraphicsDevice? _device;
   Ticker? _ticker;
-  Object? _initError;
 
   /// The scene, empty until the circuit is read, and **drawn from the first
   /// frame either way**.
@@ -160,18 +162,34 @@ class _RaceScreenState extends State<RaceScreen>
   final ParticleSystem _particles = ParticleSystem(capacity: 1200);
   final Reactions _reactions = Reactions();
 
-  /// Which circuit is being raced, and how far into the season that is.
+  /// Which circuit is being raced, how far into the season that is, and
+  /// whether the screen is loading, racing, between one circuit and the next,
+  /// or looking at a circuit — or a device — that would not open.
   ///
   /// **The game had one `const` asset path and no idea that anything ever
   /// ended.** A race could be won and nothing happened: no next circuit,
   /// nothing that remembered having been anywhere, and a car going round a
-  /// finished race forever.
-  late final SeasonProgress _season =
-      SeasonProgress(storage: defaultStorage('racing'));
-  late Circuit _circuit = _season.read();
+  /// finished race forever. See `race_cubit.dart` for why this is a cubit
+  /// rather than fields beside this one, the way it used to be.
+  late final RaceCubit _raceCubit = RaceCubit(
+    RaceProgress(season: SeasonProgress(storage: defaultStorage('racing'))),
+  );
+
+  Circuit get _circuit => _raceCubit.circuit;
 
   /// What is said across the screen between circuits, and at the end.
-  String? _notice;
+  ///
+  /// Read from [_raceCubit] rather than held here: a [RaceOver] status is
+  /// exactly "a circuit and what, if anything, comes after it", which is
+  /// this line and nothing more.
+  String? get _notice {
+    final status = _raceCubit.state;
+    return switch (status) {
+      RaceOver(:final next) =>
+        next == null ? 'Season complete' : '${next.title} next',
+      _ => null,
+    };
+  }
 
   /// How long the record line goes on saying it has just been beaten.
   ///
@@ -204,6 +222,23 @@ class _RaceScreenState extends State<RaceScreen>
   /// will have its origin somewhere else again.
   final List<double> _carLift = <double>[];
 
+  /// Where each car is *drawn*, which is not where it last stepped to.
+  ///
+  /// The race steps sixty times a second and this display draws a hundred and
+  /// twenty, so reading `car.position` puts every simulated position on screen
+  /// for two frames and then jumps a whole step — the stutter
+  /// [InterpolatedVector3] exists for. On a car it does not read as a stutter:
+  /// the chase camera eases along the direction of travel every drawn frame and
+  /// so absorbs the lengthwise part of it, leaving the vertical — suspension
+  /// settling, camber, kerbs — strobing on its own. It looks like the car has
+  /// two of itself, one slightly above the other.
+  ///
+  /// Only the position is blended. The basis is still taken from the newest
+  /// step, because the heading turns slowly next to the way the body moves over
+  /// its springs, and slerping a basis here would mean a second copy of the
+  /// vehicle's own frame-building living in the application.
+  final List<InterpolatedVector3> _carDraw = <InterpolatedVector3>[];
+
   final InputState _input = InputState();
 
   /// What the player has changed, and where it is kept.
@@ -216,23 +251,12 @@ class _RaceScreenState extends State<RaceScreen>
   late final GameConfig _config;
   late final SettingsCubit _settings;
 
-  /// What a player can move, in the order the panel lists it.
-  ///
-  /// A driver's words rather than a walker's: this game has a throttle and a
-  /// brake where the others have a forward and a back.
-  static const List<GameAction> _rebindable = <GameAction>[
-    _Drive.throttle,
-    _Drive.brake,
-    _Drive.left,
-    _Drive.right,
-    _Drive.handbrake,
-    _Drive.tyres,
-  ];
-
   /// What the player has already told the operating system.
   Accommodations _system = const Accommodations();
-  late final DesktopInput _devices =
-      DesktopInput(state: _input, bindings: ownedBindings(_config, _keys));
+  late final DesktopInput _devices = DesktopInput(
+    state: _input,
+    bindings: ownedBindings(_config, driveKeys),
+  );
 
   /// The controller, which this game did not read.
   ///
@@ -249,8 +273,8 @@ class _RaceScreenState extends State<RaceScreen>
     // a player can move them. Which way the stick turns the car is not
     // something anybody rebinds.
     routes: PadRoutes.driving(
-      steerLeft: _Drive.left,
-      steerRight: _Drive.right,
+      steerLeft: Drive.left,
+      steerRight: Drive.right,
     ),
   )..applySettings(_config);
   /// The loop, rather than a bare `FixedStep`.
@@ -300,7 +324,7 @@ class _RaceScreenState extends State<RaceScreen>
     // A config saved before this game read a controller has no `pad:` in it,
     // and nobody should have to delete their settings to plug one in. The
     // rebindings they did make are left alone.
-    if (!PadInput.knowsPad(_devices.bindings)) _padBindings(_devices.bindings);
+    if (!PadInput.knowsPad(_devices.bindings)) padBindings(_devices.bindings);
     _settings = SettingsCubit(
       config: _config,
       file: _settingsFile,
@@ -346,50 +370,12 @@ class _RaceScreenState extends State<RaceScreen>
         _config.settingOf('a11y.cameraMotion', _system.cameraMotion);
   }
 
-  /// The driving pad.
-  ///
-  /// The triggers where every racing game has put them for twenty years, the
-  /// handbrake on the face button a thumb is already resting on, and the
-  /// engine's own defaults left out: this game does not walk, and a d-pad bound
-  /// to `moveForward` here would be a control that means nothing.
-  static Bindings _padBindings(Bindings bindings) => bindings
-    ..bind(InputSource.pad(PadButton.triggerRight.id), _Drive.throttle)
-    ..bind(InputSource.pad(PadButton.triggerLeft.id), _Drive.brake)
-    ..bind(InputSource.pad(PadButton.faceSouth.id), _Drive.handbrake)
-    ..bind(InputSource.pad(PadButton.faceNorth.id), _Drive.tyres)
-    ..bind(InputSource.pad(PadButton.dpadLeft.id), _Drive.left)
-    ..bind(InputSource.pad(PadButton.dpadRight.id), _Drive.right);
-
-  /// The driving keys.
-  ///
-  /// A table of its own rather than the engine's defaults, which name walking:
-  /// a car has a throttle and a brake, not a forward and a back. The arrows are
-  /// bound alongside the letters because half the people who sit down at a
-  /// racing game reach for them first.
-  static Bindings _keys() {
-    final bindings = Bindings(<InputSource, GameAction>{});
-    void bind(LogicalKeyboardKey key, GameAction action) =>
-        bindings.bind(InputSource.key(key.keyId), action);
-
-    bind(LogicalKeyboardKey.keyW, _Drive.throttle);
-    bind(LogicalKeyboardKey.arrowUp, _Drive.throttle);
-    bind(LogicalKeyboardKey.keyS, _Drive.brake);
-    bind(LogicalKeyboardKey.arrowDown, _Drive.brake);
-    bind(LogicalKeyboardKey.keyA, _Drive.left);
-    bind(LogicalKeyboardKey.arrowLeft, _Drive.left);
-    bind(LogicalKeyboardKey.keyD, _Drive.right);
-    bind(LogicalKeyboardKey.arrowRight, _Drive.right);
-    bind(LogicalKeyboardKey.space, _Drive.handbrake);
-    bind(LogicalKeyboardKey.keyT, _Drive.tyres);
-    return bindings;
-  }
-
   Future<void> _open() async {
     final GraphicsDevice device;
     try {
       device = await openDevice(width: kRenderWidth, height: kRenderHeight);
     } catch (error) {
-      if (mounted) setState(() => _initError = error);
+      if (mounted) _raceCubit.failed(error);
       return;
     }
     if (!mounted) return;
@@ -399,7 +385,7 @@ class _RaceScreenState extends State<RaceScreen>
       try {
         _renderer = Renderer.create(device: device);
       } catch (error) {
-        _initError = error;
+        _raceCubit.failed(error);
       }
     });
     if (_renderer == null) return;
@@ -445,6 +431,12 @@ class _RaceScreenState extends State<RaceScreen>
 
   Future<void> _loadCircuit(GraphicsDevice device) async {
     try {
+      // Started here and awaited below, so the model decodes while the circuit
+      // is being read: the wait is the longer of the two rather than the sum.
+      // Awaited before any car reaches the scene, which is what keeps a box
+      // from ever being drawn — see [_loadCarModel].
+      final carModel = _loadCarModel(device);
+
       // The circuit and the scenery are two halves of one document, written by
       // one script and read by two loaders: the spline is this genre's and the
       // level is the engine's, which has read brushes since the first game.
@@ -462,23 +454,56 @@ class _RaceScreenState extends State<RaceScreen>
       );
 
       // The one assembly this game has. What is left here is what needs a
-      // device: the road mesh, the car boxes and the scene they go in.
+      // device: the road mesh, the cars and the scene they go in.
       final staged = stage(document, loaded.collision);
       final track = staged.track;
       final scene = loaded.scene;
       addTrackTo(scene, track, device: device);
       scene.add(_camera);
 
+      // **Before the grid is formed, not after.** The field used to be lined up
+      // as boxes and re-dressed when the model arrived, and on a cold start
+      // that is a second or so of four parallelepipeds on the grid. Waiting
+      // costs the same second, spent on a loading screen where a wait belongs.
+      final asset = await carModel;
+      // One asset, so one measurement of where the bodywork ends; the ride
+      // height it is offset against is per car, because tuning is.
+      final floor = asset == null ? 0.0 : -asset.localBounds.min.y;
+
       _cars.addAll(staged.cars);
       for (var i = 0; i < _cars.length; i++) {
-        final node = carBox(device, Looks.rival(i), name: 'car-$i');
-        scene.add(node);
+        final SceneNode node;
+        if (asset == null) {
+          node = carBox(device, Looks.rival(i), name: 'car-$i');
+          scene.add(node);
+          _carLift.add(liftFor(_cars[i]));
+        } else {
+          // The player alone keeps the asset's own materials. Rivals ask for
+          // copies, because [Looks.paint] writes a colour into them and shared
+          // materials would paint the whole field — the player's car included —
+          // whatever colour the last rival happened to wear.
+          final instance = asset.instantiate(
+            scene,
+            name: i == 0 ? 'player' : 'rival-$i',
+            shareMaterials: i == 0,
+          );
+          if (i != 0) Looks.paint(instance.meshes, Looks.carPaint(i));
+          // `instantiate` has already put it in the scene.
+          node = instance.root;
+          // Put the model's lowest point on the road: the sphere's centre is a
+          // ride height above the tarmac, and the model hangs from wherever its
+          // own origin is.
+          _carLift.add(floor - _cars[i].tuning.rideHeight);
+        }
         _carNodes.add(node);
-        _carLift.add(liftFor(_cars[i]));
+        // Both endpoints start on the grid slot. Left at zero the first drawn
+        // frame would blend from the origin, which is a car arriving at the
+        // start line from under the scenery.
+        _carDraw.add(InterpolatedVector3(initial: _cars[i].position));
       }
 
       _ghosts = _keeperFor(_circuit)..load();
-      _ghostCar = GhostCar.build(device, scene);
+      _ghostCar = GhostCar.build(device, scene, model: asset);
 
       {
         for (final car in _cars) {
@@ -491,6 +516,25 @@ class _RaceScreenState extends State<RaceScreen>
       // around are the same sun by construction rather than by agreement.
       scene.ambientIntensity = document.sky.ambientIntensity;
 
+      // **The circuit reflects the sky it is raced under, and costs nothing to
+      // do it.** A sky is already a function from direction to colour, which is
+      // exactly what an environment map holds — so there is no photograph to
+      // ship and no asset to author. Built from the preset the document names,
+      // so a circuit raced at dawn reflects dawn.
+      //
+      // The car is the reason: it is a metal, and a metal has no diffuse
+      // response at all, so before this it was lit by the sun alone and read as
+      // very nearly black wherever the sun was not.
+      //
+      // Built here, once per circuit, because it is a convolution over six
+      // faces and belongs at a load rather than in a frame.
+      _sky = document.sky;
+      final environment = EnvironmentMap.fromSky(device, _skySettings());
+      if (environment != null) {
+        scene
+          ..environment = environment.texture
+          ..environmentLevels = environment.levels;
+      }
 
       setState(() {
         _sky = document.sky;
@@ -502,11 +546,12 @@ class _RaceScreenState extends State<RaceScreen>
         _chase = staged.chase;
         _ai = staged.ai;
       });
-
-      unawaited(_dressPlayer(device, scene));
+      // After the render fields are in place, not before: a status of
+      // `Racing` is a promise that there is something to draw.
+      _raceCubit.ready();
     } catch (error, stack) {
       debugPrint('circuit: $error\n$stack');
-      if (mounted) setState(() => _initError = error);
+      if (mounted) _raceCubit.failed(error);
     }
   }
 
@@ -522,20 +567,11 @@ class _RaceScreenState extends State<RaceScreen>
   /// load, and a player who is put back on the circuit they have just won has
   /// lost the race they won.
   void _finishedHere() {
-    final next = Season.after(_circuit);
-    if (next == null) {
-      // The season starts again next launch. A deliberate clear rather than a
-      // name meaning "done": a saved file naming a circuit this build does not
-      // ship already reads as the first one, and one meaning is easier to keep
-      // true than two.
-      _season.clear();
-      setState(() => _notice = 'Season complete');
-      return;
-    }
-
-    _season.reached(next);
-    setState(() => _notice = '${next.title} next');
-    unawaited(_moveOn(next));
+    // Deciding what comes next, remembering it, and saying so are all
+    // `_raceCubit.finish()`'s job now — see `RaceProgress.finish` for the
+    // season-complete clause this used to hold directly.
+    final next = _raceCubit.finish();
+    if (next != null) unawaited(_moveOn(next));
   }
 
   /// How long the finished circuit stays on screen before the next one.
@@ -561,11 +597,14 @@ class _RaceScreenState extends State<RaceScreen>
     _cars.clear();
     _carNodes.clear();
     _carLift.clear();
+    _carDraw.clear();
     _ghostCar = null;
 
+    // Leaves the circuit that was just won and starts reading `next` — which
+    // is also what clears [_notice], by moving the status out of `RaceOver`.
+    _raceCubit.moveOn(next);
+
     setState(() {
-      _circuit = next;
-      _notice = null;
       // An empty scene rather than none: the surface has to keep drawing
       // through the load or Flutter GPU never learns its own pixel format —
       // see [_scene].
@@ -580,30 +619,30 @@ class _RaceScreenState extends State<RaceScreen>
     await _loadCircuit(device);
   }
 
-  Future<void> _dressPlayer(GraphicsDevice device, Scene scene) async {
+  /// Decodes and uploads the car every car on the grid is drawn from.
+  ///
+  /// **One asset, four instances.** A rival is another
+  /// [ModelAsset.instantiate] of this, which shares the uploaded meshes and
+  /// textures. Loading the file per car would put four copies of the same forty
+  /// meshes on the GPU to draw the same shape four times.
+  ///
+  /// **Returns null rather than throwing.** The circuit load awaits this before
+  /// it puts a car anywhere, so a model that cannot be read has to leave a race
+  /// that still runs — as a grid of boxes, which is now the failure case and
+  /// not something anybody sees on the way to a normal start.
+  Future<ModelAsset?> _loadCarModel(GraphicsDevice device) async {
     try {
       final document = await decodeModelInIsolate(
         ModelLoadRequest(source: const BundleAssetSource(kCarModel)),
       );
-      final asset = await ModelAsset.fromDocument(
+      return await ModelAsset.fromDocument(
         document,
         device: device,
         name: kCarModel,
       );
-      if (!mounted) return;
-
-      final instance = asset.instantiate(scene, name: 'player');
-      final box = _carNodes[0];
-      setState(() {
-        _carNodes[0] = instance.root;
-        // Put the model's lowest point on the road: the sphere's centre is a
-        // ride height above the tarmac, and the model hangs from wherever its
-        // own origin is.
-        _carLift[0] = -asset.localBounds.min.y - _cars[0].tuning.rideHeight;
-      });
-      scene.remove(box);
     } catch (error) {
-      debugPrint('car: staying a box ($error)');
+      debugPrint('cars: no model, so boxes ($error)');
+      return null;
     }
   }
 
@@ -659,6 +698,15 @@ class _RaceScreenState extends State<RaceScreen>
     _driveTheRest(simulation, race);
     simulation.step(stepSeconds);
 
+    // Where the step left each car, kept beside where the step before left it,
+    // so the frames drawn between the two have something to blend. Here rather
+    // than in `_place`: this runs once per simulated step, and `_place` runs
+    // once per drawn frame — pushing there would overwrite the previous value
+    // with the current one and blend a step against itself.
+    for (var i = 0; i < _cars.length; i++) {
+      _carDraw[i].push(_cars[i].position);
+    }
+
     // Recorded always, not only when the lap is going to be a good one:
     // whether it was the best is knowable when it ends, and by then it is too
     // late to have been writing it down. **Against the record, not against the
@@ -700,7 +748,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// gets tyres. A driver who wants the set they are already on presses it
   /// three times, which is free while standing still.
   void _readPitStop() {
-    if (!_input.pressed(_Drive.tyres)) return;
+    if (!_input.pressed(Drive.tyres)) return;
     final car = _cars[0];
     if (car.pitStop(Tyres.after(car.tyres))) {
       _audio.play(Sounds.checkpoint, _ears.position);
@@ -722,10 +770,10 @@ class _RaceScreenState extends State<RaceScreen>
     // lock, which is the whole reason `VehicleInput` holds doubles.
     final input = simulation.inputs[0];
     input
-      ..throttle = _input.value(_Drive.throttle)
-      ..brake = _input.value(_Drive.brake)
-      ..handbrake = _input.held(_Drive.handbrake)
-      ..steer = _input.value(_Drive.right) - _input.value(_Drive.left);
+      ..throttle = _input.value(Drive.throttle)
+      ..brake = _input.value(Drive.brake)
+      ..handbrake = _input.held(Drive.handbrake)
+      ..steer = _input.value(Drive.right) - _input.value(Drive.left);
   }
 
   void _driveTheRest(RacingSimulation simulation, RaceState race) {
@@ -759,9 +807,9 @@ class _RaceScreenState extends State<RaceScreen>
       // Lifted along the car's own up rather than the world's, so that a car on
       // a cambered corner sits on the road instead of hovering over the inside
       // of it.
-      _drawAt
-        ..setFrom(car.position)
-        ..addScaled(car.visualBasis.getColumn(1), _carLift[i]);
+      // The blend of the last two steps, not the last one: see [_carDraw].
+      _carDraw[i].read(_loop.alpha, _drawAt);
+      _drawAt.addScaled(car.visualBasis.getColumn(1), _carLift[i]);
       node
         ..setPositionFrom(_drawAt)
         ..setRotation(Quaternion.fromRotation(car.visualBasis));
@@ -859,12 +907,18 @@ class _RaceScreenState extends State<RaceScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
-    final error = _initError;
-    if (error != null) {
-      return DidNotStart(error);
-    }
+  Widget build(BuildContext context) => BlocBuilder<RaceCubit, RaceStatus>(
+        bloc: _raceCubit,
+        builder: (BuildContext context, RaceStatus status) {
+          if (status is RaceFailed) return DidNotStart(status.error);
+          return _screen();
+        },
+      );
 
+  /// Everything [build] used to return directly, once there is neither a
+  /// cubit failure to show instead nor — see the check below — a renderer to
+  /// draw this through yet.
+  Widget _screen() {
     final renderer = _renderer;
     if (renderer == null) {
       return const Scaffold(
@@ -941,11 +995,11 @@ class _RaceScreenState extends State<RaceScreen>
             if (Playing.touch && _race != null && !_settings.state.isOpen)
               TouchDrive(
                 state: _input,
-                steerLeft: _Drive.left,
-                steerRight: _Drive.right,
-                throttle: _Drive.throttle,
-                brake: _Drive.brake,
-                handbrake: _Drive.handbrake,
+                steerLeft: Drive.left,
+                steerRight: Drive.right,
+                throttle: Drive.throttle,
+                brake: Drive.brake,
+                handbrake: Drive.handbrake,
               ),
             SettingsOverlay(
               settings: _settings,
@@ -957,8 +1011,8 @@ class _RaceScreenState extends State<RaceScreen>
               // controller plugged in read "Gamepad (none connected)" over the
               // sliders that set its dead zone.
               padConnected: _pad.isConnected,
-              actions: _rebindable,
-              defaultBindings: _keys,
+              actions: rebindableActions,
+              defaultBindings: driveKeys,
               opening: _input.clear,
               // **The licence asks for this and the game did not do it.** The
               // car is CC BY 4.0, whose text says attribution must appear
@@ -970,21 +1024,4 @@ class _RaceScreenState extends State<RaceScreen>
       ),
     );
   }
-}
-
-/// What this game lets a driver ask for.
-///
-/// Its own actions rather than the engine's `moveForward` and friends: a car
-/// has a throttle and a brake, not a forward and a back, and `GameAction` is a
-/// string for exactly this reason.
-abstract final class _Drive {
-  static const GameAction throttle = GameAction('throttle');
-  static const GameAction brake = GameAction('brake');
-  static const GameAction left = GameAction('steerLeft');
-  static const GameAction right = GameAction('steerRight');
-  static const GameAction handbrake = GameAction('handbrake');
-
-  /// Change tyres. A verb the car has rather than a screen, so it can be
-  /// rebound like every other one and so a pad has it too.
-  static const GameAction tyres = GameAction('tyres');
 }

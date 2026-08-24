@@ -1,8 +1,8 @@
 /// Shader stages and pipelines, as the engine holds them: by name, and
 /// otherwise opaque.
 ///
-/// **Nothing in `graphics/` may import `flutter_gpu`** —
-/// `test/graphics_is_backend_free_test.dart` enforces it. See
+/// **Nothing here may import a graphics API** — `tool/structure.dart` holds it.
+/// See
 /// `graphics/formats.dart` for why the directory exists.
 ///
 /// ## Why this layer is thin on purpose
@@ -74,4 +74,30 @@ final class PipelineHandle {
 abstract interface class ShaderLibrary {
   /// The stage called [name], or null if the bundle has none.
   ShaderHandle? operator [](String name);
+}
+
+/// Two libraries consulted in order, the first winning.
+///
+/// **The extension point an application needs, and the whole of it.** A
+/// [ShaderLibrary] answers one question — what stage goes by this name — so a
+/// library that asks one source and then another is the entire mechanism for
+/// letting an application add a shader the engine did not ship. There is no
+/// registry to manage and nothing to unregister: the application owns its
+/// library and hands it in.
+///
+/// **[first] wins on a clash, and that is deliberate.** An application naming a
+/// stage the engine already has is either replacing it on purpose or has
+/// collided by accident, and of the two the first is worth supporting: an
+/// application that wants its own `Pbr` should get its own `Pbr`. A collision it
+/// did not intend shows up as its own shader running everywhere, which is
+/// visible immediately — unlike the other order, where the engine's would
+/// silently win and the new shader would appear to have no effect at all.
+final class LayeredShaderLibrary implements ShaderLibrary {
+  const LayeredShaderLibrary(this.first, this.second);
+
+  final ShaderLibrary first;
+  final ShaderLibrary second;
+
+  @override
+  ShaderHandle? operator [](String name) => first[name] ?? second[name];
 }

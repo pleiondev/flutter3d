@@ -28,6 +28,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
@@ -62,6 +63,99 @@ final class OpenKind extends EntityKind {
   const OpenKind(super.type);
 }
 
+/// What the level is doing, as far as the screen is concerned.
+///
+/// Screen state, and only that — this seed has no restart, no next level and
+/// no save to model, so a plain `Cubit` over three states is enough on its own.
+/// `RunSession`, in `flutter3d_session`, is for once one of those shows up; see
+/// its doc comment for why [LevelReady] below is still safe to hold the scene
+/// and the body in even then — they do not change sixty times a second, only
+/// what is inside them does, and that is read by the render loop directly
+/// rather than republished as a new state on every frame.
+sealed class LevelState {
+  const LevelState();
+}
+
+/// Before the level is up.
+final class LevelLoading extends LevelState {
+  const LevelLoading();
+}
+
+/// The level is built: a scene to draw, a body to walk it with.
+final class LevelReady extends LevelState {
+  const LevelReady(this.scene, this.body, {required this.yaw});
+
+  final Scene scene;
+  final CharacterController body;
+
+  /// Which way the spawn faces, in radians.
+  final double yaw;
+}
+
+/// The level would not load, and why.
+///
+/// **A level that will not read used to be a black screen for ever**: the load
+/// caught its own throw and printed it, which is a line in a console nobody
+/// playing the game can see.
+final class LevelFailed extends LevelState {
+  const LevelFailed(this.error);
+
+  final Object error;
+}
+
+/// Reads [kLevel] and builds everything it takes to walk around in it.
+///
+/// [device] is taken rather than opened in here, the same split
+/// `flutter3d_demo_dungeon`'s `DungeonRun` makes and for the same reason: a
+/// test can hand over a `CpuDevice` and drive the whole load without a window,
+/// which is what `test/level_cubit_test.dart` does.
+class LevelCubit extends Cubit<LevelState> {
+  LevelCubit() : super(const LevelLoading());
+
+  /// [world] is where the body collides; [camera] is added to the scene once
+  /// it is built, so the widget never has to reach back in and do it. [asset]
+  /// defaults to [kLevel] — overridable so a test can point at a level that is
+  /// not there and see [LevelFailed] rather than a hang.
+  Future<void> open(
+    GraphicsDevice device, {
+    required CollisionWorld world,
+    required CameraNode camera,
+    String asset = kLevel,
+  }) async {
+    try {
+      // Read first, build second: the registry is made out of what the
+      // document happens to name, which is not knowable before reading it.
+      final level = Level.fromJson(
+        jsonDecode(await rootBundle.loadString(asset)) as Map<String, Object?>,
+      );
+      final loaded = await LevelLoader().build(
+        level,
+        device: device,
+        registry: EntityRegistry(<EntityKind>[
+          for (final type in level.entities.map((EntityDef e) => e.type).toSet())
+            OpenKind(type),
+        ]),
+      );
+      loaded.level.addTo(world);
+
+      // Where the author said somebody stands, lifted by half a body: a spawn
+      // is authored at the feet, which is the only place an author can see.
+      final spawn = level.entities
+          .where((EntityDef it) => it.type.contains('spawn'))
+          .firstOrNull;
+      final at = (spawn?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0);
+
+      emit(LevelReady(
+        loaded.scene..add(camera),
+        CharacterController(world: world, position: at),
+        yaw: spawn?.yaw ?? 0.0,
+      ));
+    } catch (error) {
+      emit(LevelFailed(error));
+    }
+  }
+}
+
 class LevelScreen extends StatefulWidget {
   const LevelScreen({super.key});
 
@@ -72,11 +166,14 @@ class LevelScreen extends StatefulWidget {
 class _LevelScreenState extends State<LevelScreen>
     with SingleTickerProviderStateMixin {
   Renderer? _renderer;
-  Scene? _scene;
-  Object? _error;
+
+  /// The device failed to open, or the renderer failed to build on top of it.
+  /// Kept apart from [LevelFailed]: that is a level's own document being
+  /// wrong, this is the machine underneath being unable to draw at all, and
+  /// the two want different words on screen.
+  Object? _initError;
 
   final CollisionWorld _world = CollisionWorld();
-  CharacterController? _body;
 
   final CameraNode _camera = CameraNode(name: 'eye');
   late final RenderView _view = RenderView(
@@ -96,6 +193,11 @@ class _LevelScreenState extends State<LevelScreen>
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
+  /// Owned here rather than reached for through `BlocProvider.of`: nothing
+  /// else in this seed needs to see it, and the game loop below reads its
+  /// state directly, sixty times a second, which is no place for a lookup.
+  final LevelCubit _level = LevelCubit();
+
   @override
   void initState() {
     super.initState();
@@ -104,50 +206,26 @@ class _LevelScreenState extends State<LevelScreen>
   }
 
   Future<void> _open() async {
+    final GraphicsDevice device;
     try {
-      final device = await GpuRenderBackend.create();
+      device = await GpuRenderBackend.create();
       if (!mounted) return;
-      final renderer = Renderer.create(device: device);
-
-      // Read first, build second: the registry is made out of what the document
-      // happens to name, which is not knowable before reading it.
-      final level = Level.fromJson(
-        jsonDecode(await rootBundle.loadString(kLevel)) as Map<String, Object?>,
-      );
-      final loaded = await LevelLoader().build(
-        level,
-        device: device,
-        registry: EntityRegistry(<EntityKind>[
-          for (final type in level.entities.map((EntityDef e) => e.type).toSet())
-            OpenKind(type),
-        ]),
-      );
-      loaded.level.addTo(_world);
-
-      // Where the author said somebody stands, lifted by half a body: a spawn
-      // is authored at the feet, which is the only place an author can see.
-      final spawn = level.entities
-          .where((EntityDef it) => it.type.contains('spawn'))
-          .firstOrNull;
-      final at = (spawn?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0);
-
-      if (!mounted) return;
-      setState(() {
-        _renderer = renderer;
-        _scene = loaded.scene..add(_camera);
-        _body = CharacterController(world: _world, position: at);
-        _yaw = spawn?.yaw ?? 0.0;
-      });
+      setState(() => _renderer = Renderer.create(device: device));
     } catch (error) {
-      if (mounted) setState(() => _error = error);
+      if (mounted) setState(() => _initError = error);
+      return;
     }
+    // The cubit handles its own failures from here — see [LevelFailed] —
+    // so nothing thrown by a bad document reaches this `try` at all.
+    await _level.open(device, world: _world, camera: _camera);
   }
 
   void _onTick(Duration now) {
     final dt = _frames.secondsSince(now);
 
-    final body = _body;
-    if (body == null) return;
+    final state = _level.state;
+    if (state is! LevelReady) return;
+    final body = state.body;
 
     if (_input.pressed(GameAction.jump)) body.requestJump();
 
@@ -170,9 +248,9 @@ class _LevelScreenState extends State<LevelScreen>
 
   /// Puts the camera at eye height, looking where the mouse has been dragged.
   void _place() {
-    final body = _body;
-    if (body == null) return;
-    final eye = body.position + Vector3(0.0, 0.7, 0.0);
+    final state = _level.state;
+    if (state is! LevelReady) return;
+    final eye = state.body.position + Vector3(0.0, 0.7, 0.0);
     final cosPitch = math.cos(_pitch);
     _camera
       ..setPosition(eye.x, eye.y, eye.z)
@@ -191,79 +269,97 @@ class _LevelScreenState extends State<LevelScreen>
   void dispose() {
     _ticker?.dispose();
     _keyboard.dispose();
+    unawaited(_keys.dispose());
+    unawaited(_level.close());
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final error = _error;
-    if (error != null) {
-      return DidNotStart(
+    final initError = _initError;
+    if (initError != null) return _didNotStart(initError);
+
+    final renderer = _renderer;
+    if (renderer == null) return _loading();
+
+    return BlocProvider.value(
+      value: _level,
+      // The listener is the one-time effect a fresh level brings — reading
+      // which way the spawn faces — and the builder is everything that is
+      // drawn from the state, including the one that is not playing yet.
+      child: BlocConsumer<LevelCubit, LevelState>(
+        listener: (BuildContext context, LevelState state) {
+          if (state is LevelReady) _yaw = state.yaw;
+        },
+        builder: (BuildContext context, LevelState state) => switch (state) {
+          LevelFailed(:final error) => _didNotStart(error),
+          LevelLoading() => _loading(),
+          LevelReady(:final scene) => _game(renderer, scene),
+        },
+      ),
+    );
+  }
+
+  Widget _didNotStart(Object error) => DidNotStart(
         error,
         background: const Color(0xFF14161A),
         foreground: const Color(0xFFFF8A80),
       );
-    }
 
-    final renderer = _renderer;
-    final scene = _scene;
-    if (renderer == null || scene == null) {
-      return const Scaffold(
+  Widget _loading() => const Scaffold(
         backgroundColor: Color(0xFF14161A),
         body: Center(child: CircularProgressIndicator()),
       );
-    }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF14161A),
-      body: Focus(
-        focusNode: _keyboard,
-        autofocus: true,
-        onKeyEvent: (FocusNode node, KeyEvent event) =>
-            _keys.handleKeyEvent(event),
-        child: Listener(
-          onPointerDown: (PointerDownEvent event) {
-            _keyboard.requestFocus();
-            _dragged = event.localPosition;
-          },
-          onPointerMove: (PointerMoveEvent event) {
-            final from = _dragged;
-            if (from == null) return;
-            final by = event.localPosition - from;
-            _dragged = event.localPosition;
-            _yaw -= by.dx * 0.0032;
-            _pitch = (_pitch - by.dy * 0.0032).clamp(-1.5, 1.5);
-          },
-          onPointerUp: (_) => _dragged = null,
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              SceneSurface(
-                renderer: renderer,
-                scene: scene,
-                view: _view,
-                settings: () => const RenderSettings(),
-                onBeforeFrame: _place,
-              ),
-              const Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: ColoredBox(
-                  color: Color(0xCC0E1013),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    child: Text(
-                      'W A S D walk · shift runs · space jumps · drag to look',
-                      style: TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
+  Widget _game(Renderer renderer, Scene scene) => Scaffold(
+        backgroundColor: const Color(0xFF14161A),
+        body: Focus(
+          focusNode: _keyboard,
+          autofocus: true,
+          onKeyEvent: (FocusNode node, KeyEvent event) =>
+              _keys.handleKeyEvent(event),
+          child: Listener(
+            onPointerDown: (PointerDownEvent event) {
+              _keyboard.requestFocus();
+              _dragged = event.localPosition;
+            },
+            onPointerMove: (PointerMoveEvent event) {
+              final from = _dragged;
+              if (from == null) return;
+              final by = event.localPosition - from;
+              _dragged = event.localPosition;
+              _yaw -= by.dx * 0.0032;
+              _pitch = (_pitch - by.dy * 0.0032).clamp(-1.5, 1.5);
+            },
+            onPointerUp: (_) => _dragged = null,
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                SceneSurface(
+                  renderer: renderer,
+                  scene: scene,
+                  view: _view,
+                  settings: () => const RenderSettings(),
+                  onBeforeFrame: _place,
+                ),
+                const Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: ColoredBox(
+                    color: Color(0xCC0E1013),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Text(
+                        'W A S D walk · shift runs · space jumps · drag to look',
+                        style: TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
-    );
-  }
+      );
 }

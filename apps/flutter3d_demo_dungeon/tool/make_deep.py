@@ -52,7 +52,7 @@ def build():
     k.torch((4.4, 2.4, -8.0), name="first_east", yaw=-1.5708, intensity=4.0)
     k.pillar((0.0, 1.75, -10.0), size=(1.6, 3.5, 1.6))
     # Behind the pillar, so the room is entered before it is seen.
-    k.monster("tank", (0.0, 1.0, -11.0))
+    k.monster("tank", (0.0, 0.0, -11.0))
     k.pickup("health", (-4.0, 0.8, -6.0), amount=25)
 
     # ── The narrows. Two rooms wide enough to fight in and no more. ─────────
@@ -66,9 +66,9 @@ def build():
     k.torch((5.4, 2.4, -23.0), name="narrow_east", yaw=-1.5708, intensity=4.0)
     k.pillar((-3.0, 1.75, -20.0), size=(1.4, 3.5, 1.4))
     k.pillar((3.0, 1.75, -20.0), size=(1.4, 3.5, 1.4))
-    k.monster("tank", (-4.0, 1.0, -23.0))
-    k.monster("shooter", (4.0, 1.0, -17.0))
-    k.monster("runner", (4.0, 1.0, -23.0))
+    k.monster("tank", (-4.0, 0.0, -23.0))
+    k.monster("shooter", (4.0, 0.0, -17.0))
+    k.monster("runner", (4.0, 0.0, -23.0))
     # The only bullets in the level, and not enough of them. The shells behind
     # you are the answer, which is the point.
     k.pickup("bullets", (0.0, 0.8, -17.0), amount=20)
@@ -82,9 +82,9 @@ def build():
            intensity=6.0, rng=18.0)
     k.pillar((-5.0, 2.5, -31.0), size=(1.4, 5.0, 1.4))
     k.pillar((5.0, 2.5, -31.0), size=(1.4, 5.0, 1.4))
-    k.monster("tank", (-6.0, 1.0, -37.0))
-    k.monster("tank", (6.0, 1.0, -37.0))
-    k.monster("shooter", (0.0, 1.0, -38.0))
+    k.monster("tank", (-6.0, 0.0, -37.0))
+    k.monster("tank", (6.0, 0.0, -37.0))
+    k.monster("shooter", (0.0, 0.0, -38.0))
     # Rockets, here and nowhere else. A room five metres high and sixteen wide
     # is the first place in the game where firing one is not also hitting
     # yourself — the level teaches the weapon by being the first room that

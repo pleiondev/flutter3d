@@ -1,7 +1,7 @@
 /// Stage one of the rigid bodies, against the numbers the specification asks
 /// for rather than against the impression that it looks right.
 ///
-/// `docs/SPEC.md` §4.3 splits rigid bodies into two stages with separate
+/// `ARCHITECTURE.md` §10 splits rigid bodies into two stages with separate
 /// acceptance, and this is stage one: mass, gravity, impulses, being pushed,
 /// and coming to rest. The stress tests below are its half of that list — a
 /// stack that stands, a crate that is pushed and stops, a body that sleeps.

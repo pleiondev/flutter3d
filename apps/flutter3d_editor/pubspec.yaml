@@ -39,6 +39,14 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
+  # What goes through it is the screen: which document is open, why one is
+  # not, and what the strip along the bottom says. What does **not** is the
+  # camera, the scene and the gizmos the render loop reads every frame; a
+  # state object per frame is an allocation and a rebuild sixty times a
+  # second, which is the whole reason `EditorCubit` stops where it does.
+  flutter_bloc: ^9.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

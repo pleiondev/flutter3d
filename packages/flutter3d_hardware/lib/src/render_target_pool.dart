@@ -1,11 +1,11 @@
 /// Reuse of render targets, and the description that makes two interchangeable.
 ///
-/// In `graphics/` rather than in `gpu/` since the pool stopped creating
+/// Here rather than in a backend since the pool stopped creating
 /// textures itself. Everything here is arithmetic over [TextureHandle] and a
 /// map lookup, and the one line that needed a device — `createTexture` — is now
 /// [TextureAllocator], supplied from outside. That is what makes the pool
-/// unit-testable, and being in this directory is what keeps it that way:
-/// `test/graphics_is_backend_free_test.dart` fails on the first backend import.
+/// unit-testable, and being in this package is what keeps it that way:
+/// `tool/structure.dart` fails on the first backend import.
 library;
 
 import 'formats.dart';

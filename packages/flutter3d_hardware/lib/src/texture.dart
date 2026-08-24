@@ -1,8 +1,8 @@
 /// A texture the engine can hold, pass around and describe without naming a
 /// backend.
 ///
-/// **Nothing in `graphics/` may import `flutter_gpu`** —
-/// `test/graphics_is_backend_free_test.dart` enforces it. See
+/// **Nothing here may import a graphics API** — `tool/structure.dart` holds it.
+/// See
 /// `graphics/formats.dart` for why the directory exists.
 library;
 

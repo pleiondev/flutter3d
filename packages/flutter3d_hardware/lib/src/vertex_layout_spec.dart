@@ -1,7 +1,7 @@
 /// How the bytes in a vertex buffer become the inputs of a vertex stage.
 ///
-/// **Nothing in `graphics/` may import `flutter_gpu`** —
-/// `test/graphics_is_backend_free_test.dart` enforces it. See
+/// **Nothing here may import a graphics API** — `tool/structure.dart` holds it.
+/// See
 /// `graphics/formats.dart` for why the directory exists.
 ///
 /// ## Why this exists at all, when it did not before

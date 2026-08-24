@@ -2,7 +2,7 @@
 ///
 ///     flutter test test/determinism_test.dart
 ///
-/// **SPEC §4.10 said this was already true and named the test as missing.** It
+/// **ARCHITECTURE.md §9.3 said this was already true and named the test as missing.** It
 /// was not true. `ActorSystem` and `flutter3d_game_shooter`'s `Hitscan` both
 /// defaulted to an unseeded `math.Random`, `apps/flutter3d_demo_dungeon` took both defaults,
 /// and its `GameSimulation.random` was left null — so the shipped crypt rolled

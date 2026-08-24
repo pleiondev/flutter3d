@@ -15,4 +15,5 @@
 ///     import 'package:flutter3d/parity_scene.dart';
 library;
 
+export 'src/engine/render/parity_grid.dart';
 export 'src/engine/render/parity_scene.dart';

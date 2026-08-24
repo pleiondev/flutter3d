@@ -127,7 +127,7 @@ Staged stage(
   // `math.Random`, and `GameSimulation.random` was left null, so `save()` wrote
   // no dice at all. A crypt restored from a save agreed about where everything
   // stood and disagreed about the first monster that decided whether to flinch
-  // — which is SPEC §6.4 not being kept by anything, in the game the document's
+  // — which is ARCHITECTURE.md §9.3 not being kept by anything, in the game the document's
   // performance budgets are written for.
   final dice = random ?? GameRandom(1);
 

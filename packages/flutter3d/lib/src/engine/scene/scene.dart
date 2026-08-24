@@ -1,3 +1,4 @@
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'camera_node.dart';
@@ -48,11 +49,35 @@ final class Scene {
 
   List<LodGroup> get lodGroups => _lodGroups;
 
-  /// Ambient light applied where no direct light reaches. A placeholder for
-  /// image-based lighting, which needs mip levels this engine does not build yet.
+  /// Ambient light applied where no direct light reaches.
+  ///
+  /// The flat stand-in for [environment], used when a scene has none. It also
+  /// scales the environment when there is one, so the same knob dials indirect
+  /// light either way and the two are alternatives rather than a sum.
   double ambientIntensity = 0.06;
 
   Vector3 ambientColor = Vector3(1.0, 1.0, 1.0);
+
+  /// A prefiltered environment cube: what a physical surface reflects.
+  ///
+  /// Its levels are the roughness scale — level zero is a mirror, the last is
+  /// rough enough to stand in for irradiance — so it must be built with
+  /// [EnvironmentMap.prefilter] and uploaded with the resulting chain. A cube
+  /// with no levels reflects the same sharp image at every roughness, which
+  /// reads as every surface being polished.
+  ///
+  /// Null leaves the flat [ambientIntensity] doing the work, which is what
+  /// every scene did before this existed and what all of them still do until
+  /// they are given one.
+  TextureHandle? environment;
+
+  /// How many levels [environment] has below its base.
+  ///
+  /// Handed to the shader as the roughness scale and as the "is there one"
+  /// flag in a single number. Kept beside the texture rather than read off it
+  /// because a [TextureHandle] does not carry its level count, and a renderer
+  /// that guessed would guess wrong on the one cube that matters.
+  int environmentLevels = 0;
 
   /// Convenience for the common case of one node under the root.
   T add<T extends SceneNode>(T node) {

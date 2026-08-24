@@ -13,7 +13,7 @@
 /// put to [FixtureAppearance]. A game answers those four questions; getting one
 /// of them wrong is a coin that is never visible, a checkpoint that never turns
 /// green, or a torch whose flame burns while its light is out. All four have
-/// happened in this repository, and §7.1 of `docs/SPEC.md` names three of them.
+/// happened in this repository, and §7.1 of `ARCHITECTURE.md` names three of them.
 ///
 /// Nothing here renders. The picture is `apps/*/test/frame_test.dart`'s job;
 /// this is about what those files would be drawing.

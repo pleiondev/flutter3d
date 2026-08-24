@@ -11,7 +11,7 @@ import 'package:vector_math/vector_math.dart';
 /// the case a uniform grid handles best and a tree handles worst: no
 /// rebalancing, no traversal, and a query touches a fixed handful of cells
 /// whatever the level's size. It is also the case the engine's own BVH measured
-/// badly on, and that measurement is in `RESEARCH.md`.
+/// badly on, and that measurement is in `ARCHITECTURE.md` §2.
 ///
 /// Two dimensions rather than three, because a dungeon is wide and short.
 /// Adding Y would multiply the cell count by the number of floors — usually one

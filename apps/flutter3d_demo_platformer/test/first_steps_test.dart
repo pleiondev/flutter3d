@@ -331,6 +331,90 @@ void main() {
             'so it teaches nothing');
   });
 
+  group('the shaft can be got into without knowing the wall jump', () {
+    // **The same defect as the double-jump room, one mechanic later, and it
+    // shipped.** A player reported it in those words: "you cannot jump over
+    // this wall." They were standing at x = 4.5, in front of the right-hand
+    // chimney block — the six-metre wall runs the room's whole 22 m width and
+    // the only way through is a two-metre slot on the centre line, which reads
+    // as part of the wall from anywhere but directly in front of it.
+    //
+    // What the step contributes is the same thing the other room's step does:
+    // a way in that is not luck. It is the only break in a flat floor, it is on
+    // the centre line, and from on top of it the coin ladder is ahead and
+    // rising. Both halves are claims about the level, not about a bot, for the
+    // reason written on the double-jump room: a bot wall jumps the level's own
+    // boundary and finishes anyway.
+
+    /// The top of every brush whose footprint covers [x], [z].
+    List<double> topsAt(double x, double z) => <double>[
+          for (final brush in _level().brushes)
+            if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
+                (brush.centre.z - z).abs() <= brush.size.z / 2.0)
+              brush.centre.y + brush.size.y / 2.0,
+        ];
+
+    test('a step in the slot is reachable from the floor', () {
+      // Mutation: delete the step. There is then nothing on the centre line
+      // between the room's floor and the top of the chimney, and this says so.
+      const jump = 1.88;
+
+      final floor = topsAt(0.0, 46.5).reduce(math.max);
+      final inSlot = topsAt(0.0, 48.0).where((double y) => y > floor + 0.3);
+      expect(inSlot, isNotEmpty, reason: 'nothing to climb in the slot');
+
+      final onto = inSlot.reduce(math.min);
+      expect(onto - floor, lessThan(jump),
+          reason: 'the step is ${(onto - floor).toStringAsFixed(2)} m up, and a '
+              'single jump is $jump');
+    });
+
+    test('and the climb above it still needs a wall jump', () {
+      // The other half, without which the test above is satisfied by filling
+      // the shaft with stairs until anyone walks up: the lesson has to still be
+      // a lesson. A double jump is the most a player can do without learning
+      // the mechanic this room is for.
+      //
+      // Mutation: raise the step to 3 m. It then leaves 3.0 above it, a double
+      // jump clears the rest, and the chimney teaches nothing.
+      const doubleJump = 3.13;
+
+      final step = topsAt(0.0, 48.0).reduce(math.max);
+      final top = <double>[
+        for (final brush in _level().brushes)
+          if (brush.centre.x.abs() > 1.0 &&
+              (brush.centre.z - 52.0).abs() < 5.0 &&
+              brush.centre.y > 2.0)
+            brush.centre.y + brush.size.y / 2.0,
+      ].reduce(math.max);
+
+      expect(top - step, greaterThan(doubleJump),
+          reason: 'from the step at $step the chimney top at $top is '
+              '${(top - step).toStringAsFixed(2)} m, which a double jump '
+              'clears — so the room asks for nothing it set out to teach');
+    });
+
+    test('and the step does not bury anything a player must reach', () {
+      // The shaft's coin ladder starts at y = 1.4, below the step's top. It is
+      // at z = 52 and the step ends at 49, so they miss each other — but that
+      // is two numbers agreeing by luck unless something says so.
+      final level = _level();
+      final buried = <String>[
+        for (final entity in level.entities)
+          if (entity.position.z > 46.0 && entity.position.z < 58.0)
+            for (final brush in level.brushes)
+              if ((brush.centre.x - entity.position.x).abs() <
+                      brush.size.x / 2.0 &&
+                  (brush.centre.y - entity.position.y).abs() <
+                      brush.size.y / 2.0 &&
+                  (brush.centre.z - entity.position.z).abs() <
+                      brush.size.z / 2.0)
+                '${entity.type} at ${entity.position}',
+      ];
+      expect(buried, isEmpty, reason: 'inside the shaft geometry: $buried');
+    });
+  });
+
   test('there is enough in it to be worth playing', () {
     // Not a mechanism, a *quantity*, and it is here because the level failed on
     // exactly that: forty-four coins and seven crates now, against eleven and

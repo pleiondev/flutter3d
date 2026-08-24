@@ -18,8 +18,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
 import 'package:flutter3d_editor/src/looks.dart';
+import 'package:flutter3d_editor/src/palette_items.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';

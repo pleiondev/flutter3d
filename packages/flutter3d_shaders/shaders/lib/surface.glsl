@@ -1,8 +1,8 @@
 // Shared material and lighting interface for the lighting models.
 //
 // flutter_gpu compiles shaders ahead of time into a bundle: there is no runtime
-// compilation, so a node-graph material system in the style of Babylon's
-// NodeMaterial or three.js TSL is impossible. Each lighting model is therefore
+// compilation, so a node-graph material system assembled at run time is
+// impossible. Each lighting model is therefore
 // its own pre-built fragment shader, and this header is what keeps them
 // interchangeable — one identical uniform block, so the Dart binding code never
 // needs to know which model is active.

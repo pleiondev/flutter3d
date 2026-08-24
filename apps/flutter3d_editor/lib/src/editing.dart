@@ -5,6 +5,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'gizmos.dart';
+import 'palette_items.dart';
 
 /// A level document, open and being changed.
 ///

@@ -3,35 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'shot_hit.dart';
 import 'weapon.dart';
 
-/// One thing a shot reached.
-///
-/// Named for the shot rather than for the ray, because a melee swing produces
-/// these as well and it does not cast one.
-final class ShotHit {
-  ShotHit({
-    required this.collider,
-    required Vector3 point,
-    required Vector3 normal,
-    required this.distance,
-    required this.damage,
-  })  : point = point.clone(),
-        normal = normal.clone();
-
-  /// What was struck. Null when the ray reached its range without meeting
-  /// anything, which still matters: a tracer has to end somewhere.
-  final Collider? collider;
-
-  final Vector3 point;
-  final Vector3 normal;
-  final double distance;
-
-  /// After falloff. Zero when nothing was hit.
-  final double damage;
-
-  bool get struckSomething => collider != null;
-}
+export 'shot_hit.dart';
 
 /// Fires a weapon's rays into the world and reports where they landed.
 ///
@@ -60,7 +35,7 @@ final class Hitscan {
   ///
   /// **Required, and a [GameRandom] rather than a `math.Random`.** It defaulted
   /// to an unseeded one, which meant the shipped game's spread was the one part
-  /// of a shot no snapshot could put back — and SPEC §6.4 asks that a step take
+  /// of a shot no snapshot could put back — and ARCHITECTURE.md §9.3 asks that a step take
   /// no randomness except through a generator it was handed. Pass the same
   /// instance the simulation holds: one object shared, not one each, or the
   /// snapshot records one sequence and two are running.

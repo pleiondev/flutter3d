@@ -209,11 +209,28 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// [createTextureFromPixels] returns null: an asset that disagrees about its
   /// own dimensions should cost a texture, not the frame.
   ///
+  /// [mipLevels] are the smaller copies, from half size downwards: one entry
+  /// per level, each holding six faces in the same order as [faces]. Null or
+  /// empty gives a cube with a base level only, which is what a sky wants.
+  ///
+  /// **Roughness is what these are for.** A sky is sampled at one level and
+  /// needs none; a prefiltered radiance map is a cube whose levels *are* the
+  /// roughness scale, each one the environment convolved a little further. That
+  /// is the one use, and it is why this takes a chain the caller has already
+  /// built rather than offering to generate one: the levels are not a box blur
+  /// of each other, and a device that filled them by halving would produce
+  /// something that looks nearly right and is wrong everywhere it matters.
+  ///
+  /// Built above the seam for the same reason [createTextureFromPixels]'s are —
+  /// `flutter_gpu` has no `generateMipmap` — so both backends receive the same
+  /// bytes and the two golden sets stay comparable.
+  ///
   /// Ask [supportsCubeTextures] first.
   TextureHandle? createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,
     required List<ByteData> faces,
+    List<List<ByteData>>? mipLevels,
   });
 
   /// Tells the backend a new frame is starting.
@@ -315,4 +332,25 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Null when the texture cannot be read: `deviceTransient` lives in tile
   /// memory, and there is nothing there to read once the pass has ended.
   Future<ByteData?> readPixels(TextureHandle texture);
+
+  /// Releases every persistent resource this device holds — the textures and
+  /// geometry buffers handed out by [createTexture], [createTextureFromPixels],
+  /// [createCubeTextureFromPixels] and [uploadGeometry].
+  ///
+  /// **What "release" means is a property of the backend, not a promise this
+  /// method makes uniformly.** WebGL2 objects are explicitly deletable — a
+  /// `WebGLTexture` or `WebGLBuffer` the driver is still holding onto is a real
+  /// leak, not a GC artefact — so that backend actually calls `gl.deleteTexture`
+  /// and friends here. flutter_gpu's `Texture` has no native dispose at all;
+  /// see the note at `GpuRenderBackend.supportsCubeTextures` for why letting one
+  /// go out of scope is the only release path that backend has, which makes its
+  /// implementation of this method a deliberate no-op rather than an omission.
+  /// The software rasteriser holds nothing but Dart lists, which the garbage
+  /// collector already reclaims, so its implementation is a no-op for a third,
+  /// unrelated reason.
+  ///
+  /// Call once, when the device is being torn down. Nothing here promises safe
+  /// reuse afterwards — a disposed device's handles are no longer valid on
+  /// backends that actually freed them.
+  void dispose();
 }

@@ -122,10 +122,8 @@ Future<void> _touchToBegin(WidgetTester tester) async {
   await tester.tapAt(const Offset(48, 8));
   // Then wait for the level, which is still arriving: textures decode on the
   // real clock. Bounded, so a level that never loads fails the assertion below
-  // rather than hanging the suite.
-  // Then wait for the level, bounded, so a level that never arrives fails the
-  // assertion below rather than hanging the suite. It does not arrive — see the
-  // note above this test.
+  // rather than hanging the suite — and it does not arrive, see the note above
+  // this test.
   await _realTime(tester, rounds: 200, until: () => _clock(tester) != null);
 }
 

@@ -161,10 +161,33 @@ final class GhostCar {
       ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), _at.yaw));
   }
 
-  /// A box, translucent, in the colour nothing else on the track is.
-  static GhostCar build(GraphicsDevice device, Scene scene) {
-    final node = carBox(device, Looks.ghost(), name: 'ghost')..visible = false;
-    scene.add(node);
+  /// The same car the field drives, translucent, in the colour nothing else on
+  /// the track is.
+  ///
+  /// **The shape has to be the car's.** A ghost is read at a glance and at
+  /// speed, and what makes it legible as *the lap you drove* is that it is the
+  /// thing you are driving — a box beside four cars reads as scenery that got
+  /// left in, which is exactly what it looked like.
+  ///
+  /// [model] is the asset the grid was built from, so the ghost costs no
+  /// second load. Null only when that asset could not be read, and then this
+  /// falls back to the box for the same reason the cars do: a race that runs
+  /// beats a race that does not.
+  static GhostCar build(GraphicsDevice device, Scene scene,
+      {ModelAsset? model}) {
+    final SceneNode node;
+    if (model == null) {
+      node = carBox(device, Looks.ghost(), name: 'ghost');
+      scene.add(node);
+    } else {
+      // Materials are shared with the asset and then replaced wholesale on this
+      // instance's own mesh nodes, so asking for copies would allocate forty
+      // materials to throw all forty away.
+      final instance = model.instantiate(scene, name: 'ghost');
+      Looks.haunt(instance.meshes);
+      node = instance.root;
+    }
+    node.visible = false;
     return GhostCar(node);
   }
 }

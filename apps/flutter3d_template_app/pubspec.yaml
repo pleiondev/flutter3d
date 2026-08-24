@@ -33,9 +33,21 @@ dependencies:
 
   vector_math: ^2.2.0
 
+  # Screen state — loading, the error panel — kept in a Cubit rather than
+  # spread across `setState` calls. See `RunSession`'s doc comment in
+  # `flutter3d_session` for where the line between this and the render loop
+  # is drawn.
+  flutter_bloc: ^9.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # A renderer with no GPU under it, so a test can load a level the way the
+  # game does. `LevelLoader` needs a device and does not need a window.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
   flutter_lints: ^6.0.0
 
 # **No `macos/` here on purpose.** This application exists to be analysed and to

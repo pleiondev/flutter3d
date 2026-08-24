@@ -21,13 +21,14 @@ import 'package:vector_math/vector_math.dart' hide Colors;
 
 import 'src/backend.dart';
 import 'src/credits.dart';
-import 'src/effects.dart';
+import 'src/frame_effects.dart';
 import 'src/hud.dart';
 import 'src/reactions.dart';
 import 'src/run_cubit.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/staging.dart';
+import 'src/status_screens.dart';
 import 'src/weapon_models.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
@@ -165,11 +166,10 @@ class _GameScreenState extends State<GameScreen>
   Health get _playerHealth => _inventory.health;
   int _kills = 0;
 
-  double _hitFlash = 0.0;
-
-  /// Fades after the player is hurt. Red rather than the crosshair's white,
-  /// because taking damage and dealing it must never look alike.
-  double _painFlash = 0.0;
+  /// What one step's decisions turn into: particles, sounds, the flashes and
+  /// the message the HUD reads. See `FrameEffects` for why this is not part
+  /// of `_step`.
+  final FrameEffects _effects = FrameEffects();
 
   final CameraNode _camera = CameraNode(name: 'player');
   late final RenderView _view;
@@ -198,7 +198,6 @@ class _GameScreenState extends State<GameScreen>
   // Scratch for the occlusion ray, which runs once per audible source per
   // frame and must not allocate.
   final Vector3 _sound = Vector3.zero();
-  final Vector3 _flameAt = Vector3.zero();
 
   /// Toggled by F, and also on its own every two seconds while
   /// [_fogAlternates] is set.
@@ -213,14 +212,6 @@ class _GameScreenState extends State<GameScreen>
   static const bool _fogAlternates =
       bool.fromEnvironment('DUNGEON_FOG_AB');
 
-  /// What [Effects.flame] settles at with a torch burning steadily.
-  ///
-  /// Measured from the running game rather than derived — 0.24 to 0.30 with
-  /// forty-odd particles alive — because the number depends on the effect's
-  /// sizes, alphas and lifetimes in a way that is not worth deriving and would
-  /// be wrong the moment any of them changed. The spread around it is the
-  /// flicker, and it is the fire's own rather than a sine's.
-  static const double _flamePower = 0.34;
   final RayHit _soundRay = RayHit();
 
   /// The mixer. Built with the silent backend so a build that cannot open an
@@ -274,15 +265,9 @@ class _GameScreenState extends State<GameScreen>
   /// What a step looks like. A class for the same reason [_soundtrack] is one.
   final Reactions _reactions = Reactions();
 
-  final Map<Object, SoundEmitter> _moverVoices =
-      <Mechanism, SoundEmitter>{};
-
   MechanismWorld? get _mechanisms => _level?.staged.mechanisms;
   FixtureVisuals? get _fixtureVisuals => _level?.fixtureVisuals;
 
-  /// The last thing the level said, and how long it has left on screen.
-  String _message = '';
-  double _messageFor = 0.0;
   final Vector3 _eye = Vector3.zero();
   final Vector3 _target = Vector3.zero();
 
@@ -358,9 +343,20 @@ class _GameScreenState extends State<GameScreen>
     }
     if (!mounted) return;
 
+    // Awaited before the view exists, so the player is never handed a block
+    // that turns into a pistol a moment later.
+    final weapons = await dungeonWeaponModels(device);
+    if (!mounted) return;
+
+    // The studio the held weapon reflects. Its own, not the crypt's — see
+    // `studioEnvironment`, which says why a corridor is the wrong thing for a
+    // barrel to mirror.
+    final studio = studioEnvironment(device);
     _weaponView = WeaponView(
-      models: dungeonWeaponModels(device),
+      models: weapons,
       initial: Weapons.pistol,
+      environment: studio?.texture,
+      environmentLevels: studio?.levels ?? 0,
     );
 
     // Inside `setState` because `build` is reading `_renderer` to decide
@@ -641,27 +637,25 @@ class _GameScreenState extends State<GameScreen>
     }
 
     final outcome = sim.usedThisStep;
-    if (outcome != null) _say(outcome.message);
+    if (outcome != null) _effects.say(outcome.message);
 
     // **What to play is decided in `Soundtrack` and only performed here.** It
     // used to be decided here too, in eight places inside a widget, where
     // nothing could ask what a step ought to sound like without a device and a
     // window — so the game being mute was undetectable, and four weapons
     // sharing two sounds went unnoticed for as long as the game has existed.
-    _perform(_soundtrack.listen(sim, player));
+    _effects.perform(_soundtrack.listen(sim, player), _audio);
 
     final mechanisms = _mechanisms;
     if (mechanisms != null) {
       for (final said in mechanisms.events.messages) {
-        _say(said);
+        _effects.say(said);
       }
     }
 
-    if (_hitFlash > 0.0) _hitFlash = math.max(0.0, _hitFlash - dt * 4.0);
-    if (_painFlash > 0.0) _painFlash = math.max(0.0, _painFlash - dt * 1.6);
-    if (_messageFor > 0.0) _messageFor = math.max(0.0, _messageFor - dt);
+    _effects.fade(dt);
     for (final power in _inventory.expired) {
-      _say('$power has run out.');
+      _effects.say('$power has run out.');
     }
     _inventory.expired.clear();
 
@@ -669,7 +663,7 @@ class _GameScreenState extends State<GameScreen>
     // flash can be turned down without turning the camera down with it. A
     // full-screen flash on every hit is a photosensitivity question, which is
     // not the same harm as a camera that moves by itself.
-    if (sim.damageTakenThisStep > 0.0) _painFlash = _system.screenFlash;
+    if (sim.damageTakenThisStep > 0.0) _effects.hurt(_system.screenFlash);
 
     // The run's own state, republished by the cubit on the step it changes —
     // which is what makes the announcement below a listener rather than an
@@ -683,7 +677,7 @@ class _GameScreenState extends State<GameScreen>
     // the same reason the sound is: three private methods of a widget nothing
     // can mount meant no test in this application had ever mentioned a
     // particle.
-    _show(_reactions.listen(sim, player));
+    _effects.show(_reactions.listen(sim, player), _particles, _system.screenFlash);
 
     // The two that are not reactions to an event. A recoil is the weapon view's
     // own animation, and the kill count is a number the HUD shows.
@@ -699,7 +693,7 @@ class _GameScreenState extends State<GameScreen>
       grounded: body.isGrounded,
     );
 
-    _burnTorches();
+    _effects.burnTorches(_fixtureVisuals, _particles);
     // The frame the loop accepted — see `GameLoop.lastFrame`. This game had no
     // limit of its own at all.
     _particles.advance(_loop.lastFrame);
@@ -714,92 +708,17 @@ class _GameScreenState extends State<GameScreen>
     _smoothedPosition.push(body.position);
   }
 
-  /// Performs what `Reactions` decided. Nothing here chooses anything.
-  void _show(Reaction reaction) {
-    for (final shown in reaction.bursts) {
-      _particles.burst(shown.effect, shown.at, direction: shown.direction);
-    }
-    for (final lingering in reaction.lingering) {
-      _particles.emitTimed(
-        lingering.key,
-        lingering.effect,
-        lingering.at,
-        perSecond: lingering.perSecond,
-        seconds: lingering.seconds,
-      );
-    }
-    // Scaled by the player's own setting rather than decided in `Reactions`: a
-    // full-screen flash on every hit is a photosensitivity question, and how
-    // much of one is the player's answer.
-    if (reaction.flash) _hitFlash = _system.screenFlash;
-  }
-
-  /// Every torch, every step. The rate is per second and the system keeps each
-  /// source's fractional remainder, so the fire looks the same on a 60 Hz
-  /// display and a 120 Hz one.
-  void _burnTorches() {
-    final fixtures = _fixtureVisuals;
-    if (fixtures == null) return;
-    for (final entry in fixtures.flames.entries) {
-      final fixture = entry.key;
-      final fire = entry.value;
-      if (!fixture.enabled) continue;
-      // A steady rate, not one modulated by brightness. The flicker is
-      // supposed to come out of the fire, and feeding brightness back into the
-      // emission rate would make it come out of itself.
-      _particles.emit(
-        fire,
-        Effects.flame,
-        fire.originInto(_flameAt),
-        perSecond: 150.0,
-      );
-
-      // And the light is what the fire measures, not a sine running alongside
-      // it. Divided by the power a healthy flame settles at, so the fixture
-      // sees a fraction and the level's own intensity stays the thing that
-      // decides how bright a torch is.
-      fixture.measure(
-        fire.glow.power / _flamePower,
-        // Only once the glow has seen a particle. Before that its centre is
-        // the world origin, and a torch whose light spends its first frames
-        // inside a wall is worse than one that never moved at all.
-        at: fire.glow.located ? fire.glow.centre : null,
-      );
-    }
-  }
-
-  /// Plays what the soundtrack decided, and keeps the running voices in place.
-  ///
-  /// The lifetimes are the only thing left here, and they are effects rather
-  /// than decisions: a grinding door is one voice that has to be started,
-  /// moved and stopped by the same key, and which key that is was decided in
-  /// `Soundtrack`.
-  void _perform(Sounding sounding) {
-    for (final heard in sounding.once) {
-      _audio.play(heard.sound, heard.at);
-    }
-    for (final loop in sounding.loops) {
-      switch (loop.what) {
-        case Voice.begin:
-          _moverVoices[loop.key] = _audio.play(loop.sound!, loop.at!);
-        case Voice.follow:
-          _moverVoices[loop.key]?.position.setFrom(loop.at!);
-        case Voice.end:
-          _moverVoices.remove(loop.key)?.stop();
-      }
-    }
-  }
-
-  void _say(String? message) {
-    if (message == null) return;
-    _message = message;
-    _messageFor = 3.0;
-  }
-
   @override
-  Widget build(BuildContext context) =>
-      BlocConsumer<RunCubit, RunStatus<LevelReady>>(
-        bloc: _renderer == null ? null : _run,
+  Widget build(BuildContext context) {
+    // **`bloc: null` does not mean "wait".** It means "find one in the tree",
+    // and nothing above this ever provides a `RunCubit` — it is owned by this
+    // State. So every build before the renderer started threw
+    // `ProviderNotFoundException`, which is the red screen the game opened on.
+    // `_run` is `late final` and assigned beside the renderer, so this is also
+    // what keeps it from being read before it is written.
+    if (_renderer == null) return RendererFailure(error: _initError);
+    return BlocConsumer<RunCubit, RunStatus<LevelReady>>(
+        bloc: _run,
         // The three things that have to happen *when* the run changes rather
         // than every time it is drawn: a new level needs its camera put where
         // the player is, and an ended one needs saying out loud.
@@ -811,10 +730,10 @@ class _GameScreenState extends State<GameScreen>
                 ):
               _levelArrived(level);
             case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
-              _say('You died. Press R to try again.');
+              _effects.say('You died. Press R to try again.');
             case RunPlaying<LevelReady>(:final level, outcome: RunOutcome.won):
               final next = level.staged.sim.nextLevel;
-              _say(next == null ? 'You are out.' : 'Level complete.');
+              _effects.say(next == null ? 'You are out.' : 'Level complete.');
             case RunLoading<LevelReady>() || RunFailed<LevelReady>():
               break;
           }
@@ -822,58 +741,26 @@ class _GameScreenState extends State<GameScreen>
         builder: (BuildContext context, RunStatus<LevelReady> run) =>
             _game(run),
       );
+  }
 
+  /// The game, once the renderer, the level and the player's body all exist.
+  ///
+  /// [build] returns one of the three screens in `status_screens.dart` while
+  /// any of those is missing; this returns another of them for the same
+  /// reason it always did — the null checks here are what promote `_renderer`,
+  /// `loaded` and `body` for the rest of the method.
   Widget _game(RunStatus<LevelReady> run) {
     final renderer = _renderer;
     final loaded = _loaded;
     final body = _body;
-    if (renderer == null) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Text(
-              'The renderer did not start.\n\n$_initError\n\n'
-              'The shader bundle is built by '
-              'packages/flutter3d/tool/build_shaders.sh, and has to be rebuilt '
-              'after every Flutter SDK change.',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-        ),
-      );
-    }
+    if (renderer == null) return RendererFailure(error: _initError);
 
     if (run is RunFailed<LevelReady>) {
-      // **This used to be a black screen for ever**: the load caught its own
-      // throw and printed it, which is a line in a console nobody playing the
-      // game can see. Every one of these is a content mistake — the failure a
-      // person editing a level makes.
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Text(
-              'That level would not load.\n\n${run.asset}\n\n${run.error}',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
-        ),
-      );
+      return LevelLoadFailed(asset: run.asset, error: run.error);
     }
 
     if (loaded == null || body == null) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Text(
-            'Loading…',
-            style: TextStyle(color: Colors.white54),
-          ),
-        ),
-      );
+      return const LoadingScreen();
     }
 
     return Scaffold(
@@ -1025,13 +912,13 @@ class _GameScreenState extends State<GameScreen>
                 grounded: body.isGrounded,
                 weapon: _arsenal.current,
 
-                hitFlash: _hitFlash,
-                painFlash: _painFlash,
+                hitFlash: _effects.hitFlash,
+                painFlash: _effects.painFlash,
                 health: _playerHealth,
                 kills: _kills,
                 monstersLeft: _actors?.aliveCount ?? 0,
-                message: _message,
-                messageOpacity: (_messageFor / 0.6).clamp(0.0, 1.0),
+                message: _effects.message,
+                messageOpacity: (_effects.messageFor / 0.6).clamp(0.0, 1.0),
                 keys: _inventory.keys,
                 armour: _playerHealth.armour,
                 ammo: _arsenal.currentAmmo,

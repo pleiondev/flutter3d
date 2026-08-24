@@ -12,6 +12,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_demo_racing/src/hud.dart';
+import 'package:flutter3d_demo_racing/src/race_readout.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' show Vector2;
@@ -77,15 +78,19 @@ void main() {
     // The same scan the ghost needs, for the same reason: the call sits in a
     // private method of a widget no test can mount, and a suite full of green
     // ticks would say nothing about a game that quietly stopped asking.
+    //
+    // The action itself is declared in `controls.dart` now, alongside every
+    // other verb this game has — `main.dart` only reads it back.
     final game = File('lib/main.dart').readAsStringSync();
+    final controls = File('lib/src/controls.dart').readAsStringSync();
 
     expect(game, contains('pitStop('),
         reason: 'three sets of tyres, and no way to put any of them on');
     expect(game, contains('.damage'),
         reason: 'cars get broken and the screen never says so');
-    expect(game, contains("GameAction('tyres')"),
+    expect(controls, contains("GameAction('tyres')"),
         reason: 'the verb is not in the table, so it cannot be rebound');
-    expect(game, contains('_Drive.tyres'),
+    expect(game, contains('Drive.tyres'),
         reason: 'the action exists and nothing is bound to it');
   });
 }

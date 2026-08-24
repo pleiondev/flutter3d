@@ -150,6 +150,7 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
   void dispose() {
     _ticker.dispose();
     _focus.dispose();
+    _renderer.dispose();
     super.dispose();
   }
 

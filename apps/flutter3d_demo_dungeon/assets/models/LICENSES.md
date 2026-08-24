@@ -59,6 +59,69 @@ The meshes, the skins and the animation data are untouched. No image is touched
 either, because there are none: these are vertex-coloured, which is why three
 rigged monsters cost 546 KB between them.
 
+## `weapon_pistol.glb`, `weapon_shotgun.glb`
+
+| | |
+|---|---|
+| Author | Quaternius — https://quaternius.com |
+| Source | **Ultimate Gun Pack**, https://quaternius.com/packs/ultimategun.html — the individual models via https://poly.pizza/m/J3i9KDQ3kt and https://poly.pizza/m/ZmPTnh7njL |
+| Licence | **CC0 1.0** — https://creativecommons.org/publicdomain/zero/1.0/ |
+
+Same author as the monsters above, for the same reason: the licence, the format
+and the fact that his work already renders in this engine were all known before
+anything was downloaded.
+
+**The licence is recorded per model, not per pack, and that distinction is not
+pedantry.** Quaternius' own pack pages state CC0 for the set, and poly.pizza
+records some of his uploads as CC-BY 3.0 — the animated pistol from the Animated
+Guns Pack is one of them. Both files here are uploads poly.pizza states as CC0,
+which is why they were the two chosen. Where two sources disagree about a
+licence, the narrower claim is the one to record.
+
+**Why not the animated pack**, which was the first choice: Quaternius ships every
+pack as Blend, FBX and OBJ with no glTF at all, and poly.pizza — which converts
+uploads with FBX2glTF, and is the only reason any of this is reachable without a
+converter on the machine — mirrors just one weapon from it. An animated pistol
+beside a static shotgun is a mixed licence and a mixed treatment for one clip
+nothing would play: `WeaponView` bobs and recoils by moving the node and has no
+animation player in it.
+
+There is **no rocket launcher** in any CC0 pack searched, so that weapon is still
+procedural blocks, as are the fists — a pair of hands is not a weapon model.
+
+### What was changed
+
+All of it by `tool/fetch_weapons.py`, which both downloads and prepares, so
+re-running it reproduces both files exactly. That is `fetch_textures.py`'s
+convention rather than `prepare_monsters.py`'s: the monsters were downloaded by
+hand because their pack is a Google Drive folder, and these have direct URLs.
+
+* **A quarter turn about Y is folded into a new root node.** Both models are
+  built pointing down +X, and the view-model camera looks down −Z like every
+  other camera in the engine, so the barrel faced sideways.
+* **A scale is folded into the same node**, so each weapon is as long as the
+  procedural blocks it replaces — 0.30 m for the pistol, 0.62 m for the shotgun.
+  Not cosmetic: the rest position, the bob and the recoil in `WeaponView` are
+  tuned against a weapon of about that size.
+* **And a translation**, so each rests on the same line its blocks did. Length
+  alone left both weapons floating: a model is drawn upward from its origin and
+  the blocks hung down from theirs, so the pistol sat seven centimetres above
+  the hand. Matching middles was not enough either — a model is slimmer than the
+  blocks that stood in for it, so the shotgun was still high with its centre
+  exactly right. The bottom edge is matched, because that is the line a player
+  reads as where the weapon is held.
+* **Every material is made a dark dielectric.** They arrived black, twice over:
+  `metallicFactor` 0.4 with no image-based lighting to reflect renders very
+  nearly black — the reason written above `_metal` in `weapon_models.dart` — and
+  the base colours were darker again than the blocks, 0.0998 at the pistol's
+  lightest against their 0.30. Metallic is zeroed and the colours are scaled by
+  one factor per file, so the parts keep their relation and the lightest lands
+  at 0.30.
+* **The provenance above is written into `asset.extras` inside each file**, for
+  the same reason it is in the monsters.
+
+The meshes are untouched.
+
 ### What was *not* used, and why it matters
 
 **Not `tool/prepare_model.mjs`.** That is the other model script in this

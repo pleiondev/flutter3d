@@ -19,7 +19,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_demo_platformer/src/hud.dart';
+import 'package:flutter3d_demo_platformer/src/level_error_screen.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';

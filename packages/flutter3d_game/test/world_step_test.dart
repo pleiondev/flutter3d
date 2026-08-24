@@ -3,7 +3,7 @@
 ///
 ///     flutter test test/world_step_test.dart
 ///
-/// **`WorldStep` had no test in the package that holds it.** SPEC §3.3 asked for
+/// **`WorldStep` had no test in the package that holds it.** ARCHITECTURE.md §9.2 asked for
 /// two — the order moved out of three games and into one class, and its tests
 /// did not come with it. What kept it honest was a single line in
 /// `flutter3d_game_shooter/test/simulation_test.dart`, which is a test of a

@@ -13,12 +13,12 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter3d_editor/src/editing.dart';
-import 'package:flutter3d_editor/src/gizmos.dart';
-import 'package:flutter3d_editor/src/vocabulary.dart';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_editor/src/editing.dart';
+import 'package:flutter3d_editor/src/gizmos.dart';
+import 'package:flutter3d_editor/src/vocabulary.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

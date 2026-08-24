@@ -17,8 +17,8 @@
 /// failure, and three of them are invisible in any single frame.
 library;
 
+import 'package:flutter3d/src/engine/geometry/box_shapes.dart';
 import 'package:flutter3d/src/engine/geometry/mesh_geometry.dart';
-import 'package:flutter3d/src/engine/geometry/primitive_shapes.dart';
 import 'package:flutter3d/src/engine/render/frame_graph.dart';
 import 'package:flutter3d/src/engine/render/frame_plan.dart';
 import 'package:flutter3d/src/engine/render/frame_resources.dart';

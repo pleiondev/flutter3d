@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:path/path.dart' as p;
 
+import 'golden_scene.dart';
 import 'golden_scenes.dart';
 import 'golden_store.dart';
 import 'png.dart';
