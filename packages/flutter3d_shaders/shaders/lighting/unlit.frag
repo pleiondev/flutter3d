@@ -2,6 +2,11 @@
 
 // Albedo only. Useful as a baseline: whatever this shows is purely texture and
 // tint, with no lighting term involved.
+// This model has no shadow term, and `LightingModel.unlit` says so with
+// `usesMaterialMaps: false` — so the engine binds no `PointShadow` block. The
+// header must therefore not declare one: a block declared and unbound is a
+// dropped draw on WebGL2 and a phantom bind on Impeller. See surface.glsl.
+#define F3D_NO_POINT_SHADOW
 #include <lib/surface.glsl>
 
 // Never called — nothing here accumulates lights — but the prototype in

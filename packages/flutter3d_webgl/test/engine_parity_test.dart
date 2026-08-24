@@ -479,16 +479,44 @@ void _atlasTests() {
 /// anyway. The pairs below are the ones the renderer builds, so a mismatch in
 /// any of them is a pass that cannot run.
 void _linkTests() {
+  // **Every pair, because the list used to be a subset and that is how a
+  // broken one hid.** Nine of these were checked and the rest were not: four of
+  // the six lighting models, both sky stages, the skinned vertex stage and both
+  // mesh-particle stages went unlinked here from the day this file was written.
+  // `lighting-unlit` draws an empty frame on this backend, and nothing between
+  // the shader and the golden set was in a position to say so.
   const pairs = <(String, String)>[
-    ('MeshVertex', 'Pbr'),
+    ('MeshVertex', 'Unlit'),
     ('MeshVertex', 'Lambert'),
+    ('MeshVertex', 'BlinnPhong'),
+    ('MeshVertex', 'Pbr'),
+    ('MeshVertex', 'Toon'),
+    ('MeshVertex', 'Normals'),
     ('MeshVertex', 'ShadowDepth'),
     ('MeshVertex', 'ShadowDistance'),
+    // The skinned stage draws the same models from a second vertex layout, so
+    // every one of them is a pair here too.
+    ('MeshSkinnedVertex', 'Unlit'),
+    ('MeshSkinnedVertex', 'Lambert'),
+    ('MeshSkinnedVertex', 'BlinnPhong'),
+    ('MeshSkinnedVertex', 'Pbr'),
+    ('MeshSkinnedVertex', 'Toon'),
+    ('MeshSkinnedVertex', 'Normals'),
+    ('MeshSkinnedVertex', 'ShadowDepth'),
+    ('MeshSkinnedVertex', 'ShadowDistance'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('FullscreenVertex', 'BloomThreshold'),
+    ('FullscreenVertex', 'BloomDownsample'),
+    ('FullscreenVertex', 'BloomUpsample'),
+    ('FullscreenVertex', 'Reflections'),
+    ('FullscreenVertex', 'Ssao'),
     ('DebugLineVertex', 'DebugLine'),
     ('ParticleVertex', 'Particle'),
+    ('ParticleVertex', 'ParticleTextured'),
+    ('ParticleMeshVertex', 'ParticleMesh'),
+    ('SkyVertex', 'Sky'),
+    ('SkyCubeVertex', 'SkyCube'),
   ];
 
   for (final (vertex, fragment) in pairs) {
