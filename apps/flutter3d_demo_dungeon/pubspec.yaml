@@ -1,7 +1,7 @@
 name: flutter3d_demo_dungeon
 description: "A first-person action game in a dungeon, built on flutter3d."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.3.0+1
 resolution: workspace
 
 environment:

@@ -1,6 +1,6 @@
 name: flutter3d_webgl
 description: "A WebGL2 backend for flutter3d: the second implementation of flutter3d_hardware, and the one that tells us whether the HAL is a seam or a description of Impeller."
-version: 0.1.0
+version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 publish_to: 'none'
@@ -17,7 +17,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_hardware: ^0.1.0
+  flutter3d_hardware: ^0.3.0
 
   # Browser APIs through static JS interop. `dart:html` and `dart:web_gl` are
   # the legacy path and are not available under Wasm.
@@ -28,12 +28,12 @@ dependencies:
 dev_dependencies:
   # The behaviour flutter3d_hardware requires, as tests this backend runs
   # against itself. See flutter3d_conformance.
-  flutter3d_conformance: ^0.1.0
+  flutter3d_conformance: ^0.3.0
   # For the tests only: engine_frame_test drives the real Renderer through this
   # backend, which is the one thing this package exists to make possible and so
   # the one thing worth testing. A dev dependency, so nothing a consumer builds
   # picks up the engine because the backend was installed.
-  flutter3d: ^0.1.0
+  flutter3d: ^0.3.0
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

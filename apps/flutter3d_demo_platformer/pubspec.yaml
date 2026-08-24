@@ -1,7 +1,7 @@
 name: flutter3d_demo_platformer
 description: "A third-person platformer: run, jump twice, dash, and do not fall in."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.3.0+1
 resolution: workspace
 
 environment:

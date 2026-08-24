@@ -1,6 +1,6 @@
 name: flutter3d_game_racing
 description: "A third genre: a car with grip it can lose, a track measured in metres, and the lap that comes of going round it."
-version: 0.1.0
+version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 publish_to: 'none'
@@ -14,13 +14,13 @@ dependencies:
     sdk: flutter
 
   # The engine half. Everything here is content it takes as an argument.
-  flutter3d_game: ^0.1.0
+  flutter3d_game: ^0.3.0
 
-  flutter3d_physics: ^0.1.0
+  flutter3d_physics: ^0.3.0
 
   # The renderer, spent by exactly one file — `bridge.dart`, which the isolation
   # test names. The road has to become triangles somewhere.
-  flutter3d: ^0.1.0
+  flutter3d: ^0.3.0
 
   vector_math: ^2.2.0
 

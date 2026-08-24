@@ -1,7 +1,7 @@
 name: flutter3d_editor
 description: "A level editor: open a document, move what is in it, write it back."
 publish_to: 'none'
-version: 0.1.0+1
+version: 0.3.0+1
 resolution: workspace
 
 environment:
