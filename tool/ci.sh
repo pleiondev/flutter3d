@@ -55,7 +55,13 @@ step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
 # The generators reproduce what is committed, or the committed thing is not
 # the thing the generator makes any more. Same rule as the levels and the
 # tracks — this one covers the four applications' icons.
-step "icons" bash -c 'python3 tool/make_icons.py >/dev/null && git diff --exit-code -- "apps/*/macos/Runner/Assets.xcassets" "apps/*/web/icons" "apps/*/web/favicon.png"'
+#
+# A script rather than `make_icons.py && git diff`, because that shape was wrong
+# twice: its pathspecs named directories with a `*` in them, which in git
+# matches the directory and nothing inside it, so it compared three files out of
+# forty-three; and it compared bytes, which Pillow's per-platform LANCZOS does
+# not reproduce across operating systems. See tool/check_icons.py.
+step "icons" python3 tool/check_icons.py
 
 # The models a template gives a new game. Regenerated and compared for the
 # same reason the icons are — and for one more: `math.sin` is libm, so a
