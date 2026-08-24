@@ -33,10 +33,17 @@ jobs:
 
       # `tool/make_icons.py` draws the four application icons, and the `icons`
       # step regenerates them and diffs the result. Without Pillow the script
-      # says so and exits non-zero, so that step has been failing on every run
-      # for the reason it could not run at all — which is a check that proves
-      # nothing while looking like one that does. The icons are geometry with no
-      # font in them, so what it draws here is what it draws anywhere.
-      - run: pip install --quiet pillow
+      # says so and exits non-zero, so that step failed on every run for the
+      # reason it could not run at all — a check that proves nothing while
+      # looking like one that does.
+      #
+      # **Pinned, because the step compares bytes.** The first run with Pillow
+      # present redrew three 32-pixel favicons differently from the committed
+      # ones while every other size matched, which is a resampler that is not
+      # the same resampler. A version floating with the runner turns a check
+      # about the icons into a check about pip. This is the version the
+      # committed icons were drawn with; not quiet, so the log says which one
+      # ran.
+      - run: pip install pillow==12.2.0
 
       - run: tool/ci.sh
