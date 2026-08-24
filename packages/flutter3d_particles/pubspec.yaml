@@ -4,7 +4,8 @@ description: >-
   draws it. Its particles can be a light source, which is the part no other
   engine on this platform has.
 version: 0.1.0
-repository: https://github.com/dzolotov/flutter3d
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
 publish_to: 'none'
 
 environment:

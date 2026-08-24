@@ -33,3 +33,10 @@ itself is the list below.
 No import reaches the renderer, so every one of the thirteen test files runs in
 a test with no device. The forgiveness a jump needs is not something a
 screenshot can show, and it is the part players feel first.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

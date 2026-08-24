@@ -15,7 +15,7 @@
 #     half runs here, and cross_backend_test.dart compares the two committed
 #     reference sets with no device at all — which is the question that
 #     actually matters.
-#   * The performance budgets in docs/SPEC.md §5.1. There is no profiler yet
+#   * The performance budgets in ARCHITECTURE.md §14. There is no profiler yet
 #     and no stored baseline to compare against.
 set -uo pipefail
 cd "$(dirname "$0")/.."

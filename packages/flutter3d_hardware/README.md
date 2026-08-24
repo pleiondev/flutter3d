@@ -22,3 +22,10 @@ What a backend must actually *do* is `flutter3d_conformance`, which is a suite
 each backend runs against itself. An interface can only say a call exists; the
 conformance suite is what says a clear covers the whole attachment and that
 uploaded pixels keep their row order.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

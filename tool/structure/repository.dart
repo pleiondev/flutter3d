@@ -87,8 +87,9 @@ const Map<String, String> hardwareMayUseFlutter = <String, String>{
   'graphics_device.dart':
       'GraphicsDevice.present returns a widget showing the finished frame, '
           'which every backend must produce and only Flutter can name',
-  'testing.dart': 'FakeBackend implements GraphicsDevice.present, which is a '
-      'widget by the line above',
+  'testing_fake_backend.dart':
+      'FakeBackend implements GraphicsDevice.present, which is a '
+          'widget by the line above',
 };
 
 /// Files in `flutter3d` held to a stricter rule than the rest, and why.

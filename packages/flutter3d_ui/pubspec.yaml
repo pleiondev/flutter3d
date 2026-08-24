@@ -3,7 +3,8 @@ description: "The screens a game has that are not the game: settings, volumes, r
 version: 0.1.0
 publish_to: 'none'
 resolution: workspace
-repository: https://github.com/dzolotov/flutter3d
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
 
 environment:
   sdk: ^3.12.2
@@ -34,7 +35,7 @@ dependencies:
   # is where a state machine goes to stop being testable. A cubit is reachable
   # from a plain `test()`.
   #
-  # The exception to `docs/SPEC.md` §2.4, and a narrow one: pure Dart, no FFI,
+  # The exception to `ARCHITECTURE.md` §11.3, and a narrow one: pure Dart, no FFI,
   # so it does not break the web build — which is what that section's argument
   # is actually about.
   flutter_bloc: ^9.1.1

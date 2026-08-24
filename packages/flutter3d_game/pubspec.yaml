@@ -1,7 +1,8 @@
 name: flutter3d_game
 description: "The game layer on top of flutter3d: a fixed timestep, device-independent input, collisions, levels and AI."
 version: 0.1.0
-repository: https://github.com/dzolotov/flutter3d
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
 publish_to: 'none'
 resolution: workspace
 

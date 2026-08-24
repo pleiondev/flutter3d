@@ -31,6 +31,11 @@ List<Rule> get allRules => <Rule>[
       (name: 'no application silences a print', run: _noSilencedPrints),
       (name: 'the Impeller conformance runner is reachable', run: _conformanceRunner),
       (name: 'the document says how many tests there are', run: _testCount),
+      (name: 'the publishing order names every package', run: _publishingOrder),
+      (name: 'the documents agree on how many rules there are',
+          run: _ruleCount),
+      (name: 'the compiled shader bundle is not older than its sources',
+          run: _shaderBundleIsCurrent),
     ];
 
 // ------------------------------------------------------------------- genre
@@ -169,7 +174,7 @@ List<Finding> _repeatableStep() {
       if (said != null) {
         found.add(Finding('${entry.key}/$path',
             '$said — a step takes its randomness from a generator it was handed '
-            'and never asks the system what time it is (SPEC 6.4)'));
+            'and never asks the system what time it is — see ARCHITECTURE.md 9.3'));
       }
     }
   }
@@ -361,6 +366,123 @@ List<Finding> _listsAgree() {
   return found;
 }
 
+/// How many rules the documents say there are, against how many there are.
+///
+/// **Two documents once carried two different wrong answers**, which is what a
+/// number nobody can check looks like after a while. Neither is load-bearing on
+/// its own — but a reader who finds one number wrong has no way to tell which of
+/// the others are, and both documents are largely numbers like this one.
+///
+/// The count is a word in the README and a digit in `ARCHITECTURE.md`, because
+/// that is what reads well in each. Both are checked.
+List<Finding> _ruleCount() {
+  const List<String> words = <String>[
+    'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
+    'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
+    'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty',
+  ];
+  final actual = allRules.length;
+  final found = <Finding>[];
+
+  void check(String path, RegExp pattern, String Function(String) read) {
+    final file = File('${repositoryRoot.path}/$path');
+    if (!file.existsSync()) {
+      found.add(Finding(path, 'is not there'));
+      return;
+    }
+    final match = pattern.firstMatch(file.readAsStringSync());
+    if (match == null) {
+      found.add(Finding(path,
+          'no longer says how many rules there are, so nothing here can '
+          'tell whether it is right'));
+      return;
+    }
+    final said = read(match.group(1)!);
+    if (said != '$actual') {
+      found.add(Finding(path, 'says $said rules; there are $actual'));
+    }
+  }
+
+  check('README.md', RegExp(r'its (\w+) rules'),
+      (String word) => '${words.indexOf(word)}');
+  check('ARCHITECTURE.md', RegExp(r'Structure rules \| (\d+),'),
+      (String digits) => digits);
+
+  if (actual >= words.length) {
+    found.add(Finding('tool/structure/rules.dart',
+        'there are $actual rules and this check can only spell '
+        '${words.length - 1}. Extend the list.'));
+  }
+  return found;
+}
+
+/// Every package appears in the publishing order, and nothing else does.
+///
+/// **Written because it had already drifted.** The list once said "twenty
+/// packages" for months while there were twenty-two, with three missing from it
+/// and one on it that no longer existed. Nothing anywhere would have said so:
+/// the order is read on the day somebody publishes, which is the worst day to
+/// discover that two of the things being published are not in the plan.
+///
+/// Only membership is checked, not the order itself. The order encodes which
+/// package depends on which, and a rule deriving that from the pubspecs would be
+/// re-deriving what the document exists to record — while the failure that
+/// actually happens is a package nobody added.
+List<Finding> _publishingOrder() {
+  final file = File('${repositoryRoot.path}/ARCHITECTURE.md');
+  if (!file.existsSync()) {
+    return <Finding>[const Finding('ARCHITECTURE.md', 'is not there')];
+  }
+
+  final text = file.readAsStringSync();
+  final steps = text.split('**The order, when the day comes**');
+  if (steps.length != 2) {
+    return <Finding>[
+      const Finding('ARCHITECTURE.md',
+          'no longer names the publishing order, so nothing here can tell '
+          'whether every package is in it'),
+    ];
+  }
+
+  // Only the numbered list: the prose around it names packages too, and a
+  // package mentioned in a sentence is not a package anybody will publish.
+  //
+  // Continuation lines count. A step with five packages wraps, and reading only
+  // the lines that begin with a number reports the wrapped ones as missing —
+  // which is what this did on its first run, against a document that was right.
+  final block = StringBuffer();
+  var inList = false;
+  for (final line in steps[1].split('\n')) {
+    if (RegExp(r'^\s*\d+\.').hasMatch(line)) {
+      inList = true;
+    } else if (line.trim().isEmpty) {
+      if (inList) break;
+      continue;
+    }
+    if (inList) block.writeln(line);
+  }
+
+  final listed = <String>{
+    for (final match in RegExp('`([a-z0-9_]+)`').allMatches(block.toString()))
+      match.group(1)!,
+  };
+
+  final found = <Finding>[];
+  for (final name in packages.keys.toList()..sort()) {
+    if (!listed.contains(name)) {
+      found.add(Finding('ARCHITECTURE.md',
+          '$name is a package and is not in the publishing order'));
+    }
+  }
+  for (final name in listed.toList()..sort()) {
+    if (!packages.containsKey(name)) {
+      found.add(Finding('ARCHITECTURE.md',
+          '$name is in the publishing order and is not a package'));
+    }
+  }
+  return found;
+}
+
 // ------------------------------------------------------------- the exemptions
 
 /// Every path an exemption table names, checked against the tree **by string**.
@@ -522,21 +644,83 @@ List<Finding> _testCount() {
     }
   }
 
-  final spec = File('${root.path}/docs/SPEC.md').readAsStringSync();
-  // Russian inflects the noun by the number — 2732 теста, 2735 тестов — so the
-  // pattern matches the digits and lets the word be whatever it has to be.
-  final claimed = RegExp(r'\*\*(\d+) тест[а-я]*\*\*').firstMatch(spec);
+  final document = File('${root.path}/ARCHITECTURE.md').readAsStringSync();
+  final claimed = RegExp(r'\*\*(\d+) tests\*\*').firstMatch(document);
   if (claimed == null) {
     return <Finding>[
-      const Finding('docs/SPEC.md', 'no test count in section 5.2 to compare'),
+      const Finding('ARCHITECTURE.md',
+          'no test count to compare against, so nothing here can tell whether '
+          'it is right'),
     ];
   }
   if (claimed.group(1) != '$counted') {
     return <Finding>[
-      Finding('docs/SPEC.md',
-          'section 5.2 says ${claimed.group(1)} tests; there are $counted. '
+      Finding('ARCHITECTURE.md',
+          'says ${claimed.group(1)} tests; there are $counted. '
           'Update the document, or say why the count moved'),
     ];
   }
   return const <Finding>[];
+}
+
+/// The compiled shader bundle is not older than the GLSL it was built from.
+///
+/// **The trap this closes cost an afternoon, and it fails in the worst way
+/// available.** Editing a `.frag` changes nothing until `build_shaders.sh` runs
+/// again: the bundle is a build artefact and gitignored, so an application goes
+/// on loading the stage compiled before the edit. What that looks like is not a
+/// shader that behaves oddly — it is a *bind failure*, because the renderer
+/// binds a slot the new source declares and the old binary has not got, and
+/// binding a slot a compiled shader does not have takes the frame down.
+///
+/// The error says "failed to bind texture" and names nothing that would lead
+/// anybody to the shader they just edited.
+///
+/// **Skipped when there is no bundle at all**, which is every fresh checkout and
+/// every CI run: the bundle cannot be built without `impellerc`, and a rule
+/// that demanded one would be red on the machines least able to do anything
+/// about it. This is a rule about a bundle that exists being current, not about
+/// there being one.
+List<Finding> _shaderBundleIsCurrent() {
+  final dir = packages['flutter3d_impeller'];
+  if (dir == null) {
+    return <Finding>[const Finding('flutter3d_impeller', 'is not there')];
+  }
+
+  final bundle = File('${dir.path}/assets/shaders/flutter3d.shaderbundle');
+  if (!bundle.existsSync()) return const <Finding>[];
+
+  final sources = packages['flutter3d_shaders'];
+  if (sources == null) {
+    return <Finding>[const Finding('flutter3d_shaders', 'is not there')];
+  }
+
+  final built = bundle.lastModifiedSync();
+  final newer = <String>[];
+  for (final file in Directory('${sources.path}/shaders')
+      .listSync(recursive: true)
+      .whereType<File>()) {
+    if (!file.path.endsWith('.frag') &&
+        !file.path.endsWith('.vert') &&
+        !file.path.endsWith('.glsl')) {
+      continue;
+    }
+    if (file.lastModifiedSync().isAfter(built)) {
+      newer.add(file.path.split('/').last);
+    }
+  }
+  if (newer.isEmpty) return const <Finding>[];
+
+  newer.sort();
+  return <Finding>[
+    Finding(
+      'flutter3d_impeller/assets/shaders/flutter3d.shaderbundle',
+      'is older than ${newer.length} of its sources '
+          '(${newer.take(4).join(', ')}${newer.length > 4 ? ', …' : ''}). '
+          'Rebuild it: (cd packages/flutter3d_impeller && '
+          './tool/build_shaders.sh). Until then an application loads the stage '
+          'compiled before the edit, and a slot the new source declares fails '
+          'to bind',
+    ),
+  ];
 }

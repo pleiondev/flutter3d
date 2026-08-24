@@ -28,3 +28,10 @@ Those are content — what a scene looks like and what kind of game this is —
 and a facade cannot pick a genre on an application's behalf. See
 [Assembling an application](https://flutter3d.pleion.dev/core/session/) for
 the full pattern, worked through with `apps/flutter3d_demo_dungeon` as the example.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

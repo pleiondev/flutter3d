@@ -3,7 +3,8 @@ description: >-
   The behaviour a flutter3d_hardware backend has to have, as tests it can run
   against itself.
 version: 0.1.0
-repository: https://github.com/dzolotov/flutter3d
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
 publish_to: 'none'
 
 environment:

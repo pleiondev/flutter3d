@@ -16,3 +16,10 @@ links does link.
 no vertex stage writes is a hard error in a browser and invisible on a backend
 whose pipelines were linked ahead of time — so the check catches, on one
 backend, a mistake that would ship on another.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

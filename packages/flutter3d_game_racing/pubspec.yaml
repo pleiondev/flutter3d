@@ -1,7 +1,8 @@
 name: flutter3d_game_racing
 description: "A third genre: a car with grip it can lose, a track measured in metres, and the lap that comes of going round it."
 version: 0.1.0
-repository: https://github.com/dzolotov/flutter3d
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
 publish_to: 'none'
 resolution: workspace
 

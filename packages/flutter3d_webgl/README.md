@@ -30,3 +30,10 @@ to see it.
 Five of the six test files are `@TestOn('browser')`:
 
     flutter test --platform chrome
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

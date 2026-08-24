@@ -27,3 +27,10 @@ Impeller reference set with a per-scene budget.
 `compareFrames` counts the pixels two frames disagree about, with the same
 default threshold `tool/golden.sh` uses, and reports the worst single-channel
 step beside the count.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

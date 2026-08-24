@@ -29,7 +29,7 @@
 ///
 /// ## The one thing that had to survive the move
 ///
-/// Rule 6.3 of `docs/SPEC.md`: a check is written by breaking what it covers,
+/// Rule 6.3 of `ARCHITECTURE.md`: a check is written by breaking what it covers,
 /// and the mutation is named. A scan behind a detector nobody has seen fail is
 /// a rule nobody is keeping — the genre scan once lived in two copies and one
 /// of them had already lost the proof that it fired, so it passed whether or
