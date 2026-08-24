@@ -23,10 +23,26 @@ final class WebGlTexture {
     this.texture,
     this.renderbuffer,
     this.target = web.WebGLRenderingContext.TEXTURE_2D,
+    this.rendered = false,
   });
 
   final web.WebGLTexture? texture;
   final web.WebGLRenderbuffer? renderbuffer;
+
+  /// Whether this texture's contents were drawn rather than handed over.
+  ///
+  /// The two are stored the opposite way up on this backend, and there is no
+  /// setting that makes them agree. `texImage2D` puts the first row it is given
+  /// at texture coordinate zero, so an uploaded image has its top there, which
+  /// is what every glTF UV expects. Rendering puts row zero at the *bottom*,
+  /// because that is where GL's framebuffer origin is — the engine already
+  /// knows this and states it as [FramebufferOrigin.bottomLeft], which is why
+  /// `toFramebufferOrigin` exists for the shadow face matrices.
+  ///
+  /// [GraphicsDevice.readPixels] is the one place that has to tell them apart:
+  /// it promises rows from the top of the picture, and only one of the two
+  /// kinds needs turning over to keep that promise.
+  final bool rendered;
 
   /// What this is bound as: `TEXTURE_2D`, or `TEXTURE_CUBE_MAP` for a cube.
   ///

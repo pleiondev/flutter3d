@@ -121,6 +121,7 @@ TextureHandle webglCreateTexture(
   List<web.WebGLRenderbuffer> persistentRenderbuffers,
   RenderTargetSpec spec, {
   int levels = 1,
+  bool rendered = true,
 }) {
   final internal = textureFormatToGl(spec.format);
   if (spec.sampleCount > 1 || spec.storageMode == StorageMode.deviceTransient) {
@@ -145,7 +146,8 @@ TextureHandle webglCreateTexture(
         spec.height,
       );
     }
-    return webglTextureHandle(WebGlTexture(renderbuffer: buffer), spec);
+    return webglTextureHandle(
+        WebGlTexture(renderbuffer: buffer, rendered: rendered), spec);
   }
 
   final texture = gl.createTexture();
@@ -158,7 +160,8 @@ TextureHandle webglCreateTexture(
     spec.width,
     spec.height,
   );
-  return webglTextureHandle(WebGlTexture(texture: texture), spec);
+  return webglTextureHandle(
+      WebGlTexture(texture: texture, rendered: rendered), spec);
 }
 
 /// A texture already holding [pixels] and, optionally, [mipLevels] below it.
@@ -190,6 +193,9 @@ TextureHandle? webglCreateTextureFromPixels(
     persistentRenderbuffers,
     RenderTargetSpec(width: width, height: height, format: format),
     levels: levels,
+    // Its rows come from the caller, not from a draw, so they are already the
+    // way up the engine states an image. See [WebGlTexture.rendered].
+    rendered: false,
   );
   final backend = handle.backend as WebGlTexture;
   gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);

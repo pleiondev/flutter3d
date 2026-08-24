@@ -1250,15 +1250,40 @@ final class Renderer implements RenderServices {
   /// rasterizes the 2x2 fragment quads along it twice. The UVs are authored so
   /// that NDC +1 in Y maps to texture row zero, matching where Metal puts the
   /// origin of a render target.
-  GeometryBuffer get _fullscreenTriangle => _fullscreenVertices ??=
-      device.uploadGeometry(
-        Float32List.fromList(<double>[
-          -1.0, -1.0, 0.0, 1.0, //
-          3.0, -1.0, 2.0, 1.0, //
-          -1.0, 3.0, 0.0, -1.0, //
-        ]).buffer.asByteData(),
-        GeometryUsage.vertices,
-      );
+  /// The triangle every full-screen pass is drawn with, wound for this backend.
+  ///
+  /// **The texture coordinates depend on where the backend's row zero is, and
+  /// that is not a detail.** The positions are clip space directly — a
+  /// full-screen pass has no projection to put a backend's convention right, so
+  /// this buffer is the only place the difference can be stated. On a top-left
+  /// backend clip `y = +1` and `v = 0` are both the top of the picture and the
+  /// pairing below is the identity. On a bottom-left one clip `y = +1` is the
+  /// *last* row of the target, so pairing it with `v = 0` reads the source's
+  /// first row and writes it to the target's last: every full-screen pass turns
+  /// its input upside down.
+  ///
+  /// A single pass that reads the frame and writes the frame survives that,
+  /// because the flip on the way in cancels the flip on the way out and only
+  /// the ends are ever looked at. **The bloom chain does not**: it is a
+  /// threshold, a ladder down and a ladder back, an odd number of passes
+  /// whichever way it is configured, so the glow arrived mirrored about the
+  /// middle of the frame and was added to the scene there. A centred, symmetric
+  /// subject hides it almost perfectly — which is why every synthetic probe
+  /// agreed and only the recorded scene disagreed. Put the bright thing above
+  /// the middle and the glow appears below it.
+  GeometryBuffer get _fullscreenTriangle {
+    final flip = device.framebufferOrigin == FramebufferOrigin.bottomLeft;
+    final top = flip ? 2.0 : -1.0;
+    final bottom = flip ? 0.0 : 1.0;
+    return _fullscreenVertices ??= device.uploadGeometry(
+      Float32List.fromList(<double>[
+        -1.0, -1.0, 0.0, bottom, //
+        3.0, -1.0, 2.0, bottom, //
+        -1.0, 3.0, 0.0, top, //
+      ]).buffer.asByteData(),
+      GeometryUsage.vertices,
+    );
+  }
 
 
 
