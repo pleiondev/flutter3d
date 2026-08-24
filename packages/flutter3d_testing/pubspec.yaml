@@ -1,0 +1,33 @@
+name: flutter3d_testing
+description: >-
+  Renders a flutter3d scene with no GPU and compares it against a reference
+  image, so a game gets pixel regression tests on a machine with no display.
+version: 0.1.0
+publish_to: 'none'
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.47.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The engine and the software backend both, which is the whole reason this is
+  # its own package: `flutter3d_cpu` must not depend on `flutter3d` — a backend
+  # that could not compile without the engine would be part of the engine — so
+  # neither of them can hold something that needs both.
+  flutter3d: ^0.1.0
+  flutter3d_cpu: ^0.1.0
+  flutter3d_hardware: ^0.1.0
+  # `expect` and the test binding, which is what makes this a testing package
+  # rather than a rendering one.
+  flutter_test:
+    sdk: flutter
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+
+resolution: workspace
