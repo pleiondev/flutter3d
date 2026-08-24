@@ -30,6 +30,14 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Flutter GPU is off unless an application asks for it: the engine reads
+             this key and defaults to false. Without it the shader library fails to
+             initialise and the game draws nothing, with nothing in the log that
+             says why. The same setting is FLTEnableFlutterGPU in the iOS and macOS
+             Info.plist — a per-application decision on every platform. -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableFlutterGPU"
+            android:value="true" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

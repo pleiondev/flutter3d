@@ -66,5 +66,14 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Flutter GPU is a per-application setting, not a per-engine one, so every
+	     application that draws through flutter3d has to set this for itself.
+	     Without it the shader library fails to initialise and nothing renders. -->
+	<key>FLTEnableFlutterGPU</key>
+	<true/>
+	<!-- Impeller is the default on iOS, and stated anyway: the flag above is
+	     meaningless without it, and a default is a thing that can change. -->
+	<key>FLTEnableImpeller</key>
+	<true/>
 </dict>
 </plist>

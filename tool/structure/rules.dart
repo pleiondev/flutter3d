@@ -31,6 +31,8 @@ List<Rule> get allRules => <Rule>[
       (name: 'no application silences a print', run: _noSilencedPrints),
       (name: 'the Impeller conformance runner is reachable', run: _conformanceRunner),
       (name: 'the document says how many tests there are', run: _testCount),
+      (name: 'an application that draws asks its platform for the GPU',
+          run: _gpuIsEnabled),
       (name: 'the publishing order names every package', run: _publishingOrder),
       (name: 'the documents agree on how many rules there are',
           run: _ruleCount),
@@ -412,6 +414,63 @@ List<Finding> _ruleCount() {
     found.add(Finding('tool/structure/rules.dart',
         'there are $actual rules and this check can only spell '
         '${words.length - 1}. Extend the list.'));
+  }
+  return found;
+}
+
+/// Every application that draws asks its platform to turn the GPU on.
+///
+/// **This is a per-application setting on every platform, and it fails
+/// silently.** Flutter GPU is off unless an application asks: `Info.plist` wants
+/// `FLTEnableFlutterGPU` on Apple platforms, and `AndroidManifest.xml` wants
+/// `io.flutter.embedding.android.EnableFlutterGPU`, which the engine reads with
+/// a default of false. Without it the shader library does not initialise and the
+/// game draws nothing, with nothing in the log naming the cause.
+///
+/// **Written because two applications had already shipped without it.** The
+/// dungeon and the platformer built for Android, and their APKs would have drawn
+/// an empty screen on any phone; nobody had noticed because nobody had a phone.
+/// The macOS plists had carried the key since the beginning, which is exactly
+/// how a per-platform setting rots — the platform somebody uses is right, and
+/// the ones nobody uses are whatever the template left.
+///
+/// Only platforms an application actually has are checked. A game with no `ios/`
+/// is not missing a flag; it is missing a platform, which is a different thing
+/// and not this rule's business.
+List<Finding> _gpuIsEnabled() {
+  const String appleKey = 'FLTEnableFlutterGPU';
+  const String androidKey = 'io.flutter.embedding.android.EnableFlutterGPU';
+
+  final found = <Finding>[];
+  for (final entry in apps.entries) {
+    final pubspec = File('${entry.value.path}/pubspec.yaml');
+    if (!pubspec.existsSync()) continue;
+    // An application that does not reach the engine draws nothing through it
+    // and has nothing to enable.
+    if (!RegExp(r'^\s+flutter3d(_app|_backend)?:', multiLine: true)
+        .hasMatch(pubspec.readAsStringSync())) {
+      continue;
+    }
+
+    for (final platform in const <String>['macos', 'ios']) {
+      final plist = File('${entry.value.path}/$platform/Runner/Info.plist');
+      if (!plist.existsSync()) continue;
+      if (!plist.readAsStringSync().contains(appleKey)) {
+        found.add(Finding('${entry.key}/$platform/Runner/Info.plist',
+            'has no $appleKey, so the shader library will not initialise and '
+            'the application draws nothing'));
+      }
+    }
+
+    final manifest = File(
+        '${entry.value.path}/android/app/src/main/AndroidManifest.xml');
+    if (manifest.existsSync() &&
+        !manifest.readAsStringSync().contains(androidKey)) {
+      found.add(Finding(
+          '${entry.key}/android/app/src/main/AndroidManifest.xml',
+          'has no $androidKey meta-data; the engine defaults it to false, so '
+          'the application draws nothing'));
+    }
   }
   return found;
 }
