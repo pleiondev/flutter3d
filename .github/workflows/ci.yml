@@ -31,4 +31,12 @@ jobs:
       # and a test fails when the bundle is missing.
       - run: flutter precache --linux
 
+      # `tool/make_icons.py` draws the four application icons, and the `icons`
+      # step regenerates them and diffs the result. Without Pillow the script
+      # says so and exits non-zero, so that step has been failing on every run
+      # for the reason it could not run at all — which is a check that proves
+      # nothing while looking like one that does. The icons are geometry with no
+      # font in them, so what it draws here is what it draws anywhere.
+      - run: pip install --quiet pillow
+
       - run: tool/ci.sh
