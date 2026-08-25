@@ -15,7 +15,7 @@
 #     half runs here, and cross_backend_test.dart compares the two committed
 #     reference sets with no device at all — which is the question that
 #     actually matters.
-#   * The performance budgets in docs/SPEC.md §5.1. There is no profiler yet
+#   * The performance budgets in ARCHITECTURE.md §14. There is no profiler yet
 #     and no stored baseline to compare against.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -35,6 +35,15 @@ in_dir() {
   ( cd "$dir" && "$@" )
 }
 
+# **First, because it is the only step that needs nothing.** Every rule in it
+# reads source text: no `pub get`, no shader bundle, no device, under a second.
+# Finding out that a package imports a genre after four minutes of building is
+# finding out late what could have been known before anything started.
+#
+# It replaced twenty-three test files and two `grep` steps that used to be
+# here. See tool/structure.dart for why they moved.
+step "structure" dart run tool/structure.dart
+
 step "pub get" flutter pub get
 
 # The shader bundle is gitignored and its format is tied to the SDK version, so
@@ -46,13 +55,19 @@ step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
 # The generators reproduce what is committed, or the committed thing is not
 # the thing the generator makes any more. Same rule as the levels and the
 # tracks — this one covers the four applications' icons.
-step "icons" bash -c 'python3 tool/make_icons.py >/dev/null && git diff --exit-code -- "apps/*/macos/Runner/Assets.xcassets" "apps/*/web/icons" "apps/*/web/favicon.png"'
+#
+# A script rather than `make_icons.py && git diff`, because that shape was wrong
+# twice: its pathspecs named directories with a `*` in them, which in git
+# matches the directory and nothing inside it, so it compared three files out of
+# forty-three; and it compared bytes, which Pillow's per-platform LANCZOS does
+# not reproduce across operating systems. See tool/check_icons.py.
+step "icons" python3 tool/check_icons.py
 
 # The models a template gives a new game. Regenerated and compared for the
 # same reason the icons are — and for one more: `math.sin` is libm, so a
 # generator that did not quantise its coordinates produces different bytes on a
 # different machine, and this is the step that would say so.
-step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/editor/assets/templates" "apps/dungeon/assets/models"'
+step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets/models"'
 
 # **The WebGL table is generated and nothing checked that it was current.** Its
 # own header says so — "there is no check that this file is current" — and when
@@ -63,13 +78,6 @@ step "webgl shaders" bash -c 'cd packages/flutter3d_webgl && dart run tool/gener
 
 step "analyze" flutter analyze
 
-# **A debug print, silenced and committed.** `avoid_print` is on, so the only
-# way one reaches an application's `lib/` is with an `// ignore:` above it —
-# which is what somebody writes while chasing a bug and forgets while fixing
-# it. Two of them shipped in the editor that way. Tools and examples are
-# exempt: their whole output is what they are for.
-step "no silenced prints" bash -c '! grep -rn "ignore.*avoid_print" apps/*/lib || (echo "a print in an application, with the lint silenced above it"; false)'
-
 # What `pub publish` would say about each package, without publishing anything.
 # Twenty-six seconds, and it is the only thing that notices a package losing its
 # licence, its changelog, or its version constraint on a sibling — none of which
@@ -79,7 +87,12 @@ step "publish check" bash tool/publish_check.sh
 
 for package in packages/*/; do
   name="$(basename "$package")"
-  [ -d "$package/test" ] || continue
+  # Matched on the files rather than on the directory, for the reason the
+  # example loop below already gives: an empty `test/` makes `flutter test`
+  # exit non-zero rather than skip. Two packages lost their only test when the
+  # structure rules moved out of them and turned this loop red for having
+  # nothing to run.
+  compgen -G "$package/test/*_test.dart" > /dev/null || continue
   # Plain Dart, and it is the point of that package that it needs no Flutter.
   if [ "$name" = "flutter3d_physics" ]; then
     step "test $name" in_dir "$package" dart test
@@ -113,7 +126,7 @@ for example in packages/*/example/; do
 done
 
 for app in apps/*/; do
-  [ -d "$app/test" ] || continue
+  compgen -G "$app/test/*_test.dart" > /dev/null || continue
   step "test $(basename "$app")" in_dir "$app" flutter test
 done
 

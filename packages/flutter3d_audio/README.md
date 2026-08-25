@@ -62,3 +62,10 @@ updates that voice rather than restarting it.
 `SilentBackend` records every call and makes no sound, so the whole mix is
 testable without an audio device — and it is what a headless build or a player
 who has turned sound off should use, rather than a branch at every call site.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

@@ -12,7 +12,7 @@
 /// This file used to mount the platformer's HUD, which meant this package —
 /// the one whose pubspec says in as many words that the dependency runs the
 /// other way — dev-depended on a genre package *and on an application*, and
-/// imported `package:platformer/src/hud.dart`, another package's `lib/src`.
+/// imported `package:flutter3d_demo_platformer/src/hud.dart`, another package's `lib/src`.
 /// Three rules at once, in two lines, under a comment saying it was not so.
 library;
 

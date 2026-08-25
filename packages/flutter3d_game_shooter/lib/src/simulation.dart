@@ -51,6 +51,7 @@ import 'combat/weapon.dart';
 import 'combat/weapon_behaviour.dart';
 import 'player.dart';
 import 'secret.dart';
+import 'step_phases.dart';
 
 /// Whether the game is being played, lost, or finished.
 ///
@@ -86,7 +87,7 @@ final class GameSimulation {
     this.shot,
     this.dynamics,
     this.levelNext,
-    this.random,
+    required this.random,
     this.zones = const HitZones(),
   });
 
@@ -241,15 +242,29 @@ final class GameSimulation {
     return mine ?? theirs;
   }
 
-  /// The generator every roll in this simulation comes out of, if the caller
-  /// gave one.
+  /// The generator every roll in this simulation comes out of.
   ///
-  /// Optional, and the consequence of leaving it out is stated rather than
-  /// hidden: a snapshot then restores everything except *where the dice were*,
-  /// so two worlds loaded from it agree until the first flinch roll and then
-  /// drift. Pass the same instance to `MonsterSystem` and `Hitscan` — it is one
-  /// object shared, not one each.
-  final GameRandom? random;
+  /// **It was optional, and the consequence was stated rather than hidden —
+  /// which did not stop the shipped game from taking it.** `apps/flutter3d_demo_dungeon` built
+  /// its world without one, so `save()` wrote no dice at all and every restored
+  /// crypt diverged from the one that was saved at the first flinch roll. A
+  /// documented trap is still a trap; what makes this one avoidable is that
+  /// there is now no way to leave it out.
+  ///
+  /// Pass the same instance to [ActorSystem] and [Hitscan] — it is one object
+  /// shared, not one each. Two generators are two sequences, and a snapshot
+  /// records one of them.
+  final GameRandom random;
+
+  /// Rules this game adds to the step, which this package never heard of.
+  ///
+  /// **The plugin boundary for behaviour.** A game built on this genre gets a
+  /// curse that ticks, a score that decays, a hazard nobody here imagined —
+  /// without forking [step]. The phases it can hang them off are [ShooterPhases]
+  /// plus the two every genre has; each is announced below at the point its name
+  /// claims, and the order the announcements happen in is the order documented
+  /// there and here, which is to say it is part of the contract.
+  final StepSystems systems = StepSystems();
 
   final Vector3 _wish = Vector3.zero();
   final Vector3 _eye = Vector3.zero();
@@ -268,6 +283,7 @@ final class GameSimulation {
     // [ActorSystem.beginStep].
     this.actors?.beginStep();
     _countTheLevel();
+    systems.run(StepPhase.begin, dt);
 
     final playing = _state == GameState.playing;
 
@@ -305,6 +321,7 @@ final class GameSimulation {
     }
 
     _world.settle();
+    systems.run(ShooterPhases.afterPlayer, dt);
 
     final doors = mechanisms;
     if (doors != null) {
@@ -316,6 +333,9 @@ final class GameSimulation {
       _readExits(doors);
       _countSecrets(doors);
     }
+    // Announced whether or not this level has mechanisms: a phase that exists
+    // only when the level happens to have a door is a phase nobody can rely on.
+    systems.run(ShooterPhases.afterWorld, dt);
 
     player.inventory.step(dt);
     if (playing) _weapon(dt);
@@ -332,6 +352,7 @@ final class GameSimulation {
         actors.hear(firedFrom, radius: fired.loudness);
       }
     }
+    systems.run(ShooterPhases.afterWeapons, dt);
 
     if (actors != null && player.isAlive) {
       player.eye(_eye);
@@ -341,6 +362,7 @@ final class GameSimulation {
       // cleared at the top of the next one.
       if (actors.died.isNotEmpty) tally.add(kills, actors.died.length);
     }
+    systems.run(ShooterPhases.afterActors, dt);
 
     // After the weapon, so a rocket fired this step is not moved until the
     // next one — otherwise it starts the game already a step down the corridor.
@@ -364,6 +386,9 @@ final class GameSimulation {
     if (_state == GameState.playing && !player.isAlive) {
       _state = GameState.dead;
     }
+    // Last, after the state is resolved, so a system reading `state` reads this
+    // step's answer rather than the previous one's.
+    systems.run(StepPhase.end, dt);
   }
 
   void _use(MechanismWorld mechanisms) {
@@ -472,7 +497,7 @@ final class GameSimulation {
         'state': _state.name,
         'exitNext': _exitNext,
         'player': player.save(),
-        if (random != null) 'random': random!.state,
+        'random': random.state,
         // Not a line per system any more, for the one system that has moved:
         // `EcsWorld` writes every component on every entity and refuses to
         // write one nobody registered. The hand-written lines above are what
@@ -492,7 +517,7 @@ final class GameSimulation {
     if (player is Map) this.player.restore(player.cast<String, Object?>());
 
     final seed = from['random'];
-    if (seed is num && random != null) random!.state = seed.toInt();
+    if (seed is num) random.state = seed.toInt();
 
     final entities = this.entities;
     final saved = from['entities'];

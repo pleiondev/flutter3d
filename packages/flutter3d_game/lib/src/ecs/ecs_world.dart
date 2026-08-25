@@ -26,35 +26,8 @@
 /// hear about it is while writing the save.
 library;
 
+import 'component_store.dart';
 import 'entity.dart';
-
-/// One component type: where its values live and how they are written down.
-final class _Store {
-  _Store();
-
-  /// Entity index to component. The generation is checked against the world's
-  /// table rather than stored here, so a despawned entity's leftovers are
-  /// unreachable even before they are cleaned up.
-  final Map<int, Object> values = <int, Object>{};
-
-  String? name;
-  Object? Function(Object value)? encode;
-
-  /// Builds the component from data. For components that are values.
-  ///
-  /// May answer null: see [register].
-  Object? Function(Object? data)? decode;
-
-  /// Writes data back into the component that is already there. For components
-  /// that own something live — a body in a collision world, a brain that is
-  /// code as much as data.
-  void Function(Object value, Object? data)? restoreInPlace;
-
-  /// Why this type is deliberately not saved, when it is not.
-  String? excludedBecause;
-
-  bool get isRegistered => name != null || excludedBecause != null;
-}
 
 final class EcsWorld {
   final List<int> _generations = <int>[];
@@ -67,7 +40,7 @@ final class EcsWorld {
   /// is reused next is the same on two runs of the same game — which matters
   /// for a snapshot that has to compare byte for byte.
   final Set<int> _free = <int>{};
-  final Map<Type, _Store> _stores = <Type, _Store>{};
+  final Map<Type, ComponentStore> _stores = <Type, ComponentStore>{};
   final Map<String, Type> _byName = <String, Type>{};
 
   int _live = 0;
@@ -337,6 +310,6 @@ final class EcsWorld {
     }
   }
 
-  _Store _storeOf<T extends Object>() =>
-      _stores.putIfAbsent(T, () => _Store());
+  ComponentStore _storeOf<T extends Object>() =>
+      _stores.putIfAbsent(T, () => ComponentStore());
 }

@@ -1,9 +1,16 @@
 /// WebGL2 as an implementation of [GraphicsDevice].
 ///
 /// The second backend, and therefore the first real test of whether
-/// `flutter3d_graphics` is a seam or a description of Impeller wearing neutral
+/// `flutter3d_hardware` is a seam or a description of Impeller wearing neutral
 /// names. Where the two models differ the difference is written down here, at
 /// the line where it bites.
+///
+/// Split across a few files by cohesive concern, all re-exported from here so
+/// the public surface is unchanged: [WebGlTexture], [WebGlProgram],
+/// [WebGlAttribute] and [WebGlBlock] are the value types a handle carries
+/// (`webgl_types.dart`); persistent texture/buffer creation and the teardown
+/// that undoes it live in `webgl_resources.dart`; [WebGlEncoder] — one pass,
+/// recorded straight into the context — is `webgl_encoder.dart`.
 library;
 
 import 'dart:js_interop';
@@ -11,104 +18,47 @@ import 'dart:typed_data';
 import 'dart:ui_web' as ui_web;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
-import 'webgl_formats.dart';
+import 'webgl_encoder.dart';
+import 'webgl_framebuffer.dart';
+import 'webgl_resources.dart';
 import 'webgl_shaders.dart';
+import 'webgl_types.dart';
 
-/// What a [TextureHandle] carries on this backend.
-///
-/// Either a texture or a renderbuffer: WebGL2 cannot sample a multisampled
-/// attachment, so a multisampled target is a renderbuffer and is resolved by
-/// blitting. `deviceTransient` — Impeller's tile memory — has no equivalent and
-/// becomes an ordinary renderbuffer, which is the closest honest thing: not
-/// sampleable, attachment only.
-final class WebGlTexture {
-  WebGlTexture({
-    this.texture,
-    this.renderbuffer,
-    this.target = web.WebGLRenderingContext.TEXTURE_2D,
-  });
-
-  final web.WebGLTexture? texture;
-  final web.WebGLRenderbuffer? renderbuffer;
-
-  /// What this is bound as: `TEXTURE_2D`, or `TEXTURE_CUBE_MAP` for a cube.
-  ///
-  /// Carried rather than assumed at each call site. Every `bindTexture`,
-  /// `texParameteri` and upload in this file used to name `TEXTURE_2D`
-  /// literally, and a cube bound as a 2D texture is not an error — it is a
-  /// different texture object, so the draw samples nothing and shows black.
-  final int target;
-
-  bool get isSampleable => texture != null;
-}
-
-/// A linked program plus what reflection told us about it.
-final class WebGlProgram {
-  WebGlProgram(this.program, this.attributes, this.blocks, this.samplers,
-      {this.layout});
-
-  final web.WebGLProgram program;
-
-  /// What the pipeline was built with, or null to keep guessing from the
-  /// shader. See [WebGlDevice.createPipeline] and `_describeVertices`.
-  final VertexLayoutSpec? layout;
-
-  /// Vertex attributes in location order, with their float component counts.
-  ///
-  /// **This is the gap the HAL inherited from flutter_gpu, closed here.**
-  /// `PassEncoder.bindVertexBuffer` hands over a buffer and a vertex count and
-  /// nothing else: flutter_gpu takes the layout from the order of `in`
-  /// declarations in the vertex shader, so the HAL never had to carry one.
-  /// WebGL2 will not infer it — every attribute needs an explicit
-  /// `vertexAttribPointer`.
-  ///
-  /// It is reconstructible without changing the contract, because the same
-  /// thing that defines the layout on flutter_gpu defines it here: the shader.
-  /// Attributes are read back by location, each contributes its component
-  /// count, and the vertex is their sum interleaved in that order — which is
-  /// exactly the convention `VertexLayout` in the engine already documents.
-  /// So the seam survives, but only because both backends agree to take the
-  /// layout from the shader. A backend that wanted an explicit descriptor
-  /// would need the HAL to grow one.
-  final List<WebGlAttribute> attributes;
-
-  /// Uniform block name to its index and size.
-  final Map<String, WebGlBlock> blocks;
-
-  /// Sampler uniform name to its texture unit.
-  final Map<String, int> samplers;
-
-  int get vertexFloats {
-    var total = 0;
-    for (final a in attributes) {
-      total += a.componentCount;
-    }
-    return total;
-  }
-}
-
-final class WebGlAttribute {
-  const WebGlAttribute(this.location, this.componentCount);
-  final int location;
-  final int componentCount;
-}
-
-final class WebGlBlock {
-  const WebGlBlock(this.index, this.sizeInBytes, this.offsets);
-  final int index;
-  final int sizeInBytes;
-
-  /// Member name to byte offset, as std140 laid it out. Reflected rather than
-  /// computed: the spec's packing rules are the driver's to apply.
-  final Map<String, int> offsets;
-}
+export 'webgl_encoder.dart';
+export 'webgl_types.dart';
 
 /// WebGL2 as a [GraphicsDevice].
 final class WebGlDevice implements GraphicsDevice {
   WebGlDevice._(this._gl, this._canvas, this._library);
+
+  /// Vertex attribute locations currently switched on in this context.
+  ///
+  /// **Context state, not pass state, and that distinction is the whole bug.**
+  /// `enableVertexAttribArray` acts on the context — on the default vertex
+  /// array object — so it outlives the encoder that called it, outlives the
+  /// pass, and outlives the frame. An encoder that tracked its own would put
+  /// back only what it had switched on itself, which is exactly nothing when
+  /// the next pass is a new encoder.
+  ///
+  /// The sky is what found it. Its vertex stage takes eight attributes against
+  /// a mesh's five and a post stage's none, so after the sky pass ended,
+  /// locations 5, 6 and 7 stayed on with no buffer under them — and in WebGL2 a
+  /// draw with an enabled array and no bound buffer is `INVALID_OPERATION`,
+  /// dropped with nothing logged. The composite never landed and the frame came
+  /// back the clear colour. Not a scene missing its sky: black.
+  final Set<int> enabledAttributeLocations = <int>{};
+
+  /// Vertex attribute locations currently carrying a non-zero divisor.
+  ///
+  /// Context state for the same reason as the set above, and it leaked the same
+  /// way: `vertexAttribDivisor` belongs to the location, survives the draw, the
+  /// buffer, the program and the pass, and an encoder that tracked its own put
+  /// back only what it had set — which is nothing, once the next pass is a new
+  /// encoder.
+  final Set<int> instancedAttributeLocations = <int>{};
 
   /// Builds a device over a canvas of [width] by [height].
   ///
@@ -181,6 +131,49 @@ final class WebGlDevice implements GraphicsDevice {
   final web.HTMLCanvasElement _canvas;
   final WebGlShaderLibrary _library;
 
+  /// Every persistent texture and renderbuffer this device has handed out,
+  /// tracked so [dispose] has something to delete.
+  ///
+  /// **Persistent, not transient.** The buffers a pass makes for `submit`-time
+  /// geometry are already deleted at the end of the pass that made them — see
+  /// [WebGlEncoder.submit] — because their lifetime is the pass. A texture from
+  /// [createTexture] or [createCubeTextureFromPixels] has no such moment: WebGL2
+  /// objects are explicitly deletable, unlike flutter_gpu's `Texture`, so
+  /// nothing frees these unless something tracks them and calls
+  /// `gl.deleteTexture`/`gl.deleteRenderbuffer` itself. The tracking and the
+  /// deletion themselves are `webgl_resources.dart`'s; these lists are what it
+  /// is handed.
+  final List<web.WebGLTexture> _persistentTextures = <web.WebGLTexture>[];
+  final List<web.WebGLRenderbuffer> _persistentRenderbuffers =
+      <web.WebGLRenderbuffer>[];
+
+  /// Every geometry buffer [uploadGeometry] has handed out, for the same
+  /// reason as [_persistentTextures].
+  final List<web.WebGLBuffer> _persistentBuffers = <web.WebGLBuffer>[];
+
+  /// Whether [dispose] has already run. Guards against deleting the same GL
+  /// object twice, which is harmless by the WebGL spec but worth refusing
+  /// anyway: a second [dispose] call is a caller mistake worth surfacing rather
+  /// than one this device quietly absorbs.
+  bool _disposed = false;
+
+  /// The count of persistent GL objects currently tracked, for tests. Falls to
+  /// zero after [dispose].
+  int get debugTrackedResourceCount =>
+      _persistentTextures.length +
+      _persistentRenderbuffers.length +
+      _persistentBuffers.length;
+
+  @override
+  void dispose() {
+    if (_disposed) {
+      throw StateError('WebGlDevice.dispose() was already called');
+    }
+    _disposed = true;
+    webglDisposePersistentResources(
+        _gl, _persistentTextures, _persistentRenderbuffers, _persistentBuffers);
+  }
+
   /// Whether half-float textures may be filtered linearly here. Diagnostic:
   /// see the note in [create].
   bool _floatLinear = false;
@@ -247,54 +240,10 @@ final class WebGlDevice implements GraphicsDevice {
     required int size,
     required TextureFormat format,
     required List<ByteData> faces,
-  }) {
-    if (faces.length != 6) return null;
-    for (final face in faces) {
-      // RGBA8, four bytes a texel, as everywhere the CPU uploads.
-      if (face.lengthInBytes != size * size * 4) return null;
-    }
-
-    final texture = _gl.createTexture();
-    _gl.bindTexture(web.WebGLRenderingContext.TEXTURE_CUBE_MAP, texture);
-    _gl.texStorage2D(
-      web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
-      1,
-      textureFormatToGl(format),
-      size,
-      size,
-    );
-
-    // The six face targets are **consecutive constants** starting at
-    // `TEXTURE_CUBE_MAP_POSITIVE_X`, in the order +X, −X, +Y, −Y, +Z, −Z — the
-    // same order the interface documents and the same order Impeller's slices
-    // take. That the two agree is what the conformance check is for; that they
-    // are consecutive is what makes this a loop rather than a table.
-    for (var i = 0; i < 6; i++) {
-      final bytes = faces[i];
-      _gl.texSubImage2D(
-        web.WebGLRenderingContext.TEXTURE_CUBE_MAP_POSITIVE_X + i,
-        0,
-        0,
-        0,
-        size.toJS,
-        size.toJS,
-        web.WebGLRenderingContext.RGBA.toJS,
-        web.WebGLRenderingContext.UNSIGNED_BYTE,
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
-      );
-    }
-
-    return TextureHandle(
-      backend: WebGlTexture(
-        texture: texture,
-        target: web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
-      ),
-      width: size,
-      height: size,
-      format: format,
-      type: TextureType.textureCube,
-    );
-  }
+    List<List<ByteData>>? mipLevels,
+  }) =>
+      webglCreateCubeTextureFromPixels(_gl, _persistentTextures,
+          size: size, format: format, faces: faces, mipLevels: mipLevels);
 
   @override
   PipelineHandle createPipeline(
@@ -305,72 +254,14 @@ final class WebGlDevice implements GraphicsDevice {
       _library.link(vertex, fragment, layout: layout);
 
   @override
-  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) {
-    final buffer = _gl.createBuffer();
-    // **WebGL binds a buffer to its target for life.** One bound to
-    // ARRAY_BUFFER can never afterwards be bound to ELEMENT_ARRAY_BUFFER, and
-    // the attempt is an INVALID_OPERATION: the draw is dropped and the frame
-    // comes back the clear colour with nothing logged.
-    //
-    // There is no neutral target to park it on either — COPY_WRITE_BUFFER
-    // commits it just as ARRAY_BUFFER does, which is what the harness found the
-    // hard way. So [usage] has to be known here, and that is why the contract
-    // carries it.
-    final target = switch (usage) {
-      GeometryUsage.vertices => web.WebGLRenderingContext.ARRAY_BUFFER,
-      GeometryUsage.indices => web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
-    };
-    _gl.bindBuffer(target, buffer);
-    _gl.bufferData(
-      target,
-      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
-      web.WebGLRenderingContext.STATIC_DRAW,
-    );
-    return GeometryBuffer(
-      backend: buffer!,
-      offsetInBytes: 0,
-      lengthInBytes: bytes.lengthInBytes,
-    );
-  }
+  GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) =>
+      webglUploadGeometry(_gl, _persistentBuffers, bytes, usage);
 
   @override
-  TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1}) {
-    final internal = textureFormatToGl(spec.format);
-    if (spec.sampleCount > 1 || spec.storageMode == StorageMode.deviceTransient) {
-      // Multisampled or attachment-only: a renderbuffer. Cannot be sampled,
-      // which is what `deviceTransient` already promises on the other backend.
-      final buffer = _gl.createRenderbuffer();
-      _gl.bindRenderbuffer(web.WebGLRenderingContext.RENDERBUFFER, buffer);
-      if (spec.sampleCount > 1) {
-        _gl.renderbufferStorageMultisample(
-          web.WebGLRenderingContext.RENDERBUFFER,
-          spec.sampleCount,
-          internal,
-          spec.width,
-          spec.height,
-        );
-      } else {
-        _gl.renderbufferStorage(
-          web.WebGLRenderingContext.RENDERBUFFER,
-          internal,
-          spec.width,
-          spec.height,
-        );
-      }
-      return _handle(WebGlTexture(renderbuffer: buffer), spec);
-    }
-
-    final texture = _gl.createTexture();
-    _gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, texture);
-    _gl.texStorage2D(
-      web.WebGLRenderingContext.TEXTURE_2D,
-      levels,
-      internal,
-      spec.width,
-      spec.height,
-    );
-    return _handle(WebGlTexture(texture: texture), spec);
-  }
+  TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1}) =>
+      webglCreateTexture(
+          _gl, _persistentTextures, _persistentRenderbuffers, spec,
+          levels: levels);
 
   @override
   TextureHandle? createTextureFromPixels({
@@ -379,59 +270,17 @@ final class WebGlDevice implements GraphicsDevice {
     required TextureFormat format,
     required ByteData pixels,
     List<ByteData>? mipLevels,
-  }) {
-    // RGBA8 is the only format the engine uploads from the CPU, and four bytes
-    // a texel is the whole of the size question here — WebGL has no padding to
-    // ask about, unlike Impeller's base mip size.
-    if (pixels.lengthInBytes != width * height * 4) return null;
-
-    // **Allocated with the whole chain up front.** `texStorage2D` fixes the
-    // number of levels for the texture's life, and a level written into a
-    // texture allocated for one is an INVALID_OPERATION — dropped, with the
-    // frame coming back looking merely unfiltered. So the count is decided
-    // here and the levels are filled afterwards.
-    final levels = mipLevels == null ? 1 : mipLevels.length + 1;
-    final handle = createTexture(RenderTargetSpec(
-      width: width,
-      height: height,
-      format: format,
-    ), levels: levels);
-    final backend = handle.backend as WebGlTexture;
-    _gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, backend.texture);
-
-    void upload(int level, int w, int h, ByteData bytes) {
-      _gl.texSubImage2D(
-        web.WebGLRenderingContext.TEXTURE_2D,
-        level,
-        0,
-        0,
-        w.toJS,
-        h.toJS,
-        web.WebGLRenderingContext.RGBA.toJS,
-        web.WebGLRenderingContext.UNSIGNED_BYTE,
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
+  }) =>
+      webglCreateTextureFromPixels(
+        _gl,
+        _persistentTextures,
+        _persistentRenderbuffers,
+        width: width,
+        height: height,
+        format: format,
+        pixels: pixels,
+        mipLevels: mipLevels,
       );
-    }
-
-    upload(0, width, height, pixels);
-    if (mipLevels != null) {
-      var w = width;
-      var h = height;
-      for (var i = 0; i < mipLevels.length; i++) {
-        w = w > 1 ? w >> 1 : 1;
-        h = h > 1 ? h >> 1 : 1;
-        upload(i + 1, w, h, mipLevels[i]);
-      }
-      // Without this the texture is incomplete for any minifying filter and
-      // samples as black — the same failure mode as the float-linear extension,
-      // and just as silent. `glGenerateMipmap` is deliberately not called: the
-      // levels are the engine's, identical on three backends, and generating a
-      // second set here would put this backend one filter away from the others.
-      _gl.texParameteri(web.WebGLRenderingContext.TEXTURE_2D,
-          web.WebGL2RenderingContext.TEXTURE_MAX_LEVEL, mipLevels.length);
-    }
-    return handle;
-  }
 
   /// Nothing to rotate.
   ///
@@ -542,7 +391,7 @@ final class WebGlDevice implements GraphicsDevice {
   void _blitToCanvas(TextureHandle frame) {
     final source = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, source);
-    _attach(web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+    attachToFramebuffer(_gl, web.WebGL2RenderingContext.READ_FRAMEBUFFER,
         web.WebGLRenderingContext.COLOR_ATTACHMENT0, frame);
     final status =
         _gl.checkFramebufferStatus(web.WebGL2RenderingContext.READ_FRAMEBUFFER);
@@ -559,18 +408,21 @@ final class WebGlDevice implements GraphicsDevice {
     // call.
     while (_gl.getError() != 0) {}
 
-    // Flipped, by reading the source rectangle bottom to top. GL puts the
-    // origin of a framebuffer at the bottom left and the engine's frames are
-    // row-major from the top, so a straight blit presents the picture upside
-    // down — which readPixels on this backend already corrects for, and this
-    // path did not.
+    // **Not flipped**, and it used to be. The canvas wants row zero at the
+    // bottom and that is now exactly where a finished frame keeps it: the
+    // full-screen triangle is wound for this backend's origin, so the last pass
+    // in the chain leaves the picture the way GL stores one rather than the way
+    // Metal does. See `Renderer._fullscreenTriangle` for why that changed and
+    // what it fixed.
     //
     // Invisible to every pixel assertion written so far, because "the centre is
     // brighter than the corner" and "red dominates" are both true of a mirrored
     // frame. It took a person looking at a sphere and saying the light was
-    // coming from below.
+    // coming from below. Which is also why [readPixels] flips and this does
+    // not — the two are one decision made once, and splitting them is how a
+    // frame comes back right and presents upside down.
     _gl.blitFramebuffer(
-      0, frame.height, frame.width, 0, //
+      0, 0, frame.width, frame.height, //
       0, 0, _canvas.width, _canvas.height, //
       web.WebGLRenderingContext.COLOR_BUFFER_BIT,
       web.WebGLRenderingContext.NEAREST,
@@ -586,7 +438,7 @@ final class WebGlDevice implements GraphicsDevice {
 
     final framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, framebuffer);
-    _attach(web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+    attachToFramebuffer(_gl, web.WebGL2RenderingContext.READ_FRAMEBUFFER,
         web.WebGLRenderingContext.COLOR_ATTACHMENT0, texture);
 
     final pixels = Uint8List(texture.width * texture.height * 4);
@@ -602,32 +454,37 @@ final class WebGlDevice implements GraphicsDevice {
     );
     _gl.deleteFramebuffer(framebuffer);
 
-    // Not flipped, and this is the subtle one. GL's own origin is lower-left,
-    // so the reflex is to flip — but the engine renders with clip space set up
-    // for Impeller, whose framebuffer origin is upper-left, so a frame it drew
-    // already has row 0 at the top of the picture. Flipping would turn a
-    // correct frame upside down.
+    // **Flipped for a frame, not for an upload**, and this is the subtle one.
+    // `glReadPixels` hands back rows from the bottom of the framebuffer up, and
+    // every caller here — a golden, a parity fixture, a comparison against
+    // another backend — reads row zero as the top of the picture. Since the
+    // full-screen triangle started being wound for this backend's origin, a
+    // finished frame is stored the way GL stores one, so its rows arrive in the
+    // opposite order to the one the engine states its images in.
     //
-    // The presenting blit does flip, and for the same reason from the other
-    // side: the canvas displays row 0 at the *bottom*, so getting a top-first
-    // image onto it means reading the source rectangle in reverse.
+    // An uploaded texture is not: `texImage2D` puts the first row it was given
+    // at texture coordinate zero, which is what a glTF UV expects and what
+    // `WebGlTexture.rendered` is carried to distinguish. One flip for both
+    // would trade a mirrored frame for a mirrored texture.
+    //
+    // The presenting blit does *not* flip, and for the same reason from the
+    // other side: the canvas displays row zero at the bottom, which is already
+    // where the frame keeps it. The two are one decision, and the way to check
+    // it is to make sure both agree — a frame that reads back correctly and
+    // presents upside down is this pair pulled apart.
     //
     // Established by measurement, not by reasoning about conventions, which is
     // the only way anybody gets this right: put the light above and check which
     // half of the returned image is lit.
-    return ByteData.sublistView(js.toDart);
-  }
-
-
-  void _attach(int target, int attachment, TextureHandle handle) {
-    final backend = handle.backend as WebGlTexture;
-    if (backend.texture != null) {
-      _gl.framebufferTexture2D(target, attachment,
-          web.WebGLRenderingContext.TEXTURE_2D, backend.texture, 0);
-    } else {
-      _gl.framebufferRenderbuffer(target, attachment,
-          web.WebGLRenderingContext.RENDERBUFFER, backend.renderbuffer);
+    final rows = Uint8List.fromList(js.toDart);
+    if (!backend.rendered) return ByteData.sublistView(rows);
+    final stride = texture.width * 4;
+    final flipped = Uint8List(rows.length);
+    for (var y = 0; y < texture.height; y++) {
+      final from = (texture.height - 1 - y) * stride;
+      flipped.setRange(y * stride, y * stride + stride, rows, from);
     }
+    return ByteData.sublistView(flipped);
   }
 
   /// The GL error queue, drained, or null when it was empty.
@@ -671,529 +528,5 @@ final class WebGlDevice implements GraphicsDevice {
         'INCOMPLETE_MULTISAMPLE',
       _ => 'status $status',
     };
-  }
-
-  TextureHandle _handle(WebGlTexture backend, RenderTargetSpec spec) =>
-      TextureHandle(
-        backend: backend,
-        width: spec.width,
-        height: spec.height,
-        format: spec.format,
-        sampleCount: spec.sampleCount,
-        storageMode: spec.storageMode,
-      );
-}
-
-/// One pass, recorded straight into the context.
-///
-/// **There is no command buffer here, and that is the sharpest structural
-/// difference from flutter_gpu.** Impeller records into a buffer and executes
-/// on `submit`, so the engine orders its passes by submission. WebGL issues
-/// every call as it is made, so ordering is the order the engine calls in —
-/// which is the same order, arrived at differently. [submit] therefore only
-/// tears the framebuffer down.
-///
-/// The HAL survives this because it never promised buffering; it promised that
-/// passes execute in submission order, and both honour that.
-final class WebGlEncoder implements CommandEncoder {
-  WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
-      : _targetHeight = descriptor.colors.isNotEmpty
-            ? descriptor.colors.first.texture.height
-            : (descriptor.depth?.texture.height ?? 0) {
-    _framebuffer = _gl.createFramebuffer();
-    _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
-
-    final buffers = <int>[];
-    for (var i = 0; i < descriptor.colors.length; i++) {
-      final color = descriptor.colors[i];
-      final attachment = web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i;
-      _device._attach(
-          web.WebGLRenderingContext.FRAMEBUFFER, attachment, color.texture);
-      buffers.add(attachment);
-      _resolves.add(color.resolveTexture);
-      _sources.add(color.texture);
-    }
-    _gl.drawBuffers(buffers.map((int b) => b.toJS).toList().toJS);
-
-    // A clear covers the whole attachment, whatever the scissor says. That is
-    // the contract the HAL states and the one this engine relies on — the
-    // shadow atlas clears once and then draws tile by tile — and GL does not
-    // give it for free: clearBufferfv respects SCISSOR_TEST, which this backend
-    // leaves enabled, so the clear covered whichever tile the previous pass had
-    // set and left the rest of the atlas as it was allocated.
-    //
-    // The symptom was one white row out of four, and shadows that read as
-    // absent because the lookup landed in memory nobody had written.
-    _gl.disable(web.WebGLRenderingContext.SCISSOR_TEST);
-
-    final depth = descriptor.depth;
-    if (depth != null) {
-      _device._attach(web.WebGLRenderingContext.FRAMEBUFFER,
-          web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT, depth.texture);
-      // Depth must be writable for a clear to land, whatever the pass sets
-      // afterwards.
-      _gl.depthMask(true);
-      _gl.clearDepth(depth.clearValue);
-      _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
-    }
-
-    // Checked, not assumed. An incomplete framebuffer is not an error in
-    // OpenGL: every draw against it is silently discarded, which is a whole
-    // frame of work producing nothing and no way to tell from inside the
-    // engine. The status word is worth more than the discovery.
-    final status = _device.debugFramebufferStatus();
-    if (status != 'complete') {
-      throw StateError(
-        'render pass target is not drawable: $status. '
-        '${descriptor.colors.length} colour attachment(s)'
-        '${descriptor.depth != null ? ' and a depth attachment' : ''}. '
-        'A format the engine renders to may not be colour-renderable here — '
-        'RGBA16F needs EXT_color_buffer_float.',
-      );
-    }
-
-    for (var i = 0; i < descriptor.colors.length; i++) {
-      final color = descriptor.colors[i];
-      if (color.loadAction != LoadAction.clear) continue;
-      final value = color.clearValue;
-      // Per attachment, which is what `clearBufferfv` is for. A plain `clear`
-      // would cover every attachment with one colour — and, as this engine
-      // learned the hard way on the shadow atlas, a clear ignores the viewport
-      // entirely on both backends.
-      _gl.clearBufferfv(
-        web.WebGL2RenderingContext.COLOR,
-        i,
-        Float32List.fromList(<double>[
-          value?.x ?? 0.0,
-          value?.y ?? 0.0,
-          value?.z ?? 0.0,
-          value?.w ?? 0.0,
-        ]).toJS,
-      );
-    }
-
-    // Back on, because everything after this is a draw and the engine sets a
-    // scissor per tile.
-    _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
-
-    _gl.enable(web.WebGLRenderingContext.DEPTH_TEST);
-    _gl.enable(web.WebGLRenderingContext.SCISSOR_TEST);
-  }
-
-  final WebGlDevice _device;
-  final web.WebGL2RenderingContext _gl;
-  late final web.WebGLFramebuffer? _framebuffer;
-
-  /// The attachment's height, for turning top-left rectangles into GL's
-  /// bottom-left ones. See [_flipY].
-  final int _targetHeight;
-
-  final List<TextureHandle?> _resolves = <TextureHandle?>[];
-  final List<TextureHandle> _sources = <TextureHandle>[];
-
-  WebGlProgram? _program;
-  int _primitive = web.WebGLRenderingContext.TRIANGLES;
-  IndexType _indexType = IndexType.int32;
-  int _indexCount = 0;
-  int _nextTextureUnit = 0;
-  int _nextBlockBinding = 0;
-
-  @override
-  void setViewport(ScreenRect rect) =>
-      _gl.viewport(rect.x, _flipY(rect), rect.width, rect.height);
-
-  @override
-  void setScissor(ScreenRect rect) =>
-      _gl.scissor(rect.x, _flipY(rect), rect.width, rect.height);
-
-  /// A rectangle's y measured from the bottom, which is where GL measures.
-  ///
-  /// The engine states rectangles from the top left, matching where row zero of
-  /// its render targets is. GL puts the origin of a framebuffer at the bottom
-  /// left, so a rectangle handed over unchanged lands mirrored about the
-  /// target's middle.
-  ///
-  /// Invisible for a viewport covering the whole target, which is every pass in
-  /// the frame except one — and that one is the point-light atlas, six tiles
-  /// across and a row per light, drawn a tile at a time. The occupied row went
-  /// to the bottom of the texture while the lookup read the top, so the shadows
-  /// were absent rather than wrong, and the atlas composited to a picture with
-  /// content in the wrong half.
-  int _flipY(ScreenRect rect) => _targetHeight - rect.y - rect.height;
-
-  @override
-  void setPrimitiveType(PrimitiveType type) =>
-      _primitive = primitiveTypeToGl(type);
-
-  /// Silently ignored for [PolygonMode.fill] and **refused** for
-  /// [PolygonMode.line].
-  ///
-  /// ES has no `glPolygonMode`. Wireframe on this backend means drawing line
-  /// primitives from an index buffer built for them, which is the renderer's
-  /// decision and not a substitution a backend may make on its own. Throwing
-  /// says so; quietly filling would show a solid model to somebody who asked
-  /// for a wireframe and left them to wonder.
-  @override
-  void setPolygonMode(PolygonMode mode) {
-    if (canDrawPolygonMode(mode)) return;
-    throw UnsupportedError(
-      'WebGL2 cannot draw PolygonMode.line: OpenGL ES has no glPolygonMode. '
-      'Wireframe needs line primitives and an index buffer to match, which is '
-      'a decision for the renderer.',
-    );
-  }
-
-  @override
-  void setCullMode(CullMode mode) {
-    final face = cullModeToGl(mode);
-    if (face == null) {
-      _gl.disable(web.WebGLRenderingContext.CULL_FACE);
-      return;
-    }
-    _gl.enable(web.WebGLRenderingContext.CULL_FACE);
-    _gl.cullFace(face);
-  }
-
-  @override
-  void setWindingOrder(WindingOrder order) =>
-      _gl.frontFace(windingOrderToGl(order));
-
-  @override
-  void setDepthWrite(bool enabled) => _gl.depthMask(enabled);
-
-  @override
-  void setDepthCompare(CompareFunction compare) =>
-      _gl.depthFunc(compareFunctionToGl(compare));
-
-  /// [attachment] is ignored, and that is a real limitation rather than an
-  /// oversight.
-  ///
-  /// Per-attachment blend state needs `EXT_draw_buffers_indexed`, which is an
-  /// optional WebGL2 extension. The engine uses the index exactly once — the
-  /// MRT probe switching blending off on attachment 1 — and it sets the same
-  /// state on both, so nothing it draws depends on them differing. If that ever
-  /// changes, this needs the extension and a capability query beside it.
-  @override
-  void setBlend(BlendState? state, {int attachment = 0}) {
-    if (state == null) {
-      _gl.disable(web.WebGLRenderingContext.BLEND);
-      return;
-    }
-    _gl.enable(web.WebGLRenderingContext.BLEND);
-    _gl.blendEquationSeparate(
-      blendOperationToGl(state.colorOperation),
-      blendOperationToGl(state.alphaOperation),
-    );
-    _gl.blendFuncSeparate(
-      blendFactorToGl(state.sourceColorFactor),
-      blendFactorToGl(state.destinationColorFactor),
-      blendFactorToGl(state.sourceAlphaFactor),
-      blendFactorToGl(state.destinationAlphaFactor),
-    );
-  }
-
-  @override
-  void bindPipeline(PipelineHandle pipeline) {
-    final program = pipeline.backend as WebGlProgram;
-    _program = program;
-    _gl.useProgram(program.program);
-  }
-
-  @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
-      {int slot = 0}) {
-    _gl.bindBuffer(web.WebGLRenderingContext.ARRAY_BUFFER,
-        buffer.backend as web.WebGLBuffer);
-    _describeVertices(slot);
-  }
-
-  @override
-  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) {
-    // Transient geometry: a buffer per call, orphaned when the frame ends. The
-    // flutter_gpu backend has a ring of bump allocators for this; here the
-    // driver owns the lifetime, so a fresh buffer is both correct and simpler.
-    final buffer = _gl.createBuffer();
-    _gl.bindBuffer(web.WebGLRenderingContext.ARRAY_BUFFER, buffer);
-    _gl.bufferData(
-      web.WebGLRenderingContext.ARRAY_BUFFER,
-      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
-      web.WebGLRenderingContext.STREAM_DRAW,
-    );
-    _transient.add(buffer);
-    _describeVertices(slot);
-  }
-
-  /// Points the attributes of one slot at the buffer that was just bound.
-  ///
-  /// Two paths, and the split is the point. **Without a layout this guesses
-  /// from the shader** — see [WebGlProgram.attributes] — which is what every
-  /// draw in this engine did before instancing and what keeps every existing
-  /// picture identical. **With a layout it stops guessing**, because a layout
-  /// is the only thing that can say which of two buffers steps per instance.
-  void _describeVertices(int slot) {
-    final program = _program;
-    if (program == null) {
-      throw StateError('bind a pipeline before binding vertices: the vertex '
-          'layout comes from the shader, so there is nothing to describe '
-          'against yet');
-    }
-
-    final layout = program.layout;
-    if (layout == null) {
-      if (slot != 0) {
-        throw StateError(
-          'slot $slot was bound on a pipeline built without a layout. Which '
-          'buffer an attribute comes from is exactly what a layout says, and '
-          'reflection cannot answer it — build the pipeline with a '
-          'VertexLayoutSpec.',
-        );
-      }
-      final stride = program.vertexFloats * 4;
-      var offset = 0;
-      for (final attribute in program.attributes) {
-        _gl.enableVertexAttribArray(attribute.location);
-        _gl.vertexAttribPointer(
-          attribute.location,
-          attribute.componentCount,
-          web.WebGLRenderingContext.FLOAT,
-          false,
-          stride,
-          offset,
-        );
-        offset += attribute.componentCount * 4;
-      }
-      return;
-    }
-
-    if (slot < 0 || slot >= layout.buffers.length) {
-      throw RangeError.range(slot, 0, layout.buffers.length - 1, 'slot',
-          'the pipeline\'s layout describes ${layout.buffers.length} buffers');
-    }
-    final buffer = layout.buffers[slot];
-    final divisor = buffer.stepMode == VertexStepMode.instance ? 1 : 0;
-    for (final attribute in buffer.attributes) {
-      final location =
-          _gl.getAttribLocation(program.program, attribute.name);
-      // Negative means the linker dropped it — an `in` the stage declares and
-      // never reads. Not an error: the same thing happens on Impeller, and a
-      // layout naming an attribute the shader optimised away is a layout that
-      // is merely more complete than it needs to be.
-      if (location < 0) continue;
-      _gl.enableVertexAttribArray(location);
-      _gl.vertexAttribPointer(
-        location,
-        attribute.format.componentCount,
-        web.WebGLRenderingContext.FLOAT,
-        false,
-        buffer.strideInBytes,
-        attribute.offsetInBytes,
-      );
-      _gl.vertexAttribDivisor(location, divisor);
-      // **Divisors are sticky per attribute location, not per buffer and not
-      // per draw.** Remembering which ones were set is what lets
-      // [clearBindings] put them back; without it the next non-instanced draw
-      // inherits a divisor of one and renders one instance's worth of
-      // geometry, with no GL error anywhere.
-      if (divisor != 0) _instancedLocations.add(location);
-    }
-  }
-
-  /// Attribute locations that currently carry a non-zero divisor.
-  final Set<int> _instancedLocations = <int>{};
-
-  @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
-    _gl.bindBuffer(web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
-        buffer.backend as web.WebGLBuffer);
-    _indexType = type;
-    _indexCount = indexCount;
-  }
-
-  @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
-    final buffer = _gl.createBuffer();
-    _gl.bindBuffer(web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, buffer);
-    _gl.bufferData(
-      web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
-      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
-      web.WebGLRenderingContext.STREAM_DRAW,
-    );
-    _transient.add(buffer);
-    _indexType = type;
-    _indexCount = indexCount;
-  }
-
-  final List<web.WebGLBuffer?> _transient = <web.WebGLBuffer?>[];
-  final List<web.WebGLBuffer?> _uniformBuffers = <web.WebGLBuffer?>[];
-
-  @override
-  bool bindUniformBlock(
-    ShaderHandle shader,
-    String blockName,
-    Map<String, Float32List> members,
-  ) {
-    final program = _program;
-    if (program == null) return false;
-    final block = program.blocks[blockName];
-    // False rather than throwing, exactly as the contract says: a block the
-    // compiler dropped because nothing read it is not an error.
-    if (block == null) return false;
-
-    final data = Float32List(block.sizeInBytes ~/ 4);
-    members.forEach((String name, Float32List values) {
-      final offset = block.offsets[name];
-      if (offset == null) {
-        // Loud, because silence here is indistinguishable from working. A
-        // member the caller wrote and the block does not have leaves zeros in
-        // its place, and zeros are a plausible value for most of them — a
-        // shadow strength of zero is a scene with no shadows and no error.
-        //
-        // Not the same as a *block* that is missing, which is an ordinary thing
-        // the contract allows: a compiler drops a whole block nothing reads.
-        // Having the block and not the member means the two ends disagree about
-        // its shape, and that is worth stopping for.
-        throw StateError(
-          'uniform block "$blockName" has no member "$name". It has: '
-          '${block.offsets.keys.join(', ')}. The engine and the shader '
-          'disagree about this block.',
-        );
-      }
-      if (offset ~/ 4 + values.length > data.length) {
-        throw StateError(
-          'uniform block "$blockName" member "$name" wants '
-          '${values.length} floats at offset ${offset ~/ 4}, past the block\'s '
-          '${data.length}. std140 pads array elements to sixteen bytes; a '
-          'tightly packed array of scalars will overrun exactly like this.',
-        );
-      }
-      data.setRange(offset ~/ 4, offset ~/ 4 + values.length, values);
-    });
-
-    final ubo = _gl.createBuffer();
-    _gl.bindBuffer(web.WebGL2RenderingContext.UNIFORM_BUFFER, ubo);
-    _gl.bufferData(web.WebGL2RenderingContext.UNIFORM_BUFFER, data.toJS,
-        web.WebGLRenderingContext.STREAM_DRAW);
-    final binding = _nextBlockBinding++;
-    _gl.uniformBlockBinding(program.program, block.index, binding);
-    _gl.bindBufferBase(
-        web.WebGL2RenderingContext.UNIFORM_BUFFER, binding, ubo);
-    _uniformBuffers.add(ubo);
-    return true;
-  }
-
-  @override
-  void bindTexture(
-    ShaderHandle shader,
-    String slot,
-    TextureHandle texture, {
-    SamplerOptions? sampler,
-  }) {
-    final program = _program;
-    if (program == null) return;
-    final location = program.samplers[slot];
-    if (location == null) return;
-
-    final backend = texture.backend as WebGlTexture;
-    assert(
-      backend.isSampleable,
-      'the "$slot" slot was handed a texture that is a renderbuffer — '
-      'multisampled or deviceTransient — which can only ever be an attachment',
-    );
-
-    final unit = _nextTextureUnit++;
-    _gl.activeTexture(web.WebGLRenderingContext.TEXTURE0 + unit);
-    _gl.bindTexture(backend.target, backend.texture);
-
-    final options = sampler ?? SamplerOptions.linearRepeat;
-    void set(int name, int value) =>
-        _gl.texParameteri(backend.target, name, value);
-    set(web.WebGLRenderingContext.TEXTURE_MIN_FILTER,
-        minMagFilterToGl(options.minFilter));
-    set(web.WebGLRenderingContext.TEXTURE_MAG_FILTER,
-        minMagFilterToGl(options.magFilter));
-    set(web.WebGLRenderingContext.TEXTURE_WRAP_S,
-        addressModeToGl(options.widthAddressMode));
-    set(web.WebGLRenderingContext.TEXTURE_WRAP_T,
-        addressModeToGl(options.heightAddressMode));
-
-    _gl.uniform1i(_gl.getUniformLocation(program.program, slot), unit);
-  }
-
-  /// Forgets bindings without touching rasteriser state, as the contract says.
-  ///
-  /// Texture units and uniform block bindings restart, which is what makes the
-  /// next thing drawn in this pass independent of what came before it.
-  @override
-  void clearBindings() {
-    _nextTextureUnit = 0;
-    _nextBlockBinding = 0;
-    _indexCount = 0;
-    // Divisors, before anything else forgets which ones were set. They are
-    // global per attribute location and survive both the draw and the buffer
-    // binding, so an instanced draw followed by an ordinary one would otherwise
-    // draw a single triangle's worth of a mesh and report nothing.
-    for (final location in _instancedLocations) {
-      _gl.vertexAttribDivisor(location, 0);
-    }
-    _instancedLocations.clear();
-    _gl.bindBuffer(web.WebGLRenderingContext.ARRAY_BUFFER, null);
-    _gl.bindBuffer(web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER, null);
-  }
-
-  @override
-  void draw({int instanceCount = 1}) {
-    if (instanceCount <= 0) return;
-    if (instanceCount == 1) {
-      // Not `drawElementsInstanced` with a count of one. They are specified to
-      // draw the same thing, but this path is every draw the engine has made
-      // until now, and a golden that moves because a non-instanced draw quietly
-      // became an instanced one would be a very expensive way to learn that a
-      // driver disagrees with the specification.
-      _gl.drawElements(_primitive, _indexCount, indexTypeToGl(_indexType), 0);
-    } else {
-      _gl.drawElementsInstanced(
-          _primitive, _indexCount, indexTypeToGl(_indexType), 0, instanceCount);
-    }
-    // A draw consumes the bindings that were set for it, in the sense that the
-    // next one rebinds from scratch. Unit counters reset so a pass with many
-    // draws does not run out of texture units.
-    _nextTextureUnit = 0;
-    _nextBlockBinding = 0;
-  }
-
-  @override
-  void submit() {
-    // Resolve any multisampled attachment into the texture that was named for
-    // it. On flutter_gpu this is `StoreAction.multisampleResolve` and the
-    // driver does it at pass end; here it is an explicit blit, which is the
-    // same operation said out loud.
-    for (var i = 0; i < _resolves.length; i++) {
-      final resolve = _resolves[i];
-      if (resolve == null) continue;
-      final source = _sources[i];
-      final target = _gl.createFramebuffer();
-      _gl.bindFramebuffer(web.WebGL2RenderingContext.DRAW_FRAMEBUFFER, target);
-      _device._attach(web.WebGL2RenderingContext.DRAW_FRAMEBUFFER,
-          web.WebGLRenderingContext.COLOR_ATTACHMENT0, resolve);
-      _gl.bindFramebuffer(
-          web.WebGL2RenderingContext.READ_FRAMEBUFFER, _framebuffer);
-      _gl.readBuffer(web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i);
-      _gl.blitFramebuffer(
-        0, 0, source.width, source.height, //
-        0, 0, resolve.width, resolve.height, //
-        web.WebGLRenderingContext.COLOR_BUFFER_BIT,
-        web.WebGLRenderingContext.NEAREST,
-      );
-      _gl.deleteFramebuffer(target);
-    }
-
-    for (final buffer in _transient) {
-      _gl.deleteBuffer(buffer);
-    }
-    for (final buffer in _uniformBuffers) {
-      _gl.deleteBuffer(buffer);
-    }
-    _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, null);
-    _gl.deleteFramebuffer(_framebuffer);
   }
 }

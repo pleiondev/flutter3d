@@ -4,10 +4,10 @@
 /// Everything a consumer needs is exported here. The layout behind it is not
 /// arbitrary and is worth knowing before reaching past this file:
 ///
-/// - **This package names no graphics API.** It depends on `flutter3d_graphics` and
+/// - **This package names no graphics API.** It depends on `flutter3d_hardware` and
 ///   nothing below it, so an application chooses a backend package
 ///   today — and hands it to `Renderer.create`. That is checked, not intended:
-///   `test/backend_is_contained_test.dart`.
+///   `tool/structure.dart`'s "the hardware layer names no graphics API" rule.
 /// - `geometry`, `scene`, `assets` and `render/key_sort` need no device at all,
 ///   which is what lets bounds, culling, framing, picking, decoding and sorting
 ///   be unit tested without one.
@@ -23,7 +23,7 @@
 /// after every Flutter SDK change.
 library;
 
-// The graphics vocabulary, re-exported from `flutter3d_graphics`.
+// The graphics vocabulary, re-exported from `flutter3d_hardware`.
 //
 // Re-exported rather than left for a consumer to depend on separately, because
 // these names are all over this package's own API — a `Material` holds
@@ -35,18 +35,22 @@ library;
 // depends on one by name; there are two today and room for more.
 // That choice is the one thing that must stay visible in an application's
 // pubspec.
-export 'package:flutter3d_graphics/flutter3d_graphics.dart';
+export 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 // Animation: clips, tracks, sampling, playback.
 export 'src/engine/animation/animation.dart';
 export 'src/engine/animation/animation_clip.dart';
 export 'src/engine/animation/animation_player.dart';
-// Assets: decoders for glTF/GLB, OBJ and the project's own .f3d container,
-// plus loading and caching.
+export 'src/engine/animation/animation_target.dart';
+export 'src/engine/animation/animation_track.dart';
+// Assets: decoders for glTF/GLB, OBJ, the project's own .f3d container and its
+// .fmat material, plus loading and caching.
 export 'src/engine/assets/asset_resolver.dart';
 export 'src/engine/assets/f3d/f3d.dart';
+export 'src/engine/assets/fmat/fmat.dart';
 export 'src/engine/assets/gltf/gltf.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
+export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
 export 'src/engine/assets/model_document.dart';
 export 'src/engine/assets/model_loader.dart';
@@ -63,6 +67,8 @@ export 'src/engine/geometry/geometry.dart';
 export 'src/engine/math/intersections.dart';
 // Rendering.
 export 'src/engine/render/debug_draw.dart';
+export 'src/engine/render/debug_draw_gizmos.dart';
+export 'src/engine/render/environment_map.dart';
 export 'src/engine/render/frame_graph.dart';
 export 'src/engine/render/frame_plan.dart';
 export 'src/engine/render/frame_resources.dart';
@@ -86,6 +92,7 @@ export 'src/engine/scene/light_node.dart';
 export 'src/engine/scene/lod_group.dart';
 export 'src/engine/scene/mesh_node.dart';
 export 'src/engine/scene/orbit_controller.dart';
+export 'src/engine/scene/projection.dart';
 export 'src/engine/scene/raycaster.dart';
 export 'src/engine/scene/scene.dart';
 export 'src/engine/scene/scene_graph.dart';
@@ -93,3 +100,4 @@ export 'src/engine/scene/scene_node.dart';
 export 'src/engine/scene/scene_spheres.dart';
 export 'src/engine/scene/skeleton.dart';
 export 'src/engine/scene/sky.dart';
+export 'src/engine/scene/sky_gradient.dart';

@@ -377,23 +377,23 @@ void main() {
 // position. The renderer builds them; see `Renderer._skyCornerRay`.
 precision highp float;
 
-in vec2 position;
+layout(location = 0) in vec2 position;
 
 // The world-space view ray at this corner.
-in vec3 corner_ray;
+layout(location = 1) in vec3 corner_ray;
 
 // The preset, replicated on all three vertices. Constant across the triangle,
 // so any interpolation of it returns exactly what was written.
-in vec4 zenith;
-in vec4 horizon;
-in vec4 nadir;
+layout(location = 2) in vec4 zenith;
+layout(location = 3) in vec4 horizon;
+layout(location = 4) in vec4 nadir;
 /// xyz: unit vector pointing at the sun. w: how tight the scattering lobe is.
-in vec4 sun;
+layout(location = 5) in vec4 sun;
 /// rgb: the sun's own colour. a: how bright the lobe is.
-in vec4 glow;
+layout(location = 6) in vec4 glow;
 /// x: cosine of the disc's angular radius. y: cosine of the radius plus its
 /// soft edge. z: how bright the disc is. w: unused.
-in vec4 disc;
+layout(location = 7) in vec4 disc;
 
 out vec3 v_ray;
 out vec4 v_zenith;
@@ -430,13 +430,13 @@ void main() {
 // Why any of it travels on the vertices at all is written out in `sky.vert`.
 precision highp float;
 
-in vec2 position;
+layout(location = 0) in vec2 position;
 
 /// The world-space view ray at this corner.
-in vec3 corner_ray;
+layout(location = 1) in vec3 corner_ray;
 
 /// rgb: what the sampled cube is multiplied by. a: unused.
-in vec4 tint;
+layout(location = 2) in vec4 tint;
 
 out vec3 v_ray;
 out vec4 v_tint;
@@ -458,12 +458,17 @@ precision highp samplerCube;
 
 // Albedo only. Useful as a baseline: whatever this shows is purely texture and
 // tint, with no lighting term involved.
+// This model has no shadow term, and `LightingModel.unlit` says so with
+// `usesMaterialMaps: false` — so the engine binds no `PointShadow` block. The
+// header must therefore not declare one: a block declared and unbound is a
+// dropped draw on WebGL2 and a phantom bind on Impeller. See surface.glsl.
+#define F3D_NO_POINT_SHADOW
 // --- lib/surface.glsl ---
 // Shared material and lighting interface for the lighting models.
 //
 // flutter_gpu compiles shaders ahead of time into a bundle: there is no runtime
-// compilation, so a node-graph material system in the style of Babylon's
-// NodeMaterial or three.js TSL is impossible. Each lighting model is therefore
+// compilation, so a node-graph material system assembled at run time is
+// impossible. Each lighting model is therefore
 // its own pre-built fragment shader, and this header is what keeps them
 // interchangeable — one identical uniform block, so the Dart binding code never
 // needs to know which model is active.
@@ -515,7 +520,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline
@@ -910,6 +915,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -1193,6 +1214,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -1269,8 +1302,8 @@ precision highp samplerCube;
 // Shared material and lighting interface for the lighting models.
 //
 // flutter_gpu compiles shaders ahead of time into a bundle: there is no runtime
-// compilation, so a node-graph material system in the style of Babylon's
-// NodeMaterial or three.js TSL is impossible. Each lighting model is therefore
+// compilation, so a node-graph material system assembled at run time is
+// impossible. Each lighting model is therefore
 // its own pre-built fragment shader, and this header is what keeps them
 // interchangeable — one identical uniform block, so the Dart binding code never
 // needs to know which model is active.
@@ -1322,7 +1355,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline
@@ -1717,6 +1750,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -2000,6 +2049,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -2261,8 +2322,8 @@ precision highp samplerCube;
 // Shared material and lighting interface for the lighting models.
 //
 // flutter_gpu compiles shaders ahead of time into a bundle: there is no runtime
-// compilation, so a node-graph material system in the style of Babylon's
-// NodeMaterial or three.js TSL is impossible. Each lighting model is therefore
+// compilation, so a node-graph material system assembled at run time is
+// impossible. Each lighting model is therefore
 // its own pre-built fragment shader, and this header is what keeps them
 // interchangeable — one identical uniform block, so the Dart binding code never
 // needs to know which model is active.
@@ -2314,7 +2375,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline
@@ -2709,6 +2770,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -2992,6 +3069,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -3236,9 +3325,15 @@ precision highp samplerCube;
 // Formulations follow Filament, which is also what the glTF spec describes, so
 // imported glTF materials will land on the same look.
 //
-// There is no image-based lighting here: a prefiltered environment needs mip
-// levels, and flutter_gpu on the stable channel exposes none. The ambient term
-// below is a flat stand-in, which is exactly the gap IBL would fill.
+// Image-based lighting is here when a scene supplies an environment, and the
+// flat hemispheric ambient stands in when it does not. `frame_params.w` carries
+// the number of levels in the environment cube and is zero when there is none —
+// the slot that block reserved for exactly this kind of frame-wide parameter.
+//
+// **The environment sampler is always bound**, to a one-texel cube when a scene
+// has no environment. A sampler a shader declares and nobody binds is a native
+// crash on Metal rather than a black texture; the same rule keeps the sky's
+// cube out of `sky.frag` and a white texel under the composite's occlusion.
 // --- lib/material_maps.glsl ---
 // The texture maps a lit material can carry, beyond base colour.
 //
@@ -3262,8 +3357,8 @@ precision highp samplerCube;
 // Shared material and lighting interface for the lighting models.
 //
 // flutter_gpu compiles shaders ahead of time into a bundle: there is no runtime
-// compilation, so a node-graph material system in the style of Babylon's
-// NodeMaterial or three.js TSL is impossible. Each lighting model is therefore
+// compilation, so a node-graph material system assembled at run time is
+// impossible. Each lighting model is therefore
 // its own pre-built fragment shader, and this header is what keeps them
 // interchangeable — one identical uniform block, so the Dart binding code never
 // needs to know which model is active.
@@ -3315,7 +3410,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline
@@ -3710,6 +3805,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -3993,6 +4104,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -4197,6 +4320,25 @@ float ShadowFactor(Surface s, LightSample light, int lightIndex) {
 #endif  // SHADOW_GLSL_
 
 
+/// The environment, convolved by roughness: level zero is a mirror and the last
+/// is rough enough to stand in for irradiance. Built by `EnvironmentMap`.
+uniform samplerCube environment_texture;
+
+/// The split-sum BRDF, as arithmetic rather than as a lookup table.
+///
+/// The usual form of this is a 2D texture indexed by roughness and view angle.
+/// Karis' analytic fit replaces it at a cost too small to see on anything but a
+/// grazing mirror, and what it buys is a third texture binding this renderer
+/// does not have to find, bind on every backend, and mirror in the software
+/// rasteriser. Returns the scale and bias to apply to F0.
+vec2 EnvBrdfApprox(float roughness, float n_dot_v) {
+  const vec4 c0 = vec4(-1.0, -0.0275, -0.572, 0.022);
+  const vec4 c1 = vec4(1.0, 0.0425, 1.04, -0.04);
+  vec4 r = roughness * c0 + c1;
+  float a004 = min(r.x * r.x, exp2(-9.28 * n_dot_v)) * r.x + r.y;
+  return vec2(-1.04, 1.04) * a004 + r.zw;
+}
+
 float D_GGX(float n_dot_h, float alpha) {
   float a = n_dot_h * alpha;
   float k = alpha / max(1.0 - n_dot_h * n_dot_h + a * a, 1e-6);
@@ -4247,11 +4389,37 @@ void main() {
   ApplyCommonMaps(s);
   ApplyMetallicRoughnessMap(s);
 
-  vec3 diffuseColor = s.albedo * (1.0 - clamp(s.metallic, 0.0, 1.0));
+  float metallic = clamp(s.metallic, 0.0, 1.0);
+  vec3 diffuseColor = s.albedo * (1.0 - metallic);
+
   // Ambient occlusion darkens indirect light. It is applied to the direct term
-  // too, which is not physical, but with no IBL the flat ambient is far too
-  // weak for an occlusion map to be visible otherwise.
+  // too, which is not physical, but with no environment the flat ambient is far
+  // too weak for an occlusion map to be visible otherwise.
   vec3 ambient = diffuseColor * s.ambient * s.occlusion;
+
+  float levels = frag_info.frame_params.w;
+  if (levels > 0.0) {
+    // **This is the term that made metal black.** A metal has no diffuse
+    // response at all, so with nothing to reflect it was lit by direct light
+    // alone and read as very nearly unlit — which is why the games reached for
+    // dark dielectrics wherever they wanted gunmetal.
+    vec3 f0 = mix(vec3(0.04), s.albedo, metallic);
+    vec3 reflected = reflect(-s.v, s.n);
+
+    // The roughest level stands in for irradiance. Not a true Lambert
+    // convolution — see `EnvironmentMap.diffuseLevel`, which says the same
+    // thing from the other side and states what it costs.
+    vec3 irradiance = textureLod(environment_texture, s.n, levels).rgb;
+    vec3 prefiltered =
+        textureLod(environment_texture, reflected, s.roughness * levels).rgb;
+    vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
+
+    // Scaled by the same ambient strength the flat term uses, so a scene that
+    // dials its indirect light down dials both, and the two are interchangeable
+    // rather than additive.
+    ambient = (diffuseColor * irradiance + prefiltered * (f0 * ab.x + ab.y)) *
+              frag_info.material.z * s.occlusion;
+  }
 
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + s.emissive,
@@ -4296,8 +4464,8 @@ precision highp samplerCube;
 // Shared material and lighting interface for the lighting models.
 //
 // flutter_gpu compiles shaders ahead of time into a bundle: there is no runtime
-// compilation, so a node-graph material system in the style of Babylon's
-// NodeMaterial or three.js TSL is impossible. Each lighting model is therefore
+// compilation, so a node-graph material system assembled at run time is
+// impossible. Each lighting model is therefore
 // its own pre-built fragment shader, and this header is what keeps them
 // interchangeable — one identical uniform block, so the Dart binding code never
 // needs to know which model is active.
@@ -4349,7 +4517,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline
@@ -4744,6 +4912,22 @@ vec3 ShadeLight(Surface s, LightSample light);
 ///
 /// The loop bound is the compile-time maximum with a runtime break, because GLSL
 /// wants a constant trip count and the hardware wants the early exit.
+// **The point-shadow half of this header, behind a guard.**
+//
+// A model that never shadows must not *declare* any of this, and the reason is
+// the one `unlit.frag` already gives about the shadow sampler — with one
+// backend's failure added to the other's. On Impeller the compiler drops what
+// nothing reads, and the engine binding a slot that is no longer there is a
+// native crash. On WebGL2 nothing is dropped: an active uniform block with no
+// buffer under it makes every draw `INVALID_OPERATION`, discarded with nothing
+// logged.
+//
+// That is what `lighting-unlit` was on this backend. Unlit's own metadata says
+// `usesPointShadow` is false, so the engine correctly bound no `PointShadow`
+// block — and the translated shader declared one anyway, so the sphere was
+// never drawn and the frame came back the clear colour.
+#ifndef F3D_NO_POINT_SHADOW
+
 /// The cube atlas: three tiles across, two down, each a ninety-degree view
 /// from a point light, each storing radial distance normalised by range.
 uniform sampler2D point_shadow_texture;
@@ -5027,6 +5211,18 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // much of the kernel" — the same convention the directional map uses.
   return mix(1.0, lit, clamp(strength, 0.0, 1.0));
 }
+
+#else
+
+/// The stand-in for a model that declares none of the above.
+///
+/// Fully lit, which is what a model with no shadow term means, and a constant
+/// the compiler folds rather than a branch anything pays for.
+float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
+  return 1.0;
+}
+
+#endif  // F3D_NO_POINT_SHADOW
 
 vec3 AccumulateLights(Surface s) {
   vec3 total = vec3(0.0);
@@ -5324,7 +5520,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline
@@ -5486,7 +5682,7 @@ precision highp samplerCube;
 // It includes nothing from shaders/lib on purpose: those headers declare the
 // mesh varyings and the FragInfo block, and a shader that declares a uniform
 // block it never reads is exactly the phantom-binding trap documented in
-// RESEARCH.md §4.
+// ARCHITECTURE.md §2.
 precision highp float;
 
 in vec4 v_line_color;
@@ -5708,8 +5904,32 @@ layout(std140) uniform CompositeInfo {
 
   /// x, y: one texel of the ao texture. z, w unused.
   vec4 ao_texel;
+
+  /// The look, half of it. x: contrast, y: saturation, z: temperature,
+  /// w: chromatic aberration.
+  ///
+  /// **Neutral is (1, 1, 0, 0) and has to stay exactly that.** Every golden in
+  /// the repository composites with this block; a default that only nearly
+  /// cancels moves thirty reference images by a bit each.
+  vec4 look;
+
+  /// The look, the rest. x: vignette, y: vignette roundness, z: grain,
+  /// w: the target's aspect, width over height.
+  vec4 look_more;
 }
 composite_info;
+
+/// Rec. 709 luma, which is what the sRGB primaries weight to.
+float Luma(vec3 color) { return dot(color, vec3(0.2126, 0.7152, 0.0722)); }
+
+/// A value in [0, 1) from a screen position, with no state and no frame count.
+///
+/// Static by construction: a shader that read a frame counter would produce a
+/// different golden on every run, so the grain is fixed to the pixel. See
+/// `LookSettings.grain`, which says the same thing from the other side.
+float Hash(vec2 at) {
+  return fract(sin(dot(at, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 vec3 LinearToSrgb(vec3 linear) {
   return mix(
@@ -5747,7 +5967,24 @@ vec3 TonemapNeutral(vec3 color) {
 }
 
 void main() {
-  vec4 scene = texture(scene_texture, v_uv);
+  // **Dispersion happens at the lens, so it happens at sampling.** Sampling the
+  // scene three times at radially offset coordinates is the whole effect; doing
+  // it after the tone map would smear an already-compressed image and could not
+  // separate the channels of a highlight that had already clipped together.
+  //
+  // The offset grows from the centre outwards, which is what a real lens does:
+  // a ray through the middle of the glass is not dispersed at all.
+  float dispersion = composite_info.look.w;
+  vec4 scene;
+  if (dispersion > 0.0) {
+    vec2 fromCentre = v_uv - vec2(0.5);
+    vec2 step_uv = fromCentre * dispersion;
+    scene = texture(scene_texture, v_uv);
+    scene.r = texture(scene_texture, v_uv + step_uv).r;
+    scene.b = texture(scene_texture, v_uv - step_uv).b;
+  } else {
+    scene = texture(scene_texture, v_uv);
+  }
   vec3 bloom = texture(bloom_texture, v_uv).rgb;
 
   // Four taps in a 2×2, which is not a general-purpose blur: the occlusion pass
@@ -5786,7 +6023,42 @@ void main() {
 
   if (composite_info.params.z > 0.5) color = TonemapNeutral(color);
 
-  frag_color = vec4(LinearToSrgb(color), scene.a);
+  // **After the tone map, and that is the point.** Grading is a decision about
+  // an image somebody can see; applied to unbounded scene-referred colour it
+  // would be pulling on values the display will never show anyway.
+  float contrast = composite_info.look.x;
+  float saturation = composite_info.look.y;
+  float temperature = composite_info.look.z;
+
+  // Pivoted about mid grey, so contrast does not double as an exposure knob.
+  color = (color - vec3(0.5)) * contrast + vec3(0.5);
+  color = mix(vec3(Luma(color)), color, saturation);
+  // A gain on the ends against the middle. Not a white-balance conversion —
+  // a scene lit at the wrong temperature is fixed at the light, not here.
+  color *= vec3(1.0 + temperature * 0.1, 1.0, 1.0 - temperature * 0.1);
+
+  // The barrel and the film, last, and in that order: a vignette darkens what
+  // the grain then lands on, which is the way round a camera does it.
+  float vignette = composite_info.look_more.x;
+  if (vignette > 0.0) {
+    vec2 fromCentre = v_uv - vec2(0.5);
+    // **The aspect has to be in the uniform for this to mean anything.** UV
+    // space is square and the frame is not, so a falloff computed on UV alone
+    // is an ellipse on screen. Roundness 1 undoes that and keeps the vignette
+    // circular; 0 lets it follow the frame and reach the short edges first.
+    float aspect = max(composite_info.look_more.w, 1e-4);
+    fromCentre.x *= mix(1.0, aspect, composite_info.look_more.y);
+    float radius = length(fromCentre) * 1.41421356;
+    color *= mix(1.0, 1.0 - vignette, clamp(radius, 0.0, 1.0));
+  }
+
+  float grain = composite_info.look_more.z;
+  // Centred on zero so grain neither lifts nor lowers the average level, and
+  // added rather than multiplied so it stays visible in the shadows, which is
+  // where film grain lives.
+  if (grain > 0.0) color += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+
+  frag_color = vec4(LinearToSrgb(max(color, vec3(0.0))), scene.a);
 }
 
 ''',
@@ -5885,7 +6157,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline
@@ -6648,7 +6920,7 @@ layout(location = 0) out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline

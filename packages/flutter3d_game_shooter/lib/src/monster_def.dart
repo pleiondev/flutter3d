@@ -1,0 +1,92 @@
+import 'combat/weapon.dart';
+
+/// What this game's monsters may be, as words in a level document.
+///
+/// `EntityTypes` holds the format's own vocabulary — spawn, door, trigger,
+/// exit. `monster` is not the format's; it is a shooter's, the same way `torch`
+/// is furniture. It lives beside the kind that implements it.
+abstract final class ShooterEntities {
+  static const String monster = 'monster';
+
+  /// Two that used to be `EntityTypes`'. A pickup that gives health, armour or
+  /// ammunition, and a note left on a wall to be read, are furniture of this
+  /// genre rather than of the format — the same argument that moved `torch`,
+  /// `lamp` and `window` out before them.
+  ///
+  /// `key` is not here, and the difference is worth the sentence: the *pickup*
+  /// that grants a key is this genre's, but the word belongs to the format,
+  /// because `LevelScope` gathers keys to check that a locked door names one
+  /// that exists.
+  static const String pickup = 'pickup';
+  static const String note = 'note';
+
+  /// A volume that counts as found when somebody walks into it.
+  ///
+  /// A word this genre owns for the same reason `monster` is: a racing game has
+  /// no secrets and a platformer's are collectibles, which it already has.
+  static const String secret = 'secret';
+}
+
+/// What a monster is doing.
+///
+/// An enum with a switch, deliberately, and **only because it is in here**. Six
+/// states that share every transition — anything can be hurt, anything hurt
+/// enough dies, anything that sees the player chases them — would be six
+/// classes repeating one another's rules. That trade is fine for one brain in
+/// one game's own library; it was not fine in an engine, where it meant every
+/// other kind of enemy anybody wrote had to pretend to have an `alert` state.
+enum MonsterState { idle, alert, chase, attack, hurt, dead }
+
+/// Everything about a kind of monster that does not change.
+///
+/// Numbers, plus the weapon it attacks with. Reusing `WeaponDef` rather than
+/// inventing a parallel notion of a monster attack: an attack has damage, a
+/// rate, a range and a way of arriving, which is a weapon — and it means a
+/// monster that throws fireballs gets the projectile system, the blast falloff
+/// and the line-of-sight check without a line of new code.
+final class MonsterDef {
+  const MonsterDef({
+    required this.name,
+    required this.health,
+    required this.speed,
+    required this.attack,
+    required this.radius,
+    required this.height,
+    this.sightRange = 26.0,
+    this.hurtDuration = 0.25,
+    this.alertDuration = 0.35,
+    this.turnRate = 6.0,
+    this.painChance = 1.0,
+    this.painCooldown = 0.2,
+  });
+
+  final String name;
+  final double health;
+  final double speed;
+  final WeaponDef attack;
+  final double radius;
+  final double height;
+
+  /// How far it can notice the player.
+  final double sightRange;
+
+  /// How long a stagger lasts. Long enough to read as a reaction, short enough
+  /// that it cannot be used to stun-lock something to death.
+  final double hurtDuration;
+
+  /// How long it hesitates after noticing before it comes. A monster that
+  /// snaps to face the player the instant it sees them reads as a turret.
+  final double alertDuration;
+
+  final double turnRate;
+
+  /// How often being hit staggers it.
+  ///
+  /// Not always: something that flinches at every pellet can be held in place
+  /// by a shotgun and never reaches the player, which turns the hardest enemy
+  /// into the easiest.
+  final double painChance;
+
+  /// How long after a stagger before it can be staggered again.
+  final double painCooldown;
+}

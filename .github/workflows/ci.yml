@@ -31,4 +31,12 @@ jobs:
       # and a test fails when the bundle is missing.
       - run: flutter precache --linux
 
+      # `tool/check_icons.py` redraws the four applications' icons and compares
+      # them with the committed ones. Without Pillow it says so and exits
+      # non-zero, so that step failed on every run for the reason it could not
+      # run at all — a check that proves nothing while looking like one that
+      # does. Not pinned: the check compares pixels within a tolerance, so the
+      # resampler is no longer an input to it.
+      - run: pip install pillow
+
       - run: tool/ci.sh

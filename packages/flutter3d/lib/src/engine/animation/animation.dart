@@ -6,3 +6,5 @@ library;
 
 export 'animation_clip.dart';
 export 'animation_player.dart';
+export 'animation_target.dart';
+export 'animation_track.dart';

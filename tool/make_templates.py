@@ -12,7 +12,7 @@ is that file and that level, written before there is anybody to write them.
 
 Nothing here is compiled into the editor. A template is copied into the new
 project and read back from *there*, by the same `Looks.parse` that reads the
-crypt's file — so the rule `apps/editor/lib/src/vocabulary.dart` states holds
+crypt's file — so the rule `apps/flutter3d_editor/lib/src/vocabulary.dart` states holds
 literally: the editor's code contains no genre word, only the name of a file.
 
 What the words are is not invented here either. They are read off the genre
@@ -238,19 +238,19 @@ TEMPLATES = {
 # **A real application in this repository, not a string in a scaffolder.** A
 # `main.dart` that only ever exists as text is one that stops compiling six
 # months later and nobody finds out until somebody creates a project;
-# `apps/template_app` is analysed by CI like everything else, and this copies
+# `apps/flutter3d_template_app` is analysed by CI like everything else, and this copies
 # it. One source, one regeneration, one diff.
 APP = {
-    'app.main.dart.txt': ('apps/template_app/lib/main.dart', 'lib/main.dart'),
+    'app.main.dart.txt': ('apps/flutter3d_template_app/lib/main.dart', 'lib/main.dart'),
     'app.backend.dart.txt': (
-        'apps/template_app/lib/src/backend.dart',
+        'apps/flutter3d_template_app/lib/src/backend.dart',
         'lib/src/backend.dart',
     ),
     # The test a new project comes with. Same argument as `main.dart` above,
     # and it used to be a string inside the scaffolder — which is the one
     # place in this repository where nothing compiles what it holds.
     'app.test.dart.txt': (
-        'apps/template_app/test/widget_test.dart',
+        'apps/flutter3d_template_app/test/widget_test.dart',
         'test/widget_test.dart',
     ),
 }
@@ -281,11 +281,11 @@ def main():
     # templates exist has to be written down like everything else.
     dump(
         {'templates': sorted(TEMPLATES)},
-        os.path.join(HERE, 'apps', 'editor', 'assets', 'templates', 'index.json'),
+        os.path.join(HERE, 'apps', 'flutter3d_editor', 'assets', 'templates', 'index.json'),
     )
 
     for genre, template in TEMPLATES.items():
-        where = os.path.join(HERE, 'apps', 'editor', 'assets', 'templates', genre)
+        where = os.path.join(HERE, 'apps', 'flutter3d_editor', 'assets', 'templates', genre)
 
         # The vocabulary, with every model path written the way it will be read:
         # from inside the project this gets copied into.

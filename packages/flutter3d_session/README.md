@@ -55,3 +55,10 @@ It is checked rather than remembered: `test/one_assembly_test.dart` here reads
 all three applications, in the shape of `no_genre_test.dart` — one rule about
 three games, so one file rather than three. The racing game was the third
 offender and was found by that scan being written.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

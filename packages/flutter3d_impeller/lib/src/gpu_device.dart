@@ -3,24 +3,38 @@
 /// Everything that used to reach `gpu.gpuContext` from the renderer, its nodes
 /// and its contributors is here, behind an object that arrives as an argument.
 /// This is the file a second backend is written *beside*, not inside.
+///
+/// Split across a few files by cohesive concern, all re-exported from here:
+/// [GpuShaderLibrary] is `gpu_shader_library.dart`; [GpuCommandEncoder] — one
+/// command buffer with one open pass — is `gpu_command_encoder.dart`;
+/// [GpuFrame], which tracks when a frame's submitted work is actually done, is
+/// `gpu_frame.dart`.
 library;
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
+import 'gpu_command_encoder.dart';
 import 'gpu_formats.dart';
+import 'gpu_frame.dart';
+import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'host_buffer_grid.dart';
+
+export 'gpu_command_encoder.dart';
+export 'gpu_frame.dart';
+export 'gpu_shader_library.dart';
 
 /// flutter_gpu as a [GraphicsDevice].
 ///
 /// Construct one and hand it to `Renderer.create`. Nothing else in the engine
 /// names flutter_gpu, which is what makes the import graph a property somebody
-/// can check: `test/backend_is_contained_test.dart` scans for it.
+/// can check: `tool/structure.dart`'s "the hardware layer names no graphics
+/// API" rule scans for it.
 final class GpuRenderBackend implements GraphicsDevice {
   GpuRenderBackend._(this._library, this._transients, this._granule);
 
@@ -35,7 +49,7 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// cannot be. The name is kept so every call site reads the same with an
   /// `await` in front of it.
   /// [extraBundles] are the application's own compiled bundles, searched before
-  /// the engine's — see [_GpuShaderLibrary]. Each is loaded the same way and
+  /// the engine's — see [GpuShaderLibrary]. Each is loaded the same way and
   /// each has to exist: a bundle named and not found is a stage that will come
   /// back null at the first draw, which on this backend is a pipeline built
   /// from nothing.
@@ -60,7 +74,7 @@ final class GpuRenderBackend implements GraphicsDevice {
       extra.add(loaded);
     }
     return GpuRenderBackend._(
-      _GpuShaderLibrary(library, extra),
+      GpuShaderLibrary(library, extra),
       // Per-frame uniform allocators, rotated rather than reset in place.
       //
       // `CommandBuffer.submit` is asynchronous. Resetting a bump allocator
@@ -131,7 +145,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     return host.emplace(on);
   }
 
-  final _GpuShaderLibrary _library;
+  final GpuShaderLibrary _library;
   final List<gpu.HostBuffer> _transients;
 
   /// Which allocator this frame writes into. -1 until the first [beginFrame].
@@ -218,6 +232,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     required int size,
     required TextureFormat format,
     required List<ByteData> faces,
+    List<List<ByteData>>? mipLevels,
   }) {
     // Six, in the order the interface documents: +X, −X, +Y, −Y, +Z, −Z. A
     // shorter list is a caller bug rather than a device one, and refusing it
@@ -225,6 +240,21 @@ final class GpuRenderBackend implements GraphicsDevice {
     // to contain.
     if (faces.length != 6) return null;
     if (!supportsCubeTextures) return null;
+    // **Sizes checked here rather than left to the upload**, and the
+    // conformance suite is why: `overwrite` throws when a buffer is not exactly
+    // its level's size, so a chain built with the wrong arithmetic took the
+    // frame down where the other two backends returned null. Refusing early is
+    // what the interface documents, and what the software and WebGL backends
+    // already did.
+    final levels = mipLevels ?? const <List<ByteData>>[];
+    var side = size;
+    for (final level in levels) {
+      if (level.length != 6) return null;
+      side = side > 1 ? side >> 1 : 1;
+      for (final face in level) {
+        if (face.lengthInBytes != side * side * 4) return null;
+      }
+    }
 
     final texture = createGpuTexture(
       StorageMode.hostVisible,
@@ -232,6 +262,9 @@ final class GpuRenderBackend implements GraphicsDevice {
       size,
       format: format,
       type: TextureType.textureCube,
+      // One more than the levels below it, the same arithmetic
+      // `createTextureFromPixels` does.
+      mipLevelCount: levels.isEmpty ? 1 : levels.length + 1,
       // Nothing renders into a face: `ColorTarget` carries no slice, so a cube
       // can only ever be filled from the host. Asking for render-target usage
       // would be asking for an allocation nothing can use.
@@ -244,6 +277,17 @@ final class GpuRenderBackend implements GraphicsDevice {
     }
     for (var i = 0; i < 6; i++) {
       texture.gpuTexture.overwrite(faces[i], slice: i);
+    }
+
+    // Level by level and face by face, and only as far as the texture actually
+    // goes: writing a level it does not have throws, and a chain longer than
+    // the allocation is the ordinary case rather than a mistake.
+    final allocated = texture.gpuTexture.mipLevelCount;
+    for (var level = 0; level < levels.length && level + 1 < allocated; level++) {
+      for (var face = 0; face < 6; face++) {
+        texture.gpuTexture
+            .overwrite(levels[level][face], slice: face, mipLevel: level + 1);
+      }
     }
     return texture;
   }
@@ -356,7 +400,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     // finished every buffer it holds, its callbacks can run.
     _openFrame.encoded = true;
     _openFrame.settleIfDone();
-    _openFrame = _Frame();
+    _openFrame = GpuFrame();
 
     _frame = (_frame + 1) % _kFramesInFlight;
     // Safe to rewind: this allocator was last written a full ring of frames
@@ -371,7 +415,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     final pass = buffer.createRenderPass(_toRenderTarget(descriptor));
     final frame = _openFrame;
     frame.outstanding++;
-    return _GpuCommandEncoder(buffer, pass, this, frame);
+    return GpuCommandEncoder(buffer, pass, this, frame);
   }
 
   /// The frame being encoded, and the ones the GPU has not finished.
@@ -382,7 +426,7 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// has read it is a picture made of two frames. Which is exactly what an
   /// editor holding a still camera showed, and what three, and eight, and
   /// sixteen buffers each made rarer without making impossible.
-  _Frame _openFrame = _Frame();
+  GpuFrame _openFrame = GpuFrame();
 
   @override
   void onFrameComplete(void Function() whenDone) =>
@@ -420,6 +464,16 @@ final class GpuRenderBackend implements GraphicsDevice {
         .toByteData(format: ui.ImageByteFormat.rawRgba);
   }
 
+  /// A deliberate no-op. See the note at [supportsCubeTextures] on
+  /// `_probeCubes`: flutter_gpu's `Texture` has no native dispose, so every
+  /// texture and buffer this backend has handed out is already relying on
+  /// nothing but going out of scope and the garbage collector — there is no
+  /// call this method could make that would free anything sooner. Kept as a
+  /// real method rather than left unimplemented so a caller that tears down
+  /// every [GraphicsDevice] uniformly does not have to special-case this one.
+  @override
+  void dispose() {}
+
   static gpu.RenderTarget _toRenderTarget(RenderPassDescriptor descriptor) =>
       gpu.RenderTarget(
         colorAttachments: <gpu.ColorAttachment>[
@@ -442,315 +496,4 @@ final class GpuRenderBackend implements GraphicsDevice {
             ),
         },
       );
-}
-
-/// A bundle's stages, wrapped so nothing above names `gpu.Shader`.
-///
-/// Handles are cached per name so that two lookups of the same stage give the
-/// same handle. Nothing depends on that today — unlike `TextureHandle`,
-/// identity carries no contract here — but a map lookup is cheaper than an
-/// allocation on a path the particle contributor takes every frame.
-/// The engine's bundle, and any an application brought with it.
-///
-/// The application's are searched **first**, which is the only ordering that
-/// makes them useful: a plugin shipping its own `Composite` is saying it wants
-/// that one, and a lookup that found the engine's first would silently ignore
-/// the file the author compiled. It is also the ordering that can go wrong
-/// quietly, so it is stated here rather than left to the loop.
-///
-/// Why this exists at all: shaders on this backend are compiled ahead of time
-/// into a bundle asset. The software rasteriser takes a Dart object and WebGL
-/// takes GLSL at runtime, so on both an application can simply hand its stage
-/// over — and on Impeller it could not, at all, which made "write your own post
-/// effect" a thing that worked on two backends out of three.
-final class _GpuShaderLibrary implements ShaderLibrary {
-  _GpuShaderLibrary(this._library, [this._extra = const <gpu.ShaderLibrary>[]]);
-
-  final gpu.ShaderLibrary _library;
-  final List<gpu.ShaderLibrary> _extra;
-  final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
-
-  @override
-  ShaderHandle? operator [](String name) =>
-      _handles.putIfAbsent(name, () {
-        for (final library in _extra) {
-          final shader = library[name];
-          if (shader != null) return ShaderHandle(backend: shader, name: name);
-        }
-        final shader = _library[name];
-        return shader == null
-            ? null
-            : ShaderHandle(backend: shader, name: name);
-      });
-}
-
-/// One flutter_gpu command buffer with one open pass.
-///
-/// The two are fused because Metal allows a single open encoder per buffer and
-/// flutter_gpu offers no way to end a pass, so every site in this engine has
-/// always been one buffer, one pass, one submit. See the note on
-/// [CommandEncoder].
-final class _GpuCommandEncoder implements CommandEncoder {
-  _GpuCommandEncoder(this._buffer, this._pass, this._backend, this._frame);
-
-  final _Frame _frame;
-
-  final gpu.CommandBuffer _buffer;
-  final gpu.RenderPass _pass;
-
-  /// This frame's uniform allocator, captured when the pass opened.
-  /// Who owns the frame's transient storage, and the arithmetic that keeps a
-  /// write inside a block.
-  final GpuRenderBackend _backend;
-
-  gpu.BufferView _emplace(ByteData bytes) => _backend.emplace(bytes);
-
-  @override
-  void setViewport(ScreenRect rect) => _pass.setViewport(
-        gpu.Viewport(
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        ),
-      );
-
-  @override
-  void setScissor(ScreenRect rect) => _pass.setScissor(
-        gpu.Scissor(
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        ),
-      );
-
-  @override
-  void setPrimitiveType(PrimitiveType type) =>
-      _pass.setPrimitiveType(type.toGpu());
-
-  @override
-  void setPolygonMode(PolygonMode mode) => _pass.setPolygonMode(mode.toGpu());
-
-  @override
-  void setCullMode(CullMode mode) => _pass.setCullMode(mode.toGpu());
-
-  @override
-  void setWindingOrder(WindingOrder order) =>
-      _pass.setWindingOrder(order.toGpu());
-
-  /// **`false` does not work, and the reason is not here.**
-  ///
-  /// **Fixed upstream, and this note is kept because what it says was true.**
-  /// Until recently `flutter_gpu`'s native setter ignored its argument and
-  /// wrote the literal `true`, so the call could only ever switch depth writes
-  /// *on*. As of the SDK this repository builds with (3.47.0, pinned in
-  /// `mise.toml`) it passes the flag through:
-  ///
-  /// ```cpp
-  /// // bin/cache/pkg/flutter_gpu/render_pass.cc:560
-  /// void InternalFlutterGpu_RenderPass_SetDepthWriteEnable(
-  ///     flutter::gpu::RenderPass* wrapper,
-  ///     bool enable) {
-  ///   auto& depth = wrapper->GetDepthAttachmentDescriptor();
-  ///   depth.depth_write_enabled = enable;
-  /// }
-  /// ```
-  ///
-  /// Worth knowing rather than deleting, for two reasons. It is the whole
-  /// argument for `PassState`'s fields being optional — a redundant
-  /// `setDepthWrite(false)` flipped behaviour on two backends out of three
-  /// while this bug was live — and it is what a backdrop rests on:
-  /// `Material.depthWrite` is a promise this backend could not keep until now.
-  ///
-  /// **Settled on a machine with a GPU, and the note it replaces was wrong.**
-  /// `particle-stack` used to be recorded deliberately showing the broken
-  /// picture — eight additive particles at one point drawing as one, a burst
-  /// about three per cent dim — and this docstring said so. Checked directly:
-  /// the recorded frame shows the stack as a blown-out core with a warm halo,
-  /// which is eight particles accumulating, and the cross-backend budget puts
-  /// it 0.431% from the software rasteriser, the same noise floor every other
-  /// scene sits at. The rasteriser honours `depthWrite` in its own code, so
-  /// agreement to that tolerance is the flag arriving here too. Nothing is
-  /// pending.
-  @override
-  void setDepthWrite(bool enabled) => _pass.setDepthWriteEnable(enabled);
-
-  @override
-  void setDepthCompare(CompareFunction compare) =>
-      _pass.setDepthCompareOperation(compare.toGpu());
-
-  @override
-  void setBlend(BlendState? state, {int attachment = 0}) {
-    _pass.setColorBlendEnable(state != null, colorAttachmentIndex: attachment);
-    if (state == null) return;
-    _pass.setColorBlendEquation(
-      gpu.ColorBlendEquation(
-        colorBlendOperation: state.colorOperation.toGpu(),
-        sourceColorBlendFactor: state.sourceColorFactor.toGpu(),
-        destinationColorBlendFactor: state.destinationColorFactor.toGpu(),
-        alphaBlendOperation: state.alphaOperation.toGpu(),
-        sourceAlphaBlendFactor: state.sourceAlphaFactor.toGpu(),
-        destinationAlphaBlendFactor: state.destinationAlphaFactor.toGpu(),
-      ),
-      colorAttachmentIndex: attachment,
-    );
-  }
-
-  @override
-  void bindPipeline(PipelineHandle pipeline) {
-    // Every binding this pass has been handed dies here, and it is not
-    // housekeeping — it is the fix for a monster drawn as a splinter.
-    //
-    // flutter_gpu's RenderPass accumulates uniform and texture bindings in a
-    // map keyed by the *shader* that bound them, and replays the whole map at
-    // every draw. Nothing removes an entry when the pipeline changes, so after
-    // a skinned mesh has drawn, a static mesh's draw replays the skinned
-    // stage's FrameInfo and SkinInfo as well as its own — two buffers claiming
-    // one slot, and which of them wins is the iteration order of an
-    // unordered_map. The corruption is deterministic within a run and moves
-    // when the scene does: a crypt's frog collapsing to a sliver, a box drawn
-    // somewhere its transform never was — but only ever in scenes that mix
-    // skinned and static pipelines, which is why a monster alone in a test
-    // scene was always innocent.
-    //
-    // Dropping the bindings on a pipeline switch is safe because of the
-    // contract written on [CommandEncoder.bindPipeline]: every site binds what
-    // its draw needs after binding the pipeline, never before.
-    _pass.clearBindings();
-    _indexCount = 0;
-    _pass.bindPipeline(pipeline.backend as gpu.RenderPipeline);
-  }
-
-  /// How many indices the last index bind described.
-  ///
-  /// flutter_gpu 3.47 moved the counts off the binds and onto the draw. The HAL
-  /// keeps them on the binds — that is where the other two backends put them,
-  /// and where the count is actually known — so this remembers the one the draw
-  /// will need. Zero means nothing has been bound, which [draw] treats as
-  /// nothing to do rather than as an error: the same thing `flutter_gpu` did
-  /// when the count travelled with the binding.
-  int _indexCount = 0;
-
-  @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
-          {int slot = 0}) =>
-      _pass.bindVertexBuffer(_view(buffer), slot: slot);
-
-  @override
-  void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
-      _pass.bindVertexBuffer(_emplace(bytes), slot: slot);
-
-  @override
-  void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
-    _pass.bindIndexBuffer(_view(buffer), type.toGpu());
-    _indexCount = indexCount;
-  }
-
-  @override
-  void bindIndexData(ByteData bytes, IndexType type, int indexCount) {
-    _pass.bindIndexBuffer(_emplace(bytes), type.toGpu());
-    _indexCount = indexCount;
-  }
-
-  @override
-  bool bindUniformBlock(
-    ShaderHandle shader,
-    String blockName,
-    Map<String, Float32List> members,
-  ) {
-    final slot =
-        (shader.backend as gpu.Shader).getUniformSlot(blockName);
-    final size = slot.sizeInBytes;
-    if (size == null || size == 0) return false;
-
-    final data = ByteData(size);
-    members.forEach((name, values) {
-      final offset = slot.getMemberOffsetInBytes(name);
-      if (offset == null) return;
-      // Whole arrays written from their reflected base offset. Impeller
-      // reflects the array, not its elements — `lights[0]` comes back null —
-      // but the std140 stride for a vec4 array is a flat 16 bytes, so a
-      // contiguous write lands each element correctly.
-      for (var i = 0; i < values.length; i++) {
-        data.setFloat32(offset + i * 4, values[i], Endian.host);
-      }
-    });
-
-    _pass.bindUniform(slot, _emplace(data));
-    return true;
-  }
-
-  @override
-  void bindTexture(
-    ShaderHandle shader,
-    String slot,
-    TextureHandle texture, {
-    SamplerOptions? sampler,
-  }) {
-    // Tile memory cannot be sampled, and the backend's own assertion for this
-    // fires from inside `bindTexture` with no idea which slot or which pass.
-    // The handle carries the storage mode, so this can be said here, where the
-    // slot name is in scope and the message names the mistake.
-    assert(
-      texture.storageMode != StorageMode.deviceTransient,
-      'the "$slot" slot was handed a deviceTransient texture, which lives in '
-      'tile memory and can only ever be an attachment',
-    );
-    _pass.bindTexture(
-      (shader.backend as gpu.Shader).getUniformSlot(slot),
-      texture.gpuTexture,
-      sampler: (sampler ?? SamplerOptions.linearRepeat).toGpu(),
-    );
-  }
-
-  @override
-  void clearBindings() {
-    _pass.clearBindings();
-    // The count is a binding like any other. Leaving it behind would let a
-    // draw after a `clearBindings` inherit the previous mesh's index count,
-    // which is the kind of state leak that draws a plausible wrong picture.
-    _indexCount = 0;
-  }
-
-  @override
-  void draw({int instanceCount = 1}) {
-    if (_indexCount == 0 || instanceCount <= 0) return;
-    _pass.drawIndexed(_indexCount, instanceCount: instanceCount);
-  }
-
-  @override
-  void submit() => _buffer.submit(completionCallback: (bool ok) {
-        _frame.outstanding--;
-        _frame.settleIfDone();
-      });
-
-  static gpu.BufferView _view(GeometryBuffer buffer) => gpu.BufferView(
-        buffer.backend as gpu.DeviceBuffer,
-        offsetInBytes: buffer.offsetInBytes,
-        lengthInBytes: buffer.lengthInBytes,
-      );
-}
-
-
-/// One frame's worth of submitted work, and who is waiting for it.
-///
-/// A frame is done when nothing this side will add to it and the GPU has
-/// reported every buffer it holds. Both halves matter: a frame with one pass
-/// submitted and another about to be is not finished, and a frame whose passes
-/// are all submitted is not finished either until the queue says so.
-final class _Frame {
-  int outstanding = 0;
-  bool encoded = false;
-  bool _settled = false;
-  final List<void Function()> whenDone = <void Function()>[];
-
-  void settleIfDone() {
-    if (_settled || !encoded || outstanding > 0) return;
-    _settled = true;
-    for (final callback in whenDone) {
-      callback();
-    }
-    whenDone.clear();
-  }
 }

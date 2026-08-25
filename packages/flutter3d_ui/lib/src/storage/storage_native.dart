@@ -10,7 +10,7 @@ import 'storage.dart';
 /// **A table rather than one path, because there is no one path.** The rules
 /// below are each platform's own convention, and getting them from the
 /// environment rather than from a plugin is what keeps this package free of
-/// `path_provider` — the dependency policy in `docs/SPEC.md` asks for that, and
+/// `path_provider` — the dependency policy in `ARCHITECTURE.md` asks for that, and
 /// on three of the five it is genuinely just an environment variable.
 ///
 /// The two mobile platforms are the interesting ones. Neither publishes its

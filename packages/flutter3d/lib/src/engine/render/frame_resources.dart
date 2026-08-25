@@ -20,135 +20,19 @@
 /// device. `test/frame_resources_test.dart` is what the handle bought.
 library;
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+
 import 'frame_graph.dart';
+import 'frame_texture_source.dart';
+import 'resource_desc.dart';
 
-/// How large a resource is, relative to the frame or in its own right.
-sealed class ResourceSize {
-  const ResourceSize();
-
-  /// The size in pixels, given the frame's.
-  (int, int) resolve(int frameWidth, int frameHeight);
-}
-
-/// A fraction of the frame: full size at one, half at two.
-///
-/// A divisor rather than a scale factor because that is what a bloom chain
-/// actually is, and because integer division is the only thing that gives the
-/// same answer on every frame at every window size.
-final class FrameFraction extends ResourceSize {
-  const FrameFraction([this.divisor = 1]) : assert(divisor >= 1);
-
-  final int divisor;
-
-  @override
-  (int, int) resolve(int frameWidth, int frameHeight) {
-    // Never below one pixel: a chain taken far enough would otherwise ask for
-    // a zero-sized texture, and that is a driver error rather than an
-    // exception. The pool's `scaled` guards the same way for the same reason.
-    final w = frameWidth ~/ divisor;
-    final h = frameHeight ~/ divisor;
-    return (w < 1 ? 1 : w, h < 1 ? 1 : h);
-  }
-}
-
-/// A fixed size, for anything whose extent is its own business — a shadow
-/// atlas is the same size whatever the window is doing.
-final class AbsolutePixels extends ResourceSize {
-  const AbsolutePixels(this.width, this.height);
-
-  final int width;
-  final int height;
-
-  @override
-  (int, int) resolve(int frameWidth, int frameHeight) => (width, height);
-}
-
-/// Where the pixels behind a bound resource came from.
-///
-/// [FrameResources.tryTexture] answers "is there a texture", which used to be
-/// the only question available and is not the same question. A shadow map that
-/// was not drawn this frame and a shadow atlas that deliberately holds an
-/// earlier frame's pixels both come back as a texture, and they mean opposite
-/// things: the first is stale and must not be sampled, the second is exactly
-/// what the sampler is for. See [FrameGraphNode.keeps].
-enum ResourceOrigin {
-  /// A node drew it during this frame. Absent means nothing produced it, and a
-  /// reader that can do without has to.
-  drawn,
-
-  /// A node maintains it across frames. It is valid to sample, and some or all
-  /// of it predates this frame — deliberately.
-  kept,
-}
-
-/// What a node is asking for when it writes a resource.
-final class ResourceDesc {
-  const ResourceDesc({
-    required this.id,
-    required this.format,
-    this.size = const FrameFraction(),
-    this.sampleCount = 1,
-    this.storageMode = StorageMode.devicePrivate,
-  });
-
-  final ResourceId id;
-  final TextureFormat format;
-  final ResourceSize size;
-  final int sampleCount;
-
-  /// `deviceTransient` is tile memory: cheaper, and unreadable afterwards. A
-  /// resource another node declares a read on must not be transient, and
-  /// [FrameResources.declare] now refuses one that is.
-  final StorageMode storageMode;
-
-  RenderTargetSpec resolve(int frameWidth, int frameHeight) {
-    final (width, height) = size.resolve(frameWidth, frameHeight);
-    return RenderTargetSpec(
-      width: width,
-      height: height,
-      format: format,
-      sampleCount: sampleCount,
-      storageMode: storageMode,
-    );
-  }
-}
-
-/// Where a frame's textures come from, and where they go back to.
-///
-/// An interface rather than a [RenderTargetPool] because **a texture cannot go
-/// straight back to the pool when the last pass stops reading it.** The GPU is
-/// still working through this frame's command buffers; handing the texture
-/// back immediately lets the pool lend it to the next acquirer while the
-/// hardware is reading it, and the result is an intermittent wrong picture —
-/// the hardest kind of defect to trace back to its cause.
-///
-/// The renderer already knew this and defers releases by a full ring of frames
-/// in flight. [FrameResources] released straight to the pool until the shadow
-/// passes were read closely enough to notice, which is the argument for
-/// reading working code before replacing it.
-abstract interface class FrameTextureSource {
-  TextureHandle acquire(RenderTargetSpec spec);
-
-  /// Gives a texture up. The implementation decides *when* it is safe to reuse.
-  void release(TextureHandle texture);
-}
-
-/// A source that returns textures to the pool at once.
-///
-/// For tests and for anything that is not inside a frame in flight. Using this
-/// from a renderer is the bug described on [FrameTextureSource].
-final class ImmediateTextureSource implements FrameTextureSource {
-  const ImmediateTextureSource(this.pool);
-
-  final RenderTargetPool pool;
-
-  @override
-  TextureHandle acquire(RenderTargetSpec spec) => pool.acquire(spec);
-
-  @override
-  void release(TextureHandle texture) => pool.release(texture);
-}
+// Re-exported so every existing import of this file keeps seeing
+// `ResourceDesc`, `ResourceOrigin`, `FrameTextureSource` and friends without
+// change: they moved out because they are independent value types with no
+// claim on `FrameResources`' private state, not because anything using them
+// should now import three files instead of one.
+export 'frame_texture_source.dart';
+export 'resource_desc.dart';
 
 /// The textures a frame's nodes read and write, acquired late and released
 /// early.

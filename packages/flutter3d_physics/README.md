@@ -29,3 +29,10 @@ it went and why.
 number was never the interesting part: a distance nobody can perceive, the slack
 on two numbers computed different ways, and a denominator guard on a squared
 quantity are different questions that used to look identical.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

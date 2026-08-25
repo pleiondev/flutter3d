@@ -32,7 +32,7 @@ out vec4 frag_color;
 //
 // Depth travels here rather than in a depth texture because flutter_gpu cannot
 // sample one — the same reason the shadow pass writes its depth into a colour
-// target. See RESEARCH.md.
+// target. See ARCHITECTURE.md §2.
 //
 // Guarded, because not every stage that includes this header draws into a
 // two-attachment target. The shadow pass draws into one, and a pipeline

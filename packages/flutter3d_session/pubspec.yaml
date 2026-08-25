@@ -1,9 +1,10 @@
 name: flutter3d_session
 description: "What a game on this engine is as an application: the surface a frame is handed to Flutter through, and the run being played."
-version: 0.1.0
+version: 0.3.0
 publish_to: 'none'
 resolution: workspace
-repository: https://github.com/dzolotov/flutter3d
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
 
 environment:
   sdk: ^3.12.2
@@ -16,25 +17,23 @@ dependencies:
   # the half a session needs that persists. **Neither package knows about the
   # other**, which is the whole reason this one exists rather than one of them
   # growing to hold both.
-  flutter3d_ui: ^0.1.0
+  flutter3d_ui: ^0.3.0
 
   # The simulation's vocabulary: `Snapshot`, `RunOutcome`, `GameLoop`.
-  flutter3d_game: ^0.1.0
+  flutter3d_game: ^0.3.0
 
   # The renderer, for `RenderSettings` and `Scene` — which the surface hands over
   # and never interprets.
-  flutter3d: ^0.1.0
+  flutter3d: ^0.3.0
 
 
 dev_dependencies:
-  # The rule that this package names no genre, as a test it runs against itself.
-  flutter3d_boundaries: ^0.1.0
 
   flutter_test:
     sdk: flutter
 
   # A renderer with no GPU under it, so the surface can be mounted and pumped.
-  flutter3d_cpu: ^0.1.0
+  flutter3d_cpu: ^0.3.0
   flutter_lints: ^6.0.0
 
 flutter:

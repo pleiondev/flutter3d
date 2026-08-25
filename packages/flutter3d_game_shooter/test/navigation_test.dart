@@ -8,7 +8,6 @@
 /// would fail the second.
 library;
 
-import 'dart:math' as math;
 
 import 'package:flutter3d_game/src/actors/actor_system.dart';
 import 'package:flutter3d_game/src/level/level.dart';
@@ -17,6 +16,7 @@ import 'package:flutter3d_game/src/nav/flow_field.dart';
 import 'package:flutter3d_game/src/nav/nav_grid.dart';
 import 'package:flutter3d_game/src/nav/navigation.dart';
 import 'package:flutter3d_game/src/physics/layers.dart';
+import 'package:flutter3d_game/src/save/game_random.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -429,12 +429,12 @@ void main() {
       );
       world.update();
 
-      final system = ActorSystem(world: world, random: math.Random(7));
+      final system = ActorSystem(world: world, random: GameRandom(7));
       final bestiary = Bestiary(
         actors: system,
         shot: WeaponShot(
           world: world,
-          hitscan: Hitscan(world: world),
+          hitscan: Hitscan(world: world, random: GameRandom(1)),
           projectiles: ProjectileSystem(world: world),
         ),
         catalog: Monsters.byName,

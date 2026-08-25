@@ -1,0 +1,89 @@
+name: flutter3d_demo_racing
+description: "An arcade racer: one circuit, a car that can be made to slide, and a lap time to beat."
+publish_to: 'none'
+version: 0.3.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The assembly layer: which device to open, the frame surface and run
+  # lifecycle, settings/rebinding/saves, and the gamepad. A barrel over five
+  # packages that do not know about each other; see flutter3d_app for why they
+  # are not listed here individually.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # Simulation and input.
+  flutter3d_game:
+    path: ../../packages/flutter3d_game
+
+  # The genre. Cars, tracks, laps — none of which the two above have heard of.
+  flutter3d_game_racing:
+    path: ../../packages/flutter3d_game_racing
+
+  # Sound. Depends on neither the renderer nor the game engine.
+  flutter3d_audio:
+    path: ../../packages/flutter3d_audio
+
+  # Where the two meet: level geometry to mesh nodes, a fixture to its light.
+  flutter3d_bridge:
+    path: ../../packages/flutter3d_bridge
+
+  # What a locked wheel and a car off the road throw into the air. This game
+  # had no particles at all until it had smoke.
+  flutter3d_particles:
+    path: ../../packages/flutter3d_particles
+
+  # The world a car stands in. Named by `staging.dart`, which is the one place
+  # this game assembles a race.
+  flutter3d_physics:
+    path: ../../packages/flutter3d_physics
+
+  vector_math: ^2.2.0
+
+  # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
+  # What goes through it is the screen: which circuit is up, whether one just
+  # failed to read, and what comes after the one just won. What does **not**
+  # is the sixty-hertz step, the camera, the particles and the scene; a state
+  # object per simulation step is an allocation and a rebuild sixty times a
+  # second, and keeping the renderer's frame rate out of the fixed step is
+  # the whole point of `GameSimulation`.
+  flutter_bloc: ^9.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Only the tests use it, and only to draw a frame without a GPU. The
+  # platformer shipped three bugs that every simulation test passed and a single
+  # rendered frame would have caught.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  # `testing.dart`'s `creditGaps` — comparing shipped assets against the
+  # credits list. Test-only, so it is not behind the flutter3d_app barrel.
+  flutter3d_ui:
+    path: ../../packages/flutter3d_ui
+
+# Two traps this repository has paid for before, one of them already sprung
+# here: `FLTEnableFlutterGPU` and `FLTEnableImpeller` have to be in the macOS
+# `Info.plist` or the window comes up empty — they are; and when sound is added,
+# run `flutter clean` afterwards, or SoLoud reports "no available native assets"
+# once and then plays nothing for the rest of the session.
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/tracks/
+    - assets/models/
+    - assets/sounds/

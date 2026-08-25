@@ -1,5 +1,17 @@
+## 0.3.0
+
+* Regenerated against the current sources, including the environment sampling
+  and the composite look.
+
+## 0.2.0
+
+* The GLSL is generated from `flutter3d_shaders` and CI fails on the diff,
+  after a stale table turned out to be drawing last month's sky in the browser
+  while nothing could see it.
+* A pass sets its viewport and scissor to the attachment it draws into rather
+  than to the size of the canvas.
+
 ## 0.1.0
 
-* `flutter3d_graphics` over WebGL2, for a build that runs in a browser.
-* GLSL ES 3.00 translated from `flutter3d_shaders` by `tool/generate_shaders.dart`
-  and checked against the Impeller backend, frame by frame, in a real browser.
+* A WebGL2 backend: the second implementation of `flutter3d_hardware`, and the
+  one that says whether the HAL is a seam or a description of Impeller.

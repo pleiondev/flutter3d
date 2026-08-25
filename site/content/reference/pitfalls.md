@@ -52,7 +52,7 @@ They are grouped by what you see, because that is what you have when you go look
 | Additive particles occlude each other | `setDepthWrite(false)` did nothing until Flutter 3.47. Fixed in the SDK; the software backend mirrored the bug on purpose so the two would stay comparable |
 | A character's shadow is drawn as a blurred slab beside them | A directional map fitted to the whole scene. On 120 m × 260 m that is fourteen centimetres of world per texel. Use `ShadowSettings(cascades: 3, resolution: 1024)`, and remember the atlas is `resolution × cascades` wide |
 | The view stops turning when the cursor reaches the edge of the window | Flutter exposes no pointer lock on any desktop platform. `packages/pointer_lock` supplies it on macOS by turning off the association between the physical mouse and the on-screen cursor |
-| No cursor anywhere after a hot restart | A plugin holding the pointer outlives the Dart isolate, because the engine's registrar owns it. The Dart side comes back remembering nothing, so nothing asks for the cursor back. `MouseCapture` issues a reset on construction for exactly this |
+| No cursor anywhere after a hot restart | A plugin holding the pointer outlives the Dart isolate, because the engine's registrar owns it. The Dart side comes back remembering nothing, so nothing asks for the cursor back. `PointerLock` issues a reset on construction for exactly this |
 
 ## It looks fine and is not
 

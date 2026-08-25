@@ -9,7 +9,7 @@
 /// compiles, it runs, and it renders wrong only for the scenes that use it.
 library;
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
 /// The comparison function, as `gl.depthFunc` wants it.

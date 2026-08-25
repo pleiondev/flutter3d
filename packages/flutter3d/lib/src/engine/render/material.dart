@@ -1,4 +1,6 @@
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'dart:typed_data';
+
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'lighting_model.dart';
@@ -43,10 +45,48 @@ final class Material {
     this.drawBucket = 0,
     this.depthWrite,
     this.depthCompare,
-  })  : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
+    this.parameterBlock = 'MaterialParams',
+    Map<String, Float32List>? parameters,
+    Map<String, TextureHandle>? extraTextures,
+  })  : parameters = parameters ?? const <String, Float32List>{},
+        extraTextures = extraTextures ?? const <String, TextureHandle>{},
+        baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
         emissive = emissive ?? Vector3.zero();
 
   final String? name;
+
+  /// The uniform block an application's own shader reads its parameters from.
+  ///
+  /// Meaningless for the models this engine ships — they read `FragInfo` — and
+  /// used only when [parameters] has something in it.
+  final String parameterBlock;
+
+  /// What an application's own shader is configured with.
+  ///
+  /// **This is the half of a custom material that is not the shader.** A
+  /// [LightingModel] can already name a stage the engine never heard of; this
+  /// is how that stage is told a wave height, a tint ramp or a scroll speed
+  /// without the engine knowing what any of them mean.
+  ///
+  /// Safe to fill in even when the shader has no such block: the encoder skips
+  /// members a compiled shader does not read and reports an absent block rather
+  /// than taking the process down — see `CommandEncoder.bindUniformBlock`,
+  /// where that distinction is spelled out.
+  ///
+  /// Every uniform in this engine is a float vector, a matrix or an array of
+  /// either, so a `Float32List` is the only value there is. An integer or a
+  /// boolean is encoded as a float, the same way the built-in shaders do it.
+  final Map<String, Float32List> parameters;
+
+  /// Textures an application's own shader samples, by slot name.
+  ///
+  /// **Unlike [parameters], a wrong name here is fatal**, and that asymmetry is
+  /// the encoder's rather than this class's: binding a sampler slot a compiled
+  /// shader does not have is a native crash with no Dart stack, while a missing
+  /// uniform block is merely reported. The material that names the shader is
+  /// the same object that lists these, so the two are the author's to keep in
+  /// step — there is nothing here that could check it for them.
+  final Map<String, TextureHandle> extraTextures;
 
   /// Selects the pre-built fragment shader, and therefore the pipeline.
   LightingModel lighting;

@@ -1,22 +1,27 @@
 ---
-description: Two independent golden sets, mutation-checking every new test, determinism and snapshots, and why only thirty of 1805 tests need a GPU.
+description: Two independent golden sets, mutation-checking every new test, determinism and snapshots, and why only thirty of 2870 tests need a GPU.
 ---
 
 # Testing
 
-1805 tests across sixteen packages, counted by running each package's suite. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+2870 tests across 22 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call, checked against `ARCHITECTURE.md` §13 so the number cannot quietly describe a year-old repository. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 604 | | `flutter3d_game_platformer` | 134 |
-| `flutter3d_game_shooter` | 247 | | `flutter3d_physics` | 96 |
-| `flutter3d_game` | 178 | | `flutter3d_impeller` | 78 |
-| `flutter3d_game_racing` | 140 | | `flutter3d_particles` | 68 |
-| `flutter3d_cpu` | 64 | | `flutter3d_audio` | 45 |
-| `pointer_lock` | 17 | | `flutter3d_graphics` | 15 |
-| `flutter3d_webgl` | 11 | | `flutter3d_shaders` | 1 |
-| `apps/platformer` | 77 | | `apps/racing` | 23 |
-| `apps/dungeon` | 3 | | `flutter3d_bridge` | 4 |
+| `flutter3d` | 640 | | `apps/flutter3d_editor` | 158 |
+| `flutter3d_game` | 337 | | `apps/flutter3d_demo_platformer` | 151 |
+| `flutter3d_game_shooter` | 283 | | `flutter3d_physics` | 135 |
+| `flutter3d_game_platformer` | 186 | | `apps/flutter3d_demo_racing` | 99 |
+| `flutter3d_game_racing` | 184 | | `flutter3d_ui` | 97 |
+| `flutter3d_cpu` | 90 | | `flutter3d_particles` | 68 |
+| `pad_input` | 64 | | `apps/flutter3d_demo_dungeon` | 52 |
+| `flutter3d_audio` | 50 | | `flutter3d_impeller` | 33 |
+| `flutter3d_session` | 25 | | `pointer_lock` | 21 |
+| `flutter3d_webgl` | 19 | | `flutter3d_hardware` | 13 |
+| `flutter3d_bridge` | 13 | | `apps/flutter3d_template_app` | 2 |
+| `flutter3d_shaders` | 1 | | | |
+
+`flutter3d_app` and `flutter3d_backend` are not in the table and have no `test/` at all. Both are wiring: a barrel of five re-exports, and a conditional import. What there is to check about them is structural rather than behavioural. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
 ```bash
 tool/ci.sh                                   # shaders, analyze, every test
@@ -33,6 +38,10 @@ Thirty scenes are rendered twice: once through Impeller, once through the softwa
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.
+
+<div class="warn">
+<p>Flutter GPU requires Impeller, which a headless <code>flutter test</code> cannot give it, so the conformance harness has to be an application that somebody watches run. It was one — and stood there showing a pass list to a human — from the same commit that added a fix meant to be caught by it, until <code>packages/flutter3d_impeller/tool/conformance.sh</code> was written to actually run the suite and return its exit code. Once it did, the suite passed; nobody had known either way before then. The <code>the Impeller conformance runner is reachable</code> rule now keeps that script from going stale — checking that it exists, that it is executable, and that it and the entry point still agree about the line the verdict is read from.</p>
+</div>
 
 ## Every new test is written by breaking what it covers
 
@@ -82,6 +91,26 @@ Everything except the Impeller goldens. In practice that means:
 | A rendered frame | Yes | Through `flutter3d_cpu` |
 | Impeller output | No | |
 
+## Test doubles ship with the package they double
+
+Four packages carry a `lib/testing.dart`. It is a separate library, so nothing a consumer builds pulls it in, and it is importable, which a `test/` directory is not:
+
+```dart
+import 'package:flutter3d_hardware/testing.dart';  // FakeBackend
+import 'package:flutter3d_cpu/testing.dart';       // cpuTestDevice
+import 'package:flutter3d_audio/testing.dart';     // soundTableIn
+import 'package:flutter3d_ui/testing.dart';        // creditGaps
+```
+
+`FakeBackend` is a `GraphicsDevice` that draws nothing and records everything: which passes were opened, what they were attached to, what was bound, how many times it drew. `cpuTestDevice` is a `CpuDevice` with the builtin shaders and the two fallback textures a `Renderer` asks for.
+
+<div class="why">
+<p>Each of these was copied before it was shared, and the copies drifted. <code>FakeBackend</code> was 475 lines in two packages, identical down to a paragraph naming a test only one of them had, and the second copy was 26 lines behind, missing the very fields a test would reach for. The device-and-fallbacks helper was in eight files, always the same white albedo and the same flat normal typed out again.</p>
+<p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
+</div>
+
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the eighteen checks it.
+
 ## Play the game in a test
 
 The most valuable test in either game is the one that plays it.
@@ -109,25 +138,49 @@ test('the crypt can be finished', () {
 
 ```dart
 test('a frame renders', () {
-  final renderer = Renderer.create(device: CpuRenderBackend(), /* ... */);
+  final renderer = Renderer.create(device: CpuDevice(/* ... */));
   final frame = renderer.render(width: 320, height: 180, scene: scene,
       views: <RenderView>[view], settings: const RenderSettings());
   expect(frame.drawCalls, greaterThan(0));
 });
 ```
 
-## The tests that hold the architecture
+## The rules that hold the architecture are not tests
 
-Four of them, and each one turns a rule into a fact.
+They ask how the code is *arranged*: who imports what, what a name says, where a thing may live. A test asks what code *does*. They live in `tool/structure.dart` and run first:
 
-| Test | What it refuses |
+```bash
+dart run tool/structure.dart
+```
+
+Eighteen rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+
+| Rule | What it refuses |
 |---|---|
-| `flutter3d_graphics/test/no_backend_test.dart` | A `flutter_gpu` import in the graphics vocabulary |
-| `flutter3d/test/backend_is_contained_test.dart` | A backend import in the engine |
-| `flutter3d_game/test/no_genre_test.dart` | Genre vocabulary in the game layer |
-| Its twin in `flutter3d_bridge` | The same, one layer up |
+| `no package names a genre` | A genre import, **and** a genre word: `oneWay`, `ammo` and `lapTime` import nothing and are the same leak |
+| `the hardware layer names no graphics API` | `flutter_gpu` or Flutter in the graphics vocabulary |
+| `the engine names no backend` | A backend import, or dependency, in `flutter3d` |
+| `a genre package draws only where it says` | A renderer reached from a genre's simulation half, and an allowlist entry that has stopped drawing |
+| `a genre package reaches no other genre` | A racer borrowing a platformer's runner |
+| `nothing shares a mutable value as a constant` | `static final Vector3`, which the first caller to scale in place changes for the whole process |
+| `a step reaches for no clock and no loose dice` | `Random()` and `DateTime.now()` in a simulation package |
+| `each assembly has one home per application` | A second place that spawns a level or dresses it |
+| `no test builds its own world` | A harness that is not the game, and so agrees with any bug the game has |
+| `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
 
-Without them the rules would live only in a README, where nothing checks them.
+| `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
+
+Seven more check the lists against the workspace, the applications for a silenced `print`, the Impeller conformance runner for rot, and three numbers that go stale on their own: the test count, the structure-rule count and the publishing order, each compared against the tree. A number in prose is a number nobody recounts.
+
+<div class="why">
+<p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>
+</div>
+
+### The detectors prove themselves first
+
+Rule 6.3 applies to these more than to anything else: a scan behind a detector nobody has seen fail is a rule nobody is keeping. The genre scan once lived in two copies and one of them had already lost the check that it fired at all, so it passed whether or not the rule held.
+
+So the detectors run against synthetic input before a single file is read. They must fire on `int ammo = 0;` and stay quiet on `overlaps`, `elapsed` and `collapse`, all three of which contain `lap`. A broken detector stops the run and no scan is reported, because a green scan behind one is worse than a red one: somebody believes it.
 
 ## Coverage that moved with its fixtures
 

@@ -1,9 +1,10 @@
 name: pad_input
 description: "Reads a gamepad's sticks, triggers and buttons as a snapshot the caller asks for, with a dead zone applied and no opinion about what any button means."
-version: 0.1.0
+version: 0.3.0
 publish_to: 'none'
 resolution: workspace
-repository: https://github.com/dzolotov/flutter3d
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
 
 environment:
   sdk: ^3.12.2

@@ -1,4 +1,5 @@
 import 'package:flutter3d_game/src/physics/layers.dart';
+import 'package:flutter3d_game/src/save/game_random.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -314,7 +315,7 @@ void main() {
       final system = ProjectileSystem(world: world);
       final shot = WeaponShot(
         world: world,
-        hitscan: Hitscan(world: world),
+        hitscan: Hitscan(world: world, random: GameRandom(1)),
         projectiles: system,
       );
 
@@ -338,7 +339,7 @@ void main() {
       // The firing rules are testable without one, which is the reason the
       // field is nullable.
       final world = CollisionWorld();
-      final shot = WeaponShot(world: world, hitscan: Hitscan(world: world));
+      final shot = WeaponShot(world: world, hitscan: Hitscan(world: world, random: GameRandom(1)));
 
       shot.begin(
         Weapons.rocketLauncher,

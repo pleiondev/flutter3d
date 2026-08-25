@@ -18,6 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_cpu/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -39,23 +40,13 @@ const List<List<int>> _faceColours = <List<int>>[
 ];
 
 ({CpuDevice device, Renderer renderer}) _engine() {
-  final device = CpuDevice(
-    width: _width,
-    height: _height,
-    shaders: CpuShaderLibrary(builtinCpuShaders()),
-  );
-  TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-      )!;
+  final it = cpuTestDevice(width: _width, height: _height);
   return (
-    device: device,
+    device: it.device,
     renderer: Renderer.create(
-      device: device,
-      fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
-      fallbackNormal: texel(<int>[128, 128, 255, 255]),
+      device: it.device,
+      fallbackAlbedo: it.albedo,
+      fallbackNormal: it.normal,
     ),
   );
 }

@@ -1,9 +1,10 @@
 import 'dart:developer' as developer;
 
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/camera_node.dart';
+import '../scene/projection.dart';
 import '../scene/scene.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';

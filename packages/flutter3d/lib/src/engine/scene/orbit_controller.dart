@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:vector_math/vector_math.dart';
 
 import 'camera_node.dart';
+import 'projection.dart';
 import 'scene_node.dart';
 
 /// Turntable controls: orbit a node around a target point.

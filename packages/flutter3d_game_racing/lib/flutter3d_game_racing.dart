@@ -17,16 +17,22 @@
 library;
 
 export 'src/ai/ai_driver.dart';
+export 'src/ai/ai_tuning.dart';
 export 'src/chase_camera.dart';
 export 'src/ghost.dart';
 export 'src/layers.dart';
+export 'src/race_phase.dart';
 export 'src/race_state.dart';
+export 'src/racer_progress.dart';
 export 'src/simulation.dart';
 export 'src/sky.dart';
+export 'src/sky_presets.dart';
 export 'src/track.dart';
 export 'src/track_field.dart';
 export 'src/track_reader.dart';
+export 'src/track_types.dart';
 export 'src/vehicle/sphere_vehicle.dart';
 export 'src/vehicle/tire_model.dart';
 export 'src/vehicle/tyres.dart';
 export 'src/vehicle/vehicle_controller.dart';
+export 'src/vehicle/vehicle_tuning.dart';

@@ -1,0 +1,36 @@
+name: Feature or change
+description: Something the engine should be able to do and cannot
+labels: [enhancement]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What you are trying to build, and where it stops
+      description: |
+        The shape of the problem matters more than the shape of the fix — an
+        engine that grants every requested feature ends up with several ways to
+        do each thing and no reason to prefer any of them.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What you do instead today
+      description: If there is a workaround, its cost is the argument.
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer this belongs to
+      description: |
+        The repository is cut so that a genre package holds what only that genre
+        wants, and the engine holds nothing about any of them. A feature in the
+        wrong layer is refused by a scan rather than by a reviewer.
+      options:
+        - the renderer (flutter3d)
+        - the game layer (flutter3d_game)
+        - physics (flutter3d_physics)
+        - one genre (shooter, platformer, racing)
+        - a backend (impeller, webgl, cpu)
+        - not sure
+    validations:
+      required: true

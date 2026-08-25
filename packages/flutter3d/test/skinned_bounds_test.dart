@@ -21,6 +21,7 @@
 /// code that computes the box.
 library;
 
+import 'package:flutter3d/src/engine/assets/model_asset.dart';
 import 'package:flutter3d/src/engine/geometry/mesh_data.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';

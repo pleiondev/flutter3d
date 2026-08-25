@@ -14,7 +14,7 @@
 library;
 
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
 /// Whether this build was asked for the software backend.
 const bool kUseCpuBackend = bool.fromEnvironment('cpuBackend');

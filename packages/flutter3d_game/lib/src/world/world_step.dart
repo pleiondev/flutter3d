@@ -60,7 +60,7 @@ import 'mechanism.dart';
 /// constraints instead of enforcing them, which is the honest trade: what was
 /// duplicated was never the six calls, it was the paragraph explaining them.
 final class WorldStep {
-  const WorldStep({
+  WorldStep({
     required this.collision,
     this.mechanisms,
     this.dynamics,
@@ -70,13 +70,45 @@ final class WorldStep {
   final MechanismWorld? mechanisms;
   final Dynamics? dynamics;
 
+  /// Whether a step has run [movers] and not yet reached [publish].
+  ///
+  /// Only ever written inside an `assert`, so it costs nothing in a release
+  /// build and does not exist in one. See [movers] for what it is guarding.
+  bool _owesPublish = false;
+
   /// Doors, lifts, and anything else the level drives.
   ///
   /// A game with actors decides for itself whether they move here — where
   /// [index] will catch them — or after everything, where they answer the
   /// player's new position instead. Both are defensible and the two games in
   /// this repository chose differently.
-  void movers(double dt) => mechanisms?.step(dt);
+  ///
+  /// **This asserts that the previous step reached [publish], and that is not
+  /// housekeeping.** It shipped: `PlatformerSimulation.step` moved its
+  /// mechanisms and never published them, so `takenThisStep` was empty on every
+  /// step of every run. The purse still filled — the taking happens inside
+  /// `settle` — so nothing looked wrong except that no coin ever made a sound,
+  /// and no test could see it because every test read the simulation.
+  ///
+  /// The class documents constraints rather than enforcing them, deliberately;
+  /// this is the one that has already been broken in a shipped game, and a
+  /// debug assert is the cheapest thing that would have caught it the same
+  /// afternoon.
+  void movers(double dt) {
+    assert(() {
+      if (_owesPublish) {
+        throw StateError(
+          'a step ran movers() and never reached publish(). The machinery '
+          'changed the world and then nobody asked it what it did, so every '
+          'consequence read out of its events — a sound, a message, a door '
+          'opening — silently did not happen. See WorldStep.publish.',
+        );
+      }
+      _owesPublish = mechanisms != null;
+      return true;
+    }());
+    mechanisms?.step(dt);
+  }
 
   /// Rebuilds the broadphase over what has just moved, and runs the rigid
   /// bodies.
@@ -107,6 +139,12 @@ final class WorldStep {
   /// Not optional anywhere. Without it the events stay the empty lists they
   /// were built with, and every consequence read out of them — a sound, a
   /// message, a door opening — silently never happens while the world goes on
-  /// changing.
-  void publish() => mechanisms?.publish();
+  /// changing. [movers] asserts that the previous step got here.
+  void publish() {
+    assert(() {
+      _owesPublish = false;
+      return true;
+    }());
+    mechanisms?.publish();
+  }
 }

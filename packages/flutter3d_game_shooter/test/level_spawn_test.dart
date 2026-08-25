@@ -33,13 +33,13 @@ Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
 ) {
   final world = CollisionWorld();
   level.addTo(world);
-  final actors = ActorSystem(world: world);
+  final actors = ActorSystem(world: world, random: GameRandom(1));
   final registry = sampleRegistry();
   (registry[ShooterEntities.monster] as MonsterKind?)?.bestiary = Bestiary(
     actors: actors,
     shot: WeaponShot(
       world: world,
-      hitscan: Hitscan(world: world),
+      hitscan: Hitscan(world: world, random: GameRandom(1)),
       projectiles: ProjectileSystem(world: world),
     ),
     catalog: Monsters.byName,
@@ -214,7 +214,7 @@ void main() {
       ]);
       final world = CollisionWorld();
       level.addTo(world);
-      final actors = ActorSystem(world: world);
+      final actors = ActorSystem(world: world, random: GameRandom(1));
 
       level.spawnInto(
         SpawnContext(
@@ -272,7 +272,7 @@ void _anotherGameTests() {
         actors: into,
         shot: WeaponShot(
           world: into.world,
-          hitscan: Hitscan(world: into.world),
+          hitscan: Hitscan(world: into.world, random: GameRandom(1)),
           projectiles: ProjectileSystem(world: into.world),
         ),
         catalog: monsters,
@@ -359,7 +359,7 @@ void _anotherGameTests() {
       final world = CollisionWorld();
       final level = levelWith('ghost');
       level.addTo(world);
-      final actors = ActorSystem(world: world);
+      final actors = ActorSystem(world: world, random: GameRandom(1));
       level.spawnInto(
         SpawnContext(
           world: world,

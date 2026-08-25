@@ -274,11 +274,16 @@ def editor(face, draw):
         draw.line([a, b], fill=green, width=width)
 
 
+# Keyed on the application directory, which is also its package name. The
+# `flutter3d_` prefix is not decoration here: `os.path.isdir` below silently
+# writes nothing for a key that does not match a directory, so a stale name
+# means an icon that quietly stops being regenerated — and the CI step that
+# diffs the output would go on passing, because nothing changed.
 DESIGNS = {
-    'platformer': ascent,
-    'dungeon': crypt,
-    'racing': ring,
-    'editor': editor,
+    'flutter3d_demo_platformer': ascent,
+    'flutter3d_demo_dungeon': crypt,
+    'flutter3d_demo_racing': ring,
+    'flutter3d_editor': editor,
 }
 
 
@@ -287,20 +292,33 @@ def write(image, path, size):
     image.resize((size, size), Image.LANCZOS).save(path)
 
 
-def main():
+def main(root=HERE, quiet=False):
+    """Draws every icon under `root`, which is the repository unless a checker
+    hands it somewhere else.
+
+    The output root is a parameter so `tool/check_icons.py` can draw into a
+    temporary directory and compare, instead of overwriting what is committed
+    and then asking git what moved. A check that has to dirty the tree to run is
+    a check nobody runs while they are working.
+
+    Which applications get which icons is decided from `root` when it is the
+    repository and from `HERE` otherwise: a temporary directory has no `macos/`
+    or `web/` in it, and the answer must not depend on that.
+    """
     for app, design in DESIGNS.items():
         image = tile(None, design)
 
-        mac = os.path.join(
-            HERE, 'apps', app, 'macos', 'Runner', 'Assets.xcassets',
-            'AppIcon.appiconset',
-        )
-        if os.path.isdir(mac):
+        if os.path.isdir(os.path.join(HERE, 'apps', app, 'macos', 'Runner',
+                                      'Assets.xcassets', 'AppIcon.appiconset')):
+            mac = os.path.join(
+                root, 'apps', app, 'macos', 'Runner', 'Assets.xcassets',
+                'AppIcon.appiconset',
+            )
             for size in MAC_SIZES:
                 write(image, os.path.join(mac, f'app_icon_{size}.png'), size)
 
-        web = os.path.join(HERE, 'apps', app, 'web')
-        if os.path.isdir(web):
+        web = os.path.join(root, 'apps', app, 'web')
+        if os.path.isdir(os.path.join(HERE, 'apps', app, 'web')):
             for size in WEB_SIZES:
                 write(image, os.path.join(web, 'icons', f'Icon-{size}.png'), size)
                 # The maskable one is the same drawing: this tile already keeps
@@ -313,7 +331,8 @@ def main():
                 )
             write(image, os.path.join(web, 'favicon.png'), 32)
 
-        print(f'{app}: icons written')
+        if not quiet:
+            print(f'{app}: icons written')
 
 
 if __name__ == '__main__':

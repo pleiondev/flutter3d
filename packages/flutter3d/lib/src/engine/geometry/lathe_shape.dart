@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:vector_math/vector_math.dart';
 
+import 'mesh_builder.dart';
 import 'mesh_data.dart';
 import 'shape.dart';
 import 'vertex_layout.dart';

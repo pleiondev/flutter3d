@@ -1,7 +1,43 @@
 # flutter3d
 
-A 3D engine spike on **Flutter GPU**. The research that led to this structure, and
-the full list of engine features with priorities, is in [RESEARCH.md](RESEARCH.md).
+**An independent implementation of a real-time 3D engine for Flutter**, written
+from the geometry layer up. It is not a fork, a binding or a wrapper around
+another engine, and it is not affiliated with the Flutter team.
+
+Homepage: **<https://flutter3d.pleion.dev>** · API reference:
+**<https://flutter3d.pleion.dev/docs>** · Source:
+**<https://github.com/pleiondev/flutter3d>**
+
+## What it is good at
+
+- **Three graphics backends behind one interface.** `flutter_gpu` on desktop,
+  WebGL2 in a browser, and a software rasteriser with no GPU at all. User code
+  names none of them, and a fourth changes nothing above the HAL — which is
+  checked by a conformance suite rather than asserted.
+- **Rendering that can be tested without a graphics card.** The software backend
+  gives a second, independently written set of reference images, so a golden that
+  passes is two implementations agreeing rather than one agreeing with itself.
+  `flutter3d_testing` hands that to a game as a one-call API.
+- **Three genre templates, each with a playable demo** — shooter, platformer and
+  racing. They are packages rather than samples, so a new game starts from one
+  instead of from an empty screen, and they are the reason the engine's boundaries
+  are real: nothing in `packages/flutter3d*` may name a genre, and a scan enforces
+  it.
+- **A deterministic simulation.** A fixed step that reaches for no clock and no
+  loose dice, a generator whose state can be written down, and `InputTape` — so a
+  run replays exactly, a bug arrives as a file attached to a report, and a test can
+  play a whole level.
+- **A game layer that does not depend on the renderer.** Collisions, input and
+  the step are reachable from an ordinary unit test, which is where the bugs that
+  never appear in a screenshot live.
+- **Extension points instead of forks**: a decoder for a model format the engine
+  does not know, a decoder for a material format, a system added to somebody
+  else's simulation step, a contributor drawing into somebody else's render pass,
+  and a lighting model of your own if you build your own shader bundle.
+- **Its own level format and editor**, validated before a run, reporting the
+  coordinate of a problem rather than "the file is broken".
+
+`ARCHITECTURE.md` at the repository root is how all of it fits together and why.
 
 What works today:
 
@@ -73,7 +109,7 @@ What works today:
 #    It lands in assets/shaders/, an asset of this package, so a dependent
 #    application loads it as packages/flutter3d/assets/shaders/... without
 #    declaring anything. Generated, so it is not in the repository.
-./tool/build_shaders.sh
+(cd ../flutter3d_impeller && ./tool/build_shaders.sh)
 
 # 2. Run the demo
 (cd example && flutter run -d macos)
@@ -183,8 +219,8 @@ cover all three ways of storing the data. See
 
 ## The `.f3d` container
 
-`doc/FFI-analysis.md` measured the decoders and found the format matters far
-more than the language: the same geometry is about 360x slower to load as OBJ
+[ARCHITECTURE.md](../../ARCHITECTURE.md), section 14, measured the decoders and
+found the format matters far more than the language: the same geometry is about 360x slower to load as OBJ
 text than as a binary buffer, and native code does not close that. `.f3d` moves
 the parse off the device entirely.
 
@@ -232,7 +268,7 @@ either does not start or silently renders nothing. Worth keeping to hand.
 | A black viewport with no errors at all | `Viewport` and `Scissor` default to a **zero-sized** rect and the API does not complain about drawing into one. Set both explicitly every frame |
 | The scene is all ambient, as if the light shone away from the camera | Getters shaped like `readDirection([out])` ended in `result.normalized()`, which returns a **new** vector and leaves `out` holding the un-normalized, un-negated value. The renderer read its own variable rather than the return value, so the light direction was inverted: `N·L` went negative and clamped to zero. Normalize **in place** (`normalize()`), and pin it with `expect(returned, same(out))` |
 | `Binding has not yet been initialized` when reading assets off the UI isolate | `BackgroundIsolateBinaryMessenger.ensureInitialized(token)` grants a background isolate a working channel but creates no `ServicesBinding`, and `rootBundle` resolves through `ServicesBinding.instance`. Routing `flutter/assets` by hand fails deeper still — Flutter's own reply handler throws on a cast. Keep file reads on the UI isolate and request siblings over a port |
-| Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. Re-run `./tool/build_shaders.sh` |
+| Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. Re-run `flutter3d_impeller/tool/build_shaders.sh` |
 | A normal-mapped surface lights from the wrong side, on half the model | The bitangent sign. glTF's bitangent is `cross(normal, tangent) * w`, and it is **minus** dP/dv — texture V grows downwards while a normal map's green channel points up. Deriving `w` from `+dP/dv` gives tangent directions that agree with an exporter to seven digits and signs that are backwards everywhere, which only shows up on mirrored UV islands. `NormalTangentMirrorTest` settles it: it ships authored tangents for geometry `NormalTangentTest` leaves bare |
 | A texture is bound but the shader has no such slot | The compiler drops a sampler whose result never reaches the output, exactly as it does an unused uniform block. A model that samples a map and then ignores the value — Lambert reading metallic-roughness — ends up without the slot. `tool/build_shaders.sh` prints the compiled binding table so the metadata can be checked against it |
 | `A command encoder is already encoding to this command buffer` | Metal allows one open encoder per command buffer, and flutter_gpu has no way to end a `RenderPass`. A multi-pass frame needs a **command buffer per pass**, submitted in order — buffers on the same queue execute in submission order, so that is also how the passes get sequenced |
@@ -261,8 +297,7 @@ shaders/
   post/*.frag                   bloom chain and the composite pass
   post/fullscreen.vert          the one triangle every post pass draws
   flutter3d.shaderbundle.json   bundle manifest
-tool/build_shaders.sh           calls impellerc directly, no Native Assets
-tool/bench/bench.dart           the AOT benchmark behind doc/FFI-analysis.md
+tool/bench/bench.dart           the AOT benchmark behind ARCHITECTURE.md §14
 tool/convert_asset.dart         glTF / GLB / OBJ -> .f3d, run offline
 lib/src/engine/geometry/        CPU geometry, knows nothing about the GPU
 lib/src/engine/animation/       clips, tracks, sampling, the player
@@ -271,11 +306,11 @@ lib/src/engine/scene/           scene graph, cameras, lights, orbit, raycasting
 lib/src/engine/render/          renderer, render list, materials, sorting, debug draw
 lib/src/engine/assets/          glTF, OBJ and .f3d decoders, isolate loading, cache
 example/lib/                    the demo, and the frame capture hook
-test/                           424 tests, all runnable without a GPU
+test/                           682 tests, all runnable without a GPU
 ```
 
-This package is one of four; see the [repository README](../../README.md) for
-how the game, the game layer and the pointer-capture plugin sit around it.
+This package is one of twenty-two; see the [repository README](../../README.md)
+for how the game layer, the backends and the genre templates sit around it.
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing
 and picking need no device, and requiring one would have meant none of them could
@@ -286,8 +321,8 @@ queried but never drawn.
 ## The key architectural consequence
 
 Shaders are compiled **ahead of time** into a bundle; there is no runtime
-compilation. A material graph in the style of Babylon's `NodeMaterial` or three.js
-TSL is therefore impossible: every lighting model is a separate pre-built shader,
+compilation. A material graph assembled while the game runs is
+therefore impossible: every lighting model is a separate pre-built shader,
 and every shader is a separate `RenderPipeline`.
 
 Hence the pipeline cache, the shared GLSL header (`shaders/lib/surface.glsl`) that
@@ -298,7 +333,7 @@ to 97 KB with seven.
 
 It also makes the pipeline the most expensive state change in a pass, which is why
 it is the **high-order term** when the render list is sorted — see
-[doc/FFI-analysis.md](doc/FFI-analysis.md) for the measurements behind that.
+[ARCHITECTURE.md](../../ARCHITECTURE.md), section 14, for the measurements.
 
 The same constraint is why lighting is a uniform array rather than a permutation
 per light count. Verified rather than assumed: `vec4 lights[8]` survives into the

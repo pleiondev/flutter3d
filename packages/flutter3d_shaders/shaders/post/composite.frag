@@ -34,8 +34,32 @@ uniform CompositeInfo {
 
   /// x, y: one texel of the ao texture. z, w unused.
   vec4 ao_texel;
+
+  /// The look, half of it. x: contrast, y: saturation, z: temperature,
+  /// w: chromatic aberration.
+  ///
+  /// **Neutral is (1, 1, 0, 0) and has to stay exactly that.** Every golden in
+  /// the repository composites with this block; a default that only nearly
+  /// cancels moves thirty reference images by a bit each.
+  vec4 look;
+
+  /// The look, the rest. x: vignette, y: vignette roundness, z: grain,
+  /// w: the target's aspect, width over height.
+  vec4 look_more;
 }
 composite_info;
+
+/// Rec. 709 luma, which is what the sRGB primaries weight to.
+float Luma(vec3 color) { return dot(color, vec3(0.2126, 0.7152, 0.0722)); }
+
+/// A value in [0, 1) from a screen position, with no state and no frame count.
+///
+/// Static by construction: a shader that read a frame counter would produce a
+/// different golden on every run, so the grain is fixed to the pixel. See
+/// `LookSettings.grain`, which says the same thing from the other side.
+float Hash(vec2 at) {
+  return fract(sin(dot(at, vec2(12.9898, 78.233))) * 43758.5453);
+}
 
 vec3 LinearToSrgb(vec3 linear) {
   return mix(
@@ -73,7 +97,24 @@ vec3 TonemapNeutral(vec3 color) {
 }
 
 void main() {
-  vec4 scene = texture(scene_texture, v_uv);
+  // **Dispersion happens at the lens, so it happens at sampling.** Sampling the
+  // scene three times at radially offset coordinates is the whole effect; doing
+  // it after the tone map would smear an already-compressed image and could not
+  // separate the channels of a highlight that had already clipped together.
+  //
+  // The offset grows from the centre outwards, which is what a real lens does:
+  // a ray through the middle of the glass is not dispersed at all.
+  float dispersion = composite_info.look.w;
+  vec4 scene;
+  if (dispersion > 0.0) {
+    vec2 fromCentre = v_uv - vec2(0.5);
+    vec2 step_uv = fromCentre * dispersion;
+    scene = texture(scene_texture, v_uv);
+    scene.r = texture(scene_texture, v_uv + step_uv).r;
+    scene.b = texture(scene_texture, v_uv - step_uv).b;
+  } else {
+    scene = texture(scene_texture, v_uv);
+  }
   vec3 bloom = texture(bloom_texture, v_uv).rgb;
 
   // Four taps in a 2×2, which is not a general-purpose blur: the occlusion pass
@@ -112,5 +153,40 @@ void main() {
 
   if (composite_info.params.z > 0.5) color = TonemapNeutral(color);
 
-  frag_color = vec4(LinearToSrgb(color), scene.a);
+  // **After the tone map, and that is the point.** Grading is a decision about
+  // an image somebody can see; applied to unbounded scene-referred colour it
+  // would be pulling on values the display will never show anyway.
+  float contrast = composite_info.look.x;
+  float saturation = composite_info.look.y;
+  float temperature = composite_info.look.z;
+
+  // Pivoted about mid grey, so contrast does not double as an exposure knob.
+  color = (color - vec3(0.5)) * contrast + vec3(0.5);
+  color = mix(vec3(Luma(color)), color, saturation);
+  // A gain on the ends against the middle. Not a white-balance conversion —
+  // a scene lit at the wrong temperature is fixed at the light, not here.
+  color *= vec3(1.0 + temperature * 0.1, 1.0, 1.0 - temperature * 0.1);
+
+  // The barrel and the film, last, and in that order: a vignette darkens what
+  // the grain then lands on, which is the way round a camera does it.
+  float vignette = composite_info.look_more.x;
+  if (vignette > 0.0) {
+    vec2 fromCentre = v_uv - vec2(0.5);
+    // **The aspect has to be in the uniform for this to mean anything.** UV
+    // space is square and the frame is not, so a falloff computed on UV alone
+    // is an ellipse on screen. Roundness 1 undoes that and keeps the vignette
+    // circular; 0 lets it follow the frame and reach the short edges first.
+    float aspect = max(composite_info.look_more.w, 1e-4);
+    fromCentre.x *= mix(1.0, aspect, composite_info.look_more.y);
+    float radius = length(fromCentre) * 1.41421356;
+    color *= mix(1.0, 1.0 - vignette, clamp(radius, 0.0, 1.0));
+  }
+
+  float grain = composite_info.look_more.z;
+  // Centred on zero so grain neither lifts nor lowers the average level, and
+  // added rather than multiplied so it stays visible in the shadows, which is
+  // where film grain lives.
+  if (grain > 0.0) color += vec3((Hash(gl_FragCoord.xy) - 0.5) * grain);
+
+  frag_color = vec4(LinearToSrgb(max(color, vec3(0.0))), scene.a);
 }

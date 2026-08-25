@@ -12,13 +12,13 @@
 // Why any of it travels on the vertices at all is written out in `sky.vert`.
 precision highp float;
 
-in vec2 position;
+layout(location = 0) in vec2 position;
 
 /// The world-space view ray at this corner.
-in vec3 corner_ray;
+layout(location = 1) in vec3 corner_ray;
 
 /// rgb: what the sampled cube is multiplied by. a: unused.
-in vec4 tint;
+layout(location = 2) in vec4 tint;
 
 out vec3 v_ray;
 out vec4 v_tint;

@@ -35,8 +35,8 @@ dependencies:
 
   flutter3d_webgl:
     path: ../
-  flutter3d_graphics:
-    path: ../../flutter3d_graphics
+  flutter3d_hardware:
+    path: ../../flutter3d_hardware
   # scene_main.dart drives the engine itself through this backend, which is the
   # point of the example. main.dart, the HAL harness beside it, needs none of
   # this — it drives the interface alone.
