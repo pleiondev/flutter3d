@@ -17,6 +17,32 @@ import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
 import 'cpu_shaders_layout.dart';
 
+/// How far the texture coordinate moves per screen pixel, for mip selection.
+///
+/// **Every map below sampled the base level until this existed**, whatever mip
+/// chain the texture had been uploaded with, because `CpuTexture.sample`
+/// selects level zero when it is given no derivatives and nothing here was
+/// giving it any. The particle stage had been passing them since it was
+/// written; the lit path never adopted it, so a normal map read at full
+/// resolution wherever the hardware backends read a blurred level. That shows
+/// as the fine detail being sharper and darker than it should be — it made
+/// `normal-mapping` the widest disagreement this backend had with Impeller —
+/// and as aliasing that moves when the camera does.
+///
+/// The larger of the two directions per axis, which is what the particle stage
+/// takes and for the same reason: a hardware sampler uses the longer side of
+/// the footprint parallelogram, and the maximum of the axis-aligned components
+/// is that for a surface facing the camera.
+({double du, double dv}) uvFootprint(FragmentContext c) {
+  final ddx = c.ddx;
+  final ddy = c.ddy;
+  if (ddx == null || ddy == null) return (du: 0.0, dv: 0.0);
+  return (
+    du: math.max(ddx[kVUv].abs(), ddy[kVUv].abs()),
+    dv: math.max(ddx[kVUv + 1].abs(), ddy[kVUv + 1].abs()),
+  );
+}
+
 /// What `ReadSurface` produces, for the models that need more than the albedo.
 /// Mutable, because the GLSL passes it as `inout` to every map function and
 /// each one modifies a field. A copy-returning version would read better and
@@ -55,11 +81,14 @@ final class Surface {
 ///
 /// Alpha masking is not here: `material2.x` is negative for every material the
 /// fixtures use, and a discard nothing exercises would be a guess.
-Surface readSurface(Float32List v, ShaderBindings bindings) {
+Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
+  final uv = uvFootprint(c);
   final tint = bindings.vec4('FragInfo', 'base_color', Vector4(1, 1, 1, 1));
   final texture = bindings.textures['base_color_texture'];
   final texel =
-      texture == null ? Vector4(1, 1, 1, 1) : texture.sample(v[kVUv], v[kVUv + 1]);
+      texture == null
+          ? Vector4(1, 1, 1, 1)
+          : texture.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
 
   // Texture and tint are sRGB; the vertex colour is authored linear, per glTF.
   final albedo = Vector3(
@@ -119,29 +148,38 @@ Surface readSurface(Float32List v, ShaderBindings bindings) {
 // ---------------------------------------------------------------------------
 
 /// glTF's ORM packing: roughness in g, metallic in b.
-void applyMetallicRoughnessMap(Surface s, Float32List v, ShaderBindings b) {
+void applyMetallicRoughnessMap(
+    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
   final orm = b.textures['metallic_roughness_texture'];
   if (orm == null) return;
-  final texel = orm.sample(v[kVUv], v[kVUv + 1]);
+  final uv = uvFootprint(c);
+  final texel =
+      orm.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   s.metallic = (s.metallic * texel.z).clamp(0.0, 1.0);
   s.roughness = (s.roughness * texel.y).clamp(0.02, 1.0);
 }
 
 /// glTF's `occlusionStrength` lerps between ignoring the map and applying it
 /// in full, which is why this is a mix and not a multiply.
-void applyOcclusionMap(Surface s, Float32List v, ShaderBindings b) {
+void applyOcclusionMap(
+    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
   final map = b.textures['occlusion_texture'];
   if (map == null) return;
-  final occlusion = map.sample(v[kVUv], v[kVUv + 1]).x;
+  final uv = uvFootprint(c);
+  final occlusion =
+      map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv).x;
   final strength =
       b.vec4('FragInfo', 'material2', Vector4.zero()).z.clamp(0.0, 1.0);
   s.occlusion = 1.0 + (occlusion - 1.0) * strength;
 }
 
-void applyEmissiveMap(Surface s, Float32List v, ShaderBindings b) {
+void applyEmissiveMap(
+    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
   final map = b.textures['emissive_texture'];
   if (map == null) return;
-  final texel = map.sample(v[kVUv], v[kVUv + 1]);
+  final uv = uvFootprint(c);
+  final texel =
+      map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   final factor = b.vec4('FragInfo', 'emissive', Vector4.zero());
   final strength = b.vec4('FragInfo', 'material2', Vector4.zero()).w;
   s.emissive = Vector3(
@@ -152,7 +190,8 @@ void applyEmissiveMap(Surface s, Float32List v, ShaderBindings b) {
 }
 
 /// Perturbs the normal by the tangent-space map.
-void applyNormalMap(Surface s, Float32List v, ShaderBindings b) {
+void applyNormalMap(
+    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
   final map = b.textures['normal_texture'];
   if (map == null) return;
 
@@ -167,7 +206,9 @@ void applyNormalMap(Surface s, Float32List v, ShaderBindings b) {
   // mirrored half of a symmetric model from the wrong side.
   final bitangent = s.normal.cross(t)..scale(s.tangent.w);
 
-  final texel = map.sample(v[kVUv], v[kVUv + 1]);
+  final uv = uvFootprint(c);
+  final texel =
+      map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   final scale = b.vec4('FragInfo', 'material2', Vector4.zero()).y;
   final sx = (texel.x * 2.0 - 1.0) * scale;
   final sy = (texel.y * 2.0 - 1.0) * scale;
@@ -179,8 +220,9 @@ void applyNormalMap(Surface s, Float32List v, ShaderBindings b) {
 
 /// The three every lit model uses. Metal-rough is separate because only the
 /// models that respond to metallic or roughness may sample it.
-void applyCommonMaps(Surface s, Float32List v, ShaderBindings b) {
-  applyNormalMap(s, v, b);
-  applyOcclusionMap(s, v, b);
-  applyEmissiveMap(s, v, b);
+void applyCommonMaps(
+    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+  applyNormalMap(s, v, b, c);
+  applyOcclusionMap(s, v, b, c);
+  applyEmissiveMap(s, v, b, c);
 }

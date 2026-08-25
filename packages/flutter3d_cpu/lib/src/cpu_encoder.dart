@@ -575,6 +575,41 @@ final class CpuEncoder implements CommandEncoder {
     final interpolated = Float32List(varyingCount);
     final context = FragmentContext();
 
+    // **Screen-space gradients, which the triangle path did not have and the
+    // line path did.** `CpuTexture.sample` picks the base level when it is
+    // given no derivatives, so every textured triangle this backend has ever
+    // drawn read the top of the mip chain however small the surface was on
+    // screen. The chain was built, uploaded and unit-tested — `mip_sampling_test`
+    // exercises `sample` directly with derivatives it supplies itself — and
+    // nothing ever handed a triangle's to it.
+    //
+    // What that looks like is not a missing feature. It is a 2048-square normal
+    // map read at full resolution across a few hundred pixels: detail sharper
+    // and darker than the hardware backends draw, and aliasing that crawls when
+    // the camera moves. It made `normal-mapping` the widest disagreement this
+    // backend had with Impeller, at 1.4%, where every other lit scene sat near
+    // a fifth of a percent.
+    //
+    // Solved from the three window positions and the three varying values, the
+    // same two-by-two system the line path uses, and after the winding swap
+    // above so the vertices match the varyings.
+    if (_hasMippedTexture()) {
+      final det =
+          (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
+      if (det != 0.0) {
+        final inv = 1.0 / det;
+        final ddx = context.ddx = Float32List(varyingCount);
+        final ddy = context.ddy = Float32List(varyingCount);
+        for (var k = 0; k < varyingCount; k++) {
+          final v0 = varyings[0][k];
+          final d1 = varyings[1][k] - v0;
+          final d2 = varyings[2][k] - v0;
+          ddx[k] = (d1 * (sy[2] - sy[0]) - d2 * (sy[1] - sy[0])) * inv;
+          ddy[k] = (d2 * (sx[1] - sx[0]) - d1 * (sx[2] - sx[0])) * inv;
+        }
+      }
+    }
+
     // The surface buffer, when the pass declared one. Only the second is
     // handled: the engine opens no pass with a third, and inventing a general
     // multi-target path for a call site that does not exist would be inventing

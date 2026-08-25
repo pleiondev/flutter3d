@@ -19,7 +19,7 @@ final class UnlitShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
-    final s = readSurface(v, bindings);
+    final s = readSurface(v, bindings, c);
     // Fully rough, which is what WriteSurface's one-argument form means: a
     // surface that cannot say how polished it is should not be reflected off.
     return writeLit(c, v, bindings,
@@ -34,10 +34,10 @@ final class LambertShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final s = readSurface(v, b);
+    final s = readSurface(v, b, c);
     // No ORM map: a purely diffuse model has no response to metallic or
     // roughness, so sampling it would leave a slot the compiler then drops.
-    applyCommonMaps(s, v, b);
+    applyCommonMaps(s, v, b, c);
     final lit = accumulateLights(s, b, c,
             shade: (s, light) => s.albedo, shadowed: true)
         .scaled(s.occlusion);
@@ -57,10 +57,10 @@ final class BlinnPhongShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final s = readSurface(v, b);
-    applyCommonMaps(s, v, b);
+    final s = readSurface(v, b, c);
+    applyCommonMaps(s, v, b, c);
     // Roughness drives the exponent, so the ORM map does reach the output.
-    applyMetallicRoughnessMap(s, v, b);
+    applyMetallicRoughnessMap(s, v, b, c);
     final specularStrength =
         b.vec4('FragInfo', 'material', Vector4.zero()).w;
 
@@ -137,9 +137,9 @@ final class PbrShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final s = readSurface(v, b);
-    applyCommonMaps(s, v, b);
-    applyMetallicRoughnessMap(s, v, b);
+    final s = readSurface(v, b, c);
+    applyCommonMaps(s, v, b, c);
+    applyMetallicRoughnessMap(s, v, b, c);
     final specularStrength =
         b.vec4('FragInfo', 'material', Vector4.zero()).w;
 
@@ -222,10 +222,10 @@ final class ToonShader implements CpuFragmentShader {
 
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
-    final s = readSurface(v, b);
-    applyCommonMaps(s, v, b);
+    final s = readSurface(v, b, c);
+    applyCommonMaps(s, v, b, c);
     // Roughness sets the band count, so the ORM map matters here too.
-    applyMetallicRoughnessMap(s, v, b);
+    applyMetallicRoughnessMap(s, v, b, c);
 
     final lit = accumulateLights(s, b, c, shadowed: true, shade: (s, light) {
       // Fewer bands as roughness rises, so the slider still does something.
