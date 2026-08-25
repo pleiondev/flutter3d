@@ -45,3 +45,10 @@ engine half of it (`Pose`, `Tape`, `Recorder`, `Playback`) has moved down to
 `flutter3d_game`, because a place, a facing and an up have nothing to do with
 racing. What stayed here is the vehicle it is read off and the shape of the file
 it is written to: `lapTime` is a word the layer below is not allowed to say.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

@@ -55,17 +55,17 @@ const Map<ParityScene, List<int>> kImpellerGrids = <ParityScene, List<int>>{
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 60, 145, 38, 4, 4,
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 47, 142, 112, 4, 4,
     4, 4, 4, 4, 4, 4, 50, 123, 129, 55, 5, 28, 58, 77, 4, 4,
-    4, 4, 4, 4, 4, 49, 157, 173, 182, 186, 36, 15, 21, 7, 4, 4,
-    4, 4, 4, 4, 5, 99, 151, 168, 177, 184, 136, 5, 4, 4, 4, 4,
-    4, 4, 4, 4, 11, 84, 139, 159, 171, 179, 184, 54, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 49, 157, 173, 182, 186, 38, 15, 21, 7, 4, 4,
+    4, 4, 4, 4, 5, 99, 151, 168, 177, 184, 139, 5, 4, 4, 4, 4,
+    4, 4, 4, 4, 11, 84, 139, 159, 171, 179, 184, 55, 4, 4, 4, 4,
     4, 4, 4, 4, 15, 53, 119, 148, 162, 172, 178, 94, 4, 4, 4, 4,
     4, 4, 4, 4, 15, 29, 83, 129, 150, 162, 169, 88, 4, 4, 4, 4,
     4, 4, 4, 4, 11, 27, 39, 95, 130, 148, 157, 54, 4, 4, 4, 4,
     102, 171, 171, 171, 172, 45, 27, 42, 90, 121, 141, 176, 171, 171, 171, 102,
-    231, 231, 228, 201, 194, 145, 30, 27, 33, 59, 186, 231, 231, 231, 231, 231,
-    231, 134, 28, 14, 14, 14, 16, 24, 103, 188, 231, 231, 231, 231, 231, 231,
-    231, 38, 14, 14, 14, 14, 14, 14, 152, 231, 231, 231, 231, 231, 231, 231,
-    231, 198, 91, 30, 14, 14, 27, 96, 217, 231, 231, 231, 231, 231, 231, 231,
+    231, 231, 229, 202, 194, 146, 30, 27, 33, 59, 186, 231, 231, 231, 231, 231,
+    231, 137, 30, 14, 14, 14, 16, 25, 104, 188, 231, 231, 231, 231, 231, 231,
+    230, 39, 14, 14, 14, 14, 14, 14, 158, 231, 231, 231, 231, 231, 231, 231,
+    231, 200, 94, 33, 14, 14, 30, 101, 219, 231, 231, 231, 231, 231, 231, 231,
   ],
   ParityScene.pointShadow: <int>[
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
@@ -104,10 +104,10 @@ const Map<ParityScene, List<int>> kImpellerGrids = <ParityScene, List<int>>{
     4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
   ],
   ParityScene.pointShadowMap: <int>[
-    255, 255, 255, 255, 255, 255, 255, 255, 99, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 111, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 201, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
-    255, 255, 255, 255, 186, 216, 255, 255, 255, 255, 255, 255, 255, 197, 255, 255,
+    255, 255, 255, 255, 186, 216, 255, 255, 255, 255, 255, 255, 255, 207, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
@@ -120,6 +120,78 @@ const Map<ParityScene, List<int>> kImpellerGrids = <ParityScene, List<int>>{
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
     255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+  ],
+  ParityScene.pointShadowStaticMap: <int>[
+    255, 255, 255, 255, 255, 255, 255, 255, 164, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 222, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+    255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+  ],
+  ParityScene.sky: <int>[
+    204, 203, 203, 203, 202, 202, 202, 202, 202, 202, 202, 202, 203, 203, 203, 204,
+    206, 206, 206, 205, 205, 205, 205, 205, 205, 205, 205, 205, 205, 206, 206, 206,
+    208, 208, 208, 208, 208, 207, 207, 207, 207, 207, 207, 185, 183, 203, 208, 208,
+    210, 210, 210, 210, 210, 210, 210, 210, 210, 210, 202, 93, 158, 186, 210, 210,
+    212, 212, 212, 211, 211, 211, 199, 188, 191, 203, 202, 21, 76, 164, 212, 212,
+    213, 213, 213, 213, 213, 191, 168, 177, 182, 184, 201, 122, 77, 197, 213, 213,
+    214, 214, 214, 214, 208, 149, 165, 173, 178, 181, 183, 212, 214, 214, 214, 214,
+    214, 214, 214, 214, 170, 136, 158, 167, 173, 176, 177, 200, 214, 214, 214, 214,
+    213, 213, 213, 213, 132, 118, 147, 159, 166, 170, 171, 190, 213, 213, 213, 213,
+    212, 212, 212, 212, 117, 84, 129, 147, 156, 161, 162, 185, 212, 212, 212, 212,
+    211, 211, 211, 211, 150, 31, 96, 126, 140, 147, 146, 188, 211, 211, 211, 211,
+    209, 209, 209, 208, 202, 27, 34, 84, 109, 118, 119, 204, 208, 209, 209, 209,
+    207, 206, 206, 205, 205, 144, 14, 17, 39, 49, 156, 205, 205, 206, 206, 207,
+    203, 202, 201, 200, 200, 199, 159, 82, 82, 158, 199, 200, 200, 201, 202, 203,
+    198, 196, 195, 194, 193, 193, 192, 192, 192, 192, 193, 193, 194, 195, 196, 198,
+    192, 190, 189, 188, 187, 186, 186, 186, 186, 186, 186, 187, 188, 189, 190, 192,
+  ],
+  ParityScene.imageBasedLighting: <int>[
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 37, 101, 25, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8, 76, 127, 71, 4, 4,
+    4, 4, 4, 4, 4, 4, 33, 56, 56, 31, 9, 62, 57, 47, 4, 4,
+    4, 4, 4, 4, 4, 40, 57, 48, 60, 67, 41, 26, 30, 10, 4, 4,
+    4, 4, 4, 4, 12, 73, 49, 62, 147, 112, 79, 11, 4, 4, 4, 4,
+    4, 4, 4, 4, 43, 70, 62, 75, 150, 129, 78, 44, 4, 4, 4, 4,
+    4, 4, 4, 4, 56, 75, 73, 80, 96, 93, 81, 57, 4, 4, 4, 4,
+    4, 4, 4, 4, 53, 73, 73, 75, 80, 79, 77, 55, 4, 4, 4, 4,
+    4, 4, 4, 4, 37, 61, 57, 58, 59, 61, 66, 36, 4, 4, 4, 4,
+    4, 4, 4, 4, 8, 57, 40, 39, 40, 43, 59, 9, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 28, 37, 29, 31, 39, 27, 4, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 20, 32, 33, 20, 4, 4, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+  ],
+  ParityScene.look: <int>[
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 46, 108, 26, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 49, 103, 74, 0, 0,
+    0, 0, 0, 0, 0, 0, 33, 95, 101, 39, 0, 1, 40, 39, 0, 0,
+    0, 0, 0, 0, 0, 30, 117, 142, 151, 153, 54, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 3, 73, 109, 135, 147, 150, 139, 6, 0, 0, 0, 0,
+    0, 0, 0, 0, 19, 76, 90, 118, 136, 142, 141, 44, 0, 0, 0, 0,
+    0, 0, 0, 0, 15, 74, 77, 94, 116, 125, 126, 57, 0, 0, 0, 0,
+    0, 0, 0, 0, 1, 59, 76, 77, 85, 99, 100, 43, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 17, 69, 75, 76, 77, 77, 23, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 19, 61, 73, 75, 64, 2, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 4, 23, 28, 8, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   ],
 };
 
@@ -180,6 +252,7 @@ void main() {
       // and a lit scene shown where an atlas should be are the same number
       // against a white reference and different pictures.
       if (which == ParityScene.pointShadow ||
+          which == ParityScene.sky ||
           which == ParityScene.pointShadowMap) {
         // ignore: avoid_print
         print('${which.name} webgl rows 0,7,15: '
@@ -283,8 +356,93 @@ void main() {
         // texture size; the v convention (flipping it fixes the directional map
         // and moves this not at all); and a silently dropped uniform member,
         // which is now an error rather than a silence and does not fire here.
+        //
+        // **The paragraph above is history, and its conclusion is now wrong.**
+        // A pass on this backend never set a viewport or a scissor of its own,
+        // so both were whatever the previous pass had left — and for the cube
+        // atlas, which is 6144 by 4096 while the canvas is a hundred pixels
+        // wide, that is not a subtle error. Fixing it (see the note in
+        // `WebGlEncoder`'s constructor) changed this number for the first time
+        // in six attempts: the lookup is no longer absent.
+        //
+        // What it is now, measured: the top of the floor is shadowed and agrees
+        // with Impeller, and the bottom is lit where Impeller has it dark —
+        // rows 0, 7 and 15 of the sampled grid read 4 / 4,4,4,4,11,29,57,81 /
+        // 71…107, against a reference that is dark throughout the far half.
+        // Worst cell 15,7: WebGL 107, Impeller 14; mean 7.95 against a budget
+        // of 8. So it is a *misaimed* lookup, which is the thing the old note
+        // ruled out — one face of the cube, or one tile of the atlas, being
+        // read where its neighbour should be.
+        //
+        // Left skipped rather than chased here because it is now a different
+        // question from the one this session opened, and a wrong note is worse
+        // than no note: the next person would have started from "absent
+        // lookup" and spent the same day.
+        //
+        // **Four more refuted since, all by measurement rather than argument**,
+        // and each is worth a line so nobody spends the afternoon again:
+        //
+        //   * *Stale bindings.* Clearing every binding in `bindPipeline`
+        //     changes this number not at all, and the conformance check that
+        //     said so was reporting the viewport instead.
+        //   * *Uniform packing.* The `PointShadow` block reflects at 1760 bytes
+        //     with `faces` at 0, `lights` at 1536, `slots` at 1600, `params` at
+        //     1728 and `params2` at 1744 — std140 exactly — and the values in
+        //     it are the light at (2.2, 2.6, 1.8) with range 12, slot 0, and a
+        //     tangent of one. All correct.
+        //   * *The other atlas.* There are two cube atlases and only one had
+        //     ever been compared. The second is compared now
+        //     (`pointShadowStaticMap`) and WebGL matches the software backend
+        //     on it exactly, as it does on the first: 330 dark pixels either
+        //     way, mean luminance 253.63 to the same two decimals.
+        //   * *Texture units.* No draw in this scene reaches unit twelve, so
+        //     nothing is falling off the end of the sampler table.
+        //
+        // What is left, and where somebody should start: the atlases agree, the
+        // uniforms agree, the shader source is the same file, and the lit pass
+        // disagrees anyway. That points at sampling — filtering or precision on
+        // a half-float atlas — rather than at anything the engine computes.
+        //
+        // **Re-measured after the attribute-state fix**, in case that was it: it
+        // was not. Mean 7.95, worst cell 93.
+        //
+        // Then localised, and the localisation is worth more than the number.
+        // **Only the floor differs.** Row 0 and row 7 of the grid — the two
+        // spheres — are identical to the unit; row 15, which is the floor, is
+        // 14 on Impeller and 71 to 107 on WebGL. The floor is shadowed there
+        // and lit here, and nothing else in the picture disagrees at all.
+        //
+        // Four things it is **not**, each ruled out by probe rather than by
+        // argument:
+        //
+        //   * *The atlas pass.* Disabling `_renderCubeShadow` outright moves
+        //     `pointShadowMap` from 0.00 to 253.62 and leaves this fixture at
+        //     7.95 — so the lit pass was not reading what that pass wrote,
+        //     before or after.
+        //   * *The shadow strength.* Forcing `params.z` past the
+        //     `_cubeShadowLight < 0` guard changes nothing, so the block binds
+        //     and the strength arrives.
+        //   * *The face matrices.* Putting them through `toFramebufferOrigin`,
+        //     the way the directional cascade does, changes nothing either way.
+        //     That is itself a finding: the cube path's tile addressing is
+        //     origin-agnostic where the directional path's is not.
+        //   * *The static atlas.* Dropping it from the `min` in
+        //     `PointShadowDistance` changes nothing.
+        //
+        // What is measured: with `showPointShadowDebug`, the floor comes back
+        // r=132 g=19 b=17 on WebGL against r=173 g=219 b=165 on the software
+        // backend. Green is the blocker distance against the light's range, so
+        // WebGL is finding a blocker at about 0.07 of range where the software
+        // backend finds one at 0.86. A blocker that close makes the
+        // similar-triangles penumbra enormous, the filter smears the edge over
+        // the whole floor, and what is left looks exactly like no shadow.
+        //
+        // So the next question is why the sampled distance is an order of
+        // magnitude short, and the two candidates left are the atlas texture's
+        // format under a WebGL sampler and the tile-local uv the taps are
+        // clamped into. Neither has been probed yet.
         skip: which == ParityScene.pointShadow
-            ? 'the atlas is right, the lookup into it is not'
+            ? 'the lookup is misaimed, not absent — see the note above'
             : null);
   }
 }
@@ -321,16 +479,44 @@ void _atlasTests() {
 /// anyway. The pairs below are the ones the renderer builds, so a mismatch in
 /// any of them is a pass that cannot run.
 void _linkTests() {
+  // **Every pair, because the list used to be a subset and that is how a
+  // broken one hid.** Nine of these were checked and the rest were not: four of
+  // the six lighting models, both sky stages, the skinned vertex stage and both
+  // mesh-particle stages went unlinked here from the day this file was written.
+  // `lighting-unlit` draws an empty frame on this backend, and nothing between
+  // the shader and the golden set was in a position to say so.
   const pairs = <(String, String)>[
-    ('MeshVertex', 'Pbr'),
+    ('MeshVertex', 'Unlit'),
     ('MeshVertex', 'Lambert'),
+    ('MeshVertex', 'BlinnPhong'),
+    ('MeshVertex', 'Pbr'),
+    ('MeshVertex', 'Toon'),
+    ('MeshVertex', 'Normals'),
     ('MeshVertex', 'ShadowDepth'),
     ('MeshVertex', 'ShadowDistance'),
+    // The skinned stage draws the same models from a second vertex layout, so
+    // every one of them is a pair here too.
+    ('MeshSkinnedVertex', 'Unlit'),
+    ('MeshSkinnedVertex', 'Lambert'),
+    ('MeshSkinnedVertex', 'BlinnPhong'),
+    ('MeshSkinnedVertex', 'Pbr'),
+    ('MeshSkinnedVertex', 'Toon'),
+    ('MeshSkinnedVertex', 'Normals'),
+    ('MeshSkinnedVertex', 'ShadowDepth'),
+    ('MeshSkinnedVertex', 'ShadowDistance'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('FullscreenVertex', 'BloomThreshold'),
+    ('FullscreenVertex', 'BloomDownsample'),
+    ('FullscreenVertex', 'BloomUpsample'),
+    ('FullscreenVertex', 'Reflections'),
+    ('FullscreenVertex', 'Ssao'),
     ('DebugLineVertex', 'DebugLine'),
     ('ParticleVertex', 'Particle'),
+    ('ParticleVertex', 'ParticleTextured'),
+    ('ParticleMeshVertex', 'ParticleMesh'),
+    ('SkyVertex', 'Sky'),
+    ('SkyCubeVertex', 'SkyCube'),
   ];
 
   for (final (vertex, fragment) in pairs) {

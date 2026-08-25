@@ -116,7 +116,7 @@ final class _Run {
   final Level level = _level();
   final CollisionWorld world = CollisionWorld();
   final InputState input = InputState();
-  late final ActorSystem actors = ActorSystem(world: world);
+  late final ActorSystem actors = ActorSystem(world: world, random: GameRandom(1));
   late final MechanismWorld mechanisms;
   late final Runner runner;
   late final PlatformerSimulation sim;

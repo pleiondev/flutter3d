@@ -59,6 +59,47 @@ enum ParityScene {
   /// does not match, the pass never got that far. One number cannot say which,
   /// and guessing between them is how an afternoon goes.
   pointShadowMap,
+
+  /// The **static** half of the cube atlas, composited instead of the lit image.
+  ///
+  /// **The split above was one short, and that cost six attempts.** There are
+  /// two cube atlases — the movers, redrawn every frame, and the things that
+  /// never move, drawn once at load — and `PointShadowDistance` samples both and
+  /// keeps the nearer occluder. `pointShadowMap` shows only the first. So a
+  /// backend whose *static* atlas was empty passed the atlas fixture, failed the
+  /// lit one, and every explanation offered for it was about the lookup, which
+  /// was fine.
+  ///
+  /// That is exactly what was happening in WebGL, and the note on the skipped
+  /// fixture said "the atlas is right" for six attempts on the strength of a
+  /// number that was measuring the other atlas.
+  pointShadowStaticMap,
+
+  /// The procedural sky behind the spheres.
+  ///
+  /// Its own pass, its own stage pair, and the one place in this engine written
+  /// against a target it did not match: the sky is fed through vertex
+  /// attributes because its uniform blocks do not arrive on Impeller, and a
+  /// stale translation once had the browser drawing a sky from the month
+  /// before while nothing could see it.
+  sky,
+
+  /// Two physical spheres lit by a prefiltered environment and nothing else.
+  ///
+  /// The direct light is off, so what the picture is *made of* is the cube and
+  /// the roughness chain — the whole of image-based lighting in one number. It
+  /// exercises what a backend finds hardest to get right quietly: a cube
+  /// sampler, a mip chain uploaded level by level, and a level count that is
+  /// also the "is there one" flag.
+  imageBasedLighting,
+
+  /// The plain scene with the composite look turned all the way up.
+  ///
+  /// Grading, vignette, grain and chromatic aberration are the last thing that
+  /// happens to a frame, they happen on every pixel, and they are the newest
+  /// thing in the post chain. The grain is a hash of the pixel rather than of
+  /// the clock, which is what makes this comparable at all.
+  look,
 }
 
 ({Scene scene, CameraNode camera}) buildParityScene(
@@ -77,7 +118,15 @@ enum ParityScene {
       Material(
         name: 'big',
         baseColor: Vector4(0.85, 0.25, 0.15, 1.0),
-        lighting: LightingModel.lambert,
+        // Physical only where the fixture is about what a surface reflects:
+        // Lambert has no response to an environment at all, so an IBL scene
+        // shaded that way would compare two flat colours and pass whatever the
+        // cube contained.
+        lighting: which == ParityScene.imageBasedLighting
+            ? LightingModel.pbr
+            : LightingModel.lambert,
+        metallic: 0.9,
+        roughness: 0.25,
       ),
       name: 'big',
     ),
@@ -96,10 +145,29 @@ enum ParityScene {
       Material(
         name: 'small',
         baseColor: Vector4(0.2, 0.5, 0.9, 1.0),
-        lighting: LightingModel.lambert,
+        lighting: which == ParityScene.imageBasedLighting
+            ? LightingModel.pbr
+            : LightingModel.lambert,
+        // Rougher than the big one, so the two read different levels of the
+        // chain. A fixture where every surface is a mirror tests level zero.
+        metallic: 1.0,
+        roughness: 0.55,
       ),
       name: 'small',
-    )..setPosition(1.1, 1.0, 0.4),
+    )
+      ..setPosition(1.1, 1.0, 0.4)
+      // **One static caster, so that the second cube atlas is not empty.**
+      // A point light has two — the movers, redrawn every frame, and the things
+      // that never move, drawn once — and `PointShadowDistance` samples both.
+      // Every fixture here left both spheres dynamic, so the static atlas was
+      // white in every run on every backend, and the half of the lookup that
+      // reads it was covered by nothing at all.
+      //
+      // The large sphere stays dynamic on purpose: a fixture where one atlas is
+      // empty tests one atlas, whichever one it is.
+      ..shadowIsStatic = which == ParityScene.pointShadow ||
+          which == ParityScene.pointShadowMap ||
+          which == ParityScene.pointShadowStaticMap,
   );
 
   // A floor for anything that casts, and only then: an unlit scene with a
@@ -107,7 +175,8 @@ enum ParityScene {
   // feature under test.
   if (which == ParityScene.directionalShadow ||
       which == ParityScene.pointShadow ||
-      which == ParityScene.pointShadowMap) {
+      which == ParityScene.pointShadowMap ||
+      which == ParityScene.pointShadowStaticMap) {
     scene.root.add(
       MeshNode(
         DeviceMesh.upload(
@@ -149,6 +218,7 @@ enum ParityScene {
 
     case ParityScene.pointShadow:
     case ParityScene.pointShadowMap:
+    case ParityScene.pointShadowStaticMap:
       scene.root.add(
         LightNode(name: 'lamp', type: LightType.point)
           ..intensity = 12.0
@@ -156,6 +226,26 @@ enum ParityScene {
           ..castsShadow = true
           ..setPosition(2.2, 2.6, 1.8),
       );
+
+    case ParityScene.sky:
+    case ParityScene.look:
+      scene.root.add(
+        LightNode(name: 'key', type: LightType.directional)
+          ..intensity = 3.5
+          ..setPosition(1.5, 3.0, 2.0)
+          ..lookAt(Vector3.zero()),
+      );
+
+    case ParityScene.imageBasedLighting:
+      // **No direct light at all.** Everything in this picture came out of the
+      // cube, so a backend that binds no environment draws two silhouettes and
+      // the number says so, rather than being carried by a key light.
+      final environment = EnvironmentMap.fromSky(device, _paritySky);
+      if (environment != null) {
+        scene.environment = environment.texture;
+        scene.environmentLevels = environment.levels;
+      }
+      scene.ambientIntensity = 1.0;
   }
 
   final camera = CameraNode(name: 'eye')
@@ -188,51 +278,44 @@ RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
           bloom: BloomSettings(enabled: false),
           showShadowMap: true,
         ),
+      // The other cube atlas, which nothing had ever looked at. See the note
+      // on `ParityScene.pointShadowStaticMap`.
+      ParityScene.pointShadowStaticMap => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          showStaticShadowMap: true,
+        ),
+      ParityScene.sky => RenderSettings(
+          bloom: const BloomSettings(enabled: false),
+          shadows: const ShadowSettings(enabled: false),
+          sky: _paritySky,
+        ),
+      ParityScene.imageBasedLighting => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          shadows: ShadowSettings(enabled: false),
+        ),
+      // Turned up far past taste: a fixture that applied a look nobody could
+      // see would compare two pictures of the same thing and agree.
+      ParityScene.look => const RenderSettings(
+          bloom: BloomSettings(enabled: false),
+          shadows: ShadowSettings(enabled: false),
+          look: LookSettings(
+            contrast: 1.35,
+            saturation: 1.4,
+            temperature: 0.25,
+            vignette: 0.6,
+            grain: 0.08,
+            chromaticAberration: 0.004,
+          ),
+        ),
     };
 
-/// Width and height both runs render at.
-const int kParityWidth = 256;
-const int kParityHeight = 192;
-
-/// Cells across and down in the comparison grid.
-const int kParityGrid = 16;
-
-/// Average luminance per cell, 0..255, row-major from the top.
+/// The sky both sky fixtures use, and the one the environment is baked from.
 ///
-/// A grid rather than the pixels themselves, because the question is whether
-/// the two backends draw the *same picture*, not whether they produce identical
-/// bytes — they will not, and demanding it would mean choosing a tolerance for
-/// every pixel instead of one for the comparison. Two different GPUs, two
-/// shader compilers and two rounding regimes disagree in the last bits
-/// everywhere and agree completely about where the spheres are.
-///
-/// Averaging is what makes that distinction: it survives a fraction of a bit
-/// per pixel and does not survive a shape in the wrong place, a light from the
-/// wrong side, or a mirrored frame.
-List<int> parityGrid(List<int> rgba, int width, int height) {
-  final cells = List<int>.filled(kParityGrid * kParityGrid, 0);
-  final cellW = width / kParityGrid;
-  final cellH = height / kParityGrid;
-  for (var cy = 0; cy < kParityGrid; cy++) {
-    for (var cx = 0; cx < kParityGrid; cx++) {
-      final x0 = (cx * cellW).floor();
-      final x1 = ((cx + 1) * cellW).ceil().clamp(0, width);
-      final y0 = (cy * cellH).floor();
-      final y1 = ((cy + 1) * cellH).ceil().clamp(0, height);
-      var total = 0;
-      var count = 0;
-      for (var y = y0; y < y1; y++) {
-        for (var x = x0; x < x1; x++) {
-          final i = (y * width + x) * 4;
-          // Rec. 601 luma, integer weights. The exact coefficients matter less
-          // than both sides using the same ones, which is why this is here and
-          // not written out twice.
-          total += (rgba[i] * 299 + rgba[i + 1] * 587 + rgba[i + 2] * 114) ~/ 1000;
-          count++;
-        }
-      }
-      cells[cy * kParityGrid + cx] = count == 0 ? 0 : total ~/ count;
-    }
-  }
-  return cells;
-}
+/// One constant rather than two, because the point of the image-based fixture is
+/// that the cube is the sky: two sets of numbers would make a difference between
+/// them a difference about the fixtures.
+const SkySettings _paritySky = SkySettings(
+  enabled: true,
+  glowStrength: 0.35,
+  sunIntensity: 2.0,
+);

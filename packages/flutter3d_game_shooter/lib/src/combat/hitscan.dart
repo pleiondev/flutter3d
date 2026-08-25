@@ -3,35 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'shot_hit.dart';
 import 'weapon.dart';
 
-/// One thing a shot reached.
-///
-/// Named for the shot rather than for the ray, because a melee swing produces
-/// these as well and it does not cast one.
-final class ShotHit {
-  ShotHit({
-    required this.collider,
-    required Vector3 point,
-    required Vector3 normal,
-    required this.distance,
-    required this.damage,
-  })  : point = point.clone(),
-        normal = normal.clone();
-
-  /// What was struck. Null when the ray reached its range without meeting
-  /// anything, which still matters: a tracer has to end somewhere.
-  final Collider? collider;
-
-  final Vector3 point;
-  final Vector3 normal;
-  final double distance;
-
-  /// After falloff. Zero when nothing was hit.
-  final double damage;
-
-  bool get struckSomething => collider != null;
-}
+export 'shot_hit.dart';
 
 /// Fires a weapon's rays into the world and reports where they landed.
 ///
@@ -52,11 +27,19 @@ final class ShotHit {
 /// a wall is one merged surface per material by the time it is drawn — and the
 /// player's expectation is set by what they cannot walk through.
 final class Hitscan {
-  Hitscan({required this.world, math.Random? random})
-      : _random = random ?? math.Random();
+  Hitscan({required this.world, required this.random});
 
   final CollisionWorld world;
-  final math.Random _random;
+
+  /// The generator the jitter comes out of.
+  ///
+  /// **Required, and a [GameRandom] rather than a `math.Random`.** It defaulted
+  /// to an unseeded one, which meant the shipped game's spread was the one part
+  /// of a shot no snapshot could put back — and ARCHITECTURE.md §9.3 asks that a step take
+  /// no randomness except through a generator it was handed. Pass the same
+  /// instance the simulation holds: one object shared, not one each, or the
+  /// snapshot records one sequence and two are running.
+  final GameRandom random;
 
   /// How far the jitter can move a ray, as a fraction of the weapon's spread.
   static const double jitterFraction = 0.25;
@@ -164,8 +147,8 @@ final class Hitscan {
 
   void _applyJitter(double amount) {
     if (amount <= 0.0) return;
-    final right = (_random.nextDouble() * 2.0 - 1.0) * amount;
-    final up = (_random.nextDouble() * 2.0 - 1.0) * amount;
+    final right = (random.nextDouble() * 2.0 - 1.0) * amount;
+    final up = (random.nextDouble() * 2.0 - 1.0) * amount;
     _direction
       ..x += _right.x * right + _up.x * up
       ..y += _right.y * right + _up.y * up

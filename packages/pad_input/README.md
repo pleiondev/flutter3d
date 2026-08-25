@@ -221,3 +221,10 @@ the acceptance checklist can be walked in a minute.
 
 What remains manual is written down where it belongs — in the plan, as an
 acceptance checklist, because it is the part a person has to do.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

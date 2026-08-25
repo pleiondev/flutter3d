@@ -2,6 +2,7 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
 import 'sky.dart';
+import 'sky_presets.dart';
 import 'track.dart';
 
 /// A track file: the circuit, and the level built around it.

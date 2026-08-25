@@ -1,4 +1,4 @@
-/// This backend, held to what flutter3d_graphics requires.
+/// This backend, held to what flutter3d_hardware requires.
 ///
 ///     flutter test --platform chrome test/conformance_test.dart
 ///

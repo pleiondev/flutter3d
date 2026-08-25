@@ -41,23 +41,23 @@
 // position. The renderer builds them; see `Renderer._skyCornerRay`.
 precision highp float;
 
-in vec2 position;
+layout(location = 0) in vec2 position;
 
 // The world-space view ray at this corner.
-in vec3 corner_ray;
+layout(location = 1) in vec3 corner_ray;
 
 // The preset, replicated on all three vertices. Constant across the triangle,
 // so any interpolation of it returns exactly what was written.
-in vec4 zenith;
-in vec4 horizon;
-in vec4 nadir;
+layout(location = 2) in vec4 zenith;
+layout(location = 3) in vec4 horizon;
+layout(location = 4) in vec4 nadir;
 /// xyz: unit vector pointing at the sun. w: how tight the scattering lobe is.
-in vec4 sun;
+layout(location = 5) in vec4 sun;
 /// rgb: the sun's own colour. a: how bright the lobe is.
-in vec4 glow;
+layout(location = 6) in vec4 glow;
 /// x: cosine of the disc's angular radius. y: cosine of the radius plus its
 /// soft edge. z: how bright the disc is. w: unused.
-in vec4 disc;
+layout(location = 7) in vec4 disc;
 
 out vec3 v_ray;
 out vec4 v_zenith;

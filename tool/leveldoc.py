@@ -2,8 +2,8 @@
 """How a level document is written down, for every generator that writes one.
 
 **Extracted at the second consumer**, which is this repository's habit rather
-than a new rule: `apps/platformer/tool/levelkit.py` had this to itself until
-`apps/dungeon/tool/cryptkit.py` wanted the same shape, and a second copy of a
+than a new rule: `apps/flutter3d_demo_platformer/tool/levelkit.py` had this to itself until
+`apps/flutter3d_demo_dungeon/tool/cryptkit.py` wanted the same shape, and a second copy of a
 formatter is a second answer to "what does a brush look like on the page".
 
 What is here is only what is genuinely common. **`write` is not**, and that is

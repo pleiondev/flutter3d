@@ -3,7 +3,7 @@
 //   dart run tool/convert_asset.dart assets/samples/teapot.obj
 //   dart run tool/convert_asset.dart assets/samples/Box.glb -o build/box.f3d
 //
-// A CLI in Dart, not an FFI helper. `doc/FFI-analysis.md` measured the decoders
+// A CLI in Dart, not an FFI helper. `ARCHITECTURE.md` §14 measured the decoders
 // and concluded the format matters far more than the language: the same geometry
 // is 360x slower to load as OBJ text than as a binary buffer, and no amount of
 // native code closes that. This tool moves the parse off the device entirely,
@@ -23,10 +23,12 @@ import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 
+import 'convert_asset_options.dart';
+
 Future<int> main(List<String> arguments) async {
-  final options = _Options.parse(arguments);
+  final options = ConvertAssetOptions.parse(arguments);
   if (options == null) {
-    stderr.writeln(_usage);
+    stderr.writeln(usage);
     return 2;
   }
 
@@ -194,47 +196,4 @@ String _bytes(int count) {
   if (count < 1024) return '$count B';
   if (count < 1024 * 1024) return '${(count / 1024).toStringAsFixed(1)} KB';
   return '${(count / (1024 * 1024)).toStringAsFixed(1)} MB';
-}
-
-const String _usage = '''
-Usage: convert_asset <model> [-o <output.f3d>]
-
-Converts a glTF, GLB or OBJ model into the engine's .f3d container. Without -o
-the output sits beside the input with the extension replaced.
-''';
-
-final class _Options {
-  const _Options(this.input, this.output);
-
-  final String input;
-  final String output;
-
-  static _Options? parse(List<String> arguments) {
-    String? input;
-    String? output;
-
-    for (var i = 0; i < arguments.length; i++) {
-      final argument = arguments[i];
-      if (argument == '-o' || argument == '--output') {
-        if (i + 1 >= arguments.length) return null;
-        output = arguments[++i];
-      } else if (argument.startsWith('-')) {
-        return null;
-      } else if (input == null) {
-        input = argument;
-      } else {
-        return null;
-      }
-    }
-
-    if (input == null) return null;
-    return _Options(input, output ?? _defaultOutput(input));
-  }
-
-  static String _defaultOutput(String input) {
-    final dot = input.lastIndexOf('.');
-    final slash = input.lastIndexOf('/');
-    if (dot > slash) return '${input.substring(0, dot)}.f3d';
-    return '$input.f3d';
-  }
 }

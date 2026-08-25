@@ -20,7 +20,7 @@ import 'package:vector_math/vector_math.dart';
   return (
     context: SpawnContext(
       world: world,
-      actors: ActorSystem(world: world),
+      actors: ActorSystem(world: world, random: GameRandom(1)),
       mechanisms: MechanismWorld(world),
       onFixture: seen.add,
     ),
@@ -132,7 +132,7 @@ void main() {
     final world = CollisionWorld();
     final context = SpawnContext(
       world: world,
-      actors: ActorSystem(world: world),
+      actors: ActorSystem(world: world, random: GameRandom(1)),
       mechanisms: MechanismWorld(world),
     );
 

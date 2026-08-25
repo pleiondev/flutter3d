@@ -1,7 +1,7 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
-import 'entity_kinds.dart';
+import 'platformer_entities.dart';
 
 /// A box the runner can shove about.
 ///
@@ -13,7 +13,7 @@ import 'entity_kinds.dart';
 ///
 /// The stage-1 limits are worth knowing before authoring with it: **a crate
 /// does not rotate.** It will not tip, it will not roll, and a stack of them
-/// stays square. That is a decision recorded in SPEC §4.3, not an oversight,
+/// stays square. That is a decision recorded in ARCHITECTURE.md §10, not an oversight,
 /// and it is why a crate is a crate here rather than a barrel.
 final class Crate {
   Crate({

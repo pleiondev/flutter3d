@@ -41,7 +41,7 @@ final class _Run {
     level.spawnInto(
       SpawnContext(
         world: world,
-        actors: ActorSystem(world: world),
+        actors: ActorSystem(world: world, random: GameRandom(1)),
         mechanisms: mechanisms,
       ),
       registry: platformerRegistry(),

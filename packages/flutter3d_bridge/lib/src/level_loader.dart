@@ -5,40 +5,9 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 
-/// A loaded level, in the two forms the game needs it.
-///
-/// One authored document produces both, which is the point: geometry the player
-/// can see and geometry the player can walk into are generated from the same
-/// brushes, so they cannot drift apart. Deriving colliders from the rendered
-/// triangles instead would work until the first time somebody added a visual
-/// detail and made it solid by accident.
-final class LoadedLevel {
-  LoadedLevel({
-    required this.level,
-    required this.scene,
-    required this.collision,
-    required this.issues,
-    required this.drawCallCount,
-    Map<String, TextureHandle?>? materialTextures,
-  }) : materialTextures = materialTextures ?? const <String, TextureHandle?>{};
+import 'loaded_level.dart';
 
-  final Level level;
-  final Scene scene;
-  final CollisionWorld collision;
-
-  /// What the validator said. Errors stop the load before this exists, so
-  /// anything here is a warning worth showing rather than acting on.
-  final List<LevelIssue> issues;
-
-  /// One per material, which is what the brush geometry merges down to.
-  final int drawCallCount;
-
-  /// Every map this level loaded, by asset path.
-  ///
-  /// Kept so anything built after the load — a door, a lift — can be given the
-  /// same texture object rather than uploading a second copy of the same file.
-  final Map<String, TextureHandle?> materialTextures;
-}
+export 'loaded_level.dart';
 
 /// Reads a level asset and turns it into something playable.
 ///
@@ -62,6 +31,15 @@ final class LoadedLevel {
 /// looks like.
 typedef AssetBytes = Future<ByteData> Function(String path);
 
+/// How a level's own document is found.
+///
+/// The same asymmetry as [AssetBytes], one level up: a game's level document
+/// lives in its bundle, and an editor's lives on disk next to the textures
+/// [AssetBytes] already lets it reach. Without this, [LevelLoader.load] is
+/// only ever the bundle, and anything else has to skip it and call
+/// [LevelLoader.build] with a document it decoded itself.
+typedef DocumentText = Future<String> Function(String path);
+
 final class LevelLoader {
   const LevelLoader();
 
@@ -70,16 +48,22 @@ final class LevelLoader {
   /// simulation and has no business deciding what a level may contain. The
   /// loader used to validate against a roster that named torches and this
   /// repository's own monsters.
+  ///
+  /// [readDocument] finds the level document itself, defaulting to
+  /// `rootBundle.loadString` so the games that only ever load their own
+  /// bundled levels are unaffected. [readAsset] governs the textures a level
+  /// names, and is passed straight through to [build].
   Future<LoadedLevel> load(
     String assetPath, {
     required GraphicsDevice device,
     required EntityRegistry registry,
     List<LevelRule> rules = const <LevelRule>[],
     AssetBytes? readAsset,
+    DocumentText? readDocument,
   }) async =>
       build(
         Level.fromJson(
-          jsonDecode(await rootBundle.loadString(assetPath))
+          jsonDecode(await (readDocument ?? rootBundle.loadString)(assetPath))
               as Map<String, Object?>,
         ),
         device: device,

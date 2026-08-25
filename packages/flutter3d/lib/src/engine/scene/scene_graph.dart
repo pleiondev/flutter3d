@@ -14,6 +14,7 @@ export 'light_node.dart';
 export 'lod_group.dart';
 export 'mesh_node.dart';
 export 'orbit_controller.dart';
+export 'projection.dart';
 export 'raycaster.dart';
 export 'scene.dart';
 export 'scene_node.dart';

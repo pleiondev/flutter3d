@@ -27,7 +27,27 @@ final class WeaponView {
   /// A map rather than a builder callback because the nodes are built once and
   /// the bridge has nothing to add to their construction — it only needs to own
   /// where they hang.
-  WeaponView({required Map<String, SceneNode> models, WeaponDef? initial}) {
+  /// [environment] is what the held weapon reflects, and [environmentLevels] is
+  /// its roughness scale — see `EnvironmentMap`.
+  ///
+  /// **Its own, not the world's.** A weapon is held in front of the eye and lit
+  /// by this scene's two lights rather than by the room's, so the room's sky
+  /// would be the wrong thing to reflect even where there is one — and in a
+  /// crypt there is none at all. What a game hands in here is a studio: a small
+  /// environment that makes a barrel read as metal.
+  ///
+  /// Without one a metal barrel is very nearly black, because a metal has no
+  /// diffuse response. That is why the games' own weapon models were built from
+  /// dark dielectrics pretending to be gunmetal.
+  WeaponView({
+    required Map<String, SceneNode> models,
+    WeaponDef? initial,
+    TextureHandle? environment,
+    int environmentLevels = 0,
+  }) {
+    _scene
+      ..environment = environment
+      ..environmentLevels = environmentLevels;
     _scene.add(
       LightNode(
         color: Vector3(1.0, 0.92, 0.82),

@@ -23,3 +23,10 @@ would give that package a dependency it exists not to have.
 texture that would not decode — because the application is the only thing here
 with a screen. A missing wall texture leaves the surface flat and says so; it
 does not stop the level.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

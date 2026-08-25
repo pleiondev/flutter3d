@@ -39,6 +39,7 @@ final class LightingModel {
     this.usesMetallicRoughnessMap = true,
     this.usesMaterialParameters = true,
     this.usesMetallic = false,
+    this.usesEnvironment = false,
   }) : assert(
           !usesMetallicRoughnessMap || usesMaterialMaps,
           'the metallic-roughness map is one of the material maps, so a model '
@@ -60,7 +61,8 @@ final class LightingModel {
   static const LightingModel blinnPhong =
       LightingModel('Blinn-Phong', 'BlinnPhong');
   static const LightingModel pbr =
-      LightingModel('PBR (GGX)', 'Pbr', usesMetallic: true);
+      LightingModel('PBR (GGX)', 'Pbr',
+          usesMetallic: true, usesEnvironment: true);
   static const LightingModel toon = LightingModel('Toon', 'Toon');
   static const LightingModel normals = LightingModel(
     'Normals',
@@ -170,4 +172,14 @@ final class LightingModel {
   /// Declared for the same reason: `this == pbr` answered a question about the
   /// shader by checking which constant it happened to be.
   final bool usesMetallic;
+
+  /// Whether the shader declares the environment cube and samples it.
+  ///
+  /// Only the physical model does: image-based lighting is an answer to the
+  /// rendering equation, and Lambert, Blinn-Phong and toon are not asking it.
+  ///
+  /// The renderer binds by this flag rather than by which constant a material
+  /// holds, for the reason above it — and because binding a texture a compiled
+  /// shader has no slot for is a native crash, not a no-op.
+  final bool usesEnvironment;
 }

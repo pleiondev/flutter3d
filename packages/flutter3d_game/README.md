@@ -255,7 +255,7 @@ ordinal now.
 projectiles.** Mechanisms and the player still hold their own state and write
 their own saves. Saying where the line is beats leaving it to be discovered.
 
-It was accepted for one reason, recorded in `docs/SPEC.md`: replication. A
+It was accepted for one reason, recorded in `ARCHITECTURE.md`: replication. A
 snapshot with delta compression needs state enumerable in one place, and the
 `GameSimulation.save()` above enumerates it by hand — a line per subsystem,
 which will silently miss the next one. `EcsWorld.save()` cannot miss one: a
@@ -386,3 +386,10 @@ against the claim its doc comment makes and then breaking the code to watch it
 fail. One of those first attempts passed against a deliberately broken
 implementation, because it was asserting a guarantee `EntityDef` makes rather
 than the one `Fixture` makes; it is rewritten and the reason is in the file.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

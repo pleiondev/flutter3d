@@ -76,3 +76,10 @@ One platform-channel message per mouse event, carrying a two-element
 `Float64List`. Whether that shows up in a frame profile at a 1000 Hz polling rate
 has not been measured yet; if it does, the fix is to accumulate natively and
 flush once per frame.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

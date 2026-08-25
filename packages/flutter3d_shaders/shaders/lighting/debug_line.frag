@@ -9,7 +9,7 @@
 // It includes nothing from shaders/lib on purpose: those headers declare the
 // mesh varyings and the FragInfo block, and a shader that declares a uniform
 // block it never reads is exactly the phantom-binding trap documented in
-// RESEARCH.md §4.
+// ARCHITECTURE.md §2.
 precision highp float;
 
 in vec4 v_line_color;

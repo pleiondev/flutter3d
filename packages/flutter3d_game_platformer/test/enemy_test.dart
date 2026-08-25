@@ -44,7 +44,7 @@ final class _Run {
 
     level.addTo(world);
     mechanisms = MechanismWorld(world);
-    actors = ActorSystem(world: world);
+    actors = ActorSystem(world: world, random: GameRandom(1));
     level.spawnInto(
       SpawnContext(world: world, actors: actors, mechanisms: mechanisms),
       registry: platformerRegistry(),

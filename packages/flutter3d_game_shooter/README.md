@@ -37,3 +37,10 @@ rather than in a screenshot.
 Monsters do not fight each other, there are no hit zones, no secrets, no score
 and no crouch. Each of those is a second consumer's worth of design and none of
 them has one yet; they are named here so that the gap reads as a decision.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

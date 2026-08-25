@@ -15,7 +15,6 @@
 /// genre decided what to do about it, which is this file's subject.
 library;
 
-import 'dart:math' as math;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -30,7 +29,7 @@ const double _dt = 1.0 / 60.0;
   final world = CollisionWorld()
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(80.0, 1.0, 80.0))
     ..update();
-  final random = math.Random(seed);
+  final random = GameRandom(seed);
   final system = ActorSystem(world: world, random: random);
   return (
     system: system,

@@ -3,7 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/render/debug_draw.dart';
-import 'package:flutter3d/src/engine/scene/camera_node.dart';
+import 'package:flutter3d/src/engine/render/debug_draw_gizmos.dart';
+import 'package:flutter3d/src/engine/scene/projection.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

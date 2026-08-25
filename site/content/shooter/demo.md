@@ -104,14 +104,14 @@ Each was a real defect instead of a web caveat, and each is fixed in the reposit
 
 1. **The generated GLSL was stale.** `flutter3d_webgl/lib/engine_shaders.dart` had not been regenerated since cascaded shadows added `shadow_matrix_far`, so the backend could not draw one sphere. [The detail is on the platformer's demo page](/platformer/demo/#the-bug-this-demo-found).
 2. **The canvas took the pointer.** A WebGL canvas is a display surface, not a control, and left interactive it swallowed every event the widgets above it needed. It now carries `pointer-events: none`.
-3. **`pointer_lock` threw where it promised not to.** `MouseCapture` documents that it no-ops on a platform without an implementation, and it does — except that its constructor subscribes to an event channel, which is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" actually means.
+3. **`pointer_lock` threw where it promised not to.** `PointerLock` documents that it no-ops on a platform without an implementation, and it does — except that its constructor subscribes to an event channel, which is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" actually means.
 
 ## Building it yourself
 
 ```bash
 (cd packages/flutter3d_webgl && dart run tool/generate_shaders.dart)
-(cd apps/dungeon && flutter build web --release)
-python3 -m http.server 8000 --directory apps/dungeon/build/web
+(cd apps/flutter3d_demo_dungeon && flutter build web --release)
+python3 -m http.server 8000 --directory apps/flutter3d_demo_dungeon/build/web
 ```
 
 ## Next

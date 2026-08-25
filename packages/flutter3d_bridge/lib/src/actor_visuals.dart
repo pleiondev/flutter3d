@@ -1,54 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'actor_appearance.dart';
 import 'shared_meshes.dart';
 
-/// What a monster is made of, which is the one thing the bridge cannot know.
-///
-/// Called every frame with the monster's current state, so a game is free to
-/// answer with a shared material per kind, a brightened one for a monster that
-/// was just hit, or something built on the spot.
-abstract interface class ActorAppearance {
-  /// The material to draw `monster` with right now.
-  Material materialFor(Actor actor);
-
-  /// A key that two actors share exactly when they should share one capsule
-  /// mesh. The game's own answer, because the engine has no idea what makes
-  /// two of its actors the same kind of thing.
-  String meshKeyFor(Actor actor);
-
-  /// The model to draw [actor] as, or null to leave it a capsule.
-  ///
-  /// Per actor rather than per key, because two actors of the same kind can be
-  /// drawn differently and nothing here should decide they cannot. Actors
-  /// sharing a path share one loaded [ModelAsset]; each gets its own instance.
-  ///
-  /// **A null is a perfectly good answer.** A turret, a trigger volume and a
-  /// director are actors too, and a capsule is what the placeholder has always
-  /// been — this adds a door rather than closing one.
-  String? modelFor(Actor actor);
-
-  /// Which of the model's clips [actor] should be playing, best first.
-  ///
-  /// **A list rather than a name, and the models are why.** These are
-  /// third-party exports and they do not carry the same clips: one may have
-  /// `Run` where another has only `Walk`, and the same gesture is spelled two
-  /// ways across two files. A game says what it would like in order; this tries
-  /// each until the model has one, which only this side can do — the appearance
-  /// does not know what is in the file and should not have to.
-  ///
-  /// Empty leaves whatever is playing alone, which is what a model with no
-  /// animation in it wants.
-  ///
-  /// Named rather than indexed on purpose: an index is a promise about the
-  /// order inside somebody else's export.
-  List<String> clipsFor(Actor actor);
-}
+export 'actor_appearance.dart';
 
 /// Where the monsters are, and which way they are facing.
 ///
@@ -172,6 +132,44 @@ final class ActorVisuals {
     }
   }
 
+  /// Which way to turn what is drawn for [actor], in radians.
+  ///
+  /// **A model faces the other way to a capsule.** An actor's yaw is the
+  /// direction it is walking — the shooter builds its forward as
+  /// `(-sin(yaw), 0, -cos(yaw))`, so yaw nought points down -Z — and a
+  /// character exported from Blender through glTF faces +Z. That is half a
+  /// turn apart, so every monster walked at the player backwards and fell over
+  /// backwards, which is what it looked like from the corridor.
+  ///
+  /// A capsule never showed it, being round about the axis it spins on, so this
+  /// arrived with the models and not with the code that placed them.
+  ///
+  /// [model] is false for the capsule an actor is drawn as before its model
+  /// loads, and for one whose model never does.
+  static double yawFor(Actor actor, {required bool model}) =>
+      model ? actor.yaw + math.pi : actor.yaw;
+
+  /// How [actor]'s clip should behave when it runs off its end.
+  ///
+  /// **A corpse does not die twice.** [AnimationPlayer.wrap] defaults to
+  /// looping and nothing set it, so a monster's death clip started over the
+  /// moment it finished: the frog fell, snapped upright and fell again, for
+  /// ever, in a room the player had already cleared.
+  /// [AnimationWrap.once] holds the final pose, which is the pose a body
+  /// should be left in.
+  ///
+  /// Read from the actor rather than from the clip's name, because the name
+  /// belongs to whoever exported the model: two of the crypt's three files
+  /// spell their hit clip differently, and the death clip in the fourth model
+  /// somebody adds will be called whatever that artist called it. Being dead is
+  /// not a spelling.
+  ///
+  /// Its own method because that is the whole of what can be tested without a
+  /// device: reaching the line inside [animate] means uploading a rigged model
+  /// to a GPU to look at one enum.
+  static AnimationWrap wrapFor(Actor actor) =>
+      actor.isAlive ? AnimationWrap.loop : AnimationWrap.once;
+
   /// Advances every animation. Once a frame, with the frame's own delta.
   void animate(double dt) {
     for (final entry in _players.entries) {
@@ -190,6 +188,7 @@ final class ActorVisuals {
         }
       }
       entry.value
+        ..wrap = wrapFor(entry.key)
         ..update(dt)
         ..apply();
     }
@@ -230,10 +229,14 @@ final class ActorVisuals {
       // conventions the platformer reconciles every frame for its runner —
       // rooted at the centre, a monster's model hovers half its height off
       // the floor from the moment it replaces its capsule.
-      final drop = node is MeshNode ? 0.0 : actor.body!.halfExtents.y;
+      final isModel = node is! MeshNode;
+      final drop = isModel ? actor.body!.halfExtents.y : 0.0;
       node
         ..setPosition(position.x, position.y - drop, position.z)
-        ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), actor.yaw));
+        ..setRotation(Quaternion.axisAngle(
+          Vector3(0.0, 1.0, 0.0),
+          yawFor(actor, model: isModel),
+        ));
     }
   }
 }

@@ -3,70 +3,15 @@ import 'dart:typed_data';
 
 import 'package:vector_math/vector_math.dart';
 
+import 'emission.dart';
 import 'flipbook.dart';
 import 'light_emitter.dart';
 import 'particle.dart';
-import 'particle_affector.dart';
-import 'particle_emitter.dart';
+import 'particle_effect.dart';
 import 'particle_random.dart';
 
-/// A recipe for a burst: what is emitted, and what happens to it.
-///
-/// Data, and const-constructible, so effects live next to the game code that
-/// triggers them and cost nothing to hold. Nothing here names a specific
-/// effect — an explosion and a footstep puff are the same three fields with
-/// different numbers.
-final class ParticleEffect {
-  const ParticleEffect({
-    required this.count,
-    required this.emitter,
-    required this.lifetime,
-    required this.size,
-    required this.color,
-    this.affectors = const <ParticleAffector>[],
-  });
-
-  /// How many particles one burst emits.
-  final int count;
-
-  final ParticleEmitter emitter;
-
-  /// What happens to each of them, in order, every step.
-  final List<ParticleAffector> affectors;
-
-  final Range lifetime;
-  final Range size;
-
-  /// Colour at birth. Alpha reads as brightness, since these draw additively.
-  final Vector4 color;
-}
-
-/// A standing emission: what, where, how fast, and for how long.
-final class _Emission {
-  _Emission(
-    this.effect,
-    this.origin,
-    this.perSecond,
-    this.direction,
-    this.remaining,
-  );
-
-  final ParticleEffect effect;
-  final Vector3 origin;
-  final double perSecond;
-  final Vector3? direction;
-
-  /// Seconds of emission left, or null to run until stopped.
-  ///
-  /// Counted down in the sub-step rather than in the frame, so an emission that
-  /// should last a quarter of a second emits the same particles whether the
-  /// frame took four milliseconds or forty. That is the same reason the
-  /// accumulator exists.
-  double? remaining;
-
-  /// Whether this emission has run out and should be dropped.
-  bool get spent => remaining != null && remaining! <= 0.0;
-}
+export 'emission.dart';
+export 'particle_effect.dart';
 
 /// Every particle in the world, and the one buffer they are drawn from.
 ///
@@ -232,7 +177,7 @@ final class ParticleSystem {
       return;
     }
     if (key is LightEmitter) _emitters.add(key);
-    _rates[key] = _Emission(effect, origin.clone(), perSecond, direction, null);
+    _rates[key] = Emission(effect, origin.clone(), perSecond, direction, null);
   }
 
   /// Emits from [key] for [seconds] and then stops on its own.
@@ -267,7 +212,7 @@ final class ParticleSystem {
     }
     if (key is LightEmitter) _emitters.add(key);
     _rates[key] =
-        _Emission(effect, origin.clone(), perSecond, direction, seconds);
+        Emission(effect, origin.clone(), perSecond, direction, seconds);
   }
 
   /// Advances the simulation by [dt] in fixed sub-steps.
@@ -368,7 +313,7 @@ final class ParticleSystem {
   static const int _maxSubSteps = 8;
 
   double _accumulator = 0.0;
-  final Map<Object, _Emission> _rates = <Object, _Emission>{};
+  final Map<Object, Emission> _rates = <Object, Emission>{};
 
   final Set<LightEmitter> _emitters = <LightEmitter>{};
 

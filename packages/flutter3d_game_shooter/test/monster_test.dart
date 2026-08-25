@@ -5,6 +5,7 @@ import 'package:flutter3d_game/src/actors/actor_system.dart';
 import 'package:flutter3d_game/src/actors/damageable.dart';
 import 'package:flutter3d_game/src/actors/health.dart';
 import 'package:flutter3d_game/src/physics/layers.dart';
+import 'package:flutter3d_game/src/save/game_random.dart';
 import 'package:flutter3d_game/src/world/key_ring.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
@@ -49,7 +50,7 @@ CollisionWorld _room({bool wall = false}) {
     ),
   );
   world.update();
-  final random = math.Random(seed);
+  final random = GameRandom(seed);
   final system = ActorSystem(world: world, random: random);
   return (
     system: system,
@@ -85,7 +86,7 @@ bool _hitsACrossingTarget({required double sideways}) {
     ),
   );
   world.update();
-  final random = math.Random(7);
+  final random = GameRandom(7);
   final system = ActorSystem(world: world, random: random);
   Bestiary(
     actors: system,
@@ -446,7 +447,7 @@ void main() {
       );
       world.update();
       final projectiles = ProjectileSystem(world: world);
-      final random = math.Random(1);
+      final random = GameRandom(1);
       final system = ActorSystem(world: world, random: random);
       Bestiary(
         actors: system,
@@ -678,14 +679,14 @@ void _damageableTests() {
       final world = CollisionWorld();
       // Spawned into a system with no one driving it, which is the nearest a
       // test gets to "built by hand" now that an actor is an entity.
-      final monster = ActorSystem(world: world).spawn(
+      final monster = ActorSystem(world: world, random: GameRandom(1)).spawn(
         body: CharacterController(world: world, position: Vector3.zero()),
         health: Health(Monsters.runner.health),
         brain: ChaseBrain(
           def: Monsters.runner,
           shot: WeaponShot(
             world: world,
-            hitscan: Hitscan(world: world),
+            hitscan: Hitscan(world: world, random: GameRandom(1)),
             projectiles: ProjectileSystem(world: world),
           ),
         ),

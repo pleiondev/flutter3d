@@ -1,11 +1,12 @@
-## 0.1.0
+## 0.3.0
 
-* Pointer capture on macOS: the cursor is frozen and hidden while motion arrives
-  as relative deltas.
-* `takeDelta` drains an accumulator, which is the shape a fixed-timestep
-  simulation wants.
-* Capture is released when the window or the application loses focus, and the
-  release is announced on `onStateChanged`.
-* Construction resets the native side, so a hot restart cannot strand the cursor.
-* `isSupported` answers honestly on platforms with no implementation instead of
-  throwing at the first call.
+* No changes of its own. The workspace is released as a set, in the order
+  `ARCHITECTURE.md` §16 gives, so this package's version moves with the rest
+  and its constraints on its siblings move with it.
+
+## 0.2.0
+
+* Relative mouse deltas, which Flutter offers on no desktop platform.
+* A reset on construction, because a plugin outlives a hot restart and would
+  otherwise strand the cursor; and focus loss releases rather than pauses, or a
+  hidden cursor ends up over another application's window.

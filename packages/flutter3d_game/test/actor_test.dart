@@ -14,6 +14,7 @@ import 'package:flutter3d_game/src/actors/actor_system.dart';
 import 'package:flutter3d_game/src/actors/brain.dart';
 import 'package:flutter3d_game/src/actors/damageable.dart';
 import 'package:flutter3d_game/src/actors/health.dart';
+import 'package:flutter3d_game/src/save/game_random.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
@@ -100,7 +101,7 @@ void main() {
     // sound, no sparks, nothing counted. The monster was dead and the news
     // never left the building.
     final world = _ground();
-    final system = ActorSystem(world: world);
+    final system = ActorSystem(world: world, random: GameRandom(1));
     final actor = system.spawn(
       body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
       health: Health(10.0),
@@ -117,7 +118,7 @@ void main() {
 
   test('and is forgotten when the next step begins', () {
     final world = _ground();
-    final system = ActorSystem(world: world);
+    final system = ActorSystem(world: world, random: GameRandom(1));
     final actor = system.spawn(
       body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
       health: Health(10.0),
@@ -141,7 +142,7 @@ void main() {
     // later. An `assert` says that in debug and says nothing in the build a
     // player runs — which is the build where six months happen.
     final world = CollisionWorld();
-    final system = ActorSystem(world: world)
+    final system = ActorSystem(world: world, random: GameRandom(1))
       ..spawn(
         body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
         health: Health(10.0),
@@ -157,7 +158,7 @@ void main() {
     // The other half: the flag is consumed, so a second step without a second
     // beginning is the same mistake and is caught the same way.
     final world = CollisionWorld();
-    final system = ActorSystem(world: world)
+    final system = ActorSystem(world: world, random: GameRandom(1))
       ..spawn(
         body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
         health: Health(10.0),
@@ -179,7 +180,7 @@ void main() {
     // face a hair the other side of south turns almost the whole way round —
     // once, visibly, in front of whoever is watching.
     final world = _ground();
-    final system = ActorSystem(world: world);
+    final system = ActorSystem(world: world, random: GameRandom(1));
     final actor = system.spawn(
       body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
       health: Health(10.0),
@@ -199,7 +200,7 @@ void main() {
   group('an actor with a brain that is not a monster', () {
     test('walks its patrol, turns round, and comes back', () {
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       _walker(system);
       final walker = system.actors.single;
       final nowhere = Vector3(0.0, 100.0, 0.0);
@@ -223,7 +224,7 @@ void main() {
 
     test('faces the way it is walking', () {
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       _walker(system);
       // Twenty steps: long enough to have come round at six radians a second,
       // short enough that it has not reached the end of its patrol and turned
@@ -241,7 +242,7 @@ void main() {
       // `onHurt` and `onDeath` are not overridden by `_Patrol`. Everything here
       // is the engine's, which is what makes it available to every game.
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       final walker = _walker(system);
 
       expect(system.hurt(walker, 10.0), isFalse);
@@ -259,7 +260,7 @@ void main() {
       // The `Damageable` path: a rocket asks whoever it hit to take damage and
       // never learns what they are.
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       final walker = _walker(system);
 
       final owner = walker.body!.collider.userData;
@@ -273,7 +274,7 @@ void main() {
       // The engine writes body, health and yaw; what the brain remembers is the
       // brain's, and nothing in `Actor.save` knows what it is.
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       _walker(system);
       final walker = system.actors.single;
 
@@ -299,7 +300,7 @@ void main() {
       // It was a comment in the old system and it is still true of anything:
       // stop stepping a dead body and it hangs in the air where it died.
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       final walker = system.spawn(
         body: CharacterController(
           world: world,
@@ -323,7 +324,7 @@ void main() {
       // No body, no brain, no facing. It used to be impossible to make: `spawn`
       // required all three, so a destructible crate came with a walking capsule
       // and a brain that did nothing.
-      final system = ActorSystem(world: _ground());
+      final system = ActorSystem(world: _ground(), random: GameRandom(1));
       final barrel = system.spawn(health: Health(20.0));
 
       expect(barrel.body, isNull);
@@ -354,7 +355,7 @@ void main() {
 
     test('a lamp post: a body a rocket may ask, and no health to lose', () {
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       final post = system.spawn(
         body: CharacterController(world: world, position: Vector3(2.0, 0.9, 0.0)),
       );
@@ -369,7 +370,7 @@ void main() {
 
     test('without a facing it does not turn, and nothing throws', () {
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       final drifter = system.spawn(
         body: CharacterController(world: world, position: Vector3.zero()),
         brain: _Patrol(from: -4.0, to: 4.0),
@@ -387,7 +388,7 @@ void main() {
     test('a director: a brain and no body', () {
       // Something that decides and stands nowhere — a spawner, a level script.
       var thoughts = 0;
-      final system = ActorSystem(world: _ground());
+      final system = ActorSystem(world: _ground(), random: GameRandom(1));
       system.spawn(brain: _Counting(() => thoughts++));
 
       for (var i = 0; i < 10; i++) {
@@ -405,7 +406,7 @@ void main() {
       // `Drops`, and neither needs a subclass of anything or a second map
       // keyed by actor.
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       final walker = _walker(system);
       system.entities
         ..register<_Suspicion>(
@@ -428,7 +429,7 @@ void main() {
       // by walking its own list, and the next field anybody added to an actor
       // would have been left out of it in silence.
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       system.entities.set(_walker(system).entity, _Suspicion(0.5));
 
       expect(
@@ -447,7 +448,7 @@ void main() {
       // The ordinal that replaced `hashCode`. Two identical runs must agree
       // about which actor thinks on which step.
       final world = _ground();
-      final system = ActorSystem(world: world);
+      final system = ActorSystem(world: world, random: GameRandom(1));
       for (var i = 0; i < 4; i++) {
         _walker(system, at: i.toDouble());
       }
@@ -459,7 +460,7 @@ void main() {
 
     test('the eye comes off the body, not off a definition', () {
       final world = _ground();
-      final tall = ActorSystem(world: world).spawn(
+      final tall = ActorSystem(world: world, random: GameRandom(1)).spawn(
         body: CharacterController(
           world: world,
           shape: CollisionCapsule(radius: 0.3, halfHeight: 0.9),
@@ -484,7 +485,7 @@ void main() {
     ActorSystem quietRoom() {
       final world = CollisionWorld()
         ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(80.0, 1.0, 80.0));
-      return ActorSystem(world: world);
+      return ActorSystem(world: world, random: GameRandom(1));
     }
 
     Actor listener(ActorSystem system, {double at = 0.0}) => system.spawn(

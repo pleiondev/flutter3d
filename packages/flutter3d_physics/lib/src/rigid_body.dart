@@ -16,7 +16,7 @@
 /// What that costs, stated rather than discovered: a crate you push into a
 /// corner will not tip, a barrel will not roll, and a ragdoll is out of the
 /// question. Those are stage two, and stage two is a separate decision — see
-/// `docs/SPEC.md` §8.1, which says to port a solver rather than write one if it
+/// `ARCHITECTURE.md` §10, which says to port a solver rather than write one if it
 /// is ever needed.
 ///
 /// ## It lives in the collision world everything else lives in

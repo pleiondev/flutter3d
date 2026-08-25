@@ -76,6 +76,29 @@ final class InputState {
 
   bool released(GameAction action) => _releasedLatch.contains(action);
 
+  /// What became held and what let go this step, for something that has to
+  /// write it all down rather than ask about one action.
+  ///
+  /// **Added for [InputTape] and narrow on purpose.** Everything else here
+  /// answers a question about one action, which is what a game wants: a
+  /// simulation asks "is the player firing", never "what happened". A recorder
+  /// is the one caller that cannot ask by name, because it does not know which
+  /// names a genre invented.
+  ///
+  /// Unmodifiable views, so writing one down cannot alter it.
+  Iterable<GameAction> get pressedThisStep =>
+      List<GameAction>.unmodifiable(_pressedLatch);
+
+  Iterable<GameAction> get releasedThisStep =>
+      List<GameAction>.unmodifiable(_releasedLatch);
+
+  /// Every action with an analogue reading, and the reading.
+  ///
+  /// A trigger held half way is not a press and not a release, so a tape that
+  /// recorded only transitions would replay a run with the accelerator off.
+  Map<GameAction, double> get analogueValues =>
+      Map<GameAction, double>.unmodifiable(_values);
+
   /// How hard [action] is being asked for, from nought to one.
   ///
   /// **An action has a magnitude as well as a bit**, and the point is that

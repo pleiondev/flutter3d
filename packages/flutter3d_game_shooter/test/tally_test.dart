@@ -11,7 +11,6 @@
 /// happened, and what the level held.
 library;
 
-import 'dart:math' as math;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -34,7 +33,7 @@ final class _Level {
       inventory: Inventory(arsenal: sampleArsenal(startingSlot: 1)),
     );
 
-    final random = math.Random(5);
+    final random = GameRandom(5);
     final actors = ActorSystem(world: world, random: random);
     final bestiary = Bestiary(
       actors: actors,
@@ -71,6 +70,7 @@ final class _Level {
     // a player starts inside) and not what this file is about.
 
     sim = GameSimulation(
+      random: random,
       player: player,
       collision: world,
       input: input,

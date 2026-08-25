@@ -12,7 +12,7 @@ Pod::Spec.new do |s|
   s.description      = <<-DESC
 Reads a gamepad through GameController.framework and reports it as a snapshot.
                        DESC
-  s.homepage         = 'https://github.com/dzolotov/flutter3d'
+  s.homepage         = 'https://github.com/pleiondev/flutter3d'
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'flutter3d' => 'noreply@example.com' }
 

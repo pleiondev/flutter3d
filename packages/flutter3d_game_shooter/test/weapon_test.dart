@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter3d_game/src/physics/layers.dart';
+import 'package:flutter3d_game/src/save/game_random.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
@@ -213,7 +214,7 @@ void main() {
 
     setUp(() {
       world = CollisionWorld();
-      hitscan = Hitscan(world: world, random: math.Random(1));
+      hitscan = Hitscan(world: world, random: GameRandom(1));
     });
 
     test('a single ray reports what it hit and how far away', () {

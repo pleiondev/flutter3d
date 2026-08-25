@@ -12,8 +12,8 @@ Nothing in this section is genre knowledge. That is not a stylistic preference. 
 
 | Package | What it owns | Depends on |
 |---|---|---|
-| [`flutter3d`](/core/rendering/) | The renderer, the scene graph, geometry, decoders, animation | `flutter3d_graphics` and nothing below it |
-| [`flutter3d_graphics`](/core/architecture/#the-hal) | **The HAL** — devices, encoders, buffers, textures, pipelines, passes. No implementation at all | nothing |
+| [`flutter3d`](/core/rendering/) | The renderer, the scene graph, geometry, decoders, animation | `flutter3d_hardware` and nothing below it |
+| [`flutter3d_hardware`](/core/architecture/#the-hal) | **The HAL** — devices, encoders, buffers, textures, pipelines, passes. No implementation at all | nothing |
 | [`flutter3d_game`](/core/simulation/) | Fixed step, input, levels, mechanisms, actors, navigation, ECS, snapshots | `flutter3d_physics`, `vector_math`, one Flutter import |
 | [`flutter3d_physics`](/core/physics/) | Shapes, broadphase, sweeps, rays, character controller, rigid bodies | nothing. Plain Dart |
 | [`flutter3d_bridge`](/core/architecture/#the-bridge) | Level geometry to mesh nodes, actor to visual, fixture to light | both sides, and it is the only package allowed to |

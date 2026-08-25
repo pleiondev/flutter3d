@@ -1,10 +1,10 @@
-/// The behaviour `flutter3d_graphics` requires, as tests a backend runs against
+/// The behaviour `flutter3d_hardware` requires, as tests a backend runs against
 /// itself.
 ///
 /// The interface says what a backend must *have*. Half of what it must *do* is
 /// not in any signature: that a clear covers the whole attachment whatever the
 /// scissor says, that a rectangle is stated from the top left, that pixels come
-/// back rows-from-the-top. Those were prose in `COMPATIBILITY.md`, which is to
+/// back rows-from-the-top. Those were prose in `ARCHITECTURE.md` §7, which is to
 /// say they were unenforced — and three of them were broken in the second
 /// backend, each producing a correct-looking frame with the wrong content and
 /// no error anywhere.
@@ -12,19 +12,30 @@
 /// So they are executable now. A backend calls [runDeviceConformance] from its
 /// own test suite and finds out.
 ///
-/// Deliberately shader-free. Every check here works with clears, uploads and
-/// readback alone, so a backend can run them before it has a single shader
-/// compiled — which is when the answers are cheapest to act on. What needs a
-/// shader (an unbound sampler, a uniform block's members) stays in
-/// `COMPATIBILITY.md` for now, and is named there as such.
+/// **Two tiers, and the split is a correction.** This file used to say it was
+/// shader-free as a whole, and that stopped being true the day a check needed a
+/// pipeline: five of the twelve now link stages and draw. A new backend
+/// following the old promise would have met five failures it could do nothing
+/// about, so the lists say which is which — [coreChecks] needs clears, uploads
+/// and readback alone, [shaderChecks] needs the bundle. What still needs a
+/// shader and is not here (an unbound sampler, a uniform block's members) stays
+/// in `ARCHITECTURE.md` §7, and is named there as such.
+///
+/// **The checks themselves live under `src/`, grouped by what they are testing**
+/// — capability queries and readback, shader-bundle and link checks, a pass's
+/// own coverage of its attachment, a pipeline switch's binding isolation, and
+/// instancing/cube-texture draws — so that finding "the row-order check" or
+/// "the scissor-inheritance check" does not mean scrolling past eleven others.
 library;
 
-import 'dart:typed_data';
-
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
-import 'package:flutter3d_shaders/flutter3d_shaders.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart' show test;
-import 'package:vector_math/vector_math.dart';
+
+import 'src/core_checks.dart';
+import 'src/draw_checks.dart';
+import 'src/pass_coverage_checks.dart';
+import 'src/pipeline_checks.dart';
+import 'src/shader_link_checks.dart';
 
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the
@@ -82,483 +93,46 @@ void runDeviceConformance({
   }
 }
 
-/// Every check, as plain functions, for a harness that is not a test runner.
-List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
-      (name: 'answers every capability query', run: _capabilities),
-      (name: 'the HDR format it names is renderable', run: _hdrRenderable),
-      (name: 'a clear covers the whole attachment', run: _clearCoversAll),
-      (name: 'uploaded pixels keep their row order', run: _rowOrder),
-      (name: 'a buffer is uploaded for its declared use', run: _geometryUsage),
-      (name: 'the bundle answers to every name the engine asks for',
-          run: _shaderNames),
-      (name: 'a stage pair the engine links does link', run: _linking),
-      (name: 'an instanced draw draws every instance', run: _instancedDraw),
-      (name: 'a pipeline switch leaves no stale bindings',
-          run: _pipelineSwitchKeepsBindingsApart),
-      (name: 'a cube map answers the face a direction points at',
-          run: _cubeFaces),
+/// The checks a backend can run before it has compiled a single shader.
+///
+/// **This list is why the two exist separately.** The library used to say it
+/// was shader-free as a whole, and it stopped being true the day the third
+/// check needed a pipeline — so a new backend, following the promise, would
+/// have hit five failures it had no way to act on yet. Clears, uploads and
+/// readback only: the answers here are the cheapest ones to get, and they are
+/// the ones worth having first.
+List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
+      (name: 'answers every capability query', run: checkCapabilities),
+      (name: 'the HDR format it names is renderable', run: checkHdrRenderable),
+      (name: 'a clear covers the whole attachment', run: checkClearCoversAll),
+      (name: 'uploaded pixels keep their row order', run: checkRowOrder),
+      (name: 'a buffer is uploaded for its declared use',
+          run: checkGeometryUsage),
+      (name: 'a cube takes the mip chain it is handed',
+          run: checkCubeMipLevels),
     ];
 
-/// Six faces, six directions, six colours.
+/// The checks that need the shader bundle and a pipeline.
 ///
-/// The face order — +X, −X, +Y, −Y, +Z, −Z — is documented once, on
-/// `GraphicsDevice.createCubeTextureFromPixels`, and each backend reaches it
-/// differently: Impeller by slice index, WebGL by six consecutive face targets,
-/// the software rasteriser by a table it holds itself. **A transposed pair is
-/// invisible in any picture** — a sky with two faces swapped is complete,
-/// seamless and simply wrong — so it is checked here rather than looked at.
-///
-/// Drawn rather than read back, because reading a cube face is not something
-/// the interface offers and adding it for a test would be adding a member with
-/// one caller. The sky pair is what samples a cube in this engine, so that is
-/// what this uses.
-Future<void> _cubeFaces(GraphicsDevice device) async {
-  if (!device.supportsCubeTextures) {
-    // Not a failure: the interface says to ask, and a device that answers false
-    // is entitled to. What would be a failure is answering true and then not
-    // doing it, which is what everything below checks.
-    return;
-  }
+/// Run these once [coreChecks] pass and the bundle loads. What they cover is
+/// what no signature states: that a pass starts covering its own attachment and
+/// nothing else, that it inherits no clipping from the pass before it, and that
+/// a binding made for one pipeline does not follow the next.
+List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
+      (name: 'the bundle answers to every name the engine asks for',
+          run: checkShaderNames),
+      (name: 'a stage pair the engine links does link', run: checkLinking),
+      (name: 'a pass covers the whole of its attachment',
+          run: checkPassCoversItsAttachment),
+      (name: 'a pass does not inherit the previous pass\'s scissor',
+          run: checkPassDoesNotInheritScissor),
+      (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
+      (name: 'a pipeline switch leaves no stale bindings',
+          run: checkPipelineSwitchKeepsBindingsApart),
+      (name: 'a cube map answers the face a direction points at',
+          run: checkCubeFaces),
+    ];
 
-  const size = 4;
-  const colours = <List<int>>[
-    <int>[255, 0, 0],
-    <int>[0, 255, 0],
-    <int>[0, 0, 255],
-    <int>[255, 255, 0],
-    <int>[255, 0, 255],
-    <int>[0, 255, 255],
-  ];
-
-  final faces = <ByteData>[
-    for (final colour in colours)
-      ByteData.sublistView(Uint8List.fromList(<int>[
-        for (var i = 0; i < size * size; i++)
-          ...<int>[colour[0], colour[1], colour[2], 255],
-      ])),
-  ];
-
-  final cube = device.createCubeTextureFromPixels(
-    size: size,
-    format: TextureFormat.r8g8b8a8UNormInt,
-    faces: faces,
-  );
-  require(cube != null,
-      'the device says it supports cube textures and then made none from six '
-      '4x4 RGBA8 faces');
-  require(cube!.type == TextureType.textureCube,
-      'the handle came back as ${cube.type.name} rather than a cube');
-  require(cube.sliceCount == 6,
-      'a cube reported ${cube.sliceCount} slices rather than six');
-
-  require(device.createCubeTextureFromPixels(
-        size: size,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        faces: faces.take(5).toList(),
-      ) ==
-      null,
-      'five faces made a cube; the sixth is whatever the allocation held');
-}
-
-/// `draw(instanceCount: n)` puts the geometry down n times.
-///
-/// Additive and coincident, so the answer is one number: three instances of a
-/// quarter-brightness triangle read back at three quarters, and one instance
-/// reads back at a quarter. A backend that ignores the count fails on the first
-/// number, and one that draws the wrong number of them fails on the ratio.
-///
-/// **Worth a conformance check rather than a golden**, because the three
-/// backends reach instancing three different ways — Impeller passes the count
-/// to `drawIndexed`, WebGL2 switches to `drawElementsInstanced` and has to
-/// manage attribute divisors that are sticky per location, and the software
-/// backend repeats the whole rasterisation. A golden would catch it on one
-/// backend and only for scenes that happen to use it.
-Future<void> _instancedDraw(GraphicsDevice device) async {
-  const size = 16;
-
-  Future<double> brightnessWith(int instances) async {
-    final target = device.createTexture(const RenderTargetSpec(
-      width: size,
-      height: size,
-      format: TextureFormat.r8g8b8a8UNormInt,
-    ));
-    final vertex = device.shaders['DebugLineVertex'];
-    final fragment = device.shaders['DebugLine'];
-    require(vertex != null && fragment != null,
-        'the debug-line stages are missing, so this cannot draw anything');
-
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
-        ),
-      ],
-    ));
-    pass
-      ..bindPipeline(device.createPipeline(vertex!, fragment!))
-      ..setPrimitiveType(PrimitiveType.triangle)
-      ..setCullMode(CullMode.none)
-      ..setBlend(BlendState.additive)
-      ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
-        'view_projection': Float32List.fromList(Matrix4.identity().storage),
-      });
-
-    // One triangle covering the target at a quarter brightness. The same shape
-    // the depth-write reproduction uses, for the same reason: the arithmetic is
-    // checkable by eye.
-    final one = Float32List.fromList(<double>[
-      -1, -1, 0.5, 0.25, 0, 0, 1, //
-      3, -1, 0.5, 0.25, 0, 0, 1,
-      -1, 3, 0.5, 0.25, 0, 0, 1,
-    ]);
-    final indices = Uint16List.fromList(<int>[0, 1, 2]);
-    pass
-      ..bindVertexData(ByteData.sublistView(one), 3)
-      ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
-      ..draw(instanceCount: instances)
-      ..submit();
-
-    final pixels = await device.readPixels(target);
-    require(pixels != null, 'the target could not be read back');
-    return pixels!.buffer.asUint8List()[0] / 255.0;
-  }
-
-  final once = await brightnessWith(1);
-  require((once - 0.25).abs() < 0.02,
-      'a single instance drew $once where a quarter was expected, so this '
-      'check cannot say anything about three');
-
-  final thrice = await brightnessWith(3);
-  require((thrice - 0.75).abs() < 0.02,
-      'three instances drew $thrice where three quarters was expected — the '
-      'count was ignored, or applied the wrong number of times');
-}
-
-
-/// A binding made for one pipeline must not follow the next one.
-///
-/// The contract is written on `CommandEncoder.bindPipeline`: bindings do not
-/// survive a pipeline bind. What earns it a conformance check is that
-/// flutter_gpu's pass breaks it by construction — it replays every binding it
-/// has ever been handed at every draw, keyed by the shader that bound it, and
-/// two shaders' blocks that share a slot index then fight for that slot in
-/// whatever order an `unordered_map` iterates. The winner is stable within a
-/// run and meaningless, which on screen was a skinned monster drawn as a
-/// splinter — but only in scenes that also drew something else, which is why
-/// every single-model reproduction came out innocent.
-///
-/// Two pipelines whose only vertex block sits at the same slot, one draw each,
-/// in both orders. Each draw's matrix decides where its triangle lands, so if
-/// the stale block follows the switch, the second draw lands where the *first*
-/// draw's matrix pointed — offscreen — and the centre stays black.
-Future<void> _pipelineSwitchKeepsBindingsApart(GraphicsDevice device) async {
-  const size = 16;
-
-  final lineVertex = device.shaders['DebugLineVertex'];
-  final lineFragment = device.shaders['DebugLine'];
-  final particleVertex = device.shaders['ParticleVertex'];
-  final particleFragment = device.shaders['Particle'];
-  require(
-      lineVertex != null &&
-          lineFragment != null &&
-          particleVertex != null &&
-          particleFragment != null,
-      'the debug-line or particle stages are missing, so this cannot switch '
-      'between two pipelines');
-
-  final centred = Float32List.fromList(Matrix4.identity().storage);
-  final offscreen =
-      Float32List.fromList(Matrix4.translationValues(64.0, 0.0, 0.0).storage);
-
-  // The same full-frame triangle in each pipeline's own layout: the line one
-  // pure green, the particle one pure red with its UV centre on the middle of
-  // the frame, where the particle disc is at full strength.
-  final lineTriangle = Float32List.fromList(<double>[
-    -1, -1, 0.5, 0, 1, 0, 1, //
-    3, -1, 0.5, 0, 1, 0, 1,
-    -1, 3, 0.5, 0, 1, 0, 1,
-  ]);
-  final particleTriangle = Float32List.fromList(<double>[
-    -1, -1, 0.5, 1, 0, 0, 1, 0, 0, //
-    3, -1, 0.5, 1, 0, 0, 1, 2, 0,
-    -1, 3, 0.5, 1, 0, 0, 1, 0, 2,
-  ]);
-  final indices = Uint16List.fromList(<int>[0, 1, 2]);
-
-  Future<List<int>> centreWith({required bool lineLast}) async {
-    final target = device.createTexture(const RenderTargetSpec(
-      width: size,
-      height: size,
-      format: TextureFormat.r8g8b8a8UNormInt,
-    ));
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
-        ),
-      ],
-    ));
-    pass
-      ..setPrimitiveType(PrimitiveType.triangle)
-      ..setCullMode(CullMode.none);
-
-    void line(Float32List matrix) {
-      pass
-        ..bindPipeline(device.createPipeline(lineVertex!, lineFragment!))
-        ..bindUniformBlock(lineVertex, 'LineInfo', <String, Float32List>{
-          'view_projection': matrix,
-        })
-        ..bindVertexData(ByteData.sublistView(lineTriangle), 3)
-        ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
-        ..draw();
-    }
-
-    void particle(Float32List matrix) {
-      pass
-        ..bindPipeline(
-            device.createPipeline(particleVertex!, particleFragment!))
-        ..bindUniformBlock(particleVertex, 'ParticleInfo',
-            <String, Float32List>{'view_projection': matrix})
-        // Density nought: fog off, so the disc's own colour reaches the target.
-        ..bindUniformBlock(particleFragment, 'FogInfo', <String, Float32List>{
-          'fog': Float32List(4),
-          'eye': Float32List(4),
-        })
-        ..bindVertexData(ByteData.sublistView(particleTriangle), 3)
-        ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 3)
-        ..draw();
-    }
-
-    if (lineLast) {
-      particle(offscreen);
-      line(centred);
-    } else {
-      line(offscreen);
-      particle(centred);
-    }
-    pass.submit();
-
-    final pixels = await device.readPixels(target);
-    require(pixels != null, 'the target could not be read back');
-    final at = ((size ~/ 2) * size + size ~/ 2) * 4;
-    return pixels!.buffer.asUint8List().sublist(at, at + 3);
-  }
-
-  final line = await centreWith(lineLast: true);
-  require(line[1] > 128,
-      'a debug-line draw bound the identity and landed off the frame — the '
-      'particle pipeline\'s stale ParticleInfo followed it through the switch '
-      '(centre came back $line)');
-
-  final particle = await centreWith(lineLast: false);
-  require(particle[0] > 128,
-      'a particle draw bound the identity and landed off the frame — the '
-      'debug-line pipeline\'s stale LineInfo followed it through the switch '
-      '(centre came back $particle)');
-}
-
-Future<void> _capabilities(GraphicsDevice device) async {
-  // Not assertions about the values — a backend is entitled to any of them.
-  // Assertions that asking works at all, because the engine branches on these
-  // and a throw here is a frame that never starts.
-  // Reading them is the assertion: the engine branches on each, and a throw
-  // here is a frame that never starts. The values themselves are the backend's
-  // business.
-  device.depthRange;
-  device.framebufferOrigin;
-  device.supportsWireframe;
-  device.supportsOffscreenMsaa;
-  require(device.preferredSampleCount >= 1,
-      'preferredSampleCount is ${device.preferredSampleCount}; one means no '
-      'multisampling and less than one means nothing');
-  require(device.defaultColorFormat != TextureFormat.unknown,
-      'defaultColorFormat is unknown, so the frame has nowhere to go');
-}
-
-Future<void> _hdrRenderable(GraphicsDevice device) async {
-  // The engine renders linear HDR and tone maps at the end, so it opens a pass
-  // against whatever this getter names. A format that is samplable but not
-  // renderable — RGBA16F on WebGL2 before EXT_color_buffer_float is asked for —
-  // makes every framebuffer incomplete, every draw silently discarded, and a
-  // frame of transparent black with every counter reporting success.
-  final target = device.createTexture(RenderTargetSpec(
-    width: 32,
-    height: 32,
-    format: device.hdrColorFormat,
-  ));
-  device
-      .beginRenderPass(RenderPassDescriptor(colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4(1.0, 1.0, 1.0, 1.0),
-        ),
-      ]))
-      .submit();
-}
-
-Future<void> _clearCoversAll(GraphicsDevice device) async {
-  // The rule the point-light atlas depends on: it clears once and then draws
-  // tile by tile, so a clear bounded by the scissor would leave most of it as
-  // allocated. GL does not give this for free — clearBufferfv honours
-  // SCISSOR_TEST — and the symptom was one cleared row out of four and shadows
-  // that read as absent.
-  const size = 64;
-  final target = device.createTexture(const RenderTargetSpec(
-    width: size,
-    height: size,
-    format: TextureFormat.r8g8b8a8UNormInt,
-  ));
-
-  device
-      .beginRenderPass(RenderPassDescriptor(colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
-        ),
-      ]))
-    // A scissor over one corner, set before submitting. A backend that clears
-    // through it fails here and only here.
-    ..setScissor(const ScreenRect(x: 0, y: 0, width: 8, height: 8))
-    ..submit();
-
-  final pixels = await device.readPixels(target);
-  require(pixels != null, 'the cleared target could not be read back');
-  final bytes = pixels!.buffer.asUint8List();
-
-  // Every pixel, not a sample: a partial clear leaves a rectangle, and a spot
-  // check placed inside it would pass.
-  var wrong = 0;
-  for (var i = 0; i < bytes.length; i += 4) {
-    if (bytes[i + 1] < 200) wrong++;
-  }
-  require(
-      wrong == 0,
-      '$wrong of ${bytes.length ~/ 4} pixels are not the clear colour — the '
-      'clear was bounded by something, and the contract says it covers the '
-      'whole attachment');
-}
-
-Future<void> _rowOrder(GraphicsDevice device) async {
-  // Row zero is the top. A backend measuring from the bottom has to flip on the
-  // way in, the way out, or both — and a caller cannot tell which way round it
-  // was handed pixels, so a golden compared against a mirrored frame fails as
-  // though rendering broke.
-  const width = 4;
-  const height = 4;
-  final source = Uint8List(width * height * 4);
-  for (var y = 0; y < height; y++) {
-    for (var x = 0; x < width; x++) {
-      final i = (y * width + x) * 4;
-      // Red increases downwards, so a mirrored readback is unmistakable.
-      source[i] = y * 60;
-      source[i + 3] = 255;
-    }
-  }
-
-  final texture = device.createTextureFromPixels(
-    width: width,
-    height: height,
-    format: TextureFormat.r8g8b8a8UNormInt,
-    pixels: ByteData.sublistView(source),
-  );
-  require(texture != null, 'the device made no texture from four by four '
-      'RGBA8 pixels');
-
-  final read = await device.readPixels(texture!);
-  require(read != null, 'the uploaded texture could not be read back');
-  final bytes = read!.buffer.asUint8List();
-
-  require(
-      bytes[0] == source[0],
-      'row zero came back as ${bytes[0]} where ${source[0]} was written: the '
-      'image is upside down');
-  final last = (height - 1) * width * 4;
-  require(bytes[last] == source[last],
-      'the last row disagrees, which a flip would also cause');
-}
-
-Future<void> _geometryUsage(GraphicsDevice device) async {
-  // Not a hint. WebGL binds a buffer to its target for life, so one uploaded as
-  // vertices can never be bound as indices — the attempt is an
-  // INVALID_OPERATION, the draw is dropped, and the frame comes back the clear
-  // colour with nothing logged.
-  final bytes = ByteData(64);
-  device.uploadGeometry(bytes, GeometryUsage.vertices);
-  device.uploadGeometry(bytes, GeometryUsage.indices);
-}
-
-Future<void> _shaderNames(GraphicsDevice device) async {
-  // The one requirement GraphicsDevice cannot express. The engine asks a
-  // library for entry points by name, so a backend written from the interface
-  // alone compiles, runs, and draws nothing — and the frame that comes back is
-  // empty for a reason nothing reports.
-  //
-  // Named individually rather than counted: "seventeen of twenty-three" sends
-  // somebody to diff two lists by hand.
-  final missing = <String>[];
-  for (final shader in kRequiredShaders) {
-    if (device.shaders[shader.name] == null) missing.add(shader.name);
-  }
-  require(
-      missing.isEmpty,
-      'the bundle has no ${missing.join(', ')}. Every backend ships its own '
-      'bundle and every bundle answers to the same names; see '
-      'package:flutter3d_shaders.');
-}
-
-Future<void> _linking(GraphicsDevice device) async {
-  // Compiling is not linking. A stage pair can hold two shaders that each
-  // compile and refuse to link together, and the one that fails is not the one
-  // that looks wrong.
-  //
-  // Measured rather than assumed, because the obvious version of this claim is
-  // false: a fragment input that is *declared and never read* links fine even
-  // with no matching vertex output — the compiler drops it. What does fail is
-  // an input the fragment stage actually reads and the vertex stage never
-  // writes. Checked by making exactly that mutation and watching this fail.
-  //
-  // The pairs the engine actually builds, not every combination: a bundle is
-  // allowed to hold stages that are never linked together.
-  const pairs = <(String, String)>[
-    ('MeshVertex', 'Pbr'),
-    ('MeshVertex', 'ShadowDepth'),
-    ('MeshVertex', 'ShadowDistance'),
-    ('MeshSkinnedVertex', 'Pbr'),
-    ('ShadowTileResetVertex', 'ShadowTileReset'),
-    ('FullscreenVertex', 'Composite'),
-    ('DebugLineVertex', 'DebugLine'),
-    ('ParticleVertex', 'Particle'),
-    // The sky is the only pair where both stages are new at once, so it is the
-    // one where a varying can disagree with nothing to compare against. Both
-    // pairs, because only one of them is exercised by any given frame.
-    //
-    // **This table said `SkyVertex` for both, and had stopped being true.** The
-    // cube grew a vertex stage of its own when the gradient's vertices changed
-    // shape — the gradient carries six colours per vertex now and the cube
-    // carries one tint — so `SkyCube` reads a `v_tint` that `SkyVertex` has
-    // never written. A browser refuses to link exactly that, which is what this
-    // check is for; nothing caught it because these tests only run in a browser
-    // and nothing ran them.
-    ('SkyVertex', 'Sky'),
-    ('SkyCubeVertex', 'SkyCube'),
-  ];
-
-  for (final (vertexName, fragmentName) in pairs) {
-    final vertex = device.shaders[vertexName];
-    final fragment = device.shaders[fragmentName];
-    require(vertex != null && fragment != null,
-        '$vertexName + $fragmentName: one of the stages is missing');
-    try {
-      device.createPipeline(vertex!, fragment!);
-    } catch (error) {
-      throw ConformanceFailure('$vertexName + $fragmentName does not link: '
-          '$error');
-    }
-  }
-}
+/// Every check, as plain functions, for a harness that is not a test runner.
+List<ConformanceCheck> get conformanceChecks =>
+    <ConformanceCheck>[...coreChecks, ...shaderChecks];

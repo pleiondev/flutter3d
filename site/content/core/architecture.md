@@ -10,12 +10,12 @@ Four rules, each enforced by a test instead of by intention, and one consequence
 
 ### The engine names no graphics API — the HAL {#the-hal}
 
-`flutter3d` depends on `flutter3d_graphics` and nothing below it. That package is the **HAL**: the hardware abstraction layer, and the vocabulary the engine is written against. It contains no implementation at all, a backend implements it, the engine talks to it, and neither has to know about the other.
+`flutter3d` depends on `flutter3d_hardware` and nothing below it. That package is the **HAL**: the hardware abstraction layer, and the vocabulary the engine is written against. It contains no implementation at all, a backend implements it, the engine talks to it, and neither has to know about the other.
 
 ```mermaid
 flowchart TB
   engine["flutter3d<br>the renderer"]
-  vocab["flutter3d_graphics<br><b>THE HAL</b><br>GraphicsDevice · CommandEncoder<br>TextureHandle · GeometryBuffer<br>no implementation in it"]
+  vocab["flutter3d_hardware<br><b>THE HAL</b><br>GraphicsDevice · CommandEncoder<br>TextureHandle · GeometryBuffer<br>no implementation in it"]
   impeller["flutter3d_impeller<br><b>flutter_gpu</b><br>Metal · Vulkan"]
   webgl["flutter3d_webgl<br><b>WebGL2</b><br>the browser"]
   cpu["flutter3d_cpu<br><b>software</b><br>rasterises in Dart"]
@@ -81,14 +81,14 @@ abstract interface class GraphicsDevice implements TextureAllocator {
 
 Plus `PassEncoder` (state, bindings, draws), `PassState` as one value, the enums a caller has to name (`formats.dart`, `vertex_layout_spec.dart`), opaque handles for the things a backend owns (`GeometryBuffer`, `ShaderHandle`, `TextureHandle`), sampling (`SamplerOptions`, `MipChain`), and a render target pool with the description that makes two targets interchangeable.
 
-Two checks hold the boundary: `flutter3d_graphics/test/no_backend_test.dart` refuses a `flutter_gpu` import anywhere in the HAL, and `flutter3d/test/backend_is_contained_test.dart` refuses one in the engine. The HAL also refuses `dart:ui`, apart from one member on `GraphicsDevice` that has to name it, and the reason is written where the exception is.
+Two rules in `tool/structure.dart` hold the boundary: `the hardware layer names no graphics API` refuses a `flutter_gpu` import anywhere in the HAL, and `the engine names no backend` refuses one in `flutter3d` — and refuses the *dependency* too, which the import scan alone would miss. The HAL also refuses `dart:ui`, apart from one member on `GraphicsDevice` that has to name it, and the reason is written beside the exemption.
 
 <div class="note">
 <p>The compiled shader bundle is still an asset of <code>flutter3d</code>, and that is a known wrinkle rather than a decision. A bundle is one backend's output, so it belongs with the backend that reads it; the GLSL it is built from is shared in <code>flutter3d_shaders</code>. Moving it is a question about where shader sources live, worth answering on its own rather than as a side effect.</p>
 </div>
 
 <div class="why">
-<p>When a second backend arrives, <code>flutter3d_graphics</code> does not change. A translation file appears in the new backend, and that is all. That is the test of whether a layer is an abstraction or a description of its first implementation, and it is why the CPU backend was written before anyone needed software rendering.</p>
+<p>When a second backend arrives, <code>flutter3d_hardware</code> does not change. A translation file appears in the new backend, and that is all. That is the test of whether a layer is an abstraction or a description of its first implementation, and it is why the CPU backend was written before anyone needed software rendering.</p>
 </div>
 
 ### The game layer does not depend on the renderer
@@ -106,7 +106,7 @@ This was not free. `Monster` and `MonsterSystem` lived in the game layer for a w
 What stayed behind is machinery: `Actor` (a body, a brain and some health, **every part optional**), `ActorSystem`, `Mechanism`, the level format, the ECS. What left is vocabulary.
 
 <div class="why">
-<p>The file used to be <code>lib/shooter.dart</code> in the game package, unexported by the barrel, a rule instead of a boundary. It still resolved from inside the package, and the four things it leaned on carried no marking at all. <code>test/no_genre_test.dart</code> is what turned the rename into a fact.</p>
+<p>The file used to be <code>lib/shooter.dart</code> in the game package, unexported by the barrel, a rule instead of a boundary. It still resolved from inside the package, and the four things it leaned on carried no marking at all. The genre rule is what turned the rename into a fact.</p>
 </div>
 
 ### One package may see both sides {#the-bridge}
@@ -137,7 +137,7 @@ loaded.level.spawnInto(
 
 There is no runtime shader compilation on this platform. `tool/build_shaders.sh` calls `impellerc` and produces a bundle; the application loads it as an asset. Everything below follows from that one fact.
 
-- **A material graph is impossible.** No `NodeMaterial`, no TSL. Every lighting model is a separate pre-built shader.
+- **A material graph is impossible** while the game runs. Every lighting model is a separate pre-built shader.
 - **Every shader is a separate `RenderPipeline`**, so a pipeline switch is the most expensive state change in a pass. That is why it is the high-order key when the render list is sorted.
 - **Lighting is a uniform array, not a permutation per light count.** `vec4 lights[8]` with the count as a uniform, so switching a light on or off never rebuilds a pipeline. A capture with three lights and one with a single light both report **one** pipeline.
 - **The bundle grows with every permutation** — 12.5 KB with one shader, 97 KB with seven.

@@ -1,10 +1,10 @@
 ---
-description: How to implement flutter3d_graphics for a new graphics API — the full contract, the semantics no signature can express, the conformance suite, and the shader bundle you cannot avoid writing.
+description: How to implement flutter3d_hardware for a new graphics API — the full contract, the semantics no signature can express, the conformance suite, and the shader bundle you cannot avoid writing.
 ---
 
 # Writing a HAL backend
 
-`flutter3d_graphics` is a hardware abstraction layer with no implementation in it. This page is what you need to write a fourth one.
+`flutter3d_hardware` is a hardware abstraction layer with no implementation in it. This page is what you need to write a fourth one.
 
 The claim it makes is that a backend can be written **without reading the engine**. That claim has been half-tested and half-confirmed: `flutter3d_cpu` is a software rasteriser with no GPU, no driver and no shading language under it, and `GraphicsDevice` was implementable straight from the contract — `Renderer` started against it unmodified and the `plain` parity fixture came out within a mean of 0.56 of Impeller's. Nothing in the engine turned out to assume a GPU.
 
@@ -25,7 +25,7 @@ What could **not** be written from the contract is the shaders. That limit is re
 flowchart TB
   engine["flutter3d<br>the renderer"] --> hal
 
-  subgraph hal["flutter3d_graphics — the HAL"]
+  subgraph hal["flutter3d_hardware — the HAL"]
     direction TB
     device["GraphicsDevice<br>capabilities<br>resources · frames"]
     enc["CommandEncoder<br>extends PassEncoder<br>state · bindings · draws"]
@@ -234,7 +234,13 @@ The Impeller backend's translation asserts that each enum value maps to the `flu
 
 ## Run the conformance suite first
 
-`flutter3d_conformance` turns those semantics into executable checks, and it is **deliberately shader-free**: every one works with clears, uploads and readback alone, so you can run them before you have a single shader compiled, which is when the answers are cheapest to act on.
+`flutter3d_conformance` turns those semantics into executable checks, in **two tiers**. `coreChecks` works with clears, uploads and readback alone, so you can run it before you have a single shader compiled, which is when the answers are cheapest to act on. `shaderChecks` needs the bundle: that a pass starts covering its own attachment and nothing else, that it inherits no clipping from the pass before it, that a binding made for one pipeline does not follow the next, and that a cube map answers the face a direction points at.
+
+`runDeviceConformance` runs both.
+
+<div class="why">
+<p>The library said it was shader-free as a whole for some time after it stopped being true: five of the twelve checks link stages and draw. A backend written against that promise would have met five failures it could do nothing about yet, which is the opposite of what a conformance suite is for.</p>
+</div>
 
 ```dart
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
@@ -301,7 +307,7 @@ This is also the limit on extensions. An application that builds its own bundle 
 
 ## What is outside the promise
 
-Not because it is unstable, but because nothing outside `flutter3d_graphics` should depend on it.
+Not because it is unstable, but because nothing outside `flutter3d_hardware` should depend on it.
 
 - Everything in `flutter3d`'s `src/` beyond what `flutter3d.dart` exports.
 - `FrameResources` internals. Its rules — versions, `keeps`, release by identity — are engine machinery, and a backend never sees them.

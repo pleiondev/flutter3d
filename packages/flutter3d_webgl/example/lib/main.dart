@@ -1,7 +1,7 @@
 /// Drives the HAL against WebGL2 and checks what came out.
 ///
 /// Not a demo. This is the harness that answers the question a fake backend
-/// cannot: is `flutter3d_graphics` *implementable*, or only callable? Everything
+/// cannot: is `flutter3d_hardware` *implementable*, or only callable? Everything
 /// here goes through `GraphicsDevice` and `CommandEncoder` — no WebGL call is
 /// made by this file — so what it exercises is the seam itself.
 ///
@@ -27,7 +27,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:vector_math/vector_math.dart' show Vector4;
 

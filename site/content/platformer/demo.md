@@ -98,8 +98,8 @@ Re-running the generator fixed it. **A caller naming a member the block does not
 # Re-translate the shaders if the engine's GLSL has changed.
 (cd packages/flutter3d_webgl && dart run tool/generate_shaders.dart)
 
-(cd apps/platformer && flutter build web --release)
-python3 -m http.server 8000 --directory apps/platformer/build/web
+(cd apps/flutter3d_demo_platformer && flutter build web --release)
+python3 -m http.server 8000 --directory apps/flutter3d_demo_platformer/build/web
 ```
 
 ## Next

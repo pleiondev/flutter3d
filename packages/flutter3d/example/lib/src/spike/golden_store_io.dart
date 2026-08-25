@@ -11,6 +11,10 @@ void reportLine(String message) {}
 /// reads an exit code, which is the shape a shell can drive.
 String? get sceneOverride => null;
 
+/// Whether this run records, from the URL. There is no URL here: the desktop
+/// build takes it as a compile-time define, which `tool/golden.sh` passes.
+const bool? updateOverride = null;
+
 /// Whether a run has to be told where the references live.
 ///
 /// True here: a macOS application bundle runs with its working directory at

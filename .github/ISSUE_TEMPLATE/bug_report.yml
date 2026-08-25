@@ -1,0 +1,54 @@
+name: Bug report
+description: Something renders, simulates or loads wrongly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: run `bash tool/ci.sh`. If a step is already red on a
+        clean checkout, that is the bug, and its name is the first thing to say.
+  - type: input
+    id: package
+    attributes:
+      label: Which package or application
+      placeholder: packages/flutter3d_physics, or apps/flutter3d_demo_racing
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what should
+      description: |
+        A failing test is the clearest report there is. Second best is the
+        smallest scene, level document or asset that shows it.
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Which backend
+      description: |
+        Three exist and they fail differently. `flutter3d_cpu` is the reference
+        one — a defect that shows there is in the engine and not in a driver.
+      options:
+        - flutter3d_impeller (desktop, Flutter GPU)
+        - flutter3d_webgl (web)
+        - flutter3d_cpu (software rasteriser)
+        - more than one
+        - not a rendering bug
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `flutter --version`, and the platform you ran on.
+      render: text
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        **Shaders stopped loading after a Flutter upgrade?** The bundle format is
+        tied to the SDK version. Re-run
+        `packages/flutter3d_impeller/tool/build_shaders.sh` before filing.

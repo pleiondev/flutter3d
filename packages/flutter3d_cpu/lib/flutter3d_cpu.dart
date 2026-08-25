@@ -1,4 +1,4 @@
-/// A `flutter3d_graphics` backend that rasterises in Dart.
+/// A `flutter3d_hardware` backend that rasterises in Dart.
 ///
 /// Two hardware backends agreeing proves less than it looks like: both are
 /// driven by a C API and both rasterise on a GPU, so an assumption shared by

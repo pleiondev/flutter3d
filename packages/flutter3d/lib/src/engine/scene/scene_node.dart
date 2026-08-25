@@ -1,6 +1,6 @@
 import 'package:vector_math/vector_math.dart';
 
-import '../animation/animation_player.dart' show AnimationTarget;
+import '../animation/animation_target.dart' show AnimationTarget;
 import 'scene.dart';
 
 /// A node in the scene graph: a name, a place in the hierarchy, and a transform.

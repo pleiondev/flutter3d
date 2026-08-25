@@ -4,6 +4,7 @@ import '../geometry/mesh_geometry.dart';
 import '../render/material.dart';
 import 'camera_node.dart';
 import 'mesh_node.dart';
+import 'projection.dart';
 import 'scene.dart';
 import 'scene_node.dart';
 

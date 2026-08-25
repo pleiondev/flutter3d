@@ -26,7 +26,7 @@
 /// to cross a wall between two steps will cross it; the sweep that stops that
 /// happening for the character controller is not applied here, and stage two is
 /// where it belongs. Stated rather than discovered, and the numbers are in
-/// `docs/SPEC.md` §4.3.
+/// `ARCHITECTURE.md` §10.
 library;
 
 import 'dart:math' as math;

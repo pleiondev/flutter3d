@@ -384,6 +384,16 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
   font: 500 9.5px/1 var(--mono); letter-spacing: .13em; text-transform: uppercase; color: var(--muted);
 }
 
+/* The generated API index: a package name and the one sentence its pubspec
+   already gives. Narrower columns than the prose cards, because twenty-two of
+   them in three columns is a wall. */
+.api-index { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.api-index code {
+  display: block; margin-bottom: 6px; padding: 0; background: none;
+  font: 600 15px/1.3 var(--mono); letter-spacing: -.01em; color: var(--amber);
+}
+.api-index span { display: block; font-size: 14px; line-height: 1.55; color: var(--muted); }
+
 .stats {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 1px; margin: 2rem 0;
@@ -414,6 +424,13 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
   font: 400 13px/1.6 var(--mono); color: var(--muted);
 }
 .foot p { margin: 0; }
+.foot p + p { margin-top: 10px; }
+.foot-links a { color: var(--amber); text-decoration: none; }
+.foot-links a:hover { text-decoration: underline; }
+/* Smaller than the rest of the footer: it is the notice, not the navigation. */
+.foot-legal { font-size: 12px; color: var(--muted); }
+.foot-legal a { color: var(--muted); text-decoration: underline; }
+.foot-legal a:hover { color: var(--amber); }
 
 /* --- right toc ----------------------------------------------------------- */
 .toc {

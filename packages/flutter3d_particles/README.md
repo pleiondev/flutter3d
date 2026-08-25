@@ -18,3 +18,10 @@ the moment something exploded.
 **Advanced with the frame the simulation accepted**, not with the raw delta —
 `GameLoop.lastFrame` — or the smoke drifts away from the world it is attached
 to on any machine that drops a frame.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team.
+Documentation: <https://flutter3d.pleion.dev>.

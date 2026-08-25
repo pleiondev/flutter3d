@@ -54,7 +54,7 @@ Click the frame first: the keyboard goes to whatever was clicked last, and a pla
 
 ## What changed in the application
 
-The same conditional import as the other two games. `apps/racing/lib/src/backend.dart` used to export the native backend unconditionally, with a comment saying the conditional would come back when there was a web build.
+The same conditional import as the other two games. `apps/flutter3d_demo_racing/lib/src/backend.dart` used to export the native backend unconditionally, with a comment saying the conditional would come back when there was a web build.
 
 ```dart
 export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
@@ -74,13 +74,13 @@ const int kShadowResolution = 2048;  const int kShadowResolution = 1024;
 
 ```bash
 (cd packages/flutter3d_webgl && dart run tool/generate_shaders.dart)
-(cd apps/racing && flutter build web --release --base-href=/demo/racing/)
+(cd apps/flutter3d_demo_racing && flutter build web --release --base-href=/demo/racing/)
 ```
 
 The desktop build, which is the one to actually drive:
 
 ```bash
-(cd apps/racing && flutter run -d macos)
+(cd apps/flutter3d_demo_racing && flutter run -d macos)
 ```
 
 ## Next

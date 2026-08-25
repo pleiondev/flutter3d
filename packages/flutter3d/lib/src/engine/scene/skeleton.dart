@@ -15,7 +15,7 @@ import 'scene_node.dart';
 /// The matrices go into a uniform array, the same mechanism the lights use and
 /// for the same reason: shaders are compiled ahead of time, so a permutation per
 /// joint count is not on the table. The spike behind that decision is recorded
-/// in RESEARCH.md §4.
+/// in ARCHITECTURE.md §2.
 final class Skeleton {
   Skeleton({
     required this.joints,

@@ -186,7 +186,7 @@ void main() {
       // may not be so clear that the ground it implies would blow out the
       // shadows, and may not be so thick that the circuit disappears. That
       // whole shape of the ground is checked against the real generated file in
-      // `apps/racing/test/frame_test.dart`; here it is only the range.
+      // `apps/flutter3d_demo_racing/test/frame_test.dart`; here it is only the range.
       for (final preset in SkyPresets.all) {
         final reach = math.log(1.0 / 0.12) / preset.fogDensity;
         expect(reach, greaterThan(200.0),

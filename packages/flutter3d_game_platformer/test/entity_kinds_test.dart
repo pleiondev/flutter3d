@@ -436,7 +436,7 @@ void main() {
         'entities': <Object?>[_entity(PlatformerEntities.lamp, properties)],
       });
       level.spawnInto(
-        SpawnContext(world: world, mechanisms: mechanisms, actors: ActorSystem(world: world)),
+        SpawnContext(world: world, mechanisms: mechanisms, actors: ActorSystem(world: world, random: GameRandom(1))),
         registry: platformerRegistry(),
       );
       final lamps = <LightFixture>[

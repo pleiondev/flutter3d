@@ -51,12 +51,13 @@ final class _Range {
       ),
     );
     sim = GameSimulation(
+      random: GameRandom(1),
       player: player,
       collision: world,
       input: input,
       shot: WeaponShot(
         world: world,
-        hitscan: Hitscan(world: world, random: math.Random(7)),
+        hitscan: Hitscan(world: world, random: GameRandom(7)),
         projectiles: ProjectileSystem(world: world),
       ),
     );

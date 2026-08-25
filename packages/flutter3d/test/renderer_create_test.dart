@@ -17,10 +17,10 @@ import 'package:flutter3d/src/engine/render/render_view.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';
 import 'package:flutter3d/src/engine/scene/camera_node.dart';
 import 'package:flutter3d/src/engine/scene/scene.dart';
-import 'package:flutter3d_graphics/flutter3d_graphics.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'fake_backend.dart';
 
 void main() {
   Renderer build(FakeBackend device) {

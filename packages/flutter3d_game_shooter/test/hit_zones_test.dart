@@ -13,7 +13,6 @@
 /// platformer has no use for it.
 library;
 
-import 'dart:math' as math;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
@@ -25,7 +24,7 @@ import 'package:vector_math/vector_math.dart';
   final world = CollisionWorld()
     ..addBox(Vector3(0.0, -0.5, 0.0), Vector3(60.0, 1.0, 60.0))
     ..update();
-  final random = math.Random(3);
+  final random = GameRandom(3);
   final system = ActorSystem(world: world, random: random);
   return (
     system: system,

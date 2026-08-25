@@ -5,7 +5,7 @@
 /// asks — `import 'package:flutter3d_game/sample.dart';` — and a second game
 /// that wants its own monsters simply does not.
 ///
-/// It stays inside the package rather than moving to `apps/dungeon` for one
+/// It stays inside the package rather than moving to `apps/flutter3d_demo_dungeon` for one
 /// reason: the tests. Two hundred of them are written against these numbers,
 /// and a roster is exactly what a test of an arsenal, a monster system or a
 /// level validator needs to have lying about. Moving the data would have

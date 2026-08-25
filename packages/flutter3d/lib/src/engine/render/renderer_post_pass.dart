@@ -283,7 +283,7 @@ extension _PostPasses on Renderer {
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
       showPointShadowDebug: settings.showPointShadowDebug,
-      showShadowMap: settings.showShadowMap,
+      showShadowMap: settings.showShadowMap || settings.showStaticShadowMap,
       hasShadowView: shadowView != null,
       hasGlow: bloom != null,
       exposure: settings.exposure,
@@ -341,9 +341,26 @@ extension _PostPasses on Renderer {
       occlusion ?? fallbackAlbedo,
       sampler: Renderer._clampSampler,
     );
+    // Neutral is (1, 1, 0, 0) and (0, …, 0, aspect), which the shader relies on
+    // being exact: every golden in the repository goes through this block, and a
+    // default that only nearly cancels moves all of them by a bit each.
+    final look = settings.look;
+    _compositeLook[0] = look.contrast;
+    _compositeLook[1] = look.saturation;
+    _compositeLook[2] = look.temperature;
+    _compositeLook[3] = math.max(look.chromaticAberration, 0.0);
+    _compositeLookMore[0] = look.vignette.clamp(0.0, 1.0);
+    _compositeLookMore[1] = look.vignetteRoundness.clamp(0.0, 1.0);
+    _compositeLookMore[2] = math.max(look.grain, 0.0);
+    // The vignette is computed in UV space, which is square while the frame is
+    // not — without this the falloff is an ellipse on screen.
+    _compositeLookMore[3] = height <= 0 ? 1.0 : width / height;
+
     pass.bindUniformBlock(compositeShader, _kCompositeInfoBlock, {
       'params': _compositeParams,
       'ao_texel': _compositeAoTexel,
+      'look': _compositeLook,
+      'look_more': _compositeLookMore,
     });
     pass.draw();
 

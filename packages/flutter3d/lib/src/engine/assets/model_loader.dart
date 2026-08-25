@@ -1,116 +1,21 @@
 import 'dart:developer' as developer;
-import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/services.dart' show rootBundle;
 
 import '../geometry/geometry.dart';
+import 'asset_source.dart';
 import 'f3d/f3d.dart';
 import 'gltf/gltf.dart';
 import 'obj/obj.dart';
 
-/// Where a model and its sibling files live.
-///
-/// A sendable *description* rather than a resolver closure, because that is what
-/// crosses an isolate boundary: the background isolate reconstructs the resolver
-/// from this instead of receiving a callback that closes over the asset bundle.
-sealed class AssetSource {
-  const AssetSource();
-
-  /// Stable identity, used as the cache key.
-  String get key;
-
-  /// The model file itself.
-  Future<Uint8List> read();
-
-  /// Resolves files referenced from inside the model, relative to its directory.
-  AssetUriResolver get resolveUri;
-
-  /// Everything after the last path separator.
-  String get fileName {
-    final path = key;
-    final slash = path.lastIndexOf('/');
-    return slash < 0 ? path : path.substring(slash + 1);
-  }
-}
-
-/// A model in the Flutter asset bundle.
-///
-/// Reading the bundle from a background isolate needs the platform channel to be
-/// wired up there; [decodeModelInIsolate] passes the root isolate token that makes
-/// that possible.
-final class BundleAssetSource extends AssetSource {
-  const BundleAssetSource(this.assetPath);
-
-  final String assetPath;
-
-  @override
-  String get key => 'bundle:$assetPath';
-
-  @override
-  Future<Uint8List> read() async {
-    final data = await rootBundle.load(assetPath);
-    return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-  }
-
-  @override
-  AssetUriResolver get resolveUri {
-    final slash = assetPath.lastIndexOf('/');
-    final directory = slash < 0 ? '' : assetPath.substring(0, slash);
-    return (uri) async {
-      if (uri.startsWith('data:')) return decodeDataUri(uri);
-      final data = await rootBundle.load('$directory/${_safeRelative(uri)}');
-      return data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
-    };
-  }
-}
-
-
-/// A model on the filesystem. Unavailable on web, which is why it is a separate
-/// source rather than a flag.
-final class FileAssetSource extends AssetSource {
-  const FileAssetSource(this.path);
-
-  final String path;
-
-  @override
-  String get key => 'file:$path';
-
-  @override
-  Future<Uint8List> read() => File(path).readAsBytes();
-
-  @override
-  AssetUriResolver get resolveUri {
-    final directory = File(path).parent.path;
-    return (uri) async {
-      if (uri.startsWith('data:')) return decodeDataUri(uri);
-      final relative = _safeRelative(uri);
-      final file = File('$directory/$relative');
-      // Synchronous: see the note in `gltf_resolvers.dart`. This runs on an
-      // isolate of its own, so there is nothing here for it to block.
-      if (!file.existsSync()) {
-        throw FileSystemException('Referenced file not found', file.path);
-      }
-      return file.readAsBytes();
-    };
-  }
-}
-
-/// A reference inside a model is always relative to the model. An absolute path or
-/// a `..` segment means the file is reaching outside its directory, which is worth
-/// refusing rather than resolving.
-String _safeRelative(String uri) {
-  final relative = Uri.decodeComponent(uri);
-  if (relative.startsWith('/') ||
-      relative.startsWith(r'\') ||
-      relative.contains('://') ||
-      relative.split(RegExp(r'[/\\]')).contains('..')) {
-    throw ArgumentError('Refusing to load "$uri": it escapes the asset directory.');
-  }
-  return relative;
-}
+// `AssetSource` and its two implementations describe where a model's bytes
+// come from; everything below describes what to do with them once they
+// arrive. Neither needs anything private from the other, so the source
+// classes live in their own file — re-exported here so every existing import
+// of this file keeps seeing them.
+export 'asset_source.dart';
 
 /// Which decoder to use.
 enum ModelFormat {
@@ -123,6 +28,35 @@ enum ModelFormat {
   f3d,
 }
 
+/// A decoder for a format the engine does not ship.
+///
+/// **The plugin boundary for reading, and it is one interface wide.** The engine
+/// knows glTF, OBJ and its own container; anything else — a studio's internal
+/// format, a compressed variant, a format that has not been invented yet —
+/// arrives as one of these and needs no change to this package.
+///
+/// Consulted before the built-in decoders, so an application can also *replace*
+/// one: a project with its own glTF reader gets its own glTF reader.
+///
+/// **Implementations must be sendable**, and that is not a formality — see
+/// [ModelLoadRequest.decoders] for the isolate that makes it one.
+abstract interface class ModelDecoder {
+  /// Whether this decoder wants the file. [fileName] may be empty; [bytes] is
+  /// the whole file, so a decoder with no useful suffix can sniff its magic.
+  bool handles(String fileName, Uint8List bytes);
+
+  /// Reads [bytes] into a document.
+  ///
+  /// [resolveUri] fetches a sibling file — a `.gltf`'s buffer, an `.obj`'s
+  /// material library — and is the only way to reach the file system from here:
+  /// this runs on a background isolate that has none.
+  Future<ModelDocument> decode(
+    Uint8List bytes,
+    ModelLoadRequest request,
+    AssetUriResolver resolveUri,
+  );
+}
+
 /// Everything a decode needs, in one sendable object.
 final class ModelLoadRequest {
   const ModelLoadRequest({
@@ -130,12 +64,27 @@ final class ModelLoadRequest {
     this.format = ModelFormat.auto,
     this.layout = VertexLayout.standard,
     this.objNormals = ObjNormals.smooth,
+    this.decoders = const <ModelDecoder>[],
   });
 
   final AssetSource source;
   final ModelFormat format;
   final VertexLayout layout;
   final ObjNormals objNormals;
+
+  /// An application's own decoders, tried in order before the built-in ones.
+  ///
+  /// **Carried on the request rather than kept in a registry, and the isolate is
+  /// why.** Decoding runs on a background isolate, and statics are not shared
+  /// across isolates in Dart: a registry filled at startup in the main isolate
+  /// is empty in the one that does the reading. It would work in a test that
+  /// decoded on the main isolate and fail in the application, which is the worst
+  /// shape a bug can have.
+  ///
+  /// Travelling with the request means they are sent, so each must be sendable:
+  /// a plain object holding plain data. A decoder that closes over a texture, a
+  /// device or a port cannot cross and will say so at run time.
+  final List<ModelDecoder> decoders;
 }
 
 /// Decodes a model on a background isolate.
@@ -147,7 +96,7 @@ final class ModelLoadRequest {
 /// Why it matters: decoding the 71 KB Utah teapot costs 5.39 ms of CPU, a third of
 /// a 60 Hz frame, and a real model runs into tens of milliseconds. That is jank on
 /// the UI isolate however fast the parser is — which is also why FFI would not have
-/// fixed it (see doc/FFI-analysis.md).
+/// fixed it (see ARCHITECTURE.md §14).
 ///
 /// **File reads stay on this isolate.** The obvious alternative — wire the platform
 /// channel into the background isolate with `BackgroundIsolateBinaryMessenger` —
@@ -253,6 +202,21 @@ Future<ModelDocument> decodeModelBytes(
   Uint8List bytes,
   AssetUriResolver resolveUri,
 ) {
+  // An application's own decoders first, so it can add a format and replace one.
+  // Asked before the format is resolved at all: a decoder that recognises its
+  // own file is a better authority than a suffix table this package wrote.
+  for (final decoder in request.decoders) {
+    if (!decoder.handles(request.source.fileName.toLowerCase(), bytes)) {
+      continue;
+    }
+    final task = developer.TimelineTask()
+      ..start('decode ${decoder.runtimeType}',
+          arguments: <String, Object?>{'bytes': bytes.length});
+    return decoder
+        .decode(bytes, request, resolveUri)
+        .whenComplete(task.finish);
+  }
+
   final format = _resolveFormat(request, bytes);
   // Named after the format so the background isolate's span says which decoder
   // the time went into, rather than just "decode".

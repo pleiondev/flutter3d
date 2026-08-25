@@ -1,59 +1,13 @@
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'activation.dart';
+import 'activation_outcome.dart';
 import 'key_ring.dart';
 
-/// Who is switching something on, and what they are carrying.
-///
-/// Passed by value down the whole chain — a trigger volume hands it to the lift
-/// it calls, which hands it to whatever that lift relays to — so a locked door
-/// three relays away still knows whose keys to check.
-final class Activation {
-  const Activation({
-    this.by,
-    this.keys = const <String>{},
-  });
-
-  /// The body that did it, when there was one. Null for a mechanism switched
-  /// on by another mechanism rather than by somebody walking into it.
-  final Collider? by;
-
-  /// What that body is carrying. A door reads it; nothing else does yet.
-  final Set<String> keys;
-}
-
-/// What came of asking a mechanism to do something.
-///
-/// A sealed hierarchy rather than a bool because the interesting case is the
-/// middle one: a locked door has to tell the player *why* nothing happened, and
-/// a caller that only knows "it did not work" cannot.
-sealed class ActivationOutcome {
-  const ActivationOutcome();
-
-  /// Something worth showing the player, or null when there is nothing to say.
-  String? get message => null;
-}
-
-/// It did what it was asked.
-final class Activated extends ActivationOutcome {
-  const Activated();
-}
-
-/// It would not, and here is what to tell the player.
-final class Refused extends ActivationOutcome {
-  const Refused(this.message);
-
-  @override
-  final String message;
-}
-
-/// There was nothing to do — already open, still moving, or no such name.
-///
-/// Distinct from [Refused] because pressing a button twice is not a failure and
-/// should not print anything.
-final class NothingToDo extends ActivationOutcome {
-  const NothingToDo();
-}
+export 'activation.dart';
+export 'activation_outcome.dart';
+export 'signal.dart';
 
 /// Something in the level that can be switched on and that has a life of its
 /// own between switchings.
@@ -149,55 +103,6 @@ final class MechanismEvents {
     taken.clear();
     reached.clear();
     messages.clear();
-  }
-}
-
-/// A mechanism that does nothing itself and switches something else on.
-///
-/// Buttons and trigger volumes are the same thing wearing different clothes:
-/// both watch for a condition and relay. Everything except the condition lives
-/// here — the target, the once-only latch, the relay itself — so adding a third
-/// kind of switch is a class with one method.
-abstract base class Signal extends Mechanism {
-  Signal({
-    super.name,
-    required this.target,
-    this.once = false,
-  });
-
-  /// The [Mechanism.name] this switches on.
-  final String target;
-
-  /// Whether it works only the first time. A trap door should not rearm; a
-  /// lift call button should.
-  final bool once;
-
-  bool _spent = false;
-
-  /// Whether this has already fired and will not fire again.
-  bool get isSpent => _spent;
-
-  /// The latch, and nothing else.
-  ///
-  /// **This is what a save used to lose.** A once-only trigger — the plate in
-  /// front of a gate, the volume that fires a cutscene — was not in anybody's
-  /// `switch`, so reloading gave it back and it fired a second time. A player
-  /// who saved past a one-shot and came back found it waiting.
-  @override
-  Map<String, Object?> save() => <String, Object?>{'spent': _spent};
-
-  @override
-  void restore(Map<String, Object?> from) => _spent = from['spent'] == true;
-
-  /// Passes the activation on to [target].
-  ///
-  /// The latch closes only on a genuine [Activated]: a player who walked into a
-  /// locked door's trigger without the key has not used up their one chance.
-  ActivationOutcome fire(Activation by) {
-    if (_spent) return const NothingToDo();
-    final outcome = world.activate(target, by);
-    if (once && outcome is Activated) _spent = true;
-    return outcome;
   }
 }
 
