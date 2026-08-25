@@ -26,12 +26,12 @@
 /// the browser pass drags this in and every case fails on a missing library
 /// rather than on a picture.
 ///
-/// **The budgets below are measurements, and three of them are defects.** That
-/// distinction is the point of the file: a number near a fifth of a percent is
-/// multisampling on a silhouette and nothing to do; a number in whole percents
-/// is this backend drawing something else. They are listed as budgets anyway,
-/// because the alternative is deleting the scene and pretending, and a budget
-/// that fires when a known-wrong picture changes is still worth having.
+/// **The budgets below are measurements, and none of them is a defect any
+/// more.** That distinction is the point of the file: a number near a fifth of
+/// a percent is multisampling on a silhouette and nothing to do; a number in
+/// whole percents is this backend drawing something else. Six scenes were in
+/// the second group and every one of them has been moved to the first, so the
+/// whole table is now a floor to hold rather than a list of things to fix.
 @TestOn('vm')
 library;
 
@@ -51,10 +51,11 @@ const int _channel = 8;
 /// and rounded up by a hair rather than to a round number: a budget far above
 /// what was observed has stopped watching.
 ///
-/// ## The three that are not multisampling
+/// ## The six that were not multisampling
 ///
-/// There were six, and three of them were this backend drawing the wrong thing
-/// rather than drawing it slightly differently.
+/// All six are fixed. They are kept here because each was a way for this
+/// backend to draw the wrong picture while every check available said it was
+/// drawing the right one, and that is the reusable part.
 ///
 /// `lighting-unlit` was 11.1% — an empty frame, the sphere not drawn at all —
 /// because the translated shader declared a `PointShadow` block the engine
@@ -66,38 +67,37 @@ const int _channel = 8;
 /// mesh-particle draw is the engine's only instanced one, `vertexAttribDivisor`
 /// is state of an attribute location rather than of a draw, and nothing put it
 /// back — so the next frame's mesh read one texture coordinate for the whole
-/// quad. Both sit with the others now, at 0.132% and 0.138%.
+/// quad.
 ///
-/// `bloom-sphere` was 7.4% and `debug-overlay` 2.5%, and they were one bug.
-/// The full-screen triangle pairs clip positions with texture coordinates
-/// directly, so on a backend whose row zero is at the *bottom* every full-screen
-/// pass turned its input over. A single pass that reads the frame and writes the
-/// frame survives that — the flip on the way in cancels the flip on the way out
-/// — and the bloom chain is a threshold, a ladder down and a ladder back, an odd
-/// number of passes however it is configured. The glow arrived mirrored about
-/// the middle of the frame and was added to the scene there, which on a centred
-/// subject reads as a halo that is merely too weak and too narrow. Every
-/// synthetic probe agreed and only the recorded scene disagreed, for the whole
-/// of a long afternoon; putting the bright thing *above* the middle and finding
-/// the glow below it took one measurement. They are 0.098% and exactly 0.000%
-/// now, and `Renderer._fullscreenTriangle` is where the winding is decided.
+/// `bloom-sphere` was 7.4% and `debug-overlay` 2.5%, and they were one bug. The
+/// full-screen triangle pairs clip positions with texture coordinates directly,
+/// so on a backend whose row zero is at the bottom every full-screen pass turned
+/// its input over. A single pass that reads the frame and writes the frame
+/// survives that; the bloom chain is a threshold, a ladder down and a ladder
+/// back — an odd number of passes however it is configured — so the glow was
+/// composited mirrored about the middle of the frame. Every scene in the golden
+/// set has its subject in the middle, which is exactly where a mirrored glow
+/// lands on top of the real one.
 ///
-///  * **`view-model-point-shadow`, 2.6%**, **`cube-shadow-mover`, 1.9%** and
-///    **`cube-shadow-lit`, 1.3%.** The point-shadow lookup, and the same
-///    divergence the skipped parity fixture reports. Worth reading together
-///    with the three that are **exactly zero** — `cube-shadow`,
-///    `cube-shadow-many` and `cube-shadow-crowded`, which composite the atlas
-///    rather than light with it. The atlas is right on this backend and the
-///    reading of it is not, and this set says so across six scenes instead of
-///    one.
+/// `view-model-point-shadow` was 2.6%, `cube-shadow-mover` 1.9% and
+/// `cube-shadow-lit` 1.3%, and they were one bug with the same shape. The cube
+/// atlas is stored bottom-up here, so a light in slot zero is drawn into the row
+/// the shader would call three and the picture inside that tile is upside down
+/// as well; the lookup now turns the whole atlas over, which fixes the row and
+/// the tile together. **Read that one beside the three scenes that were exactly
+/// zero throughout** — `cube-shadow`, `cube-shadow-many` and
+/// `cube-shadow-crowded`, which composite the atlas rather than light with it.
+/// A composite is a full-screen pass, a full-screen pass turned its input over,
+/// and so the view built to check the atlas cancelled the very error it was
+/// pointed at and agreed with Impeller to the pixel for six sessions.
+///
 const Map<String, double> _budgets = <String, double>{
-  'view-model-point-shadow': 2.7,
-  'cube-shadow-mover': 1.9,
-  'cube-shadow-lit': 1.4,
   'normal-mapping': 0.6,
-  'cube-shadow-gap': 0.5,
-  'spot-shadow': 0.4,
+  'cube-shadow-mover': 0.4,
+  'cube-shadow-lit': 0.4,
   'shadow-teapot': 0.3,
+  'spot-shadow': 0.3,
+  'cube-shadow-gap': 0.3,
   'sky': 0.2,
   'teapot-generated-normals': 0.2,
   'view-model-overlay': 0.2,
@@ -107,6 +107,7 @@ const Map<String, double> _budgets = <String, double>{
   'lighting-pbr': 0.2,
   'lighting-blinnphong': 0.2,
   'lighting-lambert': 0.2,
+  'view-model-point-shadow': 0.2,
   'bloom-sphere': 0.1,
   'skinned-figure': 0.1,
   'particles-textured': 0.1,
