@@ -429,18 +429,53 @@ void main() {
         //   * *The static atlas.* Dropping it from the `min` in
         //     `PointShadowDistance` changes nothing.
         //
-        // What is measured: with `showPointShadowDebug`, the floor comes back
-        // r=132 g=19 b=17 on WebGL against r=173 g=219 b=165 on the software
-        // backend. Green is the blocker distance against the light's range, so
-        // WebGL is finding a blocker at about 0.07 of range where the software
-        // backend finds one at 0.86. A blocker that close makes the
-        // similar-triangles penumbra enormous, the filter smears the edge over
-        // the whole floor, and what is left looks exactly like no shadow.
+        // **Everything below this line replaces a reading that was wrong, and
+        // the way it was wrong is the most useful thing recorded here.**
         //
-        // So the next question is why the sampled distance is an order of
-        // magnitude short, and the two candidates left are the atlas texture's
-        // format under a WebGL sampler and the tile-local uv the taps are
-        // clamped into. Neither has been probed yet.
+        // What was written down: with `showPointShadowDebug`, the floor comes
+        // back r=132 g=19 b=17 on WebGL against r=173 g=219 b=165 on the
+        // software backend, so WebGL finds a blocker at 0.07 of the light's
+        // range where the software backend finds one at 0.86. Two candidates
+        // were left standing on that number — the atlas texture's format under
+        // a WebGL sampler, and the tile-local uv the taps are clamped into.
+        //
+        // Both sides of that comparison were measuring something else.
+        //
+        //   * *The software backend has no debug channel to compare against.*
+        //     Its point-shadow shading is a separate Dart implementation —
+        //     `cpu_shaders_shadow_point.dart` — and it does not read
+        //     `params2.w` at all. Turning the flag on gives a debug picture on
+        //     one backend and the ordinary lit frame on the other, so the two
+        //     colours never described the same quantity.
+        //   * *And the debug channel does not arrive on WebGL either*, in this
+        //     scene. Five separate mutations to `surface.glsl` moved not one
+        //     pixel of the frame: reading only the static atlas, only the
+        //     dynamic one, forcing the tap to `range * 2.0` so the search must
+        //     find nothing, painting each early return of `PointShadowFactor`
+        //     its own colour, and finally setting `g_debug_surface` for *every*
+        //     lit fragment in `AccumulateLights`. A frame that stays byte-equal
+        //     under a mutation that paints it green is not a frame with a debug
+        //     channel in it. `CompositeMix` resolves `CompositeView.surfaceBuffer`
+        //     as `surface ?? scene`, so when the buffer is absent the view falls
+        //     back to the ordinary picture and says nothing about it.
+        //
+        // So the instrument has to be repaired before the bug can be worked on,
+        // and repairing it is the next task: find why the surface buffer is not
+        // produced for this scene when `showPointShadowDebug` is set, and give
+        // that composite view something louder than a silent fallback.
+        //
+        // One asymmetry was found and is *not* fixed here, because it cannot be
+        // shown to matter. The directional cascade sends the shader a copy of
+        // its matrices through `toFramebufferOrigin` and the cube path does not
+        // — `_cubeFaceMatrices` gets `_cubeMatrix` raw — while the lit pass
+        // reads the tile with `v = 0.5 - ndc.y * 0.5`, which assumes an
+        // upper-left origin. Applying the convention to the shader's copy alone
+        // changes nothing measurable on either backend. Worth knowing anyway:
+        // the earlier note above says trying this "changes nothing either way",
+        // and applying it to `_cubeMatrix` — where it is tempting to put it —
+        // cannot change anything, because `_cubeDrawMatrix` is derived from
+        // `_cubeMatrix` two lines later and the tile would be drawn flipped and
+        // read flipped.
         skip: which == ParityScene.pointShadow
             ? 'the lookup is misaimed, not absent — see the note above'
             : null);
