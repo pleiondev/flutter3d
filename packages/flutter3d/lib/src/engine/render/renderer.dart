@@ -805,6 +805,9 @@ final class Renderer implements RenderServices {
   final Float32List _pointShadowParams = Float32List(4);
   final Float32List _pointShadowParams2 = Float32List(4);
 
+  /// x: whether this backend stores the cube atlas bottom-up. See surface.glsl.
+  final Float32List _pointShadowParams3 = Float32List(4);
+
   /// Number of atlas rows in use, or -1 when none are.
   int _cubeShadowLight = -1;
 

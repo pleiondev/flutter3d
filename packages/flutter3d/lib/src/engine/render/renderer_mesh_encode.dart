@@ -195,12 +195,17 @@ extension _MeshEncode on Renderer {
         _pointShadowParams2[2] =
             math.max(settings.shadows.pointMaxSoftness, 0.0) * texel;
         _pointShadowParams2[3] = settings.showPointShadowDebug ? 1.0 : 0.0;
+        // Asked of the device rather than assumed, like the depth range and the
+        // cascade matrices before it. See where it is read in surface.glsl.
+        _pointShadowParams3[0] =
+            device.framebufferOrigin == FramebufferOrigin.bottomLeft ? 1.0 : 0.0;
         encoder.bindUniformBlock(fragmentShader, 'PointShadow', {
           'faces': _cubeFaceMatrices,
           'lights': _cubeLightData,
           'slots': _shadowSlots,
           'params': _pointShadowParams,
           'params2': _pointShadowParams2,
+          'params3': _pointShadowParams3,
         });
         encoder.bindTexture(
           fragmentShader,

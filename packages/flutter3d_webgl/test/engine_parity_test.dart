@@ -308,177 +308,56 @@ void main() {
           reason: 'the two backends disagree across the whole frame, '
               'not in one place');
     },
-        // The cube atlas does not draw here, and the atlas fixture says why it
-        // is worth separating: composited directly it comes back black, where
-        // Impeller's is white — the clear value, meaning "nothing between here
-        // and the light". Black is a pass that never ran, not one that ran
-        // wrongly.
+        // **This fixture was skipped for six sessions and is not skipped now.**
+        // What it was: the lit floor came back lit where Impeller has it dark,
+        // mean 7.95 against a budget of 8, while the atlas the lookup reads
+        // compared *exactly* equal on both backends across six scenes. It is
+        // 0.04 now, and the one line that did it is in `PointShadowDistance`.
         //
-        // Four explanations measured and refuted, so the next reader does not
-        // repeat them: OES_texture_float_linear is present and requested and
-        // changed nothing; the block's arrays are all vec4-aligned so std140
-        // stride is not it; every stage pair the engine links does link,
-        // including the tile reset; and the 6144x4096 atlas texture is one this
-        // backend will happily create.
+        // The cube atlas is stored bottom-up on this backend, and both halves
+        // of its address were wrong. A light in slot zero is drawn into the row
+        // the shader would call three, because the tile's viewport rectangle is
+        // flipped to land it there; and the picture inside that tile is
+        // upside down as well, because it was drawn through a projection built
+        // for the other origin. Turning the whole atlas over in the lookup —
+        // `atlas.y = 1.0 - atlas.y`, behind `params3.x`, which the device
+        // answers — fixes the row and the tile together, because a whole-texture
+        // flip is exactly "row `n` becomes row `slots - 1 - n`, and `v` becomes
+        // `1 - v`".
         //
-        // The directional map is a separate story and is fixed — see the draw
-        // matrix in renderer.dart. This is skipped rather than left red or
-        // deleted; removing it is the definition of done.
-        // The atlas is written correctly now and passes; the lookup into it is
-        // not, so the lit scene still disagrees. That split is what the
-        // pointShadowMap fixture exists for, and it earned its place: one
-        // number could not have said which half was wrong.
+        // **Why every check of the atlas passed while the lookup failed**, and
+        // this is the part worth carrying to the next backend: the views that
+        // composite the atlas — `pointShadowMap`, `cube-shadow` and its two
+        // neighbours — put it through a full-screen pass, and a full-screen
+        // pass on a bottom-left backend turns its input over. The picture came
+        // back the right way up and matched Impeller to the pixel. The lit pass
+        // samples the same texture directly and has no such pass to cancel, so
+        // it read a row that had never been drawn into and found nothing in the
+        // way of anything. An instrument that cancels the error it is pointed
+        // at agrees with everything.
         //
-        // Refuted along the way, so nobody repeats them: float-linear
-        // filtering, std140 array stride, stage linking, and the atlas
-        // texture's size. Two real causes were found and fixed — GL measures a
-        // viewport from the bottom, so the occupied row went to the wrong end
-        // of the texture; and a clear respects the scissor here while the
-        // contract says it covers the whole attachment, so three rows of four
-        // were never cleared at all.
-        // The atlas is written correctly and passes; the lookup into it is
-        // not, so the lit scene disagrees. That split is what the
-        // pointShadowMap fixture is for, and it earned its place: one number
-        // could not have said which half was wrong.
+        // Refuted along the way, so nobody walks the circle again:
+        // OES_texture_float_linear, std140 array stride, stage linking, the
+        // atlas texture's size, a silently dropped uniform member, the shadow
+        // strength, the face matrices through `toFramebufferOrigin`, and the
+        // static atlas in the `min`. Two real causes were found and fixed
+        // before this one: GL measures a viewport from the bottom, so the
+        // occupied row went to the wrong end of the texture, and a clear
+        // respects the scissor here where the contract says it covers the whole
+        // attachment.
         //
-        // Not the sampling convention either — flipping v in the cube lookup
-        // moves this number not at all, where the same flip took the
-        // directional map from a worst cell of 32 to 4. Five explanations
-        // measured and refuted now: float-linear filtering, std140 array
-        // stride, stage linking, atlas texture size, and the v convention.
-        // The atlas is drawn and drawn correctly — it has occluders, in the
-        // same cells as Impeller's — and the lookup into it still returns lit
-        // everywhere. The lit floor is uniformly brighter rather than shadowed
-        // in the wrong place, which is an absent lookup and not a misaimed one.
-        //
-        // Six explanations measured and refuted, so nobody walks the circle:
-        // float-linear filtering; std140 array stride; stage linking; atlas
-        // texture size; the v convention (flipping it fixes the directional map
-        // and moves this not at all); and a silently dropped uniform member,
-        // which is now an error rather than a silence and does not fire here.
-        //
-        // **The paragraph above is history, and its conclusion is now wrong.**
-        // A pass on this backend never set a viewport or a scissor of its own,
-        // so both were whatever the previous pass had left — and for the cube
-        // atlas, which is 6144 by 4096 while the canvas is a hundred pixels
-        // wide, that is not a subtle error. Fixing it (see the note in
-        // `WebGlEncoder`'s constructor) changed this number for the first time
-        // in six attempts: the lookup is no longer absent.
-        //
-        // What it is now, measured: the top of the floor is shadowed and agrees
-        // with Impeller, and the bottom is lit where Impeller has it dark —
-        // rows 0, 7 and 15 of the sampled grid read 4 / 4,4,4,4,11,29,57,81 /
-        // 71…107, against a reference that is dark throughout the far half.
-        // Worst cell 15,7: WebGL 107, Impeller 14; mean 7.95 against a budget
-        // of 8. So it is a *misaimed* lookup, which is the thing the old note
-        // ruled out — one face of the cube, or one tile of the atlas, being
-        // read where its neighbour should be.
-        //
-        // Left skipped rather than chased here because it is now a different
-        // question from the one this session opened, and a wrong note is worse
-        // than no note: the next person would have started from "absent
-        // lookup" and spent the same day.
-        //
-        // **Four more refuted since, all by measurement rather than argument**,
-        // and each is worth a line so nobody spends the afternoon again:
-        //
-        //   * *Stale bindings.* Clearing every binding in `bindPipeline`
-        //     changes this number not at all, and the conformance check that
-        //     said so was reporting the viewport instead.
-        //   * *Uniform packing.* The `PointShadow` block reflects at 1760 bytes
-        //     with `faces` at 0, `lights` at 1536, `slots` at 1600, `params` at
-        //     1728 and `params2` at 1744 — std140 exactly — and the values in
-        //     it are the light at (2.2, 2.6, 1.8) with range 12, slot 0, and a
-        //     tangent of one. All correct.
-        //   * *The other atlas.* There are two cube atlases and only one had
-        //     ever been compared. The second is compared now
-        //     (`pointShadowStaticMap`) and WebGL matches the software backend
-        //     on it exactly, as it does on the first: 330 dark pixels either
-        //     way, mean luminance 253.63 to the same two decimals.
-        //   * *Texture units.* No draw in this scene reaches unit twelve, so
-        //     nothing is falling off the end of the sampler table.
-        //
-        // What is left, and where somebody should start: the atlases agree, the
-        // uniforms agree, the shader source is the same file, and the lit pass
-        // disagrees anyway. That points at sampling — filtering or precision on
-        // a half-float atlas — rather than at anything the engine computes.
-        //
-        // **Re-measured after the attribute-state fix**, in case that was it: it
-        // was not. Mean 7.95, worst cell 93.
-        //
-        // Then localised, and the localisation is worth more than the number.
-        // **Only the floor differs.** Row 0 and row 7 of the grid — the two
-        // spheres — are identical to the unit; row 15, which is the floor, is
-        // 14 on Impeller and 71 to 107 on WebGL. The floor is shadowed there
-        // and lit here, and nothing else in the picture disagrees at all.
-        //
-        // Four things it is **not**, each ruled out by probe rather than by
-        // argument:
-        //
-        //   * *The atlas pass.* Disabling `_renderCubeShadow` outright moves
-        //     `pointShadowMap` from 0.00 to 253.62 and leaves this fixture at
-        //     7.95 — so the lit pass was not reading what that pass wrote,
-        //     before or after.
-        //   * *The shadow strength.* Forcing `params.z` past the
-        //     `_cubeShadowLight < 0` guard changes nothing, so the block binds
-        //     and the strength arrives.
-        //   * *The face matrices.* Putting them through `toFramebufferOrigin`,
-        //     the way the directional cascade does, changes nothing either way.
-        //     That is itself a finding: the cube path's tile addressing is
-        //     origin-agnostic where the directional path's is not.
-        //   * *The static atlas.* Dropping it from the `min` in
-        //     `PointShadowDistance` changes nothing.
-        //
-        // **Everything below this line replaces a reading that was wrong, and
-        // the way it was wrong is the most useful thing recorded here.**
-        //
-        // What was written down: with `showPointShadowDebug`, the floor comes
-        // back r=132 g=19 b=17 on WebGL against r=173 g=219 b=165 on the
-        // software backend, so WebGL finds a blocker at 0.07 of the light's
-        // range where the software backend finds one at 0.86. Two candidates
-        // were left standing on that number — the atlas texture's format under
-        // a WebGL sampler, and the tile-local uv the taps are clamped into.
-        //
-        // Both sides of that comparison were measuring something else.
-        //
-        //   * *The software backend has no debug channel to compare against.*
-        //     Its point-shadow shading is a separate Dart implementation —
-        //     `cpu_shaders_shadow_point.dart` — and it does not read
-        //     `params2.w` at all. Turning the flag on gives a debug picture on
-        //     one backend and the ordinary lit frame on the other, so the two
-        //     colours never described the same quantity.
-        //   * *And the debug channel does not arrive on WebGL either*, in this
-        //     scene. Five separate mutations to `surface.glsl` moved not one
-        //     pixel of the frame: reading only the static atlas, only the
-        //     dynamic one, forcing the tap to `range * 2.0` so the search must
-        //     find nothing, painting each early return of `PointShadowFactor`
-        //     its own colour, and finally setting `g_debug_surface` for *every*
-        //     lit fragment in `AccumulateLights`. A frame that stays byte-equal
-        //     under a mutation that paints it green is not a frame with a debug
-        //     channel in it. `CompositeMix` resolves `CompositeView.surfaceBuffer`
-        //     as `surface ?? scene`, so when the buffer is absent the view falls
-        //     back to the ordinary picture and says nothing about it.
-        //
-        // So the instrument has to be repaired before the bug can be worked on,
-        // and repairing it is the next task: find why the surface buffer is not
-        // produced for this scene when `showPointShadowDebug` is set, and give
-        // that composite view something louder than a silent fallback.
-        //
-        // One asymmetry was found and is *not* fixed here, because it cannot be
-        // shown to matter. The directional cascade sends the shader a copy of
-        // its matrices through `toFramebufferOrigin` and the cube path does not
-        // — `_cubeFaceMatrices` gets `_cubeMatrix` raw — while the lit pass
-        // reads the tile with `v = 0.5 - ndc.y * 0.5`, which assumes an
-        // upper-left origin. Applying the convention to the shader's copy alone
-        // changes nothing measurable on either backend. Worth knowing anyway:
-        // the earlier note above says trying this "changes nothing either way",
-        // and applying it to `_cubeMatrix` — where it is tempting to put it —
-        // cannot change anything, because `_cubeDrawMatrix` is derived from
-        // `_cubeMatrix` two lines later and the tile would be drawn flipped and
-        // read flipped.
-        skip: which == ParityScene.pointShadow
-            ? 'the lookup is misaimed, not absent — see the note above'
-            : null);
+        // Two of those refutations were not measurements at all, and that cost
+        // the most. The reading they rested on — this backend finding a blocker
+        // at 0.07 of the light's range where the software backend finds one at
+        // 0.86 — compared two different quantities twice over. The software
+        // backend's point-shadow shading is a separate Dart implementation and
+        // does not read the debug flag, so one side was a debug picture and the
+        // other an ordinary frame; and on this side the number was `blockerOut`
+        // still holding its `-1` sentinel, clamped into green as a zero,
+        // because `PointShadowPenumbra` returns before it searches when the
+        // light has no radius. Zero there now means a distance that was really
+        // measured — see the early return in that function.
+        );
   }
 }
 

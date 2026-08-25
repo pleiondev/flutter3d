@@ -982,6 +982,15 @@ layout(std140) uniform PointShadow {
   /// w: non-zero paints the penumbra estimate into the surface buffer instead
   /// of shading with it.
   vec4 params2;
+
+  /// x: non-zero when this backend stores the atlas bottom-up.
+  ///
+  /// **Appended after everything else on purpose**, the same way FragInfo's
+  /// ambient pair was: std140 lays a block out in declaration order, so adding
+  /// here leaves every offset above unchanged and the three backends do not
+  /// have to agree about anything they already agreed about. y, z and w are
+  /// unwritten.
+  vec4 params3;
 }
 point_shadow;
 
@@ -1015,6 +1024,20 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   float inset = point_shadow.params.x;
   vec2 local = clamp(uv + offset, inset, 1.0 - inset);
   vec2 atlas = (local + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
+  // **The whole atlas, turned over, where row zero of a render target is at the
+  // bottom.** Both halves of the address are wrong there and this is the one
+  // place that fixes both: the tile the light owns — a light in slot zero is
+  // drawn into the row the shader would call three, because the viewport
+  // rectangle is flipped to land it — and the picture inside that tile, which
+  // was drawn through a projection built for the other origin.
+  //
+  // Every check of this atlas missed it for the same reason: the debug view
+  // composites the texture through a full-screen pass, which turns it over
+  // again and puts the row back. The atlas compared equal on both backends
+  // across six scenes while the lit pass, which samples it directly and has no
+  // such pass to cancel, read a row that had never been drawn into and found
+  // nothing in the way of anything.
+  if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
   return min(texture(point_shadow_texture, atlas).r,
@@ -1065,7 +1088,19 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
   float maxRadius = point_shadow.params2.z;
-  if (lightRadius <= 0.0) return minRadius;
+  if (lightRadius <= 0.0) {
+    // **The debug channel is filled even though the search is skipped**, and
+    // leaving it unfilled cost a session. `blockerOut` starts at −1 to mean
+    // "nothing was measured"; the debug encoding clamps it into a colour, where
+    // −1 becomes zero — the same green as a blocker touching the surface, which
+    // reads as the most alarming answer available. A whole theory was built on
+    // that zero, and the search it described had never run.
+    //
+    // The centre tap is what the filter below would use anyway, so this reports
+    // a distance the atlas really returned rather than a sentinel.
+    blockerOut = PointShadowDistance(uv, vec2(0.0), tile, range);
+    return minRadius;
+  }
 
 
   float sum = 0.0;
@@ -1817,6 +1852,15 @@ layout(std140) uniform PointShadow {
   /// w: non-zero paints the penumbra estimate into the surface buffer instead
   /// of shading with it.
   vec4 params2;
+
+  /// x: non-zero when this backend stores the atlas bottom-up.
+  ///
+  /// **Appended after everything else on purpose**, the same way FragInfo's
+  /// ambient pair was: std140 lays a block out in declaration order, so adding
+  /// here leaves every offset above unchanged and the three backends do not
+  /// have to agree about anything they already agreed about. y, z and w are
+  /// unwritten.
+  vec4 params3;
 }
 point_shadow;
 
@@ -1850,6 +1894,20 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   float inset = point_shadow.params.x;
   vec2 local = clamp(uv + offset, inset, 1.0 - inset);
   vec2 atlas = (local + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
+  // **The whole atlas, turned over, where row zero of a render target is at the
+  // bottom.** Both halves of the address are wrong there and this is the one
+  // place that fixes both: the tile the light owns — a light in slot zero is
+  // drawn into the row the shader would call three, because the viewport
+  // rectangle is flipped to land it — and the picture inside that tile, which
+  // was drawn through a projection built for the other origin.
+  //
+  // Every check of this atlas missed it for the same reason: the debug view
+  // composites the texture through a full-screen pass, which turns it over
+  // again and puts the row back. The atlas compared equal on both backends
+  // across six scenes while the lit pass, which samples it directly and has no
+  // such pass to cancel, read a row that had never been drawn into and found
+  // nothing in the way of anything.
+  if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
   return min(texture(point_shadow_texture, atlas).r,
@@ -1900,7 +1958,19 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
   float maxRadius = point_shadow.params2.z;
-  if (lightRadius <= 0.0) return minRadius;
+  if (lightRadius <= 0.0) {
+    // **The debug channel is filled even though the search is skipped**, and
+    // leaving it unfilled cost a session. `blockerOut` starts at −1 to mean
+    // "nothing was measured"; the debug encoding clamps it into a colour, where
+    // −1 becomes zero — the same green as a blocker touching the surface, which
+    // reads as the most alarming answer available. A whole theory was built on
+    // that zero, and the search it described had never run.
+    //
+    // The centre tap is what the filter below would use anyway, so this reports
+    // a distance the atlas really returned rather than a sentinel.
+    blockerOut = PointShadowDistance(uv, vec2(0.0), tile, range);
+    return minRadius;
+  }
 
 
   float sum = 0.0;
@@ -2837,6 +2907,15 @@ layout(std140) uniform PointShadow {
   /// w: non-zero paints the penumbra estimate into the surface buffer instead
   /// of shading with it.
   vec4 params2;
+
+  /// x: non-zero when this backend stores the atlas bottom-up.
+  ///
+  /// **Appended after everything else on purpose**, the same way FragInfo's
+  /// ambient pair was: std140 lays a block out in declaration order, so adding
+  /// here leaves every offset above unchanged and the three backends do not
+  /// have to agree about anything they already agreed about. y, z and w are
+  /// unwritten.
+  vec4 params3;
 }
 point_shadow;
 
@@ -2870,6 +2949,20 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   float inset = point_shadow.params.x;
   vec2 local = clamp(uv + offset, inset, 1.0 - inset);
   vec2 atlas = (local + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
+  // **The whole atlas, turned over, where row zero of a render target is at the
+  // bottom.** Both halves of the address are wrong there and this is the one
+  // place that fixes both: the tile the light owns — a light in slot zero is
+  // drawn into the row the shader would call three, because the viewport
+  // rectangle is flipped to land it — and the picture inside that tile, which
+  // was drawn through a projection built for the other origin.
+  //
+  // Every check of this atlas missed it for the same reason: the debug view
+  // composites the texture through a full-screen pass, which turns it over
+  // again and puts the row back. The atlas compared equal on both backends
+  // across six scenes while the lit pass, which samples it directly and has no
+  // such pass to cancel, read a row that had never been drawn into and found
+  // nothing in the way of anything.
+  if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
   return min(texture(point_shadow_texture, atlas).r,
@@ -2920,7 +3013,19 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
   float maxRadius = point_shadow.params2.z;
-  if (lightRadius <= 0.0) return minRadius;
+  if (lightRadius <= 0.0) {
+    // **The debug channel is filled even though the search is skipped**, and
+    // leaving it unfilled cost a session. `blockerOut` starts at −1 to mean
+    // "nothing was measured"; the debug encoding clamps it into a colour, where
+    // −1 becomes zero — the same green as a blocker touching the surface, which
+    // reads as the most alarming answer available. A whole theory was built on
+    // that zero, and the search it described had never run.
+    //
+    // The centre tap is what the filter below would use anyway, so this reports
+    // a distance the atlas really returned rather than a sentinel.
+    blockerOut = PointShadowDistance(uv, vec2(0.0), tile, range);
+    return minRadius;
+  }
 
 
   float sum = 0.0;
@@ -3872,6 +3977,15 @@ layout(std140) uniform PointShadow {
   /// w: non-zero paints the penumbra estimate into the surface buffer instead
   /// of shading with it.
   vec4 params2;
+
+  /// x: non-zero when this backend stores the atlas bottom-up.
+  ///
+  /// **Appended after everything else on purpose**, the same way FragInfo's
+  /// ambient pair was: std140 lays a block out in declaration order, so adding
+  /// here leaves every offset above unchanged and the three backends do not
+  /// have to agree about anything they already agreed about. y, z and w are
+  /// unwritten.
+  vec4 params3;
 }
 point_shadow;
 
@@ -3905,6 +4019,20 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   float inset = point_shadow.params.x;
   vec2 local = clamp(uv + offset, inset, 1.0 - inset);
   vec2 atlas = (local + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
+  // **The whole atlas, turned over, where row zero of a render target is at the
+  // bottom.** Both halves of the address are wrong there and this is the one
+  // place that fixes both: the tile the light owns — a light in slot zero is
+  // drawn into the row the shader would call three, because the viewport
+  // rectangle is flipped to land it — and the picture inside that tile, which
+  // was drawn through a projection built for the other origin.
+  //
+  // Every check of this atlas missed it for the same reason: the debug view
+  // composites the texture through a full-screen pass, which turns it over
+  // again and puts the row back. The atlas compared equal on both backends
+  // across six scenes while the lit pass, which samples it directly and has no
+  // such pass to cancel, read a row that had never been drawn into and found
+  // nothing in the way of anything.
+  if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
   return min(texture(point_shadow_texture, atlas).r,
@@ -3955,7 +4083,19 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
   float maxRadius = point_shadow.params2.z;
-  if (lightRadius <= 0.0) return minRadius;
+  if (lightRadius <= 0.0) {
+    // **The debug channel is filled even though the search is skipped**, and
+    // leaving it unfilled cost a session. `blockerOut` starts at −1 to mean
+    // "nothing was measured"; the debug encoding clamps it into a colour, where
+    // −1 becomes zero — the same green as a blocker touching the surface, which
+    // reads as the most alarming answer available. A whole theory was built on
+    // that zero, and the search it described had never run.
+    //
+    // The centre tap is what the filter below would use anyway, so this reports
+    // a distance the atlas really returned rather than a sentinel.
+    blockerOut = PointShadowDistance(uv, vec2(0.0), tile, range);
+    return minRadius;
+  }
 
 
   float sum = 0.0;
@@ -4979,6 +5119,15 @@ layout(std140) uniform PointShadow {
   /// w: non-zero paints the penumbra estimate into the surface buffer instead
   /// of shading with it.
   vec4 params2;
+
+  /// x: non-zero when this backend stores the atlas bottom-up.
+  ///
+  /// **Appended after everything else on purpose**, the same way FragInfo's
+  /// ambient pair was: std140 lays a block out in declaration order, so adding
+  /// here leaves every offset above unchanged and the three backends do not
+  /// have to agree about anything they already agreed about. y, z and w are
+  /// unwritten.
+  vec4 params3;
 }
 point_shadow;
 
@@ -5012,6 +5161,20 @@ float PointShadowDistance(vec2 uv, vec2 offset, vec2 tile, float range) {
   float inset = point_shadow.params.x;
   vec2 local = clamp(uv + offset, inset, 1.0 - inset);
   vec2 atlas = (local + tile) * vec2(1.0 / 6.0, 1.0 / float(kShadowSlots));
+  // **The whole atlas, turned over, where row zero of a render target is at the
+  // bottom.** Both halves of the address are wrong there and this is the one
+  // place that fixes both: the tile the light owns — a light in slot zero is
+  // drawn into the row the shader would call three, because the viewport
+  // rectangle is flipped to land it — and the picture inside that tile, which
+  // was drawn through a projection built for the other origin.
+  //
+  // Every check of this atlas missed it for the same reason: the debug view
+  // composites the texture through a full-screen pass, which turns it over
+  // again and puts the row back. The atlas compared equal on both backends
+  // across six scenes while the lit pass, which samples it directly and has no
+  // such pass to cancel, read a row that had never been drawn into and found
+  // nothing in the way of anything.
+  if (point_shadow.params3.x > 0.5) atlas.y = 1.0 - atlas.y;
   // Whichever is nearer occludes: a wall in front of a monster shadows, and so
   // does a monster in front of a wall.
   return min(texture(point_shadow_texture, atlas).r,
@@ -5062,7 +5225,19 @@ float PointShadowPenumbra(vec2 uv, vec2 tile, float range, float receiver,
   float lightRadius = point_shadow.params2.y;
   float minRadius = point_shadow.params2.x;
   float maxRadius = point_shadow.params2.z;
-  if (lightRadius <= 0.0) return minRadius;
+  if (lightRadius <= 0.0) {
+    // **The debug channel is filled even though the search is skipped**, and
+    // leaving it unfilled cost a session. `blockerOut` starts at −1 to mean
+    // "nothing was measured"; the debug encoding clamps it into a colour, where
+    // −1 becomes zero — the same green as a blocker touching the surface, which
+    // reads as the most alarming answer available. A whole theory was built on
+    // that zero, and the search it described had never run.
+    //
+    // The centre tap is what the filter below would use anyway, so this reports
+    // a distance the atlas really returned rather than a sentinel.
+    blockerOut = PointShadowDistance(uv, vec2(0.0), tile, range);
+    return minRadius;
+  }
 
 
   float sum = 0.0;
