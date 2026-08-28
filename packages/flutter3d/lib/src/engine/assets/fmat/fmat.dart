@@ -111,9 +111,10 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
     lighting: _readLighting(parsed['lighting'], warnings),
     parameterBlock: parsed['parameterBlock'] as String? ?? 'MaterialParams',
     parameters: <String, Float32List>{
-      for (final entry in (parsed['parameters'] as Map<String, Object?>? ??
-              const <String, Object?>{})
-          .entries)
+      for (final entry
+          in (parsed['parameters'] as Map<String, Object?>? ??
+                  const <String, Object?>{})
+              .entries)
         entry.key: _floats(entry.value),
     },
     extraTextures: <String, TextureBinding>{
@@ -134,7 +135,8 @@ MaterialDocument readFmat(Uint8List bytes, {String name = ''}) {
 String writeFmat(MaterialDocument document) {
   final surface = document.surface;
 
-  String? pathOf(TextureBinding? slot) => slot == null ||
+  String? pathOf(TextureBinding? slot) =>
+      slot == null ||
           slot.imageIndex < 0 ||
           slot.imageIndex >= document.images.length
       ? null
@@ -180,57 +182,39 @@ String writeFmat(MaterialDocument document) {
 
   final lighting = document.lighting;
   return '${const JsonEncoder.withIndent('  ').convert(<String, Object?>{
-        'fmat': kFmatVersion,
-        if (surface.name != null) 'name': surface.name,
-        if (lighting != null) 'lighting': _writeLighting(lighting),
-        'baseColor': <double>[
-          surface.baseColor.r,
-          surface.baseColor.g,
-          surface.baseColor.b,
-          surface.baseColor.a,
-        ],
-        if (surface.metallic != 0.0) 'metallic': surface.metallic,
-        if (surface.roughness != 0.5) 'roughness': surface.roughness,
-        if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
-        if (surface.occlusionStrength != 1.0)
-          'occlusionStrength': surface.occlusionStrength,
-        if (surface.emissive.length2 != 0.0)
-          'emissive': <double>[
-            surface.emissive.r,
-            surface.emissive.g,
-            surface.emissive.b,
-          ],
-        if (surface.emissiveStrength != 1.0)
-          'emissiveStrength': surface.emissiveStrength,
-        if (surface.alphaMode != SurfaceAlphaMode.opaque)
-          'alphaMode': surface.alphaMode.name,
-        if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
-        if (surface.doubleSided) 'doubleSided': true,
-        if (surface.unlit) 'unlit': true,
-        if (textures.isNotEmpty) 'textures': textures,
-        if (document.parameterBlock != 'MaterialParams')
-          'parameterBlock': document.parameterBlock,
-        if (document.parameters.isNotEmpty)
-          'parameters': <String, Object?>{
-            for (final entry in document.parameters.entries)
-              entry.key: entry.value.toList(),
-          },
-      })}\n';
+    'fmat': kFmatVersion,
+    if (surface.name != null) 'name': surface.name,
+    if (lighting != null) 'lighting': _writeLighting(lighting),
+    'baseColor': <double>[surface.baseColor.r, surface.baseColor.g, surface.baseColor.b, surface.baseColor.a],
+    if (surface.metallic != 0.0) 'metallic': surface.metallic,
+    if (surface.roughness != 0.5) 'roughness': surface.roughness,
+    if (surface.normalScale != 1.0) 'normalScale': surface.normalScale,
+    if (surface.occlusionStrength != 1.0) 'occlusionStrength': surface.occlusionStrength,
+    if (surface.emissive.length2 != 0.0) 'emissive': <double>[surface.emissive.r, surface.emissive.g, surface.emissive.b],
+    if (surface.emissiveStrength != 1.0) 'emissiveStrength': surface.emissiveStrength,
+    if (surface.alphaMode != SurfaceAlphaMode.opaque) 'alphaMode': surface.alphaMode.name,
+    if (surface.alphaCutoff != 0.5) 'alphaCutoff': surface.alphaCutoff,
+    if (surface.doubleSided) 'doubleSided': true,
+    if (surface.unlit) 'unlit': true,
+    if (textures.isNotEmpty) 'textures': textures,
+    if (document.parameterBlock != 'MaterialParams') 'parameterBlock': document.parameterBlock,
+    if (document.parameters.isNotEmpty) 'parameters': <String, Object?>{for (final entry in document.parameters.entries) entry.key: entry.value.toList()},
+  })}\n';
 }
 
 TextureSampling _readSampling(Map<String, Object?> json) => TextureSampling(
-      magLinear: json['magLinear'] as bool? ?? true,
-      minLinear: json['minLinear'] as bool? ?? true,
-      useMipmaps: json['mipmaps'] as bool? ?? true,
-      wrapS: _wrap(json['wrapS']),
-      wrapT: _wrap(json['wrapT']),
-    );
+  magLinear: json['magLinear'] as bool? ?? true,
+  minLinear: json['minLinear'] as bool? ?? true,
+  useMipmaps: json['mipmaps'] as bool? ?? true,
+  wrapS: _wrap(json['wrapS']),
+  wrapT: _wrap(json['wrapT']),
+);
 
 TextureWrap _wrap(Object? value) => switch (value) {
-      'clampToEdge' => TextureWrap.clampToEdge,
-      'mirroredRepeat' => TextureWrap.mirroredRepeat,
-      _ => TextureWrap.repeat,
-    };
+  'clampToEdge' => TextureWrap.clampToEdge,
+  'mirroredRepeat' => TextureWrap.mirroredRepeat,
+  _ => TextureWrap.repeat,
+};
 
 /// Reads the shader this material asks for.
 ///
@@ -265,7 +249,8 @@ LightingModel? _readLighting(Object? value, List<String> warnings) {
     usesFragInfo: value['fragInfo'] as bool? ?? true,
     usesAlbedoTexture: value['albedoTexture'] as bool? ?? true,
     usesMaterialMaps: value['materialMaps'] as bool? ?? true,
-    usesMetallicRoughnessMap: value['metallicRoughnessMap'] as bool? ??
+    usesMetallicRoughnessMap:
+        value['metallicRoughnessMap'] as bool? ??
         (value['materialMaps'] as bool? ?? true),
     usesMaterialParameters: value['materialParameters'] as bool? ?? true,
     usesMetallic: value['metallic'] as bool? ?? false,
@@ -281,7 +266,8 @@ Object _writeLighting(LightingModel model) {
   return <String, Object?>{
     'shader': model.shaderName,
     if (model.label != model.shaderName) 'label': model.label,
-    if (model.usesFragInfo != plain.usesFragInfo) 'fragInfo': model.usesFragInfo,
+    if (model.usesFragInfo != plain.usesFragInfo)
+      'fragInfo': model.usesFragInfo,
     if (model.usesAlbedoTexture != plain.usesAlbedoTexture)
       'albedoTexture': model.usesAlbedoTexture,
     if (model.usesMaterialMaps != plain.usesMaterialMaps)
@@ -290,7 +276,8 @@ Object _writeLighting(LightingModel model) {
       'metallicRoughnessMap': model.usesMetallicRoughnessMap,
     if (model.usesMaterialParameters != plain.usesMaterialParameters)
       'materialParameters': model.usesMaterialParameters,
-    if (model.usesMetallic != plain.usesMetallic) 'metallic': model.usesMetallic,
+    if (model.usesMetallic != plain.usesMetallic)
+      'metallic': model.usesMetallic,
     if (model.usesEnvironment != plain.usesEnvironment)
       'environment': model.usesEnvironment,
   };
@@ -302,9 +289,9 @@ SurfaceAlphaMode _alphaMode(Object? value, List<String> warnings) =>
       'mask' => SurfaceAlphaMode.mask,
       'blend' => SurfaceAlphaMode.blend,
       _ => () {
-          warnings.add('"$value" is not an alpha mode; treated as opaque');
-          return SurfaceAlphaMode.opaque;
-        }(),
+        warnings.add('"$value" is not an alpha mode; treated as opaque');
+        return SurfaceAlphaMode.opaque;
+      }(),
     };
 
 double _number(Object? value, double fallback) =>
@@ -319,11 +306,18 @@ Float32List _floats(Object? value) {
 }
 
 Vector3? _vec3(Object? value) => value is List<Object?> && value.length >= 3
-    ? Vector3(_number(value[0], 0.0), _number(value[1], 0.0),
-        _number(value[2], 0.0))
+    ? Vector3(
+        _number(value[0], 0.0),
+        _number(value[1], 0.0),
+        _number(value[2], 0.0),
+      )
     : null;
 
 Vector4? _vec4(Object? value) => value is List<Object?> && value.length >= 3
-    ? Vector4(_number(value[0], 0.0), _number(value[1], 0.0),
-        _number(value[2], 0.0), value.length > 3 ? _number(value[3], 1.0) : 1.0)
+    ? Vector4(
+        _number(value[0], 0.0),
+        _number(value[1], 0.0),
+        _number(value[2], 0.0),
+        value.length > 3 ? _number(value[3], 1.0) : 1.0,
+      )
     : null;

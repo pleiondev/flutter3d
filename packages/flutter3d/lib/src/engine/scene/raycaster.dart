@@ -60,7 +60,8 @@ final class HitResult {
   }
 
   @override
-  String toString() => 'HitResult(${node?.name ?? 'none'} at $distance, '
+  String toString() =>
+      'HitResult(${node?.name ?? 'none'} at $distance, '
       'triangle $triangleIndex${approximate ? ', approximate' : ''})';
 }
 
@@ -121,8 +122,12 @@ final class Raycaster {
   /// the near and far points of that NDC column, which is the one construction
   /// that works for perspective and orthographic cameras alike — an orthographic
   /// ray does not pass through the camera's position at all.
-  Raycaster setFromNdc(CameraNode camera, double ndcX, double ndcY,
-      {required double aspect}) {
+  Raycaster setFromNdc(
+    CameraNode camera,
+    double ndcX,
+    double ndcY, {
+    required double aspect,
+  }) {
     _inverseViewProjection.setFrom(camera.viewProjection(aspect));
     _inverseViewProjection.invert();
 
@@ -153,8 +158,10 @@ final class Raycaster {
     required double height,
   }) {
     if (width <= 0.0 || height <= 0.0) {
-      throw ArgumentError('Viewport must have a positive size, got '
-          '${width}x$height.');
+      throw ArgumentError(
+        'Viewport must have a positive size, got '
+        '${width}x$height.',
+      );
     }
     return setFromNdc(
       camera,
@@ -202,11 +209,7 @@ final class Raycaster {
     final tree = bvh;
     if (tree != null && meshes.length >= bvhThreshold) {
       _spheres = ensureSphereCapacity(_spheres, meshes.length);
-      tree.refresh(
-        _spheres,
-        meshes.length,
-        packSceneSpheres(meshes, _spheres),
-      );
+      tree.refresh(_spheres, meshes.length, packSceneSpheres(meshes, _spheres));
       // maxDistance, not `best`: the closure narrows `best` as it goes, but the
       // traversal order is not front-to-back, so a node rejected on a stale
       // bound could be the nearest hit.

@@ -48,10 +48,10 @@ final class Material {
     this.parameterBlock = 'MaterialParams',
     Map<String, Float32List>? parameters,
     Map<String, TextureHandle>? extraTextures,
-  })  : parameters = parameters ?? const <String, Float32List>{},
-        extraTextures = extraTextures ?? const <String, TextureHandle>{},
-        baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
-        emissive = emissive ?? Vector3.zero();
+  }) : parameters = parameters ?? const <String, Float32List>{},
+       extraTextures = extraTextures ?? const <String, TextureHandle>{},
+       baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
+       emissive = emissive ?? Vector3.zero();
 
   final String? name;
 
@@ -195,32 +195,32 @@ final class Material {
   /// pointing at one uploaded image is the arrangement everything downstream
   /// already assumes.
   Material copy() => Material(
-        name: name,
-        lighting: lighting,
-        baseColor: baseColor.clone(),
-        metallic: metallic,
-        roughness: roughness,
-        albedo: albedo,
-        albedoSampler: albedoSampler,
-        normal: normal,
-        normalSampler: normalSampler,
-        normalScale: normalScale,
-        metallicRoughness: metallicRoughness,
-        metallicRoughnessSampler: metallicRoughnessSampler,
-        occlusion: occlusion,
-        occlusionSampler: occlusionSampler,
-        occlusionStrength: occlusionStrength,
-        emissiveTexture: emissiveTexture,
-        emissiveSampler: emissiveSampler,
-        emissive: emissive.clone(),
-        emissiveStrength: emissiveStrength,
-        alphaMode: alphaMode,
-        alphaCutoff: alphaCutoff,
-        doubleSided: doubleSided,
-        drawBucket: drawBucket,
-        depthWrite: depthWrite,
-        depthCompare: depthCompare,
-      );
+    name: name,
+    lighting: lighting,
+    baseColor: baseColor.clone(),
+    metallic: metallic,
+    roughness: roughness,
+    albedo: albedo,
+    albedoSampler: albedoSampler,
+    normal: normal,
+    normalSampler: normalSampler,
+    normalScale: normalScale,
+    metallicRoughness: metallicRoughness,
+    metallicRoughnessSampler: metallicRoughnessSampler,
+    occlusion: occlusion,
+    occlusionSampler: occlusionSampler,
+    occlusionStrength: occlusionStrength,
+    emissiveTexture: emissiveTexture,
+    emissiveSampler: emissiveSampler,
+    emissive: emissive.clone(),
+    emissiveStrength: emissiveStrength,
+    alphaMode: alphaMode,
+    alphaCutoff: alphaCutoff,
+    doubleSided: doubleSided,
+    drawBucket: drawBucket,
+    depthWrite: depthWrite,
+    depthCompare: depthCompare,
+  );
 }
 
 /// Assigns small dense integers to materials for use as a sort key.

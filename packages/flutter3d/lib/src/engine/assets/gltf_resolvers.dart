@@ -33,10 +33,7 @@ AssetUriResolver fileUriResolver(String baseDirectory) {
 }
 
 /// Resolves asset URIs against the Flutter asset bundle.
-AssetUriResolver assetUriResolver(
-  String baseAssetPath, {
-  AssetBundle? bundle,
-}) {
+AssetUriResolver assetUriResolver(String baseAssetPath, {AssetBundle? bundle}) {
   final source = bundle ?? rootBundle;
   return (String uri) async {
     if (uri.startsWith('data:')) return decodeDataUri(uri);

@@ -42,7 +42,9 @@ Map<String, List<String>> collisionsAmong(Map<String, Set<String>> byPackage) {
   return collisions;
 }
 
-final RegExp _entryPoint = RegExp(r'[a-z0-9_]+_(?:vertex|fragment|compute)_main');
+final RegExp _entryPoint = RegExp(
+  r'[a-z0-9_]+_(?:vertex|fragment|compute)_main',
+);
 
 /// Entry-point names in a compiled bundle.
 ///
@@ -57,7 +59,10 @@ Set<String> entryPointsIn(File bundle) {
     // Printable ASCII forms the runs; anything else terminates one.
     buffer.writeCharCode(byte >= 0x20 && byte < 0x7f ? byte : 0x0a);
   }
-  return _entryPoint.allMatches(buffer.toString()).map((m) => m.group(0)!).toSet();
+  return _entryPoint
+      .allMatches(buffer.toString())
+      .map((m) => m.group(0)!)
+      .toSet();
 }
 
 /// Every built bundle in the workspace, package name to path.
@@ -133,7 +138,8 @@ void main() {
       expect(
         _builtBundles().containsKey('flutter3d_impeller'),
         isTrue,
-        reason: 'Run packages/flutter3d/tool/build_shaders.sh. The bundle is '
+        reason:
+            'Run packages/flutter3d/tool/build_shaders.sh. The bundle is '
             'gitignored, so a fresh checkout or worktree does not have one.',
       );
     });
@@ -141,12 +147,14 @@ void main() {
     test('ships no colliding shader entry points', () {
       final bundles = _builtBundles();
       final collisions = collisionsAmong({
-        for (final entry in bundles.entries) entry.key: entryPointsIn(entry.value),
+        for (final entry in bundles.entries)
+          entry.key: entryPointsIn(entry.value),
       });
       expect(
         collisions,
         isEmpty,
-        reason: 'Two packages ship a shader file with the same stem. Rename the '
+        reason:
+            'Two packages ship a shader file with the same stem. Rename the '
             'file — prefix it with the package name. The manifest key has no '
             'effect on the entry point.',
       );

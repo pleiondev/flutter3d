@@ -3,24 +3,21 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/model_loader.dart';
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kSamples = 'assets/samples';
+const String kSamples = kSamplesPath;
 
 void main() {
   group('format detection', () {
     test('picks the decoder from the extension', () async {
       final teapot = await decodeModel(
-        const ModelLoadRequest(
-          source: FileAssetSource('$kSamples/teapot.obj'),
-        ),
+        const ModelLoadRequest(source: FileAssetSource('$kSamples/teapot.obj')),
       );
       expect(teapot.triangleCount, 2256);
 
       final box = await decodeModel(
-        const ModelLoadRequest(
-          source: FileAssetSource('$kSamples/Box.glb'),
-        ),
+        const ModelLoadRequest(source: FileAssetSource('$kSamples/Box.glb')),
       );
       expect(box.surfaces, hasLength(1));
     });
@@ -82,7 +79,9 @@ void main() {
     });
 
     test('a sibling reference cannot escape the directory', () async {
-      final resolve = const FileAssetSource('$kSamples/cube/Cube.gltf').resolveUri;
+      final resolve = const FileAssetSource(
+        '$kSamples/cube/Cube.gltf',
+      ).resolveUri;
       await expectLater(
         resolve('../../../etc/passwd'),
         throwsA(isA<ArgumentError>()),
@@ -95,7 +94,9 @@ void main() {
     });
 
     test('a data URI is handled without touching the filesystem', () async {
-      final resolve = const FileAssetSource('$kSamples/nowhere.gltf').resolveUri;
+      final resolve = const FileAssetSource(
+        '$kSamples/nowhere.gltf',
+      ).resolveUri;
       final bytes = await resolve('data:application/octet-stream;base64,AQID');
       expect(bytes, <int>[1, 2, 3]);
     });
@@ -157,7 +158,12 @@ void main() {
       expect(remote.materials, isNotEmpty);
       expect(remote.materials.first.baseColorTexture, isNotNull);
       // The embedded PNG has to arrive intact, or the texture upload gets garbage.
-      expect(remote.images.first.bytes.sublist(0, 4), <int>[0x89, 0x50, 0x4E, 0x47]);
+      expect(remote.images.first.bytes.sublist(0, 4), <int>[
+        0x89,
+        0x50,
+        0x4E,
+        0x47,
+      ]);
 
       final bounds = remote.computeBounds();
       expect(bounds.max.x, greaterThan(bounds.min.x));
@@ -177,7 +183,9 @@ void main() {
     test('several models decode concurrently', () async {
       final documents = await Future.wait(<Future<Object>>[
         decodeModelInIsolate(
-          const ModelLoadRequest(source: FileAssetSource('$kSamples/teapot.obj')),
+          const ModelLoadRequest(
+            source: FileAssetSource('$kSamples/teapot.obj'),
+          ),
         ),
         decodeModelInIsolate(
           const ModelLoadRequest(source: FileAssetSource('$kSamples/Box.glb')),

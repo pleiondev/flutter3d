@@ -101,8 +101,9 @@ final class GltfLoader {
       'KHR_materials_emissive_strength',
       'KHR_texture_transform',
     };
-    final unsupported =
-        required.whereType<String>().where((e) => !supported.contains(e));
+    final unsupported = required.whereType<String>().where(
+      (e) => !supported.contains(e),
+    );
     if (unsupported.isNotEmpty) {
       throw FormatException(
         'This file requires extensions that are not implemented: '
@@ -130,9 +131,7 @@ List<Map<String, Object?>> _mapList(Object? value) {
 
 List<int> _intList(Object? value) {
   if (value is! List) return const <int>[];
-  return <int>[
-    for (final item in value) ?_asInt(item),
-  ];
+  return <int>[for (final item in value) ?_asInt(item)];
 }
 
 int? _asInt(Object? value) {

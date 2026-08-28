@@ -129,9 +129,9 @@ final class GoldenScene {
   final int height;
 
   RenderSettings settingsFrom(RenderSettings base) => base.copyWith(
-        debug: debug,
-        shadows: base.shadows.copyWith(enabled: shadows),
-        bloom: base.bloom.copyWith(enabled: bloom),
-        tonemap: lighting != LightingModel.normals,
-      );
+    debug: debug,
+    shadows: base.shadows.copyWith(enabled: shadows),
+    bloom: base.bloom.copyWith(enabled: bloom),
+    tonemap: lighting != LightingModel.normals,
+  );
 }

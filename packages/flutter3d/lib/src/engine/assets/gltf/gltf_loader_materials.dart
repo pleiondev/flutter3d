@@ -39,7 +39,8 @@ extension _GltfMaterials on GltfLoader {
       }
 
       final samplerIndex = _asInt(texture['sampler']);
-      final sampler = samplerIndex != null &&
+      final sampler =
+          samplerIndex != null &&
               samplerIndex >= 0 &&
               samplerIndex < samplers.length
           ? _decodeSampler(samplers[samplerIndex])
@@ -63,8 +64,9 @@ extension _GltfMaterials on GltfLoader {
       for (final material in materials)
         () {
           final pbr = material['pbrMetallicRoughness'];
-          final pbrMap =
-              pbr is Map ? pbr.cast<String, Object?>() : <String, Object?>{};
+          final pbrMap = pbr is Map
+              ? pbr.cast<String, Object?>()
+              : <String, Object?>{};
           final extensions = material['extensions'];
           final extensionsMap = extensions is Map
               ? extensions.cast<String, Object?>()
@@ -84,8 +86,9 @@ extension _GltfMaterials on GltfLoader {
             metallic: _asDouble(pbrMap['metallicFactor']) ?? 1.0,
             roughness: _asDouble(pbrMap['roughnessFactor']) ?? 1.0,
             baseColorTexture: textureRef(pbrMap['baseColorTexture']),
-            metallicRoughnessTexture:
-                textureRef(pbrMap['metallicRoughnessTexture']),
+            metallicRoughnessTexture: textureRef(
+              pbrMap['metallicRoughnessTexture'],
+            ),
             normalTexture: textureRef(normalTex),
             normalScale: normalTex is Map
                 ? (_asDouble(normalTex['scale']) ?? 1.0)
@@ -119,10 +122,10 @@ TextureSampling _decodeSampler(Map<String, Object?> sampler) {
   final minFilter = _asInt(sampler['minFilter']);
 
   TextureWrap wrap(Object? code) => switch (_asInt(code)) {
-        33071 => TextureWrap.clampToEdge,
-        33648 => TextureWrap.mirroredRepeat,
-        _ => TextureWrap.repeat,
-      };
+    33071 => TextureWrap.clampToEdge,
+    33648 => TextureWrap.mirroredRepeat,
+    _ => TextureWrap.repeat,
+  };
 
   return TextureSampling(
     magLinear: magFilter != 9728,

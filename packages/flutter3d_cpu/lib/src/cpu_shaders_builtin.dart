@@ -79,13 +79,16 @@ final class _Unimplemented implements CpuVertexShader, CpuFragmentShader {
   int get varyingCount => 0;
 
   @override
-  Vector4 run(Float32List a, ShaderBindings b,
-          [Object? out, Object? context]) =>
-      throw UnsupportedError(
-        '$name is not written in Dart. This backend answers to every name the '
-        'engine asks for so that it can start, and refuses the ones it cannot '
-        'draw rather than drawing something else.',
-      );
+  Vector4 run(
+    Float32List a,
+    ShaderBindings b, [
+    Object? out,
+    Object? context,
+  ]) => throw UnsupportedError(
+    '$name is not written in Dart. This backend answers to every name the '
+    'engine asks for so that it can start, and refuses the ones it cannot '
+    'draw rather than drawing something else.',
+  );
 }
 
 /// The stages that are not written in Dart, by name.
@@ -118,11 +121,9 @@ Map<String, CpuStage> builtinCpuShaders() {
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
     'DebugLine': const CpuStage.fragment(DebugLineShader()),
     'ParticleVertex': const CpuStage.vertex(ParticleVertexShader()),
-    'ParticleMeshVertex':
-        const CpuStage.vertex(ParticleMeshVertexShader()),
+    'ParticleMeshVertex': const CpuStage.vertex(ParticleMeshVertexShader()),
     'ParticleMesh': const CpuStage.fragment(ParticleMeshShader()),
-    'ParticleTextured':
-        const CpuStage.fragment(ParticleTexturedShader()),
+    'ParticleTextured': const CpuStage.fragment(ParticleTexturedShader()),
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'Ssao': const CpuStage.fragment(SsaoShader()),
@@ -131,8 +132,9 @@ Map<String, CpuStage> builtinCpuShaders() {
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),
     'ShadowDistance': const CpuStage.fragment(ShadowDistanceShader()),
     'ShadowTileReset': const CpuStage.fragment(ShadowTileResetShader()),
-    'ShadowTileResetVertex':
-        const CpuStage.vertex(ShadowTileResetVertexShader()),
+    'ShadowTileResetVertex': const CpuStage.vertex(
+      ShadowTileResetVertexShader(),
+    ),
     'SkyVertex': const CpuStage.vertex(SkyVertexShader()),
     'SkyCubeVertex': const CpuStage.vertex(SkyCubeVertexShader()),
     'Sky': const CpuStage.fragment(SkyShader()),

@@ -167,13 +167,13 @@ final class CpuDevice implements GraphicsDevice {
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec) => TextureHandle(
-        backend: CpuTexture(spec.width, spec.height, spec.format),
-        width: spec.width,
-        height: spec.height,
-        format: spec.format,
-        sampleCount: 1,
-        storageMode: spec.storageMode,
-      );
+    backend: CpuTexture(spec.width, spec.height, spec.format),
+    width: spec.width,
+    height: spec.height,
+    format: spec.format,
+    sampleCount: 1,
+    storageMode: spec.storageMode,
+  );
 
   @override
   TextureHandle? createTextureFromPixels({
@@ -224,7 +224,8 @@ final class CpuDevice implements GraphicsDevice {
     // to anything for life. Recorded anyway, because a backend that forgets
     // which it was told would pass the conformance check for the wrong reason.
     final copy = Uint8List.fromList(
-        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes));
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+    );
     return GeometryBuffer(
       backend: (bytes: ByteData.sublistView(copy), usage: usage),
       offsetInBytes: 0,

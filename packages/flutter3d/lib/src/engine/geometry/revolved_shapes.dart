@@ -12,11 +12,7 @@ const double _tau = math.pi * 2.0;
 /// [rings] counts the segments from pole to pole, so the pole rows land exactly
 /// on the axis and [LatheShape] drops the degenerate triangles there.
 class SphereShape extends DerivedShape {
-  const SphereShape({
-    this.radius = 0.5,
-    this.segments = 32,
-    this.rings = 16,
-  });
+  const SphereShape({this.radius = 0.5, this.segments = 32, this.rings = 16});
 
   final double radius;
   final int segments;
@@ -70,7 +66,8 @@ class CylinderShape extends DerivedShape {
   final bool capped;
 
   @override
-  String get name => radiusTop == 0.0 || radiusBottom == 0.0 ? 'cone' : 'cylinder';
+  String get name =>
+      radiusTop == 0.0 || radiusBottom == 0.0 ? 'cone' : 'cylinder';
 
   @override
   Shape get delegate {
@@ -117,12 +114,12 @@ class ConeShape extends DerivedShape {
 
   @override
   Shape get delegate => CylinderShape(
-        radiusTop: 0.0,
-        radiusBottom: radius,
-        height: height,
-        segments: segments,
-        capped: capped,
-      );
+    radiusTop: 0.0,
+    radiusBottom: radius,
+    height: height,
+    segments: segments,
+    capped: capped,
+  );
 }
 
 /// Torus: a closed circular profile revolved around Y.

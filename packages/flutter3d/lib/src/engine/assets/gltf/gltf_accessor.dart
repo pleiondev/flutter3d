@@ -19,8 +19,8 @@ final class GltfAccessorReader {
   GltfAccessorReader({
     required Map<String, Object?> json,
     required this.buffers,
-  })  : _accessors = _listOf(json['accessors']),
-        _bufferViews = _listOf(json['bufferViews']);
+  }) : _accessors = _listOf(json['accessors']),
+       _bufferViews = _listOf(json['bufferViews']);
 
   final List<Map<String, Object?>> _accessors;
   final List<Map<String, Object?>> _bufferViews;
@@ -36,8 +36,8 @@ final class GltfAccessorReader {
       _requireInt(_accessor(accessorIndex), 'count', accessorIndex);
 
   GltfAccessorType typeOf(int accessorIndex) => GltfAccessorType.fromName(
-        _requireString(_accessor(accessorIndex), 'type', accessorIndex),
-      );
+    _requireString(_accessor(accessorIndex), 'type', accessorIndex),
+  );
 
   GltfComponentType componentTypeOf(int accessorIndex) =>
       GltfComponentType.fromCode(
@@ -59,8 +59,11 @@ final class GltfAccessorReader {
     _forEachElement(accessorIndex, (elementIndex, data, byteOffset) {
       for (var c = 0; c < components; c++) {
         final offset = byteOffset + c * componentType.sizeInBytes;
-        out[elementIndex * components + c] =
-            componentType.readDouble(data, offset, normalized: normalized);
+        out[elementIndex * components + c] = componentType.readDouble(
+          data,
+          offset,
+          normalized: normalized,
+        );
       }
     });
     return out;
@@ -83,8 +86,10 @@ final class GltfAccessorReader {
     _forEachElement(accessorIndex, (elementIndex, data, byteOffset) {
       for (var c = 0; c < components; c++) {
         final offset = byteOffset + c * componentType.sizeInBytes;
-        out[elementIndex * components + c] =
-            componentType.readInt(data, offset);
+        out[elementIndex * components + c] = componentType.readInt(
+          data,
+          offset,
+        );
       }
     });
     return out;
@@ -223,7 +228,6 @@ final class GltfAccessorReader {
     }
     return _accessors[index];
   }
-
 }
 
 final class _ResolvedView {

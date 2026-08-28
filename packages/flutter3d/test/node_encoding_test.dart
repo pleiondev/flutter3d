@@ -35,7 +35,6 @@ import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-
 /// Records the one call a node can make back into the renderer.
 ///
 /// It draws nothing, which is the point: what a node hands *to* `encodeScene`
@@ -101,8 +100,7 @@ final class _NoSource implements FrameTextureSource {
 /// The view model never touches it — `encodeScene` is the recording fake — and
 /// that a mesh which never reached the device serves here at all is the point
 /// of `MeshGeometry` being what the scene layer deals in.
-MeshNode _meshNode() =>
-    MeshNode(CpuMesh(CuboidShape().build()), Material());
+MeshNode _meshNode() => MeshNode(CpuMesh(CuboidShape().build()), Material());
 
 void main() {
   group('the view model node, drawn against a fake device', () {
@@ -127,18 +125,20 @@ void main() {
         ..addExternal(FrameResourceIds.cubeShadow)
         ..addExternal(FrameResourceIds.cubeShadowStatic)
         ..addNode(node);
-      final compiled =
-          graph.compile(outputs: const <ResourceId>[FrameResourceIds.hdrColour]);
-      final resources = FrameResources(
-        source: _NoSource(),
-        graph: compiled,
-        frameWidth: 320,
-        frameHeight: 200,
-      )
-        // As the frame does before it runs a node. Without it the node's reads
-        // arrive from outside any node, which the resource layer no longer
-        // allows — and used to allow only because this test asked it to.
-        ..beginNode(0);
+      final compiled = graph.compile(
+        outputs: const <ResourceId>[FrameResourceIds.hdrColour],
+      );
+      final resources =
+          FrameResources(
+              source: _NoSource(),
+              graph: compiled,
+              frameWidth: 320,
+              frameHeight: 200,
+            )
+            // As the frame does before it runs a node. Without it the node's reads
+            // arrive from outside any node, which the resource layer no longer
+            // allows — and used to allow only because this test asked it to.
+            ..beginNode(0);
       return NodeFrame(
         device: device,
         resources: resources,
@@ -156,13 +156,23 @@ void main() {
 
       expect(device.passes, hasLength(1));
       final pass = device.passes.single;
-      expect(identical(pass.color.texture, _sceneColor), isTrue,
-          reason: 'the weapon goes into the lit scene, not a target of its own');
-      expect(pass.color.loadAction, LoadAction.load,
-          reason: 'clearing here would take the whole world with it');
-      expect(pass.color.resolveTexture, isNull,
-          reason: 'straight into the resolved target, without MSAA — a '
-              'multisampled attachment cannot be loaded back');
+      expect(
+        identical(pass.color.texture, _sceneColor),
+        isTrue,
+        reason: 'the weapon goes into the lit scene, not a target of its own',
+      );
+      expect(
+        pass.color.loadAction,
+        LoadAction.load,
+        reason: 'clearing here would take the whole world with it',
+      );
+      expect(
+        pass.color.resolveTexture,
+        isNull,
+        reason:
+            'straight into the resolved target, without MSAA — a '
+            'multisampled attachment cannot be loaded back',
+      );
     });
 
     test('clears its own depth, which is the reason it is a separate pass', () {
@@ -170,17 +180,26 @@ void main() {
 
       final depth = device.passes.single.descriptor.depth;
       expect(depth, isNotNull);
-      expect(depth!.clearValue, 1.0,
-          reason: 'nothing in the world may occlude what is in the hands');
-      expect(depth.texture.storageMode, StorageMode.deviceTransient,
-          reason: 'never sampled, so it belongs in tile memory');
+      expect(
+        depth!.clearValue,
+        1.0,
+        reason: 'nothing in the world may occlude what is in the hands',
+      );
+      expect(
+        depth.texture.storageMode,
+        StorageMode.deviceTransient,
+        reason: 'never sampled, so it belongs in tile memory',
+      );
       expect(identical(depth.texture, _sceneColor), isFalse);
     });
 
     test('submits the pass it opened', () {
       node.execute(frameWith());
-      expect(device.passes.single.submitted, isTrue,
-          reason: 'an unsubmitted pass draws nothing and says nothing');
+      expect(
+        device.passes.single.submitted,
+        isTrue,
+        reason: 'an unsubmitted pass draws nothing and says nothing',
+      );
     });
 
     test('sets a viewport and a scissor covering the frame', () {
@@ -210,36 +229,53 @@ void main() {
         ..pipelineSwitches = 3;
       node.execute(frame);
       expect(frame.state.boundPipeline, isNull);
-      expect(frame.state.boundSkinned, isNull,
-          reason: 'nothing is bound in a new pass, so the tracker must not '
-              'claim otherwise');
+      expect(
+        frame.state.boundSkinned,
+        isNull,
+        reason:
+            'nothing is bound in a new pass, so the tracker must not '
+            'claim otherwise',
+      );
     });
 
     test('draws with no shadow map and only the atlases it declared', () {
       node.execute(frameWith());
 
       final shadows = services.shadows.single;
-      expect(shadows.directional, isNull,
-          reason: "the world's shadow matrix belongs to the world's camera");
-      expect(shadows.point, isNull,
-          reason: 'no atlas was provided to this frame, so there is none to '
-              'sample — rather than one found lying in a renderer field');
+      expect(
+        shadows.directional,
+        isNull,
+        reason: "the world's shadow matrix belongs to the world's camera",
+      );
+      expect(
+        shadows.point,
+        isNull,
+        reason:
+            'no atlas was provided to this frame, so there is none to '
+            'sample — rather than one found lying in a renderer field',
+      );
       expect(shadows.pointStatic, isNull);
     });
 
     test('opens no pass at all when the frame has no scene colour', () {
       node.execute(frameWith(withSceneColor: false));
-      expect(device.passes, isEmpty,
-          reason: 'there is nothing to draw over until the world has drawn');
+      expect(
+        device.passes,
+        isEmpty,
+        reason: 'there is nothing to draw over until the world has drawn',
+      );
     });
 
     test('reuses its depth buffer until the size changes', () {
       node.execute(frameWith());
       node.execute(frameWith());
-      expect(device.createdTextures, hasLength(1),
-          reason: 'a full-size depth buffer per frame is megabytes nobody '
-              'asked for');
+      expect(
+        device.createdTextures,
+        hasLength(1),
+        reason:
+            'a full-size depth buffer per frame is megabytes nobody '
+            'asked for',
+      );
     });
   });
-
 }

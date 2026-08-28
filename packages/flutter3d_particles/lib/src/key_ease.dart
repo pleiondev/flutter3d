@@ -18,8 +18,8 @@ enum KeyEase {
 /// Shared by [ParticleCurve] and [ParticleGradient], which sample the same
 /// shape of segment over two different kinds of value.
 double easeShape(double t, KeyEase ease) => switch (ease) {
-      KeyEase.step => 0.0,
-      KeyEase.linear => t,
-      // 3t² − 2t³. The classic, and cheap: two multiplies and a subtract.
-      KeyEase.smooth => t * t * (3.0 - 2.0 * t),
-    };
+  KeyEase.step => 0.0,
+  KeyEase.linear => t,
+  // 3t² − 2t³. The classic, and cheap: two multiplies and a subtract.
+  KeyEase.smooth => t * t * (3.0 - 2.0 * t),
+};

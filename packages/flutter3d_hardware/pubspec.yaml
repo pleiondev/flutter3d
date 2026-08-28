@@ -3,6 +3,12 @@ description: "The graphics vocabulary flutter3d is written against: formats, han
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - gpu
+  - rendering
+  - abstraction
 publish_to: 'none'
 resolution: workspace
 

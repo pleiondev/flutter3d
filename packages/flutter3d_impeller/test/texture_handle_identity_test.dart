@@ -21,9 +21,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The one file allowed to call the constructor.
-const Set<String> _allowed = <String>{
-  'lib/src/gpu_texture.dart',
-};
+const Set<String> _allowed = <String>{'lib/src/gpu_texture.dart'};
 
 void main() {
   test('nothing in lib/ builds a TextureHandle but the one factory', () {
@@ -37,10 +35,11 @@ void main() {
     final offenders = <String>[];
     var seenInFactory = false;
 
-    for (final file in dir
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((File f) => f.path.endsWith('.dart'))) {
+    for (final file
+        in dir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((File f) => f.path.endsWith('.dart'))) {
       // Relative and with forward slashes, so the expectation reads the way an
       // import does.
       final path = file.path.replaceAll(r'\', '/');
@@ -61,14 +60,16 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason: 'a texture may have exactly one handle, and the way that is made '
+      reason:
+          'a texture may have exactly one handle, and the way that is made '
           'true is that only gpu_texture.dart constructs one — see the note on '
           'TextureHandle. These build their own:\n${offenders.join('\n')}',
     );
     expect(
       seenInFactory,
       isTrue,
-      reason: 'the factory was renamed or moved; a scan that finds nothing '
+      reason:
+          'the factory was renamed or moved; a scan that finds nothing '
           'proves nothing, and this rule moves with it',
     );
   });

@@ -178,7 +178,9 @@ final class SceneBvh {
     final spanX = centreMaxX - centreMinX;
     final spanY = centreMaxY - centreMinY;
     final spanZ = centreMaxZ - centreMinZ;
-    final axis = spanX >= spanY && spanX >= spanZ ? 0 : (spanY >= spanZ ? 1 : 2);
+    final axis = spanX >= spanY && spanX >= spanZ
+        ? 0
+        : (spanY >= spanZ ? 1 : 2);
 
     double centreOf(int index) => _spheres[index * 4 + axis];
 
@@ -248,8 +250,11 @@ final class SceneBvh {
     _visit(0, (node) {
       final base = node * 6;
       box.min.setValues(_bounds[base], _bounds[base + 1], _bounds[base + 2]);
-      box.max
-          .setValues(_bounds[base + 3], _bounds[base + 4], _bounds[base + 5]);
+      box.max.setValues(
+        _bounds[base + 3],
+        _bounds[base + 4],
+        _bounds[base + 5],
+      );
       return frustum.intersectsWithAabb3(box);
     }, visit);
   }
@@ -266,8 +271,11 @@ final class SceneBvh {
     _visit(0, (node) {
       final base = node * 6;
       box.min.setValues(_bounds[base], _bounds[base + 1], _bounds[base + 2]);
-      box.max
-          .setValues(_bounds[base + 3], _bounds[base + 4], _bounds[base + 5]);
+      box.max.setValues(
+        _bounds[base + 3],
+        _bounds[base + 4],
+        _bounds[base + 5],
+      );
       final distance = rayAabb(ray, box);
       return distance != kNoHit && distance <= maxDistance;
     }, visit);

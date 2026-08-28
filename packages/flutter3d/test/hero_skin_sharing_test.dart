@@ -27,8 +27,8 @@
 /// device seam or in the shader bundle, not here.
 ///
 /// The file is reached across the repository rather than copied into
-/// `assets/samples`, because the point of these tests is *this* asset, the one
-/// the game ships and the one that draws wrong. A copy would drift.
+/// `flutter3d_samples`, because the point of these tests is *this* asset, the
+/// one the game ships and the one that draws wrong. A copy would drift.
 library;
 
 import 'dart:io';
@@ -42,7 +42,6 @@ import 'package:flutter3d/src/engine/scene/scene_graph.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
-
 
 // A fixture rather than a game's asset. It used to live in the platformer's
 // `assets/models/`, which is declared whole, so a rig the game stopped drawing
@@ -98,14 +97,18 @@ void main() {
       // of these three numbers, the tests below are about a different file and
       // should be read again rather than trusted.
       expect(document.skins, hasLength(4));
-      final skinned =
-          document.surfaces.where((s) => s.skinIndex != null).toList();
+      final skinned = document.surfaces
+          .where((s) => s.skinIndex != null)
+          .toList();
       expect(skinned, hasLength(11));
       final joints = document.skins.first.joints;
       expect(joints, hasLength(29));
       for (final skin in document.skins) {
-        expect(skin.joints, orderedEquals(joints),
-            reason: 'the four skins are the same armature');
+        expect(
+          skin.joints,
+          orderedEquals(joints),
+          reason: 'the four skins are the same armature',
+        );
       }
 
       final instance = asset.instantiate(Scene());
@@ -124,31 +127,34 @@ void main() {
       // becomes four and seven mesh nodes come back with a null skeleton.
     });
 
-    test('each skeleton names this instance\'s own nodes, in file order',
-        () async {
-      final (:document, :asset) = await loadHero();
-      final instance = asset.instantiate(Scene());
-      final joints = document.skins.first.joints;
+    test(
+      'each skeleton names this instance\'s own nodes, in file order',
+      () async {
+        final (:document, :asset) = await loadHero();
+        final instance = asset.instantiate(Scene());
+        final joints = document.skins.first.joints;
 
-      for (var s = 0; s < instance.skeletons.length; s++) {
-        final skeleton = instance.skeletons[s];
-        expect(skeleton.joints, hasLength(joints.length));
-        for (var k = 0; k < joints.length; k++) {
-          expect(
-            identical(skeleton.joints[k], instance.nodes[joints[k]]),
-            isTrue,
-            reason: 'skeleton $s joint $k should be node ${joints[k]}, '
-                'which this instance created as '
-                '"${instance.nodes[joints[k]].name}", and instead holds '
-                '"${skeleton.joints[k].name}"',
-          );
+        for (var s = 0; s < instance.skeletons.length; s++) {
+          final skeleton = instance.skeletons[s];
+          expect(skeleton.joints, hasLength(joints.length));
+          for (var k = 0; k < joints.length; k++) {
+            expect(
+              identical(skeleton.joints[k], instance.nodes[joints[k]]),
+              isTrue,
+              reason:
+                  'skeleton $s joint $k should be node ${joints[k]}, '
+                  'which this instance created as '
+                  '"${instance.nodes[joints[k]].name}", and instead holds '
+                  '"${skeleton.joints[k].name}"',
+            );
+          }
+          expect(identical(skeleton.skeletonRoot, instance.nodes[2]), isTrue);
         }
-        expect(identical(skeleton.skeletonRoot, instance.nodes[2]), isTrue);
-      }
-      // Mutation: in `_buildSkeleton`, resolve every joint to the skin's first
-      // one (`joints.add(created[skin.joints.first]!)`). Every skeleton then
-      // holds twenty-nine copies of "Root" and joint 1 onwards fails.
-    });
+        // Mutation: in `_buildSkeleton`, resolve every joint to the skin's first
+        // one (`joints.add(created[skin.joints.first]!)`). Every skeleton then
+        // holds twenty-nine copies of "Root" and joint 1 onwards fails.
+      },
+    );
 
     test('every skinned mesh hangs from the node that names it', () async {
       // The parent is not decoration: `Skeleton.update` divides the mesh
@@ -159,14 +165,18 @@ void main() {
       final (:document, :asset) = await loadHero();
       final instance = asset.instantiate(Scene());
 
-      expect(
-        instance.meshes.map((m) => m.parent?.name).toSet(),
-        <String>{'Body', 'Ears', 'Head', 'Arms'},
-      );
+      expect(instance.meshes.map((m) => m.parent?.name).toSet(), <String>{
+        'Body',
+        'Ears',
+        'Head',
+        'Arms',
+      });
       for (final mesh in instance.meshes) {
-        expect(mesh.worldMatrix.storage,
-            orderedEquals(mesh.parent!.worldMatrix.storage),
-            reason: 'a skinned mesh sits at identity under its node');
+        expect(
+          mesh.worldMatrix.storage,
+          orderedEquals(mesh.parent!.worldMatrix.storage),
+          reason: 'a skinned mesh sits at identity under its node',
+        );
       }
       // Mutation: in `instantiate`, `root.add(mesh)` in place of
       // `node.add(mesh)`. Every parent becomes the instance root and the set
@@ -187,8 +197,11 @@ void main() {
       };
       for (final skeleton in first.skeletons) {
         for (final joint in skeleton.joints) {
-          expect(theirs.contains(joint), isFalse,
-              reason: 'the two copies share joint "${joint.name}"');
+          expect(
+            theirs.contains(joint),
+            isFalse,
+            reason: 'the two copies share joint "${joint.name}"',
+          );
         }
       }
 
@@ -203,8 +216,11 @@ void main() {
       pose(first);
       pose(second);
       final rest = List<double>.of(second.skeletons.first.matrices);
-      expect(first.skeletons.first.matrices, orderedEquals(rest),
-          reason: 'two copies at rest hold the same pose');
+      expect(
+        first.skeletons.first.matrices,
+        orderedEquals(rest),
+        reason: 'two copies at rest hold the same pose',
+      );
 
       first.nodes[6].setRotationYawPitchRoll(math.pi / 3.0, 0.0, 0.0);
       pose(first);
@@ -268,21 +284,27 @@ void main() {
           }
           blended.setZero();
           for (var c = 0; c < 4; c++) {
-            final weight =
-                total > 1e-5 ? source.vertices[base + w + c] / total : 0.0;
+            final weight = total > 1e-5
+                ? source.vertices[base + w + c] / total
+                : 0.0;
             final slot = source.vertices[base + j + c].toInt() * 16;
             for (var e = 0; e < 16; e++) {
               blended.storage[e] += skeleton.matrices[slot + e] * weight;
             }
           }
-          posedRadius =
-              math.max(posedRadius, blended.transformed3(position).length);
+          posedRadius = math.max(
+            posedRadius,
+            blended.transformed3(position).length,
+          );
         }
       }
 
       expect(bindRadius, greaterThan(0.0));
-      expect(posedRadius, lessThan(bindRadius * 1.5),
-          reason: 'posed to $posedRadius from a bind radius of $bindRadius');
+      expect(
+        posedRadius,
+        lessThan(bindRadius * 1.5),
+        reason: 'posed to $posedRadius from a bind radius of $bindRadius',
+      );
       // Mutation: drop `_scratch.invert()` from `Skeleton.update`. The posed
       // radius goes from 0.95 of the bind radius to 2184 times it — this
       // file's 48x armature scale, applied twice — which is exactly the shape

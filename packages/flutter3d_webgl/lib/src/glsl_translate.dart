@@ -74,13 +74,15 @@ String resolveIncludes(
     // The included text is translated by the same rules, so a header's own
     // includes and its version line are handled once rather than per includer.
     out.writeln('// --- $target ---');
-    out.write(resolveIncludes(
-      body,
-      sources,
-      from: target,
-      seen: included,
-      stack: <String>[...path, target],
-    ));
+    out.write(
+      resolveIncludes(
+        body,
+        sources,
+        from: target,
+        seen: included,
+        stack: <String>[...path, target],
+      ),
+    );
   }
   return out.toString();
 }
@@ -141,6 +143,8 @@ String translateGlsl(
 
 final RegExp _include = RegExp(r'^\s*#include\s*[<"]([^>"]+)[>"]');
 final RegExp _version = RegExp(r'^\s*#version[^\n]*\n', multiLine: true);
-final RegExp _uniformBlock =
-    RegExp(r'^uniform\s+([A-Z]\w*\s*\{)', multiLine: true);
+final RegExp _uniformBlock = RegExp(
+  r'^uniform\s+([A-Z]\w*\s*\{)',
+  multiLine: true,
+);
 final RegExp _bareOut = RegExp(r'^out\s+(\w+\s+\w+\s*;)', multiLine: true);

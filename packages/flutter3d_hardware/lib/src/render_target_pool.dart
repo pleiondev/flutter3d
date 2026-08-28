@@ -32,12 +32,12 @@ final class RenderTargetSpec {
   /// the wrong free list, and the next acquirer would be handed the wrong size
   /// with nothing to say so.
   factory RenderTargetSpec.of(TextureHandle texture) => RenderTargetSpec(
-        width: texture.width,
-        height: texture.height,
-        format: texture.format,
-        sampleCount: texture.sampleCount,
-        storageMode: texture.storageMode,
-      );
+    width: texture.width,
+    height: texture.height,
+    format: texture.format,
+    sampleCount: texture.sampleCount,
+    storageMode: texture.storageMode,
+  );
 
   final int width;
   final int height;
@@ -49,15 +49,15 @@ final class RenderTargetSpec {
   final StorageMode storageMode;
 
   RenderTargetSpec scaled(int divisor) => RenderTargetSpec(
-        // Never below one pixel: a bloom chain taken far enough would otherwise
-        // ask for a zero-sized texture, and the failure is a driver error
-        // rather than an exception.
-        width: width ~/ divisor < 1 ? 1 : width ~/ divisor,
-        height: height ~/ divisor < 1 ? 1 : height ~/ divisor,
-        format: format,
-        sampleCount: sampleCount,
-        storageMode: storageMode,
-      );
+    // Never below one pixel: a bloom chain taken far enough would otherwise
+    // ask for a zero-sized texture, and the failure is a driver error
+    // rather than an exception.
+    width: width ~/ divisor < 1 ? 1 : width ~/ divisor,
+    height: height ~/ divisor < 1 ? 1 : height ~/ divisor,
+    format: format,
+    sampleCount: sampleCount,
+    storageMode: storageMode,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -73,7 +73,8 @@ final class RenderTargetSpec {
       Object.hash(width, height, format, sampleCount, storageMode);
 
   @override
-  String toString() => 'RenderTargetSpec(${width}x$height, ${format.name}, '
+  String toString() =>
+      'RenderTargetSpec(${width}x$height, ${format.name}, '
       'x$sampleCount, ${storageMode.name})';
 }
 
@@ -161,6 +162,7 @@ final class RenderTargetPool {
   void trim() => _free.clear();
 
   @override
-  String toString() => 'RenderTargetPool($pooledCount free, ${_lent.length} '
+  String toString() =>
+      'RenderTargetPool($pooledCount free, ${_lent.length} '
       'in use, $_created created)';
 }

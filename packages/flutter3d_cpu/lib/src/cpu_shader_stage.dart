@@ -16,8 +16,11 @@ abstract interface class CpuVertexShader {
 
   /// Reads [attributes] — the vertex, as the engine laid it out — and writes a
   /// clip-space position plus [varyings].
-  Vector4 run(Float32List attributes, ShaderBindings bindings,
-      Float32List varyings);
+  Vector4 run(
+    Float32List attributes,
+    ShaderBindings bindings,
+    Float32List varyings,
+  );
 }
 
 /// Everything a fragment stage gets that is not a varying or a binding.
@@ -65,7 +68,10 @@ final class FragmentContext {
 abstract interface class CpuFragmentShader {
   /// Returns linear RGBA for attachment zero. Null discards the fragment.
   Vector4? run(
-      Float32List varyings, ShaderBindings bindings, FragmentContext context);
+    Float32List varyings,
+    ShaderBindings bindings,
+    FragmentContext context,
+  );
 }
 
 /// A stage, which is one or the other.

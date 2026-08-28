@@ -10,7 +10,6 @@ import 'sky_settings.dart';
 export 'frame_result.dart';
 export 'shadow_settings.dart';
 
-
 /// Scene-wide shading knobs that are not per-material.
 /// Screen-space reflections.
 ///
@@ -319,28 +318,26 @@ final class RenderSettings {
     AmbientOcclusionSettings? ambientOcclusion,
     FogSettings? fog,
     SkySettings? sky,
-  }) =>
-      RenderSettings(
-        specular: specular ?? this.specular,
-        exposure: exposure ?? this.exposure,
-        wireframe: wireframe ?? this.wireframe,
-        backfaceCulling: backfaceCulling ?? this.backfaceCulling,
-        debug: debug ?? this.debug,
-        highlighted: highlighted ?? this.highlighted,
-        tonemap: tonemap ?? this.tonemap,
-        bloom: bloom ?? this.bloom,
-        look: look ?? this.look,
-        shadows: shadows ?? this.shadows,
-        surfaceBuffer: surfaceBuffer ?? this.surfaceBuffer,
-        showSurfaceBuffer: showSurfaceBuffer ?? this.showSurfaceBuffer,
-        showShadowMap: showShadowMap ?? this.showShadowMap,
-        showPointShadowDebug:
-            showPointShadowDebug ?? this.showPointShadowDebug,
-        reflections: reflections ?? this.reflections,
-        ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
-        fog: fog ?? this.fog,
-        sky: sky ?? this.sky,
-      );
+  }) => RenderSettings(
+    specular: specular ?? this.specular,
+    exposure: exposure ?? this.exposure,
+    wireframe: wireframe ?? this.wireframe,
+    backfaceCulling: backfaceCulling ?? this.backfaceCulling,
+    debug: debug ?? this.debug,
+    highlighted: highlighted ?? this.highlighted,
+    tonemap: tonemap ?? this.tonemap,
+    bloom: bloom ?? this.bloom,
+    look: look ?? this.look,
+    shadows: shadows ?? this.shadows,
+    surfaceBuffer: surfaceBuffer ?? this.surfaceBuffer,
+    showSurfaceBuffer: showSurfaceBuffer ?? this.showSurfaceBuffer,
+    showShadowMap: showShadowMap ?? this.showShadowMap,
+    showPointShadowDebug: showPointShadowDebug ?? this.showPointShadowDebug,
+    reflections: reflections ?? this.reflections,
+    ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
+    fog: fog ?? this.fog,
+    sky: sky ?? this.sky,
+  );
 }
 
 /// How much of the frame's light spills into a glow.
@@ -422,16 +419,15 @@ final class LookSettings {
     double? vignetteRoundness,
     double? grain,
     double? chromaticAberration,
-  }) =>
-      LookSettings(
-        contrast: contrast ?? this.contrast,
-        saturation: saturation ?? this.saturation,
-        temperature: temperature ?? this.temperature,
-        vignette: vignette ?? this.vignette,
-        vignetteRoundness: vignetteRoundness ?? this.vignetteRoundness,
-        grain: grain ?? this.grain,
-        chromaticAberration: chromaticAberration ?? this.chromaticAberration,
-      );
+  }) => LookSettings(
+    contrast: contrast ?? this.contrast,
+    saturation: saturation ?? this.saturation,
+    temperature: temperature ?? this.temperature,
+    vignette: vignette ?? this.vignette,
+    vignetteRoundness: vignetteRoundness ?? this.vignetteRoundness,
+    grain: grain ?? this.grain,
+    chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+  );
 }
 
 final class BloomSettings {
@@ -472,13 +468,12 @@ final class BloomSettings {
     double? intensity,
     int? levels,
     double? filterRadius,
-  }) =>
-      BloomSettings(
-        enabled: enabled ?? this.enabled,
-        threshold: threshold ?? this.threshold,
-        knee: knee ?? this.knee,
-        intensity: intensity ?? this.intensity,
-        levels: levels ?? this.levels,
-        filterRadius: filterRadius ?? this.filterRadius,
-      );
+  }) => BloomSettings(
+    enabled: enabled ?? this.enabled,
+    threshold: threshold ?? this.threshold,
+    knee: knee ?? this.knee,
+    intensity: intensity ?? this.intensity,
+    levels: levels ?? this.levels,
+    filterRadius: filterRadius ?? this.filterRadius,
+  );
 }

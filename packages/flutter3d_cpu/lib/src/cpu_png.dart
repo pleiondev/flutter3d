@@ -24,8 +24,12 @@ Uint8List encodePng(Uint8List rgba, int width, int height) {
   final raw = Uint8List(height * (width * 4 + 1));
   for (var y = 0; y < height; y++) {
     raw[y * (width * 4 + 1)] = 0;
-    raw.setRange(y * (width * 4 + 1) + 1, y * (width * 4 + 1) + 1 + width * 4,
-        rgba, y * width * 4);
+    raw.setRange(
+      y * (width * 4 + 1) + 1,
+      y * (width * 4 + 1) + 1 + width * 4,
+      rgba,
+      y * width * 4,
+    );
   }
 
   final out = BytesBuilder();

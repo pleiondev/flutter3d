@@ -69,10 +69,6 @@ final class ModelFileSource extends SceneSource {
 
     // Uploading has to happen back on this isolate: GPU resources belong to the
     // context that created them.
-    return ModelAsset.fromDocument(
-      document,
-      device: device,
-      name: label,
-    );
+    return ModelAsset.fromDocument(document, device: device, name: label);
   }
 }

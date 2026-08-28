@@ -39,8 +39,7 @@ double shadowFactor(Surface s, ShaderBindings b, int lightIndex) {
   final cascades = b.vec4('FragInfo', 'shadow_cascades', Vector4(0, 0, 1, 0));
   final count = (cascades.z + 0.5).floor().clamp(1, 3);
   final camera = b.vec4('FragInfo', 'camera_position', Vector4.zero());
-  final viewDistance =
-      (s.world - Vector3(camera.x, camera.y, camera.z)).length;
+  final viewDistance = (s.world - Vector3(camera.x, camera.y, camera.z)).length;
   var cascade = 0;
   if (count > 1 && viewDistance > cascades.x) cascade = 1;
   if (count > 2 && viewDistance > cascades.y) cascade = 2;
@@ -58,7 +57,8 @@ double shadowFactor(Surface s, ShaderBindings b, int lightIndex) {
           ? 'shadow_matrix'
           : (which == 1 ? 'shadow_matrix_far' : 'shadow_matrix_farthest'),
     );
-    final Vector4 lightSpace = matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
+    final Vector4 lightSpace =
+        matrix * Vector4(origin.x, origin.y, origin.z, 1.0);
     if (lightSpace.w <= 0.0) continue;
     final candidate = Vector3(lightSpace.x, lightSpace.y, lightSpace.z)
       ..scale(1.0 / lightSpace.w);

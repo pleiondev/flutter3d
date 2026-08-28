@@ -19,12 +19,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 SkyGradient _plain() => SkyGradient(
-      zenith: Vector3(0.0, 0.0, 1.0),
-      horizon: Vector3(0.5, 0.5, 0.5),
-      nadir: Vector3(0.0, 0.0, 0.0),
-      directionToSun: Vector3(1.0, 0.0, 0.0),
-      glowStrength: 0.0,
-    );
+  zenith: Vector3(0.0, 0.0, 1.0),
+  horizon: Vector3(0.5, 0.5, 0.5),
+  nadir: Vector3(0.0, 0.0, 0.0),
+  directionToSun: Vector3(1.0, 0.0, 0.0),
+  glowStrength: 0.0,
+);
 
 /// Every vertex position of [mesh], as directions from its centre.
 List<Vector3> _positions(MeshData mesh) {
@@ -78,10 +78,16 @@ void main() {
         return (blue - 0.5) / 0.5;
       }
 
-      expect(towardsZenith(5.0), lessThan(0.05),
-          reason: 'a linear ramp would already be at 0.087 here');
-      expect(towardsZenith(45.0), greaterThan(0.4),
-          reason: 'and it still has to arrive');
+      expect(
+        towardsZenith(5.0),
+        lessThan(0.05),
+        reason: 'a linear ramp would already be at 0.087 here',
+      );
+      expect(
+        towardsZenith(45.0),
+        greaterThan(0.4),
+        reason: 'and it still has to arrive',
+      );
     });
 
     test('brightens towards the sun and nowhere else', () {
@@ -144,8 +150,11 @@ void main() {
         final normal = (b - a).cross(c - a);
         if (normal.length2 < 1e-9) continue; // degenerate at the poles
         final outward = (a + b + c)..scale(1 / 3);
-        expect(normal.dot(outward), lessThan(0.0),
-            reason: 'triangle $i faces out');
+        expect(
+          normal.dot(outward),
+          lessThan(0.0),
+          reason: 'triangle $i faces out',
+        );
         checked++;
       }
       expect(checked, greaterThan(50), reason: 'nothing was actually checked');
@@ -194,7 +203,11 @@ void main() {
       final colours = _colours(mesh);
       for (var i = 0; i < positions.length; i++) {
         if (positions[i].y > 9.99) {
-          expect(colours[i].z, closeTo(1.0, 1e-4), reason: 'the zenith is blue');
+          expect(
+            colours[i].z,
+            closeTo(1.0, 1e-4),
+            reason: 'the zenith is blue',
+          );
         }
         if (positions[i].y < -9.99) {
           expect(colours[i].x, closeTo(0.0, 1e-4), reason: 'the nadir is dark');
@@ -203,8 +216,10 @@ void main() {
     });
 
     test('refuses a mesh with nowhere to put it', () {
-      final mesh = const SkyDome(rings: 4, segments: 6)
-          .build(layout: VertexLayout.positionNormalTexcoord);
+      final mesh = const SkyDome(
+        rings: 4,
+        segments: 6,
+      ).build(layout: VertexLayout.positionNormalTexcoord);
       expect(() => paintSky(mesh, _plain().colour), throwsArgumentError);
     });
   });
@@ -215,7 +230,9 @@ void main() {
       // drawn into every shadow cascade, and culled by bounds that describe a
       // ball around the camera. A test per flag would be four tests about one
       // list; the list is the claim.
-      final node = skyNode(CpuMesh(const SkyDome(rings: 4, segments: 6).build()));
+      final node = skyNode(
+        CpuMesh(const SkyDome(rings: 4, segments: 6).build()),
+      );
 
       expect(node.material.drawBucket, lessThan(0), reason: 'drawn first');
       expect(node.material.depthWrite, isFalse, reason: 'writes no depth');
@@ -229,7 +246,9 @@ void main() {
       // its own. Asking for `always` would emit a state change every frame to
       // buy nothing — and `PassState`'s own history is why a redundant depth
       // call is worth refusing.
-      final node = skyNode(CpuMesh(const SkyDome(rings: 4, segments: 6).build()));
+      final node = skyNode(
+        CpuMesh(const SkyDome(rings: 4, segments: 6).build()),
+      );
       expect(node.material.depthCompare, isNull);
     });
 
@@ -237,7 +256,9 @@ void main() {
       // Mutation: copy the camera's rotation too. The gradient would turn with
       // the head, which is the one thing a sky must never do — and it looks
       // almost right, because the horizon stays level.
-      final node = skyNode(CpuMesh(const SkyDome(rings: 4, segments: 6).build()));
+      final node = skyNode(
+        CpuMesh(const SkyDome(rings: 4, segments: 6).build()),
+      );
       final camera = CameraNode()
         ..setPosition(30.0, 5.0, -12.0)
         ..lookAt(Vector3(100.0, 40.0, 60.0));

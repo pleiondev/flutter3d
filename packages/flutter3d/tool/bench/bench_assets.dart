@@ -5,13 +5,14 @@ import 'dart:io';
 import 'package:flutter3d/src/engine/assets/f3d/f3d.dart';
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 
 import 'bench_util.dart';
 
 /// Decoding cost for OBJ, glTF/GLB and the engine's own `.f3d` container.
 Future<void> benchAssetDecoding() async {
-  final teapotBytes = File('assets/samples/teapot.obj').readAsBytesSync();
-  final glbBytes = File('assets/samples/BoxTextured.glb').readAsBytesSync();
+  final teapotBytes = File('$kSamplesPath/teapot.obj').readAsBytesSync();
+  final glbBytes = File('$kSamplesPath/BoxTextured.glb').readAsBytesSync();
 
   print('--- asset decoding -----------------------------------------------');
 

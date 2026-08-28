@@ -5,6 +5,12 @@ description: >-
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - rendering
+  - rasterizer
+  - testing
 publish_to: 'none'
 
 environment:

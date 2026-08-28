@@ -147,8 +147,8 @@ final class ParticleTurbulence extends ParticleAffector {
 /// Moves the colour from one to another across the particle's life.
 final class ParticleColorOverLife extends ParticleAffector {
   ParticleColorOverLife(Vector4 from, Vector4 to)
-      : _from = from.clone(),
-        _to = to.clone();
+    : _from = from.clone(),
+      _to = to.clone();
 
   final Vector4 _from;
   final Vector4 _to;

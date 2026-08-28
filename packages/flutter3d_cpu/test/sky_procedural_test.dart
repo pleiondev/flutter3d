@@ -113,10 +113,7 @@ Future<Uint8List> _draw(
     height: _height,
     scene: world.scene,
     views: <RenderView>[
-      RenderView(
-        camera: world.camera,
-        clearColor: Vector4(0.0, 0.0, 0.0, 1.0),
-      ),
+      RenderView(camera: world.camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
     ],
     settings: RenderSettings(
       sky: sky,
@@ -194,8 +191,11 @@ void main() {
     final without = await _draw(_engine(), _world());
     final with_ = await _draw(_engine(), _world(), sky: _sky());
 
-    expect(_mean(with_, channel: 2), greaterThan(_mean(without, channel: 2) + 30),
-        reason: 'the background is a sky rather than the clear colour');
+    expect(
+      _mean(with_, channel: 2),
+      greaterThan(_mean(without, channel: 2) + 30),
+      reason: 'the background is a sky rather than the clear colour',
+    );
   });
 
   test('the sky is behind the world, not in front of it', () async {
@@ -247,8 +247,11 @@ void main() {
       final difference = (a[i] - b[i]).abs();
       if (difference > worst) worst = difference;
     }
-    expect(worst, lessThanOrEqualTo(2),
-        reason: 'the sky swung as the camera moved through the world');
+    expect(
+      worst,
+      lessThanOrEqualTo(2),
+      reason: 'the sky swung as the camera moved through the world',
+    );
   });
 
   test('the sky is not a surface', () async {
@@ -266,10 +269,16 @@ void main() {
 
     // What is checked is the encoded content: an octahedral normal is non-zero
     // in rg wherever a surface was written, and the sky writes zeros.
-    expect(_mean(frame, channel: 0), lessThan(8.0),
-        reason: 'the sky wrote a normal into the surface buffer');
-    expect(_mean(frame, channel: 1), lessThan(8.0),
-        reason: 'the sky wrote a normal into the surface buffer');
+    expect(
+      _mean(frame, channel: 0),
+      lessThan(8.0),
+      reason: 'the sky wrote a normal into the surface buffer',
+    );
+    expect(
+      _mean(frame, channel: 1),
+      lessThan(8.0),
+      reason: 'the sky wrote a normal into the surface buffer',
+    );
   });
 
   test('the two transcriptions of the model agree', () async {
@@ -308,8 +317,11 @@ void main() {
     );
 
     for (final channel in <int>[0, 1, 2]) {
-      expect((drawn[channel] - expected[channel]).abs(), lessThan(0.02),
-          reason: 'channel $channel: drawn $drawn against expected $expected');
+      expect(
+        (drawn[channel] - expected[channel]).abs(),
+        lessThan(0.02),
+        reason: 'channel $channel: drawn $drawn against expected $expected',
+      );
     }
   });
 
@@ -321,10 +333,14 @@ void main() {
     final source = File(
       '../flutter3d_shaders/shaders/sky.vert',
     ).readAsStringSync();
-    final match =
-        RegExp(r'gl_Position = vec4\(position, ([0-9.]+), 1\.0\);')
-            .firstMatch(source);
-    expect(match, isNotNull, reason: 'sky.vert no longer writes a literal depth');
+    final match = RegExp(
+      r'gl_Position = vec4\(position, ([0-9.]+), 1\.0\);',
+    ).firstMatch(source);
+    expect(
+      match,
+      isNotNull,
+      reason: 'sky.vert no longer writes a literal depth',
+    );
 
     final fromGlsl = double.parse(match!.group(1)!);
     final stage = const SkyVertexShader();
@@ -344,8 +360,16 @@ void main() {
 
     // Loose, because the vertex stage returns single precision.
     expect(clip.z / clip.w, closeTo(fromGlsl, 1e-6));
-    expect(fromGlsl, lessThan(1.0), reason: 'at exactly 1.0 `less` never passes');
-    expect(fromGlsl, greaterThan(0.999), reason: 'and it has to be the far plane');
+    expect(
+      fromGlsl,
+      lessThan(1.0),
+      reason: 'at exactly 1.0 `less` never passes',
+    );
+    expect(
+      fromGlsl,
+      greaterThan(0.999),
+      reason: 'and it has to be the far plane',
+    );
   });
 }
 
@@ -369,33 +393,40 @@ double _linearToSrgb(double value) {
 /// One of the two has to be wrong, and it is not the one that draws a sun when
 /// asked for a sun.
 void _hardEdgedSun() {
-  test('a sun with no soft edge is still a sun in both transcriptions', () async {
-    final sky = _sky().copyWith(sunSoftnessDegrees: 0.0);
-    final it = _engine();
-    final world = _world(wall: false);
-    world.camera.lookAt(sky.resolvedDirectionToSun);
+  test(
+    'a sun with no soft edge is still a sun in both transcriptions',
+    () async {
+      final sky = _sky().copyWith(sunSoftnessDegrees: 0.0);
+      final it = _engine();
+      final world = _world(wall: false);
+      world.camera.lookAt(sky.resolvedDirectionToSun);
 
-    final frame = await _draw(it, world, sky: sky);
-    final centre = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
-    final drawn = Vector3(
-      frame[centre] / 255.0,
-      frame[centre + 1] / 255.0,
-      frame[centre + 2] / 255.0,
-    );
+      final frame = await _draw(it, world, sky: sky);
+      final centre = ((_height ~/ 2) * _width + _width ~/ 2) * 4;
+      final drawn = Vector3(
+        frame[centre] / 255.0,
+        frame[centre + 1] / 255.0,
+        frame[centre + 2] / 255.0,
+      );
 
-    final linear = sky.sample(sky.resolvedDirectionToSun)..scale(1.6);
-    final expected = Vector3(
-      _linearToSrgb(linear.x),
-      _linearToSrgb(linear.y),
-      _linearToSrgb(linear.z),
-    );
+      final linear = sky.sample(sky.resolvedDirectionToSun)..scale(1.6);
+      final expected = Vector3(
+        _linearToSrgb(linear.x),
+        _linearToSrgb(linear.y),
+        _linearToSrgb(linear.z),
+      );
 
-    for (final channel in <int>[0, 1, 2]) {
-      expect((drawn[channel] - expected[channel]).abs(), lessThan(0.02),
-          reason: 'channel $channel: drawn $drawn against expected $expected — '
-              'a sun asked for with a hard edge');
-    }
-  });
+      for (final channel in <int>[0, 1, 2]) {
+        expect(
+          (drawn[channel] - expected[channel]).abs(),
+          lessThan(0.02),
+          reason:
+              'channel $channel: drawn $drawn against expected $expected — '
+              'a sun asked for with a hard edge',
+        );
+      }
+    },
+  );
 
   test('and the model itself does not answer with a NaN', () {
     // The other half of the same division. A NaN in a colour multiplies through

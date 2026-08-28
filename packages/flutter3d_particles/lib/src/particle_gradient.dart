@@ -24,14 +24,14 @@ final class GradientKey {
 /// there. A gradient's keys are keys of the whole colour.
 final class ParticleGradient {
   ParticleGradient(this.keys)
-      : assert(keys.isNotEmpty, 'a gradient with no keys has no colour'),
-        assert(_isSorted(keys), 'gradient keys must be ordered by `at`');
+    : assert(keys.isNotEmpty, 'a gradient with no keys has no colour'),
+      assert(_isSorted(keys), 'gradient keys must be ordered by `at`');
 
   ParticleGradient.constant(Vector4 color)
-      : this(<GradientKey>[GradientKey(0.0, color)]);
+    : this(<GradientKey>[GradientKey(0.0, color)]);
 
   ParticleGradient.linear(Vector4 from, Vector4 to)
-      : this(<GradientKey>[GradientKey(0.0, from), GradientKey(1.0, to)]);
+    : this(<GradientKey>[GradientKey(0.0, from), GradientKey(1.0, to)]);
 
   final List<GradientKey> keys;
 

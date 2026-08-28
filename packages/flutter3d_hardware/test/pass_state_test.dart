@@ -23,13 +23,15 @@ final class _Recorder implements PassEncoder {
   @override
   void setScissor(ScreenRect rect) => calls.add('scissor');
   @override
-  void setPrimitiveType(PrimitiveType type) => calls.add('primitive ${type.name}');
+  void setPrimitiveType(PrimitiveType type) =>
+      calls.add('primitive ${type.name}');
   @override
   void setPolygonMode(PolygonMode mode) => calls.add('polygon ${mode.name}');
   @override
   void setCullMode(CullMode mode) => calls.add('cull ${mode.name}');
   @override
-  void setWindingOrder(WindingOrder order) => calls.add('winding ${order.name}');
+  void setWindingOrder(WindingOrder order) =>
+      calls.add('winding ${order.name}');
   @override
   void setDepthWrite(bool enabled) => calls.add('depthWrite $enabled');
   @override
@@ -46,18 +48,19 @@ final class _Recorder implements PassEncoder {
 void main() {
   test('an empty state emits nothing at all', () {
     final encoder = _Recorder()..setState(const PassState());
-    expect(encoder.calls, isEmpty,
-        reason: 'a state that says nothing must say nothing. Filling in '
-            'defaults here would turn depth writes on for every pass that '
-            'deliberately never mentions them');
+    expect(
+      encoder.calls,
+      isEmpty,
+      reason:
+          'a state that says nothing must say nothing. Filling in '
+          'defaults here would turn depth writes on for every pass that '
+          'deliberately never mentions them',
+    );
   });
 
   test('only the fields that are set are emitted', () {
     final encoder = _Recorder()
-      ..setState(const PassState(
-        cullMode: CullMode.none,
-        depthWrite: false,
-      ));
+      ..setState(const PassState(cullMode: CullMode.none, depthWrite: false));
 
     expect(encoder.calls, <String>['cull none', 'depthWrite false']);
   });
@@ -71,19 +74,24 @@ void main() {
 
     expect(off.calls, <String>['blend off@0']);
     expect(quiet.calls, isEmpty);
-    expect(const PassState(blend: null) == const PassState(), isFalse,
-        reason: 'and they are not the same value either');
+    expect(
+      const PassState(blend: null) == const PassState(),
+      isFalse,
+      reason: 'and they are not the same value either',
+    );
   });
 
   test('the order is fixed, whatever order the fields were written in', () {
     final encoder = _Recorder()
-      ..setState(const PassState(
-        depthCompare: CompareFunction.always,
-        blend: BlendState.additive,
-        primitiveType: PrimitiveType.triangle,
-        depthWrite: false,
-        cullMode: CullMode.none,
-      ));
+      ..setState(
+        const PassState(
+          depthCompare: CompareFunction.always,
+          blend: BlendState.additive,
+          primitiveType: PrimitiveType.triangle,
+          depthWrite: false,
+          cullMode: CullMode.none,
+        ),
+      );
 
     expect(encoder.calls, <String>[
       'primitive triangle',
@@ -100,8 +108,11 @@ void main() {
     final changed = base.copyWith(depthWrite: true);
 
     expect(changed.cullMode, CullMode.none);
-    expect(changed.setsBlend, isTrue,
-        reason: 'copyWith must not quietly stop mentioning blending');
+    expect(
+      changed.setsBlend,
+      isTrue,
+      reason: 'copyWith must not quietly stop mentioning blending',
+    );
     expect(changed.blend, isNull);
     expect(changed.depthWrite, isTrue);
   });

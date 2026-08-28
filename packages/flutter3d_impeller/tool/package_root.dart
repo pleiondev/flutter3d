@@ -163,9 +163,7 @@ String packageRoot(File configFile, String name) {
     final base = Uri.file(configFile.absolute.path);
     final resolved = base.resolve(rootUri);
     if (resolved.scheme != 'file') {
-      throw FormatException(
-        'package "$name" has a non-file rootUri: $rootUri',
-      );
+      throw FormatException('package "$name" has a non-file rootUri: $rootUri');
     }
     // Strips any trailing slash so callers can append their own separator.
     final path = resolved.toFilePath();

@@ -39,27 +39,33 @@ double _twoCoincidentTriangles({required bool askForDepthWriteOff}) {
     height: 8,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  final colour = device.createTexture(const RenderTargetSpec(
-    width: 8,
-    height: 8,
-    format: TextureFormat.r16g16b16a16Float,
-  ));
-  final depth = device.createTexture(const RenderTargetSpec(
-    width: 8,
-    height: 8,
-    format: TextureFormat.d32FloatS8UInt,
-  ));
+  final colour = device.createTexture(
+    const RenderTargetSpec(
+      width: 8,
+      height: 8,
+      format: TextureFormat.r16g16b16a16Float,
+    ),
+  );
+  final depth = device.createTexture(
+    const RenderTargetSpec(
+      width: 8,
+      height: 8,
+      format: TextureFormat.d32FloatS8UInt,
+    ),
+  );
 
-  final pass = device.beginRenderPass(RenderPassDescriptor(
-    colors: <ColorTarget>[
-      ColorTarget(
-        texture: colour,
-        loadAction: LoadAction.clear,
-        clearValue: Vector4.zero(),
-      ),
-    ],
-    depth: DepthTarget(texture: depth, clearValue: 1.0),
-  ));
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: colour,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+      depth: DepthTarget(texture: depth, clearValue: 1.0),
+    ),
+  );
 
   // The debug-line stages: a vertex stage that needs one matrix and a fragment
   // stage that returns its varying unchanged, which makes the arithmetic here
@@ -100,10 +106,13 @@ void main() {
     // A quarter here means this backend is back to ignoring the argument — the
     // shape of the bug flutter_gpu had until 3.47, and the reason this fixture
     // exists rather than a comment saying the same thing.
-    expect(_twoCoincidentTriangles(askForDepthWriteOff: true),
-        closeTo(0.5, 1e-6),
-        reason: 'the second triangle never reached the target, so depth writes '
-            'were on despite being switched off');
+    expect(
+      _twoCoincidentTriangles(askForDepthWriteOff: true),
+      closeTo(0.5, 1e-6),
+      reason:
+          'the second triangle never reached the target, so depth writes '
+          'were on despite being switched off',
+    );
   });
 
   test('a pass nobody asks starts with depth writes off', () {
@@ -111,9 +120,12 @@ void main() {
     // disabled until something calls the setter, and 3.47 changed the setter
     // rather than that default. Never calling it therefore leaves both draws
     // landing, exactly as it did before.
-    expect(_twoCoincidentTriangles(askForDepthWriteOff: false),
-        closeTo(0.5, 1e-6),
-        reason: 'a pass that was never told anything about depth writes '
-            'behaved as though they were on');
+    expect(
+      _twoCoincidentTriangles(askForDepthWriteOff: false),
+      closeTo(0.5, 1e-6),
+      reason:
+          'a pass that was never told anything about depth writes '
+          'behaved as though they were on',
+    );
   });
 }

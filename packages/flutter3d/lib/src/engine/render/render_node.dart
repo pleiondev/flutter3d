@@ -132,14 +132,13 @@ final class RenderNodeRegistry {
 
   /// The nodes registered for [phase], in the order they were added.
   List<RenderNode> of(FramePhase phase) => <RenderNode>[
-        for (final node in _nodes)
-          if ((_phases[node] ?? FramePhase.overlay) == phase) node,
-      ];
+    for (final node in _nodes)
+      if ((_phases[node] ?? FramePhase.overlay) == phase) node,
+  ];
 
   int get length => _nodes.length;
 
-  T add<T extends RenderNode>(T node,
-      {FramePhase phase = FramePhase.overlay}) {
+  T add<T extends RenderNode>(T node, {FramePhase phase = FramePhase.overlay}) {
     _nodes.add(node);
     _phases[node] = phase;
     return node;

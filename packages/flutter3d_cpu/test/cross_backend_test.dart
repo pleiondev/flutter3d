@@ -154,10 +154,16 @@ void main() {
         .where((n) => n.endsWith('.png') && !n.endsWith('.actual.png'))
         .map((n) => n.substring(0, n.length - 4))
         .toSet();
-    expect(recorded.difference(_budgets.keys.toSet()), isEmpty,
-        reason: 'recorded by tool/golden.sh --cpu and not compared here');
-    expect(_budgets.keys.toSet().difference(recorded), isEmpty,
-        reason: 'a budget for a scene this backend has no reference for');
+    expect(
+      recorded.difference(_budgets.keys.toSet()),
+      isEmpty,
+      reason: 'recorded by tool/golden.sh --cpu and not compared here',
+    );
+    expect(
+      _budgets.keys.toSet().difference(recorded),
+      isEmpty,
+      reason: 'a budget for a scene this backend has no reference for',
+    );
   });
 
   for (final entry in _budgets.entries) {
@@ -176,11 +182,16 @@ void main() {
       // Printed whether it passes or not. A comparison whose number nobody
       // sees is a threshold nobody can judge.
       // ignore: avoid_print
-      print('${entry.key}: $difference by more than $_channel, budget '
-          '${entry.value}%');
+      print(
+        '${entry.key}: $difference by more than $_channel, budget '
+        '${entry.value}%',
+      );
 
-      expect(difference.percent, lessThanOrEqualTo(entry.value),
-          reason: 'the software backend moved away from the hardware one');
+      expect(
+        difference.percent,
+        lessThanOrEqualTo(entry.value),
+        reason: 'the software backend moved away from the hardware one',
+      );
     });
   }
 }

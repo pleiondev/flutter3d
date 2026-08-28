@@ -14,8 +14,8 @@ import 'key_sort.dart';
 /// least significant, equal keys keep submission order for free.
 final class PackedKeys {
   PackedKeys([int capacity = 128])
-      : _buffer = Int64List(capacity),
-        _scratch = Int64List(capacity);
+    : _buffer = Int64List(capacity),
+      _scratch = Int64List(capacity);
 
   Int64List _buffer;
   Int64List _scratch;

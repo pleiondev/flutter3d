@@ -18,12 +18,12 @@ Particle _at(Vector3 position) => Particle()..position.setFrom(position);
 /// An effect whose particles outlive any test about emission, so `aliveCount`
 /// counts what was emitted rather than what has not died yet.
 ParticleEffect _steady() => ParticleEffect(
-      count: 1,
-      emitter: const SphereEmitter(speed: Range.exact(0.0)),
-      lifetime: const Range.exact(1000.0),
-      size: const Range.exact(0.5),
-      color: Vector4(1.0, 1.0, 1.0, 1.0),
-    );
+  count: 1,
+  emitter: const SphereEmitter(speed: Range.exact(0.0)),
+  lifetime: const Range.exact(1000.0),
+  size: const Range.exact(0.5),
+  color: Vector4(1.0, 1.0, 1.0, 1.0),
+);
 
 /// Advances [system] in 60 Hz frames, which is how a game calls it.
 void _run(ParticleSystem system, double seconds, {void Function()? each}) {
@@ -94,9 +94,13 @@ void main() {
       ]);
       expect(curve.sample(0.25), 1.0);
       expect(curve.sample(0.75), 9.0);
-      expect(curve.sample(0.5).isNaN, isFalse,
-          reason: 'a zero-width span divided through would poison everything '
-              'downstream and never say where it came from');
+      expect(
+        curve.sample(0.5).isNaN,
+        isFalse,
+        reason:
+            'a zero-width span divided through would poison everything '
+            'downstream and never say where it came from',
+      );
     });
 
     test('one key is a constant', () {
@@ -113,8 +117,7 @@ void main() {
         ]),
         throwsA(isA<AssertionError>()),
       );
-      expect(() => ParticleCurve(<CurveKey>[]),
-          throwsA(isA<AssertionError>()));
+      expect(() => ParticleCurve(<CurveKey>[]), throwsA(isA<AssertionError>()));
     });
   });
 
@@ -164,8 +167,11 @@ void main() {
 
       // Applied a second time at the same age it must give the same answer.
       sized.apply(particle, 1.0 / 60.0);
-      expect(particle.size, closeTo(1.5, 1e-12),
-          reason: 'the curve reads birthSize, so applying twice is idempotent');
+      expect(
+        particle.size,
+        closeTo(1.5, 1e-12),
+        reason: 'the curve reads birthSize, so applying twice is idempotent',
+      );
     });
   });
 
@@ -197,22 +203,28 @@ void main() {
         for (var axis = 0; axis < 3; axis++) {
           final plus = origin.clone()..[axis] += h;
           final minus = origin.clone()..[axis] -= h;
-          divergence += (component(plus, axis) - component(minus, axis)) /
-              (2.0 * h);
+          divergence +=
+              (component(plus, axis) - component(minus, axis)) / (2.0 * h);
         }
-        expect(divergence.abs(), lessThan(1e-6),
-            reason: 'divergence at $origin was $divergence');
+        expect(
+          divergence.abs(),
+          lessThan(1e-6),
+          reason: 'divergence at $origin was $divergence',
+        );
       }
     });
 
-    test('actually moves a particle, so the test above is not trivially true', () {
-      // A field of all zeroes is also divergence-free. This is what separates
-      // "the property holds" from "there is no field".
-      const field = ParticleTurbulence(strength: 2.0, scale: 1.0);
-      final particle = _at(Vector3(1.0, 2.0, 3.0));
-      field.apply(particle, 1.0 / 60.0);
-      expect(particle.velocity.length, greaterThan(1e-3));
-    });
+    test(
+      'actually moves a particle, so the test above is not trivially true',
+      () {
+        // A field of all zeroes is also divergence-free. This is what separates
+        // "the property holds" from "there is no field".
+        const field = ParticleTurbulence(strength: 2.0, scale: 1.0);
+        final particle = _at(Vector3(1.0, 2.0, 3.0));
+        field.apply(particle, 1.0 / 60.0);
+        expect(particle.velocity.length, greaterThan(1e-3));
+      },
+    );
 
     test('scales with dt, so the frame rate does not change the motion', () {
       const field = ParticleTurbulence(strength: 1.0, scale: 1.0);
@@ -235,8 +247,13 @@ void main() {
   group('a timed emission', () {
     test('stops itself, and a standing one does not', () {
       final timed = ParticleSystem(capacity: 4096, seed: 1);
-      timed.emitTimed('plume', _steady(), Vector3.zero(),
-          perSecond: 100.0, seconds: 0.5);
+      timed.emitTimed(
+        'plume',
+        _steady(),
+        Vector3.zero(),
+        perSecond: 100.0,
+        seconds: 0.5,
+      );
       _run(timed, 2.0);
       // Half a second at a hundred a second, and then nothing.
       expect(timed.aliveCount, closeTo(50, 2));
@@ -244,8 +261,11 @@ void main() {
       final standing = ParticleSystem(capacity: 4096, seed: 1);
       standing.emit('torch', _steady(), Vector3.zero(), perSecond: 100.0);
       _run(standing, 2.0);
-      expect(standing.aliveCount, greaterThan(150),
-          reason: 'an emission with no duration runs until it is stopped');
+      expect(
+        standing.aliveCount,
+        greaterThan(150),
+        reason: 'an emission with no duration runs until it is stopped',
+      );
     });
 
     test('emits for the fraction of a sub-step it is alive for', () {
@@ -253,8 +273,13 @@ void main() {
       // At 120 Hz a sub-step is 8.3 ms, so a 4 ms emission at a thousand a
       // second is four particles and not eight.
       final system = ParticleSystem(capacity: 4096, seed: 1);
-      system.emitTimed('spark', _steady(), Vector3.zero(),
-          perSecond: 1000.0, seconds: 0.004);
+      system.emitTimed(
+        'spark',
+        _steady(),
+        Vector3.zero(),
+        perSecond: 1000.0,
+        seconds: 0.004,
+      );
       _run(system, 0.5);
       expect(system.aliveCount, closeTo(4, 1));
     });
@@ -266,21 +291,36 @@ void main() {
       // reset every frame never reaches zero.
       final system = ParticleSystem(capacity: 4096, seed: 1);
       final effect = _steady();
-      system.emitTimed('plume', effect, Vector3.zero(),
-          perSecond: 100.0, seconds: 0.5);
+      system.emitTimed(
+        'plume',
+        effect,
+        Vector3.zero(),
+        perSecond: 100.0,
+        seconds: 0.5,
+      );
       _run(system, 1.0);
       final first = system.aliveCount;
 
-      system.emitTimed('plume', effect, Vector3.zero(),
-          perSecond: 100.0, seconds: 0.5);
+      system.emitTimed(
+        'plume',
+        effect,
+        Vector3.zero(),
+        perSecond: 100.0,
+        seconds: 0.5,
+      );
       _run(system, 1.0);
       expect(system.aliveCount, greaterThan(first + 40));
     });
 
     test('stopEmitting cuts it short', () {
       final system = ParticleSystem(capacity: 4096, seed: 1);
-      system.emitTimed('plume', _steady(), Vector3.zero(),
-          perSecond: 100.0, seconds: 10.0);
+      system.emitTimed(
+        'plume',
+        _steady(),
+        Vector3.zero(),
+        perSecond: 100.0,
+        seconds: 10.0,
+      );
       _run(system, 0.2);
       final cut = system.aliveCount;
       system.stopEmitting('plume');
@@ -308,8 +348,11 @@ void main() {
         expect((particle.position.z - origin.z).abs(), lessThanOrEqualTo(3.0));
         if ((particle.position.x - origin.x).abs() > 1.5) sawSpread = true;
       }
-      expect(sawSpread, isTrue,
-          reason: 'every particle at the origin would satisfy the bounds too');
+      expect(
+        sawSpread,
+        isTrue,
+        reason: 'every particle at the origin would satisfy the bounds too',
+      );
     });
 
     test('uses its own direction rather than the burst direction', () {
@@ -320,8 +363,12 @@ void main() {
         speed: const Range.exact(3.0),
       );
       final particle = Particle();
-      emitter.emit(particle, Vector3.zero(), Vector3(1.0, 0.0, 0.0),
-          math.Random(1));
+      emitter.emit(
+        particle,
+        Vector3.zero(),
+        Vector3(1.0, 0.0, 0.0),
+        math.Random(1),
+      );
       expect(particle.velocity.x, 0.0);
       expect(particle.velocity.y, -3.0);
     });
@@ -332,8 +379,12 @@ void main() {
         speed: const Range.exact(2.0),
       );
       final particle = Particle();
-      emitter.emit(particle, Vector3.zero(), Vector3(0.0, 0.0, 1.0),
-          math.Random(1));
+      emitter.emit(
+        particle,
+        Vector3.zero(),
+        Vector3(0.0, 0.0, 1.0),
+        math.Random(1),
+      );
       expect(particle.velocity.z, 2.0);
     });
   });

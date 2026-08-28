@@ -18,22 +18,22 @@ import 'package:vector_math/vector_math.dart';
 /// A material with nothing left at its default, so that a copy which drops a
 /// field drops something visible.
 engine.Material _distinctive() => engine.Material(
-      name: 'distinctive',
-      lighting: LightingModel.blinnPhong,
-      baseColor: Vector4(0.1, 0.2, 0.3, 0.4),
-      metallic: 0.25,
-      roughness: 0.75,
-      normalScale: 2.0,
-      occlusionStrength: 0.5,
-      emissive: Vector3(0.6, 0.7, 0.8),
-      emissiveStrength: 3.0,
-      alphaMode: MaterialAlphaMode.mask,
-      alphaCutoff: 0.25,
-      doubleSided: true,
-      drawBucket: -7,
-      depthWrite: false,
-      depthCompare: CompareFunction.always,
-    );
+  name: 'distinctive',
+  lighting: LightingModel.blinnPhong,
+  baseColor: Vector4(0.1, 0.2, 0.3, 0.4),
+  metallic: 0.25,
+  roughness: 0.75,
+  normalScale: 2.0,
+  occlusionStrength: 0.5,
+  emissive: Vector3(0.6, 0.7, 0.8),
+  emissiveStrength: 3.0,
+  alphaMode: MaterialAlphaMode.mask,
+  alphaCutoff: 0.25,
+  doubleSided: true,
+  drawBucket: -7,
+  depthWrite: false,
+  depthCompare: CompareFunction.always,
+);
 
 /// A scene of unlit boxes, one per bucket, all in front of the camera.
 ({Scene scene, CameraNode camera}) _buckets(List<int> buckets) {
@@ -42,14 +42,14 @@ engine.Material _distinctive() => engine.Material(
   for (var i = 0; i < buckets.length; i++) {
     scene.add(
       MeshNode(
-        geometry,
-        engine.Material(
+          geometry,
+          engine.Material(
+            name: 'bucket-${buckets[i]}',
+            lighting: LightingModel.unlit,
+            drawBucket: buckets[i],
+          ),
           name: 'bucket-${buckets[i]}',
-          lighting: LightingModel.unlit,
-          drawBucket: buckets[i],
-        ),
-        name: 'bucket-${buckets[i]}',
-      )
+        )
         // Spread along the view axis so that a depth term, if it ever
         // outranked the bucket, would order them differently from the bucket.
         ..setPosition(0.0, 0.0, 10.0 + i * 5.0),
@@ -127,8 +127,11 @@ void main() {
 
   group('the draw bucket', () {
     test('orders draws, low first', () {
-      expect(_drawOrder(<int>[2, 0, 1]),
-          <String>['bucket-0', 'bucket-1', 'bucket-2']);
+      expect(_drawOrder(<int>[2, 0, 1]), <String>[
+        'bucket-0',
+        'bucket-1',
+        'bucket-2',
+      ]);
     });
 
     test('a negative bucket is drawn before everything', () {
@@ -139,8 +142,11 @@ void main() {
       // to say "before the scene" — the direction the field is documented for
       // and the one it did not have.
       expect(_drawOrder(<int>[0, -1]), <String>['bucket--1', 'bucket-0']);
-      expect(_drawOrder(<int>[5, -128, 0]),
-          <String>['bucket--128', 'bucket-0', 'bucket-5']);
+      expect(_drawOrder(<int>[5, -128, 0]), <String>[
+        'bucket--128',
+        'bucket-0',
+        'bucket-5',
+      ]);
     });
 
     test('a bucket beyond the range clamps rather than wrapping', () {

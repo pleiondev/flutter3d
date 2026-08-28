@@ -60,16 +60,20 @@ final class _TintNode extends RenderNode {
     // out. Both are called `frame`, and the registration order is what tells
     // them apart.
     final source = frame.resources.texture(FrameResourceIds.frame);
-    final target = frame.resources.transient(RenderTargetSpec(
-      width: source.width,
-      height: source.height,
-      format: source.format,
-    ));
-    frame.services.drawFullscreen(FullscreenDraw(
-      target: target,
-      fragment: shader,
-      textures: <String, TextureHandle>{'source_texture': source},
-    ));
+    final target = frame.resources.transient(
+      RenderTargetSpec(
+        width: source.width,
+        height: source.height,
+        format: source.format,
+      ),
+    );
+    frame.services.drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shader,
+        textures: <String, TextureHandle>{'source_texture': source},
+      ),
+    );
     frame.resources.provide(FrameResourceIds.frame, target);
   }
 }
@@ -103,11 +107,11 @@ final class _TintShader implements CpuFragmentShader {
     }),
   );
   TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-      )!;
+    width: 1,
+    height: 1,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+  )!;
   return (
     device: device,
     renderer: Renderer.create(
@@ -193,11 +197,18 @@ void main() {
     final (plainR, plainG) = _means(plain);
     final (tintedR, tintedG) = _means(tinted);
 
-    expect(tintedR, closeTo(plainR, 1.0),
-        reason: 'red moved, so this is not the green-halving effect running');
-    expect(tintedG, lessThan(plainG * 0.75),
-        reason: 'green did not fall: the pass after the composite drew into '
-            'something the caller was never handed');
+    expect(
+      tintedR,
+      closeTo(plainR, 1.0),
+      reason: 'red moved, so this is not the green-halving effect running',
+    );
+    expect(
+      tintedG,
+      lessThan(plainG * 0.75),
+      reason:
+          'green did not fall: the pass after the composite drew into '
+          'something the caller was never handed',
+    );
   });
 
   test('the same node before the composite is refused, not ignored', () async {
@@ -217,8 +228,13 @@ void main() {
     // instead of tinting, and the test above fails with it.
     await expectLater(
       _draw(phase: FramePhase.overlay),
-      throwsA(isA<FrameGraphError>().having((FrameGraphError e) => e.toString(),
-          'message', contains('depend on each other in a loop'))),
+      throwsA(
+        isA<FrameGraphError>().having(
+          (FrameGraphError e) => e.toString(),
+          'message',
+          contains('depend on each other in a loop'),
+        ),
+      ),
     );
   });
 }

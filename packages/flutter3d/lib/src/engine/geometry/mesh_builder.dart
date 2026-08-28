@@ -12,18 +12,15 @@ import 'vertex_layout.dart';
 /// using `List<double>` so the data already sits in the form that goes to the
 /// GPU.
 final class MeshBuilder {
-  MeshBuilder(
-    this.layout, {
-    int reserveVertices = 64,
-    int reserveIndices = 128,
-  })  : _floatsPerVertex = layout.floatsPerVertex,
-        _positionOffset = layout.floatOffsetOf(VertexLayout.position.name),
-        _normalOffset = layout.floatOffsetOf(VertexLayout.normal.name),
-        _texcoordOffset = layout.floatOffsetOf(VertexLayout.texcoord.name),
-        _tangentOffset = layout.floatOffsetOf(VertexLayout.tangent.name),
-        _colorOffset = layout.floatOffsetOf(VertexLayout.color.name),
-        _jointsOffset = layout.floatOffsetOf(VertexLayout.joints.name),
-        _weightsOffset = layout.floatOffsetOf(VertexLayout.weights.name) {
+  MeshBuilder(this.layout, {int reserveVertices = 64, int reserveIndices = 128})
+    : _floatsPerVertex = layout.floatsPerVertex,
+      _positionOffset = layout.floatOffsetOf(VertexLayout.position.name),
+      _normalOffset = layout.floatOffsetOf(VertexLayout.normal.name),
+      _texcoordOffset = layout.floatOffsetOf(VertexLayout.texcoord.name),
+      _tangentOffset = layout.floatOffsetOf(VertexLayout.tangent.name),
+      _colorOffset = layout.floatOffsetOf(VertexLayout.color.name),
+      _jointsOffset = layout.floatOffsetOf(VertexLayout.joints.name),
+      _weightsOffset = layout.floatOffsetOf(VertexLayout.weights.name) {
     _vertices = Float32List(
       math.max(1, reserveVertices) * layout.floatsPerVertex,
     );
@@ -136,10 +133,10 @@ final class MeshBuilder {
   }
 
   MeshData build() => MeshData(
-        layout: layout,
-        vertices: Float32List.sublistView(_vertices, 0, _vertexFloats),
-        indices: Uint32List.sublistView(_indices, 0, _indexCount),
-      );
+    layout: layout,
+    vertices: Float32List.sublistView(_vertices, 0, _vertexFloats),
+    indices: Uint32List.sublistView(_indices, 0, _indexCount),
+  );
 
   static Float32List _growFloats(Float32List current, int needed) {
     var capacity = math.max(current.length * 2, 16);

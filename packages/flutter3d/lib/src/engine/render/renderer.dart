@@ -28,6 +28,7 @@ import 'render_settings.dart';
 import 'render_view.dart';
 import 'shadow_slots.dart';
 import 'sky_settings.dart';
+import 'static_bake_key.dart';
 
 // Settings and results are a public part of this library's surface but not
 // of `Renderer`'s own concerns, so they live in their own file. Re-exported
@@ -104,17 +105,17 @@ final class Renderer implements RenderServices {
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
     required this.msaaEnabled,
-  })  : targetPool = RenderTargetPool(device),
-        // `prefer_initializing_formals` wants `this._fallbackAlbedo` here and
-        // Dart will not have it: a named parameter may not be private, so the
-        // only way to satisfy the lint is to make the fields public — which is
-        // the opposite of what they are for. The two textures are stood in for
-        // every material that ships without one, and nothing outside this class
-        // has any business reaching them.
-        // ignore: prefer_initializing_formals
-        _fallbackAlbedo = fallbackAlbedo,
-        // ignore: prefer_initializing_formals
-        _fallbackNormal = fallbackNormal;
+  }) : targetPool = RenderTargetPool(device),
+       // `prefer_initializing_formals` wants `this._fallbackAlbedo` here and
+       // Dart will not have it: a named parameter may not be private, so the
+       // only way to satisfy the lint is to make the fields public — which is
+       // the opposite of what they are for. The two textures are stood in for
+       // every material that ships without one, and nothing outside this class
+       // has any business reaching them.
+       // ignore: prefer_initializing_formals
+       _fallbackAlbedo = fallbackAlbedo,
+       // ignore: prefer_initializing_formals
+       _fallbackNormal = fallbackNormal;
 
   /// The backend, injected rather than reached for.
   ///
@@ -328,8 +329,7 @@ final class Renderer implements RenderServices {
   /// getters and methods that read this cache, the same way the shadow and
   /// sky passes already do, but the field itself has to live where the class
   /// is declared.
-  final Map<String, PipelineHandle> _pipelineCache =
-      <String, PipelineHandle>{};
+  final Map<String, PipelineHandle> _pipelineCache = <String, PipelineHandle>{};
 
   /// Pipelines the renderer has built so far.
   ///
@@ -414,7 +414,6 @@ final class Renderer implements RenderServices {
   /// Positions and UVs of the one triangle every full-screen pass draws.
   GeometryBuffer? _fullscreenVertices;
 
-
   /// Built the first time a frame asks for a sky, and never if none does.
   ///
   /// Lazy, and deliberately absent from the eager list `Renderer.create`
@@ -467,8 +466,6 @@ final class Renderer implements RenderServices {
   TextureHandle? _shadowMap;
   int _shadowResolution = 0;
   int _shadowCasters = 0;
-
-
 
   /// Depth for the view-model pass, made on demand.
   ///
@@ -570,14 +567,15 @@ final class Renderer implements RenderServices {
       StorageMode storageMode,
       TextureFormat format, {
       int sampleCount = 1,
-    }) =>
-        device.createTexture(RenderTargetSpec(
-          width: width,
-          height: height,
-          format: format,
-          sampleCount: sampleCount,
-          storageMode: storageMode,
-        ));
+    }) => device.createTexture(
+      RenderTargetSpec(
+        width: width,
+        height: height,
+        format: format,
+        sampleCount: sampleCount,
+        storageMode: storageMode,
+      ),
+    );
 
     // The scene target is sampled by the composite pass, so it has to be
     // devicePrivate rather than transient — tile memory cannot be read back.
@@ -597,10 +595,8 @@ final class Renderer implements RenderServices {
     _ldrFrames.clear();
     _ldrFree.clear();
     _ldrCurrent = null;
-    _makeLdrFrame = () => make(
-          StorageMode.devicePrivate,
-          device.defaultColorFormat,
-        );
+    _makeLdrFrame = () =>
+        make(StorageMode.devicePrivate, device.defaultColorFormat);
 
     // The surface buffer: world-space normal and depth, for whatever runs after
     // the scene. Allocated with the rest rather than on demand, because a
@@ -660,13 +656,13 @@ final class Renderer implements RenderServices {
   /// to bottom in a three-by-two grid.
   static final List<(vm.Vector3, vm.Vector3)> _cubeFaces =
       <(vm.Vector3, vm.Vector3)>[
-    (vm.Vector3(1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
-    (vm.Vector3(-1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
-    (vm.Vector3(0.0, 1.0, 0.0), vm.Vector3(0.0, 0.0, 1.0)),
-    (vm.Vector3(0.0, -1.0, 0.0), vm.Vector3(0.0, 0.0, -1.0)),
-    (vm.Vector3(0.0, 0.0, 1.0), vm.Vector3(0.0, 1.0, 0.0)),
-    (vm.Vector3(0.0, 0.0, -1.0), vm.Vector3(0.0, 1.0, 0.0)),
-  ];
+        (vm.Vector3(1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
+        (vm.Vector3(-1.0, 0.0, 0.0), vm.Vector3(0.0, 1.0, 0.0)),
+        (vm.Vector3(0.0, 1.0, 0.0), vm.Vector3(0.0, 0.0, 1.0)),
+        (vm.Vector3(0.0, -1.0, 0.0), vm.Vector3(0.0, 0.0, -1.0)),
+        (vm.Vector3(0.0, 0.0, 1.0), vm.Vector3(0.0, 1.0, 0.0)),
+        (vm.Vector3(0.0, 0.0, -1.0), vm.Vector3(0.0, 1.0, 0.0)),
+      ];
 
   /// Renders one point light's six faces into the cube atlas.
   ///
@@ -698,8 +694,10 @@ final class Renderer implements RenderServices {
   /// that costs nothing: each of them needs the texture before it can draw, and
   /// neither may assume the other ran. See [_CubeShadowStaticNode].
   void _ensureCubeAtlas(ShadowSettings settings) {
-    final tile = settings.resolution
-        .clamp(ShadowSettings.minCubeTile, ShadowSettings.maxCubeTile);
+    final tile = settings.cubeResolution.clamp(
+      ShadowSettings.minCubeTile,
+      ShadowSettings.maxCubeTile,
+    );
     if (_cubeShadow != null && _cubeShadowTile == tile) return;
     // A six-by-four grid of square tiles: the face across, the light down.
     // Square because a ninety-degree frustum is square, and any other aspect
@@ -715,24 +713,45 @@ final class Renderer implements RenderServices {
     _cubeShadow = device.createTexture(spec);
     _cubeShadowTile = tile;
     _staticShadowBaked = false;
+    // Belt and braces: the flag above already forces a bake, and a stale key
+    // beside a cleared flag is the kind of pair that stops agreeing the moment
+    // somebody adds a third reason to redraw.
+    _staticBakeKey = null;
     _cubeShadowCleared = false;
     _cubeShadowStaticCleared = false;
     _shadowSlotAllocator.reset();
     _shadowFaceScheduler.reset();
   }
 
-
   /// How many point lights may have a cube map at once.
   ///
-  /// Four, because the atlas is one texture and a row of six tiles per light
-  /// at a usable size is already a large one.
+  /// **Six, and the number is the crypt's.** That level hangs six torches, so at
+  /// four rows two of them lit their corner and cast nothing — and which two
+  /// changed as the player walked, because the rows go to whatever matters most
+  /// from where the camera is. Two torches side by side behaving differently is
+  /// the shape a player reads as "the shadows are broken", and they are right:
+  /// it is not a subtle difference, it is a shadow that is there and then is
+  /// not.
+  ///
+  /// Six rather than eight because eight is the light budget
+  /// ([LightBuffer.maxLights]) and a row for every light in the frame would make
+  /// the allocator pointless while costing a third more atlas again. Six covers
+  /// the rooms this engine has been asked to draw and leaves the mechanism that
+  /// hands rows out doing its job when a level goes further.
+  ///
+  /// **What it costs is a quarter of what it would have.** The atlas is
+  /// `cubeResolution` × 6 by `cubeResolution` × rows; at the 512 that
+  /// [ShadowSettings.cubeResolution] now defaults to, six rows is 3072 × 3072 —
+  /// 75 MB, against 50 for four. Taken before that split, when a cube tile
+  /// inherited the cascade's 1024, the same step would have been 302 MB per
+  /// atlas and there are two of them.
   ///
   /// A limit on how many lights are shadowed *at the same moment*, not on how
   /// many a level may hold: [ShadowSlotAllocator] hands the rows to whichever
-  /// four matter most from where the camera is, and takes them back when they
+  /// lights matter most from where the camera is, and takes them back when they
   /// stop mattering. It used to be the first four in scene order, which meant a
   /// level with five torches had one that could never cast a shadow anywhere.
-  static const int kShadowedLights = 4;
+  static const int kShadowedLights = 6;
 
   final Float32List _cubeFaceMatrices = Float32List(16 * 6 * kShadowedLights);
 
@@ -813,10 +832,12 @@ final class Renderer implements RenderServices {
 
   final vm.Vector3 _cubePosition = vm.Vector3.zero();
 
-  final ShadowSlotAllocator _shadowSlotAllocator =
-      ShadowSlotAllocator(slotCount: kShadowedLights);
-  final ShadowFaceScheduler _shadowFaceScheduler =
-      ShadowFaceScheduler(tileCount: kShadowedLights * 6);
+  final ShadowSlotAllocator _shadowSlotAllocator = ShadowSlotAllocator(
+    slotCount: kShadowedLights,
+  );
+  final ShadowFaceScheduler _shadowFaceScheduler = ShadowFaceScheduler(
+    tileCount: kShadowedLights * 6,
+  );
   final List<ShadowCandidate> _shadowCandidates = <ShadowCandidate>[];
   final vm.Vector3 _shadowEye = vm.Vector3.zero();
   final vm.Vector3 _shadowAim = vm.Vector3.zero();
@@ -884,7 +905,7 @@ final class Renderer implements RenderServices {
       var priority = range / math.max(distance, 0.05);
 
       // A cone lights a fraction of what a sphere of the same range does, and
-      // the two compete for the same four rows. Unscaled, a tight downlight
+      // the two compete for the same rows. Unscaled, a tight downlight
       // outscores the point light filling the room, because both are measured
       // by a range neither spends the same way. `sin` of the half-angle is the
       // radius of the lit disc at unit distance — the same "how much of the
@@ -895,12 +916,18 @@ final class Renderer implements RenderServices {
       }
 
       light.readDirection(_shadowAim);
-      _shadowCandidates.add(ShadowCandidate(
-        light: light,
-        priority: priority,
-        bakeKey: _bakeKeyFor(_cubePosition, range,
-            spot ? _shadowAim : null, spot ? light.outerConeAngle : 0.0),
-      ));
+      _shadowCandidates.add(
+        ShadowCandidate(
+          light: light,
+          priority: priority,
+          bakeKey: _bakeKeyFor(
+            _cubePosition,
+            range,
+            spot ? _shadowAim : null,
+            spot ? light.outerConeAngle : 0.0,
+          ),
+        ),
+      );
     }
   }
 
@@ -956,8 +983,9 @@ final class Renderer implements RenderServices {
         // one view anybody debugs this subsystem through. A constant redraws
         // them once, blank, and then leaves them alone for as long as the spot
         // holds the row.
-        _faceSignatures[slot * faces + face] =
-            isSpot && face > 0 ? _kBlankTileSignature : base;
+        _faceSignatures[slot * faces + face] = isSpot && face > 0
+            ? _kBlankTileSignature
+            : base;
       }
 
       for (final node in scene.meshes) {
@@ -992,8 +1020,9 @@ final class Renderer implements RenderServices {
         // degree square frustum reaches atan(sqrt(2)); a cone drawn through a
         // square tile reaches atan(tan θ · sqrt 2), which is the same formula
         // with the cube's `tan 45° = 1` written out.
-        final cornerAngle =
-            isSpot ? math.atan(spotTanHalf * math.sqrt2) : faceHalfAngle;
+        final cornerAngle = isSpot
+            ? math.atan(spotTanHalf * math.sqrt2)
+            : faceHalfAngle;
         final limit =
             cornerAngle + math.asin((radius / distance).clamp(0.0, 1.0));
         final cosLimit = limit >= math.pi ? -1.0 : math.cos(limit);
@@ -1130,14 +1159,16 @@ final class Renderer implements RenderServices {
       graph.addNode(node);
     }
 
-    return graph.compile(outputs: <ResourceId>[
-      FrameResourceIds.frame,
-      // An application that asked for the surface buffer is a consumer no node
-      // declares, so it is a frame output. Without this, `surfaceBuffer` on its
-      // own would leave the buffer unread, the scene would not attach it, and
-      // the application would read whatever the texture held last.
-      if (s.surfaceBuffer) FrameResourceIds.surfaceBuffer,
-    ]);
+    return graph.compile(
+      outputs: <ResourceId>[
+        FrameResourceIds.frame,
+        // An application that asked for the surface buffer is a consumer no node
+        // declares, so it is a frame output. Without this, `surfaceBuffer` on its
+        // own would leave the buffer unread, the scene would not attach it, and
+        // the application would read whatever the texture held last.
+        if (s.surfaceBuffer) FrameResourceIds.surfaceBuffer,
+      ],
+    );
   }
 
   /// A signature of what a static bake of this light would capture.
@@ -1155,8 +1186,12 @@ final class Renderer implements RenderServices {
   /// walls as they looked through the old aim, for as long as the level runs,
   /// and nothing would report it. Null for a point light, so the key it
   /// produces is bit-identical to the one it produced before spots existed.
-  static int _bakeKeyFor(vm.Vector3 position, double range,
-      [vm.Vector3? aim, double coneAngle = 0.0]) {
+  static int _bakeKeyFor(
+    vm.Vector3 position,
+    double range, [
+    vm.Vector3? aim,
+    double coneAngle = 0.0,
+  ]) {
     var hash = 17;
     for (final value in <double>[position.x, position.y, position.z, range]) {
       hash = hash * 31 + (value * 100.0).round();
@@ -1201,6 +1236,28 @@ final class Renderer implements RenderServices {
   TextureHandle? _cubeShadow;
   TextureHandle? _cubeShadowStatic;
   bool _staticShadowBaked = false;
+
+  /// The settings the static bake was drawn with, or null before the first one.
+  ///
+  /// **A bake that outlives the settings that made it is a picture of a scene
+  /// nobody asked for.** The static half of the cube atlas is drawn once and
+  /// kept for as long as the rows do not change hands — which is the whole
+  /// reason it is affordable — and until this field existed, "the rows did not
+  /// change" was the *only* thing that could make it redraw. Change which side
+  /// of a caster is recorded, or how far the volume is padded, and the atlas
+  /// went on holding what the previous setting produced, silently, for the rest
+  /// of the run.
+  ///
+  /// Found by measurement rather than by reading: two frames drawn with
+  /// opposite `casterFaces` came back identical to the pixel — 419 pixels
+  /// changed against a no-shadow frame in both, the same 419 — which is not a
+  /// setting that does nothing, it is a setting that never arrived.
+  ///
+  /// What is *not* here is as deliberate as what is: bias, normal offset,
+  /// softness and strength are all read at lookup time, so changing one of them
+  /// needs no redraw. Only what the pass itself uses belongs in this key.
+  StaticBakeKey? _staticBakeKey;
+
   int _cubeShadowTile = 0;
   final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
 
@@ -1220,7 +1277,6 @@ final class Renderer implements RenderServices {
     }
     return 200.0;
   }
-
 
   /// A right-handed look-at, which `vector_math` does not offer in the form the
   /// engine's `[0, 1]` depth convention needs.
@@ -1288,9 +1344,6 @@ final class Renderer implements RenderServices {
     );
   }
 
-
-
-
   /// Floats per vertex: two of clip position, three of ray, then six vec4s of
   /// preset — or one vec4 of tint for the cube.
   static const int _kSkyVertexFloats = 2 + 3 + 6 * 4;
@@ -1298,7 +1351,6 @@ final class Renderer implements RenderServices {
 
   final Float32List _skyVertexData = Float32List(3 * _kSkyVertexFloats);
   final vm.Vector3 _skyRay = vm.Vector3.zero();
-
 
   /// Pipelines for full-screen stages this class does not have a field for.
   ///
@@ -1315,11 +1367,13 @@ final class Renderer implements RenderServices {
     // time and the encoder offers no way to end one. Passes submitted to the
     // same queue execute in submission order, which is the ordering these
     // passes need.
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(texture: draw.target, loadAction: draw.loadAction),
-      ],
-    ));
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(texture: draw.target, loadAction: draw.loadAction),
+        ],
+      ),
+    );
 
     // Off the target rather than off the frame: a half-resolution effect says
     // nothing about its size beyond which texture it draws into, and the two
@@ -1327,8 +1381,12 @@ final class Renderer implements RenderServices {
     final rect = ScreenRect.of(draw.target);
     pass.setState(_kFullscreenState.copyWith(viewport: rect, scissor: rect));
 
-    pass.bindPipeline(_fullscreenPipelines[draw.fragment] ??=
-        device.createPipeline(fullscreenVertexShader, draw.fragment));
+    pass.bindPipeline(
+      _fullscreenPipelines[draw.fragment] ??= device.createPipeline(
+        fullscreenVertexShader,
+        draw.fragment,
+      ),
+    );
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
 
@@ -1441,9 +1499,6 @@ final class Renderer implements RenderServices {
   /// wrap the opposite edge of the screen into the glow.
   static const SamplerOptions _clampSampler = SamplerOptions.linearClamp;
 
-
-
-
   /// Draws every visible mesh of [scene], as the world is drawn.
   ///
   /// The loop the view model pass used to own, lifted onto the plugin
@@ -1542,7 +1597,6 @@ final class Renderer implements RenderServices {
   vm.Matrix4 _viewProjection(CameraNode camera, double aspect) =>
       toDepthRange(camera.viewProjection(aspect), device.depthRange);
 
-
   /// Makes another finished-frame texture, at the size the targets are.
   ///
   /// Set by [_ensureTargets], because the size and the format are its business
@@ -1610,7 +1664,6 @@ final class Renderer implements RenderServices {
     }
     expired.clear();
 
-
     // Lights are gathered once up front now, because the shadow pass needs the
     // caster before any view is drawn — and the packed buffer is per frame, not
     // per view.
@@ -1669,7 +1722,8 @@ final class Renderer implements RenderServices {
       // narrower cone than the light.
       final tanHalf = spot
           ? math.tan(
-              (owner.outerConeAngle * _kSpotFrustumMargin).clamp(0.02, 1.5))
+              (owner.outerConeAngle * _kSpotFrustumMargin).clamp(0.02, 1.5),
+            )
           : 1.0;
       if (spot) owner.readDirection(_shadowAim);
       _cubeLightAim[row * 4] = spot ? _shadowAim.x : 0.0;
@@ -1781,32 +1835,37 @@ final class Renderer implements RenderServices {
     // provide the second colour, the composite provides the finished image, and
     // each of them does it from inside the node that produced it. What is left
     // in this method is the one thing the graph allocates for itself.
-    final resources = FrameResources(
-      source: _DeferredTextureSource(this),
-      graph: frameGraph,
-      frameWidth: width,
-      frameHeight: height,
-    )
-      // Half the frame, in the same HDR format, which is what the bloom chain's
-      // top level has always been.
-      // Not const any more: the format comes from the device, which is the
-      // point — a description of a resource cannot be a compile-time constant
-      // once it depends on which backend is drawing.
-      ..declare(ResourceDesc(
-        id: FrameResourceIds.bloom,
-        format: hdrFormat,
-        size: const FrameFraction(2),
-      ))
-      // Half again, and the same format for the same reason: HDR is the one
-      // format every backend here is known to render into. A single channel
-      // would do — the pass writes occlusion four times over — but "known to
-      // work on three backends" beats "three quarters smaller" for a target
-      // that is a quarter of the frame to begin with.
-      ..declare(ResourceDesc(
-        id: FrameResourceIds.ao,
-        format: hdrFormat,
-        size: const FrameFraction(2),
-      ));
+    final resources =
+        FrameResources(
+            source: _DeferredTextureSource(this),
+            graph: frameGraph,
+            frameWidth: width,
+            frameHeight: height,
+          )
+          // Half the frame, in the same HDR format, which is what the bloom chain's
+          // top level has always been.
+          // Not const any more: the format comes from the device, which is the
+          // point — a description of a resource cannot be a compile-time constant
+          // once it depends on which backend is drawing.
+          ..declare(
+            ResourceDesc(
+              id: FrameResourceIds.bloom,
+              format: hdrFormat,
+              size: const FrameFraction(2),
+            ),
+          )
+          // Half again, and the same format for the same reason: HDR is the one
+          // format every backend here is known to render into. A single channel
+          // would do — the pass writes occlusion four times over — but "known to
+          // work on three backends" beats "three quarters smaller" for a target
+          // that is a quarter of the frame to begin with.
+          ..declare(
+            ResourceDesc(
+              id: FrameResourceIds.ao,
+              format: hdrFormat,
+              size: const FrameFraction(2),
+            ),
+          );
 
     // A pass that throws leaves the frame's textures lent out, and the pool has
     // no other way to learn they are free — one set of targets per attempt, and
@@ -1837,8 +1896,8 @@ final class Renderer implements RenderServices {
             // there being nothing yet. The view model returns early.
             sceneColor:
                 frameGraph.readVersionOf(i, FrameResourceIds.hdrColour) == null
-                    ? null
-                    : resources.tryTexture(FrameResourceIds.hdrColour),
+                ? null
+                : resources.tryTexture(FrameResourceIds.hdrColour),
           ),
         );
         resources.endNode(i);
@@ -1898,11 +1957,8 @@ final class Renderer implements RenderServices {
     );
   }
 
-
   final Float32List _ssaoParams = Float32List(4);
   final Float32List _ssaoScreen = Float32List(4);
-
-
 
   /// Draws into two colour attachments and reports what came back.
   ///
@@ -1919,22 +1975,26 @@ final class Renderer implements RenderServices {
     if (probe == null) return 'MRT probe: the bundle has no MrtProbe entry.';
 
     const size = 4;
-    TextureHandle makeTarget() => device.createTexture(RenderTargetSpec(
-          width: size,
-          height: size,
-          format: device.defaultColorFormat,
-        ));
+    TextureHandle makeTarget() => device.createTexture(
+      RenderTargetSpec(
+        width: size,
+        height: size,
+        format: device.defaultColorFormat,
+      ),
+    );
 
     final first = makeTarget();
     final second = makeTarget();
 
     try {
-      final pass = device.beginRenderPass(RenderPassDescriptor(
-        colors: <ColorTarget>[
-          ColorTarget(texture: first, clearValue: vm.Vector4.zero()),
-          ColorTarget(texture: second, clearValue: vm.Vector4.zero()),
-        ],
-      ));
+      final pass = device.beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(texture: first, clearValue: vm.Vector4.zero()),
+            ColorTarget(texture: second, clearValue: vm.Vector4.zero()),
+          ],
+        ),
+      );
 
       final full = ScreenRect(width: size, height: size);
       pass.setState(_kFullscreenState.copyWith(viewport: full, scissor: full));
@@ -1954,18 +2014,20 @@ final class Renderer implements RenderServices {
       // no buffer readback on this backend at all.
       final a = await device.readPixels(first);
       final b = await device.readPixels(second);
-      if (a == null || b == null) return 'MRT probe: readback returned nothing.';
+      if (a == null || b == null) {
+        return 'MRT probe: readback returned nothing.';
+      }
 
       String describe(ByteData data) =>
           '(${data.getUint8(0)}, ${data.getUint8(1)}, ${data.getUint8(2)})';
 
       // The shader writes distinct constants, so equal targets mean the second
       // attachment received a copy of the first rather than its own output.
-      final same = a.getUint8(0) == b.getUint8(0) &&
-          a.getUint8(2) == b.getUint8(2);
+      final same =
+          a.getUint8(0) == b.getUint8(0) && a.getUint8(2) == b.getUint8(2);
       return 'MRT probe: attachment 0 ${describe(a)}, attachment 1 '
           '${describe(b)} — ${same ? 'IDENTICAL, so the second output was not '
-              'honoured' : 'distinct, so MRT works'}.';
+                    'honoured' : 'distinct, so MRT works'}.';
     } catch (error) {
       return 'MRT probe: threw $error';
     }
@@ -1995,8 +2057,11 @@ final class Renderer implements RenderServices {
     _pendingRelease[_frameIndex % _kFramesInFlight].add(texture);
   }
 
-  final List<List<TextureHandle>> _pendingRelease = List<List<TextureHandle>>
-      .generate(_kFramesInFlight, (_) => <TextureHandle>[]);
+  final List<List<TextureHandle>> _pendingRelease =
+      List<List<TextureHandle>>.generate(
+        _kFramesInFlight,
+        (_) => <TextureHandle>[],
+      );
 
   /// Builds and submits the debug overlay for one view. Returns false when there
   /// was nothing to draw.
@@ -2073,7 +2138,9 @@ final class Renderer implements RenderServices {
         indices[i] = i;
       }
       _debugIndexBuffer = device.uploadGeometry(
-          indices.buffer.asByteData(), GeometryUsage.indices);
+        indices.buffer.asByteData(),
+        GeometryUsage.indices,
+      );
       _debugIndexCapacity = capacity;
     }
     return _debugIndexBuffer!.slice(length: count * 4);

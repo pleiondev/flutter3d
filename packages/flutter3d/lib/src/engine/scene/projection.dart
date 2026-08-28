@@ -38,9 +38,9 @@ sealed class Projection {
   /// The only honest way to assert what a projection actually does, which is why
   /// it lives on the abstraction rather than in test-only code.
   Vector3 projectToNdc(Vector3 eyePosition, {double aspect = 1.0}) {
-    final clip = toMatrix(aspect).transform(
-      Vector4(eyePosition.x, eyePosition.y, eyePosition.z, 1.0),
-    );
+    final clip = toMatrix(
+      aspect,
+    ).transform(Vector4(eyePosition.x, eyePosition.y, eyePosition.z, 1.0));
     if (clip.w == 0.0) {
       throw ArgumentError('Point projects onto the camera plane (w == 0).');
     }
@@ -94,12 +94,11 @@ final class PerspectiveProjection extends Projection {
     double? fovYRadians,
     double? near,
     double? far,
-  }) =>
-      PerspectiveProjection(
-        fovYRadians: fovYRadians ?? this.fovYRadians,
-        near: near ?? this.near,
-        far: far ?? this.far,
-      );
+  }) => PerspectiveProjection(
+    fovYRadians: fovYRadians ?? this.fovYRadians,
+    near: near ?? this.near,
+    far: far ?? this.far,
+  );
 }
 
 final class OrthographicProjection extends Projection {
@@ -146,12 +145,11 @@ final class OrthographicProjection extends Projection {
     double? height,
     double? near,
     double? far,
-  }) =>
-      OrthographicProjection(
-        height: height ?? this.height,
-        near: near ?? this.near,
-        far: far ?? this.far,
-      );
+  }) => OrthographicProjection(
+    height: height ?? this.height,
+    near: near ?? this.near,
+    far: far ?? this.far,
+  );
 }
 
 /// [projection] expressed for [range].

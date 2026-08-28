@@ -74,8 +74,10 @@ final class GoldenRunner {
       finish(2);
     }
 
-    const configured =
-        String.fromEnvironment('FLUTTER3D_GOLDEN_DIR', defaultValue: '');
+    const configured = String.fromEnvironment(
+      'FLUTTER3D_GOLDEN_DIR',
+      defaultValue: '',
+    );
     // Only where a directory means something. In a browser the references come
     // over HTTP from the server that served the page, so there is no path to
     // validate — and demanding one is how a golden run in a browser ends before
@@ -100,7 +102,8 @@ final class GoldenRunner {
       // direction as a compile-time define, because `tool/golden.sh` rebuilds
       // per scene anyway; a browser run takes it from the URL, because one
       // build has to serve twenty-six scenes in both directions.
-      update: updateOverride ??
+      update:
+          updateOverride ??
           const bool.fromEnvironment('FLUTTER3D_GOLDEN_UPDATE'),
       directory: configured,
     );
@@ -250,7 +253,6 @@ final class _Comparison {
 
   bool get withinTolerance => fraction <= GoldenRunner.pixelTolerance;
 }
-
 
 /// Where a golden run says what happened.
 ///

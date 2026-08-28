@@ -101,10 +101,11 @@ extension _GltfMesh on GltfLoader {
 
     // A primitive with joint attributes is a skinned mesh, whichever node ends
     // up drawing it, so the layout follows the data rather than the caller.
-    final hasSkinAttributes = attributes['JOINTS_0'] != null &&
-        attributes['WEIGHTS_0'] != null;
-    final primitiveLayout =
-        hasSkinAttributes && skinnedLayout.isSkinned ? skinnedLayout : layout;
+    final hasSkinAttributes =
+        attributes['JOINTS_0'] != null && attributes['WEIGHTS_0'] != null;
+    final primitiveLayout = hasSkinAttributes && skinnedLayout.isSkinned
+        ? skinnedLayout
+        : layout;
 
     final wantsNormal = primitiveLayout.has(VertexLayout.normal);
     final wantsTexcoord = primitiveLayout.has(VertexLayout.texcoord);

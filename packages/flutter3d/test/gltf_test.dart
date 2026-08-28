@@ -5,13 +5,13 @@ import 'dart:typed_data';
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/gltf_resolvers.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const String kSamples = 'assets/samples';
+const String kSamples = kSamplesPath;
 
-Uint8List readSample(String name) =>
-    File('$kSamples/$name').readAsBytesSync();
+Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
 /// Builds a GLB from a JSON document and an optional binary chunk.
 ///
@@ -22,7 +22,8 @@ Uint8List buildGlb(Map<String, Object?> json, {Uint8List? binary}) {
   final jsonPadding = (4 - (jsonBytes.length % 4)) % 4;
   final binPadding = binary == null ? 0 : (4 - (binary.length % 4)) % 4;
 
-  final total = 12 +
+  final total =
+      12 +
       8 +
       jsonBytes.length +
       jsonPadding +
@@ -83,7 +84,9 @@ void main() {
     test('ignores unknown chunk types', () {
       // Forward compatibility: a chunk we do not recognise must be skipped, not
       // treated as an error.
-      final base = buildGlb({'asset': {'version': '2.0'}});
+      final base = buildGlb({
+        'asset': {'version': '2.0'},
+      });
       final extra = BytesBuilder();
       final unknownHeader = ByteData(8);
       unknownHeader.setUint32(0, 4, Endian.little);
@@ -101,13 +104,17 @@ void main() {
     });
 
     test('rejects an unsupported version', () {
-      final bytes = buildGlb({'asset': {'version': '2.0'}});
+      final bytes = buildGlb({
+        'asset': {'version': '2.0'},
+      });
       ByteData.sublistView(bytes).setUint32(4, 1, Endian.little);
       expect(() => GlbContainer.parse(bytes), throwsFormatException);
     });
 
     test('rejects a chunk that overruns the file', () {
-      final bytes = buildGlb({'asset': {'version': '2.0'}});
+      final bytes = buildGlb({
+        'asset': {'version': '2.0'},
+      });
       // Claim a JSON chunk far larger than the file.
       ByteData.sublistView(bytes).setUint32(12, 0xFFFF, Endian.little);
       expect(() => GlbContainer.parse(bytes), throwsFormatException);
@@ -132,8 +139,10 @@ void main() {
     });
 
     test('rejects a URI with no comma', () {
-      expect(() => decodeDataUri('data:application/octet-stream'),
-          throwsFormatException);
+      expect(
+        () => decodeDataUri('data:application/octet-stream'),
+        throwsFormatException,
+      );
     });
   });
 
@@ -310,36 +319,38 @@ void main() {
       expect(nonZero, greaterThan(0));
     });
 
-    test('BoxVertexColors.glb decodes COLOR_0 when the layout wants it',
-        () async {
-      final loader = GltfLoader(
-        layout: const VertexLayout(<VertexAttribute>[
-          VertexLayout.position,
-          VertexLayout.normal,
-          VertexLayout.texcoord,
-          VertexLayout.color,
-        ]),
-      );
-      final asset = await loader.load(readSample('BoxVertexColors.glb'));
-      final mesh = asset.surfaces.single.mesh;
+    test(
+      'BoxVertexColors.glb decodes COLOR_0 when the layout wants it',
+      () async {
+        final loader = GltfLoader(
+          layout: const VertexLayout(<VertexAttribute>[
+            VertexLayout.position,
+            VertexLayout.normal,
+            VertexLayout.texcoord,
+            VertexLayout.color,
+          ]),
+        );
+        final asset = await loader.load(readSample('BoxVertexColors.glb'));
+        final mesh = asset.surfaces.single.mesh;
 
-      final colorOffset = mesh.layout.floatOffsetOf(VertexLayout.color.name);
-      expect(colorOffset, greaterThanOrEqualTo(0));
+        final colorOffset = mesh.layout.floatOffsetOf(VertexLayout.color.name);
+        expect(colorOffset, greaterThanOrEqualTo(0));
 
-      var saturated = 0;
-      for (var i = 0; i < mesh.vertexCount; i++) {
-        final base = i * mesh.layout.floatsPerVertex + colorOffset;
-        final r = mesh.vertices[base];
-        final g = mesh.vertices[base + 1];
-        final b = mesh.vertices[base + 2];
-        final a = mesh.vertices[base + 3];
-        expect(a, closeTo(1.0, 1e-3));
-        // Normalized integer colours must land in [0, 1], not in 0..255.
-        expect(r, inInclusiveRange(0.0, 1.0));
-        if (r > 0.9 || g > 0.9 || b > 0.9) saturated++;
-      }
-      expect(saturated, greaterThan(0));
-    });
+        var saturated = 0;
+        for (var i = 0; i < mesh.vertexCount; i++) {
+          final base = i * mesh.layout.floatsPerVertex + colorOffset;
+          final r = mesh.vertices[base];
+          final g = mesh.vertices[base + 1];
+          final b = mesh.vertices[base + 2];
+          final a = mesh.vertices[base + 3];
+          expect(a, closeTo(1.0, 1e-3));
+          // Normalized integer colours must land in [0, 1], not in 0..255.
+          expect(r, inInclusiveRange(0.0, 1.0));
+          if (r > 0.9 || g > 0.9 || b > 0.9) saturated++;
+        }
+        expect(saturated, greaterThan(0));
+      },
+    );
 
     test('Triangle.gltf loads from an embedded base64 buffer', () async {
       final asset = await GltfLoader().load(readSample('Triangle.gltf'));
@@ -357,19 +368,21 @@ void main() {
       expect(asset.surfaces.single.mesh.triangleCount, greaterThan(0));
     });
 
-    test('a .gltf with external buffers fails clearly without a resolver',
-        () async {
-      await expectLater(
-        GltfLoader().load(readSample('cube/Cube.gltf')),
-        throwsA(
-          isA<FormatException>().having(
-            (e) => e.message,
-            'message',
-            contains('no URI resolver'),
+    test(
+      'a .gltf with external buffers fails clearly without a resolver',
+      () async {
+        await expectLater(
+          GltfLoader().load(readSample('cube/Cube.gltf')),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('no URI resolver'),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   });
 
   group('node hierarchy', () {
@@ -386,23 +399,26 @@ void main() {
         'asset': {'version': '2.0'},
         'scene': 0,
         'scenes': <Object?>[
-          {'nodes': sceneNodes ?? <Object?>[0]},
+          {
+            'nodes': sceneNodes ?? <Object?>[0],
+          },
         ],
-        'nodes': nodes ?? <Object?>[{'mesh': 0}],
+        'nodes':
+            nodes ??
+            <Object?>[
+              {'mesh': 0},
+            ],
         'meshes': <Object?>[
           {
             'primitives': <Object?>[
-              {'attributes': {'POSITION': 0}},
+              {
+                'attributes': {'POSITION': 0},
+              },
             ],
           },
         ],
         'accessors': <Object?>[
-          {
-            'bufferView': 0,
-            'componentType': 5126,
-            'count': 3,
-            'type': 'VEC3',
-          },
+          {'bufferView': 0, 'componentType': 5126, 'count': 3, 'type': 'VEC3'},
         ],
         'bufferViews': <Object?>[
           {'buffer': 0, 'byteLength': positions.lengthInBytes},
@@ -414,10 +430,7 @@ void main() {
       }..remove('_positions');
     }
 
-    Uint8List triangleGlb({
-      List<Object?>? nodes,
-      List<Object?>? sceneNodes,
-    }) {
+    Uint8List triangleGlb({List<Object?>? nodes, List<Object?>? sceneNodes}) {
       final positions = Float32List.fromList(<double>[
         0, 0, 0, //
         1, 0, 0, //
@@ -452,8 +465,14 @@ void main() {
       final asset = await GltfLoader().load(
         triangleGlb(
           nodes: <Object?>[
-            {'translation': <Object?>[10, 0, 0], 'children': <Object?>[1]},
-            {'mesh': 0, 'translation': <Object?>[1, 0, 0]},
+            {
+              'translation': <Object?>[10, 0, 0],
+              'children': <Object?>[1],
+            },
+            {
+              'mesh': 0,
+              'translation': <Object?>[1, 0, 0],
+            },
           ],
         ),
       );
@@ -490,7 +509,10 @@ void main() {
       final asset = await GltfLoader().load(
         triangleGlb(
           nodes: <Object?>[
-            {'mesh': 0, 'scale': <Object?>[-1, 1, 1]},
+            {
+              'mesh': 0,
+              'scale': <Object?>[-1, 1, 1],
+            },
           ],
         ),
       );
@@ -506,8 +528,13 @@ void main() {
       final asset = await GltfLoader().load(
         triangleGlb(
           nodes: <Object?>[
-            {'children': <Object?>[1]},
-            {'mesh': 0, 'children': <Object?>[0]},
+            {
+              'children': <Object?>[1],
+            },
+            {
+              'mesh': 0,
+              'children': <Object?>[0],
+            },
           ],
         ),
       );
@@ -520,8 +547,14 @@ void main() {
         triangleGlb(
           sceneNodes: <Object?>[0, 1],
           nodes: <Object?>[
-            {'mesh': 0, 'translation': <Object?>[-1, 0, 0]},
-            {'mesh': 0, 'translation': <Object?>[1, 0, 0]},
+            {
+              'mesh': 0,
+              'translation': <Object?>[-1, 0, 0],
+            },
+            {
+              'mesh': 0,
+              'translation': <Object?>[1, 0, 0],
+            },
           ],
         ),
       );
@@ -547,45 +580,49 @@ void main() {
         ..add(positions.buffer.asUint8List())
         ..add(indexData.buffer.asUint8List());
 
-      return buildGlb(
-        <String, Object?>{
-          'asset': {'version': '2.0'},
-          'scene': 0,
-          'scenes': <Object?>[{'nodes': <Object?>[0]}],
-          'nodes': <Object?>[{'mesh': 0}],
-          'meshes': <Object?>[
-            {
-              'primitives': <Object?>[
-                {
-                  'attributes': {'POSITION': 0},
-                  'indices': 1,
-                  'mode': ?mode,
-                },
-              ],
-            },
-          ],
-          'accessors': <Object?>[
-            {
-              'bufferView': 0,
-              'componentType': 5126,
-              'count': 4,
-              'type': 'VEC3',
-            },
-            {
-              'bufferView': 1,
-              'componentType': 5123,
-              'count': indexData.length,
-              'type': 'SCALAR',
-            },
-          ],
-          'bufferViews': <Object?>[
-            {'buffer': 0, 'byteOffset': 0, 'byteLength': 48},
-            {'buffer': 0, 'byteOffset': 48, 'byteLength': indexData.lengthInBytes},
-          ],
-          'buffers': <Object?>[{'byteLength': 48 + indexData.lengthInBytes}],
-        },
-        binary: binary.toBytes(),
-      );
+      return buildGlb(<String, Object?>{
+        'asset': {'version': '2.0'},
+        'scene': 0,
+        'scenes': <Object?>[
+          {
+            'nodes': <Object?>[0],
+          },
+        ],
+        'nodes': <Object?>[
+          {'mesh': 0},
+        ],
+        'meshes': <Object?>[
+          {
+            'primitives': <Object?>[
+              {
+                'attributes': {'POSITION': 0},
+                'indices': 1,
+                'mode': ?mode,
+              },
+            ],
+          },
+        ],
+        'accessors': <Object?>[
+          {'bufferView': 0, 'componentType': 5126, 'count': 4, 'type': 'VEC3'},
+          {
+            'bufferView': 1,
+            'componentType': 5123,
+            'count': indexData.length,
+            'type': 'SCALAR',
+          },
+        ],
+        'bufferViews': <Object?>[
+          {'buffer': 0, 'byteOffset': 0, 'byteLength': 48},
+          {
+            'buffer': 0,
+            'byteOffset': 48,
+            'byteLength': indexData.lengthInBytes,
+          },
+        ],
+        'buffers': <Object?>[
+          {'byteLength': 48 + indexData.lengthInBytes},
+        ],
+      }, binary: binary.toBytes());
     }
 
     test('converts a triangle strip to a triangle list', () async {
@@ -608,9 +645,7 @@ void main() {
     });
 
     test('generates flat normals when NORMAL is absent', () async {
-      final asset = await GltfLoader().load(
-        quadGlb(indices: <int>[0, 1, 2]),
-      );
+      final asset = await GltfLoader().load(quadGlb(indices: <int>[0, 1, 2]));
       final mesh = asset.surfaces.single.mesh;
 
       // Flat shading requires per-face normals, so the triangle is de-indexed.
@@ -631,9 +666,7 @@ void main() {
     });
 
     test('an out-of-range index is reported, not rendered', () async {
-      final asset = await GltfLoader().load(
-        quadGlb(indices: <int>[0, 1, 99]),
-      );
+      final asset = await GltfLoader().load(quadGlb(indices: <int>[0, 1, 99]));
       expect(asset.surfaces, isEmpty);
       expect(asset.warnings.single, contains('exceeds'));
     });
@@ -702,7 +735,9 @@ void main() {
               },
             },
           ],
-          'textures': <Object?>[{'source': 0, 'sampler': 0}],
+          'textures': <Object?>[
+            {'source': 0, 'sampler': 0},
+          ],
           'samplers': <Object?>[
             {'wrapS': 33071, 'wrapT': 33648, 'magFilter': 9728},
           ],

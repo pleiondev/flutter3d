@@ -40,8 +40,8 @@ final class ModelAsset {
     this.clips = const <AnimationClip>[],
     this.warnings = const <String>[],
     this.name,
-  })  : nodes = nodes ?? _flatNodesFor(parts),
-        roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
+  }) : nodes = nodes ?? _flatNodesFor(parts),
+       roots = roots ?? <int>[for (var i = 0; i < parts.length; i++) i];
 
   final List<ModelPart> parts;
 
@@ -247,7 +247,9 @@ final class ModelAsset {
     final (albedo, albedoSampler) = await resolve(source.baseColorTexture);
     final (normal, normalSampler) = await resolve(source.normalTexture);
     final (orm, ormSampler) = await resolve(source.metallicRoughnessTexture);
-    final (occlusion, occlusionSampler) = await resolve(source.occlusionTexture);
+    final (occlusion, occlusionSampler) = await resolve(
+      source.occlusionTexture,
+    );
     final (emissive, emissiveSampler) = await resolve(source.emissiveTexture);
 
     return Material(

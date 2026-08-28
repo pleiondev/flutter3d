@@ -16,12 +16,14 @@ Future<void> main(List<String> args) async {
       ibytes += surface.mesh.indices.lengthInBytes;
     }
     final images = asset.images.fold<int>(0, (a, i) => a + i.bytes.length);
-    print('${path.split('/').last.padRight(24)} '
-        '${(bytes.length / 1e6).toStringAsFixed(2)} MB file  '
-        '${tris.toString().padLeft(8)} tris  '
-        '${verts.toString().padLeft(8)} verts  '
-        'gpu ${((vbytes + ibytes) / 1e6).toStringAsFixed(1)} MB  '
-        'tex ${(images / 1e6).toStringAsFixed(1)} MB  '
-        'decode ${watch.elapsedMilliseconds} ms');
+    print(
+      '${path.split('/').last.padRight(24)} '
+      '${(bytes.length / 1e6).toStringAsFixed(2)} MB file  '
+      '${tris.toString().padLeft(8)} tris  '
+      '${verts.toString().padLeft(8)} verts  '
+      'gpu ${((vbytes + ibytes) / 1e6).toStringAsFixed(1)} MB  '
+      'tex ${(images / 1e6).toStringAsFixed(1)} MB  '
+      'decode ${watch.elapsedMilliseconds} ms',
+    );
   }
 }

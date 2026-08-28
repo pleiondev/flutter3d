@@ -23,7 +23,8 @@ import 'package:vector_math/vector_math.dart';
 const int _width = 96;
 const int _height = 64;
 
-({CpuDevice device, Renderer renderer, Scene scene, CameraNode camera}) _room() {
+({CpuDevice device, Renderer renderer, Scene scene, CameraNode camera})
+_room() {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -115,8 +116,10 @@ void main() {
       // either is invisible to the eye and fails here immediately.
       final it = _room();
       final without = await _draw(it, const RenderSettings());
-      final neutral =
-          await _draw(it, const RenderSettings(look: LookSettings()));
+      final neutral = await _draw(
+        it,
+        const RenderSettings(look: LookSettings()),
+      );
 
       expect(neutral, equals(without));
     });
@@ -133,11 +136,16 @@ void main() {
         const RenderSettings(look: LookSettings(vignette: 0.8)),
       );
 
-      expect(_red(dark, _width ~/ 2, _height ~/ 2),
-          equals(_red(plain, _width ~/ 2, _height ~/ 2)),
-          reason: 'the centre is the one place a vignette must not touch');
-      expect(_red(dark, 1, 1), lessThan(_red(plain, 1, 1)),
-          reason: 'the corner is the one place it must');
+      expect(
+        _red(dark, _width ~/ 2, _height ~/ 2),
+        equals(_red(plain, _width ~/ 2, _height ~/ 2)),
+        reason: 'the centre is the one place a vignette must not touch',
+      );
+      expect(
+        _red(dark, 1, 1),
+        lessThan(_red(plain, 1, 1)),
+        reason: 'the corner is the one place it must',
+      );
     });
 
     test('and reaches the corner harder than the edge', () async {
@@ -150,8 +158,7 @@ void main() {
         const RenderSettings(look: LookSettings(vignette: 0.8)),
       );
 
-      expect(_red(dark, 1, 1),
-          lessThan(_red(dark, _width ~/ 2, 1)));
+      expect(_red(dark, 1, 1), lessThan(_red(dark, _width ~/ 2, 1)));
     });
   });
 
@@ -176,16 +183,23 @@ void main() {
       );
 
       final middle = _red(plain, _width ~/ 2, _height ~/ 2);
-      expect(_red(punchy, _width ~/ 2, _height ~/ 2), lessThan(middle),
-          reason: 'a value below the pivot darkens; about black it would not');
+      expect(
+        _red(punchy, _width ~/ 2, _height ~/ 2),
+        lessThan(middle),
+        reason: 'a value below the pivot darkens; about black it would not',
+      );
     });
 
     test('and saturation at zero leaves grey behind', () async {
       // Mutation: mix towards the wrong end — a grey wall would stay grey
       // either way, so this uses a coloured one to tell the two apart.
       final it = _room();
-      (it.scene.root.children.first as MeshNode).material.baseColor
-          .setValues(0.9, 0.2, 0.2, 1.0);
+      (it.scene.root.children.first as MeshNode).material.baseColor.setValues(
+        0.9,
+        0.2,
+        0.2,
+        1.0,
+      );
 
       final plain = await _draw(it, const RenderSettings());
       final grey = await _draw(
@@ -196,10 +210,16 @@ void main() {
       final x = _width ~/ 2;
       final y = _height ~/ 2;
       final i = (y * _width + x) * 4;
-      expect(grey[i], closeTo(grey[i + 1], 2),
-          reason: 'red and green agree when nothing is saturated');
-      expect(_red(plain, x, y), greaterThan(grey[i]),
-          reason: 'and the red wall was redder before');
+      expect(
+        grey[i],
+        closeTo(grey[i + 1], 2),
+        reason: 'red and green agree when nothing is saturated',
+      );
+      expect(
+        _red(plain, x, y),
+        greaterThan(grey[i]),
+        reason: 'and the red wall was redder before',
+      );
     });
   });
 }

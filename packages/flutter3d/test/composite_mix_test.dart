@@ -85,17 +85,16 @@ CompositeMix mix({
   double exposure = 1.5,
   double bloomIntensity = 0.8,
   bool tonemap = true,
-}) =>
-    CompositeMix(
-      showSurfaceBuffer: showSurfaceBuffer,
-      showPointShadowDebug: showPointShadowDebug,
-      showShadowMap: showShadowMap,
-      hasShadowView: hasShadowView,
-      hasGlow: hasGlow,
-      exposure: exposure,
-      bloomIntensity: bloomIntensity,
-      tonemap: tonemap,
-    );
+}) => CompositeMix(
+  showSurfaceBuffer: showSurfaceBuffer,
+  showPointShadowDebug: showPointShadowDebug,
+  showShadowMap: showShadowMap,
+  hasShadowView: hasShadowView,
+  hasGlow: hasGlow,
+  exposure: exposure,
+  bloomIntensity: bloomIntensity,
+  tonemap: tonemap,
+);
 
 void main() {
   test('the bloom slot and the bloom intensity never disagree', () {
@@ -163,18 +162,20 @@ void main() {
       expect(m.tonemap, 0.0);
     });
 
-    test('showShadowMap shows the map, raw, and outranks the surface buffer',
-        () {
-      expect(mix(showShadowMap: true).view, CompositeView.shadowMap);
-      expect(mix(showShadowMap: true).exposure, 1.0);
-      expect(mix(showShadowMap: true).tonemap, 0.0);
-      expect(mix(showShadowMap: true).bloomIntensity, 0.0);
-      // Both at once has to resolve to one texture, and the map wins.
-      expect(
-        mix(showShadowMap: true, showSurfaceBuffer: true).view,
-        CompositeView.shadowMap,
-      );
-    });
+    test(
+      'showShadowMap shows the map, raw, and outranks the surface buffer',
+      () {
+        expect(mix(showShadowMap: true).view, CompositeView.shadowMap);
+        expect(mix(showShadowMap: true).exposure, 1.0);
+        expect(mix(showShadowMap: true).tonemap, 0.0);
+        expect(mix(showShadowMap: true).bloomIntensity, 0.0);
+        // Both at once has to resolve to one texture, and the map wins.
+        expect(
+          mix(showShadowMap: true, showSurfaceBuffer: true).view,
+          CompositeView.shadowMap,
+        );
+      },
+    );
 
     test('a shadow map nobody allocated falls back to the scene', () {
       // And falls back all the way: showing the lit scene *raw* would be a
@@ -202,16 +203,19 @@ void main() {
       writes: <ResourceId>[FrameResourceIds.frame],
     );
 
-    CompiledFrameGraph compile({required bool bloom}) => (FrameGraph()
-          ..addNode(scene)
-          ..addNode(_Pass(
-            'bloom',
-            reads: const <ResourceId>[FrameResourceIds.hdrColour],
-            writes: const <ResourceId>[FrameResourceIds.bloom],
-            isActive: bloom,
-          ))
-          ..addNode(composite))
-        .compile(outputs: const <ResourceId>[FrameResourceIds.frame]);
+    CompiledFrameGraph compile({required bool bloom}) =>
+        (FrameGraph()
+              ..addNode(scene)
+              ..addNode(
+                _Pass(
+                  'bloom',
+                  reads: const <ResourceId>[FrameResourceIds.hdrColour],
+                  writes: const <ResourceId>[FrameResourceIds.bloom],
+                  isActive: bloom,
+                ),
+              )
+              ..addNode(composite))
+            .compile(outputs: const <ResourceId>[FrameResourceIds.frame]);
 
     test('bloom switched off is a culled node, not a branch', () {
       // The point of the step. The composite still runs; nothing else about
@@ -221,8 +225,11 @@ void main() {
       expect(off.culled.map((n) => n.name), <String>['bloom']);
 
       final on = compile(bloom: true);
-      expect(on.order.map((n) => n.name),
-          <String>['scene', 'bloom', 'composite']);
+      expect(on.order.map((n) => n.name), <String>[
+        'scene',
+        'bloom',
+        'composite',
+      ]);
       expect(on.culled, isEmpty);
     });
 

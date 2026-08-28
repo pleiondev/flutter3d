@@ -23,15 +23,7 @@ extension DebugDrawGizmos on DebugDraw {
   void addBox(Aabb3 box, Vector4 color) {
     final min = box.min;
     final max = box.max;
-    _addBoxCorners(
-      min.x,
-      min.y,
-      min.z,
-      max.x,
-      max.y,
-      max.z,
-      color,
-    );
+    _addBoxCorners(min.x, min.y, min.z, max.x, max.y, max.z, color);
   }
 
   void _addBoxCorners(
@@ -98,8 +90,11 @@ extension DebugDrawGizmos on DebugDraw {
     final axis = Vector3.zero();
 
     for (var i = 0; i < 3; i++) {
-      axis.setValues(i == 0 ? size : 0.0, i == 1 ? size : 0.0,
-          i == 2 ? size : 0.0);
+      axis.setValues(
+        i == 0 ? size : 0.0,
+        i == 1 ? size : 0.0,
+        i == 2 ? size : 0.0,
+      );
       transform.transform3(axis);
       addLine(
         origin,
@@ -107,8 +102,8 @@ extension DebugDrawGizmos on DebugDraw {
         i == 0
             ? DebugColors.axisX
             : i == 1
-                ? DebugColors.axisY
-                : DebugColors.axisZ,
+            ? DebugColors.axisY
+            : DebugColors.axisZ,
       );
     }
   }
@@ -260,7 +255,8 @@ extension DebugDrawGizmos on DebugDraw {
       final basis = _perpendicularBasis(direction);
       for (var i = 0; i < 4; i++) {
         final a = i * math.pi / 2.0;
-        final offset = basis.$1 * (math.cos(a) * radius) +
+        final offset =
+            basis.$1 * (math.cos(a) * radius) +
             basis.$2 * (math.sin(a) * radius);
         addLine(origin, tip + offset, DebugColors.light);
       }
@@ -269,8 +265,9 @@ extension DebugDrawGizmos on DebugDraw {
 
   static (Vector3, Vector3) _perpendicularBasis(Vector3 direction) {
     final n = direction.normalized();
-    final helper =
-        n.z.abs() < 0.9 ? Vector3(0.0, 0.0, 1.0) : Vector3(1.0, 0.0, 0.0);
+    final helper = n.z.abs() < 0.9
+        ? Vector3(0.0, 0.0, 1.0)
+        : Vector3(1.0, 0.0, 0.0);
     final u = helper.cross(n)..normalize();
     final v = n.cross(u)..normalize();
     return (u, v);

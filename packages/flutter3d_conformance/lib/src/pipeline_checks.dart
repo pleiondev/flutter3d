@@ -21,7 +21,9 @@ import '../flutter3d_conformance.dart';
 /// in both orders. Each draw's matrix decides where its triangle lands, so if
 /// the stale block follows the switch, the second draw lands where the *first*
 /// draw's matrix pointed — offscreen — and the centre stays black.
-Future<void> checkPipelineSwitchKeepsBindingsApart(GraphicsDevice device) async {
+Future<void> checkPipelineSwitchKeepsBindingsApart(
+  GraphicsDevice device,
+) async {
   const size = 16;
 
   final lineVertex = device.shaders['DebugLineVertex'];
@@ -29,16 +31,18 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(GraphicsDevice device) async 
   final particleVertex = device.shaders['ParticleVertex'];
   final particleFragment = device.shaders['Particle'];
   require(
-      lineVertex != null &&
-          lineFragment != null &&
-          particleVertex != null &&
-          particleFragment != null,
-      'the debug-line or particle stages are missing, so this cannot switch '
-      'between two pipelines');
+    lineVertex != null &&
+        lineFragment != null &&
+        particleVertex != null &&
+        particleFragment != null,
+    'the debug-line or particle stages are missing, so this cannot switch '
+    'between two pipelines',
+  );
 
   final centred = Float32List.fromList(Matrix4.identity().storage);
-  final offscreen =
-      Float32List.fromList(Matrix4.translationValues(64.0, 0.0, 0.0).storage);
+  final offscreen = Float32List.fromList(
+    Matrix4.translationValues(64.0, 0.0, 0.0).storage,
+  );
 
   // The same full-frame triangle in each pipeline's own layout: the line one
   // pure green, the particle one pure red with its UV centre on the middle of
@@ -56,20 +60,24 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(GraphicsDevice device) async 
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
 
   Future<List<int>> centreWith({required bool lineLast}) async {
-    final target = device.createTexture(const RenderTargetSpec(
-      width: size,
-      height: size,
-      format: TextureFormat.r8g8b8a8UNormInt,
-    ));
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
-        ),
-      ],
-    ));
+    final target = device.createTexture(
+      const RenderTargetSpec(
+        width: size,
+        height: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            loadAction: LoadAction.clear,
+            clearValue: Vector4.zero(),
+          ),
+        ],
+      ),
+    );
     pass
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setCullMode(CullMode.none);
@@ -88,9 +96,13 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(GraphicsDevice device) async 
     void particle(Float32List matrix) {
       pass
         ..bindPipeline(
-            device.createPipeline(particleVertex!, particleFragment!))
-        ..bindUniformBlock(particleVertex, 'ParticleInfo',
-            <String, Float32List>{'view_projection': matrix})
+          device.createPipeline(particleVertex!, particleFragment!),
+        )
+        ..bindUniformBlock(
+          particleVertex,
+          'ParticleInfo',
+          <String, Float32List>{'view_projection': matrix},
+        )
         // Density nought: fog off, so the disc's own colour reaches the target.
         ..bindUniformBlock(particleFragment, 'FogInfo', <String, Float32List>{
           'fog': Float32List(4),
@@ -117,14 +129,18 @@ Future<void> checkPipelineSwitchKeepsBindingsApart(GraphicsDevice device) async 
   }
 
   final line = await centreWith(lineLast: true);
-  require(line[1] > 128,
-      'a debug-line draw bound the identity and landed off the frame — the '
-      'particle pipeline\'s stale ParticleInfo followed it through the switch '
-      '(centre came back $line)');
+  require(
+    line[1] > 128,
+    'a debug-line draw bound the identity and landed off the frame — the '
+    'particle pipeline\'s stale ParticleInfo followed it through the switch '
+    '(centre came back $line)',
+  );
 
   final particle = await centreWith(lineLast: false);
-  require(particle[0] > 128,
-      'a particle draw bound the identity and landed off the frame — the '
-      'debug-line pipeline\'s stale LineInfo followed it through the switch '
-      '(centre came back $particle)');
+  require(
+    particle[0] > 128,
+    'a particle draw bound the identity and landed off the frame — the '
+    'debug-line pipeline\'s stale LineInfo followed it through the switch '
+    '(centre came back $particle)',
+  );
 }

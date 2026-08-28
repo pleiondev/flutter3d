@@ -138,7 +138,8 @@ final class _SurfaceBuilder {
     required List<double> normalData,
     required ObjNormals normalMode,
   }) {
-    final hasFileNormals = normalData.isNotEmpty &&
+    final hasFileNormals =
+        normalData.isNotEmpty &&
         _corners.any((corner) => corner.normal != null);
     // Flat shading needs one normal per face, so vertices cannot be shared.
     final split = !hasFileNormals && normalMode == ObjNormals.flat;

@@ -37,8 +37,7 @@ final class ContributorRegistry {
   List<PassContributor> _ordered = const <PassContributor>[];
 
   /// Registration order, which is not drawing order — see [active].
-  List<PassContributor> get all =>
-      List<PassContributor>.unmodifiable(_plugins);
+  List<PassContributor> get all => List<PassContributor>.unmodifiable(_plugins);
 
   int get length => _plugins.length;
 
@@ -76,7 +75,8 @@ final class ContributorRegistry {
     // frame: the set moves once at startup and the frame runs sixty times a
     // second.
     _ordered = List<PassContributor>.of(_plugins)
-      ..sort((PassContributor a, PassContributor b) =>
-          a.order.compareTo(b.order));
+      ..sort(
+        (PassContributor a, PassContributor b) => a.order.compareTo(b.order),
+      );
   }
 }

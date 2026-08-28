@@ -94,8 +94,8 @@ final class SurfaceMaterial {
     this.alphaCutoff = 0.5,
     this.doubleSided = false,
     this.unlit = false,
-  })  : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
-        emissive = emissive ?? Vector3.zero();
+  }) : baseColor = baseColor ?? Vector4(1.0, 1.0, 1.0, 1.0),
+       emissive = emissive ?? Vector3.zero();
 
   final String? name;
 
@@ -124,6 +124,7 @@ final class SurfaceMaterial {
   final bool unlit;
 
   @override
-  String toString() => 'SurfaceMaterial(${name ?? 'unnamed'}, '
+  String toString() =>
+      'SurfaceMaterial(${name ?? 'unnamed'}, '
       'metallic: $metallic, roughness: $roughness)';
 }

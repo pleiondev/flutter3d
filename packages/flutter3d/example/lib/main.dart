@@ -6,8 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart' as engine;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
-import 'package:vector_math/vector_math.dart'
-    show Aabb3, Vector3, Vector4;
+import 'package:vector_math/vector_math.dart' show Aabb3, Vector3, Vector4;
 
 import 'src/spike/backend.dart';
 import 'src/spike/control_panel.dart';
@@ -111,6 +110,7 @@ class _SpikePageState extends State<SpikePage>
   bool _culling = true;
   DebugDrawOptions _debug =
       GoldenRunner.fromEnvironment()?.scene.debug ?? debugDrawFromEnvironment();
+
   /// Set only by a golden that wants to look at the surface buffer.
   final bool _showSurfaceBuffer =
       GoldenRunner.fromEnvironment()?.scene.surfaceBuffer ?? false;
@@ -128,7 +128,8 @@ class _SpikePageState extends State<SpikePage>
     enabled: GoldenRunner.fromEnvironment()?.scene.bloom ?? true,
   );
   ShadowSettings _shadows = ShadowSettings(
-    enabled: GoldenRunner.fromEnvironment()?.scene.shadows ??
+    enabled:
+        GoldenRunner.fromEnvironment()?.scene.shadows ??
         startupShadowsFromEnvironment(),
   );
   FrameResult? _lastFrame;
@@ -322,26 +323,30 @@ class _SpikePageState extends State<SpikePage>
     final renderer = _renderer;
     if (goldenScene != null && renderer != null) {
       if (goldenScene.name == 'particles-textured') {
-        renderer.addContributor(ParticleContributor(
-          GoldenExtras.texturedParticles(),
-          texture: GoldenExtras.particleSprite(device),
-        ));
+        renderer.addContributor(
+          ParticleContributor(
+            GoldenExtras.texturedParticles(),
+            texture: GoldenExtras.particleSprite(device),
+          ),
+        );
       } else if (goldenScene.name == 'particles-mesh') {
         // A different contributor, not a mode of the other one: the mesh path
         // binds two vertex buffers where the billboard path binds one.
-        renderer.addContributor(MeshParticleContributor(
-          GoldenExtras.meshParticles(),
-          mesh: GoldenExtras.meshParticleShape(device),
-        ));
+        renderer.addContributor(
+          MeshParticleContributor(
+            GoldenExtras.meshParticles(),
+            mesh: GoldenExtras.meshParticleShape(device),
+          ),
+        );
       } else if (goldenScene.particles) {
-        renderer.addContributor(ParticleContributor(
-          switch (goldenScene.name) {
+        renderer.addContributor(
+          ParticleContributor(switch (goldenScene.name) {
             'particle-one' => GoldenExtras.oneParticle(),
             'particles-recycled' => GoldenExtras.recycled(),
             'particle-stack' => GoldenExtras.stackedParticles(),
             _ => GoldenExtras.burst(),
-          },
-        ));
+          }),
+        );
       }
       if (goldenScene.viewModel) {
         renderer.addNode(GoldenExtras.viewModel(device));
@@ -351,10 +356,7 @@ class _SpikePageState extends State<SpikePage>
     _assets = ResourceCache<String, ModelAsset>(
       load: (label) {
         final source = kSources.firstWhere((s) => s.label == label);
-        return source.load(
-          device: _device!,
-          checkerAlbedo: _checkerAlbedo!,
-        );
+        return source.load(device: _device!, checkerAlbedo: _checkerAlbedo!);
       },
     );
 
@@ -790,7 +792,11 @@ class _SpikePageState extends State<SpikePage>
                               // In the rest pose, for the same reason as at the
                               // load site above: which frame the measurement
                               // lands on must not decide how big the floor is.
-                              _modelPivot.setRotationYawPitchRoll(0.0, 0.0, 0.0);
+                              _modelPivot.setRotationYawPitchRoll(
+                                0.0,
+                                0.0,
+                                0.0,
+                              );
                               _placeGround(_scene.computeBounds());
                             }
                             _capture?.offer(renderer.device, frame);
@@ -879,4 +885,3 @@ class _SpikePageState extends State<SpikePage>
     );
   }
 }
-

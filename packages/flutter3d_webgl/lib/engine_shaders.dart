@@ -944,7 +944,10 @@ uniform sampler2D point_shadow_texture;
 uniform sampler2D point_shadow_static_texture;
 
 /// How many lights may have a row of the atlas. Six tiles across each.
-const int kShadowSlots = 4;
+// Rows of the cube atlas: six faces across, this many lights down. Must
+// match `Renderer.kShadowedLights`, which is where the reasoning lives, and
+// `shadowSlots` in the software backend's transcription of this file.
+const int kShadowSlots = 6;
 
 layout(std140) uniform PointShadow {
   /// The same view-projections the atlas was rendered with, six per slot.
@@ -973,7 +976,7 @@ layout(std140) uniform PointShadow {
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
-  /// z: strength. w: normal offset in metres.
+  /// z: strength. w: normal offset, **in texels of the face it lands on**.
   vec4 params;
 
   /// x: smallest kernel radius in tile-local uv, and the fixed radius used
@@ -983,7 +986,9 @@ layout(std140) uniform PointShadow {
   /// of shading with it.
   vec4 params2;
 
-  /// x: non-zero when this backend stores the atlas bottom-up.
+  /// x: non-zero when this backend stores the atlas bottom-up. y: one over the
+  /// edge length of a tile in texels, which is what turns a distance into the
+  /// world width of one texel there.
   ///
   /// **Appended after everything else on purpose**, the same way FragInfo's
   /// ambient pair was: std140 lays a block out in declaration order, so adding
@@ -1146,6 +1151,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float toLightLength = max(length(toLight), 1e-6);
   float nDotL = max(dot(normal, toLight / toLightLength), 0.15);
   float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+
+  // **How wide one texel of the face is, out where this fragment is.** The
+  // error a normal offset exists to clear is exactly that: a texel of the
+  // shadow map covers a patch of surface, the whole patch is recorded at one
+  // distance, and a fragment anywhere else in it compares against a distance
+  // measured somewhere it is not. That patch grows with range — it is a solid
+  // angle, not a length — so an offset fixed in metres is right at one distance
+  // and wrong everywhere else.
+  //
+  // What it was: `params.w` metres, flat. On the golden teapot, at 9.6 m from
+  // the lamp, a texel is 3.7 cm and the flat offset was 2 cm, so the floor
+  // shadowed itself across everything the light reached — and the acne stopped
+  // dead at the *projection of the floor's own edge*, because past it the atlas
+  // holds nothing and nothing can occlude. A straight line across a shadow with
+  // no straight edge anywhere in the scene.
+  float texel =
+      2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
+      point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
   // is a fraction of a tile — a unit error copied across from flutter_scene,
   // where the softness it borrows genuinely is the right quantity for their
@@ -1154,7 +1177,7 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
-  vec3 origin = world + normal * point_shadow.params.w * (1.0 + slope);
+  vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
   vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
   float range = max(point_shadow.lights[slot].w, 1e-4);
@@ -1200,6 +1223,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // so eight samples read as a soft edge rather than as eight copies of the
   // silhouette: without it every fragment along an edge tests the same eight
   // directions and the pattern shows.
+  //
+  // **The three constants are not arbitrary and are not ours.** This is Jorge
+  // Jimenez's interleaved gradient noise, from "Next Generation Post
+  // Processing in Call of Duty: Advanced Warfare" (SIGGRAPH 2014):
+  //
+  //   IGN(x, y) = frac(52.9829189 * frac(0.06711056 * x + 0.00583715 * y))
+  //
+  // The pair inside the dot is a direction whose gradient walks the unit
+  // interval as slowly as it can while never repeating over a screen, and the
+  // multiplier outside stretches that walk so neighbouring pixels land far
+  // apart in the result. What it buys over a hash is the cost: one dot and two
+  // fracts, no integer arithmetic, no texture. What a blue-noise texture buys
+  // over it is a better spectrum, at a sampler and a fetch — worth it for
+  // dithering a whole frame, not for rotating eight taps.
+  //
+  // Written down because three unexplained decimals read as a magic spell, and
+  // the next person to touch this line has no way to tell which of them may be
+  // changed. The answer is none of them.
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
@@ -1814,7 +1855,10 @@ uniform sampler2D point_shadow_texture;
 uniform sampler2D point_shadow_static_texture;
 
 /// How many lights may have a row of the atlas. Six tiles across each.
-const int kShadowSlots = 4;
+// Rows of the cube atlas: six faces across, this many lights down. Must
+// match `Renderer.kShadowedLights`, which is where the reasoning lives, and
+// `shadowSlots` in the software backend's transcription of this file.
+const int kShadowSlots = 6;
 
 layout(std140) uniform PointShadow {
   /// The same view-projections the atlas was rendered with, six per slot.
@@ -1843,7 +1887,7 @@ layout(std140) uniform PointShadow {
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
-  /// z: strength. w: normal offset in metres.
+  /// z: strength. w: normal offset, **in texels of the face it lands on**.
   vec4 params;
 
   /// x: smallest kernel radius in tile-local uv, and the fixed radius used
@@ -1853,7 +1897,9 @@ layout(std140) uniform PointShadow {
   /// of shading with it.
   vec4 params2;
 
-  /// x: non-zero when this backend stores the atlas bottom-up.
+  /// x: non-zero when this backend stores the atlas bottom-up. y: one over the
+  /// edge length of a tile in texels, which is what turns a distance into the
+  /// world width of one texel there.
   ///
   /// **Appended after everything else on purpose**, the same way FragInfo's
   /// ambient pair was: std140 lays a block out in declaration order, so adding
@@ -2016,6 +2062,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float toLightLength = max(length(toLight), 1e-6);
   float nDotL = max(dot(normal, toLight / toLightLength), 0.15);
   float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+
+  // **How wide one texel of the face is, out where this fragment is.** The
+  // error a normal offset exists to clear is exactly that: a texel of the
+  // shadow map covers a patch of surface, the whole patch is recorded at one
+  // distance, and a fragment anywhere else in it compares against a distance
+  // measured somewhere it is not. That patch grows with range — it is a solid
+  // angle, not a length — so an offset fixed in metres is right at one distance
+  // and wrong everywhere else.
+  //
+  // What it was: `params.w` metres, flat. On the golden teapot, at 9.6 m from
+  // the lamp, a texel is 3.7 cm and the flat offset was 2 cm, so the floor
+  // shadowed itself across everything the light reached — and the acne stopped
+  // dead at the *projection of the floor's own edge*, because past it the atlas
+  // holds nothing and nothing can occlude. A straight line across a shadow with
+  // no straight edge anywhere in the scene.
+  float texel =
+      2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
+      point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
   // is a fraction of a tile — a unit error copied across from flutter_scene,
   // where the softness it borrows genuinely is the right quantity for their
@@ -2024,7 +2088,7 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
-  vec3 origin = world + normal * point_shadow.params.w * (1.0 + slope);
+  vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
   vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
   float range = max(point_shadow.lights[slot].w, 1e-4);
@@ -2070,6 +2134,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // so eight samples read as a soft edge rather than as eight copies of the
   // silhouette: without it every fragment along an edge tests the same eight
   // directions and the pattern shows.
+  //
+  // **The three constants are not arbitrary and are not ours.** This is Jorge
+  // Jimenez's interleaved gradient noise, from "Next Generation Post
+  // Processing in Call of Duty: Advanced Warfare" (SIGGRAPH 2014):
+  //
+  //   IGN(x, y) = frac(52.9829189 * frac(0.06711056 * x + 0.00583715 * y))
+  //
+  // The pair inside the dot is a direction whose gradient walks the unit
+  // interval as slowly as it can while never repeating over a screen, and the
+  // multiplier outside stretches that walk so neighbouring pixels land far
+  // apart in the result. What it buys over a hash is the cost: one dot and two
+  // fracts, no integer arithmetic, no texture. What a blue-noise texture buys
+  // over it is a better spectrum, at a sampler and a fetch — worth it for
+  // dithering a whole frame, not for rotating eight taps.
+  //
+  // Written down because three unexplained decimals read as a magic spell, and
+  // the next person to touch this line has no way to tell which of them may be
+  // changed. The answer is none of them.
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
@@ -2869,7 +2951,10 @@ uniform sampler2D point_shadow_texture;
 uniform sampler2D point_shadow_static_texture;
 
 /// How many lights may have a row of the atlas. Six tiles across each.
-const int kShadowSlots = 4;
+// Rows of the cube atlas: six faces across, this many lights down. Must
+// match `Renderer.kShadowedLights`, which is where the reasoning lives, and
+// `shadowSlots` in the software backend's transcription of this file.
+const int kShadowSlots = 6;
 
 layout(std140) uniform PointShadow {
   /// The same view-projections the atlas was rendered with, six per slot.
@@ -2898,7 +2983,7 @@ layout(std140) uniform PointShadow {
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
-  /// z: strength. w: normal offset in metres.
+  /// z: strength. w: normal offset, **in texels of the face it lands on**.
   vec4 params;
 
   /// x: smallest kernel radius in tile-local uv, and the fixed radius used
@@ -2908,7 +2993,9 @@ layout(std140) uniform PointShadow {
   /// of shading with it.
   vec4 params2;
 
-  /// x: non-zero when this backend stores the atlas bottom-up.
+  /// x: non-zero when this backend stores the atlas bottom-up. y: one over the
+  /// edge length of a tile in texels, which is what turns a distance into the
+  /// world width of one texel there.
   ///
   /// **Appended after everything else on purpose**, the same way FragInfo's
   /// ambient pair was: std140 lays a block out in declaration order, so adding
@@ -3071,6 +3158,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float toLightLength = max(length(toLight), 1e-6);
   float nDotL = max(dot(normal, toLight / toLightLength), 0.15);
   float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+
+  // **How wide one texel of the face is, out where this fragment is.** The
+  // error a normal offset exists to clear is exactly that: a texel of the
+  // shadow map covers a patch of surface, the whole patch is recorded at one
+  // distance, and a fragment anywhere else in it compares against a distance
+  // measured somewhere it is not. That patch grows with range — it is a solid
+  // angle, not a length — so an offset fixed in metres is right at one distance
+  // and wrong everywhere else.
+  //
+  // What it was: `params.w` metres, flat. On the golden teapot, at 9.6 m from
+  // the lamp, a texel is 3.7 cm and the flat offset was 2 cm, so the floor
+  // shadowed itself across everything the light reached — and the acne stopped
+  // dead at the *projection of the floor's own edge*, because past it the atlas
+  // holds nothing and nothing can occlude. A straight line across a shadow with
+  // no straight edge anywhere in the scene.
+  float texel =
+      2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
+      point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
   // is a fraction of a tile — a unit error copied across from flutter_scene,
   // where the softness it borrows genuinely is the right quantity for their
@@ -3079,7 +3184,7 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
-  vec3 origin = world + normal * point_shadow.params.w * (1.0 + slope);
+  vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
   vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
   float range = max(point_shadow.lights[slot].w, 1e-4);
@@ -3125,6 +3230,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // so eight samples read as a soft edge rather than as eight copies of the
   // silhouette: without it every fragment along an edge tests the same eight
   // directions and the pattern shows.
+  //
+  // **The three constants are not arbitrary and are not ours.** This is Jorge
+  // Jimenez's interleaved gradient noise, from "Next Generation Post
+  // Processing in Call of Duty: Advanced Warfare" (SIGGRAPH 2014):
+  //
+  //   IGN(x, y) = frac(52.9829189 * frac(0.06711056 * x + 0.00583715 * y))
+  //
+  // The pair inside the dot is a direction whose gradient walks the unit
+  // interval as slowly as it can while never repeating over a screen, and the
+  // multiplier outside stretches that walk so neighbouring pixels land far
+  // apart in the result. What it buys over a hash is the cost: one dot and two
+  // fracts, no integer arithmetic, no texture. What a blue-noise texture buys
+  // over it is a better spectrum, at a sampler and a fetch — worth it for
+  // dithering a whole frame, not for rotating eight taps.
+  //
+  // Written down because three unexplained decimals read as a magic spell, and
+  // the next person to touch this line has no way to tell which of them may be
+  // changed. The answer is none of them.
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
@@ -3939,7 +4062,10 @@ uniform sampler2D point_shadow_texture;
 uniform sampler2D point_shadow_static_texture;
 
 /// How many lights may have a row of the atlas. Six tiles across each.
-const int kShadowSlots = 4;
+// Rows of the cube atlas: six faces across, this many lights down. Must
+// match `Renderer.kShadowedLights`, which is where the reasoning lives, and
+// `shadowSlots` in the software backend's transcription of this file.
+const int kShadowSlots = 6;
 
 layout(std140) uniform PointShadow {
   /// The same view-projections the atlas was rendered with, six per slot.
@@ -3968,7 +4094,7 @@ layout(std140) uniform PointShadow {
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
-  /// z: strength. w: normal offset in metres.
+  /// z: strength. w: normal offset, **in texels of the face it lands on**.
   vec4 params;
 
   /// x: smallest kernel radius in tile-local uv, and the fixed radius used
@@ -3978,7 +4104,9 @@ layout(std140) uniform PointShadow {
   /// of shading with it.
   vec4 params2;
 
-  /// x: non-zero when this backend stores the atlas bottom-up.
+  /// x: non-zero when this backend stores the atlas bottom-up. y: one over the
+  /// edge length of a tile in texels, which is what turns a distance into the
+  /// world width of one texel there.
   ///
   /// **Appended after everything else on purpose**, the same way FragInfo's
   /// ambient pair was: std140 lays a block out in declaration order, so adding
@@ -4141,6 +4269,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float toLightLength = max(length(toLight), 1e-6);
   float nDotL = max(dot(normal, toLight / toLightLength), 0.15);
   float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+
+  // **How wide one texel of the face is, out where this fragment is.** The
+  // error a normal offset exists to clear is exactly that: a texel of the
+  // shadow map covers a patch of surface, the whole patch is recorded at one
+  // distance, and a fragment anywhere else in it compares against a distance
+  // measured somewhere it is not. That patch grows with range — it is a solid
+  // angle, not a length — so an offset fixed in metres is right at one distance
+  // and wrong everywhere else.
+  //
+  // What it was: `params.w` metres, flat. On the golden teapot, at 9.6 m from
+  // the lamp, a texel is 3.7 cm and the flat offset was 2 cm, so the floor
+  // shadowed itself across everything the light reached — and the acne stopped
+  // dead at the *projection of the floor's own edge*, because past it the atlas
+  // holds nothing and nothing can occlude. A straight line across a shadow with
+  // no straight edge anywhere in the scene.
+  float texel =
+      2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
+      point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
   // is a fraction of a tile — a unit error copied across from flutter_scene,
   // where the softness it borrows genuinely is the right quantity for their
@@ -4149,7 +4295,7 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
-  vec3 origin = world + normal * point_shadow.params.w * (1.0 + slope);
+  vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
   vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
   float range = max(point_shadow.lights[slot].w, 1e-4);
@@ -4195,6 +4341,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // so eight samples read as a soft edge rather than as eight copies of the
   // silhouette: without it every fragment along an edge tests the same eight
   // directions and the pattern shows.
+  //
+  // **The three constants are not arbitrary and are not ours.** This is Jorge
+  // Jimenez's interleaved gradient noise, from "Next Generation Post
+  // Processing in Call of Duty: Advanced Warfare" (SIGGRAPH 2014):
+  //
+  //   IGN(x, y) = frac(52.9829189 * frac(0.06711056 * x + 0.00583715 * y))
+  //
+  // The pair inside the dot is a direction whose gradient walks the unit
+  // interval as slowly as it can while never repeating over a screen, and the
+  // multiplier outside stretches that walk so neighbouring pixels land far
+  // apart in the result. What it buys over a hash is the cost: one dot and two
+  // fracts, no integer arithmetic, no texture. What a blue-noise texture buys
+  // over it is a better spectrum, at a sampler and a fetch — worth it for
+  // dithering a whole frame, not for rotating eight taps.
+  //
+  // Written down because three unexplained decimals read as a magic spell, and
+  // the next person to touch this line has no way to tell which of them may be
+  // changed. The answer is none of them.
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;
@@ -5081,7 +5245,10 @@ uniform sampler2D point_shadow_texture;
 uniform sampler2D point_shadow_static_texture;
 
 /// How many lights may have a row of the atlas. Six tiles across each.
-const int kShadowSlots = 4;
+// Rows of the cube atlas: six faces across, this many lights down. Must
+// match `Renderer.kShadowedLights`, which is where the reasoning lives, and
+// `shadowSlots` in the software backend's transcription of this file.
+const int kShadowSlots = 6;
 
 layout(std140) uniform PointShadow {
   /// The same view-projections the atlas was rendered with, six per slot.
@@ -5110,7 +5277,7 @@ layout(std140) uniform PointShadow {
   vec4 slots[kMaxLights];
 
   /// x: half a texel, in tile-local uv. y: distance bias in metres.
-  /// z: strength. w: normal offset in metres.
+  /// z: strength. w: normal offset, **in texels of the face it lands on**.
   vec4 params;
 
   /// x: smallest kernel radius in tile-local uv, and the fixed radius used
@@ -5120,7 +5287,9 @@ layout(std140) uniform PointShadow {
   /// of shading with it.
   vec4 params2;
 
-  /// x: non-zero when this backend stores the atlas bottom-up.
+  /// x: non-zero when this backend stores the atlas bottom-up. y: one over the
+  /// edge length of a tile in texels, which is what turns a distance into the
+  /// world width of one texel there.
   ///
   /// **Appended after everything else on purpose**, the same way FragInfo's
   /// ambient pair was: std140 lays a block out in declaration order, so adding
@@ -5283,6 +5452,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   float toLightLength = max(length(toLight), 1e-6);
   float nDotL = max(dot(normal, toLight / toLightLength), 0.15);
   float slope = min(sqrt(max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL), 8.0);
+
+  // **How wide one texel of the face is, out where this fragment is.** The
+  // error a normal offset exists to clear is exactly that: a texel of the
+  // shadow map covers a patch of surface, the whole patch is recorded at one
+  // distance, and a fragment anywhere else in it compares against a distance
+  // measured somewhere it is not. That patch grows with range — it is a solid
+  // angle, not a length — so an offset fixed in metres is right at one distance
+  // and wrong everywhere else.
+  //
+  // What it was: `params.w` metres, flat. On the golden teapot, at 9.6 m from
+  // the lamp, a texel is 3.7 cm and the flat offset was 2 cm, so the floor
+  // shadowed itself across everything the light reached — and the acne stopped
+  // dead at the *projection of the floor's own edge*, because past it the atlas
+  // holds nothing and nothing can occlude. A straight line across a shadow with
+  // no straight edge anywhere in the scene.
+  float texel =
+      2.0 * toLightLength * max(point_shadow.slots[lightIndex].z, 1e-4) *
+      point_shadow.params3.y;
   // Both terms are metres. The slope term used to be the kernel radius, which
   // is a fraction of a tile — a unit error copied across from flutter_scene,
   // where the softness it borrows genuinely is the right quantity for their
@@ -5291,7 +5478,7 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // and the lift cancelled: tripling the kernel moved 184 pixels of the frame,
   // where the kernel alone moves thousands. It is what made contact hardening
   // look inert, and it was hiding in a comparison rather than in the estimate.
-  vec3 origin = world + normal * point_shadow.params.w * (1.0 + slope);
+  vec3 origin = world + normal * texel * point_shadow.params.w * (1.0 + slope);
   vec3 toFragment = origin - point_shadow.lights[slot].xyz;
   float distance = length(toFragment);
   float range = max(point_shadow.lights[slot].w, 1e-4);
@@ -5337,6 +5524,24 @@ float PointShadowFactor(vec3 world, vec3 normal, int lightIndex) {
   // so eight samples read as a soft edge rather than as eight copies of the
   // silhouette: without it every fragment along an edge tests the same eight
   // directions and the pattern shows.
+  //
+  // **The three constants are not arbitrary and are not ours.** This is Jorge
+  // Jimenez's interleaved gradient noise, from "Next Generation Post
+  // Processing in Call of Duty: Advanced Warfare" (SIGGRAPH 2014):
+  //
+  //   IGN(x, y) = frac(52.9829189 * frac(0.06711056 * x + 0.00583715 * y))
+  //
+  // The pair inside the dot is a direction whose gradient walks the unit
+  // interval as slowly as it can while never repeating over a screen, and the
+  // multiplier outside stretches that walk so neighbouring pixels land far
+  // apart in the result. What it buys over a hash is the cost: one dot and two
+  // fracts, no integer arithmetic, no texture. What a blue-noise texture buys
+  // over it is a better spectrum, at a sampler and a fetch — worth it for
+  // dithering a whole frame, not for rotating eight taps.
+  //
+  // Written down because three unexplained decimals read as a magic spell, and
+  // the next person to touch this line has no way to tell which of them may be
+  // changed. The answer is none of them.
   float noise = fract(52.9829189 * fract(dot(gl_FragCoord.xy,
                                             vec2(0.06711056, 0.00583715))));
   float angle = noise * 6.28318530718;

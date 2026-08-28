@@ -48,8 +48,10 @@ class _ConformanceAppState extends State<ConformanceApp> {
         log.writeln('        $error');
       }
     }
-    log.writeln('=== ${conformanceChecks.length - failed} passed, '
-        '$failed failed ===');
+    log.writeln(
+      '=== ${conformanceChecks.length - failed} passed, '
+      '$failed failed ===',
+    );
     // ignore: avoid_print
     print(log);
     setState(() => _report = log.toString());
@@ -74,18 +76,18 @@ class _ConformanceAppState extends State<ConformanceApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        home: Scaffold(
-          backgroundColor: const Color(0xFF111111),
-          body: SingleChildScrollView(
-            child: Text(
-              _report,
-              style: const TextStyle(
-                color: Color(0xFFDDDDDD),
-                fontFamily: 'monospace',
-                fontSize: 13,
-              ),
-            ),
+    home: Scaffold(
+      backgroundColor: const Color(0xFF111111),
+      body: SingleChildScrollView(
+        child: Text(
+          _report,
+          style: const TextStyle(
+            color: Color(0xFFDDDDDD),
+            fontFamily: 'monospace',
+            fontSize: 13,
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

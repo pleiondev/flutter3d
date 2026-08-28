@@ -8,46 +8,46 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 
 extension MinMagFilterToGpu on MinMagFilter {
   gpu.MinMagFilter toGpu() => switch (this) {
-        MinMagFilter.nearest => gpu.MinMagFilter.nearest,
-        MinMagFilter.linear => gpu.MinMagFilter.linear,
-      };
+    MinMagFilter.nearest => gpu.MinMagFilter.nearest,
+    MinMagFilter.linear => gpu.MinMagFilter.linear,
+  };
 }
 
 extension MinMagFilterFromGpu on gpu.MinMagFilter {
   MinMagFilter toEngine() => switch (this) {
-        gpu.MinMagFilter.nearest => MinMagFilter.nearest,
-        gpu.MinMagFilter.linear => MinMagFilter.linear,
-      };
+    gpu.MinMagFilter.nearest => MinMagFilter.nearest,
+    gpu.MinMagFilter.linear => MinMagFilter.linear,
+  };
 }
 
 extension MipFilterToGpu on MipFilter {
   gpu.MipFilter toGpu() => switch (this) {
-        MipFilter.nearest => gpu.MipFilter.nearest,
-        MipFilter.linear => gpu.MipFilter.linear,
-      };
+    MipFilter.nearest => gpu.MipFilter.nearest,
+    MipFilter.linear => gpu.MipFilter.linear,
+  };
 }
 
 extension MipFilterFromGpu on gpu.MipFilter {
   MipFilter toEngine() => switch (this) {
-        gpu.MipFilter.nearest => MipFilter.nearest,
-        gpu.MipFilter.linear => MipFilter.linear,
-      };
+    gpu.MipFilter.nearest => MipFilter.nearest,
+    gpu.MipFilter.linear => MipFilter.linear,
+  };
 }
 
 extension SamplerAddressModeToGpu on SamplerAddressMode {
   gpu.SamplerAddressMode toGpu() => switch (this) {
-        SamplerAddressMode.clampToEdge => gpu.SamplerAddressMode.clampToEdge,
-        SamplerAddressMode.repeat => gpu.SamplerAddressMode.repeat,
-        SamplerAddressMode.mirror => gpu.SamplerAddressMode.mirror,
-      };
+    SamplerAddressMode.clampToEdge => gpu.SamplerAddressMode.clampToEdge,
+    SamplerAddressMode.repeat => gpu.SamplerAddressMode.repeat,
+    SamplerAddressMode.mirror => gpu.SamplerAddressMode.mirror,
+  };
 }
 
 extension SamplerAddressModeFromGpu on gpu.SamplerAddressMode {
   SamplerAddressMode toEngine() => switch (this) {
-        gpu.SamplerAddressMode.clampToEdge => SamplerAddressMode.clampToEdge,
-        gpu.SamplerAddressMode.repeat => SamplerAddressMode.repeat,
-        gpu.SamplerAddressMode.mirror => SamplerAddressMode.mirror,
-      };
+    gpu.SamplerAddressMode.clampToEdge => SamplerAddressMode.clampToEdge,
+    gpu.SamplerAddressMode.repeat => SamplerAddressMode.repeat,
+    gpu.SamplerAddressMode.mirror => SamplerAddressMode.mirror,
+  };
 }
 
 /// flutter_gpu sampler objects, one per distinct description.
@@ -68,20 +68,20 @@ final Map<SamplerOptions, gpu.SamplerOptions> _samplerCache =
 
 extension SamplerOptionsToGpu on SamplerOptions {
   gpu.SamplerOptions toGpu() => _samplerCache[this] ??= gpu.SamplerOptions(
-        minFilter: minFilter.toGpu(),
-        magFilter: magFilter.toGpu(),
-        mipFilter: mipFilter.toGpu(),
-        widthAddressMode: widthAddressMode.toGpu(),
-        heightAddressMode: heightAddressMode.toGpu(),
-      );
+    minFilter: minFilter.toGpu(),
+    magFilter: magFilter.toGpu(),
+    mipFilter: mipFilter.toGpu(),
+    widthAddressMode: widthAddressMode.toGpu(),
+    heightAddressMode: heightAddressMode.toGpu(),
+  );
 }
 
 extension SamplerOptionsFromGpu on gpu.SamplerOptions {
   SamplerOptions toEngine() => SamplerOptions(
-        minFilter: minFilter.toEngine(),
-        magFilter: magFilter.toEngine(),
-        mipFilter: mipFilter.toEngine(),
-        widthAddressMode: widthAddressMode.toEngine(),
-        heightAddressMode: heightAddressMode.toEngine(),
-      );
+    minFilter: minFilter.toEngine(),
+    magFilter: magFilter.toEngine(),
+    mipFilter: mipFilter.toEngine(),
+    widthAddressMode: widthAddressMode.toEngine(),
+    heightAddressMode: heightAddressMode.toEngine(),
+  );
 }

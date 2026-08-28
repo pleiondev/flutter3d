@@ -11,15 +11,14 @@ AnimationTrack translationTrack({
   required List<double> values,
   AnimationInterpolation interpolation = AnimationInterpolation.linear,
   int nodeIndex = 0,
-}) =>
-    AnimationTrack(
-      nodeIndex: nodeIndex,
-      path: AnimationPath.translation,
-      interpolation: interpolation,
-      times: Float32List.fromList(times),
-      values: Float32List.fromList(values),
-      componentCount: 3,
-    );
+}) => AnimationTrack(
+  nodeIndex: nodeIndex,
+  path: AnimationPath.translation,
+  interpolation: interpolation,
+  times: Float32List.fromList(times),
+  values: Float32List.fromList(values),
+  componentCount: 3,
+);
 
 /// Samples a track into a fresh list, so assertions read as values not buffers.
 List<double> sampleAt(AnimationTrack track, double time) {
@@ -39,7 +38,8 @@ void main() {
 
     test('a value count that does not match the keys is refused', () {
       expect(
-        () => translationTrack(times: <double>[0, 1], values: <double>[0, 0, 0]),
+        () =>
+            translationTrack(times: <double>[0, 1], values: <double>[0, 0, 0]),
         throwsArgumentError,
       );
     });
@@ -86,8 +86,10 @@ void main() {
     });
 
     test('a single-key track is constant', () {
-      final constant =
-          translationTrack(times: <double>[5.0], values: <double>[1, 2, 3]);
+      final constant = translationTrack(
+        times: <double>[5.0],
+        values: <double>[1, 2, 3],
+      );
       expect(sampleAt(constant, 0.0), <double>[1, 2, 3]);
       expect(sampleAt(constant, 100.0), <double>[1, 2, 3]);
     });
@@ -153,13 +155,25 @@ void main() {
       // glTF authors tangents per second, and dropping the interval factor
       // makes an animation correct at one key spacing and wrong at another.
       List<double> valuesWithTangent(double tangent) => <double>[
-            0, 0, 0,
-            0, 0, 0,
-            tangent, 0, 0,
-            0, 0, 0,
-            0, 0, 0,
-            0, 0, 0,
-          ];
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        tangent,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ];
 
       final short = translationTrack(
         times: <double>[0.0, 1.0],
@@ -215,10 +229,7 @@ void main() {
         path: AnimationPath.rotation,
         interpolation: AnimationInterpolation.linear,
         times: Float32List.fromList(<double>[0.0, 1.0]),
-        values: Float32List.fromList(<double>[
-          0, 0, 0, 1,
-          0, 0, 0, -1,
-        ]),
+        values: Float32List.fromList(<double>[0, 0, 0, 1, 0, 0, 0, -1]),
         componentCount: 4,
       );
 
@@ -279,9 +290,7 @@ void main() {
   });
 
   group('player', () {
-    ({AnimationPlayer player, SceneNode node}) build({
-      AnimationClip? clip,
-    }) {
+    ({AnimationPlayer player, SceneNode node}) build({AnimationClip? clip}) {
       final scene = Scene();
       final node = scene.add(SceneNode(name: 'target'));
       return (
@@ -468,12 +477,18 @@ void main() {
       final node = scene.add(SceneNode());
       final player = AnimationPlayer(
         clips: <AnimationClip>[
-          AnimationClip(name: 'a', tracks: <AnimationTrack>[
-            translationTrack(times: <double>[0], values: <double>[0, 0, 0]),
-          ]),
-          AnimationClip(name: 'b', tracks: <AnimationTrack>[
-            translationTrack(times: <double>[0], values: <double>[1, 0, 0]),
-          ]),
+          AnimationClip(
+            name: 'a',
+            tracks: <AnimationTrack>[
+              translationTrack(times: <double>[0], values: <double>[0, 0, 0]),
+            ],
+          ),
+          AnimationClip(
+            name: 'b',
+            tracks: <AnimationTrack>[
+              translationTrack(times: <double>[0], values: <double>[1, 0, 0]),
+            ],
+          ),
         ],
         targets: <SceneNode?>[node],
       );
@@ -486,8 +501,10 @@ void main() {
     });
 
     test('a player with no clips does nothing rather than throwing', () {
-      final player =
-          AnimationPlayer(clips: const <AnimationClip>[], targets: const []);
+      final player = AnimationPlayer(
+        clips: const <AnimationClip>[],
+        targets: const [],
+      );
       expect(player.hasClips, isFalse);
       expect(() => player.play(), returnsNormally);
       expect(() => player.update(1.0), returnsNormally);

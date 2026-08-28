@@ -64,7 +64,10 @@ abstract final class MipChain {
   /// is dropped rather than blended with its neighbour at the wrong weight.
   static List<ByteData> build(ByteData pixels, int width, int height) {
     final levels = <ByteData>[];
-    var source = pixels.buffer.asUint8List(pixels.offsetInBytes, width * height * 4);
+    var source = pixels.buffer.asUint8List(
+      pixels.offsetInBytes,
+      width * height * 4,
+    );
     var w = width;
     var h = height;
 
@@ -91,7 +94,8 @@ abstract final class MipChain {
             // Plus two before the shift: rounding to nearest rather than always
             // down, which over ten levels is the difference between a chain
             // that keeps its brightness and one that fades.
-            out[at + channel] = (source[a + channel] +
+            out[at + channel] =
+                (source[a + channel] +
                     source[b + channel] +
                     source[c + channel] +
                     source[d + channel] +

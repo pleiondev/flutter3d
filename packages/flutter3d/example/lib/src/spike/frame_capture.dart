@@ -68,13 +68,15 @@ final class FrameCapture {
     // wrong is usually explained by them (nothing drawn, everything culled, the
     // overlay contributing no lines), and reading them off the on-screen panel
     // is not possible in the very situations this path exists for.
-    stdout.writeln('frame capture: ${frame.drawCalls} draws, '
-        '${frame.pipelineSwitches} pipeline switches, ${frame.culled} culled, '
-        '${frame.lights} lights (${frame.lightsDropped} dropped), '
-        '${frame.pipelines} pipelines, '
-        '${frame.skinnedDraws} skinned draws, '
-        '${frame.shadowCasters} shadow casters, '
-        '${frame.debugLines} debug lines, ${frame.submitMicros} us submit');
+    stdout.writeln(
+      'frame capture: ${frame.drawCalls} draws, '
+      '${frame.pipelineSwitches} pipeline switches, ${frame.culled} culled, '
+      '${frame.lights} lights (${frame.lightsDropped} dropped), '
+      '${frame.pipelines} pipelines, '
+      '${frame.skinnedDraws} skinned draws, '
+      '${frame.shadowCasters} shadow casters, '
+      '${frame.debugLines} debug lines, ${frame.submitMicros} us submit',
+    );
     unawaited(_write(device, frame.frame));
   }
 
@@ -91,8 +93,10 @@ final class FrameCapture {
         exit(2);
       }
       await File(path).writeAsBytes(png);
-      stdout.writeln('frame capture: wrote $path (${frame.width}x'
-          '${frame.height})');
+      stdout.writeln(
+        'frame capture: wrote $path (${frame.width}x'
+        '${frame.height})',
+      );
       exit(0);
     } catch (error) {
       stderr.writeln('frame capture failed: $error');

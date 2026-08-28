@@ -45,7 +45,8 @@ final class GltfAsset extends ModelDocument {
   final List<ModelSkin> skins;
 
   @override
-  String toString() => 'GltfAsset(${surfaces.length} surfaces, $vertexCount '
+  String toString() =>
+      'GltfAsset(${surfaces.length} surfaces, $vertexCount '
       'vertices, $triangleCount triangles, ${materials.length} materials, '
       '${images.length} images, ${nodes.length} nodes, '
       '${animations.length} animations)';

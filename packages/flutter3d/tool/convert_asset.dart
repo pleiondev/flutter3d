@@ -1,7 +1,8 @@
 // Converts a model into the engine's `.f3d` container.
 //
-//   dart run tool/convert_asset.dart assets/samples/teapot.obj
-//   dart run tool/convert_asset.dart assets/samples/Box.glb -o build/box.f3d
+//   dart run tool/convert_asset.dart ../flutter3d_samples/assets/teapot.obj
+//   dart run tool/convert_asset.dart ../flutter3d_samples/assets/Box.glb \
+//     -o build/box.f3d
 //
 // A CLI in Dart, not an FFI helper. `ARCHITECTURE.md` §14 measured the decoders
 // and concluded the format matters far more than the language: the same geometry
@@ -98,12 +99,14 @@ Future<ModelDocument> _decode(Uint8List bytes, String path) {
   final lower = path.toLowerCase();
 
   if (lower.endsWith('.obj')) {
-    return ObjLoader(layout: VertexLayout.standard)
-        .load(bytes, resolveUri: resolve);
+    return ObjLoader(
+      layout: VertexLayout.standard,
+    ).load(bytes, resolveUri: resolve);
   }
   if (lower.endsWith('.gltf') || lower.endsWith('.glb')) {
-    return GltfLoader(layout: VertexLayout.standard)
-        .load(bytes, resolveUri: resolve);
+    return GltfLoader(
+      layout: VertexLayout.standard,
+    ).load(bytes, resolveUri: resolve);
   }
   if (isF3dFile(bytes)) {
     throw const FormatException('That is already a .f3d file.');

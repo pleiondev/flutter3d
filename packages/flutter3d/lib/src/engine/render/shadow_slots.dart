@@ -71,7 +71,7 @@ final class ShadowAssignment {
 
 /// Hands out atlas rows, and tries hard not to move them.
 ///
-/// Two properties matter more than picking the very best four lights:
+/// Two properties matter more than picking the very best few lights:
 ///
 /// * **A light keeps its row.** Every change of ownership costs a full static
 ///   re-bake — six views of the level's static geometry per occupied row —
@@ -82,15 +82,17 @@ final class ShadowAssignment {
 ///   the bake runs for ever, which is worse than having no bake at all.
 final class ShadowSlotAllocator {
   ShadowSlotAllocator({required this.slotCount, this.hysteresis = 1.25})
-      : assert(slotCount >= 0),
-        assert(hysteresis >= 1.0,
-            'a hysteresis below one would evict an incumbent for a challenger '
-            'that is worse than it, which is the thrash this exists to stop'),
-        _owners = List<Object?>.filled(slotCount, null),
-        _priorities = List<double>.filled(slotCount, 0.0),
-        _bakeKeys = List<int?>.filled(slotCount, null),
-        _bakedOwners = List<Object?>.filled(slotCount, null),
-        _bakedKeys = List<int?>.filled(slotCount, null);
+    : assert(slotCount >= 0),
+      assert(
+        hysteresis >= 1.0,
+        'a hysteresis below one would evict an incumbent for a challenger '
+        'that is worse than it, which is the thrash this exists to stop',
+      ),
+      _owners = List<Object?>.filled(slotCount, null),
+      _priorities = List<double>.filled(slotCount, 0.0),
+      _bakeKeys = List<int?>.filled(slotCount, null),
+      _bakedOwners = List<Object?>.filled(slotCount, null),
+      _bakedKeys = List<int?>.filled(slotCount, null);
 
   /// Rows in the atlas.
   final int slotCount;

@@ -78,7 +78,8 @@ final class ParticleGlow {
 
   void accumulate(Particle particle) {
     _count++;
-    final luminance = particle.color.x * 0.30 +
+    final luminance =
+        particle.color.x * 0.30 +
         particle.color.y * 0.59 +
         particle.color.z * 0.11;
     _rawPower += luminance * particle.color.w * particle.size * particle.size;

@@ -35,10 +35,8 @@ final class LodLevel {
 /// out of order is not a silent bug.
 final class LodGroup extends SceneNode {
   LodGroup({required List<LodLevel> levels, super.name})
-      : _levels = List<LodLevel>.of(levels)
-          ..sort(
-            (a, b) => b.maxScreenFraction.compareTo(a.maxScreenFraction),
-          ) {
+    : _levels = List<LodLevel>.of(levels)
+        ..sort((a, b) => b.maxScreenFraction.compareTo(a.maxScreenFraction)) {
     if (_levels.isEmpty) {
       throw ArgumentError('A LOD group needs at least one level.');
     }
@@ -150,15 +148,16 @@ final class LodGroup extends SceneNode {
 
     final projection = camera.projection;
     if (projection is OrthographicProjection || orthographicHeight != null) {
-      final height = orthographicHeight ??
-          (projection as OrthographicProjection).height;
+      final height =
+          orthographicHeight ?? (projection as OrthographicProjection).height;
       if (height <= 0.0) return 0.0;
       // No perspective divide: an orthographic object's size on screen does not
       // depend on where it is.
       return (radius * 2.0) / height;
     }
 
-    final fov = verticalFieldOfView ??
+    final fov =
+        verticalFieldOfView ??
         (projection is PerspectiveProjection
             ? projection.fovYRadians
             : math.pi / 4);

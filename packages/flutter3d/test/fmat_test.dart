@@ -16,8 +16,7 @@ import 'dart:typed_data';
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-Uint8List _bytes(String source) =>
-    Uint8List.fromList(utf8.encode(source));
+Uint8List _bytes(String source) => Uint8List.fromList(utf8.encode(source));
 
 /// A material as somebody would write it by hand.
 const String _steel = '''
@@ -50,8 +49,11 @@ void main() {
       final normal = surface.normalTexture!;
       expect(document.images[normal.imageIndex], 'steel_n.png');
       expect(normal.sampling.wrapS, TextureWrap.clampToEdge);
-      expect(normal.sampling.useMipmaps, isFalse,
-          reason: 'a slot that asks for no chain must not get one');
+      expect(
+        normal.sampling.useMipmaps,
+        isFalse,
+        reason: 'a slot that asks for no chain must not get one',
+      );
     });
 
     test('and turns its paths into indices, interning repeats', () {
@@ -62,14 +64,18 @@ void main() {
       //
       // Mutation: append to `images` without interning — the two indices differ
       // and `images` has two entries; both halves of this fail.
-      final document = readFmat(_bytes('''
+      final document = readFmat(
+        _bytes('''
         {"fmat": 1, "textures":
           {"albedo": "atlas.png", "occlusion": "atlas.png"}}
-      '''));
+      '''),
+      );
 
       expect(document.images, <String>['atlas.png']);
-      expect(document.surface.baseColorTexture!.imageIndex,
-          document.surface.occlusionTexture!.imageIndex);
+      expect(
+        document.surface.baseColorTexture!.imageIndex,
+        document.surface.occlusionTexture!.imageIndex,
+      );
     });
 
     test('and keeps a slot the engine has no field for', () {
@@ -79,14 +85,22 @@ void main() {
       // materials it exists to carry.
       //
       // Mutation: drop the `extraTextures` entry — fails here.
-      final document = readFmat(_bytes(
-          '{"fmat": 1, "textures": {"albedo": "a.png", "flow": "flow.png"}}'));
+      final document = readFmat(
+        _bytes(
+          '{"fmat": 1, "textures": {"albedo": "a.png", "flow": "flow.png"}}',
+        ),
+      );
 
       expect(document.extraTextures.keys, <String>['flow']);
-      expect(document.images[document.extraTextures['flow']!.imageIndex],
-          'flow.png');
-      expect(document.surface.baseColorTexture, isNotNull,
-          reason: 'the named slots must still be named slots');
+      expect(
+        document.images[document.extraTextures['flow']!.imageIndex],
+        'flow.png',
+      );
+      expect(
+        document.surface.baseColorTexture,
+        isNotNull,
+        reason: 'the named slots must still be named slots',
+      );
     });
   });
 
@@ -100,11 +114,13 @@ void main() {
       //
       // Mutation: default `environment` to true — the renderer binds a cube to
       // a shader with no slot for it, which is the crash this shape prevents.
-      final document = readFmat(_bytes('''
+      final document = readFmat(
+        _bytes('''
         {"fmat": 1, "lighting":
           {"shader": "Water", "label": "Sea water",
            "environment": true, "metallicRoughnessMap": false}}
-      '''));
+      '''),
+      );
 
       final lighting = document.lighting!;
       expect(lighting.shaderName, 'Water');
@@ -123,9 +139,9 @@ void main() {
       // ordinary lit contract, which is the one every backend's bundle has.
       //
       // Mutation: default `environment` or `metallic` to true — fails here.
-      final lighting =
-          readFmat(_bytes('{"fmat": 1, "lighting": {"shader": "Water"}}'))
-              .lighting!;
+      final lighting = readFmat(
+        _bytes('{"fmat": 1, "lighting": {"shader": "Water"}}'),
+      ).lighting!;
 
       expect(lighting.usesEnvironment, isFalse);
       expect(lighting.usesMetallic, isFalse);
@@ -135,18 +151,23 @@ void main() {
     test('and its parameters arrive as the floats a block wants', () {
       // Mutation: read a single number as an empty list — the shader gets a
       // block of zeroes and the material looks wrong rather than failing.
-      final document = readFmat(_bytes('''
+      final document = readFmat(
+        _bytes('''
         {"fmat": 1, "parameterBlock": "WaterParams",
          "parameters": {"tint": [0.1, 0.4, 0.5], "speed": 2.5}}
-      '''));
+      '''),
+      );
 
       expect(document.parameterBlock, 'WaterParams');
       // Compared loosely on purpose. A parameter block is float32 on the GPU, so
       // 0.1 authored in JSON is 0.10000000149011612 by the time it is a
       // parameter — and a reader that kept it exact would be storing a number
       // the shader cannot receive.
-      expect(document.parameters['tint']!,
-          <Matcher>[closeTo(0.1, 1e-7), closeTo(0.4, 1e-7), closeTo(0.5, 1e-7)]);
+      expect(document.parameters['tint']!, <Matcher>[
+        closeTo(0.1, 1e-7),
+        closeTo(0.4, 1e-7),
+        closeTo(0.5, 1e-7),
+      ]);
       // A single number is one float, not nothing: a shader asking for a scalar
       // would otherwise get a block of zeroes and merely look wrong.
       expect(document.parameters['speed'], <double>[2.5]);
@@ -158,14 +179,18 @@ void main() {
       // are still good, and a level should not fail to load over it.
       //
       // Mutation: throw instead of warning — fails here.
-      final document =
-          readFmat(_bytes('{"fmat": 1, "lighting": "Water", "metallic": 1.0}'));
+      final document = readFmat(
+        _bytes('{"fmat": 1, "lighting": "Water", "metallic": 1.0}'),
+      );
 
       expect(document.lighting, isNull);
       expect(document.surface.metallic, 1.0);
       expect(document.warnings.single, contains('Water'));
-      expect(document.warnings.single, contains('object'),
-          reason: 'the warning should say what to do instead');
+      expect(
+        document.warnings.single,
+        contains('object'),
+        reason: 'the warning should say what to do instead',
+      );
     });
   });
 
@@ -183,12 +208,14 @@ void main() {
     });
 
     test('and that a custom shader survives the trip too', () {
-      final original = readFmat(_bytes('''
+      final original = readFmat(
+        _bytes('''
         {"fmat": 1, "name": "sea", "lighting":
           {"shader": "Water", "environment": true, "materialParameters": false},
          "parameters": {"speed": [2.5]},
          "textures": {"flow": {"path": "flow.png", "mipmaps": false}}}
-      '''));
+      '''),
+      );
       final again = readFmat(_bytes(writeFmat(original)));
 
       expect(again.lighting!.shaderName, 'Water');
@@ -198,8 +225,7 @@ void main() {
       expect(again.extraTextures['flow']!.sampling.useMipmaps, isFalse);
     });
 
-    test('and that an unusual sampler is written long and a plain one short',
-        () {
+    test('and that an unusual sampler is written long and a plain one short', () {
       // Not a formatting preference: a file an artist edits by hand should show,
       // in a diff, that only the path changed. Mutation: always write the object
       // form — the second half fails.
@@ -224,17 +250,21 @@ void main() {
     });
 
     test('and one that never said it was a material', () {
-      expect(() => readFmat(_bytes('{"metallic": 1.0}')),
-          throwsA(isA<FormatException>()));
-      expect(isFmat(_bytes('{"metallic": 1.0}')), isFalse,
-          reason: 'somebody else\'s JSON is not ours to claim');
+      expect(
+        () => readFmat(_bytes('{"metallic": 1.0}')),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        isFmat(_bytes('{"metallic": 1.0}')),
+        isFalse,
+        reason: 'somebody else\'s JSON is not ours to claim',
+      );
       expect(isFmat(_bytes(_steel)), isTrue);
     });
 
     test('and an alpha mode nobody defined is a warning and opaque', () {
       // Mutation: throw on it — a typo in one key would cost the level.
-      final document =
-          readFmat(_bytes('{"fmat": 1, "alphaMode": "dissolve"}'));
+      final document = readFmat(_bytes('{"fmat": 1, "alphaMode": "dissolve"}'));
 
       expect(document.surface.alphaMode, SurfaceAlphaMode.opaque);
       expect(document.warnings.single, contains('dissolve'));
@@ -253,7 +283,7 @@ String _shapeOf(MaterialDocument document) {
   String slot(TextureBinding? binding) => binding == null
       ? '-'
       : '${document.images[binding.imageIndex]}'
-          '/${binding.sampling.wrapS.name}/${binding.sampling.useMipmaps}';
+            '/${binding.sampling.wrapS.name}/${binding.sampling.useMipmaps}';
 
   return <String>[
     v(s.name),

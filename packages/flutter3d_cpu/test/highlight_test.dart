@@ -53,7 +53,10 @@ void main() {
     final scene = Scene();
     // Unlit and white, so "the box" is the brightest thing and needs no light.
     final box = MeshNode(
-      DeviceMesh.upload(device, CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build()),
+      DeviceMesh.upload(
+        device,
+        CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
+      ),
       Material(
         name: 'box',
         baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
@@ -82,7 +85,9 @@ void main() {
       ],
       settings: RenderSettings(highlighted: <SceneNode>[box]),
     );
-    final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+    final pixels = (await device.readPixels(
+      result.frame,
+    ))!.buffer.asUint8List();
 
     // The box is white; the outline is `DebugColors.selection`, a green with
     // very little red in it.
@@ -101,16 +106,28 @@ void main() {
       ('left', green.left, white.left),
       ('top', green.top, white.top),
     ]) {
-      expect((outline - thing).abs(), lessThanOrEqualTo(3),
-          reason: 'the outline\'s $name edge is at $outline and the box\'s is '
-              'at $thing');
+      expect(
+        (outline - thing).abs(),
+        lessThanOrEqualTo(3),
+        reason:
+            'the outline\'s $name edge is at $outline and the box\'s is '
+            'at $thing',
+      );
     }
-    expect((green.right - white.right).abs(), lessThanOrEqualTo(3),
-        reason: 'the outline\'s right edge is at ${green.right} and the box\'s '
-            'is at ${white.right}');
-    expect((green.bottom - white.bottom).abs(), lessThanOrEqualTo(3),
-        reason: 'the outline\'s bottom edge is at ${green.bottom} and the '
-            'box\'s is at ${white.bottom}');
+    expect(
+      (green.right - white.right).abs(),
+      lessThanOrEqualTo(3),
+      reason:
+          'the outline\'s right edge is at ${green.right} and the box\'s '
+          'is at ${white.right}',
+    );
+    expect(
+      (green.bottom - white.bottom).abs(),
+      lessThanOrEqualTo(3),
+      reason:
+          'the outline\'s bottom edge is at ${green.bottom} and the '
+          'box\'s is at ${white.bottom}',
+    );
   });
 
   test('and a group is outlined by what is under it', () async {
@@ -131,7 +148,9 @@ void main() {
     scene.add(
       MeshNode(
         DeviceMesh.upload(
-            device, CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build()),
+          device,
+          CuboidShape(size: Vector3(1.0, 1.0, 1.0)).build(),
+        ),
         Material(name: 'far', lighting: LightingModel.unlit),
         name: 'far',
       )..setPosition(0.0, 0.0, -60.0),
@@ -141,7 +160,9 @@ void main() {
     holder.add(
       MeshNode(
         DeviceMesh.upload(
-            device, CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build()),
+          device,
+          CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
+        ),
         Material(
           name: 'box',
           baseColor: Vector4(1.0, 1.0, 1.0, 1.0),
@@ -171,15 +192,21 @@ void main() {
       ],
       settings: RenderSettings(highlighted: <SceneNode>[holder]),
     );
-    final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+    final pixels = (await device.readPixels(
+      result.frame,
+    ))!.buffer.asUint8List();
 
     final white = _boundsOf(pixels, (r, g, b) => r > 200 && g > 200 && b > 200);
     final green = _boundsOf(pixels, (r, g, b) => g > 120 && r < 140 && b < 140);
 
     expect(green.count, greaterThan(20), reason: 'the group was not outlined');
-    expect((green.left - white.left).abs(), lessThanOrEqualTo(3),
-        reason: 'the outline is not round the box under the holder: outline '
-            '${green.left}..${green.right}, box ${white.left}..${white.right}');
+    expect(
+      (green.left - white.left).abs(),
+      lessThanOrEqualTo(3),
+      reason:
+          'the outline is not round the box under the holder: outline '
+          '${green.left}..${green.right}, box ${white.left}..${white.right}',
+    );
     expect((green.right - white.right).abs(), lessThanOrEqualTo(3));
   });
 }

@@ -79,9 +79,7 @@ final class Particle {
 final class Range {
   const Range(this.min, this.max);
 
-  const Range.exact(double value)
-      : min = value,
-        max = value;
+  const Range.exact(double value) : min = value, max = value;
 
   final double min;
   final double max;

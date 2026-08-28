@@ -129,11 +129,13 @@ void main() {
       expect(uv.y, closeTo(0.25, 1e-12));
     });
 
-    test('a point outside the triangle misses even though the plane is hit',
-        () {
-      final ray = Ray(Vector3(0.9, 0.9, 2.0), Vector3(0, 0, -1));
-      expect(rayTriangle(ray, a, b, c), kNoHit);
-    });
+    test(
+      'a point outside the triangle misses even though the plane is hit',
+      () {
+        final ray = Ray(Vector3(0.9, 0.9, 2.0), Vector3(0, 0, -1));
+        expect(rayTriangle(ray, a, b, c), kNoHit);
+      },
+    );
 
     test('a triangle behind the origin misses', () {
       final ray = Ray(Vector3(0.25, 0.25, -2.0), Vector3(0, 0, -1));

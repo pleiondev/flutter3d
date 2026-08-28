@@ -69,8 +69,11 @@ void main() {
       straddled = at + length > allocator.blockLength;
     }
 
-    expect(straddled, isTrue,
-        reason: 'the allocator no longer hands out ranges past its block end');
+    expect(
+      straddled,
+      isTrue,
+      reason: 'the allocator no longer hands out ranges past its block end',
+    );
   });
 
   test('and the grid alone is not enough, which is what the filler is for', () {
@@ -83,7 +86,10 @@ void main() {
 
     var straddled = false;
     for (var i = 0; i < 4000 && !straddled; i++) {
-      final length = roundedTo(_engineWrites[i % _engineWrites.length], granule);
+      final length = roundedTo(
+        _engineWrites[i % _engineWrites.length],
+        granule,
+      );
       straddled = allocator.place(length) + length > block;
     }
 
@@ -100,21 +106,33 @@ void main() {
       final cursor = BlockCursor(blockLength: block, granule: granule);
 
       for (var i = 0; i < 20000; i++) {
-        final length =
-            roundedTo(_engineWrites[i % _engineWrites.length], granule);
+        final length = roundedTo(
+          _engineWrites[i % _engineWrites.length],
+          granule,
+        );
         final filler = cursor.fillerBefore(length);
         if (filler > 0) {
           final at = allocator.place(filler);
-          expect(at + filler, lessThanOrEqualTo(block),
-              reason: 'the filler itself ran past the end');
+          expect(
+            at + filler,
+            lessThanOrEqualTo(block),
+            reason: 'the filler itself ran past the end',
+          );
         }
         cursor.took(length);
         final at = allocator.place(length);
-        expect(at + length, lessThanOrEqualTo(block),
-            reason: 'a $length-byte write at $at runs past $block '
-                '(alignment $alignment)');
-        expect(at, cursor.used - length,
-            reason: 'the mirrored cursor and the real one have drifted');
+        expect(
+          at + length,
+          lessThanOrEqualTo(block),
+          reason:
+              'a $length-byte write at $at runs past $block '
+              '(alignment $alignment)',
+        );
+        expect(
+          at,
+          cursor.used - length,
+          reason: 'the mirrored cursor and the real one have drifted',
+        );
       }
     }
   });
@@ -137,8 +155,11 @@ void main() {
       if (filler > 0) allocator.place(filler);
       cursor.took(length);
       final at = allocator.place(length);
-      expect(at + length, lessThanOrEqualTo(length > block ? length : block),
-          reason: 'a $size-byte write, rounded to $length, runs past $block');
+      expect(
+        at + length,
+        lessThanOrEqualTo(length > block ? length : block),
+        reason: 'a $size-byte write, rounded to $length, runs past $block',
+      );
     }
   });
 
@@ -155,10 +176,15 @@ void main() {
       expect(out.getUint8(i), i + 1);
     }
     expect(out.getUint8(10), 0, reason: 'the padding is not zero');
-    expect(identical(padded(ByteData(512), 256), padded(ByteData(512), 256)),
-        isFalse);
+    expect(
+      identical(padded(ByteData(512), 256), padded(ByteData(512), 256)),
+      isFalse,
+    );
     final already = ByteData(512);
-    expect(identical(padded(already, 256), already), isTrue,
-        reason: 'a write already on the grid was copied for nothing');
+    expect(
+      identical(padded(already, 256), already),
+      isTrue,
+      reason: 'a write already on the grid was copied for nothing',
+    );
   });
 }
