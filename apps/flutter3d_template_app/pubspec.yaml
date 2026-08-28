@@ -11,10 +11,17 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # One backend: a project made from a template is a desktop project until
-  # somebody decides otherwise. See `lib/src/backend.dart`.
-  flutter3d_impeller:
-    path: ../../packages/flutter3d_impeller
+  # The assembly layer: the backend chooser with its software fallback, the
+  # settings and rebinding screens, the save file, the gamepad and the pointer
+  # capture. This seed used to name `flutter3d_impeller` instead — one backend,
+  # no web build, no fallback, and none of the screens a game needs before it
+  # is a game. See `lib/src/backend.dart`.
+  flutter3d_app:
+    path: ../../packages/flutter3d_app
+
+  # Sound, which the seed had none of.
+  flutter3d_audio:
+    path: ../../packages/flutter3d_audio
 
   flutter3d:
     path: ../../packages/flutter3d
