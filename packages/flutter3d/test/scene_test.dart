@@ -546,4 +546,53 @@ void main() {
       expect(versions, hasLength(4), reason: 'each change is observable');
     });
   });
+
+  group('the registries are the renderer\'s, not the caller\'s', () {
+    test('what comes out of them cannot be written to', () {
+      // These four getters used to hand back the lists themselves — the very
+      // registry culling walks. A caller that emptied one desynchronised it
+      // from the tree with nothing to notice: the nodes stay attached, keep
+      // their parents, and are simply never drawn again.
+      //
+      // Mutation: return `_meshes` instead of the view. The clear below
+      // succeeds and the scene silently stops drawing a node it still holds.
+      final scene = Scene();
+      scene.add(LightNode());
+
+      expect(scene.lights, hasLength(1));
+      expect(() => scene.meshes.clear(), throwsUnsupportedError);
+      expect(() => scene.lights.clear(), throwsUnsupportedError);
+      expect(() => scene.cameras.clear(), throwsUnsupportedError);
+      expect(() => scene.lodGroups.clear(), throwsUnsupportedError);
+    });
+
+    test('and a view is live rather than a snapshot', () {
+      // The other half of returning a view: it must still answer for what the
+      // scene holds now, or the renderer would draw last frame's registry.
+      final scene = Scene();
+      final seen = scene.lights;
+
+      scene.add(LightNode());
+
+      expect(seen, hasLength(1));
+    });
+
+    test('clear empties them and detaches what was in them', () {
+      // **There was no supported teardown at all**, which is what made a level
+      // change leak: removing nodes one at a time is a linear scan each, so
+      // emptying a scene of N meshes cost N².
+      //
+      // Mutation: clear the registries without detaching. The node below still
+      // believes it is in a scene that has moved on.
+      final scene = Scene();
+      final light = scene.add(LightNode());
+      scene.add(CameraNode());
+
+      scene.clear();
+
+      expect(scene.lights, isEmpty);
+      expect(scene.cameras, isEmpty);
+      expect(light.parent, isNull, reason: 'forgotten but still attached');
+    });
+  });
 }

@@ -129,4 +129,75 @@ void main() {
     device.dispose();
     expect(device.dispose, throwsStateError);
   });
+
+  group('one at a time', () {
+    test('a released texture stops being tracked, and the driver agrees', () {
+      // **`dispose` was the only release there was**, and a renderer does not
+      // dispose — it reallocates. A resize remakes six or seven full-screen
+      // targets and a change of `cubeResolution` remakes two atlases of 75 MB
+      // each, all of them replaced by assigning over a field. That is a free
+      // where the collector does the work and a leak here, growing for as long
+      // as the tab is open.
+      //
+      // Mutation: make `releaseTexture` a no-op. The count stays at one.
+      final device = _makeDevice();
+      final texture = device.createTexture(
+        const RenderTargetSpec(
+          width: _width,
+          height: _height,
+          format: TextureFormat.r8g8b8a8UNormInt,
+        ),
+      );
+      expect(device.debugTrackedResourceCount, 1);
+      device.debugDrainErrors('setup');
+
+      device.releaseTexture(texture);
+
+      expect(device.debugTrackedResourceCount, 0);
+      expect(
+        device.debugDrainErrors('releaseTexture'),
+        isNull,
+        reason: 'INVALID_VALUE here would mean the wrong handle was deleted',
+      );
+      device.dispose();
+    });
+
+    test('releasing the same one twice deletes nothing the second time', () {
+      // The guard that makes the ring in the renderer safe to get wrong: a
+      // handle released twice must not become a second `gl.deleteTexture` on
+      // an id the driver may already have reissued.
+      final device = _makeDevice();
+      final texture = device.createTexture(
+        const RenderTargetSpec(
+          width: _width,
+          height: _height,
+          format: TextureFormat.r8g8b8a8UNormInt,
+        ),
+      );
+      device.releaseTexture(texture);
+      device.debugDrainErrors('first release');
+
+      device.releaseTexture(texture);
+
+      expect(device.debugTrackedResourceCount, 0);
+      expect(device.debugDrainErrors('second release'), isNull);
+      device.dispose();
+    });
+
+    test('and a released geometry buffer goes the same way', () {
+      final device = _makeDevice();
+      final geometry = device.uploadGeometry(
+        ByteData(4 * 3),
+        GeometryUsage.indices,
+      );
+      expect(device.debugTrackedResourceCount, 1);
+      device.debugDrainErrors('setup');
+
+      device.releaseGeometry(geometry);
+
+      expect(device.debugTrackedResourceCount, 0);
+      expect(device.debugDrainErrors('releaseGeometry'), isNull);
+      device.dispose();
+    });
+  });
 }
