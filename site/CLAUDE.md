@@ -38,7 +38,7 @@ This has already caught several plausible-looking mistakes: `DeviceMesh` has
 `Level` has an `addTo(world)` extension, not `buildCollision`. An example that does not compile is worse than no example, because a reader
 will trust it.
 
-The same goes for prose. Numbers on this site (2901 tests, 4.54 ms → 1.1 µs,
+The same goes for prose. Numbers on this site (2968 tests, 4.54 ms → 1.1 µs,
 fourteen centimetres per texel, 17.7 ms per frame) come from the repository's
 own READMEs and `ARCHITECTURE.md`. Do not
 invent one, and do not round one someone measured.
@@ -200,7 +200,7 @@ tool/deploy-docs.sh             # build + rsync to bob:/opt/flutter3d/docs
 Three things about it are decisions rather than accidents:
 
 - **It does not go into `dist/`.** `npm run build` wipes that on every run, and
-  regenerating twenty-two dartdoc trees to publish a typo fix is minutes of work
+  regenerating twenty-three dartdoc trees to publish a typo fix is minutes of work
   for nothing. `tool/deploy.sh` therefore excludes `/docs/` the same way and for
   the same reason it excludes `/demo/`.
 - **The index is generated from the packages on disk**, with each package's
@@ -271,11 +271,12 @@ that a table went off the edge, and both have happened.
 
 Three numbers on this site go stale on their own, and all three were wrong once:
 
-- **Test count.** 2901, and the repository counts it rather than this site: the
+- **Test count.** 2968, and the repository counts it rather than this site: the
   `the document says how many tests there are` rule scans every `test(` call and
-  now holds both `ARCHITECTURE.md` and the README to the answer. Take the number
-  from there — the README said 1242 for a year because nothing compared it with
-  anything.
+  holds `ARCHITECTURE.md`, the README, `CONTRIBUTING.md` **and every page under
+  `site/content/`** to the answer. Take the number from there — the README said
+  1242 for a year because nothing compared it with anything, and this site said
+  2901 for the same reason until the rule learnt to read it.
 - **Package and game counts.** Twenty-three packages, five applications, three
   genres. "Two games" was hard-coded into a dozen sentences and the home page
   headline; grep for it before assuming.
