@@ -244,6 +244,14 @@ void main() {
   // for the same reason, and the measurement above says it would not have
   // helped anyway.
   //
+  // Pre-decoding the textures in a `setUpAll` inside `runAsync`, so a cache
+  // serves them synchronously later — the same route as "load the level
+  // outside the zone", by another name, and it fails for the reason the
+  // paragraph above gives rather than the reason that one did: the stall is
+  // *inside* the decode chain, so a warm-up loop hits it at the third texture
+  // exactly as the load does. Recorded because it is the obvious next idea and
+  // it has now been the obvious next idea twice.
+  //
   // What the move to `PlatformerRun` did buy is `run_test.dart` beside this
   // file: the same sequence — begin, resume, restart, move on, save — from a
   // plain `test()` with a `CpuDevice`, where the loader completes perfectly
