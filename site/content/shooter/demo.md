@@ -33,19 +33,19 @@ description: The shooter, built against the WebGL2 backend and running in this p
 
 ## Fire and look are the same two buttons they are on a desktop
 
-They were not, and the reason is worth keeping. A browser was treated as a platform with no pointer to capture, so a drag stood in for the mouse — and a drag that also had to *not* fire would have made aiming and shooting mutually exclusive, so they were one gesture. That is a reasonable answer to the wrong question: browsers have had `requestPointerLock` for a decade, and `pointer_lock` simply had no browser backend.
+They were not, and the reason is worth keeping. A browser was treated as a platform with no pointer to capture, so a drag stood in for the mouse — and a drag that also had to *not* fire would have made aiming and shooting mutually exclusive, so they were one gesture. That is a reasonable answer to the wrong question. Browsers have had `requestPointerLock` for a decade; `pointer_lock` simply had no browser backend.
 
-It has one now, so this build behaves like the desktop one: the pointer is captured on the first click, the mouse aims, the button fires, and Escape releases. On a phone — which Flutter reports as `android` or `iOS` even in a browser — the on-screen stick appears instead, which it never used to, because the same guard that hid pointer capture hid the touch controls.
+It has one now, so this build behaves like the desktop one: the pointer is captured on the first click, the mouse aims, the button fires, Escape releases. On a phone the on-screen stick appears instead, which it never used to, because the guard that hid pointer capture hid the touch controls as well. Flutter reports a mobile browser as `android` or `iOS`, so nothing had to be detected for that.
 
-The question each build actually asks is in `Playing`: can the pointer be captured, where does the camera come from, does the player have fingers. Not `kIsWeb`, which was one answer to three questions and wrong about two of them.
+`Playing` asks the three questions separately now: can the pointer be captured, where does the camera come from, does the player have fingers. `kIsWeb` was one answer to all three, and wrong about two.
 
 ## What the browser costs
 
-Sound, pointer capture and saved settings were all listed here as missing and all three work now: `flutter_soloud` ships a WebAssembly build, `pointer_lock` grew a browser backend over `document.requestPointerLock`, and settings and saves are `localStorage` rather than files.
+Sound, pointer capture and saved settings were all listed here as missing. All three work now: `flutter_soloud` ships a WebAssembly build, `pointer_lock` grew a browser backend over `document.requestPointerLock`, and settings and saves live in `localStorage` instead of files.
 
 | | |
 |---|---|
-| **Frame rate** | 35–60 fps on the WebAssembly build, against 60 on Impeller. The crypt is the heavier of the two: more lights, more shadow casters, particles on every torch, and a second pass for the view model. The number was 15–30 before `--wasm` and before the cube atlas stopped being sized from the cascade's resolution |
+| **Frame rate** | 53 fps with no dropped frames on the WebAssembly build, against 60 on Impeller. It was 15–30 before `--wasm` and before the cube atlas stopped being sized from the cascade's resolution. The crypt is the heavier of the two demos: more lights, more shadow casters, particles on every torch, a second pass for the view model |
 | **Fixed resolution** | 1280×720 internally, stretched by CSS. A `WebGlDevice` owns its canvas and a WebGL canvas resets its drawing buffer when resized |
 | **Download** | About 55 MB |
 
@@ -77,7 +77,7 @@ void _drainLook(Vector2 out) {
 }
 ```
 
-There is no `kIsWeb` anywhere in this application, which is the part worth noticing: the drag layer above the frame is mounted `if (Playing.dragLook)`, the capture is asked for `if (Playing.capturesPointer)`, and the on-screen stick appears `if (Playing.touch)`. A desktop browser now takes all three branches a desktop does.
+There is no `kIsWeb` anywhere in this application. The drag layer above the frame is mounted `if (Playing.dragLook)`, the capture is asked for `if (Playing.capturesPointer)`, and the on-screen stick appears `if (Playing.touch)`. A desktop browser takes all three branches a desktop takes.
 
 Nothing in `flutter3d`, `flutter3d_game`, `flutter3d_physics` or `flutter3d_game_shooter` changed to make this run.
 
@@ -87,7 +87,7 @@ Each was a real defect instead of a web caveat, and each is fixed in the reposit
 
 1. **The generated GLSL was stale.** `flutter3d_webgl/lib/engine_shaders.dart` had not been regenerated since cascaded shadows added `shadow_matrix_far`, so the backend could not draw one sphere. [The detail is on the platformer's demo page](/platformer/demo/#the-bug-this-demo-found).
 2. **The canvas took the pointer.** A WebGL canvas is a display surface, not a control, and left interactive it swallowed every event the widgets above it needed. It now carries `pointer-events: none`.
-3. **`pointer_lock` threw where it promised not to.** `PointerLock` documents that it no-ops on a platform without an implementation, and it does — except that its constructor subscribes to an event channel, which is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" actually means.
+3. **`pointer_lock` threw where it promised not to.** `PointerLock` documents that it no-ops on a platform without an implementation, and it does. Its constructor, though, subscribed to an event channel, and that is a `MissingPluginException` on the first listener. It hands back an empty stream now, which is what "this platform never changes capture state" comes to in code.
 
 ## Building it yourself
 

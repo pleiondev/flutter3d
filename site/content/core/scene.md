@@ -4,7 +4,7 @@ description: Nodes with version stamps instead of dirty flags, cameras and proje
 
 # Scene graph
 
-A tree of nodes, a camera, some lights. Everything on this page needs no device at all, which is what makes bounds, culling, framing and picking testable without one.
+A tree of nodes, a camera, some lights. Everything on this page needs no device at all, so bounds, culling, framing and picking are testable without one.
 
 ## Nodes
 
