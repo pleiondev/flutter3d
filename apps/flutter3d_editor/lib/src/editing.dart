@@ -129,14 +129,28 @@ final class Editing {
   /// that reconstructs state is an undo with its own bugs.
   static const int undoDepth = 64;
 
+  /// Documents undone, newest last, so [redo] can put one back.
+  ///
+  /// **There was an undo stack and no redo**, which is half a mechanism: the
+  /// design here is whole-document snapshots precisely because reconstructing
+  /// state is an undo with its own bugs, and going forward again is the same
+  /// snapshot read the other way. Five lines, given the shape already chosen.
+  final List<Map<String, Object?>> _redo = <Map<String, Object?>>[];
+
   void _remember() {
     _undo.add(level.toJson());
     if (_undo.length > undoDepth) _undo.removeAt(0);
+    // A new change is a new future. Keeping the old one would let redo put
+    // back a document that never followed from what is on screen.
+    _redo.clear();
     _dirty = true;
   }
 
   /// Whether there is anything to go back to.
   bool get canUndo => _undo.isNotEmpty;
+
+  /// Whether there is anything to go forward to.
+  bool get canRedo => _redo.isNotEmpty;
 
   /// Puts the document back the way it was before the last change.
   ///
@@ -145,7 +159,19 @@ final class Editing {
   /// the brush.
   void undo() {
     if (_undo.isEmpty) return;
-    level = Level.fromJson(_undo.removeLast());
+    _redo.add(level.toJson());
+    _restore(_undo.removeLast());
+  }
+
+  /// Puts back the change [undo] took away.
+  void redo() {
+    if (_redo.isEmpty) return;
+    _undo.add(level.toJson());
+    _restore(_redo.removeLast());
+  }
+
+  void _restore(Map<String, Object?> document) {
+    level = Level.fromJson(document);
     // A selection that survives is what makes undoing a nudge feel like undoing
     // a nudge; one that points past the end of a list that just got shorter is
     // a crash waiting for the next key.
@@ -153,7 +179,12 @@ final class Editing {
       kind = null;
       selected = null;
     }
-    _dirty = true;
+    // **Not unconditionally `true`, which it was.** Undoing back to the state
+    // that was last written is a document with nothing unsaved in it, and
+    // saying otherwise means the bar reads "— unsaved" over work that is on
+    // the disk — and, now that closing asks, that the editor asks a question
+    // it already knows the answer to.
+    _dirty = _undo.length != _savedDepth;
   }
 
   /// Picks something, or nothing.
@@ -428,7 +459,14 @@ final class Editing {
   }
 
   /// Says the document has been written, so it stops calling itself unsaved.
-  void saved() => _dirty = false;
+  void saved() {
+    _dirty = false;
+    // Where the undo stack stood when this document was written, so undoing
+    // back to here is "nothing unsaved" rather than "one more change".
+    _savedDepth = _undo.length;
+  }
+
+  int _savedDepth = 0;
 
   double _snap(double value) =>
       grid <= 0.0 ? value : (value / grid).roundToDouble() * grid;

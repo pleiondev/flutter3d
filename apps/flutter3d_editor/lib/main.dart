@@ -28,6 +28,7 @@ import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
+import 'package:flutter3d_ui/native.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
@@ -645,9 +646,17 @@ class _EditorScreenState extends State<EditorScreen>
     final key = event.logicalKey;
 
     if (command && key == LogicalKeyboardKey.keyZ) {
-      editing.undo();
-      _placeMarker();
-      _changed(editing.canUndo ? 'undone' : 'undone — back to the start');
+      // Shift-command-Z goes the other way, which is what every editor on this
+      // platform does and what this one could not do at all.
+      if (pressed.isShiftPressed) {
+        editing.redo();
+        _placeMarker();
+        _changed(editing.canRedo ? 'redone' : 'redone — back to the front');
+      } else {
+        editing.undo();
+        _placeMarker();
+        _changed(editing.canUndo ? 'undone' : 'undone — back to the start');
+      }
       return KeyEventResult.handled;
     }
     if (command && key == LogicalKeyboardKey.keyD) {
@@ -796,9 +805,16 @@ class _EditorScreenState extends State<EditorScreen>
       return;
     }
 
-    final path = copy ? _besidePath(editing.path) : editing.path;
+    final path = copy ? await _freePathBeside(editing.path) : editing.path;
     try {
-      await File(path).writeAsString(
+      // **Atomically, which it was not.** This wrote a person's hand-built
+      // level with a bare `writeAsString` while settings and saves — documents
+      // a game can afford to lose — have gone through a temporary and a rename
+      // since they were written. A crash or a full disk halfway through left a
+      // truncated level where the good one had been, so one lost session
+      // became every future one.
+      await writeFileAtomically(
+        path,
         // A copy of a generated document takes ownership of itself. One that
         // still named the generator would invite somebody to run it again, and
         // running it again is exactly what throws the work away.
@@ -811,9 +827,26 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  static String _besidePath(String path) => path.endsWith('.json')
-      ? '${path.substring(0, path.length - 5)}.edited.json'
-      : '$path.edited';
+  /// A name beside [path] that nothing is using yet.
+  ///
+  /// **It used to be one name.** Shift-save always wrote `foo.edited.json`, so
+  /// a second shift-save overwrote the first copy without asking — and the
+  /// whole reason shift-save exists is that the original is generated and must
+  /// not be touched, which makes the copy the only version of that work there
+  /// is.
+  static Future<String> _freePathBeside(String path) async {
+    final stem = path.endsWith('.json')
+        ? path.substring(0, path.length - 5)
+        : path;
+    final suffix = path.endsWith('.json') ? '.json' : '';
+    var candidate = '$stem.edited$suffix';
+    // Two hundred is a number nobody reaches and a loop that always ends.
+    for (var n = 2; n < 200; n++) {
+      if (!File(candidate).existsSync()) return candidate;
+      candidate = '$stem.edited.$n$suffix';
+    }
+    return candidate;
+  }
 
   @override
   void dispose() {
@@ -825,29 +858,82 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   @override
-  Widget build(BuildContext context) => BlocProvider.value(
-    value: _cubit,
-    child: BlocBuilder<EditorCubit, EditorState>(
-      bloc: _cubit,
-      builder: (BuildContext context, EditorState state) => switch (state) {
-        EditorFailed(:final error) => DidNotStart(
-          error,
-          // The editor's own colours: a tool sits beside other tools,
-          // and black with grey text is a game's screen rather than an
-          // application's.
-          background: const Color(0xFF14161A),
-          foreground: const Color(0xFFFF8A80),
-        ),
-        EditorChoosing() => EditorChooser(
-          state: state,
-          levelPath: kLevelPath,
-          onCreate: _create,
-        ),
-        EditorOpening() => const _Loading(),
-        EditorReady() => _editorScreen(state),
-      },
+  Widget build(BuildContext context) => PopScope(
+    // **Closing threw the work away without a word.** The editor has tracked
+    // `isDirty` and rendered "— unsaved" in its bar since it was written, and
+    // then let the window go on the first ask. Nothing in this repository used
+    // `PopScope` at all, and this is the one screen that holds a document
+    // nothing can regenerate.
+    canPop: !(_editing?.isDirty ?? false),
+    onPopInvokedWithResult: (bool didPop, Object? _) {
+      if (didPop) return;
+      unawaited(_askBeforeLeaving());
+    },
+    child: BlocProvider.value(
+      value: _cubit,
+      child: BlocBuilder<EditorCubit, EditorState>(
+        bloc: _cubit,
+        builder: (BuildContext context, EditorState state) => switch (state) {
+          EditorFailed(:final error) => DidNotStart(
+            error,
+            // The editor's own colours: a tool sits beside other tools,
+            // and black with grey text is a game's screen rather than an
+            // application's.
+            background: const Color(0xFF14161A),
+            foreground: const Color(0xFFFF8A80),
+          ),
+          EditorChoosing() => EditorChooser(
+            state: state,
+            levelPath: kLevelPath,
+            onCreate: _create,
+          ),
+          EditorOpening() => const _Loading(),
+          EditorReady() => _editorScreen(state),
+        },
+      ),
     ),
   );
+
+  /// Asks what to do about unsaved work, and does it.
+  ///
+  /// Three answers rather than two, because "save" is the one a person
+  /// actually wants and a dialog offering only "lose it" or "stay" makes them
+  /// do the saving themselves and then close again.
+  Future<void> _askBeforeLeaving() async {
+    final editing = _editing;
+    if (editing == null || !mounted) return;
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: const Text('This level has unsaved changes'),
+        content: Text(editing.path),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('stay'),
+            child: const Text('Keep editing'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('discard'),
+            child: const Text('Close without saving'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('save'),
+            child: const Text('Save and close'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted || choice == null || choice == 'stay') return;
+    if (choice == 'save') {
+      await _save();
+      // Only if it actually landed: a save that could not write is not a
+      // reason to close, and the bar has already said why.
+      if (!mounted || editing.isDirty) return;
+    }
+    Navigator.of(context).maybePop();
+  }
 
   /// The document is open: the scene, and the three panels around it.
   Widget _editorScreen(EditorReady state) {

@@ -31,7 +31,7 @@ dependencies:
 
   # **Paths, because none of this is published**, and paths into the checkout
   # this project was made from — so they are true on the machine that made it
-  # and nowhere else. Moving the project means fixing these five lines.
+  # and nowhere else. Moving the project means fixing these lines.
   flutter3d:
     path: $packagesAt/flutter3d
   flutter3d_game:
@@ -40,8 +40,21 @@ dependencies:
     path: $packagesAt/flutter3d_bridge
   flutter3d_session:
     path: $packagesAt/flutter3d_session
-  flutter3d_impeller:
-    path: $packagesAt/flutter3d_impeller
+
+  # The assembly layer, which this seed used to leave out — and with it the
+  # settings screen, the key rebinding, the pointer capture and the gamepad.
+  # A scaffolded project got a window and a level and no way to turn the
+  # volume down, which is not a starting point anybody would choose.
+  #
+  # It brings `flutter3d_backend` too, so the game picks its backend the way
+  # the three demos do rather than naming Impeller here: a project that names
+  # one backend has no web build and no software fallback.
+  flutter3d_app:
+    path: $packagesAt/flutter3d_app
+
+  # Sound, which the seed also had none of.
+  flutter3d_audio:
+    path: $packagesAt/flutter3d_audio
 
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
@@ -113,4 +126,25 @@ no menu, no saving.
 Those live in `flutter3d_game_shooter` and `flutter3d_game_platformer`, and wiring one up
 is the next thing to do. Each of the three games in the flutter3d checkout keeps
 that wiring in its own `lib/src/staging.dart`, which is the file to read first.
+
+## What is wired, and what is only available
+
+The `pubspec.yaml` brings `flutter3d_app`, which is the assembly layer: the
+settings and rebinding screens, the save file, the gamepad, and desktop pointer
+capture. It also brings `flutter3d_audio`.
+
+**None of that is wired into `lib/main.dart`.** The seed opens a device, reads
+a level, and walks a body around it — that is all. What the packages give you
+is that adding each of these is an import and a few lines rather than a
+package decision:
+
+* a settings screen — `SettingsCubit`, `SettingsOverlay`, `SettingsFile`;
+* key and pad rebinding — the same screen, once `actions` is a list of what
+  this game lets a player change;
+* sound — `openSpeakers`, then `AudioScene.play` where something happens;
+* a gamepad — `PadInput`, ticked once a frame beside the keyboard;
+* pointer capture for a first-person camera — `PointerLock`.
+
+The crypt's `lib/main.dart` in the flutter3d checkout wires all five, and is
+the worked example for each.
 ''';

@@ -37,6 +37,13 @@ dependencies:
   flutter3d_session:
     path: ../../packages/flutter3d_session
 
+  # For `writeFileAtomically`, through `flutter3d_ui/native.dart`. This
+  # application writes the one document in the repository that cannot be
+  # regenerated — somebody's hand-built level — and was writing it with the
+  # least crash-safe call of anything here.
+  flutter3d_ui:
+    path: ../../packages/flutter3d_ui
+
   vector_math: ^2.2.0
 
   # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.

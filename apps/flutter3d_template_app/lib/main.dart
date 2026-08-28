@@ -212,7 +212,15 @@ class _LevelScreenState extends State<LevelScreen>
   Future<void> _open() async {
     final GraphicsDevice device;
     try {
-      device = await GpuRenderBackend.create();
+      // Through `openDevice` rather than by naming a backend — see
+      // `src/backend.dart`. It picks Impeller or WebGL for the build, and
+      // falls back to the software rasteriser at run time when flutter_gpu
+      // will not start, which is the difference between a window that draws
+      // slowly and one that draws nothing.
+      //
+      // The size is what the software fallback would draw at; the two hardware
+      // backends size themselves to the surface and ignore it.
+      device = await openDevice(width: 1280, height: 720);
       if (!mounted) return;
       setState(() => _renderer = Renderer.create(device: device));
     } catch (error) {
