@@ -52,7 +52,17 @@ final class SettingsFile {
     if (text == null) return GameConfig();
     try {
       final json = jsonDecode(text);
-      if (json is! Map<String, Object?>) return GameConfig();
+      if (json is! Map<String, Object?>) {
+        // **This one said nothing at all**, which is worse than the `catch`
+        // below: a document that parses as JSON and is not an object — a
+        // stored `null`, a `[]`, a truncated write on a platform where the
+        // atomic rename did not apply — went back as defaults with no word
+        // anywhere, so a player whose bindings had just been silently reset
+        // had nothing to report. `SaveFile.read` got this right next door and
+        // says so in its own comment; the lesson did not cross the file.
+        onIssue('settings: the document is not an object, using defaults');
+        return GameConfig();
+      }
       return GameConfig.fromJson(json);
     } catch (error) {
       onIssue('settings: could not be read, using defaults ($error)');

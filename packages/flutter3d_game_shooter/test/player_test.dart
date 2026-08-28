@@ -258,4 +258,38 @@ void main() {
       expect(both.z, 3.0);
     });
   });
+
+  group('what the pointer settings do', () {
+    test('inverting the vertical axis reverses it and nothing else', () {
+      // A preference and not a taste: a sizeable minority cannot play a
+      // first-person game without it, and there was nowhere to ask for it —
+      // the panel offered a slider for the right stick and nothing at all for
+      // the mouse.
+      //
+      // Mutation: apply the sign to `yaw` as well. Turning left starts turning
+      // right, which is not what anybody means by "invert look".
+      final upright = _pawn()..look(Vector2(10.0, 10.0));
+      final inverted = _pawn()
+        ..invertLook = true
+        ..look(Vector2(10.0, 10.0));
+
+      expect(inverted.pitch, closeTo(-upright.pitch, 1e-9));
+      expect(inverted.yaw, closeTo(upright.yaw, 1e-9));
+    });
+
+    test('and sensitivity scales both axes together', () {
+      // The scale the settings panel offers is a factor either side of the
+      // default, because radians per pixel is not a number anybody can set by
+      // feel.
+      final slow = _pawn()
+        ..lookSensitivity = 0.001
+        ..look(Vector2(10.0, 10.0));
+      final fast = _pawn()
+        ..lookSensitivity = 0.002
+        ..look(Vector2(10.0, 10.0));
+
+      expect(fast.yaw, closeTo(slow.yaw * 2.0, 1e-9));
+      expect(fast.pitch, closeTo(slow.pitch * 2.0, 1e-9));
+    });
+  });
 }

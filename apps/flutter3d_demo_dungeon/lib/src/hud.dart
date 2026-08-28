@@ -99,244 +99,207 @@ class Hud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
-        // The crosshair, which turns red the moment a shot connects. A hit
-        // marker is the cheapest feedback in a shooter and the one players
-        // notice the absence of.
-        Center(
-          child: SizedBox(
-            width: 5.0 + hitFlash * 4.0,
-            height: 5.0 + hitFlash * 4.0,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: Color.lerp(
-                  Colors.white70,
-                  const Color(0xFFFF5B4A),
-                  hitFlash,
-                ),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-        ),
-        Positioned(
-          left: 12.0,
-          top: 12.0,
-          child: DefaultTextStyle(
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12.0,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  'fps ${fps.toStringAsFixed(0)}   '
-                  'steps this frame $steps   dropped $dropped   '
-                  'voices $voices   particles $particles',
-                ),
-                Text(
-                  'x ${position.x.toStringAsFixed(1)}  '
-                  'y ${position.y.toStringAsFixed(1)}  '
-                  'z ${position.z.toStringAsFixed(1)}  '
-                  '${grounded ? 'grounded' : 'airborne'}',
-                ),
-              ],
-            ),
-          ),
-        ),
-        // A red wash on being hurt. Drawn under everything else so the numbers
-        // stay legible exactly when they matter most.
-        if (painFlash > 0.0)
-          IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  radius: 1.1,
-                  colors: <Color>[
-                    const Color(0x00FF2A18),
-                    Color.lerp(
-                      const Color(0x00FF2A18),
-                      const Color(0xAAFF2A18),
-                      painFlash,
-                    )!,
-                  ],
-                ),
-              ),
-              child: const SizedBox.expand(),
-            ),
-          ),
-        Positioned(
-          left: 20.0,
-          bottom: 18.0,
-          child: DefaultTextStyle(
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22.0,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'HEALTH',
-                  style: TextStyle(color: Colors.white54, fontSize: 12.0),
-                ),
-                Text(
-                  health.isAlive ? '${health.current.round()}' : 'DEAD',
-                  style: TextStyle(
-                    color: health.current > 30.0
-                        ? Colors.white
-                        : const Color(0xFFFF6B5A),
-                    fontSize: 22.0,
+    // Inside a `SafeArea`: the corners this HUD writes in are under the
+    // cutout on a notched handset held in landscape.
+    return SafeArea(
+      child: Stack(
+        children: <Widget>[
+          // The crosshair, which turns red the moment a shot connects. A hit
+          // marker is the cheapest feedback in a shooter and the one players
+          // notice the absence of.
+          Center(
+            child: SizedBox(
+              width: 5.0 + hitFlash * 4.0,
+              height: 5.0 + hitFlash * 4.0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color.lerp(
+                    Colors.white70,
+                    const Color(0xFFFF5B4A),
+                    hitFlash,
                   ),
-                ),
-                Text(
-                  'kills $kills   left $monstersLeft',
-                  style: const TextStyle(color: Colors.white38, fontSize: 11.0),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Positioned(
-          right: 20.0,
-          bottom: 18.0,
-          child: DefaultTextStyle(
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22.0,
-              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: <Widget>[
-                Text(
-                  weapon.name.toUpperCase(),
-                  style: const TextStyle(color: Colors.white54, fontSize: 12.0),
-                ),
-                Text(ammo < 0 ? '∞' : '$ammo'),
-              ],
-            ),
-          ),
-        ),
-        // Above the crosshair rather than at the bottom of the screen: it
-        // answers something the player just did, and their eyes are here.
-        if (messageOpacity > 0.0 && message.isNotEmpty)
-          Align(
-            alignment: const Alignment(0.0, -0.35),
-            child: Opacity(
-              opacity: messageOpacity,
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Color(0xFFF2E4C8),
-                  fontSize: 17.0,
-                  shadows: <Shadow>[Shadow(blurRadius: 6.0)],
+                  shape: BoxShape.circle,
                 ),
               ),
             ),
           ),
-
-        // Armour beside health, in the corner the eye already goes to.
-        if (armour > 0.0)
-          Align(
-            alignment: Alignment.bottomLeft,
-            child: Padding(
-              padding: const EdgeInsets.only(left: 132.0, bottom: 24.0),
+          Positioned(
+            left: 12.0,
+            top: 12.0,
+            child: DefaultTextStyle(
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12.0,
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  const Text(
-                    'ARMOUR',
-                    style: TextStyle(color: Colors.white38, fontSize: 12.0),
+                  Text(
+                    'fps ${fps.toStringAsFixed(0)}   '
+                    'steps this frame $steps   dropped $dropped   '
+                    'voices $voices   particles $particles',
                   ),
                   Text(
-                    '${armour.round()}',
+                    'x ${position.x.toStringAsFixed(1)}  '
+                    'y ${position.y.toStringAsFixed(1)}  '
+                    'z ${position.z.toStringAsFixed(1)}  '
+                    '${grounded ? 'grounded' : 'airborne'}',
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // A red wash on being hurt. Drawn under everything else so the numbers
+          // stay legible exactly when they matter most.
+          if (painFlash > 0.0)
+            IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    radius: 1.1,
+                    colors: <Color>[
+                      const Color(0x00FF2A18),
+                      Color.lerp(
+                        const Color(0x00FF2A18),
+                        const Color(0xAAFF2A18),
+                        painFlash,
+                      )!,
+                    ],
+                  ),
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          Positioned(
+            left: 20.0,
+            bottom: 18.0,
+            child: DefaultTextStyle(
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22.0,
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  const Text(
+                    'HEALTH',
+                    style: TextStyle(color: Colors.white54, fontSize: 12.0),
+                  ),
+                  Text(
+                    health.isAlive ? '${health.current.round()}' : 'DEAD',
+                    style: TextStyle(
+                      color: health.current > 30.0
+                          ? Colors.white
+                          : const Color(0xFFFF6B5A),
+                      fontSize: 22.0,
+                    ),
+                  ),
+                  Text(
+                    'kills $kills   left $monstersLeft',
                     style: const TextStyle(
-                      color: Color(0xFF8FC6E8),
-                      fontSize: 34.0,
-                      fontWeight: FontWeight.w300,
+                      color: Colors.white38,
+                      fontSize: 11.0,
                     ),
                   ),
                 ],
               ),
             ),
           ),
+          Positioned(
+            right: 20.0,
+            bottom: 18.0,
+            child: DefaultTextStyle(
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 22.0,
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: <Widget>[
+                  Text(
+                    weapon.name.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 12.0,
+                    ),
+                  ),
+                  Text(ammo < 0 ? '∞' : '$ammo'),
+                ],
+              ),
+            ),
+          ),
+          // Above the crosshair rather than at the bottom of the screen: it
+          // answers something the player just did, and their eyes are here.
+          if (messageOpacity > 0.0 && message.isNotEmpty)
+            Align(
+              alignment: const Alignment(0.0, -0.35),
+              child: Opacity(
+                opacity: messageOpacity,
+                child: Text(
+                  message,
+                  style: const TextStyle(
+                    color: Color(0xFFF2E4C8),
+                    fontSize: 17.0,
+                    shadows: <Shadow>[Shadow(blurRadius: 6.0)],
+                  ),
+                ),
+              ),
+            ),
 
-        // Every pouch, the one in use picked out. A row of small numbers
-        // rather than four labelled lines: it is glanced at, not read.
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 24.0, bottom: 84.0),
-            // `Wrap` rather than `Row`: this one is bounded by the screen, so
-            // at a large text size a row of four pouches overflows and Flutter
-            // paints the yellow bars over the game. Wrapping puts the fourth on
-            // a second line, which is what a glance wants anyway.
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              children: <Widget>[
-                for (final entry in pouches.entries)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 14.0),
-                    child: Text(
-                      '${entry.key.name.substring(0, 3).toUpperCase()} '
-                      '${entry.value}',
-                      style: TextStyle(
-                        color: entry.key == weapon.ammo
-                            ? Colors.white
-                            : Colors.white30,
-                        fontSize: 13.0,
+          // Armour beside health, in the corner the eye already goes to.
+          if (armour > 0.0)
+            Align(
+              alignment: Alignment.bottomLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 132.0, bottom: 24.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    const Text(
+                      'ARMOUR',
+                      style: TextStyle(color: Colors.white38, fontSize: 12.0),
+                    ),
+                    Text(
+                      '${armour.round()}',
+                      style: const TextStyle(
+                        color: Color(0xFF8FC6E8),
+                        fontSize: 34.0,
+                        fontWeight: FontWeight.w300,
                       ),
                     ),
-                  ),
-              ],
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
 
-        if (powers.isNotEmpty)
+          // Every pouch, the one in use picked out. A row of small numbers
+          // rather than four labelled lines: it is glanced at, not read.
           Align(
-            alignment: const Alignment(0.0, -0.75),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                for (final power in powers.entries)
-                  Text(
-                    '${power.key.toUpperCase()}  ${power.value.ceil()}',
-                    style: const TextStyle(
-                      color: Color(0xFFE8D48F),
-                      fontSize: 15.0,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-        if (keys.isNotEmpty)
-          Align(
-            alignment: Alignment.bottomCenter,
+            alignment: Alignment.bottomRight,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 84.0),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+              padding: const EdgeInsets.only(right: 24.0, bottom: 84.0),
+              // `Wrap` rather than `Row`: this one is bounded by the screen, so
+              // at a large text size a row of four pouches overflows and Flutter
+              // paints the yellow bars over the game. Wrapping puts the fourth on
+              // a second line, which is what a glance wants anyway.
+              child: Wrap(
+                alignment: WrapAlignment.end,
                 children: <Widget>[
-                  for (final key in keys)
+                  for (final entry in pouches.entries)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                      child: SizedBox(
-                        width: 14.0,
-                        height: 22.0,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: _keyPips[key] ?? Colors.white70,
-                            borderRadius: BorderRadius.circular(3.0),
-                          ),
+                      padding: const EdgeInsets.only(left: 14.0),
+                      child: Text(
+                        '${entry.key.name.substring(0, 3).toUpperCase()} '
+                        '${entry.value}',
+                        style: TextStyle(
+                          color: entry.key == weapon.ammo
+                              ? Colors.white
+                              : Colors.white30,
+                          fontSize: 13.0,
                         ),
                       ),
                     ),
@@ -345,34 +308,81 @@ class Hud extends StatelessWidget {
             ),
           ),
 
-        if (!captured)
-          const Align(
-            alignment: Alignment.bottomCenter,
-            child: Padding(
-              padding: EdgeInsets.all(24.0),
-              child: Text(
-                'Click to look around  ·  WASD to move  ·  Space to jump  ·  '
-                'E to use  ·  Esc to release the pointer',
-                style: TextStyle(color: Colors.white54),
-              ),
-            ),
-          ),
-        if (behind)
-          Positioned(
-            right: 24,
-            top: 24,
-            child: Text(
-              'This machine is behind — the game is running slowly.',
-              style: TextStyle(
-                color: Colors.amber.withValues(alpha: 0.9),
-                fontSize: 13,
-                shadows: const <Shadow>[
-                  Shadow(blurRadius: 8, color: Colors.black87),
+          if (powers.isNotEmpty)
+            Align(
+              alignment: const Alignment(0.0, -0.75),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (final power in powers.entries)
+                    Text(
+                      '${power.key.toUpperCase()}  ${power.value.ceil()}',
+                      style: const TextStyle(
+                        color: Color(0xFFE8D48F),
+                        fontSize: 15.0,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
                 ],
               ),
             ),
-          ),
-      ],
+
+          if (keys.isNotEmpty)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 84.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    for (final key in keys)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: SizedBox(
+                          width: 14.0,
+                          height: 22.0,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: _keyPips[key] ?? Colors.white70,
+                              borderRadius: BorderRadius.circular(3.0),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+          if (!captured)
+            const Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Text(
+                  'Click to look around  ·  WASD to move  ·  Space to jump  ·  '
+                  'E to use  ·  Esc to release the pointer',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ),
+            ),
+          if (behind)
+            Positioned(
+              right: 24,
+              top: 24,
+              child: Text(
+                'This machine is behind — the game is running slowly.',
+                style: TextStyle(
+                  color: Colors.amber.withValues(alpha: 0.9),
+                  fontSize: 13,
+                  shadows: const <Shadow>[
+                    Shadow(blurRadius: 8, color: Colors.black87),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

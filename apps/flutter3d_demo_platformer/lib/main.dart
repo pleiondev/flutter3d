@@ -12,8 +12,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart'
-    show DeviceOrientation, SystemChrome, SystemUiMode;
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_audio/flutter3d_audio.dart';
@@ -30,7 +28,6 @@ import 'src/credits.dart';
 import 'src/effects.dart';
 import 'src/hud.dart';
 import 'src/lens.dart';
-import 'src/level_error_screen.dart';
 import 'src/reactions.dart';
 import 'src/run.dart';
 import 'src/run_cubit.dart';
@@ -41,33 +38,9 @@ import 'src/soundtrack.dart';
 import 'src/title_card.dart';
 
 void main() {
-  // A phone is held the way the level is shaped, and the level is wide. Locked
-  // rather than allowed to rotate, because a third-person camera reframed
-  // mid-jump is a death the player did not earn.
-  //
-  // `ensureInitialized` because both calls below are platform channels, and a
-  // channel before the binding exists is an assertion rather than an effect.
-  if (Playing.touch) {
-    WidgetsFlutterBinding.ensureInitialized();
-    unawaited(
-      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]),
-    );
-    // The status bar over a game is a strip of the level nobody can see, and
-    // the navigation bar is a place to lose a thumb. `immersiveSticky` rather
-    // than `edgeToEdge`: the bars go away and a swipe brings them back as an
-    // overlay that fades, rather than pushing the game's layout about every
-    // time somebody reaches for the corner.
-    //
-    // The comment here used to argue for `edgeToEdge` while the call said
-    // `immersiveSticky`, which is worse than either being wrong — the next
-    // reader trusts the sentence.
-    unawaited(
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
-    );
-  }
+  // Landscape and no system bars on a handset — see `configureForTouch`,
+  // which two applications had written out and the third had not.
+  configureForTouch();
   runApp(const PlatformerApp());
 }
 
@@ -610,7 +583,7 @@ class _GameScreenState extends State<GameScreen>
   /// starting over once the run is finished. The edge, and the settings' first
   /// refusal of it, are `PadPresses`.
   void _padScreenButtons() {
-    if (!_presses.offer(_pad, _settings)) return;
+    if (!_presses.offer(_pad, _settings, menuButton: PadButton.start)) return;
 
     // Any button begins, which is also how a browser reveals the pad to the
     // page in the first place: it stays invisible until one is pressed.
@@ -930,7 +903,7 @@ class _GameScreenState extends State<GameScreen>
           // **This used to be a black screen for ever**: the load caught its
           // own throw and printed it, which is a line in a console nobody
           // playing the game can see.
-          return LevelErrorScreen(
+          return LevelLoadFailed(
             asset: run.asset,
             error: run.error,
             onStartOver: _startOver,

@@ -86,4 +86,28 @@ void main() {
 
     expect(leftovers, isEmpty, reason: 'the temporary was renamed, not left');
   });
+
+  test('a document that is not an object says so rather than resetting', () {
+    // **This arm said nothing at all**, which is worse than the `catch` beside
+    // it: a stored `null`, a `[]`, a write truncated on a platform where the
+    // atomic rename did not apply — all of them parse as JSON, none of them is
+    // a settings document, and every one went back as defaults with no word
+    // anywhere. A player whose bindings had just been silently reset had
+    // nothing to report. `SaveFile.read` got exactly this right next door.
+    //
+    // Mutation: return `GameConfig()` without calling `onIssue`. The config
+    // still comes back and nothing says the player's settings are gone.
+    final said = <String>[];
+    final file = SettingsFile(
+      appName: 'test',
+      storage: storage,
+      onIssue: said.add,
+    );
+    storage.write('settings.json', '[]');
+
+    final config = file.read();
+
+    expect(config.volumeOf('music'), GameConfig().volumeOf('music'));
+    expect(said.single, contains('not an object'));
+  });
 }

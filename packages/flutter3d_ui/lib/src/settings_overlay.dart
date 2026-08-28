@@ -85,16 +85,29 @@ class SettingsOverlay extends StatelessWidget {
       builder: (BuildContext context, SettingsState state) {
         if (!state.isOpen) {
           if (!canOpen) return const SizedBox.shrink();
-          return Positioned(
-            right: 18,
-            top: 16,
-            child: IconButton(
-              tooltip: 'Settings',
-              onPressed: () {
-                opening();
-                settings.show();
-              },
-              icon: const Icon(Icons.settings, color: Colors.white70),
+          // **Inside a `SafeArea`, which it was not.** `right: 18, top: 16` is
+          // measured from the window, and on a notched handset held in
+          // landscape the window's corner is under the cutout — so the only
+          // way into the settings was a control the player could not see or
+          // press. There are two `SafeArea`s in the whole of this repository
+          // and both are on the on-screen sticks; nothing that reads or is
+          // tapped was inside one.
+          return Positioned.fill(
+            child: SafeArea(
+              child: Align(
+                alignment: Alignment.topRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 18.0, top: 16.0),
+                  child: IconButton(
+                    tooltip: 'Settings',
+                    onPressed: () {
+                      opening();
+                      settings.show();
+                    },
+                    icon: const Icon(Icons.settings, color: Colors.white70),
+                  ),
+                ),
+              ),
             ),
           );
         }
@@ -106,6 +119,7 @@ class SettingsOverlay extends StatelessWidget {
           actions: actions,
           waitingFor: state.waitingFor,
           credits: credits,
+          writeFailed: state.lastWriteFailed,
           onVolume: (AudioBus bus, double volume) =>
               settings.setVolume(bus.name, volume),
           onSetting: settings.setSetting,

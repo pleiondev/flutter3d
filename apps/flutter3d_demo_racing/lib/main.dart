@@ -42,7 +42,14 @@ import 'src/sounds.dart';
 import 'src/staging.dart';
 import 'src/touch_drive.dart';
 
-void main() => runApp(const RacingApp());
+void main() {
+  // **This game had none of it.** The other two locked to landscape and hid
+  // the system bars on a handset; this one, which has touch controls and is
+  // meant to be played on a phone, did neither — so a tilt reframed the chase
+  // camera mid-corner and the status bar sat over the lap counter.
+  configureForTouch();
+  runApp(const RacingApp());
+}
 
 class RacingApp extends StatelessWidget {
   const RacingApp({super.key});
@@ -248,7 +255,20 @@ class _RaceScreenState extends State<RaceScreen>
   /// anything down — the only settings it has ever had were the ones its author
   /// compiled in. The panel is shared with the other two games; what is here is
   /// the wiring and the two lists that are this game's own.
-  final SettingsFile _settingsFile = SettingsFile(appName: 'racing');
+  /// **Routed to the screen, which it was not.** The seam has existed since
+  /// `Storage` did and only the platformer used it; the default prints to a
+  /// console no player has, so a settings document that would not read reset
+  /// every binding in silence.
+  late final SettingsFile _settingsFile = SettingsFile(
+    appName: 'racing',
+    onIssue: (String issue) {
+      printIssue(issue);
+      _issue = issue;
+    },
+  );
+
+  /// The last thing that went wrong where a player could see it.
+  String? _issue;
   late final GameConfig _config;
   late final SettingsCubit _settings;
 
@@ -344,6 +364,11 @@ class _RaceScreenState extends State<RaceScreen>
   @override
   void dispose() {
     unawaited(_settings.close());
+    // **The line this one was missing.** The other two applications close
+    // their devices here; without it the `PointerLock` state subscription
+    // `DesktopInput` opens outlives the screen, and a hot restart leaves the
+    // old one listening.
+    unawaited(_devices.dispose());
     _keyboard.dispose();
     _ticker?.dispose();
     for (final voice in _voices) {
@@ -736,7 +761,8 @@ class _RaceScreenState extends State<RaceScreen>
   /// point for a player who has one of the two devices. There is nothing else
   /// on screen here for a pad button to mean — no title card to take down and
   /// no run to start over — so what `PadPresses` hands back is dropped.
-  void _padRebinding() => _presses.offer(_pad, _settings);
+  void _padRebinding() =>
+      _presses.offer(_pad, _settings, menuButton: PadButton.start);
 
   /// The pad's presses, told apart from its holds.
   final PadPresses _presses = PadPresses();
@@ -992,7 +1018,7 @@ class _RaceScreenState extends State<RaceScreen>
                 onPointerDown: (_) => _keyboard.requestFocus(),
               ),
             ),
-            if (_race != null) RaceHud(readout: _readout()),
+            if (_race != null) RaceHud(readout: _readout(), issue: _issue),
             // A phone has no keyboard and this game had nothing else to offer
             // it: the wheel and the pedals, above the frame and below the
             // panel. Hidden while the settings are open, or a thumb reaching

@@ -1,4 +1,5 @@
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:pad_input/pad_input.dart' show PadButton;
 
 import 'settings_cubit.dart';
 
@@ -21,7 +22,8 @@ import 'settings_cubit.dart';
 /// keyboard: a controller has to be remappable from the controller, which is
 /// the whole point for a player who has one of the two devices.
 final class PadPresses {
-  bool _held = false;
+  /// What was down last frame, so an edge is per button.
+  final Set<PadButton> _held = <PadButton>{};
 
   /// Offers this frame's press to [settings], and says whether anything is
   /// left over for the screen.
@@ -35,15 +37,38 @@ final class PadPresses {
   /// [PadInput.heldButtons], and a caller that does not — a title card, where
   /// **any** button begins, which is also how a browser reveals the pad to the
   /// page in the first place — does not have to.
-  bool offer(PadInput pad, SettingsCubit settings) {
+  /// [menuButton] opens and closes [settings], and is what makes the panel
+  /// reachable at all for a player who has no keyboard.
+  ///
+  /// **`settingsKeys` takes a `KeyEvent`.** Its own doc says Escape exists so
+  /// that "a player on a controller, who never took the pointer, has a way
+  /// in" — and Escape is a key. Nothing here had a path to `settings.toggle`,
+  /// and no game bound one, so on a television, on a phone with a pad, or at a
+  /// desk with the keyboard pushed aside, the only way into the panel was the
+  /// on-screen gear and the only way out was the same.
+  ///
+  /// Null keeps the old behaviour exactly, for a caller that wants every
+  /// button to mean "begin".
+  bool offer(PadInput pad, SettingsCubit settings, {PadButton? menuButton}) {
     final held = pad.heldButtons;
-    final pressing = held.isNotEmpty;
-    final wasPressing = _held;
-    _held = pressing;
-    if (!pressing || wasPressing) return false;
+
+    // **Per button, not over the whole held set.** `_held` used to be "is
+    // anything down", so a player who died holding the accelerator had to let
+    // go of everything before Start would register — the edge had already been
+    // spent by the button they were still holding.
+    final pressed = held.where((PadButton it) => !_held.contains(it)).toList();
+    _held
+      ..clear()
+      ..addAll(held);
+    if (pressed.isEmpty) return false;
 
     if (settings.state.waitingFor != null) {
-      settings.capture(InputSource.pad(held.first.id));
+      settings.capture(InputSource.pad(pressed.first.id));
+      return false;
+    }
+
+    if (menuButton != null && pressed.contains(menuButton)) {
+      settings.toggle();
       return false;
     }
     return true;
