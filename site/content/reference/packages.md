@@ -23,7 +23,7 @@ When a second backend arrives, this package does not change. A translation file 
 → [The HAL and its three backends](/core/architecture/#the-hal) · [Writing a backend](/core/backends/)
 
 ### `flutter3d_shaders`
-The shared GLSL every backend compiles from — Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions.
+The shared GLSL every backend compiles from: Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions.
 
 ## Backends, three implementations of the HAL
 
@@ -37,16 +37,14 @@ The browser. `WebGlDevice` implements the HAL and has its own example.
 
 Its real value is not that it runs on the web: it is the first thing that can tell you whether the HAL is a *seam* or a *description of Impeller*, because a fake backend can only confirm that an interface is callable, never that it is implementable.
 
-**Status:** complete enough to run the shooter and the platformer; it also renders the racing game, too slowly to play. `lib/engine_shaders.dart` holds all twenty-six entry points in GLSL ES 3.00, generated from `flutter3d_shaders` by `tool/generate_shaders.dart`.
-
-The library docstring still says the shaders are unwritten, which is out of date. What is true is that nothing checks the generated file against its source, so it goes stale silently: when cascaded shadows added a member to a uniform block, the backend stopped drawing anything until the generator was re-run. See the [platformer demo](/platformer/demo/#the-bug-this-demo-found).
+**Status:** all three games run on it. `lib/engine_shaders.dart` holds every entry point in GLSL ES 3.00, generated from `flutter3d_shaders` by `tool/generate_shaders.dart`, and CI regenerates it and fails on the diff — it used to go stale silently, and when cascaded shadows added a member to a uniform block the backend stopped drawing anything until somebody re-ran the generator. See the [platformer demo](/platformer/demo/#the-bug-this-demo-found).
 
 ### `flutter3d_cpu` — software
 A rasteriser written in Dart. `CpuDevice` implements the same HAL, plus PNG output and Dart transcriptions of the shaders.
 
 Not a fallback. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer.
 
-It is how thirty golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_backend` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
+It is how thirty-two golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_backend` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
 
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
@@ -58,7 +56,7 @@ Two tiers, and the split is a correction. The library said it was shader-free as
 ### `flutter3d_testing`
 Renders a scene through the software backend and compares it against a reference image, so a game built on the engine gets pixel regression tests on a machine with no display.
 
-Two calls: `renderFrame` builds a frame from a scene and a camera, `expectMatchesGolden` compares it against a PNG and records one when there is none. The tolerance defaults to **zero**, and that is the point — a software rasteriser has no driver, no clock and no thread to disagree with itself, so the same scene drawn twice is the same bytes twice, and a package telling its users to allow "a few pixels" would be telling them to stop watching.
+Two calls: `renderFrame` builds a frame from a scene and a camera, `expectMatchesGolden` compares it against a PNG and records one when there is none. The tolerance defaults to **zero**, and that is the point. A software rasteriser has no driver, no clock and no thread to disagree with itself, so the same scene drawn twice is the same bytes twice; a package telling its users to allow "a few pixels" would be telling them to stop watching.
 
 ## Simulation
 
@@ -91,7 +89,7 @@ Nothing here imports the renderer, so all of it runs in a test with no device.
 → [What a platformer adds](/platformer/) · [Tutorial](/platformer/tutorial/)
 
 ### `flutter3d_game_racing`
-A car, a road that is a curve rather than a floor, and a lap that only counts when it was driven all the way round. `TrackSpline` and `TrackField` place a car by where it is on the curve rather than by sweeping it against geometry, which is what lets a circuit run to a kilometre. `SphereVehicle` and `TireModel` are the car; `RaceState` and `RacingSimulation` own laps, checkpoints and positions; `AiDriver` races against it and `GhostRecorder`/`GhostTape`/`GhostPlayer` record a lap as places rather than inputs, so it survives the car being retuned.
+A car, a road that is a curve instead of a floor, and a lap that only counts when it was driven all the way round. `TrackSpline` and `TrackField` place a car by where it is on the curve instead of sweeping it against geometry, so a circuit can run to a kilometre. `SphereVehicle` and `TireModel` are the car; `RaceState` and `RacingSimulation` own laps, checkpoints and positions; `AiDriver` races against it and `GhostRecorder`/`GhostTape`/`GhostPlayer` record a lap as places rather than inputs, so it survives the car being retuned.
 
 Draws nothing, for the same reason the other two genres don't: a car that understeers differently at a lower frame rate, or a lap counted twice in one step, appears nowhere in a screenshot and is reachable from a plain test.
 

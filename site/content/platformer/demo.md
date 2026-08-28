@@ -23,8 +23,8 @@ description: The platformer, built against the WebGL2 backend and running in thi
 <dl class="keys">
   <div><dt>W A S D</dt><dd>Run, read against the camera</dd></div>
   <div><dt>Space</dt><dd>Jump. Tap for a short one, hold for a full one. That is <code>jumpCut</code>. Again in the air for the double jump</dd></div>
-  <div><dt>Mouse</dt><dd>Turn the camera. Click once and the browser hands the pointer over; Escape gives it back. Where it will not — a phone, or a browser that refuses — a drag turns the camera instead</dd></div>
-  <div><dt>Click or Q</dt><dd>Dash. The click is the dash wherever the pointer is captured, which now includes a desktop browser; Q is there for everywhere else</dd></div>
+  <div><dt>Mouse</dt><dd>Turn the camera. Click once and the browser hands the pointer over; Escape gives it back. Where it will not, on a phone or in a browser that refuses, a drag turns the camera instead</dd></div>
+  <div><dt>Click or Q</dt><dd>Dash. The click is the dash wherever the pointer is captured, which now includes a desktop browser. Q is there for everywhere else</dd></div>
   <div><dt>Ctrl or C</dt><dd>Drop through a one-way platform</dd></div>
   <div><dt>Shift</dt><dd>Sprint</dd></div>
 </dl>
@@ -65,7 +65,13 @@ Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `
 
 Stated rather than discovered, because a demo that hides its trade-offs is an advertisement.
 
-Three entries used to be here and are not any more, which is worth saying because the page claimed them for months. **Pointer capture works**: `pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse rather than a drag — the page embedding the game needs `allow="pointer-lock"` on the iframe, and this one has it. **Sound plays**: `flutter_soloud` ships a WebAssembly build and starts here. **Settings and saves survive a refresh**: they are `localStorage` now, not files, after a build where every launch was a first launch and nothing said so.
+Three entries used to be here and are not any more. The page claimed them for months, so they are worth naming.
+
+**Pointer capture works.** `pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse. A page embedding the game needs `allow="pointer-lock"` on the iframe; this one has it.
+
+**Sound plays.** `flutter_soloud` ships a WebAssembly build and starts here.
+
+**Settings and saves survive a refresh.** They live in `localStorage` now. Before that they were files, so every launch was a first launch and nothing said so.
 
 | | |
 |---|---|

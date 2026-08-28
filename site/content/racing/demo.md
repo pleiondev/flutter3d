@@ -4,7 +4,7 @@ description: The racing game built against the WebGL2 backend — unplayable for
 
 # Demo: the racing game in a browser
 
-*Ring*, running on `flutter3d_webgl`. It builds, it loads, it draws the circuit — and for months it did all of that at well under one frame a second, which is what this page was about. It drives now. The page keeps the hunt, because what was wrong was not where anybody looked.
+*Ring*, running on `flutter3d_webgl`. It builds, it loads, it draws the circuit, and for months it did all of that at well under one frame a second. That is what this page used to be about. It drives now, and the page keeps the hunt, because what was wrong was not where anybody looked.
 
 <div class="demo">
   <iframe class="demo-frame" src="/demo/racing/" title="Ring, the racing demo" allow="autoplay; pointer-lock" loading="lazy"></iframe>
@@ -24,24 +24,24 @@ The frame budget was the first suspect and it was wrong.
 | 960×540, 2 cascades at 1024 | No measurable change |
 | 480×270, 1 cascade at 512 | No measurable change |
 
-Dropping to a twelfth of the shadow atlas and a ninth of the pixels changed nothing, so **the cost was not fill rate** — and that measurement, which looked like a dead end, was the clue. Fill rate is what a *smaller* frame buys back. What it does not touch is what a frame *allocates*.
+Dropping to a twelfth of the shadow atlas and a ninth of the pixels changed nothing, so **the cost was not fill rate**. That measurement looked like a dead end and was the clue: a smaller frame buys back fill rate, and touches nothing a frame *allocates*.
 
 ### It was the shadow atlas, and not for the reason it looks
 
-The cube atlas for point lights is six tiles across and one row per shadowed light. Its tile size was taken from `ShadowSettings.resolution` — the number a game sets for the *sun*. This game asks for 1024 on the web, so the atlas came out 6144 × 4096 texels of `r16g16b16a16Float`: **201 MB**. There are two of them, the movers and the bake. Four hundred megabytes of texture, on a platform where a tab has less, for a circuit lit mostly by a directional light.
+The cube atlas for point lights is six tiles across and one row per shadowed light. Its tile size came from `ShadowSettings.resolution`, the number a game sets for the *sun*. This game asks for 1024 on the web, so the atlas came out 6144 × 4096 texels of `r16g16b16a16Float`: **201 MB**, and there are two of them, the movers and the bake. Four hundred megabytes of texture on a platform where a tab has less, for a circuit lit mostly by a directional light.
 
 Shrinking the frame never touched it, because the atlas is not sized from the frame. `ShadowSettings.cubeResolution` is its own number now, defaulting to 512, and the two atlases come to 100 MB together — a quarter of what they were, with golden sets that did not move a pixel when it changed.
 
 ### And the compiler
 
-The demos are built with `--wasm` now. dart2wasm compiles the simulation — a car's tyre model, three AI drivers, a spline the size of a kilometre — to WebAssembly rather than to JavaScript, and the games are the one thing on this site that spends its frame budget in Dart rather than in a driver.
+The demos are built with `--wasm` now. dart2wasm compiles the simulation to WebAssembly instead of JavaScript: a car's tyre model, three AI drivers, a spline a kilometre long. The games are the one thing on this site that spends its frame budget in Dart instead of in a driver.
 
 ## What it runs at now
 
-The shooter's own counter reads **53 fps with no dropped frames** in the crypt, against 15–30 before these two changes. This game has no counter on screen; what it has instead is a lap clock that keeps real time, three AI drivers that hold their line, and a car that answers the wheel.
+The shooter's own counter reads **53 fps with no dropped frames** in the crypt, against 15–30 before these two changes. This game has no counter on screen. What it has is a lap clock that keeps real time, three AI drivers that hold their line, and a car that answers the wheel.
 
 <div class="note">
-<p>Both fixes came out of a shadow investigation rather than a performance one, which is the ordinary way of it: the memory was measured while chasing a straight edge in a teapot's shadow, and nobody had thought to ask what a cube atlas costs when its tile comes from the sun's setting.</p>
+<p>Both fixes came out of a shadow investigation, not a performance one. The memory was measured while chasing a straight edge in a teapot's shadow, and nobody had thought to ask what a cube atlas costs when its tile comes from a setting named for the sun.</p>
 </div>
 
 ## Controls

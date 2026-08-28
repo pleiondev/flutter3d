@@ -137,7 +137,7 @@ final race = RaceState(
 );
 ```
 
-`RacerProgress` is derived once per step from where a car is, and none of it is stored on the car — a car does not know what a lap is, which is what makes `RaceMode.freeRoam` work at all.
+`RacerProgress` is derived once per step from where a car is, and none of it is stored on the car — a car does not know what a lap is, and that is why `RaceMode.freeRoam` works at all.
 
 | Field | |
 |---|---|
@@ -210,7 +210,7 @@ final player = GhostPlayer(tape);
 if (player.sampleAt(time, frame)) { /* place the ghost */ }
 ```
 
-Recorded at 30 Hz and interpolated with Catmull-Rom on playback, so the tape is small and the ghost does not step. `GhostFrame` rounds to a millimetre on the way to JSON, which is what keeps a lap of tape a reasonable file.
+Recorded at 30 Hz and interpolated with Catmull-Rom on playback, so the tape is small and the ghost does not step. `GhostFrame` rounds to a millimetre on the way to JSON, so a lap of tape stays a reasonable file.
 
 ## The chase camera
 
