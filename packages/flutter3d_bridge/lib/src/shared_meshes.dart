@@ -31,4 +31,25 @@ final class SharedMeshes {
     key,
     () => DeviceMesh.upload(_device, shape().build()),
   );
+
+  /// Gives every uploaded mesh back to the device.
+  ///
+  /// **The class doc has said "a GPU resource that outlives the level owning it
+  /// is a leak nobody notices" since it was written, and there was no way to
+  /// end one.** The cache belongs to a level load, every level load made
+  /// another, and nothing ever released the buffers — which on WebGL2 is a
+  /// real leak per level, because nothing reclaims a `WebGLBuffer` but
+  /// `gl.deleteBuffer`.
+  ///
+  /// Call it when the level that owns this cache is over — see
+  /// `RunSession.close`, which is the hook that says when that is. Afterwards
+  /// asking for a shape uploads a new one, so this is a teardown rather than a
+  /// way to save memory mid-level.
+  void dispose() {
+    for (final mesh in _meshes.values) {
+      _device.releaseGeometry(mesh.vertices);
+      _device.releaseGeometry(mesh.indices);
+    }
+    _meshes.clear();
+  }
 }
