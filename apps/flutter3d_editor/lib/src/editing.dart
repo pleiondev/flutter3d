@@ -418,6 +418,138 @@ final class Editing {
     selected = null;
   }
 
+  /// Every field of the selected thing, as the document holds them.
+  ///
+  /// The document rather than the object, deliberately. `Brush` and
+  /// `LevelLight` are immutable value types whose fields are `final`, so there
+  /// is nothing to assign to — and both write through a `_source` map, which
+  /// means a document can carry a field this build has never heard of and keep
+  /// it. Reading the row back gives an editor every field the format has,
+  /// including the ones added after it was written.
+  ///
+  /// Empty when nothing is selected.
+  Map<String, Object?> get fields {
+    final row = _rowOf(level.toJson());
+    return row == null
+        ? const <String, Object?>{}
+        : Map<String, Object?>.unmodifiable(row);
+  }
+
+  /// Fields the format defines for the selected kind that this row omits, at
+  /// the value the reader would use for them.
+  ///
+  /// **Without this the panel edits only what is already written**, and the
+  /// gap it exists to close is exactly the other case: a brush is solid and
+  /// casts a shadow *by omission*, so a document that has never said otherwise
+  /// carries neither key — and a one-way platform or a piece of non-solid
+  /// decoration is made by adding one. An inspector built purely from the row
+  /// would have shown three fields for the crypt's every wall and offered no
+  /// way to reach the two that matter.
+  ///
+  /// A hand-written list, which is the one place in this design that is: the
+  /// format has no schema to ask, and offering a field means knowing its name
+  /// and its default. Kept beside [setField] rather than in the panel because
+  /// it is a fact about the level format rather than about widgets — and kept
+  /// short, because anything a document already carries comes from [fields]
+  /// and needs no entry here.
+  ///
+  /// Entities are deliberately almost empty: everything not reserved *is* a
+  /// property there, so the format grows by writing new keys and there is no
+  /// finite list to offer.
+  Map<String, Object?> get offerable {
+    final has = fields;
+    if (has.isEmpty) return const <String, Object?>{};
+    final all = switch (kind!) {
+      Piece.brush => const <String, Object?>{
+        'solid': true,
+        'castsShadow': true,
+        'surface': '',
+        'layer': 0,
+        'ramp': '+x',
+      },
+      Piece.light => const <String, Object?>{
+        'type': 'point',
+        'intensity': 1.0,
+        'range': 0.0,
+        'color': <double>[1.0, 1.0, 1.0],
+        'direction': <double>[0.0, -1.0, 0.0],
+        'castsShadow': false,
+        'name': '',
+      },
+      Piece.entity => const <String, Object?>{'name': ''},
+    };
+    return <String, Object?>{
+      for (final entry in all.entries)
+        if (!has.containsKey(entry.key)) entry.key: entry.value,
+    };
+  }
+
+  /// Sets one field of the selected thing, or removes it when [value] is null.
+  ///
+  /// **This is what the editor was missing**, and the shape of what was missing
+  /// is the point: it could move any of the three kinds, resize a brush,
+  /// brighten a light and turn an entity, and it could not touch a brush's
+  /// material, `solid`, `castsShadow`, `layer` or `ramp`, a light's colour,
+  /// range or type, or an entity's properties. Those are the one-way platforms
+  /// and the non-solid decoration the level format documents as its point, and
+  /// they were unauthorable in the editor that exists to author them.
+  ///
+  /// Through the document and back rather than field by field, for the same
+  /// reason [undo] works that way: a level is a few hundred numbers, and an
+  /// editor that reconstructs state is an editor with its own bugs. It also
+  /// means this needs no case per field and no case per kind — the day the
+  /// format grows a field, this edits it.
+  ///
+  /// A value that the format cannot read is refused rather than written: it
+  /// would be a document that will not load, produced by the tool whose job is
+  /// producing documents that will.
+  bool setField(String key, Object? value) {
+    if (piece == null) return false;
+    final document = level.toJson();
+    final row = _rowOf(document);
+    if (row == null) return false;
+
+    final before = Map<String, Object?>.from(row);
+    if (value == null) {
+      row.remove(key);
+    } else {
+      row[key] = value;
+    }
+
+    final Level rebuilt;
+    try {
+      rebuilt = Level.fromJson(document);
+    } catch (_) {
+      // Put the row back so the caller's document is untouched, and say no.
+      row
+        ..clear()
+        ..addAll(before);
+      return false;
+    }
+
+    _remember();
+    level = rebuilt;
+    return true;
+  }
+
+  /// The selected thing's own row inside [document], or null.
+  ///
+  /// Live rather than a copy: [setField] edits it in place and hands the whole
+  /// document back to `Level.fromJson`.
+  Map<String, Object?>? _rowOf(Map<String, Object?> document) {
+    final at = selected;
+    if (at == null || kind == null) return null;
+    final list =
+        document[switch (kind!) {
+          Piece.brush => 'brushes',
+          Piece.light => 'lights',
+          Piece.entity => 'entities',
+        }];
+    if (list is! List || at < 0 || at >= list.length) return null;
+    final row = list[at];
+    return row is Map<String, Object?> ? row : null;
+  }
+
   /// The material most of this level is made of, or `default`.
   String get commonestMaterial {
     if (level.brushes.isEmpty) return 'default';

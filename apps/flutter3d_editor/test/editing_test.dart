@@ -377,4 +377,100 @@ void main() {
     expect(reopened.brushes[0].centre.x, 1.0);
     expect(reopened.materials.keys, contains('stone'));
   });
+
+  group('editing a field', () {
+    test('reads every field the document holds, not every field we know', () {
+      // From the row rather than from the object: `Brush` and `LevelLight` are
+      // immutable value types whose fields are `final`, and both write through
+      // a `_source` map — so a document can carry something this build has
+      // never heard of, and an editor that read the object would not show it.
+      final editing = _open()..select(Piece.brush, 0);
+
+      expect(
+        editing.fields.keys,
+        containsAll(<String>['at', 'size', 'material']),
+      );
+      expect(editing.fields['material'], 'stone');
+    });
+
+    test('and nothing selected reads nothing', () {
+      expect(_open().fields, isEmpty);
+    });
+
+    test('sets a field the editor had no other way to touch', () {
+      // **The gap this closes.** The editor could move any of the three kinds,
+      // resize a brush, brighten a light and turn an entity — and could not
+      // touch a brush's material, `solid`, `castsShadow`, `layer` or `ramp`.
+      // Those are the one-way platforms and the non-solid decoration the level
+      // format documents as its point.
+      //
+      // Mutation: return false from `setField` without writing. The brush
+      // keeps the material it was generated with and the assertion fails.
+      final editing = _open()..select(Piece.brush, 0);
+
+      expect(editing.setField('solid', false), isTrue);
+
+      expect(editing.brush!.solid, isFalse);
+      expect(
+        editing.brush!.material,
+        'stone',
+        reason: 'it changed the wrong field',
+      );
+    });
+
+    test('and removes one when handed null', () {
+      final editing = _open()..select(Piece.brush, 0);
+      editing.setField('castsShadow', false);
+      expect(editing.brush!.castsShadow, isFalse);
+
+      editing.setField('castsShadow', null);
+
+      expect(editing.fields.containsKey('castsShadow'), isFalse);
+      expect(editing.brush!.castsShadow, isTrue, reason: 'back to the default');
+    });
+
+    test('and leaves every other field of the row alone', () {
+      // Through the document and back rather than field by field, which is what
+      // makes this true without a case per field: everything the row carried is
+      // still there, including anything this build does not understand.
+      final editing = _open()..select(Piece.brush, 1);
+      final before = Map<String, Object?>.from(editing.fields);
+
+      editing.setField('layer', 3);
+
+      for (final key in before.keys) {
+        expect(editing.fields[key], before[key], reason: '$key changed');
+      }
+      expect(editing.fields['layer'], 3);
+    });
+
+    test('and a value the format cannot read is refused, not written', () {
+      // The tool whose job is producing documents that load must not produce
+      // one that does not. Refused *and* rolled back: a half-applied edit would
+      // be worse than either.
+      //
+      // Mutation: drop the `try`/`catch` in `setField`. The throw comes out of
+      // a keystroke and takes the editor with it.
+      final editing = _open()..select(Piece.brush, 0);
+
+      expect(editing.setField('at', 'not a vector'), isFalse);
+
+      expect(editing.brush!.centre.x, 0.0);
+      expect(editing.fields['at'], isA<List<Object?>>());
+    });
+
+    test('and one edit is one undo', () {
+      // `_remember` only after the rebuild succeeded, so a refused edit does
+      // not leave an undo step that puts back what is already there.
+      final editing = _open()..select(Piece.brush, 0);
+      editing.setField('material', 'default');
+      expect(editing.canUndo, isTrue);
+
+      editing.setField('at', 'not a vector');
+      editing.undo();
+
+      expect(editing.brush!.material, 'stone');
+      expect(editing.canUndo, isFalse, reason: 'a refused edit left a step');
+    });
+  });
 }
