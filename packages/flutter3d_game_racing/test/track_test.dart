@@ -72,27 +72,29 @@ void main() {
       expect(frame.up.y, closeTo(1.0, 1e-9));
     });
 
-    test('camber raises the outside edge and leans the normal into the turn',
-        () {
-      // Mutation: rotate `right` and leave `up` alone. The road would tilt and
-      // its normal would not, so the load a car puts through a banked corner
-      // would still be straight down — the corner would look banked and drive
-      // flat, which is the one thing a banked corner is for.
-      final track = ring(bank: (_) => 0.15);
-      final frame = TrackFrame();
-      final outside = Vector3.zero();
-      final inside = Vector3.zero();
+    test(
+      'camber raises the outside edge and leans the normal into the turn',
+      () {
+        // Mutation: rotate `right` and leave `up` alone. The road would tilt and
+        // its normal would not, so the load a car puts through a banked corner
+        // would still be straight down — the corner would look banked and drive
+        // flat, which is the one thing a banked corner is for.
+        final track = ring(bank: (_) => 0.15);
+        final frame = TrackFrame();
+        final outside = Vector3.zero();
+        final inside = Vector3.zero();
 
-      track
-        ..frameAt(0.0, frame)
-        ..surfacePoint(0.0, 6.0, outside)
-        ..surfacePoint(0.0, -6.0, inside);
+        track
+          ..frameAt(0.0, frame)
+          ..surfacePoint(0.0, 6.0, outside)
+          ..surfacePoint(0.0, -6.0, inside);
 
-      expect(outside.y, greaterThan(inside.y));
-      expect(frame.up.y, lessThan(1.0));
-      expect(frame.up.y, greaterThan(0.9));
-      expect(frame.forward.dot(frame.up), closeTo(0.0, 1e-9));
-    });
+        expect(outside.y, greaterThan(inside.y));
+        expect(frame.up.y, lessThan(1.0));
+        expect(frame.up.y, greaterThan(0.9));
+        expect(frame.forward.dot(frame.up), closeTo(0.0, 1e-9));
+      },
+    );
 
     test('the road surface is one flat ribbon across its width', () {
       // The whole reason the road is not made of boxes: across the track it must
@@ -118,9 +120,18 @@ void main() {
     test('a value is exact at the control point it was authored at', () {
       final track = ring(widthAt: (i) => i.isEven ? 8.0 : 16.0);
 
-      expect(track.widthAt(track.centre.distanceToPoint(0)), closeTo(8.0, 1e-6));
-      expect(track.widthAt(track.centre.distanceToPoint(1)), closeTo(16.0, 1e-6));
-      expect(track.widthAt(track.centre.distanceToPoint(2)), closeTo(8.0, 1e-6));
+      expect(
+        track.widthAt(track.centre.distanceToPoint(0)),
+        closeTo(8.0, 1e-6),
+      );
+      expect(
+        track.widthAt(track.centre.distanceToPoint(1)),
+        closeTo(16.0, 1e-6),
+      );
+      expect(
+        track.widthAt(track.centre.distanceToPoint(2)),
+        closeTo(8.0, 1e-6),
+      );
     });
 
     test('the road edge has no crease where two widths meet', () {
@@ -175,7 +186,12 @@ void main() {
     test('the road is named at the centre and the shoulder beside it', () {
       final track = ring(
         surfaces: <SurfaceBand>[
-          SurfaceBand(fromS: 0.0, toS: 1000.0, centre: 'asphalt', shoulder: 'gravel'),
+          SurfaceBand(
+            fromS: 0.0,
+            toS: 1000.0,
+            centre: 'asphalt',
+            shoulder: 'gravel',
+          ),
         ],
       );
 
@@ -317,7 +333,12 @@ void main() {
       final field = TrackField(
         track: ring(
           surfaces: <SurfaceBand>[
-            SurfaceBand(fromS: 0.0, toS: 1000.0, centre: 'asphalt', shoulder: 'gravel'),
+            SurfaceBand(
+              fromS: 0.0,
+              toS: 1000.0,
+              centre: 'asphalt',
+              shoulder: 'gravel',
+            ),
           ],
         ),
       );

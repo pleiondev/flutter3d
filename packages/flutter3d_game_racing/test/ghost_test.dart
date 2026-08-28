@@ -10,10 +10,10 @@ import 'package:vector_math/vector_math.dart';
 /// not also a test about driving.
 final class ScriptedCar implements VehicleController {
   ScriptedCar()
-      : collider = Collider(
-          shape: CollisionSphere(0.7),
-          position: Vector3.zero(),
-        );
+    : collider = Collider(
+        shape: CollisionSphere(0.7),
+        position: Vector3.zero(),
+      );
 
   @override
   final Collider collider;
@@ -264,8 +264,10 @@ void main() {
       for (var i = 0; i < copy.poses.length; i++) {
         // Written to the millimetre, which is far below what a shape in the
         // distance shows and several times smaller a file.
-        expect(copy.poses[i].position.x,
-            closeTo(tape.poses[i].position.x, 0.001));
+        expect(
+          copy.poses[i].position.x,
+          closeTo(tape.poses[i].position.x, 0.001),
+        );
         expect(copy.poses[i].yaw, closeTo(tape.poses[i].yaw, 0.001));
         expect(copy.poses[i].time, closeTo(tape.poses[i].time, 0.001));
       }

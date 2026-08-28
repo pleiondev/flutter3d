@@ -18,10 +18,10 @@ import 'package:vector_math/vector_math.dart';
 /// A device is needed only because a [MeshNode] owns an uploaded mesh; nothing
 /// here draws, so the smallest one that can accept an upload will do.
 CpuDevice _device() => CpuDevice(
-      width: 4,
-      height: 4,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: 4,
+  height: 4,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 /// One node wearing a material by that name, which is all [Looks.paint] reads.
 MeshNode _part(CpuDevice device, String name) =>
@@ -29,11 +29,11 @@ MeshNode _part(CpuDevice device, String name) =>
 
 /// A texture standing in for a livery: only its presence is ever read.
 TextureHandle? _anyTexture(CpuDevice device) => device.createTextureFromPixels(
-      width: 1,
-      height: 1,
-      format: TextureFormat.r8g8b8a8UNormInt,
-      pixels: ByteData.sublistView(Uint8List.fromList(<int>[255, 0, 0, 255])),
-    );
+  width: 1,
+  height: 1,
+  format: TextureFormat.r8g8b8a8UNormInt,
+  pixels: ByteData.sublistView(Uint8List.fromList(<int>[255, 0, 0, 255])),
+);
 
 void main() {
   group('a car wears one colour', () {

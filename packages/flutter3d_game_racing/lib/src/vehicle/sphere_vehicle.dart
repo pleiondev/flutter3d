@@ -57,17 +57,17 @@ final class SphereVehicle implements VehicleController {
     int layer = RacingLayers.vehicle,
     int mask = Layers.all,
     Object? userData,
-  })  : tyres = tyres ?? Tyres.road,
-        // ignore: prefer_initializing_formals
-        _headingYaw = headingYaw,
-        collider = Collider(
-          shape: CollisionSphere(tuning.radius),
-          position: position,
-          kind: ColliderKind.kinematic,
-          layer: layer,
-          mask: mask,
-          userData: userData,
-        ) {
+  }) : tyres = tyres ?? Tyres.road,
+       // ignore: prefer_initializing_formals
+       _headingYaw = headingYaw,
+       collider = Collider(
+         shape: CollisionSphere(tuning.radius),
+         position: position,
+         kind: ColliderKind.kinematic,
+         layer: layer,
+         mask: mask,
+         userData: userData,
+       ) {
     world.add(collider);
     _ground.s = 0.0;
   }
@@ -158,9 +158,15 @@ final class SphereVehicle implements VehicleController {
     // Rebuilt on demand rather than kept: only the part of the game that draws
     // the car wants it, and that runs once a frame rather than once a step.
     _basis.setValues(
-      _right.x, _right.y, _right.z, //
-      _up.x, _up.y, _up.z, //
-      _forward.x, _forward.y, _forward.z,
+      _right.x,
+      _right.y,
+      _right.z, //
+      _up.x,
+      _up.y,
+      _up.z, //
+      _forward.x,
+      _forward.y,
+      _forward.z,
     );
     return _basis;
   }
@@ -211,6 +217,7 @@ final class SphereVehicle implements VehicleController {
       _applyTires(dt, limit, forwardSpeed);
     }
     _applyGravityAndDrag(dt);
+    _rollAndHold(dt);
     _move(dt);
     _holdInsideBarrier();
     _settle(dt, found);
@@ -244,25 +251,25 @@ final class SphereVehicle implements VehicleController {
   /// it never made.
   @override
   Map<String, Object?> save() => <String, Object?>{
-        'at': <double>[position.x, position.y, position.z],
-        'velocity': <double>[velocity.x, velocity.y, velocity.z],
-        'yaw': _headingYaw,
-        'wheelSpeed': _wheelSpeed,
-        'slipAngle': _slipAngle,
-        'slipRatio': _slipRatio,
-        'grounded': _grounded,
-        'underPower': _underPower,
-        // Where the car is round the lap. Worked out by the ground field every
-        // step, and restored anyway: the first step after a restore reads it
-        // before it writes it, and a car that starts the lap at nought is a car
-        // that has just driven backwards past the finish line.
-        'trackDistance': _ground.s,
-        // **Saved, or a restored race hands every wreck back its engine.** The
-        // shooter's own snapshot test caught exactly this about a recoil the
-        // day it was added; a car is no different.
-        'damage': damage,
-        'tyres': tyres.name,
-      };
+    'at': <double>[position.x, position.y, position.z],
+    'velocity': <double>[velocity.x, velocity.y, velocity.z],
+    'yaw': _headingYaw,
+    'wheelSpeed': _wheelSpeed,
+    'slipAngle': _slipAngle,
+    'slipRatio': _slipRatio,
+    'grounded': _grounded,
+    'underPower': _underPower,
+    // Where the car is round the lap. Worked out by the ground field every
+    // step, and restored anyway: the first step after a restore reads it
+    // before it writes it, and a car that starts the lap at nought is a car
+    // that has just driven backwards past the finish line.
+    'trackDistance': _ground.s,
+    // **Saved, or a restored race hands every wreck back its engine.** The
+    // shooter's own snapshot test caught exactly this about a recoil the
+    // day it was added; a car is no different.
+    'damage': damage,
+    'tyres': tyres.name,
+  };
 
   @override
   void restore(Map<String, Object?> from) {
@@ -383,6 +390,10 @@ final class SphereVehicle implements VehicleController {
     final brake = input.brake.clamp(0.0, 1.0);
 
     _underPower = !input.handbrake && brake <= 0.0 && throttle > 0.0;
+    // Nobody is asking the car for anything. What happens then is the road's
+    // business — see [_rollAndHold], which is the half of coasting that is not
+    // about the wheels.
+    _coasting = !input.handbrake && brake <= 0.0 && throttle <= 0.0;
 
     if (input.handbrake) {
       // Locked. The wheels stop; the car does not. Everything that follows from
@@ -394,8 +405,11 @@ final class SphereVehicle implements VehicleController {
 
     if (brake > 0.0) {
       final target = forwardSpeed > 0.5 ? 0.0 : -tuning.maxReverse;
-      _wheelSpeed =
-          approach(_wheelSpeed, target, tuning.brakeStrength * brake * dt);
+      _wheelSpeed = approach(
+        _wheelSpeed,
+        target,
+        tuning.brakeStrength * brake * dt,
+      );
       return;
     }
 
@@ -405,8 +419,10 @@ final class SphereVehicle implements VehicleController {
       // the power is unchanged, so a wreck still corners and still stops — it
       // simply cannot get down the straight any more.
       _wheelSpeed +=
-          tuning.enginePush * (1.0 - damage * tuning.powerLostWhenWrecked) *
-              throttle * dt;
+          tuning.enginePush *
+          (1.0 - damage * tuning.powerLostWhenWrecked) *
+          throttle *
+          dt;
       _wheelSpeed = _wheelSpeed.clamp(
         -tuning.maxReverse,
         tuning.maxSpeed * (1.0 - damage * tuning.speedLostWhenWrecked),
@@ -424,9 +440,9 @@ final class SphereVehicle implements VehicleController {
     // slip from a millimetre of drift — and then be thrown across the road by
     // tyres answering it.
     _slipAngle = math.atan2(lateralSpeed, math.max(forwardSpeed.abs(), 1.5));
-    _slipRatio = ((_wheelSpeed - forwardSpeed) /
-            math.max(forwardSpeed.abs(), 3.0))
-        .clamp(-1.0, 1.0);
+    _slipRatio =
+        ((_wheelSpeed - forwardSpeed) / math.max(forwardSpeed.abs(), 3.0))
+            .clamp(-1.0, 1.0);
   }
 
   void _applyTires(double dt, double limit, double forwardSpeed) {
@@ -454,6 +470,54 @@ final class SphereVehicle implements VehicleController {
     // update lets the car finish a step ahead of the wheels that drove it.
     final leaving = velocity.dot(_forward);
     if (_underPower && _wheelSpeed < leaving) _wheelSpeed = leaving;
+  }
+
+  /// What a coasting car does about the slope it is standing on.
+  ///
+  /// **A car with no rolling resistance is a ball bearing**, and on the circuit
+  /// that is what it was: `_applyGravityAndDrag` puts the downhill part of
+  /// gravity into the velocity every step, the tyres answer a *slip* rather than
+  /// a speed and see nothing to object to, and air drag goes as the square of
+  /// the speed and so is worth almost nothing at walking pace. The starting grid
+  /// of `ring.json` rises about one in fifty; a driver who touched nothing
+  /// rolled backwards and kept gaining, reaching 4 m/s in ten seconds.
+  ///
+  /// Two rules, both of which a real car has:
+  ///
+  /// * **rolling resistance** — a flat deceleration against the direction of
+  ///   travel, which is what tyres, bearings and a turning transmission cost;
+  /// * **a static hold** — below a walking pace, on a slope gentler than
+  ///   [VehicleTuning.holdSlope], the car simply stops. That is the handbrake,
+  ///   the gearbox and static friction between them, and it has a ceiling for
+  ///   the reason written where the ceiling is: without one it is a handbrake
+  ///   that is always on.
+  ///
+  /// Only while coasting. Under power or braking the wheels are the authority
+  /// and this would be a second opinion about the same thing.
+  void _rollAndHold(double dt) {
+    if (!_grounded || !_coasting) return;
+
+    final along = velocity.dot(_forward);
+    // `_gravity` is the downhill component `_applyGravityAndDrag` just built,
+    // in metres per second squared, so its size along the car is the slope the
+    // hold has to beat.
+    final slope = _gravity.dot(_forward).abs();
+
+    if (along.abs() <= tuning.holdSpeed && slope <= tuning.holdSlope) {
+      velocity.addScaled(_forward, -along);
+      _wheelSpeed = 0.0;
+      return;
+    }
+
+    // Never past a standstill: a resistance that could push the car backwards
+    // would be a very confusing engine.
+    final drop = math.min(tuning.rollingResistance * dt, along.abs());
+    velocity.addScaled(_forward, along > 0.0 ? -drop : drop);
+    _wheelSpeed = approach(
+      _wheelSpeed,
+      velocity.dot(_forward),
+      tuning.rollingDrag * dt,
+    );
   }
 
   void _applyGravityAndDrag(double dt) {
@@ -493,8 +557,13 @@ final class SphereVehicle implements VehicleController {
     for (var attempt = 0; attempt < 3; attempt++) {
       if (_delta.length2 < 1e-12) break;
       _hit.reset();
-      if (!world.sweep(collider.shape, position, _delta, _hit,
-          ignore: collider)) {
+      if (!world.sweep(
+        collider.shape,
+        position,
+        _delta,
+        _hit,
+        ignore: collider,
+      )) {
         collider.position.add(_delta);
         break;
       }
@@ -620,6 +689,9 @@ final class SphereVehicle implements VehicleController {
   }
 
   bool _underPower = false;
+
+  /// Whether this step had nothing pressed. Read by [_rollAndHold].
+  bool _coasting = true;
   final GroundSample _ground = GroundSample();
   final Vector3 _forward = Vector3(0.0, 0.0, 1.0);
   final Vector3 _right = Vector3(1.0, 0.0, 0.0);

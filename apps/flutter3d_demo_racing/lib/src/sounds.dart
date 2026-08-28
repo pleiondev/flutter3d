@@ -136,16 +136,20 @@ abstract final class Sounds {
 /// do.
 final class CarVoice {
   CarVoice({required AudioScene scene, required this.vehicle})
-      : _engine = BlendedLoop(
-          scene: scene,
-          bands: const <LoopBand>[
-            LoopBand(sound: Sounds.engineLow, centre: Sounds.lowRevs, width: 0.5),
-            LoopBand(sound: Sounds.engineHigh, centre: Sounds.highRevs, width: 0.5),
-          ],
-          at: vehicle.position,
-        ),
-        _skid = scene.play(Sounds.skid, vehicle.position)..gain = 0.0,
-        _rumble = scene.play(Sounds.rumble, vehicle.position)..gain = 0.0;
+    : _engine = BlendedLoop(
+        scene: scene,
+        bands: const <LoopBand>[
+          LoopBand(sound: Sounds.engineLow, centre: Sounds.lowRevs, width: 0.5),
+          LoopBand(
+            sound: Sounds.engineHigh,
+            centre: Sounds.highRevs,
+            width: 0.5,
+          ),
+        ],
+        at: vehicle.position,
+      ),
+      _skid = scene.play(Sounds.skid, vehicle.position)..gain = 0.0,
+      _rumble = scene.play(Sounds.rumble, vehicle.position)..gain = 0.0;
 
   final VehicleController vehicle;
 

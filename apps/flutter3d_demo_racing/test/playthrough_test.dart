@@ -31,9 +31,9 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 TrackDocument _shipped([String circuit = 'ring']) => TrackDocument.fromJson(
-      jsonDecode(File('assets/tracks/$circuit.json').readAsStringSync())
-          as Map<String, Object?>,
-    );
+  jsonDecode(File('assets/tracks/$circuit.json').readAsStringSync())
+      as Map<String, Object?>,
+);
 
 final class _Session {
   _Session({
@@ -145,9 +145,16 @@ void main() {
       },
     );
 
-    expect(it.player.lap, greaterThanOrEqualTo(1),
-        reason: 'the shipped circuit must be driveable all the way round');
-    expect(respawns, 0, reason: 'nothing on the racing line should need a reset');
+    expect(
+      it.player.lap,
+      greaterThanOrEqualTo(1),
+      reason: 'the shipped circuit must be driveable all the way round',
+    );
+    expect(
+      respawns,
+      0,
+      reason: 'nothing on the racing line should need a reset',
+    );
 
     // A tenth of the drive off the road is the poor driver running wide; more
     // than that is a circuit with somewhere it cannot be kept on.
@@ -163,7 +170,8 @@ void main() {
     expect(
       lap,
       inInclusiveRange(17.0, 40.0),
-      reason: 'a lap outside this range means the car or the circuit changed '
+      reason:
+          'a lap outside this range means the car or the circuit changed '
           'by a lot — which may well be right, and should be a deliberate '
           'edit to these numbers rather than a surprise',
     );
@@ -180,8 +188,11 @@ void main() {
       final ring = _shipped().track;
 
       expect(gorge.length, greaterThan(500.0));
-      expect(gorge.length, lessThan(ring.length),
-          reason: 'the tighter circuit came out longer than the open one');
+      expect(
+        gorge.length,
+        lessThan(ring.length),
+        reason: 'the tighter circuit came out longer than the open one',
+      );
       expect(gorge.checkpoints.length, greaterThan(ring.checkpoints.length));
 
       // Narrower, and still wide enough for the grid it starts.
@@ -206,8 +217,11 @@ void main() {
         },
       );
 
-      expect(it.player.lap, greaterThanOrEqualTo(1),
-          reason: 'the second circuit cannot be got round');
+      expect(
+        it.player.lap,
+        greaterThanOrEqualTo(1),
+        reason: 'the second circuit cannot be got round',
+      );
       expect(respawns, 0);
       // The same tenth the ring is held to: this road is narrower and hillier,
       // and a driver that cannot stay on it is a road that cannot be raced.
@@ -347,5 +361,4 @@ void main() {
       expect(pace.lost, greaterThan(0.0));
     });
   });
-
 }

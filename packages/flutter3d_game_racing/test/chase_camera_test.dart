@@ -14,9 +14,9 @@ final class PlacedCar implements VehicleController {
     Vector3? going,
     this.trackDistance = 0.0,
   }) : collider = Collider(
-          shape: CollisionSphere(0.7),
-          position: at ?? Vector3.zero(),
-        ) {
+         shape: CollisionSphere(0.7),
+         position: at ?? Vector3.zero(),
+       ) {
     if (going != null) velocity.setFrom(going);
   }
 
@@ -143,37 +143,48 @@ void main() {
   });
 
   group('showing a slide', () {
-    test('the camera sits behind where the car is going, not where it points',
-        () {
-      // Mutation: place the camera from `headingYaw` alone. A car sliding
-      // sideways then stays pointing straight up the screen and the slide is
-      // invisible — the one thing the player most needs to see is the one thing
-      // the camera hides.
-      final camera = ChaseCamera(world: CollisionWorld());
-      // Nose straight ahead, travelling well off to the side: a drift.
-      final car = PlacedCar(
-        at: Vector3.zero(),
-        going: Vector3(18.0, 0.0, 24.0),
-      );
+    test(
+      'the camera sits behind where the car is going, not where it points',
+      () {
+        // Mutation: place the camera from `headingYaw` alone. A car sliding
+        // sideways then stays pointing straight up the screen and the slide is
+        // invisible — the one thing the player most needs to see is the one thing
+        // the camera hides.
+        final camera = ChaseCamera(world: CollisionWorld());
+        // Nose straight ahead, travelling well off to the side: a drift.
+        final car = PlacedCar(
+          at: Vector3.zero(),
+          going: Vector3(18.0, 0.0, 24.0),
+        );
 
-      settle(camera, car);
+        settle(camera, car);
 
-      final travelling = math.atan2(car.velocity.x, car.velocity.z);
-      final behindNose = (camera.heading - car.headingYaw).abs();
-      final behindTravel = (camera.heading - travelling).abs();
+        final travelling = math.atan2(car.velocity.x, car.velocity.z);
+        final behindNose = (camera.heading - car.headingYaw).abs();
+        final behindTravel = (camera.heading - travelling).abs();
 
-      expect(behindNose, greaterThan(0.1),
-          reason: 'the camera should have swung off the nose');
-      expect(behindTravel, lessThan(behindNose),
-          reason: 'and swung most of the way towards the way it is going');
-    });
+        expect(
+          behindNose,
+          greaterThan(0.1),
+          reason: 'the camera should have swung off the nose',
+        );
+        expect(
+          behindTravel,
+          lessThan(behindNose),
+          reason: 'and swung most of the way towards the way it is going',
+        );
+      },
+    );
 
     test('a stationary car does not spin the camera', () {
       // Mutation: read the direction of travel at any speed. A car at rest has
       // a velocity of rounding error, whose direction is anything at all, and a
       // camera reading it whips round on the grid.
       final camera = ChaseCamera(world: CollisionWorld());
-      final car = PlacedCar(at: Vector3.zero(), going: Vector3(1e-7, 0.0, -1e-7));
+      final car = PlacedCar(
+        at: Vector3.zero(),
+        going: Vector3(1e-7, 0.0, -1e-7),
+      );
 
       settle(camera, car);
 
@@ -227,10 +238,10 @@ void main() {
       track.centre.tangentAt(0.0, tangent);
 
       PlacedCar car() => PlacedCar(
-            at: at.clone()..y += 0.5,
-            headingYaw: math.atan2(tangent.x, tangent.z),
-            going: tangent * 25.0,
-          );
+        at: at.clone()..y += 0.5,
+        headingYaw: math.atan2(tangent.x, tangent.z),
+        going: tangent * 25.0,
+      );
 
       final leading = car();
       final plain = car();

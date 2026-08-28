@@ -40,10 +40,10 @@ final class RacingSimulation {
     this.offRoadPatience = 4.0,
     this.contactRestitution = 0.35,
   }) : inputs = List<VehicleInput>.generate(
-          vehicles.length,
-          (_) => VehicleInput(),
-          growable: false,
-        ) {
+         vehicles.length,
+         (_) => VehicleInput(),
+         growable: false,
+       ) {
     for (var i = 0; i < vehicles.length; i++) {
       race.progress[i].s = vehicles[i].trackDistance;
       _previousS.add(vehicles[i].trackDistance);
@@ -421,14 +421,14 @@ final class RacingSimulation {
   /// immediately tells the leader they are going backwards, or gives a car that
   /// was one second from being put back on the track a fresh four.
   Map<String, Object?> save() => <String, Object?>{
-        'race': race.save(),
-        'cars': <Map<String, Object?>>[
-          for (final vehicle in vehicles) vehicle.save(),
-        ],
-        'previousS': List<double>.of(_previousS),
-        'backwards': List<double>.of(_backwards),
-        'offRoadFor': List<double>.of(_offRoadFor),
-      };
+    'race': race.save(),
+    'cars': <Map<String, Object?>>[
+      for (final vehicle in vehicles) vehicle.save(),
+    ],
+    'previousS': List<double>.of(_previousS),
+    'backwards': List<double>.of(_backwards),
+    'offRoadFor': List<double>.of(_offRoadFor),
+  };
 
   void restore(Map<String, Object?> from) {
     final saved = from.object('race');

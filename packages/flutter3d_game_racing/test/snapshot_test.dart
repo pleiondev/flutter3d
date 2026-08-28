@@ -55,13 +55,19 @@ void main() {
     driveRound(resumed, seconds: 4.0);
 
     for (var i = 0; i < 2; i++) {
-      expect(resumed.vehicles[i].position.x,
-          closeTo(straight.vehicles[i].position.x, 1e-6),
-          reason: 'car $i is somewhere else');
-      expect(resumed.vehicles[i].position.z,
-          closeTo(straight.vehicles[i].position.z, 1e-6));
-      expect(resumed.race.progress[i].s,
-          closeTo(straight.race.progress[i].s, 1e-6));
+      expect(
+        resumed.vehicles[i].position.x,
+        closeTo(straight.vehicles[i].position.x, 1e-6),
+        reason: 'car $i is somewhere else',
+      );
+      expect(
+        resumed.vehicles[i].position.z,
+        closeTo(straight.vehicles[i].position.z, 1e-6),
+      );
+      expect(
+        resumed.race.progress[i].s,
+        closeTo(straight.race.progress[i].s, 1e-6),
+      );
       expect(resumed.race.progress[i].lap, straight.race.progress[i].lap);
     }
   });
@@ -71,7 +77,11 @@ void main() {
     // nothing at all.
     final it = Race(mode: RaceMode.timeTrial);
     driveRound(it, seconds: 40.0);
-    expect(it.player.lap, greaterThanOrEqualTo(1), reason: 'it never got round');
+    expect(
+      it.player.lap,
+      greaterThanOrEqualTo(1),
+      reason: 'it never got round',
+    );
     expect(it.player.bestLap, isNotNull);
 
     final saved = roundTrip(it.simulation.save());
@@ -106,8 +116,7 @@ void main() {
     driveRound(it, seconds: 4.0, throttle: 1.0);
     expect(it.vehicles.single.speed, greaterThan(5.0));
 
-    final loaded = Race()
-      ..simulation.restore(roundTrip(it.simulation.save()));
+    final loaded = Race()..simulation.restore(roundTrip(it.simulation.save()));
 
     // One step on each with the same input, which has to be said out loud:
     // what a driver is asking for is not part of the race's state — it is
@@ -122,11 +131,16 @@ void main() {
     it.simulation.step(_step);
     loaded.simulation.step(_step);
 
-    expect(loaded.vehicles.single.speed,
-        closeTo(it.vehicles.single.speed, 1e-6),
-        reason: 'the restored car is not rolling the way the saved one was');
-    expect(loaded.vehicles.single.slipRatio.abs(), lessThan(0.5),
-        reason: 'it came back locked up');
+    expect(
+      loaded.vehicles.single.speed,
+      closeTo(it.vehicles.single.speed, 1e-6),
+      reason: 'the restored car is not rolling the way the saved one was',
+    );
+    expect(
+      loaded.vehicles.single.slipRatio.abs(),
+      lessThan(0.5),
+      reason: 'it came back locked up',
+    );
   });
 
   test('and the countdown is where it was left', () {
@@ -155,8 +169,11 @@ void main() {
     final it = Race();
     driveRound(it, seconds: 15.0);
     expect(it.player.s, greaterThan(200.0), reason: 'it never left the grid');
-    expect(it.player.nextCheckpoint, greaterThan(1),
-        reason: 'nothing is behind it yet, so nothing can be re-passed');
+    expect(
+      it.player.nextCheckpoint,
+      greaterThan(1),
+      reason: 'nothing is behind it yet, so nothing can be re-passed',
+    );
 
     final loaded = Race()..simulation.restore(roundTrip(it.simulation.save()));
     for (final input in loaded.simulation.inputs) {
@@ -164,11 +181,17 @@ void main() {
     }
     loaded.simulation.step(_step);
 
-    expect(loaded.player.checkpointThisStep, isFalse,
-        reason: 'it passed a checkpoint it had already passed');
+    expect(
+      loaded.player.checkpointThisStep,
+      isFalse,
+      reason: 'it passed a checkpoint it had already passed',
+    );
     expect(loaded.player.lapCompletedThisStep, isFalse);
-    expect(loaded.player.wrongWay, isFalse,
-        reason: 'a car put back where it was is not driving backwards');
+    expect(
+      loaded.player.wrongWay,
+      isFalse,
+      reason: 'a car put back where it was is not driving backwards',
+    );
   });
 
   test('and what the save does not carry is what the circuit says', () {

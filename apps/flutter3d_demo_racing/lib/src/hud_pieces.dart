@@ -47,38 +47,52 @@ class HudLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            SizedBox(
-              width: 52,
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: accent ? _accent : const Color(0xFF9AA4B2),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                ),
-              ),
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        SizedBox(
+          // **Wide enough for the longest label there is**, which is `RECORD!`
+          // at thirteen points, bold, with a point and a half of tracking. It
+          // was 52, and `RECORD` wrapped: the panel showed `RECOR` above a
+          // lonely `D`, pushing the line below it down and leaving the value
+          // beside it floating against nothing.
+          //
+          // A fixed width rather than an intrinsic one because these lines are
+          // built independently and a column of labels that each measured
+          // itself would not line up — which is the thing this column is for.
+          // `hud_label_test.dart` holds the number to the text rather than the
+          // other way round, so a longer label fails a test instead of wrapping
+          // in a corner of somebody's screen.
+          width: 72,
+          child: Text(
+            label,
+            // One line, always. Without this the guard above is a comment: a
+            // label that outgrew the box would wrap again rather than say so.
+            maxLines: 1,
+            softWrap: false,
+            style: TextStyle(
+              color: accent ? _accent : const Color(0xFF9AA4B2),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
             ),
-            Text(
-              value,
-              style: TextStyle(
-                color: accent ? _accent : Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                // Tabular figures, or the whole line jitters as the
-                // thousandths tick over.
-                fontFeatures: const <FontFeature>[
-                  FontFeature.tabularFigures(),
-                ],
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        Text(
+          value,
+          style: TextStyle(
+            color: accent ? _accent : Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            // Tabular figures, or the whole line jitters as the
+            // thousandths tick over.
+            fontFeatures: const <FontFeature>[FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
+    ),
+  );
 
   /// The colour the flag is, which is the one thing on this screen that already
   /// meant "you have done it".

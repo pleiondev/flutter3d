@@ -12,6 +12,9 @@ final class VehicleTuning {
     this.enginePush = 14.0,
     this.brakeStrength = 26.0,
     this.rollingDrag = 3.0,
+    this.rollingResistance = 0.9,
+    this.holdSpeed = 0.7,
+    this.holdSlope = 1.2,
     this.airDrag = 0.0006,
     this.maxSteer = 0.62,
     this.steerFalloff = 26.0,
@@ -52,6 +55,32 @@ final class VehicleTuning {
   /// Drag per unit of speed squared. What gives the car a top speed without one
   /// having to be enforced.
   final double airDrag;
+
+  /// How hard a coasting car slows down, in metres per second squared.
+  ///
+  /// Rolling resistance: tyres deforming, bearings turning, a transmission
+  /// spinning. [airDrag] cannot stand in for it — drag goes as the square of the
+  /// speed, so at walking pace it is almost nothing, and a car nudged to 3 m/s
+  /// on the flat kept 2.9 of it.
+  final double rollingResistance;
+
+  /// Below this speed a coasting car on a gentle slope is held still, in metres
+  /// per second.
+  final double holdSpeed;
+
+  /// The steepest slope that hold covers, as the acceleration along it in metres
+  /// per second squared.
+  ///
+  /// **This pair is what a real car's handbrake, gearbox and static friction do
+  /// between them**, and without it the starting grid was a hill nobody could
+  /// park on: `ring.json` rises about one in fifty under the grid, so a driver
+  /// who touched nothing rolled backwards and kept gaining — 4 m/s after ten
+  /// seconds, which reads as the physics being broken rather than as a slope.
+  ///
+  /// 1.2 covers about one in eight. Past that a car left alone rolls, which it
+  /// has to: a hold with no ceiling is a handbrake that is always on, and a
+  /// circuit with a drop into a gully would have cars parked on its wall.
+  final double holdSlope;
 
   /// How far the wheels turn at a standstill, in radians.
   final double maxSteer;

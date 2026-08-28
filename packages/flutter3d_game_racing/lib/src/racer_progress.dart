@@ -82,18 +82,18 @@ final class RacerProgress {
   /// respawn that happened before it was written down. What is saved is the
   /// state; the edges belong to the step that produced them.
   Map<String, Object?> save() => <String, Object?>{
-        's': s,
-        'lap': lap,
-        'nextCheckpoint': nextCheckpoint,
-        'wrongWay': wrongWay,
-        'offRoad': offRoad,
-        'lateral': lateral,
-        'lapTime': lapTime,
-        if (bestLap != null) 'bestLap': bestLap,
-        'totalTime': totalTime,
-        if (finishedAt != null) 'finishedAt': finishedAt,
-        'lastLap': lastLap,
-      };
+    's': s,
+    'lap': lap,
+    'nextCheckpoint': nextCheckpoint,
+    'wrongWay': wrongWay,
+    'offRoad': offRoad,
+    'lateral': lateral,
+    'lapTime': lapTime,
+    if (bestLap != null) 'bestLap': bestLap,
+    'totalTime': totalTime,
+    if (finishedAt != null) 'finishedAt': finishedAt,
+    'lastLap': lastLap,
+  };
 
   void restore(Map<String, Object?> from) {
     s = from.number('s');

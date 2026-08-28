@@ -31,29 +31,47 @@ void main() {
     final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
-    expect(gaps.unshipped, isEmpty,
-        reason: 'credited something the game does not ship');
-    expect(gaps.uncredited, isEmpty,
-        reason: 'shipped a model nobody is credited for');
+    expect(
+      gaps.unshipped,
+      isEmpty,
+      reason: 'credited something the game does not ship',
+    );
+    expect(
+      gaps.uncredited,
+      isEmpty,
+      reason: 'shipped a model nobody is credited for',
+    );
   });
 
   test('and nothing it ships is untraceable', () {
-    expect(Credits.untraced, isEmpty,
-        reason: 'this game cannot be released while anything is in this list');
+    expect(
+      Credits.untraced,
+      isEmpty,
+      reason: 'this game cannot be released while anything is in this list',
+    );
   });
 
   test('and what is owed is owed, which is the point here', () {
     // **Not empty, unlike the other two games.** Both of those ended up with
     // everything CC0 or generated; this one ships a CC BY model, so the screen
     // is a condition of shipping rather than a courtesy.
-    expect(Credits.owed, isNotEmpty,
-        reason: 'nothing here needs attribution, so this file is a formality');
+    expect(
+      Credits.owed,
+      isNotEmpty,
+      reason: 'nothing here needs attribution, so this file is a formality',
+    );
     for (final credit in Credits.owed) {
       expect(credit.author, isNotNull);
-      expect(credit.licenceUrl, isNotNull,
-          reason: '${credit.file} names ${credit.licence} and no URL');
-      expect(credit.line, contains(credit.author!),
-          reason: 'the line a player reads does not name the author');
+      expect(
+        credit.licenceUrl,
+        isNotNull,
+        reason: '${credit.file} names ${credit.licence} and no URL',
+      );
+      expect(
+        credit.line,
+        contains(credit.author!),
+        reason: 'the line a player reads does not name the author',
+      );
     }
   });
 
@@ -74,8 +92,11 @@ void main() {
     final table = File('assets/models/LICENSES.md').readAsStringSync();
 
     for (final credit in Credits.models) {
-      expect(table, contains(credit.file.split('/').last),
-          reason: 'LICENSES.md does not mention ${credit.file}');
+      expect(
+        table,
+        contains(credit.file.split('/').last),
+        reason: 'LICENSES.md does not mention ${credit.file}',
+      );
     }
   });
 }

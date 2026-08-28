@@ -49,7 +49,8 @@ void main() {
 
       var worst = 0.0;
       for (var slip = 0.10; slip < 0.24; slip += step) {
-        final second = tires.lateralAt(slip + step) -
+        final second =
+            tires.lateralAt(slip + step) -
             2 * tires.lateralAt(slip) +
             tires.lateralAt(slip - step);
         worst = math.max(worst, second.abs());

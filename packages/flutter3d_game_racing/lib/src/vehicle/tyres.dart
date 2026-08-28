@@ -115,10 +115,8 @@ final class Tyres {
   }
 
   /// The set called [name], or [road] if nothing is.
-  static Tyres named(String? name) => all.firstWhere(
-        (Tyres tyres) => tyres.name == name,
-        orElse: () => road,
-      );
+  static Tyres named(String? name) =>
+      all.firstWhere((Tyres tyres) => tyres.name == name, orElse: () => road);
 
   @override
   String toString() => 'Tyres($name)';

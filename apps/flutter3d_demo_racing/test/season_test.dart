@@ -36,8 +36,11 @@ final class _Storage implements Storage {
 
 void main() {
   test('the season is a chain, and it ends', () {
-    expect(Season.circuits.length, greaterThan(1),
-        reason: 'a season of one circuit is the game that had no chain');
+    expect(
+      Season.circuits.length,
+      greaterThan(1),
+      reason: 'a season of one circuit is the game that had no chain',
+    );
 
     var at = Season.first;
     final seen = <String>[at.name];
@@ -48,10 +51,16 @@ void main() {
       seen.add(at.name);
     }
 
-    expect(seen, Season.circuits.map((Circuit c) => c.name).toList(),
-        reason: 'walking the chain does not visit the circuits in order');
-    expect(Season.after(Season.circuits.last), isNull,
-        reason: 'the season never ends, so a player never finishes it');
+    expect(
+      seen,
+      Season.circuits.map((Circuit c) => c.name).toList(),
+      reason: 'walking the chain does not visit the circuits in order',
+    );
+    expect(
+      Season.after(Season.circuits.last),
+      isNull,
+      reason: 'the season never ends, so a player never finishes it',
+    );
   });
 
   test('and every circuit in it ships both of its files', () {
@@ -59,10 +68,16 @@ void main() {
     // load the first one, win it, and die on a missing asset — which is the
     // moment a player has earned something.
     for (final circuit in Season.circuits) {
-      expect(File(circuit.track).existsSync(), isTrue,
-          reason: '${circuit.name} has no track file');
-      expect(File(circuit.level).existsSync(), isTrue,
-          reason: '${circuit.name} has no level file');
+      expect(
+        File(circuit.track).existsSync(),
+        isTrue,
+        reason: '${circuit.name} has no track file',
+      );
+      expect(
+        File(circuit.level).existsSync(),
+        isTrue,
+        reason: '${circuit.name} has no level file',
+      );
 
       final document = TrackDocument.fromJson(
         jsonDecode(File(circuit.track).readAsStringSync())
@@ -81,8 +96,10 @@ void main() {
         .listSync()
         .whereType<File>()
         .map((File f) => f.uri.pathSegments.last)
-        .where((String name) =>
-            name.endsWith('.json') && !name.endsWith('_level.json'))
+        .where(
+          (String name) =>
+              name.endsWith('.json') && !name.endsWith('_level.json'),
+        )
         .map((String name) => name.substring(0, name.length - 5))
         .toSet();
 
@@ -97,9 +114,11 @@ void main() {
 
       progress.reached(Season.circuits[1]);
 
-      expect(SeasonProgress(storage: storage).read().name,
-          Season.circuits[1].name,
-          reason: 'a circuit reached is lost at the window close');
+      expect(
+        SeasonProgress(storage: storage).read().name,
+        Season.circuits[1].name,
+        reason: 'a circuit reached is lost at the window close',
+      );
     });
 
     test('and a finished season starts again rather than sticking', () {
@@ -138,13 +157,25 @@ void main() {
     final game = File('lib/main.dart').readAsStringSync();
     final cubit = File('lib/src/race_cubit.dart').readAsStringSync();
 
-    expect(cubit, contains('Season.after('),
-        reason: 'nothing asks what comes next, so nothing ever does');
-    expect(game, contains('finishedThisStep'),
-        reason: 'the finish line is crossed and the game does not notice');
-    expect(cubit, contains('season.reached('),
-        reason: 'the player moves on and nothing remembers it');
-    expect(game, isNot(contains("'assets/tracks/ring.json'")),
-        reason: 'the circuit is still nailed to one file');
+    expect(
+      cubit,
+      contains('Season.after('),
+      reason: 'nothing asks what comes next, so nothing ever does',
+    );
+    expect(
+      game,
+      contains('finishedThisStep'),
+      reason: 'the finish line is crossed and the game does not notice',
+    );
+    expect(
+      cubit,
+      contains('season.reached('),
+      reason: 'the player moves on and nothing remembers it',
+    );
+    expect(
+      game,
+      isNot(contains("'assets/tracks/ring.json'")),
+      reason: 'the circuit is still nailed to one file',
+    );
   });
 }

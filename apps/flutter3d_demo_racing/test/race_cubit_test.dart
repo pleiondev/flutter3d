@@ -78,55 +78,68 @@ void main() {
       final next = it.race.finish();
 
       expect(next, isNotNull);
-      expect(next!.name, isNot(first.name),
-          reason: 'the next circuit is a different one');
+      expect(
+        next!.name,
+        isNot(first.name),
+        reason: 'the next circuit is a different one',
+      );
       final state = it.race.state as RaceOver;
       expect(state.circuit.name, first.name);
       expect(state.next, next);
       expect(state.seasonComplete, isFalse);
       // Written down, not just said: a fresh read of the same storage sees
       // it, the way the next launch would.
-      expect(SeasonProgress(storage: it.storage).read().name, next.name,
-          reason: 'the player moved on and nothing remembered it');
+      expect(
+        SeasonProgress(storage: it.storage).read().name,
+        next.name,
+        reason: 'the player moved on and nothing remembered it',
+      );
     });
 
-    test('at the last circuit, says the season is over and clears the save',
-        () {
-      final it = _game();
-      // Walk to the last circuit the way a season actually would, rather
-      // than assuming there are exactly two: `finish` decides and remembers
-      // what is next, and `moveOn` — the screen's job, once its pause at the
-      // finish line has run out — is what actually leaves for it.
-      Circuit? step = it.race.circuit;
-      while (Season.after(step!) != null) {
-        it.race.ready();
-        step = it.race.finish();
-        it.race.moveOn(step!);
-      }
-      it.race.ready();
-
-      final next = it.race.finish();
-
-      expect(next, isNull);
-      final state = it.race.state as RaceOver;
-      expect(state.seasonComplete, isTrue);
-      expect(state.next, isNull);
-      expect(it.storage.documents, isEmpty,
-          reason: 'a finished season should not resume mid-way next launch');
-    });
-  });
-
-  test('moveOn() leaves the circuit that was won and starts loading the next',
+    test(
+      'at the last circuit, says the season is over and clears the save',
       () {
-    final it = _game();
-    it.race.ready();
-    final next = it.race.finish()!;
+        final it = _game();
+        // Walk to the last circuit the way a season actually would, rather
+        // than assuming there are exactly two: `finish` decides and remembers
+        // what is next, and `moveOn` — the screen's job, once its pause at the
+        // finish line has run out — is what actually leaves for it.
+        Circuit? step = it.race.circuit;
+        while (Season.after(step!) != null) {
+          it.race.ready();
+          step = it.race.finish();
+          it.race.moveOn(step!);
+        }
+        it.race.ready();
 
-    it.race.moveOn(next);
+        final next = it.race.finish();
 
-    expect(it.race.state, isA<RaceLoading>());
-    expect(it.race.circuit.name, next.name);
+        expect(next, isNull);
+        final state = it.race.state as RaceOver;
+        expect(state.seasonComplete, isTrue);
+        expect(state.next, isNull);
+        expect(
+          it.storage.documents,
+          isEmpty,
+          reason: 'a finished season should not resume mid-way next launch',
+        );
+      },
+    );
   });
+
+  test(
+    'moveOn() leaves the circuit that was won and starts loading the next',
+    () {
+      final it = _game();
+      it.race.ready();
+      final next = it.race.finish()!;
+
+      it.race.moveOn(next);
+
+      expect(it.race.state, isA<RaceLoading>());
+      expect(it.race.circuit.name, next.name);
+    },
+  );
 
   test('the notice a screen would show disappears once moveOn is called', () {
     // Not tested through a widget — `_notice` in `main.dart` is a one-line
@@ -139,7 +152,10 @@ void main() {
 
     it.race.moveOn(next);
 
-    expect(it.race.state, isNot(isA<RaceOver>()),
-        reason: 'the finish-line notice should not survive the next load');
+    expect(
+      it.race.state,
+      isNot(isA<RaceOver>()),
+      reason: 'the finish-line notice should not survive the next load',
+    );
   });
 }

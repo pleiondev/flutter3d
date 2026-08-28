@@ -53,10 +53,9 @@ final class FlatGround implements GroundField {
     // A table on its own still reads as "what the surfaces are worth", which is
     // what most of this file is about; the tyres it belongs to are the road
     // ones unless a test says otherwise.
-    tyres: tyres ??
-        (grips == null
-            ? Tyres.road
-            : Tyres(name: 'test', grips: grips)),
+    tyres:
+        tyres ??
+        (grips == null ? Tyres.road : Tyres(name: 'test', grips: grips)),
   );
   return (car: car, world: world);
 }
@@ -122,9 +121,13 @@ void main() {
     final slow = settleFrom(1 / 30.0, 5);
     final fast = settleFrom(1 / 240.0, 40);
 
-    expect(fast, closeTo(slow, 1e-3),
-        reason: 'the same sixth of a second settled to $slow at 30 Hz and '
-            '$fast at 240');
+    expect(
+      fast,
+      closeTo(slow, 1e-3),
+      reason:
+          'the same sixth of a second settled to $slow at 30 Hz and '
+          '$fast at 240',
+    );
   });
 
   group('going in a straight line', () {
@@ -480,8 +483,13 @@ void main() {
 
   group('what the ground probe may stand on', () {
     /// A ring with a floor beside it, which is what a real circuit has.
-    ({SphereVehicle car, TrackSpline track, RaceState race, RacingSimulation sim})
-        onCircuit() {
+    ({
+      SphereVehicle car,
+      TrackSpline track,
+      RaceState race,
+      RacingSimulation sim,
+    })
+    onCircuit() {
       const points = 20;
       final centre = CatmullRom(<Vector3>[
         for (var i = 0; i < points; i++)
@@ -517,8 +525,11 @@ void main() {
         position: start.clone()..y += 0.6,
         headingYaw: math.atan2(forward.x, forward.z),
       );
-      car.placeAt(car.position, car.headingYaw,
-          trackDistance: track.centre.wrap(track.grid.s));
+      car.placeAt(
+        car.position,
+        car.headingYaw,
+        trackDistance: track.centre.wrap(track.grid.s),
+      );
 
       final race = RaceState(
         mode: RaceMode.race,
@@ -531,7 +542,11 @@ void main() {
         car: car,
         track: track,
         race: race,
-        sim: RacingSimulation(collision: world, vehicles: <SphereVehicle>[car], race: race),
+        sim: RacingSimulation(
+          collision: world,
+          vehicles: <SphereVehicle>[car],
+          race: race,
+        ),
       );
     }
 
@@ -583,15 +598,22 @@ void main() {
         highest = math.max(highest, it.car.position.y);
         if (it.race.progress[0].respawnedThisStep) returned += 1;
         // The floor's top is at -5, and the car rides half a metre above it.
-        if (it.car.grounded && (it.car.position.y - (-5.0 + 0.55)).abs() < 0.2) {
+        if (it.car.grounded &&
+            (it.car.position.y - (-5.0 + 0.55)).abs() < 0.2) {
           landedOnGrass += 1;
         }
       }
 
-      expect(landedOnGrass, greaterThan(60),
-          reason: 'the car should spend real time down on the grass');
-      expect(returned, greaterThan(0),
-          reason: 'and should be put back on the track when it stays off');
+      expect(
+        landedOnGrass,
+        greaterThan(60),
+        reason: 'the car should spend real time down on the grass',
+      );
+      expect(
+        returned,
+        greaterThan(0),
+        reason: 'and should be put back on the track when it stays off',
+      );
       expect(highest, lessThan(4.0));
     });
   });

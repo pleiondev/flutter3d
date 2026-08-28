@@ -19,13 +19,13 @@ final class RaceState {
     required int racers,
     this.laps = 3,
     this.countdownSeconds = 3.0,
-  })  : progress = List<RacerProgress>.generate(
-          racers,
-          (int index) => RacerProgress(index: index),
-          growable: false,
-        ),
-        phase = mode == RaceMode.race ? RacePhase.countdown : RacePhase.running,
-        countdown = mode == RaceMode.race ? countdownSeconds : 0.0;
+  }) : progress = List<RacerProgress>.generate(
+         racers,
+         (int index) => RacerProgress(index: index),
+         growable: false,
+       ),
+       phase = mode == RaceMode.race ? RacePhase.countdown : RacePhase.running,
+       countdown = mode == RaceMode.race ? countdownSeconds : 0.0;
 
   final RaceMode mode;
   final TrackSpline track;
@@ -95,13 +95,13 @@ final class RaceState {
   /// taken in. What a race *is* comes from the circuit that was loaded; what
   /// this carries is how far into it everybody has got.
   Map<String, Object?> save() => <String, Object?>{
-        'phase': phase.name,
-        'countdown': countdown,
-        'elapsed': elapsed,
-        'progress': <Map<String, Object?>>[
-          for (final racer in progress) racer.save(),
-        ],
-      };
+    'phase': phase.name,
+    'countdown': countdown,
+    'elapsed': elapsed,
+    'progress': <Map<String, Object?>>[
+      for (final racer in progress) racer.save(),
+    ],
+  };
 
   /// Reads a race back into the field it was saved from.
   ///

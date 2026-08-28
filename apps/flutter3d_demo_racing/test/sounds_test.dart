@@ -21,10 +21,10 @@ import 'package:vector_math/vector_math.dart';
 /// a test about driving.
 final class _Car implements VehicleController {
   _Car()
-      : collider = Collider(
-          shape: CollisionSphere(0.7),
-          position: Vector3.zero(),
-        );
+    : collider = Collider(
+        shape: CollisionSphere(0.7),
+        position: Vector3.zero(),
+      );
 
   @override
   final Collider collider;
@@ -108,7 +108,6 @@ double loudnessOf(SilentBackend backend, String asset) {
 /// `soundTableIn` for why the source is the only place that knows.
 ({Set<String> declared, Set<String> inTheBank}) _table() =>
     soundTableIn('lib/src/sounds.dart');
-
 
 void main() {
   group('the engine', () {
@@ -248,7 +247,11 @@ void main() {
         Sounds.skid,
         Sounds.rumble,
       ]) {
-        expect(sound.loop, isTrue, reason: '${sound.name} is a continuous sound');
+        expect(
+          sound.loop,
+          isTrue,
+          reason: '${sound.name} is a continuous sound',
+        );
       }
       for (final sound in <SoundDef>[Sounds.count, Sounds.go, Sounds.lap]) {
         expect(sound.loop, isFalse, reason: '${sound.name} is an event');
@@ -275,7 +278,8 @@ void main() {
         expect(
           await _exists(sound.asset),
           isTrue,
-          reason: '${sound.name} points at ${sound.asset}, which is not there — '
+          reason:
+              '${sound.name} points at ${sound.asset}, which is not there — '
               'run tool/make_sounds.py',
         );
       }
@@ -290,9 +294,13 @@ void main() {
       // how the platformer shipped half mute for months.
       final missing = _table().declared.difference(_table().inTheBank);
 
-      expect(missing, isEmpty,
-          reason: 'declared and never preloaded, so silent in the real build: '
-              '${missing.join(', ')}');
+      expect(
+        missing,
+        isEmpty,
+        reason:
+            'declared and never preloaded, so silent in the real build: '
+            '${missing.join(', ')}',
+      );
     });
 
     test('and nothing in it was never declared', () {

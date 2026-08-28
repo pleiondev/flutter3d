@@ -24,28 +24,28 @@ const String kCarModel = 'assets/models/car.glb';
 /// darker than the real thing for the same reason.
 abstract final class Looks {
   static Material get road => Material(
-        // Dark, but not as dark as the first attempt: at (0.085, 0.088, 0.095)
-        // the tarmac was within a few percent of the renderer's default clear
-        // colour, so on a circuit with sky at the end of every straight the
-        // road and the void were the same grey and the track looked like it
-        // stopped at the horizon.
-        baseColor: Vector4(0.17, 0.175, 0.185, 1.0),
-        roughness: 0.92,
-        lighting: LightingModel.pbr,
-      );
+    // Dark, but not as dark as the first attempt: at (0.085, 0.088, 0.095)
+    // the tarmac was within a few percent of the renderer's default clear
+    // colour, so on a circuit with sky at the end of every straight the
+    // road and the void were the same grey and the track looked like it
+    // stopped at the horizon.
+    baseColor: Vector4(0.17, 0.175, 0.185, 1.0),
+    roughness: 0.92,
+    lighting: LightingModel.pbr,
+  );
 
   static Material get verge => Material(
-        baseColor: Vector4(0.14, 0.24, 0.11, 1.0),
-        roughness: 1.0,
-        lighting: LightingModel.pbr,
-      );
+    baseColor: Vector4(0.14, 0.24, 0.11, 1.0),
+    roughness: 1.0,
+    lighting: LightingModel.pbr,
+  );
 
   static Material get barrier => Material(
-        baseColor: Vector4(0.72, 0.72, 0.75, 1.0),
-        roughness: 0.55,
-        metallic: 0.1,
-        lighting: LightingModel.pbr,
-      );
+    baseColor: Vector4(0.72, 0.72, 0.75, 1.0),
+    roughness: 0.55,
+    metallic: 0.1,
+    lighting: LightingModel.pbr,
+  );
 
   /// The lap somebody already drove, drawn beside the one they are driving.
   ///
@@ -56,14 +56,14 @@ abstract final class Looks {
   /// `blend` puts it in the transparent half of the render list, so the road
   /// shows through rather than being drawn over.
   static Material ghost() => Material(
-        baseColor: Vector4(0.65, 0.85, 1.0, 0.32),
-        roughness: 0.3,
-        alphaMode: MaterialAlphaMode.blend,
-        // Nothing writes depth through a ghost: two of them overlapping should
-        // be brighter, not a hole in the one behind.
-        depthWrite: false,
-        lighting: LightingModel.unlit,
-      );
+    baseColor: Vector4(0.65, 0.85, 1.0, 0.32),
+    roughness: 0.3,
+    alphaMode: MaterialAlphaMode.blend,
+    // Nothing writes depth through a ghost: two of them overlapping should
+    // be brighter, not a hole in the one behind.
+    depthWrite: false,
+    lighting: LightingModel.unlit,
+  );
 
   /// The colour car [index] is painted, model and box alike.
   ///
@@ -89,11 +89,11 @@ abstract final class Looks {
   /// is only ever seen for a moment still has to be the right colour, or the
   /// field appears to change livery as it loads.
   static Material rival(int index) => Material(
-        baseColor: carPaint(index),
-        roughness: 0.4,
-        metallic: 0.2,
-        lighting: LightingModel.pbr,
-      );
+    baseColor: carPaint(index),
+    roughness: 0.4,
+    metallic: 0.2,
+    lighting: LightingModel.pbr,
+  );
 
   /// The materials of the car model that carry its livery.
   ///
@@ -120,7 +120,9 @@ abstract final class Looks {
   /// today; it is a cheap property to have and an unpleasant bug to find.
   static void paint(List<MeshNode> meshes, Vector4 colour) {
     for (final mesh in meshes) {
-      if (isBodywork(mesh.material.name)) mesh.material.baseColor.setFrom(colour);
+      if (isBodywork(mesh.material.name)) {
+        mesh.material.baseColor.setFrom(colour);
+      }
     }
   }
 
@@ -194,8 +196,7 @@ MeshNode carBox(GraphicsDevice device, Material material, {String? name}) =>
     MeshNode(
       DeviceMesh.upload(
         device,
-        CuboidShape(size: Vector3(1.8, 1.0, 4.3))
-            .build(),
+        CuboidShape(size: Vector3(1.8, 1.0, 4.3)).build(),
       ),
       material,
       name: name,

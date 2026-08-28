@@ -15,11 +15,7 @@ TrackSpline circuit() {
       () {
         final angle = 2 * math.pi * i / points;
         final radius = 130.0 + 45.0 * math.cos(2 * angle);
-        return Vector3(
-          radius * math.cos(angle),
-          0.0,
-          radius * math.sin(angle),
-        );
+        return Vector3(radius * math.cos(angle), 0.0, radius * math.sin(angle));
       }(),
   ];
   final centre = CatmullRom(positions);
@@ -35,16 +31,14 @@ TrackSpline circuit() {
         shoulder: 'grass',
       ),
     ],
-    checkpoints: <double>[
-      for (var i = 1; i < 4; i++) centre.length * i / 4,
-    ],
+    checkpoints: <double>[for (var i = 1; i < 4; i++) centre.length * i / 4],
   );
 }
 
 final class Field {
   Field({int cars = 1, AiTuning tuning = const AiTuning()})
-      : track = circuit(),
-        driver = AiDriver(track: circuit(), tuning: tuning) {
+    : track = circuit(),
+      driver = AiDriver(track: circuit(), tuning: tuning) {
     final field = TrackField(track: track);
     race = RaceState(mode: RaceMode.race, track: track, racers: cars, laps: 3);
 
@@ -58,8 +52,11 @@ final class Field {
         position: position.clone()..y += 0.6,
         headingYaw: math.atan2(forward.x, forward.z),
       );
-      car.placeAt(car.position, car.headingYaw,
-          trackDistance: track.centre.wrap(track.grid.s));
+      car.placeAt(
+        car.position,
+        car.headingYaw,
+        trackDistance: track.centre.wrap(track.grid.s),
+      );
       cars_.add(car);
     }
 
@@ -205,8 +202,11 @@ void main() {
         fastest = math.max(fastest, speeds[i]);
       }
       expect(speeds[apex], lessThan(fastest * 0.9));
-      expect(speeds[apex], greaterThan(5.0),
-          reason: 'braking for a corner is not stopping at it');
+      expect(
+        speeds[apex],
+        greaterThan(5.0),
+        reason: 'braking for a corner is not stopping at it',
+      );
     });
 
     test('a driver that believes it has more grip goes faster', () {
@@ -275,8 +275,11 @@ void main() {
       final ahead = it.cars_[0].trackDistance + 10.0;
       final at = Vector3.zero();
       it.track.centreAt(ahead, at);
-      it.cars_[1].placeAt(at..y += 0.6, it.cars_[1].headingYaw,
-          trackDistance: ahead);
+      it.cars_[1].placeAt(
+        at..y += 0.6,
+        it.cars_[1].headingYaw,
+        trackDistance: ahead,
+      );
 
       final input = VehicleInput();
       it.driver.drive(it.cars_[0], input, others: it.cars_);
@@ -309,9 +312,11 @@ void main() {
       it.run(60.0);
 
       for (var i = 0; i < 4; i++) {
-        expect(it.race.progress[i].lap + it.race.progress[i].s / it.track.length,
-            greaterThan(0.3),
-            reason: 'car $i barely moved');
+        expect(
+          it.race.progress[i].lap + it.race.progress[i].s / it.track.length,
+          greaterThan(0.3),
+          reason: 'car $i barely moved',
+        );
         for (var j = i + 1; j < 4; j++) {
           expect(
             it.cars_[i].position.distanceTo(it.cars_[j].position),

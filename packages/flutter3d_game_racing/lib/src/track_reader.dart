@@ -21,7 +21,7 @@ import 'track.dart';
 /// control point.
 final class TrackDocument {
   TrackDocument({required this.track, this.level, SkyPreset? sky})
-      : sky = sky ?? SkyPresets.morning;
+    : sky = sky ?? SkyPresets.morning;
 
   factory TrackDocument.fromJson(Map<String, Object?> json) {
     final track = json['track'];
@@ -34,9 +34,7 @@ final class TrackDocument {
     return TrackDocument(
       track: _trackFromJson(track.asJsonObject('track')),
       level: level == null ? null : Level.fromJson(level.asJsonObject('level')),
-      sky: sky == null
-          ? null
-          : SkyPreset.fromJson(sky.asJsonObject('sky')),
+      sky: sky == null ? null : SkyPreset.fromJson(sky.asJsonObject('sky')),
     );
   }
 

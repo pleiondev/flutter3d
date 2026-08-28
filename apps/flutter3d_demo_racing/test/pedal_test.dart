@@ -14,7 +14,9 @@ import 'package:flutter_test/flutter_test.dart';
 const GameAction _throttle = GameAction('throttle');
 
 void main() {
-  testWidgets('and a pedal held is the throttle held', (WidgetTester tester) async {
+  testWidgets('and a pedal held is the throttle held', (
+    WidgetTester tester,
+  ) async {
     final input = InputState();
     await tester.pumpWidget(
       Directionality(
@@ -35,7 +37,9 @@ void main() {
     expect(input.value(_throttle), 0.0);
   });
 
-  testWidgets('and a finger the system takes away lets go', (WidgetTester tester) async {
+  testWidgets('and a finger the system takes away lets go', (
+    WidgetTester tester,
+  ) async {
     // A notification pulled down mid-corner. The pointer never comes up, and a
     // control that only listens for an up leaves the car at full throttle for
     // as long as the player is looking at something else.

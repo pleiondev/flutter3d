@@ -25,9 +25,6 @@ final class ChaseTuning extends RigTuning {
     super.minDistance = 2.0,
   });
 
-
-
-
   /// How far the camera swings from behind the nose towards behind the
   /// direction of travel, from nought to one.
   ///
@@ -73,7 +70,6 @@ final class ChaseTuning extends RigTuning {
   /// The widest it is allowed to get. Past about a fifth of a turn the picture
   /// reads as a fish-eye rather than as speed.
   final double maxFov;
-
 }
 
 /// A camera behind a car: behind where it is *going*, looking into the corner.
@@ -97,10 +93,10 @@ final class ChaseCamera {
     this.track,
     this.tuning = const ChaseTuning(),
   }) : rig = CameraRig(
-          world: world,
-          nearClearance: tuning.nearClearance,
-          minDistance: tuning.minDistance,
-        );
+         world: world,
+         nearClearance: tuning.nearClearance,
+         minDistance: tuning.minDistance,
+       );
 
   final CameraRig rig;
 
@@ -175,7 +171,8 @@ final class ChaseCamera {
       dt: dt,
     );
 
-    _fov = math.min(
+    _fov =
+        math.min(
           tuning.baseFov + car.speed * tuning.fovPerSpeed,
           tuning.maxFov,
         ) +
@@ -186,16 +183,13 @@ final class ChaseCamera {
   double _headingFor(VehicleController car) {
     final speed = car.speed;
     final travelling = math.atan2(car.velocity.x, car.velocity.z);
-    final reach = ((speed - tuning.headingFrom) /
-            (tuning.headingTo - tuning.headingFrom))
-        .clamp(0.0, 1.0);
+    final reach =
+        ((speed - tuning.headingFrom) / (tuning.headingTo - tuning.headingFrom))
+            .clamp(0.0, 1.0);
 
     return car.headingYaw +
-        shortestAngle(car.headingYaw, travelling) *
-            reach *
-            tuning.headingBlend;
+        shortestAngle(car.headingYaw, travelling) * reach * tuning.headingBlend;
   }
-
 
   final Vector3 _wantedEye = Vector3.zero();
   final Vector3 _wantedTarget = Vector3.zero();

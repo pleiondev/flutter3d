@@ -9,35 +9,35 @@ Map<String, Object?> document({
   Object? points,
   Map<String, Object?> extra = const <String, Object?>{},
   Map<String, Object?>? level,
-}) =>
-    <String, Object?>{
-      'track': <String, Object?>{
-        'points': points ??
-            <Map<String, Object?>>[
-              <String, Object?>{
-                'at': <double>[60.0, 0.0, 0.0],
-              },
-              <String, Object?>{
-                'at': <double>[0.0, 0.0, 60.0],
-              },
-              <String, Object?>{
-                'at': <double>[-60.0, 0.0, 0.0],
-              },
-              <String, Object?>{
-                'at': <double>[0.0, 0.0, -60.0],
-              },
-            ],
-        ...extra,
-      },
-      'level': ?level,
-    };
+}) => <String, Object?>{
+  'track': <String, Object?>{
+    'points':
+        points ??
+        <Map<String, Object?>>[
+          <String, Object?>{
+            'at': <double>[60.0, 0.0, 0.0],
+          },
+          <String, Object?>{
+            'at': <double>[0.0, 0.0, 60.0],
+          },
+          <String, Object?>{
+            'at': <double>[-60.0, 0.0, 0.0],
+          },
+          <String, Object?>{
+            'at': <double>[0.0, 0.0, -60.0],
+          },
+        ],
+    ...extra,
+  },
+  'level': ?level,
+};
 
 /// Through a real encode and decode, because that is the only way the reader is
 /// ever actually called and `1` decoded from text is an `int` where `1.0` is a
 /// `double`.
 TrackDocument read(Map<String, Object?> json) => TrackDocument.fromJson(
-      jsonDecode(jsonEncode(json)) as Map<String, Object?>,
-    );
+  jsonDecode(jsonEncode(json)) as Map<String, Object?>,
+);
 
 void main() {
   test('a circuit with nothing but points is a working circuit', () {
@@ -175,32 +175,30 @@ void main() {
     // purpose: brushes, materials and entities have been the engine's business
     // since the first game, and duplicating that here would mean a second
     // opinion about what a level is.
-    final document = read(
-      <String, Object?>{
-        'track': <String, Object?>{
-          'points': <Map<String, Object?>>[
-            <String, Object?>{
-              'at': <double>[60.0, 0.0, 0.0],
-            },
-            <String, Object?>{
-              'at': <double>[0.0, 0.0, 60.0],
-            },
-            <String, Object?>{
-              'at': <double>[-60.0, 0.0, 0.0],
-            },
-          ],
-        },
-        'level': <String, Object?>{
-          'name': 'ring',
-          'brushes': <Map<String, Object?>>[
-            <String, Object?>{
-              'at': <double>[0.0, -1.0, 0.0],
-              'size': <double>[200.0, 2.0, 200.0],
-            },
-          ],
-        },
+    final document = read(<String, Object?>{
+      'track': <String, Object?>{
+        'points': <Map<String, Object?>>[
+          <String, Object?>{
+            'at': <double>[60.0, 0.0, 0.0],
+          },
+          <String, Object?>{
+            'at': <double>[0.0, 0.0, 60.0],
+          },
+          <String, Object?>{
+            'at': <double>[-60.0, 0.0, 0.0],
+          },
+        ],
       },
-    );
+      'level': <String, Object?>{
+        'name': 'ring',
+        'brushes': <Map<String, Object?>>[
+          <String, Object?>{
+            'at': <double>[0.0, -1.0, 0.0],
+            'size': <double>[200.0, 2.0, 200.0],
+          },
+        ],
+      },
+    });
 
     expect(document.level, isNotNull);
     expect(document.level!.brushes, hasLength(1));

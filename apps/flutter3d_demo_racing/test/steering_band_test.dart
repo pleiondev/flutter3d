@@ -16,12 +16,12 @@ const GameAction _left = GameAction('steerLeft');
 const GameAction _right = GameAction('steerRight');
 
 /// The steering the game would ask the car for, given what the devices said.
-double _steer(InputState input) =>
-    input.value(_right) - input.value(_left);
+double _steer(InputState input) => input.value(_right) - input.value(_left);
 
 void main() {
-  testWidgets('the wheel is analogue, which is the whole point of it',
-      (WidgetTester tester) async {
+  testWidgets('the wheel is analogue, which is the whole point of it', (
+    WidgetTester tester,
+  ) async {
     // A car steered by two buttons is either straight or at full lock, which is
     // undriveable at speed — the same complaint that made this game read
     // magnitudes instead of presses.
@@ -47,16 +47,26 @@ void main() {
 
     await gesture.moveTo(Offset(band.left + 1, band.center.dy));
     await tester.pump();
-    expect(_steer(input), closeTo(-1.0, 0.02),
-        reason: 'the far left of the band is not full left lock');
+    expect(
+      _steer(input),
+      closeTo(-1.0, 0.02),
+      reason: 'the far left of the band is not full left lock',
+    );
 
     await gesture.up();
     await tester.pump();
-    expect(_steer(input), 0.0, reason: 'the wheel stayed over after the thumb '
-        'came off, which is a car that drives into the wall by itself');
+    expect(
+      _steer(input),
+      0.0,
+      reason:
+          'the wheel stayed over after the thumb '
+          'came off, which is a car that drives into the wall by itself',
+    );
   });
 
-  testWidgets('and one side of it speaks at a time', (WidgetTester tester) async {
+  testWidgets('and one side of it speaks at a time', (
+    WidgetTester tester,
+  ) async {
     // The obvious shape sets both actions. `_readDriver` subtracts them, so a
     // wheel that asks for full left *and* full right is a wheel that does
     // nothing at all — and it looks fine on screen.
@@ -79,8 +89,9 @@ void main() {
     expect(input.value(_left), 0.0);
   });
 
-  testWidgets('and the thumb on the wheel outranks a key held down',
-      (WidgetTester tester) async {
+  testWidgets('and the thumb on the wheel outranks a key held down', (
+    WidgetTester tester,
+  ) async {
     // **The mutation that survived the first version of this file**, and the
     // reason the idle side is set to nought rather than withdrawn: a magnitude
     // absent falls back to whatever is held, so on a machine with both a
@@ -104,18 +115,25 @@ void main() {
     );
     await tester.pump();
 
-    expect(_steer(input), closeTo(1.0, 0.02),
-        reason: 'a key nobody is looking at is steering against the thumb');
+    expect(
+      _steer(input),
+      closeTo(1.0, 0.02),
+      reason: 'a key nobody is looking at is steering against the thumb',
+    );
 
     await gesture.up();
     await tester.pump();
 
-    expect(_steer(input), -1.0,
-        reason: 'the wheel kept the wheel after the thumb came off it');
+    expect(
+      _steer(input),
+      -1.0,
+      reason: 'the wheel kept the wheel after the thumb came off it',
+    );
   });
 
-  testWidgets('and a second thumb on the band does not take it',
-      (WidgetTester tester) async {
+  testWidgets('and a second thumb on the band does not take it', (
+    WidgetTester tester,
+  ) async {
     // One control, one pointer. A band that took the newest would jump to
     // wherever a stray finger landed on it — which is where a player's other
     // hand rests.
@@ -131,14 +149,21 @@ void main() {
     );
 
     final band = tester.getRect(find.byType(SteeringBand));
-    await tester.startGesture(Offset(band.right - 1, band.center.dy),
-        pointer: 1);
+    await tester.startGesture(
+      Offset(band.right - 1, band.center.dy),
+      pointer: 1,
+    );
     await tester.pump();
-    await tester.startGesture(Offset(band.left + 1, band.center.dy),
-        pointer: 2);
+    await tester.startGesture(
+      Offset(band.left + 1, band.center.dy),
+      pointer: 2,
+    );
     await tester.pump();
 
-    expect(_steer(input), closeTo(1.0, 0.02),
-        reason: 'the second finger took the wheel');
+    expect(
+      _steer(input),
+      closeTo(1.0, 0.02),
+      reason: 'the second finger took the wheel',
+    );
   });
 }

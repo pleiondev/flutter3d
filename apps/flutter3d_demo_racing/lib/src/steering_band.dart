@@ -70,29 +70,29 @@ class _SteeringBandState extends State<SteeringBand> {
 
   @override
   Widget build(BuildContext context) => Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: (PointerDownEvent event) {
-          if (_pointer != null) return;
-          _pointer = event.pointer;
-          _steer(event.localPosition);
-        },
-        onPointerMove: (PointerMoveEvent event) {
-          if (event.pointer != _pointer) return;
-          _steer(event.localPosition);
-        },
-        onPointerUp: (PointerUpEvent event) {
-          if (event.pointer == _pointer) _release();
-        },
-        // A pointer the system took away — a notification pulled down mid-
-        // corner. Treated as a release, or the player comes back at full lock.
-        onPointerCancel: (PointerCancelEvent event) {
-          if (event.pointer == _pointer) _release();
-        },
-        child: CustomPaint(
-          size: Size(widget.width, widget.height),
-          painter: _BandPainter(at: _at),
-        ),
-      );
+    behavior: HitTestBehavior.opaque,
+    onPointerDown: (PointerDownEvent event) {
+      if (_pointer != null) return;
+      _pointer = event.pointer;
+      _steer(event.localPosition);
+    },
+    onPointerMove: (PointerMoveEvent event) {
+      if (event.pointer != _pointer) return;
+      _steer(event.localPosition);
+    },
+    onPointerUp: (PointerUpEvent event) {
+      if (event.pointer == _pointer) _release();
+    },
+    // A pointer the system took away — a notification pulled down mid-
+    // corner. Treated as a release, or the player comes back at full lock.
+    onPointerCancel: (PointerCancelEvent event) {
+      if (event.pointer == _pointer) _release();
+    },
+    child: CustomPaint(
+      size: Size(widget.width, widget.height),
+      painter: _BandPainter(at: _at),
+    ),
+  );
 }
 
 class _BandPainter extends CustomPainter {
