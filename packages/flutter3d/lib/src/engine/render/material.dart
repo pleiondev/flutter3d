@@ -228,10 +228,31 @@ final class Material {
 /// An owned registry rather than a static counter on [Material]: global mutable
 /// state is the least testable kind of static, and ids only need to be unique
 /// within the thing that sorts by them. The renderer owns one.
+/// **Weakly, which it was not.** A `Map<Material, int>` filled on every draw
+/// and emptied by nobody is a strong reference to every material the renderer
+/// has ever seen, for as long as the renderer lives — and a [Material] holds
+/// its base colour, normal, metallic-roughness, occlusion and emissive
+/// textures. That defeated `ResourceCache.evictUnused` outright: a game could
+/// load level two, drop level one and evict it, and level one's textures still
+/// could not be collected, because this map was holding the materials that
+/// referenced them. It was the one leak that was the same on all three
+/// backends, and the `clear()` that would have relieved it had no caller
+/// anywhere in the repository.
+///
+/// An [Expando] is the fix and costs nothing: it is a weak-keyed side table on
+/// both the VM and the web, so a material that nothing else refers to is
+/// collected with its id, and this registry stops being a reason anything
+/// stays alive.
 final class MaterialSortIds {
-  final Map<Material, int> _ids = <Material, int>{};
+  Expando<int> _ids = Expando<int>('material sort id');
 
-  int get length => _ids.length;
+  /// How many ids have been handed out.
+  ///
+  /// The count of assignments rather than of live materials, which is the only
+  /// number a weak table can answer honestly — asking how many keys survive
+  /// would be asking when the collector last ran.
+  int get length => _assigned;
+  int _assigned = 0;
 
   /// Id for [material], assigning one on first sight.
   ///
@@ -241,10 +262,15 @@ final class MaterialSortIds {
   int idOf(Material material, {int limit = 0x7FFFFF}) {
     final existing = _ids[material];
     if (existing != null) return existing;
-    final id = (_ids.length + 1) % limit;
+    final id = (++_assigned) % limit;
     _ids[material] = id;
     return id;
   }
 
-  void clear() => _ids.clear();
+  /// Forgets every assignment, by replacing the table rather than walking it —
+  /// a weak table has no keys to walk.
+  void clear() {
+    _ids = Expando<int>('material sort id');
+    _assigned = 0;
+  }
 }

@@ -23,6 +23,7 @@ final class FrameResult {
     required this.pipelines,
     required this.shadowCasters,
     required this.skinnedDraws,
+    this.wireframeDeclined = false,
   });
 
   /// The texture the frame was drawn into.
@@ -65,6 +66,17 @@ final class FrameResult {
   /// Lights that did not fit in the uniform array, so a scene that quietly
   /// stopped lighting its ninth lamp says so instead of looking wrong.
   final int lightsDropped;
+
+  /// Whether `RenderSettings.wireframe` was asked for and could not be given.
+  ///
+  /// **The backends refuse a polygon mode they have no line primitives for,
+  /// loudly and by design — and the engine was swallowing the refusal.** A
+  /// caller that set `wireframe: true` on the WebGL or software backend got a
+  /// solid model, no exception and no word anywhere, which is the one place
+  /// this repository's own rule about backends refusing rather than
+  /// substituting was undone a layer up. Reported here for the same reason
+  /// [lightsDropped] is: a setting that did nothing should say so.
+  final bool wireframeDeclined;
 
   /// Pipelines the renderer has built so far.
   ///

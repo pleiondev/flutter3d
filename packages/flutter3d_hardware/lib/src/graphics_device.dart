@@ -333,6 +333,15 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// memory, and there is nothing there to read once the pass has ended.
   Future<ByteData?> readPixels(TextureHandle texture);
 
+  /// Releases one geometry buffer, rather than waiting for the whole device to
+  /// go.
+  ///
+  /// The contract is `TextureAllocator.releaseTexture`'s, which this device is
+  /// also required to implement — that one is declared beside `createTexture`
+  /// because the pool that owns most of the engine's targets holds an
+  /// allocator rather than a device.
+  void releaseGeometry(GeometryBuffer geometry);
+
   /// Releases every persistent resource this device holds — the textures and
   /// geometry buffers handed out by [createTexture], [createTextureFromPixels],
   /// [createCubeTextureFromPixels] and [uploadGeometry].

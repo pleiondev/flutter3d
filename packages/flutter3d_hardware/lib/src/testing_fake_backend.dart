@@ -230,4 +230,20 @@ final class FakeBackend implements GraphicsDevice {
 
   @override
   void dispose() => disposed = true;
+
+  /// What was handed back one at a time, in the order it was handed back.
+  ///
+  /// Recorded rather than ignored because the thing worth testing about a
+  /// release is that it happened at all: the leak this contract exists for is
+  /// a caller that reallocates and never calls it, which is invisible to a
+  /// backend whose own release is a no-op.
+  final List<TextureHandle> releasedTextures = <TextureHandle>[];
+  final List<GeometryBuffer> releasedGeometry = <GeometryBuffer>[];
+
+  @override
+  void releaseTexture(TextureHandle texture) => releasedTextures.add(texture);
+
+  @override
+  void releaseGeometry(GeometryBuffer geometry) =>
+      releasedGeometry.add(geometry);
 }

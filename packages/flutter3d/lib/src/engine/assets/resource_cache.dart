@@ -63,9 +63,14 @@ final class ResourceCache<K, V> {
 
   /// Called when an entry leaves the cache.
   ///
-  /// no backend here has an explicit release for buffers or textures — dropping the
-  /// last Dart reference is what frees them — so for GPU resources this is
-  /// usually null and eviction works by letting the collector do its job.
+  /// **This used to say no backend has an explicit release, so leaving it null
+  /// was the normal thing.** That was never true of `flutter3d_webgl` and is
+  /// no longer true of any of them: every device implements
+  /// `TextureAllocator.releaseTexture` — a no-op where the collector already
+  /// frees, a `gl.deleteTexture` where nothing else will. A cache of GPU
+  /// resources on the web that leaves this null still leaks, and the sentence
+  /// that said otherwise is what made `ModelAsset` having no `dispose` look
+  /// like a decision rather than a gap.
   final void Function(V value)? dispose;
 
   final Map<K, _CacheEntry<V>> _entries = <K, _CacheEntry<V>>{};
@@ -125,9 +130,27 @@ final class ResourceCache<K, V> {
 
   /// Drops everything, held or not.
   ///
-  /// Outstanding handles keep working — their `value` is still a live object — but
-  /// they no longer refer to anything the cache tracks.
+  /// **"Outstanding handles keep working" is true of the Dart object and false
+  /// of anything [dispose] actually frees.** A handle held across this call
+  /// comes back a live `ModelAsset` full of deleted GPU objects, with
+  /// `isReleased` still answering false — which is the worst of both, because
+  /// nothing about it looks wrong until a draw. The assert says so in the
+  /// build where saying so is free; in release this stays the blunt instrument
+  /// it has always been, because refusing to clear would be worse than
+  /// clearing.
   void clear() {
+    assert(() {
+      final held = _entries.values.where((_CacheEntry<V> e) => e.refCount > 0);
+      if (dispose != null && held.isNotEmpty) {
+        throw StateError(
+          'ResourceCache.clear() while ${held.length} entries are still held. '
+          'The dispose callback frees them, so every outstanding handle is '
+          'about to point at released resources while still reporting itself '
+          'live. Release the handles first, or use evictUnused().',
+        );
+      }
+      return true;
+    }());
     for (final entry in _entries.values) {
       final value = entry.loaded;
       if (value != null) dispose?.call(value);

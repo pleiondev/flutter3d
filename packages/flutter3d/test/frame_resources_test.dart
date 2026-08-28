@@ -105,6 +105,11 @@ final class _FakeAllocator implements TextureAllocator {
     sampleCount: spec.sampleCount,
     storageMode: spec.storageMode,
   );
+
+  final List<TextureHandle> released = <TextureHandle>[];
+
+  @override
+  void releaseTexture(TextureHandle texture) => released.add(texture);
 }
 
 /// A texture handle over an ordinary object.

@@ -87,6 +87,30 @@ abstract interface class TextureAllocator {
   /// A brand-new texture matching [spec], with the single [TextureHandle] that
   /// will ever stand for it.
   TextureHandle createTexture(RenderTargetSpec spec);
+
+  /// Gives one back, rather than waiting for the whole device to go.
+  ///
+  /// **`GraphicsDevice.dispose` was the only release primitive there was, and
+  /// that is not enough for a renderer that reallocates.** A window resize
+  /// remakes six or seven full-screen targets and empties this pool of every
+  /// spec it holds; changing one shadow setting remakes two atlases that are
+  /// 75 MB each at the default tile. All of it was dropped rather than freed.
+  /// Where the collector is what frees a texture that is correct and this
+  /// method has nothing to do — but on WebGL2 a `WebGLTexture` the driver
+  /// holds is not a GC artefact, and nothing reclaims it unless something
+  /// calls `gl.deleteTexture`. A browser window dragged a few dozen times was
+  /// enough to show it.
+  ///
+  /// **A no-op is a correct implementation** where dropping the last reference
+  /// already frees, and is expected to say so rather than be left blank.
+  ///
+  /// Afterwards the handle is spent. Releasing one twice, or one this
+  /// allocator never made, is a caller mistake that a backend may refuse.
+  ///
+  /// Nothing here says the GPU has stopped reading. That is the caller's to
+  /// know — see the frames-in-flight ring in the engine's renderer, which is
+  /// what keeps a target from being freed while a pass still samples it.
+  void releaseTexture(TextureHandle texture);
 }
 
 /// Reuses textures across frames, keyed by what makes them interchangeable.
@@ -155,11 +179,27 @@ final class RenderTargetPool {
     (_free[RenderTargetSpec.of(texture)] ??= <TextureHandle>[]).add(texture);
   }
 
-  /// Drops every pooled texture, keeping the ones still lent out.
+  /// Gives every pooled texture back to the allocator, keeping the ones still
+  /// lent out.
   ///
   /// Called on a resize: every spec has changed, so nothing in the pool will
   /// ever match again and holding it is pure waste.
-  void trim() => _free.clear();
+  ///
+  /// **It used to only clear the map**, which frees the textures on a backend
+  /// where dropping the last reference is what frees them and frees nothing at
+  /// all on WebGL2. A resize is exactly when this runs, and a resize is what a
+  /// person does repeatedly.
+  ///
+  /// The lent ones are deliberately left alone: something is still drawing
+  /// into them, and they come back through [release] when it stops.
+  void trim() {
+    for (final bucket in _free.values) {
+      for (final texture in bucket) {
+        allocator.releaseTexture(texture);
+      }
+    }
+    _free.clear();
+  }
 
   @override
   String toString() =>

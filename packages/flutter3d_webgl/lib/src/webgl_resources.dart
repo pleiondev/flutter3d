@@ -277,6 +277,56 @@ GeometryBuffer webglUploadGeometry(
   );
 }
 
+/// Deletes one texture's GL objects and stops tracking them.
+///
+/// A `WebGLTexture` the driver holds is not something the collector reclaims,
+/// so this is the only thing that frees one before the whole device goes. See
+/// `GraphicsDevice.releaseTexture` for why a renderer needs that: a resize
+/// remakes every full-screen target, and until this existed the old ones
+/// stayed in the driver for the life of the tab.
+///
+/// Returns whether anything was deleted, which is false for a handle this
+/// device does not hold — a double release, or one from another device.
+bool webglReleaseTexture(
+  web.WebGL2RenderingContext gl,
+  WebGlTexture backend,
+  List<web.WebGLTexture> persistentTextures,
+  List<web.WebGLRenderbuffer> persistentRenderbuffers,
+) {
+  var released = false;
+  final texture = backend.texture;
+  if (texture != null && persistentTextures.remove(texture)) {
+    gl.deleteTexture(texture);
+    released = true;
+  }
+  final renderbuffer = backend.renderbuffer;
+  if (renderbuffer != null && persistentRenderbuffers.remove(renderbuffer)) {
+    gl.deleteRenderbuffer(renderbuffer);
+    released = true;
+  }
+  return released;
+}
+
+/// Deletes one geometry buffer and stops tracking it. See
+/// [webglReleaseTexture].
+/// Takes [buffer] as an `Object` and finds it by identity, deliberately: an
+/// `is` test against an interop type is a question about JavaScript rather
+/// than about a Dart class, and the analyser is right that it is not
+/// platform-consistent. Membership in the list this device fills is a better
+/// question anyway — it also rejects a buffer from another device.
+bool webglReleaseBuffer(
+  web.WebGL2RenderingContext gl,
+  Object buffer,
+  List<web.WebGLBuffer> persistentBuffers,
+) {
+  final at = persistentBuffers.indexWhere(
+    (web.WebGLBuffer it) => identical(it, buffer),
+  );
+  if (at < 0) return false;
+  gl.deleteBuffer(persistentBuffers.removeAt(at));
+  return true;
+}
+
 /// Deletes every tracked texture, renderbuffer and buffer, and empties the
 /// three lists. See `GraphicsDevice.dispose`.
 void webglDisposePersistentResources(

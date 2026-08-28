@@ -121,7 +121,7 @@ final class ParticleContributor extends PassContributor {
     // has a different vertex layout.
     encoder.clearBindings();
     encoder.bindPipeline(
-      _pipeline ??= frame.device.createPipeline(vertexShader, fragmentShader),
+      _pipelineFor(frame.device, vertexShader, fragmentShader),
     );
     encoder.setState(_kParticleState);
 
@@ -203,6 +203,31 @@ final class ParticleContributor extends PassContributor {
     }
     return shader;
   }
+
+  /// The pipeline for [device], built once per device rather than once ever.
+  ///
+  /// **`_pipeline ??=` was keyed on nothing**, so a contributor that outlived
+  /// one device handed that device's pipeline to the next one's pass. Two
+  /// devices in one process is not hypothetical here: a golden test draws the
+  /// same effect through the software backend and then through Impeller, and
+  /// `openDevice` falls back to the software backend at run time when
+  /// flutter_gpu will not start. What that produces is a bind of an object the
+  /// receiving backend never made — a wrong picture at best, and on a backend
+  /// with a driver under it, not that.
+  PipelineHandle _pipelineFor(
+    GraphicsDevice device,
+    ShaderHandle vertex,
+    ShaderHandle fragment,
+  ) {
+    final key = identityHashCode(device);
+    if (_pipelineDevice != key) {
+      _pipeline = device.createPipeline(vertex, fragment);
+      _pipelineDevice = key;
+    }
+    return _pipeline!;
+  }
+
+  int? _pipelineDevice;
 
   final Set<String> _missing = <String>{};
 

@@ -8,6 +8,7 @@ library;
 
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
@@ -236,12 +237,38 @@ final class GpuCommandEncoder implements CommandEncoder {
   }
 
   @override
-  void submit() => _buffer.submit(
-    completionCallback: (bool ok) {
-      _frame.outstanding--;
-      _frame.settleIfDone();
-    },
-  );
+  void submit() {
+    // From "being encoded" to "in the queue". Two counters rather than one,
+    // because a frame that threw between these two states must not be waited
+    // for — see `GpuFrame.encoding`.
+    _frame.encoding--;
+    _frame.outstanding++;
+    _buffer.submit(
+      completionCallback: (bool ok) {
+        // **`ok` used to be bound and never read**, which meant a command
+        // buffer the driver refused produced exactly the same accounting, the
+        // same `FrameResult` and the same draw count as one that ran. In a
+        // codebase whose whole argument is that failures here arrive as a
+        // plausible frame with correct counters, throwing away the one boolean
+        // the API offers about it was the wrong trade. Counted always, said
+        // out loud in debug.
+        if (!ok) {
+          _backend.noteRejectedSubmission();
+          assert(() {
+            debugPrint(
+              'flutter3d: the GPU refused a command buffer. The frame it '
+              'belonged to is missing whatever that pass drew, and nothing '
+              'above the driver reports it — see '
+              'GpuRenderBackend.rejectedSubmissions.',
+            );
+            return true;
+          }());
+        }
+        _frame.outstanding--;
+        _frame.settleIfDone();
+      },
+    );
+  }
 
   static gpu.BufferView _view(GeometryBuffer buffer) => gpu.BufferView(
     buffer.backend as gpu.DeviceBuffer,

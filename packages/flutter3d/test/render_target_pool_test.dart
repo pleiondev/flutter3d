@@ -28,6 +28,14 @@ final class _FakeAllocator implements TextureAllocator {
     sampleCount: spec.sampleCount,
     storageMode: spec.storageMode,
   );
+
+  /// What was given back, so a test can tell "the pool stopped holding it"
+  /// from "the pool handed it back" — which on WebGL2 is the difference
+  /// between a resize costing nothing and a leak.
+  final List<TextureHandle> released = <TextureHandle>[];
+
+  @override
+  void releaseTexture(TextureHandle texture) => released.add(texture);
 }
 
 /// A texture handle over an ordinary object.
@@ -131,6 +139,36 @@ void main() {
       // Still returnable: trimming forgets the free list, not the loans.
       pool.release(lent);
       expect(pool.pooledCount, 1);
+    });
+
+    test('and hands the free ones back rather than merely forgetting', () {
+      // **`trim` used to clear a map and nothing else.** On a backend where
+      // dropping the last reference is what frees a texture that is the whole
+      // story; on WebGL2 nothing frees a `WebGLTexture` but `gl.deleteTexture`,
+      // so every resize left its targets in the driver for the life of the tab
+      // — and a resize is what a person does repeatedly.
+      //
+      // Mutation: make `trim` clear `_free` without releasing. The allocator
+      // below is handed nothing back and this fails on an empty list.
+      final allocator = _FakeAllocator();
+      final pool = RenderTargetPool(allocator);
+      const spec = RenderTargetSpec(
+        width: 640,
+        height: 480,
+        format: TextureFormat.r16g16b16a16Float,
+      );
+
+      final lent = pool.acquire(spec);
+      final free = pool.acquire(spec);
+      pool.release(free);
+      pool.trim();
+
+      expect(allocator.released, <TextureHandle>[free]);
+      expect(
+        allocator.released,
+        isNot(contains(lent)),
+        reason: 'something is still drawing into the one that is lent out',
+      );
     });
   });
 }

@@ -315,4 +315,14 @@ final class CpuDevice implements GraphicsDevice {
   /// a backend with a driver underneath it.
   @override
   void dispose() {}
+
+  /// Nothing to free, for the same reason [dispose] has nothing to free: a
+  /// texture here is a Dart list, and dropping the handle is already the whole
+  /// of releasing it. Written out rather than left to a default so that a
+  /// backend which grows a driver underneath it has to say so.
+  @override
+  void releaseTexture(TextureHandle texture) {}
+
+  @override
+  void releaseGeometry(GeometryBuffer geometry) {}
 }

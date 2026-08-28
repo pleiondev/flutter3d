@@ -403,6 +403,10 @@ final class GpuRenderBackend implements GraphicsDevice {
     // concerned: no more passes will be added to it, so if the GPU has already
     // finished every buffer it holds, its callbacks can run.
     _openFrame.encoded = true;
+    // Anything still open was abandoned by a throw part way through encoding —
+    // see `GpuFrame.abandonUnsubmitted`. Without this the frame waits for a
+    // pass nobody will ever submit and its callbacks never run.
+    _openFrame.abandonUnsubmitted();
     _openFrame.settleIfDone();
     _openFrame = GpuFrame();
 
@@ -418,7 +422,7 @@ final class GpuRenderBackend implements GraphicsDevice {
     final buffer = gpu.gpuContext.createCommandBuffer();
     final pass = buffer.createRenderPass(_toRenderTarget(descriptor));
     final frame = _openFrame;
-    frame.outstanding++;
+    frame.encoding++;
     return GpuCommandEncoder(buffer, pass, this, frame);
   }
 
@@ -431,6 +435,25 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// editor holding a still camera showed, and what three, and eight, and
   /// sixteen buffers each made rarer without making impossible.
   GpuFrame _openFrame = GpuFrame();
+
+  /// How many command buffers the driver has refused since this device opened.
+  ///
+  /// **The one signal flutter_gpu offers about a failed submission**, and it
+  /// was being discarded: `submit`'s completion callback takes a `bool ok`
+  /// which nothing read, so a rejected buffer produced the same counters and
+  /// the same frame result as one that executed. Nothing above the driver
+  /// reports this otherwise — the frame simply comes back missing whatever
+  /// that pass drew.
+  ///
+  /// Zero on a healthy device, and anything else is worth investigating rather
+  /// than tolerating.
+  int get rejectedSubmissions => _rejectedSubmissions;
+  int _rejectedSubmissions = 0;
+
+  /// Called from the encoder's completion callback. Not private because the
+  /// encoder is a separate class in a separate file, and the alternative is a
+  /// setter that says less.
+  void noteRejectedSubmission() => _rejectedSubmissions++;
 
   @override
   void onFrameComplete(void Function() whenDone) =>
@@ -477,6 +500,18 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// every [GraphicsDevice] uniformly does not have to special-case this one.
   @override
   void dispose() {}
+
+  /// A no-op, and the reason is flutter_gpu's rather than this backend's:
+  /// `gpu.Texture` has no native dispose, so letting the last reference go is
+  /// the only release path there is here. That makes this the right
+  /// implementation and an unusual one — the engine still calls it, because on
+  /// WebGL2 the same call is the difference between a resize costing nothing
+  /// and a tab that grows until the context is lost.
+  @override
+  void releaseTexture(TextureHandle texture) {}
+
+  @override
+  void releaseGeometry(GeometryBuffer geometry) {}
 
   static gpu.RenderTarget _toRenderTarget(RenderPassDescriptor descriptor) =>
       gpu.RenderTarget(
