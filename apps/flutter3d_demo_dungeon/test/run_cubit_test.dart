@@ -34,10 +34,10 @@ const String _crypt = 'assets/levels/crypt.json';
 /// size — the platformer learned this the expensive way, with a frame test that
 /// had produced no output after ten minutes at 320 by 180.
 GraphicsDevice _device() => CpuDevice(
-      width: 16,
-      height: 9,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 /// A storage that keeps everything in a map.
 final class _Storage implements Storage {
@@ -62,37 +62,41 @@ final class _Storage implements Storage {
   final storage = _Storage();
   return (
     storage: storage,
-    run: RunCubit(DungeonRun(
-      firstLevel: first,
-      registry: sampleRegistry(),
-      input: InputState(),
-      inventory: startingInventory(),
-      saves: SaveFile(appName: 'dungeon', storage: storage),
-      // **The device, and nothing else.** Forty lines of the game's own
-      // assembly used to sit here — the loader and both sets of visuals,
-      // copied — and the copy had lost `bindLights()`, so every torch in this
-      // harness lit nothing while the game's lit the room. That is what
-      // `one_assembly_test` is named after, and this file was outside the two
-      // calls it watched.
-      device: device,
-    )),
+    run: RunCubit(
+      DungeonRun(
+        firstLevel: first,
+        registry: sampleRegistry(),
+        input: InputState(),
+        inventory: startingInventory(),
+        saves: SaveFile(appName: 'dungeon', storage: storage),
+        // **The device, and nothing else.** Forty lines of the game's own
+        // assembly used to sit here — the loader and both sets of visuals,
+        // copied — and the copy had lost `bindLights()`, so every torch in this
+        // harness lit nothing while the game's lit the room. That is what
+        // `one_assembly_test` is named after, and this file was outside the two
+        // calls it watched.
+        device: device,
+      ),
+    ),
   );
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('a new game starts at the first level and says it did not resume',
-      () async {
-    final it = _game();
+  test(
+    'a new game starts at the first level and says it did not resume',
+    () async {
+      final it = _game();
 
-    expect(await it.run.begin(), isFalse, reason: 'resumed nothing');
+      expect(await it.run.begin(), isFalse, reason: 'resumed nothing');
 
-    final state = it.run.state;
-    expect(state, isA<RunPlaying<LevelReady>>());
-    expect((state as RunPlaying<LevelReady>).asset, _crypt);
-    expect(state.outcome, RunOutcome.playing);
-  });
+      final state = it.run.state;
+      expect(state, isA<RunPlaying<LevelReady>>());
+      expect((state as RunPlaying<LevelReady>).asset, _crypt);
+      expect(state.outcome, RunOutcome.playing);
+    },
+  );
 
   test('a level that is not there fails loudly rather than silently', () async {
     // **This used to be a black screen for ever.** The application caught the
@@ -103,25 +107,33 @@ void main() {
     await it.run.begin();
 
     expect(it.run.state, isA<RunFailed<LevelReady>>());
-    expect((it.run.state as RunFailed<LevelReady>).asset, contains('no_such_level'));
+    expect(
+      (it.run.state as RunFailed<LevelReady>).asset,
+      contains('no_such_level'),
+    );
   });
 
-  test('and a save naming a level that is gone gives a game, not an error',
-      () async {
-    // A player whose save is broken should get to play. Mutation: drop the
-    // `state is RunFailed` fallback in `begin`, and a renamed level file bricks
-    // every save that mentions it.
-    final it = _game();
-    it.storage.documents['save.json'] =
-        '{"level":"assets/levels/deleted.json","run":{}}';
+  test(
+    'and a save naming a level that is gone gives a game, not an error',
+    () async {
+      // A player whose save is broken should get to play. Mutation: drop the
+      // `state is RunFailed` fallback in `begin`, and a renamed level file bricks
+      // every save that mentions it.
+      final it = _game();
+      it.storage.documents['save.json'] =
+          '{"level":"assets/levels/deleted.json","run":{}}';
 
-    expect(await it.run.begin(), isFalse);
+      expect(await it.run.begin(), isFalse);
 
-    expect(it.run.state, isA<RunPlaying<LevelReady>>());
-    expect((it.run.state as RunPlaying<LevelReady>).asset, _crypt);
-    expect(it.storage.documents['save.json'], isNull,
-        reason: 'the broken save was kept and will fail again next launch');
-  });
+      expect(it.run.state, isA<RunPlaying<LevelReady>>());
+      expect((it.run.state as RunPlaying<LevelReady>).asset, _crypt);
+      expect(
+        it.storage.documents['save.json'],
+        isNull,
+        reason: 'the broken save was kept and will fail again next launch',
+      );
+    },
+  );
 
   group('dying', () {
     test('can be restarted, which is the whole of what was missing', () async {
@@ -139,11 +151,17 @@ void main() {
 
       final second = it.run.state as RunPlaying<LevelReady>;
       expect(second.asset, first.asset, reason: 'restarted a different level');
-      expect(identical(second.level.staged, first.level.staged), isFalse,
-          reason: 'the same simulation was handed back');
+      expect(
+        identical(second.level.staged, first.level.staged),
+        isFalse,
+        reason: 'the same simulation was handed back',
+      );
       expect(it.run.inventory.health.isAlive, isTrue);
-      expect(it.run.inventory.health.current, 100.0,
-          reason: 'a restart that keeps the health you died at is not one');
+      expect(
+        it.run.inventory.health.current,
+        100.0,
+        reason: 'a restart that keeps the health you died at is not one',
+      );
     });
 
     test('and the save goes with it', () async {
@@ -212,8 +230,11 @@ void main() {
       }
       await Future<void>.delayed(Duration.zero);
 
-      expect(emitted, isEmpty,
-          reason: 'nothing changed, and thirty states were emitted anyway');
+      expect(
+        emitted,
+        isEmpty,
+        reason: 'nothing changed, and thirty states were emitted anyway',
+      );
     });
 
     test('does not move on twice while the next one is loading', () async {
@@ -228,8 +249,11 @@ void main() {
       await it.run.advance();
       await it.run.advance();
 
-      expect(it.run.state, isA<RunPlaying<LevelReady>>(),
-          reason: 'a level with no next unloaded itself');
+      expect(
+        it.run.state,
+        isA<RunPlaying<LevelReady>>(),
+        reason: 'a level with no next unloaded itself',
+      );
     });
   });
 }

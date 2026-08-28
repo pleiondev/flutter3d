@@ -25,23 +25,23 @@ import 'package:flutter_test/flutter_test.dart';
 /// The panel as the game mounts it: inside a [Scaffold], because the volume
 /// sliders need a [Material] ancestor and the game gives them one.
 Widget _panel({GameConfig? config, bool padConnected = false}) => MaterialApp(
-      home: Scaffold(
-        body: SettingsPanel(
-          mixer: Mixer(),
-          bindings: PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
-          config: config ?? GameConfig(),
-          padConnected: padConnected,
-          onVolume: (AudioBus bus, double volume) {},
-          onSetting: (String name, double value) {},
-          onClose: () {},
-          actions: const <GameAction>[GameAction.jump],
-          waitingFor: null,
-          onRebind: (GameAction? action) {},
-          onResetControls: () {},
-          credits: const CreditsSection(credits: Credits.models),
-        ),
-      ),
-    );
+  home: Scaffold(
+    body: SettingsPanel(
+      mixer: Mixer(),
+      bindings: PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
+      config: config ?? GameConfig(),
+      padConnected: padConnected,
+      onVolume: (AudioBus bus, double volume) {},
+      onSetting: (String name, double value) {},
+      onClose: () {},
+      actions: const <GameAction>[GameAction.jump],
+      waitingFor: null,
+      onRebind: (GameAction? action) {},
+      onResetControls: () {},
+      credits: const CreditsSection(credits: Credits.models),
+    ),
+  ),
+);
 
 void main() {
   test('every model the game ships is accounted for', () {
@@ -54,10 +54,16 @@ void main() {
     final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
-    expect(gaps.unshipped, isEmpty,
-        reason: 'credited something the game does not ship');
-    expect(gaps.uncredited, isEmpty,
-        reason: 'shipped a model nobody is credited for');
+    expect(
+      gaps.unshipped,
+      isEmpty,
+      reason: 'credited something the game does not ship',
+    );
+    expect(
+      gaps.uncredited,
+      isEmpty,
+      reason: 'shipped a model nobody is credited for',
+    );
   });
 
   test('nothing this game ships is untraceable any more', () {
@@ -69,8 +75,11 @@ void main() {
     //
     // The machinery stays: the next model dropped into `assets/models` is one
     // somebody found somewhere, and the test above reads that directory.
-    expect(Credits.untraced, isEmpty,
-        reason: 'this game cannot be released while anything is in this list');
+    expect(
+      Credits.untraced,
+      isEmpty,
+      reason: 'this game cannot be released while anything is in this list',
+    );
   });
 
   test('and the way of saying so still works', () {
@@ -93,11 +102,17 @@ void main() {
     await tester.pumpWidget(_panel());
 
     for (final credit in Credits.owed) {
-      expect(find.textContaining(credit.author!), findsWidgets,
-          reason: '${credit.work} is CC BY and its author is not on screen');
+      expect(
+        find.textContaining(credit.author!),
+        findsWidgets,
+        reason: '${credit.work} is CC BY and its author is not on screen',
+      );
       expect(find.textContaining(credit.licence!), findsWidgets);
-      expect(find.text(credit.licenceUrl!), findsWidgets,
-          reason: 'the licence has to be reachable, not just named');
+      expect(
+        find.text(credit.licenceUrl!),
+        findsWidgets,
+        reason: 'the licence has to be reachable, not just named',
+      );
     }
   });
 

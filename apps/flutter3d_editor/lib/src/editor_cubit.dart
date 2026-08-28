@@ -35,14 +35,20 @@ final class EditorCubit extends Cubit<EditorState> {
   ///
   /// The message matches what the editor has always said on opening: how many
   /// brushes, and who owns the file if this editor may not save over it.
-  void opened(Editing editing, {String? assetRoot, required Looks looks}) =>
-      emit(EditorReady(
-        editing: editing,
-        assetRoot: assetRoot,
-        looks: looks,
-        said: 'opened ${editing.level.brushes.length} brushes'
-            '${editing.mayOverwrite ? '' : ' — written by ${editing.generatedBy}'}',
-      ));
+  void opened(
+    Editing editing, {
+    String? assetRoot,
+    required Looks looks,
+  }) => emit(
+    EditorReady(
+      editing: editing,
+      assetRoot: assetRoot,
+      looks: looks,
+      said:
+          'opened ${editing.level.brushes.length} brushes'
+          '${editing.mayOverwrite ? '' : ' — written by ${editing.generatedBy}'}',
+    ),
+  );
 
   /// Nothing could be opened at all — a device that would not start, or a
   /// document that would not parse.
@@ -64,7 +70,8 @@ final class EditorCubit extends Cubit<EditorState> {
   /// as the render loop's own `_stale = true`, which a caller sets alongside
   /// this and which this does not: whether the scene needs rebuilding is the
   /// render loop's question, not this cubit's — see `_EditorScreenState`.
-  void say(String said) => _updateReady((EditorReady it) => it.copyWith(said: said));
+  void say(String said) =>
+      _updateReady((EditorReady it) => it.copyWith(said: said));
 
   /// Which axis `−`/`=` and the arrow keys resize along.
   void setAxis(EditorAxis axis) =>
@@ -76,12 +83,14 @@ final class EditorCubit extends Cubit<EditorState> {
     final current = state;
     if (current is! EditorReady) return true;
     final on = !current.lampOn;
-    emit(current.copyWith(
-      lampOn: on,
-      said: on
-          ? "the editor's lamp is on"
-          : "the editor's lamp is off — this is the level's own light",
-    ));
+    emit(
+      current.copyWith(
+        lampOn: on,
+        said: on
+            ? "the editor's lamp is on"
+            : "the editor's lamp is off — this is the level's own light",
+      ),
+    );
     return on;
   }
 
@@ -92,12 +101,14 @@ final class EditorCubit extends Cubit<EditorState> {
     final hidden = Set<String>.of(current.hidden);
     final hiding = !hidden.remove(type);
     if (hiding) hidden.add(type);
-    emit(current.copyWith(
-      hidden: hidden,
-      said: hiding
-          ? '$label hidden — alt-click again to show'
-          : '$label shown',
-    ));
+    emit(
+      current.copyWith(
+        hidden: hidden,
+        said: hiding
+            ? '$label hidden — alt-click again to show'
+            : '$label shown',
+      ),
+    );
   }
 
   /// Arms or disarms the palette. Null puts nothing down; a row arms the next
@@ -105,12 +116,14 @@ final class EditorCubit extends Cubit<EditorState> {
   void setPlacing(Placeable? placing) {
     final current = state;
     if (current is! EditorReady) return;
-    emit(current.copyWith(
-      placing: placing,
-      said: placing == null
-          ? 'nothing to place'
-          : 'click in the level to place a ${placing.label}',
-    ));
+    emit(
+      current.copyWith(
+        placing: placing,
+        said: placing == null
+            ? 'nothing to place'
+            : 'click in the level to place a ${placing.label}',
+      ),
+    );
   }
 
   void _updateReady(EditorReady Function(EditorReady) f) {

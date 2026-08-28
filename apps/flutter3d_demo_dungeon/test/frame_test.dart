@@ -73,14 +73,16 @@ Future<({LevelReady level, CpuDevice device, Renderer renderer})> _shown({
   String asset = _crypt,
 }) async {
   final it = cpuTestDevice(width: _width, height: _height);
-  final run = RunCubit(DungeonRun(
-    firstLevel: asset,
-    registry: sampleRegistry(),
-    input: InputState(),
-    inventory: startingInventory(),
-    saves: SaveFile(appName: 'dungeon', storage: _Storage()),
-    device: it.device,
-  ));
+  final run = RunCubit(
+    DungeonRun(
+      firstLevel: asset,
+      registry: sampleRegistry(),
+      input: InputState(),
+      inventory: startingInventory(),
+      saves: SaveFile(appName: 'dungeon', storage: _Storage()),
+      device: it.device,
+    ),
+  );
 
   expect(await run.begin(), isFalse, reason: 'a fresh run resumed something');
   final state = run.state;
@@ -188,24 +190,36 @@ void main() {
     // brightest 59. The thresholds are well under those and well over what a
     // broken frame produces, which is the trade a counted-pixel assertion
     // makes — see the note at the top about goldens.
-    expect(frame.lit, greaterThan(total ~/ 2),
-        reason: 'the crypt drew ${frame.lit} lit pixels out of $total — a '
-            'level that loads, validates and steps, and shows nothing');
+    expect(
+      frame.lit,
+      greaterThan(total ~/ 2),
+      reason:
+          'the crypt drew ${frame.lit} lit pixels out of $total — a '
+          'level that loads, validates and steps, and shows nothing',
+    );
 
     // **The half that "is it black" cannot ask.** One wall filling the view is
     // not a picture of a room, and an empty scene rendered against a clear
     // colour is one shade. Eight on the shipped level.
-    expect(frame.shades, greaterThanOrEqualTo(4),
-        reason: 'the frame has ${frame.shades} distinct brightnesses in it, '
-            'which is a flat surface or a clear colour rather than a room');
+    expect(
+      frame.shades,
+      greaterThanOrEqualTo(4),
+      reason:
+          'the frame has ${frame.shades} distinct brightnesses in it, '
+          'which is a flat surface or a clear colour rather than a room',
+    );
 
     // And something in it is actually lit rather than merely present. A crypt
     // is dark — 59 is the brightest pixel in the shipped one — so this is a low
     // bar deliberately, and it is still the difference between a lit room and
     // an ambient wash.
-    expect(frame.brightest, greaterThan(24),
-        reason: 'the brightest pixel in the crypt is ${frame.brightest}: the '
-            'level is drawn and nothing in it is lit');
+    expect(
+      frame.brightest,
+      greaterThan(24),
+      reason:
+          'the brightest pixel in the crypt is ${frame.brightest}: the '
+          'level is drawn and nothing in it is lit',
+    );
   });
 
   test('and the level the crypt names next loads and draws too', () async {
@@ -224,10 +238,17 @@ void main() {
 
     final frame = _describe(await _drawFromTheStart(await _shown(asset: next)));
 
-    expect(frame.lit, greaterThan((_width * _height) ~/ 2),
-        reason: '$next loads and draws nothing');
-    expect(frame.brightest, greaterThan(24),
-        reason: '$next has no light in it, which looks exactly like a level '
-            'that is fine from the simulation\'s side');
+    expect(
+      frame.lit,
+      greaterThan((_width * _height) ~/ 2),
+      reason: '$next loads and draws nothing',
+    );
+    expect(
+      frame.brightest,
+      greaterThan(24),
+      reason:
+          '$next has no light in it, which looks exactly like a level '
+          'that is fine from the simulation\'s side',
+    );
   });
 }

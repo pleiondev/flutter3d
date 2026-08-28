@@ -44,8 +44,18 @@ const double _dt = 1.0 / 60.0;
 
 /// Everything `main.dart` assembles, including the half that draws.
 final class _Shown {
-  _Shown._(this.device, this.renderer, this.level, this.scene, this.world,
-      this.staged, this.fixtures, this.runnerNode, this.camera, this._input);
+  _Shown._(
+    this.device,
+    this.renderer,
+    this.level,
+    this.scene,
+    this.world,
+    this.staged,
+    this.fixtures,
+    this.runnerNode,
+    this.camera,
+    this._input,
+  );
 
   static Future<_Shown> build({
     String level = 'assets/levels/ascent.json',
@@ -56,11 +66,11 @@ final class _Shown {
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
     TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-          width: 1,
-          height: 1,
-          format: TextureFormat.r8g8b8a8UNormInt,
-          pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-        )!;
+      width: 1,
+      height: 1,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+    )!;
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -104,8 +114,18 @@ final class _Shown {
     );
     scene.add(runnerNode);
 
-    return _Shown._(device, renderer, document, scene, world, staged,
-        fixtures, runnerNode, CameraNode(), input);
+    return _Shown._(
+      device,
+      renderer,
+      document,
+      scene,
+      world,
+      staged,
+      fixtures,
+      runnerNode,
+      CameraNode(),
+      input,
+    );
   }
 
   final CpuDevice device;
@@ -178,8 +198,10 @@ final class _Shown {
   /// fixed delay here was the first attempt and it was wrong the way fixed
   /// delays always are: fine alone, flaky under a full `ci.sh` where the
   /// machine has eleven other suites to run. This waits for the thing itself.
-  Future<Uint8List> drawUntil(bool Function(Uint8List frame) enough,
-      {int attempts = 120}) async {
+  Future<Uint8List> drawUntil(
+    bool Function(Uint8List frame) enough, {
+    int attempts = 120,
+  }) async {
     var frame = await draw();
     for (var i = 0; i < attempts && !enough(frame); i++) {
       await Future<void>.delayed(const Duration(milliseconds: 20));
@@ -315,12 +337,15 @@ void main() {
     it.runner.body.teleport(Vector3(0.0, 0.9, -26.0));
     it.look(from: Vector3(0.0, 1.2, -19.5), at: coin.origin!);
 
-    final drawn =
-        await it.drawUntil((Uint8List f) => _goldPixels(f) > 20);
+    final drawn = await it.drawUntil((Uint8List f) => _goldPixels(f) > 20);
     final gold = _goldPixels(drawn);
-    expect(gold, greaterThan(20),
-        reason: 'a coin three and a half metres in front of the camera never '
-            'appeared, in two and a half seconds of frames');
+    expect(
+      gold,
+      greaterThan(20),
+      reason:
+          'a coin three and a half metres in front of the camera never '
+          'appeared, in two and a half seconds of frames',
+    );
 
     // Taken through the world, the way walking over it does it.
     expect(
@@ -330,10 +355,16 @@ void main() {
     it.wait(30); // Half a second; the shrink lasts three hundred milliseconds.
 
     final gone = await it.draw();
-    expect(_goldPixels(gone), lessThan(gold ~/ 4),
-        reason: 'the coin is still on screen after it was collected');
-    expect(_differences(drawn, gone), greaterThan(20),
-        reason: 'the two frames are the same picture');
+    expect(
+      _goldPixels(gone),
+      lessThan(gold ~/ 4),
+      reason: 'the coin is still on screen after it was collected',
+    );
+    expect(
+      _differences(drawn, gone),
+      greaterThan(20),
+      reason: 'the two frames are the same picture',
+    );
   });
 
   test('the runner is drawn, standing on the floor', () async {
@@ -352,8 +383,11 @@ void main() {
     it.runnerNode.visible = false;
     final without = await it.draw();
 
-    expect(_differences(withRunner, without), greaterThan(200),
-        reason: 'hiding the runner changed nothing, so it was not drawn');
+    expect(
+      _differences(withRunner, without),
+      greaterThan(200),
+      reason: 'hiding the runner changed nothing, so it was not drawn',
+    );
   });
 
   test('a one-way platform is drawn, like anything else the level places', () {
@@ -364,8 +398,9 @@ void main() {
     //
     // Mutation: drop the `context.reveal(...)` call from `OneWayKind.spawn`.
     return _Shown.build().then((_Shown it) async {
-      final gantry = it.level.entities
-          .firstWhere((EntityDef e) => e.name == 'the gantry 1');
+      final gantry = it.level.entities.firstWhere(
+        (EntityDef e) => e.name == 'the gantry 1',
+      );
       it.runner.body.teleport(gantry.position + Vector3(0.0, 6.0, 0.0));
       it.look(
         from: gantry.position + Vector3(0.0, 1.6, -7.0),
@@ -375,8 +410,11 @@ void main() {
       final drawn = await it.draw();
       final without = await it.draw(hiding: 'the gantry 1');
 
-      expect(_differences(drawn, without), greaterThan(150),
-          reason: 'hiding the gantry changed nothing, so it was never drawn');
+      expect(
+        _differences(drawn, without),
+        greaterThan(150),
+        reason: 'hiding the gantry changed nothing, so it was never drawn',
+      );
     });
   });
 
@@ -399,8 +437,11 @@ void main() {
       it.wait(40);
       final swung = await it.draw();
 
-      expect(_differences(atRest, swung), greaterThan(120),
-          reason: 'the rope moved in the simulation and not on the screen');
+      expect(
+        _differences(atRest, swung),
+        greaterThan(120),
+        reason: 'the rope moved in the simulation and not on the screen',
+      );
     });
   });
 
@@ -426,8 +467,11 @@ void main() {
       }
       final landed = await it.draw();
 
-      expect(_differences(standing, landed), greaterThan(80),
-          reason: 'the runner is drawn the same standing and squashed');
+      expect(
+        _differences(standing, landed),
+        greaterThan(80),
+        reason: 'the runner is drawn the same standing and squashed',
+      );
     });
   });
 
@@ -456,8 +500,11 @@ void main() {
       it.runner.body.teleport(over + Vector3(0.0, 1.0, -14.0));
       final gone = await it.draw();
 
-      expect(_differences(alive, gone), greaterThan(60),
-          reason: 'the dead guard is still on the screen');
+      expect(
+        _differences(alive, gone),
+        greaterThan(60),
+        reason: 'the dead guard is still on the screen',
+      );
     });
   });
 
@@ -502,9 +549,13 @@ void main() {
       piece.visible = true;
       final forced = await it.drawAsIs();
 
-      expect(_differences(asDrawn, forced), greaterThan(40),
-          reason: 'forcing the shelf visible changed nothing, so it was being '
-              'drawn all along');
+      expect(
+        _differences(asDrawn, forced),
+        greaterThan(40),
+        reason:
+            'forcing the shelf visible changed nothing, so it was being '
+            'drawn all along',
+      );
     });
   });
 
@@ -543,9 +594,13 @@ void main() {
       piece.visible = true;
       final forced = await it.drawAsIs();
 
-      expect(_differences(asDrawn, forced), greaterThan(40),
-          reason: 'forcing the cap visible changed nothing, so it was being '
-              'drawn all along');
+      expect(
+        _differences(asDrawn, forced),
+        greaterThan(40),
+        reason:
+            'forcing the cap visible changed nothing, so it was being '
+            'drawn all along',
+      );
     });
   });
 
@@ -576,9 +631,13 @@ void main() {
       piece.visible = false;
       final without = await it.drawAsIs();
 
-      expect(_differences(asDrawn, without), greaterThan(40),
-          reason: 'hiding the piece at the exit changed nothing, so what is '
-              'there is not the exit');
+      expect(
+        _differences(asDrawn, without),
+        greaterThan(40),
+        reason:
+            'hiding the piece at the exit changed nothing, so what is '
+            'there is not the exit',
+      );
     });
   });
 
@@ -593,8 +652,9 @@ void main() {
     // Mutation: take `casts=False` off the walls in `make_first_steps.py` and
     // regenerate. The shadowed frame darkens by about eight per cent of itself
     // and this fails.
-    return _Shown.build(level: 'assets/levels/first_steps.json')
-        .then((_Shown it) async {
+    return _Shown.build(level: 'assets/levels/first_steps.json').then((
+      _Shown it,
+    ) async {
       final at = Vector3(0.0, 0.9, 2.0);
       it.look(from: at + Vector3(0.0, 2.6, -7.0), at: at);
       // The runner out of shot: its own shadow is about three per cent of the
@@ -614,12 +674,19 @@ void main() {
       }
       final withFences = _darkFraction(await it.drawAsIs());
 
-      expect(withFences - asShipped, greaterThan(0.04),
-          reason: 'putting the fences back changed the frame by only '
-              '${((withFences - asShipped) * 100).toStringAsFixed(1)}%, so '
-              'either they were never the problem or they are still casting');
-      expect(asShipped, lessThan(withFences),
-          reason: 'the shipped frame is the darker of the two');
+      expect(
+        withFences - asShipped,
+        greaterThan(0.04),
+        reason:
+            'putting the fences back changed the frame by only '
+            '${((withFences - asShipped) * 100).toStringAsFixed(1)}%, so '
+            'either they were never the problem or they are still casting',
+      );
+      expect(
+        asShipped,
+        lessThan(withFences),
+        reason: 'the shipped frame is the darker of the two',
+      );
     });
   });
 
@@ -643,8 +710,11 @@ void main() {
     final grid = parityGrid(await second.draw(), _width, _height);
     final low = grid.reduce((int a, int b) => a < b ? a : b);
     final high = grid.reduce((int a, int b) => a > b ? a : b);
-    expect(high - low, greaterThan(20),
-        reason: 'the first frame of the next level is fog');
+    expect(
+      high - low,
+      greaterThan(20),
+      reason: 'the first frame of the next level is fog',
+    );
   });
 
   test('the level is drawn at all', () async {
@@ -660,8 +730,11 @@ void main() {
     final low = grid.reduce((int a, int b) => a < b ? a : b);
     final high = grid.reduce((int a, int b) => a > b ? a : b);
 
-    expect(high - low, greaterThan(20),
-        reason: 'every cell of the frame is the same brightness');
+    expect(
+      high - low,
+      greaterThan(20),
+      reason: 'every cell of the frame is the same brightness',
+    );
   });
 }
 

@@ -60,7 +60,10 @@ final class Placeable {
 /// already there**, which is nothing at all in a level nobody has built yet —
 /// and it is why a game that describes a torch in its own `editor.json` could
 /// not place one in a level with no torches in it.
-List<Placeable> paletteOf(Level level, {Iterable<String> declared = const <String>[]}) {
+List<Placeable> paletteOf(
+  Level level, {
+  Iterable<String> declared = const <String>[],
+}) {
   final byMaterial = <String, int>{};
   for (final brush in level.brushes) {
     byMaterial[brush.material] = (byMaterial[brush.material] ?? 0) + 1;

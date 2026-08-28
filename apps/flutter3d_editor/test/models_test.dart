@@ -34,18 +34,21 @@ List<File> _models() {
 }
 
 GraphicsDevice _device() => CpuDevice(
-      width: 16,
-      height: 9,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 void main() {
   final models = _models();
 
   test('there are models to check at all', () {
     // Otherwise everything below passes by having nothing to say.
-    expect(models, hasLength(greaterThanOrEqualTo(6)),
-        reason: 'run tool/make_models.py');
+    expect(
+      models,
+      hasLength(greaterThanOrEqualTo(6)),
+      reason: 'run tool/make_models.py',
+    );
   });
 
   group('where a model sits on its own origin', () {
@@ -71,10 +74,14 @@ void main() {
       // on a floor whose top is y = 0. Centred, it would be a player buried to
       // the waist.
       for (final genre in <String>['shooter', 'platformer']) {
-        final bounds =
-            await boundsOf('assets/templates/$genre/model.player_spawn.glb');
-        expect(bounds.min.y, closeTo(0.0, 0.05),
-            reason: '$genre: the spawn starts at ${bounds.min.y}');
+        final bounds = await boundsOf(
+          'assets/templates/$genre/model.player_spawn.glb',
+        );
+        expect(
+          bounds.min.y,
+          closeTo(0.0, 0.05),
+          reason: '$genre: the spawn starts at ${bounds.min.y}',
+        );
         expect(bounds.max.y, greaterThan(1.2));
       }
     });
@@ -82,7 +89,9 @@ void main() {
     test('and a monster is centred on it', () async {
       // `at` is the middle of the capsule — the crypt's monsters are at y = 1.0
       // on a floor at y = 0, with a body 1.7 tall.
-      final bounds = await boundsOf('assets/templates/shooter/model.monster.glb');
+      final bounds = await boundsOf(
+        'assets/templates/shooter/model.monster.glb',
+      );
       final middle = (bounds.min.y + bounds.max.y) / 2;
 
       expect(middle, closeTo(0.0, 0.12), reason: 'its middle is at $middle');
@@ -94,13 +103,20 @@ void main() {
       // puts a post below it, and both draw the globe at the entity's own
       // position.
       final hanging = await boundsOf('assets/templates/shooter/model.lamp.glb');
-      final standing =
-          await boundsOf('assets/templates/platformer/model.lamp.glb');
+      final standing = await boundsOf(
+        'assets/templates/platformer/model.lamp.glb',
+      );
 
-      expect(hanging.max.y, greaterThan(0.5),
-          reason: 'the crypt\'s lamp has nothing above its globe');
-      expect(standing.min.y, lessThan(-1.0),
-          reason: 'the platformer\'s lamp has no post under its globe');
+      expect(
+        hanging.max.y,
+        greaterThan(0.5),
+        reason: 'the crypt\'s lamp has nothing above its globe',
+      );
+      expect(
+        standing.min.y,
+        lessThan(-1.0),
+        reason: 'the platformer\'s lamp has no post under its globe',
+      );
     });
 
     test('and nothing is drawn miles away from where it is placed', () async {
@@ -109,8 +125,11 @@ void main() {
       for (final file in models) {
         final bounds = await boundsOf(file.path);
         final size = bounds.max - bounds.min;
-        expect(bounds.min.length, lessThan(size.length + 0.5),
-            reason: '${file.path} sits ${bounds.min} from its own origin');
+        expect(
+          bounds.min.length,
+          lessThan(size.length + 0.5),
+          reason: '${file.path} sits ${bounds.min} from its own origin',
+        );
       }
     });
   });
@@ -132,8 +151,9 @@ void main() {
     )..setPosition(0.0, 0.0, 2.2);
     camera.lookAt(Vector3.zero());
     scene.add(camera);
-    scene.add(LightNode(intensity: 4.0, name: 'sun')
-      ..lookAt(Vector3(-0.4, -1.0, -0.6)));
+    scene.add(
+      LightNode(intensity: 4.0, name: 'sun')..lookAt(Vector3(-0.4, -1.0, -0.6)),
+    );
 
     final document = await decodeModel(
       ModelLoadRequest(source: FileAssetSource(models.first.path)),
@@ -142,8 +162,7 @@ void main() {
       document,
       device: device,
       name: 'one',
-    ))
-        .instantiate(scene);
+    )).instantiate(scene);
 
     final result = renderer.render(
       width: 32,
@@ -154,14 +173,19 @@ void main() {
       ],
       settings: const RenderSettings(),
     );
-    final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
+    final pixels = (await device.readPixels(
+      result.frame,
+    ))!.buffer.asUint8List();
 
     var lit = 0;
     for (var i = 0; i < pixels.length; i += 4) {
       if (pixels[i] > 8 || pixels[i + 1] > 8 || pixels[i + 2] > 8) lit++;
     }
-    expect(lit, greaterThan(20),
-        reason: '${models.first.path} drew $lit pixels of anything');
+    expect(
+      lit,
+      greaterThan(20),
+      reason: '${models.first.path} drew $lit pixels of anything',
+    );
   });
 
   for (final file in models) {
@@ -192,8 +216,10 @@ void main() {
         // it — so a generator that forgot them is invisible in the picture and
         // costs every model its vertex sharing.
         for (final surface in asset.surfaces) {
-          expect(surface.mesh.layout.floatOffsetOf(VertexLayout.normal.name),
-              isNotNull);
+          expect(
+            surface.mesh.layout.floatOffsetOf(VertexLayout.normal.name),
+            isNotNull,
+          );
         }
       });
 
@@ -204,8 +230,11 @@ void main() {
         // every model written without that one line looks like a hole in the
         // level.
         for (final material in asset.materials) {
-          expect(material.metallic, 0.0,
-              reason: 'write metallicFactor explicitly in make_models.py');
+          expect(
+            material.metallic,
+            0.0,
+            reason: 'write metallicFactor explicitly in make_models.py',
+          );
         }
       });
 
@@ -232,8 +261,11 @@ void main() {
         final json = _gltfJsonOf(bytes);
         for (final image in (json['images'] as List<Object?>? ?? const [])) {
           final described = image! as Map<String, Object?>;
-          expect(described['uri'], isNull,
-              reason: '$name points at an image outside the file');
+          expect(
+            described['uri'],
+            isNull,
+            reason: '$name points at an image outside the file',
+          );
           expect(described['bufferView'], isNotNull);
         }
       });
@@ -257,8 +289,11 @@ void main() {
         expect(size.y, greaterThan(0.01));
         // Nothing a template ships is bigger than a room, and a model that came
         // out a hundred times too large is a generator with a units bug.
-        expect(size.length, lessThan(6.0),
-            reason: '$name is ${size.x} by ${size.y} by ${size.z}');
+        expect(
+          size.length,
+          lessThan(6.0),
+          reason: '$name is ${size.x} by ${size.y} by ${size.z}',
+        );
       });
     });
   }
@@ -271,4 +306,3 @@ Map<String, Object?> _gltfJsonOf(Uint8List bytes) {
   return jsonDecode(utf8.decode(bytes.sublist(20, 20 + length)))
       as Map<String, Object?>;
 }
-

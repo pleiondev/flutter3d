@@ -57,6 +57,7 @@ Staged stage(
   required InputState input,
   EntityRegistry? registry,
   void Function(Fixture fixture)? onFixture,
+
   /// Somewhere other than the level's own spawn to stand, for a test that wants
   /// to start beside the thing it is about. The application never passes it.
   Vector3? startAt,

@@ -25,6 +25,6 @@ final class OpenKind extends EntityKind {
 /// A game that wants its own vocabulary checked has one already — the same
 /// registry it loads with — and can hand it to [Editing.issuesFor].
 EntityRegistry vocabularyOf(Level level) => EntityRegistry(<EntityKind>[
-      for (final type in level.entities.map((EntityDef e) => e.type).toSet())
-        OpenKind(type),
-    ]);
+  for (final type in level.entities.map((EntityDef e) => e.type).toSet())
+    OpenKind(type),
+]);

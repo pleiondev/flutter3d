@@ -63,14 +63,14 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
 /// runs.
 const Map<String, Map<String, String>> repeatableStep =
     <String, Map<String, String>>{
-  'flutter3d_game': <String, String>{
-    'lib/src/save/game_random.dart': 'it is the seeded generator',
-  },
-  'flutter3d_physics': <String, String>{},
-  'flutter3d_game_shooter': <String, String>{},
-  'flutter3d_game_platformer': <String, String>{},
-  'flutter3d_game_racing': <String, String>{},
-};
+      'flutter3d_game': <String, String>{
+        'lib/src/save/game_random.dart': 'it is the seeded generator',
+      },
+      'flutter3d_physics': <String, String>{},
+      'flutter3d_game_shooter': <String, String>{},
+      'flutter3d_game_platformer': <String, String>{},
+      'flutter3d_game_racing': <String, String>{},
+    };
 
 /// Files in `flutter3d_hardware` allowed to name Flutter, and why.
 ///
@@ -86,18 +86,18 @@ const Map<String, Map<String, String>> repeatableStep =
 const Map<String, String> hardwareMayUseFlutter = <String, String>{
   'graphics_device.dart':
       'GraphicsDevice.present returns a widget showing the finished frame, '
-          'which every backend must produce and only Flutter can name',
+      'which every backend must produce and only Flutter can name',
   'testing_fake_backend.dart':
       'FakeBackend implements GraphicsDevice.present, which is a '
-          'widget by the line above',
+      'widget by the line above',
 };
 
 /// Files in `flutter3d` held to a stricter rule than the rest, and why.
 const Map<String, String> engineAlsoFreeOfDartUi = <String, String>{
   'lib/src/engine/render/frame_resources.dart':
       'the frame graph would stop being unit-testable off a device — a dart:ui '
-          'import would not break the build, it would break the suite, and the '
-          'analyser would report only that a test no longer compiles',
+      'import would not break the build, it would break the suite, and the '
+      'analyser would report only that a test no longer compiles',
 };
 
 /// Calls that put a document's contents into a world, or dress what it built.
@@ -172,9 +172,13 @@ List<File> dartFilesIn(Directory dir) {
       .listSync(recursive: true)
       .whereType<File>()
       .where((File f) => f.path.endsWith('.dart'))
-      .where((File f) =>
-          !f.path.contains('${Platform.pathSeparator}build${Platform.pathSeparator}') &&
-          !f.path.contains('.dart_tool'))
+      .where(
+        (File f) =>
+            !f.path.contains(
+              '${Platform.pathSeparator}build${Platform.pathSeparator}',
+            ) &&
+            !f.path.contains('.dart_tool'),
+      )
       .toList();
 }
 

@@ -83,10 +83,9 @@ final RegExp _identifier = RegExp(r'[A-Za-z_][A-Za-z0-9_]*');
 /// `collapse` contains `lap`; a substring search fires on all three and gets
 /// switched off within a week. `currentLap` is what should fire, and does.
 List<String> _words(String identifier) => <String>[
-      for (final chunk in identifier.split('_'))
-        for (final match in _camel.allMatches(chunk))
-          match.group(0)!.toLowerCase(),
-    ];
+  for (final chunk in identifier.split('_'))
+    for (final match in _camel.allMatches(chunk)) match.group(0)!.toLowerCase(),
+];
 
 /// The source with its comments removed.
 ///
@@ -159,8 +158,8 @@ final RegExp _sharedMutable = RegExp(
 /// declaration that reads like a constant and that nothing marks as changeable.
 /// The compiler has nothing to say about it: `final` is about the reference.
 List<String> sharedMutablesIn(String source) => <String>[
-      for (final match in _sharedMutable.allMatches(source)) match.group(0)!.trim(),
-    ];
+  for (final match in _sharedMutable.allMatches(source)) match.group(0)!.trim(),
+];
 
 // ------------------------------------------------------------- a step's inputs
 
@@ -188,7 +187,8 @@ String? unrepeatableIn(String source) {
 // ------------------------------------------------------------------- reaching
 
 /// Whether [source] imports or exports something naming [what].
-bool reaches(String source, String what) => source.split('\n').any((String line) {
+bool reaches(String source, String what) =>
+    source.split('\n').any((String line) {
       final trimmed = line.trim();
       return (trimmed.startsWith('import ') || trimmed.startsWith('export ')) &&
           trimmed.contains(what);
@@ -213,21 +213,42 @@ List<Finding> proveDetectorsWork() {
 
   // The genre detector. The constant is the bug that was actually found; the
   // comment is what every previous attempt at a rule like this died of.
-  fires('genre words', genreWordsIn('static const int oneWay = 1 << 6;').isNotEmpty,
-      'oneWay');
+  fires(
+    'genre words',
+    genreWordsIn('static const int oneWay = 1 << 6;').isNotEmpty,
+    'oneWay',
+  );
   fires('genre words', genreWordsIn('int ammo = 0;').isNotEmpty, 'ammo');
-  fires('genre words', genreWordsIn('double get lapTime => 0.0;').isNotEmpty,
-      'lapTime');
-  fires('genre words', genreWordsIn('bool stompedThisStep = false;').isNotEmpty,
-      'stompedThisStep (inflected)');
+  fires(
+    'genre words',
+    genreWordsIn('double get lapTime => 0.0;').isNotEmpty,
+    'lapTime',
+  );
+  fires(
+    'genre words',
+    genreWordsIn('bool stompedThisStep = false;').isNotEmpty,
+    'stompedThisStep (inflected)',
+  );
   fires('genre words', genreWordsIn('int coins = 0;').isNotEmpty, 'coins');
 
-  quiet('genre words', genreWordsIn('/// A monster is not our business.').isEmpty,
-      'a doc comment', 'prose explaining the rule must not break it');
-  quiet('genre words', genreWordsIn('// ammo, weapons: all elsewhere.').isEmpty,
-      'a line comment', 'prose explaining the rule must not break it');
-  quiet('genre words', genreWordsIn('/* a boss with a gun */ int x = 0;').isEmpty,
-      'a block comment', 'prose explaining the rule must not break it');
+  quiet(
+    'genre words',
+    genreWordsIn('/// A monster is not our business.').isEmpty,
+    'a doc comment',
+    'prose explaining the rule must not break it',
+  );
+  quiet(
+    'genre words',
+    genreWordsIn('// ammo, weapons: all elsewhere.').isEmpty,
+    'a line comment',
+    'prose explaining the rule must not break it',
+  );
+  quiet(
+    'genre words',
+    genreWordsIn('/* a boss with a gun */ int x = 0;').isEmpty,
+    'a block comment',
+    'prose explaining the rule must not break it',
+  );
 
   // The failure mode that kills detectors like this: three words that contain
   // `lap` and are not it. Three false positives in the first hour and the rule
@@ -240,55 +261,116 @@ List<Finding> proveDetectorsWork() {
     'void dashboard() {}',
     'int coinage = 0;',
   ]) {
-    quiet('genre words', genreWordsIn(innocent).isEmpty, innocent,
-        'a word that merely contains a forbidden one is not that word');
+    quiet(
+      'genre words',
+      genreWordsIn(innocent).isEmpty,
+      innocent,
+      'a word that merely contains a forbidden one is not that word',
+    );
   }
 
   // And the camel hump *is* a boundary, which is the other half of the claim.
-  fires('genre words', genreWordsIn('int currentLap = 0;').isNotEmpty, 'currentLap');
+  fires(
+    'genre words',
+    genreWordsIn('int currentLap = 0;').isNotEmpty,
+    'currentLap',
+  );
   fires('genre words', genreWordsIn('void stomp() {}').isNotEmpty, 'stomp');
 
   // Shared mutables.
-  fires('shared mutables',
-      sharedMutablesIn('static final Vector3 up = Vector3(0.0, 1.0, 0.0);').isNotEmpty,
-      'a static final Vector3');
-  fires('shared mutables',
-      sharedMutablesIn('static final Matrix4 identity = Matrix4.zero();').isNotEmpty,
-      'a static final Matrix4');
-  quiet('shared mutables',
-      sharedMutablesIn('static Vector3 get up => Vector3(0.0, 1.0, 0.0);').isEmpty,
-      'a getter', 'the fix must not be reported as the fault');
-  quiet('shared mutables',
-      sharedMutablesIn('final Vector3 position = Vector3.zero();').isEmpty,
-      'an instance field', 'it is not shared with anybody');
-  quiet('shared mutables',
-      sharedMutablesIn('static const double gravity = -9.8;').isEmpty,
-      'a const double', 'a number is not a value anybody scales');
-  quiet('shared mutables',
-      sharedMutablesIn('static final RegExp _key = RegExp(r"a");').isEmpty,
-      'a compiled pattern', 'it is not a value anybody scales');
+  fires(
+    'shared mutables',
+    sharedMutablesIn(
+      'static final Vector3 up = Vector3(0.0, 1.0, 0.0);',
+    ).isNotEmpty,
+    'a static final Vector3',
+  );
+  fires(
+    'shared mutables',
+    sharedMutablesIn(
+      'static final Matrix4 identity = Matrix4.zero();',
+    ).isNotEmpty,
+    'a static final Matrix4',
+  );
+  quiet(
+    'shared mutables',
+    sharedMutablesIn(
+      'static Vector3 get up => Vector3(0.0, 1.0, 0.0);',
+    ).isEmpty,
+    'a getter',
+    'the fix must not be reported as the fault',
+  );
+  quiet(
+    'shared mutables',
+    sharedMutablesIn('final Vector3 position = Vector3.zero();').isEmpty,
+    'an instance field',
+    'it is not shared with anybody',
+  );
+  quiet(
+    'shared mutables',
+    sharedMutablesIn('static const double gravity = -9.8;').isEmpty,
+    'a const double',
+    'a number is not a value anybody scales',
+  );
+  quiet(
+    'shared mutables',
+    sharedMutablesIn('static final RegExp _key = RegExp(r"a");').isEmpty,
+    'a compiled pattern',
+    'it is not a value anybody scales',
+  );
 
   // A repeatable step.
-  fires('repeatable step', unrepeatableIn('final r = Random();') != null,
-      'an unseeded Random');
-  fires('repeatable step', unrepeatableIn('final t = DateTime.now();') != null,
-      'DateTime.now()');
-  fires('repeatable step', unrepeatableIn('final w = Stopwatch()..start();') != null,
-      'a Stopwatch');
-  quiet('repeatable step', unrepeatableIn('final r = Random(7);') == null,
-      'a seeded Random', 'a seed is written down and comes back the same');
-  quiet('repeatable step', unrepeatableIn('final r = GameRandom(1);') == null,
-      'GameRandom(1)', 'the seeded generator is the fix, not the fault');
-  quiet('repeatable step', unrepeatableIn('// Random() would be wrong here.') == null,
-      'a comment', 'prose explaining the rule must not break it');
+  fires(
+    'repeatable step',
+    unrepeatableIn('final r = Random();') != null,
+    'an unseeded Random',
+  );
+  fires(
+    'repeatable step',
+    unrepeatableIn('final t = DateTime.now();') != null,
+    'DateTime.now()',
+  );
+  fires(
+    'repeatable step',
+    unrepeatableIn('final w = Stopwatch()..start();') != null,
+    'a Stopwatch',
+  );
+  quiet(
+    'repeatable step',
+    unrepeatableIn('final r = Random(7);') == null,
+    'a seeded Random',
+    'a seed is written down and comes back the same',
+  );
+  quiet(
+    'repeatable step',
+    unrepeatableIn('final r = GameRandom(1);') == null,
+    'GameRandom(1)',
+    'the seeded generator is the fix, not the fault',
+  );
+  quiet(
+    'repeatable step',
+    unrepeatableIn('// Random() would be wrong here.') == null,
+    'a comment',
+    'prose explaining the rule must not break it',
+  );
 
   // Reaching.
-  fires('reaches', reaches("import 'package:flutter_gpu/gpu.dart';", 'flutter_gpu'),
-      'an import');
-  fires('reaches', reaches("export 'package:flutter_gpu/gpu.dart';", 'flutter_gpu'),
-      'an export');
-  quiet('reaches', !reaches('/// See flutter_gpu for the details.', 'flutter_gpu'),
-      'a doc comment naming it', 'a mention is not an import');
+  fires(
+    'reaches',
+    reaches("import 'package:flutter_gpu/gpu.dart';", 'flutter_gpu'),
+    'an import',
+  );
+  fires(
+    'reaches',
+    reaches("export 'package:flutter_gpu/gpu.dart';", 'flutter_gpu'),
+    'an export',
+  );
+  quiet(
+    'reaches',
+    !reaches('/// See flutter_gpu for the details.', 'flutter_gpu'),
+    'a doc comment naming it',
+    'a mention is not an import',
+  );
 
   return broken;
 }

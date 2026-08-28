@@ -31,9 +31,9 @@ void main() {
       // that somebody objects. Mutation-proof by construction: if the reader
       // ever starts shrugging this off, the `catch` in `main.dart` becomes
       // decoration and this test says so.
-      final good = jsonDecode(
-        File('assets/levels/first_steps.json').readAsStringSync(),
-      ) as Map<String, Object?>;
+      final good =
+          jsonDecode(File('assets/levels/first_steps.json').readAsStringSync())
+              as Map<String, Object?>;
 
       // A brush with no size, which is what a hand-edited document looks like
       // when a line goes missing.
@@ -60,9 +60,9 @@ void main() {
       // warnings. The level loads and draws untextured. Deleting the player's
       // spawn is an error, and this is the shape of the mistake a generator
       // makes.
-      final good = jsonDecode(
-        File('assets/levels/first_steps.json').readAsStringSync(),
-      ) as Map<String, Object?>;
+      final good =
+          jsonDecode(File('assets/levels/first_steps.json').readAsStringSync())
+              as Map<String, Object?>;
       final entities = <Object?>[
         for (final entity in good['entities']! as List<Object?>)
           if ((entity! as Map<String, Object?>)['type'] != 'player_spawn')

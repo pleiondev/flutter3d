@@ -82,7 +82,10 @@ final class RunnerLooks {
       // Proportional to how hard, and clamped: a fall from the top of the level
       // should read as heavier than a hop, and neither should turn the runner
       // inside out.
-      final hardness = (runner.landingSpeed / tuning.hardLanding).clamp(0.0, 1.0);
+      final hardness = (runner.landingSpeed / tuning.hardLanding).clamp(
+        0.0,
+        1.0,
+      );
       _squash = tuning.landSquash * hardness;
     }
     if (runner.poundedThisStep) _squash = tuning.poundSquash;
@@ -140,8 +143,7 @@ final class RunnerLooks {
     required double bodyY,
     required double halfHeight,
     required double modelFloor,
-  }) =>
-      bodyY - halfHeight - modelFloor * scale.y;
+  }) => bodyY - halfHeight - modelFloor * scale.y;
 }
 
 /// The numbers behind the pose, in one place for the same reason

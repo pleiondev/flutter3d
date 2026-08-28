@@ -119,16 +119,17 @@ final class Look {
   final List<Part> parts;
 
   factory Look.fromJson(Map<String, Object?> json) => Look(
-        model: json['model'] is String ? json['model']! as String : null,
-        size: _vector(json['size']),
-        tint: _vector(json['tint']),
-        parts: <Part>[
-          for (final part in json['parts'] is List
+    model: json['model'] is String ? json['model']! as String : null,
+    size: _vector(json['size']),
+    tint: _vector(json['tint']),
+    parts: <Part>[
+      for (final part
+          in json['parts'] is List
               ? json['parts']! as List<Object?>
               : const <Object?>[])
-            if (part is Map<String, Object?>) Part.fromJson(part),
-        ],
-      );
+        if (part is Map<String, Object?>) Part.fromJson(part),
+    ],
+  );
 
   /// A vector this document may or may not carry.
   ///
@@ -183,17 +184,18 @@ final class Part {
   final bool glows;
 
   factory Part.fromJson(Map<String, Object?> json) => Part(
-        shape: json['shape'] is String ? json['shape']! as String : 'box',
-        at: Look._vector(json['at']) ?? Vector3.zero(),
-        size: Look._vector(json['size']) ?? Vector3.all(0.1),
-        radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
-        height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
-        pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
-        colour: Look._vector(json['colour']) ??
-            Look._vector(json['glow']) ??
-            Vector3(0.6, 0.6, 0.62),
-        glows: json['glow'] != null,
-      );
+    shape: json['shape'] is String ? json['shape']! as String : 'box',
+    at: Look._vector(json['at']) ?? Vector3.zero(),
+    size: Look._vector(json['size']) ?? Vector3.all(0.1),
+    radius: json['radius'] is num ? (json['radius']! as num).toDouble() : 0.05,
+    height: json['height'] is num ? (json['height']! as num).toDouble() : 0.1,
+    pitch: json['pitch'] is num ? (json['pitch']! as num).toDouble() : 0.0,
+    colour:
+        Look._vector(json['colour']) ??
+        Look._vector(json['glow']) ??
+        Vector3(0.6, 0.6, 0.62),
+    glows: json['glow'] != null,
+  );
 }
 
 /// Where a game keeps the file, if it keeps one.

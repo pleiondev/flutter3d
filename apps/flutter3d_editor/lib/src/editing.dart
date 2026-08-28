@@ -22,9 +22,9 @@ final class Editing {
   /// from and this does not: on a desktop that is `File.readAsString`, in a
   /// test it is a string in the test.
   factory Editing.parse(String text, {required String path}) => Editing(
-        level: Level.fromJson(jsonDecode(text) as Map<String, Object?>),
-        path: path,
-      );
+    level: Level.fromJson(jsonDecode(text) as Map<String, Object?>),
+    path: path,
+  );
 
   /// The document. Replaced wholesale by [undo], which is why it is not final.
   Level level;
@@ -47,14 +47,13 @@ final class Editing {
 
   /// What is selected, whatever kind it is, or null.
   Object? get piece => switch (kind) {
-        Piece.brush => brush,
-        Piece.light => light,
-        Piece.entity => entity,
-        null => null,
-      };
+    Piece.brush => brush,
+    Piece.light => light,
+    Piece.entity => entity,
+    null => null,
+  };
 
-  Brush? get brush =>
-      kind != Piece.brush ? null : _at(level.brushes, selected);
+  Brush? get brush => kind != Piece.brush ? null : _at(level.brushes, selected);
 
   LevelLight? get light =>
       kind != Piece.light ? null : _at(level.lights, selected);
@@ -67,23 +66,21 @@ final class Editing {
 
   /// Where the selected thing is, or null.
   Vector3? get where => switch (piece) {
-        final Brush it => it.centre,
-        final LevelLight it => it.position,
-        final EntityDef it => it.position,
-        _ => null,
-      };
+    final Brush it => it.centre,
+    final LevelLight it => it.position,
+    final EntityDef it => it.position,
+    _ => null,
+  };
 
   /// What to call it on screen.
   String get says => switch (piece) {
-        final Brush it => 'brush $selected · ${it.material}',
-        final LevelLight it =>
-          'light $selected · ${it.type.name} · ${it.intensity.toStringAsFixed(1)}',
-        final EntityDef it =>
-          'entity $selected · ${it.type}${it.name == null ? '' : ' "${it.name}"'}',
-        _ => 'nothing selected — click something',
-      };
-
-
+    final Brush it => 'brush $selected · ${it.material}',
+    final LevelLight it =>
+      'light $selected · ${it.type.name} · ${it.intensity.toStringAsFixed(1)}',
+    final EntityDef it =>
+      'entity $selected · ${it.type}${it.name == null ? '' : ' "${it.name}"'}',
+    _ => 'nothing selected — click something',
+  };
 
   /// Who wrote this document, if it says.
   ///
@@ -170,8 +167,7 @@ final class Editing {
   }
 
   /// Picks whatever a click found.
-  void selectHandle(Handle? handle) =>
-      select(handle?.kind, handle?.index);
+  void selectHandle(Handle? handle) => select(handle?.kind, handle?.index);
 
   /// Moves whatever is selected, snapping it to the grid.
   ///
@@ -183,11 +179,7 @@ final class Editing {
     final at = where;
     if (at == null) return;
     _remember();
-    at.setValues(
-      _snap(at.x + by.x),
-      _snap(at.y + by.y),
-      _snap(at.z + by.z),
-    );
+    at.setValues(_snap(at.x + by.x), _snap(at.y + by.y), _snap(at.z + by.z));
   }
 
   /// Grows or shrinks the selected brush about its own centre.
@@ -213,11 +205,13 @@ final class Editing {
   /// would be an editor whose first act is a warning.
   void add(Vector3 at, {Vector3? size, String? material}) {
     _remember();
-    level.brushes.add(Brush(
-      centre: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
-      size: size ?? Vector3(2.0, 2.0, 2.0),
-      material: material ?? commonestMaterial,
-    ));
+    level.brushes.add(
+      Brush(
+        centre: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
+        size: size ?? Vector3(2.0, 2.0, 2.0),
+        material: material ?? commonestMaterial,
+      ),
+    );
     kind = Piece.brush;
     selected = level.brushes.length - 1;
   }
@@ -240,36 +234,42 @@ final class Editing {
     _remember();
     switch (it) {
       case final Brush brush:
-        level.brushes.add(Brush(
-          centre: brush.centre + Vector3(brush.size.x, 0.0, 0.0),
-          size: brush.size,
-          material: brush.material,
-          surface: brush.surface == brush.material ? null : brush.surface,
-          solid: brush.solid,
-          castsShadow: brush.castsShadow,
-          layer: brush.layer,
-          ramp: brush.ramp,
-        ));
+        level.brushes.add(
+          Brush(
+            centre: brush.centre + Vector3(brush.size.x, 0.0, 0.0),
+            size: brush.size,
+            material: brush.material,
+            surface: brush.surface == brush.material ? null : brush.surface,
+            solid: brush.solid,
+            castsShadow: brush.castsShadow,
+            layer: brush.layer,
+            ramp: brush.ramp,
+          ),
+        );
         selected = level.brushes.length - 1;
       case final LevelLight light:
-        level.lights.add(LevelLight.fromJson(<String, Object?>{
-          ...light.toJson(),
-          'at': <double>[
-            light.position.x + _step,
-            light.position.y,
-            light.position.z,
-          ],
-        }));
+        level.lights.add(
+          LevelLight.fromJson(<String, Object?>{
+            ...light.toJson(),
+            'at': <double>[
+              light.position.x + _step,
+              light.position.y,
+              light.position.z,
+            ],
+          }),
+        );
         selected = level.lights.length - 1;
       case final EntityDef entity:
-        level.entities.add(EntityDef.fromJson(<String, Object?>{
-          ...entity.toJson(),
-          'at': <double>[
-            entity.position.x + _step,
-            entity.position.y,
-            entity.position.z,
-          ],
-        }));
+        level.entities.add(
+          EntityDef.fromJson(<String, Object?>{
+            ...entity.toJson(),
+            'at': <double>[
+              entity.position.x + _step,
+              entity.position.y,
+              entity.position.z,
+            ],
+          }),
+        );
         selected = level.entities.length - 1;
     }
   }
@@ -287,11 +287,13 @@ final class Editing {
   /// point light needs is.
   void addLight(Vector3 at, {double intensity = 4.0, double range = 8.0}) {
     _remember();
-    level.lights.add(LevelLight(
-      position: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
-      intensity: intensity,
-      range: range,
-    ));
+    level.lights.add(
+      LevelLight(
+        position: Vector3(_snap(at.x), _snap(at.y), _snap(at.z)),
+        intensity: intensity,
+        range: range,
+      ),
+    );
     kind = Piece.light;
     selected = level.lights.length - 1;
   }
@@ -321,11 +323,13 @@ final class Editing {
           (EntityDef entity) => entity.type == it.what,
           orElse: () => EntityDef(type: it.what),
         );
-        level.entities.add(EntityDef.fromJson(<String, Object?>{
-          ...model.toJson(),
-          'type': it.what,
-          'at': <double>[snapped.x, snapped.y, snapped.z],
-        }));
+        level.entities.add(
+          EntityDef.fromJson(<String, Object?>{
+            ...model.toJson(),
+            'type': it.what,
+            'at': <double>[snapped.x, snapped.y, snapped.z],
+          }),
+        );
         kind = Piece.entity;
         selected = level.entities.length - 1;
     }

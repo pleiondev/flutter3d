@@ -17,6 +17,10 @@
 #     actually matters.
 #   * The performance budgets in ARCHITECTURE.md §14. There is no profiler yet
 #     and no stored baseline to compare against.
+#   * The Android and iOS builds. Both are configured and neither is compiled
+#     here: a toolchain and an SDK image apiece, for platforms nothing has yet
+#     been played on. The web build below is compiled, because that is a
+#     platform the demos are published to.
 set -uo pipefail
 cd "$(dirname "$0")/.."
 
@@ -43,6 +47,17 @@ in_dir() {
 # It replaced twenty-three test files and two `grep` steps that used to be
 # here. See tool/structure.dart for why they moved.
 step "structure" dart run tool/structure.dart
+
+# **`ARCHITECTURE.md` §13 has claimed `dart format` as this repository's style
+# since before there was a check for it, and 637 of 874 files did not match.**
+# Not through neglect: Dart 3.7 changed the formatter, and a repository nobody
+# reformats simply stays in the old shape while every document says otherwise.
+#
+# --output=none, so this reports and changes nothing; the fix is `dart format .`
+# and it is one commit. Second in the order for the same reason the structure
+# scan is first: it needs no packages resolved and finishes in under two
+# seconds.
+step "format" dart format --output=none --set-exit-if-changed packages apps tool
 
 step "pub get" flutter pub get
 
@@ -114,6 +129,14 @@ done
 # shader bundle does.
 step "test flutter3d_webgl (browser)" in_dir packages/flutter3d_webgl flutter test --platform chrome
 
+# **The same trap, one package over.** `pointer_lock` grew a web backend — the
+# browser has had `requestPointerLock` all along and this package was answering
+# "unsupported" for it — and its tests are `@TestOn('browser')` for the reason
+# the WebGL ones are: `dart:js_interop` is not a library the VM has. The loop
+# above skips them and reports the package green off its platform-agnostic
+# files.
+step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --platform chrome
+
 # An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance
 # is walked with, and a test CI never runs is a test that rots.
@@ -129,6 +152,24 @@ for app in apps/*/; do
   compgen -G "$app/test/*_test.dart" > /dev/null || continue
   step "test $(basename "$app")" in_dir "$app" flutter test
 done
+
+# **A build nobody runs is a platform nobody supports.** Everything above tests
+# the web backend and nothing above compiles a game for the web, so the one
+# thing that breaks a browser build outright — a dependency that reaches for
+# `dart:io`, an asset path that only exists on a developer's machine — was
+# invisible here until somebody deployed.
+#
+# --wasm, because that is the compiler with something to say: it rejects
+# `dart:html` and the legacy interop libraries outright, so this step is also
+# what keeps the whole dependency tree on `package:web`. It builds the
+# JavaScript output alongside, and `flutter_bootstrap.js` picks between them, so
+# nothing is lost by asking for it.
+#
+# One of the three games and not all three: they differ in their level and their
+# genre package, not in how they reach the browser, and three builds is three
+# times the minutes for the same answer.
+step "build web (wasm)" in_dir apps/flutter3d_demo_dungeon \
+  flutter build web --wasm --release
 
 echo ""
 if [ ${#FAILED[@]} -eq 0 ]; then

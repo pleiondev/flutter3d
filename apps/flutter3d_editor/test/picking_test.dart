@@ -11,11 +11,8 @@ import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-Brush _brush(Vector3 at, {Vector3? size, bool solid = true}) => Brush(
-      centre: at,
-      size: size ?? Vector3(2.0, 2.0, 2.0),
-      solid: solid,
-    );
+Brush _brush(Vector3 at, {Vector3? size, bool solid = true}) =>
+    Brush(centre: at, size: size ?? Vector3(2.0, 2.0, 2.0), solid: solid);
 
 void main() {
   test('the ray finds what is in front of it', () {
@@ -74,18 +71,21 @@ void main() {
       isNull,
     );
     expect(
-      Picking.brushAt(brushes, Vector3(0.5, 0.0, 20.0), Vector3(0.0, 0.0, -1.0)),
+      Picking.brushAt(
+        brushes,
+        Vector3(0.5, 0.0, 20.0),
+        Vector3(0.0, 0.0, -1.0),
+      ),
       0,
     );
   });
 
   test('and standing inside one selects it', () {
-    final brushes = <Brush>[_brush(Vector3.zero(), size: Vector3(8.0, 8.0, 8.0))];
+    final brushes = <Brush>[
+      _brush(Vector3.zero(), size: Vector3(8.0, 8.0, 8.0)),
+    ];
 
-    expect(
-      Picking.brushAt(brushes, Vector3.zero(), Vector3(1.0, 0.0, 0.0)),
-      0,
-    );
+    expect(Picking.brushAt(brushes, Vector3.zero(), Vector3(1.0, 0.0, 0.0)), 0);
   });
 
   test('a click through the camera hits what is under it', () {
@@ -104,18 +104,24 @@ void main() {
     ];
 
     Vector3 ray(double x, double y) => Picking.through(
-          Vector2(x, y),
-          size: size,
-          forward: camera.forward,
-          right: camera.right,
-          up: camera.up,
-          fovY: 1.05,
-        );
+      Vector2(x, y),
+      size: size,
+      forward: camera.forward,
+      right: camera.right,
+      up: camera.up,
+      fovY: 1.05,
+    );
 
-    expect(Picking.brushAt(brushes, camera.position, ray(700.0, 300.0)), 1,
-        reason: 'a click on the right of the screen chose the left brush');
-    expect(Picking.brushAt(brushes, camera.position, ray(100.0, 300.0)), 0,
-        reason: 'a click on the left of the screen chose the right brush');
+    expect(
+      Picking.brushAt(brushes, camera.position, ray(700.0, 300.0)),
+      1,
+      reason: 'a click on the right of the screen chose the left brush',
+    );
+    expect(
+      Picking.brushAt(brushes, camera.position, ray(100.0, 300.0)),
+      0,
+      reason: 'a click on the left of the screen chose the right brush',
+    );
   });
 
   test('and a click high on the screen hits what is high in the world', () {
@@ -129,13 +135,13 @@ void main() {
     ];
 
     Vector3 ray(double y) => Picking.through(
-          Vector2(400.0, y),
-          size: size,
-          forward: camera.forward,
-          right: camera.right,
-          up: camera.up,
-          fovY: 1.05,
-        );
+      Vector2(400.0, y),
+      size: size,
+      forward: camera.forward,
+      right: camera.right,
+      up: camera.up,
+      fovY: 1.05,
+    );
 
     expect(Picking.brushAt(brushes, camera.position, ray(80.0)), 1);
     expect(Picking.brushAt(brushes, camera.position, ray(520.0)), 0);
@@ -148,13 +154,13 @@ void main() {
     final up = Vector3(0.0, 1.0, 0.0);
 
     Vector3 through(double x, double y) => Picking.through(
-          Vector2(x, y),
-          size: size,
-          forward: forward,
-          right: right,
-          up: up,
-          fovY: math.pi / 4,
-        );
+      Vector2(x, y),
+      size: size,
+      forward: forward,
+      right: right,
+      up: up,
+      fovY: math.pi / 4,
+    );
 
     test('is straight ahead in the middle of the window', () {
       final ray = through(400.0, 300.0);

@@ -20,41 +20,54 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 String _document() => jsonEncode(<String, Object?>{
-      'version': 1,
-      'name': 'test',
-      'materials': <String, Object?>{
-        'stone': <String, Object?>{'baseColor': <double>[0.5, 0.5, 0.5, 1.0]},
-        // A second one, and deliberately the rarer: with one material a brush
-        // placed in the wrong material is indistinguishable from one placed in
-        // the right one, and the test below was exactly that useless.
-        'iron': <String, Object?>{'baseColor': <double>[0.3, 0.3, 0.35, 1.0]},
-      },
-      'brushes': <Object?>[
-        <String, Object?>{
-          'at': <double>[0.0, 0.0, 0.0],
-          'size': <double>[10.0, 1.0, 10.0],
-          'material': 'stone',
-        },
-        <String, Object?>{
-          'at': <double>[0.0, 4.0, 0.0],
-          'size': <double>[10.0, 1.0, 10.0],
-          'material': 'stone',
-        },
-      ],
-      'lights': <Object?>[
-        <String, Object?>{'at': <double>[0.0, 3.0, 0.0], 'intensity': 2.0},
-      ],
-      'entities': <Object?>[
-        <String, Object?>{'type': 'torch', 'at': <double>[1.0, 2.0, 0.0]},
-        <String, Object?>{
-          'type': 'monster',
-          'at': <double>[3.0, 1.0, 0.0],
-          'name': 'ghoul',
-          'patrol': <Object?>['a', 'b'],
-        },
-        <String, Object?>{'type': 'torch', 'at': <double>[-1.0, 2.0, 0.0]},
-      ],
-    });
+  'version': 1,
+  'name': 'test',
+  'materials': <String, Object?>{
+    'stone': <String, Object?>{
+      'baseColor': <double>[0.5, 0.5, 0.5, 1.0],
+    },
+    // A second one, and deliberately the rarer: with one material a brush
+    // placed in the wrong material is indistinguishable from one placed in
+    // the right one, and the test below was exactly that useless.
+    'iron': <String, Object?>{
+      'baseColor': <double>[0.3, 0.3, 0.35, 1.0],
+    },
+  },
+  'brushes': <Object?>[
+    <String, Object?>{
+      'at': <double>[0.0, 0.0, 0.0],
+      'size': <double>[10.0, 1.0, 10.0],
+      'material': 'stone',
+    },
+    <String, Object?>{
+      'at': <double>[0.0, 4.0, 0.0],
+      'size': <double>[10.0, 1.0, 10.0],
+      'material': 'stone',
+    },
+  ],
+  'lights': <Object?>[
+    <String, Object?>{
+      'at': <double>[0.0, 3.0, 0.0],
+      'intensity': 2.0,
+    },
+  ],
+  'entities': <Object?>[
+    <String, Object?>{
+      'type': 'torch',
+      'at': <double>[1.0, 2.0, 0.0],
+    },
+    <String, Object?>{
+      'type': 'monster',
+      'at': <double>[3.0, 1.0, 0.0],
+      'name': 'ghoul',
+      'patrol': <Object?>['a', 'b'],
+    },
+    <String, Object?>{
+      'type': 'torch',
+      'at': <double>[-1.0, 2.0, 0.0],
+    },
+  ],
+});
 
 Editing _open() => Editing.parse(_document(), path: '/levels/test.json');
 
@@ -65,14 +78,17 @@ Placeable _row(Editing editing, String what) =>
 void main() {
   group('the list', () {
     test('is what this level is made of', () {
-      final palette = paletteOf(_open().level)
-          .map((Placeable it) => it.what)
-          .toList();
+      final palette = paletteOf(
+        _open().level,
+      ).map((Placeable it) => it.what).toList();
 
       expect(palette, contains('monster'));
       expect(palette, contains('torch'));
-      expect(palette, isNot(contains('coin')),
-          reason: 'it offered a word this level has never used');
+      expect(
+        palette,
+        isNot(contains('coin')),
+        reason: 'it offered a word this level has never used',
+      );
     });
 
     test('and a brush is offered as its materials, not as the word "brush"', () {
@@ -89,9 +105,9 @@ void main() {
 
     test('and a material nothing is built of yet is still offered', () {
       // Usually one somebody wrote down in order to build with it.
-      final level = Level(materials: <String, LevelMaterial>{
-        'ice': LevelMaterial(),
-      });
+      final level = Level(
+        materials: <String, LevelMaterial>{'ice': LevelMaterial()},
+      );
 
       final palette = paletteOf(level);
 
@@ -116,8 +132,10 @@ void main() {
     test('and an empty level still offers what the engine defines', () {
       final palette = paletteOf(Level());
 
-      expect(palette.map((Placeable it) => it.kind),
-          containsAll(<Piece>[Piece.brush, Piece.light]));
+      expect(
+        palette.map((Placeable it) => it.kind),
+        containsAll(<Piece>[Piece.brush, Piece.light]),
+      );
     });
   });
 
@@ -137,14 +155,17 @@ void main() {
       expect(placed.position, Vector3(6.0, 1.0, 6.0));
     });
 
-    test('and selects what it placed, because the next thing is to move it', () {
-      final editing = _open();
+    test(
+      'and selects what it placed, because the next thing is to move it',
+      () {
+        final editing = _open();
 
-      editing.place(_row(editing, 'torch'), Vector3(2.0, 2.0, 2.0));
+        editing.place(_row(editing, 'torch'), Vector3(2.0, 2.0, 2.0));
 
-      expect(editing.kind, Piece.entity);
-      expect(editing.entity!.type, 'torch');
-    });
+        expect(editing.kind, Piece.entity);
+        expect(editing.entity!.type, 'torch');
+      },
+    );
 
     test('and a light is made rather than copied', () {
       final editing = _open();
@@ -164,9 +185,13 @@ void main() {
 
       expect(editing.level.brushes.length, 3);
       expect(editing.kind, Piece.brush);
-      expect(editing.brush!.material, 'iron',
-          reason: 'it placed ${editing.brush!.material}, which is what most of '
-              'this level is made of rather than what the row said');
+      expect(
+        editing.brush!.material,
+        'iron',
+        reason:
+            'it placed ${editing.brush!.material}, which is what most of '
+            'this level is made of rather than what the row said',
+      );
     });
 
     test('and it lands on the grid like everything else', () {
@@ -178,24 +203,27 @@ void main() {
       expect(editing.entity!.position.y, 2.25);
     });
 
-    test('and a type with nothing to copy is made bare rather than refused', () {
-      // Cannot come from the palette, which only lists what is here — but a
-      // caller may ask, and refusing would mean an editor that cannot be the
-      // first to place something.
-      final editing = _open();
+    test(
+      'and a type with nothing to copy is made bare rather than refused',
+      () {
+        // Cannot come from the palette, which only lists what is here — but a
+        // caller may ask, and refusing would mean an editor that cannot be the
+        // first to place something.
+        final editing = _open();
 
-      editing.place(
-        Placeable(
-          kind: Piece.entity,
-          what: 'wumpus',
-          count: 0,
-          tint: Vector3.zero(),
-        ),
-        Vector3.zero(),
-      );
+        editing.place(
+          Placeable(
+            kind: Piece.entity,
+            what: 'wumpus',
+            count: 0,
+            tint: Vector3.zero(),
+          ),
+          Vector3.zero(),
+        );
 
-      expect(editing.entity!.type, 'wumpus');
-    });
+        expect(editing.entity!.type, 'wumpus');
+      },
+    );
 
     test('and undo takes it away again', () {
       final editing = _open();

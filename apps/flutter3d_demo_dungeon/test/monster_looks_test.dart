@@ -31,11 +31,15 @@ import 'package:flutter_test/flutter_test.dart';
 Set<String> _clipsIn(String path) {
   final bytes = File(path).readAsBytesSync();
   final view = ByteData.sublistView(bytes);
-  expect(String.fromCharCodes(bytes.sublist(0, 4)), 'glTF',
-      reason: '$path is not a GLB');
+  expect(
+    String.fromCharCodes(bytes.sublist(0, 4)),
+    'glTF',
+    reason: '$path is not a GLB',
+  );
   final length = view.getUint32(12, Endian.little);
-  final json = jsonDecode(utf8.decode(bytes.sublist(20, 20 + length)))
-      as Map<String, Object?>;
+  final json =
+      jsonDecode(utf8.decode(bytes.sublist(20, 20 + length)))
+          as Map<String, Object?>;
   final animations = json['animations'];
   if (animations is! List) return <String>{};
   return animations
@@ -64,8 +68,11 @@ void main() {
     for (final kind in Monsters.byName.keys) {
       final path = DungeonMonsters.modelsForKind[kind];
       expect(path, isNotNull, reason: '$kind is not given a model');
-      expect(File(path!).existsSync(), isTrue,
-          reason: '$kind is given $path, which is not there');
+      expect(
+        File(path!).existsSync(),
+        isTrue,
+        reason: '$kind is given $path, which is not there',
+      );
     }
   });
 
@@ -73,8 +80,11 @@ void main() {
     // An empty list is a monster that keeps playing whatever it was, which for
     // a dead one means standing up again.
     for (final state in MonsterState.values) {
-      expect(DungeonMonsters.clipsForState[state], isNotEmpty,
-          reason: '$state would leave the monster mid-stride');
+      expect(
+        DungeonMonsters.clipsForState[state],
+        isNotEmpty,
+        reason: '$state would leave the monster mid-stride',
+      );
     }
   });
 
@@ -91,9 +101,13 @@ void main() {
         final available = _clipsIn(entry.value);
         for (final state in MonsterState.values) {
           final wanted = DungeonMonsters.clipsForState[state]!;
-          expect(wanted.any(available.contains), isTrue,
-              reason: '${entry.key} has none of $wanted for $state; '
-                  'it has $available');
+          expect(
+            wanted.any(available.contains),
+            isTrue,
+            reason:
+                '${entry.key} has none of $wanted for $state; '
+                'it has $available',
+          );
         }
       }
     });
@@ -104,8 +118,11 @@ void main() {
       // `Walk` first would make every chase a stroll and nothing would fail.
       final runner = _clipsIn('assets/models/monster_runner.glb');
 
-      expect(runner.contains('Run'), isTrue,
-          reason: 'the runner cannot run, so this test proves nothing');
+      expect(
+        runner.contains('Run'),
+        isTrue,
+        reason: 'the runner cannot run, so this test proves nothing',
+      );
       expect(DungeonMonsters.clipsForState[MonsterState.chase]!.first, 'Run');
     });
   });

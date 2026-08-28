@@ -37,13 +37,12 @@ import 'package:flutter_test/flutter_test.dart';
 ({Set<String> declared, Set<String> inTheBank}) _table() =>
     soundTableIn('lib/src/sounds.dart');
 
-
 const double _dt = 1.0 / 60.0;
 
 Level _crypt() => Level.fromJson(
-      jsonDecode(File('assets/levels/crypt.json').readAsStringSync())
-          as Map<String, Object?>,
-    );
+  jsonDecode(File('assets/levels/crypt.json').readAsStringSync())
+      as Map<String, Object?>,
+);
 
 /// The shipped level, the shipped registry, and ears on the result.
 final class _Run {
@@ -140,12 +139,14 @@ void main() {
       final track = Soundtrack();
 
       final sounds = <String>{
-        for (final weapon in Weapons.all)
-          track.forWeapon(weapon).name,
+        for (final weapon in Weapons.all) track.forWeapon(weapon).name,
       };
 
-      expect(sounds, hasLength(Weapons.all.length),
-          reason: 'two weapons share a sound: $sounds');
+      expect(
+        sounds,
+        hasLength(Weapons.all.length),
+        reason: 'two weapons share a sound: $sounds',
+      );
     });
 
     test('and firing the one in hand is heard', () {
@@ -176,21 +177,31 @@ void main() {
       // rather than all of them: two mechanisms are two voices, and that is the
       // property being checked.
       final mine = run.loops.where((Sustained s) => identical(s.key, door));
-      expect(mine.where((Sustained s) => s.what == Voice.begin), hasLength(1),
-          reason: 'the door ground once per step rather than once');
+      expect(
+        mine.where((Sustained s) => s.what == Voice.begin),
+        hasLength(1),
+        reason: 'the door ground once per step rather than once',
+      );
       expect(mine.first.sound, Sounds.stoneMove);
       // One voice per mechanism, stated as distinctness rather than as a
       // count: the count was `2` while the crypt was hand-written and had a
       // lift starting at load, which made this an assertion about that
       // document rather than about the rule.
-      final begins =
-          run.loops.where((Sustained s) => s.what == Voice.begin).toList();
-      expect(begins.map((Sustained s) => s.key).toSet(), hasLength(begins.length),
-          reason: 'two mechanisms shared one voice');
+      final begins = run.loops
+          .where((Sustained s) => s.what == Voice.begin)
+          .toList();
+      expect(
+        begins.map((Sustained s) => s.key).toSet(),
+        hasLength(begins.length),
+        reason: 'two mechanisms shared one voice',
+      );
       // And followed for as long as it moved, or the grinding stays where the
       // door started while the door goes elsewhere.
-      expect(mine.where((Sustained s) => s.what == Voice.follow), isNotEmpty,
-          reason: 'the sound was left behind by the door making it');
+      expect(
+        mine.where((Sustained s) => s.what == Voice.follow),
+        isNotEmpty,
+        reason: 'the sound was left behind by the door making it',
+      );
     });
 
     test('and a locked door says so', () {
@@ -204,8 +215,11 @@ void main() {
       final door = run.staged.mechanisms['crypt_door']! as Door;
 
       run.staged.sim.usedThisStep = door.activate(const Activation());
-      expect(run.staged.sim.usedThisStep, isA<Refused>(),
-          reason: 'the door opened for somebody with no key');
+      expect(
+        run.staged.sim.usedThisStep,
+        isA<Refused>(),
+        reason: 'the door opened for somebody with no key',
+      );
       run.heard.addAll(
         run.soundtrack.listen(run.staged.sim, run.staged.player).once,
       );
@@ -221,9 +235,13 @@ void main() {
       // one for ever. It looks exactly like a sound nobody triggered.
       final missing = _table().declared.difference(_table().inTheBank);
 
-      expect(missing, isEmpty,
-          reason: 'declared and never preloaded, so silent in the real build: '
-              '${missing.join(', ')}');
+      expect(
+        missing,
+        isEmpty,
+        reason:
+            'declared and never preloaded, so silent in the real build: '
+            '${missing.join(', ')}',
+      );
     });
 
     test('and nothing in it was never declared', () {
@@ -234,8 +252,11 @@ void main() {
       // The other way this goes silent, and it looks identical from outside: a
       // definition pointing at an asset that is not there.
       for (final sound in Sounds.all) {
-        expect(File(sound.asset).existsSync(), isTrue,
-            reason: '${sound.asset} is declared and not in the game');
+        expect(
+          File(sound.asset).existsSync(),
+          isTrue,
+          reason: '${sound.asset} is declared and not in the game',
+        );
       }
     });
   });

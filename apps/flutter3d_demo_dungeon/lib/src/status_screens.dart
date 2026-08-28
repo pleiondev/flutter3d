@@ -16,20 +16,20 @@ class RendererFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Text(
-              'The renderer did not start.\n\n$error\n\n'
-              'The shader bundle is built by '
-              'packages/flutter3d/tool/build_shaders.sh, and has to be rebuilt '
-              'after every Flutter SDK change.',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
+    backgroundColor: Colors.black,
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Text(
+          'The renderer did not start.\n\n$error\n\n'
+          'The shader bundle is built by '
+          'packages/flutter3d/tool/build_shaders.sh, and has to be rebuilt '
+          'after every Flutter SDK change.',
+          style: const TextStyle(color: Colors.white70),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// Shown when [asset] threw rather than loaded.
@@ -46,17 +46,17 @@ class LevelLoadFailed extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Text(
-              'That level would not load.\n\n$asset\n\n$error',
-              style: const TextStyle(color: Colors.white70),
-            ),
-          ),
+    backgroundColor: Colors.black,
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32.0),
+        child: Text(
+          'That level would not load.\n\n$asset\n\n$error',
+          style: const TextStyle(color: Colors.white70),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// Shown between a renderer that has started and a level that has not yet.
@@ -65,12 +65,9 @@ class LoadingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: Text(
-            'Loading…',
-            style: TextStyle(color: Colors.white54),
-          ),
-        ),
-      );
+    backgroundColor: Colors.black,
+    body: Center(
+      child: Text('Loading…', style: TextStyle(color: Colors.white54)),
+    ),
+  );
 }

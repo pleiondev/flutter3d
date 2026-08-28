@@ -29,58 +29,68 @@ const int _width = 96;
 const int _height = 64;
 
 /// The crypt's own arrangement, cut down to the pair that overlaps.
-Level _level() => Level.fromJson(jsonDecode(jsonEncode(<String, Object?>{
-      'version': 1,
-      'materials': <String, Object?>{
-        'stone': <String, Object?>{'baseColor': <double>[0.7, 0.7, 0.7, 1.0]},
-      },
-      'brushes': <Object?>[
-        <String, Object?>{
-          'at': <double>[0.0, -0.5, -12.0],
-          'size': <double>[20.0, 1.0, 20.0],
-          'material': 'stone',
-        },
-        // A wall, and the mark below sits flush against it — which is how a
-        // trigger or a note is placed, and where a flat box and a flat wall
-        // have the same depth.
-        <String, Object?>{
-          'at': <double>[0.0, 2.0, -14.0],
-          'size': <double>[20.0, 4.0, 1.0],
-          'material': 'stone',
-        },
-      ],
-      'lights': <Object?>[
-        <String, Object?>{
-          'type': 'point',
-          'at': <double>[0.0, 3.0, -10.0],
-          'color': <double>[1.0, 1.0, 1.0],
-          'intensity': 6.0,
-          'range': 20.0,
-        },
-      ],
-      'entities': <Object?>[
-        <String, Object?>{'type': 'monster', 'at': <double>[0.0, 1.0, -12.0]},
-        <String, Object?>{
-          'type': 'trigger',
-          'at': <double>[0.0, 1.5, -12.4],
-          'size': <double>[4.0, 3.0, 2.0],
-        },
-        // Flush with the wall's face at z = −13.5.
-        <String, Object?>{
-          'type': 'note',
-          'at': <double>[3.0, 2.0, -13.25],
-          'size': <double>[1.5, 2.0, 0.5],
-        },
-        // A door: sized like the trigger and made of something, which is what
-        // tells the two apart.
-        <String, Object?>{
-          'type': 'door',
-          'at': <double>[-6.0, 2.0, -13.5],
-          'size': <double>[3.0, 4.0, 1.0],
-          'material': 'stone',
-        },
-      ],
-    })) as Map<String, Object?>);
+Level _level() => Level.fromJson(
+  jsonDecode(
+        jsonEncode(<String, Object?>{
+          'version': 1,
+          'materials': <String, Object?>{
+            'stone': <String, Object?>{
+              'baseColor': <double>[0.7, 0.7, 0.7, 1.0],
+            },
+          },
+          'brushes': <Object?>[
+            <String, Object?>{
+              'at': <double>[0.0, -0.5, -12.0],
+              'size': <double>[20.0, 1.0, 20.0],
+              'material': 'stone',
+            },
+            // A wall, and the mark below sits flush against it — which is how a
+            // trigger or a note is placed, and where a flat box and a flat wall
+            // have the same depth.
+            <String, Object?>{
+              'at': <double>[0.0, 2.0, -14.0],
+              'size': <double>[20.0, 4.0, 1.0],
+              'material': 'stone',
+            },
+          ],
+          'lights': <Object?>[
+            <String, Object?>{
+              'type': 'point',
+              'at': <double>[0.0, 3.0, -10.0],
+              'color': <double>[1.0, 1.0, 1.0],
+              'intensity': 6.0,
+              'range': 20.0,
+            },
+          ],
+          'entities': <Object?>[
+            <String, Object?>{
+              'type': 'monster',
+              'at': <double>[0.0, 1.0, -12.0],
+            },
+            <String, Object?>{
+              'type': 'trigger',
+              'at': <double>[0.0, 1.5, -12.4],
+              'size': <double>[4.0, 3.0, 2.0],
+            },
+            // Flush with the wall's face at z = −13.5.
+            <String, Object?>{
+              'type': 'note',
+              'at': <double>[3.0, 2.0, -13.25],
+              'size': <double>[1.5, 2.0, 0.5],
+            },
+            // A door: sized like the trigger and made of something, which is what
+            // tells the two apart.
+            <String, Object?>{
+              'type': 'door',
+              'at': <double>[-6.0, 2.0, -13.5],
+              'size': <double>[3.0, 4.0, 1.0],
+              'material': 'stone',
+            },
+          ],
+        }),
+      )
+      as Map<String, Object?>,
+);
 
 void main() {
   test('a region the document sized is a cage, not a slab', () {
@@ -95,8 +105,11 @@ void main() {
     }
     final entities = handles[Piece.entity]!;
 
-    expect(entities.where((Handle it) => it.volume), hasLength(3),
-        reason: 'the trigger, the note and the door carry their own size');
+    expect(
+      entities.where((Handle it) => it.volume),
+      hasLength(3),
+      reason: 'the trigger, the note and the door carry their own size',
+    );
 
     // **What separates a region from a thing is the material.** A door is
     // sized exactly the way a trigger is, and it is something the level builds
@@ -104,8 +117,9 @@ void main() {
     // and drawing it as a wireframe was this rule's first mistake.
     final door = level.entities.firstWhere((EntityDef e) => e.type == 'door');
     expect(door.string('material'), isNotNull);
-    final trigger =
-        level.entities.firstWhere((EntityDef e) => e.type == 'trigger');
+    final trigger = level.entities.firstWhere(
+      (EntityDef e) => e.type == 'trigger',
+    );
     expect(trigger.string('material'), isNull);
     expect(
       entities.where((Handle it) => !it.volume).length,
@@ -134,15 +148,19 @@ void main() {
       if (handle.kind == Piece.brush) continue;
       scene.add(
         MeshNode(
-          SharedMeshes(device).box(handle.size),
-          engine.Material(
+            SharedMeshes(device).box(handle.size),
+            engine.Material(
+              name: 'gizmo',
+              baseColor: Vector4(
+                handle.tint.x,
+                handle.tint.y,
+                handle.tint.z,
+                1.0,
+              ),
+              emissive: handle.tint * 0.9,
+            ),
             name: 'gizmo',
-            baseColor:
-                Vector4(handle.tint.x, handle.tint.y, handle.tint.z, 1.0),
-            emissive: handle.tint * 0.9,
-          ),
-          name: 'gizmo',
-        )
+          )
           ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
           ..castsShadow = false,
       );
@@ -174,8 +192,11 @@ void main() {
     final first = await draw();
     for (var frame = 2; frame <= 6; frame++) {
       final next = await draw();
-      expect(compareFrames(first, next, channel: 0).differing, 0,
-          reason: 'frame $frame is a different picture from the first');
+      expect(
+        compareFrames(first, next, channel: 0).differing,
+        0,
+        reason: 'frame $frame is a different picture from the first',
+      );
     }
   });
 }

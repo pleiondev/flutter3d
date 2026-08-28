@@ -94,15 +94,16 @@ final class DungeonRun extends RunSession<LevelReady> {
         appearance: const DungeonMonsters(),
         device: device,
       ),
-      fixtures: FixtureVisuals(
-        loaded.scene,
-        loaded,
-        appearance: const DungeonFixtures(),
-        device: device,
-      )
-        // Before spawning, so a torch can find the light it drives. Held by
-        // `run_cubit_test.dart`, which is where losing this line was found.
-        ..bindLights(),
+      fixtures:
+          FixtureVisuals(
+              loaded.scene,
+              loaded,
+              appearance: const DungeonFixtures(),
+              device: device,
+            )
+            // Before spawning, so a torch can find the light it drives. Held by
+            // `run_cubit_test.dart`, which is where losing this line was found.
+            ..bindLights(),
     );
 
     // The way out, which was a trigger with nothing to see. Awaited rather than

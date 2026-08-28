@@ -16,12 +16,12 @@ import 'package:flutter3d_demo_platformer/src/title_card.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _card({required bool dashOnPointer, bool touch = false}) => MaterialApp(
-      home: TitleCard(
-        prompt: 'Click to begin.',
-        dashOnPointer: dashOnPointer,
-        touch: touch,
-      ),
-    );
+  home: TitleCard(
+    prompt: 'Click to begin.',
+    dashOnPointer: dashOnPointer,
+    touch: touch,
+  ),
+);
 
 void main() {
   testWidgets('the desktop build dashes with the mouse', (

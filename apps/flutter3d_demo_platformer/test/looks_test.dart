@@ -63,8 +63,11 @@ void main() {
   test('a coin nobody has touched is drawn, at its full size', () {
     final it = _coin();
 
-    expect(looks.isSpent(it.fixture), isFalse,
-        reason: 'never taken is not the same as taken long ago');
+    expect(
+      looks.isSpent(it.fixture),
+      isFalse,
+      reason: 'never taken is not the same as taken long ago',
+    );
     expect(looks.scaleOf(it.fixture), 1.0);
   });
 
