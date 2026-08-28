@@ -321,6 +321,31 @@ final class FixtureVisuals {
       }
     }
   }
+
+  /// Takes everything this built out of the scene and gives the meshes back.
+  ///
+  /// The counterpart to a class that only ever grew: every `add` put a node in
+  /// the scene and a row in one of these maps, and a level change built the
+  /// next level's on top of them. The doc on the model cache has said it is
+  /// per level "for the same reason the texture cache is: a GPU resource
+  /// outliving the level that owns it is a leak nobody notices" — and there
+  /// was no way to say the level was over. `RunSession.close` is that moment.
+  ///
+  /// The decoded models are deliberately kept: a `ModelAsset` is shared
+  /// between levels through a cache keyed by path, and freeing one here would
+  /// take it out from under the next level that wants the same torch.
+  void dispose() {
+    for (final piece in _pieces) {
+      piece.node.removeFromParent();
+    }
+    _pieces.clear();
+    _lights.clear();
+    _baseIntensity.clear();
+    _glowing.clear();
+    _flames.clear();
+    _baseGlow.clear();
+    meshes.dispose();
+  }
 }
 
 final class _Piece {

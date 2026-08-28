@@ -20,6 +20,7 @@ import 'dart:math' as math;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -98,4 +99,129 @@ void main() {
       expect(alive, isNot(equals(ActorVisuals.wrapFor(actor))));
     });
   });
+
+  group('drawn between two steps', () {
+    test('an actor is halfway across at half an alpha', () {
+      // **Nothing here interpolated at all.** `sync` read the authoritative
+      // post-step position, so every monster moved in 60 Hz jumps while the
+      // player's own camera was smooth — `Player.eyeFrom` documents needing
+      // the interpolated position and gets it. On a 60 Hz display the two are
+      // indistinguishable, which is why this survived; on anything faster the
+      // difference is the whole reason `InterpolatedVector3` exists.
+      //
+      // Mutation: return `actor.position!` from `_drawAt` regardless. The node
+      // lands on 2.0 rather than halfway, because a frame between two steps
+      // draws where the later step already put it.
+      final device = FakeBackend();
+      final scene = Scene();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: device,
+      );
+      final actor = _actor();
+      visuals.add(actor);
+
+      actor.body!.teleport(Vector3(0.0, 0.0, 0.0));
+      visuals.recordStep();
+      actor.body!.teleport(Vector3(2.0, 0.0, 0.0));
+      visuals.recordStep();
+
+      visuals.sync(0.5);
+
+      expect(scene.meshes.single.readPosition().x, closeTo(1.0, 1e-6));
+    });
+
+    test('and a game that records nothing draws where it always did', () {
+      // The default keeps every existing caller exactly as it was: an
+      // application that has not wired the per-step call up gets the
+      // authoritative position, which is what this class did before.
+      final device = FakeBackend();
+      final scene = Scene();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: device,
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      actor.body!.teleport(Vector3(2.0, 0.0, 0.0));
+
+      visuals.sync();
+
+      expect(scene.meshes.single.readPosition().x, closeTo(2.0, 1e-6));
+    });
+  });
+
+  group('letting a level go', () {
+    test('an actor removed takes its node out of the scene', () {
+      // **There was `add` and no counterpart.** An actor removed through
+      // `ActorSystem.remove` kept its node here for ever, and the next `sync`
+      // read `actor.position!` on an entity whose `Body` was gone — a throw
+      // from inside the render path. Latent only because nothing calls that
+      // method today, which is the worst kind of latent.
+      //
+      // Mutation: drop the `_nodes.remove` line. The node stays in the scene
+      // and the count below does not fall.
+      final device = FakeBackend();
+      final scene = Scene();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: device,
+      );
+      final actor = _actor();
+      visuals.add(actor);
+      expect(scene.meshes, hasLength(1));
+
+      visuals.remove(actor);
+
+      expect(scene.meshes, isEmpty);
+      visuals.sync();
+    });
+
+    test('and disposing empties the scene and hands the meshes back', () {
+      // `SharedMeshes` has said in its own doc since it was written that "a GPU
+      // resource that outlives the level owning it is a leak nobody notices",
+      // and offered no way to end one — so every level load uploaded another
+      // capsule and nothing ever released one.
+      //
+      // Mutation: make `SharedMeshes.dispose` clear the map without releasing.
+      // The scene empties and the device is handed nothing back, which is
+      // exactly the shape of the bug: it looks torn down.
+      final device = FakeBackend();
+      final scene = Scene();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: device,
+      )..add(_actor());
+
+      visuals.dispose();
+
+      expect(scene.meshes, isEmpty);
+      expect(
+        device.releasedGeometry,
+        hasLength(2),
+        reason: 'a mesh is a vertex buffer and an index buffer',
+      );
+    });
+  });
+}
+
+/// One capsule, one material, no models — the least a bridge needs to draw.
+final class _PlainLook implements ActorAppearance {
+  const _PlainLook();
+
+  @override
+  String meshKeyFor(Actor actor) => 'plain';
+
+  @override
+  Material materialFor(Actor actor) => Material();
+
+  @override
+  String? modelFor(Actor actor) => null;
+
+  @override
+  List<String> clipsFor(Actor actor) => const <String>[];
 }

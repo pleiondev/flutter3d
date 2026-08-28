@@ -82,6 +82,44 @@ final class ActorVisuals {
     _addCapsule(actor, body);
   }
 
+  /// Takes an actor's node out of the scene and forgets it.
+  ///
+  /// **There was `add` and nothing else.** `ActorSystem.remove` exists, and an
+  /// actor removed through it kept its `SceneNode` here for ever — so the next
+  /// [sync] read `actor.position!` on an entity whose `Body` component was
+  /// gone and threw from inside the render path. It was latent only because
+  /// nothing calls `ActorSystem.remove` today, which is the worst kind of
+  /// latent: the first caller finds out in a frame rather than at a compile.
+  void remove(Actor actor) {
+    _nodes.remove(actor)?.removeFromParent();
+    _players.remove(actor);
+    _playing.remove(actor);
+  }
+
+  /// Lets go of every node and every uploaded mesh.
+  ///
+  /// The level's, not the game's: what this holds was built for one level and
+  /// is worth nothing to the next. See `RunSession.close` for when that is.
+  ///
+  /// The models are deliberately left in [_models] — they are a
+  /// `ResourceCache`'s business and are shared between levels, which is the
+  /// whole reason that cache is keyed by path rather than by level.
+  void dispose() {
+    // Anything still reading a file will find this and stop rather than
+    // instantiate into a scene that has been torn down.
+    _generation++;
+    for (final node in _nodes.values) {
+      node.removeFromParent();
+    }
+    _nodes.clear();
+    _players.clear();
+    _playing.clear();
+    _meshes.dispose();
+  }
+
+  /// Bumped by [dispose], so a model that arrives late can tell.
+  int _generation = 0;
+
   void _addCapsule(Actor actor, CharacterController body) {
     // Straight off the body, so this works for anything with one. It used to
     // read a `MonsterDef`, which is how the renderer's bridge came to depend on
@@ -101,10 +139,21 @@ final class ActorVisuals {
 
   /// Swaps an actor's capsule for its model once the file has been read.
   Future<void> _dress(Actor actor, String path) async {
+    final generation = _generation;
     final asset = await _models.putIfAbsent(path, () => _load(path));
     // Dead by the time it arrived, or the level changed underneath it. Both
     // happen: a runner can be shot before its own model finishes loading.
-    if (asset == null || !_nodes.containsKey(actor)) return;
+    //
+    // **The level check used to be the actor check**, which is not the same
+    // question: a model arriving after the level ended found `_nodes` empty
+    // and stopped by luck, and one arriving after a *new* level had spawned an
+    // actor into the same map would have instantiated into it. The generation
+    // asks the question directly.
+    if (asset == null ||
+        generation != _generation ||
+        !_nodes.containsKey(actor)) {
+      return;
+    }
 
     final instance = asset.instantiate(scene);
     final capsule = _nodes.remove(actor);
@@ -195,15 +244,69 @@ final class ActorVisuals {
     }
   }
 
+  /// Remembers where every actor is, as the step that has just run left it.
+  ///
+  /// **Call once per simulation step**, from the same place the game steps its
+  /// world. Without it there is nothing to interpolate between and [sync]
+  /// draws the authoritative position, which is what it did for as long as
+  /// this class existed: every monster, and every door and lift on the
+  /// [FixtureVisuals] side, moved in fixed-step jumps while the player's own
+  /// camera was smooth — because `Player.eyeFrom` interpolates and this did
+  /// not. On a 60 Hz display the two are indistinguishable; on anything
+  /// faster the difference is the whole reason `InterpolatedVector3` exists.
+  ///
+  /// [steppedUp] is a stair the body climbed this step, in metres, and is what
+  /// keeps a staircase from being a series of small jumps — the same
+  /// mechanism the runner already uses for itself.
+  void recordStep({double dt = 0.0}) {
+    for (final actor in _nodes.keys) {
+      final position = actor.position;
+      if (position == null) continue;
+      final smoothed = _smoothed[actor];
+      if (smoothed == null) {
+        // First sight: no previous to come from, so it arrives where it is
+        // rather than sliding in from the origin.
+        _smoothed[actor] = InterpolatedVector3()..jumpTo(position);
+        continue;
+      }
+      smoothed.push(position, dt: dt, steppedUp: actor.body?.steppedUp ?? 0.0);
+    }
+    // An actor that has gone stops being interpolated, or the map grows for
+    // the life of the level with one entry per corpse.
+    _smoothed.removeWhere((Actor actor, _) => !_nodes.containsKey(actor));
+  }
+
+  final Map<Actor, InterpolatedVector3> _smoothed =
+      <Actor, InterpolatedVector3>{};
+
+  /// Where to draw [actor] this frame: between the last two steps when
+  /// something has been recording them, and where it authoritatively is when
+  /// nothing has.
+  Vector3 _drawAt(Actor actor, double alpha) {
+    final smoothed = _smoothed[actor];
+    if (smoothed == null) return actor.position!;
+    smoothed.read(alpha, _drawn);
+    return _drawn;
+  }
+
+  /// Reused, because this is read once per actor per frame and a `Vector3` is
+  /// a heap object — the reason half of this engine takes an out parameter.
+  final Vector3 _drawn = Vector3.zero();
+
   /// Moves every node to its actor.
   ///
   /// Called once per frame rather than per simulation step: this is display,
   /// and the simulation does not care where the capsules are.
-  void sync() {
+  ///
+  /// [alpha] is how far through the current step the frame is drawing —
+  /// `GameLoop.alpha`. The default of 1.0 is the authoritative position, which
+  /// is exactly what this did before [recordStep] existed, so a game that has
+  /// not wired the per-step call up draws what it always drew.
+  void sync([double alpha = 1.0]) {
     for (final entry in _nodes.entries) {
       final actor = entry.key;
       final node = entry.value;
-      final position = actor.position!;
+      final position = _drawAt(actor, alpha);
 
       // Only a capsule takes the game's material; a model brings its own, and
       // painting over it would make three monsters one colour.

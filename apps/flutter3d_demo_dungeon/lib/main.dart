@@ -618,8 +618,11 @@ class _GameScreenState extends State<GameScreen>
       stepSeconds: _loop.clock.stepSeconds,
     );
     // Once a frame, not once a step: this is display, and the simulation does
-    // not care where the capsules are.
-    _actorVisuals?.sync();
+    // not care where the capsules are. **With the loop's alpha**, so a monster
+    // is drawn between the two steps either side of this frame rather than
+    // where the later one left it — which is what the player's own camera has
+    // always done, and what every monster in the crypt was not doing.
+    _actorVisuals?.sync(_loop.alpha);
     // Once a frame with the frame's own delta, not once per simulation step:
     // an animation is display, and playing it on the fixed step would make a
     // monster's stride depend on how far behind the machine is.
@@ -641,6 +644,12 @@ class _GameScreenState extends State<GameScreen>
 
     final heldBefore = _arsenal.current;
     sim.step(dt);
+
+    // Where everything ended up, for the frame that draws between this step
+    // and the next. Here rather than in the frame method because that is what
+    // "per step" means, and the two are different counts on any display that
+    // is not exactly 60 Hz.
+    _actorVisuals?.recordStep(dt: dt);
 
     // A weapon can change hands inside the step — a slot key, or the last
     // round of the current one. The view model is told once, here, rather than
