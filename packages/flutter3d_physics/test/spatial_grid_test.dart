@@ -121,4 +121,22 @@ void main() {
 
     expect(seen, <int>[3]);
   });
+
+  test('two cells in one Z row are two buckets, on every platform', () {
+    // The cell key packs X and Z into one integer. Written as `x << 32` — the
+    // native idiom — the shift discards X on the web, where an `int` is a
+    // double and a bitwise operation is done in 32 bits. Every cell of a Z row
+    // then hashes to the same bucket, and a query for one cell answers with
+    // the whole row. Nothing draws wrong, because the world narrow-phases what
+    // the grid hands it; the grid simply stops being a grid.
+    //
+    // Mutation: put the shift back and run this file under `-p chrome`. The
+    // query returns both handles.
+    final grid = SpatialGrid(cellSize: 1.0)
+      ..insert(1, _box(0.2, 0.2, 0.8, 0.8))
+      ..insert(2, _box(5.2, 0.2, 5.8, 0.8));
+
+    expect(_inBox(grid, 0.1, 0.1, 0.9, 0.9), <int>[1]);
+    expect(_inBox(grid, 5.1, 0.1, 5.9, 0.9), <int>[2]);
+  });
 }

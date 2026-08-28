@@ -179,7 +179,16 @@ final class SpatialGrid {
     _stamp = grown;
   }
 
-  /// Packs a cell coordinate into one integer. Dart integers are 64-bit, so two
-  /// 32-bit halves fit exactly.
-  static int _key(int x, int z) => (x << 32) ^ (z & 0xFFFFFFFF);
+  /// Packs a cell coordinate into one integer.
+  ///
+  /// By multiplication rather than by `x << 32`, which is a native-only idiom:
+  /// on the web an `int` is a double and a bitwise operation is done in 32
+  /// bits, so a shift that far throws the whole X coordinate away and every
+  /// cell of one Z row collapses into a single bucket. The grid still answers
+  /// with a superset, so nothing draws wrong — it just stops being a grid, and
+  /// a query walks the row.
+  ///
+  /// The product is exact while |x| stays under 2^21, which is two million
+  /// cells either side of the origin.
+  static int _key(int x, int z) => x * 0x100000000 + (z & 0xFFFFFFFF);
 }

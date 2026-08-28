@@ -283,12 +283,20 @@ final class CollisionWorld {
 
   /// An order-independent key, so a pair is the same pair whichever collider
   /// noticed it.
+  ///
+  /// Packed by multiplication rather than by `lo << 32`. That shift is a
+  /// native-only idiom — on the web an `int` is a double and a bitwise
+  /// operation is done in 32 bits, so it discards `lo` entirely and every pair
+  /// sharing its higher id becomes one key. Two colliders overlapping the same
+  /// third one would then be a single pair: the second is swallowed by the
+  /// `contains` check above, and its `onCollisionStart` and `onCollisionEnd`
+  /// never fire. The product is exact while ids stay under 2^21.
   int _pairKey(Collider a, Collider b) {
     final ia = _ids[a] ?? -1;
     final ib = _ids[b] ?? -1;
     final lo = ia < ib ? ia : ib;
     final hi = ia < ib ? ib : ia;
-    return (lo << 32) ^ (hi & 0xFFFFFFFF);
+    return lo * 0x100000000 + (hi & 0xFFFFFFFF);
   }
 
   // MARK: - Queries

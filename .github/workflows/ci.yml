@@ -10,6 +10,13 @@ on:
     branches: [main]
   pull_request:
 
+# A second push to a branch makes the first run's answer worthless, and the
+# runner is shared. Not on main: there, every commit's own result is worth
+# having, because that is the history somebody bisects.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   check:
     # No GPU here, and none needed: the software backend draws the golden
@@ -17,6 +24,10 @@ jobs:
     # sets. The Impeller half runs from tool/golden.sh on a real device — see
     # the note at the top of tool/ci.sh.
     runs-on: ubuntu-latest
+    # The run takes minutes. Without a bound, a step that hangs — a browser that
+    # never reports, a `pub get` waiting on a prompt — holds the runner for six
+    # hours and reports nothing at the end of it.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
