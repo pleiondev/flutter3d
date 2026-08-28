@@ -2,7 +2,7 @@
 
 The documentation site for this engine, at **https://flutter3d.pleion.dev/** (basic auth).
 
-Twenty pages of Markdown, a 250-line build script, and no framework. Every page
+Thirty pages of Markdown, a 250-line build script, and no framework. Every page
 is a file on disk, which is what makes it serveable by nginx with `try_files`
 and nothing else — and what makes a broken page a broken page rather than a
 blank screen.

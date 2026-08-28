@@ -46,6 +46,10 @@ List<Rule> get allRules => <Rule>[
     name: 'every package agrees about versions with the workspace',
     run: _versionsAgree,
   ),
+  (
+    name: 'the documents agree on how many golden scenes there are',
+    run: _goldenSceneCount,
+  ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
     name: 'the compiled shader bundle is not older than its sources',
@@ -489,6 +493,8 @@ List<Finding> _ruleCount() {
     'eighteen',
     'nineteen',
     'twenty',
+    'twenty-one',
+    'twenty-two',
   ];
   final actual = allRules.length;
   final found = <Finding>[];
@@ -518,7 +524,10 @@ List<Finding> _ruleCount() {
 
   check(
     'README.md',
-    RegExp(r'its (\w+) rules'),
+    // `[\w-]`, because the twenty-first rule is the first count whose word
+    // carries a hyphen — and `\w+` matching "one" out of "twenty-one" would
+    // have been a wrong number reported as a missing sentence.
+    RegExp(r'its ([\w-]+) rules'),
     (String word) => '${words.indexOf(word)}',
   );
   check(
@@ -1192,3 +1201,86 @@ String? _fieldIn(String pubspec, String key) {
   if (match == null) return null;
   return match.group(1)!.trim().replaceAll("'", '').replaceAll('"', '');
 }
+
+/// The golden scene count, wherever it is written in prose.
+///
+/// **Three files carried three different answers** — "thirty scenes" in
+/// `tool/ci.sh`, "twenty-six scenes" in `golden_web.sh`, "32 scenes" in
+/// `ARCHITECTURE.md` — against thirty-two on disk. That is the shape the test
+/// count and the rule count already have scans for, and for the reason
+/// `_testCount` gives about itself: a number in prose is a number nobody
+/// recounts, and a reader who finds one wrong cannot tell which of the others
+/// are.
+///
+/// Counted from the software backend's set, which is the one committed in full
+/// and the one the other two are held against.
+List<Finding> _goldenSceneCount() {
+  final goldens = Directory(
+    '${repositoryRoot.path}/packages/flutter3d_cpu/test/goldens',
+  );
+  if (!goldens.existsSync()) {
+    return <Finding>[
+      const Finding('flutter3d_cpu/test/goldens', 'is not there'),
+    ];
+  }
+  final count = goldens
+      .listSync()
+      .where((FileSystemEntity it) => it.path.endsWith('.png'))
+      .length;
+  if (count == 0) {
+    return <Finding>[
+      const Finding('flutter3d_cpu/test/goldens', 'holds no PNGs to count'),
+    ];
+  }
+
+  final word = _numberWords[count];
+  final found = <Finding>[];
+  for (final where in <String>[
+    'tool/ci.sh',
+    'packages/flutter3d_webgl/tool/golden_web.sh',
+    'ARCHITECTURE.md',
+  ]) {
+    final file = File('${repositoryRoot.path}/$where');
+    if (!file.existsSync()) {
+      found.add(Finding(where, 'is not there'));
+      continue;
+    }
+    final text = file.readAsStringSync();
+    // Only the phrasings that are actually about the scenes, so a stray "32"
+    // elsewhere in a long document is not a false positive.
+    final claims = RegExp(
+      r'([\w-]+) (?:golden )?scenes',
+      caseSensitive: false,
+    ).allMatches(text).map((RegExpMatch m) => m.group(1)!).toSet();
+    for (final claim in claims) {
+      if (claim == '$count' || claim.toLowerCase() == word) continue;
+      // A word that is not a number at all — "the scenes", "thirty-two golden
+      // scenes" already matched — is not a claim about how many there are.
+      if (int.tryParse(claim) == null &&
+          !_numberWords.containsValue(claim.toLowerCase())) {
+        continue;
+      }
+      found.add(
+        Finding(where, 'says "$claim scenes"; there are $count ($word)'),
+      );
+    }
+  }
+  return found;
+}
+
+/// Enough of them to name the counts this repository actually writes down.
+const Map<int, String> _numberWords = <int, String>{
+  24: 'twenty-four',
+  25: 'twenty-five',
+  26: 'twenty-six',
+  27: 'twenty-seven',
+  28: 'twenty-eight',
+  29: 'twenty-nine',
+  30: 'thirty',
+  31: 'thirty-one',
+  32: 'thirty-two',
+  33: 'thirty-three',
+  34: 'thirty-four',
+  35: 'thirty-five',
+  36: 'thirty-six',
+};

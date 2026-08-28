@@ -50,7 +50,12 @@ FAILED=0
 # failure rather than a line of output.
 #
 # Widening this list is a decision. A warning nobody has read is not.
-ALLOWED='checked-in file is modified'
+# Matched on 'modified in git' rather than on the singular sentence: pub
+# pluralises, so 'checked-in file is modified' let one edited file through and
+# failed on two. This warning is only ever about a dirty working tree, which is
+# a developer's business — every readiness fact this step exists to catch says
+# something else.
+ALLOWED='modified in git'
 
 for dir in packages/*/; do
   name="$(basename "$dir")"

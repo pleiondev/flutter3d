@@ -10,7 +10,7 @@
 # Written by the SDK, not by hand. `flutter analyze` on 3.47 rewrites every
 # analysis_options.yaml it reads, printing "Upgrading analysis_options.yaml to
 # exclude build and platform directories" as it goes. It is committed here — in
-# all sixteen of them — because the alternative is a tree that goes dirty every
+# all twenty-nine of them — because the alternative is a tree that goes dirty every
 # time anyone analyses it, and a CI job that reports modified files it did not
 # modify on purpose.
 analyzer:
@@ -35,7 +35,7 @@ linter:
   # or a specific dart file by using the `// ignore: name_of_lint` and
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
-  # **One home, and every other package points here.** The eighteen other
+  # **One home, and every other package points here.** The twenty-eight other
   # `analysis_options.yaml` in this tree are each a two-line `include:` of this
   # file rather than a copy of it — before, they were nineteen identical copies
   # of the SDK's boilerplate, which meant enabling a rule was a nineteen-file

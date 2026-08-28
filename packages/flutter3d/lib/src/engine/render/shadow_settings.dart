@@ -167,10 +167,18 @@ final class ShadowSettings {
 
   /// The emitter's own radius, in metres. Zero uses a fixed kernel instead.
   ///
-  /// **Off by default, because it does not work yet, and the cause is not yet
-  /// known.** The estimate collapses to [pointSoftness] almost everywhere:
-  /// raising this from 0.05 to 0.6 — twelve times — moves twenty pixels of the
-  /// frame, where the width should scale with it directly.
+  /// **Off by default: at this map resolution the extra taps buy about a
+  /// pixel.** An honest cost against an honest benefit, not a defect — which
+  /// this paragraph used to say it was, and then spent fifty lines below
+  /// disproving. The lead sentence is what an IDE tooltip and a generated
+  /// dartdoc show, so a working feature was being announced as broken to
+  /// everybody who never scrolled.
+  ///
+  /// What follows is the investigation, kept because its two dead ends are
+  /// worth not walking again. It starts from a symptom that is real: the
+  /// estimate collapses to [pointSoftness] almost everywhere, and raising this
+  /// from 0.05 to 0.6 — twelve times — moves twenty pixels of the frame, where
+  /// the width should scale with it directly.
   ///
   /// Two explanations were written down and both were measured wrong, which is
   /// worth recording so they are not proposed again:

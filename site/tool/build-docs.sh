@@ -10,7 +10,7 @@
 # stale the day somebody adds a package.
 #
 # The output does **not** go into site/dist/: `npm run build` wipes that on every
-# run, and regenerating twenty-two dartdoc trees to publish a typo fix would be
+# run, and regenerating twenty-three dartdoc trees to publish a typo fix would be
 # minutes of work for nothing. It is deployed separately by tool/deploy-docs.sh,
 # and tool/deploy.sh excludes /docs/ for the same reason it excludes /demo/.
 set -euo pipefail

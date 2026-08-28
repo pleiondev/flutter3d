@@ -28,9 +28,18 @@ part 'gltf_loader_images.dart';
 
 /// Decodes glTF 2.0 and GLB into engine geometry.
 ///
-/// Scope: geometry, node hierarchy and metal-rough materials. Skinning,
-/// animation and morph targets are parsed as far as the node graph but not yet
-/// turned into engine data — they are the next items in the assets layer.
+/// Scope: geometry, node hierarchy, metal-rough materials, **skinning and
+/// animation**. This paragraph said for a long time that the last two were
+/// "parsed as far as the node graph but not yet turned into engine data", and
+/// two thirds of that had stopped being true: `JOINTS_0`/`WEIGHTS_0` become a
+/// `ModelSkin` and the skinned vertex stage, and a channel becomes an
+/// `AnimationClip` an `AnimationPlayer` runs.
+///
+/// **Morph targets are the third**, and are genuinely absent: a primitive's
+/// `targets` are read past, so a mesh with them loads its base shape and is
+/// drawn unmoved. That is reported through [GltfAsset.warnings] like every
+/// other non-fatal gap — it was not, and a model that loaded "fine" and simply
+/// never changed shape is the sort of thing somebody chases in the wrong file.
 ///
 /// Compressed extensions (`KHR_draco_mesh_compression`, `EXT_meshopt_compression`)
 /// are not supported and are reported through [GltfAsset.warnings] rather than

@@ -49,12 +49,30 @@ Three properties govern every decision below:
 - **Game code separated from the subsystems.** The simulation does not know how a
   frame is drawn.
 
-**Target platforms.** macOS and web are supported and exercised. All three games
-build for Android and for the iOS simulator, and none has been played on a
-handset — what a phone alone can answer is whether the on-screen stick is the
-right size, whether the buttons are reachable, whether there is enough screen
-left to turn the camera, and whether the device holds a frame. Windows and Linux
-should work through the Impeller backend and are unverified.
+**Target platforms**, stated as a table because "should work" was doing too much
+work in the sentence this replaces:
+
+| | Draws | Gamepad | Pointer capture | Built here |
+|---|---|---|---|---|
+| macOS | yes, Impeller | yes | yes | every commit, and the golden sets |
+| Web | yes, WebGL2 | yes | yes | every commit, `--wasm` |
+| Android | yes, Impeller | yes | n/a | builds; never run on a handset |
+| iOS | yes, Impeller | yes | n/a | simulator only |
+| Windows | untried | **no** | **no** | no runner directory exists |
+| Linux | untried | **no** | **no** | no runner directory exists |
+
+**"Desktop" in this repository means macOS.** Neither `pad_input` nor
+`pointer_lock` has a Windows or Linux native side — both answer `isSupported`
+false there, honestly and by design, so nothing crashes — and no application
+has a `windows/` or `linux/` directory to build in the first place. A
+first-person game on either would be played by dragging the mouse, with no
+controller. The Dart halves that carry every trap are written and tested; what
+is missing is XInput plus `ClipCursor`, and evdev plus XI2 raw motion.
+
+Android and iOS build and none has been played on a handset — what a phone
+alone can answer is whether the on-screen stick is the right size, whether the
+buttons are reachable, whether there is enough screen left to turn the camera,
+and whether the device holds a frame.
 
 **Flutter GPU is a per-application setting on every platform, and it fails
 silently.** Apple platforms want `FLTEnableFlutterGPU` in `Info.plist`; Android
@@ -197,7 +215,7 @@ Applications: `apps/flutter3d_demo_dungeon` (shooter),
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-one rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -255,14 +273,29 @@ frames in flight have passed.
 ### 4.2 The render list and packed sort keys
 
 ```
-opaque:      [ drawBucket:8 | pipelineId:12 | materialId:20 | depth:24 ]  → ascending
-transparent: [ drawBucket:8 |        invDepth:24 | pipelineId:12       ]  → farthest first
+stateThenDepth: [ bucket:8 | pipeline:6 | material:15 | depth:14 ]  → ascending
+backToFront:    [ bucket:8 |            invDepth:35            ]  → farthest first
 ```
 
 The pipeline is the high-order field because shaders are compiled ahead of time:
 switching a pipeline inside a pass is the most expensive state change there is, so
-sorting by it is structural rather than an optimisation. Depth is quantised into
-24 bits, which is more than enough for ordering.
+sorting by it is structural rather than an optimisation.
+
+**The budget is 43 bits, not 64**, and this table said otherwise for a long
+time — twelve bits of pipeline, twenty of material and twenty-four of depth,
+which is a scene an order of magnitude larger than the one the code sorts.
+Twenty bits are reserved for the draw index the key carries as its payload
+(`kPayloadBits`), and what is left is above. Two consequences worth stating
+rather than discovering: opaque depth **saturates past 256 units**, so two
+objects further out than that sort by material instead of by distance; and
+material ids wrap at 32 767, past which two materials can share one and the
+sort quietly gets worse. Neither is a correctness bug — a wrong order costs
+overdraw, not a wrong picture — and both are numbers somebody sizing a scene
+against this document would otherwise get wrong by a factor of ten.
+
+The transparent key carries no pipeline field at all: back-to-front is the
+whole of what correctness requires there, and spending bits on state would take
+them from the depth that decides whether the picture is right.
 
 Sorting is a radix sort over packed keys (`sortPackedKeys`), with an ordinary sort
 below a threshold of 96 entries, where eight passes clearing a 256-entry histogram
@@ -278,6 +311,20 @@ the light, with an orthographic volume fitted to the scene. Depth goes into a
 **colour** target, because a depth texture cannot be sampled through flutter_gpu,
 and the orthographic camera is what makes `gl_FragCoord.z` a linear distance worth
 comparing. Front-face culling, PCF 3×3, a depth bias and a normal offset.
+
+**Three cascades, side by side in one atlas.** §15 said for a long time that a
+single map was all the directional light had, and that had stopped being true:
+`ShadowSettings.cascades` defaults to 3, split logarithmically at
+`cascadeSplit` 0.7 over a `viewDistance` of sixty metres. Each cascade fits a
+sphere along the view axis and is texel-snapped to its own grid, so the shadow
+does not swim as the camera moves; the shader is handed the far and farthest
+matrices beside the near one and picks by depth.
+
+The cost is the honest reason to keep the number small: the atlas is
+`resolution` × `cascades` wide, so a 2048 map at three cascades is 6144 texels
+across. That is the same arithmetic that made a cube tile expensive before it
+got its own `cubeResolution` — one number multiplied by a count nobody was
+looking at.
 
 Point lights use cube shadows in an atlas. Faces store radial distance rather than
 depth, because depth is per-face and would seam at every boundary; the shader is
@@ -1028,7 +1075,7 @@ against whatever entities a game defines.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **2950 tests** across 23 packages and 5 applications |
-| Structure rules | 20, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 32 scenes against **three independent reference sets** —
@@ -1179,10 +1226,10 @@ KTX2/Basis transcoding has no Dart implementation.
 animation state machine — a crossfade is useful on its own, and a state machine
 without one is not.
 
-**Shadows are one directional map rather than a cascade.** Point lights have cube
-shadows in an atlas, which is a different thing and not a substitute: the
-directional light is the one that would want a cascade, and a single map is what
-it has.
+**No shadows past `ShadowSettings.viewDistance`**, which defaults to sixty
+metres. The directional light's cascades fit the view up to that distance and
+nothing beyond it casts — a level whose far end matters visually wants the
+number raised, and pays for it in texels.
 
 **The web backend now draws all thirty-two golden scenes the way Impeller does**,
 between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
