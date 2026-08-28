@@ -217,8 +217,17 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   /// pitch limit.
   void look(Vector2 delta) {
     yaw -= delta.x * lookSensitivity;
-    pitch = _pitch - delta.y * lookSensitivity;
+    pitch = _pitch - delta.y * lookSensitivity * (invertLook ? -1.0 : 1.0);
   }
+
+  /// Whether pushing the mouse forward looks down rather than up.
+  ///
+  /// A preference and not a taste: a sizeable minority of people cannot play
+  /// a first-person game without it, and the ones who need it know within
+  /// seconds. Beside [lookSensitivity] because they are the same kind of
+  /// thing — what the application's settings screen decides about the pointer
+  /// — and because the vertical axis is the only one anybody inverts.
+  bool invertLook = false;
 
   /// Where the eye is, from where the body simulated itself to be.
   void eye(Vector3 out) => eyeFrom(body.position, out);

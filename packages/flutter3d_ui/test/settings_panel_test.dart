@@ -28,6 +28,29 @@ Mixer _mixer() => Mixer()
   ..setVolume(AudioBus.sfx, 0.9);
 
 void main() {
+  testWidgets('a settings document that could not be saved says so', (
+    WidgetTester tester,
+  ) async {
+    // **`lastWriteFailed` was computed, tested and read by nothing.** Its own
+    // doc comment says "the panel can now say so instead of losing it
+    // silently", and the panel did not: a player on a full disk or a browser
+    // out of quota moved every slider here and lost every one of them, with
+    // the controls behaving exactly as they do when the write succeeds.
+    //
+    // Mutation: drop the `writeFailed` clause from the panel. Nothing on
+    // screen distinguishes a saved setting from a discarded one.
+    await tester.pumpWidget(_panel(writeFailed: true));
+
+    expect(find.textContaining('could not be saved'), findsOneWidget);
+  });
+
+  testWidgets('and says nothing when it saved', (WidgetTester tester) async {
+    // The other half, so the message is a report rather than decoration.
+    await tester.pumpWidget(_panel());
+
+    expect(find.textContaining('could not be saved'), findsNothing);
+  });
+
   testWidgets('every bus the mixer carries has a slider', (
     WidgetTester tester,
   ) async {
@@ -143,7 +166,13 @@ void main() {
         _panel(onSetting: (String name, double value) => changed[name] = value),
       );
 
-      final toggle = find.byType(Switch);
+      // By the row it sits in rather than by type: the panel has a second
+      // switch now — inverting the mouse's vertical look — and `byType` would
+      // find both and refuse to choose.
+      final toggle = find.descendant(
+        of: find.widgetWithText(Row, 'Hold to sprint'),
+        matching: find.byType(Switch),
+      );
       await tester.ensureVisible(toggle);
       await tester.pumpAndSettle();
       await tester.tap(toggle);
@@ -240,6 +269,7 @@ Widget _panel({
   GameAction? waitingFor,
   void Function(GameAction? action)? onRebind,
   VoidCallback? onResetControls,
+  bool writeFailed = false,
 }) => MaterialApp(
   home: Scaffold(
     body: SettingsPanel(
@@ -257,6 +287,7 @@ Widget _panel({
       waitingFor: waitingFor,
       onRebind: onRebind ?? (GameAction? action) {},
       onResetControls: onResetControls ?? () {},
+      writeFailed: writeFailed,
     ),
   ),
 );
