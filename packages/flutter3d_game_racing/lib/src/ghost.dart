@@ -31,13 +31,13 @@ final class GhostRecorder {
 
   /// Records the car's place at [time], if enough time has passed.
   void tick(double time, VehicleController vehicle) => _recorder.tick(
-        time,
-        position: vehicle.position,
-        yaw: vehicle.headingYaw,
-        // The middle column of the car's basis is its own up, which is what
-        // makes a ghost on a banked corner lean with the road.
-        up: vehicle.visualBasis.getColumn(1),
-      );
+    time,
+    position: vehicle.position,
+    yaw: vehicle.headingYaw,
+    // The middle column of the car's basis is its own up, which is what
+    // makes a ghost on a banked corner lean with the road.
+    up: vehicle.visualBasis.getColumn(1),
+  );
 
   /// Ends the recording and hands over the lap.
   GhostTape finish(double lapTime) => _recorder.finish(lapTime);
@@ -58,12 +58,10 @@ extension GhostDocument on GhostTape {
   double get lapTime => seconds;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'version': 1,
-        'lapTime': seconds,
-        'frames': <Map<String, Object?>>[
-          for (final frame in poses) frame.toJson(),
-        ],
-      };
+    'version': 1,
+    'lapTime': seconds,
+    'frames': <Map<String, Object?>>[for (final frame in poses) frame.toJson()],
+  };
 }
 
 /// Reads a lap back from what was written.
@@ -71,9 +69,9 @@ extension GhostDocument on GhostTape {
 /// Forwards compatibility in the one direction that matters: a player's best
 /// lap is the thing they would most mind losing to a format change.
 GhostTape ghostTapeFromJson(Map<String, Object?> json) => GhostTape(
-      seconds: (json['lapTime']! as num).toDouble(),
-      poses: <GhostFrame>[
-        for (final frame in json['frames']! as List<Object?>)
-          GhostFrame.fromJson(frame! as Map<String, Object?>),
-      ],
-    );
+  seconds: (json['lapTime']! as num).toDouble(),
+  poses: <GhostFrame>[
+    for (final frame in json['frames']! as List<Object?>)
+      GhostFrame.fromJson(frame! as Map<String, Object?>),
+  ],
+);

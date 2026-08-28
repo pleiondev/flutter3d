@@ -48,11 +48,11 @@ final class TrackSpline {
     List<BarrierBand> barriers = const <BarrierBand>[],
     List<double> checkpoints = const <double>[],
     this.grid = const StartGrid(),
-  })  : _widths = List<double>.unmodifiable(widths),
-        _banks = List<double>.unmodifiable(banks),
-        _surfaces = List<SurfaceBand>.unmodifiable(surfaces),
-        _barriers = List<BarrierBand>.unmodifiable(barriers),
-        checkpoints = List<double>.unmodifiable(checkpoints) {
+  }) : _widths = List<double>.unmodifiable(widths),
+       _banks = List<double>.unmodifiable(banks),
+       _surfaces = List<SurfaceBand>.unmodifiable(surfaces),
+       _barriers = List<BarrierBand>.unmodifiable(barriers),
+       checkpoints = List<double>.unmodifiable(checkpoints) {
     if (widths.length != centre.pointCount) {
       throw ArgumentError.value(
         widths.length,

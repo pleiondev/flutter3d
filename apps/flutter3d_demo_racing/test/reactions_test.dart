@@ -28,9 +28,9 @@ final class _Car implements VehicleController {
     this.impactThisStep = 0.0,
     Vector3? at,
   }) : collider = Collider(
-          shape: CollisionSphere(0.7),
-          position: at ?? Vector3(0.0, 1.0, 0.0),
-        );
+         shape: CollisionSphere(0.7),
+         position: at ?? Vector3(0.0, 1.0, 0.0),
+       );
 
   @override
   final Collider collider;
@@ -87,18 +87,18 @@ RaceState _race(TrackSpline track, int cars) =>
     RaceState(mode: RaceMode.race, track: track, racers: cars, laps: 3);
 
 TrackSpline _ring() => TrackSpline(
-      centre: CatmullRom(<Vector3>[
-        Vector3(40.0, 0.0, 0.0),
-        Vector3(0.0, 0.0, 40.0),
-        Vector3(-40.0, 0.0, 0.0),
-        Vector3(0.0, 0.0, -40.0),
-      ]),
-      widths: List<double>.filled(4, 16.0),
-      banks: List<double>.filled(4, 0.0),
-      surfaces: const <SurfaceBand>[],
-      checkpoints: const <double>[],
-      grid: const StartGrid(s: 0.0, columns: 2),
-    );
+  centre: CatmullRom(<Vector3>[
+    Vector3(40.0, 0.0, 0.0),
+    Vector3(0.0, 0.0, 40.0),
+    Vector3(-40.0, 0.0, 0.0),
+    Vector3(0.0, 0.0, -40.0),
+  ]),
+  widths: List<double>.filled(4, 16.0),
+  banks: List<double>.filled(4, 0.0),
+  surfaces: const <SurfaceBand>[],
+  checkpoints: const <double>[],
+  grid: const StartGrid(s: 0.0, columns: 2),
+);
 
 void main() {
   final track = _ring();
@@ -196,8 +196,9 @@ void main() {
     // A car is simulated as a sphere whose centre floats above the road, so
     // particles emitted at `position` come out of the roof.
     final car = _Car(slipRatio: -0.9, at: Vector3(0.0, 1.0, 0.0));
-    final reaction =
-        Reactions().listen(_race(track, 1), <VehicleController>[car]);
+    final reaction = Reactions().listen(_race(track, 1), <VehicleController>[
+      car,
+    ]);
 
     expect(reaction.bursts.single.at.y, lessThan(car.position.y));
   });

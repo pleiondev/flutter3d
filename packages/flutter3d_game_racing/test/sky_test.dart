@@ -44,8 +44,11 @@ void main() {
       // the game would fall on the wrong side of every object, and the sun
       // would light the underside of the track.
       for (final preset in SkyPresets.all) {
-        expect(preset.sunDirection.dot(preset.directionToSun), lessThan(0.0),
-            reason: preset.name);
+        expect(
+          preset.sunDirection.dot(preset.directionToSun),
+          lessThan(0.0),
+          reason: preset.name,
+        );
       }
     });
   });
@@ -62,11 +65,7 @@ void main() {
         Vector3(0.0, -1.0, 0.0),
         Vector3.zero(),
         for (var i = 0; i < 64; i++)
-          Vector3(
-            math.cos(i * 0.31),
-            math.sin(i * 0.7),
-            math.sin(i * 0.31),
-          ),
+          Vector3(math.cos(i * 0.31), math.sin(i * 0.7), math.sin(i * 0.31)),
       ];
 
       for (final direction in directions) {
@@ -83,8 +82,10 @@ void main() {
       final toSun = preset.directionToSun;
       final away = Vector3(-toSun.x, toSun.y, -toSun.z);
 
-      expect(_brightness(preset.colourAt(toSun)),
-          greaterThan(_brightness(preset.colourAt(away))));
+      expect(
+        _brightness(preset.colourAt(toSun)),
+        greaterThan(_brightness(preset.colourAt(away))),
+      );
     });
 
     test('the zenith is the zenith and the horizon is the horizon', () {
@@ -146,8 +147,10 @@ void main() {
       final toSun = preset.directionToSun;
       final flatToSun = Vector3(toSun.x, 0.0, toSun.z).normalized();
 
-      expect(_brightness(preset.colourAt(flatToSun)),
-          greaterThan(_brightness(preset.horizonFogColour)));
+      expect(
+        _brightness(preset.colourAt(flatToSun)),
+        greaterThan(_brightness(preset.horizonFogColour)),
+      );
     });
 
     test('brightens into the sun and not away from it', () {
@@ -170,8 +173,7 @@ void main() {
 
     test('a zero view direction is the neutral haze, not a crash', () {
       final preset = SkyPresets.morning;
-      expect(preset.inScatterAlong(Vector3.zero()),
-          preset.horizonFogColour);
+      expect(preset.inScatterAlong(Vector3.zero()), preset.horizonFogColour);
     });
 
     test('asks for a ground the generator can afford to build', () {
@@ -189,10 +191,16 @@ void main() {
       // `apps/flutter3d_demo_racing/test/frame_test.dart`; here it is only the range.
       for (final preset in SkyPresets.all) {
         final reach = math.log(1.0 / 0.12) / preset.fogDensity;
-        expect(reach, greaterThan(200.0),
-            reason: '${preset.name} is pea soup: the far corners are gone');
-        expect(reach, lessThan(760.0),
-            reason: '${preset.name} needs a ground the shadows cannot afford');
+        expect(
+          reach,
+          greaterThan(200.0),
+          reason: '${preset.name} is pea soup: the far corners are gone',
+        );
+        expect(
+          reach,
+          lessThan(760.0),
+          reason: '${preset.name} needs a ground the shadows cannot afford',
+        );
       }
     });
   });

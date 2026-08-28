@@ -42,7 +42,6 @@ import 'src/sounds.dart';
 import 'src/staging.dart';
 import 'src/touch_drive.dart';
 
-
 void main() => runApp(const RacingApp());
 
 class RacingApp extends StatelessWidget {
@@ -50,10 +49,10 @@ class RacingApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const MaterialApp(
-        title: 'Ring',
-        debugShowCheckedModeBanner: false,
-        home: RaceScreen(),
-      );
+    title: 'Ring',
+    debugShowCheckedModeBanner: false,
+    home: RaceScreen(),
+  );
 }
 
 class RaceScreen extends StatefulWidget {
@@ -84,9 +83,13 @@ class _RaceScreenState extends State<RaceScreen>
   /// with no error anywhere except a Metal validation line. The platformer
   /// starts with `Scene()` for the same reason, which is how this was found.
   Scene _scene = Scene();
-  static const PerspectiveProjection _lens =
-      PerspectiveProjection(fovYRadians: 1.05, near: 0.3, far: 1600.0);
+  static const PerspectiveProjection _lens = PerspectiveProjection(
+    fovYRadians: 1.05,
+    near: 0.3,
+    far: 1600.0,
+  );
   final CameraNode _camera = CameraNode(projection: _lens);
+
   /// The view, and the one colour behind the sky.
   ///
   /// Nearly nothing shows this now: the sky is drawn per pixel and covers every
@@ -120,16 +123,16 @@ class _RaceScreenState extends State<RaceScreen>
   /// `RenderView.clearColor` is sRGB — which is why the clear colour is now
   /// only what shows before the first circuit has loaded.
   SkySettings _skySettings() => SkySettings(
-        enabled: true,
-        zenith: _sky.zenith,
-        horizon: _sky.horizon,
-        nadir: _sky.belowHorizon,
-        directionToSun: _sky.directionToSun,
-        sunColor: _sky.sunColor,
-        glowExponent: _sky.glowWide,
-        glowStrength: _sky.glowStrength,
-        sunIntensity: _sky.sunDisc,
-      );
+    enabled: true,
+    zenith: _sky.zenith,
+    horizon: _sky.horizon,
+    nadir: _sky.belowHorizon,
+    directionToSun: _sky.directionToSun,
+    sunColor: _sky.sunColor,
+    glowExponent: _sky.glowWide,
+    glowStrength: _sky.glowStrength,
+    sunIntensity: _sky.sunDisc,
+  );
 
   Vector4 _skyColour() {
     final colour = _sky.colourAt(_gaze);
@@ -207,10 +210,8 @@ class _RaceScreenState extends State<RaceScreen>
   late GhostKeeper _ghosts = _keeperFor(_circuit);
   GhostCar? _ghostCar;
 
-  GhostKeeper _keeperFor(Circuit circuit) => GhostKeeper(
-        storage: defaultStorage('racing'),
-        track: circuit.track,
-      );
+  GhostKeeper _keeperFor(Circuit circuit) =>
+      GhostKeeper(storage: defaultStorage('racing'), track: circuit.track);
 
   /// How far above the body's own origin each car is drawn, in metres.
   ///
@@ -272,11 +273,9 @@ class _RaceScreenState extends State<RaceScreen>
     // The stick steers; the pedals are bound like the buttons they also are, so
     // a player can move them. Which way the stick turns the car is not
     // something anybody rebinds.
-    routes: PadRoutes.driving(
-      steerLeft: Drive.left,
-      steerRight: Drive.right,
-    ),
+    routes: PadRoutes.driving(steerLeft: Drive.left, steerRight: Drive.right),
   )..applySettings(_config);
+
   /// The loop, rather than a bare `FixedStep`.
   ///
   /// **This game drove the clock itself and got none of the loop's services**:
@@ -313,6 +312,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// that will not start. `autofocus` only covers the first frame.
   final FocusNode _keyboard = FocusNode(debugLabel: 'drive');
   final List<CarVoice> _voices = <CarVoice>[];
+
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
@@ -366,8 +366,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// turned reduce-motion on has said something about exactly that, and this
   /// game was not listening.
   void _applyAccessibility() {
-    _chase?.motion =
-        _config.settingOf('a11y.cameraMotion', _system.cameraMotion);
+    _chase?.motion = _config.settingOf(
+      'a11y.cameraMotion',
+      _system.cameraMotion,
+    );
   }
 
   Future<void> _open() async {
@@ -674,7 +676,9 @@ class _RaceScreenState extends State<RaceScreen>
       stepSeconds: _loop.clock.stepSeconds,
     );
 
-    if (_celebrateFor > 0.0) _celebrateFor = (_celebrateFor - dt).clamp(0.0, 4.0);
+    if (_celebrateFor > 0.0) {
+      _celebrateFor = (_celebrateFor - dt).clamp(0.0, 4.0);
+    }
     if (_refusedFor > 0.0) _refusedFor = (_refusedFor - dt).clamp(0.0, 2.0);
 
     // **What the loop accepted, not what the clock said.** A frame longer than
@@ -785,17 +789,13 @@ class _RaceScreenState extends State<RaceScreen>
     for (var i = 1; i < _cars.length; i++) {
       // How far the player is up the road from this car, wrapped, which is what
       // the rubber band reads.
-      var gap = player.progressAlong(track.length) -
-              race.progress[i].progressAlong(track.length);
+      var gap =
+          player.progressAlong(track.length) -
+          race.progress[i].progressAlong(track.length);
       if (gap.abs() > track.length / 2) {
         gap -= gap.sign * track.length;
       }
-      ai.drive(
-        _cars[i],
-        simulation.inputs[i],
-        others: _cars,
-        playerGap: gap,
-      );
+      ai.drive(_cars[i], simulation.inputs[i], others: _cars, playerGap: gap);
     }
   }
 
@@ -856,7 +856,10 @@ class _RaceScreenState extends State<RaceScreen>
 
     final player = race.progress[0];
     if (race.countdownTickThisStep) {
-      _audio.play(race.countdown > 0.0 ? Sounds.count : Sounds.go, _ears.position);
+      _audio.play(
+        race.countdown > 0.0 ? Sounds.count : Sounds.go,
+        _ears.position,
+      );
     }
     if (player.bestLapThisStep) {
       _audio.play(Sounds.best, _ears.position);
@@ -880,9 +883,9 @@ class _RaceScreenState extends State<RaceScreen>
     final race = _race!;
     final player = race.progress[0];
     return RaceReadout(
-                behind: _pace.behind,
-                paused: _settings.state.isOpen,
-                notice: _notice,
+      behind: _pace.behind,
+      paused: _settings.state.isOpen,
+      notice: _notice,
       speed: _cars[0].speed,
       lap: player.lap,
       laps: race.laps,
@@ -896,8 +899,7 @@ class _RaceScreenState extends State<RaceScreen>
       tyresRefused: _refusedFor > 0.0,
       damage: _cars[0].damage,
       wrongWay: player.wrongWay,
-      countdown:
-          race.phase == RacePhase.countdown ? race.countdown : null,
+      countdown: race.phase == RacePhase.countdown ? race.countdown : null,
       mode: race.mode,
       outline: _outline,
       carsOnMap: <Vector2>[
@@ -908,12 +910,12 @@ class _RaceScreenState extends State<RaceScreen>
 
   @override
   Widget build(BuildContext context) => BlocBuilder<RaceCubit, RaceStatus>(
-        bloc: _raceCubit,
-        builder: (BuildContext context, RaceStatus status) {
-          if (status is RaceFailed) return DidNotStart(status.error);
-          return _screen();
-        },
-      );
+    bloc: _raceCubit,
+    builder: (BuildContext context, RaceStatus status) {
+      if (status is RaceFailed) return DidNotStart(status.error);
+      return _screen();
+    },
+  );
 
   /// Everything [build] used to return directly, once there is neither a
   /// cubit failure to show instead nor — see the check below — a renderer to
@@ -940,8 +942,11 @@ class _RaceScreenState extends State<RaceScreen>
           // three clauses go in is `settingsKeys`; what is this game's is the
           // opening itself: the keys the car was holding are let go, or it
           // comes back accelerating into a wall.
-          final settingsSay =
-              settingsKeys(event, _settings, opening: _input.clear);
+          final settingsSay = settingsKeys(
+            event,
+            _settings,
+            opening: _input.clear,
+          );
           if (settingsSay != null) return settingsSay;
           return _devices.handleKeyEvent(event);
         },

@@ -41,8 +41,8 @@ final class TireModel {
     double lateralTail = 0.72,
     this.peakSlipRatio = 0.14,
     double longitudinalTail = 0.82,
-  })  : _lateralShape = _shapeFor(lateralTail),
-        _longitudinalShape = _shapeFor(longitudinalTail) {
+  }) : _lateralShape = _shapeFor(lateralTail),
+       _longitudinalShape = _shapeFor(longitudinalTail) {
     _lateralStiffness = _stiffnessFor(_lateralShape, peakSlipAngle);
     _longitudinalStiffness = _stiffnessFor(_longitudinalShape, peakSlipRatio);
   }
@@ -135,17 +135,17 @@ final class GripTable extends SurfaceTable<double> {
   /// A reasonable place to start, against a car that pulls about one gravity
   /// on tarmac.
   const GripTable.common()
-      : this(const <String, double>{
-          'asphalt': 1.0,
-          'concrete': 0.95,
-          'kerb': 0.85,
-          'dirt': 0.65,
-          'gravel': 0.55,
-          'grass': 0.45,
-          'sand': 0.4,
-          'wet': 0.7,
-          'ice': 0.22,
-        });
+    : this(const <String, double>{
+        'asphalt': 1.0,
+        'concrete': 0.95,
+        'kerb': 0.85,
+        'dirt': 0.65,
+        'gravel': 0.55,
+        'grass': 0.45,
+        'sand': 0.4,
+        'wet': 0.7,
+        'ice': 0.22,
+      });
 
   /// How much grip [surface] offers. The old name for [SurfaceTable.of], kept
   /// because a tyre model reads better for it.

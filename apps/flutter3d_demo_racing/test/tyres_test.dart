@@ -21,32 +21,36 @@ RaceReadout _readout({
   String tyres = 'road',
   bool refused = false,
   double damage = 0.0,
-}) =>
-    RaceReadout(
-      speed: 20.0,
-      lap: 0,
-      laps: 3,
-      position: 1,
-      racers: 4,
-      lapTime: 12.5,
-      bestLap: null,
-      record: null,
-      tyres: tyres,
-      tyresRefused: refused,
-      damage: damage,
-      wrongWay: false,
-      countdown: null,
-      mode: RaceMode.race,
-      outline: <Vector2>[Vector2.zero(), Vector2(1.0, 1.0)],
-      carsOnMap: <Vector2>[Vector2.zero()],
-    );
+}) => RaceReadout(
+  speed: 20.0,
+  lap: 0,
+  laps: 3,
+  position: 1,
+  racers: 4,
+  lapTime: 12.5,
+  bestLap: null,
+  record: null,
+  tyres: tyres,
+  tyresRefused: refused,
+  damage: damage,
+  wrongWay: false,
+  countdown: null,
+  mode: RaceMode.race,
+  outline: <Vector2>[Vector2.zero(), Vector2(1.0, 1.0)],
+  carsOnMap: <Vector2>[Vector2.zero()],
+);
 
-Future<void> _show(WidgetTester tester, RaceReadout readout) => tester.pumpWidget(
-      MaterialApp(home: Scaffold(body: RaceHud(readout: readout))),
+Future<void> _show(WidgetTester tester, RaceReadout readout) =>
+    tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: RaceHud(readout: readout)),
+      ),
     );
 
 void main() {
-  testWidgets('the screen says which tyres are on', (WidgetTester tester) async {
+  testWidgets('the screen says which tyres are on', (
+    WidgetTester tester,
+  ) async {
     await _show(tester, _readout(tyres: 'slicks'));
 
     expect(find.text('SLICKS'), findsOneWidget);
@@ -62,8 +66,9 @@ void main() {
     expect(find.text('ROAD'), findsNothing);
   });
 
-  testWidgets('and says nothing about damage until there is some',
-      (WidgetTester tester) async {
+  testWidgets('and says nothing about damage until there is some', (
+    WidgetTester tester,
+  ) async {
     // A line reading NONE every lap of every clean race is a line a driver
     // stops seeing, and this one has to be noticed the once.
     await _show(tester, _readout());
@@ -84,13 +89,25 @@ void main() {
     final game = File('lib/main.dart').readAsStringSync();
     final controls = File('lib/src/controls.dart').readAsStringSync();
 
-    expect(game, contains('pitStop('),
-        reason: 'three sets of tyres, and no way to put any of them on');
-    expect(game, contains('.damage'),
-        reason: 'cars get broken and the screen never says so');
-    expect(controls, contains("GameAction('tyres')"),
-        reason: 'the verb is not in the table, so it cannot be rebound');
-    expect(game, contains('Drive.tyres'),
-        reason: 'the action exists and nothing is bound to it');
+    expect(
+      game,
+      contains('pitStop('),
+      reason: 'three sets of tyres, and no way to put any of them on',
+    );
+    expect(
+      game,
+      contains('.damage'),
+      reason: 'cars get broken and the screen never says so',
+    );
+    expect(
+      controls,
+      contains("GameAction('tyres')"),
+      reason: 'the verb is not in the table, so it cannot be rebound',
+    );
+    expect(
+      game,
+      contains('Drive.tyres'),
+      reason: 'the action exists and nothing is bound to it',
+    );
   });
 }

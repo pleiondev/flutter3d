@@ -29,9 +29,7 @@ TrackSpline ringTrack({double radius = 70.0, int points = 20}) {
         shoulder: 'grass',
       ),
     ],
-    checkpoints: <double>[
-      for (var i = 1; i < 4; i++) centre.length * i / 4,
-    ],
+    checkpoints: <double>[for (var i = 1; i < 4; i++) centre.length * i / 4],
     grid: const StartGrid(s: -10.0, columns: 2),
   );
 }
@@ -198,7 +196,11 @@ void main() {
         turnAround(it);
       }
 
-      expect(crossings, greaterThan(0), reason: 'the line must really be crossed');
+      expect(
+        crossings,
+        greaterThan(0),
+        reason: 'the line must really be crossed',
+      );
       expect(it.player.lap, 0);
     });
 
@@ -241,8 +243,11 @@ void main() {
       driveRound(it, seconds: 6.0, backwards: true);
 
       expect(it.player.wrongWay, isTrue);
-      expect(it.player.wrongWayStartedThisStep, isFalse,
-          reason: 'it started some steps ago, and only the first one is news');
+      expect(
+        it.player.wrongWayStartedThisStep,
+        isFalse,
+        reason: 'it started some steps ago, and only the first one is news',
+      );
     });
 
     test('a moment going backwards is not going the wrong way', () {
@@ -283,8 +288,11 @@ void main() {
       driveRound(it, seconds: 6.0);
       final wasAt = it.player.s;
 
-      it.vehicles[0].placeAt(Vector3(0.0, -200.0, 0.0), 0.0,
-          trackDistance: wasAt);
+      it.vehicles[0].placeAt(
+        Vector3(0.0, -200.0, 0.0),
+        0.0,
+        trackDistance: wasAt,
+      );
       it.simulation.step(_step);
 
       expect(it.player.respawnedThisStep, isTrue);
@@ -296,8 +304,11 @@ void main() {
       final it = Race();
       driveRound(it, seconds: 10.0);
 
-      it.vehicles[0].placeAt(Vector3(0.0, -200.0, 0.0), 0.0,
-          trackDistance: it.player.s);
+      it.vehicles[0].placeAt(
+        Vector3(0.0, -200.0, 0.0),
+        0.0,
+        trackDistance: it.player.s,
+      );
       it.simulation.step(_step);
 
       final tangent = Vector3.zero();
@@ -397,8 +408,7 @@ void main() {
       final it = Race(mode: RaceMode.race, cars: 2);
       driveRound(it, seconds: 8.0);
 
-      final leader =
-          it.race.progress[0].s > it.race.progress[1].s ? 0 : 1;
+      final leader = it.race.progress[0].s > it.race.progress[1].s ? 0 : 1;
 
       expect(it.race.positionOf(leader), 1);
       expect(it.race.positionOf(1 - leader), 2);
@@ -445,13 +455,15 @@ void main() {
 
       // Put them on top of each other and let the step sort it out.
       final target = it.vehicles[0].position.clone();
-      it.vehicles[1].placeAt(target, it.vehicles[1].headingYaw,
-          trackDistance: it.vehicles[0].trackDistance);
+      it.vehicles[1].placeAt(
+        target,
+        it.vehicles[1].headingYaw,
+        trackDistance: it.vehicles[0].trackDistance,
+      );
 
       it.simulation.step(_step);
 
-      final apart =
-          it.vehicles[0].position.distanceTo(it.vehicles[1].position);
+      final apart = it.vehicles[0].position.distanceTo(it.vehicles[1].position);
       expect(apart, greaterThan(1.0));
     });
 
@@ -563,5 +575,4 @@ void main() {
       );
     });
   });
-
 }

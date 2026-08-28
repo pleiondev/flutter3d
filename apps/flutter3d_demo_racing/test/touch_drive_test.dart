@@ -25,8 +25,7 @@ const GameAction _right = GameAction('steerRight');
 const GameAction _throttle = GameAction('throttle');
 
 /// The steering the game would ask the car for, given what the devices said.
-double _steer(InputState input) =>
-    input.value(_right) - input.value(_left);
+double _steer(InputState input) => input.value(_right) - input.value(_left);
 
 void main() {
   testWidgets('and two fingers are two controls', (WidgetTester tester) async {
@@ -65,8 +64,11 @@ void main() {
     );
     await tester.pump();
 
-    expect(_steer(input), closeTo(1.0, 0.02),
-        reason: 'the second finger took the wheel');
+    expect(
+      _steer(input),
+      closeTo(1.0, 0.02),
+      reason: 'the second finger took the wheel',
+    );
     expect(input.value(_throttle), 1.0);
 
     await wheel.up();
@@ -76,9 +78,15 @@ void main() {
   test('and the game shows them where there is no keyboard', () {
     final game = File('lib/main.dart').readAsStringSync();
 
-    expect(game, contains('TouchDrive('),
-        reason: 'a phone gets a car it cannot drive');
-    expect(game, contains('Playing.touch'),
-        reason: 'a wheel is drawn over a desktop that has a keyboard');
+    expect(
+      game,
+      contains('TouchDrive('),
+      reason: 'a phone gets a car it cannot drive',
+    );
+    expect(
+      game,
+      contains('Playing.touch'),
+      reason: 'a wheel is drawn over a desktop that has a keyboard',
+    );
   });
 }

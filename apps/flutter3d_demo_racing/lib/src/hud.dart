@@ -38,7 +38,8 @@ class RaceHud extends StatelessWidget {
                 if (readout.mode != RaceMode.freeRoam) ...<Widget>[
                   HudLine(
                     label: 'LAP',
-                    value: '${math.min(readout.lap + 1, readout.laps)}'
+                    value:
+                        '${math.min(readout.lap + 1, readout.laps)}'
                         '/${readout.laps}',
                   ),
                   if (readout.mode == RaceMode.race)
@@ -80,12 +81,12 @@ class RaceHud extends StatelessWidget {
               ],
             ),
           ),
-          Positioned(right: 16, bottom: 16, child: Speedometer(readout: readout)),
           Positioned(
-            left: 16,
+            right: 16,
             bottom: 16,
-            child: MiniMap(readout: readout),
+            child: Speedometer(readout: readout),
           ),
+          Positioned(left: 16, bottom: 16, child: MiniMap(readout: readout)),
           if (readout.wrongWay)
             const Positioned(
               left: 0,
@@ -139,33 +140,33 @@ class RaceHud extends StatelessWidget {
               ),
             ),
           if (readout.behind)
-          Positioned(
-            right: 24,
-            top: 24,
-            child: Text(
-              'This machine is behind — the race is running slowly.',
-              style: TextStyle(
-                color: Colors.amber.withValues(alpha: 0.9),
-                fontSize: 13,
-                shadows: const <Shadow>[
-                  Shadow(blurRadius: 8, color: Colors.black87),
-                ],
-              ),
-            ),
-          ),
-        if (readout.paused)
-          const Positioned.fill(
-            child: ColoredBox(
-              color: Color(0xAA000000),
-              child: Center(
-                child: Text(
-                  'Paused — Escape to drive on',
-                  style: TextStyle(color: Colors.white, fontSize: 22),
+            Positioned(
+              right: 24,
+              top: 24,
+              child: Text(
+                'This machine is behind — the race is running slowly.',
+                style: TextStyle(
+                  color: Colors.amber.withValues(alpha: 0.9),
+                  fontSize: 13,
+                  shadows: const <Shadow>[
+                    Shadow(blurRadius: 8, color: Colors.black87),
+                  ],
                 ),
               ),
             ),
-          ),
-      ],
+          if (readout.paused)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0xAA000000),
+                child: Center(
+                  child: Text(
+                    'Paused — Escape to drive on',
+                    style: TextStyle(color: Colors.white, fontSize: 22),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

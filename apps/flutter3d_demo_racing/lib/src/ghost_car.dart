@@ -28,7 +28,8 @@ final class GhostKeeper {
   /// Which circuit this is a lap of. Part of the filename for the reason above.
   final String track;
 
-  String get _name => 'ghost-${track.split('/').last.replaceAll('.json', '')}.json';
+  String get _name =>
+      'ghost-${track.split('/').last.replaceAll('.json', '')}.json';
 
   final GhostRecorder _recorder = GhostRecorder();
 
@@ -91,8 +92,7 @@ final class GhostKeeper {
   /// file exists: a ghost that nothing calls is a ghost nobody sees, and a
   /// method can be tested where four lines inside a widget cannot.
   bool stepped(RacerProgress player, VehicleController car) {
-    final record =
-        player.lapCompletedThisStep && finished(player.lastLap);
+    final record = player.lapCompletedThisStep && finished(player.lastLap);
     watch(player.lapTime, car);
     return record;
   }
@@ -173,8 +173,11 @@ final class GhostCar {
   /// second load. Null only when that asset could not be read, and then this
   /// falls back to the box for the same reason the cars do: a race that runs
   /// beats a race that does not.
-  static GhostCar build(GraphicsDevice device, Scene scene,
-      {ModelAsset? model}) {
+  static GhostCar build(
+    GraphicsDevice device,
+    Scene scene, {
+    ModelAsset? model,
+  }) {
     final SceneNode node;
     if (model == null) {
       node = carBox(device, Looks.ghost(), name: 'ghost');
