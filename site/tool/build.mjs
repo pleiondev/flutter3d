@@ -32,6 +32,7 @@ const NAV = [
     pages: [
       { file: 'index.md', url: '/', title: 'flutter3d' },
       { file: 'quickstart.md', url: '/quickstart/', title: 'Quickstart' },
+      { file: 'first-project.md', url: '/first-project/', title: 'Your first project', kind: 'guide' },
     ],
   },
   {
@@ -88,6 +89,8 @@ const NAV = [
     section: 'Reference',
     slug: 'reference',
     pages: [
+      { file: 'reference/glossary.md', url: '/reference/glossary/', title: 'Glossary' },
+      { file: 'reference/tuning.md', url: '/reference/tuning/', title: 'The knobs' },
       { file: 'reference/pitfalls.md', url: '/reference/pitfalls/', title: 'Pitfalls' },
       { file: 'reference/testing.md', url: '/reference/testing/', title: 'Testing' },
       { file: 'reference/packages.md', url: '/reference/packages/', title: 'Package index' },
