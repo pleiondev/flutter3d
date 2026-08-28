@@ -35,6 +35,7 @@ import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
 import 'src/pass_coverage_checks.dart';
 import 'src/pipeline_checks.dart';
+import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
 
 /// Builds a device to test. Called fresh for each check, because a backend that
@@ -86,7 +87,17 @@ void runDeviceConformance({
 }) {
   for (final check in conformanceChecks) {
     test('$backend: ${check.name}', () async {
-      await check.run(makeDevice(width: 64, height: 64));
+      final device = makeDevice(width: 64, height: 64);
+      try {
+        await check.run(device);
+      } finally {
+        // **A device per check and none of them disposed**, which on the one
+        // backend where dispose actually frees anything meant a suite that
+        // leaked every texture it made. In a `finally` so a failing check
+        // still lets go — a check that fails is exactly when the next one
+        // wants a clean device.
+        device.dispose();
+      }
     });
   }
 }
@@ -136,6 +147,17 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a cube map answers the face a direction points at',
     run: checkCubeFaces,
+  ),
+  // Two of the nine rules ARCHITECTURE.md §7.2 states and that no signature
+  // can. Both are decisions a new backend has to make deliberately, and
+  // neither produces an error when made the other way round.
+  (
+    name: 'a null sampler means linear and repeat',
+    run: checkNullSamplerRepeats,
+  ),
+  (
+    name: 'setDepthWrite(false) stops depth writes',
+    run: checkDepthWriteIsHonoured,
   ),
 ];
 
