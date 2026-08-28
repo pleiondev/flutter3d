@@ -38,6 +38,7 @@ import 'src/editing.dart';
 import 'src/editor_bar.dart';
 import 'src/editor_chooser.dart';
 import 'src/editor_cubit.dart';
+import 'src/editor_inspector.dart';
 import 'src/editor_legend.dart';
 import 'src/editor_palette.dart';
 import 'src/fly_camera.dart';
@@ -1040,6 +1041,23 @@ class _EditorScreenState extends State<EditorScreen>
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: EditorPalette(state: state),
+                  ),
+                ),
+                // The right-hand side, opposite the palette: what a level can
+                // be made of on the left, what the selected piece *is* on the
+                // right. Nothing when nothing is selected, so the picture is
+                // not narrowed by a panel with nothing in it.
+                Positioned(
+                  right: 0,
+                  top: 64,
+                  bottom: 64,
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: EditorInspector(
+                      state: state,
+                      onChanged: (String what) =>
+                          _changed('$what — ${state.editing.says}'),
+                    ),
                   ),
                 ),
                 Positioned(

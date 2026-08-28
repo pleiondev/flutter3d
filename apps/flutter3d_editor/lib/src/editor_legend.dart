@@ -23,7 +23,8 @@ final class EditorLegend extends StatelessWidget {
       children: <Widget>[
         const Text(
           'W A S D fly · Q E down and up · shift faster · '
-          'scroll forward · drag to look · click to select',
+          'scroll forward · drag to look · click to select · '
+          'fields on the right',
           style: TextStyle(color: Color(0xFFCBD3DD), fontSize: 12),
         ),
         const SizedBox(height: 2),
@@ -32,7 +33,7 @@ final class EditorLegend extends StatelessWidget {
           '· − = size or brightness · , . turn '
           '· ⌘D copy · ⌫ delete '
           '· G grid ($_gridSaid) · B lamp (${state.lampOn ? 'on' : 'off'}) '
-          '· ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
+          '· ⌘Z undo · ⇧⌘Z redo · ⌘S save · ⇧⌘S save a copy',
           style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
         ),
       ],
