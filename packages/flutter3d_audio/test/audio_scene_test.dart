@@ -240,6 +240,54 @@ void main() {
       expect(scene.emitters, isEmpty);
     });
 
+    test('and so is one that was never near enough to be heard', () {
+      // **The leak nothing could see.** The removal above only fires for an
+      // emitter that has a voice, and a one-shot played beyond its own
+      // attenuation never gets one — so it was never removed, and stayed in
+      // the scene being measured, and raycast for occlusion, every frame for
+      // the life of the level. `voiceCount` counts emitters with voices, so
+      // the number a game shows on its overlay said nothing was wrong.
+      //
+      // Not hypothetical: the crypt's near sounds carry 26 metres in a level
+      // larger than that, so every grunt and every door across it accumulated.
+      //
+      // Mutation: drop the `removeWhere` at the end of `update`. The scene
+      // still holds the emitter after any number of frames.
+      final backend = SilentBackend();
+      final scene = AudioScene(backend: backend);
+      scene.play(_step, Vector3(100.0, 0.0, 0.0));
+
+      scene.update(_ears());
+
+      expect(backend.started, isEmpty, reason: 'it must not have been audible');
+      expect(scene.emitters, isEmpty);
+    });
+
+    test('but a loop out of range waits, because it may come back', () {
+      // The other side of the same rule, and what keeps it from being "drop
+      // anything without a voice": a loop is a source of sound rather than a
+      // sound, and one out of range now is one the player can walk towards.
+      //
+      // Mutation: drop the `!emitter.sound.loop` clause. A torch beyond the
+      // corridor is forgotten and never crackles when you reach it.
+      const loop = SoundDef(
+        name: 'fire',
+        asset: 'a/fire.ogg',
+        loop: true,
+        attenuation: InverseRolloff(reference: 1.0, maximum: 20.0),
+      );
+      final scene = AudioScene(backend: SilentBackend());
+      final emitter = scene.play(loop, Vector3(100.0, 0.0, 0.0));
+
+      scene.update(_ears());
+      expect(scene.emitters, hasLength(1));
+
+      emitter.position.setValues(1.0, 0.0, 0.0);
+      scene.update(_ears());
+
+      expect(emitter.audibleGain, greaterThan(0.0));
+    });
+
     test('stopping one by hand ends its voice', () {
       final backend = SilentBackend();
       final scene = AudioScene(backend: backend);
