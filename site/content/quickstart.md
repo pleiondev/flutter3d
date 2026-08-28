@@ -84,7 +84,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-2901 tests across 23 packages and five applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty-two scenes checkable in a headless run.
+2901 tests across 23 packages and five applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, so thirty-two scenes stay checkable in a headless run.
 
 ## Your own application
 
@@ -163,6 +163,7 @@ Scene buildScene(GraphicsDevice device) {
 
 ## Where to go next
 
+- [Your first project](/first-project/): a project of your own, scaffolded from a template, in a directory that is not this one
 - [Core: what core is](/core/): the shape of the engine and which package owns what
 - [The frame](/core/rendering/): what the renderer actually does with a scene
 - [Tutorial: first scene](/core/tutorial/): the whole application, step by step

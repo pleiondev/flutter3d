@@ -8,7 +8,7 @@ repository; nothing here is imported by it.
 A static documentation site for the flutter3d engine, published at
 **https://flutter3d.pleion.dev/** behind basic auth.
 
-Twenty-five pages of Markdown and one build script, with no framework and no
+Thirty pages of Markdown and one build script, with no framework and no
 client-side router. Every page is a file on disk, so nginx serves it with
 `try_files` and nothing else, and a broken page is a broken page instead of a
 blank screen.

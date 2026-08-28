@@ -45,6 +45,11 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
     <h3>Quickstart</h3>
     <p>Resolve the workspace, build the shader bundle, and put a lit mesh on screen.</p>
   </a></li>
+  <li><a href="/first-project/">
+    <span class="card-kind">An afternoon</span>
+    <h3>Your first project</h3>
+    <p>Scaffold one from the editor's template, run it, edit its level, change how it feels.</p>
+  </a></li>
   <li><a href="/core/">
     <span class="card-kind">Engine</span>
     <h3>Core</h3>
