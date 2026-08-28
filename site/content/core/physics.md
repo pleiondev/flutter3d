@@ -87,7 +87,7 @@ Sweeps are swept-AABB against the grid's ray walk, so a fast body does not tunne
 
 ## The character controller
 
-Kinematic. It sweeps and slides, and **nothing ever moves it**, which is what makes a first-person game feel solid.
+Kinematic. It sweeps and slides, and **nothing ever moves it**. That is what a first-person game feels as solidity.
 
 ```dart
 final body = CharacterController(
