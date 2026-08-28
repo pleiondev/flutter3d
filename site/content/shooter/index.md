@@ -1,5 +1,5 @@
 ---
-description: What flutter3d_game_shooter adds on top of core — weapons, an arsenal, hitscan and projectiles, monsters with a six-state brain, an inventory, gifts and the step order that drives them.
+description: What flutter3d_game_shooter adds on top of core. Weapons, an arsenal, hitscan and projectiles, monsters with a six-state brain, an inventory, gifts and the step order that drives them.
 ---
 
 # What a shooter adds
@@ -8,13 +8,13 @@ description: What flutter3d_game_shooter adds on top of core — weapons, an ars
 
 The line is the one the game layer already drew: **machinery stays, vocabulary moves.**
 
-| Machinery — stays in core | Vocabulary — lives here |
+| Machinery (stays in core) | Vocabulary (lives here) |
 |---|---|
 | `Mechanism`, `Actor`, `ActorSystem` | `Inventory`, `Arsenal`, `Gift` |
 | `MechanismEvents.taken`, the level format | `Pickup`, `PickupKind`, `KeyKind`, `NoteKind` |
 | `Brain`, `Mind`, navigation | `ChaseBrain`, `MonsterDef`, `Bestiary` |
 | `CharacterController`, `CollisionWorld` | `Player`, `WeaponDef`, `WeaponShot` |
-| `FixedStep`, `Snapshot` | `GameSimulation` — the step *order* |
+| `FixedStep`, `Snapshot` | `GameSimulation`, the step *order* |
 
 Nothing here imports the renderer. `WeaponView` does, and it lives in `bridge.dart` for that reason; a test holds the split.
 
@@ -153,7 +153,7 @@ final GiftRegistry gifts = GiftRegistry(<Gift>[
 ]);
 ```
 
-A `Gift` answers two questions: `grantTo(inventory, amount, detail)` — did it do anything, and `announce(amount, detail)` — what does the HUD say. A pickup that grants nothing is refused rather than silently consumed, so walking over a medkit at full health leaves the medkit there.
+A `Gift` answers two questions: `grantTo(inventory, amount, detail)`, did it do anything, and `announce(amount, detail)`, what does the HUD say. A pickup that grants nothing is refused rather than silently consumed, so walking over a medkit at full health leaves the medkit there.
 
 ## Monsters
 
@@ -177,7 +177,7 @@ static const MonsterDef runner = MonsterDef(
 );
 ```
 
-A monster's attack is a `WeaponDef` — the same type the player's shotgun is. That is what makes a fireball, a claw and a rocket one code path.
+A monster's attack is a `WeaponDef`, the same type the player's shotgun is. That is what makes a fireball, a claw and a rocket one code path.
 
 ### The brain
 
@@ -222,11 +222,11 @@ The part that is easy to get wrong and impossible to see.
 ```dart
 void step(double dt) {
   // 1. read input into a wish direction (a dead player's input moves nothing)
-  // 2. mechanisms.step  — doors and lifts move
-  // 3. collision.reindex — the broadphase catches up
-  // 4. dynamics.step     — crates fall onto where the lift is now
-  // 5. player.body.step  — the player sweeps against all of it
-  // 6. dynamics.push     — what they shove depends on where they ended up
+  // 2. mechanisms.step:  doors and lifts move
+  // 3. collision.reindex: the broadphase catches up
+  // 4. dynamics.step:     crates fall onto where the lift is now
+  // 5. player.body.step:  the player sweeps against all of it
+  // 6. dynamics.push:     what they shove depends on where they ended up
   // 7. collision.update / clearKinematicDeltas
   // 8. the use key, then mechanisms.publish(), then read the exits
   // 9. inventory.step, then the weapon

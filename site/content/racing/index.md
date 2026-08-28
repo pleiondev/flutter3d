@@ -25,7 +25,7 @@ final track = TrackSpline(
   widths: widthPerControlPoint,               // one per control point
   banks: bankPerControlPoint,                 // camber, in radians
   shoulder: 4.0,                              // how far the ground continues
-  surfaces: <SurfaceBand>[...],               // tarmac, kerb, gravel, by arc length
+  surfaces: <SurfaceBand>[...],               // asphalt, kerb, gravel, by arc length
   barriers: <BarrierBand>[...],               // which sides have a wall, and where
   checkpoints: <double>[...],                 // in order round the lap
   grid: const StartGrid(columns: 2, rowGap: 8.0, columnGap: 4.0),
@@ -64,36 +64,21 @@ abstract interface class GroundField {
 `SphereVehicle` is a collider that rolls, plus a heading and a basis assembled for the renderer. Not a four-wheel rig: there is no suspension per corner and no wheel that can leave the ground on its own.
 
 ```dart
+track.startSlot(0, position, forward);   // where car nought starts
+
 final car = SphereVehicle(
   world: collision,
   ground: field,
-  tuning: const VehicleTuning(
-    radius: 0.6,
-    rideHeight: 0.35,
-    maxSpeed: 62.0,
-    maxReverse: 12.0,
-    enginePush: 14.0,
-    brakeStrength: 26.0,
-    rollingDrag: 0.6,
-    airDrag: 0.42,
-    maxSteer: 0.62,      // radians at a standstill
-    steerFalloff: 0.55,  // how much of it is left at speed
-    wheelBase: 2.6,
-    gravity: -22.0,
-    gripLimit: 14.0,
-    groundStick: 26.0,
-    suspensionRate: 9.0,
-    slideAlignment: 6.0,
-    wheelInertia: 0.5,
-  ),
-  tires: const TireModel(...),
-  grips: const GripTable(<String, double>{
-    'tarmac': 1.0, 'kerb': 0.85, 'gravel': 0.45, 'grass': 0.35,
-  }),
+  position: position.clone()..y += 0.6,  // the sphere's centre floats above the road
+  headingYaw: math.atan2(forward.x, forward.z),
+  tuning: const VehicleTuning(maxSpeed: 62.0),
+  tyres: Tyres.slicks,
 );
 
 car.step(dt, input);
 ```
+
+`VehicleTuning` is the table of engine, brakes, steering and gravity, all plain units. The grip is not in it: `Tyres` bundles the `TireModel` curve, the `GripTable` that says what each surface is worth to it, and `limit`, how many gravities there are to spend on a surface worth `1.0`. Three sets ship (`Tyres.road`, `Tyres.slicks`, `Tyres.rally`), a car given none starts on road tires, and `pitStop` swaps them at a standstill.
 
 `VehicleController` is the interface the rest of the genre talks to, so a four-wheel model can replace this one without the simulation, the AI or the camera noticing:
 
@@ -108,7 +93,7 @@ void step(double dt, VehicleInput input);
 void placeAt(Vector3 position, double headingYaw, {double? trackDistance});
 ```
 
-`VehicleInput` is a throttle, a brake, a steer and a handbrake — not a forward and a back. `GameAction` is a string for exactly this reason: a car's controls are not a walker's.
+`VehicleInput` is a throttle, a brake, a steer and a handbrake, not a forward and a back. `GameAction` is a string for exactly this reason: a car's controls are not a walker's.
 
 ## The tire is a curve, not a friction coefficient
 
@@ -215,7 +200,7 @@ Recorded at 30 Hz and interpolated with Catmull-Rom on playback, so the tape is 
 ## The chase camera
 
 ```dart
-final camera = ChaseCamera(track: track, tuning: const ChaseTuning(
+final camera = ChaseCamera(world: collision, track: track, tuning: const ChaseTuning(
   distance: 7.5, height: 2.6, aimHeight: 1.0,
   lag: 9.0,
   headingBlend: 0.65,      // between where the car points and where it is going
@@ -235,7 +220,7 @@ The field of view opens with speed, and the camera looks ahead along the track r
 
 - **No four-wheel model.** One sphere, one contact patch, no per-corner suspension and no wheel that can leave the ground alone.
 - **No gearbox.** `rpm` is derived from wheel speed for the sound to read; there are no ratios and no shifts.
-- **No tire wear, no fuel, no damage.**
+- **No tire wear, no fuel.** Damage there is, and it only slows the car: a wreck still corners and still stops.
 - **No pit lane, no flags, no penalties.** `offRoad` is reported and the car is put back; nothing takes a time away.
 - **No split screen.** `RenderView` supports it; nothing in this package assumes one camera, and nobody has written the other one.
 

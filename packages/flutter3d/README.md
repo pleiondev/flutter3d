@@ -98,7 +98,7 @@ What works today:
   `CUBICSPLINE` with authored tangents), slerped rotations, an `AnimationPlayer`
   with play/pause/seek/speed and once/loop/ping-pong, and the decoded node
   hierarchy rebuilt on instantiation so an animated parent carries its subtree;
-- 424 tests — geometry, projection, scene, sorting, debug draw, intersections,
+- 682 tests — geometry, projection, scene, sorting, debug draw, intersections,
   raycasting, animation, skinning, lighting, tangents, render targets, BVH, LOD,
   glTF, OBJ and `.f3d` — all without a GPU.
 
@@ -154,7 +154,7 @@ Both decoders emit a **shared abstraction**, `ModelDocument`: a list of
 (mesh and image deduplication, material conversion), and it means adding a third
 format is a matter of writing a decoder rather than touching the loader.
 
-Materials are normalized to metal-rough, because that is what glTF defines and what
+Materials are normalised to metal-rough, because that is what glTF defines and what
 the shaders implement. OBJ predates PBR, so its parameters are **explicitly
 approximated**: `Kd` becomes the base colour, the Phong exponent `Ns` becomes
 roughness, and a bright neutral `Ks` is the only hint of metalness available. The
@@ -312,7 +312,7 @@ example/lib/                    the demo, and the frame capture hook
 test/                           682 tests, all runnable without a GPU
 ```
 
-This package is one of twenty-two; see the [repository README](../../README.md)
+This package is one of twenty-three; see the [repository README](../../README.md)
 for how the game layer, the backends and the genre templates sit around it.
 
 The scene layer holds a `MeshGeometry`, not a `GpuMesh`. Bounds, culling, framing
@@ -346,3 +346,19 @@ whole array is written from that base — correct because the std140 stride for 
 `vec4` array is a flat 16 bytes. The probe is kept in `shaders/spike_array.frag`
 for the next SDK bump. The payoff is measurable: a capture with three lights and
 one with a single light both report **one** pipeline.
+
+---
+
+Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
+implementation** of a 3D engine for Flutter — not a fork or a binding of
+another engine, and not affiliated with the Flutter team. Three switchable
+rendering backends: Impeller via Flutter GPU, WebGL2, and a software
+rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
+skinning, animation, BVH culling and picking; a deterministic fixed-step game
+layer with collision, navigation, positional audio, and gamepad and touch
+input. Three example games — shooter, platformer, racing — each built on its
+genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
+[`flutter3d_game_platformer`](../flutter3d_game_platformer),
+[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from
+[`apps/flutter3d_template_app`](../../apps/flutter3d_template_app).
+Documentation: <https://flutter3d.pleion.dev>.

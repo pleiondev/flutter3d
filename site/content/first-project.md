@@ -115,7 +115,7 @@ The rest of them, and the ones each genre adds on top, are in [the knobs](/refer
 
 ## Add a genre {.step}
 
-The seed walks; a game does something. Each of the three games in this checkout keeps that wiring in one file, `lib/src/staging.dart`: what an entity type spawns, what a weapon is, what a coin does when you touch it. Read the one for your genre and copy the shape of it.
+The seed walks; a game does something. Each of the three games in this checkout keeps that wiring in one file, `lib/src/staging.dart`: what an entity type spawns, what a weapon is, what a coin does when you touch it. The one to copy from is `apps/flutter3d_demo_dungeon/lib/src/staging.dart` for a shooter, `apps/flutter3d_demo_platformer/lib/src/staging.dart` for a platformer, and `apps/flutter3d_demo_racing/lib/src/staging.dart` for a racer.
 
 The genre pages say what each package brings: [what a shooter adds](/shooter/), [what a platformer adds](/platformer/), [what a racing game adds](/racing/).
 

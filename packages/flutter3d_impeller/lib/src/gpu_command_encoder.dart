@@ -16,6 +16,10 @@ import 'gpu_device.dart';
 import 'gpu_formats.dart';
 import 'gpu_texture.dart';
 
+/// [CommandEncoder] over one flutter_gpu command buffer with its one open
+/// pass — see the library comment on why the two are fused. [submit] is the
+/// end of both: it hands the buffer to the queue and moves the frame's
+/// accounting from "encoding" to "outstanding".
 final class GpuCommandEncoder implements CommandEncoder {
   GpuCommandEncoder(this._buffer, this._pass, this._backend, this._frame);
 

@@ -6,6 +6,7 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
+/// Maps the engine's [MinMagFilter] to its `package:flutter_gpu` equivalent.
 extension MinMagFilterToGpu on MinMagFilter {
   gpu.MinMagFilter toGpu() => switch (this) {
     MinMagFilter.nearest => gpu.MinMagFilter.nearest,
@@ -13,6 +14,8 @@ extension MinMagFilterToGpu on MinMagFilter {
   };
 }
 
+/// Maps `package:flutter_gpu`'s min/mag filter back to the engine's
+/// [MinMagFilter].
 extension MinMagFilterFromGpu on gpu.MinMagFilter {
   MinMagFilter toEngine() => switch (this) {
     gpu.MinMagFilter.nearest => MinMagFilter.nearest,
@@ -20,6 +23,7 @@ extension MinMagFilterFromGpu on gpu.MinMagFilter {
   };
 }
 
+/// Maps the engine's [MipFilter] to its `package:flutter_gpu` equivalent.
 extension MipFilterToGpu on MipFilter {
   gpu.MipFilter toGpu() => switch (this) {
     MipFilter.nearest => gpu.MipFilter.nearest,
@@ -27,6 +31,7 @@ extension MipFilterToGpu on MipFilter {
   };
 }
 
+/// Maps `package:flutter_gpu`'s mip filter back to the engine's [MipFilter].
 extension MipFilterFromGpu on gpu.MipFilter {
   MipFilter toEngine() => switch (this) {
     gpu.MipFilter.nearest => MipFilter.nearest,
@@ -34,6 +39,8 @@ extension MipFilterFromGpu on gpu.MipFilter {
   };
 }
 
+/// Maps the engine's [SamplerAddressMode] to its `package:flutter_gpu`
+/// equivalent.
 extension SamplerAddressModeToGpu on SamplerAddressMode {
   gpu.SamplerAddressMode toGpu() => switch (this) {
     SamplerAddressMode.clampToEdge => gpu.SamplerAddressMode.clampToEdge,
@@ -42,6 +49,8 @@ extension SamplerAddressModeToGpu on SamplerAddressMode {
   };
 }
 
+/// Maps `package:flutter_gpu`'s address mode back to the engine's
+/// [SamplerAddressMode].
 extension SamplerAddressModeFromGpu on gpu.SamplerAddressMode {
   SamplerAddressMode toEngine() => switch (this) {
     gpu.SamplerAddressMode.clampToEdge => SamplerAddressMode.clampToEdge,
@@ -66,6 +75,8 @@ extension SamplerAddressModeFromGpu on gpu.SamplerAddressMode {
 final Map<SamplerOptions, gpu.SamplerOptions> _samplerCache =
     <SamplerOptions, gpu.SamplerOptions>{};
 
+/// Maps [SamplerOptions] to its `package:flutter_gpu` equivalent, served from
+/// the cache above rather than built per call — see the note on the cache.
 extension SamplerOptionsToGpu on SamplerOptions {
   gpu.SamplerOptions toGpu() => _samplerCache[this] ??= gpu.SamplerOptions(
     minFilter: minFilter.toGpu(),
@@ -76,6 +87,9 @@ extension SamplerOptionsToGpu on SamplerOptions {
   );
 }
 
+/// Maps `package:flutter_gpu`'s sampler options back to the engine's
+/// [SamplerOptions], built fresh each call — the cache above is keyed the
+/// other way.
 extension SamplerOptionsFromGpu on gpu.SamplerOptions {
   SamplerOptions toEngine() => SamplerOptions(
     minFilter: minFilter.toEngine(),

@@ -29,7 +29,7 @@ games use, and lets somebody fly around it and change it.
 | `,` `.` | turn an entity |
 | `⌫` | delete |
 | `G` | grid: 0.25 m, 1 m, off |
-| `⌘Z` | undo |
+| `⌘Z`, `⇧⌘Z` | undo, redo |
 | `⌘S`, `⇧⌘S` | save, save a copy |
 
 ## Starting a game
@@ -208,9 +208,9 @@ Nothing stops the camera at a wall, on purpose — see `fly_camera.dart`.
 
 ## What it does not do yet
 
-No file dialogue (the path is a `--dart-define`), no entities or lights (brushes
-only), no material picker, no redo, and no gizmos — moving is on the keyboard
-and on the grid. The rebuild is the whole level on every change, because a brush
-is batched into its material's mesh and there is nothing smaller to rebuild; at
-the size of the levels here that is a frame's work and it keeps the picture and
-the document impossible to disagree.
+No file dialogue (the path is a `--dart-define`), and nothing is dragged with
+the mouse — the marks and selection boxes are drawn, not grabbed, so moving and
+resizing are on the keyboard and on the grid. The rebuild is the whole level on
+every change, because a brush is batched into its material's mesh and there is
+nothing smaller to rebuild; at the size of the levels here that is a frame's
+work and it keeps the picture and the document impossible to disagree.

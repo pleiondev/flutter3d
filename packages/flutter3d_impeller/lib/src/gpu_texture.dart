@@ -149,6 +149,9 @@ TextureFormat colorFormatOrFallback(TextureFormat reported) =>
 TextureFormat get defaultDepthStencilFormat =>
     gpu.gpuContext.defaultDepthStencilFormat.toEngine();
 
+/// The one door back through [TextureHandle] to the flutter_gpu texture
+/// inside it, for the lines in a pass that must hand the real object to the
+/// device.
 extension GpuTextureHandle on TextureHandle {
   /// The flutter_gpu texture behind this handle.
   ///

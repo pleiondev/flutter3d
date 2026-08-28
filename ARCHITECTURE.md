@@ -211,7 +211,9 @@ ordinary unit test, and none of the three is visible in a screenshot.
 
 Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_platformer`, `apps/flutter3d_demo_racing`,
-`apps/flutter3d_editor` (level editor), plus the engine's own example.
+`apps/flutter3d_editor` (level editor) and `apps/flutter3d_template_app` (the
+seed a new project starts from), plus the engine's own example — five
+applications, which is the count the workspace list is held to.
 
 ### 3.3 Rules that are scanned, not remembered
 

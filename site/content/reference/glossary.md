@@ -54,7 +54,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
 <dl class="keys">
   <div><dt>Fixed step</dt><dd>The simulation advances in equal slices, whatever the frame rate. Two machines fed the same intents reach the same place; the frame interpolates between the last two steps</dd></div>
   <div><dt>Intent</dt><dd>What a player asked for, in a game's own words: <code>jump</code>, <code>fire</code>, <code>dash</code>. A <code>GameAction</code>, which is a value class rather than an enum, so a genre adds one without editing the engine</dd></div>
-  <div><dt>Actor</dt><dd>An <code>Actor</code>: something alive that a brain drives. Monsters are actors; the player is not, because a player has no brain to run</dd></div>
+  <div><dt>Actor</dt><dd>An <code>Actor</code>: an entity and a handle, with every part of it optional. A monster carries a body, health and a brain; a barrel carries no brain, and <code>isAlive</code> stays true with no health, because nothing to kill is not the same as dead</dd></div>
   <div><dt>Brain</dt><dd>A <code>Brain</code>: what an actor decides each step. States, targets, a path to walk</dd></div>
   <div><dt>Snapshot</dt><dd>Everything a save needs, taken from the simulation and restored into it. Not the tuning: a save that carried the balance patch would restore a car built by an older one</dd></div>
   <div><dt>Replay / tape</dt><dd>A recording of <em>intents</em>, not of positions. Replayed through the same fixed step it reproduces the run exactly, which is what makes a bug in a race reproducible</dd></div>
@@ -85,7 +85,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
   <div><dt>Golden</dt><dd>A reference image a scene is compared against. Three independent sets, Impeller, software and WebGL2, each held to zero differing pixels against its own</dd></div>
   <div><dt>Parity fixture</dt><dd>One scene drawn by two backends and compared as a grid of average brightness. Answers "do these two draw the same picture", which a golden cannot</dd></div>
   <div><dt>Conformance</dt><dd>The suite a backend has to pass before it counts as one. Split in two: what needs no shaders, and the rest</dd></div>
-  <div><dt>Structure rule</dt><dd>One of nineteen scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
+  <div><dt>Structure rule</dt><dd>One of twenty-one scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
 </dl>
 
 ## Next
