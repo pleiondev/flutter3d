@@ -143,4 +143,33 @@ final class WorldStep {
     }());
     mechanisms?.publish();
   }
+
+  /// Puts the world back in agreement with itself after a snapshot has been
+  /// applied.
+  ///
+  /// A restore moves every body at once, by teleport, with no step around it —
+  /// so the broadphase is still describing where everything was before, and
+  /// the kinematic deltas still say how far things moved on a step that is now
+  /// somebody else's. Three calls, and they are [index]'s and [settle]'s
+  /// without the parts that only make sense inside a step: the rigid bodies do
+  /// not integrate here, because a restore is not time passing.
+  ///
+  /// **Written out twice and once at a third of its length.** The shooter and
+  /// the platformer each ended `restore` with the same three lines; the racing
+  /// simulation called `reindex` alone, which leaves one step after every load
+  /// dispatching overlaps computed for the pre-restore world — a car reported
+  /// off the track it is now on, a trigger that fires again for somebody who
+  /// already left it.
+  void afterRestore() {
+    collision.reindex();
+    collision.update();
+    collision.clearKinematicDeltas();
+    assert(() {
+      // A restore is not a step and owes nobody a publish. Without this, a
+      // load between two steps trips the assert in [movers] for a step that
+      // never ran.
+      _owesPublish = false;
+      return true;
+    }());
+  }
 }

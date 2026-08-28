@@ -102,6 +102,7 @@ final class _Walk {
       input: input,
       startAt: Vector3.zero(),
       levelNext: level.next,
+      random: GameRandom(1),
     );
   }
 

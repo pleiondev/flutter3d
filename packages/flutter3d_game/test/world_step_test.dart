@@ -156,4 +156,69 @@ void main() {
 
     expect(true, isTrue, reason: 'reaching here without throwing is the test');
   });
+
+  group('a snapshot header is not part of the payload', () {
+    test('the version goes on the way out and comes off on the way back', () {
+      // `fromJson` used to hand back the document it was given, version and
+      // all, so every system reading its own fields also got a key belonging
+      // to the envelope. Nothing noticed while nothing called `fromJson` — the
+      // save file constructed a `Snapshot` directly — and the moment it was
+      // wired up, a restore that compares what it was handed started seeing an
+      // extra field.
+      //
+      // Mutation: return `Snapshot(json)` from `fromJson`. The round trip
+      // below gains a `version` key that the game never wrote.
+      const written = Snapshot(<String, Object?>{'where': 'two'});
+
+      expect(written.toJson()['version'], Snapshot.formatVersion);
+      expect(Snapshot.fromJson(written.toJson()).data, <String, Object?>{
+        'where': 'two',
+      });
+    });
+
+    test('and a document from a newer build is refused, not misread', () {
+      expect(
+        () => Snapshot.fromJson(<String, Object?>{
+          'version': Snapshot.formatVersion + 1,
+        }),
+        throwsA(isA<SnapshotFormatException>()),
+      );
+      expect(
+        () => Snapshot.fromJson(<String, Object?>{'where': 'two'}),
+        throwsA(isA<SnapshotFormatException>()),
+        reason: 'a document with no version is not a snapshot',
+      );
+    });
+  });
+
+  group('what a restore owes the world', () {
+    test('afterRestore puts the broadphase back in step with the bodies', () {
+      // Two thirds of this was missing from one game and present in the other
+      // two, which is the shape a shared class exists to end. `reindex` alone
+      // leaves the overlap set and the kinematic deltas describing the world
+      // as it was before the load, so the first step after it dispatches
+      // somebody else's contacts.
+      //
+      // Mutation: drop `clearKinematicDeltas` from `afterRestore`. The rider
+      // below is carried by a delta belonging to a step that never happened.
+      final world = CollisionWorld();
+      final platform = world.add(
+        Collider(
+          shape: CollisionBox(Vector3(2.0, 0.5, 2.0)),
+          position: Vector3.zero(),
+          kind: ColliderKind.kinematic,
+        ),
+      );
+      final step = WorldStep(collision: world);
+
+      platform.moveTo(Vector3(1.0, 0.0, 0.0));
+      step.afterRestore();
+
+      expect(
+        platform.delta,
+        Vector3.zero(),
+        reason: 'a restore is a teleport, not a step something rode',
+      );
+    });
+  });
 }

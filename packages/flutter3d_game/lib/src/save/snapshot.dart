@@ -44,15 +44,27 @@ final class Snapshot {
   /// Bumped when an existing field changes meaning.
   static const int formatVersion = 1;
 
+  /// What the game wrote, and only that.
+  ///
+  /// The version is not in here: [toJson] puts it on the way out and
+  /// [fromJson] takes it off on the way back, so a system reading its own
+  /// fields never sees a key it did not write. That symmetry is worth stating
+  /// because it was not held for as long as nothing called [fromJson] — the
+  /// header would otherwise arrive inside the payload and every restore would
+  /// carry a field belonging to the envelope.
   final Map<String, Object?> data;
 
+  /// The name the version is written under, which is therefore a name a game
+  /// cannot use for a field of its own.
+  static const String versionKey = 'version';
+
   Map<String, Object?> toJson() => <String, Object?>{
-    'version': formatVersion,
+    versionKey: formatVersion,
     ...data,
   };
 
   factory Snapshot.fromJson(Map<String, Object?> json) {
-    final version = json['version'];
+    final version = json[versionKey];
     if (version is! num) {
       throw const SnapshotFormatException(
         'no version, so this is not a '
@@ -65,7 +77,10 @@ final class Snapshot {
         'understands ($formatVersion)',
       );
     }
-    return Snapshot(json);
+    return Snapshot(<String, Object?>{
+      for (final entry in json.entries)
+        if (entry.key != versionKey) entry.key: entry.value,
+    });
   }
 }
 

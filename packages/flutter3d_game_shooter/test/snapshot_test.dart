@@ -189,8 +189,22 @@ void main() {
     });
 
     test('a snapshot from an older build is read', () {
-      final older = Snapshot.fromJson(<String, Object?>{'version': 1});
-      expect(older.data['version'], 1);
+      // Read rather than refused: only a *newer* document is a refusal, since
+      // an older one's fields still mean what they meant.
+      //
+      // **This used to assert `data['version'] == 1`**, which was a claim
+      // about the envelope made from inside the payload — `fromJson` handed
+      // back the document it was given, header and all, so a system reading
+      // its own fields also got a key belonging to the format. It takes the
+      // header off now, and what is worth asserting is what a game actually
+      // gets: its own fields, and nothing thrown.
+      final older = Snapshot.fromJson(<String, Object?>{
+        'version': 1,
+        'player': <String, Object?>{'health': 42},
+      });
+
+      expect(older.data.containsKey(Snapshot.versionKey), isFalse);
+      expect(older.data['player'], <String, Object?>{'health': 42});
     });
 
     test('it survives being written to text and read back', () {

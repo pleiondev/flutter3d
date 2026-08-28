@@ -110,6 +110,7 @@ final class _Run {
       input: input,
       startAt: start,
       mechanisms: mechanisms,
+      random: GameRandom(1),
     );
   }
 

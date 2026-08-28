@@ -50,6 +50,7 @@ final class _World {
       lives: lives,
       deaths: deaths,
       elapsed: elapsed,
+      random: GameRandom(1),
     );
   }
 

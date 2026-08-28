@@ -57,6 +57,7 @@ double _doubleJumpHeight() {
     collision: world,
     input: input,
     startAt: Vector3.zero(),
+    random: GameRandom(1),
   );
 
   // Settle, so the first jump is not spent climbing out of the spawn.

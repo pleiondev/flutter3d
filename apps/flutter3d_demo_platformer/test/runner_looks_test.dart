@@ -34,6 +34,7 @@ final class _Run {
       collision: world,
       input: input,
       startAt: Vector3.zero(),
+      random: GameRandom(1),
     );
   }
 

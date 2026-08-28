@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter3d_physics/flutter3d_physics.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -124,9 +126,18 @@ final class MechanismWorld {
 
   final List<Mechanism> _all = <Mechanism>[];
   final Map<String, Mechanism> _byName = <String, Mechanism>{};
+  late final List<Mechanism> _allView = UnmodifiableListView<Mechanism>(_all);
 
   /// Everything in the level, in the order it was added.
-  List<Mechanism> get all => List<Mechanism>.unmodifiable(_all);
+  ///
+  /// **A view built once, not a copy built per call.** `List.unmodifiable` is a
+  /// fresh list every time, and three games walk this every step — counting
+  /// secrets, reading checkpoints, finding exits — so it was three allocations
+  /// sixty times a second in a package that takes an output parameter to save
+  /// one `Vector3`. A view is as unmodifiable as the copy was; what it is not
+  /// is a snapshot, so adding a mechanism while walking this now throws instead
+  /// of being quietly missed, which is the better of the two answers.
+  List<Mechanism> get all => _allView;
 
   T add<T extends Mechanism>(T mechanism) {
     mechanism._world = this;
@@ -191,6 +202,47 @@ final class MechanismWorld {
     for (var i = 0; i < _all.length; i++) {
       _all[i].collect(events);
     }
+  }
+
+  /// Every named mechanism's state, keyed by the name the level gave it.
+  ///
+  /// **Anything unnamed is skipped**, which is a decision rather than a gap: a
+  /// relay wired between two others has no state worth carrying, and inventing
+  /// a positional key for it would tie the format to the order the spawner
+  /// happened to walk the entities in — an order that changes the day somebody
+  /// reorders a level file.
+  ///
+  /// **Here rather than in a game.** Two genres had written this out, down to
+  /// the same paragraph explaining the skip, and the third had not written it
+  /// at all: the racing save carried no mechanisms while its simulation
+  /// declared them. A thing two files agree about and a third silently lacks
+  /// belongs in the package underneath both.
+  Map<String, Object?> save() => <String, Object?>{
+    for (final mechanism in _all)
+      if (mechanism.name != null) mechanism.name!: mechanism.save(),
+  };
+
+  /// Puts back what [save] wrote.
+  ///
+  /// Lenient about all of it, like every restore in this repository: an older
+  /// build's document is missing rows, an edited level names mechanisms that
+  /// are gone, and neither is a reason to refuse somebody's save.
+  ///
+  /// The events go too. They describe the step *before* the snapshot was
+  /// taken — a door that opened, a coin that was picked up — and leaving them
+  /// standing makes the first step after a load report all of it a second
+  /// time, as a sound and a message for something that happened before the
+  /// player quit.
+  void restore(Object? from) {
+    if (from is Map) {
+      for (final mechanism in _all) {
+        final name = mechanism.name;
+        if (name == null) continue;
+        final row = from[name];
+        if (row is Map) mechanism.restore(row.cast<String, Object?>());
+      }
+    }
+    events._clear();
   }
 
   /// The mechanism the player is looking at, within arm's reach.
