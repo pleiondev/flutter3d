@@ -12,7 +12,8 @@ description: apps/flutter3d_editor, the fourth application and the first that is
 <li>The fly camera, and why it moves along the ground instead of along the view</li>
 <li>Selecting, nudging and resizing on the grid, and what <code>1</code>/<code>2</code>/<code>3</code> and <code>-</code>/<code>=</code> do together</li>
 <li>The palette, and what actually happens when you place an entity with no vocabulary in the editor to describe it</li>
-<li>What still doesn't exist: a file dialog, redo, a material picker</li>
+<li>The fields panel, built from the document instead of from a schema</li>
+<li>What still doesn't exist: a file dialog, and anything dragged with the mouse</li>
 </ul>
 </div>
 
@@ -20,10 +21,12 @@ description: apps/flutter3d_editor, the fourth application and the first that is
 
 ```sh
 cd apps/flutter3d_editor
-flutter run -d macos --dart-define=level=../dungeon/assets/levels/crypt.json
+flutter run -d macos --dart-define=level=../flutter3d_demo_dungeon/assets/levels/crypt.json
 ```
 
-The path is a `--dart-define` because there is no file dialog yet. Point it at a path that doesn't exist and the editor offers a **template** instead of an error. Picking one writes a whole new project there: a vocabulary, a first level, a model per kind of thing, a `pubspec.yaml`, a `README.md`, an application that runs. Then it opens the level inside it. There is no racing template; a circuit is a different kind of document (points, widths, banks, checkpoints), and editing one is a different editor.
+The path is a `--dart-define` because there is no file dialog yet. Point it at a path that doesn't exist and the editor offers a **template** instead of an error:
+
+![The template picker: point the editor at a path that does not exist and it offers to start a platformer or a shooter there](/assets/editor/editor-template.jpg) Picking one writes a whole new project there: a vocabulary, a first level, a model per kind of thing, a `pubspec.yaml`, a `README.md`, an application that runs. Then it opens the level inside it. There is no racing template; a circuit is a different kind of document (points, widths, banks, checkpoints), and editing one is a different editor.
 
 The editor has no vocabulary of its own. A level says `monster` or `torch`, and what those are worth belongs to the game that defines them. The editor builds a registry out of whatever types are already in the document (`vocabulary.dart`) and vouches for none of it. Geometry, materials and lights it can honestly check, so a generated starter level has to load with zero errors and zero warnings against its own game's real rules.
 
@@ -55,11 +58,21 @@ Click selects whatever a ray hits, and picking **prefers the thing to the wall**
 | `,` `.` | turn an entity |
 | `⌫` | delete |
 | `G` | cycle the grid: 0.25 m, 1 m, off |
-| `⌘Z` | undo (64 steps; no redo yet) |
+| `⌘Z` / `⇧⌘Z` | undo, redo (64 steps) |
 | `⌘D` | duplicate whatever is selected |
 | `⌘S` / `⇧⌘S` | save / save a copy |
 
 Everything the renderer draws nothing for still needs to be clickable and visible: a spawn point, a torch, a monster, a trigger, the exit. Each gets a **mark**, a half-metre box tinted by its type, green for the spawn point, and a light wears the colour it casts.
+
+![The crypt open in the editor: the palette on the left, a wall brush selected, its fields on the right](/assets/editor/editor-brush.jpg)
+
+## The fields on the right
+
+Selecting something opens its document entry as a panel: one row per key that is actually in the file, with the editor chosen by the value that is there — a switch for a flag, a box for a string or a number, three boxes for a vector. There is no case per kind and no case per field, so a key this build has never heard of is shown instead of silently dropped, and the day the format grows a key this panel edits it.
+
+Under **NOT SET** the panel lists what the format defines and this entry leaves out — a brush is solid and casts a shadow by *omission*, so those keys are offered dimmed, at the value the game would read, and writing one puts the key into the document (`Editing.offerable`). Every write goes through the format's own encode and decode (`Editing.setField`), so a value the format cannot read is refused and rolled back instead of saved.
+
+![A trigger selected: its position, size and target as editable fields, and the keys the document leaves unset offered under NOT SET](/assets/editor/editor-trigger.jpg)
 
 ## Placing something new
 
@@ -79,7 +92,7 @@ Undo is a stack of whole documents, sixty-four deep, replaced wholesale instead 
 
 ## What it does not do yet
 
-No file dialog: the path is a `--dart-define`. No redo, only undo. No material picker; a brush takes whatever material its palette row named when it was placed. No gizmos either, so moving and resizing are keyboard-and-grid only.
+No file dialog: the path is a `--dart-define`. Nothing is dragged with the mouse: the marks and selection boxes are drawn, not grabbed, so moving and resizing are keyboard-and-grid only. And the rebuild is the whole level on every change, because a brush is batched into its material's mesh and there is nothing smaller to rebuild; at the size of the levels here that is a frame's work, and it keeps the picture and the document impossible to disagree.
 
 ## Next
 
