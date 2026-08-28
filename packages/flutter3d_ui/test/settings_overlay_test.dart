@@ -31,11 +31,16 @@ final class _Storage implements Storage {
 
 const GameAction _jump = GameAction('jump');
 
-Bindings _defaults() => Bindings(<InputSource, GameAction>{})
-  ..bind(InputSource.key(0x20), _jump);
+Bindings _defaults() =>
+    Bindings(<InputSource, GameAction>{})..bind(InputSource.key(0x20), _jump);
 
-({Widget widget, SettingsCubit settings, GameConfig config, List<String> opened})
-    _overlay({bool canOpen = true, bool padConnected = true}) {
+({
+  Widget widget,
+  SettingsCubit settings,
+  GameConfig config,
+  List<String> opened,
+})
+_overlay({bool canOpen = true, bool padConnected = true}) {
   final config = GameConfig();
   final opened = <String>[];
   final settings = SettingsCubit(
@@ -70,8 +75,9 @@ Bindings _defaults() => Bindings(<InputSource, GameAction>{})
 }
 
 void main() {
-  testWidgets('the gear opens the panel, and lets go of the game first',
-      (WidgetTester tester) async {
+  testWidgets('the gear opens the panel, and lets go of the game first', (
+    WidgetTester tester,
+  ) async {
     // [opening] is the same callback `settingsKeys` takes: a panel opened by a
     // gear and a panel opened by Escape have to arrive in the same state, or a
     // key held as the panel appeared stays held and closing it sends the player
@@ -84,11 +90,15 @@ void main() {
     await tester.tap(find.byIcon(Icons.settings));
     await tester.pumpAndSettle();
 
-    expect(it.opened, <String>['opening'],
-        reason: 'the gear opened a panel without letting go of the game');
+    expect(it.opened, <String>[
+      'opening',
+    ], reason: 'the gear opened a panel without letting go of the game');
     expect(it.settings.state.isOpen, isTrue);
-    expect(find.byIcon(Icons.settings), findsNothing,
-        reason: 'the gear and the panel are the same state seen twice');
+    expect(
+      find.byIcon(Icons.settings),
+      findsNothing,
+      reason: 'the gear and the panel are the same state seen twice',
+    );
   });
 
   testWidgets('and closing it puts the gear back', (WidgetTester tester) async {
@@ -103,8 +113,9 @@ void main() {
     expect(find.byIcon(Icons.settings), findsOneWidget);
   });
 
-  testWidgets('and a screen with no gear still shows a panel that is open',
-      (WidgetTester tester) async {
+  testWidgets('and a screen with no gear still shows a panel that is open', (
+    WidgetTester tester,
+  ) async {
     // The platformer's title card carries the same settings on it, so a stray
     // gear has nothing to add — but a game that reaches that screen with the
     // panel up should not have it vanish.
@@ -119,8 +130,9 @@ void main() {
     expect(find.byType(SettingsPanel), findsOneWidget);
   });
 
-  testWidgets('and what the panel changes reaches the config',
-      (WidgetTester tester) async {
+  testWidgets('and what the panel changes reaches the config', (
+    WidgetTester tester,
+  ) async {
     // The volume, the setting, the rebind and the close used to be four
     // callbacks each game forwarded to the cubit by hand. They are wired once.
     final it = _overlay();
@@ -140,8 +152,9 @@ void main() {
     expect(find.byIcon(Icons.settings), findsOneWidget);
   });
 
-  testWidgets('and resetting the controls asks the game for its own table',
-      (WidgetTester tester) async {
+  testWidgets('and resetting the controls asks the game for its own table', (
+    WidgetTester tester,
+  ) async {
     // Its own, not the engine's: a driver rebinds a throttle and a runner
     // rebinds a jump, and a reset that handed back `GameAction.common` would
     // leave a game bound to actions it does not have.
@@ -160,8 +173,9 @@ void main() {
     expect(it.config.bindings[InputSource.key(0x20)], _jump);
   });
 
-  testWidgets('and the panel is told what it was told, not a constant',
-      (WidgetTester tester) async {
+  testWidgets('and the panel is told what it was told, not a constant', (
+    WidgetTester tester,
+  ) async {
     final it = _overlay(padConnected: false);
     await tester.pumpWidget(it.widget);
     it.settings.show();

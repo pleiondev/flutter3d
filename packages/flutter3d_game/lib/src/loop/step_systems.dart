@@ -120,7 +120,8 @@ final class StepSystems {
   /// for a diagnostic overlay that answers "what is running in this step".
   List<SystemRegistration> forPhase(StepPhase phase) =>
       List<SystemRegistration>.unmodifiable(
-          _byPhase[phase.name] ?? const <SystemRegistration>[]);
+        _byPhase[phase.name] ?? const <SystemRegistration>[],
+      );
 
   static bool _before(SystemRegistration a, SystemRegistration b) =>
       a.order != b.order ? a.order < b.order : a.sequence < b.sequence;
@@ -147,6 +148,7 @@ final class SystemRegistration {
   final String? label;
 
   @override
-  String toString() => 'SystemRegistration(${label ?? 'unnamed'} '
+  String toString() =>
+      'SystemRegistration(${label ?? 'unnamed'} '
       'in ${phase.name}, order $order)';
 }

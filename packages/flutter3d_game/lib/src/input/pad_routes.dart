@@ -65,15 +65,16 @@ final class PadRoutes {
   static PadRoutes driving({
     required GameAction steerLeft,
     required GameAction steerRight,
-  }) =>
-      PadRoutes(
-        leftStick: PadStickUse.ignored,
-        rightStick: PadStickUse.ignored,
-        axisActions: <PadAxis, PadAxisPair>{
-          PadAxis.leftStickX:
-              PadAxisPair(negative: steerLeft, positive: steerRight),
-        },
-      );
+  }) => PadRoutes(
+    leftStick: PadStickUse.ignored,
+    rightStick: PadStickUse.ignored,
+    axisActions: <PadAxis, PadAxisPair>{
+      PadAxis.leftStickX: PadAxisPair(
+        negative: steerLeft,
+        positive: steerRight,
+      ),
+    },
+  );
 
   /// How far the view turns per second at full deflection, **in the mouse's
   /// units**.
@@ -103,9 +104,9 @@ final class PadRoutes {
   final double lookRate;
 
   PadRoutes copyWith({double? lookRate}) => PadRoutes(
-        leftStick: leftStick,
-        rightStick: rightStick,
-        axisActions: axisActions,
-        lookRate: lookRate ?? this.lookRate,
-      );
+    leftStick: leftStick,
+    rightStick: rightStick,
+    axisActions: axisActions,
+    lookRate: lookRate ?? this.lookRate,
+  );
 }

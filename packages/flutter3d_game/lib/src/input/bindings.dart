@@ -93,8 +93,7 @@ final class Bindings {
   GameAction? operator [](InputSource source) => _sources[source];
 
   /// Points [source] at [action], replacing whatever it did before.
-  void bind(InputSource source, GameAction action) =>
-      _sources[source] = action;
+  void bind(InputSource source, GameAction action) => _sources[source] = action;
 
   void unbind(InputSource source) => _sources.remove(source);
 

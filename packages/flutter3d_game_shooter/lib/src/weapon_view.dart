@@ -49,11 +49,7 @@ final class WeaponView {
       ..environment = environment
       ..environmentLevels = environmentLevels;
     _scene.add(
-      LightNode(
-        color: Vector3(1.0, 0.92, 0.82),
-        intensity: 4.5,
-        name: 'key',
-      )
+      LightNode(color: Vector3(1.0, 0.92, 0.82), intensity: 4.5, name: 'key')
         ..setPosition(1.0, 1.4, 0.8)
         ..lookAt(Vector3(0.0, -0.2, -1.0)),
     );
@@ -111,8 +107,10 @@ final class WeaponView {
   /// Built once and registered with the renderer, rather than handed in with
   /// every frame: what draws is now a property of the renderer, not an
   /// argument to a call.
-  late final ViewModelNode plugin =
-      ViewModelNode(scene: _scene, camera: _camera);
+  late final ViewModelNode plugin = ViewModelNode(
+    scene: _scene,
+    camera: _camera,
+  );
 
   /// Shows [weapon]'s model and hides the rest.
   void selectWeapon(WeaponDef weapon) {

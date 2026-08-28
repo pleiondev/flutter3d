@@ -127,8 +127,12 @@ final class CrumblingKind extends EntityKind {
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
-    final collider = place(entity, context, kind: ColliderKind.static,
-        fallbackSize: defaultSize);
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.static,
+      fallbackSize: defaultSize,
+    );
     final crumbling = context.mechanisms.add(
       Crumbling(
         name: entity.name,

@@ -56,18 +56,19 @@ final class _Patrol extends Brain {
   Map<String, Object?> save() => <String, Object?>{'eastward': eastward};
 
   @override
-  void restore(Map<String, Object?> from) => eastward = from['eastward'] == true;
+  void restore(Map<String, Object?> from) =>
+      eastward = from['eastward'] == true;
 }
 
 Actor _walker(ActorSystem system, {double at = 0.0}) => system.spawn(
-      body: CharacterController(
-        world: system.world,
-        position: Vector3(at, 0.9, 0.0),
-      ),
-      health: Health(30.0),
-      brain: _Patrol(from: -4.0, to: 4.0),
-      facing: Facing(),
-    );
+  body: CharacterController(
+    world: system.world,
+    position: Vector3(at, 0.9, 0.0),
+  ),
+  health: Health(30.0),
+  brain: _Patrol(from: -4.0, to: 4.0),
+  facing: Facing(),
+);
 
 /// A brain with no body, which is a perfectly good thing to be.
 final class _Counting extends Brain {
@@ -112,8 +113,11 @@ void main() {
     actor.applyDamage(50.0);
     system.step(1 / 60.0, focus: Vector3(0.0, 0.9, 20.0));
 
-    expect(system.died, hasLength(1),
-        reason: 'the death was forgotten inside the step it happened in');
+    expect(
+      system.died,
+      hasLength(1),
+      reason: 'the death was forgotten inside the step it happened in',
+    );
   });
 
   test('and is forgotten when the next step begins', () {
@@ -144,7 +148,10 @@ void main() {
     final world = CollisionWorld();
     final system = ActorSystem(world: world, random: GameRandom(1))
       ..spawn(
-        body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+        body: CharacterController(
+          world: world,
+          position: Vector3(0.0, 0.9, 0.0),
+        ),
         health: Health(10.0),
       );
 
@@ -160,7 +167,10 @@ void main() {
     final world = CollisionWorld();
     final system = ActorSystem(world: world, random: GameRandom(1))
       ..spawn(
-        body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+        body: CharacterController(
+          world: world,
+          position: Vector3(0.0, 0.9, 0.0),
+        ),
         health: Health(10.0),
       );
 
@@ -190,11 +200,19 @@ void main() {
     // A heading a hair the other side of the wrap point. The sign is the one
     // `turnTowards` takes: it faces *away* from the direction handed to it, so
     // this asks for a yaw of -pi + 0.05.
-    system.turnTowards(actor, -math.sin(-math.pi + 0.05), -math.cos(-math.pi + 0.05), 1 / 60.0);
+    system.turnTowards(
+      actor,
+      -math.sin(-math.pi + 0.05),
+      -math.cos(-math.pi + 0.05),
+      1 / 60.0,
+    );
 
     final moved = (actor.yaw - (math.pi - 0.05)).abs();
-    expect(moved, lessThan(0.5),
-        reason: 'it went the long way round: yaw ${actor.yaw}');
+    expect(
+      moved,
+      lessThan(0.5),
+      reason: 'it went the long way round: yaw ${actor.yaw}',
+    );
   });
 
   group('an actor with a brain that is not a monster', () {
@@ -237,8 +255,7 @@ void main() {
       expect(system.actors.single.yaw, closeTo(-1.5708, 0.05));
     });
 
-    test('is hurt, dies, and stops being an obstacle — with no brain for it',
-        () {
+    test('is hurt, dies, and stops being an obstacle — with no brain for it', () {
       // `onHurt` and `onDeath` are not overridden by `_Patrol`. Everything here
       // is the engine's, which is what makes it available to every game.
       final world = _ground();
@@ -247,8 +264,11 @@ void main() {
 
       expect(system.hurt(walker, 10.0), isFalse);
       expect(system.hurtThisStep.single.actor, same(walker));
-      expect(system.hurtThisStep.single.staggered, isFalse,
-          reason: 'nothing rolled a flinch, because nothing here has one');
+      expect(
+        system.hurtThisStep.single.staggered,
+        isFalse,
+        reason: 'nothing rolled a flinch, because nothing here has one',
+      );
 
       expect(system.hurt(walker, 100.0), isTrue);
       expect(system.died, <Actor>[walker]);
@@ -266,8 +286,11 @@ void main() {
       final owner = walker.body!.collider.userData;
       expect(owner, same(walker));
       expect((owner! as Damageable).applyDamage(1000.0), isTrue);
-      expect(system.died, hasLength(1),
-          reason: 'the kill never reached the system that owns it');
+      expect(
+        system.died,
+        hasLength(1),
+        reason: 'the kill never reached the system that owns it',
+      );
     });
 
     test('a brain saves and restores itself with the actor', () {
@@ -342,11 +365,17 @@ void main() {
       // asks everything in its radius, and something already dead — or a lamp
       // post with no health at all — answering "yes, that killed it" is a
       // score counted twice and a corpse killed again.
-      expect(system.hurt(barrel, 100.0), isFalse,
-          reason: 'the dead were killed a second time');
+      expect(
+        system.hurt(barrel, 100.0),
+        isFalse,
+        reason: 'the dead were killed a second time',
+      );
       expect(system.died, <Actor>[barrel]);
-      expect(system.hurt(system.spawn(), 100.0), isFalse,
-          reason: 'something with no health reported a kill');
+      expect(
+        system.hurt(system.spawn(), 100.0),
+        isFalse,
+        reason: 'something with no health reported a kill',
+      );
 
       // And it steps without complaint alongside everything else.
       system.beginStep();
@@ -357,15 +386,24 @@ void main() {
       final world = _ground();
       final system = ActorSystem(world: world, random: GameRandom(1));
       final post = system.spawn(
-        body: CharacterController(world: world, position: Vector3(2.0, 0.9, 0.0)),
+        body: CharacterController(
+          world: world,
+          position: Vector3(2.0, 0.9, 0.0),
+        ),
       );
 
-      expect(post.isAlive, isTrue,
-          reason: 'nothing to kill is not the same as dead');
+      expect(
+        post.isAlive,
+        isTrue,
+        reason: 'nothing to kill is not the same as dead',
+      );
       expect(post.applyDamage(1000.0), isFalse);
       expect(system.died, isEmpty);
-      expect(post.body!.collider.kind, isNot(ColliderKind.trigger),
-          reason: 'it was turned into a corpse, and it was never alive');
+      expect(
+        post.body!.collider.kind,
+        isNot(ColliderKind.trigger),
+        reason: 'it was turned into a corpse, and it was never alive',
+      );
     });
 
     test('without a facing it does not turn, and nothing throws', () {
@@ -381,8 +419,11 @@ void main() {
         system.step(_dt, focus: Vector3(0.0, 100.0, 0.0));
       }
       expect(drifter.yaw, 0.0);
-      expect(drifter.position!.x, greaterThan(1.0),
-          reason: 'it should still walk; only the turning is missing');
+      expect(
+        drifter.position!.x,
+        greaterThan(1.0),
+        reason: 'it should still walk; only the turning is missing',
+      );
     });
 
     test('a director: a brain and no body', () {
@@ -434,11 +475,13 @@ void main() {
 
       expect(
         system.entities.save,
-        throwsA(isA<StateError>().having(
-          (StateError e) => e.message,
-          'message',
-          contains('_Suspicion'),
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (StateError e) => e.message,
+            'message',
+            contains('_Suspicion'),
+          ),
+        ),
       );
     });
   });
@@ -472,8 +515,10 @@ void main() {
       final eye = Vector3.zero();
       tall.eyeLevel(eye);
       expect(eye.y, greaterThan(tall.position!.y));
-      expect(eye.y - tall.position!.y,
-          closeTo(tall.body!.halfExtents.y * 0.32, 1e-6));
+      expect(
+        eye.y - tall.position!.y,
+        closeTo(tall.body!.halfExtents.y * 0.32, 1e-6),
+      );
     });
   });
 
@@ -489,14 +534,14 @@ void main() {
     }
 
     Actor listener(ActorSystem system, {double at = 0.0}) => system.spawn(
-          body: CharacterController(
-            world: system.world,
-            position: Vector3(at, 0.9, 0.0),
-          ),
-          health: Health(30.0),
-          brain: _Listening(),
-          facing: Facing(),
-        );
+      body: CharacterController(
+        world: system.world,
+        position: Vector3(at, 0.9, 0.0),
+      ),
+      health: Health(30.0),
+      brain: _Listening(),
+      facing: Facing(),
+    );
 
     test('reaches everything inside the radius', () {
       final system = quietRoom();

@@ -38,9 +38,13 @@ void main() {
         final t = i / 60.0;
         if ((flame.at(t, 0.1) - flame.at(t, 0.8)).abs() > 0.01) apart++;
       }
-      expect(apart, greaterThan(60),
-          reason: 'the seed does not reach the phase, so every torch in the '
-              'level flickers as one');
+      expect(
+        apart,
+        greaterThan(60),
+        reason:
+            'the seed does not reach the phase, so every torch in the '
+            'level flickers as one',
+      );
     });
 
     test('stays inside its stated depth', () {
@@ -67,8 +71,7 @@ void main() {
       // A whole period apart is the same brightness; a half period apart is
       // not. That is what makes it a swell rather than noise.
       expect(pulse.at(0.0, 0.0), closeTo(pulse.at(4.0, 0.0), 1e-9));
-      expect((pulse.at(1.0, 0.0) - pulse.at(3.0, 0.0)).abs(),
-          greaterThan(0.1));
+      expect((pulse.at(1.0, 0.0) - pulse.at(3.0, 0.0)).abs(), greaterThan(0.1));
     });
 
     test('and never goes darker than its depth', () {
@@ -114,12 +117,20 @@ void main() {
       // And the behaviour must not take it back on the next step. Two
       // generators of one number is the failure this guards.
       fixture.step(1.0 / 60.0);
-      expect(fixture.brightness, closeTo(0.5, 1e-9),
-          reason: 'the behaviour overwrote a measured brightness, so the light '
-              'and the fire it comes from now disagree');
-      expect(own, isNot(closeTo(0.5, 1e-9)),
-          reason: 'the behaviour and the measurement happened to agree, so this '
-              'test could not tell them apart');
+      expect(
+        fixture.brightness,
+        closeTo(0.5, 1e-9),
+        reason:
+            'the behaviour overwrote a measured brightness, so the light '
+            'and the fire it comes from now disagree',
+      );
+      expect(
+        own,
+        isNot(closeTo(0.5, 1e-9)),
+        reason:
+            'the behaviour and the measurement happened to agree, so this '
+            'test could not tell them apart',
+      );
     });
 
     test('a fixture that is off is dark, measured or not', () {
@@ -128,8 +139,11 @@ void main() {
       expect(off.brightness, 0.0);
 
       off.measure(1.0);
-      expect(off.brightness, 0.0,
-          reason: 'a switched-off torch lit itself by burning');
+      expect(
+        off.brightness,
+        0.0,
+        reason: 'a switched-off torch lit itself by burning',
+      );
     });
 
     test('a measurement outside zero and one is clamped', () {
@@ -150,8 +164,11 @@ void main() {
 
       live.setValues(90.0, 90.0, 90.0);
 
-      expect(fixture.measuredAt!.x, 1.0,
-          reason: 'the fixture kept the caller\'s vector rather than its value');
+      expect(
+        fixture.measuredAt!.x,
+        1.0,
+        reason: 'the fixture kept the caller\'s vector rather than its value',
+      );
     });
 
     test('nothing measured means no position at all', () {

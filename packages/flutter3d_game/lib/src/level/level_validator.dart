@@ -30,7 +30,10 @@ final class LevelValidator {
   /// default to a roster that named this repository's own monsters, pickups
   /// and furniture, so a second game silently validated its levels against
   /// somebody else's vocabulary. There is no default a package can give.
-  const LevelValidator({required this.registry, this.rules = const <LevelRule>[]});
+  const LevelValidator({
+    required this.registry,
+    this.rules = const <LevelRule>[],
+  });
 
   /// Which entity kinds this build can spawn.
   final EntityRegistry registry;
@@ -57,8 +60,7 @@ final class LevelValidator {
   /// For loading: a level with a broken reference should refuse to start rather
   /// than start and be unfinishable.
   void assertValid(Level level) {
-    final errors =
-        validate(level).where((LevelIssue i) => i.isError).toList();
+    final errors = validate(level).where((LevelIssue i) => i.isError).toList();
     if (errors.isEmpty) return;
     throw LevelFormatException(
       'level "${level.name}" has ${errors.length} '
@@ -290,8 +292,7 @@ final class LevelValidator {
           final hi = ia < ib ? ib : ia;
           if (!reported.add((lo << 32) ^ hi)) continue;
 
-          final volume =
-              level.brushes[ia].overlapVolumeWith(level.brushes[ib]);
+          final volume = level.brushes[ia].overlapVolumeWith(level.brushes[ib]);
           // A shared face has zero volume; this is about real interpenetration.
           if (volume < 0.05) continue;
 

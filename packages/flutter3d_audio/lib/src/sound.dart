@@ -18,10 +18,10 @@ final class SoundDef {
     this.bus = AudioBus.sfx,
     this.rate = 1.0,
     this.rateVariance = 0.0,
-  })  : assert(gain >= 0.0),
-        assert(maxInstances > 0),
-        assert(rate > 0.0),
-        assert(rateVariance >= 0.0 && rateVariance < 1.0);
+  }) : assert(gain >= 0.0),
+       assert(maxInstances > 0),
+       assert(rate > 0.0),
+       assert(rateVariance >= 0.0 && rateVariance < 1.0);
 
   /// What the game calls it. Used in messages and in the mixer's own reports.
   final String name;

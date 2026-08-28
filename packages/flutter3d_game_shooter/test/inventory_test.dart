@@ -54,14 +54,10 @@ Pickup _drop(
 Collider _walkerOn(
   ({MechanismWorld mechanisms, CollisionWorld world}) w,
   Inventory carrying,
-) =>
-    Player(
-      body: CharacterController(
-        world: w.world,
-        position: Vector3(0.0, 0.9, 0.0),
-      ),
-      inventory: carrying,
-    ).body.collider;
+) => Player(
+  body: CharacterController(world: w.world, position: Vector3(0.0, 0.9, 0.0)),
+  inventory: carrying,
+).body.collider;
 
 void main() {
   group('an inventory', () {

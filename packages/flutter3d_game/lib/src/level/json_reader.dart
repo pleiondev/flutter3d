@@ -64,7 +64,9 @@ extension JsonObjectReader on Map<String, Object?> {
   bool flagOr(String key, {bool fallback = false}) {
     final value = this[key];
     if (value == null) return fallback;
-    if (value is! bool) throw LevelFormatException('"$key" must be true or false');
+    if (value is! bool) {
+      throw LevelFormatException('"$key" must be true or false');
+    }
     return value;
   }
 

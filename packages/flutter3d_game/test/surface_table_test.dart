@@ -15,10 +15,10 @@ import 'package:vector_math/vector_math.dart';
 
 void main() {
   group('a table of what surfaces are worth', () {
-    const table = SurfaceTable<double>(
-      <String, double>{'ice': 0.2, 'gravel': 0.6},
-      fallback: 1.0,
-    );
+    const table = SurfaceTable<double>(<String, double>{
+      'ice': 0.2,
+      'gravel': 0.6,
+    }, fallback: 1.0);
 
     test('answers with what it was told', () {
       expect(table.of('ice'), 0.2);
@@ -34,12 +34,14 @@ void main() {
       expect(table.of(null), 1.0);
     });
 
-    test('and says whether it has an opinion, for a game that wants a sound',
-        () {
-      expect(table.knows('ice'), isTrue);
-      expect(table.knows('marble'), isFalse);
-      expect(table.names, containsAll(<String>['ice', 'gravel']));
-    });
+    test(
+      'and says whether it has an opinion, for a game that wants a sound',
+      () {
+        expect(table.knows('ice'), isTrue);
+        expect(table.knows('marble'), isFalse);
+        expect(table.names, containsAll(<String>['ice', 'gravel']));
+      },
+    );
   });
 
   group('what a body is standing on', () {
@@ -64,7 +66,12 @@ void main() {
       // what the runner's feet and the car's tyre both do.
       final hit = RayHit();
       expect(
-        world.raycast(Vector3(0.0, 2.0, 0.0), Vector3(0.0, -1.0, 0.0), 5.0, hit),
+        world.raycast(
+          Vector3(0.0, 2.0, 0.0),
+          Vector3(0.0, -1.0, 0.0),
+          5.0,
+          hit,
+        ),
         isTrue,
       );
 

@@ -31,8 +31,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('the generator every step is required to take', () {
     test('gives the same sequence from the same seed', () {
-      List<double> roll(GameRandom of) =>
-          <double>[for (var i = 0; i < 16; i++) of.nextDouble()];
+      List<double> roll(GameRandom of) => <double>[
+        for (var i = 0; i < 16; i++) of.nextDouble(),
+      ];
 
       expect(roll(GameRandom(7)), roll(GameRandom(7)));
       expect(roll(GameRandom(7)), isNot(roll(GameRandom(8))));
@@ -53,10 +54,9 @@ void main() {
       // Mutation: leave `state` out of the snapshot, which is what the shooter
       // did whenever its caller passed no generator.
       final restored = GameRandom(999)..state = written;
-      expect(
-        <double>[for (var i = 0; i < 8; i++) restored.nextDouble()],
-        after,
-      );
+      expect(<double>[
+        for (var i = 0; i < 8; i++) restored.nextDouble(),
+      ], after);
     });
   });
 }

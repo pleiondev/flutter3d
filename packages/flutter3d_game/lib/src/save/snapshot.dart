@@ -47,15 +47,17 @@ final class Snapshot {
   final Map<String, Object?> data;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'version': formatVersion,
-        ...data,
-      };
+    'version': formatVersion,
+    ...data,
+  };
 
   factory Snapshot.fromJson(Map<String, Object?> json) {
     final version = json['version'];
     if (version is! num) {
-      throw const SnapshotFormatException('no version, so this is not a '
-          'snapshot');
+      throw const SnapshotFormatException(
+        'no version, so this is not a '
+        'snapshot',
+      );
     }
     if (version > formatVersion) {
       throw SnapshotFormatException(

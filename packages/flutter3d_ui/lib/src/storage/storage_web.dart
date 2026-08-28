@@ -24,7 +24,7 @@ import 'storage.dart';
 /// otherwise each overwrite the other's settings.
 final class WebStorage implements Storage {
   WebStorage({required this.appName, IssueSink? onIssue})
-      : onIssue = onIssue ?? printIssue;
+    : onIssue = onIssue ?? printIssue;
 
   final String appName;
 

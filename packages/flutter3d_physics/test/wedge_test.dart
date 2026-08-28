@@ -65,10 +65,7 @@ void main() {
       final wedge = CollisionWedge(Vector3(2.0, 1.0, 3.0));
 
       expect(wedge.expandedPlaneCount, 5);
-      expect(
-        wedge.expandedPlanes(Vector3.zero(), Vector3.zero(), planes),
-        5,
-      );
+      expect(wedge.expandedPlanes(Vector3.zero(), Vector3.zero(), planes), 5);
       expect(
         () => offsetOf(5, Vector3(-1.0, 0.0, 0.0)),
         throwsA(anything),
@@ -117,8 +114,14 @@ void main() {
       final count = wedge.expandedPlanes(Vector3.zero(), half, planes);
       final normal = wedge.slopeNormal;
 
-      expect(offsetOf(count, Vector3(0.0, -1.0, 0.0)), closeTo(1.0 + 0.9, 1e-6));
-      expect(offsetOf(count, Vector3(1.0, 0.0, 0.0)), closeTo(2.0 + 0.35, 1e-6));
+      expect(
+        offsetOf(count, Vector3(0.0, -1.0, 0.0)),
+        closeTo(1.0 + 0.9, 1e-6),
+      );
+      expect(
+        offsetOf(count, Vector3(1.0, 0.0, 0.0)),
+        closeTo(2.0 + 0.35, 1e-6),
+      );
       expect(
         offsetOf(count, normal),
         closeTo((normal.x * half.x).abs() + (normal.y * half.y).abs(), 1e-6),
@@ -146,24 +149,29 @@ void main() {
       expect(normal.x, closeTo(wedge.slopeNormal.x, 1e-6));
     });
 
-    test('and passes over the thin end, where a bounding box would stop it',
-        () {
-      // **The mutation that says this is not a box.** Above the tapering end
-      // there is nothing; a bounding box would report a hit.
-      final wedge = CollisionWedge(Vector3(2.0, 1.0, 3.0));
-      final normal = Vector3.zero();
+    test(
+      'and passes over the thin end, where a bounding box would stop it',
+      () {
+        // **The mutation that says this is not a box.** Above the tapering end
+        // there is nothing; a bounding box would report a hit.
+        final wedge = CollisionWedge(Vector3(2.0, 1.0, 3.0));
+        final normal = Vector3.zero();
 
-      final distance = wedge.raycast(
-        Vector3.zero(),
-        Vector3(-1.6, 5.0, 0.0),
-        Vector3(0.0, -1.0, 0.0),
-        5.5,
-        normal,
-      );
+        final distance = wedge.raycast(
+          Vector3.zero(),
+          Vector3(-1.6, 5.0, 0.0),
+          Vector3(0.0, -1.0, 0.0),
+          5.5,
+          normal,
+        );
 
-      expect(distance, lessThan(0.0),
-          reason: 'hit something over the thin end, so this is a box');
-    });
+        expect(
+          distance,
+          lessThan(0.0),
+          reason: 'hit something over the thin end, so this is a box',
+        );
+      },
+    );
   });
 
   group('a body on a ramp', () {
@@ -213,10 +221,16 @@ void main() {
       // failed while the ramp worked perfectly.
       final highest = climb(player, Vector3(0.0, 0.0, 1.0), 60);
 
-      expect(player.position.z, greaterThan(1.5),
-          reason: 'never got onto the ramp');
-      expect(highest, greaterThan(startY + 0.4),
-          reason: 'walked into the ramp instead of up it');
+      expect(
+        player.position.z,
+        greaterThan(1.5),
+        reason: 'never got onto the ramp',
+      );
+      expect(
+        highest,
+        greaterThan(startY + 0.4),
+        reason: 'walked into the ramp instead of up it',
+      );
     });
 
     test('and gets to the top of it', () {
@@ -252,8 +266,11 @@ void main() {
 
       final highest = climb(player, Vector3(0.0, 0.0, -1.0), 150);
 
-      expect(highest, lessThan(startY + 0.5),
-          reason: 'climbed the back of the ramp, which is a wall');
+      expect(
+        highest,
+        lessThan(startY + 0.5),
+        reason: 'climbed the back of the ramp, which is a wall',
+      );
     });
 
     test('walks up it rather than flying up it', () {
@@ -281,8 +298,11 @@ void main() {
 
       expect(player.position.y, greaterThan(2.5), reason: 'never climbed');
       expect(airborne, 0, reason: 'left the ground while walking up a ramp');
-      expect(fastest, lessThan(0.01),
-          reason: 'the climb went into the velocity, so the top is a jump');
+      expect(
+        fastest,
+        lessThan(0.01),
+        reason: 'the climb went into the velocity, so the top is a jump',
+      );
     });
 
     test('and too steep to stand on is too steep to climb', () {
@@ -308,8 +328,11 @@ void main() {
       final startY = player.position.y;
       _walk(player, 150, direction: Vector3(0.0, 0.0, 1.0));
 
-      expect(player.position.y, closeTo(startY, 0.05),
-          reason: 'stood on a sixty-degree face');
+      expect(
+        player.position.y,
+        closeTo(startY, 0.05),
+        reason: 'stood on a sixty-degree face',
+      );
     });
 
     test('and a body never ends up inside one', () {
@@ -322,8 +345,11 @@ void main() {
       for (var run = 0; run < 200; run++) {
         final player = _player(
           world,
-          Vector3(random.nextDouble() * 6.0 - 3.0, 3.0 + random.nextDouble(),
-              random.nextDouble() * 12.0 - 2.0),
+          Vector3(
+            random.nextDouble() * 6.0 - 3.0,
+            3.0 + random.nextDouble(),
+            random.nextDouble() * 12.0 - 2.0,
+          ),
         );
         for (var i = 0; i < 90; i++) {
           wish.setValues(
@@ -335,10 +361,15 @@ void main() {
           world.update();
         }
 
-        final inside = (ramp.shape as CollisionWedge)
-            .containsPoint(ramp.position, player.position);
-        expect(inside, isFalse,
-            reason: 'run $run ended inside the ramp at ${player.position}');
+        final inside = (ramp.shape as CollisionWedge).containsPoint(
+          ramp.position,
+          player.position,
+        );
+        expect(
+          inside,
+          isFalse,
+          reason: 'run $run ended inside the ramp at ${player.position}',
+        );
       }
     });
   });

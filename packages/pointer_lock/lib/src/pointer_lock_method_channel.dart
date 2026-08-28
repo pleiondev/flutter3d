@@ -6,12 +6,14 @@ import 'pointer_lock_platform_interface.dart';
 /// Talks to the native side over a method channel and an event channel.
 final class MethodChannelPointerLock extends PointerLockPlatform {
   @visibleForTesting
-  final MethodChannel methodChannel =
-      const MethodChannel('dev.flutter3d/pointer_lock');
+  final MethodChannel methodChannel = const MethodChannel(
+    'dev.flutter3d/pointer_lock',
+  );
 
   @visibleForTesting
-  final EventChannel eventChannel =
-      const EventChannel('dev.flutter3d/pointer_lock/events');
+  final EventChannel eventChannel = const EventChannel(
+    'dev.flutter3d/pointer_lock/events',
+  );
 
   /// Platforms with a native implementation.
   ///

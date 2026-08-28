@@ -95,10 +95,10 @@ final class Crumbling extends Mechanism with CollisionListener {
 
   @override
   Map<String, Object?> save() => <String, Object?>{
-        'since': sinceTouched.isFinite ? sinceTouched : null,
-        'fallen': _fallen,
-        'away': _away,
-      };
+    'since': sinceTouched.isFinite ? sinceTouched : null,
+    'fallen': _fallen,
+    'away': _away,
+  };
 
   /// **Restoring is a move in both directions, and it used only to go one.**
   ///
@@ -210,7 +210,7 @@ final class Climbable extends Mechanism {
     this.swing = 0.0,
     this.period = 2.4,
     double phase = 0.0,
-  })  : _time = phase {
+  }) : _time = phase {
     collider
       ..kind = ColliderKind.trigger
       ..userData = this;

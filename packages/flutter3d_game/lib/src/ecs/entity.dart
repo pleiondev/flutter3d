@@ -28,7 +28,7 @@ extension type const Entity._(int packed) {
   static const int _indexMask = (1 << _indexBits) - 1;
 
   const Entity.of(int index, int generation)
-      : packed = (generation << _indexBits) | (index & _indexMask);
+    : packed = (generation << _indexBits) | (index & _indexMask);
 
   /// The handle that refers to nothing. Distinct from every real entity.
   static const Entity none = Entity._(-1);

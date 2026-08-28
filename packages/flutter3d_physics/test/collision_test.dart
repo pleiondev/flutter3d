@@ -361,14 +361,16 @@ void main() {
         hit,
       );
 
-      expect(found, isTrue,
-          reason: 'a body standing on a belt was told there was no belt');
+      expect(
+        found,
+        isTrue,
+        reason: 'a body standing on a belt was told there was no belt',
+      );
       expect(hit.fraction, 0.0);
       expect(hit.normal.y, closeTo(1.0, 1e-6));
     });
 
-    test('and a body properly inside still is not, at a thousand times that',
-        () {
+    test('and a body properly inside still is not, at a thousand times that', () {
       // The slack is a micrometre, and the rule it must not swallow is the one
       // two tests above: a body that really is inside has to be free to move
       // out. A millimetre in is a thousand times the slack, and is exactly the
@@ -381,8 +383,12 @@ void main() {
       final shape = CollisionBox(Vector3(0.35, 0.9, 0.35));
 
       expect(
-        world.sweep(shape, Vector3(0.0, 1.3 - 1e-3, 0.0),
-            Vector3(0.0, -0.0067, 0.0), hit),
+        world.sweep(
+          shape,
+          Vector3(0.0, 1.3 - 1e-3, 0.0),
+          Vector3(0.0, -0.0067, 0.0),
+          hit,
+        ),
         isFalse,
       );
     });
@@ -461,8 +467,11 @@ void main() {
       expect(offsetOf(6, Vector3(0.0, 1.0, 0.0)), closeTo(2.0, 1e-9));
 
       expect(capsule.expandedPlanes(zero, none, planes), 6);
-      expect(offsetOf(6, Vector3(0.0, 1.0, 0.0)), closeTo(1.5, 1e-9),
-          reason: 'a capsule is as tall as its caps reach');
+      expect(
+        offsetOf(6, Vector3(0.0, 1.0, 0.0)),
+        closeTo(1.5, 1e-9),
+        reason: 'a capsule is as tall as its caps reach',
+      );
       expect(offsetOf(6, Vector3(1.0, 0.0, 0.0)), closeTo(0.5, 1e-9));
     });
   });
@@ -538,12 +547,14 @@ void main() {
       );
 
       expect(corrected, isTrue);
-      expect(correction.y, closeTo(0.1, 1e-6),
-          reason: 'lifted ${correction.y} m out of a 0.1 m overlap');
+      expect(
+        correction.y,
+        closeTo(0.1, 1e-6),
+        reason: 'lifted ${correction.y} m out of a 0.1 m overlap',
+      );
     });
 
-    test('and it is lifted the deeper of two unequal overlaps, either order',
-        () {
+    test('and it is lifted the deeper of two unequal overlaps, either order', () {
       // The other half of "deepest, not sum": two floors at different heights,
       // and the answer is the one that actually clears both.
       //
@@ -555,21 +566,32 @@ void main() {
       // is decided by where it stands, not by when it was added.
       double liftedWithDeeper({required bool west}) {
         final world = CollisionWorld();
-        world.addBox(Vector3(-5.0, west ? 0.1 : 0.0, 0.0),
-            Vector3(10.0, 1.0, 10.0));
-        world.addBox(Vector3(5.0, west ? 0.0 : 0.1, 0.0),
-            Vector3(10.0, 1.0, 10.0));
+        world.addBox(
+          Vector3(-5.0, west ? 0.1 : 0.0, 0.0),
+          Vector3(10.0, 1.0, 10.0),
+        );
+        world.addBox(
+          Vector3(5.0, west ? 0.0 : 0.1, 0.0),
+          Vector3(10.0, 1.0, 10.0),
+        );
 
         final correction = Vector3.zero();
         world.depenetrate(Vector3(0.0, 0.9, 0.0), Vector3.all(0.5), correction);
         return correction.y;
       }
 
-      expect(liftedWithDeeper(west: false), closeTo(0.2, 1e-6),
-          reason: 'the taller floor needs 0.2 m');
-      expect(liftedWithDeeper(west: true), closeTo(0.2, 1e-6),
-          reason: 'the answer changed with which side the taller floor is on, '
-              'so it is keeping the last push rather than the deepest');
+      expect(
+        liftedWithDeeper(west: false),
+        closeTo(0.2, 1e-6),
+        reason: 'the taller floor needs 0.2 m',
+      );
+      expect(
+        liftedWithDeeper(west: true),
+        closeTo(0.2, 1e-6),
+        reason:
+            'the answer changed with which side the taller floor is on, '
+            'so it is keeping the last push rather than the deepest',
+      );
     });
 
     test('but opposing pushes still both count', () {
@@ -590,11 +612,17 @@ void main() {
       // Squeezed: 0.2 m up out of the floor below, 0.1 m down out of the
       // ceiling above, so the net is a tenth upward.
       final correction = Vector3.zero();
-      world.depenetrate(Vector3(0.0, 1.2, 0.0), Vector3(0.5, 0.9, 0.5),
-          correction);
+      world.depenetrate(
+        Vector3(0.0, 1.2, 0.0),
+        Vector3(0.5, 0.9, 0.5),
+        correction,
+      );
 
-      expect(correction.y, closeTo(0.1, 1e-6),
-          reason: 'the two faces did not net out: ${correction.y}');
+      expect(
+        correction.y,
+        closeTo(0.1, 1e-6),
+        reason: 'the two faces did not net out: ${correction.y}',
+      );
     });
 
     test('reports nothing when clear', () {
@@ -783,8 +811,11 @@ void main() {
       final a = CollisionCapsule(radius: 0.5, halfHeight: 1.0);
       final b = CollisionCapsule(radius: 0.5, halfHeight: 1.0);
 
-      expect(a.overlaps(Vector3.zero(), b, Vector3(1.0, 0.0, 0.0)), isFalse,
-          reason: 'surfaces meeting exactly counted as an overlap');
+      expect(
+        a.overlaps(Vector3.zero(), b, Vector3(1.0, 0.0, 0.0)),
+        isFalse,
+        reason: 'surfaces meeting exactly counted as an overlap',
+      );
       expect(a.overlaps(Vector3.zero(), b, Vector3(0.999, 0.0, 0.0)), isTrue);
     });
 
@@ -792,10 +823,14 @@ void main() {
       final sphere = CollisionSphere(0.5);
       final box = CollisionBox(Vector3(1.0, 1.0, 1.0));
 
-      expect(sphere.overlaps(Vector3(1.5, 0.0, 0.0), box, Vector3.zero()),
-          isFalse);
-      expect(sphere.overlaps(Vector3(1.49, 0.0, 0.0), box, Vector3.zero()),
-          isTrue);
+      expect(
+        sphere.overlaps(Vector3(1.5, 0.0, 0.0), box, Vector3.zero()),
+        isFalse,
+      );
+      expect(
+        sphere.overlaps(Vector3(1.49, 0.0, 0.0), box, Vector3.zero()),
+        isTrue,
+      );
     });
   });
 }

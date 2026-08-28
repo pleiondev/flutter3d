@@ -17,8 +17,8 @@ final class InFlight {
     required Vector3 velocity,
     required this.blast,
     required this.life,
-  })  : position = position.clone(),
-        velocity = velocity.clone();
+  }) : position = position.clone(),
+       velocity = velocity.clone();
 
   final Vector3 position;
   final Vector3 velocity;
@@ -30,16 +30,16 @@ final class InFlight {
   double life;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'at': <double>[position.x, position.y, position.z],
-        'velocity': <double>[velocity.x, velocity.y, velocity.z],
-        'life': life,
-        'blast': <String, double>{
-          'radius': blast.radius,
-          'damage': blast.damage,
-          'minimumFraction': blast.minimumFraction,
-          'knockback': blast.knockback,
-        },
-      };
+    'at': <double>[position.x, position.y, position.z],
+    'velocity': <double>[velocity.x, velocity.y, velocity.z],
+    'life': life,
+    'blast': <String, double>{
+      'radius': blast.radius,
+      'damage': blast.damage,
+      'minimumFraction': blast.minimumFraction,
+      'knockback': blast.knockback,
+    },
+  };
 
   /// Reads one rocket back, or nothing if the row cannot be read.
   ///
@@ -94,8 +94,8 @@ final class Detonation {
     required this.blast,
     required this.damage,
     required this.owner,
-  })  : position = position.clone(),
-        normal = normal.clone();
+  }) : position = position.clone(),
+       normal = normal.clone();
 
   final Vector3 position;
 

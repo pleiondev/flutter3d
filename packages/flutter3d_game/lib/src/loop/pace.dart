@@ -19,8 +19,8 @@ import 'dart:math' as math;
 /// at a speed nobody chose.
 final class Pace {
   Pace({this.window = 3.0, this.tolerance = 0.5})
-      : assert(window > 0.0),
-        assert(tolerance > 0.0);
+    : assert(window > 0.0),
+      assert(tolerance > 0.0);
 
   /// How long a stall keeps counting against the machine, as a time constant.
   final double window;

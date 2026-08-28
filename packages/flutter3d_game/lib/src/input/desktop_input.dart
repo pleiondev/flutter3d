@@ -25,9 +25,9 @@ final class DesktopInput {
     PointerLock? capture,
     Bindings? bindings,
     Map<LogicalKeyboardKey, int>? slotKeys,
-  })  : capture = capture ?? PointerLock.instance,
-        bindings = bindings ?? defaultBindings(),
-        slotKeys = slotKeys ?? defaultSlotKeys() {
+  }) : capture = capture ?? PointerLock.instance,
+       bindings = bindings ?? defaultBindings(),
+       slotKeys = slotKeys ?? defaultSlotKeys() {
     _stateSubscription = this.capture.onStateChanged.listen(_onCaptureChanged);
   }
 
@@ -42,24 +42,20 @@ final class DesktopInput {
   /// means the first player to rebind anything rebinds it for the menu, the
   /// second window and the next level too.
   static Bindings defaultBindings() => Bindings(<InputSource, GameAction>{
-        InputSource.key(LogicalKeyboardKey.keyW.keyId): GameAction.moveForward,
-        InputSource.key(LogicalKeyboardKey.keyS.keyId): GameAction.moveBack,
-        InputSource.key(LogicalKeyboardKey.keyA.keyId): GameAction.moveLeft,
-        InputSource.key(LogicalKeyboardKey.keyD.keyId): GameAction.moveRight,
-        InputSource.key(LogicalKeyboardKey.arrowUp.keyId):
-            GameAction.moveForward,
-        InputSource.key(LogicalKeyboardKey.arrowDown.keyId):
-            GameAction.moveBack,
-        InputSource.key(LogicalKeyboardKey.arrowLeft.keyId):
-            GameAction.moveLeft,
-        InputSource.key(LogicalKeyboardKey.arrowRight.keyId):
-            GameAction.moveRight,
-        InputSource.key(LogicalKeyboardKey.space.keyId): GameAction.jump,
-        InputSource.key(LogicalKeyboardKey.shiftLeft.keyId): GameAction.sprint,
-        InputSource.key(LogicalKeyboardKey.shiftRight.keyId): GameAction.sprint,
-        InputSource.key(LogicalKeyboardKey.keyE.keyId): GameAction.use,
-        InputSource.key(LogicalKeyboardKey.keyF.keyId): GameAction.use,
-      });
+    InputSource.key(LogicalKeyboardKey.keyW.keyId): GameAction.moveForward,
+    InputSource.key(LogicalKeyboardKey.keyS.keyId): GameAction.moveBack,
+    InputSource.key(LogicalKeyboardKey.keyA.keyId): GameAction.moveLeft,
+    InputSource.key(LogicalKeyboardKey.keyD.keyId): GameAction.moveRight,
+    InputSource.key(LogicalKeyboardKey.arrowUp.keyId): GameAction.moveForward,
+    InputSource.key(LogicalKeyboardKey.arrowDown.keyId): GameAction.moveBack,
+    InputSource.key(LogicalKeyboardKey.arrowLeft.keyId): GameAction.moveLeft,
+    InputSource.key(LogicalKeyboardKey.arrowRight.keyId): GameAction.moveRight,
+    InputSource.key(LogicalKeyboardKey.space.keyId): GameAction.jump,
+    InputSource.key(LogicalKeyboardKey.shiftLeft.keyId): GameAction.sprint,
+    InputSource.key(LogicalKeyboardKey.shiftRight.keyId): GameAction.sprint,
+    InputSource.key(LogicalKeyboardKey.keyE.keyId): GameAction.use,
+    InputSource.key(LogicalKeyboardKey.keyF.keyId): GameAction.use,
+  });
 
   /// The number row, for whatever the game numbers.
   ///
@@ -73,11 +69,11 @@ final class DesktopInput {
   /// nobody dares hand out unwrapped should not be a value.
   static Map<LogicalKeyboardKey, int> defaultSlotKeys() =>
       <LogicalKeyboardKey, int>{
-    LogicalKeyboardKey.digit1: 0,
-    LogicalKeyboardKey.digit2: 1,
-    LogicalKeyboardKey.digit3: 2,
-    LogicalKeyboardKey.digit4: 3,
-  };
+        LogicalKeyboardKey.digit1: 0,
+        LogicalKeyboardKey.digit2: 1,
+        LogicalKeyboardKey.digit3: 2,
+        LogicalKeyboardKey.digit4: 3,
+      };
 
   final InputState state;
   final PointerLock capture;

@@ -11,14 +11,14 @@ const double _dt = 1.0 / 60.0;
 const Blast _blast = Blast(radius: 4.0, damage: 90.0, minimumFraction: 0.1);
 
 Collider _target(CollisionWorld world, Vector3 at, {Object? name}) => world.add(
-      Collider(
-        shape: CollisionCapsule(radius: 0.4, halfHeight: 0.7),
-        position: at,
-        kind: ColliderKind.kinematic,
-        layer: CollisionLayers.actor,
-        userData: name,
-      ),
-    );
+  Collider(
+    shape: CollisionCapsule(radius: 0.4, halfHeight: 0.7),
+    position: at,
+    kind: ColliderKind.kinematic,
+    layer: CollisionLayers.actor,
+    userData: name,
+  ),
+);
 
 void main() {
   group('blast falloff', () {
@@ -339,7 +339,10 @@ void main() {
       // The firing rules are testable without one, which is the reason the
       // field is nullable.
       final world = CollisionWorld();
-      final shot = WeaponShot(world: world, hitscan: Hitscan(world: world, random: GameRandom(1)));
+      final shot = WeaponShot(
+        world: world,
+        hitscan: Hitscan(world: world, random: GameRandom(1)),
+      );
 
       shot.begin(
         Weapons.rocketLauncher,

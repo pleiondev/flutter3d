@@ -108,8 +108,11 @@ void main() {
     ///
     /// Returns the drawn height after every step, which is what a display at
     /// the simulation's own rate would show.
-    List<double> climb(InterpolatedVector3 value,
-        {int steps = 60, int climbAt = 5}) {
+    List<double> climb(
+      InterpolatedVector3 value, {
+      int steps = 60,
+      int climbAt = 5,
+    }) {
       final at = Vector3.zero();
       final seen = <double>[];
       for (var i = 0; i < steps; i++) {
@@ -130,8 +133,10 @@ void main() {
       final heights = climb(plain);
 
       expect(heights.last, closeTo(riser, stored));
-      expect(heights.reduce(math.max) - heights.reduce(math.min),
-          closeTo(riser, stored));
+      expect(
+        heights.reduce(math.max) - heights.reduce(math.min),
+        closeTo(riser, stored),
+      );
     });
 
     test('a climbed riser is held back and then given back', () {

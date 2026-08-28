@@ -135,8 +135,8 @@ final class WebGamepad extends GamepadPlatform {
   }
 
   void _announce(bool connected) => _connections.add(
-        connected ? PadConnection.connected : PadConnection.disconnected,
-      );
+    connected ? PadConnection.connected : PadConnection.disconnected,
+  );
 
   void _listen(String type, void Function(web.Event) handler) {
     final callback = handler.toJS;

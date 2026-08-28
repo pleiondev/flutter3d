@@ -32,15 +32,16 @@ final class Navigation {
     double stepHeight = 0.4,
     double maxFall = 2.0,
     List<LevelIssue>? issues,
-  }) =>
-      Navigation(NavGrid.bake(
-        level.brushes,
-        cellSize: cellSize,
-        agentHeight: agentHeight,
-        stepHeight: stepHeight,
-        maxFall: maxFall,
-        issues: issues,
-      ));
+  }) => Navigation(
+    NavGrid.bake(
+      level.brushes,
+      cellSize: cellSize,
+      agentHeight: agentHeight,
+      stepHeight: stepHeight,
+      maxFall: maxFall,
+      issues: issues,
+    ),
+  );
 
   final NavGrid grid;
 
@@ -104,6 +105,5 @@ final class Navigation {
     Vector3 out, {
     required double radius,
     double height = 0.0,
-  }) =>
-      fieldFor(radius: radius, height: height).descend(from, out);
+  }) => fieldFor(radius: radius, height: height).descend(from, out);
 }

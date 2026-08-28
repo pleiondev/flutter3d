@@ -247,10 +247,10 @@ final class EcsWorld {
 
   /// The integers in [value], skipping anything that is not one.
   static List<int> _integers(Object? value) => <int>[
-        if (value is List)
-          for (final item in value)
-            if (item is num) item.toInt(),
-      ];
+    if (value is List)
+      for (final item in value)
+        if (item is num) item.toInt(),
+  ];
 
   /// Replaces everything with what [from] describes.
   void restore(Map<String, Object?> from) {

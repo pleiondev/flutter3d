@@ -3,6 +3,12 @@ description: "Positional audio for flutter3d: attenuation, panning and voice lim
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - audio
+  - sound
+  - game-development
+  - positional-audio
 publish_to: 'none'
 
 environment:

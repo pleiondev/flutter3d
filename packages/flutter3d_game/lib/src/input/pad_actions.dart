@@ -56,10 +56,10 @@ final class PadInput {
     Map<PadButton, int>? slotButtons,
     this.pressAt = 0.5,
     this.releaseAt = 0.35,
-  })  : pad = pad ?? Gamepad.instance,
-        bindings = bindings ?? defaultBindings(),
-        slotButtons = slotButtons ?? const <PadButton, int>{},
-        assert(releaseAt < pressAt, 'a threshold without a gap chatters');
+  }) : pad = pad ?? Gamepad.instance,
+       bindings = bindings ?? defaultBindings(),
+       slotButtons = slotButtons ?? const <PadButton, int>{},
+       assert(releaseAt < pressAt, 'a threshold without a gap chatters');
 
   /// The pad half of a binding table, as a fresh one each call.
   ///
@@ -107,8 +107,9 @@ final class PadInput {
   /// have to delete their settings to use a controller. A game reads its saved
   /// table, asks this, and adds the defaults if the answer is no — which leaves
   /// every rebinding they *did* make alone.
-  static bool knowsPad(Bindings bindings) => bindings.sources
-      .any((InputSource source) => source.id.startsWith(InputSource.padPrefix));
+  static bool knowsPad(Bindings bindings) => bindings.sources.any(
+    (InputSource source) => source.id.startsWith(InputSource.padPrefix),
+  );
 
   /// The d-pad, clockwise from the top.
   ///

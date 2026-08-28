@@ -41,15 +41,15 @@ class DidNotStart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: background,
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              explaining == null ? '$error' : '$error\n\n$explaining',
-              style: TextStyle(color: foreground),
-            ),
-          ),
+    backgroundColor: background,
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Text(
+          explaining == null ? '$error' : '$error\n\n$explaining',
+          style: TextStyle(color: foreground),
         ),
-      );
+      ),
+    ),
+  );
 }

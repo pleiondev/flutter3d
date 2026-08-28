@@ -34,7 +34,10 @@ final class _Ledge {
     // Ends at z = 0. Walking forward is walking off.
     world.addBox(Vector3(0.0, -0.5, -4.0), Vector3(8.0, 1.0, 8.0));
     runner = Runner(
-      body: CharacterController(world: world, position: Vector3(0.0, 0.9, -2.0)),
+      body: CharacterController(
+        world: world,
+        position: Vector3(0.0, 0.9, -2.0),
+      ),
       tuning: tuning,
     );
   }
@@ -83,7 +86,10 @@ final class _Floor {
   _Floor({double from = 3.0, RunnerTuning tuning = const RunnerTuning()}) {
     world.addBox(Vector3(0.0, -0.5, 0.0), Vector3(40.0, 1.0, 40.0));
     runner = Runner(
-      body: CharacterController(world: world, position: Vector3(0.0, from, 0.0)),
+      body: CharacterController(
+        world: world,
+        position: Vector3(0.0, from, 0.0),
+      ),
       tuning: tuning,
     );
   }
@@ -150,12 +156,20 @@ void main() {
     // exactly one of the four.
     void expectCoyoteJump(Runner runner) {
       expect(runner.jumpedThisStep, isTrue, reason: 'nothing happened at all');
-      expect(runner.wallJumpedThisStep, isFalse,
-          reason: 'it jumped off the side of the ledge, not out of the coyote '
-              'window');
-      expect(runner.body.velocity.y, closeTo(9.10, 0.05),
-          reason: 'launched at ${runner.body.velocity.y}, which is not the '
-              'ground jump speed');
+      expect(
+        runner.wallJumpedThisStep,
+        isFalse,
+        reason:
+            'it jumped off the side of the ledge, not out of the coyote '
+            'window',
+      );
+      expect(
+        runner.body.velocity.y,
+        closeTo(9.10, 0.05),
+        reason:
+            'launched at ${runner.body.velocity.y}, which is not the '
+            'ground jump speed',
+      );
     }
 
     test('a jump just after the ledge is a full ground jump', () {
@@ -167,13 +181,19 @@ void main() {
 
       // One step into the fall, well inside a window of 0.12 s = 7 steps.
       stage.run(1, holding: _forward);
-      expect(stage.runner.body.velocity.y, lessThan(0.0),
-          reason: 'not actually in the air');
+      expect(
+        stage.runner.body.velocity.y,
+        lessThan(0.0),
+        reason: 'not actually in the air',
+      );
 
       stage.step(holding: <GameAction>{..._forward, ..._jump});
       expectCoyoteJump(stage.runner);
-      expect(stage.runner.airJumpsLeft, const RunnerTuning().airJumps,
-          reason: 'the coyote jump spent the air jump');
+      expect(
+        stage.runner.airJumpsLeft,
+        const RunnerTuning().airJumps,
+        reason: 'the coyote jump spent the air jump',
+      );
     });
 
     test('the window closes, so it is not a free jump for ever', () {
@@ -186,13 +206,23 @@ void main() {
       stage.run(20, holding: _forward);
       stage.step(holding: <GameAction>{..._forward, ..._jump});
 
-      expect(stage.runner.jumpedThisStep, isTrue,
-          reason: 'the air jump should still have answered');
-      expect(stage.runner.body.velocity.y, lessThan(9.0),
-          reason: 'launched at ${stage.runner.body.velocity.y}, which is the '
-              'ground jump, long after the ledge');
-      expect(stage.runner.airJumpsLeft, 0,
-          reason: 'so it was not the air jump either');
+      expect(
+        stage.runner.jumpedThisStep,
+        isTrue,
+        reason: 'the air jump should still have answered',
+      );
+      expect(
+        stage.runner.body.velocity.y,
+        lessThan(9.0),
+        reason:
+            'launched at ${stage.runner.body.velocity.y}, which is the '
+            'ground jump, long after the ledge',
+      );
+      expect(
+        stage.runner.airJumpsLeft,
+        0,
+        reason: 'so it was not the air jump either',
+      );
     });
 
     test('and a runner who jumped off the ledge does not get it twice', () {
@@ -207,9 +237,13 @@ void main() {
       stage.run(2, holding: _forward);
       stage.step(holding: <GameAction>{..._forward, ..._jump});
 
-      expect(stage.runner.body.velocity.y, lessThan(9.0),
-          reason: 'the second jump launched at '
-              '${stage.runner.body.velocity.y}, so coyote outlived the first');
+      expect(
+        stage.runner.body.velocity.y,
+        lessThan(9.0),
+        reason:
+            'the second jump launched at '
+            '${stage.runner.body.velocity.y}, so coyote outlived the first',
+      );
     });
   });
 
@@ -245,17 +279,27 @@ void main() {
       // belt-and-braces over a guarantee one layer down, and a comment claiming
       // a mutation that cannot fire is worse than no comment. What this pins is
       // the behaviour, whichever layer keeps providing it.
-      expect(stage.runner.body.velocity.y, 0.0,
-          reason: 'still falling at ${stage.runner.body.velocity.y}');
+      expect(
+        stage.runner.body.velocity.y,
+        0.0,
+        reason: 'still falling at ${stage.runner.body.velocity.y}',
+      );
 
       stage.step(holding: _jump);
 
       expect(stage.runner.jumpedThisStep, isTrue, reason: 'nothing happened');
-      expect(stage.runner.body.velocity.y, closeTo(9.10, 0.05),
-          reason: 'launched at ${stage.runner.body.velocity.y}, which is the '
-              'air jump: the revive ate the ground jump');
-      expect(stage.runner.airJumpsLeft, const RunnerTuning().airJumps,
-          reason: 'and the spare jump is gone too');
+      expect(
+        stage.runner.body.velocity.y,
+        closeTo(9.10, 0.05),
+        reason:
+            'launched at ${stage.runner.body.velocity.y}, which is the '
+            'air jump: the revive ate the ground jump',
+      );
+      expect(
+        stage.runner.airJumpsLeft,
+        const RunnerTuning().airJumps,
+        reason: 'and the spare jump is gone too',
+      );
     });
 
     test('and a press made before dying does not survive the revive', () {
@@ -280,9 +324,13 @@ void main() {
         if (stage.runner.jumpedThisStep) jumps++;
       }
 
-      expect(jumps, 0,
-          reason: 'it jumped $jumps times on arriving, so the press outlived '
-              'the death');
+      expect(
+        jumps,
+        0,
+        reason:
+            'it jumped $jumps times on arriving, so the press outlived '
+            'the death',
+      );
     });
   });
 
@@ -310,14 +358,21 @@ void main() {
       expect(run.runner.isGrounded, isFalse, reason: 'already landed');
 
       run.step(holding: _jump);
-      expect(run.runner.jumpedThisStep, isFalse,
-          reason: 'it jumped in mid-air with no air jump left');
+      expect(
+        run.runner.jumpedThisStep,
+        isFalse,
+        reason: 'it jumped in mid-air with no air jump left',
+      );
 
       run.run(8);
 
-      expect(run.runner.body.velocity.y, greaterThan(0.0),
-          reason: 'the buffered jump never fired: the runner is going at '
-              '${run.runner.body.velocity.y} m/s');
+      expect(
+        run.runner.body.velocity.y,
+        greaterThan(0.0),
+        reason:
+            'the buffered jump never fired: the runner is going at '
+            '${run.runner.body.velocity.y} m/s',
+      );
     });
 
     test('and one pressed far too early is forgotten, not stored', () {
@@ -344,9 +399,13 @@ void main() {
       }
 
       expect(run.runner.isGrounded, isTrue, reason: 'never landed');
-      expect(jumps, 0,
-          reason: 'it jumped $jumps times on landing, so a press from the top '
-              'of the fall was still waiting');
+      expect(
+        jumps,
+        0,
+        reason:
+            'it jumped $jumps times on landing, so a press from the top '
+            'of the fall was still waiting',
+      );
     });
 
     test('one press is one jump, even with a double jump in hand', () {
@@ -367,11 +426,18 @@ void main() {
         if (run.runner.jumpedThisStep) jumps++;
       }
 
-      expect(jumps, 1,
-          reason: 'one press produced $jumps jumps, so the buffer outlived the '
-              'jump it paid for');
-      expect(run.runner.airJumpsLeft, const RunnerTuning().airJumps,
-          reason: 'and the air jump was spent by a press nobody made');
+      expect(
+        jumps,
+        1,
+        reason:
+            'one press produced $jumps jumps, so the buffer outlived the '
+            'jump it paid for',
+      );
+      expect(
+        run.runner.airJumpsLeft,
+        const RunnerTuning().airJumps,
+        reason: 'and the air jump was spent by a press nobody made',
+      );
     });
 
     test('and the window is spent once, not held open by the button', () {
@@ -392,9 +458,13 @@ void main() {
         if (run.runner.jumpedThisStep) jumps++;
       }
 
-      expect(jumps, 1,
-          reason: 'holding the button produced $jumps jumps, so the buffer is '
-              'refilled by the button being down rather than by a press');
+      expect(
+        jumps,
+        1,
+        reason:
+            'holding the button produced $jumps jumps, so the buffer is '
+            'refilled by the button being down rather than by a press',
+      );
     });
   });
 }

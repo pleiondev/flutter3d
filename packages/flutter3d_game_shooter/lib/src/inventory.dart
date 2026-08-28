@@ -28,9 +28,9 @@ final class Inventory with KeyHolder {
     Arsenal? arsenal,
     KeyRing? keys,
     this.maxArmour = 100.0,
-  })  : health = health ?? Health(100.0),
-        arsenal = arsenal ?? Arsenal(slots: const <WeaponDef>[]),
-        keyRing = keys ?? KeyRing();
+  }) : health = health ?? Health(100.0),
+       arsenal = arsenal ?? Arsenal(slots: const <WeaponDef>[]),
+       keyRing = keys ?? KeyRing();
 
   final Health health;
   final Arsenal arsenal;
@@ -42,7 +42,8 @@ final class Inventory with KeyHolder {
   Set<String> get keys => keyRing.keys;
 
   /// Seconds left on each power-up that is running, by name.
-  Map<String, double> get powers => UnmodifiableMapView<String, double>(_powers);
+  Map<String, double> get powers =>
+      UnmodifiableMapView<String, double>(_powers);
   final Map<String, double> _powers = <String, double>{};
 
   bool has(String power) => (_powers[power] ?? 0.0) > 0.0;
@@ -79,11 +80,11 @@ final class Inventory with KeyHolder {
   }
 
   Map<String, Object?> save() => <String, Object?>{
-        'health': health.save(),
-        'arsenal': arsenal.save(),
-        'keys': keyRing.save(),
-        'powers': Map<String, double>.of(_powers),
-      };
+    'health': health.save(),
+    'arsenal': arsenal.save(),
+    'keys': keyRing.save(),
+    'powers': Map<String, double>.of(_powers),
+  };
 
   void restore(Map<String, Object?> from) {
     final health = from['health'];

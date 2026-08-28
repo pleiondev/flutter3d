@@ -60,17 +60,16 @@ final class LevelLoader {
     List<LevelRule> rules = const <LevelRule>[],
     AssetBytes? readAsset,
     DocumentText? readDocument,
-  }) async =>
-      build(
-        Level.fromJson(
-          jsonDecode(await (readDocument ?? rootBundle.loadString)(assetPath))
-              as Map<String, Object?>,
-        ),
-        device: device,
-        registry: registry,
-        rules: rules,
-        readAsset: readAsset,
-      );
+  }) async => build(
+    Level.fromJson(
+      jsonDecode(await (readDocument ?? rootBundle.loadString)(assetPath))
+          as Map<String, Object?>,
+    ),
+    device: device,
+    registry: registry,
+    rules: rules,
+    readAsset: readAsset,
+  );
 
   /// Everything [load] does except finding the document.
   ///
@@ -122,14 +121,14 @@ final class LevelLoader {
     for (final surface in surfaces) {
       scene.add(
         MeshNode(
-          DeviceMesh.upload(device, _toMeshData(surface)),
-          LevelLoader.materialFrom(
-            level.materials[surface.material] ?? LevelMaterial(),
-            textures,
+            DeviceMesh.upload(device, _toMeshData(surface)),
+            LevelLoader.materialFrom(
+              level.materials[surface.material] ?? LevelMaterial(),
+              textures,
+              name: surface.material,
+            ),
             name: surface.material,
-          ),
-          name: surface.material,
-        )
+          )
           // Brushes are the level: they never move, so their shadow is baked
           // once rather than redrawn six times a frame.
           ..shadowIsStatic = true
@@ -210,11 +209,13 @@ final class LevelLoader {
       // level. Losing a wall texture should not cost the play-test — but it is
       // said out loud now, because a flat wall and a wall that is meant to be
       // flat look the same, and the difference is a file somebody renamed.
-      issues.add(LevelIssue(
-        LevelIssueSeverity.warning,
-        'could not be loaded, so the surface is untextured: $error',
-        where: 'texture "$path"',
-      ));
+      issues.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'could not be loaded, so the surface is untextured: $error',
+          where: 'texture "$path"',
+        ),
+      );
       return null;
     }
   }

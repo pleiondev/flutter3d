@@ -5,7 +5,6 @@ import '../collectible.dart';
 import '../platformer_entities.dart';
 
 final class CollectibleKind extends EntityKind {
-
   /// A player has to be able to get to one of these. See
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override

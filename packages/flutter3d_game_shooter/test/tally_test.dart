@@ -11,7 +11,6 @@
 /// happened, and what the level held.
 library;
 
-
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
@@ -160,8 +159,11 @@ void main() {
     expect(it.secrets.single.isFound, isTrue);
 
     it.step(times: 10);
-    expect(it.sim.tally[GameSimulation.secrets], 1,
-        reason: 'standing in it counted it again');
+    expect(
+      it.sim.tally[GameSimulation.secrets],
+      1,
+      reason: 'standing in it counted it again',
+    );
   });
 
   test('and it says which one, on the step it was found', () {
@@ -175,8 +177,11 @@ void main() {
       if (it.sim.foundThisStep != null) announced++;
     }
 
-    expect(announced, 1,
-        reason: 'a message and a sound, once, on the step it happened');
+    expect(
+      announced,
+      1,
+      reason: 'a message and a sound, once, on the step it happened',
+    );
   });
 
   test('and a secret is not something the level draws', () {

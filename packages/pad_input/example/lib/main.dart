@@ -34,10 +34,10 @@ class GamepadExampleApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Gamepad',
-        theme: ThemeData.dark(useMaterial3: true),
-        home: home,
-      );
+    title: 'Gamepad',
+    theme: ThemeData.dark(useMaterial3: true),
+    home: home,
+  );
 }
 
 class PadScreen extends StatefulWidget {
@@ -68,8 +68,7 @@ class _PadScreenState extends State<PadScreen>
       // Every frame, because the point of this screen is latency: a value that
       // arrived a frame late is exactly the complaint a player would make.
       setState(() {});
-    })
-      ..start();
+    })..start();
   }
 
   @override
@@ -79,8 +78,8 @@ class _PadScreenState extends State<PadScreen>
   }
 
   void _setDeadzone({double? stick, double? trigger}) => setState(() {
-        _pad.deadzone = _pad.deadzone.copyWith(stick: stick, trigger: trigger);
-      });
+    _pad.deadzone = _pad.deadzone.copyWith(stick: stick, trigger: trigger);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -90,10 +89,7 @@ class _PadScreenState extends State<PadScreen>
         title: const Text('Gamepad'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(28.0),
-          child: _Banner(
-            supported: _pad.isSupported,
-            connected: connected,
-          ),
+          child: _Banner(supported: _pad.isSupported, connected: connected),
         ),
       ),
       body: ListView(
@@ -192,7 +188,8 @@ class _Banner extends StatelessWidget {
     );
   }
 
-  static String get _platform => kIsWeb ? 'the web' : defaultTargetPlatform.name;
+  static String get _platform =>
+      kIsWeb ? 'the web' : defaultTargetPlatform.name;
 }
 
 /// One stick, as a dot in a circle, with the numbers beside it.
@@ -219,9 +216,9 @@ class _Stick extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           '${x.toStringAsFixed(2)}, ${y.toStringAsFixed(2)}',
-          style: const TextStyle(fontFeatures: <FontFeature>[
-            FontFeature.tabularFigures(),
-          ]),
+          style: const TextStyle(
+            fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+          ),
         ),
       ],
     );
@@ -293,9 +290,9 @@ class _Bar extends StatelessWidget {
             child: Text(
               value.toStringAsFixed(2),
               textAlign: TextAlign.right,
-              style: const TextStyle(fontFeatures: <FontFeature>[
-                FontFeature.tabularFigures(),
-              ]),
+              style: const TextStyle(
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ],
@@ -362,9 +359,9 @@ class _Setting extends StatelessWidget {
           child: Text(
             value.toStringAsFixed(2),
             textAlign: TextAlign.right,
-            style: const TextStyle(fontFeatures: <FontFeature>[
-              FontFeature.tabularFigures(),
-            ]),
+            style: const TextStyle(
+              fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+            ),
           ),
         ),
       ],

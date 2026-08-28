@@ -216,10 +216,16 @@ void _vanishing() {
     }
 
     expect(room.runner.keys, isEmpty, reason: 'it picked the key up first');
-    expect(said, isNotEmpty,
-        reason: 'it stood on the gate\'s plate and was told nothing');
-    expect(said.join(' '), contains('blue'),
-        reason: 'it said "$said", which does not name the key');
+    expect(
+      said,
+      isNotEmpty,
+      reason: 'it stood on the gate\'s plate and was told nothing',
+    );
+    expect(
+      said.join(' '),
+      contains('blue'),
+      reason: 'it said "$said", which does not name the key',
+    );
   });
 
   group('and a save carries it', () {
@@ -233,7 +239,11 @@ void _vanishing() {
       final room = _Room();
       room.walk(240);
       expect(room.runner.keys, contains('blue'), reason: 'never took the key');
-      expect(room.knock(), isA<Activated>(), reason: 'the door refused the key');
+      expect(
+        room.knock(),
+        isA<Activated>(),
+        reason: 'the door refused the key',
+      );
 
       room.walk(60);
       final openedTo = room.door.progress;
@@ -251,12 +261,14 @@ void _vanishing() {
         if (row is Map<String, Object?>) m.restore(row);
       }
 
-      expect(again.door.progress, closeTo(openedTo, 0.01),
-          reason: 'the door came back shut');
+      expect(
+        again.door.progress,
+        closeTo(openedTo, 0.01),
+        reason: 'the door came back shut',
+      );
     });
 
-    test('a one-shot plate that has fired does not fire again after a load',
-        () {
+    test('a one-shot plate that has fired does not fire again after a load', () {
       // **The claim the acceptance for this stage is written as.** A `Door` is
       // a `Mover` and was in both games' hand-written lists; the *plate* in
       // front of it is a `Signal` and was in neither. So the gate was saved
@@ -312,12 +324,15 @@ void _vanishing() {
 
       reloaded.restore(saved);
 
-      expect(reloaded.isSpent, isTrue,
-          reason: 'the plate came back armed, so the save lost its latch');
       expect(
-        reloaded.activate(again.mechanisms.activationBy(
-          again.runner.body.collider,
-        )),
+        reloaded.isSpent,
+        isTrue,
+        reason: 'the plate came back armed, so the save lost its latch',
+      );
+      expect(
+        reloaded.activate(
+          again.mechanisms.activationBy(again.runner.body.collider),
+        ),
         isA<NothingToDo>(),
         reason: 'a spent one-shot answered a second time',
       );
@@ -332,12 +347,21 @@ void _vanishing() {
       // way to say that in a test is to walk the whole world.
       final room = _Room();
       for (final m in room.mechanisms.all) {
-        expect(m.name, isNotNull,
-            reason: '${m.runtimeType} has no name, so it is never saved');
-        expect(() => m.save(), returnsNormally,
-            reason: '${m.runtimeType} cannot be saved');
-        expect(() => m.restore(m.save()), returnsNormally,
-            reason: '${m.runtimeType} cannot restore its own save');
+        expect(
+          m.name,
+          isNotNull,
+          reason: '${m.runtimeType} has no name, so it is never saved',
+        );
+        expect(
+          () => m.save(),
+          returnsNormally,
+          reason: '${m.runtimeType} cannot be saved',
+        );
+        expect(
+          () => m.restore(m.save()),
+          returnsNormally,
+          reason: '${m.runtimeType} cannot restore its own save',
+        );
       }
     });
   });

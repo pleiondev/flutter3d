@@ -37,8 +37,8 @@ final class Accommodations {
   /// unaccommodated defaults rather than an exception from an accessibility
   /// feature, which would be a particularly poor way to fail.
   factory Accommodations.of(BuildContext context) => Accommodations(
-        reduceMotion: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
-      );
+    reduceMotion: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
+  );
 
   /// Whether the player has asked for less movement on screen.
   ///

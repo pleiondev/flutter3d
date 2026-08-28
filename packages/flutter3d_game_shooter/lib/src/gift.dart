@@ -118,7 +118,7 @@ final class PowerUpGift extends Gift {
 /// The gifts a build knows about, by the name a document uses.
 final class GiftRegistry {
   GiftRegistry(Iterable<Gift> gifts)
-      : _byName = <String, Gift>{for (final gift in gifts) gift.name: gift};
+    : _byName = <String, Gift>{for (final gift in gifts) gift.name: gift};
 
   final Map<String, Gift> _byName;
 

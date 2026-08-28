@@ -19,9 +19,8 @@ void _run(MechanismWorld mechanisms, double seconds) {
   return (mechanisms: MechanismWorld(world), world: world);
 }
 
-Collider _box(CollisionWorld world, Vector3 at, Vector3 size) => world.add(
-      Collider(shape: CollisionBox(size / 2.0), position: at),
-    );
+Collider _box(CollisionWorld world, Vector3 at, Vector3 size) =>
+    world.add(Collider(shape: CollisionBox(size / 2.0), position: at));
 
 void main() {
   _removalTests();
@@ -386,7 +385,11 @@ void _removalTests() {
 
       final found = <Collider>[];
       expect(
-        () => world.overlap(CollisionBox(Vector3.all(20.0)), Vector3.zero(), found),
+        () => world.overlap(
+          CollisionBox(Vector3.all(20.0)),
+          Vector3.zero(),
+          found,
+        ),
         returnsNormally,
       );
       expect(found, isNot(contains(movers[3])));

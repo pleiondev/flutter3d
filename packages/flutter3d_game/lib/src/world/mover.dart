@@ -45,9 +45,9 @@ abstract base class Mover extends Mechanism {
     required Vector3 travel,
     this.speed = 2.0,
     this.wait = 3.0,
-  })  : rest = collider.position.clone(),
-        travel = travel.clone(),
-        _span = travel.length {
+  }) : rest = collider.position.clone(),
+       travel = travel.clone(),
+       _span = travel.length {
     collider.kind = ColliderKind.kinematic;
     collider.userData = this;
   }
@@ -148,11 +148,11 @@ abstract base class Mover extends Mechanism {
 
   @override
   Map<String, Object?> save() => <String, Object?>{
-        'progress': _progress,
-        'goal': goal,
-        'held': _held,
-        'wasMoving': _wasMoving,
-      };
+    'progress': _progress,
+    'goal': goal,
+    'held': _held,
+    'wasMoving': _wasMoving,
+  };
 
   @override
   void restore(Map<String, Object?> from) {

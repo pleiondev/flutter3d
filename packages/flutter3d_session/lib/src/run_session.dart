@@ -49,11 +49,7 @@ export 'run_status.dart';
 /// [L] is whatever a game gets back from loading a level. This class never
 /// looks inside it — the five methods below are how it asks.
 abstract base class RunSession<L> {
-  RunSession({
-    required this.firstLevel,
-    required this.saves,
-    this.onChanged,
-  });
+  RunSession({required this.firstLevel, required this.saves, this.onChanged});
 
   /// Where a new game starts.
   final String firstLevel;
@@ -68,15 +64,15 @@ abstract base class RunSession<L> {
 
   /// The level that is up, or null.
   L? get level => switch (_status) {
-        RunPlaying<L>(:final level) => level,
-        _ => null,
-      };
+    RunPlaying<L>(:final level) => level,
+    _ => null,
+  };
 
   /// Whether the run has ended, either way.
   bool get isOver => switch (_status) {
-        RunPlaying<L>(:final outcome) => outcome.isOver,
-        _ => false,
-      };
+    RunPlaying<L>(:final outcome) => outcome.isOver,
+    _ => false,
+  };
 
   /// Guards the one-way trip out of a finished level.
   bool _movingOn = false;

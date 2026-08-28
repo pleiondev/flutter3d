@@ -39,7 +39,8 @@ final class EnemyKind extends EntityKind {
     if (route is List) {
       for (var i = 0; i < route.length; i++) {
         final row = route[i];
-        final ok = row is List &&
+        final ok =
+            row is List &&
             row.length >= 3 &&
             row[0] is num &&
             row[1] is num &&

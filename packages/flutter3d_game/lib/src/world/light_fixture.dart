@@ -47,7 +47,8 @@ final class FlameFlicker extends LightBehaviour {
   @override
   double at(double time, double seed) {
     final t = time * rate + seed * 10.0;
-    final wobble = math.sin(t) * 0.6 +
+    final wobble =
+        math.sin(t) * 0.6 +
         math.sin(t * 1.7 + 1.3) * 0.3 +
         math.sin(t * 0.31 + 2.1) * 0.1;
     return 1.0 - depth * (0.5 - 0.5 * wobble);

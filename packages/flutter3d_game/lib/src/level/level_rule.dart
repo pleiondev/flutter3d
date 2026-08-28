@@ -42,7 +42,7 @@ final class ExactlyOne extends LevelRule {
         count == 0
             ? 'no $type${because == null ? '' : ': $because'}'
             : 'there are $count $type entities and nothing decides which is '
-                'used',
+                  'used',
       ),
     );
   }

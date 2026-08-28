@@ -32,15 +32,11 @@ final class Pose {
   }
 
   Map<String, Object?> toJson() => <String, Object?>{
-        't': _round(time),
-        'p': <double>[
-          _round(position.x),
-          _round(position.y),
-          _round(position.z),
-        ],
-        'y': _round(yaw),
-        'u': <double>[_round(up.x), _round(up.y), _round(up.z)],
-      };
+    't': _round(time),
+    'p': <double>[_round(position.x), _round(position.y), _round(position.z)],
+    'y': _round(yaw),
+    'u': <double>[_round(up.x), _round(up.y), _round(up.z)],
+  };
 
   /// **Read leniently, because this is a file from somebody's disk.** Every
   /// field used to be a `!` and an `as num`, so a tape truncated by a machine
@@ -51,10 +47,7 @@ final class Pose {
   /// A pose it cannot read is a pose at the origin at time nought, which a
   /// playback either interpolates through or drops off the end of.
   factory Pose.fromJson(Map<String, Object?> json) {
-    final pose = Pose(
-      time: json.number('t'),
-      yaw: json.number('y'),
-    );
+    final pose = Pose(time: json.number('t'), yaw: json.number('y'));
     readVector(json['p'], pose.position);
     // The up is optional: tapes written before there was one still read, which
     // matters in the direction that counts — what is on disk was written by an

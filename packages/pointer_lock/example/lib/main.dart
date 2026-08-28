@@ -44,8 +44,7 @@ class _PointerLockExampleState extends State<PointerLockExample>
         _total += delta;
         _steps++;
       });
-    })
-      ..start();
+    })..start();
 
     _capture.onStateChanged.listen((CaptureState state) {
       setState(() => _lastEvent = state.name);
@@ -75,10 +74,14 @@ class _PointerLockExampleState extends State<PointerLockExample>
               const SizedBox(height: 24),
               _Row('captured', '${_capture.isCaptured}'),
               _Row('last state event', _lastEvent),
-              _Row('delta this frame',
-                  '${_lastDelta.dx.toStringAsFixed(1)}, ${_lastDelta.dy.toStringAsFixed(1)}'),
-              _Row('total',
-                  '${_total.dx.toStringAsFixed(0)}, ${_total.dy.toStringAsFixed(0)}'),
+              _Row(
+                'delta this frame',
+                '${_lastDelta.dx.toStringAsFixed(1)}, ${_lastDelta.dy.toStringAsFixed(1)}',
+              ),
+              _Row(
+                'total',
+                '${_total.dx.toStringAsFixed(0)}, ${_total.dy.toStringAsFixed(0)}',
+              ),
               _Row('frames with motion', '$_steps'),
               const SizedBox(height: 24),
               Row(
@@ -134,9 +137,9 @@ class _Row extends StatelessWidget {
             width: 140,
             child: Text(
               value,
-              style: const TextStyle(fontFeatures: <FontFeature>[
-                FontFeature.tabularFigures(),
-              ]),
+              style: const TextStyle(
+                fontFeatures: <FontFeature>[FontFeature.tabularFigures()],
+              ),
             ),
           ),
         ],

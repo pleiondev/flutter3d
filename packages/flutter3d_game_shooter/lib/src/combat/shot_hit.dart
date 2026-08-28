@@ -12,8 +12,8 @@ final class ShotHit {
     required Vector3 normal,
     required this.distance,
     required this.damage,
-  })  : point = point.clone(),
-        normal = normal.clone();
+  }) : point = point.clone(),
+       normal = normal.clone();
 
   /// What was struck. Null when the ray reached its range without meeting
   /// anything, which still matters: a tracer has to end somewhere.

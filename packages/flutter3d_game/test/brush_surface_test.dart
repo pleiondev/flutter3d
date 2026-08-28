@@ -16,12 +16,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Brush _brush({String? surface, int? layer, String material = 'stone'}) => Brush(
-      centre: Vector3(0.0, -0.5, 0.0),
-      size: Vector3(8.0, 1.0, 8.0),
-      material: material,
-      surface: surface,
-      layer: layer,
-    );
+  centre: Vector3(0.0, -0.5, 0.0),
+  size: Vector3(8.0, 1.0, 8.0),
+  material: material,
+  surface: surface,
+  layer: layer,
+);
 
 void main() {
   group('what it is made of', () {
@@ -85,7 +85,11 @@ void main() {
         SweepHit(),
         mask: ~grate,
       );
-      expect(ignored, isFalse, reason: 'a body that skips that bit fell through');
+      expect(
+        ignored,
+        isFalse,
+        reason: 'a body that skips that bit fell through',
+      );
     });
   });
 
@@ -174,31 +178,41 @@ void main() {
       //
       // Mutation: key the builders by material alone. The two collapse into a
       // single surface and the fence starts casting again, along with the wall.
-      final level = Level(brushes: <Brush>[
-        Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
-        Brush(
-          centre: Vector3(8.0, 0.0, 0.0),
-          size: Vector3.all(2.0),
-          castsShadow: false,
-        ),
-      ]);
+      final level = Level(
+        brushes: <Brush>[
+          Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
+          Brush(
+            centre: Vector3(8.0, 0.0, 0.0),
+            size: Vector3.all(2.0),
+            castsShadow: false,
+          ),
+        ],
+      );
 
       final surfaces = const BrushGeometry().build(level);
 
-      expect(surfaces, hasLength(2),
-          reason: 'same material, different answer, and they were batched '
-              'together anyway');
-      expect(surfaces.map((BrushSurface s) => s.castsShadow),
-          containsAll(<bool>[true, false]));
+      expect(
+        surfaces,
+        hasLength(2),
+        reason:
+            'same material, different answer, and they were batched '
+            'together anyway',
+      );
+      expect(
+        surfaces.map((BrushSurface s) => s.castsShadow),
+        containsAll(<bool>[true, false]),
+      );
     });
 
     test('and a level with no fences batches exactly as it always did', () {
       // The compatibility half: the split must cost nothing to every level
       // that does not use it.
-      final level = Level(brushes: <Brush>[
-        Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
-        Brush(centre: Vector3(8.0, 0.0, 0.0), size: Vector3.all(2.0)),
-      ]);
+      final level = Level(
+        brushes: <Brush>[
+          Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3.all(2.0)),
+          Brush(centre: Vector3(8.0, 0.0, 0.0), size: Vector3.all(2.0)),
+        ],
+      );
 
       expect(const BrushGeometry().build(level), hasLength(1));
     });

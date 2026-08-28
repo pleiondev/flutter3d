@@ -106,25 +106,25 @@ EntityDef _patrol({
   String name = 'the guard',
   double speed = 0.7,
   double pause = 0.2,
-}) =>
-    EntityDef(
-      type: PlatformerEntities.enemy,
-      name: name,
-      position: at ?? Vector3(-6.0, 0.0, 0.0),
-      properties: <String, Object?>{
-        'kind': kind,
-        'route': route ?? <List<double>>[
+}) => EntityDef(
+  type: PlatformerEntities.enemy,
+  name: name,
+  position: at ?? Vector3(-6.0, 0.0, 0.0),
+  properties: <String, Object?>{
+    'kind': kind,
+    'route':
+        route ??
+        <List<double>>[
           <double>[6.0, 0.0, 0.0],
         ],
-        'speed': speed,
-        'pause': pause,
-      },
-    );
+    'speed': speed,
+    'pause': pause,
+  },
+);
 
 void main() {
   group('a patrol', () {
-    test('says which post it is walking towards, and changes its mind at one',
-        () {
+    test('says which post it is walking towards, and changes its mind at one', () {
       // `Patrol.target` had no reader anywhere — not in a game, not in a test.
       // It is the brain's own account of where it is going, and it is what a
       // save carries, so a `target` that never advances is a patrol that
@@ -148,8 +148,11 @@ void main() {
         if (patrol.target != first) changed = true;
       }
 
-      expect(changed, isTrue,
-          reason: 'it walked for a minute and never reached a post');
+      expect(
+        changed,
+        isTrue,
+        reason: 'it walked for a minute and never reached a post',
+      );
     });
 
     test('walks its route, there and back, for a minute', () {
@@ -176,7 +179,11 @@ void main() {
         if (x > east) east = x;
       }
 
-      expect(east - west, greaterThan(8.0), reason: 'it did not cover its route');
+      expect(
+        east - west,
+        greaterThan(8.0),
+        reason: 'it did not cover its route',
+      );
       expect(enemy.isAlive, isTrue);
     });
 
@@ -194,9 +201,12 @@ void main() {
       final run = _Run(
         floorWidth: 16.0,
         extras: <EntityDef>[
-          _patrol(at: Vector3(-6.0, 0.0, 0.0), route: <List<double>>[
-            <double>[26.0, 0.0, 0.0],
-          ]),
+          _patrol(
+            at: Vector3(-6.0, 0.0, 0.0),
+            route: <List<double>>[
+              <double>[26.0, 0.0, 0.0],
+            ],
+          ),
         ],
         startAt: Vector3(0.0, 0.0, -8.0),
       );
@@ -205,7 +215,11 @@ void main() {
       run.run(1200);
 
       expect(enemy.position!.y, greaterThan(-1.0), reason: 'it fell off');
-      expect(enemy.position!.x, lessThan(8.0), reason: 'it walked past the edge');
+      expect(
+        enemy.position!.x,
+        lessThan(8.0),
+        reason: 'it walked past the edge',
+      );
     });
 
     test('but a one-way platform is a floor, and it used to be a ledge', () {
@@ -231,9 +245,12 @@ void main() {
               'size': <double>[6.0, 0.3, 6.0],
             },
           ),
-          _patrol(at: Vector3(-6.0, 0.0, 0.0), route: <List<double>>[
-            <double>[26.0, 0.0, 0.0],
-          ]),
+          _patrol(
+            at: Vector3(-6.0, 0.0, 0.0),
+            route: <List<double>>[
+              <double>[26.0, 0.0, 0.0],
+            ],
+          ),
         ],
         startAt: Vector3(0.0, 0.0, -8.0),
       );
@@ -249,9 +266,13 @@ void main() {
       }
 
       expect(enemy.position!.y, greaterThan(-1.0), reason: 'it fell off');
-      expect(furthest, greaterThan(9.0),
-          reason: 'it stopped at the floor edge ($furthest), so the bridge was '
-              'invisible to the ledge probe');
+      expect(
+        furthest,
+        greaterThan(9.0),
+        reason:
+            'it stopped at the floor edge ($furthest), so the bridge was '
+            'invisible to the ledge probe',
+      );
     });
   });
 
@@ -281,9 +302,13 @@ void main() {
         final run = _Run(
           extraBrushes: <Brush>[near, ...gap],
           extras: <EntityDef>[
-            _patrol(kind: kind, at: Vector3(-6.0, 0.0, 0.0), route: <List<double>>[
-              <double>[10.0, 0.0, 0.0],
-            ]),
+            _patrol(
+              kind: kind,
+              at: Vector3(-6.0, 0.0, 0.0),
+              route: <List<double>>[
+                <double>[10.0, 0.0, 0.0],
+              ],
+            ),
           ],
         );
         // The wide default floor would bridge the gap, so it is not built here:
@@ -305,9 +330,11 @@ void main() {
       //
       // Mutation: implement `ActorSystem.jump` as
       // `actor.body?.velocity.y = tuning.jumpSpeed`.
-      final run = _Run(extras: <EntityDef>[
-        _patrol(kind: 'leaper', at: Vector3(-6.0, 0.0, 0.0)),
-      ]);
+      final run = _Run(
+        extras: <EntityDef>[
+          _patrol(kind: 'leaper', at: Vector3(-6.0, 0.0, 0.0)),
+        ],
+      );
       final enemy = run.enemy;
 
       // Ask on every step, from outside the brain, which is the worst case.
@@ -318,8 +345,11 @@ void main() {
         if (enemy.position!.y > highest) highest = enemy.position!.y;
       }
 
-      expect(highest, lessThan(3.0),
-          reason: 'it climbed to $highest m by asking to jump in mid-air');
+      expect(
+        highest,
+        lessThan(3.0),
+        reason: 'it climbed to $highest m by asking to jump in mid-air',
+      );
     });
   });
 
@@ -343,8 +373,11 @@ void main() {
 
       expect(bounced, isTrue, reason: 'it landed on nothing');
       expect(enemy.isAlive, isFalse);
-      expect(run.runner.body.velocity.y, greaterThan(4.0),
-          reason: 'the stomp did not throw it back');
+      expect(
+        run.runner.body.velocity.y,
+        greaterThan(4.0),
+        reason: 'the stomp did not throw it back',
+      );
       expect(run.runner.health.current, 100.0, reason: 'it took damage too');
     });
 
@@ -382,9 +415,12 @@ void main() {
       // Mutation: make the damage a one-off — the second reading stops falling.
       final run = _Run(
         extras: <EntityDef>[
-          _patrol(at: Vector3(2.0, 0.0, 0.0), route: <List<double>>[
-            <double>[-8.0, 0.0, 0.0],
-          ]),
+          _patrol(
+            at: Vector3(2.0, 0.0, 0.0),
+            route: <List<double>>[
+              <double>[-8.0, 0.0, 0.0],
+            ],
+          ),
         ],
       );
 

@@ -85,10 +85,16 @@ void main() {
       shaft.step();
 
       expect(shaft.runner.isGrounded, isFalse);
-      expect(shaft.y, greaterThan(pad + 0.05),
-          reason: 'it stays where the ceiling stopped it');
-      expect(shaft.runner.body.velocity.y, closeTo(0.0, 1e-9),
-          reason: 'and the ceiling is what stopped it');
+      expect(
+        shaft.y,
+        greaterThan(pad + 0.05),
+        reason: 'it stays where the ceiling stopped it',
+      );
+      expect(
+        shaft.runner.body.velocity.y,
+        closeTo(0.0, 1e-9),
+        reason: 'and the ceiling is what stopped it',
+      );
     });
 
     test('and neither is the hop off something it stomped', () {

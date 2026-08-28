@@ -38,16 +38,16 @@ Float64List motion(int device, Map<int, double> axes) {
 }
 
 KeyEvent down(LogicalKeyboardKey key) => KeyDownEvent(
-      physicalKey: PhysicalKeyboardKey.gameButton1,
-      logicalKey: key,
-      timeStamp: Duration.zero,
-    );
+  physicalKey: PhysicalKeyboardKey.gameButton1,
+  logicalKey: key,
+  timeStamp: Duration.zero,
+);
 
 KeyEvent up(LogicalKeyboardKey key) => KeyUpEvent(
-      physicalKey: PhysicalKeyboardKey.gameButton1,
-      logicalKey: key,
-      timeStamp: Duration.zero,
-    );
+  physicalKey: PhysicalKeyboardKey.gameButton1,
+  logicalKey: key,
+  timeStamp: Duration.zero,
+);
 
 /// A pad with the axes an ordinary controller reports.
 AndroidPadState connected({
@@ -62,8 +62,7 @@ AndroidPadState connected({
     AndroidAxis.leftTrigger,
     AndroidAxis.rightTrigger,
   ],
-}) =>
-    AndroidPadState()..connect(deviceId: device, axes: axes);
+}) => AndroidPadState()..connect(deviceId: device, axes: axes);
 
 void main() {
   group('the sticks', () {
@@ -72,12 +71,14 @@ void main() {
       // convention, so nothing is flipped here and the flip happens where a game
       // decides what forward means.
       final state = connected();
-      state.noteMotion(motion(7, <int, double>{
-        AndroidAxis.x: 0.5,
-        AndroidAxis.y: -1.0,
-        AndroidAxis.z: -0.25,
-        AndroidAxis.rz: 0.75,
-      }));
+      state.noteMotion(
+        motion(7, <int, double>{
+          AndroidAxis.x: 0.5,
+          AndroidAxis.y: -1.0,
+          AndroidAxis.z: -0.25,
+          AndroidAxis.rz: 0.75,
+        }),
+      );
 
       final out = PadSnapshot();
       state.fill(out);
@@ -107,10 +108,12 @@ void main() {
   group('a trigger, which is on one of two axes', () {
     test('is `AXIS_LTRIGGER` where the driver offers it', () {
       final state = connected();
-      state.noteMotion(motion(7, <int, double>{
-        AndroidAxis.leftTrigger: 0.4,
-        AndroidAxis.rightTrigger: 0.9,
-      }));
+      state.noteMotion(
+        motion(7, <int, double>{
+          AndroidAxis.leftTrigger: 0.4,
+          AndroidAxis.rightTrigger: 0.9,
+        }),
+      );
 
       final out = PadSnapshot();
       state.fill(out);
@@ -125,10 +128,9 @@ void main() {
       // knew the first pair would give that hardware two triggers that never
       // move. Which pair to read is chosen per device from what it says it has.
       final state = connected(axes: <int>[AndroidAxis.brake, AndroidAxis.gas]);
-      state.noteMotion(motion(7, <int, double>{
-        AndroidAxis.brake: 0.3,
-        AndroidAxis.gas: 0.8,
-      }));
+      state.noteMotion(
+        motion(7, <int, double>{AndroidAxis.brake: 0.3, AndroidAxis.gas: 0.8}),
+      );
 
       final out = PadSnapshot();
       state.fill(out);
@@ -138,16 +140,20 @@ void main() {
     });
 
     test('and the preferred pair wins when a device reports both', () {
-      final state = connected(axes: <int>[
-        AndroidAxis.leftTrigger,
-        AndroidAxis.rightTrigger,
-        AndroidAxis.brake,
-        AndroidAxis.gas,
-      ]);
-      state.noteMotion(motion(7, <int, double>{
-        AndroidAxis.leftTrigger: 0.1,
-        AndroidAxis.brake: 1.0,
-      }));
+      final state = connected(
+        axes: <int>[
+          AndroidAxis.leftTrigger,
+          AndroidAxis.rightTrigger,
+          AndroidAxis.brake,
+          AndroidAxis.gas,
+        ],
+      );
+      state.noteMotion(
+        motion(7, <int, double>{
+          AndroidAxis.leftTrigger: 0.1,
+          AndroidAxis.brake: 1.0,
+        }),
+      );
 
       final out = PadSnapshot();
       state.fill(out);
@@ -174,10 +180,9 @@ void main() {
   group('the d-pad, which is a hat or it is arrow keys', () {
     test('a hat becomes the four buttons it stands for', () {
       final state = connected();
-      state.noteMotion(motion(7, <int, double>{
-        AndroidAxis.hatX: -1.0,
-        AndroidAxis.hatY: 1.0,
-      }));
+      state.noteMotion(
+        motion(7, <int, double>{AndroidAxis.hatX: -1.0, AndroidAxis.hatY: 1.0}),
+      );
 
       final out = PadSnapshot();
       state.fill(out);
@@ -225,7 +230,11 @@ void main() {
       final out = PadSnapshot();
       state.fill(out);
 
-      expect(claimed, isFalse, reason: 'an arrow key is not the pad\'s to take');
+      expect(
+        claimed,
+        isFalse,
+        reason: 'an arrow key is not the pad\'s to take',
+      );
       expect(out.down(PadButton.dpadUp), isFalse);
     });
   });
@@ -339,9 +348,9 @@ void main() {
       expect(defaultTargetPlatform, TargetPlatform.android);
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-        const MethodChannel('dev.flutter3d/gamepad/events'),
-        (MethodCall call) async => null,
-      );
+            const MethodChannel('dev.flutter3d/gamepad/events'),
+            (MethodCall call) async => null,
+          );
       pad = MethodChannelGamepad();
     });
 
@@ -369,8 +378,11 @@ void main() {
       pad.read(out);
 
       expect(out.connected, isTrue);
-      expect(out.axis(PadAxis.triggerRight), closeTo(0.6, 1e-9),
-          reason: 'the inventory reached the mapping');
+      expect(
+        out.axis(PadAxis.triggerRight),
+        closeTo(0.6, 1e-9),
+        reason: 'the inventory reached the mapping',
+      );
     });
 
     test('and announces connection and disconnection', () async {

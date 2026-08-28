@@ -12,8 +12,12 @@ final class BreakableKind extends EntityKind {
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
-    final collider = place(entity, context, kind: ColliderKind.static,
-        fallbackSize: defaultSize);
+    final collider = place(
+      entity,
+      context,
+      kind: ColliderKind.static,
+      fallbackSize: defaultSize,
+    );
     final block = context.mechanisms.add(
       Breakable(name: entity.name, collider: collider),
     );

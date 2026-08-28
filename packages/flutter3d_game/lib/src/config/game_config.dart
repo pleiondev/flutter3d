@@ -17,9 +17,9 @@ final class GameConfig {
     Bindings? bindings,
     Map<String, double>? volumes,
     Map<String, double>? settings,
-  })  : bindings = bindings ?? Bindings(),
-        volumes = <String, double>{...?volumes},
-        settings = <String, double>{...?settings};
+  }) : bindings = bindings ?? Bindings(),
+       volumes = <String, double>{...?volumes},
+       settings = <String, double>{...?settings};
 
   /// Reads what [toJson] wrote, and survives what it did not write.
   ///
@@ -44,10 +44,10 @@ final class GameConfig {
   /// string where a number was expected must cost that one key rather than the
   /// whole file.
   static Map<String, double> _numbers(Object? source) => <String, double>{
-        if (source is Map<String, Object?>)
-          for (final entry in source.entries)
-            if (entry.value is num) entry.key: (entry.value! as num).toDouble(),
-      };
+    if (source is Map<String, Object?>)
+      for (final entry in source.entries)
+        if (entry.value is num) entry.key: (entry.value! as num).toDouble(),
+  };
 
   final Bindings bindings;
 
@@ -102,19 +102,18 @@ final class GameConfig {
   void setSetting(String name, double value) => settings[name] = value;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'bindings': bindings.toJson(),
-        // Sorted for the same reason the bindings are: a settings file whose
-        // diff is noise is a settings file nobody can review, and this one is
-        // meant to be readable by the person whose settings it holds.
-        'volumes': <String, Object?>{
-          for (final name in volumes.keys.toList()..sort()) name: volumes[name],
-        },
-        // Omitted when empty, so a config written by a build that had no
-        // settings reads back byte for byte.
-        if (settings.isNotEmpty)
-          'settings': <String, Object?>{
-            for (final name in settings.keys.toList()..sort())
-              name: settings[name],
-          },
-      };
+    'bindings': bindings.toJson(),
+    // Sorted for the same reason the bindings are: a settings file whose
+    // diff is noise is a settings file nobody can review, and this one is
+    // meant to be readable by the person whose settings it holds.
+    'volumes': <String, Object?>{
+      for (final name in volumes.keys.toList()..sort()) name: volumes[name],
+    },
+    // Omitted when empty, so a config written by a build that had no
+    // settings reads back byte for byte.
+    if (settings.isNotEmpty)
+      'settings': <String, Object?>{
+        for (final name in settings.keys.toList()..sort()) name: settings[name],
+      },
+  };
 }

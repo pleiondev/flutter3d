@@ -15,7 +15,6 @@
 /// genre decided what to do about it, which is this file's subject.
 library;
 
-
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
@@ -75,8 +74,11 @@ void main() {
     // The engine's own call, which is what a stray shot arrives as.
     hurt.applyDamage(10.0, from: culprit);
 
-    expect(_brainOf(hurt).quarrel, same(culprit),
-        reason: 'it took the shot and went on chasing the player');
+    expect(
+      _brainOf(hurt).quarrel,
+      same(culprit),
+      reason: 'it took the shot and went on chasing the player',
+    );
   });
 
   test('and a monster hurt by the player does not', () {
@@ -105,27 +107,39 @@ void main() {
     expect(_brainOf(monster).quarrel, isNull);
   });
 
-  test('and it walks towards the one it is fighting, not towards the player',
-      () {
-    final it = _room();
-    final hurt = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, 0.0));
-    final culprit = it.bestiary.spawn(Monsters.runner, Vector3(-12.0, 0.0, 0.0));
-    hurt.applyDamage(10.0, from: culprit);
+  test(
+    'and it walks towards the one it is fighting, not towards the player',
+    () {
+      final it = _room();
+      final hurt = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, 0.0));
+      final culprit = it.bestiary.spawn(
+        Monsters.runner,
+        Vector3(-12.0, 0.0, 0.0),
+      );
+      hurt.applyDamage(10.0, from: culprit);
 
-    final startedAt = hurt.position!.clone();
-    _step(it.system, it.eye, times: 120);
+      final startedAt = hurt.position!.clone();
+      _step(it.system, it.eye, times: 120);
 
-    // The player is sixty metres along +z and the quarrel twelve along -x. A
-    // monster still chasing the focus would have gone the other way entirely.
-    final moved = hurt.position! - startedAt;
-    expect(moved.x, lessThan(-0.5), reason: 'it did not go for the other one');
-    expect(moved.z, lessThan(1.0), reason: 'it went for the player instead');
-  });
+      // The player is sixty metres along +z and the quarrel twelve along -x. A
+      // monster still chasing the focus would have gone the other way entirely.
+      final moved = hurt.position! - startedAt;
+      expect(
+        moved.x,
+        lessThan(-0.5),
+        reason: 'it did not go for the other one',
+      );
+      expect(moved.z, lessThan(1.0), reason: 'it went for the player instead');
+    },
+  );
 
   test('and the argument ends when one of them dies', () {
     final it = _room();
     final hurt = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, 0.0));
-    final culprit = it.bestiary.spawn(Monsters.runner, Vector3(-12.0, 0.0, 0.0));
+    final culprit = it.bestiary.spawn(
+      Monsters.runner,
+      Vector3(-12.0, 0.0, 0.0),
+    );
     hurt.applyDamage(10.0, from: culprit);
     expect(_brainOf(hurt).quarrel, same(culprit));
 
@@ -134,8 +148,11 @@ void main() {
     it.system.hurt(culprit, 10000.0);
     _step(it.system, it.eye);
 
-    expect(_brainOf(hurt).quarrel, isNull,
-        reason: 'it is still fighting a corpse');
+    expect(
+      _brainOf(hurt).quarrel,
+      isNull,
+      reason: 'it is still fighting a corpse',
+    );
   });
 
   test('and a monster shot by another one is hurt by it', () {
@@ -157,9 +174,15 @@ void main() {
       _step(it.system, it.eye);
     }
 
-    expect(victim.health!.current, lessThan(before),
-        reason: 'the shot went through it');
-    expect(_brainOf(victim).quarrel, same(shooter),
-        reason: 'it was hit and did not notice by whom');
+    expect(
+      victim.health!.current,
+      lessThan(before),
+      reason: 'the shot went through it',
+    );
+    expect(
+      _brainOf(victim).quarrel,
+      same(shooter),
+      reason: 'it was hit and did not notice by whom',
+    );
   });
 }

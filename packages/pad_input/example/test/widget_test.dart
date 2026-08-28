@@ -58,10 +58,7 @@ void main() {
       ..state.setAxis(PadAxis.leftStickX, 1.0);
     await tester.pumpWidget(
       PadScreen(
-        pad: Gamepad(
-          platform: fake,
-          deadzone: const Deadzone(stick: 0.0),
-        ),
+        pad: Gamepad(platform: fake, deadzone: const Deadzone(stick: 0.0)),
       ).wrapped,
     );
     await tester.pump();
@@ -93,9 +90,7 @@ void main() {
     // button under the thumb is itself an acceptance item, and it cannot be
     // checked against a label the screen invented.
     final fake = FakePad()..state.connected = true;
-    await tester.pumpWidget(
-      PadScreen(pad: Gamepad(platform: fake)).wrapped,
-    );
+    await tester.pumpWidget(PadScreen(pad: Gamepad(platform: fake)).wrapped);
     await tester.pump();
 
     expect(find.text('face.south'), findsOneWidget);

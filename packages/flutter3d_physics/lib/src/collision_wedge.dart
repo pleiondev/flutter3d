@@ -43,12 +43,14 @@ enum WedgeUphill {
 /// a level author typed.
 final class CollisionWedge extends CollisionShape {
   CollisionWedge(this.halfExtents, {this.uphill = WedgeUphill.positiveX})
-      : assert(halfExtents.x > 0.0),
-        assert(halfExtents.y > 0.0),
-        assert(halfExtents.z > 0.0);
+    : assert(halfExtents.x > 0.0),
+      assert(halfExtents.y > 0.0),
+      assert(halfExtents.z > 0.0);
 
-  CollisionWedge.size(Vector3 size, {WedgeUphill uphill = WedgeUphill.positiveX})
-      : this(size / 2.0, uphill: uphill);
+  CollisionWedge.size(
+    Vector3 size, {
+    WedgeUphill uphill = WedgeUphill.positiveX,
+  }) : this(size / 2.0, uphill: uphill);
 
   /// Half the box this wedge is cut from.
   final Vector3 halfExtents;
@@ -88,7 +90,8 @@ final class CollisionWedge extends CollisionShape {
     void plane(double nx, double ny, double nz, double through) {
       // Grown by the moving body's own extent along this normal, which is the
       // Minkowski sum in closed form — see [CollisionShape.expandedPlanes].
-      final grown = (nx * half.x).abs() + (ny * half.y).abs() + (nz * half.z).abs();
+      final grown =
+          (nx * half.x).abs() + (ny * half.y).abs() + (nz * half.z).abs();
       out[i] = nx;
       out[i + 1] = ny;
       out[i + 2] = nz;
@@ -138,7 +141,8 @@ final class CollisionWedge extends CollisionShape {
     final count = expandedPlanes(position, _noGrowth, scratch);
     for (var i = 0; i < count; i++) {
       final base = i * 4;
-      final depth = scratch[base + 3] -
+      final depth =
+          scratch[base + 3] -
           (scratch[base] * point.x +
               scratch[base + 1] * point.y +
               scratch[base + 2] * point.z);
@@ -160,7 +164,8 @@ final class CollisionWedge extends CollisionShape {
     final count = expandedPlanes(position, box.halfExtents, scratch);
     for (var i = 0; i < count; i++) {
       final base = i * 4;
-      final depth = scratch[base + 3] -
+      final depth =
+          scratch[base + 3] -
           (scratch[base] * boxPosition.x +
               scratch[base + 1] * boxPosition.y +
               scratch[base + 2] * boxPosition.z);
@@ -189,7 +194,11 @@ final class CollisionWedge extends CollisionShape {
     // on a ramp touches it at one end, which the ends catch; the middle is
     // there so a long capsule lying across a thin ramp is not missed entirely.
     final probe = Vector3.copy(capsulePosition);
-    for (final offset in <double>[-capsule.halfHeight, 0.0, capsule.halfHeight]) {
+    for (final offset in <double>[
+      -capsule.halfHeight,
+      0.0,
+      capsule.halfHeight,
+    ]) {
       probe.y = capsulePosition.y + offset;
       if (containsPoint(position, probe, margin: capsule.radius)) return true;
     }
@@ -207,11 +216,11 @@ final class CollisionWedge extends CollisionShape {
       // bounding boxes, and said out loud rather than dressed up — the day
       // something needs this it needs a real answer, not this one made subtler.
       (position.x - wedgePosition.x).abs() <
-              halfExtents.x + wedge.halfExtents.x &&
-          (position.y - wedgePosition.y).abs() <
-              halfExtents.y + wedge.halfExtents.y &&
-          (position.z - wedgePosition.z).abs() <
-              halfExtents.z + wedge.halfExtents.z;
+          halfExtents.x + wedge.halfExtents.x &&
+      (position.y - wedgePosition.y).abs() <
+          halfExtents.y + wedge.halfExtents.y &&
+      (position.z - wedgePosition.z).abs() <
+          halfExtents.z + wedge.halfExtents.z;
 
   @override
   double raycast(

@@ -18,12 +18,16 @@ final class BrushIndex {
       if (brush.isRamp) continue;
       final min = brush.min;
       final max = brush.max;
-      for (var x = (min.x / cellSize).floor();
-          x <= (max.x / cellSize).floor();
-          x++) {
-        for (var z = (min.z / cellSize).floor();
-            z <= (max.z / cellSize).floor();
-            z++) {
+      for (
+        var x = (min.x / cellSize).floor();
+        x <= (max.x / cellSize).floor();
+        x++
+      ) {
+        for (
+          var z = (min.z / cellSize).floor();
+          z <= (max.z / cellSize).floor();
+          z++
+        ) {
           (_cells[(x << 32) ^ (z & 0xFFFFFFFF)] ??= <int>[]).add(i);
         }
       }
@@ -40,8 +44,9 @@ final class BrushIndex {
   /// two brushes that merely share a face both keep their faces.
   bool containsPoint(double x, double y, double z, Brush except) {
     const epsilon = Tolerance.sameSurface;
-    final bucket = _cells[((x / cellSize).floor() << 32) ^
-        ((z / cellSize).floor() & 0xFFFFFFFF)];
+    final bucket =
+        _cells[((x / cellSize).floor() << 32) ^
+            ((z / cellSize).floor() & 0xFFFFFFFF)];
     if (bucket == null) return false;
 
     for (final i in bucket) {

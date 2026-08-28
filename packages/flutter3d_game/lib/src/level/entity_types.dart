@@ -9,6 +9,7 @@
 /// validator and an editor all spell them the same way.
 abstract final class EntityTypes {
   static const String playerSpawn = 'player_spawn';
+
   /// A key. The *pickup* that grants one is a shooter's — see
   /// `ShooterEntities` — but the word stays here, because [LevelScope]
   /// gathers keys to answer whether a locked door names one that exists,

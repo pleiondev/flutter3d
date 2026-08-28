@@ -46,32 +46,36 @@ Collider _player(CollisionWorld world, Vector3 at, {Inventory? carrying}) {
   return player.body.collider;
 }
 
-Door _door(({MechanismWorld mechanisms, CollisionWorld world}) w, String name,
-        {String? key}) =>
-    w.mechanisms.add(
-      Door(
-        name: name,
-        collider: w.world.add(
-          Collider(
-            shape: CollisionBox(Vector3(1.0, 1.5, 0.15)),
-            position: Vector3(0.0, 0.0, -20.0),
-          ),
-        ),
-        travel: Vector3(0.0, 3.0, 0.0),
-        speed: 9.0,
-        wait: 0.0,
-        key: key,
+Door _door(
+  ({MechanismWorld mechanisms, CollisionWorld world}) w,
+  String name, {
+  String? key,
+}) => w.mechanisms.add(
+  Door(
+    name: name,
+    collider: w.world.add(
+      Collider(
+        shape: CollisionBox(Vector3(1.0, 1.5, 0.15)),
+        position: Vector3(0.0, 0.0, -20.0),
       ),
-    );
+    ),
+    travel: Vector3(0.0, 3.0, 0.0),
+    speed: 9.0,
+    wait: 0.0,
+    key: key,
+  ),
+);
 
 /// A blue key lying at [at].
-Pickup _key(({MechanismWorld mechanisms, CollisionWorld world}) w, Vector3 at) =>
-    Pickup(
-      gift: const KeyGift(),
-      amount: 1.0,
-      detail: 'blue',
-      collider: _volume(w.world, at, 0.6),
-    );
+Pickup _key(
+  ({MechanismWorld mechanisms, CollisionWorld world}) w,
+  Vector3 at,
+) => Pickup(
+  gift: const KeyGift(),
+  amount: 1.0,
+  detail: 'blue',
+  collider: _volume(w.world, at, 0.6),
+);
 
 void main() {
   _eventTests();
@@ -200,7 +204,11 @@ void main() {
         ),
       );
 
-      final empty = _player(w.world, Vector3(0.0, 1.0, 0.0), carrying: Inventory());
+      final empty = _player(
+        w.world,
+        Vector3(0.0, 1.0, 0.0),
+        carrying: Inventory(),
+      );
       _run(w.mechanisms, 0.5);
       expect(door.state, MoverState.closed);
       expect(trigger.takeOutcome(), isA<Refused>());
@@ -262,12 +270,13 @@ void main() {
     test('is picked up by walking over it, once', () {
       final w = _world();
       final carrying = Inventory();
-      final key = w.mechanisms.add(
-        _key(w, Vector3(0.0, 0.5, 0.0)),
-      );
+      final key = w.mechanisms.add(_key(w, Vector3(0.0, 0.5, 0.0)));
 
-      final player =
-          _player(w.world, Vector3(0.0, 0.9, 4.0), carrying: carrying);
+      final player = _player(
+        w.world,
+        Vector3(0.0, 0.9, 4.0),
+        carrying: carrying,
+      );
       _run(w.mechanisms, 0.2);
       expect(carrying.keyRing.has('blue'), isFalse);
 
@@ -302,8 +311,11 @@ void main() {
       final carrying = Inventory();
       final door = _door(w, 'gate', key: 'blue');
       w.mechanisms.add(_key(w, Vector3(0.0, 0.9, 0.0)));
-      final player =
-          _player(w.world, Vector3(0.0, 0.9, 6.0), carrying: carrying);
+      final player = _player(
+        w.world,
+        Vector3(0.0, 0.9, 6.0),
+        carrying: carrying,
+      );
 
       expect(door.activate(w.mechanisms.activationBy(player)), isA<Refused>());
 
@@ -396,12 +408,12 @@ void main() {
 /// map of sounds. The comment there said "a mover has no events"; it has now,
 /// and each mechanism reports its own rather than being interrogated.
 Collider _eventBox(CollisionWorld world) => world.add(
-      Collider(
-        shape: CollisionBox(Vector3(2.0, 3.0, 0.3)),
-        position: Vector3(4.0, 1.0, 0.0),
-        kind: ColliderKind.kinematic,
-      ),
-    );
+  Collider(
+    shape: CollisionBox(Vector3(2.0, 3.0, 0.3)),
+    position: Vector3(4.0, 1.0, 0.0),
+    kind: ColliderKind.kinematic,
+  ),
+);
 
 /// A mechanism that is nowhere, which the base class allows.
 final class _Placeless extends Mechanism {
@@ -418,34 +430,36 @@ final class _Placeless extends Mechanism {
 
 void _eventTests() {
   group('published events', () {
-    test('a door started by a button is reported in that step, not the next',
-        () {
-      // The reason `publish()` is not called from `step()`. A button pressed
-      // with the use key is activated *after* mechanisms have stepped, so the
-      // door it starts is not yet moving when `step` returns.
-      //
-      // Mutation: call `publish()` at the end of `MechanismWorld.step`. The
-      // door then appears one step late and this fails.
-      final world = CollisionWorld();
-      final mechanisms = MechanismWorld(world);
-      final door = Door(
-        name: 'door',
-        collider: _eventBox(world),
-        travel: Vector3(0, 3, 0),
-        speed: 2.0,
-      );
-      mechanisms.add(door);
+    test(
+      'a door started by a button is reported in that step, not the next',
+      () {
+        // The reason `publish()` is not called from `step()`. A button pressed
+        // with the use key is activated *after* mechanisms have stepped, so the
+        // door it starts is not yet moving when `step` returns.
+        //
+        // Mutation: call `publish()` at the end of `MechanismWorld.step`. The
+        // door then appears one step late and this fails.
+        final world = CollisionWorld();
+        final mechanisms = MechanismWorld(world);
+        final door = Door(
+          name: 'door',
+          collider: _eventBox(world),
+          travel: Vector3(0, 3, 0),
+          speed: 2.0,
+        );
+        mechanisms.add(door);
 
-      mechanisms.step(1 / 60);
-      mechanisms.publish();
-      expect(mechanisms.events.started, isEmpty);
+        mechanisms.step(1 / 60);
+        mechanisms.publish();
+        expect(mechanisms.events.started, isEmpty);
 
-      // The use key, after the step — which is where the application puts it.
-      door.activate(const Activation());
-      mechanisms.publish();
+        // The use key, after the step — which is where the application puts it.
+        door.activate(const Activation());
+        mechanisms.publish();
 
-      expect(mechanisms.events.started, <Mechanism>[door]);
-    });
+        expect(mechanisms.events.started, <Mechanism>[door]);
+      },
+    );
 
     test('a mover that keeps going is reported once, not every step', () {
       final world = CollisionWorld();

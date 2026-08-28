@@ -2,7 +2,7 @@ import 'dart:ui' show Offset;
 
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import 'pointer_lock_method_channel.dart';
+import 'platform_default.dart';
 
 /// Whether the pointer is currently held.
 ///
@@ -10,10 +10,7 @@ import 'pointer_lock_method_channel.dart';
 /// released it: a game needs to tell "the player pressed Escape" from "the
 /// system took focus away and the capture is gone", and the second one usually
 /// means opening a pause menu.
-enum CaptureState {
-  released,
-  captured,
-}
+enum CaptureState { released, captured }
 
 /// The platform side of pointer capture.
 ///
@@ -26,7 +23,10 @@ abstract base class PointerLockPlatform extends PlatformInterface {
 
   static final Object _token = Object();
 
-  static PointerLockPlatform _instance = MethodChannelPointerLock();
+  /// Chosen by conditional export: a method channel outside the browser, the
+  /// Pointer Lock API inside one. See `platform_default.dart` for why that is a
+  /// compile-time choice rather than a plugin registration.
+  static PointerLockPlatform _instance = defaultPointerLockPlatform();
 
   static PointerLockPlatform get instance => _instance;
 

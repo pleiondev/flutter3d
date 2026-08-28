@@ -59,8 +59,10 @@ void main() {
       return field.runner.position.z;
     }
 
-    expect(travelled(dashing: true),
-        greaterThan(travelled(dashing: false) + 1.0));
+    expect(
+      travelled(dashing: true),
+      greaterThan(travelled(dashing: false) + 1.0),
+    );
   });
 
   test('a dash with the stick centred goes where the runner faces', () {
@@ -108,7 +110,11 @@ void main() {
     }
 
     field.run(20, forward: true);
-    expect(field.runner.dashCooldown, greaterThan(0.0), reason: 'still cooling');
+    expect(
+      field.runner.dashCooldown,
+      greaterThan(0.0),
+      reason: 'still cooling',
+    );
     field.step(forward: true, dash: true);
     expect(flatSpeed(), lessThan(12.0), reason: 'the press was refused');
 

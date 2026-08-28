@@ -36,7 +36,9 @@ List<LevelIssue> _issuesFor(Map<String, Object?> entity) {
     'version': 1,
     'name': 'one entity',
     'materials': <String, Object?>{
-      'stone': <String, Object?>{'baseColor': <double>[0.5, 0.5, 0.5, 1.0]},
+      'stone': <String, Object?>{
+        'baseColor': <double>[0.5, 0.5, 0.5, 1.0],
+      },
     },
     'brushes': <Object?>[
       <String, Object?>{
@@ -119,21 +121,29 @@ void main() {
     test('must say what it gives', () {
       // Mutation: drop the `requireText`. The level loads, the entity spawns,
       // and walking over it credits a purse under the key `null`.
-      expect(_errors(_entity(PlatformerEntities.collectible)),
-          contains(contains('"what"')));
+      expect(
+        _errors(_entity(PlatformerEntities.collectible)),
+        contains(contains('"what"')),
+      );
     });
 
     test('and giving none of it is worth saying out loud', () {
       expect(
-        _warnings(_entity(PlatformerEntities.collectible,
-            <String, Object?>{'what': 'coin', 'count': 0})),
+        _warnings(
+          _entity(PlatformerEntities.collectible, <String, Object?>{
+            'what': 'coin',
+            'count': 0,
+          }),
+        ),
         contains(contains('does nothing')),
       );
     });
 
     test('and a proper one is silent', () {
-      final entity = _entity(PlatformerEntities.collectible,
-          <String, Object?>{'what': 'coin', 'count': 1});
+      final entity = _entity(PlatformerEntities.collectible, <String, Object?>{
+        'what': 'coin',
+        'count': 1,
+      });
       expect(_errors(entity), isEmpty);
       expect(_warnings(entity), isEmpty);
     });
@@ -145,8 +155,11 @@ void main() {
       // string is a saw that stands still in the air for ever, and there is no
       // other way to notice.
       expect(
-        _errors(_entity(PlatformerEntities.hazard,
-            <String, Object?>{'follows': 'the arm that is not'})),
+        _errors(
+          _entity(PlatformerEntities.hazard, <String, Object?>{
+            'follows': 'the arm that is not',
+          }),
+        ),
         contains(contains('no entity in this level is named')),
       );
     });
@@ -156,13 +169,15 @@ void main() {
       // laying a level out is normal, and a validator that refuses the document
       // stops the work.
       expect(
-        _errors(_entity(
-            PlatformerEntities.hazard, <String, Object?>{'damage': 0.0})),
+        _errors(
+          _entity(PlatformerEntities.hazard, <String, Object?>{'damage': 0.0}),
+        ),
         isEmpty,
       );
       expect(
-        _warnings(_entity(
-            PlatformerEntities.hazard, <String, Object?>{'damage': 0.0})),
+        _warnings(
+          _entity(PlatformerEntities.hazard, <String, Object?>{'damage': 0.0}),
+        ),
         contains(contains('no damage')),
       );
     });
@@ -171,8 +186,12 @@ void main() {
       // Mutation: drop the `instant` check. Every pit in the game — all of
       // which kill instantly and carry no damage number — warns.
       expect(
-        _warnings(_entity(PlatformerEntities.hazard,
-            <String, Object?>{'damage': 0.0, 'instant': true})),
+        _warnings(
+          _entity(PlatformerEntities.hazard, <String, Object?>{
+            'damage': 0.0,
+            'instant': true,
+          }),
+        ),
         isEmpty,
       );
     });
@@ -182,14 +201,17 @@ void main() {
     test('must be numbered', () {
       // Mutation: default the order to zero. Every post in the level is post
       // zero, they sort arbitrarily, and dying sends the player backwards.
-      expect(_errors(_entity(PlatformerEntities.checkpoint)),
-          contains(contains('"order"')));
+      expect(
+        _errors(_entity(PlatformerEntities.checkpoint)),
+        contains(contains('"order"')),
+      );
     });
 
     test('and a numbered one is silent', () {
       expect(
-        _errors(_entity(
-            PlatformerEntities.checkpoint, <String, Object?>{'order': 1})),
+        _errors(
+          _entity(PlatformerEntities.checkpoint, <String, Object?>{'order': 1}),
+        ),
         isEmpty,
       );
     });
@@ -199,7 +221,8 @@ void main() {
     test('that throws nowhere is refused', () {
       expect(
         _errors(
-            _entity(PlatformerEntities.spring, <String, Object?>{'speed': 0.0})),
+          _entity(PlatformerEntities.spring, <String, Object?>{'speed': 0.0}),
+        ),
         contains(contains('does nothing')),
       );
     });
@@ -227,18 +250,22 @@ void main() {
       // play: a player jumping up through a thick slab is inside it for long
       // enough to be pushed back out sideways.
       expect(
-        _warnings(_entity(PlatformerEntities.oneWay, <String, Object?>{
-          'size': <double>[4.0, 1.2, 4.0],
-        })),
+        _warnings(
+          _entity(PlatformerEntities.oneWay, <String, Object?>{
+            'size': <double>[4.0, 1.2, 4.0],
+          }),
+        ),
         contains(contains('thick')),
       );
     });
 
     test('and a thin one is silent', () {
       expect(
-        _warnings(_entity(PlatformerEntities.oneWay, <String, Object?>{
-          'size': <double>[4.0, 0.3, 4.0],
-        })),
+        _warnings(
+          _entity(PlatformerEntities.oneWay, <String, Object?>{
+            'size': <double>[4.0, 0.3, 4.0],
+          }),
+        ),
         isEmpty,
       );
     });
@@ -246,8 +273,10 @@ void main() {
 
   group('a conveyor', () {
     test('with no flow is a floor, and is refused as one', () {
-      expect(_errors(_entity(PlatformerEntities.conveyor)),
-          contains(contains('"flow"')));
+      expect(
+        _errors(_entity(PlatformerEntities.conveyor)),
+        contains(contains('"flow"')),
+      );
     });
 
     test('with a flow of zero is a warning rather than an error', () {
@@ -255,9 +284,11 @@ void main() {
       // A conveyor authored `[0, 0, 0]` — which is what a half-finished one
       // looks like — passes silently.
       expect(
-        _warnings(_entity(PlatformerEntities.conveyor, <String, Object?>{
-          'flow': <double>[0.0, 0.0, 0.0],
-        })),
+        _warnings(
+          _entity(PlatformerEntities.conveyor, <String, Object?>{
+            'flow': <double>[0.0, 0.0, 0.0],
+          }),
+        ),
         contains(contains('flows nowhere')),
       );
     });
@@ -274,16 +305,22 @@ void main() {
   group('a crumbling platform', () {
     test('that gives way instantly is refused', () {
       expect(
-        _errors(_entity(
-            PlatformerEntities.crumbling, <String, Object?>{'delay': 0.0})),
+        _errors(
+          _entity(PlatformerEntities.crumbling, <String, Object?>{
+            'delay': 0.0,
+          }),
+        ),
         contains(contains('gives way')),
       );
     });
 
     test('and one with a delay is fine', () {
       expect(
-        _errors(_entity(
-            PlatformerEntities.crumbling, <String, Object?>{'delay': 0.4})),
+        _errors(
+          _entity(PlatformerEntities.crumbling, <String, Object?>{
+            'delay': 0.4,
+          }),
+        ),
         isEmpty,
       );
     });
@@ -292,9 +329,11 @@ void main() {
   group('a climbable', () {
     test('shorter than the runner is a warning', () {
       expect(
-        _warnings(_entity(PlatformerEntities.climbable, <String, Object?>{
-          'size': <double>[1.0, 1.0, 1.0],
-        })),
+        _warnings(
+          _entity(PlatformerEntities.climbable, <String, Object?>{
+            'size': <double>[1.0, 1.0, 1.0],
+          }),
+        ),
         contains(contains('shorter than the runner')),
       );
     });
@@ -309,11 +348,16 @@ void main() {
 
   group('an enemy', () {
     test('must have a route, because standing still is a hazard', () {
-      expect(_errors(_entity(PlatformerEntities.enemy)),
-          contains(contains('"route"')));
       expect(
-        _errors(_entity(PlatformerEntities.enemy,
-            <String, Object?>{'route': <Object?>[]})),
+        _errors(_entity(PlatformerEntities.enemy)),
+        contains(contains('"route"')),
+      );
+      expect(
+        _errors(
+          _entity(PlatformerEntities.enemy, <String, Object?>{
+            'route': <Object?>[],
+          }),
+        ),
         contains(contains('"route"')),
         reason: 'an empty route is no route',
       );
@@ -326,29 +370,39 @@ void main() {
       // load" with a cast message; and a short row was dropped in silence,
       // which — if it left fewer than two points — omitted the enemy from the
       // level with nothing said at all.
-      final errors = _errors(_entity(PlatformerEntities.enemy,
-          <String, Object?>{
-            'route': <Object?>[
-              <double>[1.0, 0.0, 0.0],
-              <Object?>['east', 0.0, 0.0],
-              <double>[2.0, 0.0],
-            ],
-          }));
+      final errors = _errors(
+        _entity(PlatformerEntities.enemy, <String, Object?>{
+          'route': <Object?>[
+            <double>[1.0, 0.0, 0.0],
+            <Object?>['east', 0.0, 0.0],
+            <double>[2.0, 0.0],
+          ],
+        }),
+      );
 
-      expect(errors, hasLength(2), reason: 'both bad points, not just the first');
-      expect(errors.first, contains('point 1'),
-          reason: 'a refusal that does not say which point is a search');
+      expect(
+        errors,
+        hasLength(2),
+        reason: 'both bad points, not just the first',
+      );
+      expect(
+        errors.first,
+        contains('point 1'),
+        reason: 'a refusal that does not say which point is a search',
+      );
       expect(errors.last, contains('point 2'));
     });
 
     test('and a route of good points says nothing', () {
       expect(
-        _errors(_entity(PlatformerEntities.enemy, <String, Object?>{
-          'route': <Object?>[
-            <double>[1.0, 0.0, 0.0],
-            <int>[2, 0, 0],
-          ],
-        })),
+        _errors(
+          _entity(PlatformerEntities.enemy, <String, Object?>{
+            'route': <Object?>[
+              <double>[1.0, 0.0, 0.0],
+              <int>[2, 0, 0],
+            ],
+          }),
+        ),
         isEmpty,
         reason: 'an integer is a number, and a document may write one',
       );
@@ -357,26 +411,33 @@ void main() {
     test('of a kind this game does not have is refused, and named', () {
       // Mutation: accept any string. The level loads, the entity spawns as a
       // patrol, and the author never learns that "flyer" did nothing.
-      final errors = _errors(_entity(PlatformerEntities.enemy, <String, Object?>{
-        'route': <Object?>[
-          <double>[1.0, 0.0, 0.0],
-        ],
-        'kind': 'flyer',
-      }));
+      final errors = _errors(
+        _entity(PlatformerEntities.enemy, <String, Object?>{
+          'route': <Object?>[
+            <double>[1.0, 0.0, 0.0],
+          ],
+          'kind': 'flyer',
+        }),
+      );
       expect(errors, contains(contains('flyer')));
-      expect(errors.first, contains('patrol'),
-          reason: 'a refusal that does not say what is allowed is a dead end');
+      expect(
+        errors.first,
+        contains('patrol'),
+        reason: 'a refusal that does not say what is allowed is a dead end',
+      );
     });
 
     test('and both kinds it does have are silent', () {
       for (final kind in <String>['patrol', 'leaper']) {
         expect(
-          _errors(_entity(PlatformerEntities.enemy, <String, Object?>{
-            'route': <Object?>[
-              <double>[1.0, 0.0, 0.0],
-            ],
-            'kind': kind,
-          })),
+          _errors(
+            _entity(PlatformerEntities.enemy, <String, Object?>{
+              'route': <Object?>[
+                <double>[1.0, 0.0, 0.0],
+              ],
+              'kind': kind,
+            }),
+          ),
           isEmpty,
           reason: kind,
         );
@@ -387,8 +448,9 @@ void main() {
   group('a crate', () {
     test('with no mass is a wall, and is refused as one', () {
       expect(
-        _errors(_entity(
-            PlatformerEntities.crate, <String, Object?>{'mass': 0.0})),
+        _errors(
+          _entity(PlatformerEntities.crate, <String, Object?>{'mass': 0.0}),
+        ),
         contains(contains('a wall')),
       );
     });
@@ -396,8 +458,9 @@ void main() {
     test('and one with mass, or none given, is silent', () {
       expect(_errors(_entity(PlatformerEntities.crate)), isEmpty);
       expect(
-        _errors(_entity(
-            PlatformerEntities.crate, <String, Object?>{'mass': 40.0})),
+        _errors(
+          _entity(PlatformerEntities.crate, <String, Object?>{'mass': 40.0}),
+        ),
         isEmpty,
       );
     });
@@ -416,7 +479,9 @@ void main() {
         'version': 1,
         'name': 'one lamp',
         'materials': <String, Object?>{
-          'stone': <String, Object?>{'baseColor': <double>[0.5, 0.5, 0.5, 1.0]},
+          'stone': <String, Object?>{
+            'baseColor': <double>[0.5, 0.5, 0.5, 1.0],
+          },
         },
         'brushes': <Object?>[
           <String, Object?>{
@@ -436,7 +501,11 @@ void main() {
         'entities': <Object?>[_entity(PlatformerEntities.lamp, properties)],
       });
       level.spawnInto(
-        SpawnContext(world: world, mechanisms: mechanisms, actors: ActorSystem(world: world, random: GameRandom(1))),
+        SpawnContext(
+          world: world,
+          mechanisms: mechanisms,
+          actors: ActorSystem(world: world, random: GameRandom(1)),
+        ),
         registry: platformerRegistry(),
       );
       final lamps = <LightFixture>[
@@ -452,8 +521,10 @@ void main() {
       // the `pulse` branch entirely — which is how it shipped. A lamp asking to
       // pulse gets a flame, silently.
       final burning = lampFrom(<String, Object?>{'light': 'the light'});
-      final swelling =
-          lampFrom(<String, Object?>{'light': 'the light', 'pulse': 0.4});
+      final swelling = lampFrom(<String, Object?>{
+        'light': 'the light',
+        'pulse': 0.4,
+      });
 
       // Told apart by **periodicity**, which is what a swell is and a flame is
       // not: a pulse of period 3.5 s is at the same brightness 3.5 s later, and
@@ -474,12 +545,18 @@ void main() {
       swelling.step(1.0 / 60.0);
       burning.step(1.0 / 60.0);
       final swellStart = swelling.brightness;
-      expect(after(swelling, period), closeTo(swellStart, 0.02),
-          reason: 'the lamp asked to pulse and did not come back round');
+      expect(
+        after(swelling, period),
+        closeTo(swellStart, 0.02),
+        reason: 'the lamp asked to pulse and did not come back round',
+      );
 
       final burnStart = burning.brightness;
-      expect(after(burning, period), isNot(closeTo(burnStart, 0.02)),
-          reason: 'the flame repeated itself exactly, so it is a pulse');
+      expect(
+        after(burning, period),
+        isNot(closeTo(burnStart, 0.02)),
+        reason: 'the flame repeated itself exactly, so it is a pulse',
+      );
     });
 
     test('and one that asks for both gets the swell', () {
@@ -501,8 +578,11 @@ void main() {
         both.step(1.0 / 60.0);
       }
 
-      expect(both.brightness, closeTo(start, 0.02),
-          reason: 'it did not come back round after a period, so `flicker` won');
+      expect(
+        both.brightness,
+        closeTo(start, 0.02),
+        reason: 'it did not come back round after a period, so `flicker` won',
+      );
     });
 
     test('and a swell of zero is a lamp that just stays on', () {
@@ -526,18 +606,24 @@ void main() {
       // Mutation: return false from `CollectibleKind.mustBeReachable`, or drop
       // `_checkReachable` from `LevelValidator.validate`. Fourteen of these
       // shipped in two levels and nothing said a word.
-      final buried = _issuesFor(_entity(PlatformerEntities.collectible,
-          <String, Object?>{'what': 'coin'})
-        ..['at'] = <double>[0.0, -0.5, 0.0]);
+      final buried = _issuesFor(
+        _entity(PlatformerEntities.collectible, <String, Object?>{
+          'what': 'coin',
+        })..['at'] = <double>[0.0, -0.5, 0.0],
+      );
 
       expect(
-        buried.where((LevelIssue i) => i.isError).map((LevelIssue i) => i.message),
+        buried
+            .where((LevelIssue i) => i.isError)
+            .map((LevelIssue i) => i.message),
         contains(contains('inside solid geometry')),
       );
 
-      final lamp = _issuesFor(_entity(PlatformerEntities.lamp,
-          <String, Object?>{'light': 'the light'})
-        ..['at'] = <double>[0.0, -0.5, 0.0]);
+      final lamp = _issuesFor(
+        _entity(PlatformerEntities.lamp, <String, Object?>{
+          'light': 'the light',
+        })..['at'] = <double>[0.0, -0.5, 0.0],
+      );
       expect(
         lamp.map((LevelIssue i) => i.message),
         isNot(contains(contains('inside solid geometry'))),
@@ -549,12 +635,10 @@ void main() {
       // The half that stops this being a check people switch off: the floor's
       // top is y = 0 and a coin sits at 0.8, which is neither inside it nor a
       // near miss worth reporting.
-      final coin = _entity(PlatformerEntities.collectible,
-          <String, Object?>{'what': 'coin'});
-      expect(
-        _errors(coin),
-        isNot(contains(contains('inside solid geometry'))),
-      );
+      final coin = _entity(PlatformerEntities.collectible, <String, Object?>{
+        'what': 'coin',
+      });
+      expect(_errors(coin), isNot(contains(contains('inside solid geometry'))));
     });
   });
 

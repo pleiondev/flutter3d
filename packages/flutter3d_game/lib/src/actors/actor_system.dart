@@ -48,11 +48,8 @@ import 'health.dart';
 export 'actor_hurt.dart';
 
 final class ActorSystem {
-  ActorSystem({
-    required this.world,
-    required this.random,
-    EcsWorld? entities,
-  }) : entities = entities ?? EcsWorld() {
+  ActorSystem({required this.world, required this.random, EcsWorld? entities})
+    : entities = entities ?? EcsWorld() {
     registerActorComponents(this.entities);
   }
 
@@ -245,11 +242,7 @@ final class ActorSystem {
   bool _begun = false;
 
   /// Advances every actor.
-  void step(
-    double dt, {
-    required Vector3 focus,
-    Collider? focusBody,
-  }) {
+  void step(double dt, {required Vector3 focus, Collider? focusBody}) {
     // **Thrown, not asserted, and the difference is the whole point.** This is
     // a protocol between two objects, not an invariant of one: a game that
     // calls `step` without `beginStep` is a game whose dead and hurt lists grow
@@ -310,7 +303,8 @@ final class ActorSystem {
       if (brain != null) {
         // Thinking is throttled; moving is not. An actor whose movement ran
         // every fourth step would visibly stutter.
-        final thinks = _distance < closeRange ||
+        final thinks =
+            _distance < closeRange ||
             (_tick + actor.ordinal) % thinkInterval == 0;
         if (thinks) brain.think(_mind);
       }
@@ -386,8 +380,9 @@ final class ActorSystem {
   void syncCorpses() {
     for (final actor in actors) {
       if (actor.health == null) continue;
-      actor.body?.collider.kind =
-          actor.isAlive ? ColliderKind.kinematic : ColliderKind.trigger;
+      actor.body?.collider.kind = actor.isAlive
+          ? ColliderKind.kinematic
+          : ColliderKind.trigger;
     }
     died.clear();
     hurtThisStep.clear();
@@ -430,7 +425,8 @@ final class ActorSystem {
   /// the right answer anyway.
   void steerTowardsFocus(Actor actor) {
     final body = actor.body;
-    final routed = body != null &&
+    final routed =
+        body != null &&
         (navigation?.steer(
               body.position,
               _wish,
@@ -454,10 +450,12 @@ final class ActorSystem {
   void turnTowards(Actor actor, double x, double z, double dt) {
     if (x == 0.0 && z == 0.0) return;
     if (actor.facing == null) return;
-    actor.yaw =
-        turnedTowards(actor.yaw, math.atan2(-x, -z), actor.turnRate * dt);
+    actor.yaw = turnedTowards(
+      actor.yaw,
+      math.atan2(-x, -z),
+      actor.turnRate * dt,
+    );
   }
-
 
   /// Whether an actor has a clear line to the focus.
   ///

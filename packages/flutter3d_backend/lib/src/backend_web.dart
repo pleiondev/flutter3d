@@ -21,8 +21,5 @@ const bool kFixedResolution = true;
 ///
 /// The whole of it is `flutter3d_webgl`'s: what a browser has to provide is that
 /// package's knowledge, and three games had been repeating it.
-Future<GraphicsDevice> openDevice({
-  required int width,
-  required int height,
-}) =>
+Future<GraphicsDevice> openDevice({required int width, required int height}) =>
     openWebGl(width: width, height: height);

@@ -170,9 +170,7 @@ final class ChaseBrain extends Brain {
     // quarrel, which is what keeps a monster from turning on the person it is
     // supposed to be chasing every time they land a shot.
     final culprit = it.hurtBy;
-    if (culprit is Actor &&
-        !identical(culprit, it.actor) &&
-        culprit.isAlive) {
+    if (culprit is Actor && !identical(culprit, it.actor) && culprit.isAlive) {
       quarrel = culprit;
       if (state == MonsterState.idle || state == MonsterState.alert) {
         _enter(MonsterState.chase);

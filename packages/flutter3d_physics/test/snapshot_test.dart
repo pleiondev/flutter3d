@@ -42,10 +42,12 @@ void main() {
     ]) {
       final out = Vector3(7.0, 8.0, 9.0);
 
-      expect(() => readVector(broken, out), returnsNormally,
-          reason: 'reading $broken threw');
-      expect(out, Vector3(7.0, 8.0, 9.0),
-          reason: '$broken moved the body');
+      expect(
+        () => readVector(broken, out),
+        returnsNormally,
+        reason: 'reading $broken threw',
+      );
+      expect(out, Vector3(7.0, 8.0, 9.0), reason: '$broken moved the body');
     }
   });
 

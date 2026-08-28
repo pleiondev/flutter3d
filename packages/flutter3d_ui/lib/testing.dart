@@ -39,7 +39,7 @@ import 'src/credits.dart';
 /// Paths are compared as `<folder>/<name>`, which is the form a [Credit.file]
 /// takes: `models/penguin.glb`.
 ({Set<String> uncredited, Set<String> unshipped, Set<String> shipped})
-    creditGaps(
+creditGaps(
   List<Credit> credited, {
   required String shippedFrom,
   String extension = '.glb',

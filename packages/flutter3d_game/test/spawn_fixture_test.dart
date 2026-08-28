@@ -29,10 +29,10 @@ import 'package:vector_math/vector_math.dart';
 }
 
 EntityDef _entity(Map<String, Object?> properties, {Vector3? at}) => EntityDef(
-      type: 'torch',
-      position: at ?? Vector3.zero(),
-      properties: properties,
-    );
+  type: 'torch',
+  position: at ?? Vector3.zero(),
+  properties: properties,
+);
 
 void main() {
   test('a level that says nothing still produces a drawable fixture', () {
@@ -52,10 +52,12 @@ void main() {
 
   test('what the document says wins over the default', () {
     final (:context, :seen) = _context();
-    context.reveal(_entity(<String, Object?>{
-      'size': <double>[2.0, 3.0, 4.0],
-      'material': 'iron',
-    }));
+    context.reveal(
+      _entity(<String, Object?>{
+        'size': <double>[2.0, 3.0, 4.0],
+        'material': 'iron',
+      }),
+    );
 
     expect(seen.single.size, Vector3(2.0, 3.0, 4.0));
     expect(seen.single.material, 'iron');
@@ -66,7 +68,9 @@ void main() {
     // rather than from a property somebody forgot to set.
     final (:context, :seen) = _context();
     context.reveal(
-      _entity(<String, Object?>{'size': <double>[2.0, 2.0, 2.0]}),
+      _entity(<String, Object?>{
+        'size': <double>[2.0, 2.0, 2.0],
+      }),
       size: Vector3(9.0, 9.0, 9.0),
     );
 
@@ -89,9 +93,13 @@ void main() {
 
     collider.position.setValues(0.0, 4.0, 0.0);
 
-    expect(seen.single.position, Vector3(0.0, 4.0, 0.0),
-        reason: 'the fixture kept the position it was reported at, so anything '
-            'that moves is drawn where it used to be');
+    expect(
+      seen.single.position,
+      Vector3(0.0, 4.0, 0.0),
+      reason:
+          'the fixture kept the position it was reported at, so anything '
+          'that moves is drawn where it used to be',
+    );
   });
 
   test('a fixture with no collider keeps the place it was given', () {

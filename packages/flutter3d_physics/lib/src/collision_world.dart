@@ -590,7 +590,8 @@ final class CollisionWorld {
         final base = i * 4;
         // How far inside this face the centre sits, and therefore how far it
         // would have to travel along the normal to leave through it.
-        final depth = _planes[base + 3] -
+        final depth =
+            _planes[base + 3] -
             (_planes[base] * centre.x +
                 _planes[base + 1] * centre.y +
                 _planes[base + 2] * centre.z);

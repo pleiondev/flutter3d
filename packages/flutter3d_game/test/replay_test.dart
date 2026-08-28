@@ -25,7 +25,11 @@ Tape _circle({double hz = 15.0, double seconds = 4.0, double radius = 20.0}) {
     final angle = t / seconds * 2 * math.pi;
     recorder.tick(
       t,
-      position: Vector3(math.cos(angle) * radius, 0.0, math.sin(angle) * radius),
+      position: Vector3(
+        math.cos(angle) * radius,
+        0.0,
+        math.sin(angle) * radius,
+      ),
       yaw: angle,
     );
   }
@@ -45,13 +49,18 @@ void main() {
       final tape = _circle(hz: 15.0, seconds: 4.0);
 
       expect(tape.poses.length, closeTo(60, 8));
-      expect(tape.poses.length, lessThan(100),
-          reason: 'it recorded at the rate it was called at');
+      expect(
+        tape.poses.length,
+        lessThan(100),
+        reason: 'it recorded at the rate it was called at',
+      );
     });
 
     test('and a finer rate makes a bigger tape', () {
-      expect(_circle(hz: 30.0).poses.length,
-          greaterThan(_circle(hz: 15.0).poses.length));
+      expect(
+        _circle(hz: 30.0).poses.length,
+        greaterThan(_circle(hz: 15.0).poses.length),
+      );
     });
 
     test('and starting again forgets what came before', () {
@@ -98,8 +107,11 @@ void main() {
 
       // A chord between samples 45° apart cuts nearly 1.5 m off a 20 m circle.
       // The curve keeps it inside a couple of centimetres.
-      expect(worst, lessThan(0.1),
-          reason: 'the playback is cutting corners by ${worst}m');
+      expect(
+        worst,
+        lessThan(0.1),
+        reason: 'the playback is cutting corners by ${worst}m',
+      );
     });
 
     test('and does not crawl away from the start', () {
@@ -124,36 +136,48 @@ void main() {
       // Mirroring gives 1.02 of the middle's speed; doubling the end sample
       // gives 0.82, and a looser bound let that through — which is how this
       // test came to be tightened rather than trusted.
-      expect(early, closeTo(middle, middle * 0.12),
-          reason: 'it crawls away from the start rather than arriving at speed');
+      expect(
+        early,
+        closeTo(middle, middle * 0.12),
+        reason: 'it crawls away from the start rather than arriving at speed',
+      );
     });
 
     test('and turns the short way round the wrap point', () {
       // A plain blend between 3.1 and −3.1 radians turns almost the whole way
       // round the wrong way — once a lap, wherever the track happens to point
       // south, and exactly where somebody is watching.
-      final tape = Tape(seconds: 1.0, poses: <Pose>[
-        Pose(time: 0.0, yaw: math.pi - 0.1),
-        Pose(time: 1.0, yaw: -math.pi + 0.1),
-      ]);
+      final tape = Tape(
+        seconds: 1.0,
+        poses: <Pose>[
+          Pose(time: 0.0, yaw: math.pi - 0.1),
+          Pose(time: 1.0, yaw: -math.pi + 0.1),
+        ],
+      );
       final out = Pose();
 
       Playback(tape).sampleAt(0.5, out);
 
       // Halfway between them the short way is the wrap point itself.
       final fromWrap = (out.yaw.abs() - math.pi).abs();
-      expect(fromWrap, lessThan(0.05),
-          reason: 'it went the long way round: yaw ${out.yaw}');
+      expect(
+        fromWrap,
+        lessThan(0.05),
+        reason: 'it went the long way round: yaw ${out.yaw}',
+      );
     });
 
     test('and leans with whatever was leaning', () {
       // Not always the world's up: a body on a banked corner leans with the
       // surface, and a playback that assumed vertical would stand it upright
       // through a turn it was clearly leaning into.
-      final tape = Tape(seconds: 1.0, poses: <Pose>[
-        Pose(time: 0.0)..up.setValues(0.0, 1.0, 0.0),
-        Pose(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
-      ]);
+      final tape = Tape(
+        seconds: 1.0,
+        poses: <Pose>[
+          Pose(time: 0.0)..up.setValues(0.0, 1.0, 0.0),
+          Pose(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
+        ],
+      );
       final out = Pose();
 
       Playback(tape).sampleAt(0.5, out);
@@ -195,8 +219,16 @@ void main() {
     for (final broken in <Map<String, Object?>>[
       <String, Object?>{},
       <String, Object?>{'t': null, 'p': null, 'y': null},
-      <String, Object?>{'t': 'soon', 'p': <Object?>[1.0], 'y': 0.0},
-      <String, Object?>{'t': 1.0, 'p': <Object?>[1.0, null, 3.0], 'y': 0.0},
+      <String, Object?>{
+        't': 'soon',
+        'p': <Object?>[1.0],
+        'y': 0.0,
+      },
+      <String, Object?>{
+        't': 1.0,
+        'p': <Object?>[1.0, null, 3.0],
+        'y': 0.0,
+      },
     ]) {
       final pose = Pose.fromJson(broken);
 

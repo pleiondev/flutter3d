@@ -82,8 +82,11 @@ void main() {
       it.cubit.hide();
 
       expect(it.cubit.state.waitingFor, isNull);
-      expect(it.cubit.capture(InputSource.key(32)), isFalse,
-          reason: 'a closed panel took a key press');
+      expect(
+        it.cubit.capture(InputSource.key(32)),
+        isFalse,
+        reason: 'a closed panel took a key press',
+      );
     });
   });
 
@@ -127,8 +130,11 @@ void main() {
       it.cubit.setVolume('sfx', 0.2);
 
       expect(it.cubit.state.lastWriteFailed, isTrue);
-      expect(it.cubit.config.volumeOf('sfx'), 0.2,
-          reason: 'a failed write must not undo what the player changed');
+      expect(
+        it.cubit.config.volumeOf('sfx'),
+        0.2,
+        reason: 'a failed write must not undo what the player changed',
+      );
     });
   });
 
@@ -136,8 +142,11 @@ void main() {
     test('takes the next control offered, and only for the waiting action', () {
       final it = _open();
 
-      expect(it.cubit.capture(InputSource.key(65)), isFalse,
-          reason: 'took a key nobody asked for');
+      expect(
+        it.cubit.capture(InputSource.key(65)),
+        isFalse,
+        reason: 'took a key nobody asked for',
+      );
 
       it.cubit.rebind(_fire);
       expect(it.cubit.capture(InputSource.key(65)), isTrue);
@@ -157,8 +166,11 @@ void main() {
       it.cubit.capture(InputSource.key(65));
 
       expect(it.cubit.config.bindings[InputSource.key(65)], _fire);
-      expect(bindings.sources.where((InputSource s) => bindings[s] == _use),
-          isEmpty, reason: 'the key still does both');
+      expect(
+        bindings.sources.where((InputSource s) => bindings[s] == _use),
+        isEmpty,
+        reason: 'the key still does both',
+      );
     });
 
     test('is written to disk as it happens, not when the panel closes', () {
@@ -186,8 +198,11 @@ void main() {
       it.cubit.resetControls(defaults);
 
       expect(it.cubit.config.bindings[InputSource.key(32)], GameAction.jump);
-      expect(it.cubit.config.bindings[InputSource.key(65)], isNull,
-          reason: 'the rebound key survived the reset');
+      expect(
+        it.cubit.config.bindings[InputSource.key(65)],
+        isNull,
+        reason: 'the rebound key survived the reset',
+      );
       expect(it.applied, isNotEmpty, reason: 'the game was never told');
     });
   });

@@ -16,68 +16,68 @@ const double _dt = 1.0 / 60.0;
 /// A run along +Z: ground, a gap to clear, a ledge only two jumps reach, and
 /// the exit on top of it.
 Level _level() => Level(
-      name: 'first steps',
-      materials: <String, LevelMaterial>{'rock': LevelMaterial()},
-      brushes: <Brush>[
-        // The starting ground, z from -1 to 6.
-        Brush(
-          centre: Vector3(0.0, -0.5, 2.5),
-          size: Vector3(6.0, 1.0, 7.0),
-          material: 'rock',
-        ),
-        // The far side, z from 9 to 17.
-        Brush(
-          centre: Vector3(0.0, -0.5, 13.0),
-          size: Vector3(6.0, 1.0, 8.0),
-          material: 'rock',
-        ),
-        // The ledge, z from 17 to 21, its top at y = 2.4 — above one jump's
-        // 1.88 m and under two. See the assertions in 'jumping'.
-        Brush(
-          centre: Vector3(0.0, 1.2, 19.0),
-          size: Vector3(6.0, 2.4, 4.0),
-          material: 'rock',
-        ),
-      ],
-      lights: <LevelLight>[
-        LevelLight(position: Vector3(0.0, 6.0, 8.0), intensity: 20.0, range: 40.0),
-      ],
-      entities: <EntityDef>[
-        EntityDef(type: EntityTypes.playerSpawn, position: Vector3(0.0, 0.0, 0.0)),
-        EntityDef(
-          type: PlatformerEntities.collectible,
-          name: 'first coin',
-          position: Vector3(0.0, 1.0, 4.0),
-          properties: <String, Object?>{'what': 'coin'},
-        ),
-        EntityDef(
-          type: PlatformerEntities.checkpoint,
-          name: 'before the gap',
-          position: Vector3(0.0, 1.0, 5.0),
-          properties: <String, Object?>{
-            'order': 1,
-            'respawn': <double>[0.0, 1.0, 4.5],
-          },
-        ),
-        // In the gap, wide and deep: falling in is the failure this level is
-        // about, so it kills rather than nibbling.
-        EntityDef(
-          type: PlatformerEntities.hazard,
-          name: 'the pit',
-          position: Vector3(0.0, -2.0, 7.5),
-          properties: <String, Object?>{
-            'size': <double>[6.0, 4.0, 3.0],
-            'instant': true,
-          },
-        ),
-        EntityDef(
-          type: EntityTypes.exit,
-          name: 'the way on',
-          position: Vector3(0.0, 3.4, 19.0),
-          properties: <String, Object?>{'next': 'second steps'},
-        ),
-      ],
-    );
+  name: 'first steps',
+  materials: <String, LevelMaterial>{'rock': LevelMaterial()},
+  brushes: <Brush>[
+    // The starting ground, z from -1 to 6.
+    Brush(
+      centre: Vector3(0.0, -0.5, 2.5),
+      size: Vector3(6.0, 1.0, 7.0),
+      material: 'rock',
+    ),
+    // The far side, z from 9 to 17.
+    Brush(
+      centre: Vector3(0.0, -0.5, 13.0),
+      size: Vector3(6.0, 1.0, 8.0),
+      material: 'rock',
+    ),
+    // The ledge, z from 17 to 21, its top at y = 2.4 — above one jump's
+    // 1.88 m and under two. See the assertions in 'jumping'.
+    Brush(
+      centre: Vector3(0.0, 1.2, 19.0),
+      size: Vector3(6.0, 2.4, 4.0),
+      material: 'rock',
+    ),
+  ],
+  lights: <LevelLight>[
+    LevelLight(position: Vector3(0.0, 6.0, 8.0), intensity: 20.0, range: 40.0),
+  ],
+  entities: <EntityDef>[
+    EntityDef(type: EntityTypes.playerSpawn, position: Vector3(0.0, 0.0, 0.0)),
+    EntityDef(
+      type: PlatformerEntities.collectible,
+      name: 'first coin',
+      position: Vector3(0.0, 1.0, 4.0),
+      properties: <String, Object?>{'what': 'coin'},
+    ),
+    EntityDef(
+      type: PlatformerEntities.checkpoint,
+      name: 'before the gap',
+      position: Vector3(0.0, 1.0, 5.0),
+      properties: <String, Object?>{
+        'order': 1,
+        'respawn': <double>[0.0, 1.0, 4.5],
+      },
+    ),
+    // In the gap, wide and deep: falling in is the failure this level is
+    // about, so it kills rather than nibbling.
+    EntityDef(
+      type: PlatformerEntities.hazard,
+      name: 'the pit',
+      position: Vector3(0.0, -2.0, 7.5),
+      properties: <String, Object?>{
+        'size': <double>[6.0, 4.0, 3.0],
+        'instant': true,
+      },
+    ),
+    EntityDef(
+      type: EntityTypes.exit,
+      name: 'the way on',
+      position: Vector3(0.0, 3.4, 19.0),
+      properties: <String, Object?>{'next': 'second steps'},
+    ),
+  ],
+);
 
 /// Everything the application would assemble, minus anything that draws.
 final class _Run {
@@ -116,7 +116,10 @@ final class _Run {
   final Level level = _level();
   final CollisionWorld world = CollisionWorld();
   final InputState input = InputState();
-  late final ActorSystem actors = ActorSystem(world: world, random: GameRandom(1));
+  late final ActorSystem actors = ActorSystem(
+    world: world,
+    random: GameRandom(1),
+  );
   late final MechanismWorld mechanisms;
   late final Runner runner;
   late final PlatformerSimulation sim;
@@ -217,8 +220,11 @@ void main() {
       for (var i = 0; i < 100; i++) {
         single.step(jump: true);
       }
-      expect(single.rise, lessThan(ledge),
-          reason: 'one jump must not clear a ${ledge}m ledge');
+      expect(
+        single.rise,
+        lessThan(ledge),
+        reason: 'one jump must not clear a ${ledge}m ledge',
+      );
       expect(single.y, closeTo(ground, 0.05), reason: 'and it comes back down');
 
       final twice = _Run();
@@ -278,7 +284,8 @@ void main() {
 
   group('the run', () {
     test('the coin is collected by walking over it', () {
-      final run = _Run()..run(180, until: (_Run r) => r.runner.purse['coin'] > 0);
+      final run = _Run()
+        ..run(180, until: (_Run r) => r.runner.purse['coin'] > 0);
       expect(run.runner.purse['coin'], 1);
     });
 
@@ -290,7 +297,8 @@ void main() {
       // filling up is exactly why nobody noticed.
       //
       // Mutation: drop `mechanisms?.publish()` from `PlatformerSimulation.step`.
-      final run = _Run()..run(180, until: (_Run r) => r.sim.takenThisStep.isNotEmpty);
+      final run = _Run()
+        ..run(180, until: (_Run r) => r.sim.takenThisStep.isNotEmpty);
 
       expect(run.sim.takenThisStep, hasLength(1));
       expect(run.sim.takenThisStep.single.name, 'first coin');
@@ -332,7 +340,11 @@ void main() {
       for (var i = 0; i < 120; i++) {
         run.step();
       }
-      expect(run.sim.deaths, 1, reason: 'standing still after a revive is safe');
+      expect(
+        run.sim.deaths,
+        1,
+        reason: 'standing still after a revive is safe',
+      );
       expect(run.runner.isGrounded, isTrue);
     });
 
@@ -346,8 +358,11 @@ void main() {
       // One more step to carry out the revival the fall scheduled.
       run.step();
       expect(run.sim.state, RunState.running);
-      expect(run.runner.position.z, closeTo(4.5, 0.6),
-          reason: 'the checkpoint said 4.5, not the level start');
+      expect(
+        run.runner.position.z,
+        closeTo(4.5, 0.6),
+        reason: 'the checkpoint said 4.5, not the level start',
+      );
       expect(run.runner.health.isAlive, isTrue);
     });
 

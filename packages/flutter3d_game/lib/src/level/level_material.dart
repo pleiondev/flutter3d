@@ -24,9 +24,9 @@ final class LevelMaterial {
     this.normal,
     this.orm,
     Map<String, Object?> source = const <String, Object?>{},
-  })  : baseColor = baseColor ?? Vector4(0.5, 0.5, 0.5, 1.0),
-        // ignore: prefer_initializing_formals
-        _source = source;
+  }) : baseColor = baseColor ?? Vector4(0.5, 0.5, 0.5, 1.0),
+       // ignore: prefer_initializing_formals
+       _source = source;
 
   /// The document this material was read from. See [writeThrough].
   final Map<String, Object?> _source;
@@ -59,30 +59,33 @@ final class LevelMaterial {
   bool get hasMaps => albedo != null || normal != null || orm != null;
 
   factory LevelMaterial.fromJson(Map<String, Object?> json) => LevelMaterial(
-        baseColor: json.vector4(
-          'baseColor',
-          fallback: Vector4(0.5, 0.5, 0.5, 1.0),
-        ),
-        roughness: json.numberOr('roughness', 0.85),
-        metallic: json.numberOr('metallic', 0.0),
-        emissive: json.numberOr('emissive', 0.0),
-        texelsPerMetre: json.numberOr('texelsPerMetre', 1.0),
-        albedo: json.textOrNull('albedo'),
-        normal: json.textOrNull('normal'),
-        orm: json.textOrNull('orm'),
-        source: json,
-      );
+    baseColor: json.vector4('baseColor', fallback: Vector4(0.5, 0.5, 0.5, 1.0)),
+    roughness: json.numberOr('roughness', 0.85),
+    metallic: json.numberOr('metallic', 0.0),
+    emissive: json.numberOr('emissive', 0.0),
+    texelsPerMetre: json.numberOr('texelsPerMetre', 1.0),
+    albedo: json.textOrNull('albedo'),
+    normal: json.textOrNull('normal'),
+    orm: json.textOrNull('orm'),
+    source: json,
+  );
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
-        WriteThroughField('baseColor', baseColor.toJson(),
-            whenAbsent: baseColor != _defaultBaseColor),
-        WriteThroughField('roughness', roughness, whenAbsent: roughness != 0.85),
-        WriteThroughField('metallic', metallic, whenAbsent: metallic != 0.0),
-        WriteThroughField('emissive', emissive, whenAbsent: emissive != 0.0),
-        WriteThroughField('texelsPerMetre', texelsPerMetre,
-            whenAbsent: texelsPerMetre != 1.0),
-        WriteThroughField('albedo', albedo, whenAbsent: albedo != null),
-        WriteThroughField('normal', normal, whenAbsent: normal != null),
-        WriteThroughField('orm', orm, whenAbsent: orm != null),
-      ]);
+    WriteThroughField(
+      'baseColor',
+      baseColor.toJson(),
+      whenAbsent: baseColor != _defaultBaseColor,
+    ),
+    WriteThroughField('roughness', roughness, whenAbsent: roughness != 0.85),
+    WriteThroughField('metallic', metallic, whenAbsent: metallic != 0.0),
+    WriteThroughField('emissive', emissive, whenAbsent: emissive != 0.0),
+    WriteThroughField(
+      'texelsPerMetre',
+      texelsPerMetre,
+      whenAbsent: texelsPerMetre != 1.0,
+    ),
+    WriteThroughField('albedo', albedo, whenAbsent: albedo != null),
+    WriteThroughField('normal', normal, whenAbsent: normal != null),
+    WriteThroughField('orm', orm, whenAbsent: orm != null),
+  ]);
 }

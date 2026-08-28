@@ -27,19 +27,19 @@ final class Surfaces extends SurfaceTable<MovementTuning> {
   /// The numbers are chosen against a runner who walks at six metres a second
   /// and stops in about a fifth of a second on stone.
   factory Surfaces.common() => const Surfaces(<String, MovementTuning>{
-        'ice': MovementTuning(
-          // Almost no grip: you keep what you had and gather speed slowly.
-          groundFriction: 3.0,
-          groundAcceleration: 12.0,
-        ),
-        'mud': MovementTuning(
-          walkSpeed: 2.6,
-          sprintSpeed: 3.4,
-          groundAcceleration: 30.0,
-          groundFriction: 70.0,
-          jumpSpeed: 6.0,
-        ),
-      });
+    'ice': MovementTuning(
+      // Almost no grip: you keep what you had and gather speed slowly.
+      groundFriction: 3.0,
+      groundAcceleration: 12.0,
+    ),
+    'mud': MovementTuning(
+      walkSpeed: 2.6,
+      sprintSpeed: 3.4,
+      groundAcceleration: 30.0,
+      groundFriction: 70.0,
+      jumpSpeed: 6.0,
+    ),
+  });
 
   /// What standing on [surface] feels like.
   ///

@@ -9,10 +9,10 @@ import 'level.dart';
 /// short, readable list.
 final class LevelScope {
   LevelScope(this.level)
-      : keys = <String>{
-          for (final key in level.ofType(EntityTypes.key))
-            if (key.string('color') != null) key.string('color')!,
-        };
+    : keys = <String>{
+        for (final key in level.ofType(EntityTypes.key))
+          if (key.string('color') != null) key.string('color')!,
+      };
 
   final Level level;
 

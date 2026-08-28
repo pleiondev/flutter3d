@@ -183,7 +183,6 @@ abstract final class Weapons {
   ];
 }
 
-
 /// What a pickup in this game's levels may give.
 final GiftRegistry sampleGifts = GiftRegistry(<Gift>[
   const HealthGift(),
@@ -212,22 +211,22 @@ abstract final class SampleEntities {
 /// and a size, and both of those are data. They were three subclasses in the
 /// engine until the day the engine stopped being one game's.
 List<EntityKind> sampleLightKinds() => <EntityKind>[
-      LightFixtureKind(
-        SampleEntities.torch,
-        defaultBehaviour: const FlameFlicker(),
-        defaultSize: Vector3(0.22, 0.5, 0.22),
-      ),
-      LightFixtureKind(
-        SampleEntities.lamp,
-        defaultBehaviour: const SteadyLight(),
-        defaultSize: Vector3(0.34, 0.34, 0.34),
-      ),
-      LightFixtureKind(
-        SampleEntities.window,
-        defaultBehaviour: const SteadyLight(),
-        defaultSize: Vector3(1.4, 2.2, 0.12),
-      ),
-    ];
+  LightFixtureKind(
+    SampleEntities.torch,
+    defaultBehaviour: const FlameFlicker(),
+    defaultSize: Vector3(0.22, 0.5, 0.22),
+  ),
+  LightFixtureKind(
+    SampleEntities.lamp,
+    defaultBehaviour: const SteadyLight(),
+    defaultSize: Vector3(0.34, 0.34, 0.34),
+  ),
+  LightFixtureKind(
+    SampleEntities.window,
+    defaultBehaviour: const SteadyLight(),
+    defaultSize: Vector3(1.4, 2.2, 0.12),
+  ),
+];
 
 /// Everything above, assembled the way this game's levels expect.
 ///
@@ -260,13 +259,14 @@ EntityRegistry sampleRegistry({bool monsters = true}) =>
 /// place to start, and a way to finish. A game that ends by script rather than
 /// by walking into a door passes an empty list.
 List<LevelRule> sampleRules() => const <LevelRule>[
-      ExactlyOne(
-        EntityTypes.playerSpawn,
-        because: 'the player would start at the origin, which is usually '
-            'inside the floor',
-      ),
-      AtLeastOne(EntityTypes.exit, because: 'the level cannot be finished'),
-    ];
+  ExactlyOne(
+    EntityTypes.playerSpawn,
+    because:
+        'the player would start at the origin, which is usually '
+        'inside the floor',
+  ),
+  AtLeastOne(EntityTypes.exit, because: 'the level cannot be finished'),
+];
 
 /// The loadout this game's player starts with.
 ///
@@ -274,8 +274,8 @@ List<LevelRule> sampleRules() => const <LevelRule>[
 /// not know the game has fists shipped its opening inventory. The numbers are
 /// unchanged; only where they live is.
 Arsenal sampleArsenal({int startingSlot = 0}) => Arsenal(
-      slots: Weapons.all,
-      owned: <WeaponDef>[Weapons.fists, Weapons.pistol],
-      ammo: <AmmoType, int>{AmmoType.bullets: 40},
-      startingSlot: startingSlot,
-    );
+  slots: Weapons.all,
+  owned: <WeaponDef>[Weapons.fists, Weapons.pistol],
+  ammo: <AmmoType, int>{AmmoType.bullets: 40},
+  startingSlot: startingSlot,
+);

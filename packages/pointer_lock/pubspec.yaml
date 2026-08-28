@@ -1,10 +1,16 @@
 name: pointer_lock
-description: "Locks the mouse pointer in place and reports its motion as relative deltas, which Flutter itself does not offer on any desktop platform."
+description: "Locks the mouse pointer in place and reports its motion as relative deltas, which Flutter offers on no desktop platform and does not surface in a browser."
 version: 0.3.0
 publish_to: 'none'
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - input
+  - mouse
+  - pointer-lock
+  - game-development
 
 environment:
   sdk: ^3.12.2
@@ -14,6 +20,13 @@ dependencies:
   flutter:
     sdk: flutter
   plugin_platform_interface: ^2.0.2
+
+  # `document.requestPointerLock`, which is the whole of the web backend: the
+  # browser has had the capability all along and this package was answering
+  # "unsupported" for it. Static interop, because `dart:html` is the legacy path
+  # and is not available under Wasm — the same reason flutter3d_webgl and
+  # pad_input take this dependency.
+  web: ^1.1.0
 
 dev_dependencies:
   flutter_test:
@@ -25,3 +38,10 @@ flutter:
     platforms:
       macos:
         pluginClass: PointerLockPlugin
+
+      # The web needs no registration: the backend is pure Dart and
+      # `lib/src/platform_default.dart` selects it with a conditional export.
+      # The same arrangement pad_input's web gamepad has, and for the same
+      # reason — a registrant does not run inside `flutter test --platform
+      # chrome`, and this is exactly the platform whose behaviour is worth
+      # testing there.

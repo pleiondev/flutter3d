@@ -19,76 +19,90 @@ import 'package:flutter3d_ui/src/storage/storage_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-    // The table itself, as a pure function, because it is the part that was
-    // wrong and the part no test could reach while it was a `late final` reading
-    // the real environment.
-    String? where(TargetPlatform platform,
-            {Map<String, String> environment = const <String, String>{},
-            String temporary = '/tmp'}) =>
-        applicationDirectory(
-          appName: 'game',
-          platform: platform,
-          environment: environment,
-          temporary: temporary,
-        );
+  // The table itself, as a pure function, because it is the part that was
+  // wrong and the part no test could reach while it was a `late final` reading
+  // the real environment.
+  String? where(
+    TargetPlatform platform, {
+    Map<String, String> environment = const <String, String>{},
+    String temporary = '/tmp',
+  }) => applicationDirectory(
+    appName: 'game',
+    platform: platform,
+    environment: environment,
+    temporary: temporary,
+  );
 
-    test('macOS is inside the sandbox container, which is HOME', () {
-      expect(
-        where(TargetPlatform.macOS,
-            environment: <String, String>{'HOME': '/Users/x/Library/Containers/g/Data'}),
-        '/Users/x/Library/Containers/g/Data/Library/Application Support/game',
-      );
-    });
+  test('macOS is inside the sandbox container, which is HOME', () {
+    expect(
+      where(
+        TargetPlatform.macOS,
+        environment: <String, String>{
+          'HOME': '/Users/x/Library/Containers/g/Data',
+        },
+      ),
+      '/Users/x/Library/Containers/g/Data/Library/Application Support/game',
+    );
+  });
 
-    test('Android is beside its own files, not in a home that is not its', () {
-      // **The bug.** `HOME` on Android is not the application's anything, so the
-      // old path wrote where nothing was reading and the failure was swallowed.
-      // `TMPDIR` is the application's cache directory, and its parent is the
-      // private data directory `files/` sits in.
-      expect(
-        where(TargetPlatform.android,
-            environment: <String, String>{'HOME': '/'},
-            temporary: '/data/user/0/dev.flutter3d.platformer/cache'),
-        '/data/user/0/dev.flutter3d.platformer/files/game',
-      );
-    });
+  test('Android is beside its own files, not in a home that is not its', () {
+    // **The bug.** `HOME` on Android is not the application's anything, so the
+    // old path wrote where nothing was reading and the failure was swallowed.
+    // `TMPDIR` is the application's cache directory, and its parent is the
+    // private data directory `files/` sits in.
+    expect(
+      where(
+        TargetPlatform.android,
+        environment: <String, String>{'HOME': '/'},
+        temporary: '/data/user/0/dev.flutter3d.platformer/cache',
+      ),
+      '/data/user/0/dev.flutter3d.platformer/files/game',
+    );
+  });
 
-    test('and iOS is inside its container, found the same way', () {
-      expect(
-        where(TargetPlatform.iOS,
-            temporary: '/var/mobile/Containers/Data/Application/ABC/tmp'),
-        '/var/mobile/Containers/Data/Application/ABC/'
-            'Library/Application Support/game',
-      );
-    });
+  test('and iOS is inside its container, found the same way', () {
+    expect(
+      where(
+        TargetPlatform.iOS,
+        temporary: '/var/mobile/Containers/Data/Application/ABC/tmp',
+      ),
+      '/var/mobile/Containers/Data/Application/ABC/'
+      'Library/Application Support/game',
+    );
+  });
 
-    test('Linux honours XDG_CONFIG_HOME, and falls back to .config', () {
-      expect(
-        where(TargetPlatform.linux,
-            environment: <String, String>{'XDG_CONFIG_HOME': '/home/x/.cfg'}),
-        '/home/x/.cfg/game',
-      );
-      expect(
-        where(TargetPlatform.linux,
-            environment: <String, String>{'HOME': '/home/x'}),
-        '/home/x/.config/game',
-      );
-    });
+  test('Linux honours XDG_CONFIG_HOME, and falls back to .config', () {
+    expect(
+      where(
+        TargetPlatform.linux,
+        environment: <String, String>{'XDG_CONFIG_HOME': '/home/x/.cfg'},
+      ),
+      '/home/x/.cfg/game',
+    );
+    expect(
+      where(
+        TargetPlatform.linux,
+        environment: <String, String>{'HOME': '/home/x'},
+      ),
+      '/home/x/.config/game',
+    );
+  });
 
-    test('Windows uses APPDATA', () {
-      expect(
-        where(TargetPlatform.windows,
-            environment: <String, String>{'APPDATA': r'C:\Users\x\AppData\Roaming'}),
-        r'C:\Users\x\AppData\Roaming\game',
-      );
-    });
+  test('Windows uses APPDATA', () {
+    expect(
+      where(
+        TargetPlatform.windows,
+        environment: <String, String>{'APPDATA': r'C:\Users\x\AppData\Roaming'},
+      ),
+      r'C:\Users\x\AppData\Roaming\game',
+    );
+  });
 
-    test('and a platform with nothing to go on answers nothing', () {
-      // Null rather than a guess: a path invented out of an empty environment is
-      // a document written somewhere nobody will look for it.
-      expect(where(TargetPlatform.macOS), isNull);
-      expect(where(TargetPlatform.linux), isNull);
-      expect(where(TargetPlatform.fuchsia), isNull);
-    });
-
+  test('and a platform with nothing to go on answers nothing', () {
+    // Null rather than a guess: a path invented out of an empty environment is
+    // a document written somewhere nobody will look for it.
+    expect(where(TargetPlatform.macOS), isNull);
+    expect(where(TargetPlatform.linux), isNull);
+    expect(where(TargetPlatform.fuchsia), isNull);
+  });
 }

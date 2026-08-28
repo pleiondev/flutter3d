@@ -28,10 +28,10 @@ enum RunState {
   /// [RunOutcome.playing]: it is one step of a run that is going on, not an
   /// outcome — a runner who has just died has not lost until the lives do.
   RunOutcome get outcome => switch (this) {
-        RunState.running || RunState.fallen => RunOutcome.playing,
-        RunState.lost => RunOutcome.lost,
-        RunState.finished => RunOutcome.won,
-      };
+    RunState.running || RunState.fallen => RunOutcome.playing,
+    RunState.lost => RunOutcome.lost,
+    RunState.finished => RunOutcome.won,
+  };
 }
 
 /// A platformer's step, in the order it has to happen in.
@@ -57,8 +57,8 @@ final class PlatformerSimulation {
     this.levelNext,
     GameRandom? random,
     this.killPlane = -20.0,
-  })  : random = random ?? GameRandom(1),
-        _respawn = startAt.clone();
+  }) : random = random ?? GameRandom(1),
+       _respawn = startAt.clone();
 
   final Runner runner;
   final CollisionWorld collision;
@@ -109,7 +109,6 @@ final class PlatformerSimulation {
   /// `respawn`, this — is a place on the floor rather than the middle of a
   /// body. [Runner.reviveAt] is the one place that converts.
   Vector3 get respawnPoint => _respawn;
-
 
   /// How many deaths this run has left. Negative means the run cannot be lost.
   ///
@@ -367,22 +366,22 @@ final class PlatformerSimulation {
   }
 
   Snapshot save() => Snapshot(<String, Object?>{
-        'runner': runner.save(),
-        'random': random.state,
-        'state': state.name,
-        'respawn': <double>[_respawn.x, _respawn.y, _respawn.z],
-        'deaths': deaths,
-        'lives': lives,
-        'elapsed': elapsed,
-        // **Keyed by name, and a mechanism without one is not saved.**
-        // Every entity the generators emit is named, so nothing is lost today —
-        // but that is a convention, not a guarantee, and `saved every named
-        // mechanism` in the tests is what keeps it one.
-        'mechanisms': <String, Object?>{
-          for (final mechanism in mechanisms?.all ?? const <Mechanism>[])
-            if (mechanism.name != null) mechanism.name!: mechanism.save(),
-        },
-      });
+    'runner': runner.save(),
+    'random': random.state,
+    'state': state.name,
+    'respawn': <double>[_respawn.x, _respawn.y, _respawn.z],
+    'deaths': deaths,
+    'lives': lives,
+    'elapsed': elapsed,
+    // **Keyed by name, and a mechanism without one is not saved.**
+    // Every entity the generators emit is named, so nothing is lost today —
+    // but that is a convention, not a guarantee, and `saved every named
+    // mechanism` in the tests is what keeps it one.
+    'mechanisms': <String, Object?>{
+      for (final mechanism in mechanisms?.all ?? const <Mechanism>[])
+        if (mechanism.name != null) mechanism.name!: mechanism.save(),
+    },
+  });
 
   void restore(Snapshot from) {
     final data = from.data;
@@ -417,5 +416,4 @@ final class PlatformerSimulation {
     collision.update();
     collision.clearKinematicDeltas();
   }
-
 }

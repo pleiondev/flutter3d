@@ -46,7 +46,8 @@ String? applicationDirectory({
       // Beside `files/`, which is where an Android application's own data goes.
       return '${_parent(temporary)}/files/$appName';
     case TargetPlatform.linux:
-      final config = environment['XDG_CONFIG_HOME'] ??
+      final config =
+          environment['XDG_CONFIG_HOME'] ??
           (home == null ? null : '$home/.config');
       return config == null ? null : '$config/$appName';
     case TargetPlatform.windows:
@@ -67,12 +68,9 @@ String _parent(String path) {
 
 /// Documents kept as files, one per name, in a directory this platform owns.
 final class FileStorage implements Storage {
-  FileStorage({
-    required this.appName,
-    Directory? directory,
-    IssueSink? onIssue,
-  })  : _given = directory,
-        onIssue = onIssue ?? printIssue;
+  FileStorage({required this.appName, Directory? directory, IssueSink? onIssue})
+    : _given = directory,
+      onIssue = onIssue ?? printIssue;
 
   final String appName;
   final Directory? _given;

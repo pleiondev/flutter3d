@@ -39,8 +39,7 @@ final class PadSnapshot {
       _pressure[button.id] ?? (down(button) ? 1.0 : 0.0);
 
   /// Every button held, for a rebinding screen listening for the next press.
-  Iterable<PadButton> get held =>
-      _down.map((String id) => PadButton(id));
+  Iterable<PadButton> get held => _down.map((String id) => PadButton(id));
 
   // MARK: - Writing, from a backend
 

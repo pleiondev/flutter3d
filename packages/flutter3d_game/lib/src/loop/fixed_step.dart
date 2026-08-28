@@ -14,11 +14,9 @@
 /// a fixed size, and hand the renderer the leftover fraction so it can draw
 /// between two simulated states instead of snapping to the last one.
 final class FixedStep {
-  FixedStep({
-    this.stepSeconds = 1.0 / 60.0,
-    this.maxStepsPerFrame = 5,
-  })  : assert(stepSeconds > 0.0),
-        assert(maxStepsPerFrame > 0);
+  FixedStep({this.stepSeconds = 1.0 / 60.0, this.maxStepsPerFrame = 5})
+    : assert(stepSeconds > 0.0),
+      assert(maxStepsPerFrame > 0);
 
   /// How much simulated time one step covers.
   final double stepSeconds;

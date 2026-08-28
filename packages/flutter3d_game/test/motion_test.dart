@@ -34,8 +34,11 @@ void main() {
           expect(delta, lessThanOrEqualTo(math.pi + 1e-9));
           // And it really is the way round to that angle.
           final arrived = shortestAngle(from + delta, to);
-          expect(arrived.abs(), lessThan(1e-9),
-              reason: 'from $from to $to landed somewhere else');
+          expect(
+            arrived.abs(),
+            lessThan(1e-9),
+            reason: 'from $from to $to landed somewhere else',
+          );
         }
       }
     });
@@ -72,8 +75,10 @@ void main() {
   test('turning is the two of them together', () {
     // The composition three of the copies were: a monster facing a player, a
     // runner facing where it is going, a driver correcting a line.
-    expect(turnedTowards(math.pi - 0.1, -math.pi + 0.1, 1.0),
-        closeTo(math.pi + 0.1, 1e-9));
+    expect(
+      turnedTowards(math.pi - 0.1, -math.pi + 0.1, 1.0),
+      closeTo(math.pi + 0.1, 1e-9),
+    );
     expect(turnedTowards(0.0, 3.0, 0.5), closeTo(0.5, 1e-9));
   });
 

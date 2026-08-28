@@ -10,13 +10,13 @@ class SettingsHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.75),
-          letterSpacing: 2,
-          fontSize: 12,
-        ),
-      );
+    text,
+    style: TextStyle(
+      color: Colors.white.withValues(alpha: 0.75),
+      letterSpacing: 2,
+      fontSize: 12,
+    ),
+  );
 }
 
 /// A slider over a number that is not a fraction, showing what it says.
@@ -44,32 +44,32 @@ class SettingsValueSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     return MergeSemantics(
       child: Row(
-      children: <Widget>[
-        SizedBox(
-          width: 96,
-          child: Text(
-            label,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+        children: <Widget>[
+          SizedBox(
+            width: 96,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+            ),
           ),
-        ),
-        Expanded(
-          child: Slider(
-            value: value.clamp(min, max),
-            min: min,
-            max: max,
-            onChanged: onChanged,
+          Expanded(
+            child: Slider(
+              value: value.clamp(min, max),
+              min: min,
+              max: max,
+              onChanged: onChanged,
+            ),
           ),
-        ),
-        SizedBox(
-          width: 52,
-          child: Text(
-            max <= 1.0 ? value.toStringAsFixed(2) : value.round().toString(),
-            textAlign: TextAlign.right,
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+          SizedBox(
+            width: 52,
+            child: Text(
+              max <= 1.0 ? value.toStringAsFixed(2) : value.round().toString(),
+              textAlign: TextAlign.right,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
+            ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 }

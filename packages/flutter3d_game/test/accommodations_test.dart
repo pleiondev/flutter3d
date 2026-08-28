@@ -23,13 +23,17 @@ void main() {
     WidgetTester tester,
   ) async {
     late Accommodations seen;
-    await tester.pumpWidget(_under(
-      reduceMotion: true,
-      child: Builder(builder: (BuildContext context) {
-        seen = Accommodations.of(context);
-        return const SizedBox();
-      }),
-    ));
+    await tester.pumpWidget(
+      _under(
+        reduceMotion: true,
+        child: Builder(
+          builder: (BuildContext context) {
+            seen = Accommodations.of(context);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
 
     expect(seen.reduceMotion, isTrue);
     expect(seen.cameraMotion, 0.0);
@@ -40,13 +44,17 @@ void main() {
     WidgetTester tester,
   ) async {
     late Accommodations seen;
-    await tester.pumpWidget(_under(
-      reduceMotion: false,
-      child: Builder(builder: (BuildContext context) {
-        seen = Accommodations.of(context);
-        return const SizedBox();
-      }),
-    ));
+    await tester.pumpWidget(
+      _under(
+        reduceMotion: false,
+        child: Builder(
+          builder: (BuildContext context) {
+            seen = Accommodations.of(context);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
 
     expect(seen.cameraMotion, 1.0);
   });
@@ -58,10 +66,14 @@ void main() {
     // unaccommodated defaults. Throwing from an accessibility feature would be a
     // particularly poor way to fail.
     late Accommodations seen;
-    await tester.pumpWidget(Builder(builder: (BuildContext context) {
-      seen = Accommodations.of(context);
-      return const SizedBox();
-    }));
+    await tester.pumpWidget(
+      Builder(
+        builder: (BuildContext context) {
+          seen = Accommodations.of(context);
+          return const SizedBox();
+        },
+      ),
+    );
 
     expect(seen.reduceMotion, isFalse);
   });

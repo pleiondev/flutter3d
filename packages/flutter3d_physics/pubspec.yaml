@@ -3,6 +3,12 @@ description: "Collision shapes, a broadphase, queries and a character controller
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - physics
+  - collision
+  - simulation
+  - game-development
 publish_to: 'none'
 resolution: workspace
 

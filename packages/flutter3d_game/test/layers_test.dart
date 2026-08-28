@@ -21,14 +21,17 @@ import 'package:flutter_test/flutter_test.dart';
 /// Every use of a named bit in this package's own source.
 List<String> _readers() {
   final found = <String>[];
-  for (final file in Directory('lib')
-      .listSync(recursive: true)
-      .whereType<File>()
-      .where((File it) => it.path.endsWith('.dart'))) {
+  for (final file
+      in Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((File it) => it.path.endsWith('.dart'))) {
     for (final line in file.readAsLinesSync()) {
       final trimmed = line.trim();
       if (trimmed.startsWith('///') || trimmed.startsWith('//')) continue;
-      if (trimmed.contains('CollisionLayers.')) found.add('${file.path}: $trimmed');
+      if (trimmed.contains('CollisionLayers.')) {
+        found.add('${file.path}: $trimmed');
+      }
     }
   }
   return found..sort();
@@ -41,8 +44,11 @@ void main() {
     // places cannot, and the doc has to say which of those it is.
     final readers = _readers();
 
-    expect(readers, hasLength(greaterThan(8)),
-        reason: 'found only ${readers.join('\n')}');
+    expect(
+      readers,
+      hasLength(greaterThan(8)),
+      reason: 'found only ${readers.join('\n')}',
+    );
   });
 
   test('and the four that would break silently are among them', () {
@@ -83,7 +89,9 @@ void main() {
     // extenders the hole is there.
     final readers = _readers();
 
-    expect(readers.where((String it) => it.contains('CollisionLayers.reserved')),
-        isEmpty);
+    expect(
+      readers.where((String it) => it.contains('CollisionLayers.reserved')),
+      isEmpty,
+    );
   });
 }

@@ -70,10 +70,10 @@ enum GameState {
 
   /// The same answer in the words every game shares.
   RunOutcome get outcome => switch (this) {
-        GameState.playing => RunOutcome.playing,
-        GameState.dead => RunOutcome.lost,
-        GameState.complete => RunOutcome.won,
-      };
+    GameState.playing => RunOutcome.playing,
+    GameState.dead => RunOutcome.lost,
+    GameState.complete => RunOutcome.won,
+  };
 }
 
 final class GameSimulation {
@@ -494,17 +494,17 @@ final class GameSimulation {
   /// caller has already drained them, and restoring them would replay a sound
   /// for a monster that died before the save was taken.
   Snapshot save() => Snapshot(<String, Object?>{
-        'state': _state.name,
-        'exitNext': _exitNext,
-        'player': player.save(),
-        'random': random.state,
-        // Not a line per system any more, for the one system that has moved:
-        // `EcsWorld` writes every component on every entity and refuses to
-        // write one nobody registered. The hand-written lines above are what
-        // this replaces, one system at a time.
-        if (entities != null) 'entities': entities!.save(),
-        if (mechanisms != null) 'mechanisms': _saveMechanisms(mechanisms!),
-      });
+    'state': _state.name,
+    'exitNext': _exitNext,
+    'player': player.save(),
+    'random': random.state,
+    // Not a line per system any more, for the one system that has moved:
+    // `EcsWorld` writes every component on every entity and refuses to
+    // write one nobody registered. The hand-written lines above are what
+    // this replaces, one system at a time.
+    if (entities != null) 'entities': entities!.save(),
+    if (mechanisms != null) 'mechanisms': _saveMechanisms(mechanisms!),
+  });
 
   void restore(Snapshot snapshot) {
     final from = snapshot.data;

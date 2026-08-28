@@ -65,6 +65,6 @@ EntityRegistry platformerRegistry({Dynamics? dynamics}) =>
 /// argument: a hub level with three exits is a perfectly good level and this
 /// list is a game's opinion, not a law.
 List<LevelRule> platformerRules() => const <LevelRule>[
-      ExactlyOne(EntityTypes.playerSpawn),
-      AtLeastOne(EntityTypes.exit),
-    ];
+  ExactlyOne(EntityTypes.playerSpawn),
+  AtLeastOne(EntityTypes.exit),
+];

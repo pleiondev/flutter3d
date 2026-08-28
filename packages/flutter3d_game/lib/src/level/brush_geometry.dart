@@ -44,8 +44,8 @@ final class BrushGeometry {
   /// counter-clockwise seen from outside. Get one of these wrong and the face
   /// is culled as a back face, which looks like a hole rather than like a
   /// winding error.
-  static final List<(Vector3, Vector3, Vector3)> _faces =
-      <(Vector3, Vector3, Vector3)>[
+  static final List<(Vector3, Vector3, Vector3)>
+  _faces = <(Vector3, Vector3, Vector3)>[
     (Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0), Vector3(0.0, 1.0, 0.0)),
     (Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0), Vector3(0.0, 1.0, 0.0)),
     (Vector3(0.0, 1.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0)),
@@ -64,7 +64,9 @@ final class BrushGeometry {
       // Keyed by both, because a batch is the smallest thing that can be taken
       // out of the shadow pass. A level with no fences in it produces exactly
       // the batches it always did.
-      final key = brush.castsShadow ? brush.material : '${brush.material}\u0000';
+      final key = brush.castsShadow
+          ? brush.material
+          : '${brush.material}\u0000';
       final builder = builders.putIfAbsent(
         key,
         () => SurfaceBuilder(brush.material, castsShadow: brush.castsShadow),
@@ -94,7 +96,8 @@ final class BrushGeometry {
       // trades the other three for a slope and two triangles.
       if (ramp != null && !_rampKeeps(ramp, normal)) continue;
       // Distance from the centre to this face, along its own normal.
-      final offset = normal.x.abs() * half.x +
+      final offset =
+          normal.x.abs() * half.x +
           normal.y.abs() * half.y +
           normal.z.abs() * half.z;
 
@@ -191,9 +194,15 @@ final class BrushGeometry {
       final y = centre.y + u.y * halfU * su + v.y * halfV * sv;
       final z = centre.z + u.z * halfU * su + v.z * halfV * sv;
       out.addVertex(
-        x, y, z,
-        normal.x, normal.y, normal.z,
-        u.x, u.y, u.z,
+        x,
+        y,
+        z,
+        normal.x,
+        normal.y,
+        normal.z,
+        u.x,
+        u.y,
+        u.z,
         (x * u.x + y * u.y + z * u.z) * scale,
         (x * v.x + y * v.y + z * v.z) * scale,
       );
@@ -233,9 +242,15 @@ final class BrushGeometry {
       final base = out.vertexCount;
       for (final corner in corners) {
         out.addVertex(
-          corner.x, corner.y, corner.z,
-          faceNormal.x, faceNormal.y, faceNormal.z,
-          faceU.x, faceU.y, faceU.z,
+          corner.x,
+          corner.y,
+          corner.z,
+          faceNormal.x,
+          faceNormal.y,
+          faceNormal.z,
+          faceU.x,
+          faceU.y,
+          faceU.z,
           corner.dot(faceU) * scale,
           corner.dot(faceV) * scale,
         );

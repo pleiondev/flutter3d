@@ -3,6 +3,12 @@ description: "A second genre: a runner who jumps twice and dashes, things to col
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - platformer
+  - gameplay
 publish_to: 'none'
 resolution: workspace
 

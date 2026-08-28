@@ -37,10 +37,9 @@ import 'dart:io';
 ({Set<String> declared, Set<String> inTheBank}) soundTableIn(String path) {
   final source = File(path).readAsStringSync();
 
-  final declared = RegExp(r'static const SoundDef ([A-Za-z]+)')
-      .allMatches(source)
-      .map((RegExpMatch m) => m.group(1)!)
-      .toSet();
+  final declared = RegExp(
+    r'static const SoundDef ([A-Za-z]+)',
+  ).allMatches(source).map((RegExpMatch m) => m.group(1)!).toSet();
 
   final literal = RegExp(
     r'static final SoundBank all = SoundBank\(<SoundDef>\[(.*?)\]\);',
@@ -57,10 +56,9 @@ import 'dart:io';
     );
   }
 
-  final inTheBank = RegExp(r'([A-Za-z]+),')
-      .allMatches(literal.group(1)!)
-      .map((RegExpMatch m) => m.group(1)!)
-      .toSet();
+  final inTheBank = RegExp(
+    r'([A-Za-z]+),',
+  ).allMatches(literal.group(1)!).map((RegExpMatch m) => m.group(1)!).toSet();
 
   return (declared: declared, inTheBank: inTheBank);
 }

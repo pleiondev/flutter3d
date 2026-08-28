@@ -16,23 +16,22 @@ bool desktop({
   bool menuOpen = false,
   bool pointerHeld = true,
   bool padConnected = false,
-}) =>
-    shouldPause(
-      ready: ready,
-      menuOpen: menuOpen,
-      pointerIsTheGate: true,
-      pointerHeld: pointerHeld,
-      padConnected: padConnected,
-    );
+}) => shouldPause(
+  ready: ready,
+  menuOpen: menuOpen,
+  pointerIsTheGate: true,
+  pointerHeld: pointerHeld,
+  padConnected: padConnected,
+);
 
 /// A browser or a phone: there is no pointer to take.
 bool touch({bool ready = true, bool menuOpen = false}) => shouldPause(
-      ready: ready,
-      menuOpen: menuOpen,
-      pointerIsTheGate: false,
-      pointerHeld: false,
-      padConnected: false,
-    );
+  ready: ready,
+  menuOpen: menuOpen,
+  pointerIsTheGate: false,
+  pointerHeld: false,
+  padConnected: false,
+);
 
 void main() {
   test('a level that has not loaded is not running', () {
@@ -66,9 +65,15 @@ void main() {
     // ran behind the panel from the day each shipped, and on the desktop it
     // started running behind it the day a pad could hold the gate open.
     expect(desktop(menuOpen: true), isTrue);
-    expect(desktop(menuOpen: true, padConnected: true), isTrue,
-        reason: 'a connected pad kept the game running behind the settings');
-    expect(touch(menuOpen: true), isTrue,
-        reason: 'the panel never paused a browser or a phone at all');
+    expect(
+      desktop(menuOpen: true, padConnected: true),
+      isTrue,
+      reason: 'a connected pad kept the game running behind the settings',
+    );
+    expect(
+      touch(menuOpen: true),
+      isTrue,
+      reason: 'the panel never paused a browser or a phone at all',
+    );
   });
 }

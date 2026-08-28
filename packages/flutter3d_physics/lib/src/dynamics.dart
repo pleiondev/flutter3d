@@ -587,5 +587,4 @@ final class Dynamics {
       }
     }
   }
-
 }

@@ -29,16 +29,16 @@ final class Arsenal {
     List<WeaponDef>? owned,
     Map<AmmoType, int>? ammo,
     int startingSlot = 0,
-  })  : slots = List<WeaponDef>.unmodifiable(slots),
-        _owned = owned ?? List<WeaponDef>.of(slots),
-        _ammo = ammo ?? <AmmoType, int>{},
-        // Zero, then resolved through [selectSlot] below. A *slot* is an index
-        // into the game's roster and `_current` is an index into what is
-        // owned, and this class has now confused the two three times: once in
-        // `selectSlot`, once here, and once in a saved index. An arsenal that
-        // owns two of four weapons and starts on slot three used to throw a
-        // `RangeError` on its first step.
-        _current = 0 {
+  }) : slots = List<WeaponDef>.unmodifiable(slots),
+       _owned = owned ?? List<WeaponDef>.of(slots),
+       _ammo = ammo ?? <AmmoType, int>{},
+       // Zero, then resolved through [selectSlot] below. A *slot* is an index
+       // into the game's roster and `_current` is an index into what is
+       // owned, and this class has now confused the two three times: once in
+       // `selectSlot`, once here, and once in a saved index. An arsenal that
+       // owns two of four weapons and starts on slot three used to throw a
+       // `RangeError` on its first step.
+       _current = 0 {
     selectSlot(startingSlot);
   }
 
@@ -81,11 +81,11 @@ final class Arsenal {
     }
     return _owned[_current];
   }
+
   int get currentIndex => _current;
   double get cooldownRemaining => _cooldown;
 
-  int ammoOf(AmmoType type) =>
-      type == AmmoType.none ? -1 : (_ammo[type] ?? 0);
+  int ammoOf(AmmoType type) => type == AmmoType.none ? -1 : (_ammo[type] ?? 0);
 
   int get currentAmmo => isEmpty ? 0 : ammoOf(current.ammo);
 
@@ -138,13 +138,13 @@ final class Arsenal {
   /// had played before it. The names are looked back up in [slots], which is
   /// the game's own roster.
   Map<String, Object?> save() => <String, Object?>{
-        'owned': <String>[for (final weapon in _owned) weapon.name],
-        'current': _current,
-        'cooldown': _cooldown,
-        'ammo': <String, int>{
-          for (final entry in _ammo.entries) entry.key.name: entry.value,
-        },
-      };
+    'owned': <String>[for (final weapon in _owned) weapon.name],
+    'current': _current,
+    'cooldown': _cooldown,
+    'ammo': <String, int>{
+      for (final entry in _ammo.entries) entry.key.name: entry.value,
+    },
+  };
 
   void restore(Map<String, Object?> from) {
     final names = from['owned'];
@@ -175,7 +175,9 @@ final class Arsenal {
   }
 
   void advanceTime(double dt) {
-    if (_cooldown > 0.0) _cooldown = (_cooldown - dt).clamp(0.0, double.infinity);
+    if (_cooldown > 0.0) {
+      _cooldown = (_cooldown - dt).clamp(0.0, double.infinity);
+    }
   }
 
   /// Whether pulling the trigger right now would fire.

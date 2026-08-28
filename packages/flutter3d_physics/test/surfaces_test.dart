@@ -40,12 +40,12 @@ CollisionWorld _room({bool withFloor = true}) {
 
 /// A thin slab on the [_thin] layer, four metres up.
 Collider _platform(CollisionWorld world, {double y = 4.0}) => world.add(
-      Collider(
-        shape: CollisionBox(Vector3(3.0, 0.1, 3.0)),
-        position: Vector3(0.0, y, 0.0),
-        layer: _thin,
-      ),
-    );
+  Collider(
+    shape: CollisionBox(Vector3(3.0, 0.1, 3.0)),
+    position: Vector3(0.0, y, 0.0),
+    layer: _thin,
+  ),
+);
 
 CharacterController _body(CollisionWorld world, {double y = 0.9}) =>
     CharacterController(world: world, position: Vector3(0.0, y, 0.0));
@@ -79,8 +79,11 @@ void main() {
         if (body.position.y > highest) highest = body.position.y;
       }
 
-      expect(highest, greaterThan(5.0),
-          reason: 'the platform stopped a body that should have passed it');
+      expect(
+        highest,
+        greaterThan(5.0),
+        reason: 'the platform stopped a body that should have passed it',
+      );
     });
 
     test('and lands on the same platform coming down', () {
@@ -123,8 +126,11 @@ void main() {
 
       _run(body, 120, wish: Vector3(1.0, 0.0, 0.0));
 
-      expect(body.position.x, greaterThan(3.0),
-          reason: 'it hit the side of a platform it was passing through');
+      expect(
+        body.position.x,
+        greaterThan(3.0),
+        reason: 'it hit the side of a platform it was passing through',
+      );
     });
 
     test('a body inside a platform it ignores is not shoved out of it', () {
@@ -151,8 +157,11 @@ void main() {
       final startedAt = body.position.clone();
       _run(body, 3);
 
-      expect((body.position.x - startedAt.x).abs(), lessThan(0.05),
-          reason: 'it was pushed sideways out of a body it ignores');
+      expect(
+        (body.position.x - startedAt.x).abs(),
+        lessThan(0.05),
+        reason: 'it was pushed sideways out of a body it ignores',
+      );
       expect((body.position.z - startedAt.z).abs(), lessThan(0.05));
     });
 
@@ -192,8 +201,16 @@ void main() {
         world.reindex();
       }
 
-      expect(ghost.position.y, closeTo(0.9, 0.2), reason: 'it fell to the floor');
-      expect(solid.position.y, closeTo(2.9, 0.2), reason: 'it stood on the slab');
+      expect(
+        ghost.position.y,
+        closeTo(0.9, 0.2),
+        reason: 'it fell to the floor',
+      );
+      expect(
+        solid.position.y,
+        closeTo(2.9, 0.2),
+        reason: 'it stood on the slab',
+      );
     });
   });
 
@@ -311,8 +328,11 @@ void main() {
       // on is still a step spent standing on the belt. Four metres a second for
       // one sixtieth is under seven centimetres; a velocity-add would be
       // travelling at four metres a second and still accelerating.
-      expect(body.position.x - tookOffAt, lessThan(0.1),
-          reason: 'the belt followed it into the air');
+      expect(
+        body.position.x - tookOffAt,
+        lessThan(0.1),
+        reason: 'the belt followed it into the air',
+      );
     });
 
     test('a body in the air above a conveyor is not dragged', () {
@@ -361,8 +381,11 @@ void main() {
       expect(body.tryResize(crouched()), isTrue);
       expect(body.tryResize(standing()), isFalse, reason: 'there is a roof');
       // A loose tolerance because every vector here is float32-backed.
-      expect(body.halfExtents.y, closeTo(0.45, 1e-6),
-          reason: 'a refused resize changed the body anyway');
+      expect(
+        body.halfExtents.y,
+        closeTo(0.45, 1e-6),
+        reason: 'a refused resize changed the body anyway',
+      );
     });
 
     test('and standing up works again once there is room', () {
@@ -434,17 +457,21 @@ void main() {
   group('finding a body by its collider', () {
     Dynamics stackOf(int count) {
       final world = CollisionWorld()
-        ..add(Collider(
-          shape: CollisionBox(Vector3(40.0, 0.5, 40.0)),
-          position: Vector3(0.0, -0.5, 0.0),
-        ));
+        ..add(
+          Collider(
+            shape: CollisionBox(Vector3(40.0, 0.5, 40.0)),
+            position: Vector3(0.0, -0.5, 0.0),
+          ),
+        );
       final dynamics = Dynamics(world: world);
       for (var i = 0; i < count; i++) {
-        dynamics.add(RigidBody(
-          world: world,
-          shape: CollisionBox(Vector3.all(0.6)),
-          position: Vector3((i % 8) * 2.0, 0.6 + (i ~/ 8) * 1.4, 0.0),
-        ));
+        dynamics.add(
+          RigidBody(
+            world: world,
+            shape: CollisionBox(Vector3.all(0.6)),
+            position: Vector3((i % 8) * 2.0, 0.6 + (i ~/ 8) * 1.4, 0.0),
+          ),
+        );
       }
       return dynamics;
     }
@@ -458,8 +485,10 @@ void main() {
         dynamics.step(1.0 / 60.0);
       }
 
-      expect(dynamics.bodyOf(dynamics.bodies.first.collider),
-          same(dynamics.bodies.first));
+      expect(
+        dynamics.bodyOf(dynamics.bodies.first.collider),
+        same(dynamics.bodies.first),
+      );
       // Every lookup is one map read, so the number of *lookups* is what the
       // cost is: this only pins that they happen and are answered, since the
       // scan is what the map replaced.
@@ -499,8 +528,11 @@ void main() {
       final onStone = stepsToRest(const MovementTuning());
       final onIce = stepsToRest(const MovementTuning(groundFriction: 4.0));
 
-      expect(onIce, greaterThan(onStone * 3),
-          reason: 'ice stopped the body about as fast as stone did');
+      expect(
+        onIce,
+        greaterThan(onStone * 3),
+        reason: 'ice stopped the body about as fast as stone did',
+      );
     });
 
     test('a tuning swapped between steps takes effect on the next one', () {
@@ -515,9 +547,13 @@ void main() {
       _run(body, 1);
       final fast = body.velocity.y - slow;
 
-      expect(fast, lessThan(slow * 3),
-          reason: 'the new gravity did not arrive (velocity is negative, so '
-              'a bigger fall is a smaller number)');
+      expect(
+        fast,
+        lessThan(slow * 3),
+        reason:
+            'the new gravity did not arrive (velocity is negative, so '
+            'a bigger fall is a smaller number)',
+      );
     });
   });
 }

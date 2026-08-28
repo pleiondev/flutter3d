@@ -1,8 +1,16 @@
 ## 0.3.0
 
-* No changes of its own. The workspace is released as a set, in the order
-  `ARCHITECTURE.md` §16 gives, so this package's version moves with the rest
-  and its constraints on its siblings move with it.
+* **A web backend.** `document.requestPointerLock` through static interop,
+  selected by conditional export the way `pad_input` selects its gamepad — so a
+  desktop browser captures the pointer instead of being told it cannot, and a
+  first-person game in a browser is played with the mouse rather than by
+  dragging the world around. Pure Dart: nothing to register, and its tests run
+  under `flutter test --platform chrome`.
+* Refusals, releases the player did not ask for, and captures asked for outside
+  a user gesture are all handled as the browser reports them: a refused capture
+  leaves the state released rather than assuming success.
+* A coarse pointer — a phone or a tablet — answers `isSupported: false`, which
+  is what puts a game's on-screen controls on the screen.
 
 ## 0.2.0
 

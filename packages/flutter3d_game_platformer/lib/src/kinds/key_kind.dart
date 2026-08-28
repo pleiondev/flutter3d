@@ -13,7 +13,6 @@ import '../collectible.dart';
 /// What it spawns is an ordinary [Collectible] that also grants a key — the
 /// walking-over-it half is identical and only where it lands differs.
 final class KeyKind extends EntityKind {
-
   /// A player has to be able to get to one of these. See
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override

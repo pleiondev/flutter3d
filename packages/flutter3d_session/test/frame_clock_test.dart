@@ -18,8 +18,11 @@ void main() {
     // application has run for no time at all, and a simulation advanced by an
     // assumed frame advances through a world the player has not been shown.
     expect(FrameClock().secondsSince(_ms(0)), 0.0);
-    expect(FrameClock().secondsSince(_ms(4000)), 0.0,
-        reason: 'a ticker that starts late is still on its first frame');
+    expect(
+      FrameClock().secondsSince(_ms(4000)),
+      0.0,
+      reason: 'a ticker that starts late is still on its first frame',
+    );
   });
 
   test('and the second is the distance between them', () {
@@ -35,8 +38,11 @@ void main() {
     // reports however long the ticker has been running as one frame.
     final clock = FrameClock()..secondsSince(Duration.zero);
 
-    expect(clock.secondsSince(_ms(16)), closeTo(0.016, 1e-9),
-        reason: 'the frame at zero was not taken as the first one');
+    expect(
+      clock.secondsSince(_ms(16)),
+      closeTo(0.016, 1e-9),
+      reason: 'the frame at zero was not taken as the first one',
+    );
   });
 
   test('and it does not clamp a long frame', () {
@@ -60,8 +66,11 @@ void main() {
     }
 
     expect(clock.elapsed, closeTo(sum, 1e-12));
-    expect(clock.elapsed, closeTo(9 * 0.016, 1e-9),
-        reason: 'the first frame contributed time nobody lived through');
+    expect(
+      clock.elapsed,
+      closeTo(9 * 0.016, 1e-9),
+      reason: 'the first frame contributed time nobody lived through',
+    );
   });
 
   test('frames a second are smoothed rather than reported raw', () {
@@ -76,10 +85,16 @@ void main() {
     // One frame four times as long moves it a little, not all the way.
     clock.secondsSince(_ms(200 * 16 + 64));
 
-    expect(clock.fps, greaterThan(50.0),
-        reason: 'one slow frame threw the counter at the reader');
-    expect(clock.fps, lessThan(62.5),
-        reason: 'a slow frame has to show up at all');
+    expect(
+      clock.fps,
+      greaterThan(50.0),
+      reason: 'one slow frame threw the counter at the reader',
+    );
+    expect(
+      clock.fps,
+      lessThan(62.5),
+      reason: 'a slow frame has to show up at all',
+    );
   });
 
   test('and starting again makes the next frame a first frame', () {
@@ -93,7 +108,10 @@ void main() {
     clock.reset();
 
     expect(clock.secondsSince(_ms(9000)), 0.0);
-    expect(clock.elapsed, elapsed,
-        reason: 'the time it was away was counted as time that passed');
+    expect(
+      clock.elapsed,
+      elapsed,
+      reason: 'the time it was away was counted as time that passed',
+    );
   });
 }

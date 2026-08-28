@@ -21,8 +21,8 @@ final class Fixture {
     this.collider,
     Vector3? at,
     this.mechanism,
-  })  : size = size.clone(),
-        _at = (at ?? collider?.position ?? Vector3.zero()).clone();
+  }) : size = size.clone(),
+       _at = (at ?? collider?.position ?? Vector3.zero()).clone();
 
   /// What the document said, for anything the application wants that the
   /// engine did not think to pass on.

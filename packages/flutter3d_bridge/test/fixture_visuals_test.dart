@@ -71,48 +71,47 @@ final class _Answers implements FixtureAppearance {
 /// A level with one wall and one named light, which is what `bindLights` looks
 /// for.
 Level _level() => Level.fromJson(<String, Object?>{
-      'version': 1,
-      'materials': <String, Object?>{
-        'wall': <String, Object?>{
-          'color': <double>[0.8, 0.8, 0.8],
-        },
-      },
-      'brushes': <Object?>[
-        <String, Object?>{
-          'material': 'wall',
-          'at': <double>[0.0, 1.5, -1.5],
-          'size': <double>[4.0, 3.0, 1.0],
-        },
-      ],
-      'lights': <Object?>[
-        <String, Object?>{
-          'name': 'brazier',
-          'type': 'point',
-          'at': <double>[0.0, 2.0, 0.0],
-          'color': <double>[1.0, 0.7, 0.3],
-          'range': 8.0,
-          'intensity': 4.0,
-        },
-      ],
-    });
+  'version': 1,
+  'materials': <String, Object?>{
+    'wall': <String, Object?>{
+      'color': <double>[0.8, 0.8, 0.8],
+    },
+  },
+  'brushes': <Object?>[
+    <String, Object?>{
+      'material': 'wall',
+      'at': <double>[0.0, 1.5, -1.5],
+      'size': <double>[4.0, 3.0, 1.0],
+    },
+  ],
+  'lights': <Object?>[
+    <String, Object?>{
+      'name': 'brazier',
+      'type': 'point',
+      'at': <double>[0.0, 2.0, 0.0],
+      'color': <double>[1.0, 0.7, 0.3],
+      'range': 8.0,
+      'intensity': 4.0,
+    },
+  ],
+});
 
 Fixture _fixture({
   String type = 'crate',
   Vector3? at,
   Mechanism? mechanism,
   Map<String, Object?> properties = const <String, Object?>{},
-}) =>
-    Fixture(
-      entity: EntityDef(
-        type: type,
-        position: at ?? Vector3(1.0, 0.5, 0.0),
-        properties: properties,
-      ),
-      size: Vector3(1.0, 1.0, 1.0),
-      material: 'wall',
-      at: at ?? Vector3(1.0, 0.5, 0.0),
-      mechanism: mechanism,
-    );
+}) => Fixture(
+  entity: EntityDef(
+    type: type,
+    position: at ?? Vector3(1.0, 0.5, 0.0),
+    properties: properties,
+  ),
+  size: Vector3(1.0, 1.0, 1.0),
+  material: 'wall',
+  at: at ?? Vector3(1.0, 0.5, 0.0),
+  mechanism: mechanism,
+);
 
 void main() {
   late CpuDevice device;
@@ -131,12 +130,8 @@ void main() {
     );
   });
 
-  FixtureVisuals visuals(_Answers answers) => FixtureVisuals(
-        loaded.scene,
-        loaded,
-        appearance: answers,
-        device: device,
-      );
+  FixtureVisuals visuals(FixtureAppearance answers) =>
+      FixtureVisuals(loaded.scene, loaded, appearance: answers, device: device);
 
   group('sync', () {
     test('hides a fixture the game calls spent', () {
@@ -172,28 +167,37 @@ void main() {
       it.sync(0.0);
       final node = _only(loaded.scene, 'crate');
       expect(node.visible, isTrue);
-      expect(_scaleOf(node), closeTo(0.5, 1e-9),
-          reason: 'the node was shown at full size while the game shrank it');
+      expect(
+        _scaleOf(node),
+        closeTo(0.5, 1e-9),
+        reason: 'the node was shown at full size while the game shrank it',
+      );
     });
 
-    test('and offers a fixture built from a shape its own material each frame',
-        () {
-      // **The checkpoint that stayed blue.** `fallbackFor` is asked once, when
-      // the node is built, which is right for "what colour is a key" and wrong
-      // for anything whose look depends on what has happened. Without this
-      // call, the one thing a checkpoint exists to say it never says.
-      //
-      // Mutation: call `refresh` only when the node is created.
-      final answers = _Answers();
-      final it = visuals(answers)..add(_fixture());
+    test(
+      'and offers a fixture built from a shape its own material each frame',
+      () {
+        // **The checkpoint that stayed blue.** `fallbackFor` is asked once, when
+        // the node is built, which is right for "what colour is a key" and wrong
+        // for anything whose look depends on what has happened. Without this
+        // call, the one thing a checkpoint exists to say it never says.
+        //
+        // Mutation: call `refresh` only when the node is created.
+        final answers = _Answers();
+        final it = visuals(answers)..add(_fixture());
 
-      it.sync(0.0);
-      it.sync(1.0);
+        it.sync(0.0);
+        it.sync(1.0);
 
-      expect(answers.refreshed, hasLength(2),
-          reason: 'the material was offered ${answers.refreshed.length} times '
-              'across two frames');
-    });
+        expect(
+          answers.refreshed,
+          hasLength(2),
+          reason:
+              'the material was offered ${answers.refreshed.length} times '
+              'across two frames',
+        );
+      },
+    );
 
     test('and turns one the game says spins, and not one it does not', () {
       // Mutation: spin everything. A door rotating on the spot is a door
@@ -206,29 +210,37 @@ void main() {
 
       answers.spinning = true;
       it.sync(1.0);
-      expect(_forwardOf(_only(loaded.scene, 'crate')).x, isNot(closeTo(still.x, 1e-6)));
+      expect(
+        _forwardOf(_only(loaded.scene, 'crate')).x,
+        isNot(closeTo(still.x, 1e-6)),
+      );
     });
 
-    test('and follows the collider rather than a second copy of the travel',
-        () {
-      // A door stopped by somebody standing in it is drawn where it actually
-      // stopped. The fixture's position is the simulation's; nothing here
-      // recomputes it.
-      //
-      // Mutation: set the node from `fixture.entity.position`, which is where
-      // the document said it started.
-      final at = Vector3(1.0, 0.5, 0.0);
-      final fixture = _fixture(at: at);
-      final it = visuals(_Answers())..add(fixture);
+    test(
+      'and follows the collider rather than a second copy of the travel',
+      () {
+        // A door stopped by somebody standing in it is drawn where it actually
+        // stopped. The fixture's position is the simulation's; nothing here
+        // recomputes it.
+        //
+        // Mutation: set the node from `fixture.entity.position`, which is where
+        // the document said it started.
+        final at = Vector3(1.0, 0.5, 0.0);
+        final fixture = _fixture(at: at);
+        final it = visuals(_Answers())..add(fixture);
 
-      it.sync(0.0);
-      expect(_positionOf(_only(loaded.scene, 'crate')).x, closeTo(1.0, 1e-9));
+        it.sync(0.0);
+        expect(_positionOf(_only(loaded.scene, 'crate')).x, closeTo(1.0, 1e-9));
 
-      fixture.position.setValues(4.0, 0.5, 0.0);
-      it.sync(0.0);
-      expect(_positionOf(_only(loaded.scene, 'crate')).x, closeTo(4.0, 1e-9),
-          reason: 'the node stayed where the document put it');
-    });
+        fixture.position.setValues(4.0, 0.5, 0.0);
+        it.sync(0.0);
+        expect(
+          _positionOf(_only(loaded.scene, 'crate')).x,
+          closeTo(4.0, 1e-9),
+          reason: 'the node stayed where the document put it',
+        );
+      },
+    );
   });
 
   group('a light fixture', () {
@@ -273,8 +285,11 @@ void main() {
       final authored = _positionOf(brazier);
 
       it.sync(0.0);
-      expect(_positionOf(brazier), authored,
-          reason: 'an unmeasured fixture moved the light it drives');
+      expect(
+        _positionOf(brazier),
+        authored,
+        reason: 'an unmeasured fixture moved the light it drives',
+      );
 
       mechanism.measure(1.0, at: Vector3(3.0, 2.0, 1.0));
       it.sync(0.0);
@@ -314,8 +329,9 @@ void main() {
 
       answers.fire = null;
       it.add(_fixture(type: 'window', mechanism: unlit));
-      expect(it.flames.keys, <LightFixture>[lit],
-          reason: 'a fixture that glows without burning was given a flame');
+      expect(it.flames.keys, <LightFixture>[
+        lit,
+      ], reason: 'a fixture that glows without burning was given a flame');
     });
   });
 
@@ -332,10 +348,105 @@ void main() {
     mechanism.measure(0.0);
     it.sync(0.0);
 
-    expect(brazier.intensity, closeTo(full, 1e-9),
-        reason: 'a fixture naming a light that does not exist dimmed one that '
-            'does');
+    expect(
+      brazier.intensity,
+      closeTo(full, 1e-9),
+      reason:
+          'a fixture naming a light that does not exist dimmed one that '
+          'does',
+    );
   });
+
+  group('a light fixture and its own light', () {
+    test('the fixture does not cast a shadow into the light it holds', () {
+      // **What this looked like when it did.** A black pyramid down the wall
+      // under every torch in the crypt, with a dark apron on the floor in
+      // front of it — and the shadow pass was right about all of it. A torch's
+      // light sits a third of a metre out from the wall, its bracket and cup
+      // hang in that same space, and a blocker that close to a point light
+      // throws a shadow the size of everything the light reaches. The nearer
+      // the blocker, the bigger the shadow; nothing is nearer than the thing
+      // holding the light.
+      //
+      // Mutation: drop the `castsShadow = false` walk in `_addLightFixture`.
+      // Every mesh below comes back true and the pyramid is back.
+      final it = visuals(_Bracket())
+        ..bindLights()
+        ..add(
+          _fixture(
+            type: 'torch',
+            mechanism: LightFixture(light: 'brazier'),
+          ),
+        );
+      it.sync(0.0);
+
+      expect((_only(loaded.scene, 'cup') as MeshNode).castsShadow, isFalse);
+      expect((_only(loaded.scene, 'stem') as MeshNode).castsShadow, isFalse);
+    });
+
+    test('unless the level says this one is meant to', () {
+      // The escape hatch, and it has to be checked or it is a paragraph of
+      // documentation with no code under it: a shade whose pattern on the
+      // ceiling is the point opts back in.
+      //
+      // Mutation: ignore the entity flag and always clear the meshes. The
+      // lamp then throws no pattern and nothing says why.
+      final it = visuals(_Bracket())
+        ..bindLights()
+        ..add(
+          _fixture(
+            type: 'torch',
+            mechanism: LightFixture(light: 'brazier'),
+            properties: const <String, Object?>{'castsShadow': true},
+          ),
+        );
+      it.sync(0.0);
+
+      expect((_only(loaded.scene, 'cup') as MeshNode).castsShadow, isTrue);
+    });
+  });
+}
+
+/// An appearance that builds the two pieces a torch is made of.
+///
+/// [_Answers] deliberately builds no meshes — it is about the questions the
+/// bridge asks — and a shadow flag on a fixture with no meshes in it is a test
+/// that cannot fail.
+final class _Bracket implements FixtureAppearance {
+  @override
+  TorchFire? buildLightFixture(LightFixtureBuild build) {
+    final cup = MeshNode(
+      build.meshes.box(Vector3.all(0.1)),
+      build.glow,
+      name: 'cup',
+    );
+    build.holder
+      ..add(cup)
+      ..add(
+        MeshNode(
+          build.meshes.box(Vector3(0.05, 0.4, 0.05)),
+          build.glow,
+          name: 'stem',
+        ),
+      );
+    return TorchFire(cup);
+  }
+
+  @override
+  LevelMaterial fallbackFor(Fixture fixture) =>
+      LevelMaterial(baseColor: Vector4(0.5, 0.5, 0.5, 1.0));
+
+  @override
+  bool isSpent(Fixture fixture) => false;
+
+  @override
+  double scaleOf(Fixture fixture) => 1.0;
+
+  @override
+  bool spins(Fixture fixture) => false;
+
+  @override
+  void refresh(Fixture fixture, engine.Material material) {}
 }
 
 /// The one node in [scene] with this name, and a failure if there is not

@@ -15,11 +15,7 @@
 /// [thousandths] adds the fraction. [none] is what a time that has not happened
 /// yet reads as — a nought is a lie, and a lap nobody has driven is not a lap
 /// driven in no time.
-String clockText(
-  double? seconds, {
-  bool thousandths = false,
-  String? none,
-}) {
+String clockText(double? seconds, {bool thousandths = false, String? none}) {
   if (seconds == null || seconds <= 0.0 || !seconds.isFinite) {
     return none ?? (thousandths ? '--:--.---' : '-:--');
   }

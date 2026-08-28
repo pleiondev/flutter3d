@@ -54,14 +54,14 @@ final class _World {
   }
 
   Collider _trigger(Vector3 at, int layer) => world.add(
-        Collider(
-          shape: CollisionBox(Vector3.all(0.5)),
-          position: at,
-          kind: ColliderKind.trigger,
-          layer: layer,
-          mask: CollisionLayers.player,
-        ),
-      );
+    Collider(
+      shape: CollisionBox(Vector3.all(0.5)),
+      position: at,
+      kind: ColliderKind.trigger,
+      layer: layer,
+      mask: CollisionLayers.player,
+    ),
+  );
 
   final CollisionWorld world = CollisionWorld();
   final InputState input = InputState();
@@ -104,7 +104,11 @@ void main() {
     // Walked far enough to have taken the coin, passed the checkpoint and be
     // somewhere that is not the origin — see the note at the top of the file.
     final first = _World()..run(90);
-    expect(first.runner.purse['coin'], 1, reason: 'the moment must not be zero');
+    expect(
+      first.runner.purse['coin'],
+      1,
+      reason: 'the moment must not be zero',
+    );
     expect(first.checkpoint.isReached, isTrue);
 
     final saved = _throughText(first.sim.save());
@@ -135,7 +139,11 @@ void main() {
     // Mutation: drop `deaths` from `save`. A player who reloads has their
     // count reset, and a level that ends on "no deaths" hands out a medal.
     final first = _World()..run(400);
-    expect(first.sim.deaths, greaterThan(0), reason: 'it should walk off the end');
+    expect(
+      first.sim.deaths,
+      greaterThan(0),
+      reason: 'it should walk off the end',
+    );
 
     final saved = _throughText(first.sim.save());
     final second = _World()..sim.restore(saved);
@@ -154,8 +162,11 @@ void main() {
     final wasAt = second.runner.position.clone();
     second.run(1, forward: false);
 
-    expect((second.runner.position - wasAt).length, lessThan(0.2),
-        reason: 'the first step after a load is not a teleport');
+    expect(
+      (second.runner.position - wasAt).length,
+      lessThan(0.2),
+      reason: 'the first step after a load is not a teleport',
+    );
   });
 }
 
@@ -304,8 +315,11 @@ void _progressTests() {
       world.step();
 
       expect(world.sim.deaths, 5, reason: 'the tally is carried, not reset');
-      expect(world.sim.diedThisStep, isFalse,
-          reason: 'a carried death fired the death sound on arrival');
+      expect(
+        world.sim.diedThisStep,
+        isFalse,
+        reason: 'a carried death fired the death sound on arrival',
+      );
     });
 
     test('and a death is true for the step it happened in', () {
@@ -332,8 +346,11 @@ void _progressTests() {
 
       world.step();
 
-      expect(world.sim.diedThisStep, isFalse,
-          reason: 'the flag stayed up, so the burst plays every frame');
+      expect(
+        world.sim.diedThisStep,
+        isFalse,
+        reason: 'the flag stayed up, so the burst plays every frame',
+      );
     });
   });
 
@@ -361,5 +378,4 @@ void _progressTests() {
       }
     });
   });
-
 }

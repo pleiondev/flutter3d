@@ -27,9 +27,8 @@ final class SharedMeshes {
   ///
   /// The builder is a callback rather than a value so that the shape is not
   /// constructed at all on the common path, where the mesh is already there.
-  DeviceMesh shape(String key, Shape Function() shape) =>
-      _meshes.putIfAbsent(
-        key,
-        () => DeviceMesh.upload(_device, shape().build()),
-      );
+  DeviceMesh shape(String key, Shape Function() shape) => _meshes.putIfAbsent(
+    key,
+    () => DeviceMesh.upload(_device, shape().build()),
+  );
 }

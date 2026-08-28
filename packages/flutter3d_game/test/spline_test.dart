@@ -8,13 +8,13 @@ import 'package:vector_math/vector_math.dart';
 /// plane. The curve through them is the closest thing to a shape whose length
 /// and curvature are known in advance.
 CatmullRom circle({double radius = 50.0, int count = 16}) => CatmullRom([
-      for (var i = 0; i < count; i++)
-        Vector3(
-          radius * math.cos(2 * math.pi * i / count),
-          0.0,
-          radius * math.sin(2 * math.pi * i / count),
-        ),
-    ]);
+  for (var i = 0; i < count; i++)
+    Vector3(
+      radius * math.cos(2 * math.pi * i / count),
+      0.0,
+      radius * math.sin(2 * math.pi * i / count),
+    ),
+]);
 
 /// A long, narrow loop: two straights six metres apart joined at the ends.
 ///
@@ -22,19 +22,19 @@ CatmullRom circle({double radius = 50.0, int count = 16}) => CatmullRom([
 /// that feeds it, and the one that breaks a nearest-point search that has no
 /// memory of where the car was.
 CatmullRom narrowLoop() => CatmullRom([
-      Vector3(-100.0, 0.0, 3.0),
-      Vector3(-50.0, 0.0, 3.0),
-      Vector3(0.0, 0.0, 3.0),
-      Vector3(50.0, 0.0, 3.0),
-      Vector3(100.0, 0.0, 3.0),
-      Vector3(103.0, 0.0, 0.0),
-      Vector3(100.0, 0.0, -3.0),
-      Vector3(50.0, 0.0, -3.0),
-      Vector3(0.0, 0.0, -3.0),
-      Vector3(-50.0, 0.0, -3.0),
-      Vector3(-100.0, 0.0, -3.0),
-      Vector3(-103.0, 0.0, 0.0),
-    ]);
+  Vector3(-100.0, 0.0, 3.0),
+  Vector3(-50.0, 0.0, 3.0),
+  Vector3(0.0, 0.0, 3.0),
+  Vector3(50.0, 0.0, 3.0),
+  Vector3(100.0, 0.0, 3.0),
+  Vector3(103.0, 0.0, 0.0),
+  Vector3(100.0, 0.0, -3.0),
+  Vector3(50.0, 0.0, -3.0),
+  Vector3(0.0, 0.0, -3.0),
+  Vector3(-50.0, 0.0, -3.0),
+  Vector3(-100.0, 0.0, -3.0),
+  Vector3(-103.0, 0.0, 0.0),
+]);
 
 /// The shorter of the two ways round between two distances on a closed curve.
 double gap(CatmullRom curve, double a, double b) {
@@ -50,7 +50,10 @@ void main() {
       // and every lap time inherits that error.
       final curve = circle();
 
-      expect(curve.length, closeTo(2 * math.pi * 50.0, 2 * math.pi * 50.0 * 0.01));
+      expect(
+        curve.length,
+        closeTo(2 * math.pi * 50.0, 2 * math.pi * 50.0 * 0.01),
+      );
     });
 
     test('the curve passes through its control points', () {
@@ -70,7 +73,16 @@ void main() {
       // up sevenfold at the tight end — an AI aiming "twelve metres ahead" would
       // be aiming at four, or at thirty.
       final curve = CatmullRom([
-        for (final degrees in [0.0, 10.0, 20.0, 90.0, 180.0, 200.0, 270.0, 350.0])
+        for (final degrees in [
+          0.0,
+          10.0,
+          20.0,
+          90.0,
+          180.0,
+          200.0,
+          270.0,
+          350.0,
+        ])
           Vector3(
             50 * math.cos(degrees * math.pi / 180),
             0.0,
@@ -111,18 +123,18 @@ void main() {
       final segment = curve.length / 64;
 
       expect(curve.curvatureAt(0.0), closeTo(1 / 50.0, 1 / 50.0 * 0.01));
-      expect(curve.curvatureAt(segment / 2), closeTo(1 / 50.0, 1 / 50.0 * 0.01));
+      expect(
+        curve.curvatureAt(segment / 2),
+        closeTo(1 / 50.0, 1 / 50.0 * 0.01),
+      );
     });
 
     test('a straight has no curvature', () {
-      final curve = CatmullRom(
-        [
-          Vector3(0.0, 0.0, 0.0),
-          Vector3(10.0, 0.0, 0.0),
-          Vector3(20.0, 0.0, 0.0),
-        ],
-        closed: false,
-      );
+      final curve = CatmullRom([
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(10.0, 0.0, 0.0),
+        Vector3(20.0, 0.0, 0.0),
+      ], closed: false);
 
       expect(curve.curvatureAt(10.0), closeTo(0.0, 1e-6));
     });
@@ -157,10 +169,11 @@ void main() {
     });
 
     test('an open curve clamps instead of wrapping', () {
-      final curve = CatmullRom(
-        [Vector3.zero(), Vector3(10.0, 0.0, 0.0), Vector3(20.0, 0.0, 0.0)],
-        closed: false,
-      );
+      final curve = CatmullRom([
+        Vector3.zero(),
+        Vector3(10.0, 0.0, 0.0),
+        Vector3(20.0, 0.0, 0.0),
+      ], closed: false);
 
       expect(curve.wrap(-5.0), 0.0);
       expect(curve.wrap(curve.length + 5.0), curve.length);
@@ -180,23 +193,30 @@ void main() {
   });
 
   group('nearest point', () {
-    test('a windowed search agrees with a global one when nothing is nearby', () {
-      // On a plain circle the two can only disagree if one of them is wrong.
-      final curve = circle();
-      final random = math.Random(7);
-      final probe = Vector3.zero();
+    test(
+      'a windowed search agrees with a global one when nothing is nearby',
+      () {
+        // On a plain circle the two can only disagree if one of them is wrong.
+        final curve = circle();
+        final random = math.Random(7);
+        final probe = Vector3.zero();
 
-      for (var i = 0; i < 200; i++) {
-        final angle = random.nextDouble() * 2 * math.pi;
-        final radius = 40.0 + random.nextDouble() * 20.0;
-        probe.setValues(radius * math.cos(angle), 0.0, radius * math.sin(angle));
+        for (var i = 0; i < 200; i++) {
+          final angle = random.nextDouble() * 2 * math.pi;
+          final radius = 40.0 + random.nextDouble() * 20.0;
+          probe.setValues(
+            radius * math.cos(angle),
+            0.0,
+            radius * math.sin(angle),
+          );
 
-        final global = curve.closestSGlobal(probe);
-        final windowed = curve.closestS(probe, nearS: global, window: 20.0);
+          final global = curve.closestSGlobal(probe);
+          final windowed = curve.closestS(probe, nearS: global, window: 20.0);
 
-        expect(gap(curve, windowed, global), lessThan(0.05));
-      }
-    });
+          expect(gap(curve, windowed, global), lessThan(0.05));
+        }
+      },
+    );
 
     test('the window keeps the answer on the branch the car is on', () {
       // Mutation: ignore `nearS` and search the whole curve. This is the bug the
@@ -211,10 +231,17 @@ void main() {
       final driftedWide = Vector3(0.0, 0.0, -1.0);
 
       final global = curve.closestSGlobal(driftedWide);
-      final windowed = curve.closestS(driftedWide, nearS: onNearStraight, window: 20.0);
+      final windowed = curve.closestS(
+        driftedWide,
+        nearS: onNearStraight,
+        window: 20.0,
+      );
 
-      expect(gap(curve, global, onNearStraight), greaterThan(100.0),
-          reason: 'the far straight must really be the global answer');
+      expect(
+        gap(curve, global, onNearStraight),
+        greaterThan(100.0),
+        reason: 'the far straight must really be the global answer',
+      );
       expect(gap(curve, windowed, onNearStraight), lessThan(5.0));
     });
 
@@ -324,15 +351,12 @@ void main() {
       // Mutation: wrap the control point index on an open curve too. The last
       // segment would then bend towards the first point — a sprint track whose
       // finish curls back at the start line.
-      final curve = CatmullRom(
-        [
-          Vector3(0.0, 0.0, 0.0),
-          Vector3(10.0, 0.0, 0.0),
-          Vector3(20.0, 0.0, 0.0),
-          Vector3(30.0, 0.0, 0.0),
-        ],
-        closed: false,
-      );
+      final curve = CatmullRom([
+        Vector3(0.0, 0.0, 0.0),
+        Vector3(10.0, 0.0, 0.0),
+        Vector3(20.0, 0.0, 0.0),
+        Vector3(30.0, 0.0, 0.0),
+      ], closed: false);
       final out = Vector3.zero();
 
       curve.sampleAt(curve.length, out);

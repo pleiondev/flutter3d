@@ -33,8 +33,10 @@ void main() {
     final saved = system.entities.save();
     final loaded = _system()..entities.restore(saved);
 
-    final rocket = loaded.entities.query<InFlight>().map(
-        (Entity e) => loaded.entities.get<InFlight>(e)!).single;
+    final rocket = loaded.entities
+        .query<InFlight>()
+        .map((Entity e) => loaded.entities.get<InFlight>(e)!)
+        .single;
     expect(rocket.position.x, closeTo(1.0, 1e-6));
     expect(rocket.blast.damage, 60.0);
   });
@@ -56,8 +58,11 @@ void main() {
 
     final loaded = _system();
     expect(() => loaded.entities.restore(saved), returnsNormally);
-    expect(loaded.entities.query<InFlight>(), isEmpty,
-        reason: 'a rocket that cannot be read is not a rocket at the origin');
+    expect(
+      loaded.entities.query<InFlight>(),
+      isEmpty,
+      reason: 'a rocket that cannot be read is not a rocket at the origin',
+    );
   });
 
   test('and a row with no place is not a rocket at the origin', () {

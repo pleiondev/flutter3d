@@ -58,12 +58,12 @@ final class SurfaceBuilder {
   }
 
   BrushSurface finish() => BrushSurface(
-        material: material,
-        castsShadow: castsShadow,
-        positions: Float32List.fromList(_positions),
-        normals: Float32List.fromList(_normals),
-        texcoords: Float32List.fromList(_texcoords),
-        tangents: Float32List.fromList(_tangents),
-        indices: Uint32List.fromList(_indices),
-      );
+    material: material,
+    castsShadow: castsShadow,
+    positions: Float32List.fromList(_positions),
+    normals: Float32List.fromList(_normals),
+    texcoords: Float32List.fromList(_texcoords),
+    tangents: Float32List.fromList(_tangents),
+    indices: Uint32List.fromList(_indices),
+  );
 }

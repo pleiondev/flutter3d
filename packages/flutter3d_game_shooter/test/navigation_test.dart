@@ -8,7 +8,6 @@
 /// would fail the second.
 library;
 
-
 import 'package:flutter3d_game/src/actors/actor_system.dart';
 import 'package:flutter3d_game/src/level/level.dart';
 import 'package:flutter3d_game/src/level/level_issue.dart';
@@ -43,10 +42,7 @@ Brush _floor() => _box(0.0, -0.5, 0.0, 20.0, 1.0, 20.0);
 ///                                    <- the way round
 ///   z=+10  ####################
 /// ```
-List<Brush> _uRoom() => <Brush>[
-      _floor(),
-      _box(0.0, 1.5, -4.0, 1.0, 3.0, 12.0),
-    ];
+List<Brush> _uRoom() => <Brush>[_floor(), _box(0.0, 1.5, -4.0, 1.0, 3.0, 12.0)];
 
 CollisionWorld _worldOf(List<Brush> brushes) {
   final world = CollisionWorld();
@@ -66,8 +62,11 @@ void main() {
 
       final cell = grid.cellAtPoint(3.2, -7.1);
       expect(grid.isWalkable(cell), isTrue);
-      expect(grid.floorAt(cell), closeTo(0.0, 1e-5),
-          reason: 'the surface is the top of the brush, not its centre');
+      expect(
+        grid.floorAt(cell),
+        closeTo(0.0, 1e-5),
+        reason: 'the surface is the top of the brush, not its centre',
+      );
       expect(grid.headroomAt(cell), NavGrid.maxHeadroom);
     });
 
@@ -111,8 +110,11 @@ void main() {
 
       final cell = grid.cellAtPoint(1.0, 1.0);
       expect(grid.floorAt(cell), closeTo(0.0, 1e-5));
-      expect(grid.headroomAt(cell), closeTo(3.0, 1e-5),
-          reason: 'the ceiling is what limits the room, so it is 3 not 8');
+      expect(
+        grid.headroomAt(cell),
+        closeTo(3.0, 1e-5),
+        reason: 'the ceiling is what limits the room, so it is 3 not 8',
+      );
     });
 
     test('a room with a roof is not reported as ambiguous', () {
@@ -121,10 +123,10 @@ void main() {
       // level has two spans, and a warning that fires on all of them says
       // nothing at all.
       final issues = <LevelIssue>[];
-      NavGrid.bake(
-        <Brush>[_floor(), _box(0.0, 3.2, 0.0, 20.0, 0.4, 20.0)],
-        issues: issues,
-      );
+      NavGrid.bake(<Brush>[
+        _floor(),
+        _box(0.0, 3.2, 0.0, 20.0, 0.4, 20.0),
+      ], issues: issues);
       expect(issues, isEmpty);
     });
 
@@ -135,24 +137,27 @@ void main() {
       //
       // Mutation: drop the issue. This fails.
       final issues = <LevelIssue>[];
-      final grid = NavGrid.bake(
-        <Brush>[
-          _floor(),
-          _box(0.0, 2.4, 0.0, 4.0, 0.2, 20.0), // walkway, top at 2.5
-          _box(0.0, 6.2, 0.0, 20.0, 0.4, 20.0), // ceiling, bottom at 6.0
-        ],
-        issues: issues,
-      );
+      final grid = NavGrid.bake(<Brush>[
+        _floor(),
+        _box(0.0, 2.4, 0.0, 4.0, 0.2, 20.0), // walkway, top at 2.5
+        _box(0.0, 6.2, 0.0, 20.0, 0.4, 20.0), // ceiling, bottom at 6.0
+      ], issues: issues);
 
       expect(issues, hasLength(1));
       expect(issues.single.severity, LevelIssueSeverity.warning);
       expect(issues.single.message, contains('lowest'));
 
       final under = grid.cellAtPoint(0.5, 0.5);
-      expect(grid.floorAt(under), closeTo(0.0, 1e-5),
-          reason: 'the lower floor is the one kept');
-      expect(grid.headroomAt(under), closeTo(2.3, 1e-5),
-          reason: 'up to the underside of the walkway');
+      expect(
+        grid.floorAt(under),
+        closeTo(0.0, 1e-5),
+        reason: 'the lower floor is the one kept',
+      );
+      expect(
+        grid.headroomAt(under),
+        closeTo(2.3, 1e-5),
+        reason: 'up to the underside of the walkway',
+      );
     });
 
     test('a wall thinner than a cell still blocks the cells it crosses', () {
@@ -171,9 +176,13 @@ void main() {
         _box(0.5, 1.5, 0.0, 0.1, 3.0, 20.0),
       ]);
 
-      expect(grid.isWalkable(grid.cellAtPoint(0.6, 0.0)), isFalse,
-          reason: 'a wall crossing a cell is in the way whether or not it '
-              'happens to cover the exact centre');
+      expect(
+        grid.isWalkable(grid.cellAtPoint(0.6, 0.0)),
+        isFalse,
+        reason:
+            'a wall crossing a cell is in the way whether or not it '
+            'happens to cover the exact centre',
+      );
     });
 
     test('the top of a wall does not count as room beside it', () {
@@ -188,12 +197,18 @@ void main() {
 
       final beside = grid.cellAtPoint(-0.75, -8.0);
       expect(grid.isWalkable(beside), isTrue);
-      expect(grid.clearanceAt(beside), 1,
-          reason: 'it is touching the wall, so there is one cell of room');
+      expect(
+        grid.clearanceAt(beside),
+        1,
+        reason: 'it is touching the wall, so there is one cell of room',
+      );
 
       final onTop = grid.cellAtPoint(0.0, -8.0);
-      expect(grid.floorAt(onTop), closeTo(3.0, 1e-5),
-          reason: 'the top of a wall really is a surface; that is the point');
+      expect(
+        grid.floorAt(onTop),
+        closeTo(3.0, 1e-5),
+        reason: 'the top of a wall really is a surface; that is the point',
+      );
       expect(grid.clearanceAt(onTop), 1);
     });
 
@@ -202,8 +217,11 @@ void main() {
       // (k - 0.5) cells of half-width, so 0.35 needs 2 and 0.62 needs 3.
       expect(grid.clearanceForRadius(0.35), 2);
       expect(grid.clearanceForRadius(0.62), 3);
-      expect(grid.clearanceForRadius(0.0), 1,
-          reason: 'zero means unwalkable, so nothing may round down to it');
+      expect(
+        grid.clearanceForRadius(0.0),
+        1,
+        reason: 'zero means unwalkable, so nothing may round down to it',
+      );
     });
 
     test('a step is a step and a wall is a wall', () {
@@ -221,8 +239,10 @@ void main() {
         _floor(),
         _box(-5.0, 1.5, 0.0, 10.0, 3.0, 20.0), // 3m, top at 3.0
       ]);
-      expect(wall.canMove(wall.cellAtPoint(1.0, 0.0), wall.cellAtPoint(-1.0, 0.0)),
-          isFalse);
+      expect(
+        wall.canMove(wall.cellAtPoint(1.0, 0.0), wall.cellAtPoint(-1.0, 0.0)),
+        isFalse,
+      );
     });
   });
 
@@ -252,21 +272,26 @@ void main() {
 
       final direction = Vector3.zero();
       expect(field.descend(Vector3(-4.0, 0.9, -8.0), direction), isTrue);
-      expect(direction.z, greaterThan(0.5),
-          reason: 'the way round is south, towards the open end');
+      expect(
+        direction.z,
+        greaterThan(0.5),
+        reason: 'the way round is south, towards the open end',
+      );
       expect(direction.y, 0.0, reason: 'a flow field is horizontal');
       expect(direction.length, closeTo(1.0, 1e-6));
     });
 
-    test('inside the goal cell it says nothing, so the caller goes straight',
-        () {
-      // Steering by the field within one cell of the target would have a
-      // monster circling a cell centre half a metre from the player.
-      final grid = NavGrid.bake(<Brush>[_floor()]);
-      final field = FlowField(grid, minClearance: 2)
-        ..rebuild(Vector3(4.0, 0.7, -8.0));
-      expect(field.descend(Vector3(4.1, 0.9, -7.9), Vector3.zero()), isFalse);
-    });
+    test(
+      'inside the goal cell it says nothing, so the caller goes straight',
+      () {
+        // Steering by the field within one cell of the target would have a
+        // monster circling a cell centre half a metre from the player.
+        final grid = NavGrid.bake(<Brush>[_floor()]);
+        final field = FlowField(grid, minClearance: 2)
+          ..rebuild(Vector3(4.0, 0.7, -8.0));
+        expect(field.descend(Vector3(4.1, 0.9, -7.9), Vector3.zero()), isFalse);
+      },
+    );
 
     test('somewhere with no route reports none rather than a direction', () {
       // An island: the floor, and a second floor with nothing joining them.
@@ -301,10 +326,16 @@ void main() {
       ]);
       final field = FlowField(grid)..rebuild(Vector3(5.0, 0.7, 5.0));
 
-      expect(field.walkingDistanceTo(Vector3(5.0, 0.9, 2.0)), isNotNull,
-          reason: 'the same side of the corner is of course reachable');
-      expect(field.walkingDistanceTo(Vector3(-5.0, 0.9, -5.0)), isNull,
-          reason: 'a corner two walls share is not a gap to walk through');
+      expect(
+        field.walkingDistanceTo(Vector3(5.0, 0.9, 2.0)),
+        isNotNull,
+        reason: 'the same side of the corner is of course reachable',
+      );
+      expect(
+        field.walkingDistanceTo(Vector3(-5.0, 0.9, -5.0)),
+        isNull,
+        reason: 'a corner two walls share is not a gap to walk through',
+      );
     });
 
     test('before the first sweep nothing is reachable', () {
@@ -318,23 +349,27 @@ void main() {
       expect(field.walkingDistanceTo(Vector3.zero()), isNull);
     });
 
-    test('a goal where the body does not fit becomes the nearest place it does',
-        () {
-      // The player standing in a doorway too narrow for a tank should bring
-      // the tank as close as it fits, not stop it where it stands.
-      //
-      // Mutation: return -1 instead of searching outwards. The tank's field
-      // has no goal and this fails.
-      final grid = NavGrid.bake(_narrowDoorway(), cellSize: 0.25);
-      final wide = FlowField(grid, minClearance: grid.clearanceForRadius(0.62))
-        ..rebuild(Vector3(0.0, 0.7, 0.0)); // in the doorway itself
+    test(
+      'a goal where the body does not fit becomes the nearest place it does',
+      () {
+        // The player standing in a doorway too narrow for a tank should bring
+        // the tank as close as it fits, not stop it where it stands.
+        //
+        // Mutation: return -1 instead of searching outwards. The tank's field
+        // has no goal and this fails.
+        final grid = NavGrid.bake(_narrowDoorway(), cellSize: 0.25);
+        final wide = FlowField(
+          grid,
+          minClearance: grid.clearanceForRadius(0.62),
+        )..rebuild(Vector3(0.0, 0.7, 0.0)); // in the doorway itself
 
-      expect(wide.goalCell, isNot(-1));
-      expect(wide.fits(wide.goalCell), isTrue);
-      // The nearest place a body 1.24 wide fits is just outside the doorway,
-      // and the rest of that room is open.
-      expect(wide.walkingDistanceTo(Vector3(4.0, 0.9, 0.0)), isNotNull);
-    });
+        expect(wide.goalCell, isNot(-1));
+        expect(wide.fits(wide.goalCell), isTrue);
+        // The nearest place a body 1.24 wide fits is just outside the doorway,
+        // and the rest of that room is open.
+        expect(wide.walkingDistanceTo(Vector3(4.0, 0.9, 0.0)), isNotNull);
+      },
+    );
 
     test('a gap wide enough for one body is not wide enough for another', () {
       // Why there is a field per class rather than one shared field. The same
@@ -349,9 +384,13 @@ void main() {
         ..rebuild(goal);
 
       expect(slim.walkingDistanceTo(here), isNotNull);
-      expect(wide.walkingDistanceTo(here), isNull,
-          reason: 'a metre of doorway is not a metre of room for a body 1.24 '
-              'wide');
+      expect(
+        wide.walkingDistanceTo(here),
+        isNull,
+        reason:
+            'a metre of doorway is not a metre of room for a body 1.24 '
+            'wide',
+      );
     });
 
     test('a tunnel too low is refused by height and not by width', () {
@@ -395,8 +434,12 @@ void main() {
 
       final direction = Vector3.zero();
       expect(
-        nav.steer(Vector3(-4.0, 0.9, -8.0), direction,
-            radius: 0.35, height: 1.7),
+        nav.steer(
+          Vector3(-4.0, 0.9, -8.0),
+          direction,
+          radius: 0.35,
+          height: 1.7,
+        ),
         isTrue,
       );
       expect(direction.z, greaterThan(0.5));
@@ -462,33 +505,41 @@ void main() {
     }
 
     test('with navigation it walks round the wall and reaches the player', () {
-      expect(closest(navigating: true), lessThan(2.5),
-          reason: 'fifteen seconds is more than enough for a thirty metre '
-              'detour at 5.4 metres a second');
+      expect(
+        closest(navigating: true),
+        lessThan(2.5),
+        reason:
+            'fifteen seconds is more than enough for a thirty metre '
+            'detour at 5.4 metres a second',
+      );
     });
 
     test('without navigation it presses itself against the wall', () {
       // The mutation check, and it is the other test. If navigation were being
       // silently ignored, both would agree — and this one asserts they do not.
-      expect(closest(navigating: false), greaterThan(4.0),
-          reason: 'walking straight at a player behind a wall is walking into '
-              'the wall');
+      expect(
+        closest(navigating: false),
+        greaterThan(4.0),
+        reason:
+            'walking straight at a player behind a wall is walking into '
+            'the wall',
+      );
     });
   });
 }
 
 /// Two rooms joined by a doorway one metre wide.
 List<Brush> _narrowDoorway() => <Brush>[
-      _floor(),
-      _box(0.0, 1.5, -5.25, 1.0, 3.0, 9.5), // wall, z from -10 to -0.5
-      _box(0.0, 1.5, 5.25, 1.0, 3.0, 9.5), // wall, z from 0.5 to 10
-    ];
+  _floor(),
+  _box(0.0, 1.5, -5.25, 1.0, 3.0, 9.5), // wall, z from -10 to -0.5
+  _box(0.0, 1.5, 5.25, 1.0, 3.0, 9.5), // wall, z from 0.5 to 10
+];
 
 /// A wall across the room with a two-metre gap in it, and a lintel over the gap
 /// leaving two metres of headroom.
 List<Brush> _lowTunnel() => <Brush>[
-      _floor(),
-      _box(-5.5, 2.5, 0.0, 9.0, 5.0, 1.0), // x from -10 to -1
-      _box(5.5, 2.5, 0.0, 9.0, 5.0, 1.0), // x from 1 to 10
-      _box(0.0, 3.5, 0.0, 2.0, 3.0, 1.0), // lintel, 2.0 up to 5.0
-    ];
+  _floor(),
+  _box(-5.5, 2.5, 0.0, 9.0, 5.0, 1.0), // x from -10 to -1
+  _box(5.5, 2.5, 0.0, 9.0, 5.0, 1.0), // x from 1 to 10
+  _box(0.0, 3.5, 0.0, 2.0, 3.0, 1.0), // lintel, 2.0 up to 5.0
+];

@@ -114,8 +114,8 @@ final class DarwinPadState implements PadMirror {
       final pressure = button == PadButton.triggerLeft
           ? out.axis(PadAxis.triggerLeft)
           : button == PadButton.triggerRight
-              ? out.axis(PadAxis.triggerRight)
-              : null;
+          ? out.axis(PadAxis.triggerRight)
+          : null;
       out.setDown(button, down: down, pressure: pressure);
     }
   }
