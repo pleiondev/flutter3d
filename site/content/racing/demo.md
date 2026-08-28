@@ -1,24 +1,20 @@
 ---
-description: The racing game built against the WebGL2 backend — it renders correctly and is not yet playable at a usable frame rate, and this page says why.
+description: The racing game built against the WebGL2 backend — unplayable for months, and what the two changes that fixed it were.
 ---
 
 # Demo: the racing game in a browser
 
-*Ring*, running on `flutter3d_webgl`. It builds, it loads, and it draws the circuit correctly. It is **not playable in a browser yet**, and this page is about that rather than around it.
-
-<div class="warn">
-<p>This build runs at well under one frame a second. The countdown reaches zero after about a minute of real time, and the browser's main thread stops answering while a frame is in flight. The other two demos run: <a href="/platformer/demo/">the platformer</a> comfortably, <a href="/shooter/demo/">the shooter</a> at 15–30 fps. Play this one on the desktop build.</p>
-</div>
+*Ring*, running on `flutter3d_webgl`. It builds, it loads, it draws the circuit — and for months it did all of that at well under one frame a second, which is what this page was about. It drives now. The page keeps the hunt, because what was wrong was not where anybody looked.
 
 <div class="demo">
-  <iframe class="demo-frame" src="/demo/racing/" title="Ring, the racing demo" allow="autoplay" loading="lazy"></iframe>
+  <iframe class="demo-frame" src="/demo/racing/" title="Ring, the racing demo" allow="autoplay; pointer-lock" loading="lazy"></iframe>
   <p class="demo-bar">
-    <span>WebGL2 · <b>960×540</b> internal · renders, does not run</span>
+    <span>WebGL2 · <b>960×540</b> internal</span>
     <span><a href="/demo/racing/" target="_blank" rel="noopener">Open full screen ↗</a></span>
   </p>
 </div>
 
-## What was measured
+## What was measured, and what it was not
 
 The frame budget was the first suspect and it was wrong.
 
@@ -28,20 +24,27 @@ The frame budget was the first suspect and it was wrong.
 | 960×540, 2 cascades at 1024 | No measurable change |
 | 480×270, 1 cascade at 512 | No measurable change |
 
-Dropping to a twelfth of the shadow atlas and a ninth of the pixels changed nothing, so **the cost is not fill rate**. That leaves geometry, draw submission, or something on the Dart side that is cheap under AOT and expensive under dart2js. It has not been found yet, and this page will say so until it has.
+Dropping to a twelfth of the shadow atlas and a ninth of the pixels changed nothing, so **the cost was not fill rate** — and that measurement, which looked like a dead end, was the clue. Fill rate is what a *smaller* frame buys back. What it does not touch is what a frame *allocates*.
 
-What is ruled out, and why it is worth ruling out: the same backend, the same renderer and the same shaders run the other two games. Whatever this is, it is specific to what a circuit asks for rather than general to WebGL2.
+### It was the shadow atlas, and not for the reason it looks
 
-## What does work
+The cube atlas for point lights is six tiles across and one row per shadowed light. Its tile size was taken from `ShadowSettings.resolution` — the number a game sets for the *sun*. This game asks for 1024 on the web, so the atlas came out 6144 × 4096 texels of `r16g16b16a16Float`: **201 MB**. There are two of them, the movers and the bake. Four hundred megabytes of texture, on a platform where a tab has less, for a circuit lit mostly by a directional light.
 
-- The track builds: the road ribbon, the barriers, the kerbs, the scenery brushes.
-- The scene lights, shadows and fogs the same as on Impeller.
-- The simulation is correct. It is simply being stepped a handful of times a second, so the lights take a minute to go out.
-- Nothing errors. The console is clean apart from SoLoud declining to start.
+Shrinking the frame never touched it, because the atlas is not sized from the frame. `ShadowSettings.cubeResolution` is its own number now, defaulting to 512, and the two atlases come to 100 MB together — a quarter of what they were, with golden sets that did not move a pixel when it changed.
 
-That combination is worth stating plainly, because it is the useful half: the [HAL](/core/architecture/#the-hal) held. A third game reached a browser without an engine change, and what stopped it is a performance problem in one scene, not a portability one.
+### And the compiler
 
-## Controls, for when it runs
+The demos are built with `--wasm` now. dart2wasm compiles the simulation — a car's tyre model, three AI drivers, a spline the size of a kilometre — to WebAssembly rather than to JavaScript, and the games are the one thing on this site that spends its frame budget in Dart rather than in a driver.
+
+## What it runs at now
+
+The shooter's own counter reads **53 fps with no dropped frames** in the crypt, against 15–30 before these two changes. This game has no counter on screen; what it has instead is a lap clock that keeps real time, three AI drivers that hold their line, and a car that answers the wheel.
+
+<div class="note">
+<p>Both fixes came out of a shadow investigation rather than a performance one, which is the ordinary way of it: the memory was measured while chasing a straight edge in a teapot's shadow, and nobody had thought to ask what a cube atlas costs when its tile comes from the sun's setting.</p>
+</div>
+
+## Controls
 
 <dl class="keys">
   <div><dt>W or ↑</dt><dd>Throttle</dd></div>
@@ -73,11 +76,16 @@ const int kShadowResolution = 2048;  const int kShadowResolution = 1024;
 ## Building it yourself
 
 ```bash
+# What this site serves, for all three games at once: regenerates the GLSL,
+# builds each to WebAssembly and puts them in the site's own dist/demo/.
+(cd site && tool/demos.sh)
+
+# Or one game by hand.
 (cd packages/flutter3d_webgl && dart run tool/generate_shaders.dart)
-(cd apps/flutter3d_demo_racing && flutter build web --release --base-href=/demo/racing/)
+(cd apps/flutter3d_demo_racing && flutter build web --wasm --release --base-href=/demo/racing/)
 ```
 
-The desktop build, which is the one to actually drive:
+The desktop build, which is still the sharper one — 1280×720 with three cascades against 960×540 with two:
 
 ```bash
 (cd apps/flutter3d_demo_racing && flutter run -d macos)

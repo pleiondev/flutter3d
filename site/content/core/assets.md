@@ -107,8 +107,8 @@ OBJ predates PBR, so its parameters are **explicitly approximated**: `Kd` become
 The format matters far more than the language. The same geometry is about **360× slower** to load as OBJ text than as a binary buffer, and native code does not close that gap — measured in `ARCHITECTURE.md` §14. So `.f3d` moves the parse off the device entirely.
 
 ```bash
-dart run tool/convert_asset.dart assets/samples/teapot.obj \
-  -o assets/samples/f3d/teapot.f3d
+dart run tool/convert_asset.dart ../flutter3d_samples/assets/teapot.obj \
+  -o ../flutter3d_samples/assets/f3d/teapot.f3d
 ```
 
 | teapot | load |

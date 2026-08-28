@@ -247,7 +247,7 @@ function layout({ page, html, toc, index }) {
   <button class="rail-toggle" aria-expanded="false" aria-controls="rail">Menu</button>
   <div class="topbar-meta">
     <span class="chip">Flutter 3.47 · Impeller</span>
-    <a class="chip chip-link" href="/reference/packages/">22 packages</a>
+    <a class="chip chip-link" href="/reference/packages/">23 packages</a>
     <a class="chip chip-link" href="/docs/">API reference</a>
     <a class="chip chip-link" href="${GITHUB}" rel="noopener">GitHub</a>
   </div>

@@ -7,7 +7,7 @@ description: The platformer, built against the WebGL2 backend and running in thi
 *Ascent*, running on `flutter3d_webgl`. Same engine, same level file, same simulation — the only thing that changed is which backend the application asks for.
 
 <div class="demo">
-  <iframe class="demo-frame" src="/demo/platformer/" title="Ascent — the platformer demo" allow="autoplay"></iframe>
+  <iframe class="demo-frame" src="/demo/platformer/" title="Ascent — the platformer demo" allow="autoplay; pointer-lock"></iframe>
   <p class="demo-bar">
     <span>WebGL2 · <b>1280×720</b> internal, scaled by CSS</span>
     <span><a href="/demo/platformer/" target="_blank" rel="noopener">Open full screen ↗</a></span>
@@ -23,8 +23,8 @@ description: The platformer, built against the WebGL2 backend and running in thi
 <dl class="keys">
   <div><dt>W A S D</dt><dd>Run, read against the camera</dd></div>
   <div><dt>Space</dt><dd>Jump. Tap for a short one, hold for a full one. That is <code>jumpCut</code>. Again in the air for the double jump</dd></div>
-  <div><dt>Drag</dt><dd>Turn the camera. Browsers give no pointer lock without a plugin, so a drag stands in for it</dd></div>
-  <div><dt>Q</dt><dd>Dash. The pointer is the dash on desktop; here the pointer is busy looking</dd></div>
+  <div><dt>Mouse</dt><dd>Turn the camera. Click once and the browser hands the pointer over; Escape gives it back. Where it will not — a phone, or a browser that refuses — a drag turns the camera instead</dd></div>
+  <div><dt>Click or Q</dt><dd>Dash. The click is the dash wherever the pointer is captured, which now includes a desktop browser; Q is there for everywhere else</dd></div>
   <div><dt>Ctrl or C</dt><dd>Drop through a one-way platform</dd></div>
   <div><dt>Shift</dt><dd>Sprint</dd></div>
 </dl>
@@ -65,13 +65,12 @@ Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `
 
 Stated rather than discovered, because a demo that hides its trade-offs is an advertisement.
 
+Three entries used to be here and are not any more, which is worth saying because the page claimed them for months. **Pointer capture works**: `pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse rather than a drag — the page embedding the game needs `allow="pointer-lock"` on the iframe, and this one has it. **Sound plays**: `flutter_soloud` ships a WebAssembly build and starts here. **Settings and saves survive a refresh**: they are `localStorage` now, not files, after a build where every launch was a first launch and nothing said so.
+
 | | |
 |---|---|
 | **Fixed resolution** | A `WebGlDevice` owns the canvas it was created with, and a WebGL canvas resets its drawing buffer when resized. So the frame is drawn at 1280×720 and the element is stretched to the layout by CSS, which is why `present` takes a `BoxFit` |
-| **No pointer lock** | `pointer_lock` is a macOS plugin. It reports itself unsupported here and no-ops, exactly as it promises, so the drag stands in |
-| **No sound** | `flutter_soloud` does not start in this build. `AudioScene` keeps its `SilentBackend` and the game plays on, which is the arrangement that exists so a machine with no audio device is not a machine that cannot play |
-| **No settings or saves** | Both are files, and there is no filesystem. `SettingsFile` and `SaveFile` already promise never to throw and to fall back to defaults; they now resolve their directory lazily so that promise holds where `Platform.environment` does not exist |
-| **Download** | About 50 MB, most of it textures and models |
+| **Download** | About 55 MB, most of it textures, models and the CanvasKit runtime |
 
 ## The bug this demo found
 
