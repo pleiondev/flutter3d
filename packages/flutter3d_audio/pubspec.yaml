@@ -13,7 +13,7 @@ publish_to: 'none'
 
 environment:
   sdk: ^3.12.2
-  flutter: ">=3.44.0"
+  flutter: '>=3.47.0'
 
 resolution: workspace
 

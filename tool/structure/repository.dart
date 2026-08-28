@@ -56,20 +56,52 @@ const Map<String, Set<String>> genreMayDraw = <String, Set<String>>{
   'flutter3d_game_platformer': <String>{},
 };
 
-/// Packages whose step must be repeatable, and the files exempted from it.
+/// Packages the repeatable-step rule does **not** apply to, and why.
 ///
-/// Not every package: the rule is about a *step*, so a renderer, a backend and
-/// a widget layer are outside it. What is inside is everything a fixed step
-/// runs.
-const Map<String, Map<String, String>> repeatableStep =
+/// **This was the other way round**, and the file it lives in opens by naming
+/// exactly that mistake: the rules used to be a test per package, "and thirteen
+/// of twenty-one were not covered because somebody had to remember". The
+/// repeatable-step rule was then written as a table of five packages to *scan*
+/// — so a new genre, or any new package a fixed step runs through, got no scan
+/// for `DateTime.now()` or an unseeded `Random()` until somebody edited the
+/// table. The default was exempt, which is the shape that had just been
+/// removed.
+///
+/// It is exclusions now, so a package added tomorrow is covered today, and
+/// taking one out of the rule costs a sentence saying why. `_exemptionsResolve`
+/// checks this list the way it checks every other: a name here that is not a
+/// package is a rule that has outlived its subject.
+const Map<String, String> notARepeatableStep = <String, String>{
+  'flutter3d': 'a renderer draws a frame; the clock it reads is the frame\'s',
+  'flutter3d_impeller': 'a backend, not a step',
+  'flutter3d_webgl': 'a backend, not a step',
+  'flutter3d_cpu': 'a backend, not a step',
+  'flutter3d_hardware': 'the vocabulary a backend implements',
+  'flutter3d_conformance': 'a test suite for backends',
+  'flutter3d_shaders': 'GLSL and a manifest',
+  'flutter3d_samples': 'fixtures',
+  'flutter3d_particles':
+      'display: particles are drawn, never simulated in a '
+      'fixed step, and their emitters take the frame\'s delta',
+  'flutter3d_testing': 'a test helper',
+  'flutter3d_ui': 'screens, which run on the frame clock and say so',
+  'flutter3d_session':
+      'a run\'s lifecycle: it loads and saves, and steps '
+      'nothing itself',
+  'flutter3d_app': 'a barrel with no code in it',
+  'flutter3d_backend': 'chooses a device and steps nothing',
+  'flutter3d_bridge': 'display: it reads a simulation and moves nodes',
+  'flutter3d_audio': 'display: a mix is recomputed once a frame',
+  'pad_input': 'a device, read once a frame',
+  'pointer_lock': 'a platform channel',
+};
+
+/// Files inside a scanned package that are allowed to be unrepeatable, and why.
+const Map<String, Map<String, String>> repeatableStepExempt =
     <String, Map<String, String>>{
       'flutter3d_game': <String, String>{
         'lib/src/save/game_random.dart': 'it is the seeded generator',
       },
-      'flutter3d_physics': <String, String>{},
-      'flutter3d_game_shooter': <String, String>{},
-      'flutter3d_game_platformer': <String, String>{},
-      'flutter3d_game_racing': <String, String>{},
     };
 
 /// Files in `flutter3d_hardware` allowed to name Flutter, and why.

@@ -42,6 +42,10 @@ List<Rule> get allRules => <Rule>[
     run: _gpuIsEnabled,
   ),
   (name: 'the publishing order names every package', run: _publishingOrder),
+  (
+    name: 'every package agrees about versions with the workspace',
+    run: _versionsAgree,
+  ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
     name: 'the compiled shader bundle is not older than its sources',
@@ -179,20 +183,18 @@ List<Finding> _noSidewaysGenre() {
 
 // -------------------------------------------------------- a repeatable step
 
+/// **Every package, minus the ones excused by name.** This walked a table of
+/// five packages to scan, which is the arrangement `repository.dart` opens by
+/// describing as the thing that had just been removed: the default was exempt,
+/// so a new genre package got no scan until somebody edited a list. It is
+/// exclusions now — see [notARepeatableStep].
 List<Finding> _repeatableStep() {
   final found = <Finding>[];
-  for (final entry in repeatableStep.entries) {
-    final dir = packages[entry.key];
-    if (dir == null) {
-      found.add(
-        Finding(
-          entry.key,
-          'is in the repeatableStep table and does not '
-          'exist — the rule outlived the package',
-        ),
-      );
-      continue;
-    }
+  for (final entry in packages.entries) {
+    if (notARepeatableStep.containsKey(entry.key)) continue;
+    final dir = entry.value;
+    final exempt = repeatableStepExempt[entry.key] ?? const <String, String>{};
+
     final files = dartFilesIn(Directory('${dir.path}/lib'));
     if (files.isEmpty) {
       found.add(
@@ -202,7 +204,7 @@ List<Finding> _repeatableStep() {
     }
     for (final file in files) {
       final path = relative(file, dir);
-      if (entry.value.containsKey(path)) continue;
+      if (exempt.containsKey(path)) continue;
       final said = unrepeatableIn(file.readAsStringSync());
       if (said != null) {
         found.add(
@@ -730,9 +732,23 @@ List<Finding> _exemptionsResolve() {
       check('genreMayDraw', entry.key, path);
     }
   }
-  for (final entry in repeatableStep.entries) {
+  for (final entry in repeatableStepExempt.entries) {
     for (final path in entry.value.keys) {
-      check('repeatableStep', entry.key, path);
+      check('repeatableStepExempt', entry.key, path);
+    }
+  }
+  // The exclusion list rots the other way: a package excused from the rule and
+  // then deleted leaves a sentence explaining why a thing that is not there is
+  // not scanned, and the next reader takes it for a package that exists.
+  for (final name in notARepeatableStep.keys) {
+    if (!packages.containsKey(name)) {
+      found.add(
+        Finding(
+          name,
+          'is excused from the repeatable-step rule and is not a package — '
+          'the exemption outlived its subject',
+        ),
+      );
     }
   }
   for (final path in engineAlsoFreeOfDartUi.keys) {
@@ -1053,4 +1069,126 @@ List<Finding> _shaderBundleIsCurrent() {
           'to bind',
     ),
   ];
+}
+
+/// Every package's SDK floor is the workspace's, and every sibling constraint
+/// matches the version that sibling actually declares.
+///
+/// **Nothing checked either, and both were wrong.** Four packages declared
+/// `sdk: ^3.10.0` with `flutter: ">=3.44.0"` while the workspace resolves
+/// everything against the root's `^3.12.2`; one declared a *stricter* Flutter
+/// than every sibling and two declared `>=3.3.0`. Under `resolution: workspace`
+/// a single lock file is resolved against the root, and CI pins one SDK — so no
+/// declared floor is ever exercised, in either direction. `tool/publish_check.sh`
+/// nonetheless reports all twenty-three "ready", which is one command away from
+/// shipping packages whose stated floor cannot compile the siblings they depend
+/// on.
+///
+/// A constraint mismatch is the same failure with a shorter fuse: a package
+/// depending on `flutter3d_hardware: ^0.2.0` resolves from the checkout like
+/// everything else and would resolve to something else entirely from a server.
+///
+/// Reads the pubspecs as text rather than through a YAML parser, for the reason
+/// every other rule here does: the scan has no dependencies and runs before
+/// `pub get`, which is what lets it be the first step.
+List<Finding> _versionsAgree() {
+  final found = <Finding>[];
+
+  final root = File('${repositoryRoot.path}/pubspec.yaml');
+  if (!root.existsSync()) {
+    return <Finding>[const Finding('pubspec.yaml', 'is not there')];
+  }
+  final wantedSdk = _fieldIn(root.readAsStringSync(), 'sdk');
+  if (wantedSdk == null) {
+    return <Finding>[
+      const Finding(
+        'pubspec.yaml',
+        'names no `environment: sdk:` to compare against',
+      ),
+    ];
+  }
+
+  // What each package calls itself, so a constraint on one can be checked
+  // against what that one declares.
+  final declared = <String, String>{};
+  for (final entry in packages.entries) {
+    final pubspec = File('${entry.value.path}/pubspec.yaml');
+    if (!pubspec.existsSync()) continue;
+    final version = _fieldIn(pubspec.readAsStringSync(), 'version');
+    if (version != null) declared[entry.key] = version;
+  }
+
+  String? flutterFloor;
+  String? flutterFloorFrom;
+
+  for (final entry in packages.entries) {
+    final pubspec = File('${entry.value.path}/pubspec.yaml');
+    if (!pubspec.existsSync()) continue;
+    final text = pubspec.readAsStringSync();
+    final where = '${entry.key}/pubspec.yaml';
+
+    final sdk = _fieldIn(text, 'sdk');
+    if (sdk != null && sdk != wantedSdk) {
+      found.add(
+        Finding(
+          where,
+          'says `sdk: $sdk` where the workspace says `$wantedSdk`. Nothing '
+          'resolves against it — the workspace has one lock file — so it is a '
+          'floor nobody has ever compiled and `pub publish` would believe it',
+        ),
+      );
+    }
+
+    // The Flutter bound is not compared against the root, which does not state
+    // one; it is compared against whatever the other packages say, because a
+    // set of packages released together cannot disagree about it.
+    final flutter = _fieldIn(text, 'flutter');
+    if (flutter != null) {
+      if (flutterFloor == null) {
+        flutterFloor = flutter;
+        flutterFloorFrom = where;
+      } else if (flutter != flutterFloor) {
+        found.add(
+          Finding(
+            where,
+            'says `flutter: $flutter` and $flutterFloorFrom says '
+            '`$flutterFloor`. These are released as a set, so one of the two '
+            'is a floor that has never been tried',
+          ),
+        );
+      }
+    }
+
+    for (final sibling in declared.entries) {
+      final match = RegExp(
+        '^  ${RegExp.escape(sibling.key)}:[ \\t]*\\^?([0-9][^\\s]*)\\s*\$',
+        multiLine: true,
+      ).firstMatch(text);
+      if (match == null) continue;
+      final asked = match.group(1)!;
+      if (asked != sibling.value) {
+        found.add(
+          Finding(
+            where,
+            'asks for ${sibling.key} ^$asked, which declares ${sibling.value}. '
+            'A workspace resolves that from the checkout whatever it says; a '
+            'server would not',
+          ),
+        );
+      }
+    }
+  }
+
+  return found;
+}
+
+/// The value of a one-line `key: value` under `environment:` or at the top
+/// level, with quotes taken off. Null when the key is absent.
+String? _fieldIn(String pubspec, String key) {
+  final match = RegExp(
+    '^\\s*${RegExp.escape(key)}:[ \\t]+(.+)\$',
+    multiLine: true,
+  ).firstMatch(pubspec);
+  if (match == null) return null;
+  return match.group(1)!.trim().replaceAll("'", '').replaceAll('"', '');
 }
