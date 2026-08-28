@@ -7,7 +7,7 @@ description: The shooter, built against the WebGL2 backend and running in this p
 *Dungeon*, running on `flutter3d_webgl`. The crypt, its monsters, four weapons and the weapon held in the hands — through the same HAL the desktop build uses, with one file swapped.
 
 <div class="demo">
-  <iframe class="demo-frame" src="/demo/shooter/" title="Dungeon — the shooter demo" allow="autoplay"></iframe>
+  <iframe class="demo-frame" src="/demo/shooter/" title="Dungeon — the shooter demo" allow="autoplay; pointer-lock"></iframe>
   <p class="demo-bar">
     <span>WebGL2 · <b>1280×720</b> internal, scaled by CSS</span>
     <span><a href="/demo/shooter/" target="_blank" rel="noopener">Open full screen ↗</a></span>
@@ -22,7 +22,8 @@ description: The shooter, built against the WebGL2 backend and running in this p
 
 <dl class="keys">
   <div><dt>W A S D</dt><dd>Move</dd></div>
-  <div><dt>Drag</dt><dd>Aim <em>and</em> fire. Holding the button does both at once, which is what a captured pointer already does, so they are one gesture here instead of two fighting over the button</dd></div>
+  <div><dt>Mouse</dt><dd>Aim. Click once and the browser hands the pointer over; Escape gives it back</dd></div>
+  <div><dt>Click</dt><dd>Fire, once the pointer is captured</dd></div>
   <div><dt>1 2 3 4</dt><dd>Fists, pistol, shotgun, rocket launcher</dd></div>
   <div><dt>E or F</dt><dd>Use — doors, lifts, buttons, notes</dd></div>
   <div><dt>Space</dt><dd>Jump</dd></div>
@@ -30,23 +31,23 @@ description: The shooter, built against the WebGL2 backend and running in this p
   <div><dt>F</dt><dd>Toggles the fog, which is also a before-and-after measurement</dd></div>
 </dl>
 
-## Why fire and look are the same button
+## Fire and look are the same two buttons they are on a desktop
 
-On desktop the pointer is captured, so moving the mouse aims and holding the button fires, at the same time and without either interfering.
+They were not, and the reason is worth keeping. A browser was treated as a platform with no pointer to capture, so a drag stood in for the mouse — and a drag that also had to *not* fire would have made aiming and shooting mutually exclusive, so they were one gesture. That is a reasonable answer to the wrong question: browsers have had `requestPointerLock` for a decade, and `pointer_lock` simply had no browser backend.
 
-A browser has no pointer lock without a plugin, so the drag has to stand in for the mouse, and a drag that also has to *not* fire would mean a shooter where aiming and shooting are mutually exclusive. Making them one gesture is closer to the real control than separating them would be.
+It has one now, so this build behaves like the desktop one: the pointer is captured on the first click, the mouse aims, the button fires, and Escape releases. On a phone — which Flutter reports as `android` or `iOS` even in a browser — the on-screen stick appears instead, which it never used to, because the same guard that hid pointer capture hid the touch controls.
 
-The platformer made the opposite call. There the pointer is the dash, a single discrete verb, so spending one on every turn of the camera would be worse than moving it to a key.
+The question each build actually asks is in `Playing`: can the pointer be captured, where does the camera come from, does the player have fingers. Not `kIsWeb`, which was one answer to three questions and wrong about two of them.
 
 ## What the browser costs
 
+Sound, pointer capture and saved settings were all listed here as missing and all three work now: `flutter_soloud` ships a WebAssembly build, `pointer_lock` grew a browser backend over `document.requestPointerLock`, and settings and saves are `localStorage` rather than files.
+
 | | |
 |---|---|
-| **Frame rate** | Around 15–30 fps here against 60 on Impeller. The crypt is the heavier of the two: more lights, more shadow casters, particles on every torch, and a second pass for the view model |
+| **Frame rate** | 35–60 fps on the WebAssembly build, against 60 on Impeller. The crypt is the heavier of the two: more lights, more shadow casters, particles on every torch, and a second pass for the view model. The number was 15–30 before `--wasm` and before the cube atlas stopped being sized from the cascade's resolution |
 | **Fixed resolution** | 1280×720 internally, stretched by CSS. A `WebGlDevice` owns its canvas and a WebGL canvas resets its drawing buffer when resized |
-| **No sound** | `flutter_soloud` does not start in this build; `AudioScene` keeps its `SilentBackend` and the game plays on |
-| **No pointer lock** | `pointer_lock` is a macOS plugin, reports itself unsupported, and no-ops |
-| **Download** | About 52 MB |
+| **Download** | About 55 MB |
 
 <div class="why">
 <p>The frame rate is the honest number and it is worth reading rather than apologising for. Nothing here is optimised for this backend: the render list, the pass order and the shadow atlas are all sized for a discrete GPU, and the composite path blits a 720p frame to a canvas the browser then composites again. What the demo demonstrates is that the <em>seam</em> holds — that an engine written against a HAL runs on a backend it was not written for, not that WebGL2 is where this engine is fastest.</p>
@@ -62,39 +63,21 @@ export 'backend_native.dart' if (dart.library.js_interop) 'backend_web.dart';
 ```
 
 ```dart
-// A first-person camera reads `lookDelta` inside the step, so the loop is the
-// right place for the delta on both paths — unlike the platformer, whose
-// follow camera reads it during the frame.
-_loop = GameLoop(
-  input: _input,
-  onStep: _step,
-  drainLook: kIsWeb ? _drainDragLook : _devices.drainLook,
-);
+// A first-person camera reads the look delta inside the step, so the loop is
+// the right place to drain it — unlike the platformer, whose follow camera
+// reads it during the frame. Which *source* it drains is `Playing`'s answer,
+// not this file's.
+void _drainLook(Vector2 out) {
+  if (Playing.dragLook) {
+    _dragLook.drainInto(out);
+  } else {
+    _devices.drainLook(out);
+  }
+  _pad.drainLook(out);
+}
 ```
 
-```dart
-// A platform view takes every pointer event over it, so the drag is read from
-// a transparent layer above the frame rather than from the listener around it.
-if (kIsWeb)
-  Positioned.fill(
-    child: Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: (_) {
-        _keyboard.requestFocus();
-        _dragging = true;
-        _devices.pressPointer(ShooterActions.fire);
-      },
-      onPointerMove: (PointerMoveEvent event) {
-        if (!_dragging) return;
-        _dragLook.add(Vector2(event.delta.dx, event.delta.dy));
-      },
-      onPointerUp: (_) {
-        _dragging = false;
-        _devices.releasePointer(ShooterActions.fire);
-      },
-    ),
-  ),
-```
+There is no `kIsWeb` anywhere in this application, which is the part worth noticing: the drag layer above the frame is mounted `if (Playing.dragLook)`, the capture is asked for `if (Playing.capturesPointer)`, and the on-screen stick appears `if (Playing.touch)`. A desktop browser now takes all three branches a desktop does.
 
 Nothing in `flutter3d`, `flutter3d_game`, `flutter3d_physics` or `flutter3d_game_shooter` changed to make this run.
 

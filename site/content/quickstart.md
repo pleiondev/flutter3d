@@ -20,12 +20,12 @@ Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of th
 |---|---|
 | Flutter | 3.47.0 stable or newer. The shader bundle format is tied to the SDK version |
 | Dart | 3.12.2 or newer (comes with the SDK above) |
-| Platform | macOS, Windows or Linux desktop, or the web through the WebGL backend. Mobile works; the demo is desktop-first |
+| Platform | macOS and the browser are supported and exercised. Android and iOS build and have not been played on a handset; Windows and Linux go through Impeller and are unverified |
 | Impeller | Required. Flutter GPU refuses to start on Skia |
 
 ## Resolve the workspace
 
-The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all twenty-one packages and five applications against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
+The repository is a [pub workspace](https://dart.dev/tools/pub/workspaces): one resolve covers all twenty-three packages and five applications against a single lock file. Packages that depend on each other by path drift apart at the first version bump otherwise, and the drift only shows up as an unbuildable checkout on somebody else's machine.
 
 ```bash
 git clone https://github.com/pleiondev/flutter3d.git
@@ -61,7 +61,16 @@ The script calls `impellerc` directly rather than going through Native Assets, a
 
 # The racing game
 (cd apps/flutter3d_demo_racing && flutter run -d macos)
+
+# Any of them in a browser: the same command, a different device. No shader
+# bundle is involved — the WebGL backend translates the same GLSL and the
+# browser compiles it.
+(cd apps/flutter3d_demo_platformer && flutter run -d chrome)
 ```
+
+<div class="note">
+<p>For something to hand out rather than to run, build it: <code>flutter build web --wasm --release</code> produces the WebAssembly output and the JavaScript one beside it, and <code>flutter_bootstrap.js</code> picks between them at load. That is what the <a href="/platformer/demo/">playable demos</a> on this site are.</p>
+</div>
 
 <div class="note">
 <p>Flutter GPU and Impeller are enabled <strong>per application</strong> through <code>Info.plist</code>, not per channel. Every app in this repository sets <code>FLTEnableFlutterGPU</code> and <code>FLTEnableImpeller</code> for itself, and a new one that skips them fails to initialise the shader library and renders nothing. On Android the key is <code>io.flutter.embedding.android.EnableFlutterGPU</code> in <code>AndroidManifest.xml</code>.</p>
@@ -75,7 +84,7 @@ tool/ci.sh                                  # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-2870 tests across 22 packages and five applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty scenes checkable in a headless run.
+2901 tests across 23 packages and five applications, and only about thirty need a GPU: the Impeller half of the golden set. The other half renders through the software backend, which is what makes thirty-two scenes checkable in a headless run.
 
 ## Your own application
 
