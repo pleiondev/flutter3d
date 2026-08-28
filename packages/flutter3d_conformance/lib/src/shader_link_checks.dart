@@ -16,10 +16,11 @@ Future<void> checkShaderNames(GraphicsDevice device) async {
     if (device.shaders[shader.name] == null) missing.add(shader.name);
   }
   require(
-      missing.isEmpty,
-      'the bundle has no ${missing.join(', ')}. Every backend ships its own '
-      'bundle and every bundle answers to the same names; see '
-      'package:flutter3d_shaders.');
+    missing.isEmpty,
+    'the bundle has no ${missing.join(', ')}. Every backend ships its own '
+    'bundle and every bundle answers to the same names; see '
+    'package:flutter3d_shaders.',
+  );
 }
 
 Future<void> checkLinking(GraphicsDevice device) async {
@@ -62,13 +63,17 @@ Future<void> checkLinking(GraphicsDevice device) async {
   for (final (vertexName, fragmentName) in pairs) {
     final vertex = device.shaders[vertexName];
     final fragment = device.shaders[fragmentName];
-    require(vertex != null && fragment != null,
-        '$vertexName + $fragmentName: one of the stages is missing');
+    require(
+      vertex != null && fragment != null,
+      '$vertexName + $fragmentName: one of the stages is missing',
+    );
     try {
       device.createPipeline(vertex!, fragment!);
     } catch (error) {
-      throw ConformanceFailure('$vertexName + $fragmentName does not link: '
-          '$error');
+      throw ConformanceFailure(
+        '$vertexName + $fragmentName does not link: '
+        '$error',
+      );
     }
   }
 }

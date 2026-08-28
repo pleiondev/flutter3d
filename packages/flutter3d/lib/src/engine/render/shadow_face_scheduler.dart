@@ -12,9 +12,9 @@
 /// shadow_tile_reset.frag.
 final class ShadowFaceScheduler {
   ShadowFaceScheduler({required this.tileCount, this.budget = 0})
-      : assert(tileCount >= 0),
-        assert(budget >= 0),
-        _drawn = List<int?>.filled(tileCount, null);
+    : assert(tileCount >= 0),
+      assert(budget >= 0),
+      _drawn = List<int?>.filled(tileCount, null);
 
   /// Tiles in the atlas: rows times faces.
   final int tileCount;

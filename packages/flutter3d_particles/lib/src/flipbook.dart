@@ -30,8 +30,8 @@ final class Flipbook {
     required this.rows,
     this.frames,
     this.loops = 1,
-  })  : assert(columns > 0 && rows > 0, 'a sheet has at least one cell'),
-        assert(loops > 0, 'a flipbook plays at least once');
+  }) : assert(columns > 0 && rows > 0, 'a sheet has at least one cell'),
+       assert(loops > 0, 'a flipbook plays at least once');
 
   final int columns;
   final int rows;
@@ -72,9 +72,7 @@ final class Flipbook {
     // The last frame is held rather than wrapped to the first. At exactly one
     // the floor lands one past the end, and a particle's final instant showing
     // frame zero again is a visible blink at the moment it disappears.
-    frame = loops == 1
-        ? (frame >= count ? count - 1 : frame)
-        : frame % count;
+    frame = loops == 1 ? (frame >= count ? count - 1 : frame) : frame % count;
     if (frame < 0) frame = 0;
 
     final column = frame % columns;

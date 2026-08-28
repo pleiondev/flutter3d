@@ -29,8 +29,13 @@ import 'package:flutter3d_particles/src/particle_emitter.dart';
 import 'package:flutter3d_particles/src/particle_system.dart';
 import 'package:vector_math/vector_math.dart';
 
-void bench(String name, int iterations, void Function() body,
-    {int? items, String unit = 'particle'}) {
+void bench(
+  String name,
+  int iterations,
+  void Function() body, {
+  int? items,
+  String unit = 'particle',
+}) {
   body(); // one untimed run, so first-call paths are not counted
 
   final stopwatch = Stopwatch()..start();
@@ -52,25 +57,22 @@ void bench(String name, int iterations, void Function() body,
 
 /// The dungeon's flame, which is the effect that actually runs continuously.
 ParticleEffect flame() => ParticleEffect(
-      count: 1,
-      emitter: const ConeEmitter(
-        speed: Range(0.22, 0.55),
-        halfAngleDegrees: 10.0,
-      ),
-      lifetime: const Range(0.20, 0.40),
-      size: const Range(0.10, 0.19),
-      color: Vector4(2.4, 1.1, 0.35, 1.0),
-      affectors: <ParticleAffector>[
-        const ParticleGravity(1.1),
-        const ParticleDrag(2.6),
-        ParticleColorOverLife(
-          Vector4(2.4, 1.1, 0.35, 1.0),
-          Vector4(1.0, 0.25, 0.05, 1.0),
-        ),
-        const ParticleFade(startsAt: 0.35),
-        const ParticleSizeOverLife(from: 1.0, to: 0.25),
-      ],
-    );
+  count: 1,
+  emitter: const ConeEmitter(speed: Range(0.22, 0.55), halfAngleDegrees: 10.0),
+  lifetime: const Range(0.20, 0.40),
+  size: const Range(0.10, 0.19),
+  color: Vector4(2.4, 1.1, 0.35, 1.0),
+  affectors: <ParticleAffector>[
+    const ParticleGravity(1.1),
+    const ParticleDrag(2.6),
+    ParticleColorOverLife(
+      Vector4(2.4, 1.1, 0.35, 1.0),
+      Vector4(1.0, 0.25, 0.05, 1.0),
+    ),
+    const ParticleFade(startsAt: 0.35),
+    const ParticleSizeOverLife(from: 1.0, to: 0.25),
+  ],
+);
 
 /// A system holding [alive] particles that will not die during a measurement.
 ///
@@ -104,8 +106,13 @@ ParticleSystem warmed({required int capacity, required int torches}) {
   // asks for, stepped so the live set reaches its natural size.
   for (var i = 0; i < 30; i++) {
     for (var t = 0; t < torches; t++) {
-      system.emitFor(t, effect, Vector3(t * 2.0, 1.0, 0.0), 1 / 60,
-          perSecond: 150.0);
+      system.emitFor(
+        t,
+        effect,
+        Vector3(t * 2.0, 1.0, 0.0),
+        1 / 60,
+        perSecond: 150.0,
+      );
     }
     system.step(1 / 60);
   }
@@ -124,14 +131,21 @@ void main() {
     final right = Vector3(1.0, 0.0, 0.0);
     final up = Vector3(0.0, 1.0, 0.0);
 
-    print('\ncapacity $capacity, $alive alive '
-        '(${(100 * alive / capacity).toStringAsFixed(0)}% occupied)');
+    print(
+      '\ncapacity $capacity, $alive alive '
+      '(${(100 * alive / capacity).toStringAsFixed(0)}% occupied)',
+    );
 
     // The whole frame's particle work, in the order the game does it.
     bench('emit + step + writeQuads', 2000, () {
       for (var t = 0; t < 5; t++) {
-        system.emitFor(t, effect, Vector3(t * 2.0, 1.0, 0.0), dt,
-            perSecond: 150.0);
+        system.emitFor(
+          t,
+          effect,
+          Vector3(t * 2.0, 1.0, 0.0),
+          dt,
+          perSecond: 150.0,
+        );
       }
       system.step(dt);
       system.writeQuads(right, up, vertices, indices);
@@ -143,9 +157,12 @@ void main() {
     // drained times an empty pool.
     final held = populated(capacity: capacity, alive: 220);
     bench('  step alone', 4000, () => held.step(dt), items: held.aliveCount);
-    bench('  writeQuads alone', 4000,
-        () => held.writeQuads(right, up, vertices, indices),
-        items: held.aliveCount);
+    bench(
+      '  writeQuads alone',
+      4000,
+      () => held.writeQuads(right, up, vertices, indices),
+      items: held.aliveCount,
+    );
     bench('  aliveCount alone', 20000, () {
       if (held.aliveCount < 0) throw StateError('unreachable');
     }, items: held.aliveCount);

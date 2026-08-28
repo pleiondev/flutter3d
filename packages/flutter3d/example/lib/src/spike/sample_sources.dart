@@ -1,15 +1,17 @@
 import 'package:flutter3d/flutter3d.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:vector_math/vector_math.dart' show Vector2, Vector3;
 
 import 'scene_source.dart';
 
 /// Where the sample models live at runtime.
 ///
-/// They are assets of the `flutter3d` package rather than of this application,
-/// so Flutter addresses them under `packages/<name>/`. The engine's tests read
-/// the same files straight off disk, which is why they stay with the package
-/// instead of being copied into the example.
-const String _samples = 'packages/flutter3d/assets/samples';
+/// They are assets of the `flutter3d_samples` package rather than of this
+/// application, so Flutter addresses them under `packages/<name>/` — and the
+/// package says that prefix itself rather than every caller spelling it out.
+/// The engine's tests read the same files straight off disk through the other
+/// constant beside this one.
+const String _samples = kSamplesAsset;
 
 /// Everything the demo can display.
 ///
@@ -27,10 +29,7 @@ final List<SceneSource> kSources = <SceneSource>[
   ProceduralSource('Vase', _vase),
   const ModelFileSource('glb: Box', '$_samples/Box.glb'),
   const ModelFileSource('glb: Textured', '$_samples/BoxTextured.glb'),
-  const ModelFileSource(
-    'glb: Vtx colors',
-    '$_samples/BoxVertexColors.glb',
-  ),
+  const ModelFileSource('glb: Vtx colors', '$_samples/BoxVertexColors.glb'),
   const ModelFileSource('gltf: Triangle', '$_samples/Triangle.gltf'),
   const ModelFileSource('gltf: Cube + bin', '$_samples/cube/Cube.gltf'),
   // Animated samples. Between them they cover all three glTF interpolations:
@@ -53,10 +52,7 @@ final List<SceneSource> kSources = <SceneSource>[
   // engine to generate one, NormalTangentMirrorTest ships authored tangents for
   // the identical geometry. Rendering both and diffing the two frames is the
   // only direct check that the generator agrees with an authoring tool.
-  const ModelFileSource(
-    'map: Tangent gen',
-    '$_samples/NormalTangentTest.glb',
-  ),
+  const ModelFileSource('map: Tangent gen', '$_samples/NormalTangentTest.glb'),
   const ModelFileSource(
     'map: Tangent file',
     '$_samples/NormalTangentMirrorTest.glb',

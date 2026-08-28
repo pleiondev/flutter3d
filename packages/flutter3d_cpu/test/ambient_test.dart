@@ -118,8 +118,9 @@ Vector3 _band(Uint8List rgba, double top, double bottom) {
   return Vector3(r / n / 255.0, g / n / 255.0, b / n / 255.0);
 }
 
-const RenderSettings _noSky =
-    RenderSettings(bloom: BloomSettings(enabled: false));
+const RenderSettings _noSky = RenderSettings(
+  bloom: BloomSettings(enabled: false),
+);
 
 /// A sky that could not be mistaken for grey: blue above, orange below.
 final RenderSettings _colouredSky = RenderSettings(
@@ -147,8 +148,11 @@ void main() {
 
     expect(top.x, closeTo(top.y, 1 / 255), reason: 'a grey ambient is grey');
     expect(top.y, closeTo(top.z, 1 / 255));
-    expect(bottom.x, closeTo(top.x, 1 / 255),
-        reason: 'with no sky, up and down receive the same light');
+    expect(
+      bottom.x,
+      closeTo(top.x, 1 / 255),
+      reason: 'with no sky, up and down receive the same light',
+    );
   });
 
   test('a sky lights the top of a ball differently from the bottom', () async {
@@ -167,15 +171,21 @@ void main() {
     // and an absolute test would have to be satisfied by geometry that does not
     // exist in the frame. The first draft asserted the absolute form and failed
     // on correct output.
-    expect(top.z - top.x, greaterThan(bottom.z - bottom.x),
-        reason: 'the top is no bluer than the bottom: the hemisphere is not '
-            'being blended by the normal at all');
-    expect(bottom.x, greaterThan(top.x),
-        reason: 'the underside picks up none of the warm bounce');
+    expect(
+      top.z - top.x,
+      greaterThan(bottom.z - bottom.x),
+      reason:
+          'the top is no bluer than the bottom: the hemisphere is not '
+          'being blended by the normal at all',
+    );
+    expect(
+      bottom.x,
+      greaterThan(top.x),
+      reason: 'the underside picks up none of the warm bounce',
+    );
   });
 
-  test('the sky is read as a gradient, not sampled through the sun',
-      () async {
+  test('the sky is read as a gradient, not sampled through the sun', () async {
     // The trap in building this from `SkySettings.sample`: that function adds
     // the sun disc, whose intensity sits far above white by design. A sun near
     // the zenith would then hand every upward face the disc, and the scene
@@ -200,8 +210,11 @@ void main() {
 
     final before = _band(calm, 0.15, 0.35);
     final after = _band(blazing, 0.15, 0.35);
-    expect(after.x, closeTo(before.x, 2 / 255),
-        reason: 'a sun overhead changed the ambient: the disc is reaching it');
+    expect(
+      after.x,
+      closeTo(before.x, 2 / 255),
+      reason: 'a sun overhead changed the ambient: the disc is reaching it',
+    );
     expect(after.z, closeTo(before.z, 2 / 255));
   });
 
@@ -218,8 +231,15 @@ void main() {
 
     final was = _band(plain, 0.3, 0.7);
     final now = _band(red, 0.3, 0.7);
-    expect(now.x, closeTo(was.x, 2 / 255), reason: 'the red channel is untinted');
-    expect(now.y, lessThan(was.y * 0.7),
-        reason: 'green was tinted to a fifth and did not fall');
+    expect(
+      now.x,
+      closeTo(was.x, 2 / 255),
+      reason: 'the red channel is untinted',
+    );
+    expect(
+      now.y,
+      lessThan(was.y * 0.7),
+      reason: 'green was tinted to a fifth and did not fall',
+    );
   });
 }

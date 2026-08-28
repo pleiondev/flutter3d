@@ -177,7 +177,7 @@ obvious alternative does not work.
 | Robustness | unknown directives, malformed faces and missing libraries go to `warnings` rather than failing the file |
 
 The test model is the [Utah teapot](https://github.com/mauricelam/Teapot)
-(`assets/samples/teapot.obj`): `v` and `f` only, 1202 vertices, 2256 triangles, no
+(`flutter3d_samples`): `v` and `f` only, 1202 vertices, 2256 triangles, no
 normals and no materials — exactly the case that needs normal generation.
 
 ## glTF / GLB
@@ -212,10 +212,13 @@ Non-fatal decoding problems land in `warnings` and are surfaced in the UI — a
 skipped primitive or an ignored extension explains a model that looks odd but
 still loaded.
 
-The sample models in `assets/samples/` are the official Khronos
+The sample models are the official Khronos
 [glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets), picked to
-cover all three ways of storing the data. See
-[assets/samples/ATTRIBUTION.md](assets/samples/ATTRIBUTION.md).
+cover all three ways of storing the data. They live in
+[`flutter3d_samples`](../flutter3d_samples) — a dev dependency of this package
+and not a real one, so a game gets the decoders without 4.1 MB of the fixtures
+they were checked against. Their terms are in
+[ATTRIBUTION.md](../flutter3d_samples/assets/ATTRIBUTION.md).
 
 ## The `.f3d` container
 
@@ -225,8 +228,8 @@ text than as a binary buffer, and native code does not close that. `.f3d` moves
 the parse off the device entirely.
 
 ```bash
-dart run tool/convert_asset.dart assets/samples/teapot.obj \
-  -o assets/samples/f3d/teapot.f3d
+dart run tool/convert_asset.dart ../flutter3d_samples/assets/teapot.obj \
+  -o ../flutter3d_samples/assets/f3d/teapot.f3d
 ```
 
 Vertex and index arrays are stored exactly as `MeshData` holds them, so loading

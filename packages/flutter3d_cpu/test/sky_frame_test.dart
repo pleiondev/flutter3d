@@ -37,14 +37,14 @@ const int _height = 72;
 /// Blue above, dark below, and a red glow at the sun so that "which way is the
 /// camera looking" is answerable from the pixels.
 SkyGradient _gradient() => SkyGradient(
-      zenith: Vector3(0.05, 0.10, 0.60),
-      horizon: Vector3(0.30, 0.36, 0.45),
-      nadir: Vector3(0.02, 0.02, 0.03),
-      directionToSun: Vector3(1.0, 0.2, 0.0),
-      sunColour: Vector3(1.0, 0.1, 0.1),
-      glowStrength: 0.9,
-      glowExponent: 8.0,
-    );
+  zenith: Vector3(0.05, 0.10, 0.60),
+  horizon: Vector3(0.30, 0.36, 0.45),
+  nadir: Vector3(0.02, 0.02, 0.03),
+  directionToSun: Vector3(1.0, 0.2, 0.0),
+  sunColour: Vector3(1.0, 0.1, 0.1),
+  glowStrength: 0.9,
+  glowExponent: 8.0,
+);
 
 /// A red wall forty metres out, a camera at the origin, and optionally a sky.
 ({Scene scene, CameraNode camera}) _world({
@@ -180,9 +180,11 @@ void main() {
     final without = await _draw(_engine(), _world(sky: false));
 
     expect(_black(frame), lessThan(60), reason: 'the sky covers the void');
-    expect(_mean(frame, channel: 2),
-        greaterThan(_mean(without, channel: 2) + 40),
-        reason: 'and what covers it is a sky rather than more black');
+    expect(
+      _mean(frame, channel: 2),
+      greaterThan(_mean(without, channel: 2) + 40),
+      reason: 'and what covers it is a sky rather than more black',
+    );
   });
 
   test('the sky does not clip the world away', () async {
@@ -192,8 +194,11 @@ void main() {
     final withSky = await _draw(_engine(), _world(sky: true));
     final without = await _draw(_engine(), _world(sky: false));
 
-    expect(_green(withSky), closeTo(_green(without), 8),
-        reason: 'the wall is as visible as it was');
+    expect(
+      _green(withSky),
+      closeTo(_green(without), 8),
+      reason: 'the wall is as visible as it was',
+    );
   });
 
   test('the gradient is a gradient, and it is the right way up', () async {
@@ -206,8 +211,11 @@ void main() {
     final top = _mean(frame, channel: 2, toRow: _height ~/ 4);
     final bottom = _mean(frame, channel: 2, fromRow: _height - _height ~/ 4);
 
-    expect(top, greaterThan(bottom + 40),
-        reason: 'the sky is brighter above than below, not the other way round');
+    expect(
+      top,
+      greaterThan(bottom + 40),
+      reason: 'the sky is brighter above than below, not the other way round',
+    );
   });
 
   test('turning the camera turns the view and not the sky', () async {
@@ -227,9 +235,11 @@ void main() {
     // Red, because the glow in this fixture is red and the sky it sits in is
     // not: the difference is the sun and nothing else. Absolute redness is not
     // the measure — the sky is grey-blue everywhere, and the sun only tilts it.
-    expect(_mean(intoSun, channel: 0) - _mean(away, channel: 0),
-        greaterThan(20.0),
-        reason: 'the sun is in one of these frames and not the other');
+    expect(
+      _mean(intoSun, channel: 0) - _mean(away, channel: 0),
+      greaterThan(20.0),
+      reason: 'the sun is in one of these frames and not the other',
+    );
   });
 
   test('a sky the camera has left behind is still around it', () async {
@@ -247,23 +257,28 @@ void main() {
     expect(_black(frame), lessThan(60));
   });
 
-  test('the sky casts no shadow and does not coarsen the ones there are',
-      () async {
-    // Mutation: drop `castsShadow = false`, or drop `castersOnly` from the
-    // shadow path. The dome is drawn into the cascade — a sphere around the
-    // camera shadows everything inside it — or it sets the scene radius and
-    // every shadow in the level is coarsened by a mesh that casts none.
-    const shadows = ShadowSettings(cascades: 1, resolution: 512);
+  test(
+    'the sky casts no shadow and does not coarsen the ones there are',
+    () async {
+      // Mutation: drop `castsShadow = false`, or drop `castersOnly` from the
+      // shadow path. The dome is drawn into the cascade — a sphere around the
+      // camera shadows everything inside it — or it sets the scene radius and
+      // every shadow in the level is coarsened by a mesh that casts none.
+      const shadows = ShadowSettings(cascades: 1, resolution: 512);
 
-    final lit = _lit();
-    final litWithSky = _lit(sky: true);
+      final lit = _lit();
+      final litWithSky = _lit(sky: true);
 
-    final without = await _draw(_engine(), lit, shadows: shadows);
-    final with_ = await _draw(_engine(), litWithSky, shadows: shadows);
+      final without = await _draw(_engine(), lit, shadows: shadows);
+      final with_ = await _draw(_engine(), litWithSky, shadows: shadows);
 
-    expect(_shadowed(with_), closeTo(_shadowed(without), 12),
-        reason: 'the sky changed the shadows');
-  });
+      expect(
+        _shadowed(with_),
+        closeTo(_shadowed(without), 12),
+        reason: 'the sky changed the shadows',
+      );
+    },
+  );
 }
 
 /// A floor with a slab over it and a sun across both.
@@ -276,14 +291,14 @@ void main() {
   final scene = Scene();
 
   MeshNode block(Vector3 size, Vector3 at, String name) => MeshNode(
-        DeviceMesh.upload(device, CuboidShape(size: size).build()),
-        engine.Material(
-          name: name,
-          baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
-          lighting: LightingModel.pbr,
-        ),
-        name: name,
-      )..setPosition(at.x, at.y, at.z);
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    engine.Material(
+      name: name,
+      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      lighting: LightingModel.pbr,
+    ),
+    name: name,
+  )..setPosition(at.x, at.y, at.z);
 
   scene.add(block(Vector3(40.0, 1.0, 60.0), Vector3(0.0, -0.5, 20.0), 'floor'));
   scene.add(block(Vector3(10.0, 0.6, 6.0), Vector3(0.0, 5.0, 10.0), 'canopy'));
@@ -315,6 +330,6 @@ void main() {
 /// Pixels that are floor lying in shadow: darker than lit floor, brighter than
 /// the background behind it.
 int _shadowed(Uint8List rgba) => _count(rgba, (int r, int g, int b) {
-      final luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      return luminance > 20 && luminance < 170;
-    });
+  final luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance > 20 && luminance < 170;
+});

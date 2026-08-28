@@ -45,13 +45,22 @@ final class CompositeShader implements CpuFragmentShader {
   Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
     final scene = bindings.textures['scene_texture'];
     if (scene == null) return Vector4(0.0, 0.0, 0.0, 1.0);
-    final params =
-        bindings.vec4('CompositeInfo', 'params', Vector4(1.0, 0.0, 1.0, 0.0));
+    final params = bindings.vec4(
+      'CompositeInfo',
+      'params',
+      Vector4(1.0, 0.0, 1.0, 0.0),
+    );
 
-    final look =
-        bindings.vec4('CompositeInfo', 'look', Vector4(1.0, 1.0, 0.0, 0.0));
-    final lookMore =
-        bindings.vec4('CompositeInfo', 'look_more', Vector4(0.0, 0.0, 0.0, 1.0));
+    final look = bindings.vec4(
+      'CompositeInfo',
+      'look',
+      Vector4(1.0, 1.0, 0.0, 0.0),
+    );
+    final lookMore = bindings.vec4(
+      'CompositeInfo',
+      'look_more',
+      Vector4(0.0, 0.0, 0.0, 1.0),
+    );
 
     // Dispersion at sampling, because that is where a lens does it — see the
     // note in `composite.frag`, which this mirrors operation for operation.
@@ -76,11 +85,11 @@ final class CompositeShader implements CpuFragmentShader {
     final ao = bindings.textures['ao_texture'];
     final strength = params.w.clamp(0.0, 1.0);
     if (ao != null && strength > 0.0) {
-      final texel =
-          bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
+      final texel = bindings.vec4('CompositeInfo', 'ao_texel', Vector4.zero());
       final hx = texel.x * 0.5;
       final hy = texel.y * 0.5;
-      final occlusion = 0.25 *
+      final occlusion =
+          0.25 *
           (ao.sample(v[0] + hx, v[1] + hy).x +
               ao.sample(v[0] - hx, v[1] + hy).x +
               ao.sample(v[0] + hx, v[1] - hy).x +
@@ -121,8 +130,10 @@ final class CompositeShader implements CpuFragmentShader {
       final aspect = math.max(lookMore.w, 1e-4);
       final fx = (v[0] - 0.5) * (1.0 + (aspect - 1.0) * lookMore.y);
       final fy = v[1] - 0.5;
-      final radius =
-          (math.sqrt(fx * fx + fy * fy) * 1.41421356).clamp(0.0, 1.0);
+      final radius = (math.sqrt(fx * fx + fy * fy) * 1.41421356).clamp(
+        0.0,
+        1.0,
+      );
       colour.scale(1.0 - lookMore.x * radius);
     }
 

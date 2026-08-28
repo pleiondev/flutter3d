@@ -47,10 +47,10 @@ const int _height = 72;
 }
 
 CpuDevice _uploads() => CpuDevice(
-      width: 4,
-      height: 4,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: 4,
+  height: 4,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 /// A red wall forty metres out, and a camera looking at it.
 ({Scene scene, CameraNode camera, CpuDevice device}) _wallAhead() {
@@ -58,7 +58,10 @@ CpuDevice _uploads() => CpuDevice(
   final scene = Scene();
   scene.add(
     MeshNode(
-      DeviceMesh.upload(device, CuboidShape(size: Vector3(60.0, 60.0, 1.0)).build()),
+      DeviceMesh.upload(
+        device,
+        CuboidShape(size: Vector3(60.0, 60.0, 1.0)).build(),
+      ),
       engine.Material(
         name: 'wall',
         baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
@@ -87,19 +90,21 @@ MeshNode _backdrop(
   CpuDevice device, {
   bool? depthWrite,
   CompareFunction? depthCompare,
-}) =>
-    MeshNode(
-      DeviceMesh.upload(device, CuboidShape(size: Vector3(40.0, 40.0, 0.2)).build()),
-      engine.Material(
-        name: 'backdrop',
-        baseColor: Vector4(0.0, 1.0, 0.0, 1.0),
-        lighting: LightingModel.unlit,
-        drawBucket: -1,
-        depthWrite: depthWrite,
-        depthCompare: depthCompare,
-      ),
-      name: 'backdrop',
-    )..setPosition(0.0, 0.0, 2.0);
+}) => MeshNode(
+  DeviceMesh.upload(
+    device,
+    CuboidShape(size: Vector3(40.0, 40.0, 0.2)).build(),
+  ),
+  engine.Material(
+    name: 'backdrop',
+    baseColor: Vector4(0.0, 1.0, 0.0, 1.0),
+    lighting: LightingModel.unlit,
+    drawBucket: -1,
+    depthWrite: depthWrite,
+    depthCompare: depthCompare,
+  ),
+  name: 'backdrop',
+)..setPosition(0.0, 0.0, 2.0);
 
 Future<Uint8List> _draw(
   ({CpuDevice device, Renderer renderer}) it,
@@ -171,10 +176,16 @@ void main() {
 
       final frame = await _draw(_engine(), world.scene, world.camera);
 
-      expect(_redPixels(frame), greaterThan(1000),
-          reason: 'the wall is visible through a backdrop that writes no depth');
-      expect(_greenPixels(frame), lessThan(200),
-          reason: 'and the backdrop survives only where nothing covers it');
+      expect(
+        _redPixels(frame),
+        greaterThan(1000),
+        reason: 'the wall is visible through a backdrop that writes no depth',
+      );
+      expect(
+        _greenPixels(frame),
+        lessThan(200),
+        reason: 'and the backdrop survives only where nothing covers it',
+      );
     });
 
     test('a surface can be drawn through what is in front of it', () async {
@@ -212,31 +223,39 @@ void main() {
 
       final frame = await _draw(_engine(), world.scene, world.camera);
 
-      expect(_greenPixels(frame), greaterThan(200),
-          reason: 'a surface that always passes is drawn through the wall');
-      expect(_redPixels(frame), greaterThan(1000),
-          reason: 'and does not replace it everywhere');
+      expect(
+        _greenPixels(frame),
+        greaterThan(200),
+        reason: 'a surface that always passes is drawn through the wall',
+      );
+      expect(
+        _redPixels(frame),
+        greaterThan(1000),
+        reason: 'and does not replace it everywhere',
+      );
     });
 
-    test('a scene that says nothing about depth draws what it always drew',
-        () async {
-      // The property the golden sets rest on. `setDepthCompare` is emitted only
-      // when a material asks for something other than the pass's own `less`, so
-      // an ordinary scene emits none at all — and `PassState`'s own history is
-      // the reason that matters: a redundant depth call has flipped behaviour
-      // on two backends out of three before now.
-      final a = _wallAhead();
-      final b = _wallAhead();
-      b.scene.add(_backdrop(b.device, depthWrite: null, depthCompare: null));
+    test(
+      'a scene that says nothing about depth draws what it always drew',
+      () async {
+        // The property the golden sets rest on. `setDepthCompare` is emitted only
+        // when a material asks for something other than the pass's own `less`, so
+        // an ordinary scene emits none at all — and `PassState`'s own history is
+        // the reason that matters: a redundant depth call has flipped behaviour
+        // on two backends out of three before now.
+        final a = _wallAhead();
+        final b = _wallAhead();
+        b.scene.add(_backdrop(b.device, depthWrite: null, depthCompare: null));
 
-      final plain = await _draw(_engine(), a.scene, a.camera);
-      final withDefaults = await _draw(_engine(), b.scene, b.camera);
+        final plain = await _draw(_engine(), a.scene, a.camera);
+        final withDefaults = await _draw(_engine(), b.scene, b.camera);
 
-      // The second frame has a box in it; what is asserted is that the box
-      // behaves exactly like an ordinary opaque one.
-      expect(_redPixels(plain), greaterThan(1000));
-      expect(_redPixels(withDefaults), 0);
-    });
+        // The second frame has a box in it; what is asserted is that the box
+        // behaves exactly like an ordinary opaque one.
+        expect(_redPixels(plain), greaterThan(1000));
+        expect(_redPixels(withDefaults), 0);
+      },
+    );
   });
 
   group('the shadow volume', () {
@@ -251,32 +270,43 @@ void main() {
       final withDome = _litRoom();
       withDome.scene.add(
         MeshNode(
-          DeviceMesh.upload(
-            withDome.device,
-            SphereShape(radius: 900.0, segments: 12, rings: 8).build(),
-          ),
-          engine.Material(
+            DeviceMesh.upload(
+              withDome.device,
+              SphereShape(radius: 900.0, segments: 12, rings: 8).build(),
+            ),
+            engine.Material(
+              name: 'dome',
+              baseColor: Vector4(0.4, 0.6, 1.0, 1.0),
+              lighting: LightingModel.unlit,
+              drawBucket: -1,
+              depthWrite: false,
+              depthCompare: CompareFunction.always,
+            ),
             name: 'dome',
-            baseColor: Vector4(0.4, 0.6, 1.0, 1.0),
-            lighting: LightingModel.unlit,
-            drawBucket: -1,
-            depthWrite: false,
-            depthCompare: CompareFunction.always,
-          ),
-          name: 'dome',
-        )
+          )
           ..castsShadow = false
           ..frustumCulled = false,
       );
 
       const shadows = ShadowSettings(cascades: 1, resolution: 512);
-      final without = await _draw(_engine(), lit.scene, lit.camera,
-          shadows: shadows);
-      final with_ = await _draw(_engine(), withDome.scene, withDome.camera,
-          shadows: shadows);
+      final without = await _draw(
+        _engine(),
+        lit.scene,
+        lit.camera,
+        shadows: shadows,
+      );
+      final with_ = await _draw(
+        _engine(),
+        withDome.scene,
+        withDome.camera,
+        shadows: shadows,
+      );
 
-      expect(_shadowedPixels(with_), closeTo(_shadowedPixels(without), 12.0),
-          reason: 'the dome moved the shadow volume');
+      expect(
+        _shadowedPixels(with_),
+        closeTo(_shadowedPixels(without), 12.0),
+        reason: 'the dome moved the shadow volume',
+      );
     });
 
     test('a caster still counts, however far away it is', () async {
@@ -297,14 +327,26 @@ void main() {
       );
 
       const shadows = ShadowSettings(cascades: 1, resolution: 512);
-      final tight = await _draw(_engine(), near.scene, near.camera,
-          shadows: shadows);
-      final loose = await _draw(_engine(), far.scene, far.camera,
-          shadows: shadows);
+      final tight = await _draw(
+        _engine(),
+        near.scene,
+        near.camera,
+        shadows: shadows,
+      );
+      final loose = await _draw(
+        _engine(),
+        far.scene,
+        far.camera,
+        shadows: shadows,
+      );
 
-      expect(_shadowedPixels(loose), isNot(closeTo(_shadowedPixels(tight), 4.0)),
-          reason: 'a caster three hundred metres out changed nothing, so the '
-              'volume is no longer fitted to the casters');
+      expect(
+        _shadowedPixels(loose),
+        isNot(closeTo(_shadowedPixels(tight), 4.0)),
+        reason:
+            'a caster three hundred metres out changed nothing, so the '
+            'volume is no longer fitted to the casters',
+      );
     });
 
     test('bounds answer two different questions', () async {
@@ -312,13 +354,13 @@ void main() {
       final device = _uploads();
       final scene = Scene();
       MeshNode box(String name, double at) => MeshNode(
-            DeviceMesh.upload(
-              device,
-              CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
-            ),
-            engine.Material(name: name),
-            name: name,
-          )..setPosition(0.0, 0.0, at);
+        DeviceMesh.upload(
+          device,
+          CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
+        ),
+        engine.Material(name: name),
+        name: name,
+      )..setPosition(0.0, 0.0, at);
 
       scene.add(box('caster', 0.0));
       scene.add(box('dome', 500.0)..castsShadow = false);
@@ -336,14 +378,14 @@ void main() {
   final scene = Scene();
 
   MeshNode block(Vector3 size, Vector3 at, String name) => MeshNode(
-        DeviceMesh.upload(device, CuboidShape(size: size).build()),
-        engine.Material(
-          name: name,
-          baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
-          lighting: LightingModel.pbr,
-        ),
-        name: name,
-      )..setPosition(at.x, at.y, at.z);
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    engine.Material(
+      name: name,
+      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      lighting: LightingModel.pbr,
+    ),
+    name: name,
+  )..setPosition(at.x, at.y, at.z);
 
   scene.add(block(Vector3(40.0, 1.0, 60.0), Vector3(0.0, -0.5, 20.0), 'floor'));
   scene.add(block(Vector3(10.0, 0.6, 6.0), Vector3(0.0, 5.0, 10.0), 'canopy'));

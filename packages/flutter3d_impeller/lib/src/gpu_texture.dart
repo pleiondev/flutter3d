@@ -64,8 +64,8 @@ TextureHandle createGpuTexture(
     mipLevelCount: mipLevelCount <= 1
         ? 1
         : (mipLevelCount < gpu.Texture.fullMipCount(width, height)
-            ? mipLevelCount
-            : gpu.Texture.fullMipCount(width, height)),
+              ? mipLevelCount
+              : gpu.Texture.fullMipCount(width, height)),
     enableRenderTargetUsage: enableRenderTargetUsage,
     enableShaderReadUsage: enableShaderReadUsage,
   );
@@ -139,8 +139,8 @@ void forgetDefaultColorFormat() => _defaultColorFormat = null;
 /// format that exists.
 TextureFormat colorFormatOrFallback(TextureFormat reported) =>
     reported == TextureFormat.unknown
-        ? TextureFormat.b8g8r8a8UNormInt
-        : reported;
+    ? TextureFormat.b8g8r8a8UNormInt
+    : reported;
 
 /// The depth/stencil format the device prefers, as an engine value.
 ///

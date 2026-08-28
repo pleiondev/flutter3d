@@ -34,10 +34,9 @@ void main() {
       final registry = ContributorRegistry()
         ..add(_Fake('late', order: 10))
         ..add(_Fake('early', order: -5))
-        ..add(_Fake('middle', ));
+        ..add(_Fake('middle'));
 
-      expect(_names(registry.active),
-          <String>['early', 'middle', 'late']);
+      expect(_names(registry.active), <String>['early', 'middle', 'late']);
     });
 
     test('a tie keeps registration order', () {
@@ -48,14 +47,13 @@ void main() {
         registry.add(_Fake(label, order: 3));
       }
 
-      expect(_names(registry.active),
-          <String>['a', 'b', 'c', 'd']);
+      expect(_names(registry.active), <String>['a', 'b', 'c', 'd']);
     });
 
     test('an inactive plugin is skipped, and costs no pass setup', () {
       final registry = ContributorRegistry()
         ..add(_Fake('empty', active: false))
-        ..add(_Fake('busy', ));
+        ..add(_Fake('busy'));
 
       expect(_names(registry.active), <String>['busy']);
       // Still registered: being idle this frame is not being removed.
@@ -64,22 +62,19 @@ void main() {
 
     test('removing one leaves the rest in order', () {
       final registry = ContributorRegistry();
-      final middle = registry.add(
-        _Fake('middle', order: 5),
-      );
+      final middle = registry.add(_Fake('middle', order: 5));
       registry
         ..add(_Fake('first', order: 1))
         ..add(_Fake('last', order: 9));
 
       expect(registry.remove(middle), isTrue);
       expect(registry.remove(middle), isFalse);
-      expect(_names(registry.active),
-          <String>['first', 'last']);
+      expect(_names(registry.active), <String>['first', 'last']);
     });
 
     test('add returns the plugin, so it can be kept in one line', () {
       final registry = ContributorRegistry();
-      final plugin = registry.add(_Fake('sparks', ));
+      final plugin = registry.add(_Fake('sparks'));
       expect(plugin.label, 'sparks');
       expect(registry.all, contains(plugin));
     });
@@ -105,15 +100,18 @@ void main() {
       expect(state.boundSkinned, isNull);
     });
 
-    test('counters survive it, because the frame statistics are cumulative', () {
-      final state = FramePassState()
-        ..drawCalls = 7
-        ..pipelineSwitches = 3;
+    test(
+      'counters survive it, because the frame statistics are cumulative',
+      () {
+        final state = FramePassState()
+          ..drawCalls = 7
+          ..pipelineSwitches = 3;
 
-      state.invalidatePipeline();
+        state.invalidatePipeline();
 
-      expect(state.drawCalls, 7);
-      expect(state.pipelineSwitches, 3);
-    });
+        expect(state.drawCalls, 7);
+        expect(state.pipelineSwitches, 3);
+      },
+    );
   });
 }

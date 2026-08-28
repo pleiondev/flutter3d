@@ -25,8 +25,14 @@ import 'package:vector_math/vector_math.dart';
 const int _width = 96;
 const int _height = 64;
 
-({CpuDevice device, Renderer renderer, Scene scene, CameraNode camera, MeshNode box})
-    _room() {
+({
+  CpuDevice device,
+  Renderer renderer,
+  Scene scene,
+  CameraNode camera,
+  MeshNode box,
+})
+_room() {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -48,7 +54,10 @@ const int _height = 64;
   // Bright enough to bloom, because the report was about the brightest thing on
   // screen — a torch — and bloom is on by default.
   final box = MeshNode(
-    DeviceMesh.upload(device, CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build()),
+    DeviceMesh.upload(
+      device,
+      CuboidShape(size: Vector3(2.0, 2.0, 2.0)).build(),
+    ),
     Material(
       name: 'lamp',
       baseColor: Vector4(1.0, 0.85, 0.5, 1.0),
@@ -59,10 +68,8 @@ const int _height = 64;
   scene.add(box);
 
   scene.add(
-    LightNode(
-      color: Vector3(1.0, 1.0, 1.0),
-      intensity: 4.0,
-    )..lookAt(Vector3(-0.4, -1.0, -0.3)),
+    LightNode(color: Vector3(1.0, 1.0, 1.0), intensity: 4.0)
+      ..lookAt(Vector3(-0.4, -1.0, -0.3)),
   );
 
   // A lamp that casts, which is what a crypt is lit by and what the editor
@@ -92,12 +99,19 @@ const int _height = 64;
     renderer: renderer,
     scene: scene,
     camera: camera,
-    box: box
+    box: box,
   );
 }
 
 Future<Uint8List> _draw(
-  ({CpuDevice device, Renderer renderer, Scene scene, CameraNode camera, MeshNode box}) it,
+  ({
+    CpuDevice device,
+    Renderer renderer,
+    Scene scene,
+    CameraNode camera,
+    MeshNode box,
+  })
+  it,
   RenderSettings settings,
 ) async {
   final result = it.renderer.render(
@@ -122,8 +136,11 @@ void main() {
     for (var frame = 2; frame <= 6; frame++) {
       final next = await _draw(it, settings);
       final difference = compareFrames(first, next, channel: 0);
-      expect(difference.differing, 0,
-          reason: 'frame $frame differs from the first: $difference');
+      expect(
+        difference.differing,
+        0,
+        reason: 'frame $frame differs from the first: $difference',
+      );
     }
   });
 
@@ -138,8 +155,11 @@ void main() {
     for (var frame = 2; frame <= 6; frame++) {
       final next = await _draw(it, settings);
       final difference = compareFrames(first, next, channel: 0);
-      expect(difference.differing, 0,
-          reason: 'frame $frame differs from the first: $difference');
+      expect(
+        difference.differing,
+        0,
+        reason: 'frame $frame differs from the first: $difference',
+      );
     }
   });
 
@@ -153,8 +173,11 @@ void main() {
     for (var frame = 2; frame <= 6; frame++) {
       final next = await _draw(it, settings);
       final difference = compareFrames(first, next, channel: 0);
-      expect(difference.differing, 0,
-          reason: 'frame $frame differs from the first: $difference');
+      expect(
+        difference.differing,
+        0,
+        reason: 'frame $frame differs from the first: $difference',
+      );
     }
   });
 
@@ -174,8 +197,11 @@ void main() {
     for (var frame = 2; frame <= 8; frame++) {
       final next = await _draw(it, settings);
       final difference = compareFrames(first, next, channel: 0);
-      expect(difference.differing, 0,
-          reason: 'frame $frame differs from the first: $difference');
+      expect(
+        difference.differing,
+        0,
+        reason: 'frame $frame differs from the first: $difference',
+      );
     }
   });
 }

@@ -57,8 +57,13 @@ final class WebGlTexture {
 
 /// A linked program plus what reflection told us about it.
 final class WebGlProgram {
-  WebGlProgram(this.program, this.attributes, this.blocks, this.samplers,
-      {this.layout});
+  WebGlProgram(
+    this.program,
+    this.attributes,
+    this.blocks,
+    this.samplers, {
+    this.layout,
+  });
 
   final web.WebGLProgram program;
 

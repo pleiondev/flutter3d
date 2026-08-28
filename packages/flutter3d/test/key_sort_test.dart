@@ -13,11 +13,13 @@ Int64List pack(List<(int, int)> entries) {
   return buffer;
 }
 
-List<int> payloads(Int64List buffer, int count) =>
-    <int>[for (var i = 0; i < count; i++) buffer[i] & kPayloadMask];
+List<int> payloads(Int64List buffer, int count) => <int>[
+  for (var i = 0; i < count; i++) buffer[i] & kPayloadMask,
+];
 
-List<int> keys(Int64List buffer, int count) =>
-    <int>[for (var i = 0; i < count; i++) buffer[i] >> kPayloadBits];
+List<int> keys(Int64List buffer, int count) => <int>[
+  for (var i = 0; i < count; i++) buffer[i] >> kPayloadBits,
+];
 
 void main() {
   group('packing', () {
@@ -40,16 +42,16 @@ void main() {
 
   group('correctness', () {
     // Both paths must agree; the threshold only chooses which is faster.
-    for (final (label, sorter) in <(String, void Function(Int64List, Int64List, int))>[
-      ('sortPackedKeys', (b, s, c) => sortPackedKeys(b, s, c)),
-      ('radixSortPackedKeys', (b, s, c) => radixSortPackedKeys(b, s, c)),
-    ]) {
+    for (final (label, sorter)
+        in <(String, void Function(Int64List, Int64List, int))>[
+          ('sortPackedKeys', (b, s, c) => sortPackedKeys(b, s, c)),
+          ('radixSortPackedKeys', (b, s, c) => radixSortPackedKeys(b, s, c)),
+        ]) {
       test('$label orders random entries ascending', () {
         final random = math.Random(11);
         const count = 5000;
         final entries = <(int, int)>[
-          for (var i = 0; i < count; i++)
-            (random.nextInt(1 << 30), i),
+          for (var i = 0; i < count; i++) (random.nextInt(1 << 30), i),
         ];
         final buffer = pack(entries);
         final scratch = Int64List(count);

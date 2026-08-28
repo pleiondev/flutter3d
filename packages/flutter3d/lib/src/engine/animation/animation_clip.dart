@@ -3,7 +3,7 @@ import 'animation_track.dart';
 /// A named set of tracks that play together.
 final class AnimationClip {
   AnimationClip({required this.tracks, this.name})
-      : duration = _durationOf(tracks);
+    : duration = _durationOf(tracks);
 
   final String? name;
   final List<AnimationTrack> tracks;

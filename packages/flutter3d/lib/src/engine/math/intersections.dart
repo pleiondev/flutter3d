@@ -21,13 +21,11 @@ const double kNoHit = -1.0;
 /// A mutable object with `out`-style methods, because picking runs inside a
 /// pointer-move handler and should not allocate per candidate mesh.
 final class Ray {
-  Ray.zero()
-      : origin = Vector3.zero(),
-        direction = Vector3(0.0, 0.0, -1.0);
+  Ray.zero() : origin = Vector3.zero(), direction = Vector3(0.0, 0.0, -1.0);
 
   Ray(Vector3 origin, Vector3 direction)
-      : origin = origin.clone(),
-        direction = direction.clone();
+    : origin = origin.clone(),
+      direction = direction.clone();
 
   final Vector3 origin;
   final Vector3 direction;
@@ -209,4 +207,3 @@ double rayTriangle(
   outUv?.setValues(u, v);
   return t;
 }
-

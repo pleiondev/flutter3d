@@ -13,9 +13,7 @@ extension _F3dGeometry on F3dDocument {
 
   List<VertexLayout> _readLayouts() {
     final table = _section(F3dSection.layouts);
-    return <VertexLayout>[
-      for (var i = 0; i < table.count; i++) _readLayout(i),
-    ];
+    return <VertexLayout>[for (var i = 0; i < table.count; i++) _readLayout(i)];
   }
 
   VertexLayout _readLayout(int index) {
@@ -31,15 +29,13 @@ extension _F3dGeometry on F3dDocument {
             first + a,
             F3dRecord.attribute,
           );
-          final name = _string(
+          final name =
+              _string(
                 _view.getUint32(ao, Endian.little),
                 _view.getUint32(ao + 4, Endian.little),
               ) ??
               '';
-          return VertexAttribute(
-            name,
-            _view.getUint32(ao + 8, Endian.little),
-          );
+          return VertexAttribute(name, _view.getUint32(ao + 8, Endian.little));
         }(),
     ]);
   }
@@ -51,24 +47,24 @@ extension _F3dGeometry on F3dDocument {
   /// deduplicates on identity, and rebuilding a `MeshData` per surface would
   /// quietly defeat it.
   MeshData _mesh(int index) => _meshCache.putIfAbsent(index, () {
-        final o = _recordOffset(F3dSection.meshes, index, F3dRecord.mesh);
-        final layoutIndex = _view.getUint32(o, Endian.little);
-        final vertexOffset = _view.getUint32(o + 4, Endian.little);
-        final vertexBytes = _view.getUint32(o + 8, Endian.little);
-        final indexOffset = _view.getUint32(o + 12, Endian.little);
-        final indexBytes = _view.getUint32(o + 16, Endian.little);
+    final o = _recordOffset(F3dSection.meshes, index, F3dRecord.mesh);
+    final layoutIndex = _view.getUint32(o, Endian.little);
+    final vertexOffset = _view.getUint32(o + 4, Endian.little);
+    final vertexBytes = _view.getUint32(o + 8, Endian.little);
+    final indexOffset = _view.getUint32(o + 12, Endian.little);
+    final indexBytes = _view.getUint32(o + 16, Endian.little);
 
-        if (layoutIndex >= _layouts.length) {
-          throw F3dFormatException(
-            'meshes[$index] names layout $layoutIndex, but the file has '
-            '${_layouts.length}.',
-          );
-        }
+    if (layoutIndex >= _layouts.length) {
+      throw F3dFormatException(
+        'meshes[$index] names layout $layoutIndex, but the file has '
+        '${_layouts.length}.',
+      );
+    }
 
-        return MeshData(
-          layout: _layouts[layoutIndex],
-          vertices: _floats(vertexOffset, vertexBytes ~/ 4),
-          indices: _uint32s(indexOffset, indexBytes ~/ 4),
-        );
-      });
+    return MeshData(
+      layout: _layouts[layoutIndex],
+      vertices: _floats(vertexOffset, vertexBytes ~/ 4),
+      indices: _uint32s(indexOffset, indexBytes ~/ 4),
+    );
+  });
 }

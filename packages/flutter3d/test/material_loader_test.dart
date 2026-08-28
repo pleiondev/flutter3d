@@ -35,9 +35,8 @@ final class _ToyMaterials implements MaterialDecoder {
       greedy || fileName.endsWith('.toymat');
 
   @override
-  MaterialDocument decode(Uint8List bytes, String fileName) => MaterialDocument(
-        surface: SurfaceMaterial(name: 'toy', roughness: 0.125),
-      );
+  MaterialDocument decode(Uint8List bytes, String fileName) =>
+      MaterialDocument(surface: SurfaceMaterial(name: 'toy', roughness: 0.125));
 }
 
 /// Writes [content] to a file this test owns and removes.
@@ -52,22 +51,23 @@ String _fileNamed(String name, String content) {
 const String _steel = '{"fmat": 1, "name": "steel", "metallic": 1.0}';
 
 void main() {
-  test('a format the engine never heard of loads through its own reader',
-      () async {
-    // The whole premise. Mutation: consult no decoders — the load throws on a
-    // suffix it does not know, which is what this used to do for every format
-    // that was not one of ours.
-    final document = await loadMaterialDocument(
-      FileAssetSource(_fileNamed('rusty.toymat', 'TOYMAT 0.125')),
-      decoders: const <MaterialDecoder>[_ToyMaterials()],
-    );
+  test(
+    'a format the engine never heard of loads through its own reader',
+    () async {
+      // The whole premise. Mutation: consult no decoders — the load throws on a
+      // suffix it does not know, which is what this used to do for every format
+      // that was not one of ours.
+      final document = await loadMaterialDocument(
+        FileAssetSource(_fileNamed('rusty.toymat', 'TOYMAT 0.125')),
+        decoders: const <MaterialDecoder>[_ToyMaterials()],
+      );
 
-    expect(document.surface.name, 'toy');
-    expect(document.surface.roughness, 0.125);
-  });
+      expect(document.surface.name, 'toy');
+      expect(document.surface.roughness, 0.125);
+    },
+  );
 
-  test('and a decoder may replace the built-in one, not only extend it',
-      () async {
+  test('and a decoder may replace the built-in one, not only extend it', () async {
     // A project with its own opinion about `.fmat` — a variant, a stricter
     // reader, one that resolves paths through its own asset pipeline — gets its
     // own reader. That only works if application decoders are consulted first.
@@ -110,11 +110,13 @@ void main() {
       loadMaterialDocument(
         FileAssetSource(_fileNamed('rusty.toymat', 'TOYMAT 0.125')),
       ),
-      throwsA(isA<FormatException>().having(
-        (e) => e.message,
-        'message',
-        allOf(contains('MaterialDecoder'), contains('.fmat')),
-      )),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('MaterialDecoder'), contains('.fmat')),
+        ),
+      ),
     );
   });
 }

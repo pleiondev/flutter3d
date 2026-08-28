@@ -23,18 +23,18 @@ final class _Recorder implements AnimationTarget {
 
 /// A clip holding one joint at a constant translation.
 AnimationClip _still(String name, double x) => AnimationClip(
-      name: name,
-      tracks: <AnimationTrack>[
-        AnimationTrack(
-          nodeIndex: 0,
-          path: AnimationPath.translation,
-          interpolation: AnimationInterpolation.linear,
-          componentCount: 3,
-          times: Float32List.fromList(<double>[0.0, 1.0]),
-          values: Float32List.fromList(<double>[x, 0, 0, x, 0, 0]),
-        ),
-      ],
-    );
+  name: name,
+  tracks: <AnimationTrack>[
+    AnimationTrack(
+      nodeIndex: 0,
+      path: AnimationPath.translation,
+      interpolation: AnimationInterpolation.linear,
+      componentCount: 3,
+      times: Float32List.fromList(<double>[0.0, 1.0]),
+      values: Float32List.fromList(<double>[x, 0, 0, x, 0, 0]),
+    ),
+  ],
+);
 
 /// A clip holding one joint at a constant rotation about Y.
 AnimationClip _turned(String name, double radians) {
@@ -49,8 +49,14 @@ AnimationClip _turned(String name, double radians) {
         componentCount: 4,
         times: Float32List.fromList(<double>[0.0, 1.0]),
         values: Float32List.fromList(<double>[
-          q.x, q.y, q.z, q.w,
-          q.x, q.y, q.z, q.w,
+          q.x,
+          q.y,
+          q.z,
+          q.w,
+          q.x,
+          q.y,
+          q.z,
+          q.w,
         ]),
       ),
     ],
@@ -218,10 +224,7 @@ void main() {
       // long way — which on a monster reacting to a shot is a full pirouette.
       final target = _Recorder();
       final player = AnimationPlayer(
-        clips: <AnimationClip>[
-          _turned('a', 3.0),
-          _turned('b', -3.0),
-        ],
+        clips: <AnimationClip>[_turned('a', 3.0), _turned('b', -3.0)],
         targets: <AnimationTarget?>[target],
       )..play(0);
 

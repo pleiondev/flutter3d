@@ -102,7 +102,9 @@ void main() {
     });
 
     test('a count below two is a no-op rather than an error', () {
-      final keys = PackedKeys()..ensure(1)..setEntry(0, 5, 9);
+      final keys = PackedKeys()
+        ..ensure(1)
+        ..setEntry(0, 5, 9);
       expect(() => keys.sort(0), returnsNormally);
       expect(() => keys.sort(1), returnsNormally);
       expect(keys.payloadAt(0), 9);

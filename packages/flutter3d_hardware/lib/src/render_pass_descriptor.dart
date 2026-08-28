@@ -105,13 +105,13 @@ final class BlendState {
 
   @override
   int get hashCode => Object.hash(
-        colorOperation,
-        sourceColorFactor,
-        destinationColorFactor,
-        alphaOperation,
-        sourceAlphaFactor,
-        destinationAlphaFactor,
-      );
+    colorOperation,
+    sourceColorFactor,
+    destinationColorFactor,
+    alphaOperation,
+    sourceAlphaFactor,
+    destinationAlphaFactor,
+  );
 }
 
 /// One colour attachment of a pass.

@@ -30,7 +30,9 @@ const int _height = 96;
 
 /// A lit sphere filling most of the view, and a light to see it by.
 ({Scene scene, CameraNode camera}) _sphere(
-    GraphicsDevice device, LightingModel model) {
+  GraphicsDevice device,
+  LightingModel model,
+) {
   final scene = Scene(name: 'one sphere');
   scene.root.add(
     MeshNode(
@@ -72,11 +74,11 @@ void main() {
       if (device == null) fail('no WebGL2 context in this browser');
 
       TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-            width: 1,
-            height: 1,
-            format: TextureFormat.r8g8b8a8UNormInt,
-            pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-          )!;
+        width: 1,
+        height: 1,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+      )!;
 
       final renderer = Renderer.create(
         device: device,
@@ -113,15 +115,21 @@ void main() {
       }
       final share = 100.0 * lit / (_width * _height);
       // ignore: avoid_print
-      print('${model.shaderName}: ${share.toStringAsFixed(1)}% of the frame '
-          'is not the clear colour, ${result.drawCalls} draws');
+      print(
+        '${model.shaderName}: ${share.toStringAsFixed(1)}% of the frame '
+        'is not the clear colour, ${result.drawCalls} draws',
+      );
 
       // A sphere of this radius at this distance covers roughly a fifth of the
       // frame. Ten percent is well under that and well over nothing, so this
       // fails on an empty frame and not on a shading difference.
-      expect(share, greaterThan(10.0),
-          reason: '${model.shaderName} drew an empty frame: the pipeline links '
-              'and the draw is issued, and no pixel changed');
+      expect(
+        share,
+        greaterThan(10.0),
+        reason:
+            '${model.shaderName} drew an empty frame: the pipeline links '
+            'and the draw is issued, and no pixel changed',
+      );
     });
   }
 }

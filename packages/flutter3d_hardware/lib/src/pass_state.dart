@@ -63,8 +63,8 @@ final class PassState {
     this.blendAttachment = 0,
     this.depthWrite,
     this.depthCompare,
-  })  : blend = identical(blend, _unsetBlend) ? null : blend as BlendState?,
-        setsBlend = !identical(blend, _unsetBlend);
+  }) : blend = identical(blend, _unsetBlend) ? null : blend as BlendState?,
+       setsBlend = !identical(blend, _unsetBlend);
 
   final ScreenRect? viewport;
   final ScreenRect? scissor;
@@ -100,21 +100,20 @@ final class PassState {
     int? blendAttachment,
     bool? depthWrite,
     CompareFunction? depthCompare,
-  }) =>
-      PassState(
-        viewport: viewport ?? this.viewport,
-        scissor: scissor ?? this.scissor,
-        primitiveType: primitiveType ?? this.primitiveType,
-        polygonMode: polygonMode ?? this.polygonMode,
-        cullMode: cullMode ?? this.cullMode,
-        windingOrder: windingOrder ?? this.windingOrder,
-        blend: identical(blend, _unsetBlend)
-            ? (setsBlend ? this.blend : _unsetBlend)
-            : blend,
-        blendAttachment: blendAttachment ?? this.blendAttachment,
-        depthWrite: depthWrite ?? this.depthWrite,
-        depthCompare: depthCompare ?? this.depthCompare,
-      );
+  }) => PassState(
+    viewport: viewport ?? this.viewport,
+    scissor: scissor ?? this.scissor,
+    primitiveType: primitiveType ?? this.primitiveType,
+    polygonMode: polygonMode ?? this.polygonMode,
+    cullMode: cullMode ?? this.cullMode,
+    windingOrder: windingOrder ?? this.windingOrder,
+    blend: identical(blend, _unsetBlend)
+        ? (setsBlend ? this.blend : _unsetBlend)
+        : blend,
+    blendAttachment: blendAttachment ?? this.blendAttachment,
+    depthWrite: depthWrite ?? this.depthWrite,
+    depthCompare: depthCompare ?? this.depthCompare,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -132,9 +131,19 @@ final class PassState {
       other.depthCompare == depthCompare;
 
   @override
-  int get hashCode => Object.hash(viewport, scissor, primitiveType, polygonMode,
-      cullMode, windingOrder, blend, setsBlend, blendAttachment, depthWrite,
-      depthCompare);
+  int get hashCode => Object.hash(
+    viewport,
+    scissor,
+    primitiveType,
+    polygonMode,
+    cullMode,
+    windingOrder,
+    blend,
+    setsBlend,
+    blendAttachment,
+    depthWrite,
+    depthCompare,
+  );
 
   @override
   String toString() {

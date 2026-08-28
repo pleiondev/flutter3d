@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -28,12 +29,14 @@ Vector2 texcoordAt(MeshData mesh, int index) {
 void main() {
   group('faces and indexing', () {
     test('parses a triangle with 1-based indices', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f 1 2 3
-'''));
+'''),
+      );
       final mesh = document.surfaces.single.mesh;
       expect(mesh.vertexCount, 3);
       expect(mesh.triangleCount, 1);
@@ -42,47 +45,55 @@ f 1 2 3
 
     test('accepts multiple spaces between tokens', () async {
       // The Utah teapot is written this way: "f  457 458 459".
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f  1  2   3
-'''));
+'''),
+      );
       expect(document.surfaces.single.mesh.triangleCount, 1);
     });
 
     test('resolves negative indices relative to the end', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f -3 -2 -1
-'''));
+'''),
+      );
       final mesh = document.surfaces.single.mesh;
       expect(mesh.triangleCount, 1);
       expect(mesh.positionAt(0), Vector3(0.0, 0.0, 0.0));
     });
 
     test('fans a quad into two triangles', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 1 1 0
 v 0 1 0
 f 1 2 3 4
-'''));
+'''),
+      );
       expect(document.surfaces.single.mesh.triangleCount, 2);
     });
 
     test('fans an n-gon', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 2 1 0
 v 1 2 0
 v 0 2 0
 f 1 2 3 4 5
-'''));
+'''),
+      );
       expect(document.surfaces.single.mesh.triangleCount, 3);
     });
 
@@ -93,7 +104,8 @@ f 1 2 3 4 5
         'f 1//1 2//2 3//3',
         'f 1/1/1 2/2/2 3/3/3',
       ]) {
-        final document = await ObjLoader().load(obj('''
+        final document = await ObjLoader().load(
+          obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
@@ -104,33 +116,35 @@ vn 0 0 1
 vn 0 0 1
 vn 0 0 1
 $face
-'''));
-        expect(
-          document.surfaces.single.mesh.triangleCount,
-          1,
-          reason: face,
+'''),
         );
+        expect(document.surfaces.single.mesh.triangleCount, 1, reason: face);
       }
     });
 
-    test('shares vertices between faces that reference the same triple',
-        () async {
-      final document = await ObjLoader().load(obj('''
+    test(
+      'shares vertices between faces that reference the same triple',
+      () async {
+        final document = await ObjLoader().load(
+          obj('''
 v 0 0 0
 v 1 0 0
 v 1 1 0
 v 0 1 0
 f 1 2 3
 f 1 3 4
-'''));
-      final mesh = document.surfaces.single.mesh;
-      // Four positions, two triangles: the shared edge must not be duplicated.
-      expect(mesh.vertexCount, 4);
-      expect(mesh.triangleCount, 2);
-    });
+'''),
+        );
+        final mesh = document.surfaces.single.mesh;
+        // Four positions, two triangles: the shared edge must not be duplicated.
+        expect(mesh.vertexCount, 4);
+        expect(mesh.triangleCount, 2);
+      },
+    );
 
     test('splits a vertex when its texcoord differs', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
@@ -138,31 +152,36 @@ vt 0 0
 vt 1 1
 f 1/1 2/1 3/1
 f 1/2 2/2 3/2
-'''));
+'''),
+      );
       // Same positions but different UVs, so the triple is different and the
       // vertices cannot be shared.
       expect(document.surfaces.single.mesh.vertexCount, 6);
     });
 
     test('reports a malformed face without failing the file', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f 1 2 nonsense
 f 1 2 3
-'''));
+'''),
+      );
       expect(document.surfaces.single.mesh.triangleCount, 1);
       expect(document.warnings.any((w) => w.contains('nonsense')), isTrue);
     });
 
     test('an out-of-range index is refused, not clamped', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f 1 2 99
-'''));
+'''),
+      );
       expect(document.surfaces, isEmpty);
       expect(document.warnings, isNotEmpty);
     });
@@ -170,13 +189,15 @@ f 1 2 99
 
   group('normals', () {
     test('uses the file normals when present', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 vn 1 0 0
 f 1//1 2//1 3//1
-'''));
+'''),
+      );
       final mesh = document.surfaces.single.mesh;
       expect(normalAt(mesh, 0), Vector3(1.0, 0.0, 0.0));
     });
@@ -184,7 +205,8 @@ f 1//1 2//1 3//1
     test('generates smooth normals by default', () async {
       // Two triangles meeting at a right angle: the shared vertices must average
       // the two face normals rather than pick one.
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 1 1 0
@@ -195,7 +217,8 @@ f 1 2 3
 f 1 3 4
 f 2 5 6
 f 2 6 3
-'''));
+'''),
+      );
       final mesh = document.surfaces.single.mesh;
       for (var i = 0; i < mesh.vertexCount; i++) {
         expect(normalAt(mesh, i).length, closeTo(1.0, 1e-4));
@@ -214,14 +237,16 @@ f 2 6 3
     });
 
     test('flat mode splits vertices and gives one normal per face', () async {
-      final document = await ObjLoader(normals: ObjNormals.flat).load(obj('''
+      final document = await ObjLoader(normals: ObjNormals.flat).load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 1 1 0
 v 0 1 0
 f 1 2 3
 f 1 3 4
-'''));
+'''),
+      );
       final mesh = document.surfaces.single.mesh;
       expect(mesh.vertexCount, 6, reason: 'de-indexed for flat shading');
       for (var i = 0; i < mesh.vertexCount; i++) {
@@ -230,45 +255,55 @@ f 1 3 4
     });
 
     test('none mode leaves normals at zero', () async {
-      final document = await ObjLoader(normals: ObjNormals.none).load(obj('''
+      final document = await ObjLoader(normals: ObjNormals.none).load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f 1 2 3
-'''));
+'''),
+      );
       expect(normalAt(document.surfaces.single.mesh, 0), Vector3.zero());
     });
   });
 
   group('texcoords', () {
     test('flips V by default, because OBJ origin is bottom-left', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 vt 0.25 0.75
 f 1/1 2/1 3/1
-'''));
+'''),
+      );
       final uv = texcoordAt(document.surfaces.single.mesh, 0);
       expect(uv.x, closeTo(0.25, 1e-6));
       expect(uv.y, closeTo(0.25, 1e-6), reason: '1 - 0.75');
     });
 
     test('keeps V when flipping is disabled', () async {
-      final document = await ObjLoader(flipTexcoordV: false).load(obj('''
+      final document = await ObjLoader(flipTexcoordV: false).load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 vt 0.25 0.75
 f 1/1 2/1 3/1
-'''));
-      expect(texcoordAt(document.surfaces.single.mesh, 0).y, closeTo(0.75, 1e-6));
+'''),
+      );
+      expect(
+        texcoordAt(document.surfaces.single.mesh, 0).y,
+        closeTo(0.75, 1e-6),
+      );
     });
   });
 
   group('groups and materials', () {
     test('splits surfaces on g', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
@@ -276,14 +311,16 @@ g first
 f 1 2 3
 g second
 f 3 2 1
-'''));
+'''),
+      );
       expect(document.surfaces, hasLength(2));
       expect(document.surfaces[0].name, 'first');
       expect(document.surfaces[1].name, 'second');
     });
 
     test('merges everything when splitting is disabled', () async {
-      final document = await ObjLoader(splitByGroup: false).load(obj('''
+      final document = await ObjLoader(splitByGroup: false).load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
@@ -291,20 +328,23 @@ g first
 f 1 2 3
 g second
 f 3 2 1
-'''));
+'''),
+      );
       expect(document.surfaces, hasLength(1));
       expect(document.surfaces.single.mesh.triangleCount, 2);
     });
 
     test('consecutive g and usemtl do not create an empty surface', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 g only
 usemtl red
 f 1 2 3
-'''));
+'''),
+      );
       expect(document.surfaces, hasLength(1));
     });
 
@@ -344,25 +384,29 @@ f 1 2 3
     });
 
     test('a missing library is a warning, not a failure', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 mtllib absent.mtl
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f 1 2 3
-'''));
+'''),
+      );
       expect(document.surfaces, hasLength(1));
       expect(document.warnings, isNotEmpty);
     });
 
     test('usemtl naming an undefined material is reported', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 usemtl ghost
 f 1 2 3
-'''));
+'''),
+      );
       expect(document.surfaces.single.materialIndex, isNull);
       expect(document.warnings.any((w) => w.contains('ghost')), isTrue);
     });
@@ -393,13 +437,17 @@ Tr 0.25
     test('a high Phong exponent reads as smooth', () {
       final rough = parseMtl('newmtl a\nNs 0\n')['a']!;
       final smooth = parseMtl('newmtl a\nNs 1000\n')['a']!;
-      expect(rough.approximateRoughness, greaterThan(smooth.approximateRoughness));
+      expect(
+        rough.approximateRoughness,
+        greaterThan(smooth.approximateRoughness),
+      );
     });
   });
 
   group('robustness', () {
     test('ignores comments, blank lines and unknown directives', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 # teapot
 
 v 0 0 0
@@ -408,7 +456,8 @@ v 0 1 0
 s off
 weird_directive 1 2 3
 f 1 2 3
-'''));
+'''),
+      );
       expect(document.surfaces.single.mesh.triangleCount, 1);
       expect(
         document.warnings.any((w) => w.contains('weird_directive')),
@@ -419,13 +468,15 @@ f 1 2 3
     });
 
     test('joins backslash continuation lines', () async {
-      final document = await ObjLoader().load(obj('''
+      final document = await ObjLoader().load(
+        obj('''
 v 0 0 0
 v 1 0 0
 v 0 1 0
 f 1 \\
 2 3
-'''));
+'''),
+      );
       expect(document.surfaces.single.mesh.triangleCount, 1);
     });
 
@@ -440,7 +491,7 @@ f 1 \\
     late ObjDocument teapot;
 
     setUpAll(() async {
-      final bytes = File('assets/samples/teapot.obj').readAsBytesSync();
+      final bytes = File('$kSamplesPath/teapot.obj').readAsBytesSync();
       teapot = await ObjLoader().load(bytes);
     });
 

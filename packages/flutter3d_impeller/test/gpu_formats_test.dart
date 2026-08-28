@@ -45,7 +45,8 @@ void checkForward<E extends Enum, G extends Enum>(
       expect(
         ours.length,
         theirs.length,
-        reason: '$name: flutter_gpu has ${theirs.length} values and this '
+        reason:
+            '$name: flutter_gpu has ${theirs.length} values and this '
             'engine has ${ours.length}. Adding or dropping one silently is '
             'how the two stop meaning the same thing.',
       );
@@ -69,7 +70,8 @@ void checkForward<E extends Enum, G extends Enum>(
         expect(
           seen[mapped],
           isNull,
-          reason: '$name.${value.name} and $name.${seen[mapped]?.name} both '
+          reason:
+              '$name.${value.name} and $name.${seen[mapped]?.name} both '
               'map to ${mapped.name}',
         );
         seen[mapped] = value;
@@ -338,8 +340,10 @@ void main() {
     // editor reads a level off the disk first and did not, so every frame threw
     // `Texture creation failed` from a descriptor whose format was `unknown`.
     test('is substituted when it has gone', () {
-      expect(colorFormatOrFallback(TextureFormat.unknown),
-          TextureFormat.b8g8r8a8UNormInt);
+      expect(
+        colorFormatOrFallback(TextureFormat.unknown),
+        TextureFormat.b8g8r8a8UNormInt,
+      );
     });
 
     test('and a real answer is kept exactly', () {

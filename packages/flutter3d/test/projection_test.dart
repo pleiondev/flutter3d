@@ -21,7 +21,11 @@ void main() {
   const far = 100.0;
 
   group('perspectiveZeroToOne maps depth to [0, 1]', () {
-    final projection = PerspectiveProjection(fovYRadians: fov, near: near, far: far).toMatrix(16.0 / 9.0);
+    final projection = PerspectiveProjection(
+      fovYRadians: fov,
+      near: near,
+      far: far,
+    ).toMatrix(16.0 / 9.0);
 
     test('the near plane maps to 0', () {
       // The camera looks down -Z, so the near plane sits at z = -near.
@@ -53,7 +57,11 @@ void main() {
 
   group('perspectiveZeroToOne screen mapping', () {
     test('the centre of the view projects to the origin', () {
-      final projection = PerspectiveProjection(fovYRadians: fov, near: near, far: far).toMatrix(1.0);
+      final projection = PerspectiveProjection(
+        fovYRadians: fov,
+        near: near,
+        far: far,
+      ).toMatrix(1.0);
       final ndc = projectToNdc(projection, Vector3(0.0, 0.0, -5.0));
       expect(ndc.x, closeTo(0.0, 1e-6));
       expect(ndc.y, closeTo(0.0, 1e-6));
@@ -62,13 +70,21 @@ void main() {
     test('+Y in eye space stays +Y in NDC', () {
       // Y must not be flipped: mirroring would reverse triangle orientation on
       // screen and make backface culling drop the visible faces.
-      final projection = PerspectiveProjection(fovYRadians: fov, near: near, far: far).toMatrix(1.0);
+      final projection = PerspectiveProjection(
+        fovYRadians: fov,
+        near: near,
+        far: far,
+      ).toMatrix(1.0);
       final ndc = projectToNdc(projection, Vector3(0.0, 1.0, -5.0));
       expect(ndc.y, greaterThan(0.0));
     });
 
     test('the vertical field of view is honoured', () {
-      final projection = PerspectiveProjection(fovYRadians: fov, near: near, far: far).toMatrix(1.0);
+      final projection = PerspectiveProjection(
+        fovYRadians: fov,
+        near: near,
+        far: far,
+      ).toMatrix(1.0);
       // A point exactly on the top edge of the frustum lands at y = 1.
       const distance = 5.0;
       final edgeY = math.tan(fov / 2.0) * distance;
@@ -77,8 +93,16 @@ void main() {
     });
 
     test('aspect ratio compresses X, not Y', () {
-      final wide = PerspectiveProjection(fovYRadians: fov, near: near, far: far).toMatrix(2.0);
-      final square = PerspectiveProjection(fovYRadians: fov, near: near, far: far).toMatrix(1.0);
+      final wide = PerspectiveProjection(
+        fovYRadians: fov,
+        near: near,
+        far: far,
+      ).toMatrix(2.0);
+      final square = PerspectiveProjection(
+        fovYRadians: fov,
+        near: near,
+        far: far,
+      ).toMatrix(1.0);
       final point = Vector3(1.0, 1.0, -5.0);
 
       final wideNdc = projectToNdc(wide, point);
@@ -92,7 +116,11 @@ void main() {
   group('argument validation', () {
     test('rejects a non-positive aspect', () {
       expect(
-        () => PerspectiveProjection(fovYRadians: fov, near: near, far: far).toMatrix(0.0),
+        () => PerspectiveProjection(
+          fovYRadians: fov,
+          near: near,
+          far: far,
+        ).toMatrix(0.0),
         throwsArgumentError,
       );
     });
@@ -137,9 +165,11 @@ void _depthRangeTests() {
     // numbers rather than by inspection.
     const near = 0.1;
     const far = 100.0;
-    final projection =
-        const PerspectiveProjection(fovYRadians: 1.0, near: near, far: far)
-            .toMatrix(1.0);
+    final projection = const PerspectiveProjection(
+      fovYRadians: 1.0,
+      near: near,
+      far: far,
+    ).toMatrix(1.0);
 
     double ndcZ(Matrix4 m, double viewZ) {
       // A point on the -Z axis at distance |viewZ|, projected and divided.
@@ -174,8 +204,10 @@ void _depthRangeTests() {
     test('zeroToOne hands back the same matrix rather than a copy', () {
       // Nothing depends on identity, but a needless clone every frame for the
       // backend that needs no correction is the wrong default.
-      expect(identical(toDepthRange(projection, DepthRange.zeroToOne), projection),
-          isTrue);
+      expect(
+        identical(toDepthRange(projection, DepthRange.zeroToOne), projection),
+        isTrue,
+      );
     });
   });
 }

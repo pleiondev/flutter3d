@@ -30,6 +30,12 @@ dependencies:
     path: ../../flutter3d_webgl
   flutter3d:
     path: ../
+  # The models this demo browses. They were the engine's own assets until an
+  # application that wanted the decoders and none of the fixtures had to bundle
+  # them anyway; the demo is the one thing here that actually displays them, so
+  # it is the one thing that asks for them.
+  flutter3d_samples:
+    path: ../../flutter3d_samples
   flutter3d_particles:
     path: ../../flutter3d_particles
   # Only the golden runner needs it, to insist its output directory is

@@ -49,11 +49,15 @@ void main(List<String> args) {
   manifest.forEach((name, spec) {
     final entry = spec as Map<String, dynamic>;
     final file = (entry['file'] as String).replaceFirst('shaders/', '');
-    final source = sources[file] ??
-        _fail('$name names $file, which is not in shaders/');
+    final source =
+        sources[file] ?? _fail('$name names $file, which is not in shaders/');
     final isFragment = entry['type'] == 'fragment';
-    final translated =
-        translateGlsl(source, sources, from: file, fragment: isFragment);
+    final translated = translateGlsl(
+      source,
+      sources,
+      from: file,
+      fragment: isFragment,
+    );
     (isFragment ? fragment : vertex)[name] = translated;
   });
 
@@ -85,8 +89,9 @@ void main(List<String> args) {
   final target = File('lib/engine_shaders.dart');
   target.writeAsStringSync(out.toString());
   stdout.writeln(
-      'wrote ${target.path}: ${vertex.length} vertex, ${fragment.length} '
-      'fragment');
+    'wrote ${target.path}: ${vertex.length} vertex, ${fragment.length} '
+    'fragment',
+  );
 }
 
 /// Where `flutter3d_shaders` unpacked to, from the package config.
@@ -109,12 +114,16 @@ String _sourcePackageRoot() {
             .toFilePath()
             .replaceAll(RegExp(r'/$'), '');
       }
-      _fail('flutter3d_shaders is not in ${config.path}. '
-          'Is it a dependency, and has `flutter pub get` run?');
+      _fail(
+        'flutter3d_shaders is not in ${config.path}. '
+        'Is it a dependency, and has `flutter pub get` run?',
+      );
     }
     final parent = dir.parent;
     if (parent.path == dir.path) {
-      _fail('no .dart_tool/package_config.json above ${Directory.current.path}');
+      _fail(
+        'no .dart_tool/package_config.json above ${Directory.current.path}',
+      );
     }
     dir = parent;
   }

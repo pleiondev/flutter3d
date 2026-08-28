@@ -13,15 +13,14 @@ ParticleEffect _effect({
   Range size = const Range.exact(0.5),
   List<ParticleAffector> affectors = const <ParticleAffector>[],
   ParticleEmitter? emitter,
-}) =>
-    ParticleEffect(
-      count: count,
-      emitter: emitter ?? const SphereEmitter(speed: Range.exact(1.0)),
-      lifetime: lifetime,
-      size: size,
-      color: Vector4(1.0, 0.5, 0.2, 1.0),
-      affectors: affectors,
-    );
+}) => ParticleEffect(
+  count: count,
+  emitter: emitter ?? const SphereEmitter(speed: Range.exact(1.0)),
+  lifetime: lifetime,
+  size: size,
+  color: Vector4(1.0, 0.5, 0.2, 1.0),
+  affectors: affectors,
+);
 
 void main() {
   _glowCentreTests();
@@ -39,21 +38,31 @@ void main() {
       final torch = _Torch();
 
       // Fill every slot from the torch, then let them all die.
-      system.emitFor(torch, _effect(count: 1, lifetime: const Range.exact(0.1)),
-          Vector3.zero(), 1.0,
-          perSecond: 40.0);
+      system.emitFor(
+        torch,
+        _effect(count: 1, lifetime: const Range.exact(0.1)),
+        Vector3.zero(),
+        1.0,
+        perSecond: 40.0,
+      );
       expect(system.aliveCount, 4, reason: 'the pool should be full');
       system.step(0.2);
       expect(system.aliveCount, 0);
 
       // A burst now reuses those slots. Nothing it emits belongs to the torch.
-      system.burst(_effect(count: 4, lifetime: const Range.exact(1.0)),
-          Vector3.zero());
+      system.burst(
+        _effect(count: 4, lifetime: const Range.exact(1.0)),
+        Vector3.zero(),
+      );
       torch.glow.beginStep();
       system.step(1 / 60);
-      expect(torch.glow.count, 0,
-          reason: 'the burst was accumulated into the torch that used to own '
-              'those slots');
+      expect(
+        torch.glow.count,
+        0,
+        reason:
+            'the burst was accumulated into the torch that used to own '
+            'those slots',
+      );
     });
 
     test('a burst emits what it asked for', () {
@@ -149,11 +158,16 @@ void main() {
         system.advance(dt);
       }
 
-      final vertices =
-          Float32List(system.aliveCount * ParticleSystem.floatsPerParticle);
+      final vertices = Float32List(
+        system.aliveCount * ParticleSystem.floatsPerParticle,
+      );
       final indices = Uint32List(system.aliveCount * 6);
       final written = system.writeQuads(
-          Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), vertices, indices);
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+        vertices,
+        indices,
+      );
       // The height of each particle's first corner, sorted, so two runs can be
       // compared without depending on emission order.
       final ys = <double>[
@@ -179,51 +193,74 @@ void main() {
       final fast = runAt(120);
 
       double spread(List<double> ys) => ys.last - ys.first;
-      expect(spread(slow), closeTo(spread(fast), 0.05),
-          reason: 'the particles occupy a different depth of column at 30 Hz '
-              'than at 120, which is emission clumping');
+      expect(
+        spread(slow),
+        closeTo(spread(fast), 0.05),
+        reason:
+            'the particles occupy a different depth of column at 30 Hz '
+            'than at 120, which is emission clumping',
+      );
     });
 
     test('a stopped emitter stops', () {
       final system = ParticleSystem(capacity: 64, random: math.Random(5));
       const key = _Torchless();
-      system.emit(key, _effect(count: 1, lifetime: const Range.exact(10.0)),
-          Vector3.zero(), perSecond: 60.0);
+      system.emit(
+        key,
+        _effect(count: 1, lifetime: const Range.exact(10.0)),
+        Vector3.zero(),
+        perSecond: 60.0,
+      );
       system.advance(0.5);
       final lit = system.aliveCount;
       expect(lit, greaterThan(0));
 
       system.stopEmitting(key);
       system.advance(0.5);
-      expect(system.aliveCount, lit,
-          reason: 'nothing new should have been emitted');
+      expect(
+        system.aliveCount,
+        lit,
+        reason: 'nothing new should have been emitted',
+      );
     });
 
     test('a stalled frame does not try to catch up for ever', () {
       // A debugger pause hands this several seconds. Simulating all of it takes
       // longer than the stall did and never finishes.
       final system = ParticleSystem(capacity: 4096, random: math.Random(5));
-      system.emit(const _Torchless(),
-          _effect(count: 1, lifetime: const Range.exact(10.0)), Vector3.zero(),
-          perSecond: 600.0);
+      system.emit(
+        const _Torchless(),
+        _effect(count: 1, lifetime: const Range.exact(10.0)),
+        Vector3.zero(),
+        perSecond: 600.0,
+      );
 
       final watch = Stopwatch()..start();
       system.advance(30.0);
       watch.stop();
 
-      expect(system.aliveCount, lessThan(200),
-          reason: 'thirty seconds of emission were simulated rather than '
-              'dropped');
+      expect(
+        system.aliveCount,
+        lessThan(200),
+        reason:
+            'thirty seconds of emission were simulated rather than '
+            'dropped',
+      );
     });
   });
 
   group('randomness belongs to the particle', () {
     List<double> quadsOf(ParticleSystem system) {
-      final vertices =
-          Float32List(system.aliveCount * ParticleSystem.floatsPerParticle);
+      final vertices = Float32List(
+        system.aliveCount * ParticleSystem.floatsPerParticle,
+      );
       final indices = Uint32List(system.aliveCount * 6);
       final written = system.writeQuads(
-          Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), vertices, indices);
+        Vector3(1.0, 0.0, 0.0),
+        Vector3(0.0, 1.0, 0.0),
+        vertices,
+        indices,
+      );
       return vertices.sublist(0, written * ParticleSystem.floatsPerParticle);
     }
 
@@ -232,9 +269,12 @@ void main() {
       // `emitFor` could never provide.
       List<double> run() {
         final system = ParticleSystem(capacity: 128, seed: 4242);
-        system.emit(const _Torchless(),
-            _effect(count: 1, lifetime: const Range.exact(2.0)), Vector3.zero(),
-            perSecond: 40.0);
+        system.emit(
+          const _Torchless(),
+          _effect(count: 1, lifetime: const Range.exact(2.0)),
+          Vector3.zero(),
+          perSecond: 40.0,
+        );
         for (var i = 0; i < 30; i++) {
           system.advance(1 / 60);
         }
@@ -297,9 +337,13 @@ void main() {
       for (var i = 0; i < a.length ~/ floats; i++) {
         final sizeA = (a[i * floats + 18] - a[i * floats]).abs();
         final sizeB = (b[i * floats + 18] - b[i * floats]).abs();
-        expect(sizeB, closeTo(sizeA, 1e-6),
-            reason: 'particle \$i changed size because the *emitter* took an '
-                'extra random number');
+        expect(
+          sizeB,
+          closeTo(sizeA, 1e-6),
+          reason:
+              'particle \$i changed size because the *emitter* took an '
+              'extra random number',
+        );
       }
     });
   });
@@ -372,10 +416,7 @@ void main() {
       for (var i = 1; i < positions.length; i++) {
         expect(positions[i], greaterThanOrEqualTo(positions[i - 1] - 1e-6));
       }
-      expect(
-        positions.last - positions[positions.length - 20],
-        lessThan(0.05),
-      );
+      expect(positions.last - positions[positions.length - 20], lessThan(0.05));
     });
 
     test('a fade reaches zero brightness and not before it should', () {
@@ -677,21 +718,27 @@ void _glowCentreTests() {
       expect(torch.glow.located, isFalse);
     });
 
-    test('jumps to the first measurement rather than easing in from nowhere', () {
-      final system = ParticleSystem(capacity: 64, seed: 3);
-      final torch = _Torch();
-      final origin = Vector3(12.0, 3.0, -7.0);
-      system.emit(torch, _effect(count: 1), origin, perSecond: 240.0);
-      system.advance(1.0 / 60.0);
+    test(
+      'jumps to the first measurement rather than easing in from nowhere',
+      () {
+        final system = ParticleSystem(capacity: 64, seed: 3);
+        final torch = _Torch();
+        final origin = Vector3(12.0, 3.0, -7.0);
+        system.emit(torch, _effect(count: 1), origin, perSecond: 240.0);
+        system.advance(1.0 / 60.0);
 
-      expect(torch.glow.located, isTrue);
-      // Within the burst's own spread of the emitter, not a tenth of the way
-      // there from the origin — which is what an exponential ease from zero
-      // would give on the first step, and would drag the light across the
-      // level over the following tenth of a second.
-      expect((torch.glow.centre - origin).length, lessThan(1.0),
-          reason: 'the first measurement is taken, not blended with (0, 0, 0)');
-    });
+        expect(torch.glow.located, isTrue);
+        // Within the burst's own spread of the emitter, not a tenth of the way
+        // there from the origin — which is what an exponential ease from zero
+        // would give on the first step, and would drag the light across the
+        // level over the following tenth of a second.
+        expect(
+          (torch.glow.centre - origin).length,
+          lessThan(1.0),
+          reason: 'the first measurement is taken, not blended with (0, 0, 0)',
+        );
+      },
+    );
 
     test('a torch that is put out stops casting light', () {
       // The bug: `stopEmitting` removed the emitter from the measured set, so
@@ -703,8 +750,12 @@ void _glowCentreTests() {
       // count of 22 live particles for a system in which everything had died.
       final system = ParticleSystem(capacity: 256, seed: 11);
       final torch = _Torch();
-      system.emit(torch, _effect(count: 1, lifetime: const Range.exact(0.1)),
-          Vector3(4.0, 1.0, 0.0), perSecond: 300.0);
+      system.emit(
+        torch,
+        _effect(count: 1, lifetime: const Range.exact(0.1)),
+        Vector3(4.0, 1.0, 0.0),
+        perSecond: 300.0,
+      );
       system.advance(0.5);
       expect(torch.glow.power, greaterThan(0.0), reason: 'it should be lit');
 
@@ -713,8 +764,11 @@ void _glowCentreTests() {
         system.advance(1.0 / 60.0);
       }
       expect(torch.glow.count, 0);
-      expect(torch.glow.power, lessThan(1e-4),
-          reason: 'the light outlived the fire that was measured to produce it');
+      expect(
+        torch.glow.power,
+        lessThan(1e-4),
+        reason: 'the light outlived the fire that was measured to produce it',
+      );
     });
 
     test('keeps its last position through a gap with no particles', () {
@@ -724,8 +778,12 @@ void _glowCentreTests() {
       final system = ParticleSystem(capacity: 64, seed: 3);
       final torch = _Torch();
       final origin = Vector3(12.0, 3.0, -7.0);
-      system.emit(torch, _effect(count: 1, lifetime: const Range.exact(0.05)),
-          origin, perSecond: 240.0);
+      system.emit(
+        torch,
+        _effect(count: 1, lifetime: const Range.exact(0.05)),
+        origin,
+        perSecond: 240.0,
+      );
       system.advance(1.0 / 60.0);
       final settled = torch.glow.centre.clone();
 
@@ -741,8 +799,11 @@ void _glowCentreTests() {
       // correct. The failure being guarded against is a snap back to (0, 0, 0),
       // which from here would be a jump of fourteen metres.
       expect((torch.glow.centre - settled).length, lessThan(0.5));
-      expect(torch.glow.centre.length, greaterThan(10.0),
-          reason: 'the centre fell back to the world origin');
+      expect(
+        torch.glow.centre.length,
+        greaterThan(10.0),
+        reason: 'the centre fell back to the world origin',
+      );
     });
   });
 }
@@ -763,7 +824,11 @@ final class _GreedyEmitter extends ParticleEmitter {
 
   @override
   void emit(
-      Particle particle, Vector3 origin, Vector3 direction, math.Random random) {
+    Particle particle,
+    Vector3 origin,
+    Vector3 direction,
+    math.Random random,
+  ) {
     random.nextDouble(); // the extra draw
     randomDirection(particle.velocity, random);
     particle.velocity.scale(1.0);

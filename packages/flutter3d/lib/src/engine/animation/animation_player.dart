@@ -179,8 +179,8 @@ final class AnimationPlayer {
 
   /// Names of the clips, for a UI that lets the user pick one.
   List<String> get clipNames => <String>[
-        for (var i = 0; i < clips.length; i++) clips[i].name ?? 'clip $i',
-      ];
+    for (var i = 0; i < clips.length; i++) clips[i].name ?? 'clip $i',
+  ];
 
   /// Starts a clip by index, or resumes the current one when [index] is null.
   ///
@@ -341,12 +341,7 @@ final class AnimationPlayer {
         case AnimationPath.rotation:
           // glTF stores quaternions xyzw, which is the order this constructor
           // takes.
-          _quaternion.setValues(
-            _sample[0],
-            _sample[1],
-            _sample[2],
-            _sample[3],
-          );
+          _quaternion.setValues(_sample[0], _sample[1], _sample[2], _sample[3]);
           if (previous != null) {
             _fadeQuaternion.setValues(
               _fadeSample[0],
@@ -358,9 +353,7 @@ final class AnimationPlayer {
             // renormalising takes the long way round whenever the two are more
             // than a quarter turn apart, which is exactly what a hurt reaction
             // is.
-            _quaternion.setFrom(
-              _slerp(_fadeQuaternion, _quaternion, weight),
-            );
+            _quaternion.setFrom(_slerp(_fadeQuaternion, _quaternion, weight));
           }
           node.setRotation(_quaternion);
 
@@ -384,7 +377,8 @@ final class AnimationPlayer {
   }
 
   @override
-  String toString() => 'AnimationPlayer(${clips.length} clips, '
+  String toString() =>
+      'AnimationPlayer(${clips.length} clips, '
       'clip $_clipIndex at ${_time.toStringAsFixed(2)}s'
       '${_playing ? ', playing' : ''})';
 }

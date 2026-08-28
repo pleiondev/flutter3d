@@ -118,10 +118,10 @@ bool buildsMipChain(
 /// input or they drift.
 SamplerOptions samplerOptionsFor(TextureSampling info) {
   SamplerAddressMode address(TextureWrap wrap) => switch (wrap) {
-        TextureWrap.repeat => SamplerAddressMode.repeat,
-        TextureWrap.clampToEdge => SamplerAddressMode.clampToEdge,
-        TextureWrap.mirroredRepeat => SamplerAddressMode.mirror,
-      };
+    TextureWrap.repeat => SamplerAddressMode.repeat,
+    TextureWrap.clampToEdge => SamplerAddressMode.clampToEdge,
+    TextureWrap.mirroredRepeat => SamplerAddressMode.mirror,
+  };
 
   return SamplerOptions(
     minFilter: info.minLinear ? MinMagFilter.linear : MinMagFilter.nearest,

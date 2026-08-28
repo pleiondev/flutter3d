@@ -34,12 +34,13 @@ Future<void> expectMatchesGolden(
   final file = File(path);
   if (!file.existsSync()) {
     file.parent.createSync(recursive: true);
-    file.writeAsBytesSync(
-        encodePng(frame.pixels, frame.width, frame.height));
+    file.writeAsBytesSync(encodePng(frame.pixels, frame.width, frame.height));
     // Deliberately not a failure. A first run has nothing to compare against,
     // and refusing to record would mean every new test starts red for a reason
     // that is not about the code.
-    printOnFailure('recorded a new golden at $path — open it before committing');
+    printOnFailure(
+      'recorded a new golden at $path — open it before committing',
+    );
     // ignore: avoid_print
     print('flutter3d_testing: recorded a new golden at $path');
     return;
@@ -49,7 +50,8 @@ Future<void> expectMatchesGolden(
   expect(
     frame.pixels.length,
     expected.length,
-    reason: 'the frame and $path are different sizes — the golden was recorded '
+    reason:
+        'the frame and $path are different sizes — the golden was recorded '
         'at another resolution, so re-record it rather than reading anything '
         'into the pixels',
   );

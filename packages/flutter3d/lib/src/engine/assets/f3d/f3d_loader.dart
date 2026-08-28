@@ -74,8 +74,7 @@ final class F3dDocument extends ModelDocument {
     }
 
     final sectionCount = view.getUint32(8, Endian.little);
-    final directoryEnd =
-        kF3dHeaderBytes + sectionCount * kF3dSectionEntryBytes;
+    final directoryEnd = kF3dHeaderBytes + sectionCount * kF3dSectionEntryBytes;
     if (directoryEnd > bytes.lengthInBytes) {
       throw F3dFormatException(
         'Section directory claims $sectionCount entries, which runs past the '
@@ -106,8 +105,7 @@ final class F3dDocument extends ModelDocument {
     return F3dDocument._(bytes, view, sections);
   }
 
-  _Section _section(int kind) =>
-      _sections[kind] ?? const _Section(0, 0, 0);
+  _Section _section(int kind) => _sections[kind] ?? const _Section(0, 0, 0);
 
   /// Absolute byte offset of a blob entry, as seen by the underlying buffer.
   ///
@@ -228,7 +226,8 @@ final class F3dDocument extends ModelDocument {
   }
 
   @override
-  String toString() => 'F3dDocument(${surfaces.length} surfaces, $vertexCount '
+  String toString() =>
+      'F3dDocument(${surfaces.length} surfaces, $vertexCount '
       'vertices, ${materials.length} materials, ${images.length} images, '
       '${nodes.length} nodes, ${animations.length} animations)';
 }

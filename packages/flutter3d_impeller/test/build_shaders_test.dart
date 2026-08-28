@@ -26,8 +26,11 @@ void main() {
       // Mutation: move or rename `tool/build_shaders.sh` — fails here, which is
       // the failure that went unnoticed.
       final script = File('${_thisPackage.path}/tool/build_shaders.sh');
-      expect(script.existsSync(), isTrue,
-          reason: 'tool/build_shaders.sh is what bin/build_shaders.dart runs');
+      expect(
+        script.existsSync(),
+        isTrue,
+        reason: 'tool/build_shaders.sh is what bin/build_shaders.dart runs',
+      );
     });
 
     test('and is runnable without asking bash to guess', () {
@@ -35,9 +38,9 @@ void main() {
       // not what makes it run — but a script checked in without it is one
       // nobody can run by hand either, and every document in this repository
       // tells them to do exactly that.
-      final mode = File('${_thisPackage.path}/tool/build_shaders.sh')
-          .statSync()
-          .modeString();
+      final mode = File(
+        '${_thisPackage.path}/tool/build_shaders.sh',
+      ).statSync().modeString();
       expect(mode.contains('x'), isTrue, reason: 'not executable: $mode');
     });
 
@@ -48,12 +51,19 @@ void main() {
       // `dart run` in a test, which needs a pub cache and a network.
       //
       // Mutation: point it back at `package:flutter3d/flutter3d.dart` — fails.
-      final entry =
-          File('${_thisPackage.path}/bin/build_shaders.dart').readAsStringSync();
-      expect(entry, contains('package:flutter3d_impeller/'),
-          reason: 'the entry point must resolve the package it lives in');
-      expect(entry, contains('/tool/build_shaders.sh'),
-          reason: 'and must look for the script beside itself');
+      final entry = File(
+        '${_thisPackage.path}/bin/build_shaders.dart',
+      ).readAsStringSync();
+      expect(
+        entry,
+        contains('package:flutter3d_impeller/'),
+        reason: 'the entry point must resolve the package it lives in',
+      );
+      expect(
+        entry,
+        contains('/tool/build_shaders.sh'),
+        reason: 'and must look for the script beside itself',
+      );
     });
   });
 }

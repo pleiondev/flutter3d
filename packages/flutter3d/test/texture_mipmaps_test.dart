@@ -106,8 +106,9 @@ void main() {
     });
 
     test('single-level sampling does not', () {
-      final sampler =
-          samplerOptionsFor(const TextureSampling(useMipmaps: false));
+      final sampler = samplerOptionsFor(
+        const TextureSampling(useMipmaps: false),
+      );
       expect(sampler.mipFilter, MipFilter.nearest);
     });
 
@@ -128,12 +129,14 @@ void main() {
       // Mutation: rewrite `samplerOptionsFor` around the mip decision and lose
       // a wrap mode. A tiled wall clamps and stretches its last texel across
       // fourteen metres.
-      final sampler = samplerOptionsFor(const TextureSampling(
-        magLinear: false,
-        minLinear: false,
-        wrapS: TextureWrap.clampToEdge,
-        wrapT: TextureWrap.mirroredRepeat,
-      ));
+      final sampler = samplerOptionsFor(
+        const TextureSampling(
+          magLinear: false,
+          minLinear: false,
+          wrapS: TextureWrap.clampToEdge,
+          wrapT: TextureWrap.mirroredRepeat,
+        ),
+      );
 
       expect(sampler.magFilter, MinMagFilter.nearest);
       expect(sampler.minFilter, MinMagFilter.nearest);

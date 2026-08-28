@@ -22,25 +22,31 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
   const size = 16;
 
   Future<double> brightnessWith(int instances) async {
-    final target = device.createTexture(const RenderTargetSpec(
-      width: size,
-      height: size,
-      format: TextureFormat.r8g8b8a8UNormInt,
-    ));
+    final target = device.createTexture(
+      const RenderTargetSpec(
+        width: size,
+        height: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
     final vertex = device.shaders['DebugLineVertex'];
     final fragment = device.shaders['DebugLine'];
-    require(vertex != null && fragment != null,
-        'the debug-line stages are missing, so this cannot draw anything');
+    require(
+      vertex != null && fragment != null,
+      'the debug-line stages are missing, so this cannot draw anything',
+    );
 
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
-        ),
-      ],
-    ));
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            loadAction: LoadAction.clear,
+            clearValue: Vector4.zero(),
+          ),
+        ],
+      ),
+    );
     pass
       ..bindPipeline(device.createPipeline(vertex!, fragment!))
       ..setPrimitiveType(PrimitiveType.triangle)
@@ -71,14 +77,18 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
   }
 
   final once = await brightnessWith(1);
-  require((once - 0.25).abs() < 0.02,
-      'a single instance drew $once where a quarter was expected, so this '
-      'check cannot say anything about three');
+  require(
+    (once - 0.25).abs() < 0.02,
+    'a single instance drew $once where a quarter was expected, so this '
+    'check cannot say anything about three',
+  );
 
   final thrice = await brightnessWith(3);
-  require((thrice - 0.75).abs() < 0.02,
-      'three instances drew $thrice where three quarters was expected — the '
-      'count was ignored, or applied the wrong number of times');
+  require(
+    (thrice - 0.75).abs() < 0.02,
+    'three instances drew $thrice where three quarters was expected — the '
+    'count was ignored, or applied the wrong number of times',
+  );
 }
 
 /// Six faces, six directions, six colours.
@@ -114,10 +124,16 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
 
   final faces = <ByteData>[
     for (final colour in colours)
-      ByteData.sublistView(Uint8List.fromList(<int>[
-        for (var i = 0; i < size * size; i++)
-          ...<int>[colour[0], colour[1], colour[2], 255],
-      ])),
+      ByteData.sublistView(
+        Uint8List.fromList(<int>[
+          for (var i = 0; i < size * size; i++) ...<int>[
+            colour[0],
+            colour[1],
+            colour[2],
+            255,
+          ],
+        ]),
+      ),
   ];
 
   final cube = device.createCubeTextureFromPixels(
@@ -125,19 +141,27 @@ Future<void> checkCubeFaces(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     faces: faces,
   );
-  require(cube != null,
-      'the device says it supports cube textures and then made none from six '
-      '4x4 RGBA8 faces');
-  require(cube!.type == TextureType.textureCube,
-      'the handle came back as ${cube.type.name} rather than a cube');
-  require(cube.sliceCount == 6,
-      'a cube reported ${cube.sliceCount} slices rather than six');
+  require(
+    cube != null,
+    'the device says it supports cube textures and then made none from six '
+    '4x4 RGBA8 faces',
+  );
+  require(
+    cube!.type == TextureType.textureCube,
+    'the handle came back as ${cube.type.name} rather than a cube',
+  );
+  require(
+    cube.sliceCount == 6,
+    'a cube reported ${cube.sliceCount} slices rather than six',
+  );
 
-  require(device.createCubeTextureFromPixels(
-        size: size,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        faces: faces.take(5).toList(),
-      ) ==
-      null,
-      'five faces made a cube; the sixth is whatever the allocation held');
+  require(
+    device.createCubeTextureFromPixels(
+          size: size,
+          format: TextureFormat.r8g8b8a8UNormInt,
+          faces: faces.take(5).toList(),
+        ) ==
+        null,
+    'five faces made a cube; the sixth is whatever the allocation held',
+  );
 }

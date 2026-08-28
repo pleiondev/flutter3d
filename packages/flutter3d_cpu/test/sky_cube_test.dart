@@ -57,8 +57,12 @@ TextureHandle _cube(CpuDevice device, {int size = 4}) {
     for (final colour in _faceColours)
       ByteData.sublistView(
         Uint8List.fromList(<int>[
-          for (var i = 0; i < size * size; i++)
-            ...<int>[colour[0], colour[1], colour[2], 255],
+          for (var i = 0; i < size * size; i++) ...<int>[
+            colour[0],
+            colour[1],
+            colour[2],
+            255,
+          ],
         ]),
       ),
   ];
@@ -155,8 +159,7 @@ void main() {
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
     final five = <ByteData>[
-      for (var i = 0; i < 5; i++)
-        ByteData.sublistView(Uint8List(4 * 4 * 4)),
+      for (var i = 0; i < 5; i++) ByteData.sublistView(Uint8List(4 * 4 * 4)),
     ];
     expect(
       device.createCubeTextureFromPixels(
@@ -192,9 +195,13 @@ void main() {
     for (final (name, direction, expected) in looks) {
       final frame = await _look(it, cube, direction);
       final rgb = _centre(frame);
-      expect(_whichFace(rgb), expected,
-          reason: 'looking $name gave $rgb, which is face ${_whichFace(rgb)} '
-              'rather than $expected');
+      expect(
+        _whichFace(rgb),
+        expected,
+        reason:
+            'looking $name gave $rgb, which is face ${_whichFace(rgb)} '
+            'rather than $expected',
+      );
     }
   });
 
@@ -227,8 +234,7 @@ void main() {
         3 => Vector3(s, -1.0, -t),
         4 => Vector3(s, -t, 1.0),
         _ => Vector3(-s, -t, -1.0),
-      }
-        ..normalize();
+      }..normalize();
     }
 
     /// A direction as a colour: each axis from -1..1 into 0..255.
@@ -244,18 +250,18 @@ void main() {
     final it = _engine();
     final faces = <ByteData>[
       for (var face = 0; face < 6; face++)
-        ByteData.sublistView(Uint8List.fromList(<int>[
-          for (var y = 0; y < size; y++)
-            for (var x = 0; x < size; x++) ...<int>[
-              // Texel centres, which is what a texture coordinate addresses.
-              ...encode(directionFor(
-                face,
-                (x + 0.5) / size,
-                (y + 0.5) / size,
-              )),
-              255,
-            ],
-        ])),
+        ByteData.sublistView(
+          Uint8List.fromList(<int>[
+            for (var y = 0; y < size; y++)
+              for (var x = 0; x < size; x++) ...<int>[
+                // Texel centres, which is what a texture coordinate addresses.
+                ...encode(
+                  directionFor(face, (x + 0.5) / size, (y + 0.5) / size),
+                ),
+                255,
+              ],
+          ]),
+        ),
     ];
     final cube = it.device.createCubeTextureFromPixels(
       size: size,
@@ -282,8 +288,11 @@ void main() {
       final drawn = _centre(frame);
       final wanted = encode(direction);
       for (var c = 0; c < 3; c++) {
-        expect((drawn[c] - wanted[c]).abs(), lessThan(14),
-            reason: 'looking $direction sampled $drawn, baked $wanted');
+        expect(
+          (drawn[c] - wanted[c]).abs(),
+          lessThan(14),
+          reason: 'looking $direction sampled $drawn, baked $wanted',
+        );
       }
     }
   });
@@ -295,8 +304,12 @@ void main() {
     final cube = _cube(it.device);
 
     final plain = await _look(it, cube, Vector3(1.0, 0.0, 0.0));
-    final dimmed = await _look(it, cube, Vector3(1.0, 0.0, 0.0),
-        tint: Vector3(0.25, 0.25, 0.25));
+    final dimmed = await _look(
+      it,
+      cube,
+      Vector3(1.0, 0.0, 0.0),
+      tint: Vector3(0.25, 0.25, 0.25),
+    );
 
     expect(_centre(plain)[0], greaterThan(200));
     expect(_centre(dimmed)[0], lessThan(_centre(plain)[0] - 40));

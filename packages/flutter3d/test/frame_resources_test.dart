@@ -98,13 +98,13 @@ final class _FakeAllocator implements TextureAllocator {
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec) => fakeTexture(
-        'created ${created++}',
-        width: spec.width,
-        height: spec.height,
-        format: spec.format,
-        sampleCount: spec.sampleCount,
-        storageMode: spec.storageMode,
-      );
+    'created ${created++}',
+    width: spec.width,
+    height: spec.height,
+    format: spec.format,
+    sampleCount: spec.sampleCount,
+    storageMode: spec.storageMode,
+  );
 }
 
 /// A texture handle over an ordinary object.
@@ -118,15 +118,14 @@ TextureHandle fakeTexture(
   TextureFormat format = TextureFormat.r16g16b16a16Float,
   int sampleCount = 1,
   StorageMode storageMode = StorageMode.devicePrivate,
-}) =>
-    TextureHandle(
-      backend: label,
-      width: width,
-      height: height,
-      format: format,
-      sampleCount: sampleCount,
-      storageMode: storageMode,
-    );
+}) => TextureHandle(
+  backend: label,
+  width: width,
+  height: height,
+  format: format,
+  sampleCount: sampleCount,
+  storageMode: storageMode,
+);
 
 CompiledFrameGraph compile(
   List<FrameGraphNode> passes, {
@@ -179,8 +178,11 @@ void main() {
           const _Pass('writer', writes: <ResourceId>[colour]),
           // The reader must produce something the frame asks for, or the
           // graph culls it and there is no reader left to protect.
-          const _Pass('reader',
-              reads: <ResourceId>[colour], writes: <ResourceId>[bloom]),
+          const _Pass(
+            'reader',
+            reads: <ResourceId>[colour],
+            writes: <ResourceId>[bloom],
+          ),
         ],
         outputs: <ResourceId>[bloom],
       );
@@ -192,13 +194,20 @@ void main() {
       );
 
       expect(
-        () => resources.declare(const ResourceDesc(
-          id: colour,
-          format: TextureFormat.r16g16b16a16Float,
-          storageMode: StorageMode.deviceTransient,
-        )),
-        throwsA(isA<StateError>()
-            .having((e) => e.message, 'message', contains('colour'))),
+        () => resources.declare(
+          const ResourceDesc(
+            id: colour,
+            format: TextureFormat.r16g16b16a16Float,
+            storageMode: StorageMode.deviceTransient,
+          ),
+        ),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('colour'),
+          ),
+        ),
       );
     });
 
@@ -206,7 +215,9 @@ void main() {
       // The case the mode exists for: a depth attachment a pass writes and
       // nothing else ever looks at. Refusing this would make the check useless.
       final graph = compile(
-        <FrameGraphNode>[const _Pass('writer', writes: <ResourceId>[colour])],
+        <FrameGraphNode>[
+          const _Pass('writer', writes: <ResourceId>[colour]),
+        ],
         outputs: <ResourceId>[colour],
       );
       final resources = FrameResources(
@@ -217,11 +228,13 @@ void main() {
       );
 
       expect(
-        () => resources.declare(const ResourceDesc(
-          id: colour,
-          format: TextureFormat.r16g16b16a16Float,
-          storageMode: StorageMode.deviceTransient,
-        )),
+        () => resources.declare(
+          const ResourceDesc(
+            id: colour,
+            format: TextureFormat.r16g16b16a16Float,
+            storageMode: StorageMode.deviceTransient,
+          ),
+        ),
         returnsNormally,
       );
     });
@@ -244,29 +257,31 @@ void main() {
       writes: <ResourceId>[frame],
     );
 
-    test('a node that declares keeps and binds nothing throws, naming itself',
-        () {
-      final graph = compile(
-        const <FrameGraphNode>[maintainer, reader],
-        outputs: const <ResourceId>[frame],
-      );
-      final source = _CountingSource();
-      final resources = resourcesFor(graph, source);
+    test(
+      'a node that declares keeps and binds nothing throws, naming itself',
+      () {
+        final graph = compile(
+          const <FrameGraphNode>[maintainer, reader],
+          outputs: const <ResourceId>[frame],
+        );
+        final source = _CountingSource();
+        final resources = resourcesFor(graph, source);
 
-      resources.beginNode(0);
-      // The node ran and drew nothing — the ordinary case for the atlas, and
-      // exactly when the mistake is made.
-      expect(
-        () => resources.endNode(0),
-        throwsA(
-          isA<FrameGraphError>().having(
-            (e) => e.message,
-            'message',
-            allOf(contains('cube shadow'), contains('atlas')),
+        resources.beginNode(0);
+        // The node ran and drew nothing — the ordinary case for the atlas, and
+        // exactly when the mistake is made.
+        expect(
+          () => resources.endNode(0),
+          throwsA(
+            isA<FrameGraphError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('cube shadow'), contains('atlas')),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test('a node that binds it every frame is fine', () {
       final graph = compile(
@@ -462,8 +477,11 @@ void main() {
       final own = fakeTexture("the reflection pass's own target");
       resources.beginNode(1);
       resources.provide(colour, own);
-      expect(resources.tryTexture(colour), same(drawn),
-          reason: 'a read still sees what it reads, not what it provided');
+      expect(
+        resources.tryTexture(colour),
+        same(drawn),
+        reason: 'a read still sees what it reads, not what it provided',
+      );
       resources.endNode(1);
 
       expect(source.releaseCountOf(drawn), 1);
@@ -484,8 +502,11 @@ void main() {
       final graph = compile(
         const <FrameGraphNode>[
           _Pass('scene', writes: <ResourceId>[colour]),
-          _Pass('composite',
-              reads: <ResourceId>[colour], writes: <ResourceId>[frame]),
+          _Pass(
+            'composite',
+            reads: <ResourceId>[colour],
+            writes: <ResourceId>[frame],
+          ),
         ],
         outputs: const <ResourceId>[frame],
       );
@@ -507,9 +528,11 @@ void main() {
       final graph = compile(
         const <FrameGraphNode>[
           _Pass('cube shadow', keeps: <ResourceId>[atlas]),
-          _Pass('scene', reads: <ResourceId>[atlas], writes: <ResourceId>[
-            frame,
-          ]),
+          _Pass(
+            'scene',
+            reads: <ResourceId>[atlas],
+            writes: <ResourceId>[frame],
+          ),
         ],
         outputs: const <ResourceId>[frame],
       );
@@ -531,9 +554,11 @@ void main() {
       final graph = compile(
         const <FrameGraphNode>[
           _Pass('bloom', writes: <ResourceId>[bloom], isActive: false),
-          _Pass('composite',
-              optionalReads: <ResourceId>[bloom],
-              writes: <ResourceId>[frame]),
+          _Pass(
+            'composite',
+            optionalReads: <ResourceId>[bloom],
+            writes: <ResourceId>[frame],
+          ),
         ],
         outputs: const <ResourceId>[frame],
       );
@@ -566,10 +591,10 @@ void main() {
     );
 
     RenderTargetSpec spec(int divisor) => RenderTargetSpec(
-          width: 640 ~/ divisor,
-          height: 480 ~/ divisor,
-          format: TextureFormat.r16g16b16a16Float,
-        );
+      width: 640 ~/ divisor,
+      height: 480 ~/ divisor,
+      format: TextureFormat.r16g16b16a16Float,
+    );
 
     test('a node frees its own scratch when it ends', () {
       final graph = compile(
@@ -699,38 +724,40 @@ void main() {
       expect(source.releaseCountOf(own), 0);
     });
 
-    test('an in-place write over a provided texture is still not the pool’s',
-        () {
-      // Ownership travels with the aliasing. The overlay draws into the
-      // renderer's own HDR target and produces a second version of the name
-      // standing on it; if that version were treated as the frame's own
-      // allocation, the texture that outlives the frame and becomes the
-      // `ui.Image` would be handed to the pool and lent to the next acquirer.
-      final graph = compile(
-        const <FrameGraphNode>[
-          scene,
-          _Pass(
-            'overlay',
-            reads: <ResourceId>[colour],
-            writes: <ResourceId>[colour],
-          ),
-        ],
-        outputs: const <ResourceId>[colour],
-      );
-      final source = _CountingSource();
-      final resources = resourcesFor(graph, source);
+    test(
+      'an in-place write over a provided texture is still not the pool’s',
+      () {
+        // Ownership travels with the aliasing. The overlay draws into the
+        // renderer's own HDR target and produces a second version of the name
+        // standing on it; if that version were treated as the frame's own
+        // allocation, the texture that outlives the frame and becomes the
+        // `ui.Image` would be handed to the pool and lent to the next acquirer.
+        final graph = compile(
+          const <FrameGraphNode>[
+            scene,
+            _Pass(
+              'overlay',
+              reads: <ResourceId>[colour],
+              writes: <ResourceId>[colour],
+            ),
+          ],
+          outputs: const <ResourceId>[colour],
+        );
+        final source = _CountingSource();
+        final resources = resourcesFor(graph, source);
 
-      final own = fakeTexture("the renderer's own HDR target");
-      resources.beginNode(0);
-      resources.provide(colour, own);
-      resources.endNode(0);
+        final own = fakeTexture("the renderer's own HDR target");
+        resources.beginNode(0);
+        resources.provide(colour, own);
+        resources.endNode(0);
 
-      resources.beginNode(1);
-      expect(resources.texture(colour), same(own));
-      resources.releaseAll();
+        resources.beginNode(1);
+        expect(resources.texture(colour), same(own));
+        resources.releaseAll();
 
-      expect(source.releaseCountOf(own), 0);
-    });
+        expect(source.releaseCountOf(own), 0);
+      },
+    );
 
     test('an in-place chain still goes back once', () {
       // The same identity guard as on the ordinary path, on the path taken
@@ -814,8 +841,11 @@ void main() {
       final graph = compile(
         const <FrameGraphNode>[
           _Pass('scene', writes: <ResourceId>[colour]),
-          _Pass('composite',
-              reads: <ResourceId>[colour], writes: <ResourceId>[frame]),
+          _Pass(
+            'composite',
+            reads: <ResourceId>[colour],
+            writes: <ResourceId>[frame],
+          ),
         ],
         outputs: const <ResourceId>[frame],
       );
@@ -825,8 +855,11 @@ void main() {
       expect(
         () => resources.texture(colour),
         throwsA(
-          isA<FrameGraphError>()
-              .having((e) => e.message, 'message', contains('colour')),
+          isA<FrameGraphError>().having(
+            (e) => e.message,
+            'message',
+            contains('colour'),
+          ),
         ),
       );
     });
@@ -849,8 +882,11 @@ void main() {
           // whoever took its place — which is how the first draft of this test
           // ended up asserting about the composite.
           _Pass('nosy', writes: <ResourceId>[bloom]),
-          _Pass('composite',
-              reads: <ResourceId>[colour], writes: <ResourceId>[frame]),
+          _Pass(
+            'composite',
+            reads: <ResourceId>[colour],
+            writes: <ResourceId>[frame],
+          ),
         ],
         outputs: const <ResourceId>[frame, bloom],
       );
@@ -873,8 +909,13 @@ void main() {
       expect(drawn, isNotNull);
       expect(
         () => resources.tryTexture(colour),
-        throwsA(isA<FrameGraphError>().having(
-            (e) => e.message, 'message', contains('outside any node'))),
+        throwsA(
+          isA<FrameGraphError>().having(
+            (e) => e.message,
+            'message',
+            contains('outside any node'),
+          ),
+        ),
       );
 
       resources.beginNode(1);
@@ -882,36 +923,43 @@ void main() {
         () => resources.tryTexture(colour),
         throwsA(
           isA<FrameGraphError>().having(
-              (e) => e.message, 'message', contains('without declaring')),
+            (e) => e.message,
+            'message',
+            contains('without declaring'),
+          ),
         ),
         reason: 'the nosy node declared neither a read nor a write',
       );
       resources.endNode(1);
     });
 
-    test('an optional read whose producer was culled answers null, not an error',
-        () {
-      // The distinction the first version of the rule got wrong. A node that
-      // declared the read is entitled to ask, and when nothing surviving writes
-      // the name the honest answer is "nothing" — that is what optionalReads is
-      // for. Asking the node's declarations rather than its resolved bindings
-      // is what tells the two apart, because a culled producer is precisely
-      // what leaves the binding missing.
-      final graph = compile(
-        const <FrameGraphNode>[
-          _Pass('atlas', keeps: <ResourceId>[atlas], isActive: false),
-          _Pass('scene',
+    test(
+      'an optional read whose producer was culled answers null, not an error',
+      () {
+        // The distinction the first version of the rule got wrong. A node that
+        // declared the read is entitled to ask, and when nothing surviving writes
+        // the name the honest answer is "nothing" — that is what optionalReads is
+        // for. Asking the node's declarations rather than its resolved bindings
+        // is what tells the two apart, because a culled producer is precisely
+        // what leaves the binding missing.
+        final graph = compile(
+          const <FrameGraphNode>[
+            _Pass('atlas', keeps: <ResourceId>[atlas], isActive: false),
+            _Pass(
+              'scene',
               optionalReads: <ResourceId>[atlas],
-              writes: <ResourceId>[frame]),
-        ],
-        outputs: const <ResourceId>[frame],
-      );
-      final resources = resourcesFor(graph, _CountingSource());
+              writes: <ResourceId>[frame],
+            ),
+          ],
+          outputs: const <ResourceId>[frame],
+        );
+        final resources = resourcesFor(graph, _CountingSource());
 
-      final scene = graph.order.indexWhere((node) => node.name == 'scene');
-      resources.beginNode(scene);
-      expect(resources.tryTexture(atlas), isNull);
-      resources.endNode(scene);
-    });
+        final scene = graph.order.indexWhere((node) => node.name == 'scene');
+        resources.beginNode(scene);
+        expect(resources.tryTexture(atlas), isNull);
+        resources.endNode(scene);
+      },
+    );
   });
 }

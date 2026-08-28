@@ -51,7 +51,9 @@ extension _PostPasses on Renderer {
       );
       // Once a level is a single pixel there is nothing left to halve, and
       // continuing would just re-blur one texel.
-      if (level > 0 && spec.width == sourceWidth && spec.height == sourceHeight) {
+      if (level > 0 &&
+          spec.width == sourceWidth &&
+          spec.height == sourceHeight) {
         break;
       }
 
@@ -62,14 +64,16 @@ extension _PostPasses on Renderer {
       _bloomParams[3] = level == 0 ? settings.knee : 0.0;
 
       final isFirst = level == 0;
-      drawFullscreen(FullscreenDraw(
-        target: target,
-        fragment: isFirst ? bloomThresholdShader : bloomDownsampleShader,
-        textures: <String, TextureHandle>{_kPostSourceSlot: source},
-        uniforms: <String, Map<String, Float32List>>{
-          _kBloomInfoBlock: <String, Float32List>{'params': _bloomParams},
-        },
-      ));
+      drawFullscreen(
+        FullscreenDraw(
+          target: target,
+          fragment: isFirst ? bloomThresholdShader : bloomDownsampleShader,
+          textures: <String, TextureHandle>{_kPostSourceSlot: source},
+          uniforms: <String, Map<String, Float32List>>{
+            _kBloomInfoBlock: <String, Float32List>{'params': _bloomParams},
+          },
+        ),
+      );
 
       chain.add(target);
       source = target;
@@ -101,24 +105,31 @@ extension _PostPasses on Renderer {
     required TextureHandle target,
     required TextureHandle source,
   }) {
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          // Load, not clear: the point is to add to what the downsample left.
-          loadAction: LoadAction.load,
-        ),
-      ],
-    ));
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            // Load, not clear: the point is to add to what the downsample left.
+            loadAction: LoadAction.load,
+          ),
+        ],
+      ),
+    );
 
-    pass.setState(Renderer._kFullscreenAdditiveState.copyWith(
-      viewport: ScreenRect.of(target),
-      scissor: ScreenRect.of(target),
-    ));
+    pass.setState(
+      Renderer._kFullscreenAdditiveState.copyWith(
+        viewport: ScreenRect.of(target),
+        scissor: ScreenRect.of(target),
+      ),
+    );
 
     pass.bindPipeline(
-      _postPipeline(_bloomUpsamplePipeline, bloomUpsampleShader,
-          (p) => _bloomUpsamplePipeline = p),
+      _postPipeline(
+        _bloomUpsamplePipeline,
+        bloomUpsampleShader,
+        (p) => _bloomUpsamplePipeline = p,
+      ),
     );
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
@@ -157,8 +168,7 @@ extension _PostPasses on Renderer {
     // depths in that buffer were written with, so the shape it assumes should
     // come from the buffer itself. A frame that resized between the scene pass
     // and this one would otherwise reconstruct every point somewhere else.
-    final aspect =
-        surface.height == 0 ? 1.0 : surface.width / surface.height;
+    final aspect = surface.height == 0 ? 1.0 : surface.width / surface.height;
     final viewProjection = _viewProjection(view.camera, aspect);
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
 
@@ -170,27 +180,29 @@ extension _PostPasses on Renderer {
     _ssaoScreen[0] = 1.0 / math.max(target.width, 1);
     _ssaoScreen[1] = 1.0 / math.max(target.height, 1);
 
-    drawFullscreen(FullscreenDraw(
-      target: target,
-      fragment: ssaoShader,
-      textures: <String, TextureHandle>{'surface_texture': surface},
-      uniforms: <String, Map<String, Float32List>>{
-        _kSsaoInfoBlock: <String, Float32List>{
-          'inverse_view_projection': inverse.storage,
-          'view_projection': viewProjection.storage,
-          'params': _ssaoParams,
-          'screen': _ssaoScreen,
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: ssaoShader,
+        textures: <String, TextureHandle>{'surface_texture': surface},
+        uniforms: <String, Map<String, Float32List>>{
+          _kSsaoInfoBlock: <String, Float32List>{
+            'inverse_view_projection': inverse.storage,
+            'view_projection': viewProjection.storage,
+            'params': _ssaoParams,
+            'screen': _ssaoScreen,
+          },
         },
-      },
-      // **Unfiltered**, unlike every other full-screen read in this renderer,
-      // and measured rather than assumed: with linear filtering an isolated
-      // convex slab against an empty background darkened by six levels at its
-      // edges, which `ssao_test.dart` catches. A filtered tap at a silhouette
-      // averages a foreground depth with the cleared background, and the result
-      // is a depth at which nothing stands — nearer than the surface, so it
-      // counts as an occluder.
-      sampler: SamplerOptions.nearestClamp,
-    ));
+        // **Unfiltered**, unlike every other full-screen read in this renderer,
+        // and measured rather than assumed: with linear filtering an isolated
+        // convex slab against an empty background darkened by six levels at its
+        // edges, which `ssao_test.dart` catches. A filtered tap at a silhouette
+        // averages a foreground depth with the cleared background, and the result
+        // is a depth at which nothing stands — nearer than the surface, so it
+        // counts as an occluder.
+        sampler: SamplerOptions.nearestClamp,
+      ),
+    );
     developer.Timeline.finishSync();
   }
 
@@ -230,23 +242,25 @@ extension _PostPasses on Renderer {
     _reflectionCameraData[1] = _reflectionCamera.y;
     _reflectionCameraData[2] = _reflectionCamera.z;
 
-    drawFullscreen(FullscreenDraw(
-      target: target,
-      fragment: reflectionShader,
-      textures: <String, TextureHandle>{
-        'scene_texture': scene,
-        'surface_texture': surface,
-      },
-      uniforms: <String, Map<String, Float32List>>{
-        _kReflectionInfoBlock: <String, Float32List>{
-          'view_projection': viewProjection.storage,
-          'inverse_view_projection': inverse.storage,
-          'camera': _reflectionCameraData,
-          'params': _reflectionParams,
-          'screen': _reflectionScreen,
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: reflectionShader,
+        textures: <String, TextureHandle>{
+          'scene_texture': scene,
+          'surface_texture': surface,
         },
-      },
-    ));
+        uniforms: <String, Map<String, Float32List>>{
+          _kReflectionInfoBlock: <String, Float32List>{
+            'view_projection': viewProjection.storage,
+            'inverse_view_projection': inverse.storage,
+            'camera': _reflectionCameraData,
+            'params': _reflectionParams,
+            'screen': _reflectionScreen,
+          },
+        },
+      ),
+    );
     developer.Timeline.finishSync();
     return target;
   }
@@ -271,14 +285,18 @@ extension _PostPasses on Renderer {
     required int width,
     required int height,
   }) {
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(texture: target, loadAction: LoadAction.dontCare),
-      ],
-    ));
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(texture: target, loadAction: LoadAction.dontCare),
+        ],
+      ),
+    );
 
     final full = ScreenRect(width: width, height: height);
-    pass.setState(Renderer._kFullscreenState.copyWith(viewport: full, scissor: full));
+    pass.setState(
+      Renderer._kFullscreenState.copyWith(viewport: full, scissor: full),
+    );
 
     final mix = CompositeMix(
       showSurfaceBuffer: settings.showSurfaceBuffer,
@@ -295,23 +313,21 @@ extension _PostPasses on Renderer {
     _compositeParams[2] = mix.tonemap;
 
     pass.bindPipeline(
-      _postPipeline(_compositePipeline, compositeShader,
-          (p) => _compositePipeline = p),
+      _postPipeline(
+        _compositePipeline,
+        compositeShader,
+        (p) => _compositePipeline = p,
+      ),
     );
     pass.bindVertexBuffer(_fullscreenTriangle, 3);
     pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
-    pass.bindTexture(
-      compositeShader,
-      _kSceneTextureSlot,
-      switch (mix.view) {
-        // Non-null by construction: [CompositeMix] only picks these when it was
-        // told the texture exists.
-        CompositeView.shadowMap => shadowView!,
-        CompositeView.surfaceBuffer => surface ?? scene,
-        CompositeView.scene => scene,
-      },
-      sampler: Renderer._clampSampler,
-    );
+    pass.bindTexture(compositeShader, _kSceneTextureSlot, switch (mix.view) {
+      // Non-null by construction: [CompositeMix] only picks these when it was
+      // told the texture exists.
+      CompositeView.shadowMap => shadowView!,
+      CompositeView.surfaceBuffer => surface ?? scene,
+      CompositeView.scene => scene,
+    }, sampler: Renderer._clampSampler);
     // With bloom culled there is still a sampler to satisfy, and the scene
     // itself is the cheapest texture to hand it — [CompositeMix] set the
     // intensity to zero for exactly this case, so its contribution is
@@ -329,10 +345,12 @@ extension _PostPasses on Renderer {
     // strength is zeroed alongside it, so the stand-in is multiplied out rather
     // than relied upon — either alone would do, and having both means a
     // mismatch between them cannot darken anything.
-    final occlusion =
-        ao != null && settings.ambientOcclusion.enabled ? ao : null;
-    _compositeParams[3] =
-        occlusion == null ? 0.0 : settings.ambientOcclusion.strength;
+    final occlusion = ao != null && settings.ambientOcclusion.enabled
+        ? ao
+        : null;
+    _compositeParams[3] = occlusion == null
+        ? 0.0
+        : settings.ambientOcclusion.strength;
     _compositeAoTexel[0] = 1.0 / math.max(occlusion?.width ?? 1, 1);
     _compositeAoTexel[1] = 1.0 / math.max(occlusion?.height ?? 1, 1);
     pass.bindTexture(

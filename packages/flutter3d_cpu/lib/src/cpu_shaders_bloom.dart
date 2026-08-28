@@ -12,7 +12,8 @@ import 'cpu_shader.dart';
 
 /// What the three bloom stages share: the source texture and its texel size.
 ({BoundTexture source, double tx, double ty, Vector4 params})? bloomSource(
-    ShaderBindings b) {
+  ShaderBindings b,
+) {
   final source = b.textures['source_texture'];
   if (source == null) return null;
   final params = b.vec4('BloomInfo', 'params', Vector4.zero());

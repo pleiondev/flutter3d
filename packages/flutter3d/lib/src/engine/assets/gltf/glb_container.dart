@@ -22,7 +22,11 @@ final class GlbContainer {
   /// JSON text.
   factory GlbContainer.parse(Uint8List bytes) {
     if (bytes.length >= 4) {
-      final magic = ByteData.sublistView(bytes, 0, 4).getUint32(0, Endian.little);
+      final magic = ByteData.sublistView(
+        bytes,
+        0,
+        4,
+      ).getUint32(0, Endian.little);
       if (magic == _kMagic) return GlbContainer._parseBinary(bytes);
     }
     return GlbContainer._parseJson(bytes);
@@ -54,8 +58,9 @@ final class GlbContainer {
     }
     // Trust the smaller of the two: a declared length beyond the actual buffer
     // would let chunk parsing read past the end.
-    final totalLength =
-        declaredLength <= bytes.length ? declaredLength : bytes.length;
+    final totalLength = declaredLength <= bytes.length
+        ? declaredLength
+        : bytes.length;
 
     Map<String, Object?>? json;
     Uint8List? binary;

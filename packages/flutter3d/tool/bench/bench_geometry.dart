@@ -13,8 +13,10 @@ Future<void> benchGeometryGeneration() async {
   const sphere = SphereShape(segments: 256, rings: 128);
   final builtSphere = sphere.build();
   final sphereVertices = builtSphere.vertexCount;
-  print('reference sphere: $sphereVertices vertices, '
-      '${builtSphere.triangleCount} triangles');
+  print(
+    'reference sphere: $sphereVertices vertices, '
+    '${builtSphere.triangleCount} triangles',
+  );
 
   await bench(
     'SphereShape.build (256x128)',

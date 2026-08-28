@@ -144,8 +144,10 @@ void main() {
         ..apply(b, 1 / 60);
       expect(a.rotation, isNot(closeTo(b.rotation, 0.1)));
       // And in opposite directions, since the seed is signed about a half.
-      expect((a.rotation - 0.1 * 2 * math.pi).sign,
-          isNot((b.rotation - 0.9 * 2 * math.pi).sign));
+      expect(
+        (a.rotation - 0.1 * 2 * math.pi).sign,
+        isNot((b.rotation - 0.9 * 2 * math.pi).sign),
+      );
     });
   });
 

@@ -93,10 +93,7 @@ final class SkyDome extends Shape {
       for (var i = 0; i <= rings; i++)
         () {
           final angle = math.pi * i / rings;
-          return Vector2(
-            radius * math.sin(angle),
-            radius * math.cos(angle),
-          );
+          return Vector2(radius * math.sin(angle), radius * math.cos(angle));
         }(),
     ];
 
@@ -177,16 +174,17 @@ void paintSky(MeshData mesh, SkyColour colour) {
 /// the depth buffer it is tested against is the cleared one and `less` passes
 /// on its own; asking for `always` would be a state change emitted every frame
 /// to buy nothing.
-MeshNode skyNode(MeshGeometry mesh, {String name = 'sky'}) => MeshNode(
-      mesh,
-      Material(
+MeshNode skyNode(MeshGeometry mesh, {String name = 'sky'}) =>
+    MeshNode(
+        mesh,
+        Material(
+          name: name,
+          lighting: LightingModel.unlit,
+          drawBucket: -1,
+          depthWrite: false,
+        ),
         name: name,
-        lighting: LightingModel.unlit,
-        drawBucket: -1,
-        depthWrite: false,
-      ),
-      name: name,
-    )
+      )
       ..castsShadow = false
       ..frustumCulled = false;
 

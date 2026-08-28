@@ -88,6 +88,7 @@ final class ObjDocument extends ModelDocument {
   final List<String> materialNames;
 
   @override
-  String toString() => 'ObjDocument(${surfaces.length} surfaces, $vertexCount '
+  String toString() =>
+      'ObjDocument(${surfaces.length} surfaces, $vertexCount '
       'vertices, $triangleCount triangles, ${materials.length} materials)';
 }

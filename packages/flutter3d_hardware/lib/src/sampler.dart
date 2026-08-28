@@ -101,15 +101,16 @@ final class SamplerOptions {
 
   @override
   int get hashCode => Object.hash(
-        minFilter,
-        magFilter,
-        mipFilter,
-        widthAddressMode,
-        heightAddressMode,
-      );
+    minFilter,
+    magFilter,
+    mipFilter,
+    widthAddressMode,
+    heightAddressMode,
+  );
 
   @override
-  String toString() => 'SamplerOptions(min: ${minFilter.name}, '
+  String toString() =>
+      'SamplerOptions(min: ${minFilter.name}, '
       'mag: ${magFilter.name}, mip: ${mipFilter.name}, '
       'u: ${widthAddressMode.name}, v: ${heightAddressMode.name})';
 }

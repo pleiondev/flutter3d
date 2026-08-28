@@ -30,22 +30,22 @@ abstract final class GoldenExtras {
   /// emitter, drag and gravity bending the paths, colour and size changing
   /// over life.
   static ParticleEffect get effect => ParticleEffect(
-        count: 220,
-        lifetime: const Range(0.7, 1.4),
-        size: const Range(0.06, 0.16),
-        color: Vector4(1.0, 0.72, 0.30, 1.0),
-        emitter: const SphereEmitter(speed: Range(2.5, 6.0)),
-        affectors: <ParticleAffector>[
-          const ParticleGravity(-4.0),
-          const ParticleDrag(1.2),
-          ParticleColorOverLife(
-            Vector4(1.0, 0.75, 0.35, 1.0),
-            Vector4(0.9, 0.15, 0.05, 1.0),
-          ),
-          const ParticleFade(),
-          const ParticleSizeOverLife(from: 1.0, to: 2.4),
-        ],
-      );
+    count: 220,
+    lifetime: const Range(0.7, 1.4),
+    size: const Range(0.06, 0.16),
+    color: Vector4(1.0, 0.72, 0.30, 1.0),
+    emitter: const SphereEmitter(speed: Range(2.5, 6.0)),
+    affectors: <ParticleAffector>[
+      const ParticleGravity(-4.0),
+      const ParticleDrag(1.2),
+      ParticleColorOverLife(
+        Vector4(1.0, 0.75, 0.35, 1.0),
+        Vector4(0.9, 0.15, 0.05, 1.0),
+      ),
+      const ParticleFade(),
+      const ParticleSizeOverLife(from: 1.0, to: 2.4),
+    ],
+  );
 
   /// A system holding one burst, already advanced to [warmUp].
   ///
@@ -53,10 +53,7 @@ abstract final class GoldenExtras {
   /// simulation produces, and a closed form would be a second implementation
   /// that could agree with the reference while the real one drifted.
   static ParticleSystem burst() {
-    final particles = ParticleSystem(
-      capacity: 512,
-      random: math.Random(seed),
-    );
+    final particles = ParticleSystem(capacity: 512, random: math.Random(seed));
     particles.burst(effect, Vector3(0.0, 0.6, 0.0));
     for (var t = 0.0; t < warmUp - 1e-9; t += stepSize) {
       particles.step(stepSize);
@@ -79,10 +76,7 @@ abstract final class GoldenExtras {
   /// five times. Whatever order the live set ends up in, this is the fixture
   /// that has an opinion about it.
   static ParticleSystem recycled() {
-    final particles = ParticleSystem(
-      capacity: 128,
-      random: math.Random(seed),
-    );
+    final particles = ParticleSystem(capacity: 128, random: math.Random(seed));
     final short = ParticleEffect(
       count: 40,
       lifetime: const Range(0.08, 0.12),
@@ -123,10 +117,7 @@ abstract final class GoldenExtras {
   /// backends do with a single camera-facing quad, they do it here where the
   /// difference can only be its position, its size or its brightness.
   static ParticleSystem oneParticle({int count = 1}) {
-    final particles = ParticleSystem(
-      capacity: 8,
-      random: math.Random(seed),
-    );
+    final particles = ParticleSystem(capacity: 8, random: math.Random(seed));
     particles.burst(
       ParticleEffect(
         count: count,
@@ -201,8 +192,9 @@ abstract final class GoldenExtras {
       // Asked for, not assumed: a device that answers false samples a
       // hand-built chain as black on some hardware, and a fixture that ignored
       // the answer would record that black.
-      mipLevels:
-          device.supportsMipmaps ? MipChain.build(bytes, size, size) : null,
+      mipLevels: device.supportsMipmaps
+          ? MipChain.build(bytes, size, size)
+          : null,
     )!;
   }
 

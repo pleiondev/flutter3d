@@ -176,8 +176,8 @@ final class ParticleShader implements CpuFragmentShader {
     final fog = b.vec4('FogInfo', 'fog', Vector4.zero());
     if (fog.w > 0.0) {
       final eye = b.vec4('FogInfo', 'eye', Vector4.zero());
-      final d = (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z))
-          .length;
+      final d =
+          (Vector3(v[6], v[7], v[8]) - Vector3(eye.x, eye.y, eye.z)).length;
       fogged = math.exp(-fog.w * d).clamp(0.0, 1.0);
     }
 

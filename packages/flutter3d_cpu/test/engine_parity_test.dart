@@ -43,18 +43,18 @@ const List<int> kImpellerPlain = <int>[
 ];
 
 CpuDevice _device() => CpuDevice(
-      width: kParityWidth,
-      height: kParityHeight,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: kParityWidth,
+  height: kParityHeight,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 Renderer _renderer(CpuDevice device) {
   TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-      )!;
+    width: 1,
+    height: 1,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+  )!;
   return Renderer.create(
     device: device,
     fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -86,7 +86,9 @@ void main() {
     // Draw calls, because a frame that never drew and a frame drawn black are
     // the same picture and different numbers.
     // ignore: avoid_print
-    print('cpu plain: ${result.drawCalls} draws, ${result.pipelines} pipelines');
+    print(
+      'cpu plain: ${result.drawCalls} draws, ${result.pipelines} pipelines',
+    );
 
     final pixels = await device.readPixels(result.frame);
     expect(pixels, isNotNull, reason: 'the frame could not be read back');
@@ -108,12 +110,16 @@ void main() {
       }
     }
     // ignore: avoid_print
-    print('parity plain: mean ${(total / mine.length).toStringAsFixed(2)}, '
-        'worst $worst at cell ${worstAt ~/ kParityGrid},'
-        '${worstAt % kParityGrid}');
+    print(
+      'parity plain: mean ${(total / mine.length).toStringAsFixed(2)}, '
+      'worst $worst at cell ${worstAt ~/ kParityGrid},'
+      '${worstAt % kParityGrid}',
+    );
     // ignore: avoid_print
-    print('cpu rows 5,8: ${mine.sublist(5 * kParityGrid, 6 * kParityGrid)}\n'
-        '              ${mine.sublist(8 * kParityGrid, 9 * kParityGrid)}');
+    print(
+      'cpu rows 5,8: ${mine.sublist(5 * kParityGrid, 6 * kParityGrid)}\n'
+      '              ${mine.sublist(8 * kParityGrid, 9 * kParityGrid)}',
+    );
 
     // Five and 0.3. Measured at 3 and 0.12 — against WebGL's 3 and 0.04 on the
     // same fixture, and WebGL compiles the *same GLSL*.
@@ -127,12 +133,19 @@ void main() {
     // reach it, and both times tightening it was the finding. A threshold far
     // above the observed value has stopped watching — the lesson of two
     // goldens that sat at 0.178% under a 0.2% limit here for a fortnight.
-    expect(worst, lessThan(5),
-        reason: 'cell ${worstAt ~/ kParityGrid},${worstAt % kParityGrid} '
-            'differs by $worst: cpu ${worstAt < 0 ? '-' : mine[worstAt]}, '
-            'Impeller ${worstAt < 0 ? '-' : kImpellerPlain[worstAt]}');
-    expect(total / mine.length, lessThan(0.3),
-        reason: 'the two disagree across the whole frame, not at one edge');
+    expect(
+      worst,
+      lessThan(5),
+      reason:
+          'cell ${worstAt ~/ kParityGrid},${worstAt % kParityGrid} '
+          'differs by $worst: cpu ${worstAt < 0 ? '-' : mine[worstAt]}, '
+          'Impeller ${worstAt < 0 ? '-' : kImpellerPlain[worstAt]}',
+    );
+    expect(
+      total / mine.length,
+      lessThan(0.3),
+      reason: 'the two disagree across the whole frame, not at one edge',
+    );
 
     // Kept alongside the numbers, because they fail differently. A mirrored
     // frame moves the picture and the mean goes up; these say *which way* it
@@ -144,20 +157,34 @@ void main() {
     // The small sphere, up and to the right. The asymmetry the fixture exists
     // for: a mirrored frame puts it down and to the left and every average
     // stays the same.
-    expect(bright(mine, 2, 12), isTrue,
-        reason: 'the small sphere is not up and to the right — a mirrored '
-            'frame, or a depth convention that culled it');
-    expect(bright(mine, 13, 3), isFalse,
-        reason: 'something is lit where the mirror of the small sphere would '
-            'be');
+    expect(
+      bright(mine, 2, 12),
+      isTrue,
+      reason:
+          'the small sphere is not up and to the right — a mirrored '
+          'frame, or a depth convention that culled it',
+    );
+    expect(
+      bright(mine, 13, 3),
+      isFalse,
+      reason:
+          'something is lit where the mirror of the small sphere would '
+          'be',
+    );
 
     // The large sphere's lit face, and its unlit edge.
     expect(bright(mine, 8, 7), isTrue, reason: 'the large sphere is not lit');
-    expect(bright(mine, 8, 1), isFalse,
-        reason: 'the background beside the sphere is not background');
+    expect(
+      bright(mine, 8, 1),
+      isFalse,
+      reason: 'the background beside the sphere is not background',
+    );
 
     // Lit from above: row 5 of the big sphere is brighter than row 11.
-    expect(mine[5 * kParityGrid + 8], greaterThan(mine[11 * kParityGrid + 8]),
-        reason: 'the light is coming from below');
+    expect(
+      mine[5 * kParityGrid + 8],
+      greaterThan(mine[11 * kParityGrid + 8]),
+      reason: 'the light is coming from below',
+    );
   });
 }

@@ -57,8 +57,11 @@ void main() {
       scene: scene,
       views: <RenderView>[RenderView(camera: camera)],
     );
-    expect(renderer.pipelineCount, greaterThan(0),
-        reason: 'drawing the floor should have built its pipeline');
+    expect(
+      renderer.pipelineCount,
+      greaterThan(0),
+      reason: 'drawing the floor should have built its pipeline',
+    );
 
     renderer.dispose();
 

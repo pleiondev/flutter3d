@@ -57,8 +57,11 @@ void main() {
       // Mutation: halve the side before the first level instead of inside the
       // loop — the chain starts at a quarter and the upload refuses it, but by
       // then the failure is a null texture rather than a named size.
-      final chain =
-          EnvironmentMap.prefilter(_colouredFaces(), size: _size, levels: 3);
+      final chain = EnvironmentMap.prefilter(
+        _colouredFaces(),
+        size: _size,
+        levels: 3,
+      );
 
       expect(chain, isNotNull);
       expect(chain!, hasLength(3));
@@ -67,8 +70,11 @@ void main() {
         side = side ~/ 2;
         expect(level, hasLength(6), reason: 'a cube level has six faces');
         for (final face in level) {
-          expect(face.lengthInBytes, side * side * 4,
-              reason: 'level side should be $side');
+          expect(
+            face.lengthInBytes,
+            side * side * 4,
+            reason: 'level side should be $side',
+          );
         }
       }
     });
@@ -78,14 +84,16 @@ void main() {
       // before a device is involved.
       expect(EnvironmentMap.prefilter(<ByteData>[], size: _size), isNull);
       expect(
-          EnvironmentMap.prefilter(_colouredFaces().sublist(0, 5), size: _size),
-          isNull);
-      expect(EnvironmentMap.prefilter(_colouredFaces(), size: _size + 1),
-          isNull);
+        EnvironmentMap.prefilter(_colouredFaces().sublist(0, 5), size: _size),
+        isNull,
+      );
+      expect(
+        EnvironmentMap.prefilter(_colouredFaces(), size: _size + 1),
+        isNull,
+      );
     });
 
-    test('and keeps each face nearest its own colour at the first level',
-        () async {
+    test('and keeps each face nearest its own colour at the first level', () async {
       // **This is the seam check.** The convolution gathers along directions it
       // computes itself, and the sampler resolves directions to faces by its
       // own mapping; if the two disagree, +X ends up carrying −Z's colour and
@@ -96,8 +104,11 @@ void main() {
       //
       // Mutation: transpose any two cases in `_directionFor`, or flip a sign in
       // one — the dominant channel moves to another face and this fails.
-      final chain =
-          EnvironmentMap.prefilter(_colouredFaces(), size: _size, levels: 3)!;
+      final chain = EnvironmentMap.prefilter(
+        _colouredFaces(),
+        size: _size,
+        levels: 3,
+      )!;
       final first = chain.first;
       const side = _size ~/ 2;
       const middle = side ~/ 2;
@@ -123,8 +134,11 @@ void main() {
       //
       // Mutation: use the same roughness for every level — the two distances
       // come out equal and this fails.
-      final chain =
-          EnvironmentMap.prefilter(_colouredFaces(16), size: 16, levels: 4)!;
+      final chain = EnvironmentMap.prefilter(
+        _colouredFaces(16),
+        size: 16,
+        levels: 4,
+      )!;
 
       double spreadOf(List<ByteData> level, int side) {
         final centre = _texel(level, 0, side, side ~/ 2, side ~/ 2);
@@ -137,8 +151,11 @@ void main() {
 
       final sharp = spreadOf(chain[0], 8);
       final rough = spreadOf(chain[3], 1);
-      expect(rough, lessThan(sharp),
-          reason: 'the roughest level is nearest the environment average');
+      expect(
+        rough,
+        lessThan(sharp),
+        reason: 'the roughest level is nearest the environment average',
+      );
     });
 
     test('and is the same bytes every time it is built', () {
@@ -148,15 +165,23 @@ void main() {
       //
       // Mutation: replace the spiral with `Random()` draws — this fails, and
       // nothing else in the suite would.
-      final first =
-          EnvironmentMap.prefilter(_colouredFaces(), size: _size, levels: 2)!;
-      final again =
-          EnvironmentMap.prefilter(_colouredFaces(), size: _size, levels: 2)!;
+      final first = EnvironmentMap.prefilter(
+        _colouredFaces(),
+        size: _size,
+        levels: 2,
+      )!;
+      final again = EnvironmentMap.prefilter(
+        _colouredFaces(),
+        size: _size,
+        levels: 2,
+      )!;
 
       for (var level = 0; level < first.length; level++) {
         for (var face = 0; face < 6; face++) {
-          expect(first[level][face].buffer.asUint8List(),
-              equals(again[level][face].buffer.asUint8List()));
+          expect(
+            first[level][face].buffer.asUint8List(),
+            equals(again[level][face].buffer.asUint8List()),
+          );
         }
       }
     });

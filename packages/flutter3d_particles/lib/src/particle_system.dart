@@ -43,13 +43,14 @@ final class ParticleSystem {
   /// `math.Random` cannot be re-seeded and per-particle streams need to be.
   /// Passing one is deprecated; pass a seed.
   ParticleSystem({this.capacity = 2048, math.Random? random, int? seed})
-      : _random = ParticleRandom(
-            seed ?? random?.nextInt(0x7FFFFFFF) ?? _defaultSeed),
-        _pool = List<Particle>.generate(
-          capacity,
-          (_) => Particle(),
-          growable: false,
-        );
+    : _random = ParticleRandom(
+        seed ?? random?.nextInt(0x7FFFFFFF) ?? _defaultSeed,
+      ),
+      _pool = List<Particle>.generate(
+        capacity,
+        (_) => Particle(),
+        growable: false,
+      );
 
   /// The most particles that can be alive at once. Reached by dropping new
   /// ones, never by growing — a pool that grows under load allocates during
@@ -211,8 +212,13 @@ final class ParticleSystem {
       return;
     }
     if (key is LightEmitter) _emitters.add(key);
-    _rates[key] =
-        Emission(effect, origin.clone(), perSecond, direction, seconds);
+    _rates[key] = Emission(
+      effect,
+      origin.clone(),
+      perSecond,
+      direction,
+      seconds,
+    );
   }
 
   /// Advances the simulation by [dt] in fixed sub-steps.
@@ -277,8 +283,12 @@ final class ParticleSystem {
       final whole = owed.floor();
       _owed[entry.key] = owed - whole;
       for (var i = 0; i < whole; i++) {
-        _emitOne(emission.effect, emission.origin, emission.direction,
-            entry.key);
+        _emitOne(
+          emission.effect,
+          emission.origin,
+          emission.direction,
+          entry.key,
+        );
       }
     }
     // Removed after the walk, not during it: mutating the map being iterated
@@ -612,5 +622,3 @@ final class ParticleSystem {
     return written;
   }
 }
-
-

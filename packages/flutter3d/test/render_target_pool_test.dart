@@ -21,13 +21,13 @@ final class _FakeAllocator implements TextureAllocator {
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec) => fakeTexture(
-        'created ${created++}',
-        width: spec.width,
-        height: spec.height,
-        format: spec.format,
-        sampleCount: spec.sampleCount,
-        storageMode: spec.storageMode,
-      );
+    'created ${created++}',
+    width: spec.width,
+    height: spec.height,
+    format: spec.format,
+    sampleCount: spec.sampleCount,
+    storageMode: spec.storageMode,
+  );
 }
 
 /// A texture handle over an ordinary object.
@@ -41,15 +41,14 @@ TextureHandle fakeTexture(
   TextureFormat format = TextureFormat.r16g16b16a16Float,
   int sampleCount = 1,
   StorageMode storageMode = StorageMode.devicePrivate,
-}) =>
-    TextureHandle(
-      backend: label,
-      width: width,
-      height: height,
-      format: format,
-      sampleCount: sampleCount,
-      storageMode: storageMode,
-    );
+}) => TextureHandle(
+  backend: label,
+  width: width,
+  height: height,
+  format: format,
+  sampleCount: sampleCount,
+  storageMode: storageMode,
+);
 
 void main() {
   group('the pool, now that it can be run without a device', () {

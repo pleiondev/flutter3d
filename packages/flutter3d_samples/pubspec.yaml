@@ -1,0 +1,57 @@
+name: flutter3d_samples
+description: >-
+  The models flutter3d's decoders are tested against and its demo browses: the
+  official Khronos glTF sample assets, the Utah teapot, and the .f3d files
+  converted from them.
+version: 0.3.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - gltf
+  - assets
+  - testing
+publish_to: 'none'
+resolution: workspace
+
+# **A package of fixtures, and it is here because of what it costs anywhere
+# else.** These files lived in `flutter3d` and were declared in its
+# `flutter.assets`, which had two consequences nobody chose: every application
+# that depended on the engine bundled 4.1 MB of Khronos test models it never
+# loads — measured in a web build of the shooter, where they were a third of the
+# asset payload — and the engine's own published archive was 7.3 MB of which
+# four fifths were somebody else's test data.
+#
+# Splitting them out rather than deleting them, because they are load-bearing
+# twice over: `flutter3d/test` reads them from disk as the fixtures for every
+# decoder path, and `flutter3d/example` browses them as the demo's model list.
+# What changes is who pays. A game depends on the engine and gets no fixtures; a
+# test or a demo depends on this and asks for them by name.
+#
+# The models are not ours and keep their own terms — see `assets/ATTRIBUTION.md`,
+# which travels with them. Everything there is CC0 or public domain.
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # For `flutter.assets` below, and for nothing else: there is no Dart here
+  # beyond the two paths in `lib/flutter3d_samples.dart`.
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  assets:
+    # Each subdirectory named separately, because Flutter's asset globbing does
+    # not recurse — a directory entry takes the files directly in it and none of
+    # the ones below.
+    - assets/
+    - assets/cube/
+    - assets/animated_cube/
+    - assets/f3d/
+    - assets/simple_skin/

@@ -55,19 +55,24 @@ void main() {
 
     test('averages its four texels rather than picking one', () {
       // A 2x2 of 0, 100, 200, 255 comes to 138.75, which rounds to 139.
-      final base = ByteData.sublistView(Uint8List.fromList(<int>[
-        0, 0, 0, 0, //
-        100, 100, 100, 100,
-        200, 200, 200, 200,
-        255, 255, 255, 255,
-      ]));
+      final base = ByteData.sublistView(
+        Uint8List.fromList(<int>[
+          0, 0, 0, 0, //
+          100, 100, 100, 100,
+          200, 200, 200, 200,
+          255, 255, 255, 255,
+        ]),
+      );
       final levels = MipChain.build(base, 2, 2);
       expect(levels, hasLength(1));
       final one = levels.single.buffer.asUint8List(levels.single.offsetInBytes);
       expect(one, hasLength(4));
       for (final byte in one) {
-        expect(byte, 139,
-            reason: 'a nearest-texel filter would answer 0, 100, 200 or 255');
+        expect(
+          byte,
+          139,
+          reason: 'a nearest-texel filter would answer 0, 100, 200 or 255',
+        );
       }
     });
 
@@ -76,12 +81,14 @@ void main() {
       // bytes without the stride would blend red into green, which on a normal
       // map is a surface that leans the wrong way rather than one that looks
       // blurry.
-      final base = ByteData.sublistView(Uint8List.fromList(<int>[
-        10, 20, 30, 40, //
-        10, 20, 30, 40,
-        30, 40, 50, 60,
-        30, 40, 50, 60,
-      ]));
+      final base = ByteData.sublistView(
+        Uint8List.fromList(<int>[
+          10, 20, 30, 40, //
+          10, 20, 30, 40,
+          30, 40, 50, 60,
+          30, 40, 50, 60,
+        ]),
+      );
       final one = MipChain.build(base, 2, 2).single;
       final bytes = one.buffer.asUint8List(one.offsetInBytes);
       expect(bytes, <int>[20, 30, 40, 50]);

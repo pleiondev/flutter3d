@@ -30,7 +30,6 @@ import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 
-
 /// A joint that counts how often the pose was evaluated from it.
 ///
 /// [Skeleton.update] is the only thing in a frame that wants a joint's whole
@@ -97,9 +96,9 @@ final class _CountingJoint extends SceneNode {
   final box = MeshNode(
     DeviceMesh.upload(
       device,
-      CuboidShape(size: Vector3.all(2.0)).build(
-        layout: skinned ? VertexLayout.skinned : VertexLayout.standard,
-      ),
+      CuboidShape(
+        size: Vector3.all(2.0),
+      ).build(layout: skinned ? VertexLayout.skinned : VertexLayout.standard),
     ),
     Material(name: 'box'),
     name: 'box',
@@ -133,18 +132,18 @@ final class _CountingJoint extends SceneNode {
 }
 
 TextureHandle _texel(FakeBackend device) => device.createTexture(
-      const RenderTargetSpec(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-      ),
-    );
+  const RenderTargetSpec(
+    width: 1,
+    height: 1,
+    format: TextureFormat.r8g8b8a8UNormInt,
+  ),
+);
 
 Renderer _renderer(FakeBackend device) => Renderer.create(
-      device: device,
-      fallbackAlbedo: _texel(device),
-      fallbackNormal: _texel(device),
-    );
+  device: device,
+  fallbackAlbedo: _texel(device),
+  fallbackNormal: _texel(device),
+);
 
 /// The pass the two atlases are drawn into, told apart from every other pass in
 /// the frame by the fragment stage it binds.
@@ -153,10 +152,10 @@ Renderer _renderer(FakeBackend device) => Renderer.create(
 /// name ends in it identifies the pass without the test having to know how many
 /// passes a frame opens or in what order.
 Iterable<FakePass> _atlasPasses(FakeBackend device) => device.passes.where(
-      (pass) => pass
-          .recordedOf<RecordedPipeline>()
-          .any((p) => p.pipeline.name.endsWith('+ShadowDistance')),
-    );
+  (pass) => pass.recordedOf<RecordedPipeline>().any(
+    (p) => p.pipeline.name.endsWith('+ShadowDistance'),
+  ),
+);
 
 void main() {
   group('a skinned caster in the point light atlas', () {
@@ -182,12 +181,15 @@ void main() {
       draw(skinned: true);
       final skinnedDraws = <RecordedPipeline>[
         for (final pass in _atlasPasses(device))
-          ...pass
-              .recordedOf<RecordedPipeline>()
-              .where((p) => p.pipeline.name.startsWith('MeshSkinnedVertex+')),
+          ...pass.recordedOf<RecordedPipeline>().where(
+            (p) => p.pipeline.name.startsWith('MeshSkinnedVertex+'),
+          ),
       ];
-      expect(skinnedDraws, isNotEmpty,
-          reason: 'the rigged caster never reached the atlas');
+      expect(
+        skinnedDraws,
+        isNotEmpty,
+        reason: 'the rigged caster never reached the atlas',
+      );
     });
 
     test('it goes through the skinned stage paired with ShadowDistance', () {
@@ -203,8 +205,11 @@ void main() {
           for (final p in pass.recordedOf<RecordedPipeline>()) p.pipeline.name,
       };
       expect(names, contains('MeshSkinnedVertex+ShadowDistance'));
-      expect(names, isNot(contains('MeshSkinnedVertex+ShadowDepth')),
-          reason: 'that is the cascade pass\'s pipeline, not this one\'s');
+      expect(
+        names,
+        isNot(contains('MeshSkinnedVertex+ShadowDepth')),
+        reason: 'that is the cascade pass\'s pipeline, not this one\'s',
+      );
     });
 
     test('the joints reach the shader on every skinned draw', () {
@@ -222,8 +227,11 @@ void main() {
             .recordedOf<RecordedUniformBlock>()
             .where((u) => u.block == 'SkinInfo')
             .length;
-        expect(skinUploads, skinnedDraws,
-            reason: 'every skinned draw needs the pose bound to it');
+        expect(
+          skinUploads,
+          skinnedDraws,
+          reason: 'every skinned draw needs the pose bound to it',
+        );
       }
     });
 
@@ -264,17 +272,21 @@ void main() {
           scene: scene,
           views: <RenderView>[RenderView(camera: camera)],
         );
-        counts.add(device.passes
-            .skip(before)
-            // The atlas passes only. The scene pass draws the same character
-            // through its own skinned pipeline every frame, and counting that
-            // would make an atlas that redrew nothing look like one that did.
-            .where((pass) => pass
-                .recordedOf<RecordedPipeline>()
-                .any((p) => p.pipeline.name.endsWith('+ShadowDistance')))
-            .expand((pass) => pass.recordedOf<RecordedPipeline>())
-            .where((p) => p.pipeline.name.startsWith('MeshSkinnedVertex+'))
-            .length);
+        counts.add(
+          device.passes
+              .skip(before)
+              // The atlas passes only. The scene pass draws the same character
+              // through its own skinned pipeline every frame, and counting that
+              // would make an atlas that redrew nothing look like one that did.
+              .where(
+                (pass) => pass.recordedOf<RecordedPipeline>().any(
+                  (p) => p.pipeline.name.endsWith('+ShadowDistance'),
+                ),
+              )
+              .expand((pass) => pass.recordedOf<RecordedPipeline>())
+              .where((p) => p.pipeline.name.startsWith('MeshSkinnedVertex+'))
+              .length,
+        );
         between();
       }
       return counts;
@@ -295,8 +307,11 @@ void main() {
         between: () => built.joint.setPosition(0.8, 0.0, 0.0),
       );
       expect(counts.first, greaterThan(0), reason: 'nothing was drawn at all');
-      expect(counts.last, greaterThan(0),
-          reason: 'the pose moved and the atlas was not redrawn');
+      expect(
+        counts.last,
+        greaterThan(0),
+        reason: 'the pose moved and the atlas was not redrawn',
+      );
     });
 
     test('a character standing still costs no redraw', () {
@@ -345,8 +360,11 @@ void main() {
       expect(skinnedDraws, 6);
       // Two: once for the atlas pass and once for the scene pass, which poses
       // the same character again to draw it.
-      expect(built.joint.poseReads, lessThan(skinnedDraws),
-          reason: 'the pose was recomputed for every face');
+      expect(
+        built.joint.poseReads,
+        lessThan(skinnedDraws),
+        reason: 'the pose was recomputed for every face',
+      );
     });
   });
 
@@ -395,9 +413,13 @@ void main() {
         return false;
       });
 
-      expect(carried, isTrue,
-          reason: 'the atlas was given a pose that does not contain the '
-              'joint\'s 3 m offset, so it is drawing the bind pose');
+      expect(
+        carried,
+        isTrue,
+        reason:
+            'the atlas was given a pose that does not contain the '
+            'joint\'s 3 m offset, so it is drawing the bind pose',
+      );
     });
   });
 }

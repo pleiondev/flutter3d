@@ -83,24 +83,31 @@ void main() {
       }
     });
 
-    test('a transformed box follows the rotation rather than re-axis-aligning',
-        () {
-      final draw = DebugDraw();
-      final unitCube =
-          Aabb3.minMax(Vector3(-0.5, -0.5, -0.5), Vector3(0.5, 0.5, 0.5));
-      // 45 degrees about Y: an axis-aligned box would gain half-extents of
-      // sqrt(0.5) in x and z, the rotated one keeps corners at that radius but
-      // has vertices exactly on the axes.
-      draw.addTransformedBox(unitCube, Matrix4.rotationY(math.pi / 4), red);
+    test(
+      'a transformed box follows the rotation rather than re-axis-aligning',
+      () {
+        final draw = DebugDraw();
+        final unitCube = Aabb3.minMax(
+          Vector3(-0.5, -0.5, -0.5),
+          Vector3(0.5, 0.5, 0.5),
+        );
+        // 45 degrees about Y: an axis-aligned box would gain half-extents of
+        // sqrt(0.5) in x and z, the rotated one keeps corners at that radius but
+        // has vertices exactly on the axes.
+        draw.addTransformedBox(unitCube, Matrix4.rotationY(math.pi / 4), red);
 
-      var onAxis = 0;
-      for (var i = 0; i < draw.vertexCount; i++) {
-        final p = _vertexAt(draw, i).position;
-        expect(math.sqrt(p.x * p.x + p.z * p.z), closeTo(math.sqrt(0.5), 1e-6));
-        if (p.x.abs() < 1e-6 || p.z.abs() < 1e-6) onAxis++;
-      }
-      expect(onAxis, greaterThan(0));
-    });
+        var onAxis = 0;
+        for (var i = 0; i < draw.vertexCount; i++) {
+          final p = _vertexAt(draw, i).position;
+          expect(
+            math.sqrt(p.x * p.x + p.z * p.z),
+            closeTo(math.sqrt(0.5), 1e-6),
+          );
+          if (p.x.abs() < 1e-6 || p.z.abs() < 1e-6) onAxis++;
+        }
+        expect(onAxis, greaterThan(0));
+      },
+    );
   });
 
   group('frustum', () {
@@ -248,10 +255,16 @@ void main() {
       draw.clipToNearPlane(lookingDownNegativeZ());
       final ends = endsOf(draw);
 
-      expect(ends.az, lessThanOrEqualTo(0.0),
-          reason: 'the end behind the camera stayed behind it');
-      expect(ends.az, greaterThan(-0.01),
-          reason: 'it was cut far past the crossing: ${ends.az}');
+      expect(
+        ends.az,
+        lessThanOrEqualTo(0.0),
+        reason: 'the end behind the camera stayed behind it',
+      );
+      expect(
+        ends.az,
+        greaterThan(-0.01),
+        reason: 'it was cut far past the crossing: ${ends.az}',
+      );
       expect(ends.bz, -5.0, reason: 'the end in front moved');
     });
 

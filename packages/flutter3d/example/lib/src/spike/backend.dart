@@ -16,5 +16,4 @@
 /// cannot be compiled for this target.
 library;
 
-export 'backend_impeller.dart'
-    if (dart.library.js_interop) 'backend_web.dart';
+export 'backend_impeller.dart' if (dart.library.js_interop) 'backend_web.dart';

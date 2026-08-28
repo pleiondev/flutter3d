@@ -13,7 +13,7 @@ import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
 
 /// Atlas rows, from `kShadowSlots` in `surface.glsl`.
-const int shadowSlots = 4;
+const int shadowSlots = 6;
 
 /// The Poisson disk the cube filter rotates, from `PointShadowDiskTap`.
 const List<List<double>> diskTaps = <List<double>>[
@@ -33,8 +33,17 @@ const List<List<double>> diskTaps = <List<double>>[
 /// tile individually. Clamping the centre and then offsetting would let the
 /// outer taps walk into a distance measured from a different face, or from a
 /// different light.
-double atlasDistance(ShaderBindings b, double u, double v, double ox,
-    double oy, double tileX, double tileY, double range, double inset) {
+double atlasDistance(
+  ShaderBindings b,
+  double u,
+  double v,
+  double ox,
+  double oy,
+  double tileX,
+  double tileY,
+  double range,
+  double inset,
+) {
   final localU = (u + ox).clamp(inset, 1.0 - inset);
   final localV = (v + oy).clamp(inset, 1.0 - inset);
   final atlasU = (localU + tileX) / 6.0;
@@ -54,10 +63,18 @@ double atlasDistance(ShaderBindings b, double u, double v, double ox,
 
 /// `PointShadowFactor`: how lit a point is by the light that owns the atlas.
 double pointShadowFactor(
-    ShaderBindings b, Vector3 world, Vector3 normal, int lightIndex,
-    FragmentContext c) {
-  final slotEntry =
-      b.vec4('PointShadow', 'slots', Vector4(-1, 0, 0, 0), at: lightIndex);
+  ShaderBindings b,
+  Vector3 world,
+  Vector3 normal,
+  int lightIndex,
+  FragmentContext c,
+) {
+  final slotEntry = b.vec4(
+    'PointShadow',
+    'slots',
+    Vector4(-1, 0, 0, 0),
+    at: lightIndex,
+  );
   if (slotEntry.x < 0.0) return 1.0;
   final slot = (slotEntry.x + 0.5).floor();
 
@@ -75,10 +92,20 @@ double pointShadowFactor(
   final toLight = lightPos - world;
   final toLightLength = math.max(toLight.length, 1e-6);
   final nDotL = math.max(normal.dot(toLight / toLightLength), 0.15);
-  final slope =
-      math.min(math.sqrt(math.max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL),
-          8.0);
-  final origin = world + normal * (params.w * (1.0 + slope));
+  final slope = math.min(
+    math.sqrt(math.max(1.0 - nDotL * nDotL, 0.0)) / (nDotL * nDotL),
+    8.0,
+  );
+  // The world width of one texel of the face this fragment lands on, which is
+  // the error a normal offset exists to clear: a texel covers a patch of
+  // surface, the patch is recorded at one distance, and a fragment elsewhere in
+  // it compares against a distance measured somewhere it is not. It grows with
+  // range, so the offset is in texels rather than in metres — see the note on
+  // `ShadowSettings.pointNormalOffset` for what a fixed one did to the floor
+  // under the golden teapot.
+  final params3 = b.vec4('PointShadow', 'params3', Vector4.zero());
+  final texel = 2.0 * toLightLength * math.max(slotEntry.z, 1e-4) * params3.y;
+  final origin = world + normal * (texel * params.w * (1.0 + slope));
   final toFragment = origin - lightPos;
   final distance = toFragment.length;
   final range = math.max(light.w, 1e-4);
@@ -92,8 +119,11 @@ double pointShadowFactor(
   if (slotEntry.y >= 0.5) {
     face = 0;
   } else {
-    final a =
-        Vector3(toFragment.x.abs(), toFragment.y.abs(), toFragment.z.abs());
+    final a = Vector3(
+      toFragment.x.abs(),
+      toFragment.y.abs(),
+      toFragment.z.abs(),
+    );
     if (a.x >= a.y && a.x >= a.z) {
       face = toFragment.x > 0.0 ? 0 : 1;
     } else if (a.y >= a.z) {
@@ -121,8 +151,9 @@ double pointShadowFactor(
 
   // One rotation per fragment, shared by the search and the filter, so eight
   // samples read as a soft edge rather than as eight copies of the silhouette.
-  final noise = fract(52.9829189 *
-      fract(c.coord.x * 0.06711056 + c.coord.y * 0.00583715));
+  final noise = fract(
+    52.9829189 * fract(c.coord.x * 0.06711056 + c.coord.y * 0.00583715),
+  );
   final angle = noise * 6.28318530718;
   final ca = math.cos(angle);
   final sa = math.sin(angle);
@@ -151,8 +182,17 @@ double pointShadowFactor(
       final p = diskTaps[i];
       final ox = (p[0] * ca - p[1] * sa) * maxRadius;
       final oy = (p[0] * sa + p[1] * ca) * maxRadius;
-      final stored =
-          atlasDistance(b, u, vv, ox, oy, tileX, tileY, range, inset);
+      final stored = atlasDistance(
+        b,
+        u,
+        vv,
+        ox,
+        oy,
+        tileX,
+        tileY,
+        range,
+        inset,
+      );
       if (stored >= range * 0.999) continue;
       if (stored >= receiver) continue;
       sum += stored;
@@ -161,12 +201,15 @@ double pointShadowFactor(
     // Nothing in front of this fragment anywhere in the search.
     if (count < 0.5) return 1.0;
     final blocker = math.max(sum / count, 1e-4);
-    final worldWidth = lightRadius * math.max(receiver - blocker, 0.0) / blocker;
+    final worldWidth =
+        lightRadius * math.max(receiver - blocker, 0.0) / blocker;
     // `2 * r` is the span of a right-angled frustum at distance r; in general
     // it is `2 * r * tan(θ/2)`. A narrower cone covers less world per tile, so
     // the same width is a larger fraction of it.
-    radius =
-        (worldWidth / (2.0 * receiver * tanHalf)).clamp(minRadius, maxRadius);
+    radius = (worldWidth / (2.0 * receiver * tanHalf)).clamp(
+      minRadius,
+      maxRadius,
+    );
   }
 
   double tap(double ox, double oy) {
@@ -180,8 +223,10 @@ double pointShadowFactor(
   if (radius > 0.0) {
     for (var i = 0; i < 8; i++) {
       final p = diskTaps[i];
-      lit += tap((p[0] * ca - p[1] * sa) * radius,
-          (p[0] * sa + p[1] * ca) * radius);
+      lit += tap(
+        (p[0] * ca - p[1] * sa) * radius,
+        (p[0] * sa + p[1] * ca) * radius,
+      );
     }
     lit /= 9.0;
   }

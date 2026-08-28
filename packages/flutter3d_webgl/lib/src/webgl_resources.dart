@@ -147,7 +147,9 @@ TextureHandle webglCreateTexture(
       );
     }
     return webglTextureHandle(
-        WebGlTexture(renderbuffer: buffer, rendered: rendered), spec);
+      WebGlTexture(renderbuffer: buffer, rendered: rendered),
+      spec,
+    );
   }
 
   final texture = gl.createTexture();
@@ -161,7 +163,9 @@ TextureHandle webglCreateTexture(
     spec.height,
   );
   return webglTextureHandle(
-      WebGlTexture(texture: texture, rendered: rendered), spec);
+    WebGlTexture(texture: texture, rendered: rendered),
+    spec,
+  );
 }
 
 /// A texture already holding [pixels] and, optionally, [mipLevels] below it.
@@ -228,8 +232,11 @@ TextureHandle? webglCreateTextureFromPixels(
     // and just as silent. `glGenerateMipmap` is deliberately not called: the
     // levels are the engine's, identical on three backends, and generating a
     // second set here would put this backend one filter away from the others.
-    gl.texParameteri(web.WebGLRenderingContext.TEXTURE_2D,
-        web.WebGL2RenderingContext.TEXTURE_MAX_LEVEL, mipLevels.length);
+    gl.texParameteri(
+      web.WebGLRenderingContext.TEXTURE_2D,
+      web.WebGL2RenderingContext.TEXTURE_MAX_LEVEL,
+      mipLevels.length,
+    );
   }
   return handle;
 }

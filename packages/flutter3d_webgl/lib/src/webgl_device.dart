@@ -171,7 +171,11 @@ final class WebGlDevice implements GraphicsDevice {
     }
     _disposed = true;
     webglDisposePersistentResources(
-        _gl, _persistentTextures, _persistentRenderbuffers, _persistentBuffers);
+      _gl,
+      _persistentTextures,
+      _persistentRenderbuffers,
+      _persistentBuffers,
+    );
   }
 
   /// Whether half-float textures may be filtered linearly here. Diagnostic:
@@ -241,17 +245,21 @@ final class WebGlDevice implements GraphicsDevice {
     required TextureFormat format,
     required List<ByteData> faces,
     List<List<ByteData>>? mipLevels,
-  }) =>
-      webglCreateCubeTextureFromPixels(_gl, _persistentTextures,
-          size: size, format: format, faces: faces, mipLevels: mipLevels);
+  }) => webglCreateCubeTextureFromPixels(
+    _gl,
+    _persistentTextures,
+    size: size,
+    format: format,
+    faces: faces,
+    mipLevels: mipLevels,
+  );
 
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutSpec? layout,
-  }) =>
-      _library.link(vertex, fragment, layout: layout);
+  }) => _library.link(vertex, fragment, layout: layout);
 
   @override
   GeometryBuffer uploadGeometry(ByteData bytes, GeometryUsage usage) =>
@@ -260,8 +268,12 @@ final class WebGlDevice implements GraphicsDevice {
   @override
   TextureHandle createTexture(RenderTargetSpec spec, {int levels = 1}) =>
       webglCreateTexture(
-          _gl, _persistentTextures, _persistentRenderbuffers, spec,
-          levels: levels);
+        _gl,
+        _persistentTextures,
+        _persistentRenderbuffers,
+        spec,
+        levels: levels,
+      );
 
   @override
   TextureHandle? createTextureFromPixels({
@@ -270,17 +282,16 @@ final class WebGlDevice implements GraphicsDevice {
     required TextureFormat format,
     required ByteData pixels,
     List<ByteData>? mipLevels,
-  }) =>
-      webglCreateTextureFromPixels(
-        _gl,
-        _persistentTextures,
-        _persistentRenderbuffers,
-        width: width,
-        height: height,
-        format: format,
-        pixels: pixels,
-        mipLevels: mipLevels,
-      );
+  }) => webglCreateTextureFromPixels(
+    _gl,
+    _persistentTextures,
+    _persistentRenderbuffers,
+    width: width,
+    height: height,
+    format: format,
+    pixels: pixels,
+    mipLevels: mipLevels,
+  );
 
   /// Nothing to rotate.
   ///
@@ -334,11 +345,12 @@ final class WebGlDevice implements GraphicsDevice {
         BoxFit.contain => 'contain',
         BoxFit.cover => 'cover',
         BoxFit.fill => 'fill',
-        BoxFit.fitWidth || BoxFit.fitHeight || BoxFit.none || BoxFit.scaleDown =>
-          'contain',
+        BoxFit.fitWidth ||
+        BoxFit.fitHeight ||
+        BoxFit.none ||
+        BoxFit.scaleDown => 'contain',
       }
-      ..imageRendering =
-          quality == FilterQuality.none ? 'pixelated' : 'auto';
+      ..imageRendering = quality == FilterQuality.none ? 'pixelated' : 'auto';
     return HtmlElementView(viewType: viewType);
   }
 
@@ -352,8 +364,10 @@ final class WebGlDevice implements GraphicsDevice {
 
   String _register() {
     final type = 'flutter3d-webgl-${identityHashCode(this)}';
-    ui_web.platformViewRegistry
-        .registerViewFactory(type, (int viewId) => _canvas);
+    ui_web.platformViewRegistry.registerViewFactory(
+      type,
+      (int viewId) => _canvas,
+    );
     return type;
   }
 
@@ -391,10 +405,15 @@ final class WebGlDevice implements GraphicsDevice {
   void _blitToCanvas(TextureHandle frame) {
     final source = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, source);
-    attachToFramebuffer(_gl, web.WebGL2RenderingContext.READ_FRAMEBUFFER,
-        web.WebGLRenderingContext.COLOR_ATTACHMENT0, frame);
-    final status =
-        _gl.checkFramebufferStatus(web.WebGL2RenderingContext.READ_FRAMEBUFFER);
+    attachToFramebuffer(
+      _gl,
+      web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+      web.WebGLRenderingContext.COLOR_ATTACHMENT0,
+      frame,
+    );
+    final status = _gl.checkFramebufferStatus(
+      web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+    );
     if (status != web.WebGLRenderingContext.FRAMEBUFFER_COMPLETE) {
       throw StateError(
         'the frame cannot be read for presenting: ${debugFramebufferStatus()}',
@@ -422,8 +441,14 @@ final class WebGlDevice implements GraphicsDevice {
     // not — the two are one decision made once, and splitting them is how a
     // frame comes back right and presents upside down.
     _gl.blitFramebuffer(
-      0, 0, frame.width, frame.height, //
-      0, 0, _canvas.width, _canvas.height, //
+      0,
+      0,
+      frame.width,
+      frame.height, //
+      0,
+      0,
+      _canvas.width,
+      _canvas.height, //
       web.WebGLRenderingContext.COLOR_BUFFER_BIT,
       web.WebGLRenderingContext.NEAREST,
     );
@@ -437,9 +462,16 @@ final class WebGlDevice implements GraphicsDevice {
     if (!backend.isSampleable && backend.renderbuffer == null) return null;
 
     final framebuffer = _gl.createFramebuffer();
-    _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, framebuffer);
-    attachToFramebuffer(_gl, web.WebGL2RenderingContext.READ_FRAMEBUFFER,
-        web.WebGLRenderingContext.COLOR_ATTACHMENT0, texture);
+    _gl.bindFramebuffer(
+      web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+      framebuffer,
+    );
+    attachToFramebuffer(
+      _gl,
+      web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+      web.WebGLRenderingContext.COLOR_ATTACHMENT0,
+      texture,
+    );
 
     final pixels = Uint8List(texture.width * texture.height * 4);
     final js = pixels.toJS;
@@ -513,8 +545,9 @@ final class WebGlDevice implements GraphicsDevice {
 
   /// Whether the currently bound framebuffer can be drawn to, in words.
   String debugFramebufferStatus() {
-    final status =
-        _gl.checkFramebufferStatus(web.WebGLRenderingContext.FRAMEBUFFER);
+    final status = _gl.checkFramebufferStatus(
+      web.WebGLRenderingContext.FRAMEBUFFER,
+    );
     return switch (status) {
       web.WebGLRenderingContext.FRAMEBUFFER_COMPLETE => 'complete',
       web.WebGLRenderingContext.FRAMEBUFFER_INCOMPLETE_ATTACHMENT =>

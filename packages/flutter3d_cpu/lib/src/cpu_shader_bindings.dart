@@ -32,8 +32,12 @@ final class ShaderBindings {
   Vector4 vec4(String block, String member, Vector4 fallback, {int at = 0}) {
     final data = read(block, member);
     if (data == null || data.length < at * 4 + 4) return fallback;
-    return Vector4(data[at * 4], data[at * 4 + 1], data[at * 4 + 2],
-        data[at * 4 + 3]);
+    return Vector4(
+      data[at * 4],
+      data[at * 4 + 1],
+      data[at * 4 + 2],
+      data[at * 4 + 3],
+    );
   }
 
   /// [member] of [block] as a matrix, or the identity.
@@ -41,6 +45,7 @@ final class ShaderBindings {
     final data = read(block, member);
     if (data == null || data.length < at * 16 + 16) return Matrix4.identity();
     return Matrix4.fromList(
-        List<double>.generate(16, (i) => data[at * 16 + i]));
+      List<double>.generate(16, (i) => data[at * 16 + i]),
+    );
   }
 }

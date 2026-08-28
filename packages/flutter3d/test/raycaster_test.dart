@@ -9,10 +9,10 @@ import 'package:vector_math/vector_math.dart' hide Ray;
 /// A unit cube on the CPU: no GPU anywhere in this file, which is the point of
 /// [MeshGeometry].
 MeshNode cubeNode({String? name, Vector3? size}) => MeshNode(
-      CpuMesh(CuboidShape(size: size ?? Vector3.all(1.0)).build()),
-      Material(),
-      name: name,
-    );
+  CpuMesh(CuboidShape(size: size ?? Vector3.all(1.0)).build()),
+  Material(),
+  name: name,
+);
 
 /// A single triangle in the z = 0 plane, with UVs that make the hit point
 /// readable straight off the texture coordinate.
@@ -81,27 +81,34 @@ void main() {
       expect(caster.ray.direction.x, greaterThan(0.0));
     });
 
-    test('an orthographic ray starts at the pixel rather than at the camera',
-        () {
-      final scene = Scene();
-      final camera = cameraAt(scene, 5.0)
-        ..projection = const OrthographicProjection(height: 4.0);
+    test(
+      'an orthographic ray starts at the pixel rather than at the camera',
+      () {
+        final scene = Scene();
+        final camera = cameraAt(scene, 5.0)
+          ..projection = const OrthographicProjection(height: 4.0);
 
-      final caster = Raycaster()
-        ..setFromScreen(camera, 800.0, 300.0, width: 800.0, height: 600.0);
+        final caster = Raycaster()
+          ..setFromScreen(camera, 800.0, 300.0, width: 800.0, height: 600.0);
 
-      // Right edge of a 4-unit-tall, 4:3 volume: x = +2.666…
-      expect(caster.ray.origin.x, closeTo(8.0 / 3.0, 1e-5));
-      expect(caster.ray.direction.z, closeTo(-1.0, 1e-6));
-      expect(caster.ray.direction.x, closeTo(0.0, 1e-6));
-    });
+        // Right edge of a 4-unit-tall, 4:3 volume: x = +2.666…
+        expect(caster.ray.origin.x, closeTo(8.0 / 3.0, 1e-5));
+        expect(caster.ray.direction.z, closeTo(-1.0, 1e-6));
+        expect(caster.ray.direction.x, closeTo(0.0, 1e-6));
+      },
+    );
 
     test('a zero-sized viewport is refused rather than dividing by zero', () {
       final scene = Scene();
       final camera = cameraAt(scene, 5.0);
       expect(
-        () => Raycaster()
-            .setFromScreen(camera, 0.0, 0.0, width: 0.0, height: 600.0),
+        () => Raycaster().setFromScreen(
+          camera,
+          0.0,
+          0.0,
+          width: 0.0,
+          height: 600.0,
+        ),
         throwsArgumentError,
       );
     });
@@ -135,8 +142,7 @@ void main() {
       final scene = Scene();
       // Added far-to-near, so a first-match implementation would pick the wrong
       // one and look correct in a single-object test.
-      final far = scene.add(cubeNode(name: 'far'))
-        ..setPosition(0.0, 0.0, -4.0);
+      final far = scene.add(cubeNode(name: 'far'))..setPosition(0.0, 0.0, -4.0);
       final near = scene.add(cubeNode(name: 'near'))
         ..setPosition(0.0, 0.0, 2.0);
 
@@ -217,8 +223,7 @@ void main() {
       expect(hit.triangleIndex, 0);
     });
 
-    test('the normal follows the inverse transpose under non-uniform scale',
-        () {
+    test('the normal follows the inverse transpose under non-uniform scale', () {
       final scene = Scene();
       // The surface has to be tilted *within* its own space: a normal that
       // happens to lie along a scale axis is transformed identically by the
@@ -252,9 +257,9 @@ void main() {
       // The right answer is the inverse transpose applied to the mesh's own
       // normal, and it is measurably different from the world matrix applied to
       // the same vector.
-      final localNormal = Matrix4.rotationX(0.9).rotated3(
-        Vector3(0.0, 0.0, 1.0),
-      )..normalize();
+      final localNormal = Matrix4.rotationX(
+        0.9,
+      ).rotated3(Vector3(0.0, 0.0, 1.0))..normalize();
       final byNormalMatrix = node.worldNormalMatrix.rotated3(localNormal)
         ..normalize();
       final byWorldMatrix = node.worldMatrix.rotated3(localNormal)..normalize();
@@ -343,8 +348,10 @@ void main() {
 /// with `keepSourceData: false` behaves.
 final class _BoundsOnlyMesh implements MeshGeometry {
   @override
-  final Aabb3 bounds =
-      Aabb3.minMax(Vector3(-0.5, -0.5, -0.5), Vector3(0.5, 0.5, 0.5));
+  final Aabb3 bounds = Aabb3.minMax(
+    Vector3(-0.5, -0.5, -0.5),
+    Vector3(0.5, 0.5, 0.5),
+  );
 
   @override
   int get vertexCount => 8;

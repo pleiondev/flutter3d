@@ -20,9 +20,7 @@ abstract class Shape {
   ///
   /// Attributes the layout does not declare are simply not written, which lets
   /// one implementation serve several vertex formats.
-  MeshData build({
-    VertexLayout layout = VertexLayout.standard,
-  });
+  MeshData build({VertexLayout layout = VertexLayout.standard});
 }
 
 /// A shape defined by delegating to another one.
@@ -38,8 +36,6 @@ abstract class DerivedShape extends Shape {
   Shape get delegate;
 
   @override
-  MeshData build({
-    VertexLayout layout = VertexLayout.standard,
-  }) =>
+  MeshData build({VertexLayout layout = VertexLayout.standard}) =>
       delegate.build(layout: layout);
 }

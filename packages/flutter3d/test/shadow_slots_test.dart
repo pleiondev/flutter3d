@@ -11,8 +11,11 @@ final class FakeLight {
   String toString() => name;
 }
 
-ShadowCandidate candidate(FakeLight light, double priority, {int bakeKey = 0}) =>
-    ShadowCandidate(light: light, priority: priority, bakeKey: bakeKey);
+ShadowCandidate candidate(
+  FakeLight light,
+  double priority, {
+  int bakeKey = 0,
+}) => ShadowCandidate(light: light, priority: priority, bakeKey: bakeKey);
 
 void main() {
   group('assigning rows', () {
@@ -70,8 +73,10 @@ void main() {
 
       allocator.assign(<ShadowCandidate>[candidate(a, 3.0), candidate(b, 2.0)]);
       // a walks away, b comes closer: the ranking inverts but the rows do not.
-      final result =
-          allocator.assign(<ShadowCandidate>[candidate(a, 1.0), candidate(b, 9.0)]);
+      final result = allocator.assign(<ShadowCandidate>[
+        candidate(a, 1.0),
+        candidate(b, 9.0),
+      ]);
 
       expect(result.owners, <Object?>[a, b]);
     });
@@ -129,10 +134,14 @@ void main() {
       // point is what happens next: the two keep crossing over and the row
       // does not move.
       allocator.assign(<ShadowCandidate>[candidate(a, 1.0), candidate(b, 1.1)]);
-      final first = allocator.assign(
-          <ShadowCandidate>[candidate(a, 1.1), candidate(b, 1.0)]);
-      final second = allocator.assign(
-          <ShadowCandidate>[candidate(a, 1.0), candidate(b, 1.1)]);
+      final first = allocator.assign(<ShadowCandidate>[
+        candidate(a, 1.1),
+        candidate(b, 1.0),
+      ]);
+      final second = allocator.assign(<ShadowCandidate>[
+        candidate(a, 1.0),
+        candidate(b, 1.1),
+      ]);
 
       expect(first.owners, <Object?>[b]);
       expect(second.owners, <Object?>[b]);
@@ -153,8 +162,9 @@ void main() {
         candidate(y, 50.0),
       ]);
 
-      final newcomers =
-          result.owners.where((o) => identical(o, x) || identical(o, y)).length;
+      final newcomers = result.owners
+          .where((o) => identical(o, x) || identical(o, y))
+          .length;
       expect(newcomers, 1, reason: 'each eviction costs a full re-bake');
     });
   });
@@ -164,11 +174,15 @@ void main() {
       final allocator = ShadowSlotAllocator(slotCount: 2);
       final a = FakeLight('a');
 
-      expect(allocator.assign(<ShadowCandidate>[candidate(a, 1.0)]).staticDirty,
-          isTrue);
+      expect(
+        allocator.assign(<ShadowCandidate>[candidate(a, 1.0)]).staticDirty,
+        isTrue,
+      );
       allocator.recordStaticBake();
-      expect(allocator.assign(<ShadowCandidate>[candidate(a, 1.0)]).staticDirty,
-          isFalse);
+      expect(
+        allocator.assign(<ShadowCandidate>[candidate(a, 1.0)]).staticDirty,
+        isFalse,
+      );
     });
 
     test('deciding rows does not clear the flag; only baking does', () {
@@ -190,8 +204,9 @@ void main() {
 
       allocator.assign(<ShadowCandidate>[candidate(a, 1.0, bakeKey: 1)]);
       allocator.recordStaticBake();
-      final moved =
-          allocator.assign(<ShadowCandidate>[candidate(a, 1.0, bakeKey: 2)]);
+      final moved = allocator.assign(<ShadowCandidate>[
+        candidate(a, 1.0, bakeKey: 2),
+      ]);
 
       expect(moved.staticDirty, isTrue);
     });
@@ -232,8 +247,11 @@ void main() {
 
       expect(allocator.slotOf(a), isNull);
       final result = allocator.assign(<ShadowCandidate>[candidate(a, 1.0)]);
-      expect(result.staticDirty, isTrue,
-          reason: 'the texture those rows lived in is gone');
+      expect(
+        result.staticDirty,
+        isTrue,
+        reason: 'the texture those rows lived in is gone',
+      );
     });
   });
 
@@ -284,8 +302,10 @@ void schedulerTests() {
       final scheduler = ShadowFaceScheduler(tileCount: 2);
       scheduler.select(<int?>[1, 2]);
 
-      expect(scheduler.select(<int?>[1, 2]), <int>[0, 1],
-          reason: 'a frame can decide and then skip the pass');
+      expect(scheduler.select(<int?>[1, 2]), <int>[
+        0,
+        1,
+      ], reason: 'a frame can decide and then skip the pass');
     });
 
     test('a tile that becomes empty is still redrawn once', () {

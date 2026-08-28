@@ -108,7 +108,8 @@ final class SkyShader implements CpuFragmentShader {
     // cosines this close together.
     // A soft edge of nothing is a hard edge, not an absent sun — see the same
     // branch in `sky.frag`, which had the same hole.
-    final edge = (disc.y > 0.0
+    final edge =
+        (disc.y > 0.0
             ? smoothstep(disc.x - disc.y, disc.x, towards)
             : (towards >= disc.x ? 1.0 : 0.0)) *
         disc.z;

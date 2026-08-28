@@ -15,7 +15,6 @@ import 'package:flutter3d_particles/flutter3d_particles.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
-
 void main() {
   _meshParticleTests();
 
@@ -64,24 +63,42 @@ void main() {
     test('blends additively and never writes depth', () {
       ParticleContributor(particles).encode(frame());
 
-      expect(pass.recordedOf<RecordedBlend>().single.state, BlendState.additive,
-          reason: 'addition is commutative, which is what removes the sort');
-      expect(pass.depthWrite, isFalse,
-          reason: 'particles must not occlude each other');
-      expect(pass.depthCompare, CompareFunction.less,
-          reason: 'but they are still hidden by the world');
-      expect(pass.cullMode, CullMode.none,
-          reason: 'a quad seen from behind is still a quad');
+      expect(
+        pass.recordedOf<RecordedBlend>().single.state,
+        BlendState.additive,
+        reason: 'addition is commutative, which is what removes the sort',
+      );
+      expect(
+        pass.depthWrite,
+        isFalse,
+        reason: 'particles must not occlude each other',
+      );
+      expect(
+        pass.depthCompare,
+        CompareFunction.less,
+        reason: 'but they are still hidden by the world',
+      );
+      expect(
+        pass.cullMode,
+        CullMode.none,
+        reason: 'a quad seen from behind is still a quad',
+      );
     });
 
     test('is one draw of transient geometry, six indices per particle', () {
       ParticleContributor(particles).encode(frame());
 
-      expect(pass.drawCount, 1,
-          reason: 'one batch, which is the whole point of additive blending');
+      expect(
+        pass.drawCount,
+        1,
+        reason: 'one batch, which is the whole point of additive blending',
+      );
       final vertices = pass.recordedOf<RecordedVertices>().single;
-      expect(vertices.transient, isTrue,
-          reason: 'the quads were built this frame; they have no device buffer');
+      expect(
+        vertices.transient,
+        isTrue,
+        reason: 'the quads were built this frame; they have no device buffer',
+      );
       final indices = pass.recordedOf<RecordedIndices>().single;
       expect(indices.count, vertices.count ~/ 4 * 6);
       expect(indices.type, IndexType.int32);
@@ -89,9 +106,13 @@ void main() {
 
     test('clears the bindings the mesh draws left behind', () {
       ParticleContributor(particles).encode(frame());
-      expect(pass.commands.first, isA<RecordedClearBindings>(),
-          reason: 'the mesh draws left a different vertex layout bound, and '
-              'this must be the first thing the contributor does');
+      expect(
+        pass.commands.first,
+        isA<RecordedClearBindings>(),
+        reason:
+            'the mesh draws left a different vertex layout bound, and '
+            'this must be the first thing the contributor does',
+      );
     });
 
     test('counts its draw and invalidates the pipeline tracker', () {
@@ -101,9 +122,13 @@ void main() {
         ..drawCalls = 5;
       ParticleContributor(particles).encode(f);
 
-      expect(f.state.drawCalls, 6,
-          reason: 'a contributor that does not count makes the frame '
-              'statistics lie');
+      expect(
+        f.state.drawCalls,
+        6,
+        reason:
+            'a contributor that does not count makes the frame '
+            'statistics lie',
+      );
       expect(f.state.boundPipeline, isNull);
       expect(f.state.boundSkinned, isNull);
     });
@@ -112,9 +137,13 @@ void main() {
       final withoutStages = FakeBackend(missingShaders: <String>{'Particle'});
       ParticleContributor(particles).encode(frame(backend: withoutStages));
 
-      expect(pass.commands, isEmpty,
-          reason: 'the fragment stage is called "Particle", not '
-              '"ParticleFragment"; guessing it wrong used to be invisible');
+      expect(
+        pass.commands,
+        isEmpty,
+        reason:
+            'the fragment stage is called "Particle", not '
+            '"ParticleFragment"; guessing it wrong used to be invisible',
+      );
     });
   });
 }
@@ -209,25 +238,28 @@ void _meshParticleTests() {
     });
 
     ContributorFrame frame() => ContributorFrame(
-          encoder: pass,
-          device: device,
-          services: _RecordingServices(),
-          state: FramePassState(),
-          settings: const RenderSettings(),
-          width: 320,
-          height: 200,
-          view: RenderView(camera: CameraNode()),
-          viewProjection: vm.Matrix4.identity(),
-        );
+      encoder: pass,
+      device: device,
+      services: _RecordingServices(),
+      state: FramePassState(),
+      settings: const RenderSettings(),
+      width: 320,
+      height: 200,
+      view: RenderView(camera: CameraNode()),
+      viewProjection: vm.Matrix4.identity(),
+    );
 
     test('binds the mesh in slot zero and the placements in slot one', () {
       MeshParticleContributor(particles, mesh: mesh).encode(frame());
 
-      final vertices =
-          pass.commands.whereType<RecordedVertices>().toList();
-      expect(vertices, hasLength(2),
-          reason: 'a mesh particle draw is two vertex buffers, which is the '
-              'only draw in this engine that is');
+      final vertices = pass.commands.whereType<RecordedVertices>().toList();
+      expect(
+        vertices,
+        hasLength(2),
+        reason:
+            'a mesh particle draw is two vertex buffers, which is the '
+            'only draw in this engine that is',
+      );
 
       // The mesh: slot zero, already on the device, its own vertex count.
       expect(vertices[0].slot, 0);
@@ -244,8 +276,11 @@ void _meshParticleTests() {
       MeshParticleContributor(particles, mesh: mesh).encode(frame());
 
       final draws = pass.commands.whereType<RecordedDraw>().toList();
-      expect(draws, hasLength(1),
-          reason: 'the point of instancing is that five particles are one call');
+      expect(
+        draws,
+        hasLength(1),
+        reason: 'the point of instancing is that five particles are one call',
+      );
       expect(draws.single.instanceCount, 5);
     });
 
@@ -254,10 +289,14 @@ void _meshParticleTests() {
 
       final indices = pass.commands.whereType<RecordedIndices>().toList();
       expect(indices, hasLength(1));
-      expect(indices.single.transient, isFalse,
-          reason: 'the geometry is on the device already; rebuilding indices '
-              'every frame is what the billboard path has to do and this one '
-              'exists to avoid');
+      expect(
+        indices.single.transient,
+        isFalse,
+        reason:
+            'the geometry is on the device already; rebuilding indices '
+            'every frame is what the billboard path has to do and this one '
+            'exists to avoid',
+      );
       expect(indices.single.count, 36);
     });
 

@@ -24,12 +24,12 @@ import 'webgl_framebuffer.dart';
 /// One pass, recorded straight into the context. See the library note above.
 final class WebGlEncoder implements CommandEncoder {
   WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
-      : _targetHeight = descriptor.colors.isNotEmpty
-            ? descriptor.colors.first.texture.height
-            : (descriptor.depth?.texture.height ?? 0),
-        _targetWidth = descriptor.colors.isNotEmpty
-            ? descriptor.colors.first.texture.width
-            : (descriptor.depth?.texture.width ?? 0) {
+    : _targetHeight = descriptor.colors.isNotEmpty
+          ? descriptor.colors.first.texture.height
+          : (descriptor.depth?.texture.height ?? 0),
+      _targetWidth = descriptor.colors.isNotEmpty
+          ? descriptor.colors.first.texture.width
+          : (descriptor.depth?.texture.width ?? 0) {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
 
@@ -38,7 +38,11 @@ final class WebGlEncoder implements CommandEncoder {
       final color = descriptor.colors[i];
       final attachment = web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i;
       attachToFramebuffer(
-          _gl, web.WebGLRenderingContext.FRAMEBUFFER, attachment, color.texture);
+        _gl,
+        web.WebGLRenderingContext.FRAMEBUFFER,
+        attachment,
+        color.texture,
+      );
       buffers.add(attachment);
       _resolves.add(color.resolveTexture);
       _sources.add(color.texture);
@@ -58,8 +62,12 @@ final class WebGlEncoder implements CommandEncoder {
 
     final depth = descriptor.depth;
     if (depth != null) {
-      attachToFramebuffer(_gl, web.WebGLRenderingContext.FRAMEBUFFER,
-          web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT, depth.texture);
+      attachToFramebuffer(
+        _gl,
+        web.WebGLRenderingContext.FRAMEBUFFER,
+        web.WebGL2RenderingContext.DEPTH_STENCIL_ATTACHMENT,
+        depth.texture,
+      );
       // Depth must be writable for a clear to land, whatever the pass sets
       // afterwards.
       _gl.depthMask(true);
@@ -284,10 +292,15 @@ final class WebGlEncoder implements CommandEncoder {
   Set<int> get _enabledLocations => _device.enabledAttributeLocations;
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
-      {int slot = 0}) {
-    _gl.bindBuffer(web.WebGLRenderingContext.ARRAY_BUFFER,
-        buffer.backend as web.WebGLBuffer);
+  void bindVertexBuffer(
+    GeometryBuffer buffer,
+    int vertexCount, {
+    int slot = 0,
+  }) {
+    _gl.bindBuffer(
+      web.WebGLRenderingContext.ARRAY_BUFFER,
+      buffer.backend as web.WebGLBuffer,
+    );
     _describeVertices(slot);
   }
 
@@ -317,9 +330,11 @@ final class WebGlEncoder implements CommandEncoder {
   void _describeVertices(int slot) {
     final program = _program;
     if (program == null) {
-      throw StateError('bind a pipeline before binding vertices: the vertex '
-          'layout comes from the shader, so there is nothing to describe '
-          'against yet');
+      throw StateError(
+        'bind a pipeline before binding vertices: the vertex '
+        'layout comes from the shader, so there is nothing to describe '
+        'against yet',
+      );
     }
 
     final layout = program.layout;
@@ -351,14 +366,18 @@ final class WebGlEncoder implements CommandEncoder {
     }
 
     if (slot < 0 || slot >= layout.buffers.length) {
-      throw RangeError.range(slot, 0, layout.buffers.length - 1, 'slot',
-          'the pipeline\'s layout describes ${layout.buffers.length} buffers');
+      throw RangeError.range(
+        slot,
+        0,
+        layout.buffers.length - 1,
+        'slot',
+        'the pipeline\'s layout describes ${layout.buffers.length} buffers',
+      );
     }
     final buffer = layout.buffers[slot];
     final divisor = buffer.stepMode == VertexStepMode.instance ? 1 : 0;
     for (final attribute in buffer.attributes) {
-      final location =
-          _gl.getAttribLocation(program.program, attribute.name);
+      final location = _gl.getAttribLocation(program.program, attribute.name);
       // Negative means the linker dropped it — an `in` the stage declares and
       // never reads. Not an error: the same thing happens on Impeller, and a
       // layout naming an attribute the shader optimised away is a layout that
@@ -391,8 +410,10 @@ final class WebGlEncoder implements CommandEncoder {
 
   @override
   void bindIndexBuffer(GeometryBuffer buffer, IndexType type, int indexCount) {
-    _gl.bindBuffer(web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
-        buffer.backend as web.WebGLBuffer);
+    _gl.bindBuffer(
+      web.WebGLRenderingContext.ELEMENT_ARRAY_BUFFER,
+      buffer.backend as web.WebGLBuffer,
+    );
     _indexType = type;
     _indexCount = indexCount;
   }
@@ -459,12 +480,14 @@ final class WebGlEncoder implements CommandEncoder {
 
     final ubo = _gl.createBuffer();
     _gl.bindBuffer(web.WebGL2RenderingContext.UNIFORM_BUFFER, ubo);
-    _gl.bufferData(web.WebGL2RenderingContext.UNIFORM_BUFFER, data.toJS,
-        web.WebGLRenderingContext.STREAM_DRAW);
+    _gl.bufferData(
+      web.WebGL2RenderingContext.UNIFORM_BUFFER,
+      data.toJS,
+      web.WebGLRenderingContext.STREAM_DRAW,
+    );
     final binding = _nextBlockBinding++;
     _gl.uniformBlockBinding(program.program, block.index, binding);
-    _gl.bindBufferBase(
-        web.WebGL2RenderingContext.UNIFORM_BUFFER, binding, ubo);
+    _gl.bindBufferBase(web.WebGL2RenderingContext.UNIFORM_BUFFER, binding, ubo);
     _uniformBuffers.add(ubo);
     return true;
   }
@@ -495,14 +518,22 @@ final class WebGlEncoder implements CommandEncoder {
     final options = sampler ?? SamplerOptions.linearRepeat;
     void set(int name, int value) =>
         _gl.texParameteri(backend.target, name, value);
-    set(web.WebGLRenderingContext.TEXTURE_MIN_FILTER,
-        minMagFilterToGl(options.minFilter));
-    set(web.WebGLRenderingContext.TEXTURE_MAG_FILTER,
-        minMagFilterToGl(options.magFilter));
-    set(web.WebGLRenderingContext.TEXTURE_WRAP_S,
-        addressModeToGl(options.widthAddressMode));
-    set(web.WebGLRenderingContext.TEXTURE_WRAP_T,
-        addressModeToGl(options.heightAddressMode));
+    set(
+      web.WebGLRenderingContext.TEXTURE_MIN_FILTER,
+      minMagFilterToGl(options.minFilter),
+    );
+    set(
+      web.WebGLRenderingContext.TEXTURE_MAG_FILTER,
+      minMagFilterToGl(options.magFilter),
+    );
+    set(
+      web.WebGLRenderingContext.TEXTURE_WRAP_S,
+      addressModeToGl(options.widthAddressMode),
+    );
+    set(
+      web.WebGLRenderingContext.TEXTURE_WRAP_T,
+      addressModeToGl(options.heightAddressMode),
+    );
 
     _gl.uniform1i(_gl.getUniformLocation(program.program, slot), unit);
   }
@@ -547,7 +578,12 @@ final class WebGlEncoder implements CommandEncoder {
       _gl.drawElements(_primitive, _indexCount, indexTypeToGl(_indexType), 0);
     } else {
       _gl.drawElementsInstanced(
-          _primitive, _indexCount, indexTypeToGl(_indexType), 0, instanceCount);
+        _primitive,
+        _indexCount,
+        indexTypeToGl(_indexType),
+        0,
+        instanceCount,
+      );
     }
     // **Divisors go back here, not in `clearBindings`.** They are state of an
     // attribute location: they survive the draw, the buffer, the program and
@@ -590,14 +626,26 @@ final class WebGlEncoder implements CommandEncoder {
       final source = _sources[i];
       final target = _gl.createFramebuffer();
       _gl.bindFramebuffer(web.WebGL2RenderingContext.DRAW_FRAMEBUFFER, target);
-      attachToFramebuffer(_gl, web.WebGL2RenderingContext.DRAW_FRAMEBUFFER,
-          web.WebGLRenderingContext.COLOR_ATTACHMENT0, resolve);
+      attachToFramebuffer(
+        _gl,
+        web.WebGL2RenderingContext.DRAW_FRAMEBUFFER,
+        web.WebGLRenderingContext.COLOR_ATTACHMENT0,
+        resolve,
+      );
       _gl.bindFramebuffer(
-          web.WebGL2RenderingContext.READ_FRAMEBUFFER, _framebuffer);
+        web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+        _framebuffer,
+      );
       _gl.readBuffer(web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i);
       _gl.blitFramebuffer(
-        0, 0, source.width, source.height, //
-        0, 0, resolve.width, resolve.height, //
+        0,
+        0,
+        source.width,
+        source.height, //
+        0,
+        0,
+        resolve.width,
+        resolve.height, //
         web.WebGLRenderingContext.COLOR_BUFFER_BIT,
         web.WebGLRenderingContext.NEAREST,
       );

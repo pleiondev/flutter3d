@@ -23,7 +23,8 @@ extension MeshTangents on MeshData {
   /// frame to derive, so the neutral tangent is written instead and the caller
   /// gets geometry that at least does not produce NaN.
   MeshData withGeneratedTangents({VertexLayout? target}) {
-    final layoutWithTangents = target ??
+    final layoutWithTangents =
+        target ??
         (layout.has(VertexLayout.tangent)
             ? layout
             : VertexLayout(<VertexAttribute>[
@@ -39,12 +40,15 @@ extension MeshTangents on MeshData {
 
     final result = convertedTo(layoutWithTangents);
     final stride = layoutWithTangents.floatsPerVertex;
-    final tangentOffset =
-        layoutWithTangents.floatOffsetOf(VertexLayout.tangent.name);
-    final normalOffset =
-        layoutWithTangents.floatOffsetOf(VertexLayout.normal.name);
-    final uvOffset =
-        layoutWithTangents.floatOffsetOf(VertexLayout.texcoord.name);
+    final tangentOffset = layoutWithTangents.floatOffsetOf(
+      VertexLayout.tangent.name,
+    );
+    final normalOffset = layoutWithTangents.floatOffsetOf(
+      VertexLayout.normal.name,
+    );
+    final uvOffset = layoutWithTangents.floatOffsetOf(
+      VertexLayout.texcoord.name,
+    );
 
     // A mesh copied from itself would be mutated in place, which would surprise
     // a caller holding the original.

@@ -6,6 +6,12 @@ version: 0.3.0
 publish_to: 'none'
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - testing
+  - golden-tests
+  - rendering
+  - graphics
 
 environment:
   sdk: ^3.12.2

@@ -87,6 +87,7 @@ final class TextureHandle {
   int get sliceCount => type == TextureType.textureCube ? 6 : 1;
 
   @override
-  String toString() => 'TextureHandle(${width}x$height, ${format.name}, '
+  String toString() =>
+      'TextureHandle(${width}x$height, ${format.name}, '
       'x$sampleCount, ${storageMode.name})';
 }

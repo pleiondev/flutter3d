@@ -53,10 +53,10 @@ final class GeometryBuffer {
 
   /// A shorter range starting [offset] bytes into this one.
   GeometryBuffer slice({int offset = 0, required int length}) => GeometryBuffer(
-        backend: backend,
-        offsetInBytes: offsetInBytes + offset,
-        lengthInBytes: length,
-      );
+    backend: backend,
+    offsetInBytes: offsetInBytes + offset,
+    lengthInBytes: length,
+  );
 
   @override
   String toString() => 'GeometryBuffer(@$offsetInBytes, $lengthInBytes bytes)';

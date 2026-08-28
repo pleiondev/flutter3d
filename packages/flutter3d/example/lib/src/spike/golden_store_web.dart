@@ -20,8 +20,8 @@ void reportLine(String message) {
       ..setAttribute(
         'style',
         'position:fixed;left:0;top:0;right:0;z-index:99999;margin:0;'
-        'padding:8px;background:#000;color:#0f0;font:13px monospace;'
-        'white-space:pre-wrap',
+            'padding:8px;background:#000;color:#0f0;font:13px monospace;'
+            'white-space:pre-wrap',
       );
     web.document.body!.append(log);
   }
@@ -32,10 +32,7 @@ void reportLine(String message) {
   // answering this route, and the line is already on the screen where a person
   // can read it — the post is the machine's copy, not the only one.
   web.window
-      .fetch(
-        'report'.toJS,
-        web.RequestInit(method: 'POST', body: message.toJS),
-      )
+      .fetch('report'.toJS, web.RequestInit(method: 'POST', body: message.toJS))
       .toDart
       .catchError((Object _) => web.Response());
 }
@@ -71,8 +68,7 @@ const bool needsReferenceDirectory = false;
 /// references are expected beside the build at `goldens/<name>.png`, which is
 /// what the serving script arranges.
 Future<Uint8List?> readReference(String directory, String name) async {
-  final response =
-      await web.window.fetch('goldens/$name.png'.toJS).toDart;
+  final response = await web.window.fetch('goldens/$name.png'.toJS).toDart;
   if (!response.ok) return null;
   final buffer = await response.arrayBuffer().toDart;
   return buffer.toDart.asUint8List();
@@ -90,7 +86,10 @@ Future<Uint8List?> readReference(String directory, String name) async {
 /// `tool/golden_web.sh` is the other end. Nothing else answers this route, so a
 /// build opened by hand fails here rather than pretending it recorded.
 Future<String> writeReference(
-    String directory, String name, Uint8List png) async {
+  String directory,
+  String name,
+  Uint8List png,
+) async {
   return _post('record/$name.png', png, 'reference');
 }
 
@@ -101,10 +100,7 @@ Future<String> writeActual(String directory, String name, Uint8List png) async {
 
 Future<String> _post(String route, Uint8List png, String what) async {
   final response = await web.window
-      .fetch(
-        route.toJS,
-        web.RequestInit(method: 'POST', body: png.toJS),
-      )
+      .fetch(route.toJS, web.RequestInit(method: 'POST', body: png.toJS))
       .toDart;
   if (!response.ok) {
     return '(not written: the server refused $route with ${response.status}. '
@@ -115,8 +111,7 @@ Future<String> _post(String route, Uint8List png, String what) async {
 }
 
 /// There is no exit code to return, so the run simply stops.
-Never finish(int code) =>
-    throw _GoldenFinished(code);
+Never finish(int code) => throw _GoldenFinished(code);
 
 /// Thrown to unwind out of a golden run. Caught by the runner's caller, which
 /// has already printed the verdict.

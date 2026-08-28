@@ -214,7 +214,12 @@ Vector3 _directionFor(int face, double u, double v) {
 /// sequence and twice the taps to stop looking grainy, and the difference
 /// between the two lobes is not visible on a reflection that is already blurred
 /// this far.
-List<ByteData> _convolve(_Cube source, int side, double roughness, int samples) {
+List<ByteData> _convolve(
+  _Cube source,
+  int side,
+  double roughness,
+  int samples,
+) {
   // Roughness to a specular power, the mapping Blinn-Phong and GGX are usually
   // reconciled with. Squared first because roughness is authored perceptually.
   final alpha = math.max(roughness * roughness, 1e-3);
@@ -231,11 +236,13 @@ List<ByteData> _convolve(_Cube source, int side, double roughness, int samples) 
     // Concentrated towards the lobe's axis by the power, so a sharp level does
     // not spend sixty of its taps on directions it weights to nothing.
     final spread = math.pow(z, 1.0 / (power + 1.0)).toDouble();
-    taps.add(Vector3(
-      radius * math.cos(theta) * (1.0 - spread) + 0.0,
-      radius * math.sin(theta) * (1.0 - spread) + 0.0,
-      spread,
-    )..normalize());
+    taps.add(
+      Vector3(
+        radius * math.cos(theta) * (1.0 - spread) + 0.0,
+        radius * math.sin(theta) * (1.0 - spread) + 0.0,
+        spread,
+      )..normalize(),
+    );
   }
 
   final out = <ByteData>[];
@@ -249,7 +256,9 @@ List<ByteData> _convolve(_Cube source, int side, double roughness, int samples) 
         final axis = _directionFor(face, u, v);
 
         // A frame about the axis, so the tap set is reused rather than rebuilt.
-        final up = axis.z.abs() < 0.999 ? Vector3(0.0, 0.0, 1.0) : Vector3(1.0, 0.0, 0.0);
+        final up = axis.z.abs() < 0.999
+            ? Vector3(0.0, 0.0, 1.0)
+            : Vector3(1.0, 0.0, 0.0);
         final right = up.cross(axis)..normalize();
         final ahead = axis.cross(right);
 

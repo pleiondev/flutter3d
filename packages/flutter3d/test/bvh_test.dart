@@ -11,11 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
 /// A cube on the CPU, so none of this needs a device.
-MeshNode cube({String? name}) => MeshNode(
-      CpuMesh(CuboidShape().build()),
-      Material(),
-      name: name,
-    );
+MeshNode cube({String? name}) =>
+    MeshNode(CpuMesh(CuboidShape().build()), Material(), name: name);
 
 /// A grid of cubes, deterministic so a failure reproduces.
 Scene gridScene(int count, {double spacing = 3.0}) {
@@ -24,7 +21,9 @@ Scene gridScene(int count, {double spacing = 3.0}) {
   for (var i = 0; i < count; i++) {
     final x = (i % side) - side / 2;
     final z = (i ~/ side) - side / 2;
-    scene.add(cube(name: 'cube $i')).setPosition(x * spacing, ((i * 7) % 5) - 2.0, z * spacing);
+    scene
+        .add(cube(name: 'cube $i'))
+        .setPosition(x * spacing, ((i * 7) % 5) - 2.0, z * spacing);
   }
   return scene;
 }
@@ -129,8 +128,11 @@ void main() {
       scene.meshes.first.setPosition(500.0, 500.0, 500.0);
 
       expect(bvhVisible(bvh, scene, frustum), linearVisible(scene, frustum));
-      expect(bvh.rebuildCount, greaterThan(before),
-          reason: 'a moved object must invalidate the tree');
+      expect(
+        bvh.rebuildCount,
+        greaterThan(before),
+        reason: 'a moved object must invalidate the tree',
+      );
     });
 
     test('after objects are added and removed', () {
@@ -220,8 +222,11 @@ void main() {
       bvh.queryRay(ray, (_) => visited++);
 
       expect(visited, greaterThan(0));
-      expect(visited, lessThan(scene.meshes.length ~/ 4),
-          reason: 'visited $visited of ${scene.meshes.length}');
+      expect(
+        visited,
+        lessThan(scene.meshes.length ~/ 4),
+        reason: 'visited $visited of ${scene.meshes.length}',
+      );
     });
   });
 

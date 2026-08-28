@@ -6,11 +6,11 @@ import 'package:vector_math/vector_math.dart';
 
 /// Reads slot [index] of one of the buffer's arrays as a Vector4.
 Vector4 slot(List<double> array, int index) => Vector4(
-      array[index * 4],
-      array[index * 4 + 1],
-      array[index * 4 + 2],
-      array[index * 4 + 3],
-    );
+  array[index * 4],
+  array[index * 4 + 1],
+  array[index * 4 + 2],
+  array[index * 4 + 3],
+);
 
 void main() {
   group('gathering', () {
@@ -79,21 +79,23 @@ void main() {
       expect(cone.x, greaterThan(cone.y));
     });
 
-    test('equal cone angles are separated so the falloff cannot divide by zero',
-        () {
-      final scene = Scene();
-      scene.add(
-        LightNode(
-          type: LightType.spot,
-          innerConeAngle: 0.5,
-          outerConeAngle: 0.5,
-        ),
-      );
+    test(
+      'equal cone angles are separated so the falloff cannot divide by zero',
+      () {
+        final scene = Scene();
+        scene.add(
+          LightNode(
+            type: LightType.spot,
+            innerConeAngle: 0.5,
+            outerConeAngle: 0.5,
+          ),
+        );
 
-      final buffer = LightBuffer()..gather(scene.lights);
-      final cone = slot(buffer.cones, 0);
-      expect(cone.x - cone.y, greaterThan(0.0));
-    });
+        final buffer = LightBuffer()..gather(scene.lights);
+        final cone = slot(buffer.cones, 0);
+        expect(cone.x - cone.y, greaterThan(0.0));
+      },
+    );
 
     test('an inner cone wider than the outer one is clamped', () {
       final scene = Scene();

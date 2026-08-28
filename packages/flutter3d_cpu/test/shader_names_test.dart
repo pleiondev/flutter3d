@@ -20,18 +20,26 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('every name the engine asks for is answered', () {
     final mine = builtinCpuShaders().keys.toSet();
-    final missing =
-        kRequiredShaders.map((s) => s.name).where((n) => !mine.contains(n));
-    expect(missing, isEmpty,
-        reason: 'the engine resolves these at Renderer.create and throws on '
-            'the first one it cannot find');
+    final missing = kRequiredShaders
+        .map((s) => s.name)
+        .where((n) => !mine.contains(n));
+    expect(
+      missing,
+      isEmpty,
+      reason:
+          'the engine resolves these at Renderer.create and throws on '
+          'the first one it cannot find',
+    );
   });
 
   test('nothing is answered that the engine does not ask for', () {
     final wanted = kRequiredShaders.map((s) => s.name).toSet();
     final extra = builtinCpuShaders().keys.where((n) => !wanted.contains(n));
-    expect(extra, isEmpty,
-        reason: 'a stage outlived the shader it stands in for');
+    expect(
+      extra,
+      isEmpty,
+      reason: 'a stage outlived the shader it stands in for',
+    );
   });
 
   test('every stage on the unimplemented list really does refuse', () {
@@ -47,17 +55,25 @@ void main() {
     final stages = builtinCpuShaders();
     for (final name in kUnimplementedCpuFragmentShaders) {
       expect(
-          () => stages[name]!.fragment!.run(
-              Float32List(0), const ShaderBindings({}, {}), FragmentContext()),
-          throwsUnsupportedError,
-          reason: '$name is on the unimplemented list and does not refuse');
+        () => stages[name]!.fragment!.run(
+          Float32List(0),
+          const ShaderBindings({}, {}),
+          FragmentContext(),
+        ),
+        throwsUnsupportedError,
+        reason: '$name is on the unimplemented list and does not refuse',
+      );
     }
     for (final name in kUnimplementedCpuVertexShaders) {
       expect(
-          () => stages[name]!.vertex!
-              .run(Float32List(0), const ShaderBindings({}, {}), Float32List(0)),
-          throwsUnsupportedError,
-          reason: '$name is on the unimplemented list and does not refuse');
+        () => stages[name]!.vertex!.run(
+          Float32List(0),
+          const ShaderBindings({}, {}),
+          Float32List(0),
+        ),
+        throwsUnsupportedError,
+        reason: '$name is on the unimplemented list and does not refuse',
+      );
     }
   });
 
@@ -67,12 +83,16 @@ void main() {
       ...kUnimplementedCpuFragmentShaders,
     };
     expect(
-        unimplemented.length,
-        kUnimplementedCpuVertexShaders.length +
-            kUnimplementedCpuFragmentShaders.length,
-        reason: 'a name appears on the list twice');
+      unimplemented.length,
+      kUnimplementedCpuVertexShaders.length +
+          kUnimplementedCpuFragmentShaders.length,
+      reason: 'a name appears on the list twice',
+    );
     final wanted = kRequiredShaders.map((s) => s.name).toSet();
-    expect(unimplemented.difference(wanted), isEmpty,
-        reason: 'the list names a shader the engine does not ask for');
+    expect(
+      unimplemented.difference(wanted),
+      isEmpty,
+      reason: 'the list names a shader the engine does not ask for',
+    );
   });
 }

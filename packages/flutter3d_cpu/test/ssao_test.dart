@@ -55,14 +55,14 @@ const int _height = 64;
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   MeshNode slab(Vector3 size, Vector3 at, String name) => MeshNode(
-        DeviceMesh.upload(device, CuboidShape(size: size).build()),
-        Material(
-          name: name,
-          baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
-          lighting: LightingModel.lambert,
-        ),
-        name: name,
-      )..setPosition(at.x, at.y, at.z);
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    Material(
+      name: name,
+      baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
+      lighting: LightingModel.lambert,
+    ),
+    name: name,
+  )..setPosition(at.x, at.y, at.z);
 
   // Floor and back wall, meeting along z = 2. The corner between them is the
   // only enclosed place in the scene.
@@ -76,15 +76,15 @@ const int _height = 64;
 }
 
 RenderSettings _settings({required bool ao}) => RenderSettings(
-      bloom: const BloomSettings(enabled: false),
-      ambientOcclusion: AmbientOcclusionSettings(
-        enabled: ao,
-        // Wide enough to reach across the corner in a scene measured in
-        // metres. The default half-metre is a room; this scene is one.
-        radius: 0.8,
-        strength: 1.0,
-      ),
-    );
+  bloom: const BloomSettings(enabled: false),
+  ambientOcclusion: AmbientOcclusionSettings(
+    enabled: ao,
+    // Wide enough to reach across the corner in a scene measured in
+    // metres. The default half-metre is a room; this scene is one.
+    radius: 0.8,
+    strength: 1.0,
+  ),
+);
 
 /// One slab in front of nothing at all.
 ///
@@ -100,7 +100,9 @@ RenderSettings _settings({required bool ao}) => RenderSettings(
   scene.add(
     MeshNode(
       DeviceMesh.upload(
-          device, CuboidShape(size: Vector3(1.6, 1.6, 0.4)).build()),
+        device,
+        CuboidShape(size: Vector3(1.6, 1.6, 0.4)).build(),
+      ),
       Material(
         name: 'slab',
         baseColor: Vector4(0.7, 0.7, 0.7, 1.0),
@@ -151,11 +153,14 @@ void main() {
     // and the redundancy is the reason no mismatch between the two can darken
     // a frame that asked for nothing.
     final without = await _draw(_settings(ao: false));
-    final plain = await _draw(const RenderSettings(
-      bloom: BloomSettings(enabled: false),
-    ));
-    expect(without, orderedEquals(plain),
-        reason: 'a disabled occlusion changed the picture');
+    final plain = await _draw(
+      const RenderSettings(bloom: BloomSettings(enabled: false)),
+    );
+    expect(
+      without,
+      orderedEquals(plain),
+      reason: 'a disabled occlusion changed the picture',
+    );
   });
 
   test('an inside corner goes darker than the open floor', () async {
@@ -177,9 +182,13 @@ void main() {
       open += without[(60 * _width + x) * 4] - with_[(60 * _width + x) * 4];
     }
     expect(corner, greaterThan(0), reason: 'the corner did not darken at all');
-    expect(corner, greaterThan(open * 3),
-        reason: 'the corner darkened no more than the open floor did: this is '
-            'a uniform dimming, not occlusion');
+    expect(
+      corner,
+      greaterThan(open * 3),
+      reason:
+          'the corner darkened no more than the open floor did: this is '
+          'a uniform dimming, not occlusion',
+    );
   });
 
   test('nothing near a silhouette darkens against empty background', () async {
@@ -205,8 +214,12 @@ void main() {
         if (delta > worst) worst = delta;
       }
     }
-    expect(worst, lessThanOrEqualTo(2),
-        reason: 'an isolated convex slab darkened by $worst: something is '
-            'treating the empty background as an occluder');
+    expect(
+      worst,
+      lessThanOrEqualTo(2),
+      reason:
+          'an isolated convex slab darkened by $worst: something is '
+          'treating the empty background as an occluder',
+    );
   });
 }

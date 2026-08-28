@@ -5,12 +5,12 @@ import 'dart:typed_data';
 import 'package:flutter3d/src/engine/animation/animation.dart';
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/gltf_resolvers.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-const String kSamples = 'assets/samples';
+const String kSamples = kSamplesPath;
 
-Uint8List readSample(String name) =>
-    File('$kSamples/$name').readAsBytesSync();
+Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
 /// A minimal but valid glTF with one animated node, assembled by hand.
 ///
@@ -21,7 +21,8 @@ Uint8List buildAnimatedGltf({
   List<Map<String, Object?>>? extraAccessors,
   Uint8List? binary,
 }) {
-  final bin = binary ??
+  final bin =
+      binary ??
       Uint8List.view(
         Float32List.fromList(<double>[
           // Two keyframe times.
@@ -47,16 +48,8 @@ Uint8List buildAnimatedGltf({
       <String, Object?>{'byteLength': bin.lengthInBytes},
     ],
     'bufferViews': <Object?>[
-      <String, Object?>{
-        'buffer': 0,
-        'byteOffset': 0,
-        'byteLength': 8,
-      },
-      <String, Object?>{
-        'buffer': 0,
-        'byteOffset': 8,
-        'byteLength': 24,
-      },
+      <String, Object?>{'buffer': 0, 'byteOffset': 0, 'byteLength': 8},
+      <String, Object?>{'buffer': 0, 'byteOffset': 8, 'byteLength': 24},
     ],
     'accessors': <Object?>[
       <String, Object?>{
@@ -81,7 +74,13 @@ Uint8List buildAnimatedGltf({
   final binPadding = (4 - (bin.lengthInBytes % 4)) % 4;
 
   final total =
-      12 + 8 + jsonBytes.length + jsonPadding + 8 + bin.lengthInBytes + binPadding;
+      12 +
+      8 +
+      jsonBytes.length +
+      jsonPadding +
+      8 +
+      bin.lengthInBytes +
+      binPadding;
   final out = ByteData(total);
   var offset = 0;
 
@@ -116,26 +115,22 @@ Map<String, Object?> translationAnimation({
   String path = 'translation',
   int? node = 0,
   int outputAccessor = 1,
-}) =>
+}) => <String, Object?>{
+  'name': 'move',
+  'samplers': <Object?>[
     <String, Object?>{
-      'name': 'move',
-      'samplers': <Object?>[
-        <String, Object?>{
-          'input': 0,
-          'output': outputAccessor,
-          'interpolation': ?interpolation,
-        },
-      ],
-      'channels': <Object?>[
-        <String, Object?>{
-          'sampler': 0,
-          'target': <String, Object?>{
-            'node': ?node,
-            'path': path,
-          },
-        },
-      ],
-    };
+      'input': 0,
+      'output': outputAccessor,
+      'interpolation': ?interpolation,
+    },
+  ],
+  'channels': <Object?>[
+    <String, Object?>{
+      'sampler': 0,
+      'target': <String, Object?>{'node': ?node, 'path': path},
+    },
+  ],
+};
 
 void main() {
   group('the node hierarchy survives decoding', () {
@@ -155,20 +150,23 @@ void main() {
       expect(claimed, <int>[for (var i = 0; i < asset.surfaces.length; i++) i]);
     });
 
-    test('nodes are index-aligned with the file, transform-only ones included',
-        () async {
-      // BoxAnimated has a node that only carries a transform, and that is the
-      // node its clip drives; compacting the list to drawing nodes would leave
-      // every channel pointing at the wrong thing.
-      final asset = await GltfLoader().load(readSample('BoxAnimated.glb'));
-      expect(asset.nodes.length, greaterThan(asset.surfaces.length));
+    test(
+      'nodes are index-aligned with the file, transform-only ones included',
+      () async {
+        // BoxAnimated has a node that only carries a transform, and that is the
+        // node its clip drives; compacting the list to drawing nodes would leave
+        // every channel pointing at the wrong thing.
+        final asset = await GltfLoader().load(readSample('BoxAnimated.glb'));
+        expect(asset.nodes.length, greaterThan(asset.surfaces.length));
 
-      final animatedIndices =
-          asset.animations.expand((c) => c.tracks).map((t) => t.nodeIndex);
-      for (final index in animatedIndices) {
-        expect(index, lessThan(asset.nodes.length));
-      }
-    });
+        final animatedIndices = asset.animations
+            .expand((c) => c.tracks)
+            .map((t) => t.nodeIndex);
+        for (final index in animatedIndices) {
+          expect(index, lessThan(asset.nodes.length));
+        }
+      },
+    );
 
     test('children reference nodes rather than surfaces', () async {
       final asset = await GltfLoader().load(readSample('BoxAnimated.glb'));
@@ -202,8 +200,10 @@ void main() {
       final asset = await GltfLoader().load(readSample('BoxAnimated.glb'));
       expect(asset.animations, isNotEmpty);
 
-      final paths =
-          asset.animations.expand((c) => c.tracks).map((t) => t.path).toSet();
+      final paths = asset.animations
+          .expand((c) => c.tracks)
+          .map((t) => t.path)
+          .toSet();
       expect(paths, contains(AnimationPath.translation));
       expect(asset.animations.first.duration, greaterThan(0.0));
     });
@@ -212,24 +212,29 @@ void main() {
       // The whole point of this sample: if a decoder silently treats
       // CUBICSPLINE as LINEAR it reads tangents as values, and nothing else in
       // the suite would notice.
-      final asset =
-          await GltfLoader().load(readSample('InterpolationTest.glb'));
+      final asset = await GltfLoader().load(
+        readSample('InterpolationTest.glb'),
+      );
       expect(asset.animations, isNotEmpty);
 
       final kinds = asset.animations
           .expand((c) => c.tracks)
           .map((t) => t.interpolation)
           .toSet();
-      expect(kinds, containsAll(<AnimationInterpolation>[
-        AnimationInterpolation.step,
-        AnimationInterpolation.linear,
-        AnimationInterpolation.cubicSpline,
-      ]));
+      expect(
+        kinds,
+        containsAll(<AnimationInterpolation>[
+          AnimationInterpolation.step,
+          AnimationInterpolation.linear,
+          AnimationInterpolation.cubicSpline,
+        ]),
+      );
     });
 
     test('a cubic track from the sample samples to a finite pose', () async {
-      final asset =
-          await GltfLoader().load(readSample('InterpolationTest.glb'));
+      final asset = await GltfLoader().load(
+        readSample('InterpolationTest.glb'),
+      );
       final cubic = asset.animations
           .expand((c) => c.tracks)
           .firstWhere(
@@ -247,17 +252,19 @@ void main() {
   });
 
   group('malformed animations are reported, not fatal', () {
-    test('a channel with no node is skipped silently, as the spec allows',
-        () async {
-      final asset = await GltfLoader().load(
-        buildAnimatedGltf(animation: translationAnimation(node: null)),
-      );
-      expect(asset.animations, isEmpty);
-      expect(
-        asset.warnings.any((w) => w.contains('no usable channels')),
-        isTrue,
-      );
-    });
+    test(
+      'a channel with no node is skipped silently, as the spec allows',
+      () async {
+        final asset = await GltfLoader().load(
+          buildAnimatedGltf(animation: translationAnimation(node: null)),
+        );
+        expect(asset.animations, isEmpty);
+        expect(
+          asset.warnings.any((w) => w.contains('no usable channels')),
+          isTrue,
+        );
+      },
+    );
 
     test('a channel targeting a node that does not exist warns', () async {
       final asset = await GltfLoader().load(
@@ -278,11 +285,13 @@ void main() {
     test('a sampler index out of range warns', () async {
       final animation = translationAnimation();
       (animation['channels']! as List).first as Map<String, Object?>;
-      ((animation['channels']! as List).first as Map<String, Object?>)['sampler'] =
+      ((animation['channels']! as List).first
+              as Map<String, Object?>)['sampler'] =
           7;
 
-      final asset =
-          await GltfLoader().load(buildAnimatedGltf(animation: animation));
+      final asset = await GltfLoader().load(
+        buildAnimatedGltf(animation: animation),
+      );
       expect(asset.animations, isEmpty);
       expect(asset.warnings.any((w) => w.contains('sampler 7')), isTrue);
     });
@@ -296,10 +305,7 @@ void main() {
         ),
       );
       expect(asset.animations, isEmpty);
-      expect(
-        asset.warnings.any((w) => w.contains('does not divide')),
-        isTrue,
-      );
+      expect(asset.warnings.any((w) => w.contains('does not divide')), isTrue);
     });
 
     test('a well-formed hand-built clip decodes', () async {
@@ -331,7 +337,9 @@ void main() {
 
     test('STEP is honoured rather than smoothed', () async {
       final asset = await GltfLoader().load(
-        buildAnimatedGltf(animation: translationAnimation(interpolation: 'STEP')),
+        buildAnimatedGltf(
+          animation: translationAnimation(interpolation: 'STEP'),
+        ),
       );
       final track = asset.animations.single.tracks.single;
       expect(track.interpolation, AnimationInterpolation.step);

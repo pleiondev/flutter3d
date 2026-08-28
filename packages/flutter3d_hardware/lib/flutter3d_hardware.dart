@@ -19,17 +19,22 @@ library;
 
 /// Recording a pass — state, bindings, draws.
 export 'src/command_encoder.dart';
+
 /// Enums, one per thing a caller has to name.
 export 'src/formats.dart';
+
 /// Opaque handles for the things a backend owns.
 export 'src/geometry_buffer.dart';
+
 /// The device: textures, buffers, pipelines, passes.
 export 'src/graphics_device.dart';
+
 /// How a texture is sampled.
 export 'src/mip_chain.dart';
 // Pass state as one value. No backend implements anything for it — see the
 // file's header for why it is here rather than in the engine.
 export 'src/pass_state.dart';
+
 /// Reuse of render targets, and the description that makes two of them
 /// interchangeable.
 export 'src/render_target_pool.dart';

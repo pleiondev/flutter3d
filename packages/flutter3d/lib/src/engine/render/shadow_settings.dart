@@ -7,7 +7,6 @@
 /// this is a move rather than a design change.
 library;
 
-
 /// Directional shadow mapping settings.
 /// Which faces of a caster are drawn into a shadow map.
 ///
@@ -37,6 +36,7 @@ final class ShadowSettings {
   const ShadowSettings({
     this.enabled = true,
     this.resolution = 1024,
+    this.cubeResolution = 512,
     this.bias = 0.0015,
     this.normalOffset = 0.02,
     this.strength = 1.0,
@@ -45,7 +45,7 @@ final class ShadowSettings {
     this.cascadeSplit = 0.7,
     this.viewDistance = 60.0,
     this.pointBias = 0.08,
-    this.pointNormalOffset = 0.02,
+    this.pointNormalOffset = 1.5,
     this.pointSoftness = 4.0,
     this.pointLightRadius = 0.0,
     this.pointMaxSoftness = 16.0,
@@ -124,7 +124,25 @@ final class ShadowSettings {
   final double pointBias;
 
   /// How far along the normal a cube-map sample moves before being projected,
-  /// in metres, before the slope term is added.
+  /// **in texels of the face it lands on**, before the slope term is added.
+  ///
+  /// **Texels rather than metres, and the unit is the fix.** What this offset
+  /// clears is the width of one texel of the shadow map: that texel covers a
+  /// patch of surface, records the whole patch at a single distance, and every
+  /// fragment in it that is not the point actually measured compares against a
+  /// distance from somewhere else. The patch is a solid angle, so it grows with
+  /// range — a fixed 2 cm was enough at two metres from a lamp and a third of
+  /// what was needed at ten.
+  ///
+  /// What that looked like: the golden teapot's floor shadowing itself across
+  /// everything its lamp reached, ending in a *straight line* where the floor's
+  /// own edge projects, because past that edge the atlas holds nothing and
+  /// nothing can occlude. A straight edge across a shadow in a scene that has
+  /// no straight edges in it.
+  ///
+  /// One and a half texels, with the slope term on top of it. Below one the
+  /// acne returns at grazing angles; far above it the shadow detaches from what
+  /// casts it, which is the failure the cap on the slope term exists for.
   final double pointNormalOffset;
 
   /// Penumbra width for a point light, as a radius in texels of one cube face.
@@ -225,23 +243,43 @@ final class ShadowSettings {
   /// three tiles of a thousand cover a level far better than one tile of two
   /// thousand, and cost less doing it — see [cascades] for the arithmetic.
   ///
-  /// **Two ranges, one number, and both are deliberate.** The cascade pass
-  /// clamps this to [minResolution]–[maxResolution]; the cube atlas clamps the
-  /// same number to [minCubeTile]–[maxCubeTile], because it holds six faces of
-  /// four lights — twenty-four tiles rather than three — so the ceiling that
-  /// gives a cascade a reasonable texture gives the cube atlas a 24,576-pixel
-  /// one. A game asking for 2048 therefore gets 2048 for the sun and 1024 for
-  /// its lamps. That was true before it was written down anywhere, which is
-  /// what this paragraph is for: two clamps with different numbers and no
-  /// explanation read as one of them being a typo.
+  /// **The cube atlas no longer reads this**, and the arithmetic of why is
+  /// worth the paragraph. It used to: the same number was clamped to
+  /// [minCubeTile]–[maxCubeTile] and used for a cube tile as well. A game
+  /// asking for a 1024 sun therefore got a cube atlas six tiles across and four
+  /// rows down of the same size — 6144 × 4096 texels of `r16g16b16a16Float`,
+  /// **201 MB**, and there are two of them, the movers and the bake. Four
+  /// hundred megabytes of video memory for shadows nobody asked to be that
+  /// sharp, on a platform where the whole browser tab has less.
+  ///
+  /// So a cube tile is [cubeResolution] now, with its own default, and one
+  /// number no longer sets a budget six times larger than the one it is named
+  /// for.
   final int resolution;
+
+  /// Edge length of **one cube face**, of which the atlas holds twenty-four.
+  ///
+  /// Separate from [resolution] because the two buy very different amounts of
+  /// picture for the same texels. A cascade tile covers the part of a level the
+  /// camera can see; a cube face covers a ninety-degree cone out to a lamp's
+  /// range, which for a torch is a few metres of wall. Five hundred and twelve
+  /// texels across that is about a centimetre per texel at two metres — finer
+  /// than the shadow's own penumbra — while the same number for the sun would
+  /// be visibly blocky.
+  ///
+  /// The atlas is `cubeResolution × 6` square — six faces across and
+  /// `Renderer.kShadowedLights` rows down. At the default that is 3072 × 3072,
+  /// or 75 MB in the HDR format, twice. Deriving the tile from [resolution]
+  /// instead, as it used to, would make the same atlas 302 MB.
+  final int cubeResolution;
 
   /// What the cascade pass will accept as a tile size.
   static const int minResolution = 256;
   static const int maxResolution = 4096;
 
   /// What the cube atlas will accept, which is lower for the reason in
-  /// [resolution]: it has twenty-four of these side by side.
+  /// [cubeResolution]: the atlas holds thirty-six of these — six faces across,
+  /// six lights down.
   static const int minCubeTile = 128;
   static const int maxCubeTile = 1024;
 
@@ -266,6 +304,7 @@ final class ShadowSettings {
   ShadowSettings copyWith({
     bool? enabled,
     int? resolution,
+    int? cubeResolution,
     double? bias,
     double? normalOffset,
     double? strength,
@@ -288,6 +327,7 @@ final class ShadowSettings {
       ShadowSettings(
         enabled: enabled ?? this.enabled,
         resolution: resolution ?? this.resolution,
+        cubeResolution: cubeResolution ?? this.cubeResolution,
         bias: bias ?? this.bias,
         normalOffset: normalOffset ?? this.normalOffset,
         strength: strength ?? this.strength,

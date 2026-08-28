@@ -49,12 +49,24 @@ typedef LightSample = ({
 /// Returns null for a light that contributes nothing, which is the `n_dot_l <=
 /// 0` early-out in `AccumulateLights`.
 LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
-  final position =
-      bindings.vec4('FragInfo', 'light_position', Vector4.zero(), at: index);
-  final colour =
-      bindings.vec4('FragInfo', 'light_color', Vector4.zero(), at: index);
-  final direction =
-      bindings.vec4('FragInfo', 'light_direction', Vector4.zero(), at: index);
+  final position = bindings.vec4(
+    'FragInfo',
+    'light_position',
+    Vector4.zero(),
+    at: index,
+  );
+  final colour = bindings.vec4(
+    'FragInfo',
+    'light_color',
+    Vector4.zero(),
+    at: index,
+  );
+  final direction = bindings.vec4(
+    'FragInfo',
+    'light_direction',
+    Vector4.zero(),
+    at: index,
+  );
 
   final aim = Vector3(direction.x, direction.y, direction.z);
   final aimLength = aim.length;
@@ -80,11 +92,17 @@ LightSample? sampleLight(ShaderBindings bindings, int index, Surface s) {
   // The spot cone: a smooth ramp between the two cosines. The Dart side
   // guarantees the denominator is non-zero.
   if (position.w > 1.5) {
-    final cone =
-        bindings.vec4('FragInfo', 'light_cone', Vector4.zero(), at: index);
+    final cone = bindings.vec4(
+      'FragInfo',
+      'light_cone',
+      Vector4.zero(),
+      at: index,
+    );
     final cosAngle = aim.dot(-toLight);
-    lightAttenuation *=
-        ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(0.0, 1.0);
+    lightAttenuation *= ((cosAngle - cone.y) / (cone.x - cone.y)).clamp(
+      0.0,
+      1.0,
+    );
   }
 
   final half = (toLight + s.view)..normalize();

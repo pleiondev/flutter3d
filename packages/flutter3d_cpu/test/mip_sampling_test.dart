@@ -72,8 +72,11 @@ void main() {
     // One pixel covers a sixteenth of a texel: a magnifying view, where the
     // base is the only right answer.
     final sample = bound.sample(0.03125, 0.03125, du: 1 / 256, dv: 1 / 256);
-    expect(sample.x, closeTo(1.0, 1e-6),
-        reason: 'texel (0,0) of the checkerboard is white');
+    expect(
+      sample.x,
+      closeTo(1.0, 1e-6),
+      reason: 'texel (0,0) of the checkerboard is white',
+    );
   });
 
   test('a coordinate racing across the texture reads a small level', () {
@@ -85,21 +88,26 @@ void main() {
     // The last level is one texel, and a checkerboard averaged down to one
     // texel is a half.
     final sample = bound.sample(0.5, 0.5, du: 1.0, dv: 1.0);
-    expect(sample.x, closeTo(0.5, 0.02),
-        reason: 'the base level here would answer 0 or 1, not a half');
+    expect(
+      sample.x,
+      closeTo(0.5, 0.02),
+      reason: 'the base level here would answer 0 or 1, not a half',
+    );
   });
 
-  test('no derivative means the base level, which is what every old call does',
-      () {
-    final bound = BoundTexture(
-      _checkerWithChain(device, 16).backend as CpuTexture,
-      SamplerOptions.trilinearRepeat,
-    );
-    // Zero is the default, and it is what the twenty-odd scenes with no chain
-    // pass without knowing this parameter exists.
-    final without = bound.sample(0.03125, 0.03125);
-    expect(without.x, closeTo(1.0, 1e-6));
-  });
+  test(
+    'no derivative means the base level, which is what every old call does',
+    () {
+      final bound = BoundTexture(
+        _checkerWithChain(device, 16).backend as CpuTexture,
+        SamplerOptions.trilinearRepeat,
+      );
+      // Zero is the default, and it is what the twenty-odd scenes with no chain
+      // pass without knowing this parameter exists.
+      final without = bound.sample(0.03125, 0.03125);
+      expect(without.x, closeTo(1.0, 1e-6));
+    },
+  );
 
   test('a nearest mip filter picks one level rather than blending two', () {
     final chain = _checkerWithChain(device, 16).backend as CpuTexture;
@@ -118,14 +126,24 @@ void main() {
     // A footprint of 1.5 texels is lod 0.585. At the centre of texel (0, 0) the
     // base says white and the level below says a half.
     const at = 0.03125;
-    final blended = BoundTexture(chain, SamplerOptions.trilinearRepeat)
-        .sample(at, at, du: 1.5 / 16, dv: 1.5 / 16);
-    final picked =
-        BoundTexture(chain, nearest).sample(at, at, du: 1.5 / 16, dv: 1.5 / 16);
-    expect(picked.x, closeTo(1.0, 1e-6),
-        reason: 'nearest must read the base level whole');
-    expect(blended.x, closeTo(1.0 + (0.5 - 1.0) * 0.585, 0.02),
-        reason: 'linear must land between the two levels');
+    final blended = BoundTexture(
+      chain,
+      SamplerOptions.trilinearRepeat,
+    ).sample(at, at, du: 1.5 / 16, dv: 1.5 / 16);
+    final picked = BoundTexture(
+      chain,
+      nearest,
+    ).sample(at, at, du: 1.5 / 16, dv: 1.5 / 16);
+    expect(
+      picked.x,
+      closeTo(1.0, 1e-6),
+      reason: 'nearest must read the base level whole',
+    );
+    expect(
+      blended.x,
+      closeTo(1.0 + (0.5 - 1.0) * 0.585, 0.02),
+      reason: 'linear must land between the two levels',
+    );
   });
 
   test('a texture with no chain ignores the derivative entirely', () {

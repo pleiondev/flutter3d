@@ -95,7 +95,8 @@ final class FrameResources {
   /// which is unnamed by construction and so cannot be read by anyone. It is
   /// insurance against the next `ResourceDesc` somebody writes.
   void declare(ResourceDesc desc) {
-    if (desc.storageMode == StorageMode.deviceTransient && graph.isRead(desc.id)) {
+    if (desc.storageMode == StorageMode.deviceTransient &&
+        graph.isRead(desc.id)) {
       throw StateError(
         '"${desc.id.name}" is declared deviceTransient and something reads it. '
         'Tile memory does not survive the pass that wrote it, so the reader '
@@ -356,7 +357,8 @@ final class FrameResources {
       final node = _node >= 0 && _node < graph.order.length
           ? graph.order[_node]
           : null;
-      final declared = node != null &&
+      final declared =
+          node != null &&
           (node.reads.any((other) => other.name == id.name) ||
               node.optionalReads.any((other) => other.name == id.name) ||
               node.writes.any((other) => other.name == id.name) ||
@@ -365,9 +367,9 @@ final class FrameResources {
         throw FrameGraphError(
           _node < 0
               ? 'something outside any node asked for "${id.name}". Every read '
-                  'belongs to a node, and the node has to declare it.'
+                    'belongs to a node, and the node has to declare it.'
               : 'node ${node?.name ?? _node} asked for "${id.name}" without '
-                  'declaring it. Add it to reads or optionalReads.',
+                    'declaring it. Add it to reads or optionalReads.',
         );
       }
       return graph.currentVersionOf(id);

@@ -49,15 +49,14 @@ final class DebugDrawOptions {
     bool? axes,
     bool? cameraFrustums,
     double? normalLength,
-  }) =>
-      DebugDrawOptions(
-        bounds: bounds ?? this.bounds,
-        normals: normals ?? this.normals,
-        lightGizmos: lightGizmos ?? this.lightGizmos,
-        axes: axes ?? this.axes,
-        cameraFrustums: cameraFrustums ?? this.cameraFrustums,
-        normalLength: normalLength ?? this.normalLength,
-      );
+  }) => DebugDrawOptions(
+    bounds: bounds ?? this.bounds,
+    normals: normals ?? this.normals,
+    lightGizmos: lightGizmos ?? this.lightGizmos,
+    axes: axes ?? this.axes,
+    cameraFrustums: cameraFrustums ?? this.cameraFrustums,
+    normalLength: normalLength ?? this.normalLength,
+  );
 }
 
 /// Colours used by the built-in overlays, so a screenshot is readable without a
@@ -93,7 +92,7 @@ abstract final class DebugColors {
 /// the graphics backend, which keeps it testable without a device.
 final class DebugDraw {
   DebugDraw({int reserveLines = 256})
-      : _data = Float32List(math.max(1, reserveLines) * floatsPerLine);
+    : _data = Float32List(math.max(1, reserveLines) * floatsPerLine);
 
   /// position.xyz + colour.rgba, matching [VertexLayout.positionColor].
   static const int floatsPerVertex = 7;
@@ -179,7 +178,6 @@ final class DebugDraw {
       }
     }
   }
-
 
   void addLine(Vector3 a, Vector3 b, Vector4 color) =>
       addLineXyz(a.x, a.y, a.z, b.x, b.y, b.z, color);

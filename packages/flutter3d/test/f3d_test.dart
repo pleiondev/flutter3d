@@ -6,13 +6,13 @@ import 'package:flutter3d/src/engine/assets/f3d/f3d.dart';
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/assets/obj/obj.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const String kSamples = 'assets/samples';
+const String kSamples = kSamplesPath;
 
-Uint8List readSample(String name) =>
-    File('$kSamples/$name').readAsBytesSync();
+Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
 /// Round-trips a document through the container.
 F3dDocument roundTrip(ModelDocument document) =>
@@ -57,13 +57,13 @@ final class _FakeSkinnedDocument extends ModelDocument {
 
   @override
   List<ModelSkin> get skins => <ModelSkin>[
-        for (var i = 0; i < 3; i++)
-          ModelSkin(
-            name: 'skin$i',
-            joints: const <int>[0],
-            inverseBindMatrices: <Matrix4>[Matrix4.identity()],
-          ),
-      ];
+    for (var i = 0; i < 3; i++)
+      ModelSkin(
+        name: 'skin$i',
+        joints: const <int>[0],
+        inverseBindMatrices: <Matrix4>[Matrix4.identity()],
+      ),
+  ];
 }
 
 MeshData triangle({Vector4? colour}) {
@@ -97,8 +97,9 @@ void main() {
     // file whose floats had been mangled by an endianness slip, so this compares
     // every element.
     test('the teapot matches the OBJ decoder exactly', () async {
-      final source = await ObjLoader(layout: VertexLayout.standard)
-          .load(readSample('teapot.obj'));
+      final source = await ObjLoader(
+        layout: VertexLayout.standard,
+      ).load(readSample('teapot.obj'));
       final reloaded = roundTrip(source);
 
       expect(reloaded.surfaces.length, source.surfaces.length);
@@ -116,8 +117,9 @@ void main() {
     });
 
     test('a textured GLB keeps its image bytes', () async {
-      final source = await GltfLoader(layout: VertexLayout.standard)
-          .load(readSample('BoxTextured.glb'));
+      final source = await GltfLoader(
+        layout: VertexLayout.standard,
+      ).load(readSample('BoxTextured.glb'));
       final reloaded = roundTrip(source);
 
       expect(source.images, isNotEmpty);
@@ -169,10 +171,7 @@ void main() {
       // Identity, not equality: the GPU upload path deduplicates on it, and a
       // format that split one mesh into two would double the buffers uploaded.
       expect(
-        identical(
-          document.surfaces[0].mesh,
-          document.surfaces[1].mesh,
-        ),
+        identical(document.surfaces[0].mesh, document.surfaces[1].mesh),
         isTrue,
       );
 
@@ -180,8 +179,10 @@ void main() {
       final oneCopy = F3dWriter(
         _FakeDocument(surfaces: <ModelSurface>[ModelSurface(mesh: shared)]),
       ).write();
-      expect(encoded.length - oneCopy.length,
-          lessThan(shared.vertices.lengthInBytes));
+      expect(
+        encoded.length - oneCopy.length,
+        lessThan(shared.vertices.lengthInBytes),
+      );
     });
   });
 
@@ -215,16 +216,16 @@ void main() {
       expect(surface.materialIndex, 3);
       expect(surface.flipWinding, isTrue);
       for (var i = 0; i < 16; i++) {
-        expect(surface.transform.storage[i],
-            closeTo(transform.storage[i], 1e-6));
+        expect(
+          surface.transform.storage[i],
+          closeTo(transform.storage[i], 1e-6),
+        );
       }
     });
 
     test('a surface with no material comes back with none', () {
       final document = roundTrip(
-        _FakeDocument(
-          surfaces: <ModelSurface>[ModelSurface(mesh: triangle())],
-        ),
+        _FakeDocument(surfaces: <ModelSurface>[ModelSurface(mesh: triangle())]),
       );
       expect(document.surfaces.single.materialIndex, isNull);
     });
@@ -322,8 +323,9 @@ void main() {
     test('the node hierarchy, with children and surfaces', () async {
       // BoxAnimated has transform-only nodes and a real tree, which is what
       // animation addresses by index.
-      final source = await GltfLoader(layout: VertexLayout.standard)
-          .load(readSample('BoxAnimated.glb'));
+      final source = await GltfLoader(
+        layout: VertexLayout.standard,
+      ).load(readSample('BoxAnimated.glb'));
       final reloaded = roundTrip(source);
 
       expect(reloaded.nodes.length, source.nodes.length);
@@ -345,8 +347,9 @@ void main() {
       // InterpolationTest carries all three interpolations, including the cubic
       // one whose keys hold three values each — the layout most likely to be
       // mis-sized by a serializer.
-      final source = await GltfLoader(layout: VertexLayout.standard)
-          .load(readSample('InterpolationTest.glb'));
+      final source = await GltfLoader(
+        layout: VertexLayout.standard,
+      ).load(readSample('InterpolationTest.glb'));
       final reloaded = roundTrip(source);
 
       expect(reloaded.animations.length, source.animations.length);
@@ -376,8 +379,11 @@ void main() {
             final time = ta.endTime * step / 8;
             ta.sample(time, outA);
             tb.sample(time, outB);
-            expect(outB, orderedEquals(outA),
-                reason: 'clip $c track $t differs at $time');
+            expect(
+              outB,
+              orderedEquals(outA),
+              reason: 'clip $c track $t differs at $time',
+            );
           }
         }
       }
@@ -446,8 +452,10 @@ void main() {
     test('the surface still points at its skin', () async {
       final source = await GltfLoader().load(readSample('RiggedSimple.glb'));
       final reloaded = roundTrip(source);
-      expect(reloaded.surfaces.single.skinIndex,
-          source.surfaces.single.skinIndex);
+      expect(
+        reloaded.surfaces.single.skinIndex,
+        source.surfaces.single.skinIndex,
+      );
     });
 
     test('the skinned vertex layout survives', () async {
@@ -474,11 +482,7 @@ void main() {
       final document = roundTrip(
         _FakeSkinnedDocument(
           surfaces: <ModelSurface>[
-            ModelSurface(
-              mesh: triangle(),
-              flipWinding: true,
-              skinIndex: 2,
-            ),
+            ModelSurface(mesh: triangle(), flipWinding: true, skinIndex: 2),
           ],
         ),
       );
@@ -518,7 +522,9 @@ void main() {
       ).write();
       // Bump the version in place; everything else stays valid, so the version
       // check is the only thing that can reject it.
-      ByteData.view(encoded.buffer).setUint32(4, kF3dVersion + 1, Endian.little);
+      ByteData.view(
+        encoded.buffer,
+      ).setUint32(4, kF3dVersion + 1, Endian.little);
 
       expect(
         () => F3dDocument.parse(encoded),

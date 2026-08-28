@@ -86,15 +86,10 @@ base class SceneNode implements AnimationTarget {
     _localDirty = true;
   }
 
-  void setPositionFrom(Vector3 value) =>
-      setPosition(value.x, value.y, value.z);
+  void setPositionFrom(Vector3 value) => setPosition(value.x, value.y, value.z);
 
   void translate(double dx, double dy, double dz) {
-    _position.setValues(
-      _position.x + dx,
-      _position.y + dy,
-      _position.z + dz,
-    );
+    _position.setValues(_position.x + dx, _position.y + dy, _position.z + dz);
     _localDirty = true;
   }
 
@@ -133,14 +128,13 @@ base class SceneNode implements AnimationTarget {
   }
 
   /// Reads the local position into [out] to avoid allocating.
-  Vector3 readPosition([Vector3? out]) => (out ?? Vector3.zero())
-    ..setFrom(_position);
+  Vector3 readPosition([Vector3? out]) =>
+      (out ?? Vector3.zero())..setFrom(_position);
 
   Quaternion readRotation([Quaternion? out]) =>
       (out ?? Quaternion.identity())..setFrom(_rotation);
 
-  Vector3 readScale([Vector3? out]) => (out ?? Vector3.zero())
-    ..setFrom(_scale);
+  Vector3 readScale([Vector3? out]) => (out ?? Vector3.zero())..setFrom(_scale);
 
   Vector3 readWorldPosition([Vector3? out]) {
     final result = out ?? Vector3.zero();

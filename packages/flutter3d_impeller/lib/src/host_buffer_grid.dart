@@ -76,11 +76,13 @@ ByteData padded(ByteData bytes, int granule) {
   final wanted = roundedTo(bytes.lengthInBytes, granule);
   if (wanted == bytes.lengthInBytes) return bytes;
   final out = ByteData(wanted);
-  Uint8List.sublistView(out, 0, bytes.lengthInBytes)
-      .setAll(0, Uint8List.sublistView(bytes));
+  Uint8List.sublistView(
+    out,
+    0,
+    bytes.lengthInBytes,
+  ).setAll(0, Uint8List.sublistView(bytes));
   return out;
 }
-
 
 /// Where the next write will land in a `HostBuffer`'s current block.
 ///

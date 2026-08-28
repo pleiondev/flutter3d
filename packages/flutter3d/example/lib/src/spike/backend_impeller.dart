@@ -19,10 +19,9 @@ import 'backend_cpu.dart';
 Future<GraphicsDevice> createBackend({
   required int width,
   required int height,
-}) async =>
-    kUseCpuBackend
-        ? createCpuBackend(width: width, height: height)
-        : await GpuRenderBackend.create();
+}) async => kUseCpuBackend
+    ? createCpuBackend(width: width, height: height)
+    : await GpuRenderBackend.create();
 
 /// What to call this build in a diagnostic.
 String get kBackendName => kUseCpuBackend ? 'cpu' : 'impeller';

@@ -24,11 +24,15 @@ Future<void> checkCapabilities(GraphicsDevice device) async {
   device.framebufferOrigin;
   device.supportsWireframe;
   device.supportsOffscreenMsaa;
-  require(device.preferredSampleCount >= 1,
-      'preferredSampleCount is ${device.preferredSampleCount}; one means no '
-      'multisampling and less than one means nothing');
-  require(device.defaultColorFormat != TextureFormat.unknown,
-      'defaultColorFormat is unknown, so the frame has nowhere to go');
+  require(
+    device.preferredSampleCount >= 1,
+    'preferredSampleCount is ${device.preferredSampleCount}; one means no '
+    'multisampling and less than one means nothing',
+  );
+  require(
+    device.defaultColorFormat != TextureFormat.unknown,
+    'defaultColorFormat is unknown, so the frame has nowhere to go',
+  );
 }
 
 Future<void> checkHdrRenderable(GraphicsDevice device) async {
@@ -37,19 +41,21 @@ Future<void> checkHdrRenderable(GraphicsDevice device) async {
   // renderable — RGBA16F on WebGL2 before EXT_color_buffer_float is asked for —
   // makes every framebuffer incomplete, every draw silently discarded, and a
   // frame of transparent black with every counter reporting success.
-  final target = device.createTexture(RenderTargetSpec(
-    width: 32,
-    height: 32,
-    format: device.hdrColorFormat,
-  ));
+  final target = device.createTexture(
+    RenderTargetSpec(width: 32, height: 32, format: device.hdrColorFormat),
+  );
   device
-      .beginRenderPass(RenderPassDescriptor(colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4(1.0, 1.0, 1.0, 1.0),
+      .beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: target,
+              loadAction: LoadAction.clear,
+              clearValue: Vector4(1.0, 1.0, 1.0, 1.0),
+            ),
+          ],
         ),
-      ]))
+      )
       .submit();
 }
 
@@ -60,20 +66,25 @@ Future<void> checkClearCoversAll(GraphicsDevice device) async {
   // SCISSOR_TEST — and the symptom was one cleared row out of four and shadows
   // that read as absent.
   const size = 64;
-  final target = device.createTexture(const RenderTargetSpec(
-    width: size,
-    height: size,
-    format: TextureFormat.r8g8b8a8UNormInt,
-  ));
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
 
-  device
-      .beginRenderPass(RenderPassDescriptor(colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
-        ),
-      ]))
+  device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            loadAction: LoadAction.clear,
+            clearValue: Vector4(0.0, 1.0, 0.0, 1.0),
+          ),
+        ],
+      ),
+    )
     // A scissor over one corner, set before submitting. A backend that clears
     // through it fails here and only here.
     ..setScissor(const ScreenRect(x: 0, y: 0, width: 8, height: 8))
@@ -90,10 +101,11 @@ Future<void> checkClearCoversAll(GraphicsDevice device) async {
     if (bytes[i + 1] < 200) wrong++;
   }
   require(
-      wrong == 0,
-      '$wrong of ${bytes.length ~/ 4} pixels are not the clear colour — the '
-      'clear was bounded by something, and the contract says it covers the '
-      'whole attachment');
+    wrong == 0,
+    '$wrong of ${bytes.length ~/ 4} pixels are not the clear colour — the '
+    'clear was bounded by something, and the contract says it covers the '
+    'whole attachment',
+  );
 }
 
 Future<void> checkRowOrder(GraphicsDevice device) async {
@@ -119,20 +131,26 @@ Future<void> checkRowOrder(GraphicsDevice device) async {
     format: TextureFormat.r8g8b8a8UNormInt,
     pixels: ByteData.sublistView(source),
   );
-  require(texture != null, 'the device made no texture from four by four '
-      'RGBA8 pixels');
+  require(
+    texture != null,
+    'the device made no texture from four by four '
+    'RGBA8 pixels',
+  );
 
   final read = await device.readPixels(texture!);
   require(read != null, 'the uploaded texture could not be read back');
   final bytes = read!.buffer.asUint8List();
 
   require(
-      bytes[0] == source[0],
-      'row zero came back as ${bytes[0]} where ${source[0]} was written: the '
-      'image is upside down');
+    bytes[0] == source[0],
+    'row zero came back as ${bytes[0]} where ${source[0]} was written: the '
+    'image is upside down',
+  );
   final last = (height - 1) * width * 4;
-  require(bytes[last] == source[last],
-      'the last row disagrees, which a flip would also cause');
+  require(
+    bytes[last] == source[last],
+    'the last row disagrees, which a flip would also cause',
+  );
 }
 
 Future<void> checkGeometryUsage(GraphicsDevice device) async {
@@ -168,8 +186,8 @@ Future<void> checkCubeMipLevels(GraphicsDevice device) async {
 
   const size = 4;
   List<ByteData> faces(int side) => <ByteData>[
-        for (var i = 0; i < 6; i++) ByteData(side * side * 4),
-      ];
+    for (var i = 0; i < 6; i++) ByteData(side * side * 4),
+  ];
 
   final chained = device.createCubeTextureFromPixels(
     size: size,
@@ -188,8 +206,10 @@ Future<void> checkCubeMipLevels(GraphicsDevice device) async {
     faces: faces(size),
     mipLevels: <List<ByteData>>[faces(size)],
   );
-  require(ragged == null,
-      'a level that is not half the one above it was accepted');
+  require(
+    ragged == null,
+    'a level that is not half the one above it was accepted',
+  );
 
   // Five faces in a level is the same class of mistake as five faces in the
   // base, which the interface already refuses.

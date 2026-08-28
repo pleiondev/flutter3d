@@ -47,7 +47,9 @@ Future<MaterialDocument> loadMaterialDocument(
   final bytes = await source.read();
   final fileName = source.fileName;
   for (final decoder in decoders) {
-    if (decoder.handles(fileName, bytes)) return decoder.decode(bytes, fileName);
+    if (decoder.handles(fileName, bytes)) {
+      return decoder.decode(bytes, fileName);
+    }
   }
   if (!fileName.toLowerCase().endsWith('.fmat') && !isFmat(bytes)) {
     throw FormatException(
@@ -86,7 +88,8 @@ Future<Material> bindMaterial(
   final cache = <(int, bool), TextureHandle?>{};
 
   Future<(TextureHandle?, SamplerOptions?)> resolve(
-      TextureBinding? binding) async {
+    TextureBinding? binding,
+  ) async {
     if (binding == null) return (null, null);
     final index = binding.imageIndex;
     if (index < 0 || index >= document.images.length) return (null, null);
@@ -101,11 +104,12 @@ Future<Material> bindMaterial(
       }
       final uploaded = bytes == null
           ? null
-          : await uploadEncodedImage(device, bytes,
-              sampling: binding.sampling);
+          : await uploadEncodedImage(device, bytes, sampling: binding.sampling);
       if (uploaded == null) {
-        warnings?.add('${document.images[index]} could not be read; the '
-            'material falls back to its factors.');
+        warnings?.add(
+          '${document.images[index]} could not be read; the '
+          'material falls back to its factors.',
+        );
       }
       cache[key] = uploaded;
     }
@@ -127,8 +131,8 @@ Future<Material> bindMaterial(
 
   return Material(
     name: surface.name,
-    lighting: document.lighting ??
-        (surface.unlit ? LightingModel.unlit : lighting),
+    lighting:
+        document.lighting ?? (surface.unlit ? LightingModel.unlit : lighting),
     baseColor: surface.baseColor.clone(),
     metallic: surface.metallic,
     roughness: surface.roughness,

@@ -43,11 +43,11 @@ void main() {
         shaders: CpuShaderLibrary(builtinCpuShaders()),
       );
       TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-            width: 1,
-            height: 1,
-            format: TextureFormat.r8g8b8a8UNormInt,
-            pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-          )!;
+        width: 1,
+        height: 1,
+        format: TextureFormat.r8g8b8a8UNormInt,
+        pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+      )!;
       final renderer = Renderer.create(
         device: device,
         fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -68,14 +68,17 @@ void main() {
       final pixels = await device.readPixels(result.frame);
       final file = File('${out.path}/${which.name}.png');
       file.writeAsBytesSync(
-          encodePng(pixels!.buffer.asUint8List(), _width, _height));
+        encodePng(pixels!.buffer.asUint8List(), _width, _height),
+      );
 
       // The time, because it is the one number that separates this backend from
       // the others by orders of magnitude and nothing else here would say so.
       // ignore: avoid_print
-      print('${which.name}: ${result.drawCalls} draws, '
-          '${elapsed.inMilliseconds} ms at ${_width}x$_height '
-          '-> ${file.path}');
+      print(
+        '${which.name}: ${result.drawCalls} draws, '
+        '${elapsed.inMilliseconds} ms at ${_width}x$_height '
+        '-> ${file.path}',
+      );
     }
   });
 }

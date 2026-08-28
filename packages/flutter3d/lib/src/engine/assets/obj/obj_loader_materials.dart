@@ -161,9 +161,5 @@ Map<String, MtlMaterial> parseMtl(String text) {
 
 Vector3? _toVector3(List<String> args) {
   if (args.length < 3) return null;
-  return Vector3(
-    _toDouble(args[0]),
-    _toDouble(args[1]),
-    _toDouble(args[2]),
-  );
+  return Vector3(_toDouble(args[0]), _toDouble(args[1]), _toDouble(args[2]));
 }

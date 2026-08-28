@@ -46,8 +46,10 @@ void main() {
         Vector2(0.0, 0.5),
       ];
       final outward = LatheShape(profile: profile, segments: 24).build();
-      final inward =
-          LatheShape(profile: profile.reversed.toList(), segments: 24).build();
+      final inward = LatheShape(
+        profile: profile.reversed.toList(),
+        segments: 24,
+      ).build();
 
       expect(outward.signedVolume(), greaterThan(0.0));
       expect(inward.signedVolume(), lessThan(0.0));
@@ -263,17 +265,18 @@ void main() {
     });
 
     test('transformed keeps normals unit under non-uniform scale', () {
-      final mesh = SphereShape(radius: 0.5).build().transformed(
-        Matrix4.diagonal3(Vector3(2.0, 0.5, 1.0)),
-      );
+      final mesh = SphereShape(
+        radius: 0.5,
+      ).build().transformed(Matrix4.diagonal3(Vector3(2.0, 0.5, 1.0)));
       for (var i = 0; i < mesh.vertexCount; i++) {
         expect(normalAt(mesh, i).length, closeTo(1.0, 1e-4));
       }
     });
 
     test('bounds cover the box exactly', () {
-      final bounds =
-          CuboidShape(size: Vector3(2.0, 4.0, 6.0)).build().computeBounds();
+      final bounds = CuboidShape(
+        size: Vector3(2.0, 4.0, 6.0),
+      ).build().computeBounds();
       expect(bounds.min.x, closeTo(-1.0, 1e-6));
       expect(bounds.max.y, closeTo(2.0, 1e-6));
       expect(bounds.max.z, closeTo(3.0, 1e-6));

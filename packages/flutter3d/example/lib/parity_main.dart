@@ -84,7 +84,10 @@ class _ParityAppState extends State<ParityApp> {
 
         buffer.writeln("  ParityScene.${which.name}: <int>[");
         for (var row = 0; row < kParityGrid; row++) {
-          final slice = grid.sublist(row * kParityGrid, (row + 1) * kParityGrid);
+          final slice = grid.sublist(
+            row * kParityGrid,
+            (row + 1) * kParityGrid,
+          );
           buffer.writeln('    ${slice.join(', ')},');
         }
         buffer.writeln('  ],');
@@ -105,18 +108,18 @@ class _ParityAppState extends State<ParityApp> {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        home: Scaffold(
-          backgroundColor: const Color(0xFF111111),
-          body: SingleChildScrollView(
-            child: Text(
-              _report,
-              style: const TextStyle(
-                color: Color(0xFFDDDDDD),
-                fontFamily: 'monospace',
-                fontSize: 12,
-              ),
-            ),
+    home: Scaffold(
+      backgroundColor: const Color(0xFF111111),
+      body: SingleChildScrollView(
+        child: Text(
+          _report,
+          style: const TextStyle(
+            color: Color(0xFFDDDDDD),
+            fontFamily: 'monospace',
+            fontSize: 12,
           ),
         ),
-      );
+      ),
+    ),
+  );
 }

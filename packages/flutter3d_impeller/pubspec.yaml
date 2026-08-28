@@ -3,6 +3,12 @@ description: "The flutter_gpu backend for flutter3d: one implementation of flutt
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - gpu
+  - rendering
+  - flutter-gpu
 publish_to: 'none'
 resolution: workspace
 

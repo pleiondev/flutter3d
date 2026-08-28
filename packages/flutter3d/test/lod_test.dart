@@ -6,11 +6,8 @@ import 'package:flutter3d/src/engine/scene/scene_graph.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-MeshNode level(String name) => MeshNode(
-      CpuMesh(CuboidShape().build()),
-      Material(),
-      name: name,
-    );
+MeshNode level(String name) =>
+    MeshNode(CpuMesh(CuboidShape().build()), Material(), name: name);
 
 ({Scene scene, LodGroup group, CameraNode camera}) build() {
   final scene = Scene();
@@ -38,10 +35,11 @@ void main() {
   group('choosing a level', () {
     test('levels are ordered coarsest threshold first', () {
       final (:group, :scene, :camera) = build();
-      expect(
-        group.levels.map((l) => l.node.name),
-        <String>['high', 'medium', 'low'],
-      );
+      expect(group.levels.map((l) => l.node.name), <String>[
+        'high',
+        'medium',
+        'low',
+      ]);
     });
 
     test('only one level is ever visible', () {
@@ -77,8 +75,11 @@ void main() {
       for (var distance = 1.0; distance < 200.0; distance *= 1.3) {
         camera.setPosition(0.0, 0.0, distance);
         final chosen = group.select(camera);
-        expect(chosen, greaterThanOrEqualTo(previous),
-            reason: 'level went finer at distance $distance');
+        expect(
+          chosen,
+          greaterThanOrEqualTo(previous),
+          reason: 'level went finer at distance $distance',
+        );
         previous = chosen;
       }
       expect(previous, group.levels.length - 1);
@@ -123,10 +124,7 @@ void main() {
     });
 
     test('the group refuses to be built with no levels', () {
-      expect(
-        () => LodGroup(levels: const <LodLevel>[]),
-        throwsArgumentError,
-      );
+      expect(() => LodGroup(levels: const <LodLevel>[]), throwsArgumentError);
     });
   });
 

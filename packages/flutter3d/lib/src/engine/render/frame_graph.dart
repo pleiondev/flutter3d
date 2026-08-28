@@ -209,15 +209,16 @@ final class CompiledFrameGraph {
 
   /// Resources this frame touches at all, in no particular order.
   Iterable<ResourceId> get resources => <ResourceId>{
-        for (final key in _lastUse.keys) key.id,
-      };
+    for (final key in _lastUse.keys) key.id,
+  };
 
   /// The same, with each version told apart.
   Iterable<ResourceVersion> get resourceVersions => _lastUse.keys;
 
   /// The version of [id] the node at [index] reads, or null if it declares no
   /// read of it.
-  int? readVersionOf(int index, ResourceId id) => _bindings[index].reads[id.name];
+  int? readVersionOf(int index, ResourceId id) =>
+      _bindings[index].reads[id.name];
 
   /// The version of [id] the node at [index] produces, or null if it writes
   /// none.
@@ -239,10 +240,10 @@ final class CompiledFrameGraph {
   /// broke its half of the promise, and the alternative to catching it here is
   /// a reader three passes later finding nothing and quietly doing without.
   Iterable<ResourceId> keptBy(int index) => <ResourceId>[
-        for (final entry in _bindings[index].writes.entries)
-          if (isKeptVersion(ResourceVersion(ResourceId(entry.key), entry.value)))
-            ResourceId(entry.key),
-      ];
+    for (final entry in _bindings[index].writes.entries)
+      if (isKeptVersion(ResourceVersion(ResourceId(entry.key), entry.value)))
+        ResourceId(entry.key),
+  ];
 
   /// Whether [version] is maintained across frames rather than drawn by this
   /// one.
@@ -292,14 +293,14 @@ final class CompiledFrameGraph {
   /// A version at a time, because that is the whole point: `hdr_colour@0` goes
   /// back after its last reader even though `hdr_colour@1` is still live.
   List<ResourceVersion> retiredAfter(int index) => <ResourceVersion>[
-        for (final entry in _lastUse.entries)
-          if (entry.value == index) entry.key,
-      ];
+    for (final entry in _lastUse.entries)
+      if (entry.value == index) entry.key,
+  ];
 
   /// [retiredAfter] with the versions dropped — the names whose last use this
   /// step was, each named once however many versions of it died here.
   List<ResourceId> releasedAfter(int index) => <ResourceId>{
-        for (final entry in _lastUse.entries)
-          if (entry.value == index) entry.key.id,
-      }.toList();
+    for (final entry in _lastUse.entries)
+      if (entry.value == index) entry.key.id,
+  }.toList();
 }

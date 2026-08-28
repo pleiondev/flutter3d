@@ -30,8 +30,10 @@ abstract interface class VertexFetch {
 /// shader's `in` order, which is the same contract flutter_gpu works from.
 final class PackedFetch implements VertexFetch {
   PackedFetch(ByteData bytes, this.floatsPerVertex)
-      : _floats = bytes.buffer
-            .asFloat32List(bytes.offsetInBytes, bytes.lengthInBytes ~/ 4);
+    : _floats = bytes.buffer.asFloat32List(
+        bytes.offsetInBytes,
+        bytes.lengthInBytes ~/ 4,
+      );
 
   final Float32List _floats;
 
@@ -96,8 +98,12 @@ final class LayoutFetch implements VertexFetch {
           'to it. Every slot the layout names has to be filled before a draw.',
         );
       }
-      views.add(bytes.buffer
-          .asFloat32List(bytes.offsetInBytes, bytes.lengthInBytes ~/ 4));
+      views.add(
+        bytes.buffer.asFloat32List(
+          bytes.offsetInBytes,
+          bytes.lengthInBytes ~/ 4,
+        ),
+      );
       if (buffer.strideInBytes % 4 != 0) {
         throw UnsupportedError(
           'slot $slot has a stride of ${buffer.strideInBytes} bytes. This '

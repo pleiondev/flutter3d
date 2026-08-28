@@ -70,22 +70,23 @@ const int _height = 128;
     )..setPosition(0.0, -1.5, 0.0),
   );
 
-  final box = MeshNode(
-    DeviceMesh.upload(
-      device,
-      CuboidShape(size: Vector3.all(2.0)).build(
-        layout: skinned ? VertexLayout.skinned : VertexLayout.standard,
-      ),
-    ),
-    Material(
-      name: 'box',
-      baseColor: Vector4(0.9, 0.3, 0.2, 1.0),
-      lighting: LightingModel.lambert,
-    ),
-    name: 'box',
-  )
-    ..skinReach = 1.8
-    ..castsShadow = casts;
+  final box =
+      MeshNode(
+          DeviceMesh.upload(
+            device,
+            CuboidShape(size: Vector3.all(2.0)).build(
+              layout: skinned ? VertexLayout.skinned : VertexLayout.standard,
+            ),
+          ),
+          Material(
+            name: 'box',
+            baseColor: Vector4(0.9, 0.3, 0.2, 1.0),
+            lighting: LightingModel.lambert,
+          ),
+          name: 'box',
+        )
+        ..skinReach = 1.8
+        ..castsShadow = casts;
   scene.root.add(box);
 
   if (skinned) {
@@ -182,26 +183,34 @@ void main() {
     device = made;
   });
 
-  test('a rigged caster is recorded in the atlas, and an idle one is not',
-      () async {
-    // MUTATION: put `if (node.skeleton != null) continue;` back in the caster
-    // loop of _renderCubeShadow. The `casts` reading goes to zero — the same
-    // number the control already produces — and this is the assertion that
-    // states the whole point of the change.
-    final without = await _recorded(device, skinned: true, casts: false);
-    final with_ = await _recorded(device, skinned: true, casts: true);
+  test(
+    'a rigged caster is recorded in the atlas, and an idle one is not',
+    () async {
+      // MUTATION: put `if (node.skeleton != null) continue;` back in the caster
+      // loop of _renderCubeShadow. The `casts` reading goes to zero — the same
+      // number the control already produces — and this is the assertion that
+      // states the whole point of the change.
+      final without = await _recorded(device, skinned: true, casts: false);
+      final with_ = await _recorded(device, skinned: true, casts: true);
 
-    // The control is exactly zero rather than merely small: the floor faces the
-    // wrong way to be recorded from a lamp above it, so with the box withheld
-    // the atlas is the far plane everywhere. That is what makes the reading
-    // below attributable to the box and nothing else.
-    expect(without, 0, reason: 'something other than the box reached the atlas');
-    expect(with_ / (_width * _height), greaterThan(0.02),
-        reason: 'the rigged caster left no mark on the atlas');
-  });
+      // The control is exactly zero rather than merely small: the floor faces the
+      // wrong way to be recorded from a lamp above it, so with the box withheld
+      // the atlas is the far plane everywhere. That is what makes the reading
+      // below attributable to the box and nothing else.
+      expect(
+        without,
+        0,
+        reason: 'something other than the box reached the atlas',
+      );
+      expect(
+        with_ / (_width * _height),
+        greaterThan(0.02),
+        reason: 'the rigged caster left no mark on the atlas',
+      );
+    },
+  );
 
-  test('the skinned stage records the silhouette the static one does',
-      () async {
+  test('the skinned stage records the silhouette the static one does', () async {
     // MUTATION: bind `_cubeShadowPipeline` for the skinned node, so the static
     // vertex stage reads a skinned vertex buffer — 151 pixels of garbled
     // silhouette where 672 belong; or drop the SkinInfo bind, so the joint
@@ -219,7 +228,10 @@ void main() {
     // place and the counts should agree outright. A tolerance of a few percent
     // rather than equality, because the two go through different vertex stages
     // and a shared edge can rasterise a pixel either way.
-    expect(skinned, closeTo(static, static * 0.03),
-        reason: 'the skinned caster is not the shape the static one is');
+    expect(
+      skinned,
+      closeTo(static, static * 0.03),
+      reason: 'the skinned caster is not the shape the static one is',
+    );
   });
 }

@@ -31,29 +31,28 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-
 /// One state call, as a short string, so a snapshot reads as a sequence.
 String? _describe(Recorded command) => switch (command) {
-      RecordedViewport(:final rect) =>
-        'viewport ${rect.width}x${rect.height}@${rect.x},${rect.y}',
-      RecordedScissor(:final rect) =>
-        'scissor ${rect.width}x${rect.height}@${rect.x},${rect.y}',
-      RecordedPrimitiveType(:final type) => 'primitive ${type.name}',
-      RecordedPolygonMode(:final mode) => 'polygon ${mode.name}',
-      RecordedCullMode(:final mode) => 'cull ${mode.name}',
-      RecordedWindingOrder(:final order) => 'winding ${order.name}',
-      RecordedDepthWrite(:final enabled) => 'depthWrite $enabled',
-      RecordedDepthCompare(:final compare) => 'depthCompare ${compare.name}',
-      RecordedBlend(:final state) =>
-        'blend ${state == null ? 'off' : '${state.sourceColorFactor.name}/'
-            '${state.destinationColorFactor.name}'}',
-      // Unadorned at one instance, so the snapshots below stay the sequences
-      // they were before instancing existed and a reader can see at a glance
-      // that nothing in the renderer became an instanced draw by accident.
-      RecordedDraw(:final instanceCount) =>
-        instanceCount == 1 ? 'draw' : 'draw ×$instanceCount',
-      _ => null,
-    };
+  RecordedViewport(:final rect) =>
+    'viewport ${rect.width}x${rect.height}@${rect.x},${rect.y}',
+  RecordedScissor(:final rect) =>
+    'scissor ${rect.width}x${rect.height}@${rect.x},${rect.y}',
+  RecordedPrimitiveType(:final type) => 'primitive ${type.name}',
+  RecordedPolygonMode(:final mode) => 'polygon ${mode.name}',
+  RecordedCullMode(:final mode) => 'cull ${mode.name}',
+  RecordedWindingOrder(:final order) => 'winding ${order.name}',
+  RecordedDepthWrite(:final enabled) => 'depthWrite $enabled',
+  RecordedDepthCompare(:final compare) => 'depthCompare ${compare.name}',
+  RecordedBlend(:final state) =>
+    'blend ${state == null ? 'off' : '${state.sourceColorFactor.name}/'
+              '${state.destinationColorFactor.name}'}',
+  // Unadorned at one instance, so the snapshots below stay the sequences
+  // they were before instancing existed and a reader can see at a glance
+  // that nothing in the renderer became an instanced draw by accident.
+  RecordedDraw(:final instanceCount) =>
+    instanceCount == 1 ? 'draw' : 'draw ×$instanceCount',
+  _ => null,
+};
 
 /// Every state call and draw a pass made, in order.
 List<String> _sequence(FakePass pass) =>
@@ -90,7 +89,8 @@ void main() {
       height: 48,
       scene: scene,
       views: <RenderView>[RenderView(camera: camera)],
-      settings: settings ??
+      settings:
+          settings ??
           const RenderSettings(
             bloom: BloomSettings(enabled: false),
             shadows: ShadowSettings(enabled: false),
@@ -112,9 +112,13 @@ void main() {
       print('  [$i] ${passes[i].join(' | ')}');
     }
 
-    expect(passes, hasLength(2),
-        reason: 'an empty scene with bloom and shadows off is the scene pass '
-            'and the composite, and nothing else');
+    expect(
+      passes,
+      hasLength(2),
+      reason:
+          'an empty scene with bloom and shadows off is the scene pass '
+          'and the composite, and nothing else',
+    );
 
     expect(
       passes[0],
@@ -126,7 +130,8 @@ void main() {
         'depthWrite true',
         'depthCompare less',
       ],
-      reason: 'the whole block repeats per view, because the debug overlay at '
+      reason:
+          'the whole block repeats per view, because the debug overlay at '
           'the end of a view leaves the pass drawing lines. Note the absence '
           'of blending: that is per material and set per mesh',
     );
@@ -143,7 +148,8 @@ void main() {
         'depthCompare always',
         'draw',
       ],
-      reason: 'the composite is a full-screen draw with depth out of the way. '
+      reason:
+          'the composite is a full-screen draw with depth out of the way. '
           'Note what is *absent*: no polygon mode, where the scene pass sets '
           'one. Omissions are load-bearing — see the header',
     );
@@ -177,8 +183,12 @@ void main() {
     // change being visible; the goldens on two backends are what say it was
     // safe.
     List<String> stateOf(int i) => passes[i]
-        .where((c) =>
-            c != 'draw' && !c.startsWith('viewport') && !c.startsWith('scissor'))
+        .where(
+          (c) =>
+              c != 'draw' &&
+              !c.startsWith('viewport') &&
+              !c.startsWith('scissor'),
+        )
         .toList();
 
     const plain = <String>[
@@ -202,8 +212,11 @@ void main() {
     }
     // Upsample: the same shape, adding instead of replacing.
     for (var i = 6; i <= 9; i++) {
-      expect(stateOf(i), additive,
-          reason: 'pass $i is an additive full-screen draw');
+      expect(
+        stateOf(i),
+        additive,
+        reason: 'pass $i is an additive full-screen draw',
+      );
     }
     expect(stateOf(10), plain, reason: 'and the composite is plain again');
   });

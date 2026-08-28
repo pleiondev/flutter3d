@@ -40,11 +40,14 @@ void main() {
       final includes = RegExp(r'#include\s+<([^>]+)>');
       final missing = <String>[];
 
-      for (final entity in Directory('${_package.path}/shaders')
-          .listSync(recursive: true)
-          .whereType<File>()) {
-        if (!const {'.frag', '.vert', '.glsl'}
-            .any((extension) => entity.path.endsWith(extension))) {
+      for (final entity in Directory(
+        '${_package.path}/shaders',
+      ).listSync(recursive: true).whereType<File>()) {
+        if (!const {
+          '.frag',
+          '.vert',
+          '.glsl',
+        }.any((extension) => entity.path.endsWith(extension))) {
           continue;
         }
         for (final match in includes.allMatches(entity.readAsStringSync())) {
@@ -66,11 +69,13 @@ void main() {
       // --exclude-standard`. Asking git directly is the only way to catch an
       // exclusion added in .gitignore or a .pubignore, which is exactly how
       // these files would silently stop reaching consumers.
-      final result = Process.runSync(
-        'git',
-        ['ls-files', '--cached', '--others', '--exclude-standard', 'shaders'],
-        workingDirectory: _package.path,
-      );
+      final result = Process.runSync('git', [
+        'ls-files',
+        '--cached',
+        '--others',
+        '--exclude-standard',
+        'shaders',
+      ], workingDirectory: _package.path);
       expect(result.exitCode, 0, reason: result.stderr.toString());
 
       final published = (result.stdout as String).split('\n').toSet();
@@ -84,7 +89,8 @@ void main() {
         expect(
           published,
           contains(header),
-          reason: '$header would not be in the published archive, so an '
+          reason:
+              '$header would not be in the published archive, so an '
               'extension installed from pub could not include it.',
         );
       }
@@ -105,10 +111,13 @@ void main() {
     // impellerc does not warn — verified by hand against 3.44.6. The bundle then
     // holds two entries that name one function.
     test('no two shaders of one stage share a basename', () {
-      final spec = jsonDecode(
-        File('${_package.path}/shaders/flutter3d.shaderbundle.json')
-            .readAsStringSync(),
-      ) as Map<String, Object?>;
+      final spec =
+          jsonDecode(
+                File(
+                  '${_package.path}/shaders/flutter3d.shaderbundle.json',
+                ).readAsStringSync(),
+              )
+              as Map<String, Object?>;
 
       final seen = <String, String>{};
       spec.forEach((key, value) {
@@ -120,7 +129,8 @@ void main() {
         expect(
           seen,
           isNot(contains(symbol)),
-          reason: 'bundle keys "$key" and "${seen[symbol]}" both compile to the '
+          reason:
+              'bundle keys "$key" and "${seen[symbol]}" both compile to the '
               'same entry point, because their files share the basename '
               '"$basename".',
         );
@@ -135,8 +145,10 @@ void main() {
       // one config, at the repository root.
       final config = findPackageConfig(_package.path);
       expect(config, isNotNull);
-      expect(File('${_package.path}/.dart_tool/package_config.json').existsSync(),
-          isFalse);
+      expect(
+        File('${_package.path}/.dart_tool/package_config.json').existsSync(),
+        isFalse,
+      );
     });
 
     test('resolves this package to a directory that has the headers', () {
@@ -157,20 +169,22 @@ void main() {
 
       final cache = Directory('${temporary.path}/pub cache/flutter3d-0.1.0')
         ..createSync(recursive: true);
-      final dartTool = Directory('${temporary.path}/.dart_tool')
-        ..createSync();
+      final dartTool = Directory('${temporary.path}/.dart_tool')..createSync();
       final config = File('${dartTool.path}/package_config.json')
-        ..writeAsStringSync(jsonEncode({
-          'configVersion': 2,
-          'packages': [
-            {
-              'name': 'flutter3d',
-              'rootUri': 'file://${Uri.encodeFull(temporary.path)}'
-                  '/pub%20cache/flutter3d-0.1.0',
-              'packageUri': 'lib/',
-            },
-          ],
-        }));
+        ..writeAsStringSync(
+          jsonEncode({
+            'configVersion': 2,
+            'packages': [
+              {
+                'name': 'flutter3d',
+                'rootUri':
+                    'file://${Uri.encodeFull(temporary.path)}'
+                    '/pub%20cache/flutter3d-0.1.0',
+                'packageUri': 'lib/',
+              },
+            ],
+          }),
+        );
 
       expect(packageRoot(config, 'flutter3d'), cache.path);
     });
@@ -187,12 +201,18 @@ void main() {
         ..createSync(recursive: true);
       final dartTool = Directory('${temporary.path}/.dart_tool')..createSync();
       final config = File('${dartTool.path}/package_config.json')
-        ..writeAsStringSync(jsonEncode({
-          'configVersion': 2,
-          'packages': [
-            {'name': 'foo', 'rootUri': '../packages/foo', 'packageUri': 'lib/'},
-          ],
-        }));
+        ..writeAsStringSync(
+          jsonEncode({
+            'configVersion': 2,
+            'packages': [
+              {
+                'name': 'foo',
+                'rootUri': '../packages/foo',
+                'packageUri': 'lib/',
+              },
+            ],
+          }),
+        );
 
       // Compared unresolved: packageRoot does URI resolution and nothing else,
       // so it hands back the path pub recorded rather than one with symlinks

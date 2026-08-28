@@ -70,8 +70,12 @@ Vector3 decodeOctahedral(double ex, double ey) {
 /// leaves a screen-space effect reflecting whatever was in the buffer before.
 void writeSurface(FragmentContext c, Vector3 normal, double roughness) {
   final encoded = encodeOctahedral(normal);
-  c.surface =
-      Vector4(encoded.x, encoded.y, roughness.clamp(0.0, 1.0), c.coord.z);
+  c.surface = Vector4(
+    encoded.x,
+    encoded.y,
+    roughness.clamp(0.0, 1.0),
+    c.coord.z,
+  );
 }
 
 /// `ApplyFog` from `color.glsl`: fades [colour] toward the fog with distance.
@@ -134,8 +138,9 @@ Vector3 tonemapNeutral(Vector3 colour) {
   const desaturation = 0.15;
 
   final minChannel = math.min(colour.x, math.min(colour.y, colour.z));
-  final offset =
-      minChannel < 0.08 ? minChannel - 6.25 * minChannel * minChannel : 0.04;
+  final offset = minChannel < 0.08
+      ? minChannel - 6.25 * minChannel * minChannel
+      : 0.04;
   final c = Vector3(colour.x - offset, colour.y - offset, colour.z - offset);
 
   final peak = math.max(c.x, math.max(c.y, c.z));

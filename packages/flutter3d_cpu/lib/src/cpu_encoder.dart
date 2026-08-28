@@ -31,8 +31,11 @@ final class CpuEncoder implements CommandEncoder {
     final depth = _descriptor.depth;
     if (depth != null) {
       final texture = depth.texture.backend as CpuTexture;
-      texture.depthBuffer().fillRange(0, texture.width * texture.height,
-          depth.clearValue);
+      texture.depthBuffer().fillRange(
+        0,
+        texture.width * texture.height,
+        depth.clearValue,
+      );
       _depthTarget = texture;
     }
   }
@@ -131,8 +134,11 @@ final class CpuEncoder implements CommandEncoder {
       _pipeline = pipeline.backend as CpuPipeline;
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
-      {int slot = 0}) {
+  void bindVertexBuffer(
+    GeometryBuffer buffer,
+    int vertexCount, {
+    int slot = 0,
+  }) {
     final backend = buffer.backend as ({ByteData bytes, GeometryUsage usage});
     _bindSlot(slot, backend.bytes, vertexCount);
   }
@@ -196,8 +202,10 @@ final class CpuEncoder implements CommandEncoder {
       // the rule stayed unstated until a third implementation read the
       // interface and answered differently. It cost two percent of every
       // textured golden and looked like a rendering bug.
-      _textures[slot] = BoundTexture(texture.backend as CpuTexture,
-          sampler ?? SamplerOptions.linearRepeat);
+      _textures[slot] = BoundTexture(
+        texture.backend as CpuTexture,
+        sampler ?? SamplerOptions.linearRepeat,
+      );
 
   @override
   void clearBindings() {
@@ -245,7 +253,8 @@ final class CpuEncoder implements CommandEncoder {
     }
 
     final target = _descriptor.colors.first.texture.backend as CpuTexture;
-    final view = _viewport ??
+    final view =
+        _viewport ??
         ScreenRect(x: 0, y: 0, width: target.width, height: target.height);
 
     final layout = pipeline.layout;
@@ -275,14 +284,32 @@ final class CpuEncoder implements CommandEncoder {
             ? _indexAt(t * perPrimitive + corner)
             : t * perPrimitive + corner;
         if (!fetch.into(attributes, vertex)) return;
-        clip[corner] = pipeline.vertex.run(attributes, bindings, varyings[corner]);
+        clip[corner] = pipeline.vertex.run(
+          attributes,
+          bindings,
+          varyings[corner],
+        );
       }
       if (perPrimitive == 2) {
         _rasteriseLine(
-            pipeline, target, view, clip, varyings, varyingCount, bindings);
+          pipeline,
+          target,
+          view,
+          clip,
+          varyings,
+          varyingCount,
+          bindings,
+        );
       } else {
         _rasterise(
-            pipeline, target, view, clip, varyings, varyingCount, bindings);
+          pipeline,
+          target,
+          view,
+          clip,
+          varyings,
+          varyingCount,
+          bindings,
+        );
       }
     }
   }
@@ -375,8 +402,9 @@ final class CpuEncoder implements CommandEncoder {
       final iw = invW[0] + (invW[1] - invW[0]) * t;
       for (var v = 0; v < varyingCount; v++) {
         interpolated[v] =
-            (varyings[0][v] * invW[0] * (1 - t) + varyings[1][v] * invW[1] * t) /
-                iw;
+            (varyings[0][v] * invW[0] * (1 - t) +
+                varyings[1][v] * invW[1] * t) /
+            iw;
       }
 
       context.coord.setValues(x + 0.5, y + 0.5, z, iw);
@@ -435,7 +463,14 @@ final class CpuEncoder implements CommandEncoder {
     if (behind == 3) return;
     if (behind == 0) {
       _rasteriseTriangle(
-          pipeline, target, view, clip, varyings, varyingCount, bindings);
+        pipeline,
+        target,
+        view,
+        clip,
+        varyings,
+        varyingCount,
+        bindings,
+      );
       return;
     }
 
@@ -517,13 +552,15 @@ final class CpuEncoder implements CommandEncoder {
       sy[i] = view.y + (0.5 - ndcY * 0.5) * view.height;
     }
 
-    var area = (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
+    var area =
+        (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
     if (area == 0.0) return;
 
     // Winding is measured in window space, where y runs down, so a
     // counter-clockwise triangle has negative area here.
-    final frontFacing =
-        _winding == WindingOrder.counterClockwise ? area < 0 : area > 0;
+    final frontFacing = _winding == WindingOrder.counterClockwise
+        ? area < 0
+        : area > 0;
     if (_cull == CullMode.backFace && !frontFacing) return;
     if (_cull == CullMode.frontFace && frontFacing) return;
 
@@ -531,11 +568,21 @@ final class CpuEncoder implements CommandEncoder {
     // the fill rule below depends on. Done after culling, which is what needs
     // the original winding.
     if (area < 0) {
-      final t = sx[1]; sx[1] = sx[2]; sx[2] = t;
-      final ty = sy[1]; sy[1] = sy[2]; sy[2] = ty;
-      final tz = sz[1]; sz[1] = sz[2]; sz[2] = tz;
-      final tw = invW[1]; invW[1] = invW[2]; invW[2] = tw;
-      final tv = varyings[1]; varyings[1] = varyings[2]; varyings[2] = tv;
+      final t = sx[1];
+      sx[1] = sx[2];
+      sx[2] = t;
+      final ty = sy[1];
+      sy[1] = sy[2];
+      sy[2] = ty;
+      final tz = sz[1];
+      sz[1] = sz[2];
+      sz[2] = tz;
+      final tw = invW[1];
+      invW[1] = invW[2];
+      invW[2] = tw;
+      final tv = varyings[1];
+      varyings[1] = varyings[2];
+      varyings[2] = tv;
       area = -area;
     }
 
@@ -567,9 +614,15 @@ final class CpuEncoder implements CommandEncoder {
     var minY = sy.reduce((a, b) => a < b ? a : b).floor();
     var maxY = sy.reduce((a, b) => a > b ? a : b).ceil();
     minX = minX.clamp(clipRect?.x ?? view.x, target.width - 1);
-    maxX = maxX.clamp(0, ((clipRect?.x ?? view.x) + (clipRect?.width ?? view.width)) - 1);
+    maxX = maxX.clamp(
+      0,
+      ((clipRect?.x ?? view.x) + (clipRect?.width ?? view.width)) - 1,
+    );
     minY = minY.clamp(clipRect?.y ?? view.y, target.height - 1);
-    maxY = maxY.clamp(0, ((clipRect?.y ?? view.y) + (clipRect?.height ?? view.height)) - 1);
+    maxY = maxY.clamp(
+      0,
+      ((clipRect?.y ?? view.y) + (clipRect?.height ?? view.height)) - 1,
+    );
 
     final depth = _depthTarget?.depthBuffer();
     final interpolated = Float32List(varyingCount);
@@ -646,7 +699,8 @@ final class CpuEncoder implements CommandEncoder {
         // Perspective-correct: interpolate over 1/w and divide back.
         final iw = invW[0] * b0 + invW[1] * b1 + invW[2] * b2;
         for (var v = 0; v < varyingCount; v++) {
-          interpolated[v] = (varyings[0][v] * invW[0] * b0 +
+          interpolated[v] =
+              (varyings[0][v] * invW[0] * b0 +
                   varyings[1][v] * invW[1] * b1 +
                   varyings[2][v] * invW[2] * b2) /
               iw;
@@ -686,9 +740,10 @@ final class CpuEncoder implements CommandEncoder {
               : 1.0;
           final dstFactor =
               _blend!.destinationColorFactor == BlendFactor.oneMinusSourceAlpha
-                  ? 1.0 - colour.w
-                  : 1.0;
-          target.pixels[at] = colour.x * srcAlpha + target.pixels[at] * dstFactor;
+              ? 1.0 - colour.w
+              : 1.0;
+          target.pixels[at] =
+              colour.x * srcAlpha + target.pixels[at] * dstFactor;
           target.pixels[at + 1] =
               colour.y * srcAlpha + target.pixels[at + 1] * dstFactor;
           target.pixels[at + 2] =
@@ -703,13 +758,13 @@ final class CpuEncoder implements CommandEncoder {
   }
 
   bool _depthPasses(double incoming, double stored) => switch (_depthCompare) {
-        CompareFunction.never => false,
-        CompareFunction.always => true,
-        CompareFunction.less => incoming < stored,
-        CompareFunction.lessEqual => incoming <= stored,
-        CompareFunction.greater => incoming > stored,
-        CompareFunction.greaterEqual => incoming >= stored,
-        CompareFunction.equal => incoming == stored,
-        CompareFunction.notEqual => incoming != stored,
-      };
+    CompareFunction.never => false,
+    CompareFunction.always => true,
+    CompareFunction.less => incoming < stored,
+    CompareFunction.lessEqual => incoming <= stored,
+    CompareFunction.greater => incoming > stored,
+    CompareFunction.greaterEqual => incoming >= stored,
+    CompareFunction.equal => incoming == stored,
+    CompareFunction.notEqual => incoming != stored,
+  };
 }

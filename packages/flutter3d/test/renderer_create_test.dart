@@ -21,7 +21,6 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-
 void main() {
   Renderer build(FakeBackend device) {
     final texel = device.createTextureFromPixels(
@@ -50,14 +49,20 @@ void main() {
     expect(renderer.fallbackAlbedo, isNotNull);
     expect(renderer.fallbackNormal, isNotNull);
     expect(device.uploadedPixels.length, 2);
-    expect(device.uploadedPixels[0].buffer.asUint8List(),
-        <int>[255, 255, 255, 255],
-        reason: 'an untextured surface is not its own base colour');
+    expect(device.uploadedPixels[0].buffer.asUint8List(), <int>[
+      255,
+      255,
+      255,
+      255,
+    ], reason: 'an untextured surface is not its own base colour');
     // (0, 0, 1) encoded into 0..1: sampling it perturbs nothing, which is why
     // the shader needs no "has a normal map" branch.
-    expect(device.uploadedPixels[1].buffer.asUint8List(),
-        <int>[128, 128, 255, 255],
-        reason: 'the default normal map is not flat');
+    expect(device.uploadedPixels[1].buffer.asUint8List(), <int>[
+      128,
+      128,
+      255,
+      255,
+    ], reason: 'the default normal map is not flat');
   });
 
   test('and the ones it is given are the ones it uses', () {
@@ -77,17 +82,20 @@ void main() {
 
     expect(renderer.fallbackAlbedo, same(texel));
     expect(renderer.fallbackNormal, same(texel));
-    expect(device.uploadedPixels.length, 1,
-        reason: 'it uploaded a fallback it had been handed');
+    expect(
+      device.uploadedPixels.length,
+      1,
+      reason: 'it uploaded a fallback it had been handed',
+    );
   });
 
   test('a renderer starts without the particle stages', () {
     // An application that draws no particles should not have to ship their
     // shaders. This is what stops the engine core from naming an extension.
     expect(
-      () => build(FakeBackend(
-        missingShaders: <String>{'Particle', 'ParticleVertex'},
-      )),
+      () => build(
+        FakeBackend(missingShaders: <String>{'Particle', 'ParticleVertex'}),
+      ),
       returnsNormally,
     );
   });
@@ -97,8 +105,13 @@ void main() {
     // the error names it rather than failing later with a blank frame.
     expect(
       () => build(FakeBackend(missingShaders: <String>{'MeshVertex'})),
-      throwsA(isA<StateError>().having(
-        (e) => e.message, 'message', contains('MeshVertex'))),
+      throwsA(
+        isA<StateError>().having(
+          (e) => e.message,
+          'message',
+          contains('MeshVertex'),
+        ),
+      ),
     );
   });
 
@@ -122,19 +135,17 @@ void main() {
     final view = RenderView(camera: scene.cameras.single);
 
     Object? drawFrame() => renderer
-        .render(
-          width: 64,
-          height: 64,
-          scene: scene,
-          views: <RenderView>[view],
-        )
+        .render(width: 64, height: 64, scene: scene, views: <RenderView>[view])
         .frame
         .backend;
 
     // Nothing has finished, so each frame needs a texture of its own.
     final frames = <Object?>[for (var i = 0; i < 4; i++) drawFrame()];
-    expect(frames.toSet(), hasLength(4),
-        reason: 'a frame was drawn into a texture the last one handed over');
+    expect(
+      frames.toSet(),
+      hasLength(4),
+      reason: 'a frame was drawn into a texture the last one handed over',
+    );
     expect(renderer.framesInFlight, 4);
 
     // As frames finish, their textures come back and the count stops climbing:
@@ -143,8 +154,11 @@ void main() {
       device.finishOldestFrame();
       drawFrame();
     }
-    expect(renderer.framesInFlight, 4,
-        reason: 'it kept allocating after the finished ones came back');
+    expect(
+      renderer.framesInFlight,
+      4,
+      reason: 'it kept allocating after the finished ones came back',
+    );
 
     // And a backend that finishes as it goes needs exactly one.
     final quick = FakeBackend();
@@ -158,7 +172,10 @@ void main() {
         views: <RenderView>[RenderView(camera: quickScene.cameras.single)],
       );
     }
-    expect(other.framesInFlight, 1,
-        reason: 'a synchronous backend was given a rotation it cannot need');
+    expect(
+      other.framesInFlight,
+      1,
+      reason: 'a synchronous backend was given a rotation it cannot need',
+    );
   });
 }

@@ -40,10 +40,8 @@ import 'src/shader_link_checks.dart';
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the
 /// previous test's.
-typedef DeviceFactory = GraphicsDevice Function({
-  required int width,
-  required int height,
-});
+typedef DeviceFactory =
+    GraphicsDevice Function({required int width, required int height});
 
 /// Raised by a check the backend did not satisfy.
 final class ConformanceFailure implements Exception {
@@ -102,15 +100,13 @@ void runDeviceConformance({
 /// readback only: the answers here are the cheapest ones to get, and they are
 /// the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
-      (name: 'answers every capability query', run: checkCapabilities),
-      (name: 'the HDR format it names is renderable', run: checkHdrRenderable),
-      (name: 'a clear covers the whole attachment', run: checkClearCoversAll),
-      (name: 'uploaded pixels keep their row order', run: checkRowOrder),
-      (name: 'a buffer is uploaded for its declared use',
-          run: checkGeometryUsage),
-      (name: 'a cube takes the mip chain it is handed',
-          run: checkCubeMipLevels),
-    ];
+  (name: 'answers every capability query', run: checkCapabilities),
+  (name: 'the HDR format it names is renderable', run: checkHdrRenderable),
+  (name: 'a clear covers the whole attachment', run: checkClearCoversAll),
+  (name: 'uploaded pixels keep their row order', run: checkRowOrder),
+  (name: 'a buffer is uploaded for its declared use', run: checkGeometryUsage),
+  (name: 'a cube takes the mip chain it is handed', run: checkCubeMipLevels),
+];
 
 /// The checks that need the shader bundle and a pipeline.
 ///
@@ -119,20 +115,32 @@ List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
 /// nothing else, that it inherits no clipping from the pass before it, and that
 /// a binding made for one pipeline does not follow the next.
 List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
-      (name: 'the bundle answers to every name the engine asks for',
-          run: checkShaderNames),
-      (name: 'a stage pair the engine links does link', run: checkLinking),
-      (name: 'a pass covers the whole of its attachment',
-          run: checkPassCoversItsAttachment),
-      (name: 'a pass does not inherit the previous pass\'s scissor',
-          run: checkPassDoesNotInheritScissor),
-      (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
-      (name: 'a pipeline switch leaves no stale bindings',
-          run: checkPipelineSwitchKeepsBindingsApart),
-      (name: 'a cube map answers the face a direction points at',
-          run: checkCubeFaces),
-    ];
+  (
+    name: 'the bundle answers to every name the engine asks for',
+    run: checkShaderNames,
+  ),
+  (name: 'a stage pair the engine links does link', run: checkLinking),
+  (
+    name: 'a pass covers the whole of its attachment',
+    run: checkPassCoversItsAttachment,
+  ),
+  (
+    name: 'a pass does not inherit the previous pass\'s scissor',
+    run: checkPassDoesNotInheritScissor,
+  ),
+  (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
+  (
+    name: 'a pipeline switch leaves no stale bindings',
+    run: checkPipelineSwitchKeepsBindingsApart,
+  ),
+  (
+    name: 'a cube map answers the face a direction points at',
+    run: checkCubeFaces,
+  ),
+];
 
 /// Every check, as plain functions, for a harness that is not a test runner.
-List<ConformanceCheck> get conformanceChecks =>
-    <ConformanceCheck>[...coreChecks, ...shaderChecks];
+List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
+  ...coreChecks,
+  ...shaderChecks,
+];

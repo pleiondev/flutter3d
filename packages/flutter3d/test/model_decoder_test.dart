@@ -69,8 +69,7 @@ final class _ToyDecoder implements ModelDecoder {
     Uint8List bytes,
     ModelLoadRequest request,
     AssetUriResolver resolveUri,
-  ) async =>
-      const _NamedDocument('toy');
+  ) async => const _NamedDocument('toy');
 }
 
 /// Claims everything, so it can be shown to win against a built-in format.
@@ -85,8 +84,7 @@ final class _GreedyDecoder implements ModelDecoder {
     Uint8List bytes,
     ModelLoadRequest request,
     AssetUriResolver resolveUri,
-  ) async =>
-      const _NamedDocument('greedy');
+  ) async => const _NamedDocument('greedy');
 }
 
 /// No siblings: this format has none, and asking for one is a test bug.

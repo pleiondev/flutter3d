@@ -26,8 +26,7 @@ void main() {
     });
 
     test('rotation composes through three levels', () {
-      final a = SceneNode()
-        ..setRotationYawPitchRoll(math.pi / 2, 0.0, 0.0);
+      final a = SceneNode()..setRotationYawPitchRoll(math.pi / 2, 0.0, 0.0);
       final b = SceneNode()..setPosition(1.0, 0.0, 0.0);
       final c = SceneNode()..setPosition(1.0, 0.0, 0.0);
       a.add(b);
@@ -397,21 +396,32 @@ void main() {
       // projectToNdc lives on the abstraction, so a test asserts what the
       // projection does rather than reimplementing the divide.
       final projection = camera.projection;
-      expect(projection.projectToNdc(Vector3(0.0, 0.0, -0.5)).z,
-          closeTo(0.0, 1e-6));
-      expect(projection.projectToNdc(Vector3(0.0, 0.0, -50.0)).z,
-          closeTo(1.0, 1e-5));
+      expect(
+        projection.projectToNdc(Vector3(0.0, 0.0, -0.5)).z,
+        closeTo(0.0, 1e-6),
+      );
+      expect(
+        projection.projectToNdc(Vector3(0.0, 0.0, -50.0)).z,
+        closeTo(1.0, 1e-5),
+      );
     });
 
     test('orthographic projection keeps the depth convention', () {
       const projection = OrthographicProjection(near: 1.0, far: 11.0);
 
-      expect(projection.projectToNdc(Vector3(0.0, 0.0, -1.0), aspect: 2.0).z,
-          closeTo(0.0, 1e-6));
-      expect(projection.projectToNdc(Vector3(0.0, 0.0, -11.0), aspect: 2.0).z,
-          closeTo(1.0, 1e-6));
+      expect(
+        projection.projectToNdc(Vector3(0.0, 0.0, -1.0), aspect: 2.0).z,
+        closeTo(0.0, 1e-6),
+      );
+      expect(
+        projection.projectToNdc(Vector3(0.0, 0.0, -11.0), aspect: 2.0).z,
+        closeTo(1.0, 1e-6),
+      );
       // Height 2 means the top edge is at y = 1; aspect 2 puts the right edge at 2.
-      final edge = projection.projectToNdc(Vector3(2.0, 1.0, -5.0), aspect: 2.0);
+      final edge = projection.projectToNdc(
+        Vector3(2.0, 1.0, -5.0),
+        aspect: 2.0,
+      );
       expect(edge.x, closeTo(1.0, 1e-6));
       expect(edge.y, closeTo(1.0, 1e-6));
     });
@@ -466,7 +476,8 @@ void main() {
       light.setLocalForward(Vector3(0.35, -0.45, -0.82));
 
       final toLight = light.readDirectionToLight();
-      final toCamera = (camera.readWorldPosition() - Vector3.zero())..normalize();
+      final toCamera = (camera.readWorldPosition() - Vector3.zero())
+        ..normalize();
 
       // Not exactly aligned — the light is offset up and to the side — but it must
       // be on the camera's side of the subject.
@@ -485,7 +496,8 @@ void main() {
         orbit.apply();
 
         final toLight = light.readDirectionToLight();
-        final toCamera = (camera.readWorldPosition() - orbit.target)..normalize();
+        final toCamera = (camera.readWorldPosition() - orbit.target)
+          ..normalize();
         expect(
           toLight.dot(toCamera),
           greaterThan(0.5),

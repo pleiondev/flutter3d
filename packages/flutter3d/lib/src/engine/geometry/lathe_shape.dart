@@ -63,9 +63,7 @@ class LatheShape extends Shape {
   final String name;
 
   @override
-  MeshData build({
-    VertexLayout layout = VertexLayout.standard,
-  }) {
+  MeshData build({VertexLayout layout = VertexLayout.standard}) {
     final normals = profileNormals;
     if (profile.length < 2) {
       throw ArgumentError('A revolution profile needs at least 2 points.');
@@ -103,10 +101,7 @@ class LatheShape extends Shape {
 
     // Closing the profile means repeating the first point as an extra row, so the
     // seam gets its own UV column while sharing the first row's normal.
-    final rows = <Vector2>[
-      ...snapped,
-      if (closedProfile) snapped.first,
-    ];
+    final rows = <Vector2>[...snapped, if (closedProfile) snapped.first];
     final rowCount = rows.length;
 
     final planeNormals = normals == null

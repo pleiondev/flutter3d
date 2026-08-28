@@ -167,8 +167,8 @@ final class SkySettings {
       colour.addScaled(resolvedSunColor, lobe);
     }
 
-    final edge = _smoothstep(discOuterCosine, discInnerCosine, towards) *
-        sunIntensity;
+    final edge =
+        _smoothstep(discOuterCosine, discInnerCosine, towards) * sunIntensity;
     if (edge > 0.0) colour.addScaled(resolvedSunColor, edge);
 
     return colour;
@@ -183,7 +183,8 @@ final class SkySettings {
   double get discInnerCosine =>
       math.cos(sunAngularRadiusDegrees * math.pi / 180.0);
   double get discOuterCosine => math.cos(
-      (sunAngularRadiusDegrees + sunSoftnessDegrees.abs()) * math.pi / 180.0);
+    (sunAngularRadiusDegrees + sunSoftnessDegrees.abs()) * math.pi / 180.0,
+  );
 
   SkySettings copyWith({
     bool? enabled,
@@ -199,23 +200,22 @@ final class SkySettings {
     double? sunIntensity,
     TextureHandle? cubemap,
     Vector3? tint,
-  }) =>
-      SkySettings(
-        enabled: enabled ?? this.enabled,
-        zenith: zenith ?? this.zenith,
-        horizon: horizon ?? this.horizon,
-        nadir: nadir ?? this.nadir,
-        directionToSun: directionToSun ?? this.directionToSun,
-        sunColor: sunColor ?? this.sunColor,
-        glowExponent: glowExponent ?? this.glowExponent,
-        glowStrength: glowStrength ?? this.glowStrength,
-        sunAngularRadiusDegrees:
-            sunAngularRadiusDegrees ?? this.sunAngularRadiusDegrees,
-        sunSoftnessDegrees: sunSoftnessDegrees ?? this.sunSoftnessDegrees,
-        sunIntensity: sunIntensity ?? this.sunIntensity,
-        cubemap: cubemap ?? this.cubemap,
-        tint: tint ?? this.tint,
-      );
+  }) => SkySettings(
+    enabled: enabled ?? this.enabled,
+    zenith: zenith ?? this.zenith,
+    horizon: horizon ?? this.horizon,
+    nadir: nadir ?? this.nadir,
+    directionToSun: directionToSun ?? this.directionToSun,
+    sunColor: sunColor ?? this.sunColor,
+    glowExponent: glowExponent ?? this.glowExponent,
+    glowStrength: glowStrength ?? this.glowStrength,
+    sunAngularRadiusDegrees:
+        sunAngularRadiusDegrees ?? this.sunAngularRadiusDegrees,
+    sunSoftnessDegrees: sunSoftnessDegrees ?? this.sunSoftnessDegrees,
+    sunIntensity: sunIntensity ?? this.sunIntensity,
+    cubemap: cubemap ?? this.cubemap,
+    tint: tint ?? this.tint,
+  );
 }
 
 double _smoothstep(double edge0, double edge1, double x) {

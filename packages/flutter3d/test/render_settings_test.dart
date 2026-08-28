@@ -53,16 +53,31 @@ void main() {
     expect(copy.tonemap, original.tonemap);
     expect(copy.bloom, same(original.bloom));
     expect(copy.shadows, same(original.shadows));
-    expect(copy.surfaceBuffer, original.surfaceBuffer,
-        reason: 'surfaceBuffer was one of the six');
-    expect(copy.showSurfaceBuffer, original.showSurfaceBuffer,
-        reason: 'showSurfaceBuffer was one of the six');
-    expect(copy.showShadowMap, original.showShadowMap,
-        reason: 'showShadowMap was one of the six');
-    expect(copy.showPointShadowDebug, original.showPointShadowDebug,
-        reason: 'showPointShadowDebug was one of the six');
-    expect(copy.reflections, same(original.reflections),
-        reason: 'reflections was one of the six');
+    expect(
+      copy.surfaceBuffer,
+      original.surfaceBuffer,
+      reason: 'surfaceBuffer was one of the six',
+    );
+    expect(
+      copy.showSurfaceBuffer,
+      original.showSurfaceBuffer,
+      reason: 'showSurfaceBuffer was one of the six',
+    );
+    expect(
+      copy.showShadowMap,
+      original.showShadowMap,
+      reason: 'showShadowMap was one of the six',
+    );
+    expect(
+      copy.showPointShadowDebug,
+      original.showPointShadowDebug,
+      reason: 'showPointShadowDebug was one of the six',
+    );
+    expect(
+      copy.reflections,
+      same(original.reflections),
+      reason: 'reflections was one of the six',
+    );
     expect(copy.fog, same(original.fog), reason: 'fog was one of the six');
   });
 
@@ -75,9 +90,13 @@ void main() {
     final copy = original.copyWith(exposure: 3.0);
 
     expect(copy.exposure, 3.0);
-    expect(copy.reflections.enabled, isTrue,
-        reason: 'changing the exposure switched reflections off, which is the '
-            'shape of the bug this file exists for');
+    expect(
+      copy.reflections.enabled,
+      isTrue,
+      reason:
+          'changing the exposure switched reflections off, which is the '
+          'shape of the bug this file exists for',
+    );
   });
 
   test('the shadow resolution has two ceilings, and both are named', () {
@@ -87,18 +106,27 @@ void main() {
     // the cube atlas holds six faces of four lights side by side, so the tile
     // size that gives a cascade a 4096-pixel texture would give the atlas a
     // 24,576-pixel one.
-    expect(ShadowSettings.maxCubeTile * 6,
-        lessThanOrEqualTo(ShadowSettings.maxResolution * 6 ~/ 2),
-        reason: 'the cube ceiling stopped being the lower of the two');
+    expect(
+      ShadowSettings.maxCubeTile * 6,
+      lessThanOrEqualTo(ShadowSettings.maxResolution * 6 ~/ 2),
+      reason: 'the cube ceiling stopped being the lower of the two',
+    );
     expect(ShadowSettings.minCubeTile, lessThan(ShadowSettings.minResolution));
     expect(ShadowSettings.maxCubeTile, lessThan(ShadowSettings.maxResolution));
 
     // And the shipped default sits inside both, which is what stops a game
     // that changes nothing from being clamped by either.
     const settings = ShadowSettings();
-    expect(settings.resolution,
-        inInclusiveRange(ShadowSettings.minResolution,
-            ShadowSettings.maxResolution));
-    expect(settings.resolution, greaterThanOrEqualTo(ShadowSettings.minCubeTile));
+    expect(
+      settings.resolution,
+      inInclusiveRange(
+        ShadowSettings.minResolution,
+        ShadowSettings.maxResolution,
+      ),
+    );
+    expect(
+      settings.resolution,
+      greaterThanOrEqualTo(ShadowSettings.minCubeTile),
+    );
   });
 }

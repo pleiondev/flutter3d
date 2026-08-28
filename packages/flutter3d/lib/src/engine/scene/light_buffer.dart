@@ -16,10 +16,10 @@ abstract final class ShaderLightType {
   static const double spot = 2.0;
 
   static double of(LightType type) => switch (type) {
-        LightType.directional => directional,
-        LightType.point => point,
-        LightType.spot => spot,
-      };
+    LightType.directional => directional,
+    LightType.point => point,
+    LightType.spot => spot,
+  };
 }
 
 /// The scene's active lights, packed the way the fragment shaders read them.
@@ -168,6 +168,7 @@ final class LightBuffer {
   }
 
   @override
-  String toString() => 'LightBuffer($_count lights'
+  String toString() =>
+      'LightBuffer($_count lights'
       '${_overflow > 0 ? ', $_overflow dropped' : ''})';
 }

@@ -32,23 +32,13 @@ final class GpuCommandEncoder implements CommandEncoder {
 
   @override
   void setViewport(ScreenRect rect) => _pass.setViewport(
-        gpu.Viewport(
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        ),
-      );
+    gpu.Viewport(x: rect.x, y: rect.y, width: rect.width, height: rect.height),
+  );
 
   @override
   void setScissor(ScreenRect rect) => _pass.setScissor(
-        gpu.Scissor(
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        ),
-      );
+    gpu.Scissor(x: rect.x, y: rect.y, width: rect.width, height: rect.height),
+  );
 
   @override
   void setPrimitiveType(PrimitiveType type) =>
@@ -158,9 +148,11 @@ final class GpuCommandEncoder implements CommandEncoder {
   int _indexCount = 0;
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
-          {int slot = 0}) =>
-      _pass.bindVertexBuffer(_view(buffer), slot: slot);
+  void bindVertexBuffer(
+    GeometryBuffer buffer,
+    int vertexCount, {
+    int slot = 0,
+  }) => _pass.bindVertexBuffer(_view(buffer), slot: slot);
 
   @override
   void bindVertexData(ByteData bytes, int vertexCount, {int slot = 0}) =>
@@ -184,8 +176,7 @@ final class GpuCommandEncoder implements CommandEncoder {
     String blockName,
     Map<String, Float32List> members,
   ) {
-    final slot =
-        (shader.backend as gpu.Shader).getUniformSlot(blockName);
+    final slot = (shader.backend as gpu.Shader).getUniformSlot(blockName);
     final size = slot.sizeInBytes;
     if (size == null || size == 0) return false;
 
@@ -245,14 +236,16 @@ final class GpuCommandEncoder implements CommandEncoder {
   }
 
   @override
-  void submit() => _buffer.submit(completionCallback: (bool ok) {
-        _frame.outstanding--;
-        _frame.settleIfDone();
-      });
+  void submit() => _buffer.submit(
+    completionCallback: (bool ok) {
+      _frame.outstanding--;
+      _frame.settleIfDone();
+    },
+  );
 
   static gpu.BufferView _view(GeometryBuffer buffer) => gpu.BufferView(
-        buffer.backend as gpu.DeviceBuffer,
-        offsetInBytes: buffer.offsetInBytes,
-        lengthInBytes: buffer.lengthInBytes,
-      );
+    buffer.backend as gpu.DeviceBuffer,
+    offsetInBytes: buffer.offsetInBytes,
+    lengthInBytes: buffer.lengthInBytes,
+  );
 }

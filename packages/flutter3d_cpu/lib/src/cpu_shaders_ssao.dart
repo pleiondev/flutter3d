@@ -63,7 +63,8 @@ final class SsaoShader implements CpuFragmentShader {
     final projection = b.mat4('SsaoInfo', 'view_projection');
 
     Vector3 worldFrom(double uu, double vv, double depth) {
-      final Vector4 h = inverse * Vector4(uu * 2.0 - 1.0, vv * 2.0 - 1.0, depth, 1.0);
+      final Vector4 h =
+          inverse * Vector4(uu * 2.0 - 1.0, vv * 2.0 - 1.0, depth, 1.0);
       return Vector3(h.x, h.y, h.z)..scale(1.0 / h.w);
     }
 
@@ -127,7 +128,10 @@ final class SsaoShader implements CpuFragmentShader {
       // taps around the railing and would occlude all of them.
       final seen = worldFrom(su, sv, there.w);
       occluded += smoothstep(
-          0.0, 1.0, radius / math.max(seen.distanceTo(origin), 1e-4));
+        0.0,
+        1.0,
+        radius / math.max(seen.distanceTo(origin), 1e-4),
+      );
     }
 
     // Raw, with no strength: the strength belongs to the composite, which is

@@ -39,11 +39,11 @@ const int _height = 64;
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-      )!;
+    width: 1,
+    height: 1,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+  )!;
   final renderer = Renderer.create(
     device: device,
     fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -95,7 +95,11 @@ Future<double> _mean(
     ],
     // Tone mapping off: it is a curve between the fog and the pixel, and this
     // test is about the fog.
-    settings: RenderSettings(fog: fog, tonemap: false, bloom: BloomSettings(enabled: false)),
+    settings: RenderSettings(
+      fog: fog,
+      tonemap: false,
+      bloom: BloomSettings(enabled: false),
+    ),
   );
   final pixels = await it.device.readPixels(result.frame);
   expect(pixels, isNotNull, reason: 'the frame could not be read back');
@@ -120,8 +124,16 @@ void main() {
     final near = await _mean(_wall(away: 5.0), fog: fog);
     final far = await _mean(_wall(away: 200.0), fog: fog);
 
-    expect(near, greaterThan(200.0), reason: 'five metres of black fog is nothing');
-    expect(far, lessThan(near * 0.25), reason: 'two hundred metres of it is most of the wall');
+    expect(
+      near,
+      greaterThan(200.0),
+      reason: 'five metres of black fog is nothing',
+    );
+    expect(
+      far,
+      lessThan(near * 0.25),
+      reason: 'two hundred metres of it is most of the wall',
+    );
   });
 
   test('the fog takes its own colour, not a darkening', () async {
@@ -143,7 +155,10 @@ void main() {
     // with the default `FogSettings()`, and this is the property that lets them
     // stay recorded.
     final none = FogSettings();
-    final explicitlyOff = FogSettings(color: Vector3(1.0, 0.0, 0.0), density: 0.0);
+    final explicitlyOff = FogSettings(
+      color: Vector3(1.0, 0.0, 0.0),
+      density: 0.0,
+    );
 
     final a = await _mean(_wall(away: 200.0), fog: none);
     final b = await _mean(_wall(away: 200.0), fog: explicitlyOff);

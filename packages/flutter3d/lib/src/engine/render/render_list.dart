@@ -132,7 +132,8 @@ final class RenderList {
       // Eye-space depth is the third row of the view matrix applied to the
       // centre, negated because the camera looks down -Z. Computing it inline
       // avoids transforming a whole vector.
-      final eyeZ = viewRow[2] * centre.x +
+      final eyeZ =
+          viewRow[2] * centre.x +
           viewRow[6] * centre.y +
           viewRow[10] * centre.z +
           viewRow[14];

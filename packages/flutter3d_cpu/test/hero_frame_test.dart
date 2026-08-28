@@ -36,6 +36,7 @@ import 'package:vector_math/vector_math.dart';
 
 const int _width = 160;
 const int _height = 160;
+
 /// The penguin, which is the platformer's runner and therefore a game's asset.
 const String _models = '../../apps/flutter3d_demo_platformer/assets/models';
 
@@ -52,11 +53,11 @@ const String _fixtures = '../flutter3d/test/fixtures';
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
   TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-      )!;
+    width: 1,
+    height: 1,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+  )!;
   return (
     device: device,
     renderer: Renderer.create(
@@ -71,11 +72,7 @@ Future<ModelAsset> _load(String name, CpuDevice device) async {
   final document = await decodeModel(
     ModelLoadRequest(source: FileAssetSource('$where/$name.glb')),
   );
-  return ModelAsset.fromDocument(
-    document,
-    device: device,
-    name: name,
-  );
+  return ModelAsset.fromDocument(document, device: device, name: name);
 }
 
 /// Renders [name] the way the game does and reports what landed on the screen.
@@ -102,9 +99,9 @@ Future<({int pixels, int width, int height, double tall})> _shoot(
     views: <RenderView>[RenderView(camera: camera)],
     settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
   );
-  final pixels = (await engine.device.readPixels(frame.frame))!
-      .buffer
-      .asUint8List();
+  final pixels = (await engine.device.readPixels(
+    frame.frame,
+  ))!.buffer.asUint8List();
 
   var minX = _width, maxX = -1, minY = _height, maxY = -1, lit = 0;
   for (var y = 0; y < _height; y++) {
@@ -144,19 +141,30 @@ Future<({int pixels, int width, int height, double tall})> _shoot(
 }
 
 void main() {
-  test('the rigged runner is a metre and a half tall, not a centimetre', () async {
-    // Mutation: drop the armature's scale on the way in, or apply the root's
-    // twice. The first leaves a 1.6 cm speck; the second gives thirty-seven
-    // metres, which is the defect as it appears on screen.
-    final hero = await _shoot('hero');
+  test(
+    'the rigged runner is a metre and a half tall, not a centimetre',
+    () async {
+      // Mutation: drop the armature's scale on the way in, or apply the root's
+      // twice. The first leaves a 1.6 cm speck; the second gives thirty-seven
+      // metres, which is the defect as it appears on screen.
+      final hero = await _shoot('hero');
 
-    expect(hero.tall, greaterThan(1.2),
-        reason: 'the rig stands ${hero.tall} m, so the 48x node scale is not '
-            'reaching the joints');
-    expect(hero.tall, lessThan(2.4),
-        reason: 'the rig stands ${hero.tall} m, so something is applying the '
-            'scale more than once');
-  });
+      expect(
+        hero.tall,
+        greaterThan(1.2),
+        reason:
+            'the rig stands ${hero.tall} m, so the 48x node scale is not '
+            'reaching the joints',
+      );
+      expect(
+        hero.tall,
+        lessThan(2.4),
+        reason:
+            'the rig stands ${hero.tall} m, so something is applying the '
+            'scale more than once',
+      );
+    },
+  );
 
   test('and it draws like a character, not like a fan of triangles', () async {
     // The claim the whole investigation comes down to. A fan fills the frame
@@ -169,16 +177,30 @@ void main() {
     final hero = await _shoot('hero');
     final penguin = await _shoot('penguin');
 
-    expect(hero.width, lessThan(_width ~/ 2),
-        reason: 'it is ${hero.width} px wide in a $_width px frame');
-    expect(hero.height, lessThan(_height),
-        reason: 'it is ${hero.height} px tall in a $_height px frame');
-    expect(hero.pixels, greaterThan(penguin.pixels ~/ 2),
-        reason: 'it covers ${hero.pixels} px against the penguin\'s '
-            '${penguin.pixels}, so it has collapsed rather than exploded');
-    expect(hero.pixels, lessThan(penguin.pixels * 3),
-        reason: 'it covers ${hero.pixels} px against the penguin\'s '
-            '${penguin.pixels}');
+    expect(
+      hero.width,
+      lessThan(_width ~/ 2),
+      reason: 'it is ${hero.width} px wide in a $_width px frame',
+    );
+    expect(
+      hero.height,
+      lessThan(_height),
+      reason: 'it is ${hero.height} px tall in a $_height px frame',
+    );
+    expect(
+      hero.pixels,
+      greaterThan(penguin.pixels ~/ 2),
+      reason:
+          'it covers ${hero.pixels} px against the penguin\'s '
+          '${penguin.pixels}, so it has collapsed rather than exploded',
+    );
+    expect(
+      hero.pixels,
+      lessThan(penguin.pixels * 3),
+      reason:
+          'it covers ${hero.pixels} px against the penguin\'s '
+          '${penguin.pixels}',
+    );
   });
 
   test('the clips the game asks for are on the instance it builds', () async {
@@ -189,8 +211,12 @@ void main() {
     final asset = await _load('hero', engine.device);
     final instance = asset.instantiate(Scene(), name: 'runner');
 
-    expect(instance.player, isNotNull,
-        reason: 'the model has eighteen clips and instantiating it produced no '
-            'player, so the whole animation path is dead on arrival');
+    expect(
+      instance.player,
+      isNotNull,
+      reason:
+          'the model has eighteen clips and instantiating it produced no '
+          'player, so the whole animation path is dead on arrival',
+    );
   });
 }

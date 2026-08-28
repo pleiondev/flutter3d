@@ -101,8 +101,9 @@ final class _CubeShadowStaticNode extends RenderNode {
   /// Maintained, not written: the bake is valid for many frames and this node
   /// runs on most of them without touching a pixel.
   @override
-  List<ResourceId> get keeps =>
-      const <ResourceId>[FrameResourceIds.cubeShadowStatic];
+  List<ResourceId> get keeps => const <ResourceId>[
+    FrameResourceIds.cubeShadowStatic,
+  ];
 
   @override
   void execute(NodeFrame frame) {
@@ -113,10 +114,23 @@ final class _CubeShadowStaticNode extends RenderNode {
     // allocator earns this back by changing at most one row per frame and only
     // for a light that clearly deserves it.
     //
-    // `!_staticShadowBaked` is the other half, and it is how a reallocated
-    // atlas gets its walls back: `_ensureCubeAtlas` clears the flag, so the
-    // very next run of this node bakes whatever the new texture needs.
-    if (staticDirty || !_renderer._staticShadowBaked) {
+    // `!_staticShadowBaked` is the second: it is how a reallocated atlas gets
+    // its walls back, since `_ensureCubeAtlas` clears the flag and the very
+    // next run of this node bakes whatever the new texture needs.
+    //
+    // **The third is the settings the bake was drawn with**, and its absence
+    // was a setting that could not be changed. See [Renderer._staticBakeKey]:
+    // what the *pass* reads — which side of a caster it records, how far the
+    // volume is padded, how large a tile is — decides the pixels, so a change
+    // to any of it has to redraw them. Everything the *lookup* reads is applied
+    // per fragment and needs no bake at all.
+    final key = StaticBakeKey.of(settings);
+    if (shouldBakeStatic(
+      rowsChanged: staticDirty,
+      baked: _renderer._staticShadowBaked,
+      was: _renderer._staticBakeKey,
+      now: key,
+    )) {
       _renderer._renderCubeShadow(
         resources: frame.resources,
         scene: scene,
@@ -125,6 +139,7 @@ final class _CubeShadowStaticNode extends RenderNode {
         slotCount: slotCount,
       );
       _renderer._staticShadowBaked = true;
+      _renderer._staticBakeKey = key;
       // After drawing, not after deciding: a flag cleared by the decision would
       // promise walls that a skipped pass never drew.
       _renderer._shadowSlotAllocator.recordStaticBake();
@@ -179,8 +194,7 @@ final class _CubeShadowNode extends RenderNode {
   /// The one resource in the frame that literally carries pixels between
   /// frames, and the reason [FrameGraphNode.keeps] exists.
   @override
-  List<ResourceId> get keeps =>
-      const <ResourceId>[FrameResourceIds.cubeShadow];
+  List<ResourceId> get keeps => const <ResourceId>[FrameResourceIds.cubeShadow];
 
   @override
   void execute(NodeFrame frame) {
@@ -273,8 +287,7 @@ final class _ShadowMapNode extends RenderNode {
       settings.enabled && settings.strength > 0.0 && casterIndex >= 0;
 
   @override
-  List<ResourceId> get writes =>
-      const <ResourceId>[FrameResourceIds.shadowMap];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.shadowMap];
 
   @override
   void execute(NodeFrame frame) {
@@ -348,16 +361,16 @@ final class _SceneNode extends RenderNode {
 
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
-        FrameResourceIds.shadowMap,
-        FrameResourceIds.cubeShadow,
-        FrameResourceIds.cubeShadowStatic,
-      ];
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[
-        FrameResourceIds.hdrColour,
-        FrameResourceIds.surfaceBuffer,
-      ];
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
 
   @override
   void execute(NodeFrame frame) {
@@ -369,8 +382,9 @@ final class _SceneNode extends RenderNode {
     // `RenderSettings`. It decides both whether the second attachment is
     // present and whether the pass may multisample — attachments in one target
     // must agree on sample count — so a wrong answer here is silent.
-    final surfaceIsRead =
-        resources.graph.isConsumed(FrameResourceIds.surfaceBuffer);
+    final surfaceIsRead = resources.graph.isConsumed(
+      FrameResourceIds.surfaceBuffer,
+    );
 
     // Every map this pass samples, taken from the frame rather than from the
     // renderer, and every one of them is declared above. The directional map is
@@ -436,13 +450,12 @@ final class _ReflectionsNode extends RenderNode {
 
   @override
   List<ResourceId> get reads => const <ResourceId>[
-        FrameResourceIds.hdrColour,
-        FrameResourceIds.surfaceBuffer,
-      ];
+    FrameResourceIds.hdrColour,
+    FrameResourceIds.surfaceBuffer,
+  ];
 
   @override
-  List<ResourceId> get writes =>
-      const <ResourceId>[FrameResourceIds.hdrColour];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
 
   @override
   void execute(NodeFrame frame) {
@@ -497,8 +510,9 @@ final class _SsaoNode extends RenderNode {
       _settings.ambientOcclusion.strength > 0.0;
 
   @override
-  List<ResourceId> get reads =>
-      const <ResourceId>[FrameResourceIds.surfaceBuffer];
+  List<ResourceId> get reads => const <ResourceId>[
+    FrameResourceIds.surfaceBuffer,
+  ];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.ao];
@@ -587,31 +601,31 @@ final class _CompositeNode extends RenderNode {
 
   @override
   List<ResourceId> get optionalReads => <ResourceId>[
-        FrameResourceIds.bloom,
-        // Unconditional, unlike the surface buffer below: the occlusion node
-        // decides for itself whether it is active, and reading a resource
-        // nobody produced is what `optionalReads` is for. Gating it here as
-        // well would put the same switch in two places.
-        FrameResourceIds.ao,
-        // Only when it is going to show it. An unconditional read would make
-        // the buffer look wanted on every frame, and what wants it is what
-        // decides whether the scene pass attaches it at all.
-        if (_showsSurface) FrameResourceIds.surfaceBuffer,
-        // The same rule for the shadow view. This pass can put a shadow map on
-        // the screen instead of the lit image, and it used to reach into the
-        // renderer's own fields for it — the second half of the hole the view
-        // model had, and the same fix: declare the read, then ask the frame.
-        // The atlas is preferred where there is one, because that is the map
-        // anybody debugging shadows wants to see.
-        if (_settings.showShadowMap) ...<ResourceId>[
-          FrameResourceIds.cubeShadow,
-          FrameResourceIds.shadowMap,
-        ],
-        // The other cube atlas, and a separate switch for the reason given on
-        // `RenderSettings.showStaticShadowMap`: there are two, the lighting
-        // shader samples both, and only one of them had ever been looked at.
-        if (_settings.showStaticShadowMap) FrameResourceIds.cubeShadowStatic,
-      ];
+    FrameResourceIds.bloom,
+    // Unconditional, unlike the surface buffer below: the occlusion node
+    // decides for itself whether it is active, and reading a resource
+    // nobody produced is what `optionalReads` is for. Gating it here as
+    // well would put the same switch in two places.
+    FrameResourceIds.ao,
+    // Only when it is going to show it. An unconditional read would make
+    // the buffer look wanted on every frame, and what wants it is what
+    // decides whether the scene pass attaches it at all.
+    if (_showsSurface) FrameResourceIds.surfaceBuffer,
+    // The same rule for the shadow view. This pass can put a shadow map on
+    // the screen instead of the lit image, and it used to reach into the
+    // renderer's own fields for it — the second half of the hole the view
+    // model had, and the same fix: declare the read, then ask the frame.
+    // The atlas is preferred where there is one, because that is the map
+    // anybody debugging shadows wants to see.
+    if (_settings.showShadowMap) ...<ResourceId>[
+      FrameResourceIds.cubeShadow,
+      FrameResourceIds.shadowMap,
+    ],
+    // The other cube atlas, and a separate switch for the reason given on
+    // `RenderSettings.showStaticShadowMap`: there are two, the lighting
+    // shader samples both, and only one of them had ever been looked at.
+    if (_settings.showStaticShadowMap) FrameResourceIds.cubeShadowStatic,
+  ];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.frame];
@@ -654,9 +668,9 @@ final class _CompositeNode extends RenderNode {
       shadowView: _settings.showStaticShadowMap
           ? frame.resources.tryTexture(FrameResourceIds.cubeShadowStatic)
           : _settings.showShadowMap
-              ? frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
-                  frame.resources.tryTexture(FrameResourceIds.shadowMap)
-              : null,
+          ? frame.resources.tryTexture(FrameResourceIds.cubeShadow) ??
+                frame.resources.tryTexture(FrameResourceIds.shadowMap)
+          : null,
       sceneGraph: _scene,
       views: _views,
       settings: frame.settings,
