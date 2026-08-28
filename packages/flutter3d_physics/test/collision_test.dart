@@ -732,6 +732,59 @@ void main() {
       world.update();
       expect(recorder.events, <String>['start:zone']);
     });
+
+    test('two colliders standing in one trigger both hear about it', () {
+      // A pair is keyed by the two collider ids packed into one integer.
+      // Written as `lo << 32` — the native idiom — the shift discards `lo` on
+      // the web, where an `int` is a double and a bitwise operation is done in
+      // 32 bits. Both pairs below then key on the zone alone, the second is
+      // swallowed by the duplicate check that exists to stop each side
+      // reporting the same pair twice, and one of the two never learns it
+      // touched anything.
+      //
+      // Mutation: put the shift back and run this file under `-p chrome`. The
+      // second collider's start event disappears.
+      final world = CollisionWorld();
+      final first = _Recorder();
+      final second = _Recorder();
+
+      world.add(
+        Collider(
+          shape: CollisionSphere(0.4),
+          position: Vector3(-2.0, 0.0, 0.0),
+          kind: ColliderKind.kinematic,
+          layer: _Layer.player,
+          listener: first,
+          userData: 'first',
+        ),
+      );
+      world.add(
+        Collider(
+          shape: CollisionSphere(0.4),
+          position: Vector3(2.0, 0.0, 0.0),
+          kind: ColliderKind.kinematic,
+          layer: _Layer.monster,
+          listener: second,
+          userData: 'second',
+        ),
+      );
+      // Added last, so it holds the highest id and is the half of both keys
+      // that a discarded `lo` would leave behind.
+      world.add(
+        Collider(
+          shape: CollisionBox(Vector3(3.0, 1.0, 1.0)),
+          position: Vector3.zero(),
+          kind: ColliderKind.trigger,
+          layer: _Layer.trigger,
+          userData: 'zone',
+        ),
+      );
+
+      world.update();
+
+      expect(first.events, contains('start:zone'));
+      expect(second.events, contains('start:zone'));
+    });
   });
 
   group('the broadphase', () {

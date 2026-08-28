@@ -137,6 +137,23 @@ step "test flutter3d_webgl (browser)" in_dir packages/flutter3d_webgl flutter te
 # files.
 step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --platform chrome
 
+# **The simulation is platform-agnostic Dart, and that is exactly why it needed
+# a second platform.** Both packages ran only on the VM, where an `int` is 64
+# bits — and the web, where it is a double with 32-bit bitwise operations, is a
+# supported target. Three places packed two numbers into one integer with a
+# shift past bit 31: the collision world's pair key, the broadphase's cell key
+# and the entity handle. On the VM all three were right. In a browser the first
+# dropped a collision pair whenever two colliders stood in one trigger, the
+# second collapsed every cell of a Z row into one bucket, and the third aliased
+# an entity handle after 256 recycles of its index. None of it was reachable
+# from a test nobody ran on the platform it broke on.
+#
+# Chrome rather than the VM only — the VM run above stays, because these are the
+# packages whose failures need thousands of steps in a loop and the browser is
+# the slower place to do that.
+step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart test -p chrome
+step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome
+
 # An example with tests, which until `packages/pad_input/example` there was none of.
 # Its tests are the only ones that mount the tool the gamepad's manual acceptance
 # is walked with, and a test CI never runs is a test that rots.

@@ -11,6 +11,13 @@
 /// once, all of it presenting as "the physics feels wrong".
 ///
 /// A comment cannot be tested. The count can.
+///
+/// **On the VM only**, because it counts the readers by reading this package's
+/// own source off the disk. The browser pass this suite now also runs has no
+/// filesystem, and a scan of the tree is not a thing a second platform has
+/// anything to say about — unlike the packing this package does, which is why
+/// that pass exists.
+@TestOn('vm')
 library;
 
 import 'dart:io';

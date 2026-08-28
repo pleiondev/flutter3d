@@ -304,4 +304,40 @@ void main() {
       returnsNormally,
     );
   });
+
+  test('an index recycled past 255 still answers for the handle it gave', () {
+    // The index and the generation share one integer. Packed with
+    // `generation << 24`, the generation leaves 32 bits at 256 — and on the
+    // web, where an `int` is a double and a bitwise operation is done in 32
+    // bits, it wraps to zero. The handle the world just returned then reads
+    // back a generation the world does not have, and `alive` calls a live
+    // entity dead.
+    //
+    // Mutation: put the shift back and run this file under `-p chrome`. The
+    // expectation below fails at the 256th recycle.
+    final world = EcsWorld();
+    var handle = world.spawn();
+    for (var i = 0; i < 256; i++) {
+      world.despawn(handle);
+      handle = world.spawn();
+    }
+
+    expect(world.alive(handle), isTrue);
+    expect(handle.generation, 256, reason: 'one per recycle of the index');
+    expect(handle.index, 0, reason: 'the freed index is the one reused');
+  });
+
+  test('two generations of one index are two different handles', () {
+    // The same packing from the other side: a stale handle must not compare
+    // equal to the handle that took its index over. `final` rather than
+    // `const` deliberately — two const expressions of the same value are
+    // canonicalised into one object, which would make this pass for a reason
+    // that has nothing to do with the packing.
+    final fresh = Entity.of(7, 300);
+    final stale = Entity.of(7, 44);
+
+    expect(fresh, isNot(stale));
+    expect(fresh.generation, 300);
+    expect(stale.generation, 44);
+  });
 }

@@ -189,17 +189,31 @@ final class BoundTexture {
     );
   }
 
-  /// One texel address, wrapped or clamped as the sampler says.
+  /// One texel address, wrapped, mirrored or clamped as the sampler says.
   int _address(int i, int size, SamplerAddressMode mode) => switch (mode) {
     SamplerAddressMode.repeat => i % size < 0 ? i % size + size : i % size,
     SamplerAddressMode.clampToEdge => i.clamp(0, size - 1),
-    // Mirror is in the enum and nothing binds it. Refusing beats guessing:
-    // a wrong wrap looks like a texture that is subtly the wrong way round
-    // in one place, which is not something anybody goes looking for.
-    SamplerAddressMode.mirror => throw UnsupportedError(
-      'SamplerAddressMode.mirror is not implemented by this backend',
-    ),
+    SamplerAddressMode.mirror => _mirror(i, size),
   };
+
+  /// One texel address under [SamplerAddressMode.mirror].
+  ///
+  /// The period is two widths: the first walks the texture forwards and the
+  /// second walks it back, so a boundary lands on two copies of one texel
+  /// rather than on a jump from the last to the first.
+  ///
+  /// This is reached from ordinary assets rather than from a setting somebody
+  /// went looking for — glTF's `MIRRORED_REPEAT` maps straight onto it — and
+  /// the other two backends have always honoured it. Refusing here threw out
+  /// of the inner rasteriser loop, which meant a model that drew on hardware
+  /// took the frame down on the backend the tests, the golden set and the
+  /// software fallback all run.
+  static int _mirror(int i, int size) {
+    final period = size * 2;
+    var m = i % period;
+    if (m < 0) m += period;
+    return m < size ? m : period - 1 - m;
+  }
 
   /// Samples at [u], [v], choosing a mip level from how fast the coordinate is
   /// moving.
