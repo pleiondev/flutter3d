@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Twenty-one packages and five applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file.
+Twenty-three packages and five applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file.
 
 ## Engine
 
@@ -161,7 +161,14 @@ Positional audio: attenuation curves, panning, occlusion through a callback, voi
 → [Particles & audio](/core/extras/)
 
 ### `pointer_lock`
-Relative mouse deltas, which Flutter offers on no desktop platform. On macOS it turns off the association between the physical mouse and the on-screen cursor, so `mouseMoved` events keep arriving with their deltas while the cursor stays put. Windows and Linux are not implemented yet.
+Relative mouse deltas, which Flutter offers on no desktop platform and does not surface in a browser either. On macOS it turns off the association between the physical mouse and the on-screen cursor, so `mouseMoved` events keep arriving with their deltas while the cursor stays put. In a browser it is `document.requestPointerLock` through static interop — pure Dart, chosen by conditional export, so nothing is registered and `flutter test --platform chrome` can exercise it. Windows and Linux are not implemented, and now say so: a game reads `isSupported` and turns the camera by dragging instead, which it could not do while the answer was a platform list in the game.
+
+Three things a browser does that a desktop does not, all handled: a capture must come out of a user gesture, a refusal arrives as an event rather than as an exception, and the player can leave the lock with Escape at any moment.
+
+### `flutter3d_samples`
+The Khronos glTF sample assets, the Utah teapot and the `.f3d` conversions of them. Test data with two path constants over it — `kSamplesAsset` for a bundle, `kSamplesPath` for disk — and no other Dart.
+
+Its own package because it was `flutter3d`'s: declared in the engine's `flutter.assets`, so every application built on the engine bundled 4.1 MB of models it never loads, a third of the shooter's web asset payload. The decoder tests and the demo still read them; a game no longer carries them.
 
 ### `pad_input`
 Sticks, triggers and buttons, read as a snapshot the caller asks for once per frame — not a stream, because a fixed-step simulation asks *what is the pad doing now* and a stream would push edge detection into every caller. The dead zone is radial and rescaled, applied on the way out so nobody can forget it. The entry point is `Gamepad.instance` and a `PadSnapshot`.

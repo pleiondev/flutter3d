@@ -5,7 +5,8 @@
   "version": "1.0.0",
   "description": "Documentation site for the flutter3d engine",
   "scripts": {
-    "build": "node tool/build.mjs"
+    "build": "node tool/build.mjs",
+    "demos": "tool/demos.sh"
   },
   "dependencies": {
     "highlight.js": "^11.11.1",

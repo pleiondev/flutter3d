@@ -13,13 +13,20 @@ target="${FLUTTER3D_SITE_PATH:-/opt/flutter3d}"
 cd "$here"
 npm run build
 
+# **The games are part of the site now.** `npm run build` wipes dist/, so they
+# are rebuilt into it afterwards rather than before — see tool/demos.sh, which
+# is a separate script because editing prose should not cost a minute of
+# dart2wasm. It runs every deploy: Flutter's own incremental build makes a
+# rebuild of an unchanged game about twenty seconds rather than a cold minute,
+# and a demo quietly older than the engine it documents is worse than the wait.
+tool/demos.sh
+
 # --delete, because a page removed from the nav must stop being reachable.
-# The playable builds and the generated API reference live beside the site
-# instead of inside dist/, which the build wipes on every run; tool/deploy-demos.sh
-# and tool/deploy-docs.sh put them there. Both excludes are anchored: an
-# unanchored `demo/` also matches `platformer/demo/`, which is a documentation
-# page, and deleted both demo pages on the first deploy.
-rsync -az --delete --exclude '/demo/' --exclude '/docs/' dist/ "$host:$target/"
+# The generated API reference still lives beside the site rather than inside
+# dist/ — twenty-three dartdoc trees are minutes to regenerate and change only
+# when a public API moves — so `/docs/` is still excluded, anchored: an
+# unanchored `docs/` would also match a page called that.
+rsync -az --delete --exclude '/docs/' dist/ "$host:$target/"
 ssh "$host" "chown -R www-data:www-data $target"
 
 echo "deployed to https://flutter3d.pleion.dev/"

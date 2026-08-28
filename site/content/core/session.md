@@ -139,7 +139,7 @@ if (lock.isSupported) await lock.capture();
 final delta = lock.takeDelta();                       // synchronous, drained once per step
 ```
 
-`PointerLock` fills a gap Flutter leaves on every desktop platform: no pointer lock, which an FPS-style camera needs, since without it the cursor reaches the window edge and the view stops turning. `takeDelta()` is synchronous on purpose — it's called from inside the simulation step, where awaiting anything would mean the step no longer sees a consistent snapshot of its inputs. Implemented on macOS only; losing window focus drops the capture automatically, which a game should treat as a reason to pause rather than as an error.
+`PointerLock` fills a gap Flutter leaves on every desktop platform: no pointer lock, which an FPS-style camera needs, since without it the cursor reaches the window edge and the view stops turning. `takeDelta()` is synchronous on purpose — it's called from inside the simulation step, where awaiting anything would mean the step no longer sees a consistent snapshot of its inputs. Two backends: a method channel on macOS, and the browser's own `requestPointerLock` through static interop — chosen by conditional export, so nothing registers a plugin and `flutter test --platform chrome` can exercise it. Windows and Linux are not implemented and say so, which is what lets a game fall back to a drag rather than to a camera that does not turn. Losing focus drops the capture automatically, which a game should treat as a reason to pause rather than as an error; in a browser the capture also has to be asked for inside the handler of the press that prompted it, because `requestPointerLock` is refused without a user gesture behind it.
 
 ## One import for all of it
 

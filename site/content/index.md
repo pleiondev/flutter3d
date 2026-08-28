@@ -22,7 +22,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 </div>
 
 <dl class="stats">
-  <div><dt>Tests</dt><dd>2870<small>across 22 packages &amp; 5 apps</small></dd></div>
+  <div><dt>Tests</dt><dd>2901<small>across 23 packages &amp; 5 apps</small></dd></div>
   <div><dt>Need a GPU</dt><dd>~30<small>the Impeller goldens only</small></dd></div>
   <div><dt>Lighting models</dt><dd>6<small>one shader each</small></dd></div>
   <div><dt>Model load</dt><dd>1.1 µs<small>.f3d vs 4.54 ms as OBJ</small></dd></div>
@@ -33,7 +33,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 | | |
 |---|---|
 | Channel | Flutter 3.47.0 stable, Dart 3.12.2 |
-| Platforms | macOS, Windows and Linux desktop through Impeller; the browser through WebGL2 |
+| Platforms | macOS and the browser are supported and exercised; Android and iOS build and have not been played on a handset; Windows and Linux are unverified |
 | Published | No. Packages resolve by path inside one pub workspace |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
@@ -60,18 +60,18 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
     <h3>Platformer</h3>
     <p>A double jump with coyote time, wall slides, ice and conveyors, springs, checkpoints.</p>
   </a></li>
-  <li><a href="/racing/">
-    <span class="card-kind">Genre</span>
+  <li><a href="/racing/demo/">
+    <span class="card-kind">Genre · playable</span>
     <h3>Racing</h3>
     <p>A track as a measured curve, a tire that falls away past its peak, laps that cannot be cheated, AI drivers and ghosts.</p>
   </a></li>
 </ul>
 
-The shooter and the platformer run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game renders there and is not fast enough to drive; [its demo page says what was measured](/racing/demo/).
+All three run in a browser on the WebGL2 backend and are embedded on their demo pages. The racing game was the holdout — well under a frame a second for months — and [its demo page keeps the hunt](/racing/demo/): the cost was a cube shadow atlas sized from the sun's setting, four hundred megabytes of texture on a platform with less, which no reduction in frame size could touch.
 
 ## The package split
 
-Twenty-one packages. Each boundary is a rule that a test enforces.
+Twenty-three packages. Each boundary is a rule that a test enforces.
 
 ```mermaid
 flowchart TB
@@ -120,7 +120,7 @@ flowchart TB
   game --> physics
 ```
 
-Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_ui` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, fifteen checks that read source text and run before a build.
+Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_ui` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, nineteen checks that read source text and run before a build.
 
 Three rules hold the picture up, and `tool/structure.dart` checks each one before a build.
 

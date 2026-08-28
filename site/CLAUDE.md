@@ -38,7 +38,7 @@ This has already caught several plausible-looking mistakes: `DeviceMesh` has
 `Level` has an `addTo(world)` extension, not `buildCollision`. An example that does not compile is worse than no example, because a reader
 will trust it.
 
-The same goes for prose. Numbers on this site (2870 tests, 4.54 ms → 1.1 µs,
+The same goes for prose. Numbers on this site (2901 tests, 4.54 ms → 1.1 µs,
 fourteen centimetres per texel, 17.7 ms per frame) come from the repository's
 own READMEs and `ARCHITECTURE.md`. Do not
 invent one, and do not round one someone measured.
@@ -170,19 +170,21 @@ turns invisible on light.
 
 ## The playable demos
 
-The games are built for the web against `flutter3d_webgl` and served from `/demo/`, embedded in `content/*/demo.md` through an iframe.
+The games are built for the web against `flutter3d_webgl` into **`dist/demo/`**, which is inside the site rather than beside it, and embedded in `content/*/demo.md` through an iframe. `npm run build` wipes `dist/`, so `tool/demos.sh` runs after it — `tool/deploy.sh` does both in that order, and one rsync now carries the site and the games together. It used to be two deploys with an anchored exclude between them, which is a thing that breaks quietly.
 
-The shooter and the platformer are playable. **The racing game is not**: it renders correctly and runs at well under one frame a second, and dropping to 480×270 with a single 512 shadow tile changed nothing measurable, so the cost is not fill rate. Its demo page says that plainly instead of embedding it as though it worked. If the cause is found, that page is the one to correct first.
+All three are playable. The racing game was not for months — well under a frame a second — and the two changes that fixed it were `ShadowSettings.cubeResolution`, which stopped a cube shadow atlas being sized from the sun's tile and took 402 MB of texture down to 100, and `--wasm`. Its demo page keeps the hunt, because the measurement that looked like a dead end (shrinking the frame changed nothing) was the clue: the atlas is not sized from the frame.
 
 ```bash
-tool/deploy-demos.sh     # regenerate shaders, build both, rsync to bob
+tool/demos.sh            # regenerate shaders, build all three to wasm into dist/demo
+tool/demos.sh racing     # or just one of them
 ```
 
-Three traps, each of which cost a build:
+Four traps, each of which cost a build:
 
+- **The application directories are `apps/flutter3d_demo_*`.** The old deploy script named `apps/dungeon`, `apps/platformer` and `apps/racing` for months after the rename, and the breakage was invisible: those directories still existed on a machine that had built the games before, holding nothing but a stale `build/`, so `cd` succeeded and rsync pushed whatever was last compiled there.
 - **`--base-href` is required.** The demos are served from a subdirectory, and Flutter's default `<base href="/">` makes the app request `/main.dart.js`. That is a 404 and a blank page.
 - **The rsync exclude must be anchored.** `--exclude 'demo/'` also matches `platformer/demo/`, which is a documentation page; the first deploy deleted both demo pages. It is `--exclude '/demo/'`.
-- **The generated GLSL goes stale silently.** `flutter3d_webgl/lib/engine_shaders.dart` is translated from `flutter3d_shaders` and nothing checks that it is current. When the engine's uniform blocks change, the backend draws nothing and says the block has no such member. `tool/deploy-demos.sh` regenerates it every time.
+- **The generated GLSL goes stale silently.** `flutter3d_webgl/lib/engine_shaders.dart` is translated from `flutter3d_shaders` and nothing checks that it is current. When the engine's uniform blocks change, the backend draws nothing and says the block has no such member. `tool/demos.sh` regenerates it every time.
 
 ## The generated API reference
 
@@ -269,10 +271,12 @@ that a table went off the edge, and both have happened.
 
 Three numbers on this site go stale on their own, and all three were wrong once:
 
-- **Test count.** Measured by running every package's suite, not copied from a
-  README. It was 1242 and is 1805; the per-package table on
-  `reference/testing.md` is the record. Re-measure rather than adjust.
-- **Package and game counts.** Twenty-two packages, four applications, three
+- **Test count.** 2901, and the repository counts it rather than this site: the
+  `the document says how many tests there are` rule scans every `test(` call and
+  now holds both `ARCHITECTURE.md` and the README to the answer. Take the number
+  from there — the README said 1242 for a year because nothing compared it with
+  anything.
+- **Package and game counts.** Twenty-three packages, five applications, three
   genres. "Two games" was hard-coded into a dozen sentences and the home page
   headline; grep for it before assuming.
 - **Backend status.** What each of the three backends can actually run, which
