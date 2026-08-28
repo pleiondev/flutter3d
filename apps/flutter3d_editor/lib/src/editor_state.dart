@@ -98,17 +98,16 @@ final class EditorReady extends EditorState {
     bool? lampOn,
     Set<String>? hidden,
     Object? placing = _unset,
-  }) =>
-      EditorReady(
-        editing: editing,
-        assetRoot: assetRoot,
-        looks: looks,
-        said: said ?? this.said,
-        axis: axis ?? this.axis,
-        lampOn: lampOn ?? this.lampOn,
-        hidden: hidden ?? this.hidden,
-        placing: identical(placing, _unset) ? this.placing : placing as Placeable?,
-      );
+  }) => EditorReady(
+    editing: editing,
+    assetRoot: assetRoot,
+    looks: looks,
+    said: said ?? this.said,
+    axis: axis ?? this.axis,
+    lampOn: lampOn ?? this.lampOn,
+    hidden: hidden ?? this.hidden,
+    placing: identical(placing, _unset) ? this.placing : placing as Placeable?,
+  );
 }
 
 /// Nothing could be opened, and this is why.

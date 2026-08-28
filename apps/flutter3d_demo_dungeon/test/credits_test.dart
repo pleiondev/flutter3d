@@ -31,24 +31,40 @@ void main() {
     final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
 
     expect(gaps.shipped, isNotEmpty, reason: 'no models found to check');
-    expect(gaps.unshipped, isEmpty,
-        reason: 'credited something the game does not ship');
-    expect(gaps.uncredited, isEmpty,
-        reason: 'shipped a model nobody is credited for');
+    expect(
+      gaps.unshipped,
+      isEmpty,
+      reason: 'credited something the game does not ship',
+    );
+    expect(
+      gaps.uncredited,
+      isEmpty,
+      reason: 'shipped a model nobody is credited for',
+    );
   });
 
   test('and nothing it ships is untraceable', () {
-    expect(Credits.untraced, isEmpty,
-        reason: 'this game cannot be released while anything is in this list');
+    expect(
+      Credits.untraced,
+      isEmpty,
+      reason: 'this game cannot be released while anything is in this list',
+    );
   });
 
   test('and every entry names a licence somebody can read', () {
     // A licence with no URL is a licence a player is told the name of and
     // cannot look up, which is most of the way to not saying it.
     for (final credit in Credits.models) {
-      expect(credit.licence, isNotNull, reason: '${credit.file} has no licence');
-      expect(credit.licenceUrl, isNotNull,
-          reason: '${credit.file} names ${credit.licence} and no URL');
+      expect(
+        credit.licence,
+        isNotNull,
+        reason: '${credit.file} has no licence',
+      );
+      expect(
+        credit.licenceUrl,
+        isNotNull,
+        reason: '${credit.file} names ${credit.licence} and no URL',
+      );
       expect(credit.line, contains(credit.work));
     }
   });
@@ -76,8 +92,11 @@ void main() {
 
     for (final credit in Credits.models) {
       final name = credit.file.split('/').last;
-      expect(table, contains(name),
-          reason: 'LICENSES.md does not mention $name');
+      expect(
+        table,
+        contains(name),
+        reason: 'LICENSES.md does not mention $name',
+      );
     }
   });
 }

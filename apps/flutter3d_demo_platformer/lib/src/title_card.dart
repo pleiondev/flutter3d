@@ -55,23 +55,23 @@ class TitleCard extends StatelessWidget {
           'A controller works too, if one is paired.',
         ]
       : <String>[
-        'W A S D to move, space to jump — twice, in the air.',
-        dashOnPointer
-            ? 'Shift to sprint, Ctrl or C to crouch, click to dash.'
-            : 'Shift to sprint, Ctrl or C to crouch, Q to dash.',
-        // Positions, not printed labels: this game cannot know whether the pad
-        // in the player's hands calls its lower face button `A` or Cross, and
-        // deliberately does not try to find out.
-        // One sentence over two lines, not two entries missing a comma —
-        // which is the mistake the lint exists to catch, and it cannot tell
-        // them apart.
-        // ignore: no_adjacent_strings_in_list
-        'Or a controller: left stick to move, the lower face button to jump, '
-            'the right one to dash.',
-        dashOnPointer
-            ? 'Escape gives the mouse back and opens the settings.'
-            : 'Escape opens the settings.',
-      ];
+          'W A S D to move, space to jump — twice, in the air.',
+          dashOnPointer
+              ? 'Shift to sprint, Ctrl or C to crouch, click to dash.'
+              : 'Shift to sprint, Ctrl or C to crouch, Q to dash.',
+          // Positions, not printed labels: this game cannot know whether the pad
+          // in the player's hands calls its lower face button `A` or Cross, and
+          // deliberately does not try to find out.
+          // One sentence over two lines, not two entries missing a comma —
+          // which is the mistake the lint exists to catch, and it cannot tell
+          // them apart.
+          // ignore: no_adjacent_strings_in_list
+          'Or a controller: left stick to move, the lower face button to jump, '
+              'the right one to dash.',
+          dashOnPointer
+              ? 'Escape gives the mouse back and opens the settings.'
+              : 'Escape opens the settings.',
+        ];
 
   /// Whether there is a saved run behind this card.
   ///
@@ -115,10 +115,7 @@ class TitleCard extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(vertical: 2),
                     child: Text(
                       line,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
                     ),
                   ),
                 if (resuming) ...<Widget>[

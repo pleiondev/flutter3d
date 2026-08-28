@@ -122,8 +122,9 @@ final class SceneDressing {
 
     for (final handle in handlesOf(editing.level, looks: looks)) {
       if (handle.kind == Piece.brush) continue;
-      final entity =
-          handle.kind == Piece.entity ? editing.level.entities[handle.index] : null;
+      final entity = handle.kind == Piece.entity
+          ? editing.level.entities[handle.index]
+          : null;
       if (kLightsOnly &&
           handle.kind != Piece.light &&
           (entity == null || looks.partsFor(entity).isEmpty)) {
@@ -158,32 +159,33 @@ final class SceneDressing {
         continue;
       }
 
-      final node = MeshNode(
-        // **A light is a ball, everything else is a box.**
-        isLight
-            ? SharedMeshes(device).shape(
-                'gizmo-light',
-                () => SphereShape(radius: kGizmoSize * 0.45),
-              )
-            : SharedMeshes(device).box(handle.size),
-        material == null
-            ? engine.Material(
-                name: 'gizmo',
-                baseColor: Vector4(
-                  handle.tint.x,
-                  handle.tint.y,
-                  handle.tint.z,
-                  1.0,
-                ),
-                // Lit by itself, or a mark in an unlit corner is a mark
-                // nobody can find.
-                emissive: handle.tint * 0.9,
-              )
-            : LevelLoader.materialFrom(material, textures, name: named),
-        name: 'gizmo',
-      )
-        ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
-        ..castsShadow = false;
+      final node =
+          MeshNode(
+              // **A light is a ball, everything else is a box.**
+              isLight
+                  ? SharedMeshes(device).shape(
+                      'gizmo-light',
+                      () => SphereShape(radius: kGizmoSize * 0.45),
+                    )
+                  : SharedMeshes(device).box(handle.size),
+              material == null
+                  ? engine.Material(
+                      name: 'gizmo',
+                      baseColor: Vector4(
+                        handle.tint.x,
+                        handle.tint.y,
+                        handle.tint.z,
+                        1.0,
+                      ),
+                      // Lit by itself, or a mark in an unlit corner is a mark
+                      // nobody can find.
+                      emissive: handle.tint * 0.9,
+                    )
+                  : LevelLoader.materialFrom(material, textures, name: named),
+              name: 'gizmo',
+            )
+            ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
+            ..castsShadow = false;
       if (entity != null && entity.yaw != 0.0) {
         node.setRotation(
           Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw),
@@ -274,12 +276,7 @@ final class SceneDressing {
         _meshFor(meshes, part),
         engine.Material(
           name: part.glows ? 'flame' : 'part',
-          baseColor: Vector4(
-            part.colour.x,
-            part.colour.y,
-            part.colour.z,
-            1.0,
-          ),
+          baseColor: Vector4(part.colour.x, part.colour.y, part.colour.z, 1.0),
           // A flame is the light rather than the thing holding it, and a dark
           // corridor would otherwise swallow the one part that is the point.
           emissive: part.glows ? part.colour * 1.4 : null,
@@ -296,23 +293,24 @@ final class SceneDressing {
     }
   }
 
-  static DeviceMesh _meshFor(SharedMeshes meshes, Part part) => switch (part.shape) {
+  static DeviceMesh _meshFor(SharedMeshes meshes, Part part) =>
+      switch (part.shape) {
         'cylinder' => meshes.shape(
-            'part-cyl-${part.radius}-${part.height}',
-            () => CylinderShape(
-              radiusTop: part.radius,
-              radiusBottom: part.radius,
-              height: part.height,
-            ),
+          'part-cyl-${part.radius}-${part.height}',
+          () => CylinderShape(
+            radiusTop: part.radius,
+            radiusBottom: part.radius,
+            height: part.height,
           ),
+        ),
         'cone' => meshes.shape(
-            'part-cone-${part.radius}-${part.height}',
-            () => ConeShape(radius: part.radius, height: part.height),
-          ),
+          'part-cone-${part.radius}-${part.height}',
+          () => ConeShape(radius: part.radius, height: part.height),
+        ),
         'sphere' => meshes.shape(
-            'part-ball-${part.radius}',
-            () => SphereShape(radius: part.radius),
-          ),
+          'part-ball-${part.radius}',
+          () => SphereShape(radius: part.radius),
+        ),
         _ => meshes.box(part.size),
       };
 
@@ -366,7 +364,9 @@ final class SceneDressing {
           asset.skins.isNotEmpty) {
         continue;
       }
-      if (const String.fromEnvironment('skip').split(',').contains(entity.type)) {
+      if (const String.fromEnvironment(
+        'skip',
+      ).split(',').contains(entity.type)) {
         continue;
       }
 
@@ -393,9 +393,7 @@ final class SceneDressing {
 
       instance.root
         ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
-        ..setRotation(
-          Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw),
-        );
+        ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw));
       gizmos.add(instance.root);
       // The mark it stands in for. Found by where it is, because that is what
       // the two have in common and the list is short.
@@ -410,12 +408,19 @@ final class SceneDressing {
     }
   }
 
-  static Future<ModelAsset?> _loadModel(GraphicsDevice device, String path) async {
+  static Future<ModelAsset?> _loadModel(
+    GraphicsDevice device,
+    String path,
+  ) async {
     try {
       final document = await decodeModelInIsolate(
         ModelLoadRequest(source: FileAssetSource(path)),
       );
-      return await ModelAsset.fromDocument(document, device: device, name: path);
+      return await ModelAsset.fromDocument(
+        document,
+        device: device,
+        name: path,
+      );
     } catch (error) {
       debugPrint('editor: could not read the model "$path" ($error)');
       return null;

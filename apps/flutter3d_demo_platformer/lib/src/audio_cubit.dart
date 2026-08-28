@@ -24,9 +24,9 @@ final class AudioReady {
   final bool musicPlaying;
 
   AudioReady copyWith({bool? open, bool? musicPlaying}) => AudioReady(
-        open: open ?? this.open,
-        musicPlaying: musicPlaying ?? this.musicPlaying,
-      );
+    open: open ?? this.open,
+    musicPlaying: musicPlaying ?? this.musicPlaying,
+  );
 
   @override
   bool operator ==(Object other) =>

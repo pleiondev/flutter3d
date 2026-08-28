@@ -26,9 +26,9 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 Level _crypt() => Level.fromJson(
-      jsonDecode(File('assets/levels/crypt.json').readAsStringSync())
-          as Map<String, dynamic>,
-    );
+  jsonDecode(File('assets/levels/crypt.json').readAsStringSync())
+      as Map<String, dynamic>,
+);
 
 /// Everything `main.dart` builds, minus everything that draws.
 final class _Game {
@@ -187,9 +187,11 @@ void main() {
     // was asserting a memory of a level nobody ships any more.
     expect(
       game.actors.actors,
-      hasLength(game.level.entities
-          .where((EntityDef e) => e.type == ShooterEntities.monster)
-          .length),
+      hasLength(
+        game.level.entities
+            .where((EntityDef e) => e.type == ShooterEntities.monster)
+            .length,
+      ),
     );
     expect(game.player.isAlive, isTrue);
   });
@@ -206,8 +208,9 @@ void main() {
     // content seam is worth.
     final game = _Game(_crypt(), registry: sampleRegistry(monsters: false));
 
-    final key = game.level.entities
-        .firstWhere((EntityDef e) => e.type == EntityTypes.key);
+    final key = game.level.entities.firstWhere(
+      (EntityDef e) => e.type == EntityTypes.key,
+    );
     final door = game.mechanisms['crypt_door']! as Door;
     final exit = game.mechanisms['way_down']! as Exit;
 
@@ -220,8 +223,11 @@ void main() {
     // Up to the door, then a hand on it. It is locked, and the key is what
     // makes the difference — the same activation with an empty key ring is
     // refused.
-    expect(game.walkTo(door.collider.position, within: 2.0), isTrue,
-        reason: 'never reached the door');
+    expect(
+      game.walkTo(door.collider.position, within: 2.0),
+      isTrue,
+      reason: 'never reached the door',
+    );
     game.useOn(door.collider.position);
     game.idle(120);
     expect(door.progress, greaterThan(0.0), reason: 'the door did not open');
@@ -240,7 +246,10 @@ void main() {
     // error screen rather than with a second level.
     final next = game.sim.nextLevel;
     expect(next, isNotNull, reason: 'the crypt leads nowhere');
-    expect(File(next!).existsSync(), isTrue,
-        reason: 'the crypt names $next, which is not there');
+    expect(
+      File(next!).existsSync(),
+      isTrue,
+      reason: 'the crypt names $next, which is not there',
+    );
   });
 }

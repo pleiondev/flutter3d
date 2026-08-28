@@ -141,9 +141,7 @@ final class RunnerVisuals {
     }
 
     final velocity = runner.body.velocity;
-    final speed = math.sqrt(
-      velocity.x * velocity.x + velocity.z * velocity.z,
-    );
+    final speed = math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z);
     player
       ..speed = RunnerClips.rateFor(wanted, speed)
       ..update(dt);

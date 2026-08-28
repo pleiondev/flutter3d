@@ -27,12 +27,20 @@ void main() {
     // that were silently thrown away.
     const bare = PerspectiveProjection();
 
-    expect(Lens.base.fovYRadians, greaterThan(bare.fovYRadians),
-        reason: 'a narrow lens in a third-person platformer hides the ledge '
-            'you are aiming at');
-    expect(Lens.base.far, lessThan(bare.far),
-        reason: 'a kilometre of depth range over a 260 m level is precision '
-            'spent on nothing');
+    expect(
+      Lens.base.fovYRadians,
+      greaterThan(bare.fovYRadians),
+      reason:
+          'a narrow lens in a third-person platformer hides the ledge '
+          'you are aiming at',
+    );
+    expect(
+      Lens.base.far,
+      lessThan(bare.far),
+      reason:
+          'a kilometre of depth range over a 260 m level is precision '
+          'spent on nothing',
+    );
   });
 
   test('widening opens the view and leaves everything else alone', () {

@@ -73,39 +73,38 @@ const double kGizmoSize = 0.5;
 /// this pixel" — and answering it from three lists means three sets of the same
 /// arithmetic and three chances to disagree about which is nearest.
 List<Handle> handlesOf(Level level, {Looks looks = Looks.none}) => <Handle>[
-      for (var i = 0; i < level.brushes.length; i++)
-        Handle(
-          kind: Piece.brush,
-          index: i,
-          centre: level.brushes[i].centre,
-          size: level.brushes[i].size,
-          tint: Vector3(1.0, 0.45, 0.05),
-        ),
-      for (var i = 0; i < level.lights.length; i++)
-        Handle(
-          kind: Piece.light,
-          index: i,
-          centre: level.lights[i].position,
-          size: Vector3.all(kGizmoSize),
-          // Its own colour, brightened so a dim lamp is still visible as a mark.
-          tint: atLeast(level.lights[i].color, 0.35),
-        ),
-      for (var i = 0; i < level.entities.length; i++)
-        Handle(
-          kind: Piece.entity,
-          index: i,
-          centre: level.entities[i].position,
-          // **Its own size when the document gives it one**, then whatever the
-          // game said this type is, then a mark. A door is six metres by five
-          // and a lift is a platform somebody stands on, and both say so in
-          // `size`; a torch says nothing, and the game's `editor.json` can say
-          // it is a slim upright thing rather than a cube.
-          size: looks.sizeFor(level.entities[i]) ?? Vector3.all(kGizmoSize),
-          volume: level.entities[i].vector('size') != null,
-          tint: looks.tintFor(level.entities[i]) ??
-              tintFor(level.entities[i].type),
-        ),
-    ];
+  for (var i = 0; i < level.brushes.length; i++)
+    Handle(
+      kind: Piece.brush,
+      index: i,
+      centre: level.brushes[i].centre,
+      size: level.brushes[i].size,
+      tint: Vector3(1.0, 0.45, 0.05),
+    ),
+  for (var i = 0; i < level.lights.length; i++)
+    Handle(
+      kind: Piece.light,
+      index: i,
+      centre: level.lights[i].position,
+      size: Vector3.all(kGizmoSize),
+      // Its own colour, brightened so a dim lamp is still visible as a mark.
+      tint: atLeast(level.lights[i].color, 0.35),
+    ),
+  for (var i = 0; i < level.entities.length; i++)
+    Handle(
+      kind: Piece.entity,
+      index: i,
+      centre: level.entities[i].position,
+      // **Its own size when the document gives it one**, then whatever the
+      // game said this type is, then a mark. A door is six metres by five
+      // and a lift is a platform somebody stands on, and both say so in
+      // `size`; a torch says nothing, and the game's `editor.json` can say
+      // it is a slim upright thing rather than a cube.
+      size: looks.sizeFor(level.entities[i]) ?? Vector3.all(kGizmoSize),
+      volume: level.entities[i].vector('size') != null,
+      tint: looks.tintFor(level.entities[i]) ?? tintFor(level.entities[i].type),
+    ),
+];
 
 /// A colour for an entity type.
 ///
@@ -151,9 +150,11 @@ Vector3 _fromHue(double hue) {
 /// reads as black in one place and is nudged up in the other is a colour that
 /// looks like two different bugs.
 Vector3 atLeast(Vector3 colour, double floor) {
-  final brightest = <double>[colour.x, colour.y, colour.z].reduce(
-    (double a, double b) => a > b ? a : b,
-  );
+  final brightest = <double>[
+    colour.x,
+    colour.y,
+    colour.z,
+  ].reduce((double a, double b) => a > b ? a : b);
   if (brightest >= floor) return colour.clone();
   if (brightest < 1e-6) return Vector3.all(floor);
   return colour * (floor / brightest);

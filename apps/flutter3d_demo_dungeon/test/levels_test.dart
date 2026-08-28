@@ -25,8 +25,8 @@ import 'package:vector_math/vector_math.dart';
 const String _first = 'assets/levels/crypt.json';
 
 Level _read(String path) => Level.fromJson(
-      jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
-    );
+  jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
+);
 
 /// The chain, from [_first] until something says nothing comes next.
 List<({String path, Level level})> _chain() {
@@ -37,8 +37,11 @@ List<({String path, Level level})> _chain() {
     if (!seen.add(path)) {
       fail('the chain loops: $path is reached twice');
     }
-    expect(File(path).existsSync(), isTrue,
-        reason: 'the chain names $path, which is not there');
+    expect(
+      File(path).existsSync(),
+      isTrue,
+      reason: 'the chain names $path, which is not there',
+    );
     final level = _read(path);
     out.add((path: path, level: level));
     path = level.next;
@@ -69,8 +72,11 @@ void main() {
         rules: sampleRules(),
       ).validate(step.level);
 
-      expect(issues.where((LevelIssue i) => i.isError), isEmpty,
-          reason: '${step.path}:\n${issues.join('\n')}');
+      expect(
+        issues.where((LevelIssue i) => i.isError),
+        isEmpty,
+        reason: '${step.path}:\n${issues.join('\n')}',
+      );
     }
   });
 
@@ -90,14 +96,21 @@ void main() {
       );
       world.update();
 
-      expect(staged.player.isAlive, isTrue, reason: '${step.path}: dead on arrival');
+      expect(
+        staged.player.isAlive,
+        isTrue,
+        reason: '${step.path}: dead on arrival',
+      );
       expect(
         staged.mechanisms.all.whereType<Exit>(),
         isNotEmpty,
         reason: '${step.path} has no way out of it',
       );
-      expect(staged.navIssues.where((LevelIssue i) => i.isError), isEmpty,
-          reason: '${step.path}: ${staged.navIssues.join('\n')}');
+      expect(
+        staged.navIssues.where((LevelIssue i) => i.isError),
+        isEmpty,
+        reason: '${step.path}: ${staged.navIssues.join('\n')}',
+      );
     }
   });
 
@@ -119,8 +132,11 @@ void main() {
           .whereType<String>()
           .toSet();
 
-      expect(locks.difference(keys), isEmpty,
-          reason: '${step.path} locks a door with a key that is not in it');
+      expect(
+        locks.difference(keys),
+        isEmpty,
+        reason: '${step.path} locks a door with a key that is not in it',
+      );
     }
   });
 
@@ -130,14 +146,19 @@ void main() {
     // it. Counted by kind, because that is what changes — the crypt has no
     // tanks and the deep is mostly tanks.
     int tanksIn(Level level) => level.entities
-        .where((EntityDef e) =>
-            e.type == ShooterEntities.monster &&
-            e.properties['kind'] == 'tank')
+        .where(
+          (EntityDef e) =>
+              e.type == ShooterEntities.monster &&
+              e.properties['kind'] == 'tank',
+        )
         .length;
 
     final chain = _chain();
-    expect(tanksIn(chain.first.level), 0,
-        reason: 'the first level opens with the slowest, hardest thing');
+    expect(
+      tanksIn(chain.first.level),
+      0,
+      reason: 'the first level opens with the slowest, hardest thing',
+    );
     expect(tanksIn(chain.last.level), greaterThan(1));
   });
 
@@ -150,21 +171,37 @@ void main() {
     // Against a wall means within a hand's width of some solid brush: this is
     // asking "is it on something", not "is it exactly flush".
     final level = Level.fromJson(
-        jsonDecode(File(_first).readAsStringSync()) as Map<String, Object?>);
+      jsonDecode(File(_first).readAsStringSync()) as Map<String, Object?>,
+    );
 
-    for (final note in level.entities.where((EntityDef e) => e.type == 'note')) {
+    for (final note in level.entities.where(
+      (EntityDef e) => e.type == 'note',
+    )) {
       final at = note.position;
       var nearest = double.infinity;
       for (final brush in level.brushes) {
         if (!brush.solid) continue;
-        final dx = math.max((at.x - brush.centre.x).abs() - brush.size.x / 2, 0.0);
-        final dy = math.max((at.y - brush.centre.y).abs() - brush.size.y / 2, 0.0);
-        final dz = math.max((at.z - brush.centre.z).abs() - brush.size.z / 2, 0.0);
+        final dx = math.max(
+          (at.x - brush.centre.x).abs() - brush.size.x / 2,
+          0.0,
+        );
+        final dy = math.max(
+          (at.y - brush.centre.y).abs() - brush.size.y / 2,
+          0.0,
+        );
+        final dz = math.max(
+          (at.z - brush.centre.z).abs() - brush.size.z / 2,
+          0.0,
+        );
         nearest = math.min(nearest, math.sqrt(dx * dx + dy * dy + dz * dz));
       }
-      expect(nearest, lessThan(0.2),
-          reason: 'the note at $at is ${nearest.toStringAsFixed(2)} m from the '
-              'nearest wall, which is a page floating in the air');
+      expect(
+        nearest,
+        lessThan(0.2),
+        reason:
+            'the note at $at is ${nearest.toStringAsFixed(2)} m from the '
+            'nearest wall, which is a page floating in the air',
+      );
     }
   });
 
@@ -204,9 +241,13 @@ void main() {
           floor = math.max(floor, top);
         }
 
-        expect(base - floor, closeTo(0.0, 0.05),
-            reason: '$path: the way out at $at stands '
-                '${(base - floor).toStringAsFixed(2)} m off the floor');
+        expect(
+          base - floor,
+          closeTo(0.0, 0.05),
+          reason:
+              '$path: the way out at $at stands '
+              '${(base - floor).toStringAsFixed(2)} m off the floor',
+        );
       }
     }
   });
@@ -247,19 +288,28 @@ void main() {
             if (_solidAt(level, point)) walled++;
           }
         }
-        expect(walled, 0,
-            reason: '$path: ${door.name} is a door with wall standing in '
-                '$walled of the 361 places its own face covers');
+        expect(
+          walled,
+          0,
+          reason:
+              '$path: ${door.name} is a door with wall standing in '
+              '$walled of the 361 places its own face covers',
+        );
 
         // And the other way round: a doorway wider than its door is a gap
         // beside it, which is a level a player walks through a locked door in.
         for (final beyond in <Vector3>[
-          Vector3.copy(at)..[along] = (along == 0 ? at.x : at.z) - width / 2 - 0.3,
-          Vector3.copy(at)..[along] = (along == 0 ? at.x : at.z) + width / 2 + 0.3,
+          Vector3.copy(at)
+            ..[along] = (along == 0 ? at.x : at.z) - width / 2 - 0.3,
+          Vector3.copy(at)
+            ..[along] = (along == 0 ? at.x : at.z) + width / 2 + 0.3,
           Vector3.copy(at)..y = at.y + size.y / 2 + 0.3,
         ]) {
-          expect(_solidAt(level, beyond), isTrue,
-              reason: '$path: ${door.name} has a gap beside it at $beyond');
+          expect(
+            _solidAt(level, beyond),
+            isTrue,
+            reason: '$path: ${door.name} has a gap beside it at $beyond',
+          );
         }
       }
     }

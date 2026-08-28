@@ -70,6 +70,7 @@ final class EditorBar extends StatelessWidget {
         '${editing.brush == null ? '' : ' · ${_metres(editing.brush!.size)}'}';
   }
 
-  static String _metres(Vector3 v) => '${v.x.toStringAsFixed(2)}, '
+  static String _metres(Vector3 v) =>
+      '${v.x.toStringAsFixed(2)}, '
       '${v.y.toStringAsFixed(2)}, ${v.z.toStringAsFixed(2)}';
 }

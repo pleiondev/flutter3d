@@ -82,44 +82,57 @@ void main() {
     expect(playing.level.sim.elapsed, 0.0);
   });
 
-  test('and a level that is not there says so rather than going black',
-      () async {
-    final it = _game();
+  test(
+    'and a level that is not there says so rather than going black',
+    () async {
+      final it = _game();
 
-    await it.run.load('assets/levels/no_such_level.json');
+      await it.run.load('assets/levels/no_such_level.json');
 
-    expect(it.run.status, isA<RunFailed<LevelReady>>());
-  });
+      expect(it.run.status, isA<RunFailed<LevelReady>>());
+    },
+  );
 
   group('moving on', () {
-    test('carries the run into the next level rather than restarting it',
-        () async {
-      // **Three lives used to mean three lives per level**, and the clock on
-      // the summit read as the time for the last climb. A run spans levels and
-      // a simulation does not.
-      final it = _game();
-      await it.run.begin();
-      final first = (it.run.status as RunPlaying<LevelReady>).level;
+    test(
+      'carries the run into the next level rather than restarting it',
+      () async {
+        // **Three lives used to mean three lives per level**, and the clock on
+        // the summit read as the time for the last climb. A run spans levels and
+        // a simulation does not.
+        final it = _game();
+        await it.run.begin();
+        final first = (it.run.status as RunPlaying<LevelReady>).level;
 
-      // Spend something on the first level, so there is a tally to carry.
-      first.sim.step(1.0 / 60.0);
-      final spent = first.sim.elapsed;
-      expect(spent, greaterThan(0.0));
+        // Spend something on the first level, so there is a tally to carry.
+        first.sim.step(1.0 / 60.0);
+        final spent = first.sim.elapsed;
+        expect(spent, greaterThan(0.0));
 
-      // Reach the exit the way the game does — by saying so, because walking
-      // there is `playthrough_test.dart`'s job and not this file's.
-      first.staged.runner.body.teleport(first.sim.respawnPoint);
-      await _finish(it.run);
+        // Reach the exit the way the game does — by saying so, because walking
+        // there is `playthrough_test.dart`'s job and not this file's.
+        first.staged.runner.body.teleport(first.sim.respawnPoint);
+        await _finish(it.run);
 
-      final playing = it.run.status as RunPlaying<LevelReady>;
-      expect(playing.asset, isNot(_first),
-          reason: 'it never left the first level, so this proves nothing');
-      final second = playing.level;
-      expect(second.sim.elapsed, greaterThanOrEqualTo(spent),
-          reason: 'the clock started again on the second level');
-      expect(second.sim.lives, first.sim.lives,
-          reason: 'the lives were handed back at the door');
-    });
+        final playing = it.run.status as RunPlaying<LevelReady>;
+        expect(
+          playing.asset,
+          isNot(_first),
+          reason: 'it never left the first level, so this proves nothing',
+        );
+        final second = playing.level;
+        expect(
+          second.sim.elapsed,
+          greaterThanOrEqualTo(spent),
+          reason: 'the clock started again on the second level',
+        );
+        expect(
+          second.sim.lives,
+          first.sim.lives,
+          reason: 'the lives were handed back at the door',
+        );
+      },
+    );
 
     test('and the shipped chain arrives at a second document', () async {
       // The first level names the second, and the second is on disk. Read from
@@ -177,15 +190,21 @@ void main() {
       await _finish(it.run);
 
       final second = (it.run.status as RunPlaying<LevelReady>).level;
-      expect(second.sim.elapsed, greaterThan(1.0),
-          reason: 'nothing was carried, so this proves nothing');
+      expect(
+        second.sim.elapsed,
+        greaterThan(1.0),
+        reason: 'nothing was carried, so this proves nothing',
+      );
 
       await it.run.restart();
 
       final after = (it.run.status as RunPlaying<LevelReady>).level;
       expect(after.sim.lives, 3);
-      expect(after.sim.elapsed, 0.0,
-          reason: 'the clock of the run before carried into a restart');
+      expect(
+        after.sim.elapsed,
+        0.0,
+        reason: 'the clock of the run before carried into a restart',
+      );
     });
   });
 

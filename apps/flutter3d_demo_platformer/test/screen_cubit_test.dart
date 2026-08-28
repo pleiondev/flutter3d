@@ -56,8 +56,11 @@ void main() {
 
       expect(screen.shouldSave(at), isTrue);
       expect(screen.shouldSave(at), isFalse);
-      expect(screen.shouldSave(at.clone()), isFalse,
-          reason: 'compared by distance, not by identity');
+      expect(
+        screen.shouldSave(at.clone()),
+        isFalse,
+        reason: 'compared by distance, not by identity',
+      );
     });
 
     test('and moving on is', () {

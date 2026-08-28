@@ -47,15 +47,8 @@ typedef Carried = ({int lives, int deaths, double elapsed, int coins});
 ///
 /// Deliberately *not* in `staging.dart`: everything here needs a
 /// [GraphicsDevice], and that file exists to be callable without one.
-Future<
-    ({
-      EntityRegistry kinds,
-      LoadedLevel loaded,
-      FixtureVisuals fixtures,
-    })> openLevel(
-  String asset, {
-  required GraphicsDevice device,
-}) async {
+Future<({EntityRegistry kinds, LoadedLevel loaded, FixtureVisuals fixtures})>
+openLevel(String asset, {required GraphicsDevice device}) async {
   final kinds = platformerRegistry();
   final loaded = await LevelLoader().load(
     asset,
@@ -127,7 +120,11 @@ final class PlatformerRun extends RunSession<LevelReady> {
       elapsed: _carried?.elapsed ?? 0.0,
     );
 
-    final level = LevelReady(loaded: loaded, staged: staged, fixtures: fixtures);
+    final level = LevelReady(
+      loaded: loaded,
+      staged: staged,
+      fixtures: fixtures,
+    );
     onLevelBuilt(level, device);
     return level;
   }
@@ -149,11 +146,11 @@ final class PlatformerRun extends RunSession<LevelReady> {
   /// this one is, so only this side can carry anything into it.
   @override
   void carryFrom(LevelReady level, String next) => _carried = (
-        lives: level.sim.lives,
-        deaths: level.sim.deaths,
-        elapsed: level.sim.elapsed,
-        coins: level.runner.purse['coin'],
-      );
+    lives: level.sim.lives,
+    deaths: level.sim.deaths,
+    elapsed: level.sim.elapsed,
+    coins: level.runner.purse['coin'],
+  );
 
   @override
   void startFresh() => _carried = null;

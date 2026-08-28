@@ -116,10 +116,14 @@ void main() {
       // is the bind pose, and a resting clip is free to crouch or stretch a
       // little — the yeti's idle sits 0.11 m below its bind height. What this
       // refuses is the frog, which stood 1.6 times its own hitbox.
-      expect(drawn.tall, closeTo(def.height, def.height * 0.1),
-          reason: 'the $kind draws ${drawn.tall.toStringAsFixed(2)} m tall '
-              'over a hitbox ${def.height} m tall — a monster you shoot over '
-              'the head of. Re-run tool/prepare_monsters.py.');
+      expect(
+        drawn.tall,
+        closeTo(def.height, def.height * 0.1),
+        reason:
+            'the $kind draws ${drawn.tall.toStringAsFixed(2)} m tall '
+            'over a hitbox ${def.height} m tall — a monster you shoot over '
+            'the head of. Re-run tool/prepare_monsters.py.',
+      );
     });
   }
 
@@ -130,8 +134,11 @@ void main() {
     // from wall to wall.
     for (final kind in DungeonMonsters.modelsForKind.keys) {
       final drawn = await _drawn(DungeonMonsters.modelsForKind[kind]!);
-      expect(drawn.wide, lessThan(3.0),
-          reason: 'the $kind is ${drawn.wide.toStringAsFixed(2)} m across');
+      expect(
+        drawn.wide,
+        lessThan(3.0),
+        reason: 'the $kind is ${drawn.wide.toStringAsFixed(2)} m across',
+      );
     }
   });
 }

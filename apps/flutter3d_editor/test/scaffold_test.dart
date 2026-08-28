@@ -53,12 +53,15 @@ void main() {
   test('a project has the four things a project is', () {
     final project = _project();
 
-    expect(project.keys, containsAll(<String>[
-      'assets/editor.json',
-      'assets/levels/first.json',
-      'pubspec.yaml',
-      'README.md',
-    ]));
+    expect(
+      project.keys,
+      containsAll(<String>[
+        'assets/editor.json',
+        'assets/levels/first.json',
+        'pubspec.yaml',
+        'README.md',
+      ]),
+    );
     expect(project.keys.where((String it) => it.endsWith('.glb')), isNotEmpty);
   });
 
@@ -93,8 +96,9 @@ void main() {
 
     test('and the template it came from is still written on it', () {
       // So the palette can be rebuilt even if `assets/editor.json` is lost.
-      final json = jsonDecode(_text(_project(), 'assets/levels/first.json'))
-          as Map<String, Object?>;
+      final json =
+          jsonDecode(_text(_project(), 'assets/levels/first.json'))
+              as Map<String, Object?>;
 
       expect(json['editor'], <String, Object?>{'template': 'shooter'});
     });
@@ -152,19 +156,23 @@ void main() {
       // rather than a template.
       final project = _project();
       final pubspec = _text(project, 'pubspec.yaml');
-      final source = _text(project, 'lib/main.dart') +
+      final source =
+          _text(project, 'lib/main.dart') +
           _text(project, 'lib/src/backend.dart');
 
-      for (final match
-          in RegExp(r"package:(flutter3d\w*)/").allMatches(source)) {
-        expect(pubspec, contains('${match.group(1)}:'),
-            reason: '${match.group(1)} is imported and not depended on');
+      for (final match in RegExp(
+        r"package:(flutter3d\w*)/",
+      ).allMatches(source)) {
+        expect(
+          pubspec,
+          contains('${match.group(1)}:'),
+          reason: '${match.group(1)} is imported and not depended on',
+        );
       }
     });
   });
 
-  test('and it comes with a test, under the name that stops another appearing',
-      () {
+  test('and it comes with a test, under the name that stops another appearing', () {
     // **`flutter create` writes a `test/widget_test.dart` referring to a
     // `MyApp` that does not exist here** into any project that has no file by
     // that name — so a new project failed `flutter analyze` immediately after
@@ -181,22 +189,28 @@ void main() {
     // compiles what it holds — the same argument `main.dart` next door already
     // makes about itself. It is `apps/flutter3d_template_app/test/widget_test.dart` now,
     // run by CI like any other test, and copied here by `make_templates.py`.
-    expect(_text(project, 'test/widget_test.dart'),
-        contains('the level is a document this engine understands'));
+    expect(
+      _text(project, 'test/widget_test.dart'),
+      contains('the level is a document this engine understands'),
+    );
   });
 
   group('the pubspec', () {
     test('is the project\'s name, not the template\'s', () {
-      expect(_text(_project(name: 'Deep Mine'), 'pubspec.yaml'),
-          contains('name: deep_mine'));
+      expect(
+        _text(_project(name: 'Deep Mine'), 'pubspec.yaml'),
+        contains('name: deep_mine'),
+      );
     });
 
     test('and never says it is part of a workspace', () {
       // **Every pubspec in this repository says `resolution: workspace`**, which
       // makes it the easiest line in the world to copy — and outside a workspace
       // root it is a pub error about a file the author did not write.
-      expect(_text(_project(), 'pubspec.yaml'),
-          isNot(contains('resolution: workspace')));
+      expect(
+        _text(_project(), 'pubspec.yaml'),
+        isNot(contains('resolution: workspace')),
+      );
     });
 
     test('and points at the checkout it was made from', () {
@@ -204,15 +218,20 @@ void main() {
       // can be written — and it is true on one machine, which the README says.
       final pubspec = _text(_project(), 'pubspec.yaml');
 
-      expect(pubspec, contains('path: /somewhere/flutter3d/packages/flutter3d'));
+      expect(
+        pubspec,
+        contains('path: /somewhere/flutter3d/packages/flutter3d'),
+      );
       expect(pubspec, contains('flutter3d_session:'));
     });
 
     test('and does not ship the file only the editor reads', () {
       // `assets/editor.json` is for the editor. A player downloading it is a
       // player downloading the editor's opinion of their game.
-      expect(_text(_project(), 'pubspec.yaml'),
-          isNot(contains('assets/editor.json')));
+      expect(
+        _text(_project(), 'pubspec.yaml'),
+        isNot(contains('assets/editor.json')),
+      );
     });
   });
 

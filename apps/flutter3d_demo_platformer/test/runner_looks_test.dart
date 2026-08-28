@@ -112,8 +112,11 @@ void main() {
     for (var i = 0; i < 40; i++) {
       final scale = run.scale;
       final volume = scale.x * scale.y * scale.z;
-      expect(volume, closeTo(1.0, 0.02),
-          reason: 'the pose changed how big the runner is, not what shape');
+      expect(
+        volume,
+        closeTo(1.0, 0.02),
+        reason: 'the pose changed how big the runner is, not what shape',
+      );
       run.step();
     }
   });
@@ -137,8 +140,11 @@ void main() {
     final drop = squashAfterFalling(25.0);
 
     expect(hop, greaterThan(0.0));
-    expect(drop, greaterThan(hop * 1.5),
-        reason: 'a twenty-five metre fall landed like a hop');
+    expect(
+      drop,
+      greaterThan(hop * 1.5),
+      reason: 'a twenty-five metre fall landed like a hop',
+    );
   });
 
   test('it comes back to standing, and never jumps to get there', () {
@@ -208,11 +214,19 @@ void main() {
     final run = _Run()..run(30);
     run.step(holding: <GameAction>{GameAction.jump});
     run.run(10);
-    expect(run.looks.spin, closeTo(0.0, 0.01), reason: 'one jump does not flip');
+    expect(
+      run.looks.spin,
+      closeTo(0.0, 0.01),
+      reason: 'one jump does not flip',
+    );
 
     run.step();
     run.step(holding: <GameAction>{GameAction.jump});
-    expect(run.looks.spin.abs(), greaterThan(3.0), reason: 'the air jump flips');
+    expect(
+      run.looks.spin.abs(),
+      greaterThan(3.0),
+      reason: 'the air jump flips',
+    );
 
     run.run(60);
     expect(run.looks.spin, closeTo(0.0, 0.01), reason: 'and it comes back');
@@ -244,8 +258,11 @@ void main() {
     expect(run.runner.isCrouching, isTrue);
     final wanted =
         run.runner.body.halfExtents.y / run.runner.standingHalfHeight;
-    expect(run.scale.y, closeTo(wanted, 0.02),
-        reason: 'drawn at ${run.scale.y} while the body is at $wanted');
+    expect(
+      run.scale.y,
+      closeTo(wanted, 0.02),
+      reason: 'drawn at ${run.scale.y} while the body is at $wanted',
+    );
   });
 
   test('and standing up is not a decay', () {
@@ -259,8 +276,11 @@ void main() {
 
     run.step();
     expect(run.runner.isCrouching, isFalse);
-    expect(run.scale.y, closeTo(1.0, 0.02),
-        reason: 'one step after standing up it is still drawn crouched');
+    expect(
+      run.scale.y,
+      closeTo(1.0, 0.02),
+      reason: 'one step after standing up it is still drawn crouched',
+    );
   });
 
   group('feet on the floor', () {
@@ -292,23 +312,30 @@ void main() {
         halfHeight: run.runner.body.halfExtents.y,
         modelFloor: modelFloor,
       );
-      expect(feet, closeTo(stood, 0.02),
-          reason: 'the crouched model is drawn ${stood - feet} m into the '
-              'floor it is standing on');
-    });
-
-    test('and a model whose own origin is not its feet is offset by that much',
-        () {
-      // `localBounds.min.y` is not zero for every asset, and an asset that
-      // carries its own offset must not be drawn floating.
-      final looks = RunnerLooks();
       expect(
-        looks.drawnHeight(bodyY: 0.9, halfHeight: 0.9, modelFloor: -0.2),
-        closeTo(0.2, 1e-9),
-        reason: 'a model whose lowest point is 0.2 below its origin is placed '
-            '0.2 higher, so that point lands on the floor',
+        feet,
+        closeTo(stood, 0.02),
+        reason:
+            'the crouched model is drawn ${stood - feet} m into the '
+            'floor it is standing on',
       );
     });
+
+    test(
+      'and a model whose own origin is not its feet is offset by that much',
+      () {
+        // `localBounds.min.y` is not zero for every asset, and an asset that
+        // carries its own offset must not be drawn floating.
+        final looks = RunnerLooks();
+        expect(
+          looks.drawnHeight(bodyY: 0.9, halfHeight: 0.9, modelFloor: -0.2),
+          closeTo(0.2, 1e-9),
+          reason:
+              'a model whose lowest point is 0.2 below its origin is placed '
+              '0.2 higher, so that point lands on the floor',
+        );
+      },
+    );
   });
 }
 
@@ -327,20 +354,22 @@ void _clipTests() {
     expect(RunnerClips.forRunner(run.runner), RunnerClips.run);
   });
 
-  test('the air has two clips, and which one depends on the way you are going',
-      () {
-    // Mutation: use one clip for both. A jump and a fall look identical, which
-    // is the difference between reading a jump and watching a shape rise.
-    final run = _Run()..run(30);
-    run.step(holding: <GameAction>{GameAction.jump});
-    expect(RunnerClips.forRunner(run.runner), RunnerClips.jump);
+  test(
+    'the air has two clips, and which one depends on the way you are going',
+    () {
+      // Mutation: use one clip for both. A jump and a fall look identical, which
+      // is the difference between reading a jump and watching a shape rise.
+      final run = _Run()..run(30);
+      run.step(holding: <GameAction>{GameAction.jump});
+      expect(RunnerClips.forRunner(run.runner), RunnerClips.jump);
 
-    for (var i = 0; i < 60; i++) {
-      run.step();
-      if (run.runner.body.velocity.y < -1.0) break;
-    }
-    expect(RunnerClips.forRunner(run.runner), RunnerClips.falling);
-  });
+      for (var i = 0; i < 60; i++) {
+        run.step();
+        if (run.runner.body.velocity.y < -1.0) break;
+      }
+      expect(RunnerClips.forRunner(run.runner), RunnerClips.falling);
+    },
+  );
 
   test('crouching ducks, and being in the air beats being crouched', () {
     final run = _Run()..run(30);
@@ -361,8 +390,10 @@ void _clipTests() {
     // well-animated character can have.
     //
     // Mutation: return 1.0 always.
-    expect(RunnerClips.rateFor(RunnerClips.run, 9.0),
-        greaterThan(RunnerClips.rateFor(RunnerClips.run, 4.0)));
+    expect(
+      RunnerClips.rateFor(RunnerClips.run, 9.0),
+      greaterThan(RunnerClips.rateFor(RunnerClips.run, 4.0)),
+    );
     expect(RunnerClips.rateFor(RunnerClips.idle, 9.0), 1.0);
   });
 
@@ -388,8 +419,7 @@ void _clipTests() {
       ),
     );
 
-    final names =
-        document.animations.map((AnimationClip c) => c.name).toSet();
+    final names = document.animations.map((AnimationClip c) => c.name).toSet();
     for (final wanted in RunnerClips.all) {
       expect(names, contains(wanted), reason: 'the model has no "$wanted"');
     }

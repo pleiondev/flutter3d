@@ -33,9 +33,9 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 Level _shipped() => Level.fromJson(
-      jsonDecode(File('assets/levels/ascent.json').readAsStringSync())
-          as Map<String, Object?>,
-    );
+  jsonDecode(File('assets/levels/ascent.json').readAsStringSync())
+      as Map<String, Object?>,
+);
 
 double _top(Brush brush) => brush.centre.y + brush.size.y / 2.0;
 
@@ -55,10 +55,10 @@ final class _Riser {
 
   /// The middle of the lower top, a step back from the ledge.
   Vector3 get standing => Vector3(
-        lower.centre.x - facing * (lower.size.x / 2.0 - 0.8),
-        _top(lower),
-        lower.centre.z,
-      );
+    lower.centre.x - facing * (lower.size.x / 2.0 - 0.8),
+    _top(lower),
+    lower.centre.z,
+  );
 }
 
 List<_Riser> _risersIn(Level level, double limit) {
@@ -71,9 +71,11 @@ List<_Riser> _risersIn(Level level, double limit) {
       // Side by side along x, and sharing enough z to walk from one to the
       // other. Touching or overlapping counts: a plank laid on a terrace does
       // both.
-      final apartX = (upper.centre.x - lower.centre.x).abs() -
+      final apartX =
+          (upper.centre.x - lower.centre.x).abs() -
           (lower.size.x + upper.size.x) / 2.0;
-      final apartZ = (upper.centre.z - lower.centre.z).abs() -
+      final apartZ =
+          (upper.centre.z - lower.centre.z).abs() -
           (lower.size.z + upper.size.z) / 2.0;
       if (apartX > 0.2 || apartZ > -1.5) continue;
       found.add(_Riser(lower, upper));
@@ -145,8 +147,11 @@ final class _Walk {
       input.endStep();
 
       climbed = math.max(climbed, runner.body.steppedUp);
-      smooth.push(runner.body.position,
-          dt: _dt, steppedUp: runner.body.steppedUp);
+      smooth.push(
+        runner.body.position,
+        dt: _dt,
+        steppedUp: runner.body.steppedUp,
+      );
       flat.push(runner.body.position);
 
       smooth.read(1.0, out);
@@ -176,15 +181,18 @@ void main() {
     final level = _shipped();
     final risers = _risersIn(level, const MovementTuning().stepHeight);
 
-    expect(risers.length, greaterThanOrEqualTo(8),
-        reason: 'only ${risers.length} low ledges — if the level really lost '
-            'them, this smoothing has stopped earning its place');
+    expect(
+      risers.length,
+      greaterThanOrEqualTo(8),
+      reason:
+          'only ${risers.length} low ledges — if the level really lost '
+          'them, this smoothing has stopped earning its place',
+    );
   });
 
   test('a riser in Ascent is drawn as a climb, not as a jump', () {
     final walk = _Walk();
-    final risers =
-        _risersIn(walk.level, walk.runner.body.tuning.stepHeight);
+    final risers = _risersIn(walk.level, walk.runner.body.tuning.stepHeight);
 
     // The first one the runner actually gets over. Not every low ledge is
     // walkable — some are under something, some are the top of a wall — and a
@@ -197,16 +205,23 @@ void main() {
       walk.plain.clear();
     }
 
-    expect(walk.climbed, greaterThan(0.0),
-        reason: 'never climbed anything, so nothing below is about smoothing');
+    expect(
+      walk.climbed,
+      greaterThan(0.0),
+      reason: 'never climbed anything, so nothing below is about smoothing',
+    );
 
     final rawly = _fastestRise(walk.plain);
     final smoothly = _fastestRise(walk.smoothed);
 
     // What the picture used to do: the whole ledge inside one step.
-    expect(rawly, greaterThan(walk.climbed / _dt * 0.9),
-        reason: 'the plain interpolator did not show the teleport, so the '
-            'comparison below is between two smooth pictures');
+    expect(
+      rawly,
+      greaterThan(walk.climbed / _dt * 0.9),
+      reason:
+          'the plain interpolator did not show the teleport, so the '
+          'comparison below is between two smooth pictures',
+    );
     // And what it does now. A fifth is not a threshold anybody chose: it is
     // three times the margin the recovery gives, so a slower constant would
     // still pass and a broken one could not.

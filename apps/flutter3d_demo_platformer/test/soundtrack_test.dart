@@ -87,8 +87,11 @@ void main() {
     final run = _Run()..run(1800);
 
     expect(run.heard, isNotEmpty, reason: 'the game made no sound at all');
-    expect(run.names, contains('coin'),
-        reason: 'it walked over the opening coins and said nothing');
+    expect(
+      run.names,
+      contains('coin'),
+      reason: 'it walked over the opening coins and said nothing',
+    );
   });
 
   test('and running is not silent either, which is most of playing', () {
@@ -96,8 +99,11 @@ void main() {
     // whatsoever. Mutation: delete the footstep branch in `Soundtrack._step`.
     final run = _Run()..run(600);
 
-    expect(run.names.where((String n) => n.startsWith('step_')), isNotEmpty,
-        reason: 'a thousand metres of running and not one footstep');
+    expect(
+      run.names.where((String n) => n.startsWith('step_')),
+      isNotEmpty,
+      reason: 'a thousand metres of running and not one footstep',
+    );
   });
 
   test('and coming down from a jump is heard', () {
@@ -146,8 +152,11 @@ void main() {
     //
     // Mutation: return one sound from `Sounds.stepOn` whatever it is given.
     expect(Sounds.stepOn('ice'), isNot(Sounds.stepOn('moss')));
-    expect(Sounds.stepOn(null), Sounds.stepOn('nonsense'),
-        reason: 'a floor nobody named is still a floor, and gets stone');
+    expect(
+      Sounds.stepOn(null),
+      Sounds.stepOn('nonsense'),
+      reason: 'a floor nobody named is still a floor, and gets stone',
+    );
   });
 
   test('the way out is announced once, not sixty times a second', () {
@@ -162,8 +171,16 @@ void main() {
     run.runner.body.teleport(exit + Vector3(0.0, 0.9, 0.0));
     run.run(180, forward: false);
 
-    expect(run.sim.state, RunState.finished, reason: 'it never reached the way out');
-    expect(run.names.where((String n) => n == 'exit'), hasLength(1),
-        reason: 'the fanfare played ${run.names.where((String n) => n == 'exit').length} times');
+    expect(
+      run.sim.state,
+      RunState.finished,
+      reason: 'it never reached the way out',
+    );
+    expect(
+      run.names.where((String n) => n == 'exit'),
+      hasLength(1),
+      reason:
+          'the fanfare played ${run.names.where((String n) => n == 'exit').length} times',
+    );
   });
 }

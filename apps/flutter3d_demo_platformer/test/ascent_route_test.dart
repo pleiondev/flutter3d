@@ -45,9 +45,9 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 Level _shipped() => Level.fromJson(
-      jsonDecode(File('assets/levels/ascent.json').readAsStringSync())
-          as Map<String, Object?>,
-    );
+  jsonDecode(File('assets/levels/ascent.json').readAsStringSync())
+      as Map<String, Object?>,
+);
 
 /// The shipped level, the shipped registry, and a runner that can be steered.
 final class _Climb {
@@ -97,8 +97,12 @@ final class _Climb {
   /// reason: a player who stops getting anywhere tries the next thing they
   /// know. Progress resets it, so a dash learned in one place is not carried
   /// into the next.
-  bool driveTo(Vector3 goal,
-      {double within = 1.6, int steps = 5400, bool Function()? until}) {
+  bool driveTo(
+    Vector3 goal, {
+    double within = 1.6,
+    int steps = 5400,
+    bool Function()? until,
+  }) {
     var trick = 0;
     var stuck = 0;
     var best = (runner.position - goal).length;
@@ -125,9 +129,8 @@ final class _Climb {
     return false;
   }
 
-  Vector3 named(String name) => level.entities
-      .firstWhere((EntityDef e) => e.name == name)
-      .position;
+  Vector3 named(String name) =>
+      level.entities.firstWhere((EntityDef e) => e.name == name).position;
 }
 
 void main() {
@@ -160,16 +163,24 @@ void main() {
           ? climb.driveTo(at, until: () => climb.sim.state == RunState.finished)
           : climb.driveTo(at);
       if (!arrived) {
-        fail('stopped on the way to "$name" at ${climb.runner.position}, '
-            'having reached: ${reached.join(', ')}');
+        fail(
+          'stopped on the way to "$name" at ${climb.runner.position}, '
+          'having reached: ${reached.join(', ')}',
+        );
       }
       reached.add(name);
     }
 
-    expect(climb.runner.keys, containsAll(<String>['green', 'blue']),
-        reason: 'walked the whole level and did not pick up both keys');
-    expect(climb.sim.state, RunState.finished,
-        reason: 'stood on the summit and the level did not end');
+    expect(
+      climb.runner.keys,
+      containsAll(<String>['green', 'blue']),
+      reason: 'walked the whole level and did not pick up both keys',
+    );
+    expect(
+      climb.sim.state,
+      RunState.finished,
+      reason: 'stood on the summit and the level did not end',
+    );
   });
 
   group('the gate of two skills', () {
@@ -212,9 +223,13 @@ void main() {
       final inner = walls
           .map((Brush b) => b.centre.x.abs() - b.size.x / 2.0)
           .reduce(math.min);
-      expect(inner * 2.0, closeTo(2.0, 0.1),
-          reason: 'the slot is ${inner * 2} m across, and a wall jump needs '
-              'about two');
+      expect(
+        inner * 2.0,
+        closeTo(2.0, 0.1),
+        reason:
+            'the slot is ${inner * 2} m across, and a wall jump needs '
+            'about two',
+      );
     });
 
     test('and the gap past it is wider than a double jump', () {
@@ -240,10 +255,16 @@ void main() {
           .where((double z) => z > 190.0)
           .reduce(math.min);
 
-      expect(far - near, greaterThan(7.5),
-          reason: 'the gap is ${far - near} m, which a double jump clears');
-      expect(far - near, lessThan(14.0),
-          reason: 'the gap is ${far - near} m, which a dash does not');
+      expect(
+        far - near,
+        greaterThan(7.5),
+        reason: 'the gap is ${far - near} m, which a double jump clears',
+      );
+      expect(
+        far - near,
+        lessThan(14.0),
+        reason: 'the gap is ${far - near} m, which a dash does not',
+      );
     });
   });
 
@@ -290,9 +311,13 @@ void main() {
       reach = math.max(reach, rise(secondAt: at));
     }
 
-    expect(reach, closeTo(3.13, 0.15),
-        reason: 'the jump changed, and every step in every level was measured '
-            'against the old number');
+    expect(
+      reach,
+      closeTo(3.13, 0.15),
+      reason:
+          'the jump changed, and every step in every level was measured '
+          'against the old number',
+    );
 
     // And the staircase is built to it. Each climb is the gap between one
     // standable top and the next, from the ice floor at zero.
@@ -308,9 +333,13 @@ void main() {
 
     expect(tops.length, greaterThan(2), reason: 'the staircase is not there');
     for (var i = 1; i < tops.length; i++) {
-      expect(tops[i] - tops[i - 1], lessThan(reach - 0.3),
-          reason: 'the step from ${tops[i - 1]} to ${tops[i]} is more than a '
-              'double jump with anything to spare');
+      expect(
+        tops[i] - tops[i - 1],
+        lessThan(reach - 0.3),
+        reason:
+            'the step from ${tops[i - 1]} to ${tops[i]} is more than a '
+            'double jump with anything to spare',
+      );
     }
   });
 }

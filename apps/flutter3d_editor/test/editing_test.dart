@@ -16,29 +16,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// A small document, written the way a generator writes one.
-String _document({String? generatedBy, int brushes = 2}) => jsonEncode(
-      <String, Object?>{
-        'version': 1,
-        'name': 'test',
-        'generatedBy': ?generatedBy,
-        'materials': <String, Object?>{
-          'stone': <String, Object?>{'baseColor': <double>[0.5, 0.5, 0.5, 1.0]},
+String _document({String? generatedBy, int brushes = 2}) =>
+    jsonEncode(<String, Object?>{
+      'version': 1,
+      'name': 'test',
+      'generatedBy': ?generatedBy,
+      'materials': <String, Object?>{
+        'stone': <String, Object?>{
+          'baseColor': <double>[0.5, 0.5, 0.5, 1.0],
         },
-        'brushes': <Object?>[
-          for (var i = 0; i < brushes; i++)
-            <String, Object?>{
-              'at': <double>[i * 4.0, 0.0, 0.0],
-              'size': <double>[2.0, 2.0, 2.0],
-              'material': 'stone',
-            },
-        ],
       },
-    );
+      'brushes': <Object?>[
+        for (var i = 0; i < brushes; i++)
+          <String, Object?>{
+            'at': <double>[i * 4.0, 0.0, 0.0],
+            'size': <double>[2.0, 2.0, 2.0],
+            'material': 'stone',
+          },
+      ],
+    });
 
 Editing _open({String? generatedBy, int brushes = 2}) => Editing.parse(
-      _document(generatedBy: generatedBy, brushes: brushes),
-      path: '/levels/test.json',
-    );
+  _document(generatedBy: generatedBy, brushes: brushes),
+  path: '/levels/test.json',
+);
 
 void main() {
   group('who owns the document', () {
@@ -67,30 +68,35 @@ void main() {
       // again — which is the very thing that throws the work away.
       final editing = _open(generatedBy: 'tool/make_crypt.py');
 
-      final copy = jsonDecode(editing.write(claiming: 'apps/flutter3d_editor'))
-          as Map<String, Object?>;
+      final copy =
+          jsonDecode(editing.write(claiming: 'apps/flutter3d_editor'))
+              as Map<String, Object?>;
 
       expect(copy['generatedBy'], 'apps/flutter3d_editor');
     });
   });
 
   group('what a write keeps', () {
-    test('everything the document said that this editor has never heard of', () {
-      // Write-through is `Level`'s, not this editor's — but an editor is the
-      // one program that will lose a key if it ever stops working, so the
-      // guarantee is asserted where the risk is.
-      final text = jsonEncode(<String, Object?>{
-        'version': 1,
-        'name': 'test',
-        'somethingNewer': <String, Object?>{'weather': 'rain'},
-        'brushes': <Object?>[],
-      });
+    test(
+      'everything the document said that this editor has never heard of',
+      () {
+        // Write-through is `Level`'s, not this editor's — but an editor is the
+        // one program that will lose a key if it ever stops working, so the
+        // guarantee is asserted where the risk is.
+        final text = jsonEncode(<String, Object?>{
+          'version': 1,
+          'name': 'test',
+          'somethingNewer': <String, Object?>{'weather': 'rain'},
+          'brushes': <Object?>[],
+        });
 
-      final back = jsonDecode(Editing.parse(text, path: 'x').write())
-          as Map<String, Object?>;
+        final back =
+            jsonDecode(Editing.parse(text, path: 'x').write())
+                as Map<String, Object?>;
 
-      expect(back['somethingNewer'], <String, Object?>{'weather': 'rain'});
-    });
+        expect(back['somethingNewer'], <String, Object?>{'weather': 'rain'});
+      },
+    );
 
     test('and it is indented, because people read these files', () {
       // The generators write them indented and `git diff` compares them line by
@@ -117,8 +123,11 @@ void main() {
       editing.nudge(Vector3(0.0, 1.0, 0.0));
 
       expect(editing.level.brushes[0].centre, where);
-      expect(editing.isDirty, isFalse,
-          reason: 'it recorded an edit that never happened');
+      expect(
+        editing.isDirty,
+        isFalse,
+        reason: 'it recorded an edit that never happened',
+      );
     });
 
     test('and it lands on the grid', () {
@@ -180,8 +189,10 @@ void main() {
       editing.add(Vector3(10.0, 0.0, 0.0));
 
       expect(editing.brush!.material, 'stone');
-      expect(editing.level.materials.containsKey(editing.brush!.material),
-          isTrue);
+      expect(
+        editing.level.materials.containsKey(editing.brush!.material),
+        isTrue,
+      );
     });
 
     test('and selects it, because the next thing anybody does is move it', () {
@@ -253,8 +264,7 @@ void main() {
       // The reason the selection is an index and not a brush: a reference into
       // a list that has just been replaced is a reference to something that is
       // no longer in the document.
-      final editing = _open()
-        ..add(Vector3(20.0, 0.0, 0.0));
+      final editing = _open()..add(Vector3(20.0, 0.0, 0.0));
       expect(editing.selected, 2);
 
       editing.undo();

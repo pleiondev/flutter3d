@@ -20,8 +20,10 @@ import 'package:flutter3d/flutter3d.dart' show PerspectiveProjection;
 /// first. That is the fix; the numbers were never the problem.
 abstract final class Lens {
   /// What the camera is built with, and what a widened view returns to.
-  static const PerspectiveProjection base =
-      PerspectiveProjection(fovYRadians: 1.05, far: 220.0);
+  static const PerspectiveProjection base = PerspectiveProjection(
+    fovYRadians: 1.05,
+    far: 220.0,
+  );
 
   /// The base opened up by [extraFov] radians, for speed.
   ///

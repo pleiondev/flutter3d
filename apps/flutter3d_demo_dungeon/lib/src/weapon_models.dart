@@ -20,7 +20,8 @@ import 'package:vector_math/vector_math.dart';
 /// Null on a device with no cube textures, which leaves the weapons lit by the
 /// flat ambient exactly as they were.
 ({TextureHandle texture, int levels})? studioEnvironment(
-    GraphicsDevice device) {
+  GraphicsDevice device,
+) {
   if (!device.supportsCubeTextures) return null;
   const size = 16;
 
@@ -95,7 +96,9 @@ final Map<String, String> kWeaponModels = <String, String>{
 /// **Asynchronous because a model is.** The blocks alone needed nothing but a
 /// device, and this used to be a plain function; a weapon that appeared a
 /// second into the level would be a pistol that arrives after the first shot.
-Future<Map<String, SceneNode>> dungeonWeaponModels(GraphicsDevice device) async {
+Future<Map<String, SceneNode>> dungeonWeaponModels(
+  GraphicsDevice device,
+) async {
   final models = <String, SceneNode>{
     // Two blocks for the fists, because one block in the corner of the screen
     // reads as a stray object rather than as a pair of hands.

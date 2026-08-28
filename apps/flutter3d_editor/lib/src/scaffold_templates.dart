@@ -15,7 +15,8 @@ import 'scaffold.dart';
 /// [packagesAt] is where this repository's packages are on this machine — a
 /// path, because they are not published and a new project has to point at the
 /// checkout it was made from.
-String pubspecFor(String name, String packagesAt) => '''
+String pubspecFor(String name, String packagesAt) =>
+    '''
 name: $name
 description: "A game, started from a template."
 publish_to: 'none'
@@ -60,7 +61,8 @@ flutter:
 ''';
 
 /// The `README.md` a scaffolded project starts with.
-String readmeFor(String name, Template template) => '''
+String readmeFor(String name, Template template) =>
+    '''
 # $name
 
 ${template.about}

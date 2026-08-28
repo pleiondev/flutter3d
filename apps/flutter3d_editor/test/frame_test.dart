@@ -26,34 +26,36 @@ const int _width = 96;
 const int _height = 64;
 
 String _document() => jsonEncode(<String, Object?>{
-      'version': 1,
-      'name': 'test',
-      'materials': <String, Object?>{
-        'stone': <String, Object?>{'baseColor': <double>[0.8, 0.8, 0.8, 1.0]},
-      },
-      'brushes': <Object?>[
-        // A floor, so the camera has something to see whatever else moves.
-        <String, Object?>{
-          'at': <double>[0.0, -1.0, 0.0],
-          'size': <double>[40.0, 1.0, 40.0],
-          'material': 'stone',
-        },
-        // The one that will be moved.
-        <String, Object?>{
-          'at': <double>[0.0, 1.0, -6.0],
-          'size': <double>[2.0, 2.0, 2.0],
-          'material': 'stone',
-        },
-      ],
-      'lights': <Object?>[
-        <String, Object?>{
-          'type': 'directional',
-          'direction': <double>[-0.4, -1.0, -0.3],
-          'color': <double>[1.0, 1.0, 1.0],
-          'intensity': 4.0,
-        },
-      ],
-    });
+  'version': 1,
+  'name': 'test',
+  'materials': <String, Object?>{
+    'stone': <String, Object?>{
+      'baseColor': <double>[0.8, 0.8, 0.8, 1.0],
+    },
+  },
+  'brushes': <Object?>[
+    // A floor, so the camera has something to see whatever else moves.
+    <String, Object?>{
+      'at': <double>[0.0, -1.0, 0.0],
+      'size': <double>[40.0, 1.0, 40.0],
+      'material': 'stone',
+    },
+    // The one that will be moved.
+    <String, Object?>{
+      'at': <double>[0.0, 1.0, -6.0],
+      'size': <double>[2.0, 2.0, 2.0],
+      'material': 'stone',
+    },
+  ],
+  'lights': <Object?>[
+    <String, Object?>{
+      'type': 'directional',
+      'direction': <double>[-0.4, -1.0, -0.3],
+      'color': <double>[1.0, 1.0, 1.0],
+      'intensity': 4.0,
+    },
+  ],
+});
 
 /// A device, a renderer and a camera looking down -Z from head height.
 final class _Shown {
@@ -110,8 +112,7 @@ final class _Shown {
 /// Two, not the shared default of eight: nothing here is animated, so two
 /// renders of an unchanged scene are byte-identical and anything above the
 /// noise floor is a real move.
-int _differences(Uint8List a, Uint8List b) =>
-    differingPixels(a, b, channel: 2);
+int _differences(Uint8List a, Uint8List b) => differingPixels(a, b, channel: 2);
 
 void main() {
   test('a brush that moves moves in the picture', () async {
@@ -124,9 +125,13 @@ void main() {
     final after = await shown.draw(editing);
 
     final moved = _differences(before, after);
-    expect(moved, greaterThan(20),
-        reason: 'the document moved a brush two metres and $moved pixels '
-            'out of ${_width * _height} changed');
+    expect(
+      moved,
+      greaterThan(20),
+      reason:
+          'the document moved a brush two metres and $moved pixels '
+          'out of ${_width * _height} changed',
+    );
   });
 
   test('and a brush that is added appears', () async {
@@ -137,8 +142,11 @@ void main() {
     editing.add(Vector3(0.0, 1.0, 0.0), size: Vector3(2.0, 2.0, 2.0));
     final after = await shown.draw(editing);
 
-    expect(_differences(before, after), greaterThan(20),
-        reason: 'a new brush right in front of the camera changed nothing');
+    expect(
+      _differences(before, after),
+      greaterThan(20),
+      reason: 'a new brush right in front of the camera changed nothing',
+    );
   });
 
   test('and one that is deleted goes', () async {
@@ -150,9 +158,13 @@ void main() {
     editing.remove();
     final after = await shown.draw(editing);
 
-    expect(_differences(before, after), greaterThan(20),
-        reason: 'the brush in front of the camera was deleted and the picture '
-            'kept it');
+    expect(
+      _differences(before, after),
+      greaterThan(20),
+      reason:
+          'the brush in front of the camera was deleted and the picture '
+          'kept it',
+    );
   });
 
   test('and a light that is added lights the room', () async {
@@ -169,8 +181,11 @@ void main() {
     final after = await shown.draw(editing);
 
     final lit = _differences(before, after);
-    expect(lit, greaterThan(_width * _height ~/ 8),
-        reason: 'a lamp in the middle of the room changed $lit pixels');
+    expect(
+      lit,
+      greaterThan(_width * _height ~/ 8),
+      reason: 'a lamp in the middle of the room changed $lit pixels',
+    );
   });
 
   test('and a document nobody touched draws the same twice', () async {

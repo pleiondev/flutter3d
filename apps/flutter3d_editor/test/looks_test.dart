@@ -42,9 +42,9 @@ void main() {
   group('a model', () {
     test('comes from the type when the entity does not name one', () {
       expect(
-        looks.modelFor(_entity('monster', properties: <String, Object?>{
-          'kind': 'runner',
-        })),
+        looks.modelFor(
+          _entity('monster', properties: <String, Object?>{'kind': 'runner'}),
+        ),
         'assets/models/monster_runner.glb',
       );
     });
@@ -54,9 +54,9 @@ void main() {
       // file rather than a mapping. The dungeon keeps that map in Dart —
       // `runner`, `shooter`, `tank` — and an editor cannot import it.
       expect(
-        looks.modelFor(_entity('monster', properties: <String, Object?>{
-          'kind': 'tank',
-        })),
+        looks.modelFor(
+          _entity('monster', properties: <String, Object?>{'kind': 'tank'}),
+        ),
         'assets/models/monster_tank.glb',
       );
     });
@@ -65,10 +65,15 @@ void main() {
       // A level that names a model on one particular thing has said something
       // about that thing, and a rule about its type must not overrule it.
       expect(
-        looks.modelFor(_entity('monster', properties: <String, Object?>{
-          'kind': 'runner',
-          'model': 'assets/models/boss.glb',
-        })),
+        looks.modelFor(
+          _entity(
+            'monster',
+            properties: <String, Object?>{
+              'kind': 'runner',
+              'model': 'assets/models/boss.glb',
+            },
+          ),
+        ),
         'assets/models/boss.glb',
       );
     });
@@ -77,8 +82,10 @@ void main() {
       // Rather than half-substituted: `monster_.glb` is a file nobody has, and
       // a model that will not read leaves the mark — which is exactly what
       // somebody wants to see when a property is missing.
-      expect(looks.modelFor(_entity('monster')),
-          'assets/models/monster_{kind}.glb');
+      expect(
+        looks.modelFor(_entity('monster')),
+        'assets/models/monster_{kind}.glb',
+      );
     });
 
     test('and a type nobody described has none', () {
@@ -95,9 +102,14 @@ void main() {
 
     test('and the entity still wins', () {
       expect(
-        looks.sizeFor(_entity('torch', properties: <String, Object?>{
-          'size': <double>[4.0, 4.0, 4.0],
-        })),
+        looks.sizeFor(
+          _entity(
+            'torch',
+            properties: <String, Object?>{
+              'size': <double>[4.0, 4.0, 4.0],
+            },
+          ),
+        ),
         Vector3(4.0, 4.0, 4.0),
       );
     });
@@ -154,8 +166,11 @@ void main() {
       final parts = described.partsFor(_entity('torch'));
 
       expect(parts.length, 3);
-      expect(parts.map((Part it) => it.shape),
-          <String>['box', 'cylinder', 'sphere']);
+      expect(parts.map((Part it) => it.shape), <String>[
+        'box',
+        'cylinder',
+        'sphere',
+      ]);
     });
 
     test('and a part that is on fire says so', () {
@@ -169,7 +184,10 @@ void main() {
     });
 
     test('and an angle, which is what holds a torch out of a wall', () {
-      expect(described.partsFor(_entity('torch'))[1].pitch, closeTo(-0.5, 1e-9));
+      expect(
+        described.partsFor(_entity('torch'))[1].pitch,
+        closeTo(-0.5, 1e-9),
+      );
     });
 
     test('and a type nobody drew has none, which is a mark', () {
@@ -181,8 +199,11 @@ void main() {
         File('../flutter3d_demo_dungeon/assets/editor.json').readAsStringSync(),
       );
 
-      expect(said.partsFor(_entity('torch')), isNotEmpty,
-          reason: 'the wall is back to having a box on it');
+      expect(
+        said.partsFor(_entity('torch')),
+        isNotEmpty,
+        reason: 'the wall is back to having a box on it',
+      );
       expect(
         said.partsFor(_entity('torch')).where((Part it) => it.glows),
         isNotEmpty,
@@ -209,15 +230,21 @@ void main() {
     final file = File('../flutter3d_demo_dungeon/assets/editor.json');
 
     test('is there and describes the things that had no model', () {
-      expect(file.existsSync(), isTrue,
-          reason: 'the game that asked this question has stopped answering it');
+      expect(
+        file.existsSync(),
+        isTrue,
+        reason: 'the game that asked this question has stopped answering it',
+      );
 
       final said = Looks.parse(file.readAsStringSync());
 
       expect(said.sizeFor(_entity('torch')), isNotNull);
-      expect(said.modelFor(_entity('monster', properties: <String, Object?>{
-        'kind': 'runner',
-      })), isNotNull);
+      expect(
+        said.modelFor(
+          _entity('monster', properties: <String, Object?>{'kind': 'runner'}),
+        ),
+        isNotNull,
+      );
     });
 
     test('and every model it names is a file that exists', () {
@@ -230,10 +257,14 @@ void main() {
       // The kinds the crypt actually uses, filled into the path the same way
       // the editor fills it.
       for (final kind in <String>['runner', 'shooter', 'tank']) {
-        final path = said.modelFor(_entity('monster',
-            properties: <String, Object?>{'kind': kind}))!;
-        expect(File('../flutter3d_demo_dungeon/$path').existsSync(), isTrue,
-            reason: '$path is named and is not there');
+        final path = said.modelFor(
+          _entity('monster', properties: <String, Object?>{'kind': kind}),
+        )!;
+        expect(
+          File('../flutter3d_demo_dungeon/$path').existsSync(),
+          isTrue,
+          reason: '$path is named and is not there',
+        );
       }
     });
 
@@ -241,7 +272,9 @@ void main() {
       // The game lists four asset directories and this is beside them rather
       // than in one, which is the difference between a file an editor reads and
       // a file every player downloads.
-      final pubspec = File('../flutter3d_demo_dungeon/pubspec.yaml').readAsStringSync();
+      final pubspec = File(
+        '../flutter3d_demo_dungeon/pubspec.yaml',
+      ).readAsStringSync();
 
       expect(pubspec, isNot(contains('assets/editor.json')));
     });

@@ -88,8 +88,11 @@ void main() {
 
   test('there are level documents to check at all', () {
     // Otherwise everything below passes by having nothing to say.
-    expect(documents, hasLength(greaterThanOrEqualTo(4)),
-        reason: 'found only ${documents.map((_Document d) => d.path)}');
+    expect(
+      documents,
+      hasLength(greaterThanOrEqualTo(4)),
+      reason: 'found only ${documents.map((_Document d) => d.path)}',
+    );
   });
 
   for (final document in documents) {

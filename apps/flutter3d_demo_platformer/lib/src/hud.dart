@@ -129,12 +129,7 @@ class Hud extends StatelessWidget {
               child: Center(child: _Banner(message!)),
             ),
           if (state == RunState.finished && finale)
-            Ending(
-              coins: coins,
-              deaths: deaths,
-              elapsed: elapsed,
-              lost: lost,
-            )
+            Ending(coins: coins, deaths: deaths, elapsed: elapsed, lost: lost)
           else if (state == RunState.finished)
             Center(
               child: _Results(
@@ -232,7 +227,10 @@ class Ending extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 26),
-                const CreditsSection(credits: Credits.models, heading: 'Art in this game'),
+                const CreditsSection(
+                  credits: Credits.models,
+                  heading: 'Art in this game',
+                ),
                 const SizedBox(height: 22),
                 Text(
                   'Press R to climb it again.',
@@ -251,7 +249,6 @@ class Ending extends StatelessWidget {
   }
 }
 
-
 class _Tally extends StatelessWidget {
   const _Tally({required this.label, required this.value});
 
@@ -267,27 +264,27 @@ class _Tally extends StatelessWidget {
       label: '$label $value',
       excludeSemantics: true,
       child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 30,
-            fontWeight: FontWeight.w600,
-            shadows: <Shadow>[Shadow(blurRadius: 8, color: Colors.black87)],
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 30,
+              fontWeight: FontWeight.w600,
+              shadows: <Shadow>[Shadow(blurRadius: 8, color: Colors.black87)],
+            ),
           ),
-        ),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.7),
-            fontSize: 12,
-            letterSpacing: 2,
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 12,
+              letterSpacing: 2,
+            ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 }
