@@ -146,7 +146,7 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Twenty-two packages and five applications in one pub workspace — one
+Twenty-three packages and five applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
@@ -175,6 +175,7 @@ ordinary unit test, and none of the three is visible in a screenshot.
 | `flutter3d_conformance` | The contract suite every backend passes |
 | `flutter3d_shaders` | The GLSL both hardware backends compile, and the list of required entry points |
 | `flutter3d` | The engine: scene graph, render list, passes, materials, assets, animation |
+| `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid |
 | `flutter3d_game` | The genre-neutral game layer: fixed step, input, level format, actors, ECS, snapshots |
@@ -188,7 +189,7 @@ ordinary unit test, and none of the three is visible in a screenshot.
 | `flutter3d_app` | The assembly layer, as one import |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
 | `pad_input` | Gamepad devices on web, Android, macOS and iOS |
-| `pointer_lock` | Relative mouse movement, which Flutter provides on no desktop platform |
+| `pointer_lock` | Relative mouse movement: a method channel on macOS, the Pointer Lock API in a browser, which Flutter surfaces on neither |
 
 Applications: `apps/flutter3d_demo_dungeon` (shooter),
 `apps/flutter3d_demo_platformer`, `apps/flutter3d_demo_racing`,
@@ -284,6 +285,44 @@ handed the same six matrices that drew them, so there is no second derivation to
 disagree. A light keeps two atlases — one for what moves and one for what does not
 — and the shader takes the nearest occluder from both; the static half is rendered
 once at load, since a dungeon's walls do not move.
+
+**The static half is redrawn when the rows change hands, when the texture is
+reallocated, and when a setting the pass reads changes** — the last of those was
+missing, and its absence was a setting that could not be changed at all. Drawing
+the crypt twice with opposite `casterFaces` produced two frames identical to the
+pixel; the atlas simply kept what the first bake put in it. `StaticBakeKey` names
+what the *pass* reads — which side of a caster is recorded, the volume's padding,
+the tile size — and deliberately excludes everything the *lookup* reads, since
+baking again for a bias would redraw six views of the level per occupied row to
+produce the pixels already there.
+
+**A cube face has its own resolution, and that is what paid for the sixth row.**
+The atlas is six tiles across and one row per shadowed light, so deriving a cube
+tile from the cascade's `resolution` — which is what it did — meant a game asking
+for a 1024 sun got 6144 texels across per atlas, 201 MB at four rows, and there
+are two of them. Four hundred megabytes of video memory, on a platform where a
+browser tab has less. `cubeResolution` defaults to 512, which is about a
+centimetre per texel two metres from a torch — finer than the penumbra it is
+sampled through — and the golden sets did not move when it changed.
+
+**A normal offset is in texels.** What it clears is the width of one texel of
+the map out where the fragment is — the texel records its whole patch of surface
+at one distance, and everything else in that patch compares against a distance
+measured somewhere it is not. That width is a solid angle and grows with range,
+so an offset fixed in metres is right at one distance and wrong at every other:
+2 cm was enough beside a lamp and a third of what a floor ten metres out needed,
+which showed as that floor shadowing itself across everything the light reached,
+stopping dead in a straight line where the floor's own edge projects into the
+atlas. Straight edges in a shadow are worth suspecting for this reason — nothing
+in a scene of curved surfaces makes one, but the boundary of what a shadow map
+contains does.
+
+**Six lights cast at once rather than four**, which is the crypt's own number:
+it hangs six torches, and at four rows two of them lit their corner and cast
+nothing, with *which* two changing as the player walked. Two torches side by side
+behaving differently is what a player reads as broken shadows, and they are right.
+Six rows at the tile above is 75 MB against 50; at the tile it inherited before,
+the same step would have been 302.
 
 **HDR and composite.** The scene renders into `r16g16b16a16Float`. Tone mapping
 (Khronos PBR Neutral), exposure and the sRGB encode happen in a composite pass,
@@ -891,17 +930,32 @@ on both; the only difference is that Apple counts a stick axis positive upwards
 while Android, the browser and this package count it downwards, and the sign is
 flipped in Dart, once, under a test.
 
-`pointer_lock` supplies relative mouse movement, which Flutter provides on no
-desktop platform. Two rules matter: a `reset` on construction, because a plugin
-outlives a hot restart and would otherwise strand the cursor with nothing left to
-ask for it back; and focus loss must **release** rather than pause, or a hidden
-cursor ends up over another application's window.
+`pointer_lock` supplies relative mouse movement, which Flutter surfaces on no
+desktop platform and does not surface in a browser either. Two backends: a method
+channel on macOS, and the browser's own Pointer Lock API through static interop,
+chosen by conditional export the way `pad_input` chooses its gamepad. Three rules
+matter. A `reset` on construction, because a plugin outlives a hot restart and
+would otherwise strand the cursor with nothing left to ask for it back. Focus loss
+must **release** rather than pause, or a hidden cursor ends up over another
+application's window. And in a browser the capture must be asked for inside the
+handler of the press that prompted it: `requestPointerLock` is refused without a
+user gesture behind it, a refusal arrives as an event rather than as an exception,
+and a backend that assumed success would leave a game believing it holds a pointer
+it does not.
 
 `TouchControls` writes into the same `InputState` a key does. `Playing` answers
 three separate questions — can the pointer be captured, where does camera rotation
-come from, does the player have fingers instead of a keyboard — because a browser
-and a phone agree on the first two and differ on the third, and one `kIsWeb` cannot
-say that.
+come from, does the player have fingers instead of a keyboard — and it now asks
+each of them of the thing that knows. **`kIsWeb` was the wrong question twice
+over**, and both answers were wrong for a year: a desktop browser can capture a
+pointer, and the web build of a first-person game was being dragged around like a
+phone; a phone in a browser has fingers, and the same guard hid the on-screen
+stick from every player who opened a demo on one. So capture is asked of
+`PointerLockPlatform.instance.isSupported` — which also fixes Windows and Linux,
+where the old platform list claimed a capture the plugin has no native side for
+and then turned off drag-look, leaving a camera that could not move at all — and
+fingers are asked of `defaultTargetPlatform`, which reports a mobile browser as
+`android` or `iOS`.
 
 ### 11.2 Audio
 
@@ -973,7 +1027,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **2874 tests** across 22 packages and 5 applications |
+| Unit tests | **2901 tests** across 23 packages and 5 applications |
 | Structure rules | 19, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1007,13 +1061,32 @@ attribute divisor set and the next frame's mesh read one texture coordinate for
 a whole quad. Divisors are put back when a draw ends now, rather than when a
 caller remembers to ask.
 
-Four remain: `bloom-sphere` at 7%; `debug-overlay` at 2.5%, which is line
-rendering; and `view-model-point-shadow`, `cube-shadow-mover` and
-`cube-shadow-lit`, which are the point-shadow lookup. Read those last three
-beside the three that are **exactly zero** — `cube-shadow`, `cube-shadow-many`
-and `cube-shadow-crowded` composite the atlas rather than light with it. The
-atlas is right and the reading of it is not, and the set says so across six
-scenes where one parity fixture said it across one.
+**None remain.** The last four went together in two fixes, and both are worth
+carrying to a fourth backend because neither was visible as a wrong picture in
+the thing being tested.
+
+`bloom-sphere` at 7% and `debug-overlay` at 2.5% were one bug: the full-screen
+triangle pairs clip positions with texture coordinates directly, so on a backend
+whose row zero is at the bottom every full-screen pass turns its input over. One
+pass that reads the frame and writes the frame survives that; the bloom chain is
+a threshold, a ladder down and a ladder back — an odd number of passes however it
+is configured — so the glow was composited mirrored about the middle of the
+frame, which is exactly where every scene in the golden set keeps its subject.
+
+`view-model-point-shadow`, `cube-shadow-mover` and `cube-shadow-lit` were the
+point-shadow lookup, and the instrument was the problem. The cube atlas is stored
+bottom-up on this backend, so a light in slot zero is drawn into the row the
+shader would call three and the picture inside that tile is upside down as well;
+turning the whole atlas over in the lookup fixes the row and the tile together.
+Read that beside the three scenes that were **exactly zero** throughout —
+`cube-shadow`, `cube-shadow-many` and `cube-shadow-crowded` composite the atlas
+rather than light with it, a composite is a full-screen pass, and a full-screen
+pass turned its input over. The view built to check the atlas cancelled the very
+error it was pointed at and agreed with Impeller to the pixel for six sessions.
+
+What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
+scene, all thirty-two of them between 0.01% and 0.6%, measured rather than
+rounded — a budget far above what was observed has stopped watching.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
 in the test's comment. This is not a ritual: the rule regularly finds tests that
@@ -1106,25 +1179,23 @@ KTX2/Basis transcoding has no Dart implementation.
 animation state machine — a crossfade is useful on its own, and a state machine
 without one is not.
 
-**Shadows are one directional map rather than a cascade.** Point-light cube shadows
-in the browser do not match Impeller: one parity fixture of nine is skipped, at a
-mean cell difference of 7.95 with one region 93 out. The divergence is localised
-to sampling — filtering or precision on a half-float atlas — after bindings,
-uniform packing, the second atlas, the texture-unit limit and the attribute-state
-bug below were each ruled out by measurement.
+**Shadows are one directional map rather than a cascade.** Point lights have cube
+shadows in an atlas, which is a different thing and not a substitute: the
+directional light is the one that would want a cascade, and a single map is what
+it has.
 
-**Five scenes are drawn differently on the web backend**, and the reference set
-is what says which. `particles-mesh` at 19%, `bloom-sphere` at 7%,
-`debug-overlay` at 2.5%, and the three that read the point-shadow atlas —
-`view-model-point-shadow`, `cube-shadow-mover` and `cube-shadow-lit`. The other
-twenty-seven sit at the silhouette's worth of difference that two rasterisers
-always have.
+**The web backend now draws all thirty-two golden scenes the way Impeller does**,
+between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
+silhouette's worth of disagreement two rasterisers always have. Six scenes were
+in whole percents and every one of them was this backend drawing something else;
+[§13](#13-how-correctness-is-held) keeps what each turned out to be, because in
+all six the picture was wrong in a place nothing was looking.
 
-Custom materials, fog, ambient occlusion and reflections still have no web
-comparison at all: they are drawn there, and nobody has checked they are drawn
-the same. That gap is worth stating for what closing part of it produced — three
-new parity fixtures found the sky blacking out every frame, and a reference set
-of thirty-two found a lighting model drawing nothing.
+Custom materials and fog still have no web comparison at all: they are drawn
+there, and nobody has checked they are drawn the same. That gap is worth stating for
+what closing part of it produced — three new parity fixtures found the sky
+blacking out every frame, and a reference set of thirty-two found a lighting
+model drawing nothing.
 
 **No occlusion culling, FXAA or TAA.** Screen-space ambient occlusion and
 reflections exist and are off by default; neither has a golden scene, so what
@@ -1158,7 +1229,13 @@ internet".
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
 - `LICENSE`, `CHANGELOG.md`, `README.md`, `repository:` and `homepage:` in all
-  twenty-two packages.
+  twenty-three packages.
+- **`dart format` is a CI step**, second in the order and reported by
+  `tool/ci.sh`. It was this document's claimed style for a year with nothing
+  checking it, and 637 files of 874 did not match — Dart 3.7 changed the
+  formatter and a repository nobody reformats stays in the old shape. `pana`
+  scores formatting, so this is a published package's grade as well as a
+  reader's diff.
 - **Sibling dependencies are version constraints, not paths.** `pub publish`
   refuses a path dependency, and a workspace resolves `flutter3d_hardware: ^0.1.0`
   from the checkout anyway, so one line works for both a developer and the server.
@@ -1169,8 +1246,8 @@ internet".
 
 **The order, when the day comes**, is set by the dependency graph:
 
-1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_audio`, `pad_input`,
-   `pointer_lock`
+1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
+   `flutter3d_audio`, `pad_input`, `pointer_lock`
 2. `flutter3d_conformance`
 3. `flutter3d`, `flutter3d_physics`
 4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`, `flutter3d_particles`
@@ -1181,9 +1258,10 @@ internet".
 9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`
 
 Two positions are not obvious and so are written down rather than re-derived:
-`flutter3d_ui` depends on `flutter3d_webgl` because it draws its own previews, so
-the UI cannot go up with the engine; and `flutter3d_app` is second to last because
-it is the assembly layer.
+`flutter3d_samples` is in the first tier although nothing depends on it at run
+time, because `flutter3d`'s tests do and a dev dependency has to resolve for the
+archive to be accepted; and `flutter3d_app` is second to last because it is the
+assembly layer.
 
 **The applications are not packages.** `apps/` keeps its path dependencies: three
 demo games and an editor are things to clone, not things to depend on.

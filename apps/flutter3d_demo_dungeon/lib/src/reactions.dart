@@ -11,7 +11,10 @@ import 'effects.dart';
 /// two rockets landing in the same doorway are two plumes, and a shared key
 /// would mean the second restarted the first.
 final class Lingering {
-  const Lingering(this.key, this.effect, this.at, {
+  const Lingering(
+    this.key,
+    this.effect,
+    this.at, {
     required this.perSecond,
     required this.seconds,
   });
@@ -86,15 +89,17 @@ final class Reactions {
       player
         ..aim(_aim)
         ..right(_right);
-      bursts.add(Shown(
-        Effects.muzzleFlash,
-        Vector3(
-          sim.firedFrom.x + _aim.x * _reach - _right.x * _side,
-          sim.firedFrom.y + _aim.y * _reach - _drop,
-          sim.firedFrom.z + _aim.z * _reach - _right.z * _side,
+      bursts.add(
+        Shown(
+          Effects.muzzleFlash,
+          Vector3(
+            sim.firedFrom.x + _aim.x * _reach - _right.x * _side,
+            sim.firedFrom.y + _aim.y * _reach - _drop,
+            sim.firedFrom.z + _aim.z * _reach - _right.z * _side,
+          ),
+          direction: _aim.clone(),
         ),
-        direction: _aim.clone(),
-      ));
+      );
 
       for (final hit in sim.hits) {
         if (!hit.struckSomething) continue;
@@ -121,13 +126,15 @@ final class Reactions {
           ..add(Shown(Effects.explosionCore, blast.position))
           ..add(Shown(Effects.explosionEmbers, blast.position));
         // Smoke for a second after the fire is out, under a key of its own.
-        lingering.add(Lingering(
-          Object(),
-          Effects.explosionSmoke,
-          blast.position,
-          perSecond: 34.0,
-          seconds: 0.85,
-        ));
+        lingering.add(
+          Lingering(
+            Object(),
+            Effects.explosionSmoke,
+            blast.position,
+            perSecond: 34.0,
+            seconds: 0.85,
+          ),
+        );
       }
     }
 

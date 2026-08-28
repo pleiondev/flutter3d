@@ -68,10 +68,10 @@ class EditorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'flutter3d level editor',
-        debugShowCheckedModeBanner: false,
-        home: const EditorScreen(),
-      );
+    title: 'flutter3d level editor',
+    debugShowCheckedModeBanner: false,
+    home: const EditorScreen(),
+  );
 }
 
 /// The actions the camera is flown with.
@@ -111,8 +111,10 @@ class _EditorScreenState extends State<EditorScreen>
   final FlyCamera _fly = FlyCamera();
 
   final InputState _input = InputState();
-  late final DesktopInput _keys =
-      DesktopInput(state: _input, bindings: _bindings());
+  late final DesktopInput _keys = DesktopInput(
+    state: _input,
+    bindings: _bindings(),
+  );
   final FocusNode _keyboard = FocusNode();
 
   late final RenderView _view = RenderView(
@@ -126,6 +128,7 @@ class _EditorScreenState extends State<EditorScreen>
   SceneDressing? _dressing;
 
   Ticker? _ticker;
+
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
@@ -215,10 +218,12 @@ class _EditorScreenState extends State<EditorScreen>
       if (found == null) {
         final templates = await _readTemplates();
         if (templates.isEmpty) {
-          throw FileSystemException(Documents.couldNotFind(
-            kLevelPath,
-            Documents.candidates(kLevelPath, from: tried),
-          ));
+          throw FileSystemException(
+            Documents.couldNotFind(
+              kLevelPath,
+              Documents.candidates(kLevelPath, from: tried),
+            ),
+          );
         }
         if (!mounted) return;
         _cubit.nothingFound(templates, path: kLevelPath);
@@ -233,8 +238,10 @@ class _EditorScreenState extends State<EditorScreen>
   /// Opens the document at [found], which is known to be there.
   Future<void> _openAt(String found) async {
     try {
-      final editing = Editing.parse(await File(found).readAsString(),
-          path: found);
+      final editing = Editing.parse(
+        await File(found).readAsString(),
+        path: found,
+      );
       // Where this document's own `assets/…` live. A game never has to work
       // this out; an editor always does, because the level it has open belongs
       // to another application.
@@ -334,8 +341,12 @@ class _EditorScreenState extends State<EditorScreen>
       }
       dressing.textures = loaded.materialTextures;
       dressing.reset();
-      dressing.placeGizmos(loaded.scene, editing,
-          looks: ready.looks, hidden: ready.hidden);
+      dressing.placeGizmos(
+        loaded.scene,
+        editing,
+        looks: ready.looks,
+        hidden: ready.hidden,
+      );
       dressing.placeMarker(loaded.scene, editing);
       unawaited(
         dressing
@@ -348,8 +359,8 @@ class _EditorScreenState extends State<EditorScreen>
               stillCurrent: () => mounted && identical(loaded.scene, _scene),
             )
             .then((_) {
-          if (mounted) setState(() {});
-        }),
+              if (mounted) setState(() {});
+            }),
       );
     } finally {
       _rebuilding = false;
@@ -362,9 +373,9 @@ class _EditorScreenState extends State<EditorScreen>
   /// the templates, one manifest each of their files.
   static Future<List<Template>> _readTemplates() async {
     try {
-      final index = jsonDecode(
-        await rootBundle.loadString('assets/templates/index.json'),
-      ) as Map<String, Object?>;
+      final index =
+          jsonDecode(await rootBundle.loadString('assets/templates/index.json'))
+              as Map<String, Object?>;
       final names = (index['templates'] as List<Object?>? ?? const <Object?>[])
           .whereType<String>();
       return <Template>[
@@ -399,9 +410,9 @@ class _EditorScreenState extends State<EditorScreen>
         project: where.root.split('/').last,
         sources: <String, Uint8List>{
           for (final name in template.files.keys)
-            name: (await rootBundle.load('assets/templates/${template.id}/$name'))
-                .buffer
-                .asUint8List(),
+            name: (await rootBundle.load(
+              'assets/templates/${template.id}/$name',
+            )).buffer.asUint8List(),
         },
         packagesAt: _packagesAt() ?? '../../packages',
       );
@@ -498,9 +509,11 @@ class _EditorScreenState extends State<EditorScreen>
 
     if (_stale && !_rebuilding) {
       _stale = false;
-      unawaited(_build().then((_) {
-        if (mounted) setState(() {});
-      }));
+      unawaited(
+        _build().then((_) {
+          if (mounted) setState(() {});
+        }),
+      );
     }
 
     if (mounted) setState(() {});
@@ -587,7 +600,11 @@ class _EditorScreenState extends State<EditorScreen>
     final looks = _ready?.looks ?? Looks.none;
     if (editing == null) return;
     final along = _rayThrough(at, size);
-    final hit = Picking.at(handlesOf(editing.level, looks: looks), _fly.position, along);
+    final hit = Picking.at(
+      handlesOf(editing.level, looks: looks),
+      _fly.position,
+      along,
+    );
     final distance = hit == null
         ? 6.0
         : math.max(
@@ -606,7 +623,11 @@ class _EditorScreenState extends State<EditorScreen>
     final looks = _ready?.looks ?? Looks.none;
     if (editing == null) return;
     final along = _rayThrough(at, size);
-    final found = Picking.at(handlesOf(editing.level, looks: looks), _fly.position, along);
+    final found = Picking.at(
+      handlesOf(editing.level, looks: looks),
+      _fly.position,
+      along,
+    );
     editing.selectHandle(found);
     _placeMarker();
     _cubit.say(found == null ? 'nothing there' : editing.says);
@@ -731,7 +752,9 @@ class _EditorScreenState extends State<EditorScreen>
           1.0 => 0.0,
           _ => 0.25,
         };
-        _cubit.say(editing.grid == 0.0 ? 'off the grid' : 'grid ${editing.grid}m');
+        _cubit.say(
+          editing.grid == 0.0 ? 'off the grid' : 'grid ${editing.grid}m',
+        );
         return KeyEventResult.handled;
       default:
         return _keys.handleKeyEvent(event);
@@ -742,19 +765,22 @@ class _EditorScreenState extends State<EditorScreen>
     // somebody decides is broken, and the commonest reason one does nothing
     // here is that it is asking about a brush nobody has picked yet.
     final at = editing.where;
-    _changed(at == null
-        ? 'nothing selected — click something first'
-        : 'at ${_metres(at)}');
+    _changed(
+      at == null
+          ? 'nothing selected — click something first'
+          : 'at ${_metres(at)}',
+    );
     return KeyEventResult.handled;
   }
 
   Vector3 _along(double amount) => switch (_ready?.axis ?? EditorAxis.x) {
-        EditorAxis.x => Vector3(amount, 0.0, 0.0),
-        EditorAxis.y => Vector3(0.0, amount, 0.0),
-        EditorAxis.z => Vector3(0.0, 0.0, amount),
-      };
+    EditorAxis.x => Vector3(amount, 0.0, 0.0),
+    EditorAxis.y => Vector3(0.0, amount, 0.0),
+    EditorAxis.z => Vector3(0.0, 0.0, amount),
+  };
 
-  static String _metres(Vector3 v) => '${v.x.toStringAsFixed(2)}, '
+  static String _metres(Vector3 v) =>
+      '${v.x.toStringAsFixed(2)}, '
       '${v.y.toStringAsFixed(2)}, ${v.z.toStringAsFixed(2)}';
 
   /// Writes the document back, or says why it will not.
@@ -763,8 +789,10 @@ class _EditorScreenState extends State<EditorScreen>
     if (editing == null) return;
 
     if (!copy && !editing.mayOverwrite) {
-      _cubit.say('written by ${editing.generatedBy} — '
-          'shift-save writes a copy instead');
+      _cubit.say(
+        'written by ${editing.generatedBy} — '
+        'shift-save writes a copy instead',
+      );
       return;
     }
 
@@ -783,8 +811,9 @@ class _EditorScreenState extends State<EditorScreen>
     }
   }
 
-  static String _besidePath(String path) =>
-      path.endsWith('.json') ? '${path.substring(0, path.length - 5)}.edited.json' : '$path.edited';
+  static String _besidePath(String path) => path.endsWith('.json')
+      ? '${path.substring(0, path.length - 5)}.edited.json'
+      : '$path.edited';
 
   @override
   void dispose() {
@@ -797,28 +826,28 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   Widget build(BuildContext context) => BlocProvider.value(
-        value: _cubit,
-        child: BlocBuilder<EditorCubit, EditorState>(
-          bloc: _cubit,
-          builder: (BuildContext context, EditorState state) => switch (state) {
-            EditorFailed(:final error) => DidNotStart(
-                error,
-                // The editor's own colours: a tool sits beside other tools,
-                // and black with grey text is a game's screen rather than an
-                // application's.
-                background: const Color(0xFF14161A),
-                foreground: const Color(0xFFFF8A80),
-              ),
-            EditorChoosing() => EditorChooser(
-                state: state,
-                levelPath: kLevelPath,
-                onCreate: _create,
-              ),
-            EditorOpening() => const _Loading(),
-            EditorReady() => _editorScreen(state),
-          },
+    value: _cubit,
+    child: BlocBuilder<EditorCubit, EditorState>(
+      bloc: _cubit,
+      builder: (BuildContext context, EditorState state) => switch (state) {
+        EditorFailed(:final error) => DidNotStart(
+          error,
+          // The editor's own colours: a tool sits beside other tools,
+          // and black with grey text is a game's screen rather than an
+          // application's.
+          background: const Color(0xFF14161A),
+          foreground: const Color(0xFFFF8A80),
         ),
-      );
+        EditorChoosing() => EditorChooser(
+          state: state,
+          levelPath: kLevelPath,
+          onCreate: _create,
+        ),
+        EditorOpening() => const _Loading(),
+        EditorReady() => _editorScreen(state),
+      },
+    ),
+  );
 
   /// The document is open: the scene, and the three panels around it.
   Widget _editorScreen(EditorReady state) {
@@ -949,7 +978,7 @@ final class _Loading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Scaffold(
-        backgroundColor: Color(0xFF14161A),
-        body: Center(child: CircularProgressIndicator()),
-      );
+    backgroundColor: Color(0xFF14161A),
+    body: Center(child: CircularProgressIndicator()),
+  );
 }

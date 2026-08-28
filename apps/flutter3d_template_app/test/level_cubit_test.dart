@@ -16,10 +16,10 @@ import 'package:flutter3d_template_app/main.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 GraphicsDevice _device() => CpuDevice(
-      width: 16,
-      height: 9,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,8 +32,11 @@ void main() {
 
     final state = cubit.state;
     expect(state, isA<LevelReady>());
-    expect((state as LevelReady).body.position.y, greaterThan(0.0),
-        reason: 'lifted off the spawn point, not left standing in the floor');
+    expect(
+      (state as LevelReady).body.position.y,
+      greaterThan(0.0),
+      reason: 'lifted off the spawn point, not left standing in the floor',
+    );
   });
 
   test('a level that is not there fails loudly rather than silently', () async {

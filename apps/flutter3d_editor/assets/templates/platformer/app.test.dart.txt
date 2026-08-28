@@ -34,31 +34,41 @@ void main() {
     // A level is a document and a document can be wrong. Asking here is the
     // difference between finding out in a second and finding out in a window.
     expect(level.brushes, isNotEmpty, reason: 'nothing to stand on');
-    expect(level.entities.where((EntityDef it) => it.type.contains('spawn')),
-        hasLength(1), reason: 'a level starts somewhere, exactly once');
+    expect(
+      level.entities.where((EntityDef it) => it.type.contains('spawn')),
+      hasLength(1),
+      reason: 'a level starts somewhere, exactly once',
+    );
   });
 
   final editorLooks = File('assets/editor.json');
 
-  test('and every model it names is a file that is really there', () {
-    // A path with a typo draws nothing and says nothing.
-    final looks =
-        jsonDecode(editorLooks.readAsStringSync()) as Map<String, Object?>;
-    for (final entry in looks.entries) {
-      final described = entry.value;
-      if (described is! Map<String, Object?>) continue;
-      final model = described['model'];
-      if (model is! String) continue;
-      expect(File(model).existsSync(), isTrue,
-          reason: '${entry.key} names $model, which is not there');
-    }
-    // **Skipped in `apps/flutter3d_template_app` and not in a project made from it**,
-    // which is the honest shape: the looks and the models a project draws with
-    // come from the template it was made from, and this application is what is
-    // left when you take those away. Written as a skip rather than an early
-    // return so that a run says which of the two it is looking at.
-  }, skip: editorLooks.existsSync()
-      ? false
-      : 'no assets/editor.json here: the template supplies the looks and the '
-          'models, and this is the application without them');
+  test(
+    'and every model it names is a file that is really there',
+    () {
+      // A path with a typo draws nothing and says nothing.
+      final looks =
+          jsonDecode(editorLooks.readAsStringSync()) as Map<String, Object?>;
+      for (final entry in looks.entries) {
+        final described = entry.value;
+        if (described is! Map<String, Object?>) continue;
+        final model = described['model'];
+        if (model is! String) continue;
+        expect(
+          File(model).existsSync(),
+          isTrue,
+          reason: '${entry.key} names $model, which is not there',
+        );
+      }
+      // **Skipped in `apps/flutter3d_template_app` and not in a project made from it**,
+      // which is the honest shape: the looks and the models a project draws with
+      // come from the template it was made from, and this application is what is
+      // left when you take those away. Written as a skip rather than an early
+      // return so that a run says which of the two it is looking at.
+    },
+    skip: editorLooks.existsSync()
+        ? false
+        : 'no assets/editor.json here: the template supplies the looks and the '
+              'models, and this is the application without them',
+  );
 }

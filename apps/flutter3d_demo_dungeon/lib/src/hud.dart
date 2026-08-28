@@ -132,13 +132,17 @@ class Hud extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Text('fps ${fps.toStringAsFixed(0)}   '
-                    'steps this frame $steps   dropped $dropped   '
-                    'voices $voices   particles $particles'),
-                Text('x ${position.x.toStringAsFixed(1)}  '
-                    'y ${position.y.toStringAsFixed(1)}  '
-                    'z ${position.z.toStringAsFixed(1)}  '
-                    '${grounded ? 'grounded' : 'airborne'}'),
+                Text(
+                  'fps ${fps.toStringAsFixed(0)}   '
+                  'steps this frame $steps   dropped $dropped   '
+                  'voices $voices   particles $particles',
+                ),
+                Text(
+                  'x ${position.x.toStringAsFixed(1)}  '
+                  'y ${position.y.toStringAsFixed(1)}  '
+                  'z ${position.z.toStringAsFixed(1)}  '
+                  '${grounded ? 'grounded' : 'airborne'}',
+                ),
               ],
             ),
           ),
@@ -176,8 +180,10 @@ class Hud extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                const Text('HEALTH',
-                    style: TextStyle(color: Colors.white54, fontSize: 12.0)),
+                const Text(
+                  'HEALTH',
+                  style: TextStyle(color: Colors.white54, fontSize: 12.0),
+                ),
                 Text(
                   health.isAlive ? '${health.current.round()}' : 'DEAD',
                   style: TextStyle(
@@ -187,9 +193,10 @@ class Hud extends StatelessWidget {
                     fontSize: 22.0,
                   ),
                 ),
-                Text('kills $kills   left $monstersLeft',
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 11.0)),
+                Text(
+                  'kills $kills   left $monstersLeft',
+                  style: const TextStyle(color: Colors.white38, fontSize: 11.0),
+                ),
               ],
             ),
           ),
@@ -206,11 +213,10 @@ class Hud extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: <Widget>[
-                Text(weapon.name.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 12.0,
-                    )),
+                Text(
+                  weapon.name.toUpperCase(),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12.0),
+                ),
                 Text(ammo < 0 ? '∞' : '$ammo'),
               ],
             ),
@@ -244,8 +250,10 @@ class Hud extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  const Text('ARMOUR',
-                      style: TextStyle(color: Colors.white38, fontSize: 12.0)),
+                  const Text(
+                    'ARMOUR',
+                    style: TextStyle(color: Colors.white38, fontSize: 12.0),
+                  ),
                   Text(
                     '${armour.round()}',
                     style: const TextStyle(

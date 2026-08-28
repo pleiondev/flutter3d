@@ -17,7 +17,8 @@ import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const String _runner = '../flutter3d_demo_dungeon/assets/models/monster_runner.glb';
+const String _runner =
+    '../flutter3d_demo_dungeon/assets/models/monster_runner.glb';
 
 const int _width = 160;
 const int _height = 160;
@@ -107,23 +108,29 @@ void main() {
       height: 16,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
-    final document =
-        await GltfLoader().load(File(_runner).readAsBytesSync());
+    final document = await GltfLoader().load(File(_runner).readAsBytesSync());
     final asset = await ModelAsset.fromDocument(document, device: device);
     final instance = asset.instantiate(Scene(), name: 'model');
     final player = instance.player!;
 
-    expect(player.clipNames, contains('Idle'),
-        reason: 'the clip an editor should rest a model on is gone');
+    expect(
+      player.clipNames,
+      contains('Idle'),
+      reason: 'the clip an editor should rest a model on is gone',
+    );
 
     final joint = _deepestJoint(instance.root);
     final before = joint.worldMatrix.getTranslation();
     player.play(player.clipNames.indexOf('Idle'));
     final after = joint.worldMatrix.getTranslation();
 
-    expect(after, isNot(before),
-        reason: 'playing a clip moved nothing: the player is driving nodes '
-            'that are not the ones in this instance');
+    expect(
+      after,
+      isNot(before),
+      reason:
+          'playing a clip moved nothing: the player is driving nodes '
+          'that are not the ones in this instance',
+    );
   });
 
   test('and it is drawn, at the size the game draws it', () async {

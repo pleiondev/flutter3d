@@ -33,8 +33,9 @@ void main() {
     );
     final renderer = Renderer.create(device: device);
 
-    final document = await GltfLoader()
-        .load(File('assets/models/note.glb').readAsBytesSync());
+    final document = await GltfLoader().load(
+      File('assets/models/note.glb').readAsBytesSync(),
+    );
     final asset = await ModelAsset.fromDocument(document, device: device);
     final scene = Scene();
     asset.instantiate(scene, name: 'note');
@@ -62,10 +63,12 @@ void main() {
       ],
       settings: const RenderSettings(),
     );
-    final pixels = (await device.readPixels(result.frame))!.buffer.asUint8List();
-    File('/tmp/note_render.png').writeAsBytesSync(
-      encodePng(pixels, width, height),
-    );
+    final pixels = (await device.readPixels(
+      result.frame,
+    ))!.buffer.asUint8List();
+    File(
+      '/tmp/note_render.png',
+    ).writeAsBytesSync(encodePng(pixels, width, height));
 
     // Paper is pale and warm; ink is dark and warm; the background is blue.
     // Both halves of the page have to be on screen, because a page with no
@@ -81,7 +84,10 @@ void main() {
 
     expect(paper, greaterThan(2000), reason: 'no page: $paper pale pixels');
     expect(ink, greaterThan(60), reason: 'no writing on it: $ink dark pixels');
-    expect(ink, lessThan(paper ~/ 2),
-        reason: 'the page is more ink than paper, which is not writing');
+    expect(
+      ink,
+      lessThan(paper ~/ 2),
+      reason: 'the page is more ink than paper, which is not writing',
+    );
   });
 }

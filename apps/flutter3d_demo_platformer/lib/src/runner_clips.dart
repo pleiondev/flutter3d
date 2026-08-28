@@ -25,7 +25,14 @@ abstract final class RunnerClips {
 
   /// Every clip this game asks for, so a test can check the model has them.
   static const List<String> all = <String>[
-    idle, walk, run, jump, falling, landing, duck, death,
+    idle,
+    walk,
+    run,
+    jump,
+    falling,
+    landing,
+    duck,
+    death,
   ];
 
   /// What to play, given what the runner is doing.

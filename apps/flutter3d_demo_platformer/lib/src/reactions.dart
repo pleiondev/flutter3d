@@ -13,19 +13,19 @@ import 'effects.dart';
 /// can ask what a stomp does to the camera without owning one.
 final class Felt {
   const Felt.kick(Vector3 by)
-      : jolt = Jolt.kick,
-        offset = by,
-        amount = 0.0,
-        seconds = 0.0;
+    : jolt = Jolt.kick,
+      offset = by,
+      amount = 0.0,
+      seconds = 0.0;
 
   const Felt.shake(this.amount, {this.seconds = 0.0})
-      : jolt = Jolt.shake,
-        offset = null;
+    : jolt = Jolt.shake,
+      offset = null;
 
   const Felt.widen(this.amount)
-      : jolt = Jolt.widen,
-        offset = null,
-        seconds = 0.0;
+    : jolt = Jolt.widen,
+      offset = null,
+      seconds = 0.0;
 
   final Jolt jolt;
   final Vector3? offset;
@@ -148,8 +148,13 @@ final class Reactions {
     }
 
     if (runner.landedThisStep) {
-      _land(runner.landingSpeed, at, pounded: runner.poundedThisStep, bursts:
-          bursts, jolts: jolts);
+      _land(
+        runner.landingSpeed,
+        at,
+        pounded: runner.poundedThisStep,
+        bursts: bursts,
+        jolts: jolts,
+      );
     }
 
     return Reaction(bursts, jolts);

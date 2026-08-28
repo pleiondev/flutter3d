@@ -46,10 +46,10 @@ class TemplateApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'A level',
-        debugShowCheckedModeBanner: false,
-        home: const LevelScreen(),
-      );
+    title: 'A level',
+    debugShowCheckedModeBanner: false,
+    home: const LevelScreen(),
+  );
 }
 
 /// A kind for a type this application has not been taught.
@@ -132,7 +132,8 @@ class LevelCubit extends Cubit<LevelState> {
         level,
         device: device,
         registry: EntityRegistry(<EntityKind>[
-          for (final type in level.entities.map((EntityDef e) => e.type).toSet())
+          for (final type
+              in level.entities.map((EntityDef e) => e.type).toSet())
             OpenKind(type),
         ]),
       );
@@ -145,11 +146,13 @@ class LevelCubit extends Cubit<LevelState> {
           .firstOrNull;
       final at = (spawn?.position ?? Vector3.zero()) + Vector3(0.0, 0.9, 0.0);
 
-      emit(LevelReady(
-        loaded.scene..add(camera),
-        CharacterController(world: world, position: at),
-        yaw: spawn?.yaw ?? 0.0,
-      ));
+      emit(
+        LevelReady(
+          loaded.scene..add(camera),
+          CharacterController(world: world, position: at),
+          yaw: spawn?.yaw ?? 0.0,
+        ),
+      );
     } catch (error) {
       emit(LevelFailed(error));
     }
@@ -190,6 +193,7 @@ class _LevelScreenState extends State<LevelScreen>
   Offset? _dragged;
 
   Ticker? _ticker;
+
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
@@ -301,65 +305,65 @@ class _LevelScreenState extends State<LevelScreen>
   }
 
   Widget _didNotStart(Object error) => DidNotStart(
-        error,
-        background: const Color(0xFF14161A),
-        foreground: const Color(0xFFFF8A80),
-      );
+    error,
+    background: const Color(0xFF14161A),
+    foreground: const Color(0xFFFF8A80),
+  );
 
   Widget _loading() => const Scaffold(
-        backgroundColor: Color(0xFF14161A),
-        body: Center(child: CircularProgressIndicator()),
-      );
+    backgroundColor: Color(0xFF14161A),
+    body: Center(child: CircularProgressIndicator()),
+  );
 
   Widget _game(Renderer renderer, Scene scene) => Scaffold(
-        backgroundColor: const Color(0xFF14161A),
-        body: Focus(
-          focusNode: _keyboard,
-          autofocus: true,
-          onKeyEvent: (FocusNode node, KeyEvent event) =>
-              _keys.handleKeyEvent(event),
-          child: Listener(
-            onPointerDown: (PointerDownEvent event) {
-              _keyboard.requestFocus();
-              _dragged = event.localPosition;
-            },
-            onPointerMove: (PointerMoveEvent event) {
-              final from = _dragged;
-              if (from == null) return;
-              final by = event.localPosition - from;
-              _dragged = event.localPosition;
-              _yaw -= by.dx * 0.0032;
-              _pitch = (_pitch - by.dy * 0.0032).clamp(-1.5, 1.5);
-            },
-            onPointerUp: (_) => _dragged = null,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                SceneSurface(
-                  renderer: renderer,
-                  scene: scene,
-                  view: _view,
-                  settings: () => const RenderSettings(),
-                  onBeforeFrame: _place,
-                ),
-                const Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: ColoredBox(
-                    color: Color(0xCC0E1013),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      child: Text(
-                        'W A S D walk · shift runs · space jumps · drag to look',
-                        style: TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
-                      ),
-                    ),
+    backgroundColor: const Color(0xFF14161A),
+    body: Focus(
+      focusNode: _keyboard,
+      autofocus: true,
+      onKeyEvent: (FocusNode node, KeyEvent event) =>
+          _keys.handleKeyEvent(event),
+      child: Listener(
+        onPointerDown: (PointerDownEvent event) {
+          _keyboard.requestFocus();
+          _dragged = event.localPosition;
+        },
+        onPointerMove: (PointerMoveEvent event) {
+          final from = _dragged;
+          if (from == null) return;
+          final by = event.localPosition - from;
+          _dragged = event.localPosition;
+          _yaw -= by.dx * 0.0032;
+          _pitch = (_pitch - by.dy * 0.0032).clamp(-1.5, 1.5);
+        },
+        onPointerUp: (_) => _dragged = null,
+        child: Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            SceneSurface(
+              renderer: renderer,
+              scene: scene,
+              view: _view,
+              settings: () => const RenderSettings(),
+              onBeforeFrame: _place,
+            ),
+            const Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: ColoredBox(
+                color: Color(0xCC0E1013),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  child: Text(
+                    'W A S D walk · shift runs · space jumps · drag to look',
+                    style: TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

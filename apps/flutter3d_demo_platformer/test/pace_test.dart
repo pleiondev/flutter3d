@@ -15,7 +15,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter3d_demo_platformer/src/hud.dart';
-import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart' show RunState;
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart'
+    show RunState;
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

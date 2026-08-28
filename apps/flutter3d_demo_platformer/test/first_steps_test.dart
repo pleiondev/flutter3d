@@ -29,18 +29,27 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 Level _level() => Level.fromJson(
-      jsonDecode(File('assets/levels/first_steps.json').readAsStringSync())
-          as Map<String, Object?>,
-    );
+  jsonDecode(File('assets/levels/first_steps.json').readAsStringSync())
+      as Map<String, Object?>,
+);
 
 final class _Game {
   /// [startAt] is the runner's feet. Defaults to the level's own spawn.
   _Game({Vector3? startAt}) {
-    LevelValidator(registry: kinds, rules: platformerRules()).assertValid(level);
+    LevelValidator(
+      registry: kinds,
+      rules: platformerRules(),
+    ).assertValid(level);
     level.addTo(world);
     // `stage` is what `main.dart` calls, so this harness is the game rather
     // than a hand copy of it that can drift away from it.
-    staged = stage(level, world, input: input, registry: kinds, startAt: startAt);
+    staged = stage(
+      level,
+      world,
+      input: input,
+      registry: kinds,
+      startAt: startAt,
+    );
   }
 
   final EntityRegistry kinds = platformerRegistry();
@@ -150,14 +159,17 @@ void main() {
     ).validate(_level());
 
     expect(
-      issues.where((LevelIssue i) => i.isError).map((LevelIssue i) => i.message),
+      issues
+          .where((LevelIssue i) => i.isError)
+          .map((LevelIssue i) => i.message),
       isEmpty,
     );
     // Overlapping brushes z-fight, and a teaching level is the last place to
     // ship a flicker. This one is built to butt rather than overlap.
     expect(
-      issues.map((LevelIssue i) => i.message).where((String m) =>
-          m.contains('overlaps')),
+      issues
+          .map((LevelIssue i) => i.message)
+          .where((String m) => m.contains('overlaps')),
       isEmpty,
     );
   });
@@ -168,11 +180,15 @@ void main() {
     // the wrong things.
     final game = _Game();
 
-    expect(_playThrough(game), isTrue,
-        reason: 'the autopilot stopped at '
-            '(${game.runner.position.x.toStringAsFixed(1)}, '
-            '${game.runner.position.y.toStringAsFixed(1)}, '
-            '${game.z.toStringAsFixed(1)})');
+    expect(
+      _playThrough(game),
+      isTrue,
+      reason:
+          'the autopilot stopped at '
+          '(${game.runner.position.x.toStringAsFixed(1)}, '
+          '${game.runner.position.y.toStringAsFixed(1)}, '
+          '${game.z.toStringAsFixed(1)})',
+    );
     expect(game.sim.nextLevel, 'assets/levels/ascent.json');
   });
 
@@ -196,11 +212,11 @@ void main() {
 
     /// The top of every brush whose footprint covers [x], [z].
     List<double> topsAt(double x, double z) => <double>[
-          for (final brush in _level().brushes)
-            if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
-                (brush.centre.z - z).abs() <= brush.size.z / 2.0)
-              brush.centre.y + brush.size.y / 2.0,
-        ];
+      for (final brush in _level().brushes)
+        if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
+            (brush.centre.z - z).abs() <= brush.size.z / 2.0)
+          brush.centre.y + brush.size.y / 2.0,
+    ];
 
     test('a step in front of it turns one climb into two', () {
       // **A claim about the level, not about a bot**, and that is not laziness.
@@ -228,14 +244,22 @@ void main() {
       expect(step, isNotEmpty, reason: 'nothing to climb at x = 9');
 
       final onto = step.reduce(math.min);
-      expect(onto - floor, lessThan(jump),
-          reason: 'the step is ${(onto - floor).toStringAsFixed(2)} m up, and a '
-              'single jump is $jump');
+      expect(
+        onto - floor,
+        lessThan(jump),
+        reason:
+            'the step is ${(onto - floor).toStringAsFixed(2)} m up, and a '
+            'single jump is $jump',
+      );
 
       final shelf = topsAt(0.0, 26.0).reduce(math.max);
-      expect(shelf - onto, lessThan(jump),
-          reason: 'from the step at $onto the shelf at $shelf is '
-              '${(shelf - onto).toStringAsFixed(2)} m, more than a jump');
+      expect(
+        shelf - onto,
+        lessThan(jump),
+        reason:
+            'from the step at $onto the shelf at $shelf is '
+            '${(shelf - onto).toStringAsFixed(2)} m, more than a jump',
+      );
     });
 
     test('and the shelf it leads onto is still worth a double jump', () {
@@ -258,17 +282,24 @@ void main() {
 
       expect(shelf, isNotEmpty, reason: 'the shelf is gone');
       final top = shelf.first.centre.y + shelf.first.size.y / 2.0;
-      expect(top, greaterThan(1.8),
-          reason: 'the shelf is ${top}m, which a single jump clears, so the '
-              'room teaches nothing');
-      expect(top, lessThan(3.13),
-          reason: 'the shelf is ${top}m, which a double jump cannot clear '
-              'either, so the room teaches nothing');
+      expect(
+        top,
+        greaterThan(1.8),
+        reason:
+            'the shelf is ${top}m, which a single jump clears, so the '
+            'room teaches nothing',
+      );
+      expect(
+        top,
+        lessThan(3.13),
+        reason:
+            'the shelf is ${top}m, which a double jump cannot clear '
+            'either, so the room teaches nothing',
+      );
     });
   });
 
-  test('nothing a player must reach is inside a wall — in both shipped levels',
-      () {
+  test('nothing a player must reach is inside a wall — in both shipped levels', () {
     // **The new rule, applied to the thing it was written for.** A test that
     // builds its own fixture proves the code path; this loads the documents the
     // game actually ships and asks about them. Fourteen coins and a crate were
@@ -285,15 +316,22 @@ void main() {
       final level = Level.fromJson(
         jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
       );
-      final buried = LevelValidator(
-        registry: platformerRegistry(),
-        rules: platformerRules(),
-      ).validate(level).where(
-            (LevelIssue i) => i.message.contains('inside solid geometry'),
-          );
+      final buried =
+          LevelValidator(
+                registry: platformerRegistry(),
+                rules: platformerRules(),
+              )
+              .validate(level)
+              .where(
+                (LevelIssue i) => i.message.contains('inside solid geometry'),
+              );
 
-      expect(buried, isEmpty,
-          reason: '$path: ${buried.map((LevelIssue i) => i.toString()).join('; ')}');
+      expect(
+        buried,
+        isEmpty,
+        reason:
+            '$path: ${buried.map((LevelIssue i) => i.toString()).join('; ')}',
+      );
     }
   });
 
@@ -324,11 +362,18 @@ void main() {
     expect(bottoms, isNotEmpty, reason: 'no roof over the passage');
 
     final gap = bottoms.reduce(math.min) - tops.reduce(math.max);
-    expect(gap, greaterThan(crouched),
-        reason: 'the passage is ${gap}m and a crouched runner is ${crouched}m');
-    expect(gap, lessThan(1.8),
-        reason: 'the passage is ${gap}m, which a standing runner walks through, '
-            'so it teaches nothing');
+    expect(
+      gap,
+      greaterThan(crouched),
+      reason: 'the passage is ${gap}m and a crouched runner is ${crouched}m',
+    );
+    expect(
+      gap,
+      lessThan(1.8),
+      reason:
+          'the passage is ${gap}m, which a standing runner walks through, '
+          'so it teaches nothing',
+    );
   });
 
   group('the shaft can be got into without knowing the wall jump', () {
@@ -348,11 +393,11 @@ void main() {
 
     /// The top of every brush whose footprint covers [x], [z].
     List<double> topsAt(double x, double z) => <double>[
-          for (final brush in _level().brushes)
-            if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
-                (brush.centre.z - z).abs() <= brush.size.z / 2.0)
-              brush.centre.y + brush.size.y / 2.0,
-        ];
+      for (final brush in _level().brushes)
+        if ((brush.centre.x - x).abs() <= brush.size.x / 2.0 &&
+            (brush.centre.z - z).abs() <= brush.size.z / 2.0)
+          brush.centre.y + brush.size.y / 2.0,
+    ];
 
     test('a step in the slot is reachable from the floor', () {
       // Mutation: delete the step. There is then nothing on the centre line
@@ -364,9 +409,13 @@ void main() {
       expect(inSlot, isNotEmpty, reason: 'nothing to climb in the slot');
 
       final onto = inSlot.reduce(math.min);
-      expect(onto - floor, lessThan(jump),
-          reason: 'the step is ${(onto - floor).toStringAsFixed(2)} m up, and a '
-              'single jump is $jump');
+      expect(
+        onto - floor,
+        lessThan(jump),
+        reason:
+            'the step is ${(onto - floor).toStringAsFixed(2)} m up, and a '
+            'single jump is $jump',
+      );
     });
 
     test('and the climb above it still needs a wall jump', () {
@@ -388,10 +437,14 @@ void main() {
             brush.centre.y + brush.size.y / 2.0,
       ].reduce(math.max);
 
-      expect(top - step, greaterThan(doubleJump),
-          reason: 'from the step at $step the chimney top at $top is '
-              '${(top - step).toStringAsFixed(2)} m, which a double jump '
-              'clears — so the room asks for nothing it set out to teach');
+      expect(
+        top - step,
+        greaterThan(doubleJump),
+        reason:
+            'from the step at $step the chimney top at $top is '
+            '${(top - step).toStringAsFixed(2)} m, which a double jump '
+            'clears — so the room asks for nothing it set out to teach',
+      );
     });
 
     test('and the step does not bury anything a player must reach', () {
@@ -422,10 +475,14 @@ void main() {
     // that teaches six verbs across a hundred and eighteen metres with nothing
     // to pick up is a corridor with lessons in it.
     final level = _level();
-    expect(level.ofType(PlatformerEntities.collectible).length,
-        greaterThanOrEqualTo(40));
-    expect(level.ofType(PlatformerEntities.crate).length,
-        greaterThanOrEqualTo(6));
+    expect(
+      level.ofType(PlatformerEntities.collectible).length,
+      greaterThanOrEqualTo(40),
+    );
+    expect(
+      level.ofType(PlatformerEntities.crate).length,
+      greaterThanOrEqualTo(6),
+    );
   });
 
   test('every room is behind the one before it', () {
@@ -443,8 +500,7 @@ void main() {
     }
   });
 
-  test('quitting halfway and coming back is the same run, through the file',
-      () {
+  test('quitting halfway and coming back is the same run, through the file', () {
     // **The end of E5, joined up.** The package proves that `save`/`restore`
     // carries the state; this proves that the game's own path carries it —
     // a real level, a real run, a real file on disk, and a second world built
@@ -463,8 +519,11 @@ void main() {
 
     final first = _Game();
     _playThrough(first, steps: 1800);
-    expect(first.runner.purse['coin'], greaterThan(0),
-        reason: 'nothing had happened yet, so nothing is under test');
+    expect(
+      first.runner.purse['coin'],
+      greaterThan(0),
+      reason: 'nothing had happened yet, so nothing is under test',
+    );
 
     saves.write('assets/levels/first_steps.json', first.sim.save());
 

@@ -49,10 +49,12 @@ void main() {
   // channel before the binding exists is an assertion rather than an effect.
   if (Playing.touch) {
     WidgetsFlutterBinding.ensureInitialized();
-    unawaited(SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]));
+    unawaited(
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]),
+    );
     // The status bar over a game is a strip of the level nobody can see, and
     // the navigation bar is a place to lose a thumb. `immersiveSticky` rather
     // than `edgeToEdge`: the bars go away and a swipe brings them back as an
@@ -62,7 +64,9 @@ void main() {
     // The comment here used to argue for `edgeToEdge` while the call said
     // `immersiveSticky`, which is worse than either being wrong — the next
     // reader trusts the sentence.
-    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky));
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+    );
   }
   runApp(const PlatformerApp());
 }
@@ -85,10 +89,10 @@ class PlatformerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        title: 'Ascent',
-        debugShowCheckedModeBanner: false,
-        home: GameScreen(openGraphics: openGraphics),
-      );
+    title: 'Ascent',
+    debugShowCheckedModeBanner: false,
+    home: GameScreen(openGraphics: openGraphics),
+  );
 }
 
 class GameScreen extends StatefulWidget {
@@ -145,6 +149,7 @@ class _GameScreenState extends State<GameScreen>
   final InputState _input = InputState();
   late final DesktopInput _devices;
   late final PadInput _pad;
+
   /// The settings screen, which is a state machine and now says so.
   ///
   /// Built in [initState] rather than inline, because it needs the devices and
@@ -160,6 +165,7 @@ class _GameScreenState extends State<GameScreen>
   final ScreenCubit _screen = ScreenCubit();
 
   late final GameLoop _loop;
+
   /// Nullable, because the device may never open.
   ///
   /// It used to be `late final`, assigned only on the success path of
@@ -206,8 +212,10 @@ class _GameScreenState extends State<GameScreen>
   ///
   /// Six fields and three methods lived here and only ever spoke to each other;
   /// see [RunnerVisuals], which is now where they are.
-  late final RunnerVisuals _runnerVisuals =
-      RunnerVisuals(model: _runnerModel, modelFacing: _modelFacing);
+  late final RunnerVisuals _runnerVisuals = RunnerVisuals(
+    model: _runnerModel,
+    modelFacing: _modelFacing,
+  );
 
   Runner? get _runner => _level?.runner;
   PlatformerSimulation? get _sim => _level?.sim;
@@ -235,11 +243,10 @@ class _GameScreenState extends State<GameScreen>
   /// Whether the machine is keeping up, and what it cost when it was not.
   final Pace _pace = Pace();
 
-
   /// Whether the music loop has been started. Once per session.
 
-
   final Vector3 _scratch = Vector3.zero();
+
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
@@ -286,7 +293,6 @@ class _GameScreenState extends State<GameScreen>
   /// Where the run was standing when it was last written to disk.
   ///
 
-
   @override
   void initState() {
     super.initState();
@@ -316,11 +322,7 @@ class _GameScreenState extends State<GameScreen>
       apply: _applyConfig,
     );
     _applyConfig(_config);
-    _loop = GameLoop(
-      input: _input,
-      onStep: _step,
-      drainLook: _drainLook,
-    );
+    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook);
     _view = RenderView(camera: _camera);
     unawaited(_openGraphics());
   }
@@ -402,8 +404,9 @@ class _GameScreenState extends State<GameScreen>
       // Which backend this is was decided at compile time by
       // `src/backend.dart`. The size is ignored by a backend that sizes itself
       // per frame, and is the canvas for one that does not.
-      device = await (widget.openGraphics?.call() ??
-          openDevice(width: kRenderWidth, height: kRenderHeight));
+      device =
+          await (widget.openGraphics?.call() ??
+              openDevice(width: kRenderWidth, height: kRenderHeight));
     } catch (error) {
       // Told to whoever is waiting as well, or a level load blocks for ever on
       // a device that is never coming.
@@ -430,14 +433,16 @@ class _GameScreenState extends State<GameScreen>
     // whose `RunCubit` this one mirrors. A level that will not load is read
     // straight off `_run.state` in [build] rather than copied into fields
     // here.
-    _run = RunCubit(PlatformerRun(
-      firstLevel: _firstLevel,
-      saves: _saveFile,
-      input: _input,
-      openDevice: () => _deviceReady.future,
-      onLevelBuilt: (LevelReady level, GraphicsDevice device) =>
-          setState(() => _levelArrived(level, device)),
-    ));
+    _run = RunCubit(
+      PlatformerRun(
+        firstLevel: _firstLevel,
+        saves: _saveFile,
+        input: _input,
+        openDevice: () => _deviceReady.future,
+        onLevelBuilt: (LevelReady level, GraphicsDevice device) =>
+            setState(() => _levelArrived(level, device)),
+      ),
+    );
 
     _ticker = createTicker(_onTick)..start();
 
@@ -445,9 +450,11 @@ class _GameScreenState extends State<GameScreen>
     // in — see `SaveFile`, which refuses to hand back a snapshot without one.
     // `begin` also falls back when the saved level is gone, which this game
     // used to handle by showing an error screen with a button on it.
-    unawaited(_run.begin().then((bool resumed) {
-      if (mounted) _screen.resumedFromDisk(resumed: resumed);
-    }));
+    unawaited(
+      _run.begin().then((bool resumed) {
+        if (mounted) _screen.resumedFromDisk(resumed: resumed);
+      }),
+    );
   }
 
   /// Starts SoLoud and swaps it in behind the mixer.
@@ -466,7 +473,6 @@ class _GameScreenState extends State<GameScreen>
     _pad.applySettings(config);
     _applyAccessibility();
   }
-
 
   /// Everything that has to happen before a settings panel is on screen.
   ///
@@ -507,8 +513,10 @@ class _GameScreenState extends State<GameScreen>
     // The system answer is the **default**, not an override: somebody who turned
     // reduce-motion on years ago should not have to find the slider, and
     // somebody who has moved the slider should not be argued with.
-    _followCamera?.motion =
-        _config.settingOf('a11y.cameraMotion', _system.cameraMotion);
+    _followCamera?.motion = _config.settingOf(
+      'a11y.cameraMotion',
+      _system.cameraMotion,
+    );
     _input.setToggled(
       GameAction.sprint,
       toggled: _config.settingOf('a11y.toggleSprint', 0.0) >= 0.5,
@@ -562,13 +570,15 @@ class _GameScreenState extends State<GameScreen>
     //
     // Compared by identity against the scene the game is showing, because that
     // is what `setState` at the end of `_readLevel` swaps.
-    unawaited(_runnerVisuals.dress(
-      device,
-      level.scene,
-      runner,
-      stillWanted: () => mounted && identical(level.scene, _scene),
-      onArrived: () => setState(() {}),
-    ));
+    unawaited(
+      _runnerVisuals.dress(
+        device,
+        level.scene,
+        runner,
+        stillWanted: () => mounted && identical(level.scene, _scene),
+        onArrived: () => setState(() {}),
+      ),
+    );
     _drawnAt = InterpolatedVector3(
       initial: runner.body.position,
       stepLimit: runner.body.tuning.stepHeight,
@@ -851,9 +861,7 @@ class _GameScreenState extends State<GameScreen>
       ..setRotation(
         Quaternion.axisAngle(
               Vector3(0.0, 1.0, 0.0),
-              _drawnYaw.read(_loop.alpha) +
-                  _runnerVisuals.facing +
-                  _pose.spin,
+              _drawnYaw.read(_loop.alpha) + _runnerVisuals.facing + _pose.spin,
             ) *
             Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), _pose.lean) *
             Quaternion.axisAngle(Vector3(0.0, 0.0, 1.0), _pose.roll),
@@ -898,7 +906,8 @@ class _GameScreenState extends State<GameScreen>
       // and it was the same four widgets in five applications.
       return DidNotStart(
         'The renderer did not start.\n\n$error',
-        explaining: 'The shader bundle is built by '
+        explaining:
+            'The shader bundle is built by '
             'packages/flutter3d_impeller/tool/build_shaders.sh and is not '
             'in the repository.',
       );
@@ -954,8 +963,12 @@ class _GameScreenState extends State<GameScreen>
           // The panel is offered only once the game has started; the title card
           // carries the same credits and is the one screen a panel over the top
           // of it adds nothing to.
-          final settingsSay =
-              settingsKeys(event, _settings, opening: _openSettings, canOpen: _screen.state.started);
+          final settingsSay = settingsKeys(
+            event,
+            _settings,
+            opening: _openSettings,
+            canOpen: _screen.state.started,
+          );
           if (settingsSay != null) return settingsSay;
           // R starts a finished run over. Handled here rather than through a
           // binding because it is not a verb the runner has: the simulation it
@@ -973,9 +986,14 @@ class _GameScreenState extends State<GameScreen>
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
-          // Desktop only. The web build reads its pointer from the layer
-          // above the platform view — see the stack below — and handling it
-          // here as well doubled every look delta.
+          // Wherever the pointer can be captured, which now includes a desktop
+          // browser: `Playing.capturesPointer` asks the capture backend and no
+          // longer a platform list. The drag-look layer above the platform view
+          // is the other half of the same question and stands down when this
+          // one answers yes — handling both at once doubled every look delta.
+          //
+          // **The capture must stay inside this handler**, because a browser
+          // refuses `requestPointerLock` without a user gesture behind it.
           onPointerDown: (_) {
             _keyboard.requestFocus();
             _begin();
@@ -1062,7 +1080,9 @@ class _GameScreenState extends State<GameScreen>
               // takes the pointers that land on it, so a thumb on the stick is
               // never also a turn of the camera. Everything the drag layer
               // still sees is screen the controls are not on.
-              if (Playing.touch && _screen.state.started && !_settings.state.isOpen)
+              if (Playing.touch &&
+                  _screen.state.started &&
+                  !_settings.state.isOpen)
                 TouchControls(
                   state: _input,
                   buttons: const <TouchAction>[
@@ -1076,9 +1096,9 @@ class _GameScreenState extends State<GameScreen>
                   prompt: Playing.touch
                       ? 'Touch to begin.'
                       : Playing.capturesPointer
-                          ? 'Click to take the mouse, or press a button on the '
-                              'pad.'
-                          : 'Click to begin, or press a button on the pad.',
+                      ? 'Click to take the mouse, or press a button on the '
+                            'pad.'
+                      : 'Click to begin, or press a button on the pad.',
                   dashOnPointer: Playing.capturesPointer,
                   touch: Playing.touch,
                   resuming: _screen.state.resumed,

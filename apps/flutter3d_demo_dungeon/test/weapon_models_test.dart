@@ -26,8 +26,11 @@ import 'package:flutter_test/flutter_test.dart';
 Map<String, Object?> _documentIn(String path) {
   final bytes = File(path).readAsBytesSync();
   final view = ByteData.sublistView(bytes);
-  expect(String.fromCharCodes(bytes.sublist(0, 4)), 'glTF',
-      reason: '$path is not a GLB');
+  expect(
+    String.fromCharCodes(bytes.sublist(0, 4)),
+    'glTF',
+    reason: '$path is not a GLB',
+  );
   final length = view.getUint32(12, Endian.little);
   return jsonDecode(utf8.decode(bytes.sublist(20, 20 + length)))
       as Map<String, Object?>;
@@ -39,11 +42,13 @@ Map<String, Object?> _documentIn(String path) {
 /// present here, so a full matrix chain would be four times the code to reach
 /// the same three numbers. A rotation about Y swaps X and Z; that is handled,
 /// and anything else would be a file this test should fail on anyway.
-({List<double> low, List<double> high}) _boundsOf(Map<String, Object?> document) {
+({List<double> low, List<double> high}) _boundsOf(
+  Map<String, Object?> document,
+) {
   final nodes = (document['nodes']! as List).cast<Map<String, Object?>>();
   final meshes = (document['meshes']! as List).cast<Map<String, Object?>>();
-  final accessors =
-      (document['accessors']! as List).cast<Map<String, Object?>>();
+  final accessors = (document['accessors']! as List)
+      .cast<Map<String, Object?>>();
   final scenes = (document['scenes']! as List).cast<Map<String, Object?>>();
 
   final low = <double>[1e9, 1e9, 1e9];
@@ -83,8 +88,8 @@ Map<String, Object?> _documentIn(String path) {
         }
       }
     }
-    for (final child in (node['children'] as List?)?.cast<int>() ??
-        const <int>[]) {
+    for (final child
+        in (node['children'] as List?)?.cast<int>() ?? const <int>[]) {
       walk(child, next, spun);
     }
   }
@@ -143,14 +148,23 @@ void main() {
           for (var axis = 0; axis < 3; axis++)
             bounds.high[axis] - bounds.low[axis],
         ];
-        expect(size[2], greaterThan(size[0]),
-            reason: '$path is wider than it is long');
-        expect(size[2], greaterThan(size[1]),
-            reason: '$path is taller than it is long');
+        expect(
+          size[2],
+          greaterThan(size[0]),
+          reason: '$path is wider than it is long',
+        );
+        expect(
+          size[2],
+          greaterThan(size[1]),
+          reason: '$path is taller than it is long',
+        );
         // More of it in front of the origin than behind: a weapon whose barrel
         // ran the other way would satisfy the two above and be back to front.
-        expect(bounds.low[2].abs(), greaterThan(bounds.high[2].abs()),
-            reason: '$path points backwards');
+        expect(
+          bounds.low[2].abs(),
+          greaterThan(bounds.high[2].abs()),
+          reason: '$path points backwards',
+        );
       }
     });
 
@@ -167,8 +181,8 @@ void main() {
       // says nothing at all is fully metallic and therefore black.
       for (final path in kWeaponModels.values) {
         final document = _documentIn(path);
-        final materials =
-            (document['materials']! as List).cast<Map<String, Object?>>();
+        final materials = (document['materials']! as List)
+            .cast<Map<String, Object?>>();
         expect(materials, isNotEmpty, reason: path);
 
         var lightest = 0.0;
@@ -176,12 +190,16 @@ void main() {
           final pbr = material['pbrMetallicRoughness'];
           expect(pbr, isA<Map<String, Object?>>(), reason: path);
           final pbrMap = pbr! as Map<String, Object?>;
-          expect(pbrMap['metallicFactor'], 0.0,
-              reason: '$path has a metallic material and will render black');
+          expect(
+            pbrMap['metallicFactor'],
+            0.0,
+            reason: '$path has a metallic material and will render black',
+          );
           final colour = (pbrMap['baseColorFactor']! as List).cast<num>();
           for (final channel in colour.take(3)) {
-            lightest =
-                channel.toDouble() > lightest ? channel.toDouble() : lightest;
+            lightest = channel.toDouble() > lightest
+                ? channel.toDouble()
+                : lightest;
           }
         }
         // The value the blocks used for gunmetal. Not brighter either: a

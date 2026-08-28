@@ -53,7 +53,8 @@ const String _off = '[0m';
 
 bool get _colour => stdout.supportsAnsiEscapes;
 
-String _paint(String text, String colour) => _colour ? '$colour$text$_off' : text;
+String _paint(String text, String colour) =>
+    _colour ? '$colour$text$_off' : text;
 
 void main(List<String> args) {
   if (args.contains('--help') || args.contains('-h')) {
@@ -83,8 +84,10 @@ void main(List<String> args) {
     for (final finding in broken) {
       stdout.writeln('  ${finding.where}: ${finding.what}');
     }
-    stdout.writeln('\nNo rule was run. A scan behind a broken detector is a '
-        'rule nobody is keeping.');
+    stdout.writeln(
+      '\nNo rule was run. A scan behind a broken detector is a '
+      'rule nobody is keeping.',
+    );
     exit(1);
   }
 
@@ -116,8 +119,10 @@ void main(List<String> args) {
   final elapsed = DateTime.now().difference(started).inMilliseconds;
 
   if (failed.isEmpty) {
-    stdout.writeln('\n${allRules.length} rules, ${elapsed}ms, '
-        '${_paint('all held', _green)}');
+    stdout.writeln(
+      '\n${allRules.length} rules, ${elapsed}ms, '
+      '${_paint('all held', _green)}',
+    );
     return;
   }
 

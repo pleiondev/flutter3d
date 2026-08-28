@@ -42,10 +42,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// output at all after ten minutes. Nothing here looks at the picture; what is
 /// being tested is that the game runs, and it runs at any size.
 Future<GraphicsDevice> _cpuDevice() async => CpuDevice(
-      width: 96,
-      height: 54,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: 96,
+  height: 54,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 /// How much time one pump carries.
 ///
@@ -176,15 +176,15 @@ void main() {
     // `MissingPluginException` on the frame the game first reads a pad.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      const MethodChannel('dev.flutter3d/gamepad/events'),
-      (MethodCall call) async => null,
-    );
+          const MethodChannel('dev.flutter3d/gamepad/events'),
+          (MethodCall call) async => null,
+        );
     // The orientation and system-chrome calls `main()` makes on a phone.
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
-      SystemChannels.platform,
-      (MethodCall call) async => null,
-    );
+          SystemChannels.platform,
+          (MethodCall call) async => null,
+        );
   });
 
   playing('it starts, says what it is, and waits to be told to play', (
@@ -193,8 +193,11 @@ void main() {
     await _launch(tester);
 
     expect(find.text('Ascent'), findsOneWidget);
-    expect(find.textContaining('The stick walks'), findsOneWidget,
-        reason: 'a phone was told about the keyboard');
+    expect(
+      find.textContaining('The stick walks'),
+      findsOneWidget,
+      reason: 'a phone was told about the keyboard',
+    );
     // Not running yet: there is no HUD behind the card to count a run nobody
     // has started.
     expect(_clock(tester), isNull);
@@ -260,14 +263,20 @@ void main() {
     await _play(tester, seconds: 0.5);
 
     expect(find.text('Ascent'), findsNothing, reason: 'the card stayed up');
-    expect(find.byType(TouchStick), findsOneWidget,
-        reason: 'a phone with no stick has no way to walk');
+    expect(
+      find.byType(TouchStick),
+      findsOneWidget,
+      reason: 'a phone with no stick has no way to walk',
+    );
 
     // **Play.** The clock advancing is the whole of "the simulation is
     // stepping", and nothing before today could say it.
     final started = _clock(tester);
-    expect(started, isNotNull,
-        reason: 'no HUD, so no run — on screen: ${_onScreen(tester)}');
+    expect(
+      started,
+      isNotNull,
+      reason: 'no HUD, so no run — on screen: ${_onScreen(tester)}',
+    );
     await _play(tester, seconds: 2.0);
     final running = _clock(tester);
     expect(running, greaterThan(started!));
@@ -281,8 +290,11 @@ void main() {
     await tester.pump();
     final stopped = _clock(tester);
     await _play(tester, seconds: 2.0);
-    expect(_clock(tester), stopped,
-        reason: 'the game kept running behind the settings');
+    expect(
+      _clock(tester),
+      stopped,
+      reason: 'the game kept running behind the settings',
+    );
 
     // **Come back.**
     await tester.tap(find.text('Back to the game'));

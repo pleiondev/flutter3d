@@ -48,16 +48,18 @@ abstract final class Effects {
       // which is the thing a per-torch phase offset would otherwise have to
       // fake.
       const ParticleTurbulence(strength: 0.55, scale: 3.0),
-      ParticleColorGradient(ParticleGradient(<GradientKey>[
-        // Three keys where there were two: real flame is white-hot at the
-        // wick, orange through the body and dark at the tip, and a straight
-        // line between the first and last passes through none of that. The
-        // first segment eases, so the drop out of the hottest part is quick
-        // and the long orange middle is where most of the life is spent.
-        GradientKey(0.0, Vector4(1.0, 0.86, 0.55, 1.0), ease: KeyEase.smooth),
-        GradientKey(0.35, Vector4(1.0, 0.66, 0.24, 1.0)),
-        GradientKey(1.0, Vector4(0.55, 0.08, 0.02, 1.0)),
-      ])),
+      ParticleColorGradient(
+        ParticleGradient(<GradientKey>[
+          // Three keys where there were two: real flame is white-hot at the
+          // wick, orange through the body and dark at the tip, and a straight
+          // line between the first and last passes through none of that. The
+          // first segment eases, so the drop out of the hottest part is quick
+          // and the long orange middle is where most of the life is spent.
+          GradientKey(0.0, Vector4(1.0, 0.86, 0.55, 1.0), ease: KeyEase.smooth),
+          GradientKey(0.35, Vector4(1.0, 0.66, 0.24, 1.0)),
+          GradientKey(1.0, Vector4(0.55, 0.08, 0.02, 1.0)),
+        ]),
+      ),
       const ParticleFade(startsAt: 0.35),
       const ParticleSizeOverLife(from: 1.0, to: 0.25),
     ],
@@ -90,14 +92,16 @@ abstract final class Effects {
       // Stronger and wider than the torch's: a plume this size has room to
       // roll, and the roll is most of what separates smoke from a grey cone.
       const ParticleTurbulence(strength: 0.9, scale: 1.2),
-      ParticleSizeCurve(ParticleCurve(<CurveKey>[
-        // Small at birth, opening quickly, then easing to a stop rather than
-        // growing at the same rate all the way out — smoke expands into still
-        // air and slows as it does.
-        const CurveKey(0.0, 0.5, ease: KeyEase.smooth),
-        const CurveKey(0.45, 1.7, ease: KeyEase.smooth),
-        const CurveKey(1.0, 2.1),
-      ])),
+      ParticleSizeCurve(
+        ParticleCurve(<CurveKey>[
+          // Small at birth, opening quickly, then easing to a stop rather than
+          // growing at the same rate all the way out — smoke expands into still
+          // air and slows as it does.
+          const CurveKey(0.0, 0.5, ease: KeyEase.smooth),
+          const CurveKey(0.45, 1.7, ease: KeyEase.smooth),
+          const CurveKey(1.0, 2.1),
+        ]),
+      ),
       const ParticleFade(startsAt: 0.25),
     ],
   );
@@ -143,10 +147,7 @@ abstract final class Effects {
   /// Sparks where a bullet met stone.
   static final ParticleEffect impactSparks = ParticleEffect(
     count: 14,
-    emitter: const ConeEmitter(
-      speed: Range(2.5, 7.0),
-      halfAngleDegrees: 42.0,
-    ),
+    emitter: const ConeEmitter(speed: Range(2.5, 7.0), halfAngleDegrees: 42.0),
     lifetime: const Range(0.12, 0.35),
     size: const Range(0.03, 0.08),
     color: Vector4(2.4, 1.6, 0.7, 1.0),
@@ -160,10 +161,7 @@ abstract final class Effects {
   /// rather than as decoration.
   static final ParticleEffect impactDust = ParticleEffect(
     count: 6,
-    emitter: const ConeEmitter(
-      speed: Range(0.4, 1.6),
-      halfAngleDegrees: 60.0,
-    ),
+    emitter: const ConeEmitter(speed: Range(0.4, 1.6), halfAngleDegrees: 60.0),
     lifetime: const Range(0.4, 0.9),
     size: const Range(0.12, 0.3),
     color: Vector4(0.30, 0.26, 0.22, 1.0),
@@ -177,10 +175,7 @@ abstract final class Effects {
   /// A brief flare at the muzzle.
   static final ParticleEffect muzzleFlash = ParticleEffect(
     count: 5,
-    emitter: const ConeEmitter(
-      speed: Range(0.5, 2.0),
-      halfAngleDegrees: 18.0,
-    ),
+    emitter: const ConeEmitter(speed: Range(0.5, 2.0), halfAngleDegrees: 18.0),
     lifetime: const Range(0.04, 0.09),
     size: const Range(0.10, 0.22),
     color: Vector4(4.0, 2.6, 1.1, 1.0),

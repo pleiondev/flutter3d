@@ -24,35 +24,37 @@ import 'package:vector_math/vector_math.dart';
 /// Small on purpose: what is being tested is the chain, and the chain runs at
 /// any size.
 GraphicsDevice _device() => CpuDevice(
-      width: 16,
-      height: 9,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
-    );
+  width: 16,
+  height: 9,
+  shaders: CpuShaderLibrary(builtinCpuShaders()),
+);
 
 String _document() => jsonEncode(<String, Object?>{
-      'version': 1,
-      'name': 'test',
-      'materials': <String, Object?>{
-        'stone': <String, Object?>{'baseColor': <double>[0.5, 0.5, 0.5, 1.0]},
-      },
-      'brushes': <Object?>[
-        <String, Object?>{
-          'at': <double>[0.0, 0.0, 0.0],
-          'size': <double>[8.0, 1.0, 8.0],
-          'material': 'stone',
-        },
-      ],
-      'entities': <Object?>[
-        // A word this editor has never heard of, which is the point of
-        // `vocabularyOf`: the game decides what a `wumpus` is worth, and an
-        // editor that refused to open a level naming one would be an editor
-        // that can only edit the games it was written beside.
-        <String, Object?>{
-          'type': 'wumpus',
-          'at': <double>[1.0, 1.0, 1.0],
-        },
-      ],
-    });
+  'version': 1,
+  'name': 'test',
+  'materials': <String, Object?>{
+    'stone': <String, Object?>{
+      'baseColor': <double>[0.5, 0.5, 0.5, 1.0],
+    },
+  },
+  'brushes': <Object?>[
+    <String, Object?>{
+      'at': <double>[0.0, 0.0, 0.0],
+      'size': <double>[8.0, 1.0, 8.0],
+      'material': 'stone',
+    },
+  ],
+  'entities': <Object?>[
+    // A word this editor has never heard of, which is the point of
+    // `vocabularyOf`: the game decides what a `wumpus` is worth, and an
+    // editor that refused to open a level naming one would be an editor
+    // that can only edit the games it was written beside.
+    <String, Object?>{
+      'type': 'wumpus',
+      'at': <double>[1.0, 1.0, 1.0],
+    },
+  ],
+});
 
 void main() {
   test('a document in memory becomes a scene', () async {
@@ -64,8 +66,11 @@ void main() {
       registry: vocabularyOf(editing.level),
     );
 
-    expect(loaded.scene.root.children, isNotEmpty,
-        reason: 'a level with a brush in it drew nothing');
+    expect(
+      loaded.scene.root.children,
+      isNotEmpty,
+      reason: 'a level with a brush in it drew nothing',
+    );
     expect(loaded.drawCallCount, greaterThan(0));
   });
 
@@ -96,7 +101,11 @@ void main() {
     final registry = vocabularyOf(editing.level);
 
     expect(registry.knows('wumpus'), isTrue);
-    expect(editing.issuesFor(registry).where((LevelIssue it) =>
-        it.message.contains('wumpus')), isEmpty);
+    expect(
+      editing
+          .issuesFor(registry)
+          .where((LevelIssue it) => it.message.contains('wumpus')),
+      isEmpty,
+    );
   });
 }

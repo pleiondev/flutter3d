@@ -71,11 +71,11 @@ abstract final class Documents {
   /// because "no such file" about a path that is plainly there is the least
   /// useful sentence a program can produce.
   static String couldNotFind(String path, List<String> tried) => <String>[
-        'no level document at "$path".',
-        'Looked in:',
-        ...tried.take(8).map((String it) => '  $it'),
-        if (tried.length > 8) '  … and ${tried.length - 8} more',
-      ].join('\n');
+    'no level document at "$path".',
+    'Looked in:',
+    ...tried.take(8).map((String it) => '  $it'),
+    if (tried.length > 8) '  … and ${tried.length - 8} more',
+  ].join('\n');
 
   /// The directory a level's own `assets/…` paths are relative to.
   ///

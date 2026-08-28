@@ -28,9 +28,9 @@ import 'package:flutter_test/flutter_test.dart';
 const double _dt = 1.0 / 60.0;
 
 Level _crypt() => Level.fromJson(
-      jsonDecode(File('assets/levels/crypt.json').readAsStringSync())
-          as Map<String, Object?>,
-    );
+  jsonDecode(File('assets/levels/crypt.json').readAsStringSync())
+      as Map<String, Object?>,
+);
 
 /// The shipped level, the shipped registry, and eyes on the result.
 final class _Run {
@@ -94,19 +94,24 @@ void main() {
       (Shown s) => identical(s.effect, Effects.muzzleFlash),
     );
     final eye = run.staged.sim.firedFrom;
-    expect(flare.at.distanceTo(eye), greaterThan(0.3),
-        reason: 'the flare is inside the player');
+    expect(
+      flare.at.distanceTo(eye),
+      greaterThan(0.3),
+      reason: 'the flare is inside the player',
+    );
     expect(flare.direction, isNotNull, reason: 'a flare with no barrel line');
   });
 
   test('and a shot that lands shows it where it landed', () {
     // Sparks and dust at the point, leaning along the surface normal. Both,
     // because one alone reads as a spark on nothing.
-    final run = _Run()
-      ..run(6, holding: <GameAction>{ShooterActions.fire});
+    final run = _Run()..run(6, holding: <GameAction>{ShooterActions.fire});
 
-    expect(run.hits.any((ShotHit h) => h.struckSomething), isTrue,
-        reason: 'nothing in the crypt was hit, so this proves nothing');
+    expect(
+      run.hits.any((ShotHit h) => h.struckSomething),
+      isTrue,
+      reason: 'nothing in the crypt was hit, so this proves nothing',
+    );
     expect(run.saw(Effects.impactSparks), isTrue);
     expect(run.saw(Effects.impactDust), isTrue);
   });
@@ -170,8 +175,14 @@ void main() {
     run.staged.player.pitch = -0.2;
     run.run(120, holding: <GameAction>{ShooterActions.fire});
 
-    expect(run.lingering.length, greaterThan(1), reason: 'only one rocket flew');
-    expect(run.lingering.map((Lingering l) => l.key).toSet(),
-        hasLength(run.lingering.length));
+    expect(
+      run.lingering.length,
+      greaterThan(1),
+      reason: 'only one rocket flew',
+    );
+    expect(
+      run.lingering.map((Lingering l) => l.key).toSet(),
+      hasLength(run.lingering.length),
+    );
   });
 }

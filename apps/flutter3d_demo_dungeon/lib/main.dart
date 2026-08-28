@@ -48,11 +48,15 @@ void main() {
   // are platform channels.
   if (Playing.touch) {
     WidgetsFlutterBinding.ensureInitialized();
-    unawaited(SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]));
-    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky));
+    unawaited(
+      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]),
+    );
+    unawaited(
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
+    );
   }
   runApp(const DungeonApp());
 }
@@ -86,8 +90,6 @@ class _GameScreenState extends State<GameScreen>
   /// think about it.
   static const double _lookSensitivity = 0.0022;
 
-
-
   final InputState _input = InputState();
 
   /// What the player has changed, and where it is kept.
@@ -98,6 +100,7 @@ class _GameScreenState extends State<GameScreen>
   /// wiring and the two lists that are this game's own.
   final SettingsFile _settingsFile = SettingsFile(appName: 'dungeon');
   late final GameConfig _config;
+
   /// The settings screen, which is a state machine and now says so.
   late final SettingsCubit _settings;
 
@@ -152,6 +155,7 @@ class _GameScreenState extends State<GameScreen>
   final EntityRegistry _entityKinds = sampleRegistry();
 
   final ParticleSystem _particles = ParticleSystem(capacity: 3000);
+
   /// The pistol, not the fists: the game starts with both, and a shooter that
   /// opens on empty hands looks unfinished.
   /// Assigned in `initState`, once there is a device to upload its models to.
@@ -209,8 +213,7 @@ class _GameScreenState extends State<GameScreen>
   bool _fogOn = true;
 
   /// Off in normal play. Turned on for a measurement.
-  static const bool _fogAlternates =
-      bool.fromEnvironment('DUNGEON_FOG_AB');
+  static const bool _fogAlternates = bool.fromEnvironment('DUNGEON_FOG_AB');
 
   final RayHit _soundRay = RayHit();
 
@@ -245,6 +248,7 @@ class _GameScreenState extends State<GameScreen>
     }
     _pad.drainLook(out);
   }
+
   SoLoudBackend? _soloud;
 
   /// Held while a mover is travelling, stopped when it arrives. A one-shot
@@ -291,18 +295,21 @@ class _GameScreenState extends State<GameScreen>
     // left stick for walking already.
     _pad = PadInput(
       state: _input,
-      bindings: (PadInput.knowsPad(_devices.bindings)
-          ? _devices.bindings
-          : PadInput.addDefaultsTo(_devices.bindings))
-        ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
-        ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire),
+      bindings:
+          (PadInput.knowsPad(_devices.bindings)
+                ? _devices.bindings
+                : PadInput.addDefaultsTo(_devices.bindings))
+            ..bind(
+              InputSource.pad(PadButton.triggerRight.id),
+              ShooterActions.fire,
+            )
+            ..bind(
+              InputSource.pad(PadButton.shoulderRight.id),
+              ShooterActions.fire,
+            ),
       slotButtons: PadInput.dpadSlots,
     );
-    _loop = GameLoop(
-      input: _input,
-      onStep: _step,
-      drainLook: _drainLook,
-    );
+    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook);
 
     _view = RenderView(camera: _camera);
 
@@ -451,16 +458,18 @@ class _GameScreenState extends State<GameScreen>
   /// chain — starting, dying, restarting, moving on, quitting and coming back —
   /// without a window.
   void _openRun(GraphicsDevice device) {
-    _run = RunCubit(DungeonRun(
-      firstLevel: _firstLevel,
-      registry: _entityKinds,
-      input: _input,
-      inventory: startingInventory(),
-      saves: SaveFile(appName: 'dungeon'),
-      eyeOffset: _eyeOffset,
-      lookSensitivity: _lookSensitivity,
-      device: device,
-    ));
+    _run = RunCubit(
+      DungeonRun(
+        firstLevel: _firstLevel,
+        registry: _entityKinds,
+        input: _input,
+        inventory: startingInventory(),
+        saves: SaveFile(appName: 'dungeon'),
+        eyeOffset: _eyeOffset,
+        lookSensitivity: _lookSensitivity,
+        device: device,
+      ),
+    );
   }
 
   /// Everything the widget has to do when a level arrives.
@@ -489,8 +498,9 @@ class _GameScreenState extends State<GameScreen>
     // A write per frame would put a file in the frame budget; a write only on
     // quit loses a level to a crash.
     _run.save();
-    for (final issue
-        in level.loaded.issues.followedBy(level.staged.navIssues)) {
+    for (final issue in level.loaded.issues.followedBy(
+      level.staged.navIssues,
+    )) {
       debugPrint('level: $issue');
     }
   }
@@ -514,7 +524,10 @@ class _GameScreenState extends State<GameScreen>
   static Bindings _defaultBindings() =>
       PadInput.addDefaultsTo(DesktopInput.defaultBindings())
         ..bind(InputSource.pad(PadButton.triggerRight.id), ShooterActions.fire)
-        ..bind(InputSource.pad(PadButton.shoulderRight.id), ShooterActions.fire);
+        ..bind(
+          InputSource.pad(PadButton.shoulderRight.id),
+          ShooterActions.fire,
+        );
 
   /// The pointer goes back and the keys are let go, before a panel is shown.
   ///
@@ -677,7 +690,11 @@ class _GameScreenState extends State<GameScreen>
     // the same reason the sound is: three private methods of a widget nothing
     // can mount meant no test in this application had ever mentioned a
     // particle.
-    _effects.show(_reactions.listen(sim, player), _particles, _system.screenFlash);
+    _effects.show(
+      _reactions.listen(sim, player),
+      _particles,
+      _system.screenFlash,
+    );
 
     // The two that are not reactions to an event. A recoil is the weapon view's
     // own animation, and the kill count is a number the HUD shows.
@@ -718,29 +735,28 @@ class _GameScreenState extends State<GameScreen>
     // what keeps it from being read before it is written.
     if (_renderer == null) return RendererFailure(error: _initError);
     return BlocConsumer<RunCubit, RunStatus<LevelReady>>(
-        bloc: _run,
-        // The three things that have to happen *when* the run changes rather
-        // than every time it is drawn: a new level needs its camera put where
-        // the player is, and an ended one needs saying out loud.
-        listener: (BuildContext context, RunStatus<LevelReady> run) {
-          switch (run) {
-            case RunPlaying<LevelReady>(
-                  :final level,
-                  outcome: RunOutcome.playing,
-                ):
-              _levelArrived(level);
-            case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
-              _effects.say('You died. Press R to try again.');
-            case RunPlaying<LevelReady>(:final level, outcome: RunOutcome.won):
-              final next = level.staged.sim.nextLevel;
-              _effects.say(next == null ? 'You are out.' : 'Level complete.');
-            case RunLoading<LevelReady>() || RunFailed<LevelReady>():
-              break;
-          }
-        },
-        builder: (BuildContext context, RunStatus<LevelReady> run) =>
-            _game(run),
-      );
+      bloc: _run,
+      // The three things that have to happen *when* the run changes rather
+      // than every time it is drawn: a new level needs its camera put where
+      // the player is, and an ended one needs saying out loud.
+      listener: (BuildContext context, RunStatus<LevelReady> run) {
+        switch (run) {
+          case RunPlaying<LevelReady>(
+            :final level,
+            outcome: RunOutcome.playing,
+          ):
+            _levelArrived(level);
+          case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
+            _effects.say('You died. Press R to try again.');
+          case RunPlaying<LevelReady>(:final level, outcome: RunOutcome.won):
+            final next = level.staged.sim.nextLevel;
+            _effects.say(next == null ? 'You are out.' : 'Level complete.');
+          case RunLoading<LevelReady>() || RunFailed<LevelReady>():
+            break;
+        }
+      },
+      builder: (BuildContext context, RunStatus<LevelReady> run) => _game(run),
+    );
   }
 
   /// The game, once the renderer, the level and the player's body all exist.
@@ -772,8 +788,11 @@ class _GameScreenState extends State<GameScreen>
           // The settings get the key first — the rebinding, Escape, and the
           // panel keeping the keys while it is open. See `settingsKeys` for why
           // that is the order.
-          final settingsSay =
-              settingsKeys(event, _settings, opening: _openSettings);
+          final settingsSay = settingsKeys(
+            event,
+            _settings,
+            opening: _openSettings,
+          );
           if (settingsSay != null) return settingsSay;
           // **R**, because a dead player pressing keys is looking for a way
           // back into the game rather than into a menu. This was the whole of
@@ -795,9 +814,16 @@ class _GameScreenState extends State<GameScreen>
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
-          // Desktop only. The web build reads its pointer from the layer above
-          // the platform view — see the stack below — because a platform view
-          // takes every pointer event over it.
+          // Wherever the pointer can be captured, which now includes a desktop
+          // browser: `Playing.capturesPointer` asks the capture backend rather
+          // than a list of platforms. The pointer reaches here on the web
+          // because the platform view holding the frame is `pointer-events:
+          // none` — see `WebGlDevice.present`, which sets it for this reason.
+          //
+          // **The capture must stay inside this handler.** A browser refuses
+          // `requestPointerLock` without a user gesture behind it, and this
+          // press is the gesture; asking after an `await` on anything slow is
+          // asking outside it.
           onPointerDown: (_) {
             _keyboard.requestFocus();
             if (!Playing.capturesPointer) return;
@@ -924,8 +950,7 @@ class _GameScreenState extends State<GameScreen>
                 ammo: _arsenal.currentAmmo,
                 pouches: <AmmoType, int>{
                   for (final type in AmmoType.values)
-                    if (type != AmmoType.none)
-                      type: _arsenal.ammoOf(type),
+                    if (type != AmmoType.none) type: _arsenal.ammoOf(type),
                 },
                 powers: _inventory.powers,
               ),

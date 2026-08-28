@@ -24,12 +24,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// The shipped file, read the way the game reads it: off disk, as bytes.
 GlbContainer _key(String game) => GlbContainer.parse(
-      Uint8List.fromList(
-        File('${game == 'platformer' ? '.' : '../flutter3d_demo_dungeon'}'
-                '/assets/models/key.glb')
-            .readAsBytesSync(),
-      ),
-    );
+  Uint8List.fromList(
+    File(
+      '${game == 'platformer' ? '.' : '../flutter3d_demo_dungeon'}'
+      '/assets/models/key.glb',
+    ).readAsBytesSync(),
+  ),
+);
 
 /// The extent of the mesh, from the accessor that carries bounds.
 ({List<double> low, List<double> high}) _bounds(GlbContainer glb) {
@@ -56,8 +57,11 @@ void main() {
         final glb = _key(game);
 
         expect(glb.json['meshes'], isNotEmpty);
-        expect(glb.binaryChunk, isNotNull,
-            reason: 'no BIN chunk: the mesh has no data');
+        expect(
+          glb.binaryChunk,
+          isNotNull,
+          reason: 'no BIN chunk: the mesh has no data',
+        );
       });
 
       test('and says where it came from, in the file itself', () {
@@ -89,8 +93,11 @@ void main() {
         final bounds = _bounds(_key(game));
 
         for (var i = 0; i < 3; i++) {
-          expect((bounds.low[i] + bounds.high[i]) / 2, closeTo(0.0, 1e-6),
-              reason: 'axis $i is off centre');
+          expect(
+            (bounds.low[i] + bounds.high[i]) / 2,
+            closeTo(0.0, 1e-6),
+            reason: 'axis $i is off centre',
+          );
         }
       });
     });

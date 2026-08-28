@@ -14,7 +14,7 @@ import 'package:vector_math/vector_math.dart';
 /// brush somebody wants to move.
 final class FlyCamera {
   FlyCamera({Vector3? at, this.yaw = 0.0, this.pitch = 0.0})
-      : position = at?.clone() ?? Vector3(0.0, 1.7, 8.0);
+    : position = at?.clone() ?? Vector3(0.0, 1.7, 8.0);
 
   final Vector3 position;
 

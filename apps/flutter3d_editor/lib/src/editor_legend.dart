@@ -15,29 +15,29 @@ final class EditorLegend extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: const Color(0xCC0E1013),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Text(
-              'W A S D fly · Q E down and up · shift faster · '
-              'scroll forward · drag to look · click to select',
-              style: TextStyle(color: Color(0xFFCBD3DD), fontSize: 12),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'arrows move · R F raise · 1 2 3 axis (${state.axis.name}) '
-              '· − = size or brightness · , . turn '
-              '· ⌘D copy · ⌫ delete '
-              '· G grid ($_gridSaid) · B lamp (${state.lampOn ? 'on' : 'off'}) '
-              '· ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
-              style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
-            ),
-          ],
+    color: const Color(0xCC0E1013),
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        const Text(
+          'W A S D fly · Q E down and up · shift faster · '
+          'scroll forward · drag to look · click to select',
+          style: TextStyle(color: Color(0xFFCBD3DD), fontSize: 12),
         ),
-      );
+        const SizedBox(height: 2),
+        Text(
+          'arrows move · R F raise · 1 2 3 axis (${state.axis.name}) '
+          '· − = size or brightness · , . turn '
+          '· ⌘D copy · ⌫ delete '
+          '· G grid ($_gridSaid) · B lamp (${state.lampOn ? 'on' : 'off'}) '
+          '· ⌘Z undo · ⌘S save · ⇧⌘S save a copy',
+          style: const TextStyle(color: Color(0xFF9AA4B2), fontSize: 12),
+        ),
+      ],
+    ),
+  );
 
   String get _gridSaid {
     final grid = state.editing.grid;

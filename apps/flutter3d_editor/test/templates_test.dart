@@ -51,57 +51,64 @@ final class _Template {
 
 /// The words each genre owns, taken from the packages rather than typed here.
 Set<String> _shooterWords() => <String>{
-      EntityTypes.playerSpawn,
-      EntityTypes.key,
-      EntityTypes.door,
-      EntityTypes.lift,
-      EntityTypes.platform,
-      EntityTypes.button,
-      EntityTypes.trigger,
-      EntityTypes.exit,
-      ShooterEntities.monster,
-      ShooterEntities.pickup,
-      ShooterEntities.note,
-      SampleEntities.torch,
-      SampleEntities.lamp,
-      SampleEntities.window,
-    };
+  EntityTypes.playerSpawn,
+  EntityTypes.key,
+  EntityTypes.door,
+  EntityTypes.lift,
+  EntityTypes.platform,
+  EntityTypes.button,
+  EntityTypes.trigger,
+  EntityTypes.exit,
+  ShooterEntities.monster,
+  ShooterEntities.pickup,
+  ShooterEntities.note,
+  SampleEntities.torch,
+  SampleEntities.lamp,
+  SampleEntities.window,
+};
 
 Set<String> _platformerWords() => <String>{
-      EntityTypes.playerSpawn,
-      EntityTypes.key,
-      EntityTypes.door,
-      EntityTypes.lift,
-      EntityTypes.platform,
-      EntityTypes.button,
-      EntityTypes.trigger,
-      EntityTypes.exit,
-      PlatformerEntities.collectible,
-      PlatformerEntities.hazard,
-      PlatformerEntities.checkpoint,
-      PlatformerEntities.crate,
-      PlatformerEntities.spring,
-      PlatformerEntities.oneWay,
-      PlatformerEntities.conveyor,
-      PlatformerEntities.crumbling,
-      PlatformerEntities.breakable,
-      PlatformerEntities.climbable,
-      PlatformerEntities.lamp,
-      PlatformerEntities.enemy,
-    };
+  EntityTypes.playerSpawn,
+  EntityTypes.key,
+  EntityTypes.door,
+  EntityTypes.lift,
+  EntityTypes.platform,
+  EntityTypes.button,
+  EntityTypes.trigger,
+  EntityTypes.exit,
+  PlatformerEntities.collectible,
+  PlatformerEntities.hazard,
+  PlatformerEntities.checkpoint,
+  PlatformerEntities.crate,
+  PlatformerEntities.spring,
+  PlatformerEntities.oneWay,
+  PlatformerEntities.conveyor,
+  PlatformerEntities.crumbling,
+  PlatformerEntities.breakable,
+  PlatformerEntities.climbable,
+  PlatformerEntities.lamp,
+  PlatformerEntities.enemy,
+};
 
 void main() {
   final templates = <_Template>[
     _Template('shooter', sampleRegistry(), sampleRules(), _shooterWords()),
-    _Template('platformer', platformerRegistry(), platformerRules(),
-        _platformerWords()),
+    _Template(
+      'platformer',
+      platformerRegistry(),
+      platformerRules(),
+      _platformerWords(),
+    ),
   ];
 
   test('there are templates at all', () {
     expect(templates, isNotEmpty);
     for (final template in templates) {
-      expect(Directory(template.where).existsSync(), isTrue,
-          reason: 'run tool/make_templates.py');
+      expect(
+        Directory(template.where).existsSync(),
+        isTrue,
+        reason: 'run tool/make_templates.py',
+      );
     }
   });
 
@@ -113,8 +120,11 @@ void main() {
         // placed it like the editor being broken.
         final offered = template.read('editor.json').keys.toSet();
 
-        expect(offered.difference(template.declared), isEmpty,
-            reason: 'the template offers a word this genre does not have');
+        expect(
+          offered.difference(template.declared),
+          isEmpty,
+          reason: 'the template offers a word this genre does not have',
+        );
       });
 
       test('and does not offer the one that would not validate', () {
@@ -143,8 +153,9 @@ void main() {
       test('and it survives being written back exactly as it is', () {
         // Otherwise the first save in a new project rewrites the whole file,
         // and the diff hides the one thing that changed.
-        final text = File('${template.where}/level.first.json')
-            .readAsStringSync();
+        final text = File(
+          '${template.where}/level.first.json',
+        ).readAsStringSync();
 
         expect(Editing.parse(text, path: 'x').write(), text);
       });
@@ -156,37 +167,47 @@ void main() {
         // into, so they are checked against the files that get copied.
         final looks = template.looks;
         final index = template.read('index.json');
-        final files = (index['files']! as Map<String, Object?>)
-            .map((String from, Object? to) => MapEntry<String, String>(to! as String, from));
+        final files = (index['files']! as Map<String, Object?>).map(
+          (String from, Object? to) =>
+              MapEntry<String, String>(to! as String, from),
+        );
 
         for (final type in template.read('editor.json').keys) {
           final model = looks.modelFor(EntityDef(type: type));
           if (model == null) continue;
-          expect(files, contains(model),
-              reason: '$type names $model, which the template does not ship');
-          expect(File('${template.where}/${files[model]}').existsSync(), isTrue);
+          expect(
+            files,
+            contains(model),
+            reason: '$type names $model, which the template does not ship',
+          );
+          expect(
+            File('${template.where}/${files[model]}').existsSync(),
+            isTrue,
+          );
         }
       });
 
-      test('and the palette of its first level offers the whole vocabulary', () {
-        // The point of a template: a level with one torch in it still offers
-        // everything the genre has, so somebody can build the rest of it.
-        final offered = paletteOf(
-          template.level,
-          declared: template.read('editor.json').keys,
-        ).map((Placeable it) => it.what).toSet();
+      test(
+        'and the palette of its first level offers the whole vocabulary',
+        () {
+          // The point of a template: a level with one torch in it still offers
+          // everything the genre has, so somebody can build the rest of it.
+          final offered = paletteOf(
+            template.level,
+            declared: template.read('editor.json').keys,
+          ).map((Placeable it) => it.what).toSet();
 
-        expect(offered, containsAll(template.read('editor.json').keys));
-      });
+          expect(offered, containsAll(template.read('editor.json').keys));
+        },
+      );
 
       test('and what it ships is what its manifest says', () {
         // The manifest is what the scaffolder copies and what the bundle test
         // walks; a file that exists and is not listed is a file that never
         // reaches a new project.
-        final listed = (template.read('index.json')['files']!
-                as Map<String, Object?>)
-            .keys
-            .toSet();
+        final listed =
+            (template.read('index.json')['files']! as Map<String, Object?>).keys
+                .toSet();
         final present = Directory(template.where)
             .listSync()
             .whereType<File>()

@@ -20,19 +20,19 @@ import 'package:vector_math/vector_math.dart';
 /// one health bar, which is right, and two *runs* sharing it would be a new
 /// game that starts where the last one died, which is not.
 Inventory startingInventory() => Inventory(
-      arsenal: Arsenal(
-        slots: Weapons.all,
-        owned: <WeaponDef>[...Weapons.all],
-        ammo: <AmmoType, int>{
-          AmmoType.bullets: 90,
-          AmmoType.shells: 30,
-          AmmoType.rockets: 12,
-        },
-        // The pistol, not the fists: the game starts with both, and a shooter
-        // that opens with your hands up is making a promise it does not keep.
-        startingSlot: 1,
-      ),
-    );
+  arsenal: Arsenal(
+    slots: Weapons.all,
+    owned: <WeaponDef>[...Weapons.all],
+    ammo: <AmmoType, int>{
+      AmmoType.bullets: 90,
+      AmmoType.shells: 30,
+      AmmoType.rockets: 12,
+    },
+    // The pistol, not the fists: the game starts with both, and a shooter
+    // that opens with your hands up is making a promise it does not keep.
+    startingSlot: 1,
+  ),
+);
 
 /// A level, spawned, with somebody standing in it ready to be stepped.
 final class Staged {
@@ -147,8 +147,7 @@ Staged stage(
   // worth having. Four times the cells and twice the bake, both load-time and
   // both small.
   final navIssues = <LevelIssue>[];
-  actors.navigation =
-      Navigation.bake(level, cellSize: 0.25, issues: navIssues);
+  actors.navigation = Navigation.bake(level, cellSize: 0.25, issues: navIssues);
 
   // One ray-caster and one shot for the whole world. The application already
   // shared the ray-caster and built the shot twice; sharing both is the same

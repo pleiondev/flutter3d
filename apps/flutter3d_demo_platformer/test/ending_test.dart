@@ -17,25 +17,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter3d_demo_platformer/src/credits.dart';
 import 'package:flutter3d_demo_platformer/src/hud.dart';
 import 'package:flutter3d_demo_platformer/src/title_card.dart';
-import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart' show RunState;
+import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart'
+    show RunState;
 import 'package:flutter_test/flutter_test.dart';
 
 Widget _hud({required bool finale}) => MaterialApp(
-      home: Hud(
-        coins: 12,
-        deaths: 4,
-        lives: 3,
-        elapsed: 610.0,
-        state: RunState.finished,
-        captured: true,
-        levelName: 'Ascent',
-        finale: finale,
-      ),
-    );
+  home: Hud(
+    coins: 12,
+    deaths: 4,
+    lives: 3,
+    elapsed: 610.0,
+    state: RunState.finished,
+    captured: true,
+    levelName: 'Ascent',
+    finale: finale,
+  ),
+);
 
-Map<String, Object?> _level(String name) => jsonDecode(
-      File('assets/levels/$name').readAsStringSync(),
-    ) as Map<String, Object?>;
+Map<String, Object?> _level(String name) =>
+    jsonDecode(File('assets/levels/$name').readAsStringSync())
+        as Map<String, Object?>;
 
 void main() {
   test('the shipped levels say which one is the last', () {
@@ -43,10 +44,16 @@ void main() {
     // The flag is `nextLevel == null`, so a third level chained after Ascent
     // would move the ending — and this is the test that would say so instead of
     // the credits quietly appearing halfway through the game.
-    expect(_level('first_steps.json')['next'], isNotNull,
-        reason: 'the tutorial is not the end of the game');
-    expect(_level('ascent.json')['next'], isNull,
-        reason: 'Ascent is the last level, and the ending belongs to it');
+    expect(
+      _level('first_steps.json')['next'],
+      isNotNull,
+      reason: 'the tutorial is not the end of the game',
+    );
+    expect(
+      _level('ascent.json')['next'],
+      isNull,
+      reason: 'Ascent is the last level, and the ending belongs to it',
+    );
   });
 
   group('the ending', () {
@@ -113,7 +120,11 @@ void main() {
       // their progress was kept is by being told.
       await tester.pumpWidget(
         const MaterialApp(
-          home: TitleCard(prompt: 'Click.', dashOnPointer: true, resuming: true),
+          home: TitleCard(
+            prompt: 'Click.',
+            dashOnPointer: true,
+            resuming: true,
+          ),
         ),
       );
 
@@ -124,7 +135,9 @@ void main() {
       WidgetTester tester,
     ) async {
       await tester.pumpWidget(
-        const MaterialApp(home: TitleCard(prompt: 'Click.', dashOnPointer: true)),
+        const MaterialApp(
+          home: TitleCard(prompt: 'Click.', dashOnPointer: true),
+        ),
       );
 
       expect(find.textContaining('checkpoint'), findsNothing);

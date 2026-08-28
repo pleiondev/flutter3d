@@ -16,29 +16,38 @@ typedef Rule = ({String name, List<Finding> Function() run});
 
 /// Every rule, in the order that fails fastest and reads best.
 List<Rule> get allRules => <Rule>[
-      (name: 'no package names a genre', run: _noGenre),
-      (name: 'no package depends on an application', run: _noApplicationDependency),
-      (name: 'nothing shares a mutable value as a constant', run: _noSharedMutables),
-      (name: 'a genre package draws only where it says', run: _genreIsolation),
-      (name: 'a genre package reaches no other genre', run: _noSidewaysGenre),
-      (name: 'a step reaches for no clock and no loose dice', run: _repeatableStep),
-      (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
-      (name: 'the engine names no backend', run: _engineNamesNoBackend),
-      (name: 'each assembly has one home per application', run: _oneAssembly),
-      (name: 'no test builds its own world', run: _noHarnessAssembly),
-      (name: 'the repository lists agree with the workspace', run: _listsAgree),
-      (name: 'every exemption names a file that is there', run: _exemptionsResolve),
-      (name: 'no application silences a print', run: _noSilencedPrints),
-      (name: 'the Impeller conformance runner is reachable', run: _conformanceRunner),
-      (name: 'the document says how many tests there are', run: _testCount),
-      (name: 'an application that draws asks its platform for the GPU',
-          run: _gpuIsEnabled),
-      (name: 'the publishing order names every package', run: _publishingOrder),
-      (name: 'the documents agree on how many rules there are',
-          run: _ruleCount),
-      (name: 'the compiled shader bundle is not older than its sources',
-          run: _shaderBundleIsCurrent),
-    ];
+  (name: 'no package names a genre', run: _noGenre),
+  (name: 'no package depends on an application', run: _noApplicationDependency),
+  (
+    name: 'nothing shares a mutable value as a constant',
+    run: _noSharedMutables,
+  ),
+  (name: 'a genre package draws only where it says', run: _genreIsolation),
+  (name: 'a genre package reaches no other genre', run: _noSidewaysGenre),
+  (name: 'a step reaches for no clock and no loose dice', run: _repeatableStep),
+  (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
+  (name: 'the engine names no backend', run: _engineNamesNoBackend),
+  (name: 'each assembly has one home per application', run: _oneAssembly),
+  (name: 'no test builds its own world', run: _noHarnessAssembly),
+  (name: 'the repository lists agree with the workspace', run: _listsAgree),
+  (name: 'every exemption names a file that is there', run: _exemptionsResolve),
+  (name: 'no application silences a print', run: _noSilencedPrints),
+  (
+    name: 'the Impeller conformance runner is reachable',
+    run: _conformanceRunner,
+  ),
+  (name: 'the document says how many tests there are', run: _testCount),
+  (
+    name: 'an application that draws asks its platform for the GPU',
+    run: _gpuIsEnabled,
+  ),
+  (name: 'the publishing order names every package', run: _publishingOrder),
+  (name: 'the documents agree on how many rules there are', run: _ruleCount),
+  (
+    name: 'the compiled shader bundle is not older than its sources',
+    run: _shaderBundleIsCurrent,
+  ),
+];
 
 // ------------------------------------------------------------------- genre
 
@@ -68,8 +77,7 @@ List<Finding> _noGenre() {
 List<Finding> _noApplicationDependency() {
   final found = <Finding>[];
   for (final entry in packages.entries) {
-    final pubspec =
-        File('${entry.value.path}/pubspec.yaml').readAsStringSync();
+    final pubspec = File('${entry.value.path}/pubspec.yaml').readAsStringSync();
     for (final app in applications) {
       if (RegExp('^\\s+$app:', multiLine: true).hasMatch(pubspec)) {
         found.add(Finding(entry.key, 'depends on the $app application'));
@@ -88,9 +96,13 @@ List<Finding> _noSharedMutables() {
     for (final file in dartFilesIn(lib)) {
       // The detector's own examples live in the rule, not in a package.
       for (final said in sharedMutablesIn(file.readAsStringSync())) {
-        found.add(Finding('${entry.key}/${relative(file, entry.value)}',
+        found.add(
+          Finding(
+            '${entry.key}/${relative(file, entry.value)}',
             '$said — the first caller to scale it in place changes it for the '
-            'whole process; return a fresh one from a getter'));
+                'whole process; return a fresh one from a getter',
+          ),
+        );
       }
     }
   }
@@ -113,9 +125,13 @@ List<Finding> _genreIsolation() {
       final path = relative(file, dir);
       if (mayDraw.contains(path)) continue;
       if (_draws(file.readAsStringSync())) {
-        found.add(Finding('$genre/$path',
+        found.add(
+          Finding(
+            '$genre/$path',
             'the simulation half draws — move it into the bridge, or add it to '
-            'genreMayDraw and say why'));
+                'genreMayDraw and say why',
+          ),
+        );
       }
     }
 
@@ -124,9 +140,13 @@ List<Finding> _genreIsolation() {
     for (final path in mayDraw) {
       final file = File('${dir.path}/$path');
       if (!file.existsSync()) {
-        found.add(Finding('$genre/$path', 'is allowed to draw and is not there'));
+        found.add(
+          Finding('$genre/$path', 'is allowed to draw and is not there'),
+        );
       } else if (!_draws(file.readAsStringSync())) {
-        found.add(Finding('$genre/$path', 'no longer draws; take it off the list'));
+        found.add(
+          Finding('$genre/$path', 'no longer draws; take it off the list'),
+        );
       }
     }
   }
@@ -142,10 +162,14 @@ List<Finding> _noSidewaysGenre() {
       for (final other in genrePackages) {
         if (other == genre) continue;
         if (reaches(file.readAsStringSync(), other)) {
-          found.add(Finding('$genre/${relative(file, dir)}',
+          found.add(
+            Finding(
+              '$genre/${relative(file, dir)}',
               'reaches $other — a racing game borrowing a platformer\'s runner '
-              'would compile, and would tie the two together for as long as '
-              'nobody looked'));
+                  'would compile, and would tie the two together for as long as '
+                  'nobody looked',
+            ),
+          );
         }
       }
     }
@@ -160,13 +184,20 @@ List<Finding> _repeatableStep() {
   for (final entry in repeatableStep.entries) {
     final dir = packages[entry.key];
     if (dir == null) {
-      found.add(Finding(entry.key, 'is in the repeatableStep table and does not '
-          'exist — the rule outlived the package'));
+      found.add(
+        Finding(
+          entry.key,
+          'is in the repeatableStep table and does not '
+          'exist — the rule outlived the package',
+        ),
+      );
       continue;
     }
     final files = dartFilesIn(Directory('${dir.path}/lib'));
     if (files.isEmpty) {
-      found.add(Finding(entry.key, 'has no lib/ — a scan of nothing proves nothing'));
+      found.add(
+        Finding(entry.key, 'has no lib/ — a scan of nothing proves nothing'),
+      );
       continue;
     }
     for (final file in files) {
@@ -174,9 +205,13 @@ List<Finding> _repeatableStep() {
       if (entry.value.containsKey(path)) continue;
       final said = unrepeatableIn(file.readAsStringSync());
       if (said != null) {
-        found.add(Finding('${entry.key}/$path',
+        found.add(
+          Finding(
+            '${entry.key}/$path',
             '$said — a step takes its randomness from a generator it was handed '
-            'and never asks the system what time it is — see ARCHITECTURE.md 9.3'));
+                'and never asks the system what time it is — see ARCHITECTURE.md 9.3',
+          ),
+        );
       }
     }
   }
@@ -194,8 +229,11 @@ List<Finding> _hardwareNamesNoApi() {
   final files = dartFilesIn(Directory('${dir.path}/lib'));
   if (files.isEmpty) {
     return <Finding>[
-      const Finding('flutter3d_hardware', 'has no lib/ — a scan that finds '
-          'nothing proves nothing'),
+      const Finding(
+        'flutter3d_hardware',
+        'has no lib/ — a scan that finds '
+            'nothing proves nothing',
+      ),
     ];
   }
 
@@ -208,16 +246,26 @@ List<Finding> _hardwareNamesNoApi() {
     }
     if (hardwareMayUseFlutter.containsKey(name)) continue;
     if (reaches(source, 'dart:ui') || reaches(source, 'package:flutter/')) {
-      found.add(Finding(where,
+      found.add(
+        Finding(
+          where,
           "reaches Flutter — this package's vocabulary is its own. If this is "
           'genuinely something every backend must answer, name it in '
-          'hardwareMayUseFlutter with the reason'));
+          'hardwareMayUseFlutter with the reason',
+        ),
+      );
     }
   }
 
-  if (File('${dir.path}/pubspec.yaml').readAsStringSync().contains('flutter_gpu')) {
-    found.add(const Finding('flutter3d_hardware',
-        'depends on a backend; backends depend on it, never the other way'));
+  if (File(
+    '${dir.path}/pubspec.yaml',
+  ).readAsStringSync().contains('flutter_gpu')) {
+    found.add(
+      const Finding(
+        'flutter3d_hardware',
+        'depends on a backend; backends depend on it, never the other way',
+      ),
+    );
   }
   return found;
 }
@@ -229,9 +277,13 @@ List<Finding> _engineNamesNoBackend() {
 
   for (final file in dartFilesIn(Directory('${dir.path}/lib'))) {
     if (reaches(file.readAsStringSync(), 'flutter_gpu')) {
-      found.add(Finding('flutter3d/${relative(file, dir)}',
+      found.add(
+        Finding(
+          'flutter3d/${relative(file, dir)}',
           'names flutter_gpu, which this package must not know exists — '
-          'whatever it needs belongs on GraphicsDevice or CommandEncoder'));
+              'whatever it needs belongs on GraphicsDevice or CommandEncoder',
+        ),
+      );
     }
   }
 
@@ -241,24 +293,38 @@ List<Finding> _engineNamesNoBackend() {
     // the umbrella library names nothing textually and still welds the engine
     // to one.
     if (pubspec.contains('\n  $forbidden:')) {
-      found.add(Finding('flutter3d',
+      found.add(
+        Finding(
+          'flutter3d',
           'depends on $forbidden — an application chooses a backend, the '
-          'engine does not'));
+              'engine does not',
+        ),
+      );
     }
   }
   if (!pubspec.contains('flutter3d_hardware:')) {
-    found.add(const Finding('flutter3d',
+    found.add(
+      const Finding(
+        'flutter3d',
         'no longer depends on the hardware layer, so it is written against '
-        'nothing and the two checks above are vacuous'));
+            'nothing and the two checks above are vacuous',
+      ),
+    );
   }
 
   for (final entry in engineAlsoFreeOfDartUi.entries) {
     final file = File('${dir.path}/${entry.key}');
     if (!file.existsSync()) {
-      found.add(Finding('flutter3d/${entry.key}',
-          'moved or was renamed; the rule moves with it'));
+      found.add(
+        Finding(
+          'flutter3d/${entry.key}',
+          'moved or was renamed; the rule moves with it',
+        ),
+      );
     } else if (reaches(file.readAsStringSync(), 'dart:ui')) {
-      found.add(Finding('flutter3d/${entry.key}', 'reaches dart:ui — ${entry.value}'));
+      found.add(
+        Finding('flutter3d/${entry.key}', 'reaches dart:ui — ${entry.value}'),
+      );
     }
   }
   return found;
@@ -284,16 +350,22 @@ List<Finding> _oneAssembly() {
       final code = _assemblyCode(file.readAsStringSync());
       for (final call in assemblyCalls) {
         if (code.contains(call)) {
-          homes.putIfAbsent(call, () => <String>[]).add(relative(file, entry.value));
+          homes
+              .putIfAbsent(call, () => <String>[])
+              .add(relative(file, entry.value));
         }
       }
     }
     for (final call in homes.entries) {
       if (call.value.length > 1) {
-        found.add(Finding(entry.key,
+        found.add(
+          Finding(
+            entry.key,
             'calls ${call.key} in ${call.value.length} places — '
             '${call.value.join(', ')}. The second is a second answer to what a '
-            'level contains, and it will disagree with the first'));
+            'level contains, and it will disagree with the first',
+          ),
+        );
       }
     }
   }
@@ -306,7 +378,9 @@ List<Finding> _oneAssembly() {
     found.add(const Finding('applications', 'no demo game is named `_demo_`'));
   }
   for (final demo in demos) {
-    final staging = File('${repositoryRoot.path}/apps/$demo/lib/src/staging.dart');
+    final staging = File(
+      '${repositoryRoot.path}/apps/$demo/lib/src/staging.dart',
+    );
     if (!staging.existsSync()) {
       found.add(Finding(demo, 'has no one place that assembles a run'));
     }
@@ -321,9 +395,13 @@ List<Finding> _noHarnessAssembly() {
       final code = _assemblyCode(file.readAsStringSync());
       for (final call in assemblyCalls) {
         if (code.contains(call)) {
-          found.add(Finding('${entry.key}/${relative(file, entry.value)}',
+          found.add(
+            Finding(
+              '${entry.key}/${relative(file, entry.value)}',
               "calls $call — a harness that is not the game is a harness that "
-              "agrees with any bug the game has. Call the game's own stage()"));
+                  "agrees with any bug the game has. Call the game's own stage()",
+            ),
+          );
         }
       }
     }
@@ -335,8 +413,9 @@ List<Finding> _noHarnessAssembly() {
 
 List<Finding> _listsAgree() {
   final found = <Finding>[];
-  final workspace =
-      File('${repositoryRoot.path}/pubspec.yaml').readAsStringSync();
+  final workspace = File(
+    '${repositoryRoot.path}/pubspec.yaml',
+  ).readAsStringSync();
   final members = <String>[
     for (final line in workspace.split('\n'))
       if (RegExp(r'^\s+-\s+(packages|apps)/').hasMatch(line)) line.trim(),
@@ -348,9 +427,13 @@ List<Finding> _listsAgree() {
   };
   if (applications.toSet().difference(inWorkspace).isNotEmpty ||
       inWorkspace.difference(applications.toSet()).isNotEmpty) {
-    found.add(Finding('applications',
+    found.add(
+      Finding(
+        'applications',
         'the list and the workspace disagree: list has '
-        '${applications.join(', ')}; workspace has ${inWorkspace.join(', ')}'));
+            '${applications.join(', ')}; workspace has ${inWorkspace.join(', ')}',
+      ),
+    );
   }
 
   final genresInWorkspace = <String>{
@@ -360,10 +443,14 @@ List<Finding> _listsAgree() {
   };
   if (genrePackages.toSet().difference(genresInWorkspace).isNotEmpty ||
       genresInWorkspace.difference(genrePackages.toSet()).isNotEmpty) {
-    found.add(Finding('genrePackages',
+    found.add(
+      Finding(
+        'genrePackages',
         'the list and the workspace disagree: list has '
-        '${genrePackages.join(', ')}; workspace has '
-        '${genresInWorkspace.join(', ')}'));
+            '${genrePackages.join(', ')}; workspace has '
+            '${genresInWorkspace.join(', ')}',
+      ),
+    );
   }
   return found;
 }
@@ -379,9 +466,27 @@ List<Finding> _listsAgree() {
 /// that is what reads well in each. Both are checked.
 List<Finding> _ruleCount() {
   const List<String> words = <String>[
-    'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight',
-    'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
-    'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty',
+    'zero',
+    'one',
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+    'ten',
+    'eleven',
+    'twelve',
+    'thirteen',
+    'fourteen',
+    'fifteen',
+    'sixteen',
+    'seventeen',
+    'eighteen',
+    'nineteen',
+    'twenty',
   ];
   final actual = allRules.length;
   final found = <Finding>[];
@@ -394,9 +499,13 @@ List<Finding> _ruleCount() {
     }
     final match = pattern.firstMatch(file.readAsStringSync());
     if (match == null) {
-      found.add(Finding(path,
+      found.add(
+        Finding(
+          path,
           'no longer says how many rules there are, so nothing here can '
-          'tell whether it is right'));
+          'tell whether it is right',
+        ),
+      );
       return;
     }
     final said = read(match.group(1)!);
@@ -405,15 +514,25 @@ List<Finding> _ruleCount() {
     }
   }
 
-  check('README.md', RegExp(r'its (\w+) rules'),
-      (String word) => '${words.indexOf(word)}');
-  check('ARCHITECTURE.md', RegExp(r'Structure rules \| (\d+),'),
-      (String digits) => digits);
+  check(
+    'README.md',
+    RegExp(r'its (\w+) rules'),
+    (String word) => '${words.indexOf(word)}',
+  );
+  check(
+    'ARCHITECTURE.md',
+    RegExp(r'Structure rules \| (\d+),'),
+    (String digits) => digits,
+  );
 
   if (actual >= words.length) {
-    found.add(Finding('tool/structure/rules.dart',
+    found.add(
+      Finding(
+        'tool/structure/rules.dart',
         'there are $actual rules and this check can only spell '
-        '${words.length - 1}. Extend the list.'));
+            '${words.length - 1}. Extend the list.',
+      ),
+    );
   }
   return found;
 }
@@ -447,8 +566,10 @@ List<Finding> _gpuIsEnabled() {
     if (!pubspec.existsSync()) continue;
     // An application that does not reach the engine draws nothing through it
     // and has nothing to enable.
-    if (!RegExp(r'^\s+flutter3d(_app|_backend)?:', multiLine: true)
-        .hasMatch(pubspec.readAsStringSync())) {
+    if (!RegExp(
+      r'^\s+flutter3d(_app|_backend)?:',
+      multiLine: true,
+    ).hasMatch(pubspec.readAsStringSync())) {
       continue;
     }
 
@@ -456,20 +577,28 @@ List<Finding> _gpuIsEnabled() {
       final plist = File('${entry.value.path}/$platform/Runner/Info.plist');
       if (!plist.existsSync()) continue;
       if (!plist.readAsStringSync().contains(appleKey)) {
-        found.add(Finding('${entry.key}/$platform/Runner/Info.plist',
+        found.add(
+          Finding(
+            '${entry.key}/$platform/Runner/Info.plist',
             'has no $appleKey, so the shader library will not initialise and '
-            'the application draws nothing'));
+                'the application draws nothing',
+          ),
+        );
       }
     }
 
     final manifest = File(
-        '${entry.value.path}/android/app/src/main/AndroidManifest.xml');
+      '${entry.value.path}/android/app/src/main/AndroidManifest.xml',
+    );
     if (manifest.existsSync() &&
         !manifest.readAsStringSync().contains(androidKey)) {
-      found.add(Finding(
+      found.add(
+        Finding(
           '${entry.key}/android/app/src/main/AndroidManifest.xml',
           'has no $androidKey meta-data; the engine defaults it to false, so '
-          'the application draws nothing'));
+              'the application draws nothing',
+        ),
+      );
     }
   }
   return found;
@@ -497,9 +626,11 @@ List<Finding> _publishingOrder() {
   final steps = text.split('**The order, when the day comes**');
   if (steps.length != 2) {
     return <Finding>[
-      const Finding('ARCHITECTURE.md',
-          'no longer names the publishing order, so nothing here can tell '
-          'whether every package is in it'),
+      const Finding(
+        'ARCHITECTURE.md',
+        'no longer names the publishing order, so nothing here can tell '
+            'whether every package is in it',
+      ),
     ];
   }
 
@@ -529,14 +660,22 @@ List<Finding> _publishingOrder() {
   final found = <Finding>[];
   for (final name in packages.keys.toList()..sort()) {
     if (!listed.contains(name)) {
-      found.add(Finding('ARCHITECTURE.md',
-          '$name is a package and is not in the publishing order'));
+      found.add(
+        Finding(
+          'ARCHITECTURE.md',
+          '$name is a package and is not in the publishing order',
+        ),
+      );
     }
   }
   for (final name in listed.toList()..sort()) {
     if (!packages.containsKey(name)) {
-      found.add(Finding('ARCHITECTURE.md',
-          '$name is in the publishing order and is not a package'));
+      found.add(
+        Finding(
+          'ARCHITECTURE.md',
+          '$name is in the publishing order and is not a package',
+        ),
+      );
     }
   }
   return found;
@@ -565,20 +704,24 @@ List<Finding> _exemptionsResolve() {
       found.add(Finding(label, '$package is not there'));
       return;
     }
-    final real = dartFilesIn(Directory(dir.path))
-        .map((File f) => relative(f, dir))
-        .toSet();
+    final real = dartFilesIn(
+      Directory(dir.path),
+    ).map((File f) => relative(f, dir)).toSet();
     if (!real.contains(path)) {
       final near = real.firstWhere(
         (String r) => r.toLowerCase() == path.toLowerCase(),
         orElse: () => '',
       );
-      found.add(Finding('$label → $package/$path',
+      found.add(
+        Finding(
+          '$label → $package/$path',
           near.isEmpty
               ? 'names a file that is not there; the exemption is wider than '
-                  'it reads'
+                    'it reads'
               : 'is spelled differently from the file, which is `$near`. That '
-                  'resolves on a case-insensitive filesystem and not on Linux'));
+                    'resolves on a case-insensitive filesystem and not on Linux',
+        ),
+      );
     }
   }
 
@@ -600,13 +743,17 @@ List<Finding> _exemptionsResolve() {
   // that is what the rule matches on. Same rot, same case trap.
   final hardware = packages['flutter3d_hardware'];
   if (hardware != null) {
-    final names = dartFilesIn(Directory(hardware.path))
-        .map((File f) => f.uri.pathSegments.last)
-        .toSet();
+    final names = dartFilesIn(
+      Directory(hardware.path),
+    ).map((File f) => f.uri.pathSegments.last).toSet();
     for (final name in hardwareMayUseFlutter.keys) {
       if (!names.contains(name)) {
-        found.add(Finding('hardwareMayUseFlutter → $name',
-            'no file in flutter3d_hardware is called that'));
+        found.add(
+          Finding(
+            'hardwareMayUseFlutter → $name',
+            'no file in flutter3d_hardware is called that',
+          ),
+        );
       }
     }
   }
@@ -625,8 +772,12 @@ List<Finding> _noSilencedPrints() {
       final lines = file.readAsLinesSync();
       for (var i = 0; i < lines.length; i++) {
         if (RegExp(r'ignore.*avoid_print').hasMatch(lines[i])) {
-          found.add(Finding('${entry.key}/${relative(file, entry.value)}:${i + 1}',
-              'a print in an application, with the lint silenced above it'));
+          found.add(
+            Finding(
+              '${entry.key}/${relative(file, entry.value)}:${i + 1}',
+              'a print in an application, with the lint silenced above it',
+            ),
+          );
         }
       }
     }
@@ -647,8 +798,10 @@ List<Finding> _conformanceRunner() {
   final script = File('${dir.path}/tool/conformance.sh');
   if (!script.existsSync()) {
     return <Finding>[
-      const Finding('flutter3d_impeller/tool/conformance.sh',
-          'is how this backend is checked, and it is not there'),
+      const Finding(
+        'flutter3d_impeller/tool/conformance.sh',
+        'is how this backend is checked, and it is not there',
+      ),
     ];
   }
   // The owner-execute bit, which is a POSIX idea. Windows reports a mode of
@@ -656,31 +809,52 @@ List<Finding> _conformanceRunner() {
   // that cannot run a shell script in the first place — a false red about
   // something the developer could not act on.
   if (!Platform.isWindows && script.statSync().mode & 0x40 == 0) {
-    found.add(const Finding('flutter3d_impeller/tool/conformance.sh',
-        'is not executable, so the one thing that runs the checks cannot run'));
+    found.add(
+      const Finding(
+        'flutter3d_impeller/tool/conformance.sh',
+        'is not executable, so the one thing that runs the checks cannot run',
+      ),
+    );
   }
 
   final source = script.readAsStringSync();
   if (!source.contains('lib/conformance_main.dart')) {
-    found.add(const Finding('flutter3d_impeller/tool/conformance.sh',
-        'no longer names the entry point it drives'));
+    found.add(
+      const Finding(
+        'flutter3d_impeller/tool/conformance.sh',
+        'no longer names the entry point it drives',
+      ),
+    );
   }
 
   final app = File(
-      '${repositoryRoot.path}/packages/flutter3d/example/lib/conformance_main.dart');
+    '${repositoryRoot.path}/packages/flutter3d/example/lib/conformance_main.dart',
+  );
   if (!app.existsSync()) {
-    found.add(const Finding('flutter3d/example/lib/conformance_main.dart',
-        'the script drives an entry point that is not there'));
+    found.add(
+      const Finding(
+        'flutter3d/example/lib/conformance_main.dart',
+        'the script drives an entry point that is not there',
+      ),
+    );
     return found;
   }
   final appSource = app.readAsStringSync();
   if (!appSource.contains('passed, ')) {
-    found.add(const Finding('flutter3d/example/lib/conformance_main.dart',
-        'no longer prints the line the script reads its verdict from'));
+    found.add(
+      const Finding(
+        'flutter3d/example/lib/conformance_main.dart',
+        'no longer prints the line the script reads its verdict from',
+      ),
+    );
   }
   if (!appSource.contains('exit(')) {
-    found.add(const Finding('flutter3d/example/lib/conformance_main.dart',
-        'no longer exits with a code, so the script would wait for ever'));
+    found.add(
+      const Finding(
+        'flutter3d/example/lib/conformance_main.dart',
+        'no longer exits with a code, so the script would wait for ever',
+      ),
+    );
   }
   return found;
 }
@@ -703,23 +877,120 @@ List<Finding> _testCount() {
     }
   }
 
-  final document = File('${root.path}/ARCHITECTURE.md').readAsStringSync();
-  final claimed = RegExp(r'\*\*(\d+) tests\*\*').firstMatch(document);
+  // **Two documents, because checking one of them taught the other to lie.**
+  // ARCHITECTURE.md was held to this count and stayed right; the README, which
+  // nothing checked, went on saying "1242 tests across thirteen packages" while
+  // the architecture document beside it said 2874 across 22. A reader who finds
+  // two numbers in one repository disagreeing has no way to tell which of the
+  // others to trust.
+  final found = <Finding>[];
+
+  final architecture = File('${root.path}/ARCHITECTURE.md').readAsStringSync();
+  final claimed = RegExp(
+    r'\*\*(\d+) tests\*\* across (\d+) packages',
+  ).firstMatch(architecture);
   if (claimed == null) {
-    return <Finding>[
-      const Finding('ARCHITECTURE.md',
-          'no test count to compare against, so nothing here can tell whether '
-          'it is right'),
-    ];
-  }
-  if (claimed.group(1) != '$counted') {
-    return <Finding>[
-      Finding('ARCHITECTURE.md',
+    found.add(
+      const Finding(
+        'ARCHITECTURE.md',
+        'no test count to compare against, so nothing here can tell whether '
+            'it is right',
+      ),
+    );
+  } else {
+    if (claimed.group(1) != '$counted') {
+      found.add(
+        Finding(
+          'ARCHITECTURE.md',
           'says ${claimed.group(1)} tests; there are $counted. '
-          'Update the document, or say why the count moved'),
-    ];
+              'Update the document, or say why the count moved',
+        ),
+      );
+    }
+    if (claimed.group(2) != '${packages.length}') {
+      found.add(
+        Finding(
+          'ARCHITECTURE.md',
+          'says ${claimed.group(2)} packages; there are ${packages.length}',
+        ),
+      );
+    }
   }
-  return const <Finding>[];
+
+  // The README says it in words, because that is what reads well in prose —
+  // and a word is exactly the kind of number that is never recounted.
+  const List<String> words = <String>[
+    'zero',
+    'one',
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+    'ten',
+    'eleven',
+    'twelve',
+    'thirteen',
+    'fourteen',
+    'fifteen',
+    'sixteen',
+    'seventeen',
+    'eighteen',
+    'nineteen',
+    'twenty',
+    'twenty-one',
+    'twenty-two',
+    'twenty-three',
+    'twenty-four',
+    'twenty-five',
+  ];
+  final readme = File('${root.path}/README.md').readAsStringSync();
+  final saidInProse = RegExp(
+    r'(\d+) tests across ([a-z-]+) packages',
+  ).firstMatch(readme);
+  if (saidInProse == null) {
+    found.add(
+      const Finding(
+        'README.md',
+        'no longer says how many tests there are, so nothing here can tell '
+            'whether it is right',
+      ),
+    );
+    return found;
+  }
+  if (saidInProse.group(1) != '$counted') {
+    found.add(
+      Finding(
+        'README.md',
+        'says ${saidInProse.group(1)} tests; there are $counted',
+      ),
+    );
+  }
+  // Packages with a test in them, which is what the README's sentence is
+  // about: the number of packages is a different fact and lives in the other
+  // document.
+  final tested = <String>{
+    for (final entry in packages.entries)
+      if (dartFilesIn(Directory('${entry.value.path}/test')).isNotEmpty ||
+          dartFilesIn(Directory('${entry.value.path}/example/test')).isNotEmpty)
+        entry.key,
+  };
+  final expected = tested.length < words.length
+      ? words[tested.length]
+      : '${tested.length}';
+  if (saidInProse.group(2) != expected) {
+    found.add(
+      Finding(
+        'README.md',
+        'says ${saidInProse.group(2)} packages have tests; '
+            '${tested.length} do ($expected)',
+      ),
+    );
+  }
+  return found;
 }
 
 /// The compiled shader bundle is not older than the GLSL it was built from.
@@ -756,9 +1027,9 @@ List<Finding> _shaderBundleIsCurrent() {
 
   final built = bundle.lastModifiedSync();
   final newer = <String>[];
-  for (final file in Directory('${sources.path}/shaders')
-      .listSync(recursive: true)
-      .whereType<File>()) {
+  for (final file in Directory(
+    '${sources.path}/shaders',
+  ).listSync(recursive: true).whereType<File>()) {
     if (!file.path.endsWith('.frag') &&
         !file.path.endsWith('.vert') &&
         !file.path.endsWith('.glsl')) {

@@ -30,7 +30,9 @@ void main() {
     final found = Documents.find(
       '../flutter3d_demo_dungeon/assets/levels/crypt.json',
       from: roots,
-      exists: _disk(<String>{'/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json'}),
+      exists: _disk(<String>{
+        '/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
+      }),
     );
 
     expect(found, '/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json');
@@ -44,7 +46,9 @@ void main() {
     final found = Documents.find(
       'apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
       from: roots,
-      exists: _disk(<String>{'/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json'}),
+      exists: _disk(<String>{
+        '/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
+      }),
     );
 
     expect(found, '/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json');
@@ -67,7 +71,10 @@ void main() {
       }),
     );
 
-    expect(found, '/elsewhere/apps/flutter3d_demo_dungeon/assets/levels/crypt.json');
+    expect(
+      found,
+      '/elsewhere/apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
+    );
   });
 
   test('and an absolute path is only ever itself', () {
@@ -75,8 +82,10 @@ void main() {
     // second-guessing them — and would open a different file with the same name
     // somewhere up the tree, which is worse than failing.
     expect(
-      Documents.candidates('/tmp/one.json',
-          from: Documents.searchFrom(executable: executable, working: '/repo')),
+      Documents.candidates(
+        '/tmp/one.json',
+        from: Documents.searchFrom(executable: executable, working: '/repo'),
+      ),
       <String>['/tmp/one.json'],
     );
   });
@@ -99,12 +108,18 @@ void main() {
       from: Documents.searchFrom(executable: executable, working: '/repo'),
     );
 
-    final said = Documents.couldNotFind('../flutter3d_demo_dungeon/x.json', tried);
+    final said = Documents.couldNotFind(
+      '../flutter3d_demo_dungeon/x.json',
+      tried,
+    );
 
     expect(said, contains('Looked in:'));
     expect(said, contains('/flutter3d_demo_dungeon/x.json'));
-    expect(said.split('\n').length, lessThan(12),
-        reason: 'it printed the whole tree at somebody');
+    expect(
+      said.split('\n').length,
+      lessThan(12),
+      reason: 'it printed the whole tree at somebody',
+    );
   });
 
   group('the paths it builds', () {
@@ -114,7 +129,10 @@ void main() {
         from: <String>['/repo/apps/flutter3d_editor'],
       );
 
-      expect(built.single, '/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json');
+      expect(
+        built.single,
+        '/repo/apps/flutter3d_demo_dungeon/assets/levels/crypt.json',
+      );
     });
 
     test('and a climb reaches the root and stops there', () {

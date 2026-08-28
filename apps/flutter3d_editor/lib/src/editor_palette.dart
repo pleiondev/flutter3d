@@ -49,7 +49,10 @@ final class EditorPalette extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  for (final it in paletteOf(editing.level, declared: state.looks.types))
+                  for (final it in paletteOf(
+                    editing.level,
+                    declared: state.looks.types,
+                  ))
                     PaletteRow(
                       it: it,
                       held: state.placing?.what == it.what,
@@ -58,15 +61,18 @@ final class EditorPalette extends StatelessWidget {
                       // rather than a second column of buttons: the palette is
                       // a list somebody reads, and a row of eyes down the side
                       // of it is a row of eyes to read past every time.
-                      onHide: () => context
-                          .read<EditorCubit>()
-                          .toggleHidden(it.what, label: it.label),
+                      onHide: () => context.read<EditorCubit>().toggleHidden(
+                        it.what,
+                        label: it.label,
+                      ),
                       onTap: () {
                         // Tapping what is already held puts it down, which is
                         // the only way out somebody will guess at before they
                         // find Escape.
                         final cubit = context.read<EditorCubit>();
-                        cubit.setPlacing(state.placing?.what == it.what ? null : it);
+                        cubit.setPlacing(
+                          state.placing?.what == it.what ? null : it,
+                        );
                       },
                     ),
                 ],
@@ -111,48 +117,46 @@ final class PaletteRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InkWell(
-        onTap: () => HardwareKeyboard.instance.isAltPressed ? onHide() : onTap(),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          color: held ? const Color(0x33FFB74D) : null,
-          foregroundDecoration: hidden
-              ? const BoxDecoration(color: Color(0x99000000))
-              : null,
-          child: Row(
-            children: <Widget>[
-              Container(
-                width: 10,
-                height: 10,
-                decoration: BoxDecoration(
-                  color: Color.fromARGB(
-                    255,
-                    (it.tint.x * 255).round().clamp(0, 255),
-                    (it.tint.y * 255).round().clamp(0, 255),
-                    (it.tint.z * 255).round().clamp(0, 255),
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+    onTap: () => HardwareKeyboard.instance.isAltPressed ? onHide() : onTap(),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      color: held ? const Color(0x33FFB74D) : null,
+      foregroundDecoration: hidden
+          ? const BoxDecoration(color: Color(0x99000000))
+          : null,
+      child: Row(
+        children: <Widget>[
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: Color.fromARGB(
+                255,
+                (it.tint.x * 255).round().clamp(0, 255),
+                (it.tint.y * 255).round().clamp(0, 255),
+                (it.tint.z * 255).round().clamp(0, 255),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  it.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: held
-                        ? const Color(0xFFFFB74D)
-                        : const Color(0xFFE6EAF0),
-                    fontSize: 12,
-                    fontWeight: held ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                ),
-              ),
-              Text(
-                '${it.count}',
-                style: const TextStyle(color: Color(0xFF6F7885), fontSize: 11),
-              ),
-            ],
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-      );
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              it.label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: held ? const Color(0xFFFFB74D) : const Color(0xFFE6EAF0),
+                fontSize: 12,
+                fontWeight: held ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          ),
+          Text(
+            '${it.count}',
+            style: const TextStyle(color: Color(0xFF6F7885), fontSize: 11),
+          ),
+        ],
+      ),
+    ),
+  );
 }

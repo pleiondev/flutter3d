@@ -38,8 +38,11 @@ void main() {
 
     _fly(camera, input);
 
-    expect(camera.position.z, closeTo(-camera.speed, 1e-6),
-        reason: 'a camera at rest looks down -Z, as every node here does');
+    expect(
+      camera.position.z,
+      closeTo(-camera.speed, 1e-6),
+      reason: 'a camera at rest looks down -Z, as every node here does',
+    );
     expect(camera.position.x, closeTo(0.0, 1e-6));
   });
 
@@ -54,10 +57,16 @@ void main() {
 
     _fly(camera, input);
 
-    expect(camera.position.y, closeTo(5.0, 1e-6),
-        reason: 'it walked into the floor');
-    expect(camera.position.z, lessThan(-1.0),
-        reason: 'it went nowhere: looking down took all the movement');
+    expect(
+      camera.position.y,
+      closeTo(5.0, 1e-6),
+      reason: 'it walked into the floor',
+    );
+    expect(
+      camera.position.z,
+      lessThan(-1.0),
+      reason: 'it went nowhere: looking down took all the movement',
+    );
   });
 
   test('and looking at the ceiling does not fly off into the sky', () {
@@ -79,8 +88,11 @@ void main() {
 
     _fly(camera, input);
 
-    expect(camera.position.length, greaterThan(1.0),
-        reason: 'it stood still because it was looking up');
+    expect(
+      camera.position.length,
+      greaterThan(1.0),
+      reason: 'it stood still because it was looking up',
+    );
   });
 
   test('and turning ninety degrees turns what forward means', () {
@@ -171,8 +183,11 @@ void main() {
 
     expect(camera.pitch, lessThan(math.pi / 2));
     expect(camera.forward.length, closeTo(1.0, 1e-6));
-    expect(camera.right.y, closeTo(0.0, 1e-9),
-        reason: 'the horizon is rolling');
+    expect(
+      camera.right.y,
+      closeTo(0.0, 1e-9),
+      reason: 'the horizon is rolling',
+    );
   });
 
   test('and the horizon stays level however far it is tilted', () {
@@ -184,7 +199,10 @@ void main() {
     final input = InputState()..press(_right);
     _fly(camera, input);
 
-    expect(camera.position.y, closeTo(0.0, 1e-6),
-        reason: 'strafing sideways changed the height');
+    expect(
+      camera.position.y,
+      closeTo(0.0, 1e-6),
+      reason: 'strafing sideways changed the height',
+    );
   });
 }

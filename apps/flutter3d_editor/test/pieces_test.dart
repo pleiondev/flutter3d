@@ -19,43 +19,51 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 String _document() => jsonEncode(<String, Object?>{
-      'version': 1,
-      'name': 'test',
-      'materials': <String, Object?>{
-        'stone': <String, Object?>{'baseColor': <double>[0.5, 0.5, 0.5, 1.0]},
-      },
-      'brushes': <Object?>[
-        <String, Object?>{
-          'at': <double>[0.0, 0.0, -10.0],
-          'size': <double>[20.0, 4.0, 1.0],
-          'material': 'stone',
-        },
-      ],
-      'lights': <Object?>[
-        <String, Object?>{
-          'type': 'point',
-          'at': <double>[0.0, 2.0, -4.0],
-          'color': <double>[1.0, 0.6, 0.2],
-          'intensity': 4.0,
-          'range': 9.0,
-        },
-      ],
-      'entities': <Object?>[
-        <String, Object?>{'type': 'player_spawn', 'at': <double>[0.0, 0.0, 8.0]},
-        // A torch **on** the wall, which in a document means inside it: the
-        // wall runs from z = -9.5 to z = -10.5 and the torch sits in the middle
-        // of it, a quarter of a metre behind the face a ray meets first.
-        <String, Object?>{'type': 'torch', 'at': <double>[-4.0, 1.0, -10.0]},
-        <String, Object?>{
-          'type': 'monster',
-          'at': <double>[2.0, 1.0, -6.0],
-          'yaw': 1.5,
-          'name': 'ghoul',
-          // A property this editor has never heard of and must not lose.
-          'patrol': <Object?>['a', 'b'],
-        },
-      ],
-    });
+  'version': 1,
+  'name': 'test',
+  'materials': <String, Object?>{
+    'stone': <String, Object?>{
+      'baseColor': <double>[0.5, 0.5, 0.5, 1.0],
+    },
+  },
+  'brushes': <Object?>[
+    <String, Object?>{
+      'at': <double>[0.0, 0.0, -10.0],
+      'size': <double>[20.0, 4.0, 1.0],
+      'material': 'stone',
+    },
+  ],
+  'lights': <Object?>[
+    <String, Object?>{
+      'type': 'point',
+      'at': <double>[0.0, 2.0, -4.0],
+      'color': <double>[1.0, 0.6, 0.2],
+      'intensity': 4.0,
+      'range': 9.0,
+    },
+  ],
+  'entities': <Object?>[
+    <String, Object?>{
+      'type': 'player_spawn',
+      'at': <double>[0.0, 0.0, 8.0],
+    },
+    // A torch **on** the wall, which in a document means inside it: the
+    // wall runs from z = -9.5 to z = -10.5 and the torch sits in the middle
+    // of it, a quarter of a metre behind the face a ray meets first.
+    <String, Object?>{
+      'type': 'torch',
+      'at': <double>[-4.0, 1.0, -10.0],
+    },
+    <String, Object?>{
+      'type': 'monster',
+      'at': <double>[2.0, 1.0, -6.0],
+      'yaw': 1.5,
+      'name': 'ghoul',
+      // A property this editor has never heard of and must not lose.
+      'patrol': <Object?>['a', 'b'],
+    },
+  ],
+});
 
 Editing _open() => Editing.parse(_document(), path: '/levels/test.json');
 
@@ -165,8 +173,10 @@ void main() {
       editing.undo();
 
       expect(editing.level.entities.length, 3);
-      expect(editing.level.entities[2].properties['patrol'],
-          <Object?>['a', 'b']);
+      expect(editing.level.entities[2].properties['patrol'], <Object?>[
+        'a',
+        'b',
+      ]);
     });
   });
 
@@ -204,9 +214,13 @@ void main() {
         editing.brighten(0.8);
       }
 
-      expect(editing.light!.intensity, greaterThanOrEqualTo(0.05),
-          reason: 'forty presses put it at ${editing.light!.intensity}, which '
-              'is a light nobody can find again except by reading the file');
+      expect(
+        editing.light!.intensity,
+        greaterThanOrEqualTo(0.05),
+        reason:
+            'forty presses put it at ${editing.light!.intensity}, which '
+            'is a light nobody can find again except by reading the file',
+      );
     });
   });
 
@@ -216,8 +230,10 @@ void main() {
     editing.turn(0.5);
 
     expect(editing.entity!.yaw, closeTo(2.0, 1e-3));
-    expect(editing.entity!.properties['patrol'], <Object?>['a', 'b'],
-        reason: 'turning it lost what it was carrying');
+    expect(editing.entity!.properties['patrol'], <Object?>[
+      'a',
+      'b',
+    ], reason: 'turning it lost what it was carrying');
   });
 
   group('what a click hits', () {
@@ -253,8 +269,11 @@ void main() {
         Vector3(0.0, 0.0, -1.0),
       );
 
-      expect(found!.kind, Piece.entity,
-          reason: 'the wall in front of the torch took the click');
+      expect(
+        found!.kind,
+        Piece.entity,
+        reason: 'the wall in front of the torch took the click',
+      );
       expect(_open().level.entities[found.index].type, 'torch');
     });
 
@@ -297,17 +316,21 @@ void main() {
     });
 
     test('and a light wears its own colour', () {
-      final handles = handlesOf(_open().level)
-          .where((Handle it) => it.kind == Piece.light);
+      final handles = handlesOf(
+        _open().level,
+      ).where((Handle it) => it.kind == Piece.light);
 
-      expect(handles.single.tint.x, greaterThan(handles.single.tint.z),
-          reason: 'an orange lamp is not marked orange');
+      expect(
+        handles.single.tint.x,
+        greaterThan(handles.single.tint.z),
+        reason: 'an orange lamp is not marked orange',
+      );
     });
 
     test('and a black light still has a mark somebody can see', () {
-      final level = Level(lights: <LevelLight>[
-        LevelLight(color: Vector3.zero()),
-      ]);
+      final level = Level(
+        lights: <LevelLight>[LevelLight(color: Vector3.zero())],
+      );
 
       final tint = handlesOf(level).single.tint;
 

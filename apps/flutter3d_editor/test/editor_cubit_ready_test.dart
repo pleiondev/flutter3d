@@ -23,8 +23,7 @@ void main() {
 
     setUp(() {
       editing = openTestDocument();
-      cubit = EditorCubit()
-        ..opened(editing, assetRoot: null, looks: noLooks);
+      cubit = EditorCubit()..opened(editing, assetRoot: null, looks: noLooks);
     });
 
     test('say updates the message and nothing else', () {

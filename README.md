@@ -24,7 +24,8 @@ Not published to pub.dev. Build it from this repository — see
 | [`packages/flutter3d_audio`](packages/flutter3d_audio) | Positional audio: attenuation, panning and voice limiting, with a pluggable backend |
 | [`packages/pad_input`](packages/pad_input) | A gamepad, read as a snapshot once per frame. Button names are physical positions, because they end up in a player's config file; the web backend is pure Dart. [README](packages/pad_input/README.md) |
 | [`packages/flutter3d_ui`](packages/flutter3d_ui) | The screens that are not the game: settings, volumes, rebinding, credits. Shared by both games |
-| [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas, which Flutter offers on no desktop platform |
+| [`packages/pointer_lock`](packages/pointer_lock) | Relative mouse deltas: a method channel on macOS, the browser's own Pointer Lock API on the web. Flutter surfaces neither |
+| [`packages/flutter3d_samples`](packages/flutter3d_samples) | The Khronos test models, as fixtures rather than as the engine's own assets — so a game built on it carries the decoders and not the 4.1 MB they were checked against |
 | [`packages/flutter3d_hardware`](packages/flutter3d_hardware) | The abstraction over graphics APIs: a device, an encoder, a pass. Its vocabulary is its own — it names no API, so a fourth backend changes no user code |
 | [`packages/flutter3d_impeller`](packages/flutter3d_impeller) | The desktop backend, over `flutter_gpu`. Also where the shader build lives |
 | [`packages/flutter3d_webgl`](packages/flutter3d_webgl) | The web backend, over WebGL2 |
@@ -84,10 +85,23 @@ flutter pub get
 (cd packages/flutter3d/example && flutter run -d macos)
 ```
 
+In a browser it is the same command with a different device, and no shader
+bundle: the WebGL backend translates the same GLSL and the browser compiles it.
+
+```bash
+(cd apps/flutter3d_demo_dungeon && flutter run -d chrome)
+
+# What the demos are published as. --wasm builds the JavaScript output beside
+# the WebAssembly one and the loader picks; the games are the one thing here
+# that spends its frame budget in Dart rather than in a driver.
+(cd apps/flutter3d_demo_dungeon && flutter build web --wasm --release)
+```
+
 Flutter GPU and Impeller are enabled **per application** through `Info.plist`,
 so every app in this repository sets `FLTEnableFlutterGPU` and
 `FLTEnableImpeller` for itself. A new one that skips them fails to initialise
-the shader library and renders nothing.
+the shader library and renders nothing. Neither setting means anything to a
+browser build, which reaches WebGL2 through `flutter3d_backend` instead.
 
 ## Tests
 
@@ -102,9 +116,14 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-1242 tests across thirteen packages, and the only ones that need a GPU are the
+2901 tests across nineteen packages, and the only ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
-backend, which is what makes 30 scenes checkable in a headless run.
+backend, which is what makes 32 scenes checkable in a headless run.
+
+Two of the steps are browser steps — `flutter test --platform chrome` for the
+WebGL backend and for the browser half of `pointer_lock` — and one of them
+compiles a game to WebAssembly, because a build nobody runs is a platform nobody
+supports.
 
 How they are written down — two independent golden sets rather than one, and
 why every new test is written by breaking the thing it covers — is in

@@ -46,7 +46,8 @@ Level _shipped([String path = 'assets/levels/first_steps.json']) =>
   final along = Vector3(uphill.x, 0.0, uphill.z);
   final half = uphill.axis == 0 ? ramp.size.x / 2.0 : ramp.size.z / 2.0;
   return (
-    foot: ramp.centre - along.scaled(half) - Vector3(0.0, ramp.size.y / 2.0, 0.0),
+    foot:
+        ramp.centre - along.scaled(half) - Vector3(0.0, ramp.size.y / 2.0, 0.0),
     towards: along,
   );
 }
@@ -54,7 +55,7 @@ Level _shipped([String path = 'assets/levels/first_steps.json']) =>
 /// The shipped level, and a runner that can be walked about in it.
 final class _Walk {
   _Walk([String path = 'assets/levels/first_steps.json'])
-      : level = _shipped(path) {
+    : level = _shipped(path) {
     // **Deliberately not `stage`.** This measures the shipped level's *shape*
     // — brushes and the runner walking over them — so spawning its entities
     // would put a crate or a patrolling enemy in the way of the geometry the
@@ -99,8 +100,12 @@ final class _Walk {
       if (!brush.solid || brush.isRamp) continue;
       final min = brush.min;
       final max = brush.max;
-      if (at.x > min.x && at.x < max.x && at.z > min.z && at.z < max.z &&
-          max.y <= at.y + 0.5 && max.y > at.y - 3.0) {
+      if (at.x > min.x &&
+          at.x < max.x &&
+          at.z > min.z &&
+          at.z < max.z &&
+          max.y <= at.y + 0.5 &&
+          max.y > at.y - 3.0) {
         return true;
       }
     }
@@ -159,7 +164,8 @@ void main() {
       for (var i = 0; i < ramps.length; i++) {
         final ramp = ramps[i];
         final approach = _approach(ramp);
-        final degrees = math.atan2(
+        final degrees =
+            math.atan2(
               ramp.size.y,
               ramp.ramp!.axis == 0 ? ramp.size.x : ramp.size.z,
             ) *
@@ -184,7 +190,8 @@ void main() {
           expect(
             walk.groundUnder(approach.foot - approach.towards.scaled(1.5)),
             isTrue,
-            reason: 'nothing to stand on in front of the ramp at '
+            reason:
+                'nothing to stand on in front of the ramp at '
                 '${ramp.centre}',
           );
         });
@@ -200,11 +207,18 @@ void main() {
           final yaw = math.atan2(approach.towards.x, approach.towards.z);
           final climbed = walk.walk(yaw, 300);
 
-          expect(climbed.highest, greaterThan(startY + ramp.size.y * 0.8),
-              reason: 'walked into the ramp at ${ramp.centre} instead of up '
-                  'it: reached ${climbed.highest} from $startY');
-          expect(climbed.airborne, 0,
-              reason: 'left the ground walking up the ramp at ${ramp.centre}');
+          expect(
+            climbed.highest,
+            greaterThan(startY + ramp.size.y * 0.8),
+            reason:
+                'walked into the ramp at ${ramp.centre} instead of up '
+                'it: reached ${climbed.highest} from $startY',
+          );
+          expect(
+            climbed.airborne,
+            0,
+            reason: 'left the ground walking up the ramp at ${ramp.centre}',
+          );
         });
       }
     });
@@ -222,8 +236,11 @@ void main() {
     for (final brush in walk.level.brushes) {
       if (!brush.isRamp) continue;
       final wedge = CollisionWedge(brush.halfExtents, uphill: brush.ramp!);
-      expect(wedge.containsPoint(brush.centre, coin.position), isFalse,
-          reason: 'the coin is inside the slope');
+      expect(
+        wedge.containsPoint(brush.centre, coin.position),
+        isFalse,
+        reason: 'the coin is inside the slope',
+      );
     }
   });
 }

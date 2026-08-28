@@ -38,14 +38,11 @@ enum Voice {
 /// key and does exactly what each of these says.
 final class Sustained {
   const Sustained.begin(this.key, SoundDef this.sound, Vector3 this.at)
-      : what = Voice.begin;
+    : what = Voice.begin;
   const Sustained.follow(this.key, Vector3 this.at)
-      : what = Voice.follow,
-        sound = null;
-  const Sustained.end(this.key)
-      : what = Voice.end,
-        sound = null,
-        at = null;
+    : what = Voice.follow,
+      sound = null;
+  const Sustained.end(this.key) : what = Voice.end, sound = null, at = null;
 
   final Voice what;
 
@@ -155,11 +152,11 @@ final class Soundtrack {
   /// weapons and two sounds — and there is no run of the game that makes that
   /// obvious, because you have to fire all four and remember.
   SoundDef forWeapon(WeaponDef weapon) => switch (weapon.ammo) {
-        AmmoType.shells => Sounds.shotgun,
-        AmmoType.rockets => Sounds.rocket,
-        AmmoType.none => Sounds.punch,
-        AmmoType.bullets => Sounds.pistol,
-      };
+    AmmoType.shells => Sounds.shotgun,
+    AmmoType.rockets => Sounds.rocket,
+    AmmoType.none => Sounds.punch,
+    AmmoType.bullets => Sounds.pistol,
+  };
 
   void _machinery(
     MechanismWorld mechanisms,

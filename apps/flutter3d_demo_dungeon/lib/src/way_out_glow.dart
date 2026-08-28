@@ -33,8 +33,11 @@ const double kWayOutGlow = 0.40;
 void lightTheWayOut(List<MeshNode> meshes) {
   for (final mesh in meshes) {
     final glow = mesh.material.emissive;
-    final brightest = <double>[glow.x, glow.y, glow.z]
-        .reduce((double a, double b) => a > b ? a : b);
+    final brightest = <double>[
+      glow.x,
+      glow.y,
+      glow.z,
+    ].reduce((double a, double b) => a > b ? a : b);
     if (brightest <= 0.0) continue;
     glow.scale(kWayOutGlow / brightest);
   }

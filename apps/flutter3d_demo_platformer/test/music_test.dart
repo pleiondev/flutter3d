@@ -63,13 +63,22 @@ void main() {
     // else in this file would catch.
     expect(Sounds.music.bus, AudioBus.music);
     expect(Sounds.music.loop, isTrue);
-    expect(Sounds.music.maxInstances, 1,
-        reason: 'a looping sound played twice is a flanger');
-    expect(Sounds.music.attenuation, isA<NoAttenuation>(),
-        reason: 'the track is not in the level, it is the level');
+    expect(
+      Sounds.music.maxInstances,
+      1,
+      reason: 'a looping sound played twice is a flanger',
+    );
+    expect(
+      Sounds.music.attenuation,
+      isA<NoAttenuation>(),
+      reason: 'the track is not in the level, it is the level',
+    );
     expect(File(Sounds.music.asset).existsSync(), isTrue);
-    expect(Sounds.all, contains(Sounds.music),
-        reason: 'not in the bank, so never preloaded');
+    expect(
+      Sounds.all,
+      contains(Sounds.music),
+      reason: 'not in the bank, so never preloaded',
+    );
   });
 
   test('and it is a loop of a sensible length', () {
@@ -84,8 +93,11 @@ void main() {
   test('it plays under the game rather than over it', () {
     // About eighteen decibels under full scale. The music slider should be for
     // turning it up.
-    expect(music.peak, lessThan(6000),
-        reason: 'mixed loud enough to bury the footsteps');
+    expect(
+      music.peak,
+      lessThan(6000),
+      reason: 'mixed loud enough to bury the footsteps',
+    );
     expect(music.peak, greaterThan(1500), reason: 'inaudible');
   });
 
@@ -100,8 +112,11 @@ void main() {
     final last = music.samples.last;
     final step = (last - first).abs();
 
-    expect(step, lessThan(music.peak ~/ 20),
-        reason: 'the seam steps by $step against a peak of ${music.peak}');
+    expect(
+      step,
+      lessThan(music.peak ~/ 20),
+      reason: 'the seam steps by $step against a peak of ${music.peak}',
+    );
 
     // And the slope, because a waveform can meet itself in value and still
     // corner: a V at the seam is as audible as a step.

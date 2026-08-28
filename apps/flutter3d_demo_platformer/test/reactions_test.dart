@@ -75,7 +75,8 @@ final class _Run {
   }
 
   /// Whether [effect] was thrown at any point in the run.
-  bool saw(Object effect) => shown.any((Shown s) => identical(s.effect, effect));
+  bool saw(Object effect) =>
+      shown.any((Shown s) => identical(s.effect, effect));
 
   Iterable<Jolt> get jolts => felt.map((Felt f) => f.jolt);
 }
@@ -90,8 +91,11 @@ void main() {
     final run = _Run()..run(1800);
 
     expect(run.shown, isNotEmpty, reason: 'the game showed nothing at all');
-    expect(run.saw(Effects.coin), isTrue,
-        reason: 'it walked over the opening coins and they vanished silently');
+    expect(
+      run.saw(Effects.coin),
+      isTrue,
+      reason: 'it walked over the opening coins and they vanished silently',
+    );
   });
 
   test('and a landing raises dust, sized by how hard it was', () {
@@ -106,10 +110,16 @@ void main() {
     hard.run(90, forward: false);
 
     expect(hard.saw(Effects.dust), isTrue, reason: 'it landed hard on nothing');
-    expect(hard.jolts, contains(Jolt.kick),
-        reason: 'a twelve-metre drop did not move the camera');
-    expect(soft.jolts, isEmpty,
-        reason: 'the camera dips when the player steps off a kerb');
+    expect(
+      hard.jolts,
+      contains(Jolt.kick),
+      reason: 'a twelve-metre drop did not move the camera',
+    );
+    expect(
+      soft.jolts,
+      isEmpty,
+      reason: 'the camera dips when the player steps off a kerb',
+    );
   });
 
   test('and dying is shown as well as heard', () {
@@ -121,8 +131,11 @@ void main() {
 
     expect(run.sim.deaths, greaterThan(0), reason: 'the pit did not kill it');
     expect(run.saw(Effects.death), isTrue);
-    expect(run.jolts, contains(Jolt.shake),
-        reason: 'death did not rattle the camera');
+    expect(
+      run.jolts,
+      contains(Jolt.shake),
+      reason: 'death did not rattle the camera',
+    );
   });
 
   test('and a described camera move performs the verb it names', () {

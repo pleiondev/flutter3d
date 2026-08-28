@@ -48,9 +48,13 @@ void main() {
     // no voice, and the emitter waits for one for ever.
     final missing = _table().declared.difference(_table().inTheBank);
 
-    expect(missing, isEmpty,
-        reason: 'declared and never preloaded, so silent in the real build: '
-            '${missing.join(', ')}');
+    expect(
+      missing,
+      isEmpty,
+      reason:
+          'declared and never preloaded, so silent in the real build: '
+          '${missing.join(', ')}',
+    );
   });
 
   test('and nothing is loaded that was never declared', () {
@@ -61,8 +65,11 @@ void main() {
     // The other way this goes silent, and it looks identical from the outside:
     // a definition pointing at an asset that is not there.
     for (final sound in Sounds.all) {
-      expect(File(sound.asset).existsSync(), isTrue,
-          reason: '${sound.asset} is declared and not in the game');
+      expect(
+        File(sound.asset).existsSync(),
+        isTrue,
+        reason: '${sound.asset} is declared and not in the game',
+      );
     }
   });
 

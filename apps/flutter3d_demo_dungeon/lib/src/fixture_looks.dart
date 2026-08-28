@@ -97,22 +97,20 @@ final class DungeonFixtures implements FixtureAppearance {
           )
           ..add(
             MeshNode(
-              meshes.shape(
-                'shaft',
-                () => CylinderShape(
-                  radiusTop: 0.035,
-                  radiusBottom: 0.035,
-                  height: 0.42,
+                meshes.shape(
+                  'shaft',
+                  () => CylinderShape(
+                    radiusTop: 0.035,
+                    radiusBottom: 0.035,
+                    height: 0.42,
+                  ),
                 ),
-              ),
-              _bracket,
-              name: 'shaft',
-            )
+                _bracket,
+                name: 'shaft',
+              )
               ..setPosition(0.0, -0.06, -0.08)
               // Angled up and out, the way a bracket holds one.
-              ..setRotation(
-                Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), -0.5),
-              ),
+              ..setRotation(Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), -0.5)),
           )
           ..add(cup);
 

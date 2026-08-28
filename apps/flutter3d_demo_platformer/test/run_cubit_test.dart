@@ -50,14 +50,16 @@ final class _Storage implements Storage {
   final storage = _Storage();
   return (
     storage: storage,
-    run: RunCubit(PlatformerRun(
-      firstLevel: first,
-      saves: SaveFile(appName: 'platformer', storage: storage),
-      input: InputState(),
-      openDevice: () async => device,
-      onLevelBuilt: (LevelReady level, GraphicsDevice device) {},
-      pauseBetweenLevels: Duration.zero,
-    )),
+    run: RunCubit(
+      PlatformerRun(
+        firstLevel: first,
+        saves: SaveFile(appName: 'platformer', storage: storage),
+        input: InputState(),
+        openDevice: () async => device,
+        onLevelBuilt: (LevelReady level, GraphicsDevice device) {},
+        pauseBetweenLevels: Duration.zero,
+      ),
+    ),
   );
 }
 
@@ -108,8 +110,11 @@ void main() {
     }
     await Future<void>.delayed(Duration.zero);
 
-    expect(emitted, isEmpty,
-        reason: 'nothing changed, and thirty states were emitted anyway');
+    expect(
+      emitted,
+      isEmpty,
+      reason: 'nothing changed, and thirty states were emitted anyway',
+    );
   });
 
   test('restarting rebuilds the level rather than resuming it', () async {
@@ -123,21 +128,26 @@ void main() {
 
     final second = it.run.state as RunPlaying<LevelReady>;
     expect(second.asset, first.asset);
-    expect(second.level.sim.elapsed, 0.0,
-        reason: 'a restart that keeps the clock you died at is not one');
+    expect(
+      second.level.sim.elapsed,
+      0.0,
+      reason: 'a restart that keeps the clock you died at is not one',
+    );
   });
 
-  test('load puts a named level up directly, the way a start-over does',
-      () async {
-    // `main.dart`'s `_startOver` calls this after a level that would not read
-    // — straight back to the first one, skipping whatever was saved.
-    final it = _game();
-    await it.run.begin();
+  test(
+    'load puts a named level up directly, the way a start-over does',
+    () async {
+      // `main.dart`'s `_startOver` calls this after a level that would not read
+      // — straight back to the first one, skipping whatever was saved.
+      final it = _game();
+      await it.run.begin();
 
-    await it.run.load(_first);
+      await it.run.load(_first);
 
-    expect((it.run.state as RunPlaying<LevelReady>).asset, _first);
-  });
+      expect((it.run.state as RunPlaying<LevelReady>).asset, _first);
+    },
+  );
 
   test('the save is written and read back through the cubit', () async {
     final it = _game();

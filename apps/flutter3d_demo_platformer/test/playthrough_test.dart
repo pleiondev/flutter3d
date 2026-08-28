@@ -29,9 +29,9 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 Level _shipped() => Level.fromJson(
-      jsonDecode(File('assets/levels/ascent.json').readAsStringSync())
-          as Map<String, Object?>,
-    );
+  jsonDecode(File('assets/levels/ascent.json').readAsStringSync())
+      as Map<String, Object?>,
+);
 
 /// How high the runner gets off flat ground using both jumps.
 ///
@@ -83,7 +83,10 @@ double _doubleJumpHeight() {
 /// Everything `main.dart` assembles, minus anything that draws.
 final class _Game {
   _Game() {
-    LevelValidator(registry: kinds, rules: platformerRules()).assertValid(level);
+    LevelValidator(
+      registry: kinds,
+      rules: platformerRules(),
+    ).assertValid(level);
     level.addTo(world);
     // **The game's own assembly, not a copy of it.** The note this replaces
     // recorded what a copy costs: the first version of this harness left the
@@ -160,7 +163,6 @@ final class _Game {
     final found = mechanisms[name];
     return found is T ? found : null;
   }
-
 }
 
 void main() {
@@ -224,12 +226,22 @@ void main() {
       expect(counted['checkpoint'], greaterThanOrEqualTo(7));
       expect(counted['oneway'], greaterThanOrEqualTo(3), reason: 'the gantry');
       expect(counted['conveyor'], greaterThanOrEqualTo(2), reason: 'the belts');
-      expect(counted['crumbling'], greaterThanOrEqualTo(5), reason: 'the bridge');
+      expect(
+        counted['crumbling'],
+        greaterThanOrEqualTo(5),
+        reason: 'the bridge',
+      );
       expect(counted['breakable'], greaterThanOrEqualTo(3), reason: 'the cap');
-      expect(counted['climbable'], greaterThanOrEqualTo(2),
-          reason: 'a ladder and a rope');
-      expect(counted['enemy'], greaterThanOrEqualTo(3),
-          reason: 'two guards and a leaper');
+      expect(
+        counted['climbable'],
+        greaterThanOrEqualTo(2),
+        reason: 'a ladder and a rope',
+      );
+      expect(
+        counted['enemy'],
+        greaterThanOrEqualTo(3),
+        reason: 'two guards and a leaper',
+      );
       expect(
         level.brushes.where((Brush b) => b.surface == 'ice'),
         isNotEmpty,
@@ -253,11 +265,17 @@ void main() {
       expect(game.named<Collectible>('the blue key')?.key, 'blue');
       expect(game.named<Collectible>('the green key')?.key, 'green');
       expect(game.named<Checkpoint>('the brink')?.order, 1);
-      expect(game.named<Hazard>('the spikes')?.instant, isFalse,
-          reason: 'spikes hurt, the drop kills');
+      expect(
+        game.named<Hazard>('the spikes')?.instant,
+        isFalse,
+        reason: 'spikes hurt, the drop kills',
+      );
       expect(game.named<Hazard>('the gulf')?.instant, isTrue);
-      expect(game.dynamics.bodies, hasLength(greaterThanOrEqualTo(20)),
-          reason: 'crates, in the yard and everywhere else');
+      expect(
+        game.dynamics.bodies,
+        hasLength(greaterThanOrEqualTo(20)),
+        reason: 'crates, in the yard and everywhere else',
+      );
     });
 
     test('the checkpoints run in the order they are met', () {
@@ -273,9 +291,13 @@ void main() {
       expect(posts, hasLength(greaterThanOrEqualTo(7)));
       for (var i = 1; i < posts.length; i++) {
         expect(posts[i].order, posts[i - 1].order + 1, reason: 'no gaps');
-        expect(posts[i].at.z, greaterThan(posts[i - 1].at.z),
-            reason: '${posts[i].name} is numbered after ${posts[i - 1].name} '
-                'but stands in front of it');
+        expect(
+          posts[i].at.z,
+          greaterThan(posts[i - 1].at.z),
+          reason:
+              '${posts[i].name} is numbered after ${posts[i - 1].name} '
+              'but stands in front of it',
+        );
       }
     });
 
@@ -299,9 +321,13 @@ void main() {
 
       expect(walls, hasLength(greaterThanOrEqualTo(12)), reason: 'a maze');
       for (final wall in walls) {
-        expect(wall.max.y, greaterThan(reach + 0.5),
-            reason: 'a wall at ${wall.min.z} is ${wall.max.y} high and the '
-                'runner reaches ${reach.toStringAsFixed(2)}');
+        expect(
+          wall.max.y,
+          greaterThan(reach + 0.5),
+          reason:
+              'a wall at ${wall.min.z} is ${wall.max.y} high and the '
+              'runner reaches ${reach.toStringAsFixed(2)}',
+        );
       }
     });
 
@@ -313,37 +339,44 @@ void main() {
       // standing start.
       final level = _shipped();
       final reach = _doubleJumpHeight();
-      final stair = <Brush>[
-        for (final b in level.brushes)
-          // The middle lane only: the ziggurats and the colonnade beside it are
-          // filling, and a player who wants them can take the hoists.
-          //
-          // **And the ground lane only.** There are two ways to this end of the
-          // level now: the terraces, and the high road that the gate of two
-          // skills lands on at seven metres. Measuring both as one staircase
-          // reads the drop from the high road onto the first terrace as a step
-          // nobody could climb — which is what happened the day the gate was
-          // authored, and it is the test's model that was wrong rather than the
-          // level.
-          if (b.min.z >= 190.0 && b.min.x >= -14.0 && b.max.x <= 14.0 &&
-              b.max.y > 1.0)
-            b,
-      ]
-        // **By height, not by distance.** Sorting along z assumed one staircase
-        // climbing away from the player, and there are two ways to this end of
-        // the level now — the terraces, and the high road the gate of two
-        // skills lands on. Ordered by z, the drop from the high road onto the
-        // first terrace reads as a step nobody could climb; ordered by height,
-        // the question is the one actually worth asking, which is whether every
-        // level here is within reach of the one below it.
-        ..sort((Brush a, Brush b) => a.max.y.compareTo(b.max.y));
+      final stair =
+          <Brush>[
+              for (final b in level.brushes)
+                // The middle lane only: the ziggurats and the colonnade beside it are
+                // filling, and a player who wants them can take the hoists.
+                //
+                // **And the ground lane only.** There are two ways to this end of the
+                // level now: the terraces, and the high road that the gate of two
+                // skills lands on at seven metres. Measuring both as one staircase
+                // reads the drop from the high road onto the first terrace as a step
+                // nobody could climb — which is what happened the day the gate was
+                // authored, and it is the test's model that was wrong rather than the
+                // level.
+                if (b.min.z >= 190.0 &&
+                    b.min.x >= -14.0 &&
+                    b.max.x <= 14.0 &&
+                    b.max.y > 1.0)
+                  b,
+            ]
+            // **By height, not by distance.** Sorting along z assumed one staircase
+            // climbing away from the player, and there are two ways to this end of
+            // the level now — the terraces, and the high road the gate of two
+            // skills lands on. Ordered by z, the drop from the high road onto the
+            // first terrace reads as a step nobody could climb; ordered by height,
+            // the question is the one actually worth asking, which is whether every
+            // level here is within reach of the one below it.
+            ..sort((Brush a, Brush b) => a.max.y.compareTo(b.max.y));
 
       expect(stair, hasLength(greaterThanOrEqualTo(4)));
       var standing = 0.0;
       for (final terrace in stair) {
-        expect(terrace.max.y - standing, lessThan(reach - 0.5),
-            reason: 'the terrace at ${terrace.min.z}, topping out at '
-                '${terrace.max.y}, is a step too tall from $standing');
+        expect(
+          terrace.max.y - standing,
+          lessThan(reach - 0.5),
+          reason:
+              'the terrace at ${terrace.min.z}, topping out at '
+              '${terrace.max.y}, is a step too tall from $standing',
+        );
         standing = terrace.max.y;
       }
     });
@@ -355,19 +388,28 @@ void main() {
       final level = _shipped();
       final reach = _doubleJumpHeight();
       final ledge = level.brushes
-          .firstWhere((Brush b) =>
-              b.min.x <= -46.0 && b.max.x >= -46.0 &&
-              b.min.z <= -10.0 && b.max.z >= -10.0 &&
-              b.max.y > 1.0)
+          .firstWhere(
+            (Brush b) =>
+                b.min.x <= -46.0 &&
+                b.max.x >= -46.0 &&
+                b.min.z <= -10.0 &&
+                b.max.z >= -10.0 &&
+                b.max.y > 1.0,
+          )
           .max
           .y;
-      final crate =
-          _shipped().ofType('crate').first.vector('size')?.y ?? 0.0;
+      final crate = _shipped().ofType('crate').first.vector('size')?.y ?? 0.0;
 
-      expect(ledge, greaterThan(reach),
-          reason: 'the vault would not need the crate');
-      expect(ledge, lessThan(crate + reach),
-          reason: 'the vault could not be reached from the crate either');
+      expect(
+        ledge,
+        greaterThan(reach),
+        reason: 'the vault would not need the crate',
+      );
+      expect(
+        ledge,
+        lessThan(crate + reach),
+        reason: 'the vault could not be reached from the crate either',
+      );
     });
   });
 
@@ -389,8 +431,11 @@ void main() {
       game.wait(120);
 
       expect(game.runner.isGrounded, isTrue);
-      expect(game.runner.position.y, greaterThan(floor + 1.0),
-          reason: 'it did not get through the gantry');
+      expect(
+        game.runner.position.y,
+        greaterThan(floor + 1.0),
+        reason: 'it did not get through the gantry',
+      );
 
       // And down again through the same platform.
       final onTop = game.runner.position.y;
@@ -401,8 +446,11 @@ void main() {
         game.input.endStep();
       }
 
-      expect(game.runner.position.y, lessThan(onTop - 1.0),
-          reason: 'it could not drop back through');
+      expect(
+        game.runner.position.y,
+        lessThan(onTop - 1.0),
+        reason: 'it could not drop back through',
+      );
     });
 
     test('the ice is slipperier than the moss beside it', () {
@@ -421,8 +469,11 @@ void main() {
       final onMoss = slide(Vector3(-2.0, 0.0, 1.0));
 
       expect(onMoss, lessThan(0.6));
-      expect(onIce, greaterThan(onMoss * 3.0),
-          reason: 'ice slid $onIce m and moss slid $onMoss m');
+      expect(
+        onIce,
+        greaterThan(onMoss * 3.0),
+        reason: 'ice slid $onIce m and moss slid $onMoss m',
+      );
     });
 
     test('a belt carries a runner who is doing nothing', () {
@@ -431,8 +482,11 @@ void main() {
       final game = _Game()..putAt(Vector3(-44.0, 0.5, 8.0));
       game.wait(90);
 
-      expect(game.runner.position.z, greaterThan(10.0),
-          reason: 'the belt carried nobody');
+      expect(
+        game.runner.position.z,
+        greaterThan(10.0),
+        reason: 'the belt carried nobody',
+      );
     });
   });
 
@@ -453,10 +507,16 @@ void main() {
         return game.runner.position.z;
       }
 
-      expect(reached(crouching: true), greaterThan(18.0),
-          reason: 'it could not crawl through');
-      expect(reached(crouching: false), lessThan(11.0),
-          reason: 'it walked through a one-metre slot');
+      expect(
+        reached(crouching: true),
+        greaterThan(18.0),
+        reason: 'it could not crawl through',
+      );
+      expect(
+        reached(crouching: false),
+        lessThan(11.0),
+        reason: 'it walked through a one-metre slot',
+      );
     });
 
     test('the shelves over the crevasse hold, and then do not', () {
@@ -512,8 +572,11 @@ void main() {
       final startedAt = guard.position!.clone();
       game.wait(240);
 
-      expect((guard.position! - startedAt).length, greaterThan(2.0),
-          reason: 'a guard that never moved');
+      expect(
+        (guard.position! - startedAt).length,
+        greaterThan(2.0),
+        reason: 'a guard that never moved',
+      );
       expect(guard.position!.y, greaterThan(-1.0), reason: 'it fell out');
     });
 
@@ -547,12 +610,16 @@ void main() {
       final game = _Game();
       final gate = game.named<Door>('the blue gate')!;
 
-      expect(gate.activate(game.mechanisms.activationBy(game.runner.body.collider)),
-          isA<Refused>());
+      expect(
+        gate.activate(game.mechanisms.activationBy(game.runner.body.collider)),
+        isA<Refused>(),
+      );
 
       game.runner.keyRing.take('blue');
-      expect(gate.activate(game.mechanisms.activationBy(game.runner.body.collider)),
-          isA<Activated>());
+      expect(
+        gate.activate(game.mechanisms.activationBy(game.runner.body.collider)),
+        isA<Activated>(),
+      );
     });
 
     test('walking into it is what opens it, and only with the key', () {
@@ -566,8 +633,11 @@ void main() {
       game.putAt(Vector3(0.0, 0.0, 72.0));
       game.walk(150);
       expect(gate.progress, 0.0, reason: 'no key, no gate');
-      expect(game.runner.position.z, lessThan(79.0),
-          reason: 'and it is still in the way');
+      expect(
+        game.runner.position.z,
+        lessThan(79.0),
+        reason: 'and it is still in the way',
+      );
 
       // Back out of the plate — a trigger fires on the way in, so the runner
       // has to leave it before it can be walked into again.
@@ -598,8 +668,11 @@ void main() {
       expect(coin.sinceTaken, lessThan(0.1), reason: 'it went just now');
 
       game.walk(30);
-      expect(coin.sinceTaken, closeTo(0.5, 0.15),
-          reason: 'the simulation keeps counting after the look has finished');
+      expect(
+        coin.sinceTaken,
+        closeTo(0.5, 0.15),
+        reason: 'the simulation keeps counting after the look has finished',
+      );
     });
 
     test('the drop is crossed by jumping and not by walking', () {
@@ -613,16 +686,22 @@ void main() {
       expect(walked.sim.deaths, greaterThan(0), reason: 'the drop is a drop');
     });
 
-    test('falling in puts the runner back at the checkpoint, not the start', () {
-      final game = _Game()..walk(900, until: (_Game g) => g.sim.deaths > 0);
-      expect(game.sim.deaths, greaterThan(0));
+    test(
+      'falling in puts the runner back at the checkpoint, not the start',
+      () {
+        final game = _Game()..walk(900, until: (_Game g) => g.sim.deaths > 0);
+        expect(game.sim.deaths, greaterThan(0));
 
-      game.step();
-      expect(game.sim.state, RunState.running);
-      expect(game.runner.health.isAlive, isTrue);
-      expect(game.runner.position.z, closeTo(18.0, 1.5),
-          reason: 'the brink said 18, and the level starts at -22');
-    });
+        game.step();
+        expect(game.sim.state, RunState.running);
+        expect(game.runner.health.isAlive, isTrue);
+        expect(
+          game.runner.position.z,
+          closeTo(18.0, 1.5),
+          reason: 'the brink said 18, and the level starts at -22',
+        );
+      },
+    );
 
     test('a crate is where the level put it, and shoves', () {
       final game = _Game();
@@ -635,7 +714,11 @@ void main() {
       game.walk(200);
 
       expect(crate.position.z, greaterThan(before.z + 0.5));
-      expect(crate.position.y, closeTo(before.y, 0.3), reason: 'and stays down');
+      expect(
+        crate.position.y,
+        closeTo(before.y, 0.3),
+        reason: 'and stays down',
+      );
     });
   });
 }

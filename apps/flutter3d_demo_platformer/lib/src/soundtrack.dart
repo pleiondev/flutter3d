@@ -49,10 +49,9 @@ final class Soundtrack {
     final at = runner.position;
 
     if (runner.jumpedThisStep) {
-      out.add(Heard(
-        runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump,
-        at,
-      ));
+      out.add(
+        Heard(runner.airJumpsLeft < 1 ? Sounds.airJump : Sounds.jump, at),
+      );
     }
     if (runner.dashedThisStep) out.add(Heard(Sounds.dash, at));
     // A long jump is the slide it came out of, launched: it gets the dash's

@@ -199,8 +199,8 @@ abstract final class Sounds {
   /// vocabulary meets the sound bank — and an unknown surface is stone rather
   /// than silence, because a floor nobody named is still a floor.
   static SoundDef stepOn(String? surface) => switch (surface) {
-        'ice' => stepIce,
-        'moss' => stepMoss,
-        _ => stepStone,
-      };
+    'ice' => stepIce,
+    'moss' => stepMoss,
+    _ => stepStone,
+  };
 }
