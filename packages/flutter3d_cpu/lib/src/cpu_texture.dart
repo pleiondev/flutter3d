@@ -21,7 +21,7 @@ import 'package:vector_math/vector_math.dart';
 /// distinction can be observed.
 final class CpuTexture {
   CpuTexture(this.width, this.height, this.format)
-      : pixels = Float32List(width * height * 4);
+    : pixels = Float32List(width * height * 4);
 
   final int width;
   final int height;
@@ -153,8 +153,10 @@ final class BoundTexture {
     final u = (sc / ma + 1.0) * 0.5;
     final v = (tc / ma + 1.0) * 0.5;
     if (lod <= 0.0) {
-      return BoundTexture(cube[face], SamplerOptions.linearClamp)
-          ._sampleLevel(cube[face], u, v);
+      return BoundTexture(
+        cube[face],
+        SamplerOptions.linearClamp,
+      )._sampleLevel(cube[face], u, v);
     }
 
     // **The level is asked for, not derived.** Everywhere else in this file a
@@ -165,8 +167,10 @@ final class BoundTexture {
     // screen. `textureLod` is what the GLSL side calls, and this is its twin.
     final chain = cube[face].levels;
     if (chain == null || chain.isEmpty) {
-      return BoundTexture(cube[face], SamplerOptions.linearClamp)
-          ._sampleLevel(cube[face], u, v);
+      return BoundTexture(
+        cube[face],
+        SamplerOptions.linearClamp,
+      )._sampleLevel(cube[face], u, v);
     }
     final bound = BoundTexture(cube[face], SamplerOptions.linearClamp);
     final top = chain.length;
@@ -187,14 +191,15 @@ final class BoundTexture {
 
   /// One texel address, wrapped or clamped as the sampler says.
   int _address(int i, int size, SamplerAddressMode mode) => switch (mode) {
-        SamplerAddressMode.repeat => i % size < 0 ? i % size + size : i % size,
-        SamplerAddressMode.clampToEdge => i.clamp(0, size - 1),
-        // Mirror is in the enum and nothing binds it. Refusing beats guessing:
-        // a wrong wrap looks like a texture that is subtly the wrong way round
-        // in one place, which is not something anybody goes looking for.
-        SamplerAddressMode.mirror => throw UnsupportedError(
-            'SamplerAddressMode.mirror is not implemented by this backend'),
-      };
+    SamplerAddressMode.repeat => i % size < 0 ? i % size + size : i % size,
+    SamplerAddressMode.clampToEdge => i.clamp(0, size - 1),
+    // Mirror is in the enum and nothing binds it. Refusing beats guessing:
+    // a wrong wrap looks like a texture that is subtly the wrong way round
+    // in one place, which is not something anybody goes looking for.
+    SamplerAddressMode.mirror => throw UnsupportedError(
+      'SamplerAddressMode.mirror is not implemented by this backend',
+    ),
+  };
 
   /// Samples at [u], [v], choosing a mip level from how fast the coordinate is
   /// moving.
@@ -267,10 +272,10 @@ final class BoundTexture {
     final ay0 = _address(y0, height, sampler.heightAddressMode);
     final ay1 = _address(y0 + 1, height, sampler.heightAddressMode);
 
-    final top = texture._texel(ax0, ay0) * (1 - fx) +
-        texture._texel(ax1, ay0) * fx;
-    final bottom = texture._texel(ax0, ay1) * (1 - fx) +
-        texture._texel(ax1, ay1) * fx;
+    final top =
+        texture._texel(ax0, ay0) * (1 - fx) + texture._texel(ax1, ay0) * fx;
+    final bottom =
+        texture._texel(ax0, ay1) * (1 - fx) + texture._texel(ax1, ay1) * fx;
     return top * (1 - fy) + bottom * fy;
   }
 }

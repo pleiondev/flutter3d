@@ -85,8 +85,11 @@ final class FakePass implements CommandEncoder {
       commands.add(RecordedPipeline(pipeline));
 
   @override
-  void bindVertexBuffer(GeometryBuffer buffer, int vertexCount,
-          {int slot = 0}) =>
+  void bindVertexBuffer(
+    GeometryBuffer buffer,
+    int vertexCount, {
+    int slot = 0,
+  }) =>
       commands.add(RecordedVertices(vertexCount, transient: false, slot: slot));
 
   @override
@@ -117,8 +120,7 @@ final class FakePass implements CommandEncoder {
     String slot,
     TextureHandle texture, {
     SamplerOptions? sampler,
-  }) =>
-      commands.add(RecordedTexture(slot, texture, sampler));
+  }) => commands.add(RecordedTexture(slot, texture, sampler));
 
   @override
   void clearBindings() => commands.add(const RecordedClearBindings());

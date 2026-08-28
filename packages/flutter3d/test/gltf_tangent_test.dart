@@ -3,16 +3,17 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const String kSamples = 'assets/samples';
+const String kSamples = kSamplesPath;
 
-Uint8List readSample(String name) =>
-    File('$kSamples/$name').readAsBytesSync();
+Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
 Vector4 tangentAt(MeshData mesh, int index) {
-  final o = index * mesh.layout.floatsPerVertex +
+  final o =
+      index * mesh.layout.floatsPerVertex +
       mesh.layout.floatOffsetOf(VertexLayout.tangent.name);
   return Vector4(
     mesh.vertices[o],
@@ -23,7 +24,8 @@ Vector4 tangentAt(MeshData mesh, int index) {
 }
 
 Vector3 normalAt(MeshData mesh, int index) {
-  final o = index * mesh.layout.floatsPerVertex +
+  final o =
+      index * mesh.layout.floatsPerVertex +
       mesh.layout.floatOffsetOf(VertexLayout.normal.name);
   return Vector3(mesh.vertices[o], mesh.vertices[o + 1], mesh.vertices[o + 2]);
 }
@@ -75,8 +77,11 @@ void main() {
         if (a.w.sign == g.w.sign) agree++;
       }
       expect(total, greaterThan(0));
-      expect(agree / total, greaterThan(0.98),
-          reason: '$agree of $total bitangent signs matched');
+      expect(
+        agree / total,
+        greaterThan(0.98),
+        reason: '$agree of $total bitangent signs matched',
+      );
     });
 
     test('the tangent direction matches almost everywhere', () {
@@ -100,8 +105,11 @@ void main() {
         if (a.normalized().dot(g.normalized()) > 0.9) agree++;
       }
       expect(total, greaterThan(0));
-      expect(agree / total, greaterThan(0.95),
-          reason: '$agree of $total tangent directions matched');
+      expect(
+        agree / total,
+        greaterThan(0.95),
+        reason: '$agree of $total tangent directions matched',
+      );
     });
 
     test('generated tangents are orthonormal to the normals', () {
@@ -159,8 +167,11 @@ void main() {
           coloured++;
         }
       }
-      expect(coloured, greaterThan(0),
-          reason: 'the file has vertex colours but none survived decoding');
+      expect(
+        coloured,
+        greaterThan(0),
+        reason: 'the file has vertex colours but none survived decoding',
+      );
     });
 
     test('the material carries every texture slot the file declares', () async {
@@ -183,7 +194,10 @@ void main() {
       // and the teapot has no UVs either, which is the case that must not
       // produce a zero-length frame.
       final asset = await GltfLoader().load(readSample('Box.glb'));
-      expect(asset.surfaces.first.mesh.layout.has(VertexLayout.tangent), isTrue);
+      expect(
+        asset.surfaces.first.mesh.layout.has(VertexLayout.tangent),
+        isTrue,
+      );
     });
   });
 }

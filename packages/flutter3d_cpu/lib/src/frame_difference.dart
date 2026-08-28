@@ -37,7 +37,8 @@ final class FrameDifference {
   double get percent => pixels == 0 ? 0.0 : 100.0 * differing / pixels;
 
   @override
-  String toString() => '$differing of $pixels differ '
+  String toString() =>
+      '$differing of $pixels differ '
       '(${percent.toStringAsFixed(3)}%), worst channel $worstChannel';
 }
 
@@ -50,11 +51,7 @@ final class FrameDifference {
 /// Throws if the two are different sizes rather than comparing what they have
 /// in common, because two frames of different sizes is a broken test rather
 /// than a failing one.
-FrameDifference compareFrames(
-  Uint8List a,
-  Uint8List b, {
-  int channel = 8,
-}) {
+FrameDifference compareFrames(Uint8List a, Uint8List b, {int channel = 8}) {
   if (a.length != b.length) {
     throw ArgumentError(
       'the two frames are different sizes: ${a.length} and ${b.length} bytes',

@@ -34,8 +34,9 @@ Future<void> main(List<String> arguments) async {
   // directory and its parent.parent is nothing at all. The package URI is
   // resolved through the same package_config.json the build itself leans on, and
   // survives the snapshot.
-  final libraryUri =
-      await Isolate.resolvePackageUri(Uri.parse('package:flutter3d_impeller/flutter3d_impeller.dart'));
+  final libraryUri = await Isolate.resolvePackageUri(
+    Uri.parse('package:flutter3d_impeller/flutter3d_impeller.dart'),
+  );
   if (libraryUri == null) {
     stderr.writeln('build_shaders: cannot resolve package:flutter3d_impeller');
     exitCode = 1;
@@ -54,17 +55,13 @@ Future<void> main(List<String> arguments) async {
     return;
   }
 
-  final givesPackage = arguments.contains('-p') ||
-      arguments.contains('--package');
+  final givesPackage =
+      arguments.contains('-p') || arguments.contains('--package');
 
-  final result = await Process.start(
-    'bash',
-    [
-      script,
-      if (!givesPackage) ...['--package', Directory.current.path],
-      ...arguments,
-    ],
-    mode: ProcessStartMode.inheritStdio,
-  );
+  final result = await Process.start('bash', [
+    script,
+    if (!givesPackage) ...['--package', Directory.current.path],
+    ...arguments,
+  ], mode: ProcessStartMode.inheritStdio);
   exitCode = await result.exitCode;
 }

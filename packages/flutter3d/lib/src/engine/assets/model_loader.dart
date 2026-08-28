@@ -121,9 +121,10 @@ Future<ModelDocument> decodeModelInIsolate(ModelLoadRequest request) async {
   // both suspend, and a synchronous span would close on the first await and
   // report a fraction of the real cost.
   final task = developer.TimelineTask()
-    ..start('decodeModelInIsolate', arguments: <String, Object?>{
-      'source': request.source.key,
-    });
+    ..start(
+      'decodeModelInIsolate',
+      arguments: <String, Object?>{'source': request.source.key},
+    );
   try {
     return await _decodeModelInIsolate(request, task);
   } finally {
@@ -210,20 +211,21 @@ Future<ModelDocument> decodeModelBytes(
       continue;
     }
     final task = developer.TimelineTask()
-      ..start('decode ${decoder.runtimeType}',
-          arguments: <String, Object?>{'bytes': bytes.length});
-    return decoder
-        .decode(bytes, request, resolveUri)
-        .whenComplete(task.finish);
+      ..start(
+        'decode ${decoder.runtimeType}',
+        arguments: <String, Object?>{'bytes': bytes.length},
+      );
+    return decoder.decode(bytes, request, resolveUri).whenComplete(task.finish);
   }
 
   final format = _resolveFormat(request, bytes);
   // Named after the format so the background isolate's span says which decoder
   // the time went into, rather than just "decode".
   final task = developer.TimelineTask()
-    ..start('decode ${format.name}', arguments: <String, Object?>{
-      'bytes': bytes.length,
-    });
+    ..start(
+      'decode ${format.name}',
+      arguments: <String, Object?>{'bytes': bytes.length},
+    );
 
   final Future<ModelDocument> decoded;
   switch (format) {
@@ -240,8 +242,9 @@ Future<ModelDocument> decodeModelBytes(
 
     case ModelFormat.gltf:
     case ModelFormat.auto:
-      decoded = GltfLoader(layout: request.layout)
-          .load(bytes, resolveUri: resolveUri);
+      decoded = GltfLoader(
+        layout: request.layout,
+      ).load(bytes, resolveUri: resolveUri);
   }
   return decoded.whenComplete(task.finish);
 }

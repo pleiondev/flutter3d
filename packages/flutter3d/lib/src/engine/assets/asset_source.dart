@@ -100,7 +100,9 @@ String _safeRelative(String uri) {
       relative.startsWith(r'\') ||
       relative.contains('://') ||
       relative.split(RegExp(r'[/\\]')).contains('..')) {
-    throw ArgumentError('Refusing to load "$uri": it escapes the asset directory.');
+    throw ArgumentError(
+      'Refusing to load "$uri": it escapes the asset directory.',
+    );
   }
   return relative;
 }

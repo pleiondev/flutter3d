@@ -25,12 +25,36 @@ class CuboidShape extends Shape {
   // for every entry, which is what makes the shared corner order wind
   // counter-clockwise as seen from outside.
   static const List<List<List<double>>> _faces = <List<List<double>>>[
-    [[1, 0, 0], [0, 0, -1], [0, 1, 0]],
-    [[-1, 0, 0], [0, 0, 1], [0, 1, 0]],
-    [[0, 1, 0], [1, 0, 0], [0, 0, -1]],
-    [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
-    [[0, 0, 1], [1, 0, 0], [0, 1, 0]],
-    [[0, 0, -1], [-1, 0, 0], [0, 1, 0]],
+    [
+      [1, 0, 0],
+      [0, 0, -1],
+      [0, 1, 0],
+    ],
+    [
+      [-1, 0, 0],
+      [0, 0, 1],
+      [0, 1, 0],
+    ],
+    [
+      [0, 1, 0],
+      [1, 0, 0],
+      [0, 0, -1],
+    ],
+    [
+      [0, -1, 0],
+      [1, 0, 0],
+      [0, 0, 1],
+    ],
+    [
+      [0, 0, 1],
+      [1, 0, 0],
+      [0, 1, 0],
+    ],
+    [
+      [0, 0, -1],
+      [-1, 0, 0],
+      [0, 1, 0],
+    ],
   ];
 
   static const List<List<double>> _corners = <List<double>>[
@@ -41,12 +65,13 @@ class CuboidShape extends Shape {
   ];
 
   @override
-  MeshData build({
-    VertexLayout layout = VertexLayout.standard,
-  }) {
+  MeshData build({VertexLayout layout = VertexLayout.standard}) {
     final half = size * 0.5;
-    final builder =
-        MeshBuilder(layout, reserveVertices: 24, reserveIndices: 36);
+    final builder = MeshBuilder(
+      layout,
+      reserveVertices: 24,
+      reserveIndices: 36,
+    );
     final position = Vector3.zero();
     final normal = Vector3.zero();
     final texcoord = Vector2.zero();
@@ -106,9 +131,7 @@ class PlaneShape extends Shape {
   String get name => 'plane';
 
   @override
-  MeshData build({
-    VertexLayout layout = VertexLayout.standard,
-  }) {
+  MeshData build({VertexLayout layout = VertexLayout.standard}) {
     if (widthSegments < 1 || depthSegments < 1) {
       throw ArgumentError('Plane segment counts must be >= 1.');
     }

@@ -26,20 +26,21 @@ const int _cube = 8;
 
 /// Six faces of one bright colour, so anything reflecting them is unmistakable.
 List<ByteData> _brightFaces() => <ByteData>[
-      for (var face = 0; face < 6; face++)
-        () {
-          final data = ByteData(_cube * _cube * 4);
-          for (var i = 0; i < _cube * _cube; i++) {
-            data.setUint8(i * 4, 230);
-            data.setUint8(i * 4 + 1, 230);
-            data.setUint8(i * 4 + 2, 230);
-            data.setUint8(i * 4 + 3, 255);
-          }
-          return data;
-        }(),
-    ];
+  for (var face = 0; face < 6; face++)
+    () {
+      final data = ByteData(_cube * _cube * 4);
+      for (var i = 0; i < _cube * _cube; i++) {
+        data.setUint8(i * 4, 230);
+        data.setUint8(i * 4 + 1, 230);
+        data.setUint8(i * 4 + 2, 230);
+        data.setUint8(i * 4 + 3, 255);
+      }
+      return data;
+    }(),
+];
 
-({CpuDevice device, Renderer renderer, Scene scene, CameraNode camera}) _ball() {
+({CpuDevice device, Renderer renderer, Scene scene, CameraNode camera})
+_ball() {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -137,8 +138,11 @@ void main() {
     final it = _ball();
     it.scene.ambientIntensity = 1.0;
 
-    expect(_onTheBall(await _draw(it)), lessThan(60),
-        reason: 'with nothing to reflect, a metal has almost nothing to show');
+    expect(
+      _onTheBall(await _draw(it)),
+      lessThan(60),
+      reason: 'with nothing to reflect, a metal has almost nothing to show',
+    );
   });
 
   test('and the same metal given an environment reflects it', () async {
@@ -149,8 +153,11 @@ void main() {
     _light(it.device, it.scene);
 
     final lit = _onTheBall(await _draw(it));
-    expect(lit, greaterThan(120),
-        reason: 'a mirror-ish ball in a bright room is a bright ball');
+    expect(
+      lit,
+      greaterThan(120),
+      reason: 'a mirror-ish ball in a bright room is a bright ball',
+    );
   });
 
   test('and a rough metal is dimmer than a polished one', () async {
@@ -164,9 +171,11 @@ void main() {
     _light(rough.device, rough.scene);
     (rough.scene.root.children.first as MeshNode).material.roughness = 1.0;
 
-    expect(_onTheBall(await _draw(rough)),
-        lessThanOrEqualTo(_onTheBall(await _draw(polished))),
-        reason: 'a rough metal cannot be brighter than a polished one');
+    expect(
+      _onTheBall(await _draw(rough)),
+      lessThanOrEqualTo(_onTheBall(await _draw(polished))),
+      reason: 'a rough metal cannot be brighter than a polished one',
+    );
   });
 
   test('and a scene without one is not touched by any of this', () async {

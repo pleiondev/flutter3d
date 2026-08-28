@@ -76,34 +76,44 @@ List<Vector3> _drawnVertices(MeshNode node, MeshData data) {
 }
 
 void main() {
-  test('every vertex the shader draws is inside the bounds it is culled by',
-      () async {
-    final (:document, :asset) = await loadHero();
-    final scene = Scene();
-    final instance = asset.instantiate(scene, name: 'hero');
-    // Somewhere that is not the origin, because bounds that forgot to move
-    // would still pass at the origin.
-    instance.root.setPosition(3.0, 1.0, -12.0);
+  test(
+    'every vertex the shader draws is inside the bounds it is culled by',
+    () async {
+      final (:document, :asset) = await loadHero();
+      final scene = Scene();
+      final instance = asset.instantiate(scene, name: 'hero');
+      // Somewhere that is not the origin, because bounds that forgot to move
+      // would still pass at the origin.
+      instance.root.setPosition(3.0, 1.0, -12.0);
 
-    final sources = sourcesOf(document, asset, instance);
+      final sources = sourcesOf(document, asset, instance);
 
-    var checked = 0;
-    for (final MapEntry(key: node, value: data) in sources.entries) {
-      if (node.skeleton == null) continue;
+      var checked = 0;
+      for (final MapEntry(key: node, value: data) in sources.entries) {
+        if (node.skeleton == null) continue;
 
-      final bounds = node.worldBounds;
-      final radius = node.worldBoundsRadius;
-      final centre = node.worldBoundsCentre;
-      for (final vertex in _drawnVertices(node, data)) {
-        expect(bounds.containsVector3(vertex), isTrue,
-            reason: 'a vertex at $vertex is outside the box $bounds the '
-                'renderer culls this mesh by');
-        expect(vertex.distanceTo(centre), lessThanOrEqualTo(radius + 1e-4),
-            reason: 'a vertex at $vertex is outside the sphere the frustum '
-                'test uses');
-        checked++;
+        final bounds = node.worldBounds;
+        final radius = node.worldBoundsRadius;
+        final centre = node.worldBoundsCentre;
+        for (final vertex in _drawnVertices(node, data)) {
+          expect(
+            bounds.containsVector3(vertex),
+            isTrue,
+            reason:
+                'a vertex at $vertex is outside the box $bounds the '
+                'renderer culls this mesh by',
+          );
+          expect(
+            vertex.distanceTo(centre),
+            lessThanOrEqualTo(radius + 1e-4),
+            reason:
+                'a vertex at $vertex is outside the sphere the frustum '
+                'test uses',
+          );
+          checked++;
+        }
       }
-    }
-    expect(checked, greaterThan(100), reason: 'nothing skinned was checked');
-  });
+      expect(checked, greaterThan(100), reason: 'nothing skinned was checked');
+    },
+  );
 }

@@ -53,23 +53,29 @@ const int _height = 72;
   );
 
   MeshNode block(Vector3 size, Vector3 at, {String name = 'block'}) => MeshNode(
-        DeviceMesh.upload(device, CuboidShape(size: size).build()),
-        Material(
-          name: name,
-          baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
-          lighting: LightingModel.pbr,
-        ),
-        name: name,
-      )..setPosition(at.x, at.y, at.z);
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    Material(
+      name: name,
+      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      lighting: LightingModel.pbr,
+    ),
+    name: name,
+  )..setPosition(at.x, at.y, at.z);
 
-  scene.add(block(Vector3(40.0, 1.0, length), Vector3(0.0, -0.5, length * 0.4),
-      name: 'floor'));
+  scene.add(
+    block(
+      Vector3(40.0, 1.0, length),
+      Vector3(0.0, -0.5, length * 0.4),
+      name: 'floor',
+    ),
+  );
   // A slab held over the floor, not a post standing on it: a thin caster at
   // this distance throws a shadow a few cells wide, and a few cells is not
   // enough to tell "moved" from "sharpened". The first draft used a post and
   // the frame it produced had no dark cells in it at all.
-  scene.add(block(Vector3(10.0, 0.6, 6.0), Vector3(0.0, 5.0, 10.0),
-      name: 'canopy'));
+  scene.add(
+    block(Vector3(10.0, 0.6, 6.0), Vector3(0.0, 5.0, 10.0), name: 'canopy'),
+  );
 
   scene.add(
     LightNode(
@@ -112,9 +118,9 @@ Future<List<int>> _grid(
 /// The cells that are floor lying in shadow: darker than lit floor, and
 /// brighter than the background behind it.
 Set<int> _shadowed(List<int> grid) => <int>{
-      for (var i = 0; i < grid.length; i++)
-        if (grid[i] > 20 && grid[i] < 170) i,
-    };
+  for (var i = 0; i < grid.length; i++)
+    if (grid[i] > 20 && grid[i] < 170) i,
+};
 
 void main() {
   test('the default is three tiles of a thousand, not one of two', () {
@@ -147,10 +153,16 @@ void main() {
     // was one, `const ShadowSettings()` stood for the single-cascade side here;
     // the day it became three this test would have compared three against three
     // and passed by having nothing to say.
-    final single =
-        await _grid(_engine(), room, const ShadowSettings(cascades: 1));
-    final many =
-        await _grid(_engine(), room, const ShadowSettings(cascades: 3));
+    final single = await _grid(
+      _engine(),
+      room,
+      const ShadowSettings(cascades: 1),
+    );
+    final many = await _grid(
+      _engine(),
+      room,
+      const ShadowSettings(cascades: 3),
+    );
 
     // Loose, because a denser map genuinely draws a crisper edge and the point
     // of the change is that the two are not identical. What is asserted is that
@@ -166,10 +178,16 @@ void main() {
     final isDark = _shadowed(many);
 
     expect(wasDark, isNotEmpty, reason: 'there was no shadow to compare');
-    expect(isDark.difference(wasDark).length, lessThanOrEqualTo(2),
-        reason: 'the shadow reaches cells it did not before: it moved');
-    expect(wasDark.difference(isDark).length, lessThanOrEqualTo(2),
-        reason: 'the shadow left cells it used to cover: it moved');
+    expect(
+      isDark.difference(wasDark).length,
+      lessThanOrEqualTo(2),
+      reason: 'the shadow reaches cells it did not before: it moved',
+    );
+    expect(
+      wasDark.difference(isDark).length,
+      lessThanOrEqualTo(2),
+      reason: 'the shadow left cells it used to cover: it moved',
+    );
   });
 
   test('the near cascade covers metres where one map covers tens', () async {
@@ -185,8 +203,11 @@ void main() {
     final near = engine.renderer.debugCascadeRadii.first;
     final far = engine.renderer.debugCascadeRadii.last;
 
-    expect(near, lessThan(far / 3.0),
-        reason: 'the near cascade covers $near m and the far one $far m');
+    expect(
+      near,
+      lessThan(far / 3.0),
+      reason: 'the near cascade covers $near m and the far one $far m',
+    );
   });
 
   test('a camera that creeps does not make the shadows crawl', () async {
@@ -220,7 +241,8 @@ void main() {
     // move the shadow at all.**
     room.camera.setPosition(0.0, 3.0, -8.0);
     await _grid(engine, room, shadows);
-    final texel = engine.renderer.debugCascadeRadii.first *
+    final texel =
+        engine.renderer.debugCascadeRadii.first *
         2.0 *
         shadows.depthPadding /
         shadows.resolution;
@@ -240,17 +262,24 @@ void main() {
 
     // At most two: half a texel of travel crosses a texel boundary at most
     // once, and where it falls depends on where the camera started.
-    expect(creeping.length, lessThanOrEqualTo(2),
-        reason: 'six frames within half a texel produced ${creeping.length} '
-            'different centres, so the shadow is sliding with the camera');
+    expect(
+      creeping.length,
+      lessThanOrEqualTo(2),
+      reason:
+          'six frames within half a texel produced ${creeping.length} '
+          'different centres, so the shadow is sliding with the camera',
+    );
 
     // And the other half of the claim, without which the above passes on a
     // centre that never moves at all: a whole texel of travel does move it.
     final before = centre();
     room.camera.setPosition(4.0 * texel, 3.0, -8.0);
     await _grid(engine, room, shadows);
-    expect(centre(), isNot(before),
-        reason: 'four texels of travel and the cascade did not follow');
+    expect(
+      centre(),
+      isNot(before),
+      reason: 'four texels of travel and the cascade did not follow',
+    );
   });
 
   test('the near cascade is sized by the camera, not by the level', () async {
@@ -267,28 +296,43 @@ void main() {
     // Mutation: take `viewDistance` back out of the `far` used for the splits.
     // The two radii below stop matching and the long one grows without bound.
     final short = _engine();
-    await _grid(short, _longRoom(length: 120.0),
-        const ShadowSettings(cascades: 3));
+    await _grid(
+      short,
+      _longRoom(length: 120.0),
+      const ShadowSettings(cascades: 3),
+    );
     final near = short.renderer.debugCascadeRadii.first;
 
     final long = _engine();
-    await _grid(long, _longRoom(length: 900.0),
-        const ShadowSettings(cascades: 3));
+    await _grid(
+      long,
+      _longRoom(length: 900.0),
+      const ShadowSettings(cascades: 3),
+    );
     final alsoNear = long.renderer.debugCascadeRadii.first;
 
-    expect(alsoNear, closeTo(near, 0.5),
-        reason: 'the level got seven times longer and the near cascade went '
-            'from $near m to $alsoNear m, so the player\'s own shadow is '
-            'coarser for reasons that have nothing to do with the player');
+    expect(
+      alsoNear,
+      closeTo(near, 0.5),
+      reason:
+          'the level got seven times longer and the near cascade went '
+          'from $near m to $alsoNear m, so the player\'s own shadow is '
+          'coarser for reasons that have nothing to do with the player',
+    );
 
     // And tight enough to be worth having. A metre of world per centimetre of
     // texel is the working number: at 1024 this is under two centimetres, which
     // is what a 90 cm caster needs to read as a shadow rather than as a shape.
     const resolution = 1024;
-    final perTexel = near * 2.0 * const ShadowSettings().depthPadding / resolution;
-    expect(perTexel, lessThan(0.025),
-        reason: 'the near cascade is ${(perTexel * 100).toStringAsFixed(1)} cm '
-            'of world per texel');
+    final perTexel =
+        near * 2.0 * const ShadowSettings().depthPadding / resolution;
+    expect(
+      perTexel,
+      lessThan(0.025),
+      reason:
+          'the near cascade is ${(perTexel * 100).toStringAsFixed(1)} cm '
+          'of world per texel',
+    );
   });
 
   test('copyWith carries the cascade settings', () {

@@ -25,6 +25,21 @@ CI regenerates it and diffs, because the file it produces was once a year out of
 date and the browser was drawing a different sky from Impeller with nothing able
 to see it.
 
+## Where it stands against Impeller
+
+All thirty-two golden scenes, between 0.01% and 0.6% of pixels differing by more
+than 8 per channel — the silhouette's worth of disagreement two rasterisers
+always have. `test/cross_backend_test.dart` holds each scene to its own measured
+budget, so a scene that starts drifting is named rather than absorbed into one
+tolerance covering everything.
+
+Six scenes were once in whole percents, and every one of them was this backend
+drawing something else — an empty frame from a uniform block WebGL2 refuses to
+leave unbound, a mesh reading one texture coordinate for a whole quad because an
+attribute divisor was left set, a bloom chain composited upside down, a cube
+shadow atlas addressed by the wrong row. `ARCHITECTURE.md` §13 keeps what each
+turned out to be.
+
 ## Running the tests
 
 Five of the six test files are `@TestOn('browser')`:

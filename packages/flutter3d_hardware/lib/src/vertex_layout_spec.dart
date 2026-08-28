@@ -78,10 +78,7 @@ enum VertexFormat {
 /// once per instance, so a hundred instances of one mesh read a hundred
 /// transforms from it while every instance reads the same vertices from the
 /// buffer beside it.
-enum VertexStepMode {
-  vertex,
-  instance,
-}
+enum VertexStepMode { vertex, instance }
 
 /// One input of a vertex stage, and where in its buffer it starts.
 ///

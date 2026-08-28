@@ -107,8 +107,10 @@ final class MeshParticleContributor extends PassContributor {
     ],
   );
 
-  static final VertexLayoutSpec _layout =
-      VertexLayoutSpec(<BufferLayout>[_meshSlot, _instanceSlot]);
+  static final VertexLayoutSpec _layout = VertexLayoutSpec(<BufferLayout>[
+    _meshSlot,
+    _instanceSlot,
+  ]);
 
   @override
   bool get isActive => particles.aliveCount > 0;
@@ -120,8 +122,9 @@ final class MeshParticleContributor extends PassContributor {
     if (view == null || viewProjection == null) return;
     developer.Timeline.startSync('MeshParticleContributor.encode');
 
-    final instances = _instances ??=
-        Float32List(particles.capacity * ParticleSystem.floatsPerInstance);
+    final instances = _instances ??= Float32List(
+      particles.capacity * ParticleSystem.floatsPerInstance,
+    );
     final written = particles.writeInstances(instances);
     if (written == 0) {
       developer.Timeline.finishSync();
@@ -161,11 +164,9 @@ final class MeshParticleContributor extends PassContributor {
     );
     encoder.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
 
-    encoder.bindUniformBlock(
-      vertexShader,
-      _infoBlock,
-      <String, Float32List>{'view_projection': viewProjection.storage},
-    );
+    encoder.bindUniformBlock(vertexShader, _infoBlock, <String, Float32List>{
+      'view_projection': viewProjection.storage,
+    });
 
     final fog = frame.settings.fog;
     final colour = fog.resolvedColor;
@@ -177,11 +178,10 @@ final class MeshParticleContributor extends PassContributor {
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
-    encoder.bindUniformBlock(
-      fragmentShader,
-      'FogInfo',
-      <String, Float32List>{'fog': _fog, 'eye': _eyeData},
-    );
+    encoder.bindUniformBlock(fragmentShader, 'FogInfo', <String, Float32List>{
+      'fog': _fog,
+      'eye': _eyeData,
+    });
 
     encoder.draw(instanceCount: written);
     frame.state.drawCalls++;
@@ -198,8 +198,10 @@ final class MeshParticleContributor extends PassContributor {
     final shader = frame.device.shaders[name];
     if (shader == null && _missing.add(name)) {
       assert(() {
-        debugPrint('MeshParticleContributor: the shader bundle has no "$name"; '
-            'no mesh particles will be drawn.');
+        debugPrint(
+          'MeshParticleContributor: the shader bundle has no "$name"; '
+          'no mesh particles will be drawn.',
+        );
         return true;
       }());
     }

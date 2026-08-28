@@ -11,7 +11,7 @@ import 'scene_node.dart';
 /// the inverse of the node's world transform.
 final class CameraNode extends SceneNode {
   CameraNode({Projection? projection, super.name})
-      : projection = projection ?? const PerspectiveProjection();
+    : projection = projection ?? const PerspectiveProjection();
 
   Projection projection;
 

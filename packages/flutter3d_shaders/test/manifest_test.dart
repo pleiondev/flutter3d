@@ -14,8 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('kRequiredShaders matches the bundle manifest', () {
     final file = File('shaders/flutter3d.shaderbundle.json');
-    expect(file.existsSync(), isTrue,
-        reason: 'run this from the package root');
+    expect(file.existsSync(), isTrue, reason: 'run this from the package root');
     final manifest =
         jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
 
@@ -27,12 +26,19 @@ void main() {
       for (final shader in kRequiredShaders) shader.name: shader.fragment,
     };
 
-    expect(fromDart.keys.toSet(), fromManifest.keys.toSet(),
-        reason: 'a shader exists in one list and not the other; regenerate '
-            'lib/flutter3d_shaders.dart');
+    expect(
+      fromDart.keys.toSet(),
+      fromManifest.keys.toSet(),
+      reason:
+          'a shader exists in one list and not the other; regenerate '
+          'lib/flutter3d_shaders.dart',
+    );
     for (final name in fromManifest.keys) {
-      expect(fromDart[name], fromManifest[name],
-          reason: '$name is a different stage in the two lists');
+      expect(
+        fromDart[name],
+        fromManifest[name],
+        reason: '$name is a different stage in the two lists',
+      );
     }
   });
 }

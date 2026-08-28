@@ -112,8 +112,10 @@ Future<void> benchFrameMath() async {
     items: bigCount,
     unit: 'object',
   );
-  print('  (…$treeCandidates candidates offered from ${tree.nodeCount} '
-      'nodes; the linear pass tested all $bigCount and found $bigVisible)');
+  print(
+    '  (…$treeCandidates candidates offered from ${tree.nodeCount} '
+    'nodes; the linear pass tested all $bigCount and found $bigVisible)',
+  );
 
   await bench(
     'BVH rebuild, $bigCount spheres',
@@ -160,8 +162,10 @@ Future<void> benchFrameMath() async {
     items: bigCount,
     unit: 'object',
   );
-  print('  (…$wideCandidates candidates offered, $wideVisible actually '
-      'visible of $bigCount)');
+  print(
+    '  (…$wideCandidates candidates offered, $wideVisible actually '
+    'visible of $bigCount)',
+  );
 
   // Sorting a packed-key render list, the shape RenderList produces.
   final keys = Int64List(objectCount);
@@ -225,16 +229,12 @@ Future<void> benchFrameMath() async {
   const smallCount = 40;
   final small = Int64List(smallCount);
   final smallScratch = Int64List(smallCount);
-  await bench(
-    'sortPackedKeys (shipped), $smallCount entries',
-    2000,
-    () async {
-      for (var i = 0; i < smallCount; i++) {
-        small[i] = (keys[i] << kPayloadBits) | i;
-      }
-      sortPackedKeys(small, smallScratch, smallCount, counts: histogram);
-    },
-  );
+  await bench('sortPackedKeys (shipped), $smallCount entries', 2000, () async {
+    for (var i = 0; i < smallCount; i++) {
+      small[i] = (keys[i] << kPayloadBits) | i;
+    }
+    sortPackedKeys(small, smallScratch, smallCount, counts: histogram);
+  });
 
   // World-transform propagation: the multiply every dirty node performs.
   final parent = Matrix4.rotationY(0.3)..translateByDouble(1.0, 2.0, 3.0, 1.0);

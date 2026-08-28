@@ -105,12 +105,12 @@ final class SceneShadows {
     // this not be.
     final drawnDirectional =
         resources.declares(FrameResourceIds.shadowMap) &&
-            resources.originOf(FrameResourceIds.shadowMap) ==
-                ResourceOrigin.drawn;
+        resources.originOf(FrameResourceIds.shadowMap) == ResourceOrigin.drawn;
 
     return SceneShadows(
-      directional:
-          drawnDirectional ? resources.tryTexture(FrameResourceIds.shadowMap) : null,
+      directional: drawnDirectional
+          ? resources.tryTexture(FrameResourceIds.shadowMap)
+          : null,
       point: declared(FrameResourceIds.cubeShadow),
       pointStatic: declared(FrameResourceIds.cubeShadowStatic),
       casterIndex: casterIndex,

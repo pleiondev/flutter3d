@@ -68,21 +68,24 @@ extension _SkyPass on Renderer {
 
     final inverse = vm.Matrix4.copy(viewProjection)..invert();
 
-    pass.bindPipeline(textured
-        ? (_skyCubePipeline ??= device.createPipeline(vertex, fragment))
-        : (_skyPipeline ??= device.createPipeline(vertex, fragment)));
+    pass.bindPipeline(
+      textured
+          ? (_skyCubePipeline ??= device.createPipeline(vertex, fragment))
+          : (_skyPipeline ??= device.createPipeline(vertex, fragment)),
+    );
     // The tracker described a pipeline this just replaced; the next mesh has to
     // bind its own rather than trust a stale answer.
     state.invalidatePipeline();
 
     if (textured) {
-      pass.bindVertexData(
-        _skyVertexBytes(inverse, sky, textured: true),
-        3,
-      );
+      pass.bindVertexData(_skyVertexBytes(inverse, sky, textured: true), 3);
       pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
-      pass.bindTexture(fragment, 'sky_texture', cubemap,
-          sampler: SamplerOptions.linearClamp);
+      pass.bindTexture(
+        fragment,
+        'sky_texture',
+        cubemap,
+        sampler: SamplerOptions.linearClamp,
+      );
       pass.draw();
       state.drawCalls++;
       return;
@@ -119,7 +122,9 @@ extension _SkyPass on Renderer {
     // vertex is nine floats and the gradient's twenty-nine, and writing the
     // second stride into the first buffer puts two of the three vertices where
     // nothing reads them.
-    final stride = textured ? Renderer._kSkyCubeVertexFloats : Renderer._kSkyVertexFloats;
+    final stride = textured
+        ? Renderer._kSkyCubeVertexFloats
+        : Renderer._kSkyVertexFloats;
 
     final toSun = sky.resolvedDirectionToSun.normalized();
     final zenith = sky.resolvedZenith;
@@ -197,8 +202,12 @@ extension _SkyPass on Renderer {
   /// zero-to-one on Impeller and on the software rasteriser and minus-one-to-one
   /// on WebGL, and the difference of two points on one ray is the same direction
   /// wherever the two points sit.
-  static void _skyCornerRay(vm.Matrix4 inverse, double x, double y,
-      vm.Vector3 out) {
+  static void _skyCornerRay(
+    vm.Matrix4 inverse,
+    double x,
+    double y,
+    vm.Vector3 out,
+  ) {
     final near = inverse.transform(vm.Vector4(x, y, 0.5, 1.0));
     final far = inverse.transform(vm.Vector4(x, y, 1.0, 1.0));
     out.setValues(

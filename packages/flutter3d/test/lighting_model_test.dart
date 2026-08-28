@@ -28,16 +28,23 @@ void main() {
       expect(custom.shaderName, 'Velvet');
     });
 
-    test('answers about its own parameters, not about which constant it is', () {
-      // The derived version said yes here because the model was neither unlit
-      // nor normals — an answer about identity dressed as an answer about the
-      // shader.
-      expect(custom.usesMaterialParameters, isTrue);
-      expect(custom.usesMetallic, isFalse,
-          reason: 'the old rule read `this == pbr`, so every custom model '
+    test(
+      'answers about its own parameters, not about which constant it is',
+      () {
+        // The derived version said yes here because the model was neither unlit
+        // nor normals — an answer about identity dressed as an answer about the
+        // shader.
+        expect(custom.usesMaterialParameters, isTrue);
+        expect(
+          custom.usesMetallic,
+          isFalse,
+          reason:
+              'the old rule read `this == pbr`, so every custom model '
               'answered no by accident and a metallic one would have been '
-              'wrong with no way to say otherwise');
-    });
+              'wrong with no way to say otherwise',
+        );
+      },
+    );
 
     test('can declare it does interpret metallic', () {
       const metal = LightingModel('Brushed', 'Brushed', usesMetallic: true);
@@ -64,8 +71,11 @@ void main() {
 
     test('only the physical model interprets metallic', () {
       for (final model in LightingModel.builtIn) {
-        expect(model.usesMetallic, model == LightingModel.pbr,
-            reason: model.label);
+        expect(
+          model.usesMetallic,
+          model == LightingModel.pbr,
+          reason: model.label,
+        );
       }
     });
 
@@ -83,8 +93,7 @@ void main() {
       // lighting models drew in vary between runs — which two goldens found at
       // 25% and 0.6% of their pixels. Pinning the literal values is the only
       // way to notice a change back.
-      expect(LightingModel.unlit.pipelineGroup,
-          _fnv1a6('Unlit'));
+      expect(LightingModel.unlit.pipelineGroup, _fnv1a6('Unlit'));
       expect(LightingModel.pbr.pipelineGroup, _fnv1a6('Pbr'));
 
       // And it depends on the name alone, so two models with the same shader
@@ -95,7 +104,11 @@ void main() {
 
     test('the group fits the six bits the sort key has for it', () {
       for (final model in LightingModel.builtIn) {
-        expect(model.pipelineGroup, inInclusiveRange(0, 63), reason: model.label);
+        expect(
+          model.pipelineGroup,
+          inInclusiveRange(0, 63),
+          reason: model.label,
+        );
       }
     });
 
@@ -103,14 +116,17 @@ void main() {
       // The assert exists because Unlit sat in exactly that state — binding a
       // texture the compiled shader has no slot for — until a golden caught it.
       expect(
-        () => LightingModel('Bad', 'Bad',
-            usesMaterialMaps: false, usesMetallicRoughnessMap: true),
+        () => LightingModel(
+          'Bad',
+          'Bad',
+          usesMaterialMaps: false,
+          usesMetallicRoughnessMap: true,
+        ),
         throwsA(isA<AssertionError>()),
       );
     });
   });
 }
-
 
 /// FNV-1a folded to six bits, computed here independently of the engine's copy.
 ///

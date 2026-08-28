@@ -75,9 +75,9 @@ final class MeshData {
   bool get fitsIn16BitIndices => vertexCount <= 0x10000;
 
   ByteData get vertexBytes => vertices.buffer.asByteData(
-        vertices.offsetInBytes,
-        vertices.lengthInBytes,
-      );
+    vertices.offsetInBytes,
+    vertices.lengthInBytes,
+  );
 
   /// Prepares indices for upload. Uses 16 bit wherever possible: half the
   /// bandwidth and memory, and primitives never exceed 65536 vertices.

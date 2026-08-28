@@ -15,11 +15,7 @@ extension _F3dScene on F3dDocument {
     return <ModelSurface>[
       for (var i = 0; i < table.count; i++)
         () {
-          final o = _recordOffset(
-            F3dSection.surfaces,
-            i,
-            F3dRecord.surface,
-          );
+          final o = _recordOffset(F3dSection.surfaces, i, F3dRecord.surface);
           final materialIndex = _view.getInt32(o + 4, Endian.little);
 
           final storage = Float32List(16);

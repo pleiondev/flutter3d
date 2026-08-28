@@ -94,9 +94,7 @@ extension _GltfSceneWalk on GltfLoader {
               // space, so the node transform must NOT be baked in — the joints
               // place it. Baking it applies the node's placement twice, which
               // looks like a model launched away from its skeleton.
-              transform: skinIndex == null
-                  ? world.clone()
-                  : Matrix4.identity(),
+              transform: skinIndex == null ? world.clone() : Matrix4.identity(),
               materialIndex: primitive.materialIndex,
               skinIndex: skinIndex,
               flipWinding: skinIndex == null && mirrored,

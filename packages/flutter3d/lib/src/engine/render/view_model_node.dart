@@ -52,9 +52,9 @@ final class ViewModelNode extends RenderNode {
   /// shadow it with things it is nowhere near.
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
-        FrameResourceIds.cubeShadow,
-        FrameResourceIds.cubeShadowStatic,
-      ];
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
@@ -118,8 +118,10 @@ final class ViewModelNode extends RenderNode {
       // was the one that was not, so the weapon was drawn in the engine's
       // depth convention on a backend that does not use it — right on one and
       // silently compressed into half the depth buffer on the other.
-      viewProjection:
-          toDepthRange(camera.viewProjection(aspect), frame.device.depthRange),
+      viewProjection: toDepthRange(
+        camera.viewProjection(aspect),
+        frame.device.depthRange,
+      ),
       cameraPosition: _cameraPosition,
     );
 
@@ -136,12 +138,14 @@ final class ViewModelNode extends RenderNode {
     if (_depth != null && _depthWidth == width && _depthHeight == height) {
       return _depth!;
     }
-    _depth = device.createTexture(RenderTargetSpec(
-      width: width,
-      height: height,
-      format: device.defaultDepthStencilFormat,
-      storageMode: StorageMode.deviceTransient,
-    ));
+    _depth = device.createTexture(
+      RenderTargetSpec(
+        width: width,
+        height: height,
+        format: device.defaultDepthStencilFormat,
+        storageMode: StorageMode.deviceTransient,
+      ),
+    );
     _depthWidth = width;
     _depthHeight = height;
     return _depth!;

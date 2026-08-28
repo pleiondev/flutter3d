@@ -3,6 +3,13 @@ description: "A 3D engine on Flutter GPU: scene graph, glTF/OBJ/.f3d loading, PB
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - graphics
+  - game-engine
+  - rendering
+  - gpu
+  - flutter-gpu
 publish_to: 'none'
 resolution: workspace
 
@@ -27,22 +34,21 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
-# The shader bundle is NOT here any more. It is `impellerc` output — an
-# artefact only one backend can read — so it ships with that backend, in
-# `flutter3d_impeller`. This package names the shaders it wants by entry point
-# (see `LightingModel.shaderName`) and lets whichever backend is wired in
-# supply them.
-flutter:
-  assets:
-    # The official Khronos test models (glTF-Sample-Assets), which the decoders
-    # are verified against and the example browses.
-    #
-    # Declared by this package rather than by the example, because the tests
-    # read them from disk and moving them would split one set of fixtures in
-    # two. The cost is that an application depending on flutter3d bundles them
-    # as well; worth revisiting when the game's bundle size starts to matter.
-    - assets/samples/
-    - assets/samples/cube/
-    - assets/samples/animated_cube/
-    - assets/samples/f3d/
-    - assets/samples/simple_skin/
+  # The Khronos test models, which every decoder test reads from disk. A dev
+  # dependency and not a real one: an application that draws a scene needs the
+  # decoders and not the fixtures they were checked with.
+  flutter3d_samples: ^0.3.0
+
+# **This package declares no assets, and that is a decision worth the paragraph.**
+#
+# Two things used to be here. The shader bundle went first: it is `impellerc`
+# output, an artefact only one backend can read, so it ships with that backend
+# in `flutter3d_impeller`, and this package names the shaders it wants by entry
+# point (see `LightingModel.shaderName`).
+#
+# The Khronos sample models went second, into `flutter3d_samples`. Declared here
+# they were 4.1 MB in every application that depended on the engine — a third of
+# the asset payload of the shooter's web build, none of it ever loaded — and
+# four fifths of this package's own published archive. The tests still read them
+# from disk and the example still browses them; both now say which package they
+# are asking.

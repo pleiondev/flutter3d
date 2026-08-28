@@ -30,15 +30,12 @@ final class GpuShaderLibrary implements ShaderLibrary {
   final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
 
   @override
-  ShaderHandle? operator [](String name) =>
-      _handles.putIfAbsent(name, () {
-        for (final library in _extra) {
-          final shader = library[name];
-          if (shader != null) return ShaderHandle(backend: shader, name: name);
-        }
-        final shader = _library[name];
-        return shader == null
-            ? null
-            : ShaderHandle(backend: shader, name: name);
-      });
+  ShaderHandle? operator [](String name) => _handles.putIfAbsent(name, () {
+    for (final library in _extra) {
+      final shader = library[name];
+      if (shader != null) return ShaderHandle(backend: shader, name: name);
+    }
+    final shader = _library[name];
+    return shader == null ? null : ShaderHandle(backend: shader, name: name);
+  });
 }

@@ -41,13 +41,13 @@ final class LightingModel {
     this.usesMetallic = false,
     this.usesEnvironment = false,
   }) : assert(
-          !usesMetallicRoughnessMap || usesMaterialMaps,
-          'the metallic-roughness map is one of the material maps, so a model '
-          'that samples no maps cannot sample it either. Getting this pair '
-          'wrong is not a warning at run time: the renderer binds a texture '
-          'the compiled shader has no slot for, and the bind fails. Unlit sat '
-          'in exactly that state until a golden caught it.',
-        );
+         !usesMetallicRoughnessMap || usesMaterialMaps,
+         'the metallic-roughness map is one of the material maps, so a model '
+         'that samples no maps cannot sample it either. Getting this pair '
+         'wrong is not a warning at run time: the renderer binds a texture '
+         'the compiled shader has no slot for, and the bind fails. Unlit sat '
+         'in exactly that state until a golden caught it.',
+       );
 
   static const LightingModel unlit = LightingModel(
     'Unlit',
@@ -56,13 +56,21 @@ final class LightingModel {
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
   );
-  static const LightingModel lambert =
-      LightingModel('Lambert', 'Lambert', usesMetallicRoughnessMap: false);
-  static const LightingModel blinnPhong =
-      LightingModel('Blinn-Phong', 'BlinnPhong');
-  static const LightingModel pbr =
-      LightingModel('PBR (GGX)', 'Pbr',
-          usesMetallic: true, usesEnvironment: true);
+  static const LightingModel lambert = LightingModel(
+    'Lambert',
+    'Lambert',
+    usesMetallicRoughnessMap: false,
+  );
+  static const LightingModel blinnPhong = LightingModel(
+    'Blinn-Phong',
+    'BlinnPhong',
+  );
+  static const LightingModel pbr = LightingModel(
+    'PBR (GGX)',
+    'Pbr',
+    usesMetallic: true,
+    usesEnvironment: true,
+  );
   static const LightingModel toon = LightingModel('Toon', 'Toon');
   static const LightingModel normals = LightingModel(
     'Normals',

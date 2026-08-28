@@ -32,10 +32,11 @@ void main() {
     final offenders = <String>[];
     var scanned = 0;
 
-    for (final file in dir
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((File f) => f.path.endsWith('.dart'))) {
+    for (final file
+        in dir
+            .listSync(recursive: true)
+            .whereType<File>()
+            .where((File f) => f.path.endsWith('.dart'))) {
       scanned++;
       final path = file.path.replaceAll(r'\', '/');
       final lines = file.readAsLinesSync();
@@ -50,7 +51,8 @@ void main() {
     expect(
       offenders,
       isEmpty,
-      reason: 'the engine asks a GraphicsDevice for textures rather than '
+      reason:
+          'the engine asks a GraphicsDevice for textures rather than '
           'making them, which is what lets a fake device stand in for a real '
           'one. These build their own:\n${offenders.join('\n')}',
     );

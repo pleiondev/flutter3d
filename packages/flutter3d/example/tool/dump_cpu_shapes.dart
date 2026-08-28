@@ -30,11 +30,11 @@ void main() {
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
     TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-          width: 1,
-          height: 1,
-          format: TextureFormat.r8g8b8a8UNormInt,
-          pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-        )!;
+      width: 1,
+      height: 1,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+    )!;
     final renderer = Renderer.create(
       device: device,
       fallbackAlbedo: texel(<int>[255, 255, 255, 255]),
@@ -59,10 +59,13 @@ void main() {
     final out = Directory('build/cpu')..createSync(recursive: true);
     final file = File('${out.path}/shapes.png')
       ..writeAsBytesSync(
-          encodePng(pixels!.buffer.asUint8List(), _width, _height));
+        encodePng(pixels!.buffer.asUint8List(), _width, _height),
+      );
 
     // ignore: avoid_print
-    print('shapes: ${result.drawCalls} draws, $ms ms at ${_width}x$_height '
-        '-> ${file.path}');
+    print(
+      'shapes: ${result.drawCalls} draws, $ms ms at ${_width}x$_height '
+      '-> ${file.path}',
+    );
   });
 }

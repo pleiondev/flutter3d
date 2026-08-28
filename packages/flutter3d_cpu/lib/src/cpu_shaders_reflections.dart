@@ -52,8 +52,8 @@ final class ReflectionsShader implements CpuFragmentShader {
     final inverse = b.mat4('ReflectionInfo', 'inverse_view_projection');
     final ndc = Vector4(u * 2.0 - 1.0, w * 2.0 - 1.0, surface.w, 1.0);
     final Vector4 worldH = inverse * ndc;
-    final position =
-        Vector3(worldH.x, worldH.y, worldH.z)..scale(1.0 / worldH.w);
+    final position = Vector3(worldH.x, worldH.y, worldH.z)
+      ..scale(1.0 / worldH.w);
 
     final camera = b.vec4('ReflectionInfo', 'camera', Vector4.zero());
     final toEye = (Vector3(camera.x, camera.y, camera.z) - position)
@@ -80,7 +80,8 @@ final class ReflectionsShader implements CpuFragmentShader {
     // a constant bound. Kept so the two loops end in the same place.
     for (var i = 0; i < 64; i++) {
       if (i >= steps) break;
-      final Vector4 clip = viewProjection * Vector4(march.x, march.y, march.z, 1.0);
+      final Vector4 clip =
+          viewProjection * Vector4(march.x, march.y, march.z, 1.0);
       if (clip.w <= 0.0) break;
       final nx = clip.x / clip.w;
       final ny = clip.y / clip.w;
@@ -95,8 +96,8 @@ final class ReflectionsShader implements CpuFragmentShader {
         if (difference > 0.0 && difference < thickness) {
           final tex = sceneMap.sample(su, sv);
           hitColour = Vector3(tex.x, tex.y, tex.z);
-          final border = 1.0 -
-              math.max((su * 2.0 - 1.0).abs(), (sv * 2.0 - 1.0).abs());
+          final border =
+              1.0 - math.max((su * 2.0 - 1.0).abs(), (sv * 2.0 - 1.0).abs());
           hit = smoothstep(0.0, 0.15, border);
           break;
         }

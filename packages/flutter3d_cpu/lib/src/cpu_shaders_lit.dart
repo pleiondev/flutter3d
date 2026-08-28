@@ -22,8 +22,15 @@ final class UnlitShader implements CpuFragmentShader {
     final s = readSurface(v, bindings, c);
     // Fully rough, which is what WriteSurface's one-argument form means: a
     // surface that cannot say how polished it is should not be reflected off.
-    return writeLit(c, v, bindings,
-        colour: s.albedo, alpha: s.alpha, normal: s.normal, roughness: 1.0);
+    return writeLit(
+      c,
+      v,
+      bindings,
+      colour: s.albedo,
+      alpha: s.alpha,
+      normal: s.normal,
+      roughness: 1.0,
+    );
   }
 }
 
@@ -38,16 +45,24 @@ final class LambertShader implements CpuFragmentShader {
     // No ORM map: a purely diffuse model has no response to metallic or
     // roughness, so sampling it would leave a slot the compiler then drops.
     applyCommonMaps(s, v, b, c);
-    final lit = accumulateLights(s, b, c,
-            shade: (s, light) => s.albedo, shadowed: true)
-        .scaled(s.occlusion);
+    final lit = accumulateLights(
+      s,
+      b,
+      c,
+      shade: (s, light) => s.albedo,
+      shadowed: true,
+    ).scaled(s.occlusion);
     final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
-    return writeLit(c, v, b,
-        colour: total,
-        alpha: s.alpha,
-        normal: s.normal,
-        roughness: s.roughness);
+    return writeLit(
+      c,
+      v,
+      b,
+      colour: total,
+      alpha: s.alpha,
+      normal: s.normal,
+      roughness: s.roughness,
+    );
   }
 }
 
@@ -61,26 +76,38 @@ final class BlinnPhongShader implements CpuFragmentShader {
     applyCommonMaps(s, v, b, c);
     // Roughness drives the exponent, so the ORM map does reach the output.
     applyMetallicRoughnessMap(s, v, b, c);
-    final specularStrength =
-        b.vec4('FragInfo', 'material', Vector4.zero()).w;
+    final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
 
-    final lit = accumulateLights(s, b, c, shadowed: true, shade: (s, light) {
-      // Perceptual roughness onto a Phong exponent. The mapping is arbitrary;
-      // it only has to feel monotonic as the slider moves.
-      final shininess = 256.0 + (4.0 - 256.0) * s.roughness;
-      final specular =
-          math.pow(light.nDotH, shininess).toDouble() * specularStrength;
-      return Vector3(s.albedo.x + specular, s.albedo.y + specular,
-          s.albedo.z + specular);
-    }).scaled(s.occlusion);
+    final lit = accumulateLights(
+      s,
+      b,
+      c,
+      shadowed: true,
+      shade: (s, light) {
+        // Perceptual roughness onto a Phong exponent. The mapping is arbitrary;
+        // it only has to feel monotonic as the slider moves.
+        final shininess = 256.0 + (4.0 - 256.0) * s.roughness;
+        final specular =
+            math.pow(light.nDotH, shininess).toDouble() * specularStrength;
+        return Vector3(
+          s.albedo.x + specular,
+          s.albedo.y + specular,
+          s.albedo.z + specular,
+        );
+      },
+    ).scaled(s.occlusion);
 
     final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
-    return writeLit(c, v, b,
-        colour: total,
-        alpha: s.alpha,
-        normal: s.normal,
-        roughness: s.roughness);
+    return writeLit(
+      c,
+      v,
+      b,
+      colour: total,
+      alpha: s.alpha,
+      normal: s.normal,
+      roughness: s.roughness,
+    );
   }
 }
 
@@ -140,66 +167,80 @@ final class PbrShader implements CpuFragmentShader {
     final s = readSurface(v, b, c);
     applyCommonMaps(s, v, b, c);
     applyMetallicRoughnessMap(s, v, b, c);
-    final specularStrength =
-        b.vec4('FragInfo', 'material', Vector4.zero()).w;
+    final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
 
-    final lit = accumulateLights(s, b, c, shadowed: true, shade: (s, light) {
-      // Perceptual roughness squared is the GGX alpha; this is what makes the
-      // roughness slider feel linear.
-      final alpha = s.roughness * s.roughness;
+    final lit = accumulateLights(
+      s,
+      b,
+      c,
+      shadowed: true,
+      shade: (s, light) {
+        // Perceptual roughness squared is the GGX alpha; this is what makes the
+        // roughness slider feel linear.
+        final alpha = s.roughness * s.roughness;
 
-      // Dielectrics reflect about four percent head-on; metals tint the
-      // reflection with their albedo and have no diffuse response.
-      final f0 = Vector3(
-        0.04 + (s.albedo.x - 0.04) * s.metallic,
-        0.04 + (s.albedo.y - 0.04) * s.metallic,
-        0.04 + (s.albedo.z - 0.04) * s.metallic,
-      );
-      final diffuseColour = s.albedo * (1.0 - s.metallic);
+        // Dielectrics reflect about four percent head-on; metals tint the
+        // reflection with their albedo and have no diffuse response.
+        final f0 = Vector3(
+          0.04 + (s.albedo.x - 0.04) * s.metallic,
+          0.04 + (s.albedo.y - 0.04) * s.metallic,
+          0.04 + (s.albedo.z - 0.04) * s.metallic,
+        );
+        final diffuseColour = s.albedo * (1.0 - s.metallic);
 
-      final d = _dGgx(light.nDotH, alpha);
-      final vis = _vSmith(s.nDotV, light.nDotL, alpha);
-      final f = _fSchlick(f0, light.vDotH);
+        final d = _dGgx(light.nDotH, alpha);
+        final vis = _vSmith(s.nDotV, light.nDotL, alpha);
+        final f = _fSchlick(f0, light.vDotH);
 
-      final specular = f * (d * vis * specularStrength);
-      // Energy left over after reflection is what scatters diffusely.
-      final diffuse = Vector3(
-        diffuseColour.x * (1.0 - f.x) / _pi,
-        diffuseColour.y * (1.0 - f.y) / _pi,
-        diffuseColour.z * (1.0 - f.z) / _pi,
-      );
-      // The pi puts the result back on the scale the tone mapper and the
-      // exposure default were calibrated against.
-      return (diffuse + specular)..scale(_pi);
-    }).scaled(s.occlusion);
+        final specular = f * (d * vis * specularStrength);
+        // Energy left over after reflection is what scatters diffusely.
+        final diffuse = Vector3(
+          diffuseColour.x * (1.0 - f.x) / _pi,
+          diffuseColour.y * (1.0 - f.y) / _pi,
+          diffuseColour.z * (1.0 - f.z) / _pi,
+        );
+        // The pi puts the result back on the scale the tone mapper and the
+        // exposure default were calibrated against.
+        return (diffuse + specular)..scale(_pi);
+      },
+    ).scaled(s.occlusion);
 
     // Occlusion darkens indirect light, and is applied to the direct term too.
     // Not physical; with no IBL the flat ambient is far too weak for an
     // occlusion map to be visible otherwise.
     final metallic = s.metallic.clamp(0.0, 1.0);
     final diffuseColour = s.albedo * (1.0 - metallic);
-    var ambient =
-        (diffuseColour.clone()..multiply(s.ambient)).scaled(s.occlusion);
+    var ambient = (diffuseColour.clone()..multiply(s.ambient)).scaled(
+      s.occlusion,
+    );
 
     final levels = b.vec4('FragInfo', 'frame_params', Vector4.zero()).w;
     final environment = b.textures['environment_texture'];
     if (levels > 0.0 && environment != null) {
       // The term that made metal black: a metal has no diffuse response, so
       // with nothing to reflect it was lit by direct light alone.
-      final f0 = Vector3(0.04, 0.04, 0.04) +
+      final f0 =
+          Vector3(0.04, 0.04, 0.04) +
           (s.albedo - Vector3(0.04, 0.04, 0.04)) * metallic;
       // reflect(-v, n) = 2(n·v)n - v, with v already the direction to the eye.
       final nDotV = s.normal.dot(s.view);
       final reflected = s.normal * (2.0 * nDotV) - s.view;
 
       final irradiance = environment.sampleCube(
-          s.normal.x, s.normal.y, s.normal.z, levels);
+        s.normal.x,
+        s.normal.y,
+        s.normal.z,
+        levels,
+      );
       final prefiltered = environment.sampleCube(
-          reflected.x, reflected.y, reflected.z, s.roughness * levels);
+        reflected.x,
+        reflected.y,
+        reflected.z,
+        s.roughness * levels,
+      );
       final ab = _envBrdfApprox(s.roughness, math.max(nDotV, 0.0));
 
-      final strength =
-          b.vec4('FragInfo', 'material', Vector4.zero()).z;
+      final strength = b.vec4('FragInfo', 'material', Vector4.zero()).z;
       final diffusePart = diffuseColour.clone()
         ..multiply(Vector3(irradiance.x, irradiance.y, irradiance.z));
       final specularPart = Vector3(prefiltered.x, prefiltered.y, prefiltered.z)
@@ -208,11 +249,15 @@ final class PbrShader implements CpuFragmentShader {
     }
 
     final total = lit + ambient + s.emissive;
-    return writeLit(c, v, b,
-        colour: total,
-        alpha: s.alpha,
-        normal: s.normal,
-        roughness: s.roughness);
+    return writeLit(
+      c,
+      v,
+      b,
+      colour: total,
+      alpha: s.alpha,
+      normal: s.normal,
+      roughness: s.roughness,
+    );
   }
 }
 
@@ -227,30 +272,39 @@ final class ToonShader implements CpuFragmentShader {
     // Roughness sets the band count, so the ORM map matters here too.
     applyMetallicRoughnessMap(s, v, b, c);
 
-    final lit = accumulateLights(s, b, c, shadowed: true, shade: (s, light) {
-      // Fewer bands as roughness rises, so the slider still does something.
-      final bands = 5.0 + (2.0 - 5.0) * s.roughness;
-      var quantised = (light.nDotL * bands).floorToDouble() / bands;
-      final fraction = fract(light.nDotL * bands);
-      quantised += smoothstep(0.85, 1.0, fraction) / bands;
-      // AccumulateLights multiplies by N.L, which is what the banding is meant
-      // to replace, so divide it back out and keep the ramp.
-      final ramp = quantised / math.max(light.nDotL, 1e-3);
-      return s.albedo * ramp;
-    }).scaled(s.occlusion);
+    final lit = accumulateLights(
+      s,
+      b,
+      c,
+      shadowed: true,
+      shade: (s, light) {
+        // Fewer bands as roughness rises, so the slider still does something.
+        final bands = 5.0 + (2.0 - 5.0) * s.roughness;
+        var quantised = (light.nDotL * bands).floorToDouble() / bands;
+        final fraction = fract(light.nDotL * bands);
+        quantised += smoothstep(0.85, 1.0, fraction) / bands;
+        // AccumulateLights multiplies by N.L, which is what the banding is meant
+        // to replace, so divide it back out and keep the ramp.
+        final ramp = quantised / math.max(light.nDotL, 1e-3);
+        return s.albedo * ramp;
+      },
+    ).scaled(s.occlusion);
 
     // The rim belongs to the view, not to any one light: inside the loop it
     // would brighten with the number of lamps in the scene.
-    final specularStrength =
-        b.vec4('FragInfo', 'material', Vector4.zero()).w;
+    final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
     final rim =
         math.pow(1.0 - s.nDotV, 3.0).toDouble() * specularStrength * 0.35;
     final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
     final total = lit + ambient + Vector3.all(rim) + s.emissive;
-    return writeLit(c, v, b,
-        colour: total,
-        alpha: s.alpha,
-        normal: s.normal,
-        roughness: s.roughness);
+    return writeLit(
+      c,
+      v,
+      b,
+      colour: total,
+      alpha: s.alpha,
+      normal: s.normal,
+      roughness: s.roughness,
+    );
   }
 }

@@ -21,33 +21,29 @@ const int _height = 32;
 
 /// A wall of one colour, filling the view.
 FrameBuilder _wall(Vector4 colour) => (GraphicsDevice device) {
-      final scene = Scene();
-      scene.add(
-        MeshNode(
-          DeviceMesh.upload(
-            device,
-            CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
-          ),
-          Material(
-            name: 'wall',
-            baseColor: colour,
-            lighting: LightingModel.unlit,
-          ),
-        )..setPosition(0.0, 0.0, -8.0),
-      );
+  final scene = Scene();
+  scene.add(
+    MeshNode(
+      DeviceMesh.upload(
+        device,
+        CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
+      ),
+      Material(name: 'wall', baseColor: colour, lighting: LightingModel.unlit),
+    )..setPosition(0.0, 0.0, -8.0),
+  );
 
-      final camera = CameraNode(
-        projection: const PerspectiveProjection(
-          fovYRadians: 1.0,
-          near: 0.1,
-          far: 60.0,
-        ),
-      );
-      camera.lookAt(Vector3(0.0, 0.0, -1.0));
-      scene.add(camera);
+  final camera = CameraNode(
+    projection: const PerspectiveProjection(
+      fovYRadians: 1.0,
+      near: 0.1,
+      far: 60.0,
+    ),
+  );
+  camera.lookAt(Vector3(0.0, 0.0, -1.0));
+  scene.add(camera);
 
-      return (scene: scene, camera: camera);
-    };
+  return (scene: scene, camera: camera);
+};
 
 /// A directory this test owns and removes, so a run leaves nothing behind.
 Directory _scratch() =>
@@ -107,8 +103,11 @@ void main() {
       );
       await expectMatchesGolden(frame, path);
 
-      expect(File(path).existsSync(), isTrue,
-          reason: 'the first run should leave a reference behind');
+      expect(
+        File(path).existsSync(),
+        isTrue,
+        reason: 'the first run should leave a reference behind',
+      );
     });
 
     test('and then holds the picture to it', () async {

@@ -111,8 +111,8 @@ final class BoxEmitter extends ParticleEmitter {
     required Vector3 halfExtents,
     this.speed = const Range(0.0, 0.0),
     Vector3? along,
-  })  : _halfExtents = halfExtents.clone(),
-        _along = along?.clone();
+  }) : _halfExtents = halfExtents.clone(),
+       _along = along?.clone();
 
   final Vector3 _halfExtents;
 

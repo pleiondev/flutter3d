@@ -29,7 +29,8 @@ class SceneApp extends StatefulWidget {
   State<SceneApp> createState() => _SceneAppState();
 }
 
-class _SceneAppState extends State<SceneApp> with SingleTickerProviderStateMixin {
+class _SceneAppState extends State<SceneApp>
+    with SingleTickerProviderStateMixin {
   static const int _width = 480;
   static const int _height = 360;
 
@@ -112,18 +113,28 @@ class _SceneAppState extends State<SceneApp> with SingleTickerProviderStateMixin
       // One opaque white texel each. The renderer binds these wherever a
       // material leaves a slot empty, and a sampler bound to nothing is a
       // crash on either backend.
-      final white = _require(device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(<int>[255, 255, 255, 255])),
-      ), 'white texel');
-      final flat = _require(device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(<int>[128, 128, 255, 255])),
-      ), 'flat normal texel');
+      final white = _require(
+        device.createTextureFromPixels(
+          width: 1,
+          height: 1,
+          format: TextureFormat.r8g8b8a8UNormInt,
+          pixels: ByteData.sublistView(
+            Uint8List.fromList(<int>[255, 255, 255, 255]),
+          ),
+        ),
+        'white texel',
+      );
+      final flat = _require(
+        device.createTextureFromPixels(
+          width: 1,
+          height: 1,
+          format: TextureFormat.r8g8b8a8UNormInt,
+          pixels: ByteData.sublistView(
+            Uint8List.fromList(<int>[128, 128, 255, 255]),
+          ),
+        ),
+        'flat normal texel',
+      );
       say('PASS  fallback textures');
 
       final renderer = Renderer.create(
@@ -139,13 +150,13 @@ class _SceneAppState extends State<SceneApp> with SingleTickerProviderStateMixin
         const SphereShape(radius: 1.0, segments: 32, rings: 16).build(),
       );
       final ball = MeshNode(
-          mesh,
-          Material(
-            name: 'ball',
-            baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
-            lighting: LightingModel.lambert,
-          ),
+        mesh,
+        Material(
           name: 'ball',
+          baseColor: Vector4(0.8, 0.3, 0.2, 1.0),
+          lighting: LightingModel.lambert,
+        ),
+        name: 'ball',
       );
       scene.root.add(ball);
       _ball = ball;
@@ -159,7 +170,9 @@ class _SceneAppState extends State<SceneApp> with SingleTickerProviderStateMixin
       camera.setPosition(0.0, 0.0, 4.0);
       camera.lookAt(Vector3.zero());
       scene.root.add(camera);
-      say('PASS  scene: ${scene.meshes.length} mesh, ${scene.lights.length} light');
+      say(
+        'PASS  scene: ${scene.meshes.length} mesh, ${scene.lights.length} light',
+      );
 
       final result = renderer.render(
         width: _width,
@@ -168,7 +181,9 @@ class _SceneAppState extends State<SceneApp> with SingleTickerProviderStateMixin
         views: <RenderView>[RenderView(camera: camera)],
         settings: const RenderSettings(bloom: BloomSettings(enabled: false)),
       );
-      say('PASS  frame: ${result.drawCalls} draws, ${result.pipelines} pipelines');
+      say(
+        'PASS  frame: ${result.drawCalls} draws, ${result.pipelines} pipelines',
+      );
 
       _device = device;
       _renderer = renderer;
@@ -197,26 +212,25 @@ class _SceneAppState extends State<SceneApp> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        home: Scaffold(
-          backgroundColor: const Color(0xFF111111),
-          body: Column(
-            children: <Widget>[
-              if (_frame != null)
-                SizedBox(width: 480, height: 360, child: _frame),
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Text(
-                    '$_status\n$_diagnostic',
-                    style: const TextStyle(
-                      color: Color(0xFFDDDDDD),
-                      fontFamily: 'monospace',
-                      fontSize: 13,
-                    ),
-                  ),
+    home: Scaffold(
+      backgroundColor: const Color(0xFF111111),
+      body: Column(
+        children: <Widget>[
+          if (_frame != null) SizedBox(width: 480, height: 360, child: _frame),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Text(
+                '$_status\n$_diagnostic',
+                style: const TextStyle(
+                  color: Color(0xFFDDDDDD),
+                  fontFamily: 'monospace',
+                  fontSize: 13,
                 ),
               ),
-            ],
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }

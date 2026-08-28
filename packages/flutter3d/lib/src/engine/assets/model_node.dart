@@ -53,11 +53,11 @@ final class ModelNode {
     Vector3? scale,
     List<int>? children,
     List<int>? surfaces,
-  })  : translation = translation ?? Vector3.zero(),
-        rotation = rotation ?? Quaternion.identity(),
-        scale = scale ?? Vector3(1.0, 1.0, 1.0),
-        children = children ?? <int>[],
-        surfaces = surfaces ?? <int>[];
+  }) : translation = translation ?? Vector3.zero(),
+       rotation = rotation ?? Quaternion.identity(),
+       scale = scale ?? Vector3(1.0, 1.0, 1.0),
+       children = children ?? <int>[],
+       surfaces = surfaces ?? <int>[];
 
   final String? name;
 
@@ -74,7 +74,8 @@ final class ModelNode {
   Matrix4 toMatrix() => Matrix4.compose(translation, rotation, scale);
 
   @override
-  String toString() => 'ModelNode(${name ?? 'unnamed'}, '
+  String toString() =>
+      'ModelNode(${name ?? 'unnamed'}, '
       '${children.length} children, ${surfaces.length} surfaces)';
 }
 

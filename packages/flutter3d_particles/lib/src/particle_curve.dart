@@ -60,15 +60,15 @@ final class ParticleCurve {
   /// out of order — which is the sort of defect that reaches a golden and looks
   /// like a physics bug.
   ParticleCurve(this.keys)
-      : assert(keys.isNotEmpty, 'a curve with no keys has no value'),
-        assert(_isSorted(keys), 'curve keys must be ordered by `at`');
+    : assert(keys.isNotEmpty, 'a curve with no keys has no value'),
+      assert(_isSorted(keys), 'curve keys must be ordered by `at`');
 
   /// A curve that never moves.
   ParticleCurve.constant(double value) : this(<CurveKey>[CurveKey(0.0, value)]);
 
   /// The two-key case, which is most of them.
   ParticleCurve.linear(double from, double to)
-      : this(<CurveKey>[CurveKey(0.0, from), CurveKey(1.0, to)]);
+    : this(<CurveKey>[CurveKey(0.0, from), CurveKey(1.0, to)]);
 
   final List<CurveKey> keys;
 
@@ -97,7 +97,8 @@ final class ParticleCurve {
       // Two keys at the same spot is a deliberate hard edge, not an error.
       // Dividing by the zero span would give a NaN that spreads silently.
       if (span <= 0.0) return b.value;
-      return a.value + (b.value - a.value) * easeShape((t - a.at) / span, a.ease);
+      return a.value +
+          (b.value - a.value) * easeShape((t - a.at) / span, a.ease);
     }
     return keys[last].value;
   }

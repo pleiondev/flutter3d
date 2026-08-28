@@ -22,8 +22,10 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
   const size = 16;
   final vertex = device.shaders['DebugLineVertex'];
   final fragment = device.shaders['DebugLine'];
-  require(vertex != null && fragment != null,
-      'the debug-line stages are missing, so this cannot draw anything');
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw anything',
+  );
 
   // x from −1 to 0, y over the whole of it: the left half of the frame.
   final leftHalf = Float32List.fromList(<double>[
@@ -34,20 +36,24 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
   ]);
   final indices = Uint16List.fromList(<int>[0, 1, 2, 0, 2, 3]);
 
-  final target = device.createTexture(const RenderTargetSpec(
-    width: size,
-    height: size,
-    format: TextureFormat.r8g8b8a8UNormInt,
-  ));
-  final pass = device.beginRenderPass(RenderPassDescriptor(
-    colors: <ColorTarget>[
-      ColorTarget(
-        texture: target,
-        loadAction: LoadAction.clear,
-        clearValue: Vector4.zero(),
-      ),
-    ],
-  ));
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ),
+  );
   pass
     ..setPrimitiveType(PrimitiveType.triangle)
     ..setCullMode(CullMode.none)
@@ -66,17 +72,19 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
   int green(int x, int y) => bytes[((y * size + x) * 4) + 1];
 
   require(
-      green(size ~/ 4, size ~/ 2) > 128,
-      'the left quarter of the attachment is unpainted, so the pass drew into '
-      'less than its attachment — a viewport smaller than what it renders to '
-      '(came back ${green(size ~/ 4, size ~/ 2)})');
+    green(size ~/ 4, size ~/ 2) > 128,
+    'the left quarter of the attachment is unpainted, so the pass drew into '
+    'less than its attachment — a viewport smaller than what it renders to '
+    '(came back ${green(size ~/ 4, size ~/ 2)})',
+  );
   require(
-      green(size * 3 ~/ 4, size ~/ 2) < 128,
-      'the right quarter of the attachment is painted by a shape that stops at '
-      'the middle of clip space, so the pass drew into more than its '
-      'attachment — a viewport left at the size of something else, most likely '
-      'the canvas or the previous pass '
-      '(came back ${green(size * 3 ~/ 4, size ~/ 2)})');
+    green(size * 3 ~/ 4, size ~/ 2) < 128,
+    'the right quarter of the attachment is painted by a shape that stops at '
+    'the middle of clip space, so the pass drew into more than its '
+    'attachment — a viewport left at the size of something else, most likely '
+    'the canvas or the previous pass '
+    '(came back ${green(size * 3 ~/ 4, size ~/ 2)})',
+  );
 }
 
 /// A pass does not inherit the rectangle the previous one was clipped to.
@@ -93,8 +101,10 @@ Future<void> checkPassDoesNotInheritScissor(GraphicsDevice device) async {
   const size = 16;
   final vertex = device.shaders['DebugLineVertex'];
   final fragment = device.shaders['DebugLine'];
-  require(vertex != null && fragment != null,
-      'the debug-line stages are missing, so this cannot draw anything');
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw anything',
+  );
 
   final everything = Float32List.fromList(<double>[
     -1, -1, 0.5, 0, 1, 0, 1, //
@@ -104,20 +114,24 @@ Future<void> checkPassDoesNotInheritScissor(GraphicsDevice device) async {
   final indices = Uint16List.fromList(<int>[0, 1, 2]);
 
   Future<Uint8List> paintAll({ScreenRect? clippedTo}) async {
-    final target = device.createTexture(const RenderTargetSpec(
-      width: size,
-      height: size,
-      format: TextureFormat.r8g8b8a8UNormInt,
-    ));
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: target,
-          loadAction: LoadAction.clear,
-          clearValue: Vector4.zero(),
-        ),
-      ],
-    ));
+    final target = device.createTexture(
+      const RenderTargetSpec(
+        width: size,
+        height: size,
+        format: TextureFormat.r8g8b8a8UNormInt,
+      ),
+    );
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: target,
+            loadAction: LoadAction.clear,
+            clearValue: Vector4.zero(),
+          ),
+        ],
+      ),
+    );
     pass
       ..setPrimitiveType(PrimitiveType.triangle)
       ..setCullMode(CullMode.none);
@@ -140,13 +154,20 @@ Future<void> checkPassDoesNotInheritScissor(GraphicsDevice device) async {
 
   // A tile in the top-left corner, the shape a shadow atlas draws into.
   await paintAll(
-      clippedTo: const ScreenRect(x: 0, y: 0, width: size ~/ 4, height: size ~/ 4));
+    clippedTo: const ScreenRect(
+      x: 0,
+      y: 0,
+      width: size ~/ 4,
+      height: size ~/ 4,
+    ),
+  );
 
   final second = await paintAll();
   final corner = second[((size ~/ 2) * size + (size ~/ 2)) * 4 + 1];
   require(
-      corner > 128,
-      'a pass that set no scissor was clipped to the tile the previous pass '
-      'set: the middle of the attachment is unpainted by a draw that covers '
-      'all of clip space (came back $corner)');
+    corner > 128,
+    'a pass that set no scissor was clipped to the tile the previous pass '
+    'set: the middle of the attachment is unpainted by a draw that covers '
+    'all of clip space (came back $corner)',
+  );
 }

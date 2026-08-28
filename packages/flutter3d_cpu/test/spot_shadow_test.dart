@@ -72,41 +72,47 @@ const double _coneAngle = 0.45;
   );
 
   MeshNode block(Vector3 size, Vector3 at, {String name = 'block'}) => MeshNode(
-        DeviceMesh.upload(device, CuboidShape(size: size).build()),
-        Material(
-          name: name,
-          baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
-          lighting: LightingModel.pbr,
-        ),
-        name: name,
-      )..setPosition(at.x, at.y, at.z);
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    Material(
+      name: name,
+      baseColor: Vector4(0.8, 0.8, 0.8, 1.0),
+      lighting: LightingModel.pbr,
+    ),
+    name: name,
+  )..setPosition(at.x, at.y, at.z);
 
-  scene.add(block(Vector3(40.0, 1.0, 40.0), Vector3(0.0, -0.5, 0.0),
-      name: 'floor'));
+  scene.add(
+    block(Vector3(40.0, 1.0, 40.0), Vector3(0.0, -0.5, 0.0), name: 'floor'),
+  );
 
   // Held in the beam rather than standing on the floor: a caster touching its
   // own shadow gives the filter a contact edge to sharpen and leaves nothing to
   // measure a displacement against.
-  final near = block(Vector3(1.2, 0.4, 1.2), Vector3(0.0, 3.0, 0.0),
-      name: 'blocker-near')
-    ..shadowIsStatic = staticBlockers;
-  final rim = block(Vector3(1.2, 0.4, 1.2), Vector3(1.9, 3.0, 0.0),
-      name: 'blocker-rim')
-    ..shadowIsStatic = staticBlockers;
+  final near = block(
+    Vector3(1.2, 0.4, 1.2),
+    Vector3(0.0, 3.0, 0.0),
+    name: 'blocker-near',
+  )..shadowIsStatic = staticBlockers;
+  final rim = block(
+    Vector3(1.2, 0.4, 1.2),
+    Vector3(1.9, 3.0, 0.0),
+    name: 'blocker-rim',
+  )..shadowIsStatic = staticBlockers;
   scene.add(near);
   scene.add(rim);
 
-  final light = LightNode(
-    type: LightType.spot,
-    intensity: 60.0,
-    range: 20.0,
-    outerConeAngle: _coneAngle,
-    innerConeAngle: _coneAngle * 0.5,
-    castsShadow: castsShadow,
-    name: 'downlight',
-  )
-    ..setPosition(0.0, _lightHeight, 0.0)
-    ..setLocalForward(Vector3(0.0, -1.0, 0.0));
+  final light =
+      LightNode(
+          type: LightType.spot,
+          intensity: 60.0,
+          range: 20.0,
+          outerConeAngle: _coneAngle,
+          innerConeAngle: _coneAngle * 0.5,
+          castsShadow: castsShadow,
+          name: 'downlight',
+        )
+        ..setPosition(0.0, _lightHeight, 0.0)
+        ..setLocalForward(Vector3(0.0, -1.0, 0.0));
   scene.add(light);
 
   // Steep and from the front, so the floor fills the lower half of the frame
@@ -143,11 +149,9 @@ Future<List<int>> _grid(
 /// caster's own top face is a real thing this scene can produce, and it is not
 /// what any of these tests are about.
 Set<int> _darkened(List<int> lit, List<int> shadowed) => <int>{
-      for (var i = kParityGrid * kParityGrid ~/ 3;
-          i < lit.length;
-          i++)
-        if (lit[i] - shadowed[i] > 12) i,
-    };
+  for (var i = kParityGrid * kParityGrid ~/ 3; i < lit.length; i++)
+    if (lit[i] - shadowed[i] > 12) i,
+};
 
 int _minColumn(Set<int> cells) =>
     cells.map((int i) => i % kParityGrid).reduce((a, b) => a < b ? a : b);
@@ -188,9 +192,13 @@ void main() {
     // The two blockers are 1.9 m apart at three metres up, which the light
     // projects to about three metres apart on the floor. Losing the outer one
     // roughly halves this.
-    expect(_maxColumn(dark) - _minColumn(dark), greaterThanOrEqualTo(4),
-        reason: 'the shadow covers one blocker but not both: the frustum is '
-            'fitted too tight and the rim is being trimmed');
+    expect(
+      _maxColumn(dark) - _minColumn(dark),
+      greaterThanOrEqualTo(4),
+      reason:
+          'the shadow covers one blocker but not both: the frustum is '
+          'fitted too tight and the rim is being trimmed',
+    );
   });
 
   test('turning a spot draws what pointing it there would have', () async {
@@ -224,10 +232,14 @@ void main() {
       for (var i = 0; i < alwaysThere.length; i++)
         if ((afterTurning[i] - alwaysThere[i]).abs() > 12) i,
     ];
-    expect(disagree, isEmpty,
-        reason: 'a spot that turned onto this aim draws a different frame from '
-            'one that was always on it: the static bake is keyed on something '
-            'a turn does not alter, so it was never re-baked');
+    expect(
+      disagree,
+      isEmpty,
+      reason:
+          'a spot that turned onto this aim draws a different frame from '
+          'one that was always on it: the static bake is keyed on something '
+          'a turn does not alter, so it was never re-baked',
+    );
   });
 
   test('a point light in the same scene is unaffected', () async {
@@ -243,7 +255,10 @@ void main() {
     unlitRoom.light.type = LightType.point;
     final lit = await _grid(_engine(), unlitRoom);
 
-    expect(_darkened(lit, shadowed), isNotEmpty,
-        reason: 'a point light in this scene stopped casting a shadow');
+    expect(
+      _darkened(lit, shadowed),
+      isNotEmpty,
+      reason: 'a point light in this scene stopped casting a shadow',
+    );
   });
 }

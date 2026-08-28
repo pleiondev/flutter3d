@@ -64,7 +64,9 @@ final class CompositeMix {
     return CompositeMix._(
       view: showingShadow
           ? CompositeView.shadowMap
-          : (showingSurface ? CompositeView.surfaceBuffer : CompositeView.scene),
+          : (showingSurface
+                ? CompositeView.surfaceBuffer
+                : CompositeView.scene),
       usesGlow: hasGlow,
       exposure: raw ? 1.0 : exposure,
       // The half of the pairing the shader can see. Zero whenever the slot does

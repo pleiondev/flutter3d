@@ -32,7 +32,10 @@ Future<Uint8List?> readReference(String directory, String name) async {
 
 /// Records a reference, creating the directory if needed.
 Future<String> writeReference(
-    String directory, String name, Uint8List png) async {
+  String directory,
+  String name,
+  Uint8List png,
+) async {
   final file = File('$directory/$name.png');
   file.parent.createSync(recursive: true);
   file.writeAsBytesSync(png);

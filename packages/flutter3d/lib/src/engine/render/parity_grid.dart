@@ -43,7 +43,8 @@ List<int> parityGrid(List<int> rgba, int width, int height) {
           // Rec. 601 luma, integer weights. The exact coefficients matter less
           // than both sides using the same ones, which is why this is here and
           // not written out twice.
-          total += (rgba[i] * 299 + rgba[i + 1] * 587 + rgba[i + 2] * 114) ~/ 1000;
+          total +=
+              (rgba[i] * 299 + rgba[i + 1] * 587 + rgba[i + 2] * 114) ~/ 1000;
           count++;
         }
       }

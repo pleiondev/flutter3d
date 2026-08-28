@@ -69,26 +69,25 @@ extension _ScenePasses on Renderer {
     final surfaceAttachment = surface == null
         ? null
         : (msaa == null
-            ? ColorTarget(
-                texture: surface,
-                clearValue: vm.Vector4.zero(),
-              )
-            : ColorTarget(
-                texture: _surfaceMsaa!,
-                resolveTexture: surface,
-                storeAction: StoreAction.multisampleResolve,
-                clearValue: vm.Vector4.zero(),
-              ));
+              ? ColorTarget(texture: surface, clearValue: vm.Vector4.zero())
+              : ColorTarget(
+                  texture: _surfaceMsaa!,
+                  resolveTexture: surface,
+                  storeAction: StoreAction.multisampleResolve,
+                  clearValue: vm.Vector4.zero(),
+                ));
 
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[colorAttachment, ?surfaceAttachment],
-      // Standard depth: clear to the far plane, nearer fragments win.
-      depth: DepthTarget(
-        texture: msaa == null
-            ? (_depthStencilSingle ?? _depthStencil!)
-            : _depthStencil!,
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[colorAttachment, ?surfaceAttachment],
+        // Standard depth: clear to the far plane, nearer fragments win.
+        depth: DepthTarget(
+          texture: msaa == null
+              ? (_depthStencilSingle ?? _depthStencil!)
+              : _depthStencil!,
+        ),
       ),
-    ));
+    );
 
     final cameraPosition = vm.Vector3.zero();
 
@@ -113,11 +112,13 @@ extension _ScenePasses on Renderer {
       final vh = math.max(1, (fraction.height * height).round());
 
       final viewRect = ScreenRect(x: vx, y: vy, width: vw, height: vh);
-      pass.setState(Renderer._kSceneViewState.copyWith(
-        viewport: viewRect,
-        scissor: viewRect,
-        polygonMode: wireframe ? PolygonMode.line : PolygonMode.fill,
-      ));
+      pass.setState(
+        Renderer._kSceneViewState.copyWith(
+          viewport: viewRect,
+          scissor: viewRect,
+          polygonMode: wireframe ? PolygonMode.line : PolygonMode.fill,
+        ),
+      );
       // That state names the depth test, so the tracker has to agree with it or
       // the first material of the next view would skip a call it needs. The
       // debug overlay at the end of a view leaves the test on `always`, which
@@ -145,12 +146,7 @@ extension _ScenePasses on Renderer {
 
       final visibleBefore = scene.meshes.length;
       developer.Timeline.startSync('RenderList.build');
-      _renderList.build(
-        scene,
-        view,
-        viewMatrix: viewMatrix,
-        frustum: frustum,
-      );
+      _renderList.build(scene, view, viewMatrix: viewMatrix, frustum: frustum);
       developer.Timeline.finishSync();
 
       developer.Timeline.startSync('RenderList.sort');

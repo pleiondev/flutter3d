@@ -74,9 +74,5 @@ Future<RenderedFrame> renderFrame({
       'nothing to be busy with and no driver to blame',
     );
   }
-  return (
-    pixels: pixels.buffer.asUint8List(),
-    width: width,
-    height: height,
-  );
+  return (pixels: pixels.buffer.asUint8List(), width: width, height: height);
 }

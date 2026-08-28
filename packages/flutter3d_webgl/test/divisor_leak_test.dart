@@ -76,8 +76,7 @@ final VertexLayoutSpec _instanced = const VertexLayoutSpec(<BufferLayout>[
 ]);
 
 void main() {
-  test('an ordinary draw after an instanced one draws the same picture',
-      () async {
+  test('an ordinary draw after an instanced one draws the same picture', () async {
     final device = WebGlDevice.create(
       width: 32,
       height: 32,
@@ -88,8 +87,11 @@ void main() {
     final vertex = device.shaders['DebugLineVertex']!;
     final fragment = device.shaders['DebugLine']!;
     final plain = device.createPipeline(vertex, fragment);
-    final instanced = device.createPipeline(vertex, fragment,
-        layout: _instanced);
+    final instanced = device.createPipeline(
+      vertex,
+      fragment,
+      layout: _instanced,
+    );
 
     void configure(CommandEncoder pass, PipelineHandle pipeline) {
       pass
@@ -106,28 +108,35 @@ void main() {
       required bool precededByInstanced,
       bool clearBetween = true,
     }) async {
-      final target = device.createTexture(const RenderTargetSpec(
-        width: 32,
-        height: 32,
-        format: TextureFormat.r8g8b8a8UNormInt,
-      ));
-      final pass = device.beginRenderPass(RenderPassDescriptor(
-        colors: <ColorTarget>[
-          ColorTarget(
-            texture: target,
-            loadAction: LoadAction.clear,
-            clearValue: Vector4.zero(),
-          ),
-        ],
-      ));
+      final target = device.createTexture(
+        const RenderTargetSpec(
+          width: 32,
+          height: 32,
+          format: TextureFormat.r8g8b8a8UNormInt,
+        ),
+      );
+      final pass = device.beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: target,
+              loadAction: LoadAction.clear,
+              clearValue: Vector4.zero(),
+            ),
+          ],
+        ),
+      );
 
       if (precededByInstanced) {
         configure(pass, instanced);
         pass
           ..bindVertexBuffer(
-              device.uploadGeometry(
-                  ByteData.sublistView(_positions), GeometryUsage.vertices),
-              3)
+            device.uploadGeometry(
+              ByteData.sublistView(_positions),
+              GeometryUsage.vertices,
+            ),
+            3,
+          )
           ..bindVertexData(ByteData.sublistView(_perInstance), 2, slot: 1)
           ..bindIndexData(ByteData.sublistView(_indices), IndexType.int16, 3)
           ..draw(instanceCount: 2);
@@ -167,13 +176,21 @@ void main() {
       if (alone[i] != alone[0]) span++;
       if (after[i] == after[0]) flat++;
     }
-    expect(span, greaterThan(100),
-        reason: 'the reference draw is not a gradient, so this test could not '
-            'tell a collapsed one from it');
-    expect(flat, lessThan(alone.length ~/ 4 - 100),
-        reason: 'every pixel came back the same value, so the vertex colours '
-            'collapsed to corner zero — a divisor left behind by the instanced '
-            'draw');
+    expect(
+      span,
+      greaterThan(100),
+      reason:
+          'the reference draw is not a gradient, so this test could not '
+          'tell a collapsed one from it',
+    );
+    expect(
+      flat,
+      lessThan(alone.length ~/ 4 - 100),
+      reason:
+          'every pixel came back the same value, so the vertex colours '
+          'collapsed to corner zero — a divisor left behind by the instanced '
+          'draw',
+    );
 
     // **And again without the clear**, which is what the engine does. A divisor
     // is put back when the draw that set it ends, not when somebody remembers
@@ -186,9 +203,13 @@ void main() {
     for (var i = 0; i < afterWithoutClear.length; i += 4) {
       if (afterWithoutClear[i] == afterWithoutClear[0]) flatUncleared++;
     }
-    expect(flatUncleared, lessThan(alone.length ~/ 4 - 100),
-        reason: 'the gradient collapsed when nothing called clearBindings '
-            'between the two draws, which is the sequence the engine emits');
+    expect(
+      flatUncleared,
+      lessThan(alone.length ~/ 4 - 100),
+      reason:
+          'the gradient collapsed when nothing called clearBindings '
+          'between the two draws, which is the sequence the engine emits',
+    );
 
     // And the gradients agree pixel for pixel once the constant is removed.
     var worst = 0;
@@ -196,8 +217,12 @@ void main() {
       final delta = (after[i] - alone[i]).abs();
       if (delta > worst) worst = delta;
     }
-    expect(worst, lessThan(140),
-        reason: 'the two gradients differ by more than the flat contribution '
-            'of two instances');
+    expect(
+      worst,
+      lessThan(140),
+      reason:
+          'the two gradients differ by more than the flat contribution '
+          'of two instances',
+    );
   });
 }

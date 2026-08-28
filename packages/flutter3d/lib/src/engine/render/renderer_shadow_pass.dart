@@ -73,32 +73,34 @@ extension _ShadowPasses on Renderer {
     );
 
     developer.Timeline.startSync('Renderer.cubeShadow');
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: static ? _cubeShadowStatic! : _cubeShadow!,
-          // Loaded, not cleared, and each tile reset by drawing over it.
-          //
-          // A clear covers the whole attachment however the viewport is set,
-          // so a pass that clears can only ever refresh every tile — which is
-          // exactly the constraint that has to go before a face can be
-          // refreshed on its own schedule. A draw is bounded by the viewport;
-          // a clear is not. See shadow_tile_reset.frag.
-          //
-          // Except once, into a freshly allocated texture, where a clear is
-          // still the right tool: `devicePrivate` contents start undefined, and
-          // rows nobody owns are never written by anything afterwards. Shading
-          // would not care — the slot table never points at an unowned row —
-          // but `showShadowMap` composites the raw atlas, so leaving them
-          // undefined puts uninitialised memory in the one view used to check
-          // this subsystem. That is how it was caught: `cube-shadow` has one
-          // occupied row of four and 75% of its pixels changed.
-          loadAction: cleared ? LoadAction.load : LoadAction.clear,
-          clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
-        ),
-      ],
-      depth: DepthTarget(texture: depth),
-    ));
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: static ? _cubeShadowStatic! : _cubeShadow!,
+            // Loaded, not cleared, and each tile reset by drawing over it.
+            //
+            // A clear covers the whole attachment however the viewport is set,
+            // so a pass that clears can only ever refresh every tile — which is
+            // exactly the constraint that has to go before a face can be
+            // refreshed on its own schedule. A draw is bounded by the viewport;
+            // a clear is not. See shadow_tile_reset.frag.
+            //
+            // Except once, into a freshly allocated texture, where a clear is
+            // still the right tool: `devicePrivate` contents start undefined, and
+            // rows nobody owns are never written by anything afterwards. Shading
+            // would not care — the slot table never points at an unowned row —
+            // but `showShadowMap` composites the raw atlas, so leaving them
+            // undefined puts uninitialised memory in the one view used to check
+            // this subsystem. That is how it was caught: `cube-shadow` has one
+            // occupied row of four and 75% of its pixels changed.
+            loadAction: cleared ? LoadAction.load : LoadAction.clear,
+            clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+          ),
+        ],
+        depth: DepthTarget(texture: depth),
+      ),
+    );
 
     final casterCull = switch (settings.casterFaces) {
       // Culling the front faces is what leaves the back ones drawn, and the
@@ -109,7 +111,9 @@ extension _ShadowPasses on Renderer {
       ShadowCasterFaces.back => CullMode.frontFace,
       ShadowCasterFaces.both => CullMode.none,
     };
-    final casterState = Renderer._kShadowCasterState.copyWith(cullMode: casterCull);
+    final casterState = Renderer._kShadowCasterState.copyWith(
+      cullMode: casterCull,
+    );
     pass.setState(casterState);
 
     final mvp = vm.Matrix4.identity();
@@ -209,8 +213,12 @@ extension _ShadowPasses on Renderer {
         // only has to write colour — and must not touch depth, or it would
         // occlude the casters that follow it.
         pass.setState(Renderer._kShadowTileResetState);
-        pass.bindPipeline(_cubeShadowResetPipeline ??=
-            device.createPipeline(resetVertexShader, resetShader));
+        pass.bindPipeline(
+          _cubeShadowResetPipeline ??= device.createPipeline(
+            resetVertexShader,
+            resetShader,
+          ),
+        );
         pass.bindVertexBuffer(_fullscreenTriangle, 3);
         pass.bindIndexBuffer(_identityIndices(3), IndexType.int32, 3);
         pass.draw();
@@ -252,11 +260,7 @@ extension _ShadowPasses on Renderer {
                 : WindingOrder.counterClockwise,
           );
           pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
-          pass.bindIndexBuffer(
-            mesh.indices,
-            mesh.indexType,
-            mesh.indexCount,
-          );
+          pass.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
 
           mvp
             ..setFrom(_cubeDrawMatrix)
@@ -275,13 +279,13 @@ extension _ShadowPasses on Renderer {
             // bound again for every face this node is drawn into, so one
             // character in front of one point light is up to six 4 KB uploads
             // and six passes of the skinning arithmetic over its vertices
-            // instead of one — and up to twenty-four across the four rows the
+            // instead of one — and up to thirty-six across the six rows the
             // atlas holds. The GPU-side skinning is genuinely repeated, because
             // each face is a separate draw and nothing caches a deformed
             // vertex buffer.
             //
             // Three things bound it, none of which is a per-caster budget.
-            // [Renderer.kShadowedLights] caps the lights at four. [_computeFaceSignatures]
+            // [Renderer.kShadowedLights] caps the lights at six. [_computeFaceSignatures]
             // names only the faces whose ninety-degree frustum the caster's
             // bounding sphere might touch, so a character standing off to one
             // side lands in one or two of the six rather than all of them; and
@@ -302,9 +306,7 @@ extension _ShadowPasses on Renderer {
               'joint_matrices': skeleton.matrices,
             });
           }
-          pass.bindUniformBlock(shader, 'ShadowLight', {
-            'light': _cubeLight,
-          });
+          pass.bindUniformBlock(shader, 'ShadowLight', {'light': _cubeLight});
           pass.draw();
           drawn++;
         }
@@ -370,8 +372,10 @@ extension _ShadowPasses on Renderer {
         ? vm.Vector3(0.0, 0.0, 1.0)
         : vm.Vector3(0.0, 1.0, 0.0);
     final padding = math.max(settings.depthPadding, 1.0);
-    final resolution = settings.resolution
-        .clamp(ShadowSettings.minResolution, ShadowSettings.maxResolution);
+    final resolution = settings.resolution.clamp(
+      ShadowSettings.minResolution,
+      ShadowSettings.maxResolution,
+    );
     final count = settings.cascades.clamp(1, 3);
 
     // Where each cascade looks, and how much it covers.
@@ -499,11 +503,13 @@ extension _ShadowPasses on Renderer {
         _shadowResolution != resolution ||
         _shadowCascadeCount != count) {
       // Sampled by the lighting pass, so devicePrivate rather than transient.
-      _shadowMap = device.createTexture(RenderTargetSpec(
-        width: atlasWidth,
-        height: resolution,
-        format: hdrFormat,
-      ));
+      _shadowMap = device.createTexture(
+        RenderTargetSpec(
+          width: atlasWidth,
+          height: resolution,
+          format: hdrFormat,
+        ),
+      );
       _shadowResolution = resolution;
       _shadowCascadeCount = count;
     }
@@ -518,28 +524,32 @@ extension _ShadowPasses on Renderer {
     );
 
     developer.Timeline.startSync('Renderer.shadowPass');
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(
-          texture: _shadowMap!,
-          // Cleared to the far plane, so anything the pass does not draw reads
-          // as "nothing between here and the light".
-          clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
-        ),
-      ],
-      depth: DepthTarget(texture: depth),
-    ));
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(
+            texture: _shadowMap!,
+            // Cleared to the far plane, so anything the pass does not draw reads
+            // as "nothing between here and the light".
+            clearValue: vm.Vector4(1.0, 1.0, 1.0, 1.0),
+          ),
+        ],
+        depth: DepthTarget(texture: depth),
+      ),
+    );
 
     final full = ScreenRect(width: atlasWidth, height: resolution);
     // The same caster state the cube atlas uses, with one difference: front
     // faces culled, so the depth stored is the *back* of each caster. That
     // moves the comparison surface away from the lit face and removes most of
     // the acne before bias and normal offset have to deal with any.
-    pass.setState(Renderer._kShadowCasterState.copyWith(
-      viewport: full,
-      scissor: full,
-      cullMode: CullMode.frontFace,
-    ));
+    pass.setState(
+      Renderer._kShadowCasterState.copyWith(
+        viewport: full,
+        scissor: full,
+        cullMode: CullMode.frontFace,
+      ),
+    );
 
     final shadowShader = shaders['ShadowDepth'];
     if (shadowShader == null) {
@@ -567,72 +577,70 @@ extension _ShadowPasses on Renderer {
           width: resolution,
           height: resolution,
         );
-        pass.setState(Renderer._kShadowCasterState.copyWith(
-          viewport: tile,
-          scissor: tile,
-          cullMode: CullMode.frontFace,
-        ));
+        pass.setState(
+          Renderer._kShadowCasterState.copyWith(
+            viewport: tile,
+            scissor: tile,
+            cullMode: CullMode.frontFace,
+          ),
+        );
         boundSkinned = null;
       }
       final drawMatrix = drawMatrices[cascade];
 
-    for (var i = 0; i < meshes.length; i++) {
-      final node = meshes[i];
-      if (!node.visibleInHierarchy) continue;
-      if (!node.castsShadow) continue;
-      final mesh = node.mesh;
-      if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
+      for (var i = 0; i < meshes.length; i++) {
+        final node = meshes[i];
+        if (!node.visibleInHierarchy) continue;
+        if (!node.castsShadow) continue;
+        final mesh = node.mesh;
+        if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
 
-      final skeleton = node.skeleton;
-      final skinned = skeleton != null;
-      if (boundSkinned != skinned) {
-        pass.bindPipeline(
-          skinned
-              ? (_skinnedShadowPipeline ??= device.createPipeline(
-                  skinnedVertexShader,
-                  shadowShader,
-                ))
-              : (_shadowPipeline ??= device.createPipeline(
-                  vertexShader,
-                  shadowShader,
-                )),
+        final skeleton = node.skeleton;
+        final skinned = skeleton != null;
+        if (boundSkinned != skinned) {
+          pass.bindPipeline(
+            skinned
+                ? (_skinnedShadowPipeline ??= device.createPipeline(
+                    skinnedVertexShader,
+                    shadowShader,
+                  ))
+                : (_shadowPipeline ??= device.createPipeline(
+                    vertexShader,
+                    shadowShader,
+                  )),
+          );
+          boundSkinned = skinned;
+        }
+
+        pass.setWindingOrder(
+          node.worldIsMirrored
+              ? WindingOrder.clockwise
+              : WindingOrder.counterClockwise,
         );
-        boundSkinned = skinned;
-      }
+        pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
+        pass.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
 
-      pass.setWindingOrder(
-        node.worldIsMirrored
-            ? WindingOrder.clockwise
-            : WindingOrder.counterClockwise,
-      );
-      pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
-      pass.bindIndexBuffer(
-        mesh.indices,
-        mesh.indexType,
-        mesh.indexCount,
-      );
-
-      mvp
-        ..setFrom(drawMatrix)
-        ..multiply(node.worldMatrix);
-      final stage = skinned ? skinnedVertexShader : vertexShader;
-      pass.bindUniformBlock(stage, _kFrameInfoBlock, {
-        'mvp': mvp.storage,
-        'model': node.worldMatrix.storage,
-        'normal_matrix': node.worldNormalMatrix.storage,
-      });
-      if (skeleton != null) {
-        skeleton.update(node.worldMatrix);
-        pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
-          'joint_matrices': skeleton.matrices,
+        mvp
+          ..setFrom(drawMatrix)
+          ..multiply(node.worldMatrix);
+        final stage = skinned ? skinnedVertexShader : vertexShader;
+        pass.bindUniformBlock(stage, _kFrameInfoBlock, {
+          'mvp': mvp.storage,
+          'model': node.worldMatrix.storage,
+          'normal_matrix': node.worldNormalMatrix.storage,
         });
+        if (skeleton != null) {
+          skeleton.update(node.worldMatrix);
+          pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
+            'joint_matrices': skeleton.matrices,
+          });
+        }
+        pass.draw();
+        // Counted once, not once per cascade: the number answers "how many things
+        // cast", and a caster drawn into three tiles is still one caster. The
+        // draw call count is the graph's business.
+        if (cascade == 0) _shadowCasters++;
       }
-      pass.draw();
-      // Counted once, not once per cascade: the number answers "how many things
-      // cast", and a caster drawn into three tiles is still one caster. The
-      // draw call count is the graph's business.
-      if (cascade == 0) _shadowCasters++;
-    }
     }
 
     pass.submit();

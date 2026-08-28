@@ -25,7 +25,9 @@ final class FakeShaderLibrary implements ShaderLibrary {
   ShaderHandle? operator [](String name) => missing.contains(name)
       ? null
       : _handles.putIfAbsent(
-          name, () => ShaderHandle(backend: name, name: name));
+          name,
+          () => ShaderHandle(backend: name, name: name),
+        );
 }
 
 /// A device that records rather than draws.
@@ -61,16 +63,15 @@ final class FakeBackend implements GraphicsDevice {
     // Recorded by no fake and refused by none: this backend answers the shape
     // of a call, not the contents of a texture.
     List<List<ByteData>>? mipLevels,
-  }) =>
-      faces.length == 6
-          ? TextureHandle(
-              backend: const Object(),
-              width: size,
-              height: size,
-              format: format,
-              type: TextureType.textureCube,
-            )
-          : null;
+  }) => faces.length == 6
+      ? TextureHandle(
+          backend: const Object(),
+          width: size,
+          height: size,
+          format: format,
+          type: TextureType.textureCube,
+        )
+      : null;
 
   /// The engine's own convention, so a fake never exercises the remap. The
   /// backends that need the other one are covered by running them.
@@ -98,8 +99,7 @@ final class FakeBackend implements GraphicsDevice {
   TextureFormat get defaultColorFormat => TextureFormat.b8g8r8a8UNormInt;
 
   @override
-  TextureFormat get defaultDepthStencilFormat =>
-      TextureFormat.d24UnormS8Uint;
+  TextureFormat get defaultDepthStencilFormat => TextureFormat.d24UnormS8Uint;
 
   @override
   bool get supportsOffscreenMsaa => true;
@@ -171,12 +171,13 @@ final class FakeBackend implements GraphicsDevice {
 
   @override
   PipelineHandle createPipeline(
-          ShaderHandle vertex, ShaderHandle fragment,
-          {VertexLayoutSpec? layout}) =>
-      PipelineHandle(
-        backend: '${vertex.name}+${fragment.name}',
-        name: '${vertex.name}+${fragment.name}',
-      );
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutSpec? layout,
+  }) => PipelineHandle(
+    backend: '${vertex.name}+${fragment.name}',
+    name: '${vertex.name}+${fragment.name}',
+  );
 
   /// Recorded with its usage, because a backend exists that cannot change its
   /// mind about one later.
@@ -189,10 +190,10 @@ final class FakeBackend implements GraphicsDevice {
   }
 
   GeometryBuffer _geometry(ByteData bytes) => GeometryBuffer(
-        backend: 'uploaded ${_serial++}',
-        offsetInBytes: 0,
-        lengthInBytes: bytes.lengthInBytes,
-      );
+    backend: 'uploaded ${_serial++}',
+    offsetInBytes: 0,
+    lengthInBytes: bytes.lengthInBytes,
+  );
 
   @override
   void beginFrame() => frames++;
@@ -206,10 +207,9 @@ final class FakeBackend implements GraphicsDevice {
     TextureHandle frame, {
     BoxFit fit = BoxFit.fill,
     FilterQuality quality = FilterQuality.none,
-  }) =>
-      throw UnsupportedError(
-        'FakeBackend draws nothing, so there is nothing to present of $frame',
-      );
+  }) => throw UnsupportedError(
+    'FakeBackend draws nothing, so there is nothing to present of $frame',
+  );
 
   /// Null, which is a legitimate answer rather than a refusal: it is what a
   /// real device says about a texture whose pixels cannot be read.

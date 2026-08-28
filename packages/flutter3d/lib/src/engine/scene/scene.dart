@@ -151,6 +151,7 @@ final class Scene {
   }
 
   @override
-  String toString() => 'Scene(${_meshes.length} meshes, ${_lights.length} '
+  String toString() =>
+      'Scene(${_meshes.length} meshes, ${_lights.length} '
       'lights, ${_cameras.length} cameras)';
 }

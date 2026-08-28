@@ -46,17 +46,22 @@ extension _GltfAnimation on GltfLoader {
           continue;
         }
         if (nodeIndex < 0 || nodeIndex >= nodes.length) {
-          warnings.add('$channelLabel targets node $nodeIndex, which does not '
-              'exist; skipped.');
+          warnings.add(
+            '$channelLabel targets node $nodeIndex, which does not '
+            'exist; skipped.',
+          );
           continue;
         }
 
         final pathName = target['path'];
-        final path =
-            AnimationPath.fromGltf(pathName is String ? pathName : null);
+        final path = AnimationPath.fromGltf(
+          pathName is String ? pathName : null,
+        );
         if (path == null) {
-          warnings.add('$channelLabel targets unknown path "$pathName"; '
-              'skipped.');
+          warnings.add(
+            '$channelLabel targets unknown path "$pathName"; '
+            'skipped.',
+          );
           continue;
         }
 
@@ -64,8 +69,10 @@ extension _GltfAnimation on GltfLoader {
         if (samplerIndex == null ||
             samplerIndex < 0 ||
             samplerIndex >= samplers.length) {
-          warnings.add('$channelLabel references sampler $samplerIndex, which '
-              'does not exist; skipped.');
+          warnings.add(
+            '$channelLabel references sampler $samplerIndex, which '
+            'does not exist; skipped.',
+          );
           continue;
         }
         final sampler = samplers[samplerIndex];
@@ -73,8 +80,10 @@ extension _GltfAnimation on GltfLoader {
         final inputAccessor = _asInt(sampler['input']);
         final outputAccessor = _asInt(sampler['output']);
         if (inputAccessor == null || outputAccessor == null) {
-          warnings.add('$label.samplers[$samplerIndex] is missing input or '
-              'output; skipped.');
+          warnings.add(
+            '$label.samplers[$samplerIndex] is missing input or '
+            'output; skipped.',
+          );
           continue;
         }
 
@@ -116,8 +125,10 @@ extension _GltfAnimation on GltfLoader {
         }
 
         if (path == AnimationPath.weights) {
-          warnings.add('$channelLabel animates morph target weights, which are '
-              'decoded but not applied.');
+          warnings.add(
+            '$channelLabel animates morph target weights, which are '
+            'decoded but not applied.',
+          );
         }
 
         tracks.add(

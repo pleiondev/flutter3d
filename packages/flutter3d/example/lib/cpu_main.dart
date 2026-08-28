@@ -30,7 +30,8 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/scheduler.dart' show Ticker;
-import 'package:flutter/services.dart' show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
+import 'package:flutter/services.dart'
+    show KeyDownEvent, KeyEvent, LogicalKeyboardKey;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d/parity_scene.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
@@ -133,18 +134,20 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
     // rather than from a photograph of a screen.
     if (_frames % 60 == 0) {
       // ignore: avoid_print
-      print('cpu ${_width}x$_height: ${_smoothed.toStringAsFixed(1)} ms/frame '
-          '(${(1000 / _smoothed).round()} fps), '
-          '${_shapes ? 'shapes' : 'parity'}');
+      print(
+        'cpu ${_width}x$_height: ${_smoothed.toStringAsFixed(1)} ms/frame '
+        '(${(1000 / _smoothed).round()} fps), '
+        '${_shapes ? 'shapes' : 'parity'}',
+      );
     }
   }
 
   TextureHandle _texel(int r, int g, int b) => _device.createTextureFromPixels(
-        width: 1,
-        height: 1,
-        format: TextureFormat.r8g8b8a8UNormInt,
-        pixels: ByteData.sublistView(Uint8List.fromList(<int>[r, g, b, 255])),
-      )!;
+    width: 1,
+    height: 1,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: ByteData.sublistView(Uint8List.fromList(<int>[r, g, b, 255])),
+  )!;
 
   @override
   void dispose() {
@@ -156,44 +159,44 @@ class _CpuAppState extends State<CpuApp> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) => MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: KeyboardListener(
-          focusNode: _focus,
-          autofocus: true,
-          onKeyEvent: (KeyEvent event) {
-            if (event is KeyDownEvent &&
-                event.logicalKey == LogicalKeyboardKey.space) {
-              setState(() {
-                _shapes = !_shapes;
-                _load();
-              });
-            }
-          },
-          child: Scaffold(
-          backgroundColor: const Color(0xFF141414),
-          body: Stack(
-            children: <Widget>[
-              Center(child: _frame ?? const Text('rendering…')),
-              Positioned(
-                left: 16,
-                top: 16,
-                child: Text(
-                  'flutter3d_cpu — no GPU  ·  space to switch\n'
-                  '${_shapes ? 'torus, cone, box' : 'the parity fixture'}\n'
-                  '$_width x $_height\n'
-                  '${_smoothed.toStringAsFixed(1)} ms/frame '
-                  '(${_smoothed <= 0 ? 0 : (1000 / _smoothed).round()} fps)',
-                  style: const TextStyle(
-                    color: Color(0xFFBBBBBB),
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                    height: 1.5,
-                  ),
+    debugShowCheckedModeBanner: false,
+    home: KeyboardListener(
+      focusNode: _focus,
+      autofocus: true,
+      onKeyEvent: (KeyEvent event) {
+        if (event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.space) {
+          setState(() {
+            _shapes = !_shapes;
+            _load();
+          });
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF141414),
+        body: Stack(
+          children: <Widget>[
+            Center(child: _frame ?? const Text('rendering…')),
+            Positioned(
+              left: 16,
+              top: 16,
+              child: Text(
+                'flutter3d_cpu — no GPU  ·  space to switch\n'
+                '${_shapes ? 'torus, cone, box' : 'the parity fixture'}\n'
+                '$_width x $_height\n'
+                '${_smoothed.toStringAsFixed(1)} ms/frame '
+                '(${_smoothed <= 0 ? 0 : (1000 / _smoothed).round()} fps)',
+                style: const TextStyle(
+                  color: Color(0xFFBBBBBB),
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  height: 1.5,
                 ),
               ),
-            ],
-          ),
-          ),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

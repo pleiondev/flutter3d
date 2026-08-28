@@ -5,8 +5,7 @@ import 'package:vector_math/vector_math.dart';
 /// Reads attribute [name] of vertex [index] as a Vector4, zero-padded.
 Vector4 attributeAt(MeshData mesh, String name, int index) {
   final offset = mesh.layout.floatOffsetOf(name);
-  final attribute =
-      mesh.layout.attributes.firstWhere((a) => a.name == name);
+  final attribute = mesh.layout.attributes.firstWhere((a) => a.name == name);
   final base = index * mesh.layout.floatsPerVertex + offset;
   return Vector4(
     mesh.vertices[base],
@@ -49,11 +48,16 @@ void main() {
       );
       final converted = builder.build().convertedTo(VertexLayout.standard);
 
-      expect(xyz(attributeAt(converted, 'position', 0)), Vector3(1.0, 2.0, 3.0));
+      expect(
+        xyz(attributeAt(converted, 'position', 0)),
+        Vector3(1.0, 2.0, 3.0),
+      );
       expect(attributeAt(converted, 'texcoord', 0).x, closeTo(0.25, 1e-6));
       expect(attributeAt(converted, 'color', 0), Vector4(1.0, 1.0, 1.0, 1.0));
-      expect(xyz(attributeAt(converted, 'tangent', 0)).length,
-          closeTo(1.0, 1e-6));
+      expect(
+        xyz(attributeAt(converted, 'tangent', 0)).length,
+        closeTo(1.0, 1e-6),
+      );
     });
 
     test('converting to the same layout returns the same object', () {
@@ -78,8 +82,9 @@ void main() {
 
   group('analytic tangents', () {
     test('a cuboid tangent is orthogonal to its normal and unit length', () {
-      final mesh = CuboidShape(size: Vector3(2.0, 1.0, 3.0))
-          .build(layout: VertexLayout.standard);
+      final mesh = CuboidShape(
+        size: Vector3(2.0, 1.0, 3.0),
+      ).build(layout: VertexLayout.standard);
 
       for (var v = 0; v < mesh.vertexCount; v++) {
         final normal = xyz(attributeAt(mesh, 'normal', v));
@@ -91,8 +96,9 @@ void main() {
     });
 
     test('a lathe tangent runs around the axis', () {
-      final mesh =
-          const SphereShape(radius: 1.0).build(layout: VertexLayout.standard);
+      final mesh = const SphereShape(
+        radius: 1.0,
+      ).build(layout: VertexLayout.standard);
 
       for (var v = 0; v < mesh.vertexCount; v++) {
         final position = xyz(attributeAt(mesh, 'position', v));
@@ -115,8 +121,9 @@ void main() {
       // bottom pole to the top, so at the equator the bitangent points DOWN.
       // Getting w backwards flips exactly this, and it is what makes every
       // mirrored UV island light from the wrong side.
-      final mesh =
-          const SphereShape(radius: 1.0).build(layout: VertexLayout.standard);
+      final mesh = const SphereShape(
+        radius: 1.0,
+      ).build(layout: VertexLayout.standard);
 
       var checked = 0;
       for (var v = 0; v < mesh.vertexCount; v++) {
@@ -147,8 +154,11 @@ void main() {
       for (var v = 0; v < analytic.vertexCount; v++) {
         final a = attributeAt(analytic, 'tangent', v);
         final g = attributeAt(generated, 'tangent', v);
-        expect(xyz(g).dot(xyz(a)), closeTo(1.0, 1e-4),
-            reason: 'tangent direction differs at vertex $v');
+        expect(
+          xyz(g).dot(xyz(a)),
+          closeTo(1.0, 1e-4),
+          reason: 'tangent direction differs at vertex $v',
+        );
         expect(g.w, a.w, reason: 'bitangent sign differs at vertex $v');
       }
     });
@@ -173,8 +183,11 @@ void main() {
         // of the faces meeting there. On a faceted torus that is about half a
         // segment of disagreement — a couple of degrees. The sign, on the other
         // hand, is discrete and has to match exactly.
-        expect(xyz(g).dot(xyz(a)), greaterThan(0.995),
-            reason: 'tangent direction differs at vertex $v');
+        expect(
+          xyz(g).dot(xyz(a)),
+          greaterThan(0.995),
+          reason: 'tangent direction differs at vertex $v',
+        );
         expect(g.w, a.w, reason: 'bitangent sign differs at vertex $v');
       }
     });
@@ -316,8 +329,9 @@ void main() {
 
   group('the sphere still behaves after the layout change', () {
     test('normals point outwards', () {
-      final mesh =
-          const SphereShape(radius: 2.0).build(layout: VertexLayout.standard);
+      final mesh = const SphereShape(
+        radius: 2.0,
+      ).build(layout: VertexLayout.standard);
       for (var v = 0; v < mesh.vertexCount; v++) {
         final position = xyz(attributeAt(mesh, 'position', v));
         final normal = xyz(attributeAt(mesh, 'normal', v));
@@ -327,8 +341,9 @@ void main() {
     });
 
     test('the winding is still outward', () {
-      final mesh =
-          const SphereShape(radius: 1.0).build(layout: VertexLayout.standard);
+      final mesh = const SphereShape(
+        radius: 1.0,
+      ).build(layout: VertexLayout.standard);
       // 4/3 pi r^3 is about 4.19; a faceted sphere comes in slightly under.
       expect(mesh.signedVolume(), closeTo(4.0, 0.3));
       expect(mesh.signedVolume(), greaterThan(0.0));

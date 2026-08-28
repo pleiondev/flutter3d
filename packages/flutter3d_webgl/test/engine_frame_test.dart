@@ -101,25 +101,37 @@ void main() {
     for (var i = 0; i < bytes.length; i += 4) {
       distinct.add(bytes[i] << 16 | bytes[i + 1] << 8 | bytes[i + 2]);
     }
-    expect(distinct.length, greaterThan(8),
-        reason: 'the frame is flat — nothing was drawn into it');
+    expect(
+      distinct.length,
+      greaterThan(8),
+      reason: 'the frame is flat — nothing was drawn into it',
+    );
 
     // The sphere is red and lit, so the middle is brighter in red than the
     // corner. This is what fails if the mesh draws in the wrong place, or the
     // light never reaches the shader, or the material bindings land in the
     // wrong slots and everything comes out grey.
     int redAt(int x, int y) => bytes[(y * _width + x) * 4];
-    expect(redAt(_width ~/ 2, _height ~/ 2), greaterThan(redAt(2, 2) + 16),
-        reason: 'the middle of the frame is no brighter than its corner');
+    expect(
+      redAt(_width ~/ 2, _height ~/ 2),
+      greaterThan(redAt(2, 2) + 16),
+      reason: 'the middle of the frame is no brighter than its corner',
+    );
 
     // And it is red rather than some other channel, which catches a component
     // order swapped between the engine and the backend — a mistake that leaves
     // every check above passing.
     final cx = (_height ~/ 2 * _width + _width ~/ 2) * 4;
-    expect(bytes[cx], greaterThan(bytes[cx + 1]),
-        reason: 'red should dominate green at the centre');
-    expect(bytes[cx], greaterThan(bytes[cx + 2]),
-        reason: 'red should dominate blue at the centre');
+    expect(
+      bytes[cx],
+      greaterThan(bytes[cx + 1]),
+      reason: 'red should dominate green at the centre',
+    );
+    expect(
+      bytes[cx],
+      greaterThan(bytes[cx + 2]),
+      reason: 'red should dominate blue at the centre',
+    );
 
     // The light is above and to the right, so the sphere's upper half is lit
     // and its lower half is not.
@@ -140,9 +152,13 @@ void main() {
         }
       }
     }
-    expect(upper, greaterThan(lower),
-        reason: 'the light is above, so row 0 is the lit side — '
-            'the frame is upside down');
+    expect(
+      upper,
+      greaterThan(lower),
+      reason:
+          'the light is above, so row 0 is the lit side — '
+          'the frame is upside down',
+    );
   });
 }
 

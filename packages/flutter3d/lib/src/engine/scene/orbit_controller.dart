@@ -51,8 +51,10 @@ final class OrbitController {
 
   void rotate(double deltaYaw, double deltaPitch) {
     yaw -= deltaYaw * rotateSensitivity;
-    pitch = (pitch + deltaPitch * rotateSensitivity)
-        .clamp(-_kMaxPitch, _kMaxPitch);
+    pitch = (pitch + deltaPitch * rotateSensitivity).clamp(
+      -_kMaxPitch,
+      _kMaxPitch,
+    );
     apply();
   }
 
@@ -95,8 +97,10 @@ final class OrbitController {
 
     final extent = (bounds.max - bounds.min)..scale(0.5);
     final radius = math.max(extent.length, 1e-4);
-    distance = (radius / math.sin(fovYRadians * 0.5) * margin)
-        .clamp(minDistance, maxDistance);
+    distance = (radius / math.sin(fovYRadians * 0.5) * margin).clamp(
+      minDistance,
+      maxDistance,
+    );
     apply();
   }
 
@@ -120,11 +124,8 @@ final class OrbitController {
     final cosYaw = math.cos(yaw);
     final sinPitch = math.sin(pitch);
     final cosPitch = math.cos(pitch);
-    return Vector3(
-      -sinYaw * sinPitch,
-      cosPitch,
-      -cosYaw * sinPitch,
-    )..normalize();
+    return Vector3(-sinYaw * sinPitch, cosPitch, -cosYaw * sinPitch)
+      ..normalize();
   }
 
   /// Writes the orbit state into the node's transform.

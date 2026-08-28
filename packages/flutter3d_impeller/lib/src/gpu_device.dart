@@ -127,10 +127,8 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// `host_buffer_grid.dart`.
   late final List<BlockCursor> _cursors = List<BlockCursor>.generate(
     _kFramesInFlight,
-    (_) => BlockCursor(
-      blockLength: blockLengthFor(_granule),
-      granule: _granule,
-    ),
+    (_) =>
+        BlockCursor(blockLength: blockLengthFor(_granule), granule: _granule),
   );
 
   /// Writes [bytes] into this frame's allocator without letting it hand back a
@@ -283,10 +281,17 @@ final class GpuRenderBackend implements GraphicsDevice {
     // goes: writing a level it does not have throws, and a chain longer than
     // the allocation is the ordinary case rather than a mistake.
     final allocated = texture.gpuTexture.mipLevelCount;
-    for (var level = 0; level < levels.length && level + 1 < allocated; level++) {
+    for (
+      var level = 0;
+      level < levels.length && level + 1 < allocated;
+      level++
+    ) {
       for (var face = 0; face < 6; face++) {
-        texture.gpuTexture
-            .overwrite(levels[level][face], slice: face, mipLevel: level + 1);
+        texture.gpuTexture.overwrite(
+          levels[level][face],
+          slice: face,
+          mipLevel: level + 1,
+        );
       }
     }
     return texture;
@@ -294,35 +299,34 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   @override
   TextureHandle createTexture(RenderTargetSpec spec) => createGpuTexture(
-        spec.storageMode,
-        spec.width,
-        spec.height,
-        format: spec.format,
-        sampleCount: spec.sampleCount,
-        // Transient textures live in tile memory and cannot be sampled, so
-        // asking for shader read on one is a contradiction the driver would
-        // have to resolve for us.
-        enableShaderReadUsage: spec.storageMode != StorageMode.deviceTransient,
-      );
+    spec.storageMode,
+    spec.width,
+    spec.height,
+    format: spec.format,
+    sampleCount: spec.sampleCount,
+    // Transient textures live in tile memory and cannot be sampled, so
+    // asking for shader read on one is a contradiction the driver would
+    // have to resolve for us.
+    enableShaderReadUsage: spec.storageMode != StorageMode.deviceTransient,
+  );
 
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutSpec? layout,
-  }) =>
-      PipelineHandle(
-        backend: gpu.gpuContext.createRenderPipeline(
-          vertex.backend as gpu.Shader,
-          fragment.backend as gpu.Shader,
-          // Null is passed through rather than replaced with a layout derived
-          // from the shader. flutter_gpu does that derivation itself, and doing
-          // it here as well would be a second answer to the question the
-          // reflection already answers.
-          vertexLayout: layout?.toGpu(),
-        ),
-        name: '${vertex.name}+${fragment.name}',
-      );
+  }) => PipelineHandle(
+    backend: gpu.gpuContext.createRenderPipeline(
+      vertex.backend as gpu.Shader,
+      fragment.backend as gpu.Shader,
+      // Null is passed through rather than replaced with a layout derived
+      // from the shader. flutter_gpu does that derivation itself, and doing
+      // it here as well would be a second answer to the question the
+      // reflection already answers.
+      vertexLayout: layout?.toGpu(),
+    ),
+    name: '${vertex.name}+${fragment.name}',
+  );
 
   /// [usage] is ignored here, and that is not laziness.
   ///
@@ -459,9 +463,9 @@ final class GpuRenderBackend implements GraphicsDevice {
     // are decoded as. The two sides of a golden comparison must agree, and the
     // engine's own output is opaque, so this is the layout with no conversion
     // anywhere in the path.
-    return texture.gpuTexture
-        .asImage()
-        .toByteData(format: ui.ImageByteFormat.rawRgba);
+    return texture.gpuTexture.asImage().toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
   }
 
   /// A deliberate no-op. See the note at [supportsCubeTextures] on
@@ -491,9 +495,9 @@ final class GpuRenderBackend implements GraphicsDevice {
           // Cleared on entry and discarded on exit, because that is the only
           // thing any pass in this engine has ever wanted. See [DepthTarget].
           final DepthTarget depth => gpu.DepthStencilAttachment(
-              texture: depth.texture.gpuTexture,
-              depthClearValue: depth.clearValue,
-            ),
+            texture: depth.texture.gpuTexture,
+            depthClearValue: depth.clearValue,
+          ),
         },
       );
 }

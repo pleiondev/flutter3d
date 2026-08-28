@@ -93,6 +93,41 @@ enum ParityScene {
   /// also the "is there one" flag.
   imageBasedLighting,
 
+  /// A point light a hand's breadth off the wall it lights, in a room.
+  ///
+  /// **Every other point-shadow fixture here puts the lamp in open space**, a
+  /// couple of metres from the two spheres and the floor, where one face of the
+  /// cube map covers everything the light reaches and the static atlas holds a
+  /// single small caster. A torch in a dungeon is the opposite of all three: it
+  /// hangs 0.35 m off a wall, so the surface it lights leaves that face within a
+  /// metre of the flame and continues into the four faces around it; the room
+  /// around it — floor, ceiling, the wall behind the camera — is static geometry
+  /// filling every one of those faces; and what the player is looking at is the
+  /// wall the light is *attached to*, at a grazing angle, which is the hardest
+  /// thing a shadow lookup is ever asked.
+  ///
+  /// This is the fixture the crypt needed and did not have. The software
+  /// backend cannot stand in for it: point shadows there change nothing in a
+  /// scene of this shape — a frame drawn with them and one drawn without come
+  /// back pixel for pixel identical — so the only comparison that can see this
+  /// is one GPU backend against the other.
+  torchNearWall,
+
+  /// The same room with more torches in it than the atlas has rows.
+  ///
+  /// **Four rows, six lights, and which four get them is decided per frame.**
+  /// [torchNearWall] deliberately has one light so that its number answers one
+  /// question; this one asks the other. A light that loses its row keeps
+  /// lighting and stops casting, and the row it gives up is refilled by a
+  /// neighbour — so the two backends have to agree not only about how a face is
+  /// sampled but about *which* row each light is reading, on a frame where the
+  /// answer has just changed.
+  ///
+  /// That is the arrangement the crypt is in every time the player walks down
+  /// its hall, and no fixture had ever been in it: every other point-shadow
+  /// scene here has one light and three spare rows.
+  torchesRunningOut,
+
   /// The plain scene with the composite look turned all the way up.
   ///
   /// Grading, vignette, grain and chromatic aberration are the last thing that
@@ -106,6 +141,16 @@ enum ParityScene {
   GraphicsDevice device, {
   ParityScene which = ParityScene.plain,
 }) {
+  // A room rather than two spheres, and so it is built somewhere else entirely
+  // rather than by threading conditions through the code below.
+  if (which == ParityScene.torchNearWall ||
+      which == ParityScene.torchesRunningOut) {
+    return _buildTorchNearWall(
+      device,
+      torches: which == ParityScene.torchesRunningOut ? 6 : 1,
+    );
+  }
+
   final scene = Scene(name: 'parity');
 
   final big = DeviceMesh.upload(
@@ -141,20 +186,20 @@ enum ParityScene {
   );
   scene.root.add(
     MeshNode(
-      small,
-      Material(
+        small,
+        Material(
+          name: 'small',
+          baseColor: Vector4(0.2, 0.5, 0.9, 1.0),
+          lighting: which == ParityScene.imageBasedLighting
+              ? LightingModel.pbr
+              : LightingModel.lambert,
+          // Rougher than the big one, so the two read different levels of the
+          // chain. A fixture where every surface is a mirror tests level zero.
+          metallic: 1.0,
+          roughness: 0.55,
+        ),
         name: 'small',
-        baseColor: Vector4(0.2, 0.5, 0.9, 1.0),
-        lighting: which == ParityScene.imageBasedLighting
-            ? LightingModel.pbr
-            : LightingModel.lambert,
-        // Rougher than the big one, so the two read different levels of the
-        // chain. A fixture where every surface is a mirror tests level zero.
-        metallic: 1.0,
-        roughness: 0.55,
-      ),
-      name: 'small',
-    )
+      )
       ..setPosition(1.1, 1.0, 0.4)
       // **One static caster, so that the second cube atlas is not empty.**
       // A point light has two — the movers, redrawn every frame, and the things
@@ -165,7 +210,8 @@ enum ParityScene {
       //
       // The large sphere stays dynamic on purpose: a fixture where one atlas is
       // empty tests one atlas, whichever one it is.
-      ..shadowIsStatic = which == ParityScene.pointShadow ||
+      ..shadowIsStatic =
+          which == ParityScene.pointShadow ||
           which == ParityScene.pointShadowMap ||
           which == ParityScene.pointShadowStaticMap,
   );
@@ -194,6 +240,14 @@ enum ParityScene {
   }
 
   switch (which) {
+    // Built and returned at the top of this function, before any of the
+    // spheres above exist. Named here rather than left to a default, so that
+    // adding a fixture goes on failing to compile until somebody says where
+    // its light comes from.
+    case ParityScene.torchNearWall:
+    case ParityScene.torchesRunningOut:
+      break;
+
     case ParityScene.plain:
     case ParityScene.bloom:
       // Above and to the right, so the lit side of both spheres is up.
@@ -256,58 +310,149 @@ enum ParityScene {
   return (scene: scene, camera: camera);
 }
 
+/// A room with a torch on one wall, as [ParityScene.torchNearWall] describes.
+///
+/// Everything here is chosen against the crypt rather than for a pretty
+/// picture: the standoff is the crypt's 0.35 m, the range is its 13 m, the room
+/// is the width of its hall, and every surface is a static caster because a
+/// dungeon's walls do not move. The one thing deliberately unlike it is that
+/// there is a single light — a fixture that also ran out of atlas rows would be
+/// asking two questions and reporting one number.
+({Scene scene, CameraNode camera}) _buildTorchNearWall(
+  GraphicsDevice device, {
+  required int torches,
+}) {
+  final scene = Scene(name: 'parity');
+  final stone = Material(
+    name: 'stone',
+    baseColor: Vector4(0.72, 0.70, 0.66, 1.0),
+    lighting: LightingModel.lambert,
+    roughness: 0.9,
+  );
+
+  void slab(Vector3 size, Vector3 at, String name) {
+    scene.root.add(
+      MeshNode(
+          DeviceMesh.upload(device, CuboidShape(size: size).build()),
+          stone,
+          name: name,
+        )
+        ..setPositionFrom(at)
+        // Static, like a wall. This is also what puts the room in the *static*
+        // atlas, which is the half `pointShadowStaticMap` covers as a picture
+        // and nothing covers as a shadow anybody stands in.
+        ..shadowIsStatic = true,
+    );
+  }
+
+  // The lit wall, at z = 0, with the room in front of it.
+  slab(Vector3(8.0, 4.0, 0.4), Vector3(0.0, 0.0, -0.2), 'wall');
+  slab(Vector3(8.0, 0.4, 10.0), Vector3(0.0, -2.2, 5.0), 'floor');
+  slab(Vector3(8.0, 0.4, 10.0), Vector3(0.0, 2.2, 5.0), 'ceiling');
+  slab(Vector3(0.4, 4.0, 10.0), Vector3(-4.2, 0.0, 5.0), 'left');
+  slab(Vector3(0.4, 4.0, 10.0), Vector3(4.2, 0.0, 5.0), 'right');
+
+  // A pillar off to one side, so the fixture has one shadow whose shape is
+  // unmistakable — a comparison of two evenly lit walls agrees about a great
+  // deal it cannot see.
+  scene.root.add(
+    MeshNode(
+        DeviceMesh.upload(
+          device,
+          CuboidShape(size: Vector3(0.5, 4.0, 0.5)).build(),
+        ),
+        stone,
+        name: 'pillar',
+      )
+      ..setPosition(-1.6, 0.0, 1.2)
+      ..shadowIsStatic = true,
+  );
+
+  // The first one is the fixture's subject: on the wall the camera is looking
+  // at, at the crypt's own standoff. The rest are down the room, and exist only
+  // to ask for rows — which is why they are dimmer and further away, so that
+  // what they change is the *allocation* rather than the exposure.
+  for (var i = 0; i < torches; i++) {
+    scene.root.add(
+      LightNode(name: 'torch$i', type: LightType.point)
+        ..intensity = i == 0 ? 8.0 : 4.0
+        ..range = 13.0
+        ..castsShadow = true
+        ..setPosition(
+          i == 0 ? 0.0 : (i.isEven ? -3.6 : 3.6),
+          i == 0 ? 0.6 : 1.2,
+          i == 0 ? 0.35 : 1.0 + i.toDouble(),
+        ),
+    );
+  }
+
+  // Looking at the lit wall from inside the room, the way a player walks up to
+  // a torch — not at the torch itself, which is the one part of the wall that
+  // is bright whatever the shadow lookup does.
+  final camera = CameraNode(name: 'eye')
+    ..setPosition(0.9, 0.4, 4.0)
+    ..lookAt(Vector3(0.0, 0.4, 0.0));
+  scene.root.add(camera);
+
+  return (scene: scene, camera: camera);
+}
+
 /// The settings each fixture is drawn with.
 ///
 /// Everything not under test is switched off, so a scene that disagrees says
 /// which feature disagreed. A fixture with shadows *and* bloom would report one
 /// number for two questions.
 RenderSettings paritySettingsFor(ParityScene which) => switch (which) {
-      ParityScene.plain => const RenderSettings(
-          bloom: BloomSettings(enabled: false),
-          shadows: ShadowSettings(enabled: false),
-        ),
-      ParityScene.directionalShadow || ParityScene.pointShadow =>
-        const RenderSettings(bloom: BloomSettings(enabled: false)),
-      ParityScene.bloom => const RenderSettings(
-          shadows: ShadowSettings(enabled: false),
-        ),
-      // The atlas on screen instead of the picture. Exposure and tone mapping
-      // are forced off by this path in the compositor, so the comparison is of
-      // the stored distances themselves.
-      ParityScene.pointShadowMap => const RenderSettings(
-          bloom: BloomSettings(enabled: false),
-          showShadowMap: true,
-        ),
-      // The other cube atlas, which nothing had ever looked at. See the note
-      // on `ParityScene.pointShadowStaticMap`.
-      ParityScene.pointShadowStaticMap => const RenderSettings(
-          bloom: BloomSettings(enabled: false),
-          showStaticShadowMap: true,
-        ),
-      ParityScene.sky => RenderSettings(
-          bloom: const BloomSettings(enabled: false),
-          shadows: const ShadowSettings(enabled: false),
-          sky: _paritySky,
-        ),
-      ParityScene.imageBasedLighting => const RenderSettings(
-          bloom: BloomSettings(enabled: false),
-          shadows: ShadowSettings(enabled: false),
-        ),
-      // Turned up far past taste: a fixture that applied a look nobody could
-      // see would compare two pictures of the same thing and agree.
-      ParityScene.look => const RenderSettings(
-          bloom: BloomSettings(enabled: false),
-          shadows: ShadowSettings(enabled: false),
-          look: LookSettings(
-            contrast: 1.35,
-            saturation: 1.4,
-            temperature: 0.25,
-            vignette: 0.6,
-            grain: 0.08,
-            chromaticAberration: 0.004,
-          ),
-        ),
-    };
+  ParityScene.plain => const RenderSettings(
+    bloom: BloomSettings(enabled: false),
+    shadows: ShadowSettings(enabled: false),
+  ),
+  ParityScene.directionalShadow ||
+  ParityScene.pointShadow ||
+  ParityScene.torchNearWall ||
+  ParityScene.torchesRunningOut => const RenderSettings(
+    bloom: BloomSettings(enabled: false),
+  ),
+  ParityScene.bloom => const RenderSettings(
+    shadows: ShadowSettings(enabled: false),
+  ),
+  // The atlas on screen instead of the picture. Exposure and tone mapping
+  // are forced off by this path in the compositor, so the comparison is of
+  // the stored distances themselves.
+  ParityScene.pointShadowMap => const RenderSettings(
+    bloom: BloomSettings(enabled: false),
+    showShadowMap: true,
+  ),
+  // The other cube atlas, which nothing had ever looked at. See the note
+  // on `ParityScene.pointShadowStaticMap`.
+  ParityScene.pointShadowStaticMap => const RenderSettings(
+    bloom: BloomSettings(enabled: false),
+    showStaticShadowMap: true,
+  ),
+  ParityScene.sky => RenderSettings(
+    bloom: const BloomSettings(enabled: false),
+    shadows: const ShadowSettings(enabled: false),
+    sky: _paritySky,
+  ),
+  ParityScene.imageBasedLighting => const RenderSettings(
+    bloom: BloomSettings(enabled: false),
+    shadows: ShadowSettings(enabled: false),
+  ),
+  // Turned up far past taste: a fixture that applied a look nobody could
+  // see would compare two pictures of the same thing and agree.
+  ParityScene.look => const RenderSettings(
+    bloom: BloomSettings(enabled: false),
+    shadows: ShadowSettings(enabled: false),
+    look: LookSettings(
+      contrast: 1.35,
+      saturation: 1.4,
+      temperature: 0.25,
+      vignette: 0.6,
+      grain: 0.08,
+      chromaticAberration: 0.004,
+    ),
+  ),
+};
 
 /// The sky both sky fixtures use, and the one the environment is baked from.
 ///

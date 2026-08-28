@@ -18,11 +18,11 @@ enum AnimationInterpolation {
   cubicSpline;
 
   static AnimationInterpolation fromGltf(String? name) => switch (name) {
-        'STEP' => AnimationInterpolation.step,
-        'CUBICSPLINE' => AnimationInterpolation.cubicSpline,
-        // LINEAR is the spec's default when the sampler omits the field.
-        _ => AnimationInterpolation.linear,
-      };
+    'STEP' => AnimationInterpolation.step,
+    'CUBICSPLINE' => AnimationInterpolation.cubicSpline,
+    // LINEAR is the spec's default when the sampler omits the field.
+    _ => AnimationInterpolation.linear,
+  };
 
   /// Values stored per keyframe: a cubic key carries an in tangent, the value,
   /// and an out tangent.
@@ -46,12 +46,12 @@ enum AnimationPath {
   final int componentCount;
 
   static AnimationPath? fromGltf(String? name) => switch (name) {
-        'translation' => AnimationPath.translation,
-        'rotation' => AnimationPath.rotation,
-        'scale' => AnimationPath.scale,
-        'weights' => AnimationPath.weights,
-        _ => null,
-      };
+    'translation' => AnimationPath.translation,
+    'rotation' => AnimationPath.rotation,
+    'scale' => AnimationPath.scale,
+    'weights' => AnimationPath.weights,
+    _ => null,
+  };
 }
 
 /// One animated property of one node.
@@ -72,8 +72,7 @@ final class AnimationTrack {
     if (times.isEmpty) {
       throw ArgumentError('An animation track needs at least one keyframe.');
     }
-    final expected =
-        times.length * componentCount * interpolation.valuesPerKey;
+    final expected = times.length * componentCount * interpolation.valuesPerKey;
     if (values.length != expected) {
       throw ArgumentError(
         'Track for node $nodeIndex has ${times.length} keys and '
@@ -167,7 +166,8 @@ final class AnimationTrack {
   /// Reads the value part of key [index]; for cubic keys that is the middle of
   /// the in-tangent / value / out-tangent triple.
   void _readValue(int index, Float32List out) {
-    final base = index * componentCount * interpolation.valuesPerKey +
+    final base =
+        index * componentCount * interpolation.valuesPerKey +
         (interpolation == AnimationInterpolation.cubicSpline
             ? componentCount
             : 0);
@@ -193,9 +193,13 @@ final class AnimationTrack {
     final a = low * 4;
     final b = high * 4;
 
-    var x0 = values[a], y0 = values[a + 1], z0 = values[a + 2],
+    var x0 = values[a],
+        y0 = values[a + 1],
+        z0 = values[a + 2],
         w0 = values[a + 3];
-    final x1 = values[b], y1 = values[b + 1], z1 = values[b + 2],
+    final x1 = values[b],
+        y1 = values[b + 1],
+        z1 = values[b + 2],
         w1 = values[b + 3];
 
     var dot = x0 * x1 + y0 * y1 + z0 * z1 + w0 * w1;
@@ -234,13 +238,7 @@ final class AnimationTrack {
   /// Tangents are authored in value-per-second and therefore scale by the key
   /// interval; forgetting that factor produces an animation that looks right at
   /// one frame rate and overshoots at another.
-  void _hermite(
-    int low,
-    int high,
-    double alpha,
-    double span,
-    Float32List out,
-  ) {
+  void _hermite(int low, int high, double alpha, double span, Float32List out) {
     final stride = componentCount * 3;
     final a = low * stride;
     final b = high * stride;
@@ -259,7 +257,8 @@ final class AnimationTrack {
       final v1 = values[b + componentCount + i];
       final inTangent1 = values[b + i];
 
-      out[i] = h00 * v0 +
+      out[i] =
+          h00 * v0 +
           h10 * span * outTangent0 +
           h01 * v1 +
           h11 * span * inTangent1;
@@ -285,7 +284,8 @@ final class AnimationTrack {
   }
 
   @override
-  String toString() => 'AnimationTrack(node $nodeIndex, ${path.name}, '
+  String toString() =>
+      'AnimationTrack(node $nodeIndex, ${path.name}, '
       '${interpolation.name}, $keyCount keys)';
 }
 

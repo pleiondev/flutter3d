@@ -48,12 +48,23 @@ import 'cpu_shaders_layout.dart';
 /// each one modifies a field. A copy-returning version would read better and
 /// would be a different program.
 final class Surface {
-  Surface(this.albedo, this.alpha, this.normal, this.world, this.ambient,
-      this.metallic, this.roughness, this.view, this.nDotV, this.tangent);
+  Surface(
+    this.albedo,
+    this.alpha,
+    this.normal,
+    this.world,
+    this.ambient,
+    this.metallic,
+    this.roughness,
+    this.view,
+    this.nDotV,
+    this.tangent,
+  );
   Vector3 albedo;
   double alpha;
   Vector3 normal;
   final Vector3 world;
+
   /// Hemispheric and already scaled by the scene's strength: the sky above,
   /// the ground bounce below, blended by which way the surface faces.
   final Vector3 ambient;
@@ -85,10 +96,9 @@ Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
   final uv = uvFootprint(c);
   final tint = bindings.vec4('FragInfo', 'base_color', Vector4(1, 1, 1, 1));
   final texture = bindings.textures['base_color_texture'];
-  final texel =
-      texture == null
-          ? Vector4(1, 1, 1, 1)
-          : texture.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+  final texel = texture == null
+      ? Vector4(1, 1, 1, 1)
+      : texture.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
 
   // Texture and tint are sRGB; the vertex colour is authored linear, per glTF.
   final albedo = Vector3(
@@ -103,8 +113,7 @@ Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
   if (length > 1e-6) normal.scale(1.0 / length);
 
   final material = bindings.vec4('FragInfo', 'material', Vector4.zero());
-  final camera =
-      bindings.vec4('FragInfo', 'camera_position', Vector4.zero());
+  final camera = bindings.vec4('FragInfo', 'camera_position', Vector4.zero());
   final world = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
   final view = Vector3(camera.x, camera.y, camera.z) - world;
   final viewLength = view.length;
@@ -114,8 +123,11 @@ Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
   // ambient of this kind says which half of the world a face can see, and
   // millimetres of bump relief are not an answer to that.
   final sky = bindings.vec4('FragInfo', 'ambient_sky', Vector4(1, 1, 1, 1));
-  final ground =
-      bindings.vec4('FragInfo', 'ambient_ground', Vector4(1, 1, 1, 1));
+  final ground = bindings.vec4(
+    'FragInfo',
+    'ambient_ground',
+    Vector4(1, 1, 1, 1),
+  );
   final up = normal.y * 0.5 + 0.5;
   final ambient = Vector3(
     (ground.x + (sky.x - ground.x) * up) * material.z,
@@ -133,8 +145,7 @@ Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
     material.y.clamp(0.02, 1.0),
     view,
     math.max(normal.dot(view), 1e-4),
-    Vector4(v[kVTangent], v[kVTangent + 1], v[kVTangent + 2],
-        v[kVTangent + 3]),
+    Vector4(v[kVTangent], v[kVTangent + 1], v[kVTangent + 2], v[kVTangent + 3]),
   );
 }
 
@@ -149,12 +160,15 @@ Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
 
 /// glTF's ORM packing: roughness in g, metallic in b.
 void applyMetallicRoughnessMap(
-    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+  Surface s,
+  Float32List v,
+  ShaderBindings b,
+  FragmentContext c,
+) {
   final orm = b.textures['metallic_roughness_texture'];
   if (orm == null) return;
   final uv = uvFootprint(c);
-  final texel =
-      orm.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+  final texel = orm.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   s.metallic = (s.metallic * texel.z).clamp(0.0, 1.0);
   s.roughness = (s.roughness * texel.y).clamp(0.02, 1.0);
 }
@@ -162,24 +176,32 @@ void applyMetallicRoughnessMap(
 /// glTF's `occlusionStrength` lerps between ignoring the map and applying it
 /// in full, which is why this is a mix and not a multiply.
 void applyOcclusionMap(
-    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+  Surface s,
+  Float32List v,
+  ShaderBindings b,
+  FragmentContext c,
+) {
   final map = b.textures['occlusion_texture'];
   if (map == null) return;
   final uv = uvFootprint(c);
-  final occlusion =
-      map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv).x;
-  final strength =
-      b.vec4('FragInfo', 'material2', Vector4.zero()).z.clamp(0.0, 1.0);
+  final occlusion = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv).x;
+  final strength = b
+      .vec4('FragInfo', 'material2', Vector4.zero())
+      .z
+      .clamp(0.0, 1.0);
   s.occlusion = 1.0 + (occlusion - 1.0) * strength;
 }
 
 void applyEmissiveMap(
-    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+  Surface s,
+  Float32List v,
+  ShaderBindings b,
+  FragmentContext c,
+) {
   final map = b.textures['emissive_texture'];
   if (map == null) return;
   final uv = uvFootprint(c);
-  final texel =
-      map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+  final texel = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   final factor = b.vec4('FragInfo', 'emissive', Vector4.zero());
   final strength = b.vec4('FragInfo', 'material2', Vector4.zero()).w;
   s.emissive = Vector3(
@@ -191,7 +213,11 @@ void applyEmissiveMap(
 
 /// Perturbs the normal by the tangent-space map.
 void applyNormalMap(
-    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+  Surface s,
+  Float32List v,
+  ShaderBindings b,
+  FragmentContext c,
+) {
   final map = b.textures['normal_texture'];
   if (map == null) return;
 
@@ -207,8 +233,7 @@ void applyNormalMap(
   final bitangent = s.normal.cross(t)..scale(s.tangent.w);
 
   final uv = uvFootprint(c);
-  final texel =
-      map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
+  final texel = map.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv);
   final scale = b.vec4('FragInfo', 'material2', Vector4.zero()).y;
   final sx = (texel.x * 2.0 - 1.0) * scale;
   final sy = (texel.y * 2.0 - 1.0) * scale;
@@ -221,7 +246,11 @@ void applyNormalMap(
 /// The three every lit model uses. Metal-rough is separate because only the
 /// models that respond to metallic or roughness may sample it.
 void applyCommonMaps(
-    Surface s, Float32List v, ShaderBindings b, FragmentContext c) {
+  Surface s,
+  Float32List v,
+  ShaderBindings b,
+  FragmentContext c,
+) {
   applyNormalMap(s, v, b, c);
   applyOcclusionMap(s, v, b, c);
   applyEmissiveMap(s, v, b, c);

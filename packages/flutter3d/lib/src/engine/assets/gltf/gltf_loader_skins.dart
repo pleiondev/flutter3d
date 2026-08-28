@@ -78,8 +78,8 @@ extension _GltfSkins on GltfLoader {
           inverseBindMatrices: matrices,
           skeletonRoot:
               skeleton != null && skeleton >= 0 && skeleton < nodeCount
-                  ? skeleton
-                  : null,
+              ? skeleton
+              : null,
         ),
       );
     }

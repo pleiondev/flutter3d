@@ -24,10 +24,10 @@ import 'dart:typed_data';
 /// paid where it matters least.
 final class PackedKeys {
   PackedKeys([int capacity = 128])
-      : _keys = Float64List(capacity),
-        _payloads = Int32List(capacity),
-        _order = List<int>.filled(capacity, 0, growable: false),
-        _sortedPayloads = Int32List(capacity);
+    : _keys = Float64List(capacity),
+      _payloads = Int32List(capacity),
+      _order = List<int>.filled(capacity, 0, growable: false),
+      _sortedPayloads = Int32List(capacity);
 
   Float64List _keys;
   Int32List _payloads;

@@ -26,10 +26,19 @@ void attachToFramebuffer(
 ) {
   final backend = handle.backend as WebGlTexture;
   if (backend.texture != null) {
-    gl.framebufferTexture2D(target, attachment,
-        web.WebGLRenderingContext.TEXTURE_2D, backend.texture, 0);
+    gl.framebufferTexture2D(
+      target,
+      attachment,
+      web.WebGLRenderingContext.TEXTURE_2D,
+      backend.texture,
+      0,
+    );
   } else {
-    gl.framebufferRenderbuffer(target, attachment,
-        web.WebGLRenderingContext.RENDERBUFFER, backend.renderbuffer);
+    gl.framebufferRenderbuffer(
+      target,
+      attachment,
+      web.WebGLRenderingContext.RENDERBUFFER,
+      backend.renderbuffer,
+    );
   }
 }

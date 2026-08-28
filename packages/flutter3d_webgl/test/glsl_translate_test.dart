@@ -13,7 +13,9 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('includes', () {
     test('a header is pulled in where it is named', () {
-      const sources = <String, String>{'lib/color.glsl': 'float Half() { return 0.5; }'};
+      const sources = <String, String>{
+        'lib/color.glsl': 'float Half() { return 0.5; }',
+      };
       final out = resolveIncludes(
         '#include <lib/color.glsl>\nvoid main() {}',
         sources,
@@ -30,7 +32,8 @@ void main() {
       // duplicate rather than on anything the author did.
       const sources = <String, String>{
         'lib/color.glsl': 'uniform sampler2D tex;',
-        'lib/surface.glsl': '#include <lib/color.glsl>\nfloat S() { return 1.0; }',
+        'lib/surface.glsl':
+            '#include <lib/color.glsl>\nfloat S() { return 1.0; }',
       };
       final out = resolveIncludes(
         '#include <lib/color.glsl>\n#include <lib/surface.glsl>',
@@ -48,16 +51,30 @@ void main() {
       };
       expect(
         () => resolveIncludes('#include <a.glsl>', sources, from: 'top.frag'),
-        throwsA(isA<GlslTranslateError>()
-            .having((e) => e.message, 'message', contains('cycle'))),
+        throwsA(
+          isA<GlslTranslateError>().having(
+            (e) => e.message,
+            'message',
+            contains('cycle'),
+          ),
+        ),
       );
     });
 
     test('a missing header names the file that wanted it', () {
       expect(
-        () => resolveIncludes('#include <lib/gone.glsl>', const {}, from: 'a.frag'),
-        throwsA(isA<GlslTranslateError>().having(
-            (e) => e.message, 'message', allOf(contains('a.frag'), contains('gone')))),
+        () => resolveIncludes(
+          '#include <lib/gone.glsl>',
+          const {},
+          from: 'a.frag',
+        ),
+        throwsA(
+          isA<GlslTranslateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('a.frag'), contains('gone')),
+          ),
+        ),
       );
     });
   });
@@ -74,22 +91,33 @@ void main() {
         fragment: true,
       );
       expect(out.split('\n').first, '#version 300 es');
-      expect('#version'.allMatches(out).length, 1,
-          reason: 'a header carried its own, and ES allows one');
+      expect(
+        '#version'.allMatches(out).length,
+        1,
+        reason: 'a header carried its own, and ES allows one',
+      );
       expect(out, isNot(contains('460')));
     });
 
     test('a fragment stage declares float precision', () {
       // Not a nicety: ES has no default precision for float in a fragment
       // shader, so one without this does not compile at all.
-      final out = translateGlsl('void main() {}', const {},
-          from: 'a.frag', fragment: true);
+      final out = translateGlsl(
+        'void main() {}',
+        const {},
+        from: 'a.frag',
+        fragment: true,
+      );
       expect(out, contains('precision highp float;'));
     });
 
     test('a vertex stage does not', () {
-      final out = translateGlsl('void main() {}', const {},
-          from: 'a.vert', fragment: false);
+      final out = translateGlsl(
+        'void main() {}',
+        const {},
+        from: 'a.vert',
+        fragment: false,
+      );
       expect(out, isNot(contains('precision highp float;')));
     });
 
@@ -107,8 +135,12 @@ void main() {
       // `uniform sampler2D base_color_texture;` is not a block, and wrapping it
       // in std140 is a compile error. The rule keys on the brace and on the
       // capitalised block name.
-      final out = translateGlsl('uniform sampler2D base_color_texture;', const {},
-          from: 'a.frag', fragment: true);
+      final out = translateGlsl(
+        'uniform sampler2D base_color_texture;',
+        const {},
+        from: 'a.frag',
+        fragment: true,
+      );
       expect(out, contains('uniform sampler2D base_color_texture;'));
       expect(out, isNot(contains('std140')));
     });
@@ -124,15 +156,22 @@ void main() {
       );
       expect(out, contains('layout(location = 0) out vec4 frag_color;'));
       expect(out, contains('layout(location = 1) out vec4 frag_surface;'));
-      expect('location = 1'.allMatches(out).length, 1,
-          reason: 'the already-qualified output must be left alone');
+      expect(
+        'location = 1'.allMatches(out).length,
+        1,
+        reason: 'the already-qualified output must be left alone',
+      );
     });
 
     test('a vertex out is left alone', () {
       // `out` in a vertex stage is a varying, not an attachment, and giving it
       // a location number would mean something else entirely.
-      final out = translateGlsl('out vec3 v_normal;', const {},
-          from: 'a.vert', fragment: false);
+      final out = translateGlsl(
+        'out vec3 v_normal;',
+        const {},
+        from: 'a.vert',
+        fragment: false,
+      );
       expect(out, contains('out vec3 v_normal;'));
       expect(out, isNot(contains('location = 0')));
     });

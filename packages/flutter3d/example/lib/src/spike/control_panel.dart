@@ -231,8 +231,10 @@ class ControlPanel extends StatelessWidget {
             children: <Widget>[
               for (final light in lights)
                 FilterChip(
-                  label: Text('${light.name ?? light.type.name} '
-                      '(${light.type.name})'),
+                  label: Text(
+                    '${light.name ?? light.type.name} '
+                    '(${light.type.name})',
+                  ),
                   selected: light.visible,
                   // Switching a light off only shortens the shader's loop; the
                   // pipeline is untouched, which the "pipeline sw" counter below

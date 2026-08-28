@@ -59,23 +59,27 @@ double _draw(int instances) {
     height: 8,
     shaders: CpuShaderLibrary(builtinCpuShaders()),
   );
-  final colour = device.createTexture(const RenderTargetSpec(
-    width: 8,
-    height: 8,
-    format: TextureFormat.r16g16b16a16Float,
-  ));
+  final colour = device.createTexture(
+    const RenderTargetSpec(
+      width: 8,
+      height: 8,
+      format: TextureFormat.r16g16b16a16Float,
+    ),
+  );
 
   final vertex = device.shaders['DebugLineVertex']!;
   final fragment = device.shaders['DebugLine']!;
-  final pass = device.beginRenderPass(RenderPassDescriptor(
-    colors: <ColorTarget>[
-      ColorTarget(
-        texture: colour,
-        loadAction: LoadAction.clear,
-        clearValue: Vector4.zero(),
-      ),
-    ],
-  ));
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: colour,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ),
+  );
   pass
     ..bindPipeline(device.createPipeline(vertex, fragment, layout: _layout))
     ..setPrimitiveType(PrimitiveType.triangle)
@@ -101,8 +105,11 @@ void main() {
     // Two instances add the first two colours. A backend that read the
     // per-instance buffer at the vertex index would give two tenths here —
     // the same triangle twice — which is why the colours are far apart.
-    expect(_draw(2), closeTo(0.60, 1e-5),
-        reason: 'the second instance did not read the second colour');
+    expect(
+      _draw(2),
+      closeTo(0.60, 1e-5),
+      reason: 'the second instance did not read the second colour',
+    );
 
     // And three, which also proves the first two were not a coincidence of
     // two numbers that happen to sum like that.
@@ -115,18 +122,22 @@ void main() {
       height: 4,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     );
-    final colour = device.createTexture(const RenderTargetSpec(
-      width: 4,
-      height: 4,
-      format: TextureFormat.r16g16b16a16Float,
-    ));
+    final colour = device.createTexture(
+      const RenderTargetSpec(
+        width: 4,
+        height: 4,
+        format: TextureFormat.r16g16b16a16Float,
+      ),
+    );
     final vertex = device.shaders['DebugLineVertex']!;
     final fragment = device.shaders['DebugLine']!;
-    final pass = device.beginRenderPass(RenderPassDescriptor(
-      colors: <ColorTarget>[
-        ColorTarget(texture: colour, loadAction: LoadAction.clear),
-      ],
-    ));
+    final pass = device.beginRenderPass(
+      RenderPassDescriptor(
+        colors: <ColorTarget>[
+          ColorTarget(texture: colour, loadAction: LoadAction.clear),
+        ],
+      ),
+    );
     pass
       ..bindPipeline(device.createPipeline(vertex, fragment, layout: _layout))
       ..setPrimitiveType(PrimitiveType.triangle)
@@ -137,9 +148,13 @@ void main() {
       ..bindVertexData(ByteData.sublistView(_positions), 3)
       ..bindIndexData(ByteData.sublistView(_indices), IndexType.int16, 3);
 
-    expect(() => pass.draw(), throwsA(isA<StateError>()),
-        reason: 'a missing slot has to say so; reading whatever slot zero '
-            'holds instead is how a colour becomes a position');
+    expect(
+      () => pass.draw(),
+      throwsA(isA<StateError>()),
+      reason:
+          'a missing slot has to say so; reading whatever slot zero '
+          'holds instead is how a colour becomes a position',
+    );
   });
 
   test('an integer attribute is refused rather than reinterpreted', () {
@@ -162,7 +177,8 @@ void main() {
         ]),
       ),
       throwsA(isA<UnsupportedError>()),
-      reason: 'a stage here receives floats, and reinterpreting an integer as '
+      reason:
+          'a stage here receives floats, and reinterpreting an integer as '
           'one turns a joint index into 1.4e-45',
     );
   });

@@ -55,11 +55,11 @@ void main() {
     if (device == null) fail('no WebGL2 context in this browser');
 
     TextureHandle texel(List<int> rgba) => device.createTextureFromPixels(
-          width: 1,
-          height: 1,
-          format: TextureFormat.r8g8b8a8UNormInt,
-          pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
-        )!;
+      width: 1,
+      height: 1,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(Uint8List.fromList(rgba)),
+    )!;
 
     final renderer = Renderer.create(
       device: device,
@@ -132,14 +132,20 @@ void main() {
     final below = brightest(_height ~/ 2 + margin, _height);
 
     // ignore: avoid_print
-    print('brightest above the middle: ${above.toStringAsFixed(1)}, '
-        'below: ${below.toStringAsFixed(1)}');
+    print(
+      'brightest above the middle: ${above.toStringAsFixed(1)}, '
+      'below: ${below.toStringAsFixed(1)}',
+    );
 
     // The sphere is up there, and it is lit. Without this the test would also
     // pass on a frame with nothing in it at all.
-    expect(above, greaterThan(64.0),
-        reason: 'the sphere did not draw, so the half below it being dark says '
-            'nothing');
+    expect(
+      above,
+      greaterThan(64.0),
+      reason:
+          'the sphere did not draw, so the half below it being dark says '
+          'nothing',
+    );
 
     // And barely anything is down here. Not nothing: the chain's coarsest level
     // is a handful of texels across the whole frame, so a real glow does reach
@@ -147,9 +153,13 @@ void main() {
     // entire brightness in this band — 252 of 255, the sphere itself, upside
     // down — so the two are an order of magnitude apart and the line between
     // them does not need to be a fine one.
-    expect(below, lessThan(64.0),
-        reason: 'the bottom of the frame is lit by a sphere in the top of it: '
-            'the bloom chain is composited upside down. See '
-            '`Renderer._fullscreenTriangle`');
+    expect(
+      below,
+      lessThan(64.0),
+      reason:
+          'the bottom of the frame is lit by a sphere in the top of it: '
+          'the bloom chain is composited upside down. See '
+          '`Renderer._fullscreenTriangle`',
+    );
   });
 }

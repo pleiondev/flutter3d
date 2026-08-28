@@ -66,7 +66,6 @@ final class ParticleContributor extends PassContributor {
 
   static const String _infoBlock = 'ParticleInfo';
 
-
   @override
   bool get isActive => particles.aliveCount > 0;
 
@@ -78,8 +77,9 @@ final class ParticleContributor extends PassContributor {
     developer.Timeline.startSync('ParticleContributor.encode');
 
     final capacity = particles.capacity;
-    final vertices = _vertices ??=
-        Float32List(capacity * ParticleSystem.floatsPerParticle);
+    final vertices = _vertices ??= Float32List(
+      capacity * ParticleSystem.floatsPerParticle,
+    );
     final indices = _indices ??= Uint32List(capacity * 6);
 
     // The camera's right and up in world space, which is what turns a point
@@ -89,8 +89,13 @@ final class ParticleContributor extends PassContributor {
     _right.setValues(world.entry(0, 0), world.entry(1, 0), world.entry(2, 0));
     _up.setValues(world.entry(0, 1), world.entry(1, 1), world.entry(2, 1));
 
-    final written = particles.writeQuads(_right, _up, vertices, indices,
-        flipbook: flipbook);
+    final written = particles.writeQuads(
+      _right,
+      _up,
+      vertices,
+      indices,
+      flipbook: flipbook,
+    );
     if (written == 0) {
       developer.Timeline.finishSync();
       return;
@@ -101,8 +106,10 @@ final class ParticleContributor extends PassContributor {
     // returns null, the plugin draws nothing, and the frame is merely a frame
     // without particles in it. The golden caught it; nothing else would have.
     final vertexShader = _shader(frame, 'ParticleVertex');
-    final fragmentShader =
-        _shader(frame, texture == null ? 'Particle' : 'ParticleTextured');
+    final fragmentShader = _shader(
+      frame,
+      texture == null ? 'Particle' : 'ParticleTextured',
+    );
     if (vertexShader == null || fragmentShader == null) {
       developer.Timeline.finishSync();
       return;
@@ -133,11 +140,9 @@ final class ParticleContributor extends PassContributor {
       IndexType.int32,
       indexCount,
     );
-    encoder.bindUniformBlock(
-      vertexShader,
-      _infoBlock,
-      <String, Float32List>{'view_projection': viewProjection.storage},
-    );
+    encoder.bindUniformBlock(vertexShader, _infoBlock, <String, Float32List>{
+      'view_projection': viewProjection.storage,
+    });
 
     // Fog is attenuation here rather than a mix — see the fragment shader.
     // Without it a distant flame stays vivid against a wall that has faded
@@ -152,11 +157,10 @@ final class ParticleContributor extends PassContributor {
     _eyeData[0] = _eye.x;
     _eyeData[1] = _eye.y;
     _eyeData[2] = _eye.z;
-    encoder.bindUniformBlock(
-      fragmentShader,
-      'FogInfo',
-      <String, Float32List>{'fog': _fog, 'eye': _eyeData},
-    );
+    encoder.bindUniformBlock(fragmentShader, 'FogInfo', <String, Float32List>{
+      'fog': _fog,
+      'eye': _eyeData,
+    });
 
     final sprite = texture;
     if (sprite != null) {
@@ -164,8 +168,12 @@ final class ParticleContributor extends PassContributor {
       // has its mip filter off. A particle is a quad that shrinks as it
       // recedes; without the chain being blended it sparkles on the way out,
       // which reads as flickering rather than as distance.
-      encoder.bindTexture(fragmentShader, 'particle_texture', sprite,
-          sampler: SamplerOptions.trilinearRepeat);
+      encoder.bindTexture(
+        fragmentShader,
+        'particle_texture',
+        sprite,
+        sampler: SamplerOptions.trilinearRepeat,
+      );
     }
 
     encoder.draw();
@@ -186,8 +194,10 @@ final class ParticleContributor extends PassContributor {
     final shader = frame.device.shaders[name];
     if (shader == null && _missing.add(name)) {
       assert(() {
-        debugPrint('ParticleContributor: the shader bundle has no "$name"; '
-            'no particles will be drawn.');
+        debugPrint(
+          'ParticleContributor: the shader bundle has no "$name"; '
+          'no particles will be drawn.',
+        );
         return true;
       }());
     }

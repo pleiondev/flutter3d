@@ -24,7 +24,6 @@ import 'package:flutter3d/src/engine/scene/scene.dart';
 import 'package:flutter3d_hardware/testing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-
 void main() {
   test('a target released this frame is not reused for a full ring', () {
     final device = FakeBackend();
@@ -33,14 +32,14 @@ void main() {
     final view = RenderView(camera: scene.cameras.single);
 
     void frame() => renderer.render(
-          width: 64,
-          height: 64,
-          scene: scene,
-          views: <RenderView>[view],
-          // Bloom acquires and releases pooled targets, which is what makes
-          // this frame have anything to defer at all.
-          settings: const RenderSettings(),
-        );
+      width: 64,
+      height: 64,
+      scene: scene,
+      views: <RenderView>[view],
+      // Bloom acquires and releases pooled targets, which is what makes
+      // this frame have anything to defer at all.
+      settings: const RenderSettings(),
+    );
 
     // How the pool fills is the whole of it. Each frame acquires the same
     // handful of targets; with a three-deep ring the first three frames each
@@ -54,19 +53,29 @@ void main() {
 
     final perFrame = created.first;
     expect(perFrame, greaterThan(0), reason: 'nothing was pooled at all');
-    expect(created[2], perFrame * 3,
-        reason: 'three frames should each have allocated their own set: '
-            '$created');
+    expect(
+      created[2],
+      perFrame * 3,
+      reason:
+          'three frames should each have allocated their own set: '
+          '$created',
+    );
     for (final total in created.skip(3)) {
-      expect(total, perFrame * 3,
-          reason: 'the pool kept allocating after the ring filled: $created');
+      expect(
+        total,
+        perFrame * 3,
+        reason: 'the pool kept allocating after the ring filled: $created',
+      );
     }
 
     // **This is what a one-frame deferral looks like**, and what this test
     // exists to refuse: the total would stop at one frame's worth, because
     // every target released by a frame is handed straight to the next one
     // while the GPU may still be reading it.
-    expect(created.last, isNot(perFrame),
-        reason: 'targets are being reused by the very next frame');
+    expect(
+      created.last,
+      isNot(perFrame),
+      reason: 'targets are being reused by the very next frame',
+    );
   });
 }

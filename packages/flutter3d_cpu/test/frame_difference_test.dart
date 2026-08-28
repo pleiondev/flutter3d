@@ -31,8 +31,11 @@ void main() {
   test('and the threshold is exclusive, at the default the goldens use', () {
     // Eight, because `tool/golden.sh` says eight: a comparison that names no
     // threshold has to mean what the recorded pictures mean.
-    expect(differingPixels(_frame(0, 0, 0), _frame(8, 0, 0)), 0,
-        reason: 'exactly the threshold counted as a difference');
+    expect(
+      differingPixels(_frame(0, 0, 0), _frame(8, 0, 0)),
+      0,
+      reason: 'exactly the threshold counted as a difference',
+    );
     expect(differingPixels(_frame(0, 0, 0), _frame(9, 0, 0)), 4);
   });
 
@@ -71,11 +74,13 @@ void main() {
     expect(it.percent, 100.0);
   });
 
-  test('and two frames of different sizes is a broken test, not a failing one',
-      () {
-    expect(
-      () => compareFrames(_frame(0, 0, 0, pixels: 2), _frame(0, 0, 0)),
-      throwsArgumentError,
-    );
-  });
+  test(
+    'and two frames of different sizes is a broken test, not a failing one',
+    () {
+      expect(
+        () => compareFrames(_frame(0, 0, 0, pixels: 2), _frame(0, 0, 0)),
+        throwsArgumentError,
+      );
+    },
+  );
 }

@@ -40,8 +40,7 @@ final class ShadowDistanceShader implements CpuFragmentShader {
     final light = bindings.vec4('ShadowLight', 'light', Vector4.zero());
     final range = math.max(light.w, 1e-4);
     final world = Vector3(v[kVWorld], v[kVWorld + 1], v[kVWorld + 2]);
-    final distance =
-        (world - Vector3(light.x, light.y, light.z)).length;
+    final distance = (world - Vector3(light.x, light.y, light.z)).length;
     return Vector4((distance / range).clamp(0.0, 1.0), 0.0, 0.0, 1.0);
   }
 }

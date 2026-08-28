@@ -8,10 +8,12 @@ import 'package:flutter_test/flutter_test.dart';
 /// asks* is scheduling, which is the whole subject. A node that throws makes
 /// "it was not asked" an assertion rather than an assumption.
 final class ThrowingNode extends RenderNode {
-  const ThrowingNode(this.name,
-      {this.reads = const <ResourceId>[],
-      this.writes = const <ResourceId>[],
-      this.isActive = true});
+  const ThrowingNode(
+    this.name, {
+    this.reads = const <ResourceId>[],
+    this.writes = const <ResourceId>[],
+    this.isActive = true,
+  });
 
   @override
   final String name;
@@ -37,10 +39,20 @@ void main() {
     // over it. Two of them must not come out as depending on each other.
     final graph = FrameGraph()
       ..addExternal(colour)
-      ..addNode(const ThrowingNode('first',
-          reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
-      ..addNode(const ThrowingNode('second',
-          reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+      ..addNode(
+        const ThrowingNode(
+          'first',
+          reads: <ResourceId>[colour],
+          writes: <ResourceId>[colour],
+        ),
+      )
+      ..addNode(
+        const ThrowingNode(
+          'second',
+          reads: <ResourceId>[colour],
+          writes: <ResourceId>[colour],
+        ),
+      );
 
     final compiled = graph.compile(outputs: const <ResourceId>[colour]);
 
@@ -50,18 +62,29 @@ void main() {
   test('an inactive node takes its consumers with it', () {
     final graph = FrameGraph()
       ..addExternal(colour)
-      ..addNode(const ThrowingNode('off',
+      ..addNode(
+        const ThrowingNode(
+          'off',
           reads: <ResourceId>[colour],
           writes: <ResourceId>[overlay],
-          isActive: false))
-      ..addNode(const ThrowingNode('reads it',
-          reads: <ResourceId>[overlay], writes: <ResourceId>[unwanted]));
+          isActive: false,
+        ),
+      )
+      ..addNode(
+        const ThrowingNode(
+          'reads it',
+          reads: <ResourceId>[overlay],
+          writes: <ResourceId>[unwanted],
+        ),
+      );
 
     final compiled = graph.compile(outputs: const <ResourceId>[colour]);
 
     expect(compiled.order, isEmpty);
-    expect(compiled.culled.map((n) => n.name),
-        containsAll(<String>['off', 'reads it']));
+    expect(
+      compiled.culled.map((n) => n.name),
+      containsAll(<String>['off', 'reads it']),
+    );
   });
 
   test('a node nothing wants is never asked to draw', () {
@@ -70,8 +93,7 @@ void main() {
     // one has been set up and discarded.
     final graph = FrameGraph()
       ..addExternal(colour)
-      ..addNode(const ThrowingNode('ignored',
-          writes: <ResourceId>[unwanted]));
+      ..addNode(const ThrowingNode('ignored', writes: <ResourceId>[unwanted]));
 
     final compiled = graph.compile(outputs: const <ResourceId>[colour]);
 

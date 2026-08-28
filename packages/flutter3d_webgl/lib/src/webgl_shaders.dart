@@ -75,8 +75,12 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     final shader = _gl.createShader(type)!;
     _gl.shaderSource(shader, source);
     _gl.compileShader(shader);
-    final ok = _gl.getShaderParameter(
-        shader, web.WebGLRenderingContext.COMPILE_STATUS)! as JSBoolean;
+    final ok =
+        _gl.getShaderParameter(
+              shader,
+              web.WebGLRenderingContext.COMPILE_STATUS,
+            )!
+            as JSBoolean;
     if (!ok.toDart) {
       // Loudly. A stage that failed to compile and came back null would look
       // exactly like a stage the bundle never had, and the two need different
@@ -103,8 +107,11 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// program twice; ignoring the layout when a cached program is found would
   /// hand back a pipeline that quietly draws with the wrong one, which is the
   /// mistake this shape makes impossible rather than merely unlikely.
-  PipelineHandle link(ShaderHandle vertex, ShaderHandle fragment,
-      {VertexLayoutSpec? layout}) {
+  PipelineHandle link(
+    ShaderHandle vertex,
+    ShaderHandle fragment, {
+    VertexLayoutSpec? layout,
+  }) {
     final key = '${vertex.name}+${fragment.name}';
     final linked = _programs.putIfAbsent(key, () => _link(vertex, fragment));
     return PipelineHandle(
@@ -124,8 +131,9 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     _gl.attachShader(program, (vertex.backend as WebGlShader).shader);
     _gl.attachShader(program, (fragment.backend as WebGlShader).shader);
     _gl.linkProgram(program);
-    final linked = _gl.getProgramParameter(
-        program, web.WebGLRenderingContext.LINK_STATUS)! as JSBoolean;
+    final linked =
+        _gl.getProgramParameter(program, web.WebGLRenderingContext.LINK_STATUS)!
+            as JSBoolean;
     if (!linked.toDart) {
       throw StateError(
         'linking ${vertex.name} with ${fragment.name} failed:\n'
@@ -149,9 +157,13 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// ties the two together without the HAL carrying a descriptor — see
   /// [WebGlProgram.attributes].
   List<WebGlAttribute> _reflectAttributes(web.WebGLProgram program) {
-    final count = (_gl.getProgramParameter(
-            program, web.WebGLRenderingContext.ACTIVE_ATTRIBUTES)! as JSNumber)
-        .toDartInt;
+    final count =
+        (_gl.getProgramParameter(
+                  program,
+                  web.WebGLRenderingContext.ACTIVE_ATTRIBUTES,
+                )!
+                as JSNumber)
+            .toDartInt;
     final found = <WebGlAttribute>[];
     for (var i = 0; i < count; i++) {
       final info = _gl.getActiveAttrib(program, i);
@@ -162,22 +174,23 @@ final class WebGlShaderLibrary implements ShaderLibrary {
       if (location < 0) continue;
       found.add(WebGlAttribute(location, _componentsOf(info.type)));
     }
-    found.sort((WebGlAttribute a, WebGlAttribute b) =>
-        a.location.compareTo(b.location));
+    found.sort(
+      (WebGlAttribute a, WebGlAttribute b) => a.location.compareTo(b.location),
+    );
     return found;
   }
 
   static int _componentsOf(int type) => switch (type) {
-        web.WebGLRenderingContext.FLOAT => 1,
-        web.WebGLRenderingContext.FLOAT_VEC2 => 2,
-        web.WebGLRenderingContext.FLOAT_VEC3 => 3,
-        web.WebGLRenderingContext.FLOAT_VEC4 => 4,
-        _ => throw UnsupportedError(
-            'vertex attributes in this engine are floats and vectors of them; '
-            'GL type $type is neither. Integer attributes would need the HAL '
-            'to describe a vertex layout rather than take it from the shader.',
-          ),
-      };
+    web.WebGLRenderingContext.FLOAT => 1,
+    web.WebGLRenderingContext.FLOAT_VEC2 => 2,
+    web.WebGLRenderingContext.FLOAT_VEC3 => 3,
+    web.WebGLRenderingContext.FLOAT_VEC4 => 4,
+    _ => throw UnsupportedError(
+      'vertex attributes in this engine are floats and vectors of them; '
+      'GL type $type is neither. Integer attributes would need the HAL '
+      'to describe a vertex layout rather than take it from the shader.',
+    ),
+  };
 
   /// Uniform blocks, with their std140 member offsets.
   ///
@@ -186,28 +199,41 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// second copy of a specification — which is the shape of bug this project
   /// has spent the most time on.
   Map<String, WebGlBlock> _reflectBlocks(web.WebGLProgram program) {
-    final count = (_gl.getProgramParameter(program,
-            web.WebGL2RenderingContext.ACTIVE_UNIFORM_BLOCKS)! as JSNumber)
-        .toDartInt;
+    final count =
+        (_gl.getProgramParameter(
+                  program,
+                  web.WebGL2RenderingContext.ACTIVE_UNIFORM_BLOCKS,
+                )!
+                as JSNumber)
+            .toDartInt;
     final blocks = <String, WebGlBlock>{};
     for (var index = 0; index < count; index++) {
       final name = _gl.getActiveUniformBlockName(program, index);
       if (name == null) continue;
-      final size = (_gl.getActiveUniformBlockParameter(program, index,
-              web.WebGL2RenderingContext.UNIFORM_BLOCK_DATA_SIZE)! as JSNumber)
-          .toDartInt;
+      final size =
+          (_gl.getActiveUniformBlockParameter(
+                    program,
+                    index,
+                    web.WebGL2RenderingContext.UNIFORM_BLOCK_DATA_SIZE,
+                  )!
+                  as JSNumber)
+              .toDartInt;
 
-      final indices = _gl.getActiveUniformBlockParameter(
-          program,
-          index,
-          web.WebGL2RenderingContext
-              .UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES)! as JSUint32Array;
+      final indices =
+          _gl.getActiveUniformBlockParameter(
+                program,
+                index,
+                web.WebGL2RenderingContext.UNIFORM_BLOCK_ACTIVE_UNIFORM_INDICES,
+              )!
+              as JSUint32Array;
       final members = indices.toDart;
-      final offsets = _gl.getActiveUniforms(
-        program,
-        members.map((int i) => i.toJS).toList().toJS,
-        web.WebGL2RenderingContext.UNIFORM_OFFSET,
-      )! as JSArray<JSNumber>;
+      final offsets =
+          _gl.getActiveUniforms(
+                program,
+                members.map((int i) => i.toJS).toList().toJS,
+                web.WebGL2RenderingContext.UNIFORM_OFFSET,
+              )!
+              as JSArray<JSNumber>;
 
       final byName = <String, int>{};
       for (var i = 0; i < members.length; i++) {
@@ -237,27 +263,31 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// The list is the WebGL2 set. Named by value rather than by constant because
   /// `package:web` exposes only the two this backend uses.
   static bool _isSampler(int type) => const <int>[
-        0x8B5E, // SAMPLER_2D
-        0x8B60, // SAMPLER_CUBE
-        0x8DC1, // SAMPLER_2D_ARRAY
-        0x8B62, // SAMPLER_2D_SHADOW
-        0x8DC4, // SAMPLER_2D_ARRAY_SHADOW
-        0x8DC5, // SAMPLER_CUBE_SHADOW
-        0x8DCA, // INT_SAMPLER_2D
-        0x8DCF, // INT_SAMPLER_2D_ARRAY
-        0x8DD2, // UNSIGNED_INT_SAMPLER_2D
-        0x8DD7, // UNSIGNED_INT_SAMPLER_2D_ARRAY
-        0x8B5F, // SAMPLER_3D
-        0x8DCB, // INT_SAMPLER_3D
-        0x8DD3, // UNSIGNED_INT_SAMPLER_3D
-        0x8DCC, // INT_SAMPLER_CUBE
-        0x8DD4, // UNSIGNED_INT_SAMPLER_CUBE
-      ].contains(type);
+    0x8B5E, // SAMPLER_2D
+    0x8B60, // SAMPLER_CUBE
+    0x8DC1, // SAMPLER_2D_ARRAY
+    0x8B62, // SAMPLER_2D_SHADOW
+    0x8DC4, // SAMPLER_2D_ARRAY_SHADOW
+    0x8DC5, // SAMPLER_CUBE_SHADOW
+    0x8DCA, // INT_SAMPLER_2D
+    0x8DCF, // INT_SAMPLER_2D_ARRAY
+    0x8DD2, // UNSIGNED_INT_SAMPLER_2D
+    0x8DD7, // UNSIGNED_INT_SAMPLER_2D_ARRAY
+    0x8B5F, // SAMPLER_3D
+    0x8DCB, // INT_SAMPLER_3D
+    0x8DD3, // UNSIGNED_INT_SAMPLER_3D
+    0x8DCC, // INT_SAMPLER_CUBE
+    0x8DD4, // UNSIGNED_INT_SAMPLER_CUBE
+  ].contains(type);
 
   Map<String, int> _reflectSamplers(web.WebGLProgram program) {
-    final count = (_gl.getProgramParameter(
-            program, web.WebGLRenderingContext.ACTIVE_UNIFORMS)! as JSNumber)
-        .toDartInt;
+    final count =
+        (_gl.getProgramParameter(
+                  program,
+                  web.WebGLRenderingContext.ACTIVE_UNIFORMS,
+                )!
+                as JSNumber)
+            .toDartInt;
     final samplers = <String, int>{};
     for (var i = 0; i < count; i++) {
       final info = _gl.getActiveUniform(program, i);

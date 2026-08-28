@@ -79,7 +79,9 @@ const LightingModel _tint = LightingModel(
   usesMaterialParameters: false,
 );
 
-({CpuDevice device, Scene scene, CameraNode camera}) _wall(LightingModel model) {
+({CpuDevice device, Scene scene, CameraNode camera}) _wall(
+  LightingModel model,
+) {
   final device = CpuDevice(
     width: _width,
     height: _height,
@@ -93,7 +95,11 @@ const LightingModel _tint = LightingModel(
         device,
         CuboidShape(size: Vector3(40.0, 40.0, 1.0)).build(),
       ),
-      Material(name: 'wall', baseColor: Vector4(0.5, 0.5, 0.5, 1.0), lighting: model),
+      Material(
+        name: 'wall',
+        baseColor: Vector4(0.5, 0.5, 0.5, 1.0),
+        lighting: model,
+      ),
       name: 'wall',
     )..setPosition(0.0, 0.0, -8.0),
   );
@@ -139,8 +145,7 @@ List<int> _centre(Uint8List pixels) {
 }
 
 void main() {
-  test('an application can configure its own shader with its own uniform',
-      () async {
+  test('an application can configure its own shader with its own uniform', () async {
     // **The other half of a custom material.** A stage of one's own is not much
     // use if it can only ever be a constant; this is how it is told a colour, a
     // wave height or a scroll speed without the engine knowing what any of them
@@ -172,7 +177,10 @@ void main() {
     );
     final camera = CameraNode(
       projection: const PerspectiveProjection(
-          fovYRadians: 1.0, near: 0.1, far: 60.0),
+        fovYRadians: 1.0,
+        near: 0.1,
+        far: 60.0,
+      ),
     );
     camera.lookAt(Vector3(0.0, 0.0, -1.0));
     scene.add(camera);
@@ -240,7 +248,9 @@ void main() {
     final plain = await _draw(it);
 
     final again = _wall(LightingModel.unlit);
-    expect(await _draw(again, materials: CpuShaderLibrary(<String, CpuStage>{})),
-        equals(plain));
+    expect(
+      await _draw(again, materials: CpuShaderLibrary(<String, CpuStage>{})),
+      equals(plain),
+    );
   });
 }

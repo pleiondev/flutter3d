@@ -5,13 +5,13 @@ import 'dart:typed_data';
 import 'package:flutter3d/src/engine/assets/gltf/gltf.dart';
 import 'package:flutter3d/src/engine/geometry/geometry.dart';
 import 'package:flutter3d/src/engine/scene/scene_graph.dart';
+import 'package:flutter3d_samples/flutter3d_samples.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart' hide Ray;
 
-const String kSamples = 'assets/samples';
+const String kSamples = kSamplesPath;
 
-Uint8List readSample(String name) =>
-    File('$kSamples/$name').readAsBytesSync();
+Uint8List readSample(String name) => File('$kSamples/$name').readAsBytesSync();
 
 /// Reads joint matrix [index] out of the packed array.
 Matrix4 jointMatrix(Skeleton skeleton, int index) {
@@ -84,8 +84,11 @@ void main() {
       for (var j = 0; j < skeleton.jointCount; j++) {
         final m = jointMatrix(skeleton, j);
         for (var e = 0; e < 16; e++) {
-          expect(m.storage[e], closeTo(Matrix4.identity().storage[e], 1e-5),
-              reason: 'joint $j element $e');
+          expect(
+            m.storage[e],
+            closeTo(Matrix4.identity().storage[e], 1e-5),
+            reason: 'joint $j element $e',
+          );
         }
       }
     });
@@ -142,10 +145,18 @@ void main() {
       tip.setPosition(0.0, 1.0, 0.0);
       skeleton.update(Matrix4.identity());
 
-      final rigid = skinVertex(skeleton, Vector3(0.0, 1.0, 0.0),
-          <int>[0, 0, 0, 0], <double>[1.0, 0.0, 0.0, 0.0]);
-      final blended = skinVertex(skeleton, Vector3(0.0, 1.0, 0.0),
-          <int>[0, 1, 0, 0], <double>[0.5, 0.5, 0.0, 0.0]);
+      final rigid = skinVertex(
+        skeleton,
+        Vector3(0.0, 1.0, 0.0),
+        <int>[0, 0, 0, 0],
+        <double>[1.0, 0.0, 0.0, 0.0],
+      );
+      final blended = skinVertex(
+        skeleton,
+        Vector3(0.0, 1.0, 0.0),
+        <int>[0, 1, 0, 0],
+        <double>[0.5, 0.5, 0.0, 0.0],
+      );
 
       // Both joints moved the same way here, so the blend agrees with either —
       // what matters is that it is finite and on the segment, not off at the
@@ -161,10 +172,18 @@ void main() {
       root.setPosition(2.0, 0.0, 0.0);
       skeleton.update(Matrix4.identity());
 
-      final exact = skinVertex(skeleton, Vector3(0.0, 0.0, 0.0),
-          <int>[0, 0, 0, 0], <double>[1.0, 0.0, 0.0, 0.0]);
-      final sloppy = skinVertex(skeleton, Vector3(0.0, 0.0, 0.0),
-          <int>[0, 0, 0, 0], <double>[0.5, 0.5, 0.0, 0.0]);
+      final exact = skinVertex(
+        skeleton,
+        Vector3(0.0, 0.0, 0.0),
+        <int>[0, 0, 0, 0],
+        <double>[1.0, 0.0, 0.0, 0.0],
+      );
+      final sloppy = skinVertex(
+        skeleton,
+        Vector3(0.0, 0.0, 0.0),
+        <int>[0, 0, 0, 0],
+        <double>[0.5, 0.5, 0.0, 0.0],
+      );
       expect(sloppy.x, closeTo(exact.x, 1e-5));
     });
 
@@ -175,10 +194,17 @@ void main() {
       final meshWorld = Matrix4.translation(Vector3(10.0, 0.0, 0.0));
       skeleton.update(meshWorld);
 
-      final moved = skinVertex(skeleton, Vector3(0.0, 0.0, 0.0),
-          <int>[0, 0, 0, 0], <double>[1.0, 0.0, 0.0, 0.0]);
-      expect(moved.x, closeTo(-10.0, 1e-5),
-          reason: 'the joint matrix should undo the mesh placement');
+      final moved = skinVertex(
+        skeleton,
+        Vector3(0.0, 0.0, 0.0),
+        <int>[0, 0, 0, 0],
+        <double>[1.0, 0.0, 0.0, 0.0],
+      );
+      expect(
+        moved.x,
+        closeTo(-10.0, 1e-5),
+        reason: 'the joint matrix should undo the mesh placement',
+      );
     });
   });
 
@@ -295,14 +321,20 @@ void main() {
       for (var v = 0; v < mesh.vertexCount; v++) {
         for (var c = 0; c < 4; c++) {
           final value = mesh.vertices[v * stride + offset + c];
-          expect(value, value.roundToDouble(),
-              reason: 'joint indices must be whole numbers');
+          expect(
+            value,
+            value.roundToDouble(),
+            reason: 'joint indices must be whole numbers',
+          );
           expect(value, lessThan(jointCount.toDouble()));
           if (value > maxJoint) maxJoint = value;
         }
       }
-      expect(maxJoint, greaterThan(0.0),
-          reason: 'every vertex bound to joint 0 means the read was wrong');
+      expect(
+        maxJoint,
+        greaterThan(0.0),
+        reason: 'every vertex bound to joint 0 means the read was wrong',
+      );
     });
 
     test('weights are present and sum to about one', () async {
@@ -316,7 +348,11 @@ void main() {
         for (var c = 0; c < 4; c++) {
           sum += mesh.vertices[v * stride + offset + c];
         }
-        expect(sum, closeTo(1.0, 0.02), reason: 'vertex $v weights sum to $sum');
+        expect(
+          sum,
+          closeTo(1.0, 0.02),
+          reason: 'vertex $v weights sum to $sum',
+        );
       }
     });
 
@@ -338,8 +374,11 @@ void main() {
           (e) => (e.$2 - Matrix4.identity().storage[e.$1]).abs() < 1e-9,
         ),
       );
-      expect(allIdentity, isFalse,
-          reason: 'a real rig does not bind at the origin');
+      expect(
+        allIdentity,
+        isFalse,
+        reason: 'a real rig does not bind at the origin',
+      );
     });
   });
 }
