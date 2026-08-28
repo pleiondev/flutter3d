@@ -22,8 +22,7 @@ Fourteen steps. The engine underneath is the one the [shooter tutorial](/shooter
 dependencies:
   flutter: { sdk: flutter }
 
-  # The backend. Named here on purpose: this is the one line an application
-  # changes to run on a different graphics API.
+  # The backend; why it is the one named line is covered in the quickstart.
   flutter3d_impeller:  { path: ../flutter3d/packages/flutter3d_impeller }
   flutter3d:           { path: ../flutter3d/packages/flutter3d }
   flutter3d_game:      { path: ../flutter3d/packages/flutter3d_game }
@@ -35,6 +34,10 @@ dependencies:
 ```
 
 Note what is *not* there: `flutter3d_game_shooter`. A genre is a package, and this game inherits none of the other one's vocabulary.
+
+<div class="warn">
+<p>The <code>path:</code> lines assume the flutter3d checkout is a sibling of this project. None of these packages is published, so those lines are true on the machine that wrote them and nowhere else; moving the project or the checkout means fixing them. <a href="/first-project/">Your first project</a> covers this and the deployment-target trap beside it.</p>
+</div>
 
 ## Bind the two keys the genre adds {.step}
 
@@ -61,7 +64,7 @@ The dash is already the pointer's. Drop-through is bound to control, which is wh
 ## Read the settings before opening the devices {.step}
 
 ```dart
-_config = SettingsFile().read();
+_config = SettingsFile(appName: 'ascent').read();
 _devices = DesktopInput(
   state: _input,
   bindings: _config.bindings.length > 0 ? _config.bindings : _bindings(),
@@ -69,6 +72,10 @@ _devices = DesktopInput(
 ```
 
 Settings first, devices second. The bindings a player saved are the ones the keyboard should be reading from the **first** key press, not from the first rebind.
+
+<div class="note">
+<p><code>SettingsFile</code> comes from <code>flutter3d_ui</code>, so add that package to the pubspec by path like the rest. The catalogues used later on this page (<code>Sounds</code>, <code>Effects</code>, <code>RunnerClips</code>) are exported by no package at all: they are the application's own definitions, and the demo's live in <code>apps/flutter3d_demo_platformer/lib/src/</code> as <code>sounds.dart</code>, <code>effects.dart</code> and <code>runner_clips.dart</code>.</p>
+</div>
 
 ## Open the renderer, and keep the scene non-null {.step}
 
@@ -92,7 +99,7 @@ Future<void> _openGraphics() async {
 }
 ```
 
-The renderer must build its frame targets before anything else has taken device memory. Waiting for the level means fifteen textures are uploaded first, and on some machines that combination fails to allocate, every frame, from the first.
+The renderer must build its frame targets before anything else has taken device memory; the failure mode behind that, and the one line worth copying verbatim, are in the [first-scene tutorial](/core/tutorial/#a-scene-that-is-never-null).
 
 ## Author a level with the genre's floors {.step}
 
@@ -135,6 +142,10 @@ The renderer must build its frame targets before anything else has taken device 
 ```
 
 The `surface` word on a brush is the whole of the ice mechanic in the document. What it means lives in `Surfaces.common()`, in code, where it belongs.
+
+<div class="note">
+<p>The textures, the level and the model this page names are not shipped as a starter kit; the real ones live in the demo at <code>apps/flutter3d_demo_platformer/assets/</code>, including <code>textures/moss_*.png</code> and <code>ice_*.png</code>, <code>levels/ascent.json</code> and the runner model <code>models/penguin.glb</code>. Point your paths there, or at your own files. The box-runner fallback below means the game runs before any of them exist.</p>
+</div>
 
 ## Load the level, and spawn into it {.step}
 

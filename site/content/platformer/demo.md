@@ -1,10 +1,10 @@
 ---
-description: The platformer, built against the WebGL2 backend and running in this page — the same engine, the same level, one line of the application changed.
+description: The platformer, built against the WebGL2 backend and running in this page. The same engine, the same level, one line of the application changed.
 ---
 
 # Demo: the platformer in a browser
 
-*Ascent*, running on `flutter3d_webgl`. Same engine, same level file, same simulation — the only thing that changed is which backend the application asks for.
+*Ascent*, running on `flutter3d_webgl`. Same engine, same level file, same simulation; the only thing that changed is which backend the application asks for.
 
 <div class="demo">
   <iframe class="demo-frame" src="/demo/platformer/" title="Ascent — the platformer demo" allow="autoplay; pointer-lock"></iframe>
@@ -15,7 +15,7 @@ description: The platformer, built against the WebGL2 backend and running in thi
 </div>
 
 <div class="note">
-<p>Click the frame first — the keyboard goes to whatever was clicked last. It takes a few seconds to start: the level's textures and the hero's <code>.glb</code> are fetched before the first frame.</p>
+<p>Click the frame first; the keyboard goes to whatever was clicked last. It takes a few seconds to start: the level's textures and the hero's <code>.glb</code> are fetched before the first frame.</p>
 </div>
 
 ## Controls
@@ -29,7 +29,7 @@ description: The platformer, built against the WebGL2 backend and running in thi
   <div><dt>Shift</dt><dd>Sprint</dd></div>
 </dl>
 
-Wall jumps, mantles, slides, long jumps and ground pounds are all in there — the full list of what each one costs is in [what a platformer adds](/platformer/#the-runner).
+Wall jumps, mantles, slides, long jumps and ground pounds are all in there; the full list of what each one costs is in [what a platformer adds](/platformer/#the-runner).
 
 ## What is actually different
 
@@ -63,9 +63,7 @@ Everything above that line is the ordinary frame: a `Scene`, a `CameraNode`, a `
 
 ## What the browser costs
 
-Stated rather than discovered, because a demo that hides its trade-offs is an advertisement.
-
-Three entries used to be here and are not any more. The page claimed them for months, so they are worth naming.
+Stated up front rather than left to be discovered. Three entries used to be here and are not any more; the page claimed them for months, so they are worth naming.
 
 **Pointer capture works.** `pointer_lock` grew a browser backend over `document.requestPointerLock`, so the camera is the mouse. A page embedding the game needs `allow="pointer-lock"` on the iframe; this one has it.
 

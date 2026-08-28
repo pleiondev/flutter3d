@@ -240,9 +240,10 @@ Versioned like the level format, and refuses a document from a newer build for
 the same reason: subtly wrong is worse than refused.
 
 `GameRandom` exists because `math.Random` has no readable state, which makes it
-the one thing in a simulation that cannot be written down. Pass one instance to
-`MonsterSystem`, `Hitscan` and `GameSimulation` and two loads of the same save
-agree for ever; leave it out and they agree until the first flinch roll.
+the one thing in a simulation that cannot be written down. Pass one instance
+to `ActorSystem` and to the shooter's `Hitscan` and `GameSimulation` and two
+loads of the same save agree for ever; leave it out and they agree until the
+first flinch roll.
 
 The determinism test that goes with it found a real defect on its first run:
 monster thinking was staggered across steps by `Object.hashCode`, which is an
@@ -321,7 +322,7 @@ else and the next kind of moving thing cannot be left out by omission.
 ## Events
 
 Each system fills a list during the step and a caller drains it after —
-`MonsterSystem.died` and `hurtThisStep`, `ProjectileSystem.detonations`, and
+`ActorSystem.died` and `hurtThisStep`, `ProjectileSystem.detonations`, and
 `MechanismWorld.events` once `publish()` has been called.
 
 Lists rather than streams, and the reason is the fixed step: a `Stream`
@@ -367,9 +368,11 @@ Stated rather than discovered:
   and fixed cameras are all a caller reading `eye` and `aim` differently.
 - **No rigid bodies.** Deliberate — nothing pushes the player and the player has
   no angular momentum.
-- **Desktop input only.** `InputState` is device-agnostic and
-  `setStickAxis` is the seam a gamepad or touch backend writes to; no such
-  backend exists yet.
+- **A gamepad backend for Windows or Linux.** `InputState` is device-agnostic:
+  a keyboard arrives through `DesktopInput`, a pad through
+  [`pad_input`](../pad_input) on web, Android, macOS and iOS, and
+  `TouchControls` writes into the same `InputState` a key does. The two desktop
+  platforms `pad_input` has no native side for are what remains.
 - **No animation, no persistence, no timers.** Nothing here schedules
   anything; a game that wants a delayed event counts down itself.
 
@@ -391,5 +394,14 @@ than the one `Fixture` makes; it is rewritten and the reason is in the file.
 
 Part of [flutter3d](https://github.com/pleiondev/flutter3d), an **independent
 implementation** of a 3D engine for Flutter — not a fork or a binding of
-another engine, and not affiliated with the Flutter team.
+another engine, and not affiliated with the Flutter team. Three switchable
+rendering backends: Impeller via Flutter GPU, WebGL2, and a software
+rasteriser. glTF, OBJ and `.f3d` loading, six lighting models, shadows, bloom,
+skinning, animation, BVH culling and picking; a deterministic fixed-step game
+layer with collision, navigation, positional audio, and gamepad and touch
+input. Three example games — shooter, platformer, racing — each built on its
+genre package: [`flutter3d_game_shooter`](../flutter3d_game_shooter),
+[`flutter3d_game_platformer`](../flutter3d_game_platformer),
+[`flutter3d_game_racing`](../flutter3d_game_racing). A new game starts from
+[`apps/flutter3d_template_app`](../../apps/flutter3d_template_app).
 Documentation: <https://flutter3d.pleion.dev>.

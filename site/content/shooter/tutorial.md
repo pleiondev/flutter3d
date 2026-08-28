@@ -40,6 +40,10 @@ dev_dependencies:
 
 Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`, and build the shader bundle. Both are covered in the [quickstart](/quickstart/).
 
+<div class="warn">
+<p>The <code>path:</code> lines assume the flutter3d checkout is a sibling of this project. None of these packages is published, so those lines are true on the machine that wrote them and nowhere else; moving the project or the checkout means fixing them. <a href="/first-project/">Your first project</a> covers this and the deployment-target trap beside it.</p>
+</div>
+
 ## Decide what a weapon is {.step}
 
 Before any code that draws. A weapon is a value, so the whole arsenal is a `const` list and every number in it is one you can change and re-run a test against.
@@ -241,6 +245,10 @@ for (final issue in issues) debugPrint('level: $issue');
 
 The validator checks what is true of any level — names unique, references resolving, brushes not degenerate, something to stand on, something to see by, and your rules check the rest.
 
+<div class="note">
+<p>The textures and levels this page names are not shipped as a starter kit. The real ones are in the demo at <code>apps/flutter3d_demo_dungeon/assets/</code>: <code>levels/crypt.json</code>, and stone as <code>textures/stone_albedo.jpg</code> with <code>stone_normal.png</code> and <code>stone_orm.png</code>. Point your paths there, or at your own files.</p>
+</div>
+
 ## Wire the simulation, with nothing drawn {.step}
 
 This is the whole game, and none of it needs a device.
@@ -371,6 +379,10 @@ void _afterStep() {
 ```
 
 Lists filled during the step and drained after it. Nothing here decides anything — it turns facts into sound and light.
+
+<div class="note">
+<p><code>Effects</code> is this application's own catalogue of <code>ParticleEffect</code> constants, not a package export; the demo's lives in <code>apps/flutter3d_demo_dungeon/lib/src/effects.dart</code>.</p>
+</div>
 
 ## Load the level with visuals {.step}
 

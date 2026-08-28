@@ -34,7 +34,7 @@ Shrinking the frame never touched it, because the atlas is not sized from the fr
 
 ### And the compiler
 
-The demos are built with `--wasm` now. dart2wasm compiles the simulation to WebAssembly instead of JavaScript: a car's tyre model, three AI drivers, a spline a kilometre long. The games are the one thing on this site that spends its frame budget in Dart instead of in a driver.
+The demos are built with `--wasm` now. dart2wasm compiles the simulation to WebAssembly instead of JavaScript: a car's tire model, three AI drivers, a spline a kilometre long. The games are the one thing on this site that spends its frame budget in Dart instead of in a driver.
 
 ## What it runs at now
 

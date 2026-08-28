@@ -31,6 +31,10 @@ dependencies:
   vector_math: ^2.2.0
 ```
 
+<div class="warn">
+<p>The packages are unpublished, so the pubspec points at a sibling checkout by <strong>path</strong>: those lines are true on the machine that made the project and nowhere else, and moving either the project or the checkout means fixing them. <a href="/first-project/">Your first project</a> covers this and the Flutter version that goes with it.</p>
+</div>
+
 No `flutter3d_game_shooter` and no `flutter3d_game_platformer`. A genre is a package, and this one inherits nothing from either.
 
 ## Decide what a driver may ask for {.step}
@@ -63,35 +67,38 @@ bind(LogicalKeyboardKey.space, Drive.handbrake);
 
 ## Author a track {.step}
 
-A track document holds two halves: the spline this genre reads, and an ordinary level the engine has read since the first game. One script writes both.
+A track document holds two halves: the spline this genre reads, and an ordinary level the engine has read since the first game. One script writes both. For the shipped circuits it is `apps/flutter3d_demo_racing/tool/make_track.py` (`python3 tool/make_track.py`, from the app directory), which writes each circuit twice: `ring.json` with the level embedded, and `ring_level.json` beside it for `LevelLoader`. Edit the script rather than the JSON; a circuit is several hundred numbers that have to agree with each other, and a person editing them by hand introduces exactly one disagreement and does not notice.
 
 ```json
 {
   "version": 1,
   "name": "Ring",
-  "level": "assets/tracks/ring_level.json",
   "track": {
     "closed": true,
-    "points": [[0, 0, 0], [120, 0, 40], [180, 0, 150], [60, 2, 210]],
-    "widths": [14.0, 14.0, 11.0, 12.0],
-    "banks":  [0.0, 0.05, 0.12, 0.0],
     "shoulder": 4.0,
-    "surfaces": [
-      {"fromS": 0.0,   "toS": 240.0, "centre": "tarmac", "shoulder": "kerb"},
-      {"fromS": 240.0, "toS": 380.0, "centre": "tarmac", "shoulder": "gravel"}
+    "points": [
+      {"at": [0, 0, 0],     "width": 14.0, "bank": 0.0},
+      {"at": [120, 0, 40],  "width": 14.0, "bank": 3.0},
+      {"at": [180, 0, 150], "width": 11.0, "bank": 7.0},
+      {"at": [60, 2, 210],  "width": 12.0, "bank": 0.0}
     ],
-    "barriers": [{"fromS": 180.0, "toS": 320.0, "left": false, "right": true}],
-    "checkpoints": [250.0, 520.0, 780.0],
-    "grid": {"s": 12.0, "columns": 2, "rowGap": 8.0, "columnGap": 4.0}
-  }
+    "surfaces": [
+      {"fromS": 0.0,   "toS": 240.0, "centre": "asphalt", "shoulder": "kerb"},
+      {"fromS": 240.0, "toS": 380.0, "centre": "asphalt", "shoulder": "gravel"}
+    ],
+    "barriers": [{"fromS": 180.0, "toS": 320.0, "right": true}],
+    "checkpoints": [{"s": 250.0}, {"s": 520.0}, {"s": 780.0}],
+    "grid": {"s": -14.0, "columns": 2, "rowGap": 8.0, "columnGap": 4.0}
+  },
+  "level": { "version": 1, "brushes": ["… the ordinary level format …"] }
 }
 ```
 
 <div class="note">
-<p>One width and one bank per control point, every width positive, and checkpoints in ascending order. <code>TrackSpline</code>'s constructor throws on each of these rather than producing a track that behaves oddly a lap later.</p>
+<p>One width and one bank per control point, every width positive, and checkpoints in ascending order. <code>TrackSpline</code>'s constructor throws on each of these rather than producing a track that behaves oddly a lap later. <code>bank</code> is authored in degrees; the reader converts to the radians the maths wants.</p>
 </div>
 
-Read it with `TrackDocument`, which hands back the spline and the level path:
+Read it with `TrackDocument`, which hands back the spline, the level and the sky:
 
 ```dart
 final text = await rootBundle.loadString('assets/tracks/ring.json');
@@ -114,16 +121,19 @@ final loaded = await const LevelLoader().load(
 );
 ```
 
-Then turn the curve into meshes. That is `bridge.dart`, the one file in the genre that knows what a mesh is:
+Then turn the curve into meshes. That is `bridge.dart`, the one file in the genre that knows what a mesh is. It builds the road, the verges and the walls as `MeshData` from the same curve the cars drive on, and uploading them into the scene is the application's job (the shipped demo does it in an `addTrackTo` helper in `lib/src/looks.dart`, one `DeviceMesh.upload` and one `MeshNode` per mesh):
 
 ```dart
-addTrackTo(loaded.scene, track, device: device);
+final road = buildRoadMesh(track);
+final leftVerge = buildVergeMesh(track, side: -1);
+final rightVerge = buildVergeMesh(track, side: 1);
+final barriers = buildBarrierMeshes(track, side: 1);
 ```
 
 `RoadMeshSettings` controls the cut. The subdivision rule is stated as an error, not a step count: `sagitta` is how far the middle of a straight edge may sit from the curve it stands in for, so a hairpin gets short segments and a straight gets long ones without anybody choosing a number per corner.
 
 ```dart
-addTrackTo(scene, track, device: device, settings: const RoadMeshSettings(
+buildRoadMesh(track, settings: const RoadMeshSettings(
   sagitta: 0.04,        // four centimetres, well under a kerb
   minStep: 1.5,
   maxStep: 8.0,         // not about accuracy: about per-vertex lighting and fog
@@ -188,31 +198,48 @@ const tuning = VehicleTuning(
   enginePush: 14.0,
   brakeStrength: 26.0,   // brakes beat the engine, or nothing stops
   rollingDrag: 0.6,
-  airDrag: 0.42,
+  airDrag: 0.0006,       // per unit of speed squared; the real top-speed ceiling
   maxSteer: 0.62,        // radians at a standstill
-  steerFalloff: 0.55,    // how much of it is left at speed
+  steerFalloff: 26.0,    // the speed at which steering has closed to half
   wheelBase: 2.6,
-  gravity: -22.0,
-  gripLimit: 14.0,       // metres per second squared the tires can spend
-  groundStick: 26.0,     // how hard the car is held onto a crest
+  gravity: 22.0,         // positive is down, and above the real figure on purpose
+  groundStick: 0.45,     // how far below the car the ground still counts as under it
   suspensionRate: 9.0,
-  slideAlignment: 6.0,   // how quickly a slide straightens itself out
+  slideAlignment: 6.0,   // how strongly a slide drags the nose round with it
   wheelInertia: 0.5,     // what makes a wheelspin a wheelspin
 );
 ```
 
-The tire is where the feel lives:
+The tire is where the feel lives, and it is one object: the curve, what each surface is worth to it, and how many gravities of grip there are to divide up. `Tyres` holds the three, so a game can offer a player a choice between sets without passing arguments that have to agree.
 
 ```dart
-const tires = TireModel(peakSlipAngle: 0.14, peakSlipRatio: 0.12);
-
-const grips = GripTable(<String, double>{
-  'tarmac': 1.00,
-  'kerb':   0.85,
-  'gravel': 0.45,
-  'grass':  0.35,
-}, fallback: 0.5);
+final tyres = Tyres(
+  name: 'road',
+  model: TireModel(peakSlipAngle: 0.14, peakSlipRatio: 0.12),
+  grips: const GripTable(<String, double>{
+    'asphalt': 1.00,
+    'kerb':    0.85,
+    'gravel':  0.45,
+    'grass':   0.35,
+  }, fallback: 0.5),
+  limit: 1.05,           // gravities of grip on a surface worth 1.0
+);
 ```
+
+Both are constructor arguments, so hand them to each car in the grid loop:
+
+```dart
+final car = SphereVehicle(
+  world: loaded.collision,
+  ground: field,
+  position: position.clone()..y += 0.6,
+  headingYaw: math.atan2(forward.x, forward.z),
+  tuning: tuning,
+  tyres: tyres,
+);
+```
+
+A car given neither runs on `VehicleTuning()`'s defaults and `Tyres.road`, which is what the shipped demo does. `Tyres.slicks` and `Tyres.rally` ship too, and `pitStop` swaps sets at a standstill.
 
 <div class="why">
 <p>A curve that rises to a peak and falls away past it is the whole reason a car can be driven over the limit and caught. A constant coefficient gives a car that grips until it does not, with nothing in between, and no amount of tuning elsewhere puts that back.</p>
@@ -324,7 +351,9 @@ await file.writeAsString(jsonEncode(tape.toJson()));
 ```
 
 ```dart
-final ghost = GhostPlayer(GhostTape.fromJson(jsonDecode(text)));
+final ghost = GhostPlayer(ghostTapeFromJson(
+  jsonDecode(text) as Map<String, Object?>,
+));
 if (ghost.sampleAt(time, frame)) {
   ghostNode
     ..setPosition(frame.position.x, frame.position.y, frame.position.z)
@@ -350,7 +379,7 @@ test('a lap does not count without its checkpoints', () {
 });
 
 test('the tire falls away past its peak', () {
-  const tires = TireModel(peakSlipAngle: 0.14, peakSlipRatio: 0.12);
+  final tires = TireModel(peakSlipAngle: 0.14, peakSlipRatio: 0.12);
   expect(tires.lateralAt(0.14), greaterThan(tires.lateralAt(0.30)));
 });
 

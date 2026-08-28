@@ -1,10 +1,10 @@
 ---
-description: The shooter, built against the WebGL2 backend and running in this page — monsters, weapons, torchlight and a view model, in a browser.
+description: The shooter, built against the WebGL2 backend and running in this page. Monsters, weapons, torchlight and a view model, in a browser.
 ---
 
 # Demo: the shooter in a browser
 
-*Dungeon*, running on `flutter3d_webgl`. The crypt, its monsters, four weapons and the weapon held in the hands — through the same HAL the desktop build uses, with one file swapped.
+*Dungeon*, running on `flutter3d_webgl`. The crypt, its monsters, four weapons and the weapon held in the hands, through the same HAL the desktop build uses, with one file swapped.
 
 <div class="demo">
   <iframe class="demo-frame" src="/demo/shooter/" title="Dungeon — the shooter demo" allow="autoplay; pointer-lock"></iframe>
@@ -15,7 +15,7 @@ description: The shooter, built against the WebGL2 backend and running in this p
 </div>
 
 <div class="note">
-<p>Click the frame first — the keyboard goes to whatever was clicked last. This one takes appreciably longer to start than the platformer: the crypt is a bigger level with more textures, and the counters in the corner report the catch-up while it settles.</p>
+<p>Click the frame first; the keyboard goes to whatever was clicked last. This one takes appreciably longer to start than the platformer: the crypt is a bigger level with more textures, and the counters in the corner report the catch-up while it settles.</p>
 </div>
 
 ## Controls
@@ -25,7 +25,7 @@ description: The shooter, built against the WebGL2 backend and running in this p
   <div><dt>Mouse</dt><dd>Aim. Click once and the browser hands the pointer over; Escape gives it back</dd></div>
   <div><dt>Click</dt><dd>Fire, once the pointer is captured</dd></div>
   <div><dt>1 2 3 4</dt><dd>Fists, pistol, shotgun, rocket launcher</dd></div>
-  <div><dt>E or F</dt><dd>Use — doors, lifts, buttons, notes</dd></div>
+  <div><dt>E or F</dt><dd>Use: doors, lifts, buttons, notes</dd></div>
   <div><dt>Space</dt><dd>Jump</dd></div>
   <div><dt>Shift</dt><dd>Sprint</dd></div>
   <div><dt>F</dt><dd>Toggles the fog, which is also a before-and-after measurement</dd></div>
@@ -33,7 +33,7 @@ description: The shooter, built against the WebGL2 backend and running in this p
 
 ## Fire and look are the same two buttons they are on a desktop
 
-They were not, and the reason is worth keeping. A browser was treated as a platform with no pointer to capture, so a drag stood in for the mouse — and a drag that also had to *not* fire would have made aiming and shooting mutually exclusive, so they were one gesture. That is a reasonable answer to the wrong question. Browsers have had `requestPointerLock` for a decade; `pointer_lock` simply had no browser backend.
+They were not, and the reason is worth keeping. A browser was treated as a platform with no pointer to capture, so a drag stood in for the mouse; and a drag that also had to *not* fire would have made aiming and shooting mutually exclusive, so they were one gesture. That is a reasonable answer to the wrong question. Browsers have had `requestPointerLock` for a decade; `pointer_lock` simply had no browser backend.
 
 It has one now, so this build behaves like the desktop one: the pointer is captured on the first click, the mouse aims, the button fires, Escape releases. On a phone the on-screen stick appears instead, which it never used to, because the guard that hid pointer capture hid the touch controls as well. Flutter reports a mobile browser as `android` or `iOS`, so nothing had to be detected for that.
 

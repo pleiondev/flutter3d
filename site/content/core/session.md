@@ -119,6 +119,8 @@ SettingsOverlay(
 )
 ```
 
+The accessibility sliders are `GameConfig` settings (`a11y.cameraMotion` and its kin), and `Accommodations` supplies their defaults from the platform's own reduce-motion flag, so a slider the player moved wins over the flag.
+
 It was extracted when the second game wanted rebinding, which mattered for accessibility more than for convenience: the alternative was four hundred lines of panel copied into the second game, and the racing game's copy had already drifted: it told its own panel there was no controller connected while the other two asked the pad.
 
 ## Input

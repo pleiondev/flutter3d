@@ -1,27 +1,29 @@
 ---
-description: Two independent golden sets, mutation-checking every new test, determinism and snapshots, and why only thirty of 2901 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 2968 tests need a GPU.
 ---
 
 # Testing
 
-2901 tests across 23 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call, checked against `ARCHITECTURE.md` §13 — and against the README, which went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+2968 tests across 23 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 640 | | `apps/flutter3d_editor` | 158 |
-| `flutter3d_game` | 337 | | `apps/flutter3d_demo_platformer` | 151 |
-| `flutter3d_game_shooter` | 283 | | `flutter3d_physics` | 135 |
-| `flutter3d_game_platformer` | 186 | | `apps/flutter3d_demo_racing` | 99 |
-| `flutter3d_game_racing` | 184 | | `flutter3d_ui` | 97 |
-| `flutter3d_cpu` | 90 | | `flutter3d_particles` | 68 |
-| `pad_input` | 64 | | `apps/flutter3d_demo_dungeon` | 52 |
-| `flutter3d_audio` | 50 | | `flutter3d_impeller` | 33 |
-| `flutter3d_session` | 25 | | `pointer_lock` | 21 |
-| `flutter3d_webgl` | 19 | | `flutter3d_hardware` | 13 |
-| `flutter3d_bridge` | 13 | | `apps/flutter3d_template_app` | 2 |
-| `flutter3d_shaders` | 1 | | | |
+| `flutter3d` | 682 | | `flutter3d_audio` | 52 |
+| `flutter3d_game` | 363 | | `flutter3d_impeller` | 36 |
+| `flutter3d_game_shooter` | 291 | | `flutter3d_webgl` | 31 |
+| `apps/flutter3d_editor` | 194 | | `pointer_lock` | 28 |
+| `flutter3d_game_racing` | 189 | | `flutter3d_session` | 27 |
+| `flutter3d_game_platformer` | 187 | | `flutter3d_bridge` | 26 |
+| `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_hardware` | 13 |
+| `flutter3d_physics` | 137 | | `flutter3d_testing` | 7 |
+| `apps/flutter3d_demo_racing` | 119 | | `apps/flutter3d_template_app` | 4 |
+| `flutter3d_ui` | 110 | | `flutter3d_backend` | 2 |
+| `flutter3d_cpu` | 109 | | `flutter3d_shaders` | 1 |
+| `flutter3d_particles` | 68 | | | |
+| `pad_input` | 64 | | | |
+| `apps/flutter3d_demo_dungeon` | 60 | | | |
 
-`flutter3d_app` and `flutter3d_backend` are not in the table and have no `test/` at all. Both are wiring: a barrel of five re-exports, and a conditional import. What there is to check about them is structural rather than behavioural. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
+`flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
 ```bash
 tool/ci.sh                                   # shaders, analyze, every test
@@ -29,12 +31,12 @@ tool/ci.sh                                   # shaders, analyze, every test
 (cd packages/flutter3d_physics && dart test) # plain Dart, no Flutter needed
 ```
 
-## Two independent golden sets, not one
+## Three independent golden sets, not one
 
-Thirty scenes are rendered twice: once through Impeller, once through the software rasteriser in `flutter3d_cpu`. Zero differing pixels, with a per-channel tolerance of 8.
+Thirty-two scenes are rendered three times: through Impeller, through the software rasteriser in `flutter3d_cpu`, and through WebGL2 in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 <div class="why">
-<p>Two independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The second set also keeps thirty scenes checkable in a headless run, because only the Impeller half needs a device.</p>
+<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps thirty-two scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.
@@ -109,7 +111,7 @@ import 'package:flutter3d_ui/testing.dart';        // creditGaps
 <p>A package cannot import another package's <code>test/</code>, which is why there were two copies rather than one. <code>lib/testing.dart</code> is what a package can import.</p>
 </div>
 
-`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the eighteen checks it.
+`cpuTestDevice` stops short of building the `Renderer`, deliberately: `flutter3d_cpu` must not depend on `flutter3d`. A backend that could not be compiled without the engine would not be an implementation of an interface, it would be part of the engine. That is a rule, and one of the twenty-one checks it.
 
 ## Play the game in a test
 
@@ -153,7 +155,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Eighteen rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Twenty-one rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|
@@ -167,10 +169,9 @@ Eighteen rules, under a second. Nothing they read needs `pub get`, a shader bund
 | `each assembly has one home per application` | A second place that spawns a level or dresses it |
 | `no test builds its own world` | A harness that is not the game, and so agrees with any bug the game has |
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
-
 | `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
 
-Seven more check the lists against the workspace, the applications for a silenced `print`, the Impeller conformance runner for rot, and three numbers that go stale on their own: the test count, the structure-rule count and the publishing order, each compared against the tree. A number in prose is a number nobody recounts.
+Ten more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller conformance runner for rot, and four numbers that go stale on their own: the test count, the golden scene count, the structure-rule count and the publishing order, each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too.
 
 <div class="why">
 <p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>

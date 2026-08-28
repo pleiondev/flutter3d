@@ -308,6 +308,8 @@ simulation.restore(snapshot);
 
 `GameRandom` exists because `math.Random` has no readable state, which makes it the one thing in a simulation that cannot be written down. Pass one instance everywhere and two loads of the same save agree for ever; leave it out and they agree until the first flinch roll.
 
+The other half of a determinism test is the input, and `InputTape` is that: what the player did, one entry per fixed step, recorded as transitions rather than the held set. A replay, a reproducible bug report and a test that plays a whole level all run off one tape at a few bytes a second.
+
 ## Layers
 
 ```dart

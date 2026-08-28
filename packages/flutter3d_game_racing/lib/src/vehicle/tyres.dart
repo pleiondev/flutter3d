@@ -5,10 +5,10 @@ import 'tire_model.dart';
 ///
 /// **The three numbers were already there and were kept apart.** A car's
 /// [TireModel] said where its grip peaks and what is left past the peak, a
-/// [GripTable] said what each surface is worth, and `VehicleTuning.gripLimit`
-/// said how many gravities there were to divide up — and that last one sat in
-/// the table of engine, brakes and steering with a doc comment beginning "how
-/// many gravities of grip **the tyres** have". Three properties of one object,
+/// [GripTable] said what each surface is worth, and a `gripLimit` — [limit],
+/// now — said how many gravities there were to divide up. That last one sat in
+/// `VehicleTuning`, in the table of engine, brakes and steering, with a doc
+/// comment beginning "how many gravities of grip **the tyres** have". Three properties of one object,
 /// filed under three headings, which is why a game could not offer a player a
 /// choice between them without passing three arguments that had to agree.
 ///

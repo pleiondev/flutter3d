@@ -11,6 +11,9 @@ Not published to pub.dev. Build it from this repository — see
 [Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and
 [SECURITY.md](SECURITY.md).
 
+Documentation: <https://flutter3d.pleion.dev> — guides, tutorials for all three
+genres, and the generated API reference.
+
 ## What is here
 
 | Package | What it is |
@@ -116,7 +119,8 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-2968 tests across twenty packages, and the only ones that need a GPU are the
+2968 tests across twenty-three packages and five applications, and the only
+ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 32 scenes checkable in a headless run.
 

@@ -5,6 +5,7 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
+/// Maps the engine's [IndexType] to its `package:flutter_gpu` equivalent.
 extension IndexTypeToGpu on IndexType {
   gpu.IndexType toGpu() => switch (this) {
     IndexType.int16 => gpu.IndexType.int16,
@@ -12,6 +13,7 @@ extension IndexTypeToGpu on IndexType {
   };
 }
 
+/// Maps `package:flutter_gpu`'s index type back to the engine's [IndexType].
 extension IndexTypeFromGpu on gpu.IndexType {
   IndexType toEngine() => switch (this) {
     gpu.IndexType.int16 => IndexType.int16,
@@ -19,6 +21,7 @@ extension IndexTypeFromGpu on gpu.IndexType {
   };
 }
 
+/// Maps the engine's [VertexFormat] to its `package:flutter_gpu` equivalent.
 extension VertexFormatToGpu on VertexFormat {
   gpu.VertexFormat toGpu() => switch (this) {
     VertexFormat.float32 => gpu.VertexFormat.float32,
@@ -36,6 +39,8 @@ extension VertexFormatToGpu on VertexFormat {
   };
 }
 
+/// Maps `package:flutter_gpu`'s vertex format back to the engine's
+/// [VertexFormat].
 extension VertexFormatFromGpu on gpu.VertexFormat {
   VertexFormat toEngine() => switch (this) {
     gpu.VertexFormat.float32 => VertexFormat.float32,
@@ -53,6 +58,7 @@ extension VertexFormatFromGpu on gpu.VertexFormat {
   };
 }
 
+/// Maps the engine's [VertexStepMode] to its `package:flutter_gpu` equivalent.
 extension VertexStepModeToGpu on VertexStepMode {
   gpu.VertexStepMode toGpu() => switch (this) {
     VertexStepMode.vertex => gpu.VertexStepMode.vertex,
@@ -60,6 +66,8 @@ extension VertexStepModeToGpu on VertexStepMode {
   };
 }
 
+/// Maps `package:flutter_gpu`'s step mode back to the engine's
+/// [VertexStepMode].
 extension VertexStepModeFromGpu on gpu.VertexStepMode {
   VertexStepMode toEngine() => switch (this) {
     gpu.VertexStepMode.vertex => VertexStepMode.vertex,

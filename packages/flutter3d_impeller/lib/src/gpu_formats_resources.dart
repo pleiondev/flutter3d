@@ -9,6 +9,7 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
+/// Maps the engine's [StorageMode] to its `package:flutter_gpu` equivalent.
 extension StorageModeToGpu on StorageMode {
   gpu.StorageMode toGpu() => switch (this) {
     StorageMode.hostVisible => gpu.StorageMode.hostVisible,
@@ -17,6 +18,8 @@ extension StorageModeToGpu on StorageMode {
   };
 }
 
+/// Maps `package:flutter_gpu`'s storage mode back to the engine's
+/// [StorageMode].
 extension StorageModeFromGpu on gpu.StorageMode {
   StorageMode toEngine() => switch (this) {
     gpu.StorageMode.hostVisible => StorageMode.hostVisible,
@@ -25,6 +28,9 @@ extension StorageModeFromGpu on gpu.StorageMode {
   };
 }
 
+/// Maps the engine's [TextureType] to its `package:flutter_gpu` equivalent —
+/// one-way, unlike its neighbours: [TextureHandle] carries the engine's type,
+/// so nothing ever reads one back off a device.
 extension TextureTypeToGpu on TextureType {
   gpu.TextureType toGpu() => switch (this) {
     TextureType.texture2D => gpu.TextureType.texture2D,
@@ -34,6 +40,8 @@ extension TextureTypeToGpu on TextureType {
   };
 }
 
+/// Maps the engine's [TextureFormat] to `package:flutter_gpu`'s
+/// `PixelFormat` — same values, different name on that side.
 extension TextureFormatToGpu on TextureFormat {
   gpu.PixelFormat toGpu() => switch (this) {
     TextureFormat.unknown => gpu.PixelFormat.unknown,
@@ -71,6 +79,8 @@ extension TextureFormatToGpu on TextureFormat {
   };
 }
 
+/// Maps `package:flutter_gpu`'s `PixelFormat` back to the engine's
+/// [TextureFormat].
 extension TextureFormatFromGpu on gpu.PixelFormat {
   TextureFormat toEngine() => switch (this) {
     gpu.PixelFormat.unknown => TextureFormat.unknown,
