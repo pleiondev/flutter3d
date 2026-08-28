@@ -75,6 +75,7 @@ final class _Walk {
       input: input,
       startAt: start,
       levelNext: level.next,
+      random: GameRandom(1),
     );
   }
 

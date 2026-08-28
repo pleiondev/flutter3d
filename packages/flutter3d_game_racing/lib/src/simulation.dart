@@ -420,7 +420,12 @@ final class RacingSimulation {
   /// how long it has been off the road. Drop them and a restored race
   /// immediately tells the leader they are going backwards, or gives a car that
   /// was one second from being put back on the track a fresh four.
-  Map<String, Object?> save() => <String, Object?>{
+  /// **A [Snapshot], which this one was not.** It returned a bare map, so it
+  /// had no version, could not refuse a document from a newer build, and did
+  /// not fit `RunSession.snapshotOf` — the signature every other genre answers.
+  /// The one save mechanism the architecture describes had two users out of
+  /// three.
+  Snapshot save() => Snapshot(<String, Object?>{
     'race': race.save(),
     'cars': <Map<String, Object?>>[
       for (final vehicle in vehicles) vehicle.save(),
@@ -428,9 +433,14 @@ final class RacingSimulation {
     'previousS': List<double>.of(_previousS),
     'backwards': List<double>.of(_backwards),
     'offRoadFor': List<double>.of(_offRoadFor),
-  };
+    // Declared by this class and saved by neither of the two lines that used
+    // to be here. A circuit's own machinery — a gate, a lamp, whatever a track
+    // document names — came back at whatever state the level file starts in.
+    if (mechanisms != null) 'mechanisms': mechanisms!.save(),
+  });
 
-  void restore(Map<String, Object?> from) {
+  void restore(Snapshot snapshot) {
+    final from = snapshot.data;
     final saved = from.object('race');
     if (saved != null) race.restore(saved);
 
@@ -446,10 +456,15 @@ final class RacingSimulation {
     _restoreDoubles(from['backwards'], _backwards);
     _restoreDoubles(from['offRoadFor'], _offRoadFor);
 
-    // The broadphase now disagrees with every car that moved, and the first
-    // sweep after a restore is what would find out — the same call the
-    // platformer's own restore makes, and for the same reason.
-    collision.reindex();
+    mechanisms?.restore(from['mechanisms']);
+
+    // **`reindex` alone was a third of the job.** The broadphase disagrees
+    // with every car that moved, which that call fixes — but the overlap set
+    // and the kinematic deltas still describe the pre-restore world, so the
+    // first step after a load dispatched somebody else's contacts. See
+    // `WorldStep.afterRestore`, which is the whole tail and is what the other
+    // two genres were already calling.
+    _world.afterRestore();
     finishedThisStep = false;
   }
 

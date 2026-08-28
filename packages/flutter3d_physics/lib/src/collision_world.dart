@@ -88,6 +88,20 @@ final class CollisionWorld {
   /// the shared constant is where the argument for the number lives.
   static const double _touching = Nearly.still;
 
+  /// What this world calls [collider], or null if it does not hold it.
+  ///
+  /// A number handed out in the order colliders were added, and the only
+  /// stable name a collider has: the object's identity is not one, because
+  /// `identityHashCode` differs between two runs of the same program and is
+  /// not injective, so two different pairs can answer to it.
+  ///
+  /// **Exposed for the warm start**, which needs to recognise the same contact
+  /// on the next step and was keying on `identityHashCode` — where a collision
+  /// seeds a contact with an impulse belonging to a different one, and the pile
+  /// behaves differently that one time. The pair key inside this class has
+  /// wanted the same thing all along.
+  int? idOf(Collider collider) => _ids[collider];
+
   /// Adds a collider and returns it, so the call can be inlined into a field.
   Collider add(Collider collider) {
     collider.world = this;

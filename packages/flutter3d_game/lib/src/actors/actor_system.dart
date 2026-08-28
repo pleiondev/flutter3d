@@ -10,13 +10,18 @@
 /// its alert pause, its flinch roll and its weapon — is in `lib/shooter.dart`,
 /// which the barrel does not export.
 ///
-/// ## It no longer writes its own save
+/// ## It no longer writes the actors' save, only its own
 ///
 /// Actors are entities and what they are made of are components, so
 /// `EcsWorld.save()` writes them — and refuses to write a component type
 /// nobody registered. The `save`/`restore` pair that used to be here, walking
 /// its own list and calling a hand-written method per actor, is gone. What
 /// replaced it cannot forget the next component somebody adds.
+///
+/// What came back is much smaller and is about the *system*: the think
+/// schedule and where the focus was last step belong to no entity, so nothing
+/// was carrying them and every restore silently re-phased the thinking and
+/// forgot the aim. See [save].
 ///
 /// ## Nothing targets anything but the focus
 ///
@@ -491,5 +496,40 @@ final class ActorSystem {
       mask: CollisionLayers.world,
       ignore: body.collider,
     );
+  }
+
+  /// The system's own state, which no component carries.
+  ///
+  /// **Everything else here is on an entity, and [EcsWorld.save] finds it.**
+  /// These four are not: they belong to the system rather than to any actor,
+  /// so a genre that saved its whole ECS still restored with the schedule and
+  /// the aim reset.
+  ///
+  /// What that costs is small and real. [_tick] drives the think throttle, so
+  /// restoring at zero re-phases every actor beyond [closeRange] — the same
+  /// monsters, thinking on a different beat than the run that was saved, which
+  /// is enough for a determinism check to stop matching. [_lastFocus] and its
+  /// flag are what [focusVelocity] is measured from, so a restore without them
+  /// spends its first step believing the player is standing still, and
+  /// anything that leads a shot fires where the player already is not.
+  ///
+  /// A determinism test that restores into the *same* system cannot see any of
+  /// this. Only one that loads the level again can, which is the documented
+  /// use.
+  Map<String, Object?> save() => <String, Object?>{
+    'tick': _tick,
+    if (_hasLastFocus)
+      'lastFocus': <double>[_lastFocus.x, _lastFocus.y, _lastFocus.z],
+  };
+
+  void restore(Object? from) {
+    if (from is! Map) return;
+    final tick = from['tick'];
+    if (tick is num) _tick = tick.toInt();
+    _hasLastFocus = readVector(from['lastFocus'], _lastFocus);
+    // Not saved: it is derived from the two fields above on the next step, and
+    // a velocity restored without the position it was measured from is a
+    // number with nothing behind it.
+    _focusVelocity.setZero();
   }
 }

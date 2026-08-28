@@ -200,6 +200,7 @@ void _vanishing() {
       input: room.input,
       startAt: Vector3.zero(),
       mechanisms: room.mechanisms,
+      random: GameRandom(1),
     );
 
     // Onto the plate, which sits before the key: so the runner arrives at the
