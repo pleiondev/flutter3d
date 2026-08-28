@@ -25,7 +25,19 @@ class SettingsPanel extends StatelessWidget {
     required this.onRebind,
     required this.onResetControls,
     this.credits,
+    this.writeFailed = false,
   });
+
+  /// Whether the last attempt to save these settings was refused.
+  ///
+  /// **Computed, tested, documented as visible here — and read by nothing.**
+  /// `Storage.write` answers false when a browser's quota has run out or a
+  /// disk has filled, `SettingsCubit` has carried the answer since it was
+  /// written, and its only reader was a test. So a player on a full disk moved
+  /// every slider in this panel and lost every one of them, with the controls
+  /// behaving exactly as they do when the write succeeds — which is the
+  /// failure the whole `Storage` seam exists to end.
+  final bool writeFailed;
 
   final Mixer mixer;
   final Bindings bindings;
@@ -147,6 +159,32 @@ class SettingsPanel extends StatelessWidget {
                       onSetting('a11y.toggleSprint', hold ? 0.0 : 1.0),
                 ),
                 const SizedBox(height: 12),
+                const SettingsHeading('Mouse'),
+                const SizedBox(height: 8),
+                // **The right stick had a slider and the mouse had nothing.**
+                // For a first-person game this is the most adjusted setting the
+                // genre has, and it is an accessibility control as well: a
+                // player who cannot make large movements needs it high, and one
+                // with a tremor needs it low. The crypt's was a compile-time
+                // constant.
+                //
+                // The range is a factor either side of the default rather than
+                // radians, because a number in radians per pixel is not a thing
+                // anybody can set by feel — the slider is `×0.25` to `×4`.
+                SettingsValueSlider(
+                  label: 'Look speed',
+                  value: config.settingOf('mouse.look', 1.0),
+                  min: 0.25,
+                  max: 4.0,
+                  onChanged: (double value) => onSetting('mouse.look', value),
+                ),
+                SettingsSwitchRow(
+                  label: 'Invert vertical look',
+                  on: config.settingOf('mouse.invertY', 0.0) >= 0.5,
+                  onChanged: (bool on) =>
+                      onSetting('mouse.invertY', on ? 1.0 : 0.0),
+                ),
+                const SizedBox(height: 12),
                 SettingsHeading(
                   padConnected ? 'Gamepad' : 'Gamepad (none connected)',
                 ),
@@ -179,6 +217,16 @@ class SettingsPanel extends StatelessWidget {
                   credits!,
                 ],
                 const SizedBox(height: 20),
+                if (writeFailed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 12.0),
+                    child: Text(
+                      'These settings could not be saved, and will be lost '
+                      'when the game closes. The disk or the browser’s storage '
+                      'is full.',
+                      style: TextStyle(color: Colors.orange.shade200),
+                    ),
+                  ),
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(

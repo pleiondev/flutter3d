@@ -28,7 +28,6 @@ import 'src/run_cubit.dart';
 import 'src/sounds.dart';
 import 'src/soundtrack.dart';
 import 'src/staging.dart';
-import 'src/status_screens.dart';
 import 'src/weapon_models.dart';
 
 /// The game, as far as it goes: a room to stand in and a camera to look around
@@ -43,21 +42,9 @@ import 'src/weapon_models.dart';
 /// What this proves, which no unit test can: that the fixed step, the captured
 /// mouse and the renderer agree with each other at 60 Hz on a real device.
 void main() {
-  // A phone is held the way a first-person camera wants it, and rotating it
-  // mid-fight would reframe the shot. `ensureInitialized` because both calls
-  // are platform channels.
-  if (Playing.touch) {
-    WidgetsFlutterBinding.ensureInitialized();
-    unawaited(
-      SystemChrome.setPreferredOrientations(<DeviceOrientation>[
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]),
-    );
-    unawaited(
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky),
-    );
-  }
+  // Landscape and no system bars on a handset — see `configureForTouch`,
+  // which two applications had written out and the third had not.
+  configureForTouch();
   runApp(const DungeonApp());
 }
 
@@ -98,7 +85,22 @@ class _GameScreenState extends State<GameScreen>
   /// anything down — the only settings it has ever had were the ones its author
   /// compiled in. The panel is shared with the platformer; what is here is the
   /// wiring and the two lists that are this game's own.
-  final SettingsFile _settingsFile = SettingsFile(appName: 'dungeon');
+  /// **Routed to the screen, which it was not.** The seam has existed since
+  /// `Storage` did and only the platformer used it: this game and the racing
+  /// one left the default, which prints to a console no player can see. A
+  /// settings document that will not read is a player's bindings silently
+  /// reset, and a save that will not read is their run — both indistinguishable
+  /// from having changed nothing.
+  late final SettingsFile _settingsFile = SettingsFile(
+    appName: 'dungeon',
+    onIssue: _sayIssue,
+  );
+
+  void _sayIssue(String issue) {
+    printIssue(issue);
+    _effects.say(issue);
+  }
+
   late final GameConfig _config;
 
   /// The settings screen, which is a state machine and now says so.
@@ -112,7 +114,13 @@ class _GameScreenState extends State<GameScreen>
     GameAction.moveRight,
     GameAction.jump,
     GameAction.sprint,
-    ShooterActions.fire,
+    // **`fire` is not here, and it used to be.** Firing with the mouse does
+    // not go through the bindings table at all — the `Listener` calls
+    // `pressPointer` directly — so the row showed only whatever key or pad
+    // button was bound, rebinding it left the mouse button where it was, and
+    // the player ended up with two controls where the panel showed one. Until
+    // `InputSource` can name a pointer button, offering the row is a promise
+    // the table cannot keep.
     GameAction.use,
   ];
   late final DesktopInput _devices;
@@ -464,7 +472,7 @@ class _GameScreenState extends State<GameScreen>
         registry: _entityKinds,
         input: _input,
         inventory: startingInventory(),
-        saves: SaveFile(appName: 'dungeon'),
+        saves: SaveFile(appName: 'dungeon', onIssue: _sayIssue),
         eyeOffset: _eyeOffset,
         lookSensitivity: _lookSensitivity,
         device: device,
@@ -479,6 +487,13 @@ class _GameScreenState extends State<GameScreen>
   /// a smoothed camera position, an accumulator full of loading time, and a
   /// looping sound.
   void _levelArrived(LevelReady level) {
+    // The player is built by the staging, which knows the compiled-in default
+    // and nothing about what this player has chosen. Applied here rather than
+    // threaded through, because a setting changed mid-run has to reach the
+    // level that is already up as well.
+    level.staged.player
+      ..lookSensitivity = _lookSensitivity * _lookScale
+      ..invertLook = _lookInverted;
     _smoothedPosition.jumpTo(level.staged.player.body.position);
     // Loading blocked the ticker for a couple of seconds, and all of that time
     // is sitting in the accumulator. None of it happened in the game, so it is
@@ -553,7 +568,25 @@ class _GameScreenState extends State<GameScreen>
       GameAction.sprint,
       toggled: config.settingOf('a11y.toggleSprint', 0.0) >= 0.5,
     );
+    // **The most adjusted setting a first-person game has, and there was no
+    // way to change it.** It was a `static const` compiled into this file; the
+    // right stick had a slider and the mouse had nothing. Stored as a factor
+    // rather than in radians per pixel, because that is a number somebody can
+    // set by feel — and negative inverts, which is what a switch elsewhere in
+    // the panel means.
+    final scale = config.settingOf('mouse.look', 1.0);
+    final inverted = config.settingOf('mouse.invertY', 0.0) >= 0.5;
+    _lookScale = scale;
+    _lookInverted = inverted;
+    _player
+      ?..lookSensitivity = _lookSensitivity * scale
+      ..invertLook = inverted;
   }
+
+  /// The player's own sensitivity is set when a level is staged, and a level
+  /// staged after this ran would otherwise get the compiled-in default.
+  double _lookScale = 1.0;
+  bool _lookInverted = false;
 
   /// What the player has already told the operating system.
   ///
@@ -594,7 +627,7 @@ class _GameScreenState extends State<GameScreen>
     // the edge this game did not have on the rebinding: a controller resting
     // against something used to bind itself to whatever the panel was waiting
     // for, because the button was read as held rather than as pressed.
-    if (_presses.offer(_pad, _settings) &&
+    if (_presses.offer(_pad, _settings, menuButton: PadButton.start) &&
         _runIsOver &&
         _pad.heldButtons.contains(PadButton.start)) {
       unawaited(_run.restart());
