@@ -27,6 +27,7 @@ final class _Yard {
       startAt: Vector3.zero(),
       mechanisms: mechanisms,
       dynamics: dynamics,
+      random: GameRandom(1),
     );
   }
 

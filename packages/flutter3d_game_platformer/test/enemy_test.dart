@@ -44,7 +44,10 @@ final class _Run {
 
     level.addTo(world);
     mechanisms = MechanismWorld(world);
-    actors = ActorSystem(world: world, random: GameRandom(1));
+    // One generator for the system and the simulation, which the simulation
+    // now asserts: the seed a snapshot carries has to be the seed the enemies
+    // are actually rolling from.
+    actors = ActorSystem(world: world, random: dice);
     level.spawnInto(
       SpawnContext(world: world, actors: actors, mechanisms: mechanisms),
       registry: platformerRegistry(),
@@ -62,11 +65,13 @@ final class _Run {
       input: input,
       startAt: startAt ?? Vector3.zero(),
       mechanisms: mechanisms,
+      random: dice,
       actors: actors,
     );
   }
 
   final CollisionWorld world = CollisionWorld();
+  final GameRandom dice = GameRandom(1);
   final InputState input = InputState();
   late final MechanismWorld mechanisms;
   late final ActorSystem actors;
@@ -480,6 +485,53 @@ void main() {
       run.step();
       expect(run.runner.health.isAlive, isTrue);
       expect(run.runner.position.z, closeTo(-6.0, 1.0));
+    });
+  });
+
+  group('a save carries them', () {
+    test('an enemy killed before the save is still dead after the load', () {
+      // **The save did not mention them at all.** This package's snapshot wrote
+      // the runner, the dice, the state and the mechanisms, and had no
+      // `entities` key — while the actor system it drives is real and stepped.
+      // So a run saved after clearing a room came back with every enemy alive
+      // again at its spawn, and nothing here noticed, because the snapshot test
+      // in this package never mentioned actors.
+      //
+      // Into a *fresh* simulation rather than back into the same one: restoring
+      // into the object that produced the snapshot passes whatever the fields
+      // already held, which is how a save can carry nothing and still look
+      // right. This is the documented use — load the level, then apply the
+      // snapshot.
+      //
+      // Mutation: drop the `entities` line from `save`. The reloaded enemy is
+      // alive, standing where the level put it.
+      final run = _Run(
+        extras: <EntityDef>[_patrol(at: Vector3(0.0, 0.0, 0.0), speed: 0.0)],
+        startAt: Vector3(0.0, 6.0, 0.0),
+      );
+
+      var bounced = false;
+      for (var i = 0; i < 200 && !bounced; i++) {
+        run.step();
+        bounced = run.sim.stompedThisStep;
+      }
+      expect(bounced, isTrue, reason: 'it landed on nothing');
+      expect(run.enemy.isAlive, isFalse, reason: 'the stomp did not kill it');
+
+      final saved = Snapshot.fromJson(run.sim.save().toJson());
+      final loaded = _Run(
+        extras: <EntityDef>[_patrol(at: Vector3(0.0, 0.0, 0.0), speed: 0.0)],
+        startAt: Vector3(0.0, 6.0, 0.0),
+      );
+      expect(
+        loaded.enemy.isAlive,
+        isTrue,
+        reason: 'a fresh level starts with it alive, or this proves nothing',
+      );
+
+      loaded.sim.restore(saved);
+
+      expect(loaded.enemy.isAlive, isFalse);
     });
   });
 }

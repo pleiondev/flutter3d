@@ -437,8 +437,27 @@ final class Dynamics {
     );
   }
 
-  Object _keyOf(Collider a, Collider b) =>
-      identityHashCode(a) * 1000003 + identityHashCode(b);
+  /// Names a contact so the next step can recognise it.
+  ///
+  /// **By the world's own ids, not by `identityHashCode`**, which this used
+  /// until it was read carefully. That hash is neither stable between two runs
+  /// of the same program nor injective, and both matter here: the first makes
+  /// a warm start something a replay cannot reproduce, and the second seeds a
+  /// contact with an impulse that belonged to a different pair — which shows
+  /// up as a stack of crates that behaved differently that one time and cannot
+  /// be made to do it again.
+  ///
+  /// Order-independent, so a pair collected the other way round on the next
+  /// step is still the same pair. Packed by multiplication for the reason
+  /// `CollisionWorld` gives beside its own key: a shift past bit 31 is
+  /// discarded on the web.
+  Object _keyOf(Collider a, Collider b) {
+    final ia = world.idOf(a) ?? -1;
+    final ib = world.idOf(b) ?? -1;
+    final lo = ia < ib ? ia : ib;
+    final hi = ia < ib ? ib : ia;
+    return lo * 0x100000000 + (hi & 0xFFFFFFFF);
+  }
 
   void _solveVelocities(double dt) {
     // Start where the last step finished. The impulse that held a crate up a

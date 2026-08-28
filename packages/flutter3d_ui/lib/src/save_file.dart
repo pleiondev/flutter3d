@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter3d_game/flutter3d_game.dart'
-    show IssueSink, Snapshot, printIssue;
+    show IssueSink, Snapshot, SnapshotFormatException, printIssue;
 
 import 'settings_file.dart';
 import 'storage/storage.dart';
@@ -80,7 +80,26 @@ final class SaveFile {
         onIssue('save: no level and run in it, starting fresh');
         return null;
       }
-      return (level: level, run: Snapshot(run));
+      // A save with no version in it was written by a build that had the
+      // version and did not send it — `write` used to hand over `run.data`,
+      // which is the payload without the header `toJson` adds, so the key
+      // never reached the disk and `Snapshot.fromJson` was never called on the
+      // way back. That is every save this build can find. The shape did not
+      // change, so it is a version 1 document that failed to say so, and
+      // refusing it would cost a player a run to fix a bug that was never
+      // theirs. Deletable once no save predates the fix.
+      final versioned = run.containsKey('version')
+          ? run
+          : <String, Object?>{'version': Snapshot.formatVersion, ...run};
+      return (level: level, run: Snapshot.fromJson(versioned));
+    } on SnapshotFormatException catch (error) {
+      // The case the version exists for, and it is worth its own arm: this is
+      // a save from a *newer* build, and "starting fresh" would silently
+      // discard a run the player can still open by going back to the build
+      // that wrote it. Saying which is which is the whole point of refusing
+      // rather than misreading.
+      onIssue('save: ${error.message}, starting fresh');
+      return null;
     } catch (error) {
       onIssue('save: could not be read, starting fresh ($error)');
       return null;
@@ -88,11 +107,15 @@ final class SaveFile {
   }
 
   /// Writes the run, and says whether it managed to.
+  ///
+  /// Through [Snapshot.toJson] rather than around it: the version is added
+  /// there, and a document written from `run.data` carries the payload with no
+  /// header, which is what made the refusal above unreachable.
   bool write(String level, Snapshot run) => storage.write(
     _name,
     const JsonEncoder.withIndent(
       '  ',
-    ).convert(<String, Object?>{'level': level, 'run': run.data}),
+    ).convert(<String, Object?>{'level': level, 'run': run.toJson()}),
   );
 
   /// Forgets the run. Called when it ends, either way.

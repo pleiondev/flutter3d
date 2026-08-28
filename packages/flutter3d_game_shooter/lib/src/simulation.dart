@@ -503,7 +503,17 @@ final class GameSimulation {
     // write one nobody registered. The hand-written lines above are what
     // this replaces, one system at a time.
     if (entities != null) 'entities': entities!.save(),
-    if (mechanisms != null) 'mechanisms': _saveMechanisms(mechanisms!),
+    if (mechanisms != null) 'mechanisms': mechanisms!.save(),
+    if (actors != null) 'actors': actors!.save(),
+    // **Counted every step, shown at the end of the level, and not saved.**
+    // The monsters stayed dead and the secrets stayed found across a load
+    // while the two numbers that report them went back to zero, so the summary
+    // was wrong for any run that had ever been resumed — and wrong in the
+    // direction that makes a player think they missed things they did not.
+    'tally': tally.save(),
+    'monsterCount': _monsterCount,
+    'secretCount': _secretCount,
+    'counted': _counted,
   });
 
   void restore(Snapshot snapshot) {
@@ -524,7 +534,13 @@ final class GameSimulation {
     if (entities != null && saved is Map) {
       entities.restore(saved.cast<String, Object?>());
     }
-    _restoreMechanisms(from['mechanisms']);
+    mechanisms?.restore(from['mechanisms']);
+    actors?.restore(from['actors']);
+    final counts = from.object('tally');
+    if (counts != null) tally.restore(counts);
+    _monsterCount = from.integer('monsterCount', _monsterCount);
+    _secretCount = from.integer('secretCount', _secretCount);
+    _counted = from.flag('counted', _counted);
 
     // Whatever the step that took the snapshot reported is not news any more.
     firedThisStep = null;
@@ -536,41 +552,7 @@ final class GameSimulation {
     actors?.syncCorpses();
 
     // The broadphase is holding every body where it was before the restore.
-    collision.reindex();
-    collision.update();
-    collision.clearKinematicDeltas();
-  }
-
-  /// Mechanisms by name, because that is what a level document gives them and
-  /// what a door is called does not change between two runs of the same level.
-  ///
-  /// Anything unnamed is skipped — a relay wired between two others has no
-  /// state worth carrying, and inventing a positional key for it would make the
-  /// format depend on the order the spawner happened to walk the entities in.
-  /// Every named mechanism, each answering for itself.
-  ///
-  /// This used to be a `switch` over three types, and the note beside it called
-  /// that out as the remaining debt of the ECS migration: a new mechanism was
-  /// silently unsaved. `Mechanism.save` is abstract now, so there is nothing to
-  /// forget — and the two lamps and the trigger volumes this game already had
-  /// were among the things being forgotten.
-  static Map<String, Object?> _saveMechanisms(MechanismWorld world) =>
-      <String, Object?>{
-        for (final mechanism in world.all)
-          if (mechanism.name != null) mechanism.name!: mechanism.save(),
-      };
-
-  void _restoreMechanisms(Object? from) {
-    final world = mechanisms;
-    if (world == null || from is! Map) return;
-    for (final mechanism in world.all) {
-      final name = mechanism.name;
-      if (name == null) continue;
-      final row = from[name];
-      if (row is! Map) continue;
-      mechanism.restore(row.cast<String, Object?>());
-    }
-    world.events.reached.clear();
+    _world.afterRestore();
   }
 
   void _hurtPlayer(double amount) {

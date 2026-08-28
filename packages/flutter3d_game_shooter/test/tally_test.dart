@@ -184,6 +184,34 @@ void main() {
     );
   });
 
+  test('and both counts survive being saved and loaded', () {
+    // **Counted, tested, serialisable — and not in the save.** `Tally` has had
+    // a working `save`/`restore` pair all along and `GameSimulation.save`
+    // never called either, so a resumed run reported nought kills and nought
+    // secrets while the monsters stayed dead and the secrets stayed found. The
+    // end-of-level summary — half of what the genre is — was wrong for any run
+    // a player had ever quit out of.
+    //
+    // The two totals go too: three of five is a sentence and three is not, and
+    // they are counted once on the first step from what was actually spawned,
+    // so a restore into a level whose monsters are already dead would recount
+    // them as none.
+    //
+    // Mutation: drop the `tally` line from `save`. Both counts come back nought.
+    final it = _Level(monsters: 3, secrets: 2);
+    it.sim.step(_dt);
+    it.sim.tally.add(GameSimulation.kills, 2);
+    it.sim.tally.add(GameSimulation.secrets, 1);
+
+    final loaded = _Level(monsters: 3, secrets: 2);
+    loaded.sim.restore(Snapshot.fromJson(it.sim.save().toJson()));
+
+    expect(loaded.sim.tally[GameSimulation.kills], 2);
+    expect(loaded.sim.tally[GameSimulation.secrets], 1);
+    expect(loaded.sim.monsterCount, 3, reason: 'the out-of goes too');
+    expect(loaded.sim.secretCount, 2);
+  });
+
   test('and a secret is not something the level draws', () {
     // A secret a player can see is not one. `SecretKind` deliberately reveals
     // nothing, which is the difference between it and every other entity.

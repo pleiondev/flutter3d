@@ -55,10 +55,20 @@ final class PlatformerSimulation {
     this.deaths = 0,
     this.elapsed = 0.0,
     this.levelNext,
-    GameRandom? random,
+    required this.random,
     this.killPlane = -20.0,
-  }) : random = random ?? GameRandom(1),
-       _respawn = startAt.clone();
+  }) : _respawn = startAt.clone() {
+    // One generator, or the number in the save is a decoy. The dice this
+    // simulation writes down were its own while the dice that actually decide
+    // what the enemies do were the actor system's, so a restored run replayed
+    // with a seed nothing was rolling from. The shooter asserts the same thing
+    // about its ECS world and for the same reason.
+    assert(
+      actors == null || identical(actors!.random, random),
+      'the ActorSystem must roll the same GameRandom this simulation saves, '
+      'or the seed in the snapshot describes dice nobody is using.',
+    );
+  }
 
   final Runner runner;
   final CollisionWorld collision;
@@ -80,6 +90,16 @@ final class PlatformerSimulation {
   /// which is why there were no enemies: the system was there, the brains were
   /// there, and nothing called them.
   final ActorSystem? actors;
+
+  /// Randomness, shared so that a snapshot can carry where the dice were.
+  ///
+  /// **Required, and it used to default to `GameRandom(1)`.** The shooter made
+  /// this required after its shipped game took the default and saved dice
+  /// nobody was rolling; the same trap was still sitting here, one package
+  /// over, with the added twist that nothing in this package rolled it at all —
+  /// the generator that decides what the enemies do belongs to [actors], and
+  /// the constructor now asserts the two are the same object. A default is how
+  /// a caller takes a decision without making one.
   final GameRandom random;
 
   /// What the application says the level goes on to, passed through unread.
@@ -373,14 +393,18 @@ final class PlatformerSimulation {
     'deaths': deaths,
     'lives': lives,
     'elapsed': elapsed,
-    // **Keyed by name, and a mechanism without one is not saved.**
-    // Every entity the generators emit is named, so nothing is lost today —
-    // but that is a convention, not a guarantee, and `saved every named
-    // mechanism` in the tests is what keeps it one.
-    'mechanisms': <String, Object?>{
-      for (final mechanism in mechanisms?.all ?? const <Mechanism>[])
-        if (mechanism.name != null) mechanism.name!: mechanism.save(),
-    },
+    // **Keyed by name, and a mechanism without one is not saved** — see
+    // `MechanismWorld.save`, which is where the rule and the paragraph
+    // explaining it now live, because this game and the shooter had written
+    // out the same eight lines and the racing game had written none.
+    if (mechanisms != null) 'mechanisms': mechanisms!.save(),
+    // **The enemies, which this save did not carry at all.** The system is
+    // real and stepped, so a save taken after clearing a room came back with
+    // every enemy alive again at its spawn — health, position, brain and all
+    // — while the runner's own progress restored correctly. Nothing caught it:
+    // the snapshot test in this package never mentioned actors.
+    if (actors != null) 'entities': actors!.entities.save(),
+    if (actors != null) 'actors': actors!.save(),
   });
 
   void restore(Snapshot from) {
@@ -402,18 +426,18 @@ final class PlatformerSimulation {
     final played = data['elapsed'];
     if (played is num) elapsed = played.toDouble();
 
-    final saves = data['mechanisms'];
-    if (saves is Map<String, Object?>) {
-      for (final mechanism in mechanisms?.all ?? const <Mechanism>[]) {
-        final name = mechanism.name;
-        if (name == null) continue;
-        final row = saves[name];
-        if (row is Map<String, Object?>) mechanism.restore(row);
-      }
-    }
+    mechanisms?.restore(data['mechanisms']);
 
-    collision.reindex();
-    collision.update();
-    collision.clearKinematicDeltas();
+    final savedEntities = data.object('entities');
+    if (actors != null && savedEntities != null) {
+      actors!.entities.restore(savedEntities);
+    }
+    actors?.restore(data['actors']);
+    // Health came back on a component; whether a body is solid is a fact about
+    // the collision world, and something has to put the two together. Without
+    // it a restored corpse is a wall the runner cannot walk through.
+    actors?.syncCorpses();
+
+    _world.afterRestore();
   }
 }

@@ -85,6 +85,7 @@ final class _Run {
       input: input,
       startAt: Vector3.zero(),
       mechanisms: mechanisms,
+      random: GameRandom(1),
     );
   }
 

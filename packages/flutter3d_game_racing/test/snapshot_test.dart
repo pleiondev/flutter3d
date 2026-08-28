@@ -15,6 +15,8 @@ library;
 
 import 'dart:convert';
 
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show Snapshot, SnapshotFormatException;
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -27,8 +29,16 @@ const double _step = 1 / 60;
 /// Not the map straight back: `List<double>` comes back as `List<dynamic>` and
 /// an `int` that was written as `2.0` comes back as a `double`, and a restore
 /// that only ever sees its own output has never met either.
-Map<String, Object?> roundTrip(Map<String, Object?> saved) =>
-    jsonDecode(jsonEncode(saved)) as Map<String, Object?>;
+/// A snapshot out to JSON and back, which is what a save file does to it.
+///
+/// Through [Snapshot.toJson] and [Snapshot.fromJson] rather than around them,
+/// so every test below also asserts that the version survives the trip. This
+/// game's save was a bare map until now — no version, nothing to refuse a
+/// document from a newer build with, and the wrong type for
+/// `RunSession.snapshotOf` — so there was nothing here to round-trip.
+Snapshot roundTrip(Snapshot saved) => Snapshot.fromJson(
+  jsonDecode(jsonEncode(saved.toJson())) as Map<String, Object?>,
+);
 
 void main() {
   test('a race carries on from where it was saved', () {
@@ -223,5 +233,25 @@ void main() {
     expect(loaded.player.checkpointThisStep, isFalse);
     expect(loaded.player.respawnedThisStep, isFalse);
     expect(loaded.simulation.finishedThisStep, isFalse);
+  });
+
+  test('a saved race says which format it is in', () {
+    // This game's save was a bare `Map` — no version, no way to refuse a
+    // document from a newer build, and the wrong type for
+    // `RunSession.snapshotOf`, which every other genre answers. So the one
+    // save mechanism the architecture describes had two users out of three,
+    // and this was the one that would misread a future document field by
+    // field rather than say so.
+    //
+    // Mutation: return the bare map again. This stops compiling, which is the
+    // point of the type.
+    final it = Race();
+    driveRound(it, seconds: 2.0);
+
+    expect(it.simulation.save().toJson()['version'], Snapshot.formatVersion);
+    expect(
+      () => Snapshot.fromJson(<String, Object?>{'version': 99}),
+      throwsA(isA<SnapshotFormatException>()),
+    );
   });
 }
