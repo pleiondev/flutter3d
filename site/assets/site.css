@@ -258,6 +258,13 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 }
 .page tbody tr:nth-child(even) { background: color-mix(in srgb, var(--surface) 45%, transparent); }
 
+/* --- screenshots --------------------------------------------------------- */
+.page img {
+  display: block; max-width: 100%; height: auto;
+  margin: 1.5rem 0;
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+
 /* --- diagrams ------------------------------------------------------------ */
 .diagram {
   margin: 1.8rem 0; padding: 20px 16px;

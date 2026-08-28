@@ -27,6 +27,8 @@ cd apps/flutter3d_editor
 flutter run -d macos --dart-define=level=/Users/me/games/deep_mine/assets/levels/first.json
 ```
 
+![The editor pointed at a path that does not exist yet, offering the two templates](/assets/editor/editor-template.jpg)
+
 Two templates: **platformer** and **shooter**. There is no racing one: a circuit is a spline rather than a room, and it is authored by a different tool.
 
 Picking one writes the whole project at `/Users/me/games/deep_mine` and opens the new level in the editor. Note the shape of the path: the editor reads `…/<project>/assets/levels/<name>.json` and takes the part before `assets/` as the project root.
