@@ -22,7 +22,7 @@ flutter create --platforms=macos,windows,linux my_scene
 cd my_scene
 ```
 
-Add the engine and a backend to `pubspec.yaml`. The backend is named on purpose: it is the one line that changes to run on a different graphics API.
+Add the engine and a backend to `pubspec.yaml`. Why the backend is named here at all is explained in the [quickstart](/quickstart/).
 
 ```yaml
 dependencies:
@@ -274,7 +274,7 @@ final CameraNode _camera = CameraNode(
 late final RenderView _view = RenderView(camera: _camera)
   ..clearColor = Vector4(0.05, 0.07, 0.10, 1.0);
 
-late final OrbitController _orbit = OrbitController(node: _camera, distance: 8.0);
+late final OrbitController _orbit = OrbitController(_camera, distance: 8.0);
 ```
 
 Wire it to gestures, and frame whatever is in the scene:
@@ -387,6 +387,10 @@ void _animate(double dt) {
 
 Non-fatal decoding problems land in `warnings` rather than failing the file, a skipped primitive or an ignored extension explains a model that looks odd but still loaded.
 
+<div class="note">
+<p>There is no <code>hero.glb</code> in this repository; the name stands for whatever animated <code>.glb</code> you have. The demo applications keep theirs under <code>apps/flutter3d_demo_*/assets/models/</code> (the platformer's runner is <code>penguin.glb</code>), and the catch above means a missing file leaves the scene running rather than broken.</p>
+</div>
+
 ## Click on something {.step}
 
 Picking is CPU-side and needs no device: ray/AABB from the BVH, then Möller–Trumbore against triangles for any node that kept its source data.
@@ -432,6 +436,10 @@ _particles.advance(dt);
 // when something happens
 _particles.burst(Effects.spark, hit.point, direction: hit.normal);
 ```
+
+<div class="note">
+<p><code>Effects</code> is not engine API. <code>burst</code> takes a <code>ParticleEffect</code>, and a game keeps its own catalogue of those as constants; each demo application defines one in its own <code>lib/src/effects.dart</code> (for instance <code>apps/flutter3d_demo_platformer/lib/src/effects.dart</code>), and copying an entry from there is the fastest way to a first effect.</p>
+</div>
 
 Turn on the debug overlay while you are still finding out where things are. All of it is drawn in **one** call.
 

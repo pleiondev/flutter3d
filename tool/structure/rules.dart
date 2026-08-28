@@ -536,6 +536,38 @@ List<Finding> _ruleCount() {
     (String digits) => digits,
   );
 
+  // The site and CONTRIBUTING.md state the count too, each in the phrasing
+  // its own sentence needed — "eighteen rules, under a second", "one of
+  // nineteen scans" — and those were three different wrong answers at once.
+  // Matched by phrasing, the way the golden scenes are, so "two rules check
+  // it" about a pair of rules is not read as a claim about the total.
+  final phrasings = <RegExp>[
+    RegExp('([\\w-]+) rules, under a second', caseSensitive: false),
+    RegExp('holds ([\\w-]+) rules'),
+    RegExp('one of ([\\w-]+) scans', caseSensitive: false),
+    RegExp('([\\w-]+) green scans'),
+    RegExp('([\\w-]+) checks that read source text'),
+  ];
+  for (final page in _prosePages()) {
+    final text = page.readAsStringSync();
+    for (final pattern in phrasings) {
+      for (final match in pattern.allMatches(text)) {
+        final claim = match.group(1)!;
+        final number =
+            int.tryParse(claim) ?? words.indexOf(claim.toLowerCase());
+        if (number < 0) continue;
+        if (number != actual) {
+          found.add(
+            Finding(
+              _inRepository(page),
+              'says $claim rules; there are $actual',
+            ),
+          );
+        }
+      }
+    }
+  }
+
   if (actual >= words.length) {
     found.add(
       Finding(
@@ -984,36 +1016,66 @@ List<Finding> _testCount() {
             'whether it is right',
       ),
     );
-    return found;
+  } else {
+    if (saidInProse.group(1) != '$counted') {
+      found.add(
+        Finding(
+          'README.md',
+          'says ${saidInProse.group(1)} tests; there are $counted',
+        ),
+      );
+    }
+    // The whole workspace, which is what the sentence names — the same fact
+    // ARCHITECTURE.md states in digits. It used to be held to the packages
+    // that carry a test, and the two counts sitting three apart across two
+    // documents read as one of them being wrong rather than as two facts.
+    final expected = packages.length < words.length
+        ? words[packages.length]
+        : '${packages.length}';
+    if (saidInProse.group(2) != expected) {
+      found.add(
+        Finding(
+          'README.md',
+          'says ${saidInProse.group(2)} packages; '
+              'there are ${packages.length} ($expected)',
+        ),
+      );
+    }
   }
-  if (saidInProse.group(1) != '$counted') {
-    found.add(
-      Finding(
-        'README.md',
-        'says ${saidInProse.group(1)} tests; there are $counted',
-      ),
-    );
-  }
-  // Packages with a test in them, which is what the README's sentence is
-  // about: the number of packages is a different fact and lives in the other
-  // document.
-  final tested = <String>{
-    for (final entry in packages.entries)
-      if (dartFilesIn(Directory('${entry.value.path}/test')).isNotEmpty ||
-          dartFilesIn(Directory('${entry.value.path}/example/test')).isNotEmpty)
-        entry.key,
-  };
-  final expected = tested.length < words.length
-      ? words[tested.length]
-      : '${tested.length}';
-  if (saidInProse.group(2) != expected) {
-    found.add(
-      Finding(
-        'README.md',
-        'says ${saidInProse.group(2)} packages have tests; '
-            '${tested.length} do ($expected)',
-      ),
-    );
+
+  // The site quotes the number too — the testing page's headline, the
+  // quickstart, the home page's stat tile — and so does CONTRIBUTING.md when
+  // it wants to. None of them was compared with anything, which is how every
+  // page said 2901 while the tree said 2968. A page is only held to a claim
+  // it makes; none is required to state a count.
+  for (final page in _prosePages()) {
+    final text = page.readAsStringSync();
+    final where = _inRepository(page);
+    final claims = <String>[
+      for (final m in RegExp(r'([\w-]+) tests across').allMatches(text))
+        m.group(1)!,
+      for (final m in RegExp(r'of (\d+) tests').allMatches(text)) m.group(1)!,
+      for (final m in RegExp(r'Tests</dt><dd>(\d+)').allMatches(text))
+        m.group(1)!,
+    ];
+    for (final claim in claims) {
+      final number = int.tryParse(claim) ?? words.indexOf(claim.toLowerCase());
+      if (number < 0) continue;
+      if (number != counted) {
+        found.add(Finding(where, 'says $claim tests; there are $counted'));
+      }
+    }
+    for (final m in RegExp(r'tests across (\d+) packages').allMatches(text)) {
+      if (m.group(1) != '${packages.length}') {
+        found.add(
+          Finding(
+            where,
+            'says tests across ${m.group(1)} packages; '
+            'there are ${packages.length}',
+          ),
+        );
+      }
+    }
   }
   return found;
 }
@@ -1235,12 +1297,20 @@ List<Finding> _goldenSceneCount() {
 
   final word = _numberWords[count];
   final found = <Finding>[];
-  for (final where in <String>[
-    'tool/ci.sh',
-    'packages/flutter3d_webgl/tool/golden_web.sh',
-    'ARCHITECTURE.md',
-  ]) {
-    final file = File('${repositoryRoot.path}/$where');
+  // The site tells the same story on half a dozen pages, and its testing page
+  // was still saying "thirty scenes" two recounts later — so the prose pages
+  // are scanned along with the scripts and ARCHITECTURE.md.
+  final files = <File>[
+    for (final where in <String>[
+      'tool/ci.sh',
+      'packages/flutter3d_webgl/tool/golden_web.sh',
+      'ARCHITECTURE.md',
+    ])
+      File('${repositoryRoot.path}/$where'),
+    ..._prosePages(),
+  ];
+  for (final file in files) {
+    final where = _inRepository(file);
     if (!file.existsSync()) {
       found.add(Finding(where, 'is not there'));
       continue;
@@ -1267,6 +1337,34 @@ List<Finding> _goldenSceneCount() {
   }
   return found;
 }
+
+/// CONTRIBUTING.md and every Markdown page of the documentation site.
+///
+/// The three counting rules read these along with the README and
+/// `ARCHITECTURE.md`, because the site restates the same numbers in prose and
+/// drifted the same way: its testing page said 2901 tests, its glossary said
+/// nineteen scans, and nothing compared either with the tree. A page here is
+/// only held to a count it states; none is required to state one.
+List<File> _prosePages() {
+  final pages = <File>[];
+  final contributing = File('${repositoryRoot.path}/CONTRIBUTING.md');
+  if (contributing.existsSync()) pages.add(contributing);
+  final content = Directory('${repositoryRoot.path}/site/content');
+  if (content.existsSync()) {
+    pages.addAll(
+      content
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((File file) => file.path.endsWith('.md')),
+    );
+  }
+  pages.sort((File a, File b) => a.path.compareTo(b.path));
+  return pages;
+}
+
+/// Where a file is, said the way a finding says it: relative to the root.
+String _inRepository(File file) =>
+    file.path.substring(repositoryRoot.path.length + 1);
 
 /// Enough of them to name the counts this repository actually writes down.
 const Map<int, String> _numberWords = <int, String>{

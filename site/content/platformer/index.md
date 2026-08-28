@@ -47,7 +47,7 @@ Every one of those is a number in `RunnerTuning`, and each number has a reason:
 |---|---|---|
 | `jumpSpeed` | 9.5 | About 1.88 m of height |
 | `airJumpSpeed` | 8.2 | Weaker, so a double jump reads as a recovery instead of a second staircase |
-| `jumpCut` | 0.45 | What is left of upward speed when the button comes up early — **variable jump height**, the single control separating a platformer from a shooter with gaps in the floor |
+| `jumpCut` | 0.45 | What is left of upward speed when the button comes up early: **variable jump height**. Why that is the control that matters is in the [tutorial](/platformer/tutorial/) |
 | `coyoteTime` | 0.12 | A jump stays legal after walking off an edge |
 | `jumpBufferTime` | 0.12 | A press stays alive just before landing |
 | `wallJumpUp` / `wallJumpPush` | 9.0 / 7.5 | The push is what stops a chimney becoming a ladder |
@@ -145,11 +145,7 @@ final class Leaper extends Patrol {
 }
 ```
 
-Both are ordinary `Brain`s driven by the engine's `ActorSystem`. No genre-specific system, no monster type — the platformer's enemies and the shooter's use the same machinery and share none of the vocabulary.
-
-<div class="warn">
-<p><code>ActorSystem</code> was built by the application from the day this package existed and <strong>never stepped</strong>. So there were no enemies: the system was there, the brains were there, and nothing called them. The simulation calls <code>actors.step</code> now, and the lesson is that "wired up" and "running" are two different claims.</p>
-</div>
+Both are ordinary `Brain`s driven by the engine's `ActorSystem`. No genre-specific system, no monster type — the platformer's enemies and the shooter's use the same machinery and share none of the vocabulary. For a while nothing stepped the system at all, and so there were no enemies; the [tutorial's simulation step](/platformer/tutorial/#the-simulation-and-the-camera-that-owns-forward) keeps that story.
 
 ## The follow camera
 

@@ -126,7 +126,7 @@ Vertex and index arrays are stored exactly as `MeshData` holds them, so loading 
 
 ## The resource cache
 
-Reference-counted, so a mesh shared by forty torches is uploaded once and freed when the last one lets go.
+`ResourceCache` is reference-counted, so a mesh shared by forty torches is uploaded once and freed when the last one lets go.
 
 ```dart
 final handle = await cache.acquire('assets/models/torch.glb');

@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, HDR and tone mapping, bloom, cascaded and point shadows, fog, screen-space reflections, and the frame graph that schedules them.
+description: Render views, the pass order, HDR and tone mapping, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -31,7 +31,7 @@ sequenceDiagram
     autonumber
     participant R as Renderer
     participant S as shadow pass
-    participant O as opaque + transparent
+    participant O as opaque · sky · transparent
     participant B as bloom chain
     participant C as composite
     participant F as Flutter
@@ -42,7 +42,7 @@ sequenceDiagram
     O-->>R: scene HDR (+ optional surface buffer)
     R->>B: bright pass, then a chain of half-size blurs
     B-->>R: bloom
-    R->>C: tonemap, exposure, sRGB encode, fog, reflections
+    R->>C: tonemap, exposure, sRGB encode, fog, reflections, occlusion, grading
     C-->>F: swapchain texture
 ```
 
@@ -194,6 +194,24 @@ const ReflectionSettings(
 
 SSR reads the surface buffer, so turning it on implies filling one.
 
+## Ambient occlusion
+
+```dart
+const AmbientOcclusionSettings(
+  enabled: true,
+  radius: 0.5,     // world metres a surface looks for things blocking its sky
+  samples: 12,     // the shader's loop is bounded at twelve whatever this says
+  strength: 0.8,   // how dark a fully enclosed corner goes
+  bias: 0.02,      // in metres, so one tuning works at every range
+)
+```
+
+What it darkens is the **ambient term**, nothing else: applied to everything it stops being occlusion and becomes dirt in the corners, and it reads as a mistake under direct light. The occlusion is drawn into its own target and applied in the composite, after bloom has read the scene, so a glowing crack in a corner keeps glowing.
+
+<div class="warn">
+<p>Like SSR it reads the surface buffer, and filling that turns MSAA off for the whole scene pass: the average of two octahedral normals encodes no normal. Switching it on therefore changes the antialiasing of the entire frame, not only the corners.</p>
+</div>
+
 ## Fog
 
 ```dart
@@ -204,6 +222,40 @@ FogSettings(
 ```
 
 Applied in the composite pass, in linear space, before the encode. A level document can carry its own `fogColor` and `fogDensity`, which is how the games get theirs.
+
+## Sky
+
+```dart
+SkySettings(
+  enabled: true,        // off by default: sixty goldens are recorded against none
+  zenith: Vector3(0.10, 0.22, 0.52),
+  horizon: Vector3(0.42, 0.50, 0.62),
+  nadir: Vector3(0.06, 0.06, 0.07),   // what fills the frame looking down at nothing
+  sunIntensity: 20.0,   // 0 means no disc; the target is HDR, so far above 1 is fine
+)
+```
+
+One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The model is a three-stop gradient plus a scattering lobe and an analytic sun disc; a `cubemap` replaces all three of those, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
+
+The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `RenderView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
+
+## The look
+
+Grading, vignette, grain and dispersion, applied inside the composite after the tone map. Everything defaults to doing nothing *exactly*: a vignette of zero multiplies by one and grain of zero adds zero, so a scene that asks for none of it composites to the same bytes it did before this existed.
+
+```dart
+const LookSettings(
+  contrast: 1.05,      // pivoted about mid grey, so it does not also raise exposure
+  saturation: 1.1,     // zero is luminance alone
+  temperature: 0.1,    // warm above zero, cool below, in the range −1 to 1
+  vignette: 0.3,
+  grain: 0.04,         // static, not animated: a shader reading a frame counter
+                       // is a shader whose golden differs every run
+  chromaticAberration: 0.005,
+)
+```
+
+The order inside the composite is the one a camera imposes: the lens disperses colour before the sensor sees it, grading is a decision about a displayable image and follows the tone map, and grain and vignette are the film and the barrel, so they come last.
 
 ## Observability
 

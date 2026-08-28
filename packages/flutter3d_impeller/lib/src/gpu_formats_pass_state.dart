@@ -9,6 +9,7 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 
+/// Maps the engine's [LoadAction] to its `package:flutter_gpu` equivalent.
 extension LoadActionToGpu on LoadAction {
   gpu.LoadAction toGpu() => switch (this) {
     LoadAction.dontCare => gpu.LoadAction.dontCare,
@@ -17,6 +18,7 @@ extension LoadActionToGpu on LoadAction {
   };
 }
 
+/// Maps the engine's [StoreAction] to its `package:flutter_gpu` equivalent.
 extension StoreActionToGpu on StoreAction {
   gpu.StoreAction toGpu() => switch (this) {
     StoreAction.dontCare => gpu.StoreAction.dontCare,
@@ -27,6 +29,7 @@ extension StoreActionToGpu on StoreAction {
   };
 }
 
+/// Maps the engine's [PrimitiveType] to its `package:flutter_gpu` equivalent.
 extension PrimitiveTypeToGpu on PrimitiveType {
   gpu.PrimitiveType toGpu() => switch (this) {
     PrimitiveType.triangle => gpu.PrimitiveType.triangle,
@@ -37,6 +40,7 @@ extension PrimitiveTypeToGpu on PrimitiveType {
   };
 }
 
+/// Maps the engine's [CullMode] to its `package:flutter_gpu` equivalent.
 extension CullModeToGpu on CullMode {
   gpu.CullMode toGpu() => switch (this) {
     CullMode.none => gpu.CullMode.none,
@@ -45,6 +49,7 @@ extension CullModeToGpu on CullMode {
   };
 }
 
+/// Maps the engine's [WindingOrder] to its `package:flutter_gpu` equivalent.
 extension WindingOrderToGpu on WindingOrder {
   gpu.WindingOrder toGpu() => switch (this) {
     WindingOrder.clockwise => gpu.WindingOrder.clockwise,
@@ -52,6 +57,7 @@ extension WindingOrderToGpu on WindingOrder {
   };
 }
 
+/// Maps the engine's [PolygonMode] to its `package:flutter_gpu` equivalent.
 extension PolygonModeToGpu on PolygonMode {
   gpu.PolygonMode toGpu() => switch (this) {
     PolygonMode.fill => gpu.PolygonMode.fill,
@@ -59,6 +65,8 @@ extension PolygonModeToGpu on PolygonMode {
   };
 }
 
+/// Maps the engine's [CompareFunction] to its `package:flutter_gpu`
+/// equivalent.
 extension CompareFunctionToGpu on CompareFunction {
   gpu.CompareFunction toGpu() => switch (this) {
     CompareFunction.never => gpu.CompareFunction.never,
@@ -72,6 +80,7 @@ extension CompareFunctionToGpu on CompareFunction {
   };
 }
 
+/// Maps the engine's [BlendFactor] to its `package:flutter_gpu` equivalent.
 extension BlendFactorToGpu on BlendFactor {
   gpu.BlendFactor toGpu() => switch (this) {
     BlendFactor.zero => gpu.BlendFactor.zero,
@@ -94,6 +103,7 @@ extension BlendFactorToGpu on BlendFactor {
   };
 }
 
+/// Maps the engine's [BlendOperation] to its `package:flutter_gpu` equivalent.
 extension BlendOperationToGpu on BlendOperation {
   gpu.BlendOperation toGpu() => switch (this) {
     BlendOperation.add => gpu.BlendOperation.add,
