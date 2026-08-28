@@ -66,17 +66,17 @@ final class AiTuning {
   final double skill;
 
   AiTuning copyWith({double? skill}) => AiTuning(
-        lookAheadPerSpeed: lookAheadPerSpeed,
-        minLookAhead: minLookAhead,
-        steerGain: steerGain,
-        corneringGrip: corneringGrip,
-        brakeHorizon: brakeHorizon,
-        brakeMargin: brakeMargin,
-        rubberBandPer100m: rubberBandPer100m,
-        rubberBandClamp: rubberBandClamp,
-        avoidRange: avoidRange,
-        avoidWidth: avoidWidth,
-        avoidOffset: avoidOffset,
-        skill: skill ?? this.skill,
-      );
+    lookAheadPerSpeed: lookAheadPerSpeed,
+    minLookAhead: minLookAhead,
+    steerGain: steerGain,
+    corneringGrip: corneringGrip,
+    brakeHorizon: brakeHorizon,
+    brakeMargin: brakeMargin,
+    rubberBandPer100m: rubberBandPer100m,
+    rubberBandClamp: rubberBandClamp,
+    avoidRange: avoidRange,
+    avoidWidth: avoidWidth,
+    avoidOffset: avoidOffset,
+    skill: skill ?? this.skill,
+  );
 }

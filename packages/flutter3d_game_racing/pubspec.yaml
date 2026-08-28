@@ -3,6 +3,12 @@ description: "A third genre: a car with grip it can lose, a track measured in me
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - racing
+  - gameplay
 publish_to: 'none'
 resolution: workspace
 

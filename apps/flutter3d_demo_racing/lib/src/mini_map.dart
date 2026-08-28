@@ -18,20 +18,17 @@ class MiniMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 150,
-        height: 150,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: CustomPaint(
-          painter: _MapPainter(
-            outline: readout.outline,
-            cars: readout.carsOnMap,
-          ),
-        ),
-      );
+    width: 150,
+    height: 150,
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.4),
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: CustomPaint(
+      painter: _MapPainter(outline: readout.outline, cars: readout.carsOnMap),
+    ),
+  );
 }
 
 class _MapPainter extends CustomPainter {
@@ -62,11 +59,12 @@ class _MapPainter extends CustomPainter {
     final scale = math.min(size.width, size.height) / span;
 
     Offset place(Vector2 point) => Offset(
-          (point.x - (minX + maxX) / 2) * scale + size.width / 2,
-          (point.y - (minY + maxY) / 2) * scale + size.height / 2,
-        );
+      (point.x - (minX + maxX) / 2) * scale + size.width / 2,
+      (point.y - (minY + maxY) / 2) * scale + size.height / 2,
+    );
 
-    final path = Path()..moveTo(place(outline.first).dx, place(outline.first).dy);
+    final path = Path()
+      ..moveTo(place(outline.first).dx, place(outline.first).dy);
     for (final point in outline.skip(1)) {
       final at = place(point);
       path.lineTo(at.dx, at.dy);

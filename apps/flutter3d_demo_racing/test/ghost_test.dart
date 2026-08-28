@@ -41,8 +41,10 @@ final class _Storage implements Storage {
 /// test about driving one.
 final class _Car implements VehicleController {
   _Car()
-      : collider =
-            Collider(shape: CollisionSphere(0.7), position: Vector3.zero());
+    : collider = Collider(
+        shape: CollisionSphere(0.7),
+        position: Vector3.zero(),
+      );
 
   @override
   final Collider collider;
@@ -112,8 +114,10 @@ void _drive(GhostKeeper keeper, {double seconds = 4.0, double from = 0.0}) {
   }
 }
 
-GhostKeeper _keeper(_Storage storage, {String track = 'assets/tracks/ring.json'}) =>
-    GhostKeeper(storage: storage, track: track);
+GhostKeeper _keeper(
+  _Storage storage, {
+  String track = 'assets/tracks/ring.json',
+}) => GhostKeeper(storage: storage, track: track);
 
 void main() {
   test('a best lap is still there the next time the game starts', () {
@@ -132,8 +136,11 @@ void main() {
     // Eighty metres is where four seconds at twenty a second ends; the last
     // sample lands a fifteenth of a second short of the line, which is why the
     // tape carries the lap time separately from its own last stamp.
-    expect(afterRelaunch.best!.poses.last.position.x, closeTo(79.0, 1.5),
-        reason: 'it kept the shape of a lap but not where the lap went');
+    expect(
+      afterRelaunch.best!.poses.last.position.x,
+      closeTo(79.0, 1.5),
+      reason: 'it kept the shape of a lap but not where the lap went',
+    );
   });
 
   test('and a slower lap does not take its place', () {
@@ -152,9 +159,11 @@ void main() {
     expect(keeper.finished(9.0), isFalse);
 
     expect(keeper.best!.lapTime, closeTo(4.0, 1e-3));
-    expect(_keeper(storage).let((k) => k..load()).best!.lapTime,
-        closeTo(4.0, 1e-3),
-        reason: 'the disk kept the slow lap even though memory did not');
+    expect(
+      _keeper(storage).let((k) => k..load()).best!.lapTime,
+      closeTo(4.0, 1e-3),
+      reason: 'the disk kept the slow lap even though memory did not',
+    );
   });
 
   test('and the lap after a kept one is a lap, not two of them', () {
@@ -169,8 +178,11 @@ void main() {
     _drive(keeper, seconds: 3.0, from: 500.0);
     keeper.finished(3.0);
 
-    expect(keeper.best!.poses.first.position.x, closeTo(500.0, 0.5),
-        reason: 'the new lap starts where the old one did');
+    expect(
+      keeper.best!.poses.first.position.x,
+      closeTo(500.0, 0.5),
+      reason: 'the new lap starts where the old one did',
+    );
     expect(keeper.best!.poses.first.time, closeTo(0.0, 1e-6));
   });
 
@@ -210,8 +222,11 @@ void main() {
     expect(keeper.load, returnsNormally);
 
     expect(keeper.best, isNull);
-    expect(storage.documents, isEmpty,
-        reason: 'it will fail to read the same file every launch');
+    expect(
+      storage.documents,
+      isEmpty,
+      reason: 'it will fail to read the same file every launch',
+    );
   });
 
   group('one step of a race', () {
@@ -255,13 +270,19 @@ void main() {
       final keeper = lapThrough(_keeper(storage), seconds: 4.0, best: true);
 
       final tape = keeper.best!;
-      expect(tape.poses.last.time, greaterThan(3.0),
-          reason: 'the tape ends before it began');
+      expect(
+        tape.poses.last.time,
+        greaterThan(3.0),
+        reason: 'the tape ends before it began',
+      );
 
       final ghost = GhostCar(SceneNode(name: 'ghost'));
       ghost.showAt(2.0, tape, 0.0);
-      expect(ghost.node.visible, isTrue,
-          reason: 'a recorded lap that can never be drawn');
+      expect(
+        ghost.node.visible,
+        isTrue,
+        reason: 'a recorded lap that can never be drawn',
+      );
     });
 
     test('and the lap after it is one lap long, not two', () {
@@ -273,8 +294,11 @@ void main() {
 
       final tape = keeper.best!;
       expect(tape.poses.first.time, closeTo(0.0, 1e-6));
-      expect(tape.poses.last.time, closeTo(3.0, 0.2),
-          reason: 'the second tape is ${tape.poses.last.time}s of recording');
+      expect(
+        tape.poses.last.time,
+        closeTo(3.0, 0.2),
+        reason: 'the second tape is ${tape.poses.last.time}s of recording',
+      );
       expect(tape.lapTime, closeTo(3.0, 1e-6));
     });
   });
@@ -296,11 +320,17 @@ void main() {
       final relaunched = _keeper(storage)..load();
       _drive(relaunched, seconds: 9.0, from: 500.0);
 
-      expect(relaunched.finished(9.0), isFalse,
-          reason: 'the out-lap of a new launch took the record');
+      expect(
+        relaunched.finished(9.0),
+        isFalse,
+        reason: 'the out-lap of a new launch took the record',
+      );
       expect(relaunched.record, closeTo(4.0, 1e-3));
-      expect(relaunched.best!.poses.first.position.x, closeTo(0.0, 0.5),
-          reason: 'the record is 4s and the ghost is the nine-second lap');
+      expect(
+        relaunched.best!.poses.first.position.x,
+        closeTo(0.0, 0.5),
+        reason: 'the record is 4s and the ghost is the nine-second lap',
+      );
     });
 
     test('and is the tape\'s own time, so the two cannot disagree', () {
@@ -328,8 +358,11 @@ void main() {
       for (var step = 0; step * (1 / 60.0) < 4.0; step++) {
         player.lapTime = step / 60.0;
         car.position.setValues(player.lapTime * 20.0, 0.0, 0.0);
-        expect(keeper.stepped(player, car), isFalse,
-            reason: 'a record was announced mid-lap');
+        expect(
+          keeper.stepped(player, car),
+          isFalse,
+          reason: 'a record was announced mid-lap',
+        );
       }
       player
         ..lastLap = 4.0
@@ -339,8 +372,11 @@ void main() {
       expect(keeper.stepped(player, car), isTrue);
 
       player.lapCompletedThisStep = false;
-      expect(keeper.stepped(player, car), isFalse,
-          reason: 'it went on announcing the same record');
+      expect(
+        keeper.stepped(player, car),
+        isFalse,
+        reason: 'it went on announcing the same record',
+      );
     });
 
     test('and a lap that does not beat it says nothing', () {
@@ -375,14 +411,26 @@ void main() {
     // ghost quietly stops being recorded or drawn.
     final game = File('lib/main.dart').readAsStringSync();
 
-    expect(game, contains('.stepped('),
-        reason: 'nothing records a lap, so there will never be a ghost');
-    expect(game, contains('.showAt('),
-        reason: 'laps are recorded and kept, and nothing draws one');
-    expect(game, contains('.load()'),
-        reason: 'a best lap is written and never read back');
-    expect(game, contains('_ghosts.record'),
-        reason: 'the record is kept and the screen never says what it is');
+    expect(
+      game,
+      contains('.stepped('),
+      reason: 'nothing records a lap, so there will never be a ghost',
+    );
+    expect(
+      game,
+      contains('.showAt('),
+      reason: 'laps are recorded and kept, and nothing draws one',
+    );
+    expect(
+      game,
+      contains('.load()'),
+      reason: 'a best lap is written and never read back',
+    );
+    expect(
+      game,
+      contains('_ghosts.record'),
+      reason: 'the record is kept and the screen never says what it is',
+    );
   });
 
   group('the car it is drawn as', () {
@@ -422,10 +470,13 @@ void main() {
     test('and is lifted along its own up, not the world\'s', () {
       // The same reason the cars are: on a cambered corner the two differ by
       // most of a metre, and a ghost lifted vertically sinks into the banking.
-      final tape = GhostTape(seconds: 1.0, poses: <GhostFrame>[
-        GhostFrame(time: 0.0)..up.setValues(1.0, 0.0, 0.0),
-        GhostFrame(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
-      ]);
+      final tape = GhostTape(
+        seconds: 1.0,
+        poses: <GhostFrame>[
+          GhostFrame(time: 0.0)..up.setValues(1.0, 0.0, 0.0),
+          GhostFrame(time: 1.0)..up.setValues(1.0, 0.0, 0.0),
+        ],
+      );
       final ghost = GhostCar(SceneNode(name: 'ghost'));
 
       ghost.showAt(0.5, tape, 0.5);

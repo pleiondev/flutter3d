@@ -59,7 +59,11 @@ void _run(SphereVehicle car, VehicleInput input, double seconds) {
 ///
 /// Braking rather than cornering because it is one number with a unit, and
 /// because it spends the same grip: what stops a car is what turns it.
-double _brakingDistance(Tyres tyres, {String surface = 'asphalt', double from = 30.0}) {
+double _brakingDistance(
+  Tyres tyres, {
+  String surface = 'asphalt',
+  double from = 30.0,
+}) {
   final car = _car(tyres, surface: surface);
   final throttle = VehicleInput()..throttle = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed < from; step++) {
@@ -81,7 +85,11 @@ double _brakingDistance(Tyres tyres, {String surface = 'asphalt', double from = 
 /// the rubber — which is why a set of tyres worth a quarter more grip stops
 /// barely two metres shorter and corners a fifth harder. Nothing puts a ceiling
 /// on cornering but the tyres.
-double _peakCornering(Tyres tyres, {String surface = 'asphalt', double from = 25.0}) {
+double _peakCornering(
+  Tyres tyres, {
+  String surface = 'asphalt',
+  double from = 25.0,
+}) {
   final car = _car(tyres, surface: surface);
   final throttle = VehicleInput()..throttle = 1.0;
   for (var step = 0; step < 60 * 30 && car.speed < from; step++) {
@@ -98,8 +106,11 @@ double _peakCornering(Tyres tyres, {String surface = 'asphalt', double from = 25
     final acceleration = (car.velocity - was)..scale(1.0 / _step);
     // Across the car rather than across the world: what a tyre is holding is
     // the sideways force, and the car is turning while it holds it.
-    final forward =
-        Vector3(math.sin(car.headingYaw), 0.0, math.cos(car.headingYaw));
+    final forward = Vector3(
+      math.sin(car.headingYaw),
+      0.0,
+      math.cos(car.headingYaw),
+    );
     final sideways = Vector3(forward.z, 0.0, -forward.x);
     worst = math.max(worst, acceleration.dot(sideways).abs());
   }
@@ -116,10 +127,16 @@ void main() {
       final road = _brakingDistance(Tyres.road);
       final rally = _brakingDistance(Tyres.rally);
 
-      expect(slicks, lessThan(road),
-          reason: 'slicks are ${slicks}m against road tyres\' ${road}m');
-      expect(rally, greaterThan(road),
-          reason: 'rally tyres are ${rally}m against road tyres\' ${road}m');
+      expect(
+        slicks,
+        lessThan(road),
+        reason: 'slicks are ${slicks}m against road tyres\' ${road}m',
+      );
+      expect(
+        rally,
+        greaterThan(road),
+        reason: 'rally tyres are ${rally}m against road tyres\' ${road}m',
+      );
     });
 
     test('and corner harder, which is where the grip actually shows', () {
@@ -132,10 +149,16 @@ void main() {
       final road = _peakCornering(Tyres.road);
       final rally = _peakCornering(Tyres.rally);
 
-      expect(slicks, greaterThan(road * 1.1),
-          reason: 'slicks pull $slicks against road tyres\' $road');
-      expect(rally, lessThan(road * 0.95),
-          reason: 'rally tyres pull $rally against road tyres\' $road');
+      expect(
+        slicks,
+        greaterThan(road * 1.1),
+        reason: 'slicks pull $slicks against road tyres\' $road',
+      );
+      expect(
+        rally,
+        lessThan(road * 0.95),
+        reason: 'rally tyres pull $rally against road tyres\' $road',
+      );
     });
   });
 
@@ -144,8 +167,11 @@ void main() {
       final slicks = _peakCornering(Tyres.slicks, surface: 'grass', from: 15.0);
       final rally = _peakCornering(Tyres.rally, surface: 'grass', from: 15.0);
 
-      expect(rally, greaterThan(slicks * 1.5),
-          reason: 'a car on slicks turns on grass: $slicks against $rally');
+      expect(
+        rally,
+        greaterThan(slicks * 1.5),
+        reason: 'a car on slicks turns on grass: $slicks against $rally',
+      );
     });
 
     test('and on grass the order turns round completely', () {
@@ -154,17 +180,31 @@ void main() {
       // From twenty metres a second: 92.2 m on slicks, 30.6 m on road tyres,
       // 14.5 m on rally tyres. The slicks do not stop so much as run out of
       // speed eventually.
-      final slicks = _brakingDistance(Tyres.slicks, surface: 'grass', from: 20.0);
+      final slicks = _brakingDistance(
+        Tyres.slicks,
+        surface: 'grass',
+        from: 20.0,
+      );
       final road = _brakingDistance(Tyres.road, surface: 'grass', from: 20.0);
       final rally = _brakingDistance(Tyres.rally, surface: 'grass', from: 20.0);
 
-      expect(rally, lessThan(road),
-          reason: 'rally tyres are ${rally}m against road tyres\' ${road}m');
-      expect(slicks, greaterThan(road),
-          reason: 'slicks are ${slicks}m against road tyres\' ${road}m');
-      expect(slicks, greaterThan(rally * 1.5),
-          reason: 'the price of slicks off the road is not worth paying '
-              'attention to: ${slicks}m against ${rally}m');
+      expect(
+        rally,
+        lessThan(road),
+        reason: 'rally tyres are ${rally}m against road tyres\' ${road}m',
+      );
+      expect(
+        slicks,
+        greaterThan(road),
+        reason: 'slicks are ${slicks}m against road tyres\' ${road}m',
+      );
+      expect(
+        slicks,
+        greaterThan(rally * 1.5),
+        reason:
+            'the price of slicks off the road is not worth paying '
+            'attention to: ${slicks}m against ${rally}m',
+      );
     });
   });
 
@@ -172,12 +212,16 @@ void main() {
     // A fast tyre and a forgiving one are not the same axis. Past the peak,
     // slicks keep less of their grip than rally tyres do — which is why one
     // lets go suddenly and the other slides.
-    expect(Tyres.slicks.model.lateralAt(1.2).abs(),
-        lessThan(Tyres.rally.model.lateralAt(1.2).abs()),
-        reason: 'both tyres behave the same once the car is sideways');
-    expect(Tyres.slicks.model.peakSlipAngle,
-        lessThan(Tyres.rally.model.peakSlipAngle),
-        reason: 'the limit arrives at the same place on both');
+    expect(
+      Tyres.slicks.model.lateralAt(1.2).abs(),
+      lessThan(Tyres.rally.model.lateralAt(1.2).abs()),
+      reason: 'both tyres behave the same once the car is sideways',
+    );
+    expect(
+      Tyres.slicks.model.peakSlipAngle,
+      lessThan(Tyres.rally.model.peakSlipAngle),
+      reason: 'the limit arrives at the same place on both',
+    );
   });
 
   group('changing them', () {

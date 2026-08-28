@@ -32,7 +32,7 @@ enum RacePhase {
   /// last is a position rather than a defeat. A game that wants a time limit
   /// grows the losing phase then, and this switch is where it is noticed.
   RunOutcome get outcome => switch (this) {
-        RacePhase.countdown || RacePhase.running => RunOutcome.playing,
-        RacePhase.finished => RunOutcome.won,
-      };
+    RacePhase.countdown || RacePhase.running => RunOutcome.playing,
+    RacePhase.finished => RunOutcome.won,
+  };
 }

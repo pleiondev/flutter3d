@@ -66,10 +66,16 @@ void main() {
     // sliders that set its dead zone. Nothing failed; the screen simply lied.
     final game = File('lib/main.dart').readAsStringSync();
 
-    expect(game, isNot(contains('padConnected: false')),
-        reason: 'the settings panel is being told there is no pad');
-    expect('padConnected: _pad.isConnected'.allMatches(game).length, 2,
-        reason: 'the panel and the pause gate both have to ask');
+    expect(
+      game,
+      isNot(contains('padConnected: false')),
+      reason: 'the settings panel is being told there is no pad',
+    );
+    expect(
+      'padConnected: _pad.isConnected'.allMatches(game).length,
+      2,
+      reason: 'the panel and the pause gate both have to ask',
+    );
   });
 
   test('a driver rebinds a throttle, not a forward', () {
@@ -80,8 +86,11 @@ void main() {
     final table = ownedBindings(config, _keys);
 
     expect(table[InputSource.key(0x77)], _throttle);
-    expect(table.sourcesFor(GameAction.moveForward), isEmpty,
-        reason: 'a racing game bound a walking action');
+    expect(
+      table.sourcesFor(GameAction.moveForward),
+      isEmpty,
+      reason: 'a racing game bound a walking action',
+    );
   });
 
   test('and what they rebind survives a launch', () {
@@ -105,8 +114,10 @@ void main() {
     it.cubit.setVolume(AudioBus.sfx.name, 0.3);
 
     expect(
-      SettingsFile(appName: 'racing', storage: it.storage).read()
-          .volumeOf(AudioBus.sfx.name),
+      SettingsFile(
+        appName: 'racing',
+        storage: it.storage,
+      ).read().volumeOf(AudioBus.sfx.name),
       0.3,
     );
   });

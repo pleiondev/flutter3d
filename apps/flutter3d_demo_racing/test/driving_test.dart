@@ -57,10 +57,10 @@ Bindings _padTable() => Bindings(<InputSource, GameAction>{})
 
 /// What `_readDriver` does with whatever the devices said.
 ({double throttle, double brake, double steer}) _asDriven(InputState input) => (
-      throttle: input.value(_throttle),
-      brake: input.value(_brake),
-      steer: input.value(_right) - input.value(_left),
-    );
+  throttle: input.value(_throttle),
+  brake: input.value(_brake),
+  steer: input.value(_right) - input.value(_left),
+);
 
 void main() {
   test('a trigger a third down is a third of the throttle', () {
@@ -131,12 +131,24 @@ void main() {
     final game = File('lib/main.dart').readAsStringSync();
 
     expect(game, contains(r'_input.value(Drive.throttle)'));
-    expect(game, contains(r'_input.value(Drive.right) - _input.value(Drive.left)'));
-    expect(game, isNot(contains(r'_input.held(Drive.throttle)')),
-        reason: 'the throttle is a switch again');
-    expect(game, contains('PadRoutes.driving('),
-        reason: 'the stick is not routed, so nothing steers from a pad');
-    expect(game, contains('_pad.tick('),
-        reason: 'the pad is built and never polled');
+    expect(
+      game,
+      contains(r'_input.value(Drive.right) - _input.value(Drive.left)'),
+    );
+    expect(
+      game,
+      isNot(contains(r'_input.held(Drive.throttle)')),
+      reason: 'the throttle is a switch again',
+    );
+    expect(
+      game,
+      contains('PadRoutes.driving('),
+      reason: 'the stick is not routed, so nothing steers from a pad',
+    );
+    expect(
+      game,
+      contains('_pad.tick('),
+      reason: 'the pad is built and never polled',
+    );
   });
 }

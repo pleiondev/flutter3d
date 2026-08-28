@@ -53,11 +53,13 @@ const VehicleTuning _tuning = VehicleTuning();
 }
 
 /// A wall across the road, [away] metres ahead.
-void _wallAt(CollisionWorld world, double away) => world.add(Collider(
-      shape: CollisionBox(Vector3(20.0, 4.0, 1.0)),
-      position: Vector3(0.0, 2.0, away),
-      kind: ColliderKind.static,
-    ));
+void _wallAt(CollisionWorld world, double away) => world.add(
+  Collider(
+    shape: CollisionBox(Vector3(20.0, 4.0, 1.0)),
+    position: Vector3(0.0, 2.0, away),
+    kind: ColliderKind.static,
+  ),
+);
 
 void _drive(SphereVehicle car, VehicleInput input, double seconds) {
   for (var step = 0; step < (seconds / _step).round(); step++) {
@@ -98,14 +100,20 @@ void main() {
     final speed = _crashInto(it.car, 30.0);
 
     expect(speed, greaterThan(20.0), reason: 'it never reached the wall');
-    expect(it.car.damage, greaterThan(0.15),
-        reason: 'a shunt at ${speed}m/s cost ${it.car.damage}');
+    expect(
+      it.car.damage,
+      greaterThan(0.15),
+      reason: 'a shunt at ${speed}m/s cost ${it.car.damage}',
+    );
     expect(it.car.struckThisStep, greaterThan(0.0));
 
     // A step edge: it says what happened, not what is.
     it.car.step(_step, VehicleInput());
-    expect(it.car.struckThisStep, 0.0,
-        reason: 'the impact is still being reported a step later');
+    expect(
+      it.car.struckThisStep,
+      0.0,
+      reason: 'the impact is still being reported a step later',
+    );
   });
 
   test('and the harder it hits the more it costs', () {
@@ -117,10 +125,16 @@ void main() {
     _wallAt(fast.world, 160.0);
     final quickly = _crashInto(fast.car, 34.0);
 
-    expect(quickly, greaterThan(slowly * 2.0),
-        reason: 'the two crashes were the same crash: $slowly and $quickly');
-    expect(fast.car.damage, greaterThan(slow.car.damage * 2.0),
-        reason: 'slow ${slow.car.damage}, fast ${fast.car.damage}');
+    expect(
+      quickly,
+      greaterThan(slowly * 2.0),
+      reason: 'the two crashes were the same crash: $slowly and $quickly',
+    );
+    expect(
+      fast.car.damage,
+      greaterThan(slow.car.damage * 2.0),
+      reason: 'slow ${slow.car.damage}, fast ${fast.car.damage}',
+    );
   });
 
   test('and a nudge is free, because a racing line touches things', () {
@@ -162,8 +176,11 @@ void main() {
 
     _drive(it.car, into, 6.0);
 
-    expect(it.car.scrapedThisStep, greaterThan(0.0),
-        reason: 'the car never reached the barrier');
+    expect(
+      it.car.scrapedThisStep,
+      greaterThan(0.0),
+      reason: 'the car never reached the barrier',
+    );
     expect(it.car.damage, greaterThan(0.0));
   });
 
@@ -185,8 +202,11 @@ void main() {
       final fresh = reach(0.0, seconds: 2.0);
       final wrecked = reach(1.0, seconds: 2.0);
 
-      expect(wrecked, lessThan(fresh * 0.9),
-          reason: 'a wreck got ${wrecked}m in two seconds against ${fresh}m');
+      expect(
+        wrecked,
+        lessThan(fresh * 0.9),
+        reason: 'a wreck got ${wrecked}m in two seconds against ${fresh}m',
+      );
     });
 
     test('and has a lower top speed as well', () {
@@ -203,8 +223,11 @@ void main() {
       final fresh = topSpeed(0.0);
       final wrecked = topSpeed(1.0);
 
-      expect(wrecked, lessThan(fresh * 0.85),
-          reason: 'a wreck tops out at $wrecked against a fresh car\'s $fresh');
+      expect(
+        wrecked,
+        lessThan(fresh * 0.85),
+        reason: 'a wreck tops out at $wrecked against a fresh car\'s $fresh',
+      );
     });
 
     test('and still corners and still stops', () {
@@ -227,8 +250,11 @@ void main() {
       }
 
       expect(speed, greaterThan(20.0), reason: 'the wreck never got going');
-      expect(steps / 60.0, lessThan(3.0),
-          reason: 'a wrecked car takes ${steps / 60.0}s to stop');
+      expect(
+        steps / 60.0,
+        lessThan(3.0),
+        reason: 'a wrecked car takes ${steps / 60.0}s to stop',
+      );
     });
   });
 

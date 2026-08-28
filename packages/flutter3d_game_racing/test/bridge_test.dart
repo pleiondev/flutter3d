@@ -109,8 +109,10 @@ void main() {
       final tight = buildRoadMesh(ring(radius: 30.0));
       final open = buildRoadMesh(ring(radius: 300.0));
 
-      final tightPerMetre = positionsOf(tight).length / ring(radius: 30.0).length;
-      final openPerMetre = positionsOf(open).length / ring(radius: 300.0).length;
+      final tightPerMetre =
+          positionsOf(tight).length / ring(radius: 30.0).length;
+      final openPerMetre =
+          positionsOf(open).length / ring(radius: 300.0).length;
 
       expect(tightPerMetre, greaterThan(openPerMetre * 1.5));
     });
@@ -216,8 +218,10 @@ void main() {
       final verge = positionsOf(buildVergeMesh(track, side: -1));
 
       for (var i = 0; i + 1 < verge.length; i += 2) {
-        expect(verge[i].distanceTo(verge[i + 1]),
-            closeTo(track.shoulder, 0.01));
+        expect(
+          verge[i].distanceTo(verge[i + 1]),
+          closeTo(track.shoulder, 0.01),
+        );
       }
     });
 

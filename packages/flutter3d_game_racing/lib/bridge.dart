@@ -67,14 +67,13 @@ MeshData buildRoadMesh(
   TrackSpline track, {
   RoadMeshSettings settings = const RoadMeshSettings(),
   VertexLayout? layout,
-}) =>
-    _ribbon(
-      track,
-      settings,
-      layout,
-      inner: (double s) => -track.widthAt(s) / 2.0,
-      outer: (double s) => track.widthAt(s) / 2.0,
-    );
+}) => _ribbon(
+  track,
+  settings,
+  layout,
+  inner: (double s) => -track.widthAt(s) / 2.0,
+  outer: (double s) => track.widthAt(s) / 2.0,
+);
 
 /// The ground either side of the road, out to where the level takes over.
 ///

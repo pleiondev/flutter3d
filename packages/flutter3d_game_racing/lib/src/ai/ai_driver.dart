@@ -58,8 +58,10 @@ final class AiDriver {
     final at = self.trackDistance;
     final speed = self.speed;
 
-    final lookAhead =
-        math.max(tuning.minLookAhead, speed * tuning.lookAheadPerSpeed);
+    final lookAhead = math.max(
+      tuning.minLookAhead,
+      speed * tuning.lookAheadPerSpeed,
+    );
     final offset = _avoidanceOffset(self, others, at);
 
     // Where to point the car: up the road, and moved over if somebody is there.
@@ -106,8 +108,10 @@ final class AiDriver {
     // And the nudge. A positive gap is the player up the road, which makes the
     // number bigger; the clamp is what keeps it a nudge.
     if (playerGap != 0.0) {
-      final band = (playerGap / 100.0 * tuning.rubberBandPer100m)
-          .clamp(-tuning.rubberBandClamp, tuning.rubberBandClamp);
+      final band = (playerGap / 100.0 * tuning.rubberBandPer100m).clamp(
+        -tuning.rubberBandClamp,
+        tuning.rubberBandClamp,
+      );
       pace *= 1.0 + band;
     }
 
@@ -166,7 +170,6 @@ final class AiDriver {
     if (gap > length / 2) gap -= length;
     return gap;
   }
-
 
   final TrackFrame _frame = TrackFrame();
   final TrackFrame _here = TrackFrame();

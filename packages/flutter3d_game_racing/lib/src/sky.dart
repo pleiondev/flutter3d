@@ -198,7 +198,8 @@ final class SkyPreset {
     }
 
     final toSun = directionToSun;
-    final towards = (direction.x * toSun.x +
+    final towards =
+        (direction.x * toSun.x +
             direction.y * toSun.y +
             direction.z * toSun.z) /
         length;
@@ -242,9 +243,10 @@ final class SkyPreset {
     final toSun = directionToSun;
     final towards =
         (viewDir.x * toSun.x + viewDir.y * toSun.y + viewDir.z * toSun.z) /
-            length;
+        length;
     if (towards <= 0.0) return base;
-    final boost = 1.0 +
+    final boost =
+        1.0 +
         fogBacklitStrength * math.pow(towards, fogBacklitExponent).toDouble();
     return Vector3(base.x * boost, base.y * boost, base.z * boost);
   }
@@ -284,10 +286,14 @@ final class SkyPreset {
       glowWide: number('glowWide', fallback.glowWide),
       glowStrength: number('glowStrength', fallback.glowStrength),
       fogDensity: number('fogDensity', fallback.fogDensity),
-      fogBacklitExponent:
-          number('fogBacklitExponent', fallback.fogBacklitExponent),
-      fogBacklitStrength:
-          number('fogBacklitStrength', fallback.fogBacklitStrength),
+      fogBacklitExponent: number(
+        'fogBacklitExponent',
+        fallback.fogBacklitExponent,
+      ),
+      fogBacklitStrength: number(
+        'fogBacklitStrength',
+        fallback.fogBacklitStrength,
+      ),
       ambientIntensity: number('ambientIntensity', fallback.ambientIntensity),
       exposure: number('exposure', fallback.exposure),
       sunDisc: number('sunDisc', fallback.sunDisc),
