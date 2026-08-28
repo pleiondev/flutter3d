@@ -41,6 +41,20 @@ extension _GltfMesh on GltfLoader {
         continue;
       }
 
+      // **Morph targets load their base shape and are then never applied**,
+      // and said nothing about it — so a mesh authored to open a door, blink or
+      // speak comes back as a model that draws correctly and does not move,
+      // which is the failure that gets chased in the animation code rather than
+      // here. The sibling case already warns: a morph *weight* channel on an
+      // animation says so.
+      final targets = primitive['targets'];
+      if (targets is List && targets.isNotEmpty) {
+        warnings.add(
+          '$label has ${targets.length} morph target(s), which this engine '
+          'does not apply; the base shape is drawn.',
+        );
+      }
+
       if (primitive['extensions'] is Map) {
         final extensions = (primitive['extensions']! as Map).keys;
         for (final name in extensions) {
