@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter3d_game/flutter3d_game.dart' show IssueSink, printIssue;
 
+import 'atomic_write.dart';
 import 'storage.dart';
 
 /// Where this platform keeps a small document belonging to one application.
@@ -129,12 +130,10 @@ final class FileStorage implements Storage {
       final file = _file(name);
       if (where == null || file == null) return false;
       where.createSync(recursive: true);
-      // Through a temporary file and a rename, because the alternative is that a
-      // crash halfway through a write leaves a half-written document that the
-      // next read refuses — turning one lost session into every future one.
-      final temporary = File('${file.path}.new')
-        ..writeAsStringSync(contents, flush: true);
-      temporary.renameSync(file.path);
+      // Through a temporary file and a rename — see [writeFileAtomicallySync],
+      // which is where this now lives because the level editor needed the same
+      // thing and had written the unsafe version instead.
+      writeFileAtomicallySync(file.path, contents);
       return true;
     } catch (error) {
       onIssue('storage: could not write $name ($error)');

@@ -274,6 +274,81 @@ void main() {
     });
   });
 
+  group('redo', () {
+    test('puts back what undo took away', () {
+      // **There was an undo stack and no redo**, which is half a mechanism —
+      // and the cheap half was the one that was missing, because the design
+      // here is whole-document snapshots and going forward is the same
+      // snapshot read the other way.
+      //
+      // Mutation: drop the `_redo.add` in `undo`. There is nothing to go
+      // forward to and the brush stays where undo left it.
+      final editing = _open()..select(Piece.brush, 0);
+
+      editing.nudge(Vector3(4.0, 0.0, 0.0));
+      editing.undo();
+      expect(editing.brush!.centre.x, 0.0);
+      expect(editing.canRedo, isTrue);
+
+      editing.redo();
+
+      expect(editing.brush!.centre.x, 4.0);
+      expect(editing.canRedo, isFalse);
+    });
+
+    test('and a new change makes the old future unreachable', () {
+      // Otherwise redo puts back a document that never followed from what is
+      // on screen.
+      //
+      // Mutation: drop the `_redo.clear()` in `_remember`. The redo below
+      // brings back a nudge the editor has already been taken off.
+      final editing = _open()..select(Piece.brush, 0);
+
+      editing.nudge(Vector3(4.0, 0.0, 0.0));
+      editing.undo();
+      editing.nudge(Vector3(0.0, 1.0, 0.0));
+
+      expect(editing.canRedo, isFalse);
+    });
+
+    test('and does nothing at the front rather than throwing', () {
+      final editing = _open();
+      expect(editing.redo, returnsNormally);
+    });
+  });
+
+  group('what counts as unsaved', () {
+    test('undoing back to the last save is not unsaved work', () {
+      // `undo` set `_dirty = true` unconditionally, so undoing back to the
+      // state that is on the disk still read "— unsaved" in the bar — and now
+      // that closing the window asks, it would have asked a question it
+      // already knew the answer to.
+      //
+      // Mutation: set `_dirty = true` in `_restore`. This fails, and every
+      // close of an undone document raises a dialog for nothing.
+      final editing = _open()..select(Piece.brush, 0);
+      editing.saved();
+
+      editing.nudge(Vector3(4.0, 0.0, 0.0));
+      expect(editing.isDirty, isTrue);
+
+      editing.undo();
+
+      expect(editing.isDirty, isFalse);
+    });
+
+    test('and redoing past it is unsaved again', () {
+      final editing = _open()..select(Piece.brush, 0);
+      editing.saved();
+      editing.nudge(Vector3(4.0, 0.0, 0.0));
+      editing.undo();
+
+      editing.redo();
+
+      expect(editing.isDirty, isTrue);
+    });
+  });
+
   test('and the document knows it has been changed', () {
     final editing = _open()..select(Piece.brush, 0);
     expect(editing.isDirty, isFalse);

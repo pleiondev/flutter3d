@@ -103,7 +103,29 @@ abstract final class Documents {
     return null;
   }
 
-  static bool _isAbsolute(String path) => path.startsWith('/');
+  /// **POSIX only, and said out loud rather than assumed.**
+  ///
+  /// A Windows path — `C:\levels\first.json` — is absolute and this reads it
+  /// as relative, so it would be joined onto every search root and found
+  /// nowhere. That is the whole of what is wrong here, and it costs nothing
+  /// today: this editor is macOS-only ([main.dart] says so in its first
+  /// paragraph, and there is no `windows/` directory in the tree). It is
+  /// written down because this is the file that decides where somebody's work
+  /// is read from and written to, and a silent wrong answer there is the
+  /// expensive kind.
+  ///
+  /// The fix, when there is a Windows build to fix it for, is `package:path`'s
+  /// `Context` rather than more cases here — it is already a transitive
+  /// dependency.
+  static bool _isAbsolute(String path) =>
+      path.startsWith('/') || _hasDriveLetter(path);
+
+  /// `C:\` and `C:/`, which is enough to stop treating one as relative.
+  static bool _hasDriveLetter(String path) =>
+      path.length >= 3 &&
+      (path[1] == ':') &&
+      (path[2] == '/' || path[2] == r'\') &&
+      RegExp('[A-Za-z]').hasMatch(path[0]);
 
   static String? _parent(String path) {
     final at = path.lastIndexOf('/');
