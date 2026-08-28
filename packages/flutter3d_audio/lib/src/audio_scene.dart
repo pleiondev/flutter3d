@@ -174,6 +174,24 @@ final class AudioScene {
     }
 
     _chooseVoices();
+
+    // **A one-shot holding no voice is finished**, which is what the comment
+    // in [_chooseVoices] has always said and what nothing acted on. The
+    // removal at the top of the loop above can only fire for an emitter that
+    // *has* a voice — so a sound played out of earshot never got one, never
+    // lost one, and stayed here for the life of the scene: measured every
+    // frame, and raycast for occlusion every frame. It was invisible in
+    // [voiceCount] too, which counts only emitters with voices, so the number
+    // a game puts on its debug overlay said nothing was wrong.
+    //
+    // The crypt's near sounds carry 26 metres in a level larger than that, so
+    // every grunt, every door and every hit across it accumulated permanently.
+    //
+    // Loops are excluded on purpose: one out of range now may come back into
+    // it, which is the difference between a sound and a source of sound.
+    _emitters.removeWhere(
+      (SoundEmitter emitter) => !emitter.sound.loop && emitter._voice == null,
+    );
   }
 
   /// Fills in [SoundEmitter.audibleGain] and [SoundEmitter.pan].
