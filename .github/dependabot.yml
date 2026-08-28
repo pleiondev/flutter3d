@@ -1,0 +1,29 @@
+# Keeping the two things this repository does not write itself up to date.
+#
+# **Six third-party packages and a handful of actions**, which is the whole
+# external surface — `ARCHITECTURE.md` §1 says dependencies are close to none
+# and means it. That is exactly why this is worth having: a surface that small
+# is one somebody stops looking at, and a pinned action with a known problem
+# sits there for a year because nobody had a reason to open the file.
+#
+# Weekly rather than daily, and grouped, because the point is a pull request
+# somebody reads rather than a stream nobody does.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
+
+  # The workspace resolves one lock file from the root, so that is the only
+  # directory with anything to update.
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dart:
+        patterns: ['*']

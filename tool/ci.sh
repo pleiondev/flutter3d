@@ -67,6 +67,14 @@ step "pub get" flutter pub get
 # traps that test exists to catch.
 step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
 
+# **And the one structure rule that could not fire where the scan runs.** The
+# bundle is gitignored, so a fresh checkout has none and the freshness rule
+# returned "nothing to compare" on the only machine that runs every rule — for
+# as long as it has existed. Asked again here, where the bundle exists. Twelve
+# milliseconds, and the alternative is a rule counted among the twenty that is
+# structurally incapable of failing.
+step "shader freshness" dart run tool/structure.dart --only 'shader bundle'
+
 # The generators reproduce what is committed, or the committed thing is not
 # the thing the generator makes any more. Same rule as the levels and the
 # tracks — this one covers the four applications' icons.
@@ -83,6 +91,25 @@ step "icons" python3 tool/check_icons.py
 # generator that did not quantise its coordinates produces different bytes on a
 # different machine, and this is the step that would say so.
 step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/make_templates.py >/dev/null && git diff --exit-code -- "apps/flutter3d_editor/assets/templates" "apps/flutter3d_demo_dungeon/assets/models"'
+
+# **The levels and the tracks, which `ARCHITECTURE.md` claimed were covered and
+# were not.** §13 says anything a tool produces is regenerated here and diffed;
+# the icons, the models and the WebGL table were, and the six Python generators
+# that write every level document in the repository were not — with their
+# outputs tracked. `apps/flutter3d_demo_racing/test/frame_test.dart` even
+# carries a hand-written note telling a reader to run `make_track.py` after
+# changing a sky preset, which is a manual stand-in for exactly this step.
+#
+# All six are byte-reproducible, which was checked before this was added rather
+# than assumed: a generator that is not is a step that fails on somebody else's
+# machine for a reason that is nobody's fault.
+step "levels" bash -c '
+  set -e
+  (cd apps/flutter3d_demo_dungeon && python3 tool/make_crypt.py >/dev/null && python3 tool/make_vaults.py >/dev/null && python3 tool/make_deep.py >/dev/null)
+  (cd apps/flutter3d_demo_platformer && python3 tool/make_level.py >/dev/null && python3 tool/make_first_steps.py >/dev/null)
+  (cd apps/flutter3d_demo_racing && python3 tool/make_track.py >/dev/null)
+  git diff --exit-code -- "apps/flutter3d_demo_dungeon/assets/levels" "apps/flutter3d_demo_platformer/assets/levels" "apps/flutter3d_demo_racing/assets"
+'
 
 # **The WebGL table is generated and nothing checked that it was current.** Its
 # own header says so — "there is no check that this file is current" — and when

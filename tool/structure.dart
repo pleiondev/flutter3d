@@ -69,7 +69,40 @@ void main(List<String> args) {
     return;
   }
 
-  final unknown = args.where((String a) => a.startsWith('-'));
+  // **`--only`, for the one rule that cannot fire where it is run.** The shader
+  // bundle is gitignored, so a fresh checkout has none — and this scan is the
+  // *first* CI step, before the bundle is built. Its freshness rule therefore
+  // returned "nothing to compare" on the only machine that runs every rule, for
+  // as long as it has existed: a rule that is genuinely useful locally and
+  // structurally incapable of failing where it was counted.
+  //
+  // So CI runs it a second time, after the bundle exists, naming just that one.
+  // Not by moving the whole scan later: finding out that a package imports a
+  // genre after four minutes of building is what being first prevents.
+  final only = <String>[
+    for (var i = 0; i < args.length; i++)
+      if (args[i] == '--only' && i + 1 < args.length) args[i + 1],
+  ];
+  final wanted = only.isEmpty
+      ? allRules
+      : allRules
+            .where((Rule rule) => only.any(rule.name.contains))
+            .toList(growable: false);
+  if (only.isNotEmpty && wanted.isEmpty) {
+    stderr.writeln('no rule matches ${only.join(', ')}\n\n$_usage');
+    exit(2);
+  }
+
+  final consumed = <String>{
+    for (var i = 0; i < args.length; i++)
+      if (args[i] == '--only') ...<String>[
+        args[i],
+        if (i + 1 < args.length) args[i + 1],
+      ],
+  };
+  final unknown = args.where(
+    (String a) => a.startsWith('-') && !consumed.contains(a),
+  );
   if (unknown.isNotEmpty) {
     stderr.writeln('unknown option: ${unknown.first}\n\n$_usage');
     exit(2);
@@ -94,7 +127,7 @@ void main(List<String> args) {
   final failed = <String, List<Finding>>{};
   final started = DateTime.now();
 
-  for (final rule in allRules) {
+  for (final rule in wanted) {
     late final List<Finding> found;
     try {
       found = rule.run();
@@ -120,7 +153,7 @@ void main(List<String> args) {
 
   if (failed.isEmpty) {
     stdout.writeln(
-      '\n${allRules.length} rules, ${elapsed}ms, '
+      '\n${wanted.length} rules, ${elapsed}ms, '
       '${_paint('all held', _green)}',
     );
     return;
@@ -135,7 +168,7 @@ void main(List<String> args) {
     }
     stdout.writeln('');
   }
-  stdout.writeln('${failed.length} of ${allRules.length} rules broken');
+  stdout.writeln('${failed.length} of ${wanted.length} rules broken');
   exit(1);
 }
 
@@ -146,6 +179,10 @@ Every rule about how this repository is arranged.
 
   dart run tool/structure.dart          check everything
   dart run tool/structure.dart --list   name the rules and stop
+  dart run tool/structure.dart --only <text>
+                                        run only rules whose name contains
+                                        <text>, for the one that needs the
+                                        shader bundle and so cannot run first
 
 Needs no `pub get`, no shader bundle and no device: every rule reads source
 text. It is the first step of tool/ci.sh for that reason.

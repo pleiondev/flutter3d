@@ -22,8 +22,8 @@ publish_to: 'none'
 # It lived in flutter3d_impeller until there was a second backend, which is
 # exactly how long that was the right place for it.
 environment:
-  sdk: ^3.10.0
-  flutter: ">=3.44.0"
+  sdk: ^3.12.2
+  flutter: '>=3.47.0'
 
 dependencies:
   flutter:
