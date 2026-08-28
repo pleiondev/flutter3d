@@ -107,7 +107,11 @@ for package in packages/*/; do
   # exit non-zero rather than skip. Two packages lost their only test when the
   # structure rules moved out of them and turned this loop red for having
   # nothing to run.
-  compgen -G "$package/test/*_test.dart" > /dev/null || continue
+  # `find` rather than `compgen -G`, which only ever looked at the top level:
+  # a package whose suite lives in `test/render/` and has nothing beside it
+  # would have been reported green having run nothing at all. No package
+  # nests today, which is exactly why it was worth fixing before one does.
+  [ -n "$(find "$package/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   # Plain Dart, and it is the point of that package that it needs no Flutter.
   if [ "$name" = "flutter3d_physics" ]; then
     step "test $name" in_dir "$package" dart test
@@ -161,12 +165,12 @@ for example in packages/*/example/; do
   # Matched on the files rather than on the directory: an empty `test/` makes
   # `flutter test` exit non-zero rather than skip, and there is one of those in
   # the tree already.
-  compgen -G "$example/test/*_test.dart" > /dev/null || continue
+  [ -n "$(find "$example/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   step "test $(basename "$(dirname "$example")") example" in_dir "$example" flutter test
 done
 
 for app in apps/*/; do
-  compgen -G "$app/test/*_test.dart" > /dev/null || continue
+  [ -n "$(find "$app/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   step "test $(basename "$app")" in_dir "$app" flutter test
 done
 

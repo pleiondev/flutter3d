@@ -30,9 +30,24 @@ Future<void> expectMatchesGolden(
   String path, {
   double tolerance = 0.0,
   String? reason,
+  bool? recordMissing,
 }) async {
+  // **Recording is for a person authoring a test, not for a machine running
+  // one.** A missing file used to be recorded and *passed*, which is right
+  // locally and wrong in CI: a mistyped path, a gitignored directory or a
+  // fresh worktree then turns every golden into a test that writes its own
+  // answer and agrees with it. `CI` is what every runner sets, and a caller
+  // that knows better can say so.
+  final record =
+      recordMissing ?? !const bool.fromEnvironment('CI', defaultValue: false);
   final file = File(path);
   if (!file.existsSync()) {
+    if (!record) {
+      fail(
+        'no golden at $path, and this is a CI run — recording one here would '
+        'be the test writing its own answer. Record it locally and commit it.',
+      );
+    }
     file.parent.createSync(recursive: true);
     file.writeAsBytesSync(encodePng(frame.pixels, frame.width, frame.height));
     // Deliberately not a failure. A first run has nothing to compare against,
@@ -48,15 +63,16 @@ Future<void> expectMatchesGolden(
 
   final expected = await _readPng(file);
   expect(
-    frame.pixels.length,
-    expected.length,
+    <int>[frame.width, frame.height],
+    <int>[expected.width, expected.height],
     reason:
         'the frame and $path are different sizes — the golden was recorded '
         'at another resolution, so re-record it rather than reading anything '
-        'into the pixels',
+        'into the pixels. Compared as width and height rather than as a byte '
+        'count, which a transposed frame passes.',
   );
 
-  final difference = compareFrames(frame.pixels, expected);
+  final difference = compareFrames(frame.pixels, expected.pixels);
   expect(
     difference.percent,
     lessThanOrEqualTo(tolerance),
@@ -68,13 +84,28 @@ Future<void> expectMatchesGolden(
   );
 }
 
-/// The reference image as RGBA bytes.
-Future<Uint8List> _readPng(File file) async {
+/// The reference image as RGBA bytes, with the size it was recorded at.
+///
+/// The size comes back because comparing byte counts is not comparing sizes: a
+/// 480 × 360 golden and a 360 × 480 frame hold the same number of bytes, pass
+/// that check, and then diff as though every row were shifted.
+Future<({Uint8List pixels, int width, int height})> _readPng(File file) async {
   final codec = await ui.instantiateImageCodec(file.readAsBytesSync());
   final image = (await codec.getNextFrame()).image;
-  final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-  if (data == null) {
-    throw StateError('${file.path} could not be read as RGBA');
+  try {
+    final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    if (data == null) {
+      throw StateError('${file.path} could not be read as RGBA');
+    }
+    return (
+      pixels: data.buffer.asUint8List(),
+      width: image.width,
+      height: image.height,
+    );
+  } finally {
+    // A `ui.Image` holds bytes outside the Dart heap, and a suite comparing
+    // thirty goldens leaked thirty of them. `texture_upload.dart` is careful
+    // about exactly this one call.
+    image.dispose();
   }
-  return data.buffer.asUint8List();
 }
