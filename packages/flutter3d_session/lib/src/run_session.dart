@@ -115,6 +115,26 @@ abstract base class RunSession<L> {
   /// Called by [restart] and by [begin] when there is nothing to resume.
   void startFresh() {}
 
+  /// Lets go of a level that is being left. Nothing by default.
+  ///
+  /// **There was no such hook**, and its absence is what made a level change
+  /// leak: the whole surface here was about building a level and reading how
+  /// it was going, and nothing ever told a game that the last one was over.
+  /// The scene nodes, the uploaded meshes, the actor visuals and the
+  /// registered step systems all stayed built, and the next level added its
+  /// own beside them.
+  ///
+  /// Called at two moments, both of which are "this level will never be seen
+  /// again": on the level being left, once the next one has started loading;
+  /// and on a level that finished loading only to find a newer load had
+  /// started while it was reading — see [load], where dropping that one on the
+  /// floor used to be the only option.
+  ///
+  /// Not called for a level the player is coming back to, because there is no
+  /// such thing here: [restart] reads the document again rather than rewinding
+  /// what is in memory.
+  void close(L level) {}
+
   /// What a game does about a run that ended badly. Nothing by default.
   ///
   /// **The two genres disagree here and both are right.** A platformer has
@@ -165,17 +185,45 @@ abstract base class RunSession<L> {
   /// [resume] is a run to put back into it, and is only ever a snapshot saved
   /// from *this* level — [SaveFile] stores the two together for that reason.
   Future<void> load(String asset, {Snapshot? resume}) async {
+    // **Which load this is.** `_movingOn` guarded `advance` and nothing else,
+    // so a restart pressed during a slow load — or a second `load` from an
+    // application's own code — ran two `open` calls at once, and whichever
+    // finished second won. The loser was a fully built level: colliders, scene
+    // nodes, uploaded meshes, registered systems, all dropped on the floor
+    // with no way to reclaim them, which is the leak `close` exists for.
+    final generation = ++_loadGeneration;
+
+    final leaving = switch (_status) {
+      RunPlaying<L>(:final level) => level,
+      _ => null,
+    };
     _emit(RunLoading<L>(asset: asset));
+    // Before the read rather than after it, so two levels are never alive at
+    // once. The status is already `RunLoading`, so nothing is drawing this one.
+    if (leaving != null) close(leaving);
+
     try {
       final level = await open(asset);
+      if (generation != _loadGeneration) {
+        // A newer load started while this one was reading, and its level is
+        // the one the player will see. Finish with this one rather than
+        // dropping it, and emit nothing — a stale load publishing its status
+        // would put the newer one's screen back to this one's.
+        close(level);
+        return;
+      }
       if (resume != null) restoreInto(level, resume);
       _movingOn = false;
       _emit(RunPlaying<L>(asset, level));
     } catch (error, trace) {
+      if (generation != _loadGeneration) return;
       debugPrint('level: could not load $asset: $error\n$trace');
       _emit(RunFailed<L>(asset, error));
     }
   }
+
+  /// Counts loads, so one that finishes late can tell it has been overtaken.
+  int _loadGeneration = 0;
 
   /// Reads how the run is going and republishes it if it changed.
   ///

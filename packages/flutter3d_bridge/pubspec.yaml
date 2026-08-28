@@ -28,6 +28,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # For `FakeBackend`, which is what lets the teardown tests assert that
+  # uploaded meshes are actually handed back rather than merely forgotten.
+  # A dev dependency: nothing in `lib/` names the hardware layer, and the
+  # engine is what this package draws through.
+  flutter3d_hardware: ^0.3.0
   # A `GraphicsDevice` with no GPU under it, so this package's own loader can be
   # run in a test — which until now it never was.
   flutter3d_cpu: ^0.3.0

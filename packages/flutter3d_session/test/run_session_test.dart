@@ -87,6 +87,12 @@ final class _Game extends RunSession<_Level> {
 
   @override
   void startFresh() => freshened++;
+
+  /// Levels this game was told it would never see again, in order.
+  final List<_Level> closed = <_Level>[];
+
+  @override
+  void close(_Level level) => closed.add(level);
 }
 
 _Game _game() => _Game(
@@ -322,6 +328,58 @@ void main() {
       game.observe();
 
       expect(game.isOver, isTrue);
+    });
+  });
+
+  group('letting go of a level', () {
+    test('the one being left is closed, and before the next is read', () async {
+      // **There was no such hook at all**, which is what made a level change
+      // leak: nothing ever told a game that the last level was over, so its
+      // scene nodes, uploaded meshes and registered systems stayed built while
+      // the next level added its own beside them.
+      //
+      // Before the read rather than after, so two levels are never alive at
+      // once — by then the status is `RunLoading` and nothing is drawing the
+      // old one.
+      //
+      // Mutation: stop calling `close` in `load`. The list stays empty and a
+      // game has no moment at which to release anything.
+      final game = _game();
+      await game.begin();
+      final first = (game.status as RunPlaying<_Level>).level;
+
+      await game.load('two');
+
+      expect(game.closed, <_Level>[first]);
+    });
+
+    test('a load overtaken by a newer one lets go of what it built', () async {
+      // `_movingOn` guarded `advance` and nothing else, so a restart pressed
+      // during a slow load ran two `open` calls at once and the loser — a
+      // fully built level — was dropped on the floor with no way to reclaim
+      // it. It also used to publish its status on the way past, putting the
+      // newer load's screen back to its own.
+      //
+      // Mutation: drop the generation check after the `await`. The stale load
+      // emits `RunPlaying('two')` over the newer one and closes nothing.
+      final game = _game();
+      await game.begin();
+
+      final gate = Completer<void>();
+      game.gate = gate;
+      final overtaken = game.load('two');
+
+      game.gate = null;
+      await game.load('one');
+
+      gate.complete();
+      await overtaken;
+
+      expect((game.status as RunPlaying<_Level>).asset, 'one');
+      expect(game.closed.map((_Level it) => it.name), <String>[
+        'one',
+        'two',
+      ], reason: 'the level left behind, then the one the race lost');
     });
   });
 }
