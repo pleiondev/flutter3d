@@ -41,7 +41,7 @@ import 'sound.dart';
 /// a single call site.
 final class SoundBank extends Iterable<SoundDef> {
   SoundBank(Iterable<SoundDef> sounds)
-      : sounds = List<SoundDef>.unmodifiable(sounds) {
+    : sounds = List<SoundDef>.unmodifiable(sounds) {
     final seen = <String>{};
     for (final sound in this.sounds) {
       if (!seen.add(sound.name)) {

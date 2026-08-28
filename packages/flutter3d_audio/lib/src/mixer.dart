@@ -85,8 +85,8 @@ final class Mixer {
   Iterable<AudioBus> get configured => _volumes.keys;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        for (final name in _volumes.keys.map((AudioBus b) => b.name).toList()
-          ..sort())
-          name: volumeOf(AudioBus(name)),
-      };
+    for (final name
+        in _volumes.keys.map((AudioBus b) => b.name).toList()..sort())
+      name: volumeOf(AudioBus(name)),
+  };
 }

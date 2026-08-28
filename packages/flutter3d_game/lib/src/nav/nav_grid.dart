@@ -60,9 +60,9 @@ final class NavGrid {
     required Float32List floor,
     required Float32List headroom,
     required Uint8List clearance,
-  })  : _floor = floor,
-        _headroom = headroom,
-        _clearance = clearance;
+  }) : _floor = floor,
+       _headroom = headroom,
+       _clearance = clearance;
 
   /// The world position of the corner of cell `(0, 0)`.
   final double originX;
@@ -218,13 +218,25 @@ final class NavGrid {
       final brush = solid[b];
       // A boundary hit exactly is a zero-width overlap, which is not one.
       final x0 = _clampInt(
-          (((brush.min.x - minX) / cellSize) + Tolerance.gridBias).floor(), 0, columns - 1);
+        (((brush.min.x - minX) / cellSize) + Tolerance.gridBias).floor(),
+        0,
+        columns - 1,
+      );
       final x1 = _clampInt(
-          (((brush.max.x - minX) / cellSize) - Tolerance.gridBias).floor(), 0, columns - 1);
+        (((brush.max.x - minX) / cellSize) - Tolerance.gridBias).floor(),
+        0,
+        columns - 1,
+      );
       final z0 = _clampInt(
-          (((brush.min.z - minZ) / cellSize) + Tolerance.gridBias).floor(), 0, rows - 1);
+        (((brush.min.z - minZ) / cellSize) + Tolerance.gridBias).floor(),
+        0,
+        rows - 1,
+      );
       final z1 = _clampInt(
-          (((brush.max.z - minZ) / cellSize) - Tolerance.gridBias).floor(), 0, rows - 1);
+        (((brush.max.z - minZ) / cellSize) - Tolerance.gridBias).floor(),
+        0,
+        rows - 1,
+      );
       for (var cz = z0; cz <= z1; cz++) {
         final row = cz * columns;
         for (var cx = x0; cx <= x1; cx++) {
@@ -304,20 +316,23 @@ final class NavGrid {
       // open sky is just a room with a roof, and there is nothing to report.
       if (enclosed >= 2) {
         ambiguous++;
-        firstAmbiguous ??= '(${px.toStringAsFixed(2)}, '
+        firstAmbiguous ??=
+            '(${px.toStringAsFixed(2)}, '
             '${pz.toStringAsFixed(2)})';
       }
     }
 
     if (ambiguous > 0 && issues != null) {
-      issues.add(LevelIssue(
-        LevelIssueSeverity.warning,
-        '$ambiguous navigation ${ambiguous == 1 ? 'column has' : 'columns '
-            'have'} more than one enclosed surface; the grid keeps the lowest, '
-            'so nothing will path across the upper one. First at '
-            '$firstAmbiguous.',
-        where: 'navigation',
-      ));
+      issues.add(
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          '$ambiguous navigation ${ambiguous == 1 ? 'column has' : 'columns '
+                    'have'} more than one enclosed surface; the grid keeps the lowest, '
+          'so nothing will path across the upper one. First at '
+          '$firstAmbiguous.',
+          where: 'navigation',
+        ),
+      );
     }
 
     return NavGrid._(
@@ -331,8 +346,14 @@ final class NavGrid {
       maxFall: maxFall,
       floor: floor,
       headroom: headroom,
-      clearance: _clearances(floor, headroom, columns, rows, stepHeight,
-          maxFall),
+      clearance: _clearances(
+        floor,
+        headroom,
+        columns,
+        rows,
+        stepHeight,
+        maxFall,
+      ),
     );
   }
 

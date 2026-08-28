@@ -30,8 +30,8 @@ final class CatmullRom {
     this.closed = true,
     this.tension = 0.5,
     int samplesPerSegment = 16,
-  })  : _samplesPerSegment = samplesPerSegment,
-        _points = [for (final point in points) point.clone()] {
+  }) : _samplesPerSegment = samplesPerSegment,
+       _points = [for (final point in points) point.clone()] {
     final minimum = closed ? 3 : 2;
     if (_points.length < minimum) {
       throw ArgumentError.value(
@@ -176,7 +176,11 @@ final class CatmullRom {
   ///
   /// Use [closestSGlobal] when there is no previous answer to anchor to: a
   /// spawn, a respawn, a car dropped in by an editor.
-  double closestS(Vector3 point, {required double nearS, double window = 30.0}) {
+  double closestS(
+    Vector3 point, {
+    required double nearS,
+    double window = 30.0,
+  }) {
     if (_length <= 0.0) return 0.0;
     if (window <= 0.0) return wrap(nearS);
     if (closed && window * 2.0 >= _length) return closestSGlobal(point);
@@ -378,9 +382,18 @@ final class CatmullRom {
     final h11 = t3 - t2;
 
     out.setValues(
-      h00 * p1.x + h10 * tension * (p2.x - p0.x) + h01 * p2.x + h11 * tension * (p3.x - p1.x),
-      h00 * p1.y + h10 * tension * (p2.y - p0.y) + h01 * p2.y + h11 * tension * (p3.y - p1.y),
-      h00 * p1.z + h10 * tension * (p2.z - p0.z) + h01 * p2.z + h11 * tension * (p3.z - p1.z),
+      h00 * p1.x +
+          h10 * tension * (p2.x - p0.x) +
+          h01 * p2.x +
+          h11 * tension * (p3.x - p1.x),
+      h00 * p1.y +
+          h10 * tension * (p2.y - p0.y) +
+          h01 * p2.y +
+          h11 * tension * (p3.y - p1.y),
+      h00 * p1.z +
+          h10 * tension * (p2.z - p0.z) +
+          h01 * p2.z +
+          h11 * tension * (p3.z - p1.z),
     );
   }
 
@@ -398,9 +411,18 @@ final class CatmullRom {
     final h11 = 3.0 * t2 - 2.0 * t;
 
     out.setValues(
-      h00 * p1.x + h10 * tension * (p2.x - p0.x) + h01 * p2.x + h11 * tension * (p3.x - p1.x),
-      h00 * p1.y + h10 * tension * (p2.y - p0.y) + h01 * p2.y + h11 * tension * (p3.y - p1.y),
-      h00 * p1.z + h10 * tension * (p2.z - p0.z) + h01 * p2.z + h11 * tension * (p3.z - p1.z),
+      h00 * p1.x +
+          h10 * tension * (p2.x - p0.x) +
+          h01 * p2.x +
+          h11 * tension * (p3.x - p1.x),
+      h00 * p1.y +
+          h10 * tension * (p2.y - p0.y) +
+          h01 * p2.y +
+          h11 * tension * (p3.y - p1.y),
+      h00 * p1.z +
+          h10 * tension * (p2.z - p0.z) +
+          h01 * p2.z +
+          h11 * tension * (p3.z - p1.z),
     );
   }
 
@@ -417,9 +439,18 @@ final class CatmullRom {
     final h11 = 6.0 * t - 2.0;
 
     out.setValues(
-      h00 * p1.x + h10 * tension * (p2.x - p0.x) + h01 * p2.x + h11 * tension * (p3.x - p1.x),
-      h00 * p1.y + h10 * tension * (p2.y - p0.y) + h01 * p2.y + h11 * tension * (p3.y - p1.y),
-      h00 * p1.z + h10 * tension * (p2.z - p0.z) + h01 * p2.z + h11 * tension * (p3.z - p1.z),
+      h00 * p1.x +
+          h10 * tension * (p2.x - p0.x) +
+          h01 * p2.x +
+          h11 * tension * (p3.x - p1.x),
+      h00 * p1.y +
+          h10 * tension * (p2.y - p0.y) +
+          h01 * p2.y +
+          h11 * tension * (p3.y - p1.y),
+      h00 * p1.z +
+          h10 * tension * (p2.z - p0.z) +
+          h01 * p2.z +
+          h11 * tension * (p3.z - p1.z),
     );
   }
 

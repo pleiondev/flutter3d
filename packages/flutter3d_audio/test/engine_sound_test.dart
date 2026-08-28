@@ -24,7 +24,8 @@ const SoundDef _high = SoundDef(
   return (
     loop: BlendedLoop(
       scene: scene,
-      bands: bands ??
+      bands:
+          bands ??
           const <LoopBand>[
             LoopBand(sound: _low, centre: 0.3, width: 0.45),
             LoopBand(sound: _high, centre: 0.8, width: 0.45),

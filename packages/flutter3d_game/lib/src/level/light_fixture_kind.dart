@@ -62,7 +62,8 @@ final class LightFixtureKind extends EntityKind {
         behaviour: _behaviourFor(entity),
         // From the position, so a row of torches never pulses in unison and
         // an author never has to remember to stagger them by hand.
-        seed: entity.number('phase') ??
+        seed:
+            entity.number('phase') ??
             (entity.position.x * 0.37 + entity.position.z * 0.11) % 1.0,
         enabled: entity.flag('on', orElse: true),
       ),

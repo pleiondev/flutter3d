@@ -33,7 +33,12 @@ final class WeaponShot {
   /// projectile, which lands later.
   final List<ShotHit> hits = <ShotHit>[];
 
-  void begin(WeaponDef weapon, Vector3 origin, Vector3 aim, {Collider? shooter}) {
+  void begin(
+    WeaponDef weapon,
+    Vector3 origin,
+    Vector3 aim, {
+    Collider? shooter,
+  }) {
     this.weapon = weapon;
     this.origin.setFrom(origin);
     this.aim.setFrom(aim);

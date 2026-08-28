@@ -18,12 +18,9 @@ import 'storage/storage.dart';
 /// documented assumption rather than a dependency, and it keeps this testable
 /// with a map in memory.
 final class SettingsFile {
-  SettingsFile({
-    required this.appName,
-    Storage? storage,
-    IssueSink? onIssue,
-  })  : onIssue = onIssue ?? printIssue,
-        storage = storage ?? defaultStorage(appName, onIssue: onIssue);
+  SettingsFile({required this.appName, Storage? storage, IssueSink? onIssue})
+    : onIssue = onIssue ?? printIssue,
+      storage = storage ?? defaultStorage(appName, onIssue: onIssue);
 
   /// Which game this is. Two applications sharing one document would have each
   /// overwrite the other's bindings, and finding that out takes a while because
@@ -68,9 +65,9 @@ final class SettingsFile {
   /// Indented, because this is a document a player may open and edit by hand —
   /// which `GameConfig.fromJson` is written to survive.
   bool write(GameConfig config) => storage.write(
-        _name,
-        const JsonEncoder.withIndent('  ').convert(config.toJson()),
-      );
+    _name,
+    const JsonEncoder.withIndent('  ').convert(config.toJson()),
+  );
 
   /// Forgets everything the player has changed.
   void clear() => storage.remove(_name);

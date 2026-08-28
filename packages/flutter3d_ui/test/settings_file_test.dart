@@ -9,7 +9,8 @@ library;
 
 import 'dart:io';
 
-import 'package:flutter3d_game/flutter3d_game.dart' show GameConfig, InputSource, GameAction;
+import 'package:flutter3d_game/flutter3d_game.dart'
+    show GameConfig, InputSource, GameAction;
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -53,7 +54,9 @@ void main() {
     // or a hand edit that lost a brace, then bricks the game permanently —
     // every launch reads the same broken file and dies the same way.
     temporary.createSync(recursive: true);
-    File('${temporary.path}/settings.json').writeAsStringSync('{ this is not json');
+    File(
+      '${temporary.path}/settings.json',
+    ).writeAsStringSync('{ this is not json');
 
     final config = settings.read();
     expect(config.volumeOf('master'), 1.0);
@@ -61,7 +64,9 @@ void main() {
 
   test('a document that is valid json but the wrong shape is defaults too', () {
     temporary.createSync(recursive: true);
-    File('${temporary.path}/settings.json').writeAsStringSync('["a list, not an object"]');
+    File(
+      '${temporary.path}/settings.json',
+    ).writeAsStringSync('["a list, not an object"]');
 
     expect(settings.read().bindings.length, 0);
   });

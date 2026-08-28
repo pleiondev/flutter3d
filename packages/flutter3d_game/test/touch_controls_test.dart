@@ -17,9 +17,9 @@ import 'package:flutter_test/flutter_test.dart';
 const GameAction _dash = GameAction('dash');
 
 Widget _wrap(Widget child) => Directionality(
-      textDirection: TextDirection.ltr,
-      child: Align(alignment: Alignment.topLeft, child: child),
-    );
+  textDirection: TextDirection.ltr,
+  child: Align(alignment: Alignment.topLeft, child: child),
+);
 
 void main() {
   group('a thumb stick', () {
@@ -43,8 +43,9 @@ void main() {
       final input = InputState();
       await tester.pumpWidget(_wrap(TouchStick(state: input, radius: 50)));
 
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.byType(TouchStick)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(TouchStick)),
+      );
       await gesture.moveBy(const Offset(25, 0));
       await tester.pump();
 
@@ -63,8 +64,9 @@ void main() {
       final input = InputState();
       await tester.pumpWidget(_wrap(TouchStick(state: input, radius: 50)));
 
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.byType(TouchStick)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(TouchStick)),
+      );
       await gesture.moveBy(const Offset(80, -80));
       await tester.pump();
 
@@ -75,8 +77,9 @@ void main() {
       final input = InputState();
       await tester.pumpWidget(_wrap(TouchStick(state: input, radius: 50)));
 
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.byType(TouchStick)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(TouchStick)),
+      );
       await gesture.moveBy(const Offset(0, -50));
       await tester.pump();
       await gesture.up();
@@ -93,8 +96,9 @@ void main() {
       final input = InputState();
       await tester.pumpWidget(_wrap(TouchStick(state: input, radius: 50)));
 
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.byType(TouchStick)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(TouchStick)),
+      );
       await gesture.moveBy(const Offset(0, -50));
       await tester.pump();
       await gesture.cancel();
@@ -121,8 +125,11 @@ void main() {
       await other.moveBy(const Offset(50, 0));
       await tester.pump();
 
-      expect(input.moveAxis.y, closeTo(1.0, 1e-6),
-          reason: 'the second finger stole the stick');
+      expect(
+        input.moveAxis.y,
+        closeTo(1.0, 1e-6),
+        reason: 'the second finger stole the stick',
+      );
     });
   });
 
@@ -131,12 +138,15 @@ void main() {
       WidgetTester tester,
     ) async {
       final input = InputState();
-      await tester.pumpWidget(_wrap(
-        TouchButton(state: input, action: _dash, label: 'dash', radius: 30),
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          TouchButton(state: input, action: _dash, label: 'dash', radius: 30),
+        ),
+      );
 
-      final gesture =
-          await tester.startGesture(tester.getCenter(find.byType(TouchButton)));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(TouchButton)),
+      );
       await tester.pump();
       expect(input.pressed(_dash), isTrue);
       expect(input.held(_dash), isTrue);
@@ -149,9 +159,11 @@ void main() {
 
     testWidgets('and says what it does', (WidgetTester tester) async {
       final input = InputState();
-      await tester.pumpWidget(_wrap(
-        TouchButton(state: input, action: _dash, label: 'dash', radius: 30),
-      ));
+      await tester.pumpWidget(
+        _wrap(
+          TouchButton(state: input, action: _dash, label: 'dash', radius: 30),
+        ),
+      );
 
       expect(find.text('dash'), findsOneWidget);
     });
@@ -162,19 +174,21 @@ void main() {
       // The reason both controls track their own pointer, checked end to end
       // through the widget a game actually mounts.
       final input = InputState();
-      await tester.pumpWidget(_wrap(
-        SizedBox(
-          width: 800,
-          height: 600,
-          child: TouchControls(
-            state: input,
-            buttons: const <TouchAction>[
-              TouchAction(GameAction.jump, 'jump'),
-              TouchAction(_dash, 'dash'),
-            ],
+      await tester.pumpWidget(
+        _wrap(
+          SizedBox(
+            width: 800,
+            height: 600,
+            child: TouchControls(
+              state: input,
+              buttons: const <TouchAction>[
+                TouchAction(GameAction.jump, 'jump'),
+                TouchAction(_dash, 'dash'),
+              ],
+            ),
           ),
         ),
-      ));
+      );
 
       final walking = await tester.startGesture(
         tester.getCenter(find.byType(TouchStick)),

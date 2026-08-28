@@ -44,8 +44,11 @@ void main() {
     expect(it.player.isCrouching, isTrue);
     expect(it.player.body.halfExtents.y, lessThan(standing));
     it.player.eye(eye);
-    expect(eye.y, lessThan(standingEye),
-        reason: 'the view stayed where the head used to be');
+    expect(
+      eye.y,
+      lessThan(standingEye),
+      reason: 'the view stayed where the head used to be',
+    );
 
     // **The claim that a mutation asked for.** Dropping the body alone lowers
     // the eye a little, because the feet stay put and the centre comes down —
@@ -53,8 +56,11 @@ void main() {
     // and leaves the view floating above a crouched head. What has to be true
     // is that the eye is inside the body it belongs to.
     final crown = it.player.body.position.y + it.player.body.halfExtents.y;
-    expect(eye.y, lessThanOrEqualTo(crown),
-        reason: 'the eye is above the head it is in');
+    expect(
+      eye.y,
+      lessThanOrEqualTo(crown),
+      reason: 'the eye is above the head it is in',
+    );
   });
 
   test('and the feet stay on the floor', () {
@@ -98,8 +104,11 @@ void main() {
     it.player.crouch(held: false);
 
     expect(it.player.isCrouching, isTrue, reason: 'it stood up into the rock');
-    expect(it.player.wantsToStand, isTrue,
-        reason: 'nothing recorded that it is still trying');
+    expect(
+      it.player.wantsToStand,
+      isTrue,
+      reason: 'nothing recorded that it is still trying',
+    );
   });
 
   test('and it keeps trying, so the crawlspace lets go at the far end', () {
@@ -132,8 +141,11 @@ void main() {
     it.player.crouch(held: true);
 
     expect(it.player.crouchThrottle, lessThan(1.0));
-    expect(it.player.crouchThrottle, greaterThan(0.0),
-        reason: 'a crouch that cannot move at all is a stop, not a crouch');
+    expect(
+      it.player.crouchThrottle,
+      greaterThan(0.0),
+      reason: 'a crouch that cannot move at all is a stop, not a crouch',
+    );
   });
 
   test('and a save remembers it', () {
@@ -147,7 +159,9 @@ void main() {
     final loaded = _room().player..restore(saved);
 
     expect(loaded.isCrouching, isTrue);
-    expect(loaded.body.halfExtents.y,
-        closeTo(it.player.body.halfExtents.y, 1e-6));
+    expect(
+      loaded.body.halfExtents.y,
+      closeTo(it.player.body.halfExtents.y, 1e-6),
+    );
   });
 }

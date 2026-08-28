@@ -36,8 +36,9 @@ import 'pad_snapshot.dart';
 /// simulation cannot take a value that is stale by an unknown amount.
 final class MethodChannelGamepad extends GamepadPlatform {
   @visibleForTesting
-  final EventChannel eventChannel =
-      const EventChannel('dev.flutter3d/gamepad/events');
+  final EventChannel eventChannel = const EventChannel(
+    'dev.flutter3d/gamepad/events',
+  );
 
   /// Platforms with a native implementation.
   ///
@@ -57,8 +58,9 @@ final class MethodChannelGamepad extends GamepadPlatform {
   /// catching them natively would be a second source of truth for one event.
   /// `GameController` has no such path and reports everything through the
   /// plugin.
-  static const Set<TargetPlatform> _buttonsThroughKeyboard =
-      <TargetPlatform>{TargetPlatform.android};
+  static const Set<TargetPlatform> _buttonsThroughKeyboard = <TargetPlatform>{
+    TargetPlatform.android,
+  };
 
   @override
   bool get isSupported => !kIsWeb && _supported.contains(defaultTargetPlatform);

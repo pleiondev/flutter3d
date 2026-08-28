@@ -149,14 +149,17 @@ void main() {
       expect(input.moveAxis.length, closeTo(1.0, _float32Epsilon));
     });
 
-    test('survives a step boundary, because it is a condition not an event', () {
-      input.press(GameAction.moveForward);
+    test(
+      'survives a step boundary, because it is a condition not an event',
+      () {
+        input.press(GameAction.moveForward);
 
-      input.beginStep();
-      input.endStep();
+        input.beginStep();
+        input.endStep();
 
-      expect(input.moveAxis.y, 1.0);
-    });
+        expect(input.moveAxis.y, 1.0);
+      },
+    );
   });
 
   group('view movement', () {
@@ -265,15 +268,22 @@ void main() {
       // implies the other.
       final input = InputState()..setActionValue(GameAction.sprint, 0.9);
 
-      expect(input.held(GameAction.sprint), isFalse,
-          reason: 'a magnitude decided what "pressed" means, which is the '
-              "game's decision and not the device's");
+      expect(
+        input.held(GameAction.sprint),
+        isFalse,
+        reason:
+            'a magnitude decided what "pressed" means, which is the '
+            "game's decision and not the device's",
+      );
 
       input
         ..press(GameAction.sprint)
         ..setActionValue(GameAction.sprint, 0.0);
-      expect(input.held(GameAction.sprint), isTrue,
-          reason: 'a trigger returning to rest released the action by itself');
+      expect(
+        input.held(GameAction.sprint),
+        isTrue,
+        reason: 'a trigger returning to rest released the action by itself',
+      );
     });
 
     test('it survives a step, because it is a condition and not an event', () {
@@ -392,8 +402,11 @@ void main() {
         ..press(GameAction.sprint)
         ..release(GameAction.sprint);
 
-      expect(input.held(GameAction.sprint), isTrue,
-          reason: 'the release is what a latch is for ignoring');
+      expect(
+        input.held(GameAction.sprint),
+        isTrue,
+        reason: 'the release is what a latch is for ignoring',
+      );
     });
 
     test('and the next press turns it off', () {
@@ -406,8 +419,11 @@ void main() {
         ..release(GameAction.sprint);
 
       expect(input.held(GameAction.sprint), isFalse);
-      expect(input.released(GameAction.sprint), isTrue,
-          reason: 'a simulation watching for the edge still sees one');
+      expect(
+        input.released(GameAction.sprint),
+        isTrue,
+        reason: 'a simulation watching for the edge still sees one',
+      );
     });
 
     test('and it latches from whichever device pressed it', () {

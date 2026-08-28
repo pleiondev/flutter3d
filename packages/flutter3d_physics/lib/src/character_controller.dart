@@ -121,7 +121,9 @@ final class CharacterController {
   /// [ground] rather than folded into it, because a lift asks whether anybody
   /// is riding it and every brush in the level would answer yes.
   Collider? get groundBody =>
-      _ground != null && _ground!.kind == ColliderKind.kinematic ? _ground : null;
+      _ground != null && _ground!.kind == ColliderKind.kinematic
+      ? _ground
+      : null;
 
   /// How many separate surfaces the last step slid along.
   ///
@@ -246,7 +248,8 @@ final class CharacterController {
       position.z,
     );
 
-    final grows = will.x > was.x + Nearly.same ||
+    final grows =
+        will.x > was.x + Nearly.same ||
         will.y > was.y + Nearly.same ||
         will.z > was.z + Nearly.same;
     if (grows) {
@@ -560,8 +563,14 @@ final class CharacterController {
   /// Returns whether the whole offset was travelled.
   bool _moveAxisSwept(Vector3 point, double dx, double dy, double dz) {
     _probe.setValues(dx, dy, dz);
-    if (!world.sweep(shape, point, _probe, _hit,
-        ignore: collider, allow: solidFilter)) {
+    if (!world.sweep(
+      shape,
+      point,
+      _probe,
+      _hit,
+      ignore: collider,
+      allow: solidFilter,
+    )) {
       point.add(_probe);
       return true;
     }
@@ -588,8 +597,14 @@ final class CharacterController {
     for (var pass = 0; pass < 3; pass++) {
       if (delta.x == 0.0 && delta.y == 0.0 && delta.z == 0.0) break;
 
-      if (!world.sweep(shape, point, delta, _hit,
-          ignore: collider, allow: solidFilter)) {
+      if (!world.sweep(
+        shape,
+        point,
+        delta,
+        _hit,
+        ignore: collider,
+        allow: solidFilter,
+      )) {
         point.add(delta);
         delta.setZero();
         break;
@@ -678,8 +693,14 @@ final class CharacterController {
     // starts inside a box reports no contact at all, so the fall resumes by
     // itself. One step of it is still a landing, a refilled coyote timer, and
     // [ground] naming a collider that is not supposed to be there.
-    if (!world.sweep(shape, position, _probe, _hit,
-            ignore: collider, allow: solidFilter) ||
+    if (!world.sweep(
+          shape,
+          position,
+          _probe,
+          _hit,
+          ignore: collider,
+          allow: solidFilter,
+        ) ||
         _hit.normal.y <= _walkableNormalY) {
       _setAirborne();
       return;

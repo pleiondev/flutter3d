@@ -74,8 +74,11 @@ void main() {
 
     yard.run(120, forward: false);
 
-    expect(crate.position.y, closeTo(0.6, 0.05),
-        reason: 'a 1.2 m box on a floor topped at zero');
+    expect(
+      crate.position.y,
+      closeTo(0.6, 0.05),
+      reason: 'a 1.2 m box on a floor topped at zero',
+    );
   });
 
   test('walking into a crate moves it', () {
@@ -92,31 +95,33 @@ void main() {
     expect(crate.position.y, closeTo(0.6, 0.05), reason: 'and stays down');
   });
 
-  test('mass does not change how fast a crate is shoved, and that is on purpose',
-      () {
-    // Written expecting the opposite, and the numbers said otherwise: twenty
-    // kilos and two hundred travel exactly the same distance. `Dynamics.push`
-    // is **velocity-based, not force-based** — it raises the crate's speed to
-    // the walker's and no further, whatever it weighs.
-    //
-    // That is a decision recorded in `dynamics.dart`, and it is the right one
-    // for a kinematic character: a player who could not shove a heavy crate
-    // would instead stand still pressing against it, which reads as the game
-    // being broken rather than the crate being heavy. Mass still decides what
-    // happens between crates, and gravity still pulls them.
-    //
-    // Pinned here so the day somebody makes pushing force-based, this test
-    // fails and says why it was not.
-    double shove(double mass) {
-      final yard = _Yard();
-      final crate = yard.crateAt(Vector3(0.0, 0.6, 2.5), mass: mass);
-      final before = crate.position.z;
-      yard.run(180);
-      return crate.position.z - before;
-    }
+  test(
+    'mass does not change how fast a crate is shoved, and that is on purpose',
+    () {
+      // Written expecting the opposite, and the numbers said otherwise: twenty
+      // kilos and two hundred travel exactly the same distance. `Dynamics.push`
+      // is **velocity-based, not force-based** — it raises the crate's speed to
+      // the walker's and no further, whatever it weighs.
+      //
+      // That is a decision recorded in `dynamics.dart`, and it is the right one
+      // for a kinematic character: a player who could not shove a heavy crate
+      // would instead stand still pressing against it, which reads as the game
+      // being broken rather than the crate being heavy. Mass still decides what
+      // happens between crates, and gravity still pulls them.
+      //
+      // Pinned here so the day somebody makes pushing force-based, this test
+      // fails and says why it was not.
+      double shove(double mass) {
+        final yard = _Yard();
+        final crate = yard.crateAt(Vector3(0.0, 0.6, 2.5), mass: mass);
+        final before = crate.position.z;
+        yard.run(180);
+        return crate.position.z - before;
+      }
 
-    expect(shove(200.0), closeTo(shove(10.0), 0.01));
-  });
+      expect(shove(200.0), closeTo(shove(10.0), 0.01));
+    },
+  );
 
   test('a crate stacked on a crate stays stacked', () {
     // Stage-1 rigid bodies promise exactly this and no more: no rotation, so a
@@ -144,7 +149,10 @@ void main() {
     yard.run(120, forward: false);
 
     expect(yard.runner.isGrounded, isTrue);
-    expect(yard.runner.position.y, closeTo(2.1, 0.15),
-        reason: 'standing on a box whose top is at 1.2');
+    expect(
+      yard.runner.position.y,
+      closeTo(2.1, 0.15),
+      reason: 'standing on a box whose top is at 1.2',
+    );
   });
 }

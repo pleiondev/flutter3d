@@ -34,8 +34,9 @@ import 'package:flutter_test/flutter_test.dart';
 }
 
 void main() {
-  testWidgets('asks what to draw with after the camera has been placed',
-      (WidgetTester tester) async {
+  testWidgets('asks what to draw with after the camera has been placed', (
+    WidgetTester tester,
+  ) async {
     // **The order this widget exists to guarantee.** A settings *object* is
     // built by the parent, before the frame; a function is called here, after
     // `onBeforeFrame`. The crypt places its camera in that callback, so with an
@@ -44,21 +45,25 @@ void main() {
     final it = _stage();
     final order = <String>[];
 
-    await tester.pumpWidget(MaterialApp(
-      home: SceneSurface(
-        renderer: it.renderer,
-        scene: it.scene,
-        view: it.view,
-        onBeforeFrame: () => order.add('camera'),
-        settings: () {
-          order.add('settings');
-          return const RenderSettings();
-        },
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SceneSurface(
+          renderer: it.renderer,
+          scene: it.scene,
+          view: it.view,
+          onBeforeFrame: () => order.add('camera'),
+          settings: () {
+            order.add('settings');
+            return const RenderSettings();
+          },
+        ),
       ),
-    ));
+    );
 
-    expect(order, <String>['camera', 'settings'],
-        reason: 'the frame was described before the camera moved');
+    expect(order, <String>[
+      'camera',
+      'settings',
+    ], reason: 'the frame was described before the camera moved');
   });
 
   testWidgets('and asks again on every frame, not once', (
@@ -71,30 +76,34 @@ void main() {
     var asked = 0;
 
     Widget surface(double width) => MaterialApp(
-          home: Center(
-            child: SizedBox(
-              width: width,
-              height: 90,
-              child: SceneSurface(
-                renderer: it.renderer,
-                scene: it.scene,
-                view: it.view,
-                onBeforeFrame: () {},
-                settings: () {
-                  asked++;
-                  return const RenderSettings();
-                },
-              ),
-            ),
+      home: Center(
+        child: SizedBox(
+          width: width,
+          height: 90,
+          child: SceneSurface(
+            renderer: it.renderer,
+            scene: it.scene,
+            view: it.view,
+            onBeforeFrame: () {},
+            settings: () {
+              asked++;
+              return const RenderSettings();
+            },
           ),
-        );
+        ),
+      ),
+    );
 
     await tester.pumpWidget(surface(160));
     final once = asked;
     await tester.pumpWidget(surface(200));
 
     expect(once, 1);
-    expect(asked, greaterThan(once), reason: 'it was described once and reused');
+    expect(
+      asked,
+      greaterThan(once),
+      reason: 'it was described once and reused',
+    );
   });
 
   testWidgets('and a surface with no size still renders something', (
@@ -105,21 +114,23 @@ void main() {
     // and without it this throws rather than drawing a frame nobody sees.
     final it = _stage();
 
-    await tester.pumpWidget(MaterialApp(
-      home: Center(
-        child: SizedBox(
-          width: 0,
-          height: 0,
-          child: SceneSurface(
-            renderer: it.renderer,
-            scene: it.scene,
-            view: it.view,
-            onBeforeFrame: () {},
-            settings: () => const RenderSettings(),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 0,
+            height: 0,
+            child: SceneSurface(
+              renderer: it.renderer,
+              scene: it.scene,
+              view: it.view,
+              onBeforeFrame: () {},
+              settings: () => const RenderSettings(),
+            ),
           ),
         ),
       ),
-    ));
+    );
 
     expect(tester.takeException(), isNull);
   });

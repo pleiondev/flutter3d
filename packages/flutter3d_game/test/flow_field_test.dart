@@ -21,10 +21,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 /// Twenty metres square, its top face at y = 0.
-Brush _floor() => Brush(
-      centre: Vector3(0.0, -0.5, 0.0),
-      size: Vector3(20.0, 1.0, 20.0),
-    );
+Brush _floor() =>
+    Brush(centre: Vector3(0.0, -0.5, 0.0), size: Vector3(20.0, 1.0, 20.0));
 
 void main() {
   test('before a sweep there is no direction anywhere', () {
@@ -32,8 +30,11 @@ void main() {
     final out = Vector3(9.0, 9.0, 9.0);
 
     expect(field.descend(Vector3(1.0, 0.0, 1.0), out), isFalse);
-    expect(out, Vector3(9.0, 9.0, 9.0),
-        reason: 'it wrote a direction it did not have');
+    expect(
+      out,
+      Vector3(9.0, 9.0, 9.0),
+      reason: 'it wrote a direction it did not have',
+    );
   });
 
   group('after a sweep', () {
@@ -74,15 +75,19 @@ void main() {
     test('and a cell the sweep never reached says nothing', () {
       // A room the goal is walled out of. Nothing on this floor is unreachable,
       // so the field is asked about a goal it could not place at all.
-      final walled = FlowField(NavGrid.bake(<Brush>[
-        _floor(),
-        Brush(centre: Vector3(0.0, 1.5, 0.0), size: Vector3(1.0, 3.0, 20.0)),
-      ]))
-        ..rebuild(Vector3(8.0, 0.0, 0.0));
+      final walled = FlowField(
+        NavGrid.bake(<Brush>[
+          _floor(),
+          Brush(centre: Vector3(0.0, 1.5, 0.0), size: Vector3(1.0, 3.0, 20.0)),
+        ]),
+      )..rebuild(Vector3(8.0, 0.0, 0.0));
       final out = Vector3(9.0, 9.0, 9.0);
 
-      expect(walled.descend(Vector3(-8.0, 0.0, 0.0), out), isFalse,
-          reason: 'it routed through a wall');
+      expect(
+        walled.descend(Vector3(-8.0, 0.0, 0.0), out),
+        isFalse,
+        reason: 'it routed through a wall',
+      );
       expect(out, Vector3(9.0, 9.0, 9.0));
     });
   });

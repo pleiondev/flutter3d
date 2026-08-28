@@ -24,12 +24,13 @@ CollisionWorld _ground() {
   return world;
 }
 
-({GameSimulation sim, Player player, InputState input, MechanismWorld mechanisms})
-    _harness(
-  CollisionWorld world, {
-  Vector3? at,
-  Inventory? inventory,
-}) {
+({
+  GameSimulation sim,
+  Player player,
+  InputState input,
+  MechanismWorld mechanisms,
+})
+_harness(CollisionWorld world, {Vector3? at, Inventory? inventory}) {
   final input = InputState();
   final player = Player(
     body: CharacterController(
@@ -81,7 +82,11 @@ void main() {
       );
       final h = _harness(world, at: Vector3(0.0, 1.4, 0.0));
       h.mechanisms.add(
-        MovingPlatform(collider: platform, travel: Vector3(4.0, 0.0, 0.0), wait: 0.0),
+        MovingPlatform(
+          collider: platform,
+          travel: Vector3(4.0, 0.0, 0.0),
+          wait: 0.0,
+        ),
       );
 
       // Settle, so the capsule is resting on the platform rather than falling
@@ -99,9 +104,13 @@ void main() {
       final carried = h.player.body.position.x - startedAt;
       final travelled = platform.position.x - platformStartedAt;
       expect(travelled, greaterThan(1.0), reason: 'the platform did move');
-      expect(carried, closeTo(travelled, 0.05),
-          reason: 'the passenger moved $carried while the floor under them '
-              'moved $travelled');
+      expect(
+        carried,
+        closeTo(travelled, 0.05),
+        reason:
+            'the passenger moved $carried while the floor under them '
+            'moved $travelled',
+      );
     });
 
     test('a passenger is not an obstruction', () {
@@ -121,8 +130,11 @@ void main() {
         ),
       );
       final h = _harness(world, at: Vector3(0.0, 1.4, 0.0));
-      final lift =
-          Lift(collider: platform, travel: Vector3(0.0, 3.0, 0.0), wait: 0.0);
+      final lift = Lift(
+        collider: platform,
+        travel: Vector3(0.0, 3.0, 0.0),
+        wait: 0.0,
+      );
       h.mechanisms.add(lift);
       for (var i = 0; i < 20; i++) {
         h.sim.step(_dt);
@@ -133,10 +145,16 @@ void main() {
         h.sim.step(_dt);
       }
 
-      expect(lift.progress, greaterThan(0.2),
-          reason: 'the lift refused to move because somebody was on it');
-      expect(h.player.body.position.y, greaterThan(1.9),
-          reason: 'and it left without them');
+      expect(
+        lift.progress,
+        greaterThan(0.2),
+        reason: 'the lift refused to move because somebody was on it',
+      );
+      expect(
+        h.player.body.position.y,
+        greaterThan(1.9),
+        reason: 'and it left without them',
+      );
     });
   });
 
@@ -171,7 +189,11 @@ void main() {
         ),
       );
       h.mechanisms.add(
-        MovingPlatform(collider: platform, travel: Vector3(0.0, 2.0, 0.0), wait: 0.0),
+        MovingPlatform(
+          collider: platform,
+          travel: Vector3(0.0, 2.0, 0.0),
+          wait: 0.0,
+        ),
       );
       world.update();
 
@@ -189,8 +211,11 @@ void main() {
 
       expect(h.player.body.position.x, closeTo(restedAt.x, 1e-3));
       expect(h.player.body.position.z, closeTo(restedAt.z, 1e-3));
-      expect(platform.position.y, greaterThan(platformAt + 0.5),
-          reason: 'the level stopped when the player did');
+      expect(
+        platform.position.y,
+        greaterThan(platformAt + 0.5),
+        reason: 'the level stopped when the player did',
+      );
     });
 
     test('a dead player cannot look around either', () {
@@ -206,8 +231,12 @@ void main() {
   });
 
   group('the way out', () {
-    Exit exitIn(CollisionWorld world, MechanismWorld mechanisms,
-        {String? next, String? key}) {
+    Exit exitIn(
+      CollisionWorld world,
+      MechanismWorld mechanisms, {
+      String? next,
+      String? key,
+    }) {
       final exit = Exit(
         name: 'out',
         collider: world.add(
@@ -250,7 +279,10 @@ void main() {
       final world = _ground();
       final input = InputState();
       final player = Player(
-        body: CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+        body: CharacterController(
+          world: world,
+          position: Vector3(0.0, 0.9, 0.0),
+        ),
       );
       final mechanisms = MechanismWorld(world);
       final sim = GameSimulation(
@@ -316,8 +348,11 @@ void main() {
         h.sim.step(_dt);
       }
 
-      expect(exit.isReached, isTrue,
-          reason: 'the player never touched the exit itself');
+      expect(
+        exit.isReached,
+        isTrue,
+        reason: 'the player never touched the exit itself',
+      );
       expect(h.sim.state, GameState.complete);
     });
   });
@@ -335,6 +370,4 @@ void main() {
       expect(GameState.playing.outcome.isOver, isFalse);
     });
   });
-
 }
-

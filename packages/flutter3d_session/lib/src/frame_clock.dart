@@ -26,8 +26,7 @@ final class FrameClock {
   ///
   /// Call once a frame: this both answers and advances.
   double secondsSince(Duration now) {
-    final seconds =
-        _last == null ? 0.0 : (now - _last!).inMicroseconds / 1e6;
+    final seconds = _last == null ? 0.0 : (now - _last!).inMicroseconds / 1e6;
     _last = now;
     _elapsed += seconds;
     if (seconds > 0.0) _fps = _fps * 0.9 + (1.0 / seconds) * 0.1;

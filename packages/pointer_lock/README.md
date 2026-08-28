@@ -2,9 +2,10 @@
 
 Locks the mouse pointer in place and reports its motion as relative deltas.
 
-Flutter exposes no pointer lock on any desktop platform, which makes a
-first-person camera impossible out of the box: the cursor reaches the edge of the
-window and the view stops turning. This plugin is the missing piece.
+Flutter exposes no pointer lock on any desktop platform, and does not surface the
+browser's either, which makes a first-person camera impossible out of the box:
+the cursor reaches the edge of the window and the view stops turning. This plugin
+is the missing piece on both.
 
 ```dart
 final capture = MouseCapture.instance;
@@ -46,12 +47,34 @@ application, which calls `release()` itself.
 | Platform | Status | How |
 |---|---|---|
 | macOS | supported | `CGAssociateMouseAndMouseCursorPosition(0)`, `NSCursor.hide()`, a local `NSEvent` monitor |
+| Web, desktop browser | supported | `document.requestPointerLock` through `package:web`. Pure Dart, so nothing is registered and `flutter test --platform chrome` reaches it |
+| Web, phone or tablet | not applicable | reported by `(pointer: coarse)`; `isSupported` is false so the game shows its touch controls |
 | Windows | not yet | Raw Input plus `ClipCursor` |
 | Linux | not yet | `gdk_seat_grab`, or XI2 raw events |
 | iOS, Android | not applicable | no pointer to capture; `isSupported` is false |
 
-`isSupported` is a whitelist rather than a try-and-see, so an application can
-offer another control scheme instead of discovering the gap at the first call.
+`isSupported` is answered by the backend rather than guessed by the caller, so an
+application can offer another control scheme instead of discovering the gap at the
+first call. The engine above this reads exactly that: a build where it is false
+turns the camera by dragging.
+
+### What a browser does that a desktop does not
+
+**A capture must come out of a user gesture.** `requestPointerLock` called from a
+timer, a future or a frame callback is refused — ask inside the handler of the
+press that prompted it.
+
+**A refusal is an event, not an exception.** It arrives as `pointerlockerror`, and
+on browsers that return a promise as a rejected promise as well; both are handled
+here, and a refused capture leaves the state released rather than pretending.
+
+**The player can leave without asking.** Escape releases the lock, as does
+switching tab, and both arrive as an unrequested `CaptureState.released` — the
+signal to pause.
+
+**In an iframe the parent decides.** A page embedding the game needs
+`allow="pointer-lock"` on the iframe, or every capture is refused with nothing in
+the console to say why.
 
 ## Hot restart
 

@@ -31,29 +31,31 @@ final class _Storage implements Storage {
 }
 
 SettingsCubit _open() => SettingsCubit(
-      config: GameConfig(),
-      file: SettingsFile(appName: 'test', storage: _Storage()),
-      apply: (GameConfig _) {},
-    );
+  config: GameConfig(),
+  file: SettingsFile(appName: 'test', storage: _Storage()),
+  apply: (GameConfig _) {},
+);
 
 KeyDownEvent _down(LogicalKeyboardKey key) => KeyDownEvent(
-      logicalKey: key,
-      physicalKey: PhysicalKeyboardKey.keyA,
-      timeStamp: Duration.zero,
-    );
+  logicalKey: key,
+  physicalKey: PhysicalKeyboardKey.keyA,
+  timeStamp: Duration.zero,
+);
 
 KeyUpEvent _up(LogicalKeyboardKey key) => KeyUpEvent(
-      logicalKey: key,
-      physicalKey: PhysicalKeyboardKey.keyA,
-      timeStamp: Duration.zero,
-    );
+  logicalKey: key,
+  physicalKey: PhysicalKeyboardKey.keyA,
+  timeStamp: Duration.zero,
+);
 
 void main() {
   test('a key the settings have no use for goes to the game', () {
     // Null, not `ignored`: `ignored` would let the key travel up Flutter's tree
     // instead of reaching the game at all.
-    expect(settingsKeys(_down(LogicalKeyboardKey.keyW), _open(), opening: () {}),
-        isNull);
+    expect(
+      settingsKeys(_down(LogicalKeyboardKey.keyW), _open(), opening: () {}),
+      isNull,
+    );
   });
 
   test('a rebinding takes the next key before anything else looks at it', () {
@@ -63,14 +65,21 @@ void main() {
     // the game's own clauses now run only when this says null.
     final settings = _open()..rebind(GameAction.jump);
 
-    final says = settingsKeys(_down(LogicalKeyboardKey.keyR), settings,
-        opening: () {});
+    final says = settingsKeys(
+      _down(LogicalKeyboardKey.keyR),
+      settings,
+      opening: () {},
+    );
 
-    expect(says, KeyEventResult.handled,
-        reason: 'the game got a key the panel was waiting for');
-    expect(settings.config.bindings[InputSource.key(
-      LogicalKeyboardKey.keyR.keyId,
-    )], GameAction.jump);
+    expect(
+      says,
+      KeyEventResult.handled,
+      reason: 'the game got a key the panel was waiting for',
+    );
+    expect(
+      settings.config.bindings[InputSource.key(LogicalKeyboardKey.keyR.keyId)],
+      GameAction.jump,
+    );
   });
 
   test('and Escape during one is how a player says not that one', () {
@@ -79,10 +88,13 @@ void main() {
     settingsKeys(_down(LogicalKeyboardKey.escape), settings, opening: () {});
 
     expect(settings.state.waitingFor, isNull);
-    expect(settings.config.bindings
-        .sourcesFor(GameAction.jump)
-        .contains(InputSource.key(LogicalKeyboardKey.escape.keyId)), isFalse,
-        reason: 'it bound Escape to jumping');
+    expect(
+      settings.config.bindings
+          .sourcesFor(GameAction.jump)
+          .contains(InputSource.key(LogicalKeyboardKey.escape.keyId)),
+      isFalse,
+      reason: 'it bound Escape to jumping',
+    );
   });
 
   test('Escape opens the panel as well as closing it', () {
@@ -104,13 +116,19 @@ void main() {
     final settings = _open();
     var openings = 0;
 
-    settingsKeys(_down(LogicalKeyboardKey.escape), settings,
-        opening: () {
-      expect(settings.state.isOpen, isFalse, reason: 'it ran too late');
-      openings++;
-    });
-    settingsKeys(_down(LogicalKeyboardKey.escape), settings,
-        opening: () => openings++);
+    settingsKeys(
+      _down(LogicalKeyboardKey.escape),
+      settings,
+      opening: () {
+        expect(settings.state.isOpen, isFalse, reason: 'it ran too late');
+        openings++;
+      },
+    );
+    settingsKeys(
+      _down(LogicalKeyboardKey.escape),
+      settings,
+      opening: () => openings++,
+    );
 
     expect(openings, 1);
   });
@@ -120,8 +138,12 @@ void main() {
     // does what it always did and gives the pointer back.
     final settings = _open();
 
-    final says = settingsKeys(_down(LogicalKeyboardKey.escape), settings,
-        opening: () {}, canOpen: false);
+    final says = settingsKeys(
+      _down(LogicalKeyboardKey.escape),
+      settings,
+      opening: () {},
+      canOpen: false,
+    );
 
     expect(says, isNull);
     expect(settings.state.isOpen, isFalse);
@@ -133,8 +155,12 @@ void main() {
     // back to, so the clause does not depend on being asked nicely.
     final settings = _open()..show();
 
-    settingsKeys(_down(LogicalKeyboardKey.escape), settings,
-        opening: () {}, canOpen: false);
+    settingsKeys(
+      _down(LogicalKeyboardKey.escape),
+      settings,
+      opening: () {},
+      canOpen: false,
+    );
 
     expect(settings.state.isOpen, isFalse);
   });
@@ -147,10 +173,14 @@ void main() {
       // it sends the player walking off on their own.
       final settings = _open()..show();
 
-      expect(settingsKeys(_down(LogicalKeyboardKey.tab), settings,
-          opening: () {}), KeyEventResult.ignored);
-      expect(settingsKeys(_down(LogicalKeyboardKey.keyW), settings,
-          opening: () {}), KeyEventResult.ignored);
+      expect(
+        settingsKeys(_down(LogicalKeyboardKey.tab), settings, opening: () {}),
+        KeyEventResult.ignored,
+      );
+      expect(
+        settingsKeys(_down(LogicalKeyboardKey.keyW), settings, opening: () {}),
+        KeyEventResult.ignored,
+      );
     });
 
     test('and neither is it offered the release of a key', () {
@@ -158,13 +188,17 @@ void main() {
       // but not the key-down has an action that never stops.
       final settings = _open()..show();
 
-      expect(settingsKeys(_up(LogicalKeyboardKey.keyW), settings,
-          opening: () {}), KeyEventResult.ignored);
+      expect(
+        settingsKeys(_up(LogicalKeyboardKey.keyW), settings, opening: () {}),
+        KeyEventResult.ignored,
+      );
     });
 
     test('and a key-up while it is closed still reaches the game', () {
-      expect(settingsKeys(_up(LogicalKeyboardKey.keyW), _open(),
-          opening: () {}), isNull);
+      expect(
+        settingsKeys(_up(LogicalKeyboardKey.keyW), _open(), opening: () {}),
+        isNull,
+      );
     });
   });
 }

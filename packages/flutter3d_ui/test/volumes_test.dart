@@ -29,8 +29,11 @@ void main() {
     applySavedVolumes(config, mixer);
 
     for (final bus in settableBuses) {
-      expect(mixer.volumeOf(bus), closeTo(0.25, 1e-9),
-          reason: '${bus.name} is offered and never applied');
+      expect(
+        mixer.volumeOf(bus),
+        closeTo(0.25, 1e-9),
+        reason: '${bus.name} is offered and never applied',
+      );
     }
   });
 

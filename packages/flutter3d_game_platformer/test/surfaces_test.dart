@@ -222,8 +222,11 @@ void main() {
       final onIce = slideAfterRunning('ice');
 
       expect(onStone, lessThan(0.6), reason: 'stone should stop you');
-      expect(onIce, greaterThan(onStone * 3.0),
-          reason: 'ice slid $onIce m and stone slid $onStone m');
+      expect(
+        onIce,
+        greaterThan(onStone * 3.0),
+        reason: 'ice slid $onIce m and stone slid $onStone m',
+      );
     });
 
     test('a surface nobody named walks like ordinary ground', () {
@@ -267,8 +270,11 @@ void main() {
       run.runner.body.teleport(Vector3(0.0, 0.7, -6.0));
       run.run(60);
 
-      expect(run.runner.position.z, greaterThan(-4.0),
-          reason: 'the belt carried nobody');
+      expect(
+        run.runner.position.z,
+        greaterThan(-4.0),
+        reason: 'the belt carried nobody',
+      );
     });
 
     test('and a runner walking against it makes slow progress', () {
@@ -284,8 +290,11 @@ void main() {
       with_.run(60, holding: <GameAction>{GameAction.moveForward});
       final along = with_.runner.position.z + 6.0;
 
-      expect(along, greaterThan(against + 3.0),
-          reason: 'walking with the belt was no faster than against it');
+      expect(
+        along,
+        greaterThan(against + 3.0),
+        reason: 'walking with the belt was no faster than against it',
+      );
     });
   });
 
@@ -313,13 +322,24 @@ void main() {
       // it was given, because everything it was given was consistent with
       // itself. What it could not know is what was left out.
       final table = Surfaces.common();
-      expect(table.names, containsAll(<String>['ice', 'mud']),
-          reason: 'the table lists ${table.names}, which is missing a surface '
-              'it defines');
+      expect(
+        table.names,
+        containsAll(<String>['ice', 'mud']),
+        reason:
+            'the table lists ${table.names}, which is missing a surface '
+            'it defines',
+      );
       for (final name in table.names) {
-        expect(table.knows(name), isTrue, reason: 'listed but not known: $name');
-        expect(table.tuningFor(name), isNot(same(table.fallback)),
-            reason: '$name is listed and walks like plain ground');
+        expect(
+          table.knows(name),
+          isTrue,
+          reason: 'listed but not known: $name',
+        );
+        expect(
+          table.tuningFor(name),
+          isNot(same(table.fallback)),
+          reason: '$name is listed and walks like plain ground',
+        );
       }
     });
   });
@@ -348,10 +368,14 @@ void main() {
         clung = run.runner.isOnWall;
       }
 
-      expect(clung, isFalse,
-          reason: 'the side of a one-way platform was treated as a wall, so a '
-              'runner falling past its edge slows to a wall slide and can jump '
-              'off nothing');
+      expect(
+        clung,
+        isFalse,
+        reason:
+            'the side of a one-way platform was treated as a wall, so a '
+            'runner falling past its edge slows to a wall slide and can jump '
+            'off nothing',
+      );
     });
 
     test('and a real wall still is one', () {

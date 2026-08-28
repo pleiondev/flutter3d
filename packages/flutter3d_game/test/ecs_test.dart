@@ -68,8 +68,13 @@ void main() {
       final second = world.spawn();
       world.set(second, _Name('second'));
 
-      expect(second.index, first.index, reason: 'the index was reused, which '
-          'is the whole point of the danger');
+      expect(
+        second.index,
+        first.index,
+        reason:
+            'the index was reused, which '
+            'is the whole point of the danger',
+      );
       expect(world.alive(first), isFalse);
       expect(world.get<_Name>(first), isNull);
       expect(world.get<_Name>(second)!.value, 'second');
@@ -108,8 +113,11 @@ void main() {
 
       final reused = world.spawn();
       expect(reused.index, entity.index);
-      expect(world.get<_Position>(reused), isNull,
-          reason: 'the new entity inherited the old one\'s body');
+      expect(
+        world.get<_Position>(reused),
+        isNull,
+        reason: 'the new entity inherited the old one\'s body',
+      );
     });
   });
 
@@ -127,16 +135,18 @@ void main() {
       expect(world.has<_Position>(entity), isFalse);
     });
 
-    test('setting on a dead entity does nothing rather than resurrecting it',
-        () {
-      final world = _world();
-      final entity = world.spawn();
-      world
-        ..despawn(entity)
-        ..set(entity, _Position(1.0, 1.0));
-      expect(world.length, 0);
-      expect(world.get<_Position>(entity), isNull);
-    });
+    test(
+      'setting on a dead entity does nothing rather than resurrecting it',
+      () {
+        final world = _world();
+        final entity = world.spawn();
+        world
+          ..despawn(entity)
+          ..set(entity, _Position(1.0, 1.0));
+        expect(world.length, 0);
+        expect(world.get<_Position>(entity), isNull);
+      },
+    );
   });
 
   group('queries', () {
@@ -212,8 +222,11 @@ void main() {
       world.set(recycled, _Name('recycled'));
 
       final read = _world()..restore(world.save());
-      expect(read.alive(kept), isFalse,
-          reason: 'a handle that was stale before the save is stale after it');
+      expect(
+        read.alive(kept),
+        isFalse,
+        reason: 'a handle that was stale before the save is stale after it',
+      );
       expect(read.get<_Name>(recycled)!.value, 'recycled');
     });
 

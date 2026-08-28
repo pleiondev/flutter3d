@@ -93,4 +93,5 @@ void main() {
       pace.note(dropped: 120, dt: _frame, stepSeconds: _step);
       expect(pace.lost, 0.0);
     });
-  });}
+  });
+}

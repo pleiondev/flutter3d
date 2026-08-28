@@ -27,7 +27,12 @@ final class _Stage {
   late final Runner runner;
 
   /// A wall whose face is at [x], running along Z.
-  void wallAt(double x, {double height = 8.0, double from = -10.0, double to = 10.0}) {
+  void wallAt(
+    double x, {
+    double height = 8.0,
+    double from = -10.0,
+    double to = 10.0,
+  }) {
     world.addBox(
       Vector3(x + 0.5, height / 2.0, (from + to) / 2.0),
       Vector3(1.0, height, to - from),
@@ -36,26 +41,23 @@ final class _Stage {
 
   /// A slab whose top is at [top], starting at [z] and running away.
   void ledgeAt(double z, {required double top}) {
-    world.addBox(
-      Vector3(0.0, top / 2.0, z + 3.0),
-      Vector3(8.0, top, 6.0),
-    );
+    world.addBox(Vector3(0.0, top / 2.0, z + 3.0), Vector3(8.0, top, 6.0));
   }
 
   Spring springAt(Vector3 at, {double speed = 15.0}) => mechanisms.add(
-        Spring(
-          collider: world.add(
-            Collider(
-              shape: CollisionBox(Vector3(0.8, 0.2, 0.8)),
-              position: at,
-              kind: ColliderKind.trigger,
-              layer: CollisionLayers.trigger,
-              mask: CollisionLayers.player,
-            ),
-          ),
-          speed: speed,
+    Spring(
+      collider: world.add(
+        Collider(
+          shape: CollisionBox(Vector3(0.8, 0.2, 0.8)),
+          position: at,
+          kind: ColliderKind.trigger,
+          layer: CollisionLayers.trigger,
+          mask: CollisionLayers.player,
         ),
-      );
+      ),
+      speed: speed,
+    ),
+  );
 
   final Set<GameAction> _held = <GameAction>{};
 
@@ -142,7 +144,10 @@ void main() {
         return stage.runner.position.y;
       }
 
-      expect(fallFrom(nearWall: true), greaterThan(fallFrom(nearWall: false) + 1.0));
+      expect(
+        fallFrom(nearWall: true),
+        greaterThan(fallFrom(nearWall: false) + 1.0),
+      );
     });
 
     test('a wall jump goes up and away, and the away is not optional', () {
@@ -163,8 +168,11 @@ void main() {
 
       expect(stage.runner.wallJumpedThisStep, isTrue);
       expect(stage.runner.body.velocity.y, greaterThan(8.0));
-      expect(stage.runner.body.velocity.x, lessThan(-5.0),
-          reason: 'away from a wall at +X');
+      expect(
+        stage.runner.body.velocity.x,
+        lessThan(-5.0),
+        reason: 'away from a wall at +X',
+      );
       expect(stage.runner.position.y, greaterThan(from.y - 0.2));
     });
 
@@ -204,10 +212,15 @@ void main() {
         ..velocity.setValues(0.0, -1.0, 0.0);
       stage.run(20, holding: _forward);
 
-      expect(stage.runner.mantledThisStep || stage.runner.position.y > 2.0,
-          isTrue);
-      expect(stage.runner.position.y, greaterThan(2.0),
-          reason: 'standing on a ledge topped at 1.4');
+      expect(
+        stage.runner.mantledThisStep || stage.runner.position.y > 2.0,
+        isTrue,
+      );
+      expect(
+        stage.runner.position.y,
+        greaterThan(2.0),
+        reason: 'standing on a ledge topped at 1.4',
+      );
     });
 
     test('a ledge with no headroom is not climbed', () {
@@ -258,10 +271,9 @@ void main() {
       for (var i = 0; i < 400; i++) {
         final away = stage.runner.wallAway.x;
         final lean = away < 0 ? GameAction.moveLeft : GameAction.moveRight;
-        stage.step(holding: <GameAction>{
-          lean,
-          if (i % 14 < 3) GameAction.jump,
-        });
+        stage.step(
+          holding: <GameAction>{lean, if (i % 14 < 3) GameAction.jump},
+        );
         if (stage.runner.position.y > best) best = stage.runner.position.y;
       }
       return best;
@@ -316,8 +328,7 @@ void main() {
         if (onPad) stage.springAt(Vector3(0.0, 0.3, 0.0));
         var best = 0.0;
         for (var i = 0; i < 90; i++) {
-          stage.step(
-              holding: onPad ? _nothing : _jump);
+          stage.step(holding: onPad ? _nothing : _jump);
           if (stage.runner.position.y > best) best = stage.runner.position.y;
         }
         return best;

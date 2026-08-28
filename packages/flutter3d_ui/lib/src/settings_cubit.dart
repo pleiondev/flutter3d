@@ -49,13 +49,12 @@ final class SettingsState {
     bool clearWaiting = false,
     int? revision,
     bool? lastWriteFailed,
-  }) =>
-      SettingsState(
-        isOpen: isOpen ?? this.isOpen,
-        waitingFor: clearWaiting ? null : (waitingFor ?? this.waitingFor),
-        revision: revision ?? this.revision,
-        lastWriteFailed: lastWriteFailed ?? this.lastWriteFailed,
-      );
+  }) => SettingsState(
+    isOpen: isOpen ?? this.isOpen,
+    waitingFor: clearWaiting ? null : (waitingFor ?? this.waitingFor),
+    revision: revision ?? this.revision,
+    lastWriteFailed: lastWriteFailed ?? this.lastWriteFailed,
+  );
 }
 
 /// The settings screen as a state machine rather than as `setState`.
@@ -81,8 +80,8 @@ final class SettingsCubit extends Cubit<SettingsState> {
     required this.file,
     required this.apply,
     Rebinding? rebinding,
-  })  : rebinding = rebinding ?? Rebinding(bindings: config.bindings),
-        super(const SettingsState());
+  }) : rebinding = rebinding ?? Rebinding(bindings: config.bindings),
+       super(const SettingsState());
 
   /// The live document. Shared with the input layer on purpose — see
   /// [SettingsState].
@@ -152,10 +151,12 @@ final class SettingsCubit extends Cubit<SettingsState> {
   void _changed({bool clearWaiting = false}) {
     apply(config);
     final wrote = file.write(config);
-    emit(state.copyWith(
-      revision: state.revision + 1,
-      lastWriteFailed: !wrote,
-      clearWaiting: clearWaiting,
-    ));
+    emit(
+      state.copyWith(
+        revision: state.revision + 1,
+        lastWriteFailed: !wrote,
+        clearWaiting: clearWaiting,
+      ),
+    );
   }
 }

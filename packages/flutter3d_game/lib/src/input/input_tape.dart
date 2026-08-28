@@ -25,27 +25,27 @@ final class InputFrame {
   });
 
   factory InputFrame.fromJson(Map<String, Object?> json) => InputFrame(
-        pressed: <String>[
-          for (final name in json['pressed'] as List<Object?>? ??
-              const <Object?>[])
-            name! as String,
-        ],
-        released: <String>[
-          for (final name in json['released'] as List<Object?>? ??
-              const <Object?>[])
-            name! as String,
-        ],
-        stickX: (json['sx'] as num?)?.toDouble() ?? 0.0,
-        stickY: (json['sy'] as num?)?.toDouble() ?? 0.0,
-        lookX: (json['lx'] as num?)?.toDouble() ?? 0.0,
-        lookY: (json['ly'] as num?)?.toDouble() ?? 0.0,
-        values: <String, double>{
-          for (final entry in (json['values'] as Map<Object?, Object?>? ??
+    pressed: <String>[
+      for (final name in json['pressed'] as List<Object?>? ?? const <Object?>[])
+        name! as String,
+    ],
+    released: <String>[
+      for (final name
+          in json['released'] as List<Object?>? ?? const <Object?>[])
+        name! as String,
+    ],
+    stickX: (json['sx'] as num?)?.toDouble() ?? 0.0,
+    stickY: (json['sy'] as num?)?.toDouble() ?? 0.0,
+    lookX: (json['lx'] as num?)?.toDouble() ?? 0.0,
+    lookY: (json['ly'] as num?)?.toDouble() ?? 0.0,
+    values: <String, double>{
+      for (final entry
+          in (json['values'] as Map<Object?, Object?>? ??
                   const <Object?, Object?>{})
               .entries)
-            entry.key! as String: (entry.value! as num).toDouble(),
-        },
-      );
+        entry.key! as String: (entry.value! as num).toDouble(),
+    },
+  );
 
   /// Action names rather than the actions themselves.
   ///
@@ -72,14 +72,14 @@ final class InputFrame {
       lookY == 0.0;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        if (pressed.isNotEmpty) 'pressed': pressed,
-        if (released.isNotEmpty) 'released': released,
-        if (stickX != 0.0) 'sx': stickX,
-        if (stickY != 0.0) 'sy': stickY,
-        if (lookX != 0.0) 'lx': lookX,
-        if (lookY != 0.0) 'ly': lookY,
-        if (values.isNotEmpty) 'values': values,
-      };
+    if (pressed.isNotEmpty) 'pressed': pressed,
+    if (released.isNotEmpty) 'released': released,
+    if (stickX != 0.0) 'sx': stickX,
+    if (stickY != 0.0) 'sy': stickY,
+    if (lookX != 0.0) 'lx': lookX,
+    if (lookY != 0.0) 'ly': lookY,
+    if (values.isNotEmpty) 'values': values,
+  };
 }
 
 /// A run, as the inputs that produced it.
@@ -104,17 +104,17 @@ final class InputFrame {
 /// physics changed would be a recording of nothing.
 final class InputTape {
   InputTape({required this.seed, List<InputFrame>? frames})
-      : frames = frames ?? <InputFrame>[];
+    : frames = frames ?? <InputFrame>[];
 
   factory InputTape.fromJson(Map<String, Object?> json) => InputTape(
-        seed: (json['seed'] as num?)?.toInt() ?? 0,
-        frames: <InputFrame>[
-          for (final frame
-              in json['frames'] as List<Object?>? ?? const <Object?>[])
-            InputFrame.fromJson(
-                (frame! as Map<Object?, Object?>).cast<String, Object?>()),
-        ],
-      );
+    seed: (json['seed'] as num?)?.toInt() ?? 0,
+    frames: <InputFrame>[
+      for (final frame in json['frames'] as List<Object?>? ?? const <Object?>[])
+        InputFrame.fromJson(
+          (frame! as Map<Object?, Object?>).cast<String, Object?>(),
+        ),
+    ],
+  );
 
   /// The generator state the run started from.
   ///
@@ -129,11 +129,11 @@ final class InputTape {
   int get steps => frames.length;
 
   Map<String, Object?> toJson() => <String, Object?>{
-        'seed': seed,
-        'frames': <Map<String, Object?>>[
-          for (final frame in frames) frame.toJson(),
-        ],
-      };
+    'seed': seed,
+    'frames': <Map<String, Object?>>[
+      for (final frame in frames) frame.toJson(),
+    ],
+  };
 }
 
 /// Writes down what a player did, one entry per step.
@@ -147,22 +147,24 @@ final class InputTapeRecorder {
   final InputTape tape;
 
   void record(InputState input) {
-    tape.frames.add(InputFrame(
-      pressed: <String>[
-        for (final action in input.pressedThisStep) action.name,
-      ],
-      released: <String>[
-        for (final action in input.releasedThisStep) action.name,
-      ],
-      stickX: input.moveAxis.x,
-      stickY: input.moveAxis.y,
-      lookX: input.lookDelta.x,
-      lookY: input.lookDelta.y,
-      values: <String, double>{
-        for (final entry in input.analogueValues.entries)
-          entry.key.name: entry.value,
-      },
-    ));
+    tape.frames.add(
+      InputFrame(
+        pressed: <String>[
+          for (final action in input.pressedThisStep) action.name,
+        ],
+        released: <String>[
+          for (final action in input.releasedThisStep) action.name,
+        ],
+        stickX: input.moveAxis.x,
+        stickY: input.moveAxis.y,
+        lookX: input.lookDelta.x,
+        lookY: input.lookDelta.y,
+        values: <String, double>{
+          for (final entry in input.analogueValues.entries)
+            entry.key.name: entry.value,
+        },
+      ),
+    );
   }
 }
 

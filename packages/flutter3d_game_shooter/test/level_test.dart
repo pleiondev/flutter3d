@@ -13,23 +13,23 @@ import 'package:vector_math/vector_math.dart';
 
 /// A level with nothing wrong with it, so a test can break one thing at a time.
 Level _valid() => Level(
-      name: 'test',
-      materials: <String, LevelMaterial>{'stone': LevelMaterial()},
-      brushes: <Brush>[
-        Brush(
-          centre: Vector3(0.0, -0.5, 0.0),
-          size: Vector3(20.0, 1.0, 20.0),
-          material: 'stone',
-        ),
-      ],
-      lights: <LevelLight>[
-        LevelLight(position: Vector3(0.0, 3.0, 0.0), intensity: 10.0, range: 12.0),
-      ],
-      entities: <EntityDef>[
-        EntityDef(type: EntityTypes.playerSpawn, position: Vector3(0.0, 1.0, 0.0)),
-        EntityDef(type: EntityTypes.exit, position: Vector3(5.0, 1.0, 0.0)),
-      ],
-    );
+  name: 'test',
+  materials: <String, LevelMaterial>{'stone': LevelMaterial()},
+  brushes: <Brush>[
+    Brush(
+      centre: Vector3(0.0, -0.5, 0.0),
+      size: Vector3(20.0, 1.0, 20.0),
+      material: 'stone',
+    ),
+  ],
+  lights: <LevelLight>[
+    LevelLight(position: Vector3(0.0, 3.0, 0.0), intensity: 10.0, range: 12.0),
+  ],
+  entities: <EntityDef>[
+    EntityDef(type: EntityTypes.playerSpawn, position: Vector3(0.0, 1.0, 0.0)),
+    EntityDef(type: EntityTypes.exit, position: Vector3(5.0, 1.0, 0.0)),
+  ],
+);
 
 void main() {
   group('the document round-trips', () {
@@ -78,12 +78,11 @@ void main() {
       // A document full of redundant defaults is a document whose diffs are
       // unreadable, which is most of the reason this format is JSON at all.
       final level = Level(
-        brushes: <Brush>[
-          Brush(centre: Vector3.zero(), size: Vector3.all(1.0)),
-        ],
+        brushes: <Brush>[Brush(centre: Vector3.zero(), size: Vector3.all(1.0))],
       );
       final brush =
-          (level.toJson()['brushes']! as List<Object?>).first! as Map<String, Object?>;
+          (level.toJson()['brushes']! as List<Object?>).first!
+              as Map<String, Object?>;
 
       expect(brush.containsKey('material'), isFalse);
       expect(brush.containsKey('solid'), isFalse);
@@ -100,7 +99,10 @@ void main() {
       expect(
         () => Level.fromJson(<String, Object?>{
           'brushes': <Object?>[
-            <String, Object?>{'at': 'over there', 'size': <double>[1, 1, 1]},
+            <String, Object?>{
+              'at': 'over there',
+              'size': <double>[1, 1, 1],
+            },
           ],
         }),
         throwsA(
@@ -116,7 +118,11 @@ void main() {
     test('an entity with no type is refused', () {
       expect(
         () => Level.fromJson(<String, Object?>{
-          'entities': <Object?>[<String, Object?>{'at': <double>[0, 0, 0]}],
+          'entities': <Object?>[
+            <String, Object?>{
+              'at': <double>[0, 0, 0],
+            },
+          ],
         }),
         throwsA(isA<LevelFormatException>()),
       );
@@ -124,11 +130,12 @@ void main() {
   });
 
   group('the validator', () {
-    List<String> errorsOf(Level level) => LevelValidator(registry: sampleRegistry(), rules: sampleRules())
-        .validate(level)
-        .where((LevelIssue i) => i.isError)
-        .map((LevelIssue i) => i.message)
-        .toList();
+    List<String> errorsOf(Level level) =>
+        LevelValidator(registry: sampleRegistry(), rules: sampleRules())
+            .validate(level)
+            .where((LevelIssue i) => i.isError)
+            .map((LevelIssue i) => i.message)
+            .toList();
 
     test('accepts a level with nothing wrong', () {
       expect(errorsOf(_valid()), isEmpty);
@@ -358,7 +365,10 @@ void main() {
         Brush(centre: Vector3(0.0, 0.0, 0.0), size: Vector3(2.0, 2.0, 2.0)),
       );
 
-      final issues = LevelValidator(registry: sampleRegistry(), rules: sampleRules()).validate(level);
+      final issues = LevelValidator(
+        registry: sampleRegistry(),
+        rules: sampleRules(),
+      ).validate(level);
 
       expect(issues.where((LevelIssue i) => i.isError), isEmpty);
       expect(
@@ -375,10 +385,10 @@ void main() {
       );
 
       expect(
-        LevelValidator(registry: sampleRegistry(), rules: sampleRules())
-            .validate(level)
-            .map((LevelIssue i) => i.message)
-            .join(),
+        LevelValidator(
+          registry: sampleRegistry(),
+          rules: sampleRules(),
+        ).validate(level).map((LevelIssue i) => i.message).join(),
         isNot(contains('z-fight')),
       );
     });
@@ -387,7 +397,10 @@ void main() {
       final level = Level(brushes: _valid().brushes);
 
       expect(
-        () => LevelValidator(registry: sampleRegistry(), rules: sampleRules()).assertValid(level),
+        () => LevelValidator(
+          registry: sampleRegistry(),
+          rules: sampleRules(),
+        ).assertValid(level),
         throwsA(
           isA<LevelFormatException>().having(
             (LevelFormatException e) => e.message,
@@ -402,16 +415,20 @@ void main() {
       final level = _valid();
       level.entities.removeWhere((EntityDef e) => e.type == EntityTypes.exit);
 
-      expect(() => LevelValidator(registry: sampleRegistry(), rules: sampleRules()).assertValid(level), returnsNormally);
+      expect(
+        () => LevelValidator(
+          registry: sampleRegistry(),
+          rules: sampleRules(),
+        ).assertValid(level),
+        returnsNormally,
+      );
     });
   });
 
   group('brush geometry', () {
     test('a lone brush becomes six faces', () {
       final level = Level(
-        brushes: <Brush>[
-          Brush(centre: Vector3.zero(), size: Vector3.all(2.0)),
-        ],
+        brushes: <Brush>[Brush(centre: Vector3.zero(), size: Vector3.all(2.0))],
       );
 
       final surfaces = const BrushGeometry().build(level);
@@ -536,8 +553,7 @@ void main() {
         ],
       );
 
-      final surfaces =
-          const BrushGeometry(cullHiddenFaces: false).build(level);
+      final surfaces = const BrushGeometry(cullHiddenFaces: false).build(level);
 
       expect(surfaces.single.triangleCount, 24);
     });
@@ -560,8 +576,16 @@ void main() {
         final b = surface.indices[t + 1] * 3;
         final c = surface.indices[t + 2] * 3;
 
-        final edge1 = Vector3(p[b] - p[a], p[b + 1] - p[a + 1], p[b + 2] - p[a + 2]);
-        final edge2 = Vector3(p[c] - p[a], p[c + 1] - p[a + 1], p[c + 2] - p[a + 2]);
+        final edge1 = Vector3(
+          p[b] - p[a],
+          p[b + 1] - p[a + 1],
+          p[b + 2] - p[a + 2],
+        );
+        final edge2 = Vector3(
+          p[c] - p[a],
+          p[c + 1] - p[a + 1],
+          p[c + 2] - p[a + 2],
+        );
         final wound = edge1.cross(edge2)..normalize();
         final declared = Vector3(n[a], n[a + 1], n[a + 2]);
 
@@ -580,9 +604,7 @@ void main() {
       // assembles vertices out of the neighbours, which draws garbage and no
       // error. Counting them here is cheap; noticing it on screen was not.
       final level = Level(
-        brushes: <Brush>[
-          Brush(centre: Vector3.zero(), size: Vector3.all(2.0)),
-        ],
+        brushes: <Brush>[Brush(centre: Vector3.zero(), size: Vector3.all(2.0))],
       );
       final surface = const BrushGeometry().build(level).single;
 
@@ -598,9 +620,7 @@ void main() {
       // surfaces from the wrong side, and only on mirrored UVs — which is a bug
       // this project has already paid for once.
       final level = Level(
-        brushes: <Brush>[
-          Brush(centre: Vector3.zero(), size: Vector3.all(2.0)),
-        ],
+        brushes: <Brush>[Brush(centre: Vector3.zero(), size: Vector3.all(2.0))],
       );
       final surface = const BrushGeometry().build(level).single;
 
@@ -662,7 +682,12 @@ void main() {
       level.addTo(world);
 
       final hit = RayHit();
-      world.raycast(Vector3(0.0, 0.0, 10.0), Vector3(0.0, 0.0, -1.0), 50.0, hit);
+      world.raycast(
+        Vector3(0.0, 0.0, 10.0),
+        Vector3(0.0, 0.0, -1.0),
+        50.0,
+        hit,
+      );
 
       expect((hit.collider!.userData! as Brush).material, 'stone');
     });

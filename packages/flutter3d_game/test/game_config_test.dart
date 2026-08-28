@@ -96,8 +96,10 @@ void main() {
         ..setSetting('mouse.look', 1.0);
       final json = config.toJson();
 
-      expect((json['settings']! as Map<String, Object?>).keys,
-          <String>['mouse.look', 'pad.look']);
+      expect((json['settings']! as Map<String, Object?>).keys, <String>[
+        'mouse.look',
+        'pad.look',
+      ]);
       expect(GameConfig.fromJson(json).settingOf('pad.look', 0.0), 2.0);
     });
 

@@ -77,9 +77,13 @@ void main() {
 
     final after = _error(_faceTowards(it, heading), settled).abs();
 
-    expect(after, lessThan(before),
-        reason: 'a step of turning left it further from where it is going: '
-            '$before then $after');
+    expect(
+      after,
+      lessThan(before),
+      reason:
+          'a step of turning left it further from where it is going: '
+          '$before then $after',
+    );
   });
 
   test('and gets there in the time the turn rate says', () {
@@ -94,9 +98,15 @@ void main() {
 
     final afterOne = _faceTowards(_field(), heading);
 
-    expect(_error(afterOne, settled).abs(), greaterThan(0.2),
-        reason: 'the whole turn happened in one step');
-    expect(_error(0.0, afterOne).abs(), greaterThan(0.0),
-        reason: 'it did not turn at all');
+    expect(
+      _error(afterOne, settled).abs(),
+      greaterThan(0.2),
+      reason: 'the whole turn happened in one step',
+    );
+    expect(
+      _error(0.0, afterOne).abs(),
+      greaterThan(0.0),
+      reason: 'it did not turn at all',
+    );
   });
 }

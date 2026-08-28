@@ -145,9 +145,8 @@ final class WeaponDef {
         );
 
   /// Seconds between shots.
-  Duration get cooldown => Duration(
-        microseconds: (1e6 / shotsPerSecond).round(),
-      );
+  Duration get cooldown =>
+      Duration(microseconds: (1e6 / shotsPerSecond).round());
 
   double get cooldownSeconds => 1.0 / shotsPerSecond;
 

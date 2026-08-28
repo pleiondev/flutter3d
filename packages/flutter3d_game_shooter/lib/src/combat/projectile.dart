@@ -34,8 +34,8 @@ final class ProjectileSystem {
     EcsWorld? entities,
     this.capacity = 64,
     this.radius = 0.12,
-  })  : _resolver = BlastResolver(world),
-        entities = entities ?? EcsWorld() {
+  }) : _resolver = BlastResolver(world),
+       entities = entities ?? EcsWorld() {
     this.entities
       ..register<InFlight>(
         'inFlight',
@@ -98,12 +98,15 @@ final class ProjectileSystem {
     }
     final velocity = direction.normalized()..scale(speed);
     final entity = entities.spawn();
-    entities.set(entity, InFlight(
-      position: position,
-      velocity: velocity,
-      blast: blast,
-      life: life,
-    ));
+    entities.set(
+      entity,
+      InFlight(
+        position: position,
+        velocity: velocity,
+        blast: blast,
+        life: life,
+      ),
+    );
     if (owner != null) entities.set(entity, FiredBy(owner));
     return true;
   }

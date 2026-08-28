@@ -20,11 +20,11 @@ final class LevelLight {
     this.castsShadow = false,
     this.name,
     Map<String, Object?> source = const <String, Object?>{},
-  })  : position = position?.clone() ?? Vector3.zero(),
-        direction = direction?.clone() ?? Vector3(0.0, -1.0, 0.0),
-        // ignore: prefer_initializing_formals
-        _source = source,
-        color = color?.clone() ?? Vector3(1.0, 1.0, 1.0);
+  }) : position = position?.clone() ?? Vector3.zero(),
+       direction = direction?.clone() ?? Vector3(0.0, -1.0, 0.0),
+       // ignore: prefer_initializing_formals
+       _source = source,
+       color = color?.clone() ?? Vector3(1.0, 1.0, 1.0);
 
   /// The document this light was read from. See [writeThrough].
   final Map<String, Object?> _source;
@@ -45,34 +45,38 @@ final class LevelLight {
   final String? name;
 
   factory LevelLight.fromJson(Map<String, Object?> json) => LevelLight(
-        type: json.enumValue(
-          'type',
-          LevelLightType.values,
-          LevelLightType.point,
-          describedAs: 'light type',
-        ),
-        position: json.vector3('at', fallback: Vector3.zero()),
-        direction: json.vector3(
-          'direction',
-          fallback: Vector3(0.0, -1.0, 0.0),
-        ),
-        color: json.vector3('color', fallback: Vector3(1.0, 1.0, 1.0)),
-        intensity: json.numberOr('intensity', 1.0),
-        range: json.numberOr('range', 0.0),
-        castsShadow: json.flagOr('castsShadow'),
-        name: json.textOrNull('name'),
-        source: json,
-      );
+    type: json.enumValue(
+      'type',
+      LevelLightType.values,
+      LevelLightType.point,
+      describedAs: 'light type',
+    ),
+    position: json.vector3('at', fallback: Vector3.zero()),
+    direction: json.vector3('direction', fallback: Vector3(0.0, -1.0, 0.0)),
+    color: json.vector3('color', fallback: Vector3(1.0, 1.0, 1.0)),
+    intensity: json.numberOr('intensity', 1.0),
+    range: json.numberOr('range', 0.0),
+    castsShadow: json.flagOr('castsShadow'),
+    name: json.textOrNull('name'),
+    source: json,
+  );
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
-        WriteThroughField('type', type.name, whenAbsent: type != LevelLightType.point),
-        WriteThroughField('at', position.toJson(), whenAbsent: position != _origin),
-        WriteThroughField('direction', direction.toJson(),
-            whenAbsent: type != LevelLightType.point),
-        WriteThroughField('color', color.toJson(), whenAbsent: color != _white),
-        WriteThroughField('intensity', intensity, whenAbsent: intensity != 1.0),
-        WriteThroughField('range', range, whenAbsent: range != 0.0),
-        WriteThroughField('castsShadow', castsShadow, whenAbsent: castsShadow),
-        WriteThroughField('name', name, whenAbsent: name != null),
-      ]);
+    WriteThroughField(
+      'type',
+      type.name,
+      whenAbsent: type != LevelLightType.point,
+    ),
+    WriteThroughField('at', position.toJson(), whenAbsent: position != _origin),
+    WriteThroughField(
+      'direction',
+      direction.toJson(),
+      whenAbsent: type != LevelLightType.point,
+    ),
+    WriteThroughField('color', color.toJson(), whenAbsent: color != _white),
+    WriteThroughField('intensity', intensity, whenAbsent: intensity != 1.0),
+    WriteThroughField('range', range, whenAbsent: range != 0.0),
+    WriteThroughField('castsShadow', castsShadow, whenAbsent: castsShadow),
+    WriteThroughField('name', name, whenAbsent: name != null),
+  ]);
 }

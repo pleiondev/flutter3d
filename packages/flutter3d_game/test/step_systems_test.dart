@@ -163,8 +163,7 @@ void main() {
   });
 
   group('a phase is its name', () {
-    test('so a genre can invent one, and two of them need not be one object',
-        () {
+    test('so a genre can invent one, and two of them need not be one object', () {
       // **Why `StepPhase` wraps a string** — the same reason `GameAction` does.
       // "After the weapons fired" is a sentence about one genre; an enum here
       // would mean editing this package the day a genre wanted its own phase.

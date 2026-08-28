@@ -9,13 +9,10 @@ import 'package:vector_math/vector_math.dart';
 /// game that has a yaw and no camera object should not have to build a matrix
 /// to be heard from.
 final class AudioListener {
-  AudioListener({
-    Vector3? position,
-    Vector3? forward,
-    Vector3? up,
-  })  : position = position?.clone() ?? Vector3.zero(),
-        forward = forward?.clone() ?? Vector3(0.0, 0.0, -1.0),
-        up = up?.clone() ?? Vector3(0.0, 1.0, 0.0) {
+  AudioListener({Vector3? position, Vector3? forward, Vector3? up})
+    : position = position?.clone() ?? Vector3.zero(),
+      forward = forward?.clone() ?? Vector3(0.0, 0.0, -1.0),
+      up = up?.clone() ?? Vector3(0.0, 1.0, 0.0) {
     _refreshRight();
   }
 

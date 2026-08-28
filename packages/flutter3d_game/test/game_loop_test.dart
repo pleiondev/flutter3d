@@ -126,8 +126,9 @@ void main() {
     input.press(_shoot);
     loop.advance(3.0 / 60.0);
 
-    expect(pressedIn, <int>[0],
-        reason: 'the press was still latched on a later step');
+    expect(pressedIn, <int>[
+      0,
+    ], reason: 'the press was still latched on a later step');
   });
 
   test('held state survives every step of the frame', () {
@@ -208,8 +209,11 @@ void main() {
       loop.paused = true;
       loop.advance(1 / 60);
 
-      expect(loop.lastFrame, 0.0,
-          reason: 'the world stood still and the smoke did not');
+      expect(
+        loop.lastFrame,
+        0.0,
+        reason: 'the world stood still and the smoke did not',
+      );
     });
 
     test('and a frame of nothing is a frame of nothing', () {
@@ -242,9 +246,13 @@ void main() {
 
       expect(loop.advance(10.0), 0);
       expect(looksSeen, isEmpty);
-      expect(loop.clock.droppedSteps, 0,
-          reason: 'ten seconds behind a menu was reported as a performance '
-              'problem');
+      expect(
+        loop.clock.droppedSteps,
+        0,
+        reason:
+            'ten seconds behind a menu was reported as a performance '
+            'problem',
+      );
     });
 
     test('resuming does not run the time the pause took', () {
@@ -320,9 +328,13 @@ void main() {
 
       loop.paused = false;
       expect(loop.advance(1.0 / 60.0), 1);
-      expect(looksSeen.single, 0.0,
-          reason: 'five hundred pixels of menu-time mouse movement turned the '
-              'camera on the frame the game resumed');
+      expect(
+        looksSeen.single,
+        0.0,
+        reason:
+            'five hundred pixels of menu-time mouse movement turned the '
+            'camera on the frame the game resumed',
+      );
     });
   });
 }

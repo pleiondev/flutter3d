@@ -21,15 +21,20 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('the Swift product is the plugin name, kebab-cased', () {
     const plugin = 'pad_input';
-    final manifest =
-        File('darwin/$plugin/Package.swift').readAsStringSync();
+    final manifest = File('darwin/$plugin/Package.swift').readAsStringSync();
 
-    expect(manifest, contains('name: "$plugin"'),
-        reason: 'the Swift package is not named after the plugin');
-    expect(manifest,
-        contains('.library(name: "${plugin.replaceAll('_', '-')}"'),
-        reason: 'Flutter asks for the product by its kebab-cased name, and '
-            'this manifest declares a different one — which fails at '
-            '`xcodebuild` with "product not found in package"');
+    expect(
+      manifest,
+      contains('name: "$plugin"'),
+      reason: 'the Swift package is not named after the plugin',
+    );
+    expect(
+      manifest,
+      contains('.library(name: "${plugin.replaceAll('_', '-')}"'),
+      reason:
+          'Flutter asks for the product by its kebab-cased name, and '
+          'this manifest declares a different one — which fails at '
+          '`xcodebuild` with "product not found in package"',
+    );
   });
 }

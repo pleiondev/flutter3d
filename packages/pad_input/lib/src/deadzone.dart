@@ -23,8 +23,8 @@ import 'dart:math' as math;
 /// A trigger is one-sided and gets the same treatment along its single axis.
 final class Deadzone {
   const Deadzone({this.stick = 0.15, this.trigger = 0.06})
-      : assert(stick >= 0.0 && stick < 1.0),
-        assert(trigger >= 0.0 && trigger < 1.0);
+    : assert(stick >= 0.0 && stick < 1.0),
+      assert(trigger >= 0.0 && trigger < 1.0);
 
   /// The fraction of a stick's travel that counts as centred.
   ///
@@ -37,10 +37,8 @@ final class Deadzone {
   /// The same for a trigger, which rests at zero and only travels one way.
   final double trigger;
 
-  Deadzone copyWith({double? stick, double? trigger}) => Deadzone(
-        stick: stick ?? this.stick,
-        trigger: trigger ?? this.trigger,
-      );
+  Deadzone copyWith({double? stick, double? trigger}) =>
+      Deadzone(stick: stick ?? this.stick, trigger: trigger ?? this.trigger);
 
   /// Applies the stick dead zone to a pair of axes, writing the result back.
   ///

@@ -38,7 +38,6 @@ import 'package:vector_math/vector_math.dart';
 import 'collector.dart';
 import 'inventory.dart';
 
-
 final class Player with KeyHolder implements Collector, Damageable, Rider {
   Player({
     required this.body,
@@ -83,8 +82,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   Collider? get carriedBy => body.groundBody;
 
   @override
-  bool applyDamage(double amount, {Object? from}) =>
-      inventory.damage(amount);
+  bool applyDamage(double amount, {Object? from}) => inventory.damage(amount);
 
   bool get isAlive => inventory.health.isAlive;
 
@@ -178,23 +176,23 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
   static const double pitchLimit = math.pi / 2.0 - 0.01;
 
   Map<String, Object?> save() => <String, Object?>{
-        'body': body.save(),
-        'inventory': inventory.save(),
-        'yaw': yaw,
-        'pitch': _pitch,
-        // **Saved, and `CharacterController.save` says why it has to be here
-        // rather than there**: a `CollisionShape` is not JSON, so a game that
-        // crouches saves that it was crouching and asks for the volume again on
-        // the way back. One that forgets restores a standing body inside a
-        // crawlspace and is thrown out of it on the first step.
-        'crouching': _crouched,
-        // **Saved because it moves where the bullets go.** The snapshot test
-        // caught this within minutes of the recoil being written: a restored
-        // world had its sight level while the one it was taken from was still
-        // coming down from a shot, so the two aimed differently and the
-        // monsters took different damage from the same trigger.
-        'recoil': recoilPitch,
-      };
+    'body': body.save(),
+    'inventory': inventory.save(),
+    'yaw': yaw,
+    'pitch': _pitch,
+    // **Saved, and `CharacterController.save` says why it has to be here
+    // rather than there**: a `CollisionShape` is not JSON, so a game that
+    // crouches saves that it was crouching and asks for the volume again on
+    // the way back. One that forgets restores a standing body inside a
+    // crawlspace and is thrown out of it on the first step.
+    'crouching': _crouched,
+    // **Saved because it moves where the bullets go.** The snapshot test
+    // caught this within minutes of the recoil being written: a restored
+    // world had its sight level while the one it was taken from was still
+    // coming down from a shot, so the two aimed differently and the
+    // monsters took different damage from the same trigger.
+    'recoil': recoilPitch,
+  };
 
   void restore(Map<String, Object?> from) {
     final body = from['body'];
@@ -294,8 +292,7 @@ final class Player with KeyHolder implements Collector, Damageable, Rider {
       out.setValues(-math.sin(yaw), 0.0, -math.cos(yaw));
 
   /// Where the right hand is on the ground, ignoring pitch.
-  void right(Vector3 out) =>
-      out.setValues(math.cos(yaw), 0.0, -math.sin(yaw));
+  void right(Vector3 out) => out.setValues(math.cos(yaw), 0.0, -math.sin(yaw));
 
   /// The direction to walk for a movement axis, from [InputState.moveAxis].
   ///

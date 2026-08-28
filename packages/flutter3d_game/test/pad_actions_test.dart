@@ -99,8 +99,7 @@ void main() {
   });
 
   group('the right stick', () {
-    test('is a rate, so the view turns by the same amount either frame rate',
-        () {
+    test('is a rate, so the view turns by the same amount either frame rate', () {
       // **The reason `tick` takes `dt` at all.** `addLook` accumulates a
       // displacement and a stick reports a speed, so somebody has to integrate,
       // and if nobody does the camera turns further on a faster machine — which
@@ -214,8 +213,11 @@ void main() {
 
       fake.state.setDown(PadButton.shoulderLeft, down: false);
       pad.tick(1 / 60);
-      expect(input.held(dash), isTrue,
-          reason: 'the other button is still down');
+      expect(
+        input.held(dash),
+        isTrue,
+        reason: 'the other button is still down',
+      );
 
       fake.state.setDown(PadButton.shoulderRight, down: false);
       pad.tick(1 / 60);
@@ -250,8 +252,11 @@ void main() {
 
       input.endStep();
       pad.tick(1 / 60);
-      expect(input.slotRequest, isNull,
-          reason: 'a held d-pad re-selected the slot every frame');
+      expect(
+        input.slotRequest,
+        isNull,
+        reason: 'a held d-pad re-selected the slot every frame',
+      );
     });
 
     test('and it wins over what the button was bound to', () {
@@ -280,16 +285,15 @@ void main() {
   });
 
   group('a trigger', () {
-    Bindings pedal() => Bindings()
-      ..bind(InputSource.pad(PadButton.triggerRight.id), throttle);
+    Bindings pedal() =>
+        Bindings()..bind(InputSource.pad(PadButton.triggerRight.id), throttle);
 
     test('carries a magnitude, not just a bit', () {
       // What racing needed and could not have: `VehicleInput.throttle` is a
       // double, and the input layer could only answer one or nothing.
       final fake = FakePad()..state.setAxis(PadAxis.triggerRight, 0.42);
       final input = InputState();
-      PadInput(state: input, pad: _bare(fake), bindings: pedal())
-          .tick(1 / 60);
+      PadInput(state: input, pad: _bare(fake), bindings: pedal()).tick(1 / 60);
 
       expect(input.value(throttle), closeTo(0.42, 1e-6));
     });
@@ -309,9 +313,13 @@ void main() {
       input.endStep();
       fake.state.setAxis(PadAxis.triggerRight, 0.45);
       pad.tick(1 / 60);
-      expect(input.held(throttle), isTrue,
-          reason: 'a dip below the press threshold released it, so the gap '
-              'between pressing and releasing is not being used');
+      expect(
+        input.held(throttle),
+        isTrue,
+        reason:
+            'a dip below the press threshold released it, so the gap '
+            'between pressing and releasing is not being used',
+      );
       expect(input.released(throttle), isFalse);
 
       fake.state.setAxis(PadAxis.triggerRight, 0.3);
@@ -329,13 +337,19 @@ void main() {
       final pad = PadInput(state: input, pad: _bare(fake), bindings: pedal());
 
       pad.tick(1 / 60);
-      expect(input.value(throttle), closeTo(0.8, 1e-6),
-          reason: 'the trigger is what the player is moving');
+      expect(
+        input.value(throttle),
+        closeTo(0.8, 1e-6),
+        reason: 'the trigger is what the player is moving',
+      );
 
       fake.state.setAxis(PadAxis.triggerRight, 0.0);
       pad.tick(1 / 60);
-      expect(input.value(throttle), 1.0,
-          reason: 'the key is still down, so full throttle');
+      expect(
+        input.value(throttle),
+        1.0,
+        reason: 'the key is still down, so full throttle',
+      );
       expect(input.held(throttle), isTrue);
     });
   });
@@ -388,10 +402,16 @@ void main() {
 
       expect(input.held(GameAction.jump), isFalse);
       expect(input.released(GameAction.jump), isTrue);
-      expect(input.held(GameAction.moveForward), isTrue,
-          reason: 'the keyboard was holding this one');
-      expect(input.moveAxis.y, closeTo(1.0, 1e-9),
-          reason: 'the stick let go, the key did not');
+      expect(
+        input.held(GameAction.moveForward),
+        isTrue,
+        reason: 'the keyboard was holding this one',
+      );
+      expect(
+        input.moveAxis.y,
+        closeTo(1.0, 1e-9),
+        reason: 'the stick let go, the key did not',
+      );
       expect(pad.isConnected, isFalse);
     });
 
@@ -459,8 +479,11 @@ void main() {
       final bindings = PadInput.addDefaultsTo(DesktopInput.defaultBindings());
 
       expect(bindings[InputSource.pad('face.south')], GameAction.jump);
-      expect(bindings.sourcesFor(GameAction.jump).length, 2,
-          reason: 'space and the south face button');
+      expect(
+        bindings.sourcesFor(GameAction.jump).length,
+        2,
+        reason: 'space and the south face button',
+      );
     });
 
     test('and a table saved before pads existed can be given them', () {
@@ -485,8 +508,10 @@ void main() {
       // next level by the first player who changes anything.
       PadInput.defaultBindings().unbind(InputSource.pad('face.south'));
 
-      expect(PadInput.defaultBindings()[InputSource.pad('face.south')],
-          GameAction.jump);
+      expect(
+        PadInput.defaultBindings()[InputSource.pad('face.south')],
+        GameAction.jump,
+      );
     });
   });
 
@@ -496,8 +521,7 @@ void main() {
       // offering a restart: neither is a verb the simulation has, and inventing
       // an action for each would put words in the binding table nothing reads.
       final fake = FakePad()..state.setDown(PadButton.start, down: true);
-      final pad = PadInput(state: InputState(), pad: _bare(fake))
-        ..tick(1 / 60);
+      final pad = PadInput(state: InputState(), pad: _bare(fake))..tick(1 / 60);
 
       expect(pad.heldButtons, contains(PadButton.start));
 
@@ -513,13 +537,18 @@ void main() {
         ..setSetting('pad.look', 250.0)
         ..setSetting('pad.deadzone.stick', 0.3);
       final fake = FakePad();
-      final pad = PadInput(state: InputState(), pad: Gamepad(platform: fake))
-        ..applySettings(config);
+      final pad = PadInput(
+        state: InputState(),
+        pad: Gamepad(platform: fake),
+      )..applySettings(config);
 
       expect(pad.routes.lookRate, 250.0);
       expect(pad.pad.deadzone.stick, 0.3);
-      expect(pad.pad.deadzone.trigger, const Deadzone().trigger,
-          reason: 'a name the config does not carry keeps its default');
+      expect(
+        pad.pad.deadzone.trigger,
+        const Deadzone().trigger,
+        reason: 'a name the config does not carry keeps its default',
+      );
     });
 
     test('and go back, so a slider survives a relaunch', () {
@@ -532,20 +561,26 @@ void main() {
       final config = GameConfig();
       pad.storeSettings(config);
 
-      expect(GameConfig.fromJson(config.toJson()).settingOf('pad.look', 0.0),
-          800.0);
       expect(
-          GameConfig.fromJson(config.toJson())
-              .settingOf('pad.deadzone.stick', 0.0),
-          0.22);
+        GameConfig.fromJson(config.toJson()).settingOf('pad.look', 0.0),
+        800.0,
+      );
+      expect(
+        GameConfig.fromJson(
+          config.toJson(),
+        ).settingOf('pad.deadzone.stick', 0.0),
+        0.22,
+      );
     });
   });
 
   group('a build with no gamepad implementation', () {
     test('is a translator that says nothing', () {
       final input = InputState()..press(GameAction.moveForward);
-      final pad = PadInput(state: input, pad: Gamepad(platform: UnsupportedGamepad()))
-        ..tick(1 / 60);
+      final pad = PadInput(
+        state: input,
+        pad: Gamepad(platform: UnsupportedGamepad()),
+      )..tick(1 / 60);
 
       expect(pad.isSupported, isFalse);
       expect(pad.isConnected, isFalse);

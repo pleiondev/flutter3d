@@ -15,18 +15,22 @@ const int _steps = 200000;
 
 CollisionWorld _level() {
   final world = CollisionWorld()
-    ..add(Collider(
-      shape: CollisionBox(Vector3(60.0, 0.5, 60.0)),
-      position: Vector3(0.0, -0.5, 0.0),
-    ));
+    ..add(
+      Collider(
+        shape: CollisionBox(Vector3(60.0, 0.5, 60.0)),
+        position: Vector3(0.0, -0.5, 0.0),
+      ),
+    );
   // Something to sweep against: a field of pillars, which is what a level of
   // brushes looks like to the broadphase.
   for (var x = -40; x <= 40; x += 4) {
     for (var z = -40; z <= 40; z += 4) {
-      world.add(Collider(
-        shape: CollisionBox(Vector3(0.6, 2.0, 0.6)),
-        position: Vector3(x.toDouble(), 2.0, z.toDouble()),
-      ));
+      world.add(
+        Collider(
+          shape: CollisionBox(Vector3(0.6, 2.0, 0.6)),
+          position: Vector3(x.toDouble(), 2.0, z.toDouble()),
+        ),
+      );
     }
   }
   return world;
@@ -34,8 +38,10 @@ CollisionWorld _level() {
 
 double _run({ContactFilter? filter}) {
   final world = _level();
-  final body = CharacterController(world: world, position: Vector3(1.0, 0.9, 1.0))
-    ..solidFilter = filter;
+  final body = CharacterController(
+    world: world,
+    position: Vector3(1.0, 0.9, 1.0),
+  )..solidFilter = filter;
   final wish = Vector3(1.0, 0.0, 0.35);
   final clock = Stopwatch()..start();
   for (var i = 0; i < _steps; i++) {
@@ -61,10 +67,12 @@ void main() {
   );
 
   // ignore: avoid_print
-  print('microseconds per step over $_steps steps\n'
-      '  no filter      ${without.toStringAsFixed(3)}\n'
-      '  trivial filter ${trivial.toStringAsFixed(3)}  '
-      '(+${((trivial / without - 1) * 100).toStringAsFixed(1)}%)\n'
-      '  one-way filter ${oneWay.toStringAsFixed(3)}  '
-      '(+${((oneWay / without - 1) * 100).toStringAsFixed(1)}%)');
+  print(
+    'microseconds per step over $_steps steps\n'
+    '  no filter      ${without.toStringAsFixed(3)}\n'
+    '  trivial filter ${trivial.toStringAsFixed(3)}  '
+    '(+${((trivial / without - 1) * 100).toStringAsFixed(1)}%)\n'
+    '  one-way filter ${oneWay.toStringAsFixed(3)}  '
+    '(+${((oneWay / without - 1) * 100).toStringAsFixed(1)}%)',
+  );
 }

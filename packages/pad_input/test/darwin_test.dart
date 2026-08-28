@@ -59,9 +59,13 @@ void main() {
       final out = PadSnapshot();
       state.fill(out);
 
-      expect(out.axis(PadAxis.leftStickY), closeTo(-1.0, 1e-9),
-          reason: 'a stick pushed up must read negative here, because that is '
-              'what the other two platforms report and what PadInput flips');
+      expect(
+        out.axis(PadAxis.leftStickY),
+        closeTo(-1.0, 1e-9),
+        reason:
+            'a stick pushed up must read negative here, because that is '
+            'what the other two platforms report and what PadInput flips',
+      );
     });
 
     test('and x is left alone, because x already agrees', () {
@@ -89,11 +93,15 @@ void main() {
   group('the fixed order', () {
     test('puts each button where the native side wrote it', () {
       final state = connected()
-        ..note(sample(buttons: <PadButton, double>{
-          PadButton.faceSouth: 1.0,
-          PadButton.dpadLeft: 1.0,
-          PadButton.guide: 1.0,
-        }));
+        ..note(
+          sample(
+            buttons: <PadButton, double>{
+              PadButton.faceSouth: 1.0,
+              PadButton.dpadLeft: 1.0,
+              PadButton.guide: 1.0,
+            },
+          ),
+        );
 
       final out = PadSnapshot();
       state.fill(out);
@@ -118,8 +126,11 @@ void main() {
       // controls are analogue never has to find out — and it reaches it from the
       // axis rather than from a second copy on the wire.
       expect(out.pressure(PadButton.triggerRight), closeTo(0.42, 1e-9));
-      expect(out.down(PadButton.triggerRight), isFalse,
-          reason: "the framework's own bit said no, and it is the only bit");
+      expect(
+        out.down(PadButton.triggerRight),
+        isFalse,
+        reason: "the framework's own bit said no, and it is the only bit",
+      );
     });
 
     test('and a sample shorter than the table is not an error', () {
@@ -145,9 +156,12 @@ void main() {
   group('losing the player, and losing the pad', () {
     test('going to the background lets go without disconnecting', () {
       final state = connected()
-        ..note(sample(leftY: 1.0, buttons: <PadButton, double>{
-          PadButton.faceSouth: 1.0,
-        }))
+        ..note(
+          sample(
+            leftY: 1.0,
+            buttons: <PadButton, double>{PadButton.faceSouth: 1.0},
+          ),
+        )
         ..note(<String, Object?>{'event': 'relaxed'});
 
       final out = PadSnapshot();

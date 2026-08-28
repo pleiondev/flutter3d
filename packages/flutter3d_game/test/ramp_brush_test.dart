@@ -19,18 +19,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
 Level _level(List<Brush> brushes) => Level(
-      name: 'ramps',
-      materials: <String, LevelMaterial>{'stone': LevelMaterial()},
-      brushes: brushes,
-      entities: const <EntityDef>[],
-    );
+  name: 'ramps',
+  materials: <String, LevelMaterial>{'stone': LevelMaterial()},
+  brushes: brushes,
+  entities: const <EntityDef>[],
+);
 
 Brush _ramp({WedgeUphill uphill = WedgeUphill.positiveZ}) => Brush(
-      centre: Vector3(0.0, 1.0, 4.0),
-      size: Vector3(6.0, 2.0, 8.0),
-      material: 'stone',
-      ramp: uphill,
-    );
+  centre: Vector3(0.0, 1.0, 4.0),
+  size: Vector3(6.0, 2.0, 8.0),
+  material: 'stone',
+  ramp: uphill,
+);
 
 void main() {
   group('in the document', () {
@@ -39,8 +39,11 @@ void main() {
 
       expect(brush.isRamp, isFalse);
       expect(brush.ramp, isNull);
-      expect(brush.toJson().containsKey('ramp'), isFalse,
-          reason: 'a document that has nothing to say must say nothing');
+      expect(
+        brush.toJson().containsKey('ramp'),
+        isFalse,
+        reason: 'a document that has nothing to say must say nothing',
+      );
     });
 
     test('and one that climbs says which way, and round-trips', () {
@@ -71,8 +74,8 @@ void main() {
 
   group('what the validator says about one', () {
     List<LevelIssue> check(Brush brush) => LevelValidator(
-          registry: EntityRegistry(const <EntityKind>[]),
-        ).validate(_level(<Brush>[brush]));
+      registry: EntityRegistry(const <EntityKind>[]),
+    ).validate(_level(<Brush>[brush]));
 
     test('a sensible ramp draws no comment', () {
       expect(
@@ -126,8 +129,9 @@ void main() {
       );
 
       expect(
-        () => LevelValidator(registry: EntityRegistry(const <EntityKind>[]))
-            .assertValid(_level(<Brush>[steep])),
+        () => LevelValidator(
+          registry: EntityRegistry(const <EntityKind>[]),
+        ).assertValid(_level(<Brush>[steep])),
         returnsNormally,
       );
     });
@@ -209,10 +213,10 @@ void main() {
           final b = ramp.indices[t * 3 + 1];
           final c = ramp.indices[t * 3 + 2];
           Vector3 at(int i) => Vector3(
-                ramp.positions[i * 3],
-                ramp.positions[i * 3 + 1],
-                ramp.positions[i * 3 + 2],
-              );
+            ramp.positions[i * 3],
+            ramp.positions[i * 3 + 1],
+            ramp.positions[i * 3 + 2],
+          );
           final winding = (at(b) - at(a)).cross(at(c) - at(a));
           final normal = Vector3(
             ramp.normals[a * 3],
@@ -220,8 +224,11 @@ void main() {
             ramp.normals[a * 3 + 2],
           );
 
-          expect(winding.dot(normal), greaterThan(0.0),
-              reason: '$uphill: triangle $t faces backwards');
+          expect(
+            winding.dot(normal),
+            greaterThan(0.0),
+            reason: '$uphill: triangle $t faces backwards',
+          );
         }
       }
     });
@@ -243,8 +250,11 @@ void main() {
             ramp.positions[i * 3 + 1] + ramp.normals[i * 3 + 1] * 0.05,
             ramp.positions[i * 3 + 2] + ramp.normals[i * 3 + 2] * 0.05,
           );
-          expect(wedge.containsPoint(brush.centre, outward), isFalse,
-              reason: '$uphill: vertex $i faces into the ramp');
+          expect(
+            wedge.containsPoint(brush.centre, outward),
+            isFalse,
+            reason: '$uphill: vertex $i faces into the ramp',
+          );
         }
       }
     });
@@ -264,8 +274,11 @@ void main() {
       final beside = surfaces(<Brush>[wall, _ramp()]);
       final wallNow = beside.single.triangleCount - 8;
 
-      expect(wallNow, alone,
-          reason: 'the ramp swallowed a face of the wall inside it');
+      expect(
+        wallNow,
+        alone,
+        reason: 'the ramp swallowed a face of the wall inside it',
+      );
     });
   });
 }

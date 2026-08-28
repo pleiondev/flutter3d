@@ -3,6 +3,12 @@ description: "The game layer on top of flutter3d: a fixed timestep, device-indep
 version: 0.3.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - input
+  - simulation
 publish_to: 'none'
 resolution: workspace
 

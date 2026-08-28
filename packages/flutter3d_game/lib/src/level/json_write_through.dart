@@ -53,8 +53,9 @@ Map<String, Object?> writeThrough(
       out[entry.key] = entry.value;
       continue;
     }
-    out[entry.key] =
-        sameJsonValue(entry.value, field.value) ? entry.value : field.value;
+    out[entry.key] = sameJsonValue(entry.value, field.value)
+        ? entry.value
+        : field.value;
   }
 
   for (final field in fields) {

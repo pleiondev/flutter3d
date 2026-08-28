@@ -37,7 +37,6 @@ export 'trigger_kinds.dart';
 /// a hierarchy — the validator and the spawner each walk the entity list once
 /// and ask, instead of each carrying its own switch over the same names.
 abstract base class EntityKind {
-
   /// Whether a player has to be able to *get to* one of these.
   ///
   /// A coin inside a wall looks exactly like a coin nobody has taken yet, and

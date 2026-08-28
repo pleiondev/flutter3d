@@ -98,8 +98,11 @@ void main() {
       }
 
       expect(replay.ending, equals(live.ending));
-      expect(replay.shots, greaterThan(0),
-          reason: 'a run where nothing happened would prove nothing');
+      expect(
+        replay.shots,
+        greaterThan(0),
+        reason: 'a run where nothing happened would prove nothing',
+      );
     });
 
     test('and is one entry per step', () {
@@ -129,7 +132,8 @@ void main() {
 
       final written = jsonEncode(recorder.tape.toJson());
       final read = InputTape.fromJson(
-          jsonDecode(written) as Map<String, Object?>);
+        jsonDecode(written) as Map<String, Object?>,
+      );
 
       expect(read.seed, 99);
       expect(read.steps, recorder.tape.steps);

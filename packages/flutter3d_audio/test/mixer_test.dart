@@ -71,10 +71,12 @@ void main() {
       scene.mixer.setVolume(AudioBus.music, 0.0);
       scene.update(_ears());
 
-      final music =
-          backend.started.firstWhere((SilentVoice v) => v.asset == _track.asset);
-      final step =
-          backend.started.firstWhere((SilentVoice v) => v.asset == _step.asset);
+      final music = backend.started.firstWhere(
+        (SilentVoice v) => v.asset == _track.asset,
+      );
+      final step = backend.started.firstWhere(
+        (SilentVoice v) => v.asset == _step.asset,
+      );
       expect(music.gain, 0.0);
       expect(step.gain, greaterThan(0.0));
     });

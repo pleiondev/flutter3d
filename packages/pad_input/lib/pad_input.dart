@@ -46,9 +46,9 @@ export 'src/pad_snapshot.dart';
 /// The gamepad a player is holding.
 final class Gamepad {
   Gamepad({GamepadPlatform? platform, Deadzone deadzone = const Deadzone()})
-      : _platform = platform ?? GamepadPlatform.instance,
-        // ignore: prefer_initializing_formals
-        deadzone = deadzone;
+    : _platform = platform ?? GamepadPlatform.instance,
+      // ignore: prefer_initializing_formals
+      deadzone = deadzone;
 
   /// The one a game uses when it has not made its own.
   ///

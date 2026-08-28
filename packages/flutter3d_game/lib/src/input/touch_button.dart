@@ -36,11 +36,7 @@ class _TouchButtonState extends State<TouchButton> {
   @override
   Widget build(BuildContext context) {
     final down = _pointer != null;
-    return Semantics(
-      button: true,
-      label: widget.label,
-      child: _listener(down),
-    );
+    return Semantics(button: true, label: widget.label, child: _listener(down));
   }
 
   Widget _listener(bool down) {

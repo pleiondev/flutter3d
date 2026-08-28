@@ -37,11 +37,11 @@ final class Credit {
   /// A separate constructor rather than a null licence passed by a caller, so
   /// the awkward case has to be written out on purpose.
   const Credit.untraced({required this.file, required this.work})
-      : author = null,
-        source = null,
-        licence = null,
-        licenceUrl = null,
-        modified = true;
+    : author = null,
+      source = null,
+      licence = null,
+      licenceUrl = null,
+      modified = true;
 
   /// The file as it ships, relative to `assets/`.
   final String file;

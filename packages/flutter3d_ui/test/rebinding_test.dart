@@ -19,10 +19,10 @@ import 'package:flutter_test/flutter_test.dart';
 const GameAction _dash = GameAction('dash');
 
 Bindings _table() => Bindings(<InputSource, GameAction>{
-      InputSource.key(32): GameAction.jump,
-      InputSource.key(9): _dash,
-      InputSource.pad('face.south'): GameAction.jump,
-    });
+  InputSource.key(32): GameAction.jump,
+  InputSource.key(9): _dash,
+  InputSource.pad('face.south'): GameAction.jump,
+});
 
 void main() {
   test('nothing is captured until something is waiting', () {
@@ -46,8 +46,11 @@ void main() {
 
     expect(bindings[InputSource.key(65)], GameAction.jump);
     expect(bindings[InputSource.key(32)], isNull, reason: 'space still jumps');
-    expect(bindings[InputSource.pad('face.south')], isNull,
-        reason: 'the pad still jumps, so half the rebinding did nothing');
+    expect(
+      bindings[InputSource.pad('face.south')],
+      isNull,
+      reason: 'the pad still jumps, so half the rebinding did nothing',
+    );
   });
 
   test('and it is taken from whatever else had it', () {
@@ -71,8 +74,10 @@ void main() {
       ..capture(InputSource.pad('face.east'));
 
     expect(bindings[InputSource.pad('face.east')], _dash);
-    expect(Bindings.fromJson(bindings.toJson())[InputSource.pad('face.east')],
-        _dash);
+    expect(
+      Bindings.fromJson(bindings.toJson())[InputSource.pad('face.east')],
+      _dash,
+    );
   });
 
   test('and cancelling leaves the table alone', () {

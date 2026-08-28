@@ -40,8 +40,8 @@ base class Tally {
   void clear() => _counts.clear();
 
   Map<String, Object?> save() => <String, Object?>{
-        for (final entry in _counts.entries) entry.key: entry.value,
-      };
+    for (final entry in _counts.entries) entry.key: entry.value,
+  };
 
   void restore(Map<String, Object?> from) {
     _counts.clear();

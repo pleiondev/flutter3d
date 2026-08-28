@@ -201,10 +201,18 @@ final class AndroidPadState implements PadMirror {
       if (down) out.setDown(button, down: true);
     }
 
-    _fillTrigger(out, PadButton.triggerLeft, PadAxis.triggerLeft,
-        _leftTriggerAxis);
-    _fillTrigger(out, PadButton.triggerRight, PadAxis.triggerRight,
-        _rightTriggerAxis);
+    _fillTrigger(
+      out,
+      PadButton.triggerLeft,
+      PadAxis.triggerLeft,
+      _leftTriggerAxis,
+    );
+    _fillTrigger(
+      out,
+      PadButton.triggerRight,
+      PadAxis.triggerRight,
+      _rightTriggerAxis,
+    );
 
     _fillHat(out, AndroidAxis.hatX, PadButton.dpadLeft, PadButton.dpadRight);
     _fillHat(out, AndroidAxis.hatY, PadButton.dpadUp, PadButton.dpadDown);

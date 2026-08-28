@@ -34,13 +34,10 @@ import 'nav_grid.dart';
 
 /// The distance to the goal from everywhere, and which way is downhill.
 final class FlowField {
-  FlowField(
-    this.grid, {
-    this.minClearance = 1,
-    this.minHeadroom = 0.0,
-  })  : _cost = Int32List(grid.cellCount),
-        _dx = Int8List(grid.cellCount),
-        _dz = Int8List(grid.cellCount) {
+  FlowField(this.grid, {this.minClearance = 1, this.minHeadroom = 0.0})
+    : _cost = Int32List(grid.cellCount),
+      _dx = Int8List(grid.cellCount),
+      _dz = Int8List(grid.cellCount) {
     // A fresh `Int32List` is zeros, and zero is a real cost meaning "you are
     // standing on the goal". Before the first sweep nothing is reachable.
     _cost.fillRange(0, _cost.length, unreachable);
