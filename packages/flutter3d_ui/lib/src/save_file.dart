@@ -25,12 +25,9 @@ import 'storage/storage.dart';
 /// through has to keep, and the only thing that differed was the name of the
 /// directory — which is what [appName] is.
 final class SaveFile {
-  SaveFile({
-    required this.appName,
-    Storage? storage,
-    IssueSink? onIssue,
-  })  : onIssue = onIssue ?? printIssue,
-        storage = storage ?? defaultStorage(appName, onIssue: onIssue);
+  SaveFile({required this.appName, Storage? storage, IssueSink? onIssue})
+    : onIssue = onIssue ?? printIssue,
+      storage = storage ?? defaultStorage(appName, onIssue: onIssue);
 
   /// Which game's save this is. Two games served from one browser origin would
   /// otherwise resume into each other's levels — see [SettingsFile.appName],
@@ -92,11 +89,11 @@ final class SaveFile {
 
   /// Writes the run, and says whether it managed to.
   bool write(String level, Snapshot run) => storage.write(
-        _name,
-        const JsonEncoder.withIndent('  ').convert(
-          <String, Object?>{'level': level, 'run': run.data},
-        ),
-      );
+    _name,
+    const JsonEncoder.withIndent(
+      '  ',
+    ).convert(<String, Object?>{'level': level, 'run': run.data}),
+  );
 
   /// Forgets the run. Called when it ends, either way.
   ///

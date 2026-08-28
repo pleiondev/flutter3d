@@ -165,7 +165,11 @@ void main() {
       emitter.position.setValues(4.0, 0.0, 0.0);
       scene.update(_ears());
 
-      expect(backend.started, hasLength(1), reason: 'restarted instead of updated');
+      expect(
+        backend.started,
+        hasLength(1),
+        reason: 'restarted instead of updated',
+      );
       expect(backend.live.single.gain, lessThan(1.0));
     });
 
@@ -316,11 +320,11 @@ void main() {
 /// when they are far enough apart not to click.
 void _rateTests() {
   SoundDef coin({double variance = 0.0, double rate = 1.0}) => SoundDef(
-        name: 'coin',
-        asset: 'coin.wav',
-        rate: rate,
-        rateVariance: variance,
-      );
+    name: 'coin',
+    asset: 'coin.wav',
+    rate: rate,
+    rateVariance: variance,
+  );
 
   ({AudioScene scene, SilentBackend backend}) sceneWith({int seed = 3}) {
     final backend = SilentBackend();

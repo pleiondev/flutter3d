@@ -23,7 +23,8 @@ void main() {
     });
 
     test('reaches the floor at the far threshold and stays there', () {
-      final floor = Weapons.pistol.damage * Weapons.pistol.minimumDamageFraction;
+      final floor =
+          Weapons.pistol.damage * Weapons.pistol.minimumDamageFraction;
 
       expect(Weapons.pistol.damageAt(70.0), closeTo(floor, 1e-9));
       expect(Weapons.pistol.damageAt(500.0), closeTo(floor, 1e-9));
@@ -190,22 +191,24 @@ void main() {
       expect(arsenal.addAmmo(AmmoType.shells, 10), 0);
     });
 
-    test('an automatic weapon fires while held, a semi-automatic on the press',
-        () {
-      final auto = Arsenal(
-        slots: Weapons.all,
-        owned: <WeaponDef>[Weapons.fists],
-      );
-      final semi = Arsenal(
-        slots: Weapons.all,
-        owned: <WeaponDef>[Weapons.pistol],
-        ammo: <AmmoType, int>{AmmoType.bullets: 10},
-      );
+    test(
+      'an automatic weapon fires while held, a semi-automatic on the press',
+      () {
+        final auto = Arsenal(
+          slots: Weapons.all,
+          owned: <WeaponDef>[Weapons.fists],
+        );
+        final semi = Arsenal(
+          slots: Weapons.all,
+          owned: <WeaponDef>[Weapons.pistol],
+          ammo: <AmmoType, int>{AmmoType.bullets: 10},
+        );
 
-      expect(auto.wantsToFire(held: true, pressed: false), isTrue);
-      expect(semi.wantsToFire(held: true, pressed: false), isFalse);
-      expect(semi.wantsToFire(held: true, pressed: true), isTrue);
-    });
+        expect(auto.wantsToFire(held: true, pressed: false), isTrue);
+        expect(semi.wantsToFire(held: true, pressed: false), isFalse);
+        expect(semi.wantsToFire(held: true, pressed: true), isTrue);
+      },
+    );
   });
 
   group('hitscan', () {
@@ -287,7 +290,11 @@ void main() {
           userData: 'me',
         ),
       );
-      world.addBox(Vector3(0.0, 0.0, -10.0), Vector3.all(2.0), userData: 'wall');
+      world.addBox(
+        Vector3(0.0, 0.0, -10.0),
+        Vector3.all(2.0),
+        userData: 'wall',
+      );
       world.update();
 
       final hits = hitscan.fire(

@@ -90,8 +90,10 @@ void main() {
     final sim = GameSimulation(
       random: GameRandom(1),
       player: Player(
-        body:
-            CharacterController(world: world, position: Vector3(0.0, 0.9, 0.0)),
+        body: CharacterController(
+          world: world,
+          position: Vector3(0.0, 0.9, 0.0),
+        ),
       ),
       collision: world,
       input: input,
@@ -127,8 +129,11 @@ void main() {
     }
 
     expect(observed, harness.player.body.position.z);
-    expect(observed.abs(), greaterThan(0.1),
-        reason: 'a player who never moved would prove nothing');
+    expect(
+      observed.abs(),
+      greaterThan(0.1),
+      reason: 'a player who never moved would prove nothing',
+    );
   });
 
   test('and the state a system reads at the end is this step\'s', () {
@@ -140,7 +145,10 @@ void main() {
     // sees `playing` on the step the player died and this fails.
     final harness = _harness();
     final states = <GameState>[];
-    harness.sim.systems.add(StepPhase.end, (_) => states.add(harness.sim.state));
+    harness.sim.systems.add(
+      StepPhase.end,
+      (_) => states.add(harness.sim.state),
+    );
 
     harness.sim.step(_dt);
     harness.player.applyDamage(1000.0);

@@ -33,7 +33,8 @@ void main() {
   });
 
   test('it settles behind the runner and does not overshoot', () {
-    final camera = FollowCamera(world: _empty())..follow(Vector3.zero(), _frame);
+    final camera = FollowCamera(world: _empty())
+      ..follow(Vector3.zero(), _frame);
 
     // Walk the runner forward, one frame at a time, and watch the gap.
     var previous = double.infinity;
@@ -82,8 +83,10 @@ void main() {
     }
 
     expect(camera.eye.z, greaterThan(-2.0), reason: 'not through the wall');
-    expect((camera.eye - camera.target).length,
-        lessThan(const FollowTuning().distance));
+    expect(
+      (camera.eye - camera.target).length,
+      lessThan(const FollowTuning().distance),
+    );
   });
 
   test('and having been pulled in, it stays where it was pulled to', () {
@@ -117,9 +120,13 @@ void main() {
       if (moved > worst) worst = moved;
     }
 
-    expect(worst, lessThan(0.001),
-        reason: 'watching something that has not moved, the camera moved '
-            '${(worst * 1000).toStringAsFixed(0)} mm');
+    expect(
+      worst,
+      lessThan(0.001),
+      reason:
+          'watching something that has not moved, the camera moved '
+          '${(worst * 1000).toStringAsFixed(0)} mm',
+    );
   });
 
   test('and what is smoothed is never touched by the wall', () {
@@ -139,17 +146,26 @@ void main() {
       camera.follow(Vector3.zero(), _frame);
     }
 
-    expect((camera.rig.freeEye - free).length, lessThan(1e-6),
-        reason: 'the smoothed state has not converged');
+    expect(
+      (camera.rig.freeEye - free).length,
+      lessThan(1e-6),
+      reason: 'the smoothed state has not converged',
+    );
 
     // And the two really are different things: the free eye is behind the wall,
     // where the camera wanted to be, and the shown one is in front of it. A
     // fix that simply stopped pulling in would pass the test above and fail
     // this one.
-    expect(camera.rig.freeEye.z, lessThan(-2.0),
-        reason: 'the free eye should be where the wall is not consulted');
-    expect(camera.eye.z, greaterThan(-2.0),
-        reason: 'the shown eye should still be in front of the wall');
+    expect(
+      camera.rig.freeEye.z,
+      lessThan(-2.0),
+      reason: 'the free eye should be where the wall is not consulted',
+    );
+    expect(
+      camera.eye.z,
+      greaterThan(-2.0),
+      reason: 'the shown eye should still be in front of the wall',
+    );
   });
 
   test('and a kick is not smoothed either', () {
@@ -171,9 +187,16 @@ void main() {
     camera.kick(Vector3(0.0, -0.5, 0.0));
     camera.follow(Vector3.zero(), _frame);
 
-    expect(camera.eye.y, lessThan(free.y - 0.3), reason: 'the kick did nothing');
-    expect((camera.rig.freeEye - free).length, lessThan(1e-6),
-        reason: 'the kick moved what the lag runs on');
+    expect(
+      camera.eye.y,
+      lessThan(free.y - 0.3),
+      reason: 'the kick did nothing',
+    );
+    expect(
+      (camera.rig.freeEye - free).length,
+      lessThan(1e-6),
+      reason: 'the kick moved what the lag runs on',
+    );
   });
 
   test('looking turns the camera and the pitch is clamped', () {
@@ -216,8 +239,11 @@ void main() {
       input.endStep();
     }
 
-    expect(runner.position.x, lessThan(-2.0),
-        reason: 'right of a camera looking along +Z is world -X');
+    expect(
+      runner.position.x,
+      lessThan(-2.0),
+      reason: 'right of a camera looking along +Z is world -X',
+    );
     expect(runner.position.z.abs(), lessThan(0.5));
   });
 
@@ -256,14 +282,20 @@ void main() {
 
       camera.kick(Vector3(0.0, -0.4, 0.0));
       camera.follow(at, 1.0 / 60.0);
-      expect((camera.eye.y - settled.y).abs(), greaterThan(0.05),
-          reason: 'the kick did nothing');
+      expect(
+        (camera.eye.y - settled.y).abs(),
+        greaterThan(0.05),
+        reason: 'the kick did nothing',
+      );
 
       for (var i = 0; i < 60; i++) {
         camera.follow(at, 1.0 / 60.0);
       }
-      expect(camera.eye.y, closeTo(settled.y, 0.01),
-          reason: 'it never came back');
+      expect(
+        camera.eye.y,
+        closeTo(settled.y, 0.01),
+        reason: 'it never came back',
+      );
     });
 
     test('and it turns the knocks off as well, which it used not to', () {
@@ -281,8 +313,11 @@ void main() {
       camera.kick(Vector3(0.0, -0.5, 0.0));
       for (var i = 0; i < 6; i++) {
         camera.follow(at, 1.0 / 60.0);
-        expect((camera.eye - settled).length, lessThan(0.01),
-            reason: 'the camera was knocked with the setting at nought');
+        expect(
+          (camera.eye - settled).length,
+          lessThan(0.01),
+          reason: 'the camera was knocked with the setting at nought',
+        );
       }
     });
 
@@ -306,8 +341,11 @@ void main() {
       for (var i = 0; i < 60; i++) {
         camera.follow(at, 1.0 / 60.0);
       }
-      expect((camera.eye - settled).length, lessThan(0.01),
-          reason: 'it is still shaking');
+      expect(
+        (camera.eye - settled).length,
+        lessThan(0.01),
+        reason: 'it is still shaking',
+      );
     });
 
     test('turning the shake off turns it off', () {
@@ -336,12 +374,12 @@ void main() {
       // three of them before anything was even shaken.
       final world = CollisionWorld();
       void slab(Vector3 at, Vector3 half) => world.add(
-            Collider(
-              shape: CollisionBox(half),
-              position: at,
-              layer: CollisionLayers.world,
-            ),
-          );
+        Collider(
+          shape: CollisionBox(half),
+          position: at,
+          layer: CollisionLayers.world,
+        ),
+      );
       slab(Vector3(0.0, -0.5, 0.0), Vector3(6.0, 0.5, 6.0));
       slab(Vector3(0.0, 6.5, 0.0), Vector3(6.0, 0.5, 6.0));
       slab(Vector3(-6.5, 3.0, 0.0), Vector3(0.5, 3.0, 6.0));
@@ -355,8 +393,13 @@ void main() {
       for (var i = 0; i < 300; i++) {
         camera.follow(Vector3(0.0, 1.0, 0.0), 1.0 / 60.0);
         if (i % 20 == 0) {
-          camera.kick(Vector3(random.nextDouble() - 0.5, random.nextDouble() - 0.5,
-              random.nextDouble() - 0.5));
+          camera.kick(
+            Vector3(
+              random.nextDouble() - 0.5,
+              random.nextDouble() - 0.5,
+              random.nextDouble() - 0.5,
+            ),
+          );
           camera.shake(random.nextDouble() * 0.3);
         }
         // A point, not a box, and the difference is the honest reading of the
@@ -365,11 +408,19 @@ void main() {
         // millimetre from the wall behind it. Grazing a surface is a near
         // plane's problem — `nearClearance` — and being *inside* one is this
         // class's, which is what is asserted.
-        world.overlap(CollisionBox(Vector3.all(1e-6)), camera.eye, inside,
-            includeTriggers: false);
-        expect(inside, isEmpty,
-            reason: 'the camera was inside geometry on step $i, at '
-                '${camera.eye}');
+        world.overlap(
+          CollisionBox(Vector3.all(1e-6)),
+          camera.eye,
+          inside,
+          includeTriggers: false,
+        );
+        expect(
+          inside,
+          isEmpty,
+          reason:
+              'the camera was inside geometry on step $i, at '
+              '${camera.eye}',
+        );
       }
     });
 
@@ -404,10 +455,16 @@ void main() {
         camera.follow(Vector3.zero(), _frame, travelling: north);
       }
 
-      expect(camera.yaw, isNot(closeTo(started, 0.05)),
-          reason: 'the camera never turned');
-      expect(camera.yaw, closeTo(0.0, 0.1),
-          reason: 'it settled at ${camera.yaw} rather than behind the runner');
+      expect(
+        camera.yaw,
+        isNot(closeTo(started, 0.05)),
+        reason: 'the camera never turned',
+      );
+      expect(
+        camera.yaw,
+        closeTo(0.0, 0.1),
+        reason: 'it settled at ${camera.yaw} rather than behind the runner',
+      );
     });
 
     test('and a runner standing still is left alone', () {
@@ -424,8 +481,11 @@ void main() {
         camera.follow(Vector3.zero(), _frame, travelling: Vector3.zero());
       }
 
-      expect(camera.yaw, closeTo(started, 1e-9),
-          reason: 'it turned round somebody who was not moving');
+      expect(
+        camera.yaw,
+        closeTo(started, 1e-9),
+        reason: 'it turned round somebody who was not moving',
+      );
     });
 
     test('and it takes the short way round', () {
@@ -445,9 +505,13 @@ void main() {
       camera.follow(Vector3.zero(), _frame, travelling: justPast);
 
       // Whichever way it went, one frame of a slow drift must be a small step.
-      expect((camera.yaw - started).abs(), lessThan(0.2),
-          reason: 'it moved ${camera.yaw - started} radians in one frame, so '
-              'it went the long way round');
+      expect(
+        (camera.yaw - started).abs(),
+        lessThan(0.2),
+        reason:
+            'it moved ${camera.yaw - started} radians in one frame, so '
+            'it went the long way round',
+      );
     });
 
     test('and the player can still look wherever they like', () {
@@ -461,8 +525,11 @@ void main() {
       camera.look(Vector2(-200.0, 0.0));
       final after = camera.yaw;
 
-      expect((after - before).abs(), greaterThan(0.5),
-          reason: 'a look was swallowed by the drift');
+      expect(
+        (after - before).abs(),
+        greaterThan(0.5),
+        reason: 'a look was swallowed by the drift',
+      );
     });
   });
 }

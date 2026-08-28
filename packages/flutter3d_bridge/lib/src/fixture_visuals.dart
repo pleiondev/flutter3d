@@ -24,8 +24,8 @@ final class FixtureVisuals {
     required this.appearance,
     required this.device,
     IssueSink? onIssue,
-  })  : meshes = SharedMeshes(device),
-        onIssue = onIssue ?? printIssue;
+  }) : meshes = SharedMeshes(device),
+       onIssue = onIssue ?? printIssue;
 
   /// The backend everything here uploads through.
   final GraphicsDevice device;
@@ -51,7 +51,8 @@ final class FixtureVisuals {
   /// Ten torches sharing one model should be one decode and one upload. The
   /// cache is per-level for the same reason the texture cache is: a GPU
   /// resource outliving the level that owns it is a leak nobody notices.
-  final Map<String, Future<ModelAsset?>> _models = <String, Future<ModelAsset?>>{};
+  final Map<String, Future<ModelAsset?>> _models =
+      <String, Future<ModelAsset?>>{};
 
   /// The level's lights, by name, so a fixture can dim the one it owns.
   final Map<String, LightNode> _lights = <String, LightNode>{};
@@ -94,7 +95,8 @@ final class FixtureVisuals {
       return;
     }
 
-    final source = level.level.materials[fixture.material] ??
+    final source =
+        level.level.materials[fixture.material] ??
         appearance.fallbackFor(fixture);
     final node = MeshNode(
       meshes.box(fixture.size),
@@ -154,6 +156,34 @@ final class FixtureVisuals {
     // No mesh for the flame: it is particles, and where they come from is a
     // node's world position read every frame.
     if (fire != null) _flames[mechanism] = fire;
+
+    // **A light fixture does not shadow its own light.**
+    //
+    // What it looked like when it did: a black pyramid down the wall under
+    // every torch, with a dark apron on the floor in front of it. That is not a
+    // bug in the shadow pass — it is the pass being right about a scene that is
+    // wrong. A torch's light sits about a third of a metre out from the wall
+    // and its bracket, shaft and cup hang in that same space, so the fixture
+    // occludes a point source at arm's length and throws a shadow the size of
+    // the room's whole lit area. The nearer a blocker is to a point light, the
+    // bigger its shadow; nothing is nearer to this one than the thing holding
+    // it.
+    //
+    // A real torch does not do this because its flame is not a point in front
+    // of the cup — it is a volume around and above one, and it lights the
+    // bracket from every side at once. A single point light cannot be that, and
+    // the cheap, standard answer is the one taken here: the fixture is lit and
+    // does not cast.
+    //
+    // Opt back in with `castsShadow: true` on the entity, for a fixture whose
+    // shade is the point — a lamp meant to throw a pattern on the ceiling. The
+    // default is off because the common case is a light that should not carve a
+    // hole out of what it lights.
+    if (!fixture.entity.flag('castsShadow')) {
+      holder.traverse((SceneNode node) {
+        if (node is MeshNode) node.castsShadow = false;
+      });
+    }
 
     _pieces.add(_Piece(fixture, holder));
   }

@@ -18,7 +18,10 @@ const double _dt = 1.0 / 60.0;
 const GameAction _crouch = PlatformerActions.dropThrough;
 
 final class _Run {
-  _Run({List<EntityDef> extras = const <EntityDef>[], List<Brush> walls = const <Brush>[]}) {
+  _Run({
+    List<EntityDef> extras = const <EntityDef>[],
+    List<Brush> walls = const <Brush>[],
+  }) {
     final level = Level(
       name: 'a room',
       materials: <String, LevelMaterial>{'rock': LevelMaterial()},
@@ -94,10 +97,10 @@ final class _Run {
 
 /// A roof a standing runner does not fit under and a crouched one does.
 Brush _lowRoof({double z = 6.0}) => Brush(
-      centre: Vector3(0.0, 1.6, z),
-      size: Vector3(8.0, 0.6, 6.0),
-      material: 'rock',
-    );
+  centre: Vector3(0.0, 1.6, z),
+  size: Vector3(8.0, 0.6, 6.0),
+  material: 'rock',
+);
 
 void main() {
   group('crouching', () {
@@ -150,7 +153,11 @@ void main() {
 
       // Let go of crouch while still under it.
       run.run(30);
-      expect(run.runner.isCrouching, isTrue, reason: 'there is a roof overhead');
+      expect(
+        run.runner.isCrouching,
+        isTrue,
+        reason: 'there is a roof overhead',
+      );
 
       run.run(120, holding: <GameAction>{GameAction.moveForward});
       expect(run.runner.isCrouching, isFalse, reason: 'it is clear now');
@@ -158,8 +165,7 @@ void main() {
   });
 
   group('sliding', () {
-    test('a crouch at speed is a slide, and covers ground a crouch does not',
-        () {
+    test('a crouch at speed is a slide, and covers ground a crouch does not', () {
       // Mutation: drop the speed threshold — every crouch becomes a slide, and
       // the pair below stops differing.
       double travelled({required bool running}) {
@@ -180,7 +186,8 @@ void main() {
     });
 
     test('it says so on the step it starts', () {
-      final run = _Run()..run(60, holding: <GameAction>{GameAction.moveForward});
+      final run = _Run()
+        ..run(60, holding: <GameAction>{GameAction.moveForward});
       expect(run.runner.slidThisStep, isFalse);
 
       run.step(holding: <GameAction>{GameAction.moveForward, _crouch});
@@ -188,7 +195,11 @@ void main() {
       expect(run.runner.isSliding, isTrue);
 
       run.run(60, holding: <GameAction>{_crouch});
-      expect(run.runner.isSliding, isFalse, reason: 'it does not last for ever');
+      expect(
+        run.runner.isSliding,
+        isFalse,
+        reason: 'it does not last for ever',
+      );
     });
 
     test('a jump out of a slide goes further than a jump does', () {
@@ -197,13 +208,22 @@ void main() {
       //
       // Mutation: drop the `_sliding > 0.0` branch from `_tryJump`.
       double jumped({required bool sliding}) {
-        final run = _Run()..run(60, holding: <GameAction>{GameAction.moveForward});
+        final run = _Run()
+          ..run(60, holding: <GameAction>{GameAction.moveForward});
         final from = run.z;
         if (sliding) {
           run.step(holding: <GameAction>{GameAction.moveForward, _crouch});
-          run.step(holding: <GameAction>{GameAction.moveForward, _crouch, GameAction.jump});
+          run.step(
+            holding: <GameAction>{
+              GameAction.moveForward,
+              _crouch,
+              GameAction.jump,
+            },
+          );
         } else {
-          run.step(holding: <GameAction>{GameAction.moveForward, GameAction.jump});
+          run.step(
+            holding: <GameAction>{GameAction.moveForward, GameAction.jump},
+          );
         }
         run.run(90, holding: <GameAction>{GameAction.moveForward});
         return run.z - from;
@@ -212,8 +232,11 @@ void main() {
       final plain = jumped(sliding: false);
       final long = jumped(sliding: true);
 
-      expect(long, greaterThan(plain + 1.5),
-          reason: 'the long jump went $long m and a plain one went $plain m');
+      expect(
+        long,
+        greaterThan(plain + 1.5),
+        reason: 'the long jump went $long m and a plain one went $plain m',
+      );
     });
   });
 
@@ -231,7 +254,10 @@ void main() {
         return from - run.runner.position.y;
       }
 
-      expect(fellIn(15, pounding: true), greaterThan(fellIn(15, pounding: false) * 1.5));
+      expect(
+        fellIn(15, pounding: true),
+        greaterThan(fellIn(15, pounding: false) * 1.5),
+      );
     });
 
     test('and says so on the step it lands', () {
@@ -265,8 +291,11 @@ void main() {
       // Let go, mid-flight, exactly as a player holding jump would.
       run.step();
 
-      expect(run.runner.body.velocity.y, greaterThan(12.0),
-          reason: 'the spring was cut to jump height');
+      expect(
+        run.runner.body.velocity.y,
+        greaterThan(12.0),
+        reason: 'the spring was cut to jump height',
+      );
     });
 
     test('and a jump still is', () {
@@ -278,8 +307,11 @@ void main() {
 
       run.step();
 
-      expect(run.runner.body.velocity.y, lessThan(rising * 0.6),
-          reason: 'releasing jump no longer shortens a jump');
+      expect(
+        run.runner.body.velocity.y,
+        lessThan(rising * 0.6),
+        reason: 'releasing jump no longer shortens a jump',
+      );
     });
 
     test('and dying in one does not carry it into the next life', () {
@@ -297,16 +329,22 @@ void main() {
       expect(run.runner.isPounding, isTrue, reason: 'it never started');
 
       run.runner.reviveAt(Vector3(0.0, 0.0, 0.0));
-      expect(run.runner.isPounding, isFalse,
-          reason: 'the pound came back to life with the runner');
+      expect(
+        run.runner.isPounding,
+        isFalse,
+        reason: 'the pound came back to life with the runner',
+      );
 
       var landed = false;
       for (var i = 0; i < 120 && !landed; i++) {
         run.step();
         landed = run.runner.poundedThisStep;
       }
-      expect(landed, isFalse,
-          reason: 'an ordinary landing after a respawn reported a pound');
+      expect(
+        landed,
+        isFalse,
+        reason: 'an ordinary landing after a respawn reported a pound',
+      );
     });
 
     test('and dashing out of one ends it too', () {
@@ -351,24 +389,26 @@ void main() {
     test('breaks a block, and only a block that was under it', () {
       // Mutation: break whatever is nearest rather than what is underfoot — a
       // pound nobody can aim.
-      final run = _Run(extras: <EntityDef>[
-        EntityDef(
-          type: PlatformerEntities.breakable,
-          name: 'the block',
-          position: Vector3(0.0, 1.0, 0.0),
-          properties: <String, Object?>{
-            'size': <double>[2.0, 2.0, 2.0],
-          },
-        ),
-        EntityDef(
-          type: PlatformerEntities.breakable,
-          name: 'the other block',
-          position: Vector3(3.0, 1.0, 0.0),
-          properties: <String, Object?>{
-            'size': <double>[2.0, 2.0, 2.0],
-          },
-        ),
-      ]);
+      final run = _Run(
+        extras: <EntityDef>[
+          EntityDef(
+            type: PlatformerEntities.breakable,
+            name: 'the block',
+            position: Vector3(0.0, 1.0, 0.0),
+            properties: <String, Object?>{
+              'size': <double>[2.0, 2.0, 2.0],
+            },
+          ),
+          EntityDef(
+            type: PlatformerEntities.breakable,
+            name: 'the other block',
+            position: Vector3(3.0, 1.0, 0.0),
+            properties: <String, Object?>{
+              'size': <double>[2.0, 2.0, 2.0],
+            },
+          ),
+        ],
+      );
       final block = run.mechanisms['the block']! as Breakable;
       final other = run.mechanisms['the other block']! as Breakable;
 
@@ -382,16 +422,18 @@ void main() {
     });
 
     test('and an ordinary landing does not break it', () {
-      final run = _Run(extras: <EntityDef>[
-        EntityDef(
-          type: PlatformerEntities.breakable,
-          name: 'the block',
-          position: Vector3(0.0, 1.0, 0.0),
-          properties: <String, Object?>{
-            'size': <double>[2.0, 2.0, 2.0],
-          },
-        ),
-      ]);
+      final run = _Run(
+        extras: <EntityDef>[
+          EntityDef(
+            type: PlatformerEntities.breakable,
+            name: 'the block',
+            position: Vector3(0.0, 1.0, 0.0),
+            properties: <String, Object?>{
+              'size': <double>[2.0, 2.0, 2.0],
+            },
+          ),
+        ],
+      );
       final block = run.mechanisms['the block']! as Breakable;
 
       run.runner.body.teleport(Vector3(0.0, 8.0, 0.0));
@@ -406,16 +448,18 @@ void main() {
       // since had, and `isBroken` said "solid" while the world had no collider
       // in it — and nothing un-breaks a block, so there was no later step that
       // could put it right. A wall the player can see and walk through.
-      final run = _Run(extras: <EntityDef>[
-        EntityDef(
-          type: PlatformerEntities.breakable,
-          name: 'the block',
-          position: Vector3(0.0, 1.0, 0.0),
-          properties: <String, Object?>{
-            'size': <double>[2.0, 2.0, 2.0],
-          },
-        ),
-      ]);
+      final run = _Run(
+        extras: <EntityDef>[
+          EntityDef(
+            type: PlatformerEntities.breakable,
+            name: 'the block',
+            position: Vector3(0.0, 1.0, 0.0),
+            properties: <String, Object?>{
+              'size': <double>[2.0, 2.0, 2.0],
+            },
+          ),
+        ],
+      );
       final block = run.mechanisms['the block']! as Breakable;
       final whole = block.save();
 
@@ -434,22 +478,25 @@ void main() {
       // block and landing on *that* is grounded too — the first draft of this
       // test passed with the collider still missing. The block's top is at two
       // metres; the floor is at nothing.
-      expect(run.runner.position.y, greaterThan(1.5),
-          reason: 'the block is back, and the runner fell through it');
+      expect(
+        run.runner.position.y,
+        greaterThan(1.5),
+        reason: 'the block is back, and the runner fell through it',
+      );
     });
   });
 
   group('a crumbling platform', () {
     EntityDef aShelf() => EntityDef(
-          type: PlatformerEntities.crumbling,
-          name: 'the shelf',
-          position: Vector3(0.0, 3.0, 0.0),
-          properties: <String, Object?>{
-            'size': <double>[4.0, 0.4, 4.0],
-            'delay': 0.4,
-            'gone': 1.0,
-          },
-        );
+      type: PlatformerEntities.crumbling,
+      name: 'the shelf',
+      position: Vector3(0.0, 3.0, 0.0),
+      properties: <String, Object?>{
+        'size': <double>[4.0, 0.4, 4.0],
+        'delay': 0.4,
+        'gone': 1.0,
+      },
+    );
 
     test('holds, then gives way under whoever is standing on it', () {
       // Mutation: count the timer from the level's start rather than from the
@@ -497,8 +544,11 @@ void main() {
       run.run(10);
 
       expect(theShelf.hasFallen, isFalse);
-      expect(run.runner.isGrounded, isTrue,
-          reason: 'restored standing, and the runner fell through it');
+      expect(
+        run.runner.isGrounded,
+        isTrue,
+        reason: 'restored standing, and the runner fell through it',
+      );
     });
 
     test('a platform nobody stood on never falls', () {
@@ -519,17 +569,19 @@ void main() {
       //
       // Mutation: make `damagePerSecond` a per-touch figure — the damage stops
       // depending on how long, and standing in lava becomes survivable.
-      final run = _Run(extras: <EntityDef>[
-        EntityDef(
-          type: PlatformerEntities.hazard,
-          name: 'the spikes',
-          position: Vector3(0.0, 0.4, 0.0),
-          properties: <String, Object?>{
-            'size': <double>[6.0, 0.8, 6.0],
-            'damage': 30.0,
-          },
-        ),
-      ]);
+      final run = _Run(
+        extras: <EntityDef>[
+          EntityDef(
+            type: PlatformerEntities.hazard,
+            name: 'the spikes',
+            position: Vector3(0.0, 0.4, 0.0),
+            properties: <String, Object?>{
+              'size': <double>[6.0, 0.8, 6.0],
+              'damage': 30.0,
+            },
+          ),
+        ],
+      );
 
       run.run(30);
       final afterHalfASecond = run.runner.health.current;
@@ -537,22 +589,27 @@ void main() {
       final afterOneMore = run.runner.health.current;
 
       expect(afterHalfASecond, lessThan(100.0), reason: 'it did nothing');
-      expect(afterOneMore, lessThan(afterHalfASecond - 20.0),
-          reason: 'standing in it longer cost no more');
+      expect(
+        afterOneMore,
+        lessThan(afterHalfASecond - 20.0),
+        reason: 'standing in it longer cost no more',
+      );
     });
 
     test('an instant one kills whatever its damage number says', () {
-      final run = _Run(extras: <EntityDef>[
-        EntityDef(
-          type: PlatformerEntities.hazard,
-          name: 'the pit',
-          position: Vector3(0.0, 0.4, 0.0),
-          properties: <String, Object?>{
-            'size': <double>[6.0, 0.8, 6.0],
-            'instant': true,
-          },
-        ),
-      ]);
+      final run = _Run(
+        extras: <EntityDef>[
+          EntityDef(
+            type: PlatformerEntities.hazard,
+            name: 'the pit',
+            position: Vector3(0.0, 0.4, 0.0),
+            properties: <String, Object?>{
+              'size': <double>[6.0, 0.8, 6.0],
+              'instant': true,
+            },
+          ),
+        ],
+      );
 
       run.run(5);
       expect(run.runner.health.isAlive, isFalse);
@@ -563,38 +620,47 @@ void main() {
       // Mutation: drop `_ride()` from `Hazard.step`. The saw stays where the
       // document drew it and the arm swings out from under it — which looks
       // like the saw working right up until somebody walks under the arm.
-      final run = _Run(extras: <EntityDef>[
-        EntityDef(
-          type: EntityTypes.platform,
-          name: 'the arm',
-          position: Vector3(0.0, 3.0, 10.0),
-          properties: <String, Object?>{
-            'size': <double>[2.0, 0.4, 2.0],
-            'travel': <double>[10.0, 0.0, 0.0],
-            'speed': 4.0,
-            'wait': 0.0,
-          },
-        ),
-        EntityDef(
-          type: PlatformerEntities.hazard,
-          name: 'the saw',
-          position: Vector3(0.0, 4.0, 10.0),
-          properties: <String, Object?>{
-            'size': <double>[1.6, 1.6, 1.6],
-            'damage': 60.0,
-            'follows': 'the arm',
-          },
-        ),
-      ]);
+      final run = _Run(
+        extras: <EntityDef>[
+          EntityDef(
+            type: EntityTypes.platform,
+            name: 'the arm',
+            position: Vector3(0.0, 3.0, 10.0),
+            properties: <String, Object?>{
+              'size': <double>[2.0, 0.4, 2.0],
+              'travel': <double>[10.0, 0.0, 0.0],
+              'speed': 4.0,
+              'wait': 0.0,
+            },
+          ),
+          EntityDef(
+            type: PlatformerEntities.hazard,
+            name: 'the saw',
+            position: Vector3(0.0, 4.0, 10.0),
+            properties: <String, Object?>{
+              'size': <double>[1.6, 1.6, 1.6],
+              'damage': 60.0,
+              'follows': 'the arm',
+            },
+          ),
+        ],
+      );
       final saw = run.mechanisms['the saw']! as Hazard;
       final arm = run.mechanisms['the arm']! as MovingPlatform;
       final startedAt = saw.origin.x;
 
       run.run(60);
 
-      expect(arm.collider.position.x, greaterThan(1.0), reason: 'the arm moved');
-      expect(saw.origin.x, greaterThan(startedAt + 1.0),
-          reason: 'the saw stayed behind');
+      expect(
+        arm.collider.position.x,
+        greaterThan(1.0),
+        reason: 'the arm moved',
+      );
+      expect(
+        saw.origin.x,
+        greaterThan(startedAt + 1.0),
+        reason: 'the saw stayed behind',
+      );
       // And it keeps the metre it was authored above the arm.
       expect(saw.origin.y - arm.collider.position.y, closeTo(1.0, 0.01));
     });
@@ -602,15 +668,15 @@ void main() {
 
   group('a ladder', () {
     EntityDef ladder({double swing = 0.0}) => EntityDef(
-          type: PlatformerEntities.climbable,
-          name: 'the ladder',
-          position: Vector3(0.0, 4.0, 6.0),
-          properties: <String, Object?>{
-            'size': <double>[1.2, 8.0, 1.2],
-            'swing': swing,
-            'period': 2.0,
-          },
-        );
+      type: PlatformerEntities.climbable,
+      name: 'the ladder',
+      position: Vector3(0.0, 4.0, 6.0),
+      properties: <String, Object?>{
+        'size': <double>[1.2, 8.0, 1.2],
+        'swing': swing,
+        'period': 2.0,
+      },
+    );
 
     test('is climbed by walking into it and holding forward', () {
       // Mutation: leave the climb out of `Runner.step` and let gravity have it.
@@ -620,7 +686,11 @@ void main() {
       run.run(120, holding: <GameAction>{GameAction.moveForward});
 
       expect(run.runner.climbing, isNotNull, reason: 'it never took hold');
-      expect(run.runner.position.y, greaterThan(3.0), reason: 'it did not climb');
+      expect(
+        run.runner.position.y,
+        greaterThan(3.0),
+        reason: 'it did not climb',
+      );
     });
 
     test('and it lets go at the top rather than climbing into the sky', () {
@@ -657,12 +727,19 @@ void main() {
       var rightmost = run.runner.position.x;
       for (var i = 0; i < 120; i++) {
         run.step();
-        leftmost = leftmost < run.runner.position.x ? leftmost : run.runner.position.x;
-        rightmost = rightmost > run.runner.position.x ? rightmost : run.runner.position.x;
+        leftmost = leftmost < run.runner.position.x
+            ? leftmost
+            : run.runner.position.x;
+        rightmost = rightmost > run.runner.position.x
+            ? rightmost
+            : run.runner.position.x;
       }
 
-      expect(rightmost - leftmost, greaterThan(3.0),
-          reason: 'the rope swung and the climber did not');
+      expect(
+        rightmost - leftmost,
+        greaterThan(3.0),
+        reason: 'the rope swung and the climber did not',
+      );
     });
   });
 }

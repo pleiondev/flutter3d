@@ -129,7 +129,6 @@ final class Playback {
           (2 * a - 5 * b + 4 * c - d) * t2 +
           (-a + 3 * b - 3 * c + d) * t3);
 
-
   final Vector3 _p0 = Vector3.zero();
   final Vector3 _p3 = Vector3.zero();
 }

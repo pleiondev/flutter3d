@@ -26,7 +26,7 @@ final class PointerLock {
   /// Takes a platform so tests can supply a fake one; production code should use
   /// [instance].
   PointerLock({PointerLockPlatform? platform})
-      : _platform = platform ?? PointerLockPlatform.instance {
+    : _platform = platform ?? PointerLockPlatform.instance {
     _stateSubscription = _platform.stateChanges.listen(_onStateChanged);
 
     // Fired and not awaited, on purpose, and this is the whole reason `reset`
@@ -141,8 +141,7 @@ final class PointerLock {
   void _setCaptured(bool value) {
     if (_isCaptured == value) return;
     _isCaptured = value;
-    _stateController
-        .add(value ? CaptureState.captured : CaptureState.released);
+    _stateController.add(value ? CaptureState.captured : CaptureState.released);
   }
 
   Future<void> dispose() async {

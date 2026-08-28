@@ -26,9 +26,9 @@ import 'package:vector_math/vector_math.dart';
 Player _pawn({double yaw = 0.0, double pitch = 0.0, double eyeOffset = 0.7}) {
   final world = CollisionWorld();
   return Player(
-    body: CharacterController(world: world, position: Vector3.zero()),
-    eyeOffset: eyeOffset,
-  )
+      body: CharacterController(world: world, position: Vector3.zero()),
+      eyeOffset: eyeOffset,
+    )
     ..yaw = yaw
     ..pitch = pitch;
 }
@@ -52,8 +52,11 @@ void main() {
       final aim = Vector3.zero();
       player.aim(aim);
       final up = Vector3(0.0, 1.0, 0.0);
-      expect(aim.cross(up).length, greaterThan(1e-3),
-          reason: 'the view basis is degenerate at this pitch');
+      expect(
+        aim.cross(up).length,
+        greaterThan(1e-3),
+        reason: 'the view basis is degenerate at this pitch',
+      );
     });
 
     test('is limited downwards by the same amount', () {
@@ -105,8 +108,11 @@ void main() {
       for (final yaw in <double>[0.0, 0.7, 2.5, -1.9, 6.0]) {
         for (final pitch in <double>[0.0, 0.5, -0.5, Player.pitchLimit]) {
           _pawn(yaw: yaw, pitch: pitch).aim(aim);
-          expect(aim.length, closeTo(1.0, 1e-6),
-              reason: 'yaw $yaw pitch $pitch');
+          expect(
+            aim.length,
+            closeTo(1.0, 1e-6),
+            reason: 'yaw $yaw pitch $pitch',
+          );
         }
       }
     });
@@ -151,8 +157,11 @@ void main() {
       // the pointer test above they pin the handedness down.
       final side = Vector3.zero();
       _pawn().right(side);
-      expect(side.x, closeTo(1.0, 1e-6),
-          reason: 'facing −Z, the right hand points at +X');
+      expect(
+        side.x,
+        closeTo(1.0, 1e-6),
+        reason: 'facing −Z, the right hand points at +X',
+      );
     });
   });
 
@@ -168,8 +177,10 @@ void main() {
       final level = Vector3.zero();
       final steep = Vector3.zero();
       _pawn(yaw: 0.8).moveWish(Vector2(0.0, 1.0), level);
-      _pawn(yaw: 0.8, pitch: -Player.pitchLimit)
-          .moveWish(Vector2(0.0, 1.0), steep);
+      _pawn(
+        yaw: 0.8,
+        pitch: -Player.pitchLimit,
+      ).moveWish(Vector2(0.0, 1.0), steep);
 
       expect(steep.y, 0.0, reason: 'looking down is not walking down');
       expect(steep.x, closeTo(level.x, 1e-6));

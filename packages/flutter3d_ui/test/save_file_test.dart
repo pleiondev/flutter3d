@@ -8,7 +8,6 @@ import 'package:flutter3d_game/flutter3d_game.dart' show Snapshot;
 import 'package:flutter3d_ui/flutter3d_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-
 void main() {
   late Directory temporary;
   late FileStorage storage;

@@ -38,9 +38,13 @@ void main() {
     await tester.pumpWidget(_panel(mixer: mixer));
 
     for (final bus in mixer.configured) {
-      expect(find.text(bus.name), findsOneWidget,
-          reason: 'the mixer carries ${bus.name} and the panel does not offer '
-              'it, so a player cannot change a volume the game restores');
+      expect(
+        find.text(bus.name),
+        findsOneWidget,
+        reason:
+            'the mixer carries ${bus.name} and the panel does not offer '
+            'it, so a player cannot change a volume the game restores',
+      );
     }
   });
 
@@ -73,9 +77,9 @@ void main() {
     // and feels the stick change. One that took effect on the next launch could
     // not be chosen at all.
     final changed = <String, double>{};
-    await tester.pumpWidget(_panel(
-      onSetting: (String name, double value) => changed[name] = value,
-    ));
+    await tester.pumpWidget(
+      _panel(onSetting: (String name, double value) => changed[name] = value),
+    );
 
     // Scrolled to first, because the panel is taller than the test window and a
     // tap at coordinates nobody can see lands nowhere. Tapped along the track
@@ -109,9 +113,9 @@ void main() {
       // A camera that shakes on every landing is what makes some players ill,
       // and the following is the game. This turns down the first only.
       final changed = <String, double>{};
-      await tester.pumpWidget(_panel(
-        onSetting: (String name, double value) => changed[name] = value,
-      ));
+      await tester.pumpWidget(
+        _panel(onSetting: (String name, double value) => changed[name] = value),
+      );
 
       // Found by its label rather than by an index, so adding a slider above it
       // does not silently move this test onto a different setting.
@@ -135,9 +139,9 @@ void main() {
       // length of a climb is a real barrier, and the switch reads as the thing
       // being turned *off* because that is what a player looks for.
       final changed = <String, double>{};
-      await tester.pumpWidget(_panel(
-        onSetting: (String name, double value) => changed[name] = value,
-      ));
+      await tester.pumpWidget(
+        _panel(onSetting: (String name, double value) => changed[name] = value),
+      );
 
       final toggle = find.byType(Switch);
       await tester.ensureVisible(toggle);
@@ -155,10 +159,7 @@ void main() {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(_panel());
 
-      expect(
-        find.bySemanticsLabel(RegExp('jump, bound to')),
-        findsOneWidget,
-      );
+      expect(find.bySemanticsLabel(RegExp('jump, bound to')), findsOneWidget);
       handle.dispose();
     });
   });
@@ -190,9 +191,9 @@ void main() {
       WidgetTester tester,
     ) async {
       GameAction? asked;
-      await tester.pumpWidget(_panel(
-        onRebind: (GameAction? action) => asked = action,
-      ));
+      await tester.pumpWidget(
+        _panel(onRebind: (GameAction? action) => asked = action),
+      );
 
       await tester.tap(find.textContaining('Space'));
 
@@ -239,24 +240,23 @@ Widget _panel({
   GameAction? waitingFor,
   void Function(GameAction? action)? onRebind,
   VoidCallback? onResetControls,
-}) =>
-    MaterialApp(
-      home: Scaffold(
-        body: SettingsPanel(
-          mixer: mixer ?? _mixer(),
-          // The same table the game builds: both halves of it, because that is
-          // what the rows below are showing.
-          bindings:
-              bindings ?? PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
-          config: config ?? GameConfig(),
-          padConnected: padConnected,
-          onVolume: (AudioBus bus, double volume) {},
-          onSetting: onSetting ?? (String name, double value) {},
-          onClose: () {},
-          actions: const <GameAction>[GameAction.jump, GameAction.sprint],
-          waitingFor: waitingFor,
-          onRebind: onRebind ?? (GameAction? action) {},
-          onResetControls: onResetControls ?? () {},
-        ),
-      ),
-    );
+}) => MaterialApp(
+  home: Scaffold(
+    body: SettingsPanel(
+      mixer: mixer ?? _mixer(),
+      // The same table the game builds: both halves of it, because that is
+      // what the rows below are showing.
+      bindings:
+          bindings ?? PadInput.addDefaultsTo(DesktopInput.defaultBindings()),
+      config: config ?? GameConfig(),
+      padConnected: padConnected,
+      onVolume: (AudioBus bus, double volume) {},
+      onSetting: onSetting ?? (String name, double value) {},
+      onClose: () {},
+      actions: const <GameAction>[GameAction.jump, GameAction.sprint],
+      waitingFor: waitingFor,
+      onRebind: onRebind ?? (GameAction? action) {},
+      onResetControls: onResetControls ?? () {},
+    ),
+  ),
+);

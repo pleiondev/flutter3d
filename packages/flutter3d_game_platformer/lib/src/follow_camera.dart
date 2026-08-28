@@ -41,17 +41,12 @@ final class FollowTuning extends RigTuning {
   /// worth seeing.
   final double recentreAbove;
 
-
-
-
   final double pitch;
   final double minPitch;
   final double maxPitch;
 
   /// Radians of turn per unit of look delta.
   final double sensitivity;
-
-
 
   /// How fast a kick, a widening and a shake fade, per second.
   final double impulseDecay;
@@ -75,11 +70,11 @@ final class FollowCamera {
     this.tuning = const FollowTuning(),
     double yaw = 0.0,
   }) : rig = CameraRig(
-          world: world,
-          impulseDecay: tuning.impulseDecay,
-          nearClearance: tuning.nearClearance,
-          minDistance: tuning.minDistance,
-        ) {
+         world: world,
+         impulseDecay: tuning.impulseDecay,
+         nearClearance: tuning.nearClearance,
+         minDistance: tuning.minDistance,
+       ) {
     _yaw = yaw;
     _pitch = tuning.pitch;
   }
@@ -134,8 +129,10 @@ final class FollowCamera {
   /// Turns the camera by a look delta from a mouse or a stick.
   void look(Vector2 delta) {
     _yaw -= delta.x * tuning.sensitivity;
-    _pitch = (_pitch - delta.y * tuning.sensitivity)
-        .clamp(tuning.minPitch, tuning.maxPitch);
+    _pitch = (_pitch - delta.y * tuning.sensitivity).clamp(
+      tuning.minPitch,
+      tuning.maxPitch,
+    );
   }
 
   /// Places the camera for a frame, given where the runner is.

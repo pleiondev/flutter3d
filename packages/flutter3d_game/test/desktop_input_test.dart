@@ -37,16 +37,16 @@ final class _FakeCapture extends PointerLockPlatform {
 }
 
 KeyDownEvent _down(LogicalKeyboardKey key) => KeyDownEvent(
-      logicalKey: key,
-      physicalKey: PhysicalKeyboardKey.keyW,
-      timeStamp: Duration.zero,
-    );
+  logicalKey: key,
+  physicalKey: PhysicalKeyboardKey.keyW,
+  timeStamp: Duration.zero,
+);
 
 KeyRepeatEvent _repeat(LogicalKeyboardKey key) => KeyRepeatEvent(
-      logicalKey: key,
-      physicalKey: PhysicalKeyboardKey.keyW,
-      timeStamp: Duration.zero,
-    );
+  logicalKey: key,
+  physicalKey: PhysicalKeyboardKey.keyW,
+  timeStamp: Duration.zero,
+);
 
 void main() {
   late _FakeCapture platform;
@@ -57,7 +57,10 @@ void main() {
     platform = _FakeCapture();
     PointerLockPlatform.instance = platform;
     state = InputState();
-    input = DesktopInput(state: state, capture: PointerLock(platform: platform));
+    input = DesktopInput(
+      state: state,
+      capture: PointerLock(platform: platform),
+    );
   });
 
   tearDown(() => input.dispose());
@@ -75,11 +78,18 @@ void main() {
 
     input.handleKeyEvent(_repeat(LogicalKeyboardKey.keyW));
 
-    expect(state.pressed(GameAction.moveForward), isFalse,
-        reason: 'the auto-repeat produced a fresh press, so a semi-automatic '
-            'weapon fires at the keyboard repeat rate');
-    expect(state.held(GameAction.moveForward), isTrue,
-        reason: 'and the key is still down, which the repeat says');
+    expect(
+      state.pressed(GameAction.moveForward),
+      isFalse,
+      reason:
+          'the auto-repeat produced a fresh press, so a semi-automatic '
+          'weapon fires at the keyboard repeat rate',
+    );
+    expect(
+      state.held(GameAction.moveForward),
+      isTrue,
+      reason: 'and the key is still down, which the repeat says',
+    );
   });
 
   test('losing the pointer drops everything that was held', () async {
@@ -99,8 +109,11 @@ void main() {
     await platform.release();
     await Future<void>.delayed(Duration.zero);
 
-    expect(state.held(GameAction.moveForward), isFalse,
-        reason: 'the player is still walking into a wall after alt-tabbing');
+    expect(
+      state.held(GameAction.moveForward),
+      isFalse,
+      reason: 'the player is still walking into a wall after alt-tabbing',
+    );
   });
 
   test('gaining the pointer does not clear anything', () async {
@@ -112,7 +125,10 @@ void main() {
     await platform.capture();
     await Future<void>.delayed(Duration.zero);
 
-    expect(state.held(GameAction.moveForward), isTrue,
-        reason: 'capturing the pointer ate a key the player was holding');
+    expect(
+      state.held(GameAction.moveForward),
+      isTrue,
+      reason: 'capturing the pointer ate a key the player was holding',
+    );
   });
 }

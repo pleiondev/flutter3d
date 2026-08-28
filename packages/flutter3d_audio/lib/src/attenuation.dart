@@ -9,8 +9,8 @@ import 'dart:math' as math;
 /// curves without either of them being a special case.
 abstract base class Attenuation {
   const Attenuation({this.reference = 1.0, this.maximum = 40.0})
-      : assert(reference > 0.0),
-        assert(maximum > 0.0);
+    : assert(reference > 0.0),
+      assert(maximum > 0.0);
 
   /// Inside this radius the sound is at full volume.
   ///
@@ -36,11 +36,7 @@ abstract base class Attenuation {
 /// The default, because it is the only one of the three that sounds right when
 /// the player walks past something rather than towards it.
 final class InverseRolloff extends Attenuation {
-  const InverseRolloff({
-    super.reference,
-    super.maximum,
-    this.factor = 1.0,
-  });
+  const InverseRolloff({super.reference, super.maximum, this.factor = 1.0});
 
   /// Scales the whole curve. Above one, sounds die faster than physics says —
   /// which small rooms usually want.
@@ -71,11 +67,7 @@ final class LinearRolloff extends Attenuation {
 
 /// `(d / reference) ^ -factor`. Steep near the source, long tail after.
 final class ExponentialRolloff extends Attenuation {
-  const ExponentialRolloff({
-    super.reference,
-    super.maximum,
-    this.factor = 1.0,
-  });
+  const ExponentialRolloff({super.reference, super.maximum, this.factor = 1.0});
 
   final double factor;
 

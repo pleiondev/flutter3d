@@ -23,9 +23,12 @@ base class Patrol extends Brain {
     this.speed = 0.55,
     this.pause = 0.6,
     this.ledgeProbe = 0.9,
-  })  : _route = <Vector3>[for (final at in route) at.clone()],
-        assert(route.length >= 2, 'a patrol between fewer than two posts is a '
-            'thing standing still, and that is `halt`');
+  }) : _route = <Vector3>[for (final at in route) at.clone()],
+       assert(
+         route.length >= 2,
+         'a patrol between fewer than two posts is a '
+         'thing standing still, and that is `halt`',
+       );
 
   final List<Vector3> _route;
 
@@ -136,9 +139,9 @@ base class Patrol extends Brain {
 
   @override
   Map<String, Object?> save() => <String, Object?>{
-        'target': _target,
-        'waiting': _waiting,
-      };
+    'target': _target,
+    'waiting': _waiting,
+  };
 
   @override
   void restore(Map<String, Object?> from) {

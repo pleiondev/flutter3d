@@ -23,11 +23,8 @@ import 'package:vector_math/vector_math.dart';
 const double _dt = 1.0 / 60.0;
 
 /// A platform that slides sideways, and the step that drives it.
-({
-  WorldStep step,
-  CollisionWorld world,
-  MovingPlatform platform,
-}) _worldWithASlidingPlatform() {
+({WorldStep step, CollisionWorld world, MovingPlatform platform})
+_worldWithASlidingPlatform() {
   final world = CollisionWorld();
   final mechanisms = MechanismWorld(world);
 
@@ -84,11 +81,18 @@ void main() {
       it.step.publish();
     }
 
-    expect(it.platform.collider.position.x, greaterThan(0.5),
-        reason: 'the platform did not move, so this test proves nothing');
-    expect(offered, closeTo(it.platform.collider.position.x, 1e-6),
-        reason: 'a passenger was offered less of the platform\'s travel than '
-            'the platform made — the delta was cleared before anything read it');
+    expect(
+      it.platform.collider.position.x,
+      greaterThan(0.5),
+      reason: 'the platform did not move, so this test proves nothing',
+    );
+    expect(
+      offered,
+      closeTo(it.platform.collider.position.x, 1e-6),
+      reason:
+          'a passenger was offered less of the platform\'s travel than '
+          'the platform made — the delta was cleared before anything read it',
+    );
   });
 
   test('and the delta is gone once the step has settled', () {
@@ -100,8 +104,11 @@ void main() {
 
     it.step.movers(_dt);
     it.step.index(_dt);
-    expect(it.platform.collider.delta.x, greaterThan(0.0),
-        reason: 'nothing moved, so the next assertion proves nothing');
+    expect(
+      it.platform.collider.delta.x,
+      greaterThan(0.0),
+      reason: 'nothing moved, so the next assertion proves nothing',
+    );
 
     it.step.settle();
     expect(it.platform.collider.delta.x, 0.0);
@@ -126,11 +133,13 @@ void main() {
 
     expect(
       () => it.step.movers(_dt),
-      throwsA(isA<StateError>().having(
-        (StateError e) => e.message,
-        'message',
-        contains('never reached publish'),
-      )),
+      throwsA(
+        isA<StateError>().having(
+          (StateError e) => e.message,
+          'message',
+          contains('never reached publish'),
+        ),
+      ),
     );
   });
 

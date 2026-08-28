@@ -29,10 +29,10 @@ final class HitZones {
   /// it decides it wants headshots — and what a boss that is one solid mass
   /// should be given.
   const HitZones.even()
-      : headAbove = 1.1,
-        headMultiplier = 1.0,
-        legsBelow = -0.1,
-        legsMultiplier = 1.0;
+    : headAbove = 1.1,
+      headMultiplier = 1.0,
+      legsBelow = -0.1,
+      legsMultiplier = 1.0;
 
   /// Above this fraction of the body counts as the head.
   ///

@@ -72,21 +72,26 @@ void main() {
     expect(log.isEmpty, isTrue, reason: 'it complained about a good save');
   });
 
-  test('settings that will not parse are reported, and still start the game',
-      () {
-    // Never throwing is the right behaviour and always was — what was missing
-    // is that the application is the only thing here with a screen.
-    final log = IssueLog();
-    final settings = SettingsFile(
-      appName: 'test',
-      storage: _Storage(<String, String>{'settings.json': 'not json'}),
-      onIssue: log.add,
-    );
+  test(
+    'settings that will not parse are reported, and still start the game',
+    () {
+      // Never throwing is the right behaviour and always was — what was missing
+      // is that the application is the only thing here with a screen.
+      final log = IssueLog();
+      final settings = SettingsFile(
+        appName: 'test',
+        storage: _Storage(<String, String>{'settings.json': 'not json'}),
+        onIssue: log.add,
+      );
 
-    expect(settings.read().volumeOf('sfx'), 1.0,
-        reason: 'it did not fall back to defaults');
-    expect(log.isNotEmpty, isTrue);
-  });
+      expect(
+        settings.read().volumeOf('sfx'),
+        1.0,
+        reason: 'it did not fall back to defaults',
+      );
+      expect(log.isNotEmpty, isTrue);
+    },
+  );
 
   test('and the default is what the code did before: print and carry on', () {
     // A caller that has not thought about this yet loses nothing.

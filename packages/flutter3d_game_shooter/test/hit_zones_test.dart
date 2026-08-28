@@ -13,7 +13,6 @@
 /// platformer has no use for it.
 library;
 
-
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
@@ -48,11 +47,15 @@ void main() {
       final at = monster.position!;
       final half = monster.body!.halfExtents.y;
 
-      expect(monster.fractionUp(Vector3(at.x, at.y - half, at.z)),
-          closeTo(0.0, 1e-6));
+      expect(
+        monster.fractionUp(Vector3(at.x, at.y - half, at.z)),
+        closeTo(0.0, 1e-6),
+      );
       expect(monster.fractionUp(at), closeTo(0.5, 1e-6));
-      expect(monster.fractionUp(Vector3(at.x, at.y + half, at.z)),
-          closeTo(1.0, 1e-6));
+      expect(
+        monster.fractionUp(Vector3(at.x, at.y + half, at.z)),
+        closeTo(1.0, 1e-6),
+      );
     });
 
     test('and a shot past either end still answers something usable', () {
@@ -113,26 +116,29 @@ void main() {
     final collider = monster.body!.collider;
 
     ShotHit pelletAt(double y) => ShotHit(
-          collider: collider,
-          point: Vector3(at.x, y, at.z),
-          normal: Vector3(0.0, 0.0, 1.0),
-          distance: 4.0,
-          damage: 10.0,
-        );
+      collider: collider,
+      point: Vector3(at.x, y, at.z),
+      normal: Vector3(0.0, 0.0, 1.0),
+      distance: 4.0,
+      damage: 10.0,
+    );
 
     const zones = HitZones();
     double scale(ShotHit hit) => zones.forHitOn(collider.userData, hit.point);
 
-    final head = Hitscan.damageByTarget(
-      <ShotHit>[pelletAt(at.y + half * 0.9), pelletAt(at.y + half * 0.9)],
-      scale: scale,
-    ).values.single;
-    final shins = Hitscan.damageByTarget(
-      <ShotHit>[pelletAt(at.y - half * 0.9), pelletAt(at.y - half * 0.9)],
-      scale: scale,
-    ).values.single;
+    final head = Hitscan.damageByTarget(<ShotHit>[
+      pelletAt(at.y + half * 0.9),
+      pelletAt(at.y + half * 0.9),
+    ], scale: scale).values.single;
+    final shins = Hitscan.damageByTarget(<ShotHit>[
+      pelletAt(at.y - half * 0.9),
+      pelletAt(at.y - half * 0.9),
+    ], scale: scale).values.single;
 
-    expect(head, greaterThan(shins * 2.0),
-        reason: 'the pellets were summed before anybody asked where they went');
+    expect(
+      head,
+      greaterThan(shins * 2.0),
+      reason: 'the pellets were summed before anybody asked where they went',
+    );
   });
 }

@@ -22,11 +22,7 @@ abstract interface class Launchable {
 /// its edge — and every platformer that has tried has produced the bug where a
 /// player bounces sideways into a pit.
 final class Spring extends Mechanism with CollisionListener {
-  Spring({
-    super.name,
-    required this.collider,
-    this.speed = 15.0,
-  }) {
+  Spring({super.name, required this.collider, this.speed = 15.0}) {
     collider
       ..kind = ColliderKind.trigger
       ..userData = this

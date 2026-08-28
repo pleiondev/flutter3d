@@ -36,7 +36,8 @@ import 'surfaces.dart';
 /// `CharacterController.suppressFloorSnap` — still no hook and no subclass,
 /// but no longer *nothing*: writing a public field is not by itself a way to
 /// state an intention.
-final class Runner with KeyHolder
+final class Runner
+    with KeyHolder
     implements Damageable, Rider, Gatherer, KeyTaker, Launchable {
   Runner({
     required this.body,
@@ -44,8 +45,8 @@ final class Runner with KeyHolder
     Purse? purse,
     this.tuning = const RunnerTuning(),
     this.surfaces = const Surfaces.plain(),
-  })  : health = health ?? Health(100.0),
-        purse = purse ?? Purse() {
+  }) : health = health ?? Health(100.0),
+       purse = purse ?? Purse() {
     body.collider.userData = this;
     // What this body counts as solid is a policy, and a platformer's policy is
     // that some platforms are floors from above and nothing at all from below.
@@ -128,16 +129,16 @@ final class Runner with KeyHolder
   /// it off `body` is not enough — by the time anything is drawn the shape may
   /// already be the short one.
   double get standingHalfHeight => switch (_standing) {
-        CollisionBox(:final Vector3 halfExtents) => halfExtents.y,
-        CollisionCapsule(:final double halfHeight, :final double radius) =>
-          halfHeight + radius,
-        CollisionSphere(:final double radius) => radius,
-        // A runner shaped like a ramp is not a thing, and the compiler asking
-        // is the sealed hierarchy earning its keep: adding `CollisionWedge`
-        // named every switch that had to think about it rather than letting one
-        // fall through to a default and answer wrongly for ever.
-        CollisionWedge(:final Vector3 halfExtents) => halfExtents.y,
-      };
+    CollisionBox(:final Vector3 halfExtents) => halfExtents.y,
+    CollisionCapsule(:final double halfHeight, :final double radius) =>
+      halfHeight + radius,
+    CollisionSphere(:final double radius) => radius,
+    // A runner shaped like a ramp is not a thing, and the compiler asking
+    // is the sealed hierarchy earning its keep: adding `CollisionWedge`
+    // named every switch that had to think about it rather than letting one
+    // fall through to a default and answer wrongly for ever.
+    CollisionWedge(:final Vector3 halfExtents) => halfExtents.y,
+  };
 
   /// Whether the runner is sliding, which is a crouch with speed in it.
   bool get isSliding => _sliding > 0.0;
@@ -515,8 +516,7 @@ final class Runner with KeyHolder
       ..z = along.z * speed;
   }
 
-  Vector3 _facingVector() =>
-      Vector3(math.sin(yaw), 0.0, math.cos(yaw));
+  Vector3 _facingVector() => Vector3(math.sin(yaw), 0.0, math.cos(yaw));
 
   /// A crouched runner is a slow one, and a sliding one keeps what it has.
   ///
@@ -533,9 +533,12 @@ final class Runner with KeyHolder
       walkSpeed: tuning.crouchSpeed,
       sprintSpeed: tuning.crouchSpeed,
       // A slide keeps its speed; a crouch-walk does not slither.
-      groundFriction: _sliding > 0.0 ? tuning.slideFriction : floor.groundFriction,
-      groundAcceleration:
-          _sliding > 0.0 ? floor.groundAcceleration * 0.2 : floor.groundAcceleration,
+      groundFriction: _sliding > 0.0
+          ? tuning.slideFriction
+          : floor.groundFriction,
+      groundAcceleration: _sliding > 0.0
+          ? floor.groundAcceleration * 0.2
+          : floor.groundAcceleration,
     );
   }
 
@@ -643,8 +646,14 @@ final class Runner with KeyHolder
       // the invisible lip `_countsAsSolid` was written to abolish, arrived at
       // from the other direction: the body obeyed the rule and the probe asking
       // about the body did not.
-      if (!body.world.sweep(body.shape, body.position, _probe, _hit,
-          ignore: body.collider, allow: _countsAsSolid)) {
+      if (!body.world.sweep(
+        body.shape,
+        body.position,
+        _probe,
+        _hit,
+        ignore: body.collider,
+        allow: _countsAsSolid,
+      )) {
         continue;
       }
       // A floor or a ceiling is not a wall, however close it is.
@@ -710,8 +719,13 @@ final class Runner with KeyHolder
     // platform is one. Passing the movement filter would make every one-way
     // ledge unmantleable while rising, which is every time.
     _probe.setValues(0.0, -(tuning.mantleHigh - tuning.mantleLow), 0.0);
-    if (!body.world.sweep(body.shape, _mantleAt, _probe, _hit,
-        ignore: body.collider)) {
+    if (!body.world.sweep(
+      body.shape,
+      _mantleAt,
+      _probe,
+      _hit,
+      ignore: body.collider,
+    )) {
       return;
     }
     if (_hit.normal.y < 0.5) return;
@@ -721,8 +735,13 @@ final class Runner with KeyHolder
     // Room to stand: the sweep above stopped *on* the surface, so anything
     // still overlapping there is a ceiling.
     _clearance.clear();
-    body.world.overlap(body.shape, _mantleAt, _clearance,
-        ignore: body.collider, includeTriggers: false);
+    body.world.overlap(
+      body.shape,
+      _mantleAt,
+      _clearance,
+      ignore: body.collider,
+      includeTriggers: false,
+    );
     if (_clearance.isNotEmpty) return;
 
     body
@@ -858,7 +877,11 @@ final class Runner with KeyHolder
 
   void _face(double dt) {
     if (_wish.x == 0.0 && _wish.z == 0.0) return;
-    yaw = turnedTowards(yaw, math.atan2(_wish.x, _wish.z), tuning.turnRate * dt);
+    yaw = turnedTowards(
+      yaw,
+      math.atan2(_wish.x, _wish.z),
+      tuning.turnRate * dt,
+    );
   }
 
   /// Thrown by a spring.
@@ -938,20 +961,20 @@ final class Runner with KeyHolder
   }
 
   Map<String, Object?> save() => <String, Object?>{
-        'body': body.save(),
-        'health': health.save(),
-        'purse': purse.save(),
-        'keys': keyRing.save(),
-        'yaw': yaw,
-        // The four that are invisible for exactly one step and then wrong, the
-        // same argument the controller's own save makes about its pair.
-        'coyote': _coyote,
-        'buffer': _buffer,
-        'airJumps': _airJumpsLeft,
-        'dashCooldown': _dashCooldown,
-        'wallCoyote': _wallCoyote,
-        'wallAway': <double>[_wallAway.x, _wallAway.y, _wallAway.z],
-      };
+    'body': body.save(),
+    'health': health.save(),
+    'purse': purse.save(),
+    'keys': keyRing.save(),
+    'yaw': yaw,
+    // The four that are invisible for exactly one step and then wrong, the
+    // same argument the controller's own save makes about its pair.
+    'coyote': _coyote,
+    'buffer': _buffer,
+    'airJumps': _airJumpsLeft,
+    'dashCooldown': _dashCooldown,
+    'wallCoyote': _wallCoyote,
+    'wallAway': <double>[_wallAway.x, _wallAway.y, _wallAway.z],
+  };
 
   void restore(Map<String, Object?> from) {
     final saved = from['body'];

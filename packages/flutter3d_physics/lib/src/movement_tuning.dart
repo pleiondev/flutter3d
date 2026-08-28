@@ -117,20 +117,19 @@ final class MovementTuning {
     double? jumpBufferTime,
     double? groundProbe,
     double? floorSnapLength,
-  }) =>
-      MovementTuning(
-        walkSpeed: walkSpeed ?? this.walkSpeed,
-        sprintSpeed: sprintSpeed ?? this.sprintSpeed,
-        groundAcceleration: groundAcceleration ?? this.groundAcceleration,
-        groundFriction: groundFriction ?? this.groundFriction,
-        airAcceleration: airAcceleration ?? this.airAcceleration,
-        gravity: gravity ?? this.gravity,
-        terminalVelocity: terminalVelocity ?? this.terminalVelocity,
-        jumpSpeed: jumpSpeed ?? this.jumpSpeed,
-        stepHeight: stepHeight ?? this.stepHeight,
-        coyoteTime: coyoteTime ?? this.coyoteTime,
-        jumpBufferTime: jumpBufferTime ?? this.jumpBufferTime,
-        groundProbe: groundProbe ?? this.groundProbe,
-        floorSnapLength: floorSnapLength ?? this.floorSnapLength,
-      );
+  }) => MovementTuning(
+    walkSpeed: walkSpeed ?? this.walkSpeed,
+    sprintSpeed: sprintSpeed ?? this.sprintSpeed,
+    groundAcceleration: groundAcceleration ?? this.groundAcceleration,
+    groundFriction: groundFriction ?? this.groundFriction,
+    airAcceleration: airAcceleration ?? this.airAcceleration,
+    gravity: gravity ?? this.gravity,
+    terminalVelocity: terminalVelocity ?? this.terminalVelocity,
+    jumpSpeed: jumpSpeed ?? this.jumpSpeed,
+    stepHeight: stepHeight ?? this.stepHeight,
+    coyoteTime: coyoteTime ?? this.coyoteTime,
+    jumpBufferTime: jumpBufferTime ?? this.jumpBufferTime,
+    groundProbe: groundProbe ?? this.groundProbe,
+    floorSnapLength: floorSnapLength ?? this.floorSnapLength,
+  );
 }

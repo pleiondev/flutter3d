@@ -13,12 +13,9 @@ import 'sound.dart';
 /// centred on, it is played at the ratio between the two, which is exactly what
 /// running an engine faster sounds like.
 final class LoopBand {
-  const LoopBand({
-    required this.sound,
-    required this.centre,
-    this.width = 0.35,
-  })  : assert(centre > 0.0),
-        assert(width > 0.0);
+  const LoopBand({required this.sound, required this.centre, this.width = 0.35})
+    : assert(centre > 0.0),
+      assert(width > 0.0);
 
   final SoundDef sound;
 
@@ -53,12 +50,9 @@ final class LoopBand {
 /// half — is quieter than either end, and an engine gets a dip in the middle of
 /// its range that reads as the sound cutting out.
 final class BlendedLoop {
-  BlendedLoop({
-    required this.scene,
-    required List<LoopBand> bands,
-    Vector3? at,
-  })  : bands = List<LoopBand>.unmodifiable(bands),
-        _position = at?.clone() ?? Vector3.zero() {
+  BlendedLoop({required this.scene, required List<LoopBand> bands, Vector3? at})
+    : bands = List<LoopBand>.unmodifiable(bands),
+      _position = at?.clone() ?? Vector3.zero() {
     assert(bands.isNotEmpty);
     for (final band in this.bands) {
       assert(
@@ -98,8 +92,9 @@ final class BlendedLoop {
       // A raised cosine rather than a straight ramp: the derivative is zero at
       // both ends, so a band arrives and leaves without a corner, and a corner
       // in a gain curve is a click.
-      final weight =
-          distance >= 1.0 ? 0.0 : 0.5 * (1.0 + math.cos(math.pi * distance));
+      final weight = distance >= 1.0
+          ? 0.0
+          : 0.5 * (1.0 + math.cos(math.pi * distance));
       _weights[i] = weight;
       total += weight;
     }

@@ -27,10 +27,16 @@ void main() {
 
     final table = ownedBindings(config, _defaults);
 
-    expect(identical(table, config.bindings), isTrue,
-        reason: 'the game is reading a table the file will not write');
-    expect(config.toJson()['bindings'], isNotEmpty,
-        reason: 'the defaults never reached the document');
+    expect(
+      identical(table, config.bindings),
+      isTrue,
+      reason: 'the game is reading a table the file will not write',
+    );
+    expect(
+      config.toJson()['bindings'],
+      isNotEmpty,
+      reason: 'the defaults never reached the document',
+    );
   });
 
   test('and a rebind made on that first launch survives the save', () {
@@ -46,8 +52,11 @@ void main() {
 
     final saved = GameConfig.fromJson(config.toJson());
     expect(saved.bindings[InputSource.key(70)], _dash);
-    expect(saved.bindings[InputSource.key(81)], isNull,
-        reason: 'the old key still works, so nothing was moved');
+    expect(
+      saved.bindings[InputSource.key(81)],
+      isNull,
+      reason: 'the old key still works, so nothing was moved',
+    );
   });
 
   test('a later launch keeps what the player chose, defaults and all', () {
@@ -61,8 +70,11 @@ void main() {
     final table = ownedBindings(config, _defaults);
 
     expect(table[InputSource.key(70)], _dash);
-    expect(table[InputSource.key(81)], isNull,
-        reason: 'the defaults were put back over the player');
+    expect(
+      table[InputSource.key(81)],
+      isNull,
+      reason: 'the defaults were put back over the player',
+    );
   });
 
   test('and the table handed back is the one the config holds, either way', () {
@@ -72,8 +84,10 @@ void main() {
       GameConfig(),
       GameConfig(bindings: Bindings()..bind(InputSource.key(70), _dash)),
     ]) {
-      expect(identical(ownedBindings(config, _defaults), config.bindings),
-          isTrue);
+      expect(
+        identical(ownedBindings(config, _defaults), config.bindings),
+        isTrue,
+      );
     }
   });
 }

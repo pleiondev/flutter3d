@@ -51,16 +51,19 @@ final class _Storage implements Storage {
 }
 
 SettingsCubit _settings() => SettingsCubit(
-      config: GameConfig(),
-      file: SettingsFile(appName: 'test', storage: _Storage()),
-      apply: (GameConfig _) {},
-    );
+  config: GameConfig(),
+  file: SettingsFile(appName: 'test', storage: _Storage()),
+  apply: (GameConfig _) {},
+);
 
 ({_FakePad fake, PadInput pad}) _pad() {
   final fake = _FakePad();
   return (
     fake: fake,
-    pad: PadInput(state: InputState(), pad: Gamepad(platform: fake)),
+    pad: PadInput(
+      state: InputState(),
+      pad: Gamepad(platform: fake),
+    ),
   );
 }
 
@@ -77,8 +80,11 @@ void main() {
     // The same thumb, four more frames of it.
     for (var frame = 0; frame < 4; frame++) {
       it.pad.tick(1 / 60);
-      expect(presses.offer(it.pad, settings), isFalse,
-          reason: 'a held button pressed itself again');
+      expect(
+        presses.offer(it.pad, settings),
+        isFalse,
+        reason: 'a held button pressed itself again',
+      );
     }
   });
 
@@ -118,8 +124,10 @@ void main() {
     final left = PadPresses().offer(it.pad, settings);
 
     expect(left, isFalse, reason: 'the screen acted on a rebinding press');
-    expect(settings.config.bindings[InputSource.pad(PadButton.faceSouth.id)],
-        GameAction.jump);
+    expect(
+      settings.config.bindings[InputSource.pad(PadButton.faceSouth.id)],
+      GameAction.jump,
+    );
     expect(settings.state.waitingFor, isNull);
   });
 
@@ -141,7 +149,10 @@ void main() {
     it.pad.tick(1 / 60);
     presses.offer(it.pad, settings);
 
-    expect(settings.state.waitingFor, GameAction.jump,
-        reason: 'a button nobody pressed bound itself');
+    expect(
+      settings.state.waitingFor,
+      GameAction.jump,
+      reason: 'a button nobody pressed bound itself',
+    );
   });
 }

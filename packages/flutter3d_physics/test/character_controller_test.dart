@@ -261,7 +261,11 @@ void main() {
       final world = stairsWorld(0.3);
       final player = _player(world);
       _walk(player, 30);
-      expect(player.steppedUp, 0.0, reason: 'nothing was climbed standing still');
+      expect(
+        player.steppedUp,
+        0.0,
+        reason: 'nothing was climbed standing still',
+      );
 
       var climbed = 0.0;
       for (var i = 0; i < 35; i++) {
@@ -270,7 +274,11 @@ void main() {
         climbed = math.max(climbed, player.steppedUp);
       }
 
-      expect(player.position.z, lessThan(-2.5), reason: 'never reached the step');
+      expect(
+        player.position.z,
+        lessThan(-2.5),
+        reason: 'never reached the step',
+      );
       // The whole of the ledge, in one step, and never more than the limit.
       expect(climbed, closeTo(0.3, 0.02));
       expect(climbed, lessThanOrEqualTo(const MovementTuning().stepHeight));
@@ -305,7 +313,11 @@ void main() {
         reported = math.max(reported, player.steppedUp);
       }
 
-      expect(player.position.y, greaterThan(1.9), reason: 'the lift never rose');
+      expect(
+        player.position.y,
+        greaterThan(1.9),
+        reason: 'the lift never rose',
+      );
       expect(reported, 0.0);
     });
 
@@ -594,8 +606,11 @@ void main() {
 
     /// Walks down [world] for [steps] and counts the steps spent off the
     /// ground.
-    int airborneWalkingDown(CollisionWorld world, MovementTuning tuning,
-        {int steps = 600}) {
+    int airborneWalkingDown(
+      CollisionWorld world,
+      MovementTuning tuning, {
+      int steps = 600,
+    }) {
       final player = CharacterController(
         world: world,
         shape: CollisionBox(_playerHalf),
@@ -620,7 +635,8 @@ void main() {
       expect(
         airborneWalkingDown(staircase(), const MovementTuning()),
         greaterThan(100),
-        reason: 'eight centimetres of probe cannot hold a twenty centimetre '
+        reason:
+            'eight centimetres of probe cannot hold a twenty centimetre '
             'step, and the body falls the rest of the way every tread',
       );
     });
@@ -671,110 +687,131 @@ void main() {
 
       // A snap changes how a fall *ends* only by not changing it: the body must
       // arrive at the floor under gravity, at the speed gravity gave it.
-      expect(impactFalling(0.3), closeTo(impactFalling(0.0), 0.01),
-          reason: 'the long reach shortened a plain fall onto a flat floor: '
-              '${impactFalling(0.3)} against ${impactFalling(0.0)}');
+      expect(
+        impactFalling(0.3),
+        closeTo(impactFalling(0.0), 0.01),
+        reason:
+            'the long reach shortened a plain fall onto a flat floor: '
+            '${impactFalling(0.3)} against ${impactFalling(0.0)}',
+      );
     });
 
-    test('and a pit is still a pit, at the default and at a stair-sized snap', () {
-      // The hazard the length has to stay under. A snap deep enough to reach
-      // an authored pit floor does not make the body fall in slowly — it
-      // *places* it at the bottom on the first step, so the fall never
-      // happens and nothing downstream ever sees the body airborne.
-      //
-      // Two metres is the shallowest pit anything in this repository authors.
-      //
-      // Mutation: default `floorSnapLength` to 2.0, or pass 2.0 below, and
-      // the body walks off the lip still grounded.
-      CollisionWorld pit() {
-        final world = CollisionWorld();
-        // The lip, z from -6 to 0, its top at y = 0.
-        world.addBox(Vector3(0.0, -1.0, -3.0), Vector3(8.0, 2.0, 6.0));
-        // The pit floor, two metres down, and long enough that walking on is
-        // not walking off the end of it.
-        world.addBox(Vector3(0.0, -3.0, 20.0), Vector3(8.0, 2.0, 40.0));
-        return world;
-      }
+    test(
+      'and a pit is still a pit, at the default and at a stair-sized snap',
+      () {
+        // The hazard the length has to stay under. A snap deep enough to reach
+        // an authored pit floor does not make the body fall in slowly — it
+        // *places* it at the bottom on the first step, so the fall never
+        // happens and nothing downstream ever sees the body airborne.
+        //
+        // Two metres is the shallowest pit anything in this repository authors.
+        //
+        // Mutation: default `floorSnapLength` to 2.0, or pass 2.0 below, and
+        // the body walks off the lip still grounded.
+        CollisionWorld pit() {
+          final world = CollisionWorld();
+          // The lip, z from -6 to 0, its top at y = 0.
+          world.addBox(Vector3(0.0, -1.0, -3.0), Vector3(8.0, 2.0, 6.0));
+          // The pit floor, two metres down, and long enough that walking on is
+          // not walking off the end of it.
+          world.addBox(Vector3(0.0, -3.0, 20.0), Vector3(8.0, 2.0, 40.0));
+          return world;
+        }
 
-      for (final tuning in <MovementTuning>[
-        const MovementTuning(),
-        const MovementTuning(floorSnapLength: 0.3),
-      ]) {
-        final world = pit();
+        for (final tuning in <MovementTuning>[
+          const MovementTuning(),
+          const MovementTuning(floorSnapLength: 0.3),
+        ]) {
+          final world = pit();
+          final player = CharacterController(
+            world: world,
+            shape: CollisionBox(_playerHalf),
+            position: Vector3(0.0, 0.9, -3.0),
+            tuning: tuning,
+          );
+
+          var fell = false;
+          var fastest = 0.0;
+          for (var i = 0; i < 180; i++) {
+            player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
+            world.update();
+            if (!player.isGrounded) fell = true;
+            fastest = math.max(fastest, -player.velocity.y);
+          }
+
+          expect(fell, isTrue, reason: 'the body must leave the lip');
+          expect(
+            fastest,
+            greaterThan(3.0),
+            reason: 'and fall, rather than be placed at the bottom',
+          );
+          expect(
+            player.position.y,
+            closeTo(-1.1, 0.05),
+            reason: 'landing on the pit floor at y = -2',
+          );
+        }
+      },
+    );
+
+    test(
+      'the snap sweep asks the filter, so a refused floor is not a floor',
+      () {
+        // The snap is the second sweep that can hold a body up, and
+        // [solidFilter] is how a game says which surfaces count for it —
+        // droppable platforms, phase states, a platform that is a floor only
+        // from above. Stepping off a lip onto a surface the filter refuses has
+        // to be stepping into space.
+        //
+        // Mutation: drop `allow: solidFilter` from the snap sweep in
+        // `_probeGround`. The reach finds the refused platform 0.2 m under the
+        // lip and stands the body on it.
+        //
+        // **For one step and not more**, which is worth saying rather than
+        // overselling: the step after, gravity sinks the box into the platform,
+        // and a sweep whose shape starts inside a box reports no hit at all — so
+        // the fall resumes by itself. One step is still a refilled jump budget,
+        // a reset coyote timer, a landing, and [ground] naming a collider the
+        // game has just said is not there.
+        final world = CollisionWorld();
+        // The lip: top at y = 0, z from -6 to 0.
+        world.addBox(Vector3(0.0, -1.0, -3.0), Vector3(8.0, 2.0, 6.0));
+        // A platform 0.2 m lower and well inside the snap's reach, which the
+        // filter refuses.
+        final refused = world.addBox(
+          Vector3(0.0, -0.35, 4.0),
+          Vector3(8.0, 0.3, 8.0),
+        );
+        // And the real floor, far below both.
+        world.addBox(Vector3(0.0, -6.5, 0.0), Vector3(40.0, 1.0, 40.0));
+
         final player = CharacterController(
           world: world,
           shape: CollisionBox(_playerHalf),
           position: Vector3(0.0, 0.9, -3.0),
-          tuning: tuning,
-        );
+          tuning: const MovementTuning(floorSnapLength: 0.5),
+        )..solidFilter = (Collider other, Vector3 normal) => other != refused;
 
-        var fell = false;
-        var fastest = 0.0;
-        for (var i = 0; i < 180; i++) {
+        var stoodOnIt = 0;
+        for (var i = 0; i < 90; i++) {
           player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
           world.update();
-          if (!player.isGrounded) fell = true;
-          fastest = math.max(fastest, -player.velocity.y);
+          // Past the lip, and not yet down on the real floor.
+          if (player.position.z > 0.36 &&
+              player.position.y > -2.0 &&
+              player.isGrounded) {
+            stoodOnIt++;
+          }
         }
 
-        expect(fell, isTrue, reason: 'the body must leave the lip');
-        expect(fastest, greaterThan(3.0),
-            reason: 'and fall, rather than be placed at the bottom');
-        expect(player.position.y, closeTo(-1.1, 0.05),
-            reason: 'landing on the pit floor at y = -2');
-      }
-    });
-
-    test('the snap sweep asks the filter, so a refused floor is not a floor', () {
-      // The snap is the second sweep that can hold a body up, and
-      // [solidFilter] is how a game says which surfaces count for it —
-      // droppable platforms, phase states, a platform that is a floor only
-      // from above. Stepping off a lip onto a surface the filter refuses has
-      // to be stepping into space.
-      //
-      // Mutation: drop `allow: solidFilter` from the snap sweep in
-      // `_probeGround`. The reach finds the refused platform 0.2 m under the
-      // lip and stands the body on it.
-      //
-      // **For one step and not more**, which is worth saying rather than
-      // overselling: the step after, gravity sinks the box into the platform,
-      // and a sweep whose shape starts inside a box reports no hit at all — so
-      // the fall resumes by itself. One step is still a refilled jump budget,
-      // a reset coyote timer, a landing, and [ground] naming a collider the
-      // game has just said is not there.
-      final world = CollisionWorld();
-      // The lip: top at y = 0, z from -6 to 0.
-      world.addBox(Vector3(0.0, -1.0, -3.0), Vector3(8.0, 2.0, 6.0));
-      // A platform 0.2 m lower and well inside the snap's reach, which the
-      // filter refuses.
-      final refused =
-          world.addBox(Vector3(0.0, -0.35, 4.0), Vector3(8.0, 0.3, 8.0));
-      // And the real floor, far below both.
-      world.addBox(Vector3(0.0, -6.5, 0.0), Vector3(40.0, 1.0, 40.0));
-
-      final player = CharacterController(
-        world: world,
-        shape: CollisionBox(_playerHalf),
-        position: Vector3(0.0, 0.9, -3.0),
-        tuning: const MovementTuning(floorSnapLength: 0.5),
-      )..solidFilter = (Collider other, Vector3 normal) => other != refused;
-
-      var stoodOnIt = 0;
-      for (var i = 0; i < 90; i++) {
-        player.step(_dt, wishDirection: Vector3(0.0, 0.0, 1.0));
-        world.update();
-        // Past the lip, and not yet down on the real floor.
-        if (player.position.z > 0.36 &&
-            player.position.y > -2.0 &&
-            player.isGrounded) {
-          stoodOnIt++;
-        }
-      }
-
-      expect(stoodOnIt, 0, reason: 'the refused platform is not ground');
-      expect(player.position.y, closeTo(-5.1, 0.05),
-          reason: 'it fell past it to the floor at y = -6');
-    });
+        expect(stoodOnIt, 0, reason: 'the refused platform is not ground');
+        expect(
+          player.position.y,
+          closeTo(-5.1, 0.05),
+          reason: 'it fell past it to the floor at y = -6',
+        );
+      },
+    );
 
     test('a body that left the ground on purpose is not pulled back to it', () {
       // A spring, a stomp bounce or a jump the game owns writes `velocity.y`
@@ -829,8 +866,11 @@ void main() {
 
       expect(bonked.velocity.y, closeTo(0.0, 1e-9), reason: 'the ceiling');
       expect(bonked.isGrounded, isFalse);
-      expect(bonked.position.y, greaterThan(pad + 0.15),
-          reason: 'it stays where the ceiling stopped it');
+      expect(
+        bonked.position.y,
+        greaterThan(pad + 0.15),
+        reason: 'it stays where the ceiling stopped it',
+      );
     });
 
     test('and the suppression is spent by one probe, not held for ever', () {

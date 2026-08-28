@@ -23,14 +23,14 @@ final class Crate {
     double mass = 30.0,
     Object? userData,
   }) : body = RigidBody(
-          world: world,
-          shape: CollisionBox((size ?? defaultSize) / 2.0),
-          position: at,
-          mass: mass,
-          friction: 0.8,
-          layer: CollisionLayers.world,
-          userData: userData,
-        );
+         world: world,
+         shape: CollisionBox((size ?? defaultSize) / 2.0),
+         position: at,
+         mass: mass,
+         friction: 0.8,
+         layer: CollisionLayers.world,
+         userData: userData,
+       );
 
   /// Big enough to climb on, light enough to move: a crate that is neither is
   /// scenery.
@@ -50,7 +50,6 @@ final class Crate {
 /// world to spawn it into, and two registries could disagree about what a
 /// document may contain.
 final class CrateKind extends EntityKind {
-
   /// A player has to be able to get to one of these. See
   /// [EntityKind.mustBeReachable] — and the fourteen that were inside walls.
   @override

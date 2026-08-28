@@ -60,26 +60,32 @@ void main() {
 
       expect(read.volumeOf('music'), 0.4);
       expect(read.settingOf('a11y.toggleSprint', 0.0), 1.0);
-      expect(read.bindings[InputSource.pad('face.east')],
-          const GameAction('dash'));
+      expect(
+        read.bindings[InputSource.pad('face.east')],
+        const GameAction('dash'),
+      );
     });
 
     test('and a first run is defaults rather than a failure', () {
-      final read = SettingsFile(appName: 'game', storage: MemoryStorage()).read();
+      final read = SettingsFile(
+        appName: 'game',
+        storage: MemoryStorage(),
+      ).read();
 
       expect(read.volumeOf('master'), 1.0);
     });
 
-    test('and a document somebody hand-edited into nonsense costs one launch',
-        () {
+    test('and a document somebody hand-edited into nonsense costs one launch', () {
       // Never throws. What is lost is the bindings, which is a bad day; what is
       // avoided is a game that will not start, which is a bug report nobody can
       // act on.
       final storage = MemoryStorage()
         ..documents['settings.json'] = '{"volumes": ';
 
-      expect(SettingsFile(appName: 'game', storage: storage).read().volumeOf('sfx'),
-          1.0);
+      expect(
+        SettingsFile(appName: 'game', storage: storage).read().volumeOf('sfx'),
+        1.0,
+      );
     });
 
     test('and a storage that refuses says so rather than pretending', () {
@@ -87,8 +93,10 @@ void main() {
       // for a caller that wants to tell the player.
       final storage = MemoryStorage()..refuse = true;
 
-      expect(SettingsFile(appName: 'game', storage: storage).write(GameConfig()),
-          isFalse);
+      expect(
+        SettingsFile(appName: 'game', storage: storage).write(GameConfig()),
+        isFalse,
+      );
     });
 
     test('and two games do not overwrite each other', () {
@@ -96,13 +104,22 @@ void main() {
       // it went unnoticed until there were two.
       final one = MemoryStorage();
       final two = MemoryStorage();
-      SettingsFile(appName: 'platformer', storage: one)
-          .write(GameConfig()..setVolume('music', 0.1));
-      SettingsFile(appName: 'dungeon', storage: two)
-          .write(GameConfig()..setVolume('music', 0.9));
+      SettingsFile(
+        appName: 'platformer',
+        storage: one,
+      ).write(GameConfig()..setVolume('music', 0.1));
+      SettingsFile(
+        appName: 'dungeon',
+        storage: two,
+      ).write(GameConfig()..setVolume('music', 0.9));
 
-      expect(SettingsFile(appName: 'platformer', storage: one).read()
-          .volumeOf('music'), 0.1);
+      expect(
+        SettingsFile(
+          appName: 'platformer',
+          storage: one,
+        ).read().volumeOf('music'),
+        0.1,
+      );
     });
   });
 
@@ -115,8 +132,10 @@ void main() {
 
       expect(storage.write('probe.json', '{"kept":true}'), isTrue);
 
-      expect(defaultStorage('flutter3d_ui_test').read('probe.json'),
-          '{"kept":true}');
+      expect(
+        defaultStorage('flutter3d_ui_test').read('probe.json'),
+        '{"kept":true}',
+      );
     });
 
     test('and forgets one when asked', () {

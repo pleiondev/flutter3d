@@ -92,11 +92,7 @@ class _StickPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final centre = size.center(Offset.zero);
     canvas
-      ..drawCircle(
-        centre,
-        radius,
-        Paint()..color = const Color(0x22FFFFFF),
-      )
+      ..drawCircle(centre, radius, Paint()..color = const Color(0x22FFFFFF))
       ..drawCircle(
         centre,
         radius,

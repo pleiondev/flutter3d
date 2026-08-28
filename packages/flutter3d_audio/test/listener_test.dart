@@ -40,7 +40,8 @@ void main() {
     // Looking straight down flattens to nothing. Falling back to a fixed
     // forward beats normalising a zero vector, which is how a footstep ends up
     // hard left for one frame.
-    final ears = AudioListener()..aimAlong(Vector3.zero(), Vector3(0.0, -1.0, 0.0));
+    final ears = AudioListener()
+      ..aimAlong(Vector3.zero(), Vector3(0.0, -1.0, 0.0));
     expect(ears.forward.length, closeTo(1.0, 1e-9));
   });
 }

@@ -33,13 +33,13 @@ final class Level {
     this.music,
     this.next,
     Map<String, Object?> source = const <String, Object?>{},
-  })  : brushes = brushes ?? <Brush>[],
-        // ignore: prefer_initializing_formals
-        _source = source,
-        entities = entities ?? <EntityDef>[],
-        lights = lights ?? <LevelLight>[],
-        materials = materials ?? <String, LevelMaterial>{},
-        fogColor = fogColor?.clone() ?? Vector3(0.05, 0.04, 0.06);
+  }) : brushes = brushes ?? <Brush>[],
+       // ignore: prefer_initializing_formals
+       _source = source,
+       entities = entities ?? <EntityDef>[],
+       lights = lights ?? <LevelLight>[],
+       materials = materials ?? <String, LevelMaterial>{},
+       fogColor = fogColor?.clone() ?? Vector3(0.05, 0.04, 0.06);
 
   /// The document this level was read from. See [writeThrough].
   ///
@@ -98,17 +98,16 @@ final class Level {
       brushes: json.objects('brushes').map(Brush.fromJson).toList(),
       entities: json.objects('entities').map(EntityDef.fromJson).toList(),
       lights: json.objects('lights').map(LevelLight.fromJson).toList(),
-      materials: json.objectMap('materials').map(
+      materials: json
+          .objectMap('materials')
+          .map(
             (String key, Map<String, Object?> value) =>
                 MapEntry<String, LevelMaterial>(
-              key,
-              LevelMaterial.fromJson(value),
-            ),
+                  key,
+                  LevelMaterial.fromJson(value),
+                ),
           ),
-      fogColor: json.vector3(
-        'fogColor',
-        fallback: Vector3(0.05, 0.04, 0.06),
-      ),
+      fogColor: json.vector3('fogColor', fallback: Vector3(0.05, 0.04, 0.06)),
       fogDensity: json.numberOr('fogDensity', 0.0),
       music: json.textOrNull('music'),
       next: json.textOrNull('next'),
@@ -117,21 +116,29 @@ final class Level {
   }
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
-        WriteThroughField('version', formatVersion),
-        WriteThroughField('name', name),
-        WriteThroughField('fogColor', fogColor.toJson()),
-        WriteThroughField('fogDensity', fogDensity, whenAbsent: fogDensity != 0.0),
-        WriteThroughField('music', music, whenAbsent: music != null),
-        WriteThroughField('next', next, whenAbsent: next != null),
-        WriteThroughField('materials', <String, Object?>{
-          for (final entry in materials.entries) entry.key: entry.value.toJson(),
-        }, whenAbsent: materials.isNotEmpty),
-        WriteThroughField('brushes', brushes.map((Brush b) => b.toJson()).toList(),
-            whenAbsent: brushes.isNotEmpty),
-        WriteThroughField('lights', lights.map((LevelLight l) => l.toJson()).toList(),
-            whenAbsent: lights.isNotEmpty),
-        WriteThroughField(
-            'entities', entities.map((EntityDef e) => e.toJson()).toList(),
-            whenAbsent: entities.isNotEmpty),
-      ]);
+    WriteThroughField('version', formatVersion),
+    WriteThroughField('name', name),
+    WriteThroughField('fogColor', fogColor.toJson()),
+    WriteThroughField('fogDensity', fogDensity, whenAbsent: fogDensity != 0.0),
+    WriteThroughField('music', music, whenAbsent: music != null),
+    WriteThroughField('next', next, whenAbsent: next != null),
+    WriteThroughField('materials', <String, Object?>{
+      for (final entry in materials.entries) entry.key: entry.value.toJson(),
+    }, whenAbsent: materials.isNotEmpty),
+    WriteThroughField(
+      'brushes',
+      brushes.map((Brush b) => b.toJson()).toList(),
+      whenAbsent: brushes.isNotEmpty,
+    ),
+    WriteThroughField(
+      'lights',
+      lights.map((LevelLight l) => l.toJson()).toList(),
+      whenAbsent: lights.isNotEmpty,
+    ),
+    WriteThroughField(
+      'entities',
+      entities.map((EntityDef e) => e.toJson()).toList(),
+      whenAbsent: entities.isNotEmpty,
+    ),
+  ]);
 }

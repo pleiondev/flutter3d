@@ -7,8 +7,8 @@
 /// animations, eight corpses and eight counts towards the level's kill total.
 final class Health {
   Health(this.maximum, {double? current, this.armour = 0.0})
-      : assert(maximum > 0.0),
-        _current = current ?? maximum;
+    : assert(maximum > 0.0),
+      _current = current ?? maximum;
 
   final double maximum;
   double _current;
@@ -29,10 +29,10 @@ final class Health {
   /// Applies [amount] and returns true on the hit that killed — once, and only
   /// for that hit.
   Map<String, Object?> save() => <String, Object?>{
-        'current': _current,
-        'armour': armour,
-        'mourned': _mourned,
-      };
+    'current': _current,
+    'armour': armour,
+    'mourned': _mourned,
+  };
 
   void restore(Map<String, Object?> from) {
     _current = (from['current'] as num?)?.toDouble() ?? _current;

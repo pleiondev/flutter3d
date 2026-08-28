@@ -7,9 +7,7 @@ import 'entity_kind.dart';
 /// validate against a deliberately small set.
 final class EntityRegistry {
   EntityRegistry(Iterable<EntityKind> kinds)
-      : _byType = <String, EntityKind>{
-          for (final kind in kinds) kind.type: kind,
-        };
+    : _byType = <String, EntityKind>{for (final kind in kinds) kind.type: kind};
 
   /// Everything this game ships with.
   /// **There is no ready-made registry, and that is deliberate.**

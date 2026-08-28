@@ -24,12 +24,12 @@ final class Brush {
     this.layer,
     this.ramp,
     Map<String, Object?> source = const <String, Object?>{},
-  })  : centre = centre.clone(),
-        size = size.clone(),
-        // ignore: prefer_initializing_formals
-        _source = source,
-        // ignore: prefer_initializing_formals
-        _surface = surface;
+  }) : centre = centre.clone(),
+       size = size.clone(),
+       // ignore: prefer_initializing_formals
+       _source = source,
+       // ignore: prefer_initializing_formals
+       _surface = surface;
 
   /// The document this brush was read from, or empty when it was built in code.
   ///
@@ -126,16 +126,16 @@ final class Brush {
   }
 
   factory Brush.fromJson(Map<String, Object?> json) => Brush(
-        centre: json.vector3('at'),
-        size: json.vector3('size'),
-        material: json.textOrNull('material') ?? 'default',
-        solid: json.flagOr('solid', fallback: true),
-        castsShadow: json.flagOr('castsShadow', fallback: true),
-        surface: json.textOrNull('surface'),
-        layer: json.integerOrNull('layer'),
-        ramp: _rampFromName(json.textOrNull('ramp')),
-        source: json,
-      );
+    centre: json.vector3('at'),
+    size: json.vector3('size'),
+    material: json.textOrNull('material') ?? 'default',
+    solid: json.flagOr('solid', fallback: true),
+    castsShadow: json.flagOr('castsShadow', fallback: true),
+    surface: json.textOrNull('surface'),
+    layer: json.integerOrNull('layer'),
+    ramp: _rampFromName(json.textOrNull('ramp')),
+    source: json,
+  );
 
   /// The four directions a ramp may climb, by the name a document uses.
   ///
@@ -161,19 +161,22 @@ final class Brush {
     return found;
   }
 
-  static String _rampName(WedgeUphill uphill) =>
-      _ramps.entries.firstWhere((MapEntry<String, WedgeUphill> e) =>
-          e.value == uphill).key;
+  static String _rampName(WedgeUphill uphill) => _ramps.entries
+      .firstWhere((MapEntry<String, WedgeUphill> e) => e.value == uphill)
+      .key;
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
-        WriteThroughField('at', centre.toJson()),
-        WriteThroughField('size', size.toJson()),
-        WriteThroughField('material', material, whenAbsent: material != 'default'),
-        WriteThroughField('solid', solid, whenAbsent: !solid),
-        WriteThroughField('castsShadow', castsShadow, whenAbsent: !castsShadow),
-        WriteThroughField('surface', _surface, whenAbsent: _surface != null),
-        WriteThroughField('layer', layer, whenAbsent: layer != null),
-        WriteThroughField('ramp', ramp == null ? null : _rampName(ramp!),
-            whenAbsent: ramp != null),
-      ]);
+    WriteThroughField('at', centre.toJson()),
+    WriteThroughField('size', size.toJson()),
+    WriteThroughField('material', material, whenAbsent: material != 'default'),
+    WriteThroughField('solid', solid, whenAbsent: !solid),
+    WriteThroughField('castsShadow', castsShadow, whenAbsent: !castsShadow),
+    WriteThroughField('surface', _surface, whenAbsent: _surface != null),
+    WriteThroughField('layer', layer, whenAbsent: layer != null),
+    WriteThroughField(
+      'ramp',
+      ramp == null ? null : _rampName(ramp!),
+      whenAbsent: ramp != null,
+    ),
+  ]);
 }

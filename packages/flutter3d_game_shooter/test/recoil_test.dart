@@ -96,8 +96,13 @@ void main() {
 
     it.step(firing: true);
 
-    expect(it.sight, greaterThan(before), reason: 'the gun went off and the '
-        'crosshair did not move, which is a weapon with no recoil');
+    expect(
+      it.sight,
+      greaterThan(before),
+      reason:
+          'the gun went off and the '
+          'crosshair did not move, which is a weapon with no recoil',
+    );
   });
 
   test('and the shot goes where the sight points, not where it pointed', () {
@@ -112,8 +117,11 @@ void main() {
     it.player.aim(aim);
 
     expect(math.asin(aim.y), closeTo(lifted, 1e-9));
-    expect(aim.y, greaterThan(0.0),
-        reason: 'the bullets still leave along the old line');
+    expect(
+      aim.y,
+      greaterThan(0.0),
+      reason: 'the bullets still leave along the old line',
+    );
   });
 
   test('and it comes back down when the trigger is released', () {
@@ -125,8 +133,11 @@ void main() {
 
     it.step(times: 120);
 
-    expect(it.sight, closeTo(level, 1e-4),
-        reason: 'the sight stayed up: a player is left looking at the ceiling');
+    expect(
+      it.sight,
+      closeTo(level, 1e-4),
+      reason: 'the sight stayed up: a player is left looking at the ceiling',
+    );
   });
 
   test('and holding an automatic climbs', () {
@@ -138,8 +149,11 @@ void main() {
 
     it.step(firing: true, times: 240);
 
-    expect(it.sight, greaterThan(afterOne),
-        reason: 'a burst that does not climb is a burst nobody has to control');
+    expect(
+      it.sight,
+      greaterThan(afterOne),
+      reason: 'a burst that does not climb is a burst nobody has to control',
+    );
   });
 
   test('and the player is left pointing where they were pointing', () {
@@ -178,6 +192,9 @@ void main() {
       return it.player.recoilPitch;
     }
 
-    expect(settledAfter(1 / 240.0, 240), closeTo(settledAfter(1 / 30.0, 30), 1e-9));
+    expect(
+      settledAfter(1 / 240.0, 240),
+      closeTo(settledAfter(1 / 30.0, 30), 1e-9),
+    );
   });
 }

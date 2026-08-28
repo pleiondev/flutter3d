@@ -78,10 +78,16 @@ void main() {
 
     room.walk(180, z: 1.0);
 
-    expect(room.crate.position.z, lessThan(restedAt - 0.5),
-        reason: 'the player walked into it and it did not move');
-    expect(room.player.body.position.z, greaterThan(room.crate.position.z),
-        reason: 'the player ended up inside the crate');
+    expect(
+      room.crate.position.z,
+      lessThan(restedAt - 0.5),
+      reason: 'the player walked into it and it did not move',
+    );
+    expect(
+      room.player.body.position.z,
+      greaterThan(room.crate.position.z),
+      reason: 'the player ended up inside the crate',
+    );
   });
 
   test('a crate does not push back', () {
@@ -92,8 +98,11 @@ void main() {
     // Forward is −Z, so a negative axis walks away from the crate at the
     // origin rather than towards it.
     room.walk(60, z: -1.0);
-    expect(room.player.body.position.z, greaterThan(before.z + 1.0),
-        reason: 'walking away from the crate was somehow impeded');
+    expect(
+      room.player.body.position.z,
+      greaterThan(before.z + 1.0),
+      reason: 'walking away from the crate was somehow impeded',
+    );
   });
 
   test('standing still does not nudge it', () {

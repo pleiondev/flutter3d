@@ -60,11 +60,7 @@ import 'mechanism.dart';
 /// constraints instead of enforcing them, which is the honest trade: what was
 /// duplicated was never the six calls, it was the paragraph explaining them.
 final class WorldStep {
-  WorldStep({
-    required this.collision,
-    this.mechanisms,
-    this.dynamics,
-  });
+  WorldStep({required this.collision, this.mechanisms, this.dynamics});
 
   final CollisionWorld collision;
   final MechanismWorld? mechanisms;

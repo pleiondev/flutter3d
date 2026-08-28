@@ -20,12 +20,12 @@ final class EntityDef {
     this.name,
     Map<String, Object?>? properties,
     Map<String, Object?> source = const <String, Object?>{},
-  })  : position = position?.clone() ?? Vector3.zero(),
-        // ignore: prefer_initializing_formals
-        _source = source,
-        properties = Map<String, Object?>.unmodifiable(
-          properties ?? const <String, Object?>{},
-        );
+  }) : position = position?.clone() ?? Vector3.zero(),
+       // ignore: prefer_initializing_formals
+       _source = source,
+       properties = Map<String, Object?>.unmodifiable(
+         properties ?? const <String, Object?>{},
+       );
 
   /// The document this entity was read from. See [writeThrough].
   final Map<String, Object?> _source;
@@ -43,12 +43,7 @@ final class EntityDef {
   final Map<String, Object?> properties;
 
   /// Keys the entity itself owns, which therefore never reach [properties].
-  static const Set<String> reservedKeys = <String>{
-    'type',
-    'at',
-    'yaw',
-    'name',
-  };
+  static const Set<String> reservedKeys = <String>{'type', 'at', 'yaw', 'name'};
 
   String? string(String key) => properties[key] as String?;
 
@@ -99,11 +94,11 @@ final class EntityDef {
   }
 
   Map<String, Object?> toJson() => writeThrough(_source, <WriteThroughField>[
-        WriteThroughField('type', type),
-        WriteThroughField('at', position.toJson()),
-        WriteThroughField('yaw', yaw, whenAbsent: yaw != 0.0),
-        WriteThroughField('name', name, whenAbsent: name != null),
-        for (final entry in properties.entries)
-          WriteThroughField(entry.key, entry.value),
-      ]);
+    WriteThroughField('type', type),
+    WriteThroughField('at', position.toJson()),
+    WriteThroughField('yaw', yaw, whenAbsent: yaw != 0.0),
+    WriteThroughField('name', name, whenAbsent: name != null),
+    for (final entry in properties.entries)
+      WriteThroughField(entry.key, entry.value),
+  ]);
 }

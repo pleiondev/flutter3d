@@ -9,10 +9,7 @@ import 'platform_default.dart';
 /// `CaptureState` has two: the interesting part is *which way* it changed. A
 /// game that sees `disconnected` has to release whatever the pad was holding,
 /// and a game that sees `connected` may want to say so on screen.
-enum PadConnection {
-  disconnected,
-  connected,
-}
+enum PadConnection { disconnected, connected }
 
 /// The platform side of a gamepad.
 ///

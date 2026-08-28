@@ -8,7 +8,7 @@ import 'package:vector_math/vector_math.dart';
 
 /// A level with one brush to stand on and whatever entities a test wants.
 Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
-      jsonDecode(
+  jsonDecode(
         jsonEncode(<String, Object?>{
           'name': 'spawn',
           'brushes': <Object?>[
@@ -25,8 +25,9 @@ Level _level(List<Map<String, Object?>> entities) => Level.fromJson(
           },
           'entities': entities,
         }),
-      ) as Map<String, Object?>,
-    );
+      )
+      as Map<String, Object?>,
+);
 
 ({CollisionWorld world, ActorSystem actors, List<Actor> seen}) _spawn(
   Level level,
@@ -79,7 +80,9 @@ void main() {
 
       expect(result.actors.aliveCount, 2);
       expect(
-        result.actors.actors.map((Actor a) => (a.brain! as ChaseBrain).def.name),
+        result.actors.actors.map(
+          (Actor a) => (a.brain! as ChaseBrain).def.name,
+        ),
         <String>['runner', 'tank'],
       );
     });
@@ -114,8 +117,7 @@ void main() {
       );
 
       final monster = result.actors.actors.single;
-      expect(monster.position!.y,
-          closeTo(monster.body!.halfExtents.y, 1e-6));
+      expect(monster.position!.y, closeTo(monster.body!.halfExtents.y, 1e-6));
 
       // And a step of simulation does not drop it, which is what would happen
       // if it had been spawned inside the floor and pushed out.
@@ -282,19 +284,19 @@ void _anotherGameTests() {
   }
 
   Level levelWith(String kind) => Level(
-        name: 'other',
-        brushes: <Brush>[
-          Brush(centre: Vector3(0, -0.5, 0), size: Vector3(8, 1, 8)),
-        ],
-        entities: <EntityDef>[
-          EntityDef(type: EntityTypes.playerSpawn, position: Vector3.zero()),
-          EntityDef(
-            type: ShooterEntities.monster,
-            position: Vector3(2, 0, 0),
-            properties: <String, Object?>{'kind': kind},
-          ),
-        ],
-      );
+    name: 'other',
+    brushes: <Brush>[
+      Brush(centre: Vector3(0, -0.5, 0), size: Vector3(8, 1, 8)),
+    ],
+    entities: <EntityDef>[
+      EntityDef(type: EntityTypes.playerSpawn, position: Vector3.zero()),
+      EntityDef(
+        type: ShooterEntities.monster,
+        position: Vector3(2, 0, 0),
+        properties: <String, Object?>{'kind': kind},
+      ),
+    ],
+  );
 
   group('a game with its own roster', () {
     test('accepts a monster this package has never heard of', () {
@@ -341,7 +343,10 @@ void _anotherGameTests() {
           EntityDef(type: EntityTypes.playerSpawn, position: Vector3.zero()),
         ],
         lights: <LevelLight>[
-          LevelLight(type: LevelLightType.directional, direction: Vector3(0, -1, 0)),
+          LevelLight(
+            type: LevelLightType.directional,
+            direction: Vector3(0, -1, 0),
+          ),
         ],
       );
 
@@ -349,8 +354,11 @@ void _anotherGameTests() {
         registry: EntityRegistry(<EntityKind>[const PlayerSpawnKind()]),
       ).validate(level);
 
-      expect(issues, isEmpty,
-          reason: 'the engine had an opinion about what a game must contain');
+      expect(
+        issues,
+        isEmpty,
+        reason: 'the engine had an opinion about what a game must contain',
+      );
     });
 
     test('the same catalog spawns and validates', () {
@@ -366,7 +374,9 @@ void _anotherGameTests() {
           actors: actors,
           mechanisms: MechanismWorld(world),
         ),
-        registry: registryOf(<String, MonsterDef>{'ghost': ghost}, into: actors),
+        registry: registryOf(<String, MonsterDef>{
+          'ghost': ghost,
+        }, into: actors),
       );
 
       expect(actors.aliveCount, 1);

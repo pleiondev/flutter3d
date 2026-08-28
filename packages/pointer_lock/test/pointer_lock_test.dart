@@ -97,14 +97,16 @@ void main() {
       expect(capture.takeDelta(), Offset.zero);
     });
 
-    test('no motion between steps reads as zero, not as the last value',
-        () async {
-      await capture.capture();
-      await platform.move(7.0, 7.0);
-      capture.takeDelta();
+    test(
+      'no motion between steps reads as zero, not as the last value',
+      () async {
+        await capture.capture();
+        await platform.move(7.0, 7.0);
+        capture.takeDelta();
 
-      expect(capture.takeDelta(), Offset.zero);
-    });
+        expect(capture.takeDelta(), Offset.zero);
+      },
+    );
 
     test('motion from before the capture is discarded', () async {
       // Cursor movement that happened while the pointer was free belongs to the
@@ -140,7 +142,10 @@ void main() {
 
       await capture.release();
       expect(capture.isCaptured, isFalse);
-      expect(platform.calls, containsAllInOrder(<String>['capture', 'release']));
+      expect(
+        platform.calls,
+        containsAllInOrder(<String>['capture', 'release']),
+      );
     });
 
     test('losing focus releases without the application asking', () async {
@@ -187,22 +192,24 @@ void main() {
       await platform.loseFocus();
       await subscription.cancel();
 
-      expect(
-        states,
-        <CaptureState>[CaptureState.captured, CaptureState.released],
-      );
+      expect(states, <CaptureState>[
+        CaptureState.captured,
+        CaptureState.released,
+      ]);
     });
   });
 
   group('hot restart', () {
-    test('construction resets the platform, which may still hold the pointer',
-        () async {
-      // The native side outlives the Dart isolate. Without this the developer is
-      // left with a hidden cursor and nothing that will ever ask for it back.
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'construction resets the platform, which may still hold the pointer',
+      () async {
+        // The native side outlives the Dart isolate. Without this the developer is
+        // left with a hidden cursor and nothing that will ever ask for it back.
+        await Future<void>.delayed(Duration.zero);
 
-      expect(platform.calls, contains('reset'));
-    });
+        expect(platform.calls, contains('reset'));
+      },
+    );
   });
 
   group('unsupported platforms', () {
@@ -257,8 +264,11 @@ void main() {
 
       PointerLock.instance;
 
-      expect(platform.calls, contains('reset'),
-          reason: 'the instance never reached the platform it was given');
+      expect(
+        platform.calls,
+        contains('reset'),
+        reason: 'the instance never reached the platform it was given',
+      );
     });
 
     test('and is the same one twice', () {

@@ -36,11 +36,8 @@ CollisionWorld _room({bool wall = false}) {
 /// The engine builds actors; what makes one of them a monster is a `ChaseBrain`
 /// and a `MonsterDef`, and both of those live in `shooter.dart` now. That is
 /// what this helper says out loud.
-({ActorSystem system, Bestiary bestiary, Collider player, Vector3 eye}) _harness(
-  CollisionWorld world, {
-  Vector3? playerAt,
-  int seed = 1,
-}) {
+({ActorSystem system, Bestiary bestiary, Collider player, Vector3 eye})
+_harness(CollisionWorld world, {Vector3? playerAt, int seed = 1}) {
   final player = world.add(
     Collider(
       shape: CollisionBox(Vector3(0.35, 0.9, 0.35)),
@@ -193,7 +190,10 @@ void main() {
     test('a monster with a clear line takes notice', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -8.0),
+      );
 
       h.system.beginStep();
       h.system.step(_dt, focus: h.eye, focusBody: h.player);
@@ -206,7 +206,10 @@ void main() {
       // player they cannot possibly have seen.
       final world = _room(wall: true);
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -8.0),
+      );
 
       for (var i = 0; i < 60; i++) {
         h.system.beginStep();
@@ -219,7 +222,10 @@ void main() {
     test('something too far away is not noticed', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -40.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -40.0),
+      );
 
       for (var i = 0; i < 30; i++) {
         h.system.beginStep();
@@ -239,8 +245,11 @@ void main() {
       // Mutation: delete `_lead`. This fails and the one below still passes,
       // which is the pair that says the lead is doing something rather than
       // the shot merely being generous.
-      expect(_hitsACrossingTarget(sideways: 3.0), isTrue,
-          reason: 'a fireball at a crossing target still misses');
+      expect(
+        _hitsACrossingTarget(sideways: 3.0),
+        isTrue,
+        reason: 'a fireball at a crossing target still misses',
+      );
     });
 
     test('and still hits one that is standing still', () {
@@ -262,11 +271,17 @@ void main() {
       // hearing a slower copy of seeing.
       final world = _room(wall: true);
       final it = _harness(world, playerAt: Vector3(0.0, 0.0, 20.0));
-      final monster = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, -20.0));
+      final monster = it.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.0, -20.0),
+      );
       it.system.beginStep();
       it.system.step(_dt, focus: it.eye, focusBody: it.player);
-      expect((monster.brain! as ChaseBrain).state, MonsterState.idle,
-          reason: 'it saw through a wall, so this proves nothing');
+      expect(
+        (monster.brain! as ChaseBrain).state,
+        MonsterState.idle,
+        reason: 'it saw through a wall, so this proves nothing',
+      );
 
       it.system.hear(Vector3(0.0, 1.5, 19.0), radius: 60.0);
 
@@ -278,7 +293,10 @@ void main() {
       // would be one that can see through walls, which is the failure this is
       // meant to fix rather than the one it should cause.
       final it = _harness(_room(wall: true), playerAt: Vector3(0.0, 0.0, 20.0));
-      final monster = it.bestiary.spawn(Monsters.shooter, Vector3(0.0, 0.0, -20.0));
+      final monster = it.bestiary.spawn(
+        Monsters.shooter,
+        Vector3(0.0, 0.0, -20.0),
+      );
 
       it.system.hear(Vector3(0.0, 1.5, 19.0), radius: 60.0);
 
@@ -289,7 +307,10 @@ void main() {
       // Mutation: drop the radius check in `hear`. Every monster in the level
       // wakes on the first shot, which is a level with no pacing in it.
       final it = _harness(_room(), playerAt: Vector3(0.0, 0.0, 40.0));
-      final monster = it.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.0, -40.0));
+      final monster = it.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.0, -40.0),
+      );
 
       it.system.hear(Vector3(0.0, 1.5, 39.0), radius: 20.0);
 
@@ -303,9 +324,11 @@ void main() {
       // the game. It is a number on the weapon now.
       expect(Weapons.shotgun.loudness, greaterThan(Weapons.pistol.loudness));
       expect(Weapons.pistol.loudness, greaterThan(Weapons.fists.loudness));
-      expect(Monsters.runner.attack.loudness,
-          lessThan(Monsters.tank.attack.loudness),
-          reason: 'a claw is quieter than something slamming into the floor');
+      expect(
+        Monsters.runner.attack.loudness,
+        lessThan(Monsters.tank.attack.loudness),
+        reason: 'a claw is quieter than something slamming into the floor',
+      );
     });
 
     test('being shot wakes it even with no line of sight', () {
@@ -314,7 +337,10 @@ void main() {
       // ambush.
       final world = _room(wall: true);
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -8.0),
+      );
 
       h.system.hurt(monster, 5.0);
 
@@ -327,7 +353,10 @@ void main() {
       // turret.
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -8.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -8.0),
+      );
 
       h.system.beginStep();
       h.system.step(_dt, focus: h.eye, focusBody: h.player);
@@ -345,7 +374,10 @@ void main() {
     test('it closes the distance', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -12.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -12.0),
+      );
 
       final before = monster.position!.z;
       for (var i = 0; i < 120; i++) {
@@ -364,7 +396,10 @@ void main() {
       // sliding is possible round its end.
       world.addBox(Vector3(-3.0, 3.0, -6.0), Vector3(12.0, 6.0, 1.0));
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(-3.0, 0.9, -10.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(-3.0, 0.9, -10.0),
+      );
       h.system.hurt(monster, 1.0);
 
       final startX = monster.position!.x;
@@ -385,7 +420,10 @@ void main() {
     test('it stops attacking when the player leaves its reach', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.5));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -1.5),
+      );
 
       for (var i = 0; i < 40; i++) {
         h.system.beginStep();
@@ -465,8 +503,10 @@ void main() {
         system.step(_dt, focus: eye, focusBody: player);
       }
 
-      expect(projectiles.activeCount + projectiles.detonations.length,
-          greaterThan(0));
+      expect(
+        projectiles.activeCount + projectiles.detonations.length,
+        greaterThan(0),
+      );
     });
 
     test('the rate of attack does not depend on the frame rate', () {
@@ -495,7 +535,10 @@ void main() {
     test('enough damage kills it, and only once', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -4.0),
+      );
 
       expect(h.system.hurt(monster, 1000.0), isTrue);
       expect(h.system.hurt(monster, 1000.0), isFalse);
@@ -505,7 +548,10 @@ void main() {
     test('a corpse stops blocking the corridor', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -4.0),
+      );
       h.system.hurt(monster, 1000.0);
 
       expect(monster.body!.collider.isSolid, isFalse);
@@ -514,7 +560,10 @@ void main() {
     test('a corpse stops thinking and stops attacking', () {
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -1.4));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -1.4),
+      );
       h.system.hurt(monster, 1000.0);
 
       var total = 0.0;
@@ -535,14 +584,20 @@ void main() {
       // step and reported to nobody.
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.runner, Vector3(0.0, 0.9, -4.0));
+      final monster = h.bestiary.spawn(
+        Monsters.runner,
+        Vector3(0.0, 0.9, -4.0),
+      );
       h.system.beginStep();
       h.system.hurt(monster, 1000.0);
 
       expect(h.system.died, hasLength(1));
       h.system.step(_dt, focus: h.eye, focusBody: h.player);
-      expect(h.system.died, hasLength(1),
-          reason: 'the news was lost inside the step it happened in');
+      expect(
+        h.system.died,
+        hasLength(1),
+        reason: 'the news was lost inside the step it happened in',
+      );
 
       h.system.beginStep();
       expect(h.system.died, isEmpty);
@@ -600,7 +655,10 @@ void main() {
       // decision, not lose it.
       final world = _room();
       final h = _harness(world);
-      final monster = h.bestiary.spawn(Monsters.shooter, Vector3(0.0, 0.9, -25.0));
+      final monster = h.bestiary.spawn(
+        Monsters.shooter,
+        Vector3(0.0, 0.9, -25.0),
+      );
 
       for (var i = 0; i < 40; i++) {
         h.system.beginStep();
@@ -657,10 +715,14 @@ void _damageableTests() {
       final died = (monster as Damageable).applyDamage(1000.0);
 
       expect(died, isTrue);
-      expect(monsters.died, <Actor>[monster],
-          reason: 'the kill never reached the system that owns it');
-      expect(monster.body!.collider.kind, ColliderKind.trigger,
-          reason: 'the corpse still blocks the corridor');
+      expect(monsters.died, <Actor>[
+        monster,
+      ], reason: 'the kill never reached the system that owns it');
+      expect(
+        monster.body!.collider.kind,
+        ColliderKind.trigger,
+        reason: 'the corpse still blocks the corridor',
+      );
     });
 
     test('surviving a hit is reported too', () {

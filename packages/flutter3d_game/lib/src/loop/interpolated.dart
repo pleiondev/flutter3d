@@ -21,10 +21,10 @@ final class InterpolatedVector3 {
     Vector3? initial,
     this.stepLimit = 0.0,
     this.stepRecovery = 0.1,
-  })  : assert(stepLimit >= 0.0),
-        assert(stepRecovery > 0.0),
-        _previous = initial?.clone() ?? Vector3.zero(),
-        _current = initial?.clone() ?? Vector3.zero();
+  }) : assert(stepLimit >= 0.0),
+       assert(stepRecovery > 0.0),
+       _previous = initial?.clone() ?? Vector3.zero(),
+       _current = initial?.clone() ?? Vector3.zero();
 
   /// The most of a climbed ledge the picture may hold back at once, in metres.
   ///
@@ -130,8 +130,8 @@ final class InterpolatedVector3 {
 /// one. A monster turning to face the player crosses that boundary constantly.
 final class InterpolatedAngle {
   InterpolatedAngle([double initial = 0.0])
-      : _previous = initial,
-        _current = initial;
+    : _previous = initial,
+      _current = initial;
 
   double _previous;
   double _current;

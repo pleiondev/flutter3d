@@ -5,6 +5,11 @@ publish_to: 'none'
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - game-engine
+  - lifecycle
 
 environment:
   sdk: ^3.12.2

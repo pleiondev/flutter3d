@@ -93,8 +93,7 @@ abstract final class StandardGamepad {
       if (button == null) continue;
       final down = i < pressed.length && pressed[i];
       final value = i < values.length ? values[i] : (down ? 1.0 : 0.0);
-      final analogue =
-          i == _triggerLeftButton || i == _triggerRightButton;
+      final analogue = i == _triggerLeftButton || i == _triggerRightButton;
       // Pressure is recorded only where it says something a bit does not.
       // Writing it for every button would put seventeen entries in a map that
       // is read once per frame, for two that are analogue.

@@ -13,7 +13,7 @@ import 'sound.dart';
 /// it without the mixer needing to know what a monster is.
 final class SoundEmitter {
   SoundEmitter({required this.sound, Vector3? at})
-      : position = at?.clone() ?? Vector3.zero();
+    : position = at?.clone() ?? Vector3.zero();
 
   final SoundDef sound;
   final Vector3 position;
@@ -71,9 +71,9 @@ final class AudioScene {
     this.occlusion,
     Mixer? mixer,
     math.Random? random,
-  })  : mixer = mixer ?? Mixer(),
-        _random = random ?? math.Random(1),
-        assert(maxVoices > 0);
+  }) : mixer = mixer ?? Mixer(),
+       _random = random ?? math.Random(1),
+       assert(maxVoices > 0);
 
   /// Where the play-rate variance is drawn from.
   ///
@@ -88,7 +88,8 @@ final class AudioScene {
     if (sound.rateVariance <= 0.0) return sound.rate;
     // Two-sided: `1 + r * variance` would raise the average pitch by half the
     // variance, which is the sign mistake somebody actually writes.
-    return sound.rate * (1.0 + (_random.nextDouble() * 2.0 - 1.0) * sound.rateVariance);
+    return sound.rate *
+        (1.0 + (_random.nextDouble() * 2.0 - 1.0) * sound.rateVariance);
   }
 
   final AudioBackend backend;
@@ -117,7 +118,8 @@ final class AudioScene {
   /// Everything currently held, audible or not.
   List<SoundEmitter> get emitters => List<SoundEmitter>.unmodifiable(_emitters);
 
-  int get voiceCount => _emitters.where((SoundEmitter e) => e._voice != null).length;
+  int get voiceCount =>
+      _emitters.where((SoundEmitter e) => e._voice != null).length;
 
   Future<void> preload(Iterable<SoundDef> bank) async {
     final seen = <String>{};

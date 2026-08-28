@@ -89,49 +89,64 @@ final class _Game extends RunSession<_Level> {
   void startFresh() => freshened++;
 }
 
-_Game _game() => _Game(saves: SaveFile(appName: 't', storage: _Storage()));
+_Game _game() => _Game(
+  saves: SaveFile(appName: 't', storage: _Storage()),
+);
 
 void main() {
   group('starting', () {
-    test('a new game opens the first level and says it did not resume',
-        () async {
-      final game = _game();
+    test(
+      'a new game opens the first level and says it did not resume',
+      () async {
+        final game = _game();
 
-      expect(await game.begin(), isFalse);
+        expect(await game.begin(), isFalse);
 
-      expect(game.opened, <String>['one']);
-      expect(game.freshened, 1, reason: 'a new game kept the last one’s state');
-      expect(game.status, isA<RunPlaying<_Level>>());
-    });
+        expect(game.opened, <String>['one']);
+        expect(
+          game.freshened,
+          1,
+          reason: 'a new game kept the last one’s state',
+        );
+        expect(game.status, isA<RunPlaying<_Level>>());
+      },
+    );
 
-    test('and a level that will not read says so rather than going black',
-        () async {
-      // In two of the three games this used to be a black screen for ever: the
-      // load caught its own throw and printed it to a console nobody playing
-      // can see.
-      final game = _game()..broken.add('one');
+    test(
+      'and a level that will not read says so rather than going black',
+      () async {
+        // In two of the three games this used to be a black screen for ever: the
+        // load caught its own throw and printed it to a console nobody playing
+        // can see.
+        final game = _game()..broken.add('one');
 
-      await game.begin();
+        await game.begin();
 
-      expect(game.status, isA<RunFailed<_Level>>());
-      expect((game.status as RunFailed<_Level>).asset, 'one');
-    });
+        expect(game.status, isA<RunFailed<_Level>>());
+        expect((game.status as RunFailed<_Level>).asset, 'one');
+      },
+    );
 
-    test('and a save naming a level that is gone gives a game, not an error',
-        () async {
-      // Renaming a level file should not brick every save that mentions it.
-      final game = _game()..broken.add('gone');
-      game.saves.write('gone', const Snapshot(<String, Object?>{}));
+    test(
+      'and a save naming a level that is gone gives a game, not an error',
+      () async {
+        // Renaming a level file should not brick every save that mentions it.
+        final game = _game()..broken.add('gone');
+        game.saves.write('gone', const Snapshot(<String, Object?>{}));
 
-      expect(await game.begin(), isFalse);
+        expect(await game.begin(), isFalse);
 
-      expect(game.status, isA<RunPlaying<_Level>>());
-      expect(game.saves.read(), isNull, reason: 'the broken save was kept');
-    });
+        expect(game.status, isA<RunPlaying<_Level>>());
+        expect(game.saves.read(), isNull, reason: 'the broken save was kept');
+      },
+    );
 
     test('and a good save is resumed into its own level', () async {
       final game = _game();
-      game.saves.write('two', const Snapshot(<String, Object?>{'where': 'two'}));
+      game.saves.write(
+        'two',
+        const Snapshot(<String, Object?>{'where': 'two'}),
+      );
 
       expect(await game.begin(), isTrue);
 
@@ -169,8 +184,10 @@ void main() {
       game.gate!.complete();
       await Future.wait(<Future<void>>[first, second]);
 
-      expect(game.opened, <String>['one', 'two'],
-          reason: 'the same level was loaded ${game.opened.length - 1} times');
+      expect(game.opened, <String>[
+        'one',
+        'two',
+      ], reason: 'the same level was loaded ${game.opened.length - 1} times');
     });
 
     test('and asks what carries before reading the next one', () async {
@@ -186,22 +203,28 @@ void main() {
       expect(game.carried, <String>['two']);
     });
 
-    test('and the end of the game clears the save rather than loading', () async {
-      final game = _game();
-      await game.begin();
-      final level = (game.status as RunPlaying<_Level>).level
-        ..outcome = RunOutcome.won
-        ..next = null;
-      game.observe();
-      game.saves.write('one', snapshotOfNothing);
+    test(
+      'and the end of the game clears the save rather than loading',
+      () async {
+        final game = _game();
+        await game.begin();
+        final level = (game.status as RunPlaying<_Level>).level
+          ..outcome = RunOutcome.won
+          ..next = null;
+        game.observe();
+        game.saves.write('one', snapshotOfNothing);
 
-      await game.advance();
+        await game.advance();
 
-      expect(game.opened, <String>['one']);
-      expect(game.saves.read(), isNull,
-          reason: 'the next launch resumes a run that is already over');
-      expect(level.next, isNull);
-    });
+        expect(game.opened, <String>['one']);
+        expect(
+          game.saves.read(),
+          isNull,
+          reason: 'the next launch resumes a run that is already over',
+        );
+        expect(level.next, isNull);
+      },
+    );
   });
 
   group('the save', () {

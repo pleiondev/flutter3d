@@ -133,8 +133,10 @@ final class _World {
   /// One entity world, handed to both systems. Two would mean a save that
   /// covered half the game, which `GameSimulation.entities` refuses out loud.
   final EcsWorld entities = EcsWorld();
-  late final ProjectileSystem projectiles =
-      ProjectileSystem(world: world, entities: entities);
+  late final ProjectileSystem projectiles = ProjectileSystem(
+    world: world,
+    entities: entities,
+  );
   final GameRandom random;
   late final ActorSystem actors;
   late final Bestiary bestiary;
@@ -180,7 +182,8 @@ void main() {
 
     test('something that is not a snapshot is refused too', () {
       expect(
-        () => Snapshot.fromJson(<String, Object?>{'player': <String, Object?>{}}),
+        () =>
+            Snapshot.fromJson(<String, Object?>{'player': <String, Object?>{}}),
         throwsA(isA<SnapshotFormatException>()),
       );
     });
@@ -206,22 +209,29 @@ void main() {
       final taken = world.sim.save();
       final wasAt = world.player.body.position.clone();
       final wasFacing = world.player.yaw;
-      final hadRockets = world.player.inventory.arsenal.ammoOf(AmmoType.rockets);
+      final hadRockets = world.player.inventory.arsenal.ammoOf(
+        AmmoType.rockets,
+      );
 
       world.play(120, from: 120);
       // That the world moved on at all, rather than that the player did: with
       // a monster in their face the player can be pinned in one spot for two
       // seconds, and an assertion about their position would then be measuring
       // the fight rather than the restore.
-      expect(_canonical(world.sim.save()), isNot(_canonical(taken)),
-          reason: 'nothing happened, so putting it back proves nothing');
+      expect(
+        _canonical(world.sim.save()),
+        isNot(_canonical(taken)),
+        reason: 'nothing happened, so putting it back proves nothing',
+      );
 
       world.sim.restore(taken);
       expect(world.player.body.position.x, closeTo(wasAt.x, 1e-6));
       expect(world.player.body.position.z, closeTo(wasAt.z, 1e-6));
       expect(world.player.yaw, closeTo(wasFacing, 1e-9));
-      expect(world.player.inventory.arsenal.ammoOf(AmmoType.rockets),
-          hadRockets);
+      expect(
+        world.player.inventory.arsenal.ammoOf(AmmoType.rockets),
+        hadRockets,
+      );
     });
 
     test('puts the mechanisms back', () {
@@ -234,27 +244,32 @@ void main() {
       world.sim.restore(taken);
 
       expect(ledge.progress, closeTo(wasAt, 1e-6));
-      expect(ledge.collider.position.y,
-          closeTo(0.25 + wasAt * 2.0, 1e-5),
-          reason: 'the body has to move with the number, or the platform is '
-              'drawn where it is not');
+      expect(
+        ledge.collider.position.y,
+        closeTo(0.25 + wasAt * 2.0, 1e-5),
+        reason:
+            'the body has to move with the number, or the platform is '
+            'drawn where it is not',
+      );
     });
 
-    test('a monster killed before the save is still dead, and still not a wall',
-        () {
-      // Mutation: drop the collider-kind line in `Monster.restore`. Every
-      // corpse you walked over becomes solid again on load, and this fails.
-      final world = _World();
-      final victim = world.actors.actors.first;
-      world.actors.hurt(victim, 10000.0);
-      final taken = world.sim.save();
+    test(
+      'a monster killed before the save is still dead, and still not a wall',
+      () {
+        // Mutation: drop the collider-kind line in `Monster.restore`. Every
+        // corpse you walked over becomes solid again on load, and this fails.
+        final world = _World();
+        final victim = world.actors.actors.first;
+        world.actors.hurt(victim, 10000.0);
+        final taken = world.sim.save();
 
-      victim.body!.collider.kind = ColliderKind.kinematic;
-      world.sim.restore(taken);
+        victim.body!.collider.kind = ColliderKind.kinematic;
+        world.sim.restore(taken);
 
-      expect(victim.isAlive, isFalse);
-      expect(victim.body!.collider.kind, ColliderKind.trigger);
-    });
+        expect(victim.isAlive, isFalse);
+        expect(victim.body!.collider.kind, ColliderKind.trigger);
+      },
+    );
 
     test('a pickup taken before the save is not standing there again', () {
       final world = _World();

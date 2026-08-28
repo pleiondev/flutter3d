@@ -27,9 +27,9 @@ final class ActorVisuals {
     required this.appearance,
     required GraphicsDevice device,
     IssueSink? onIssue,
-  })  : _meshes = SharedMeshes(device),
-        _device = device,
-        onIssue = onIssue ?? printIssue;
+  }) : _meshes = SharedMeshes(device),
+       _device = device,
+       onIssue = onIssue ?? printIssue;
 
   final Scene scene;
 
@@ -51,7 +51,8 @@ final class ActorVisuals {
 
   /// Every model asked for so far, by path. One load per file, however many
   /// actors are drawn with it.
-  final Map<String, Future<ModelAsset?>> _models = <String, Future<ModelAsset?>>{};
+  final Map<String, Future<ModelAsset?>> _models =
+      <String, Future<ModelAsset?>>{};
 
   /// The animation of each actor that has one.
   final Map<Actor, AnimationPlayer> _players = <Actor, AnimationPlayer>{};
@@ -233,10 +234,12 @@ final class ActorVisuals {
       final drop = isModel ? actor.body!.halfExtents.y : 0.0;
       node
         ..setPosition(position.x, position.y - drop, position.z)
-        ..setRotation(Quaternion.axisAngle(
-          Vector3(0.0, 1.0, 0.0),
-          yawFor(actor, model: isModel),
-        ));
+        ..setRotation(
+          Quaternion.axisAngle(
+            Vector3(0.0, 1.0, 0.0),
+            yawFor(actor, model: isModel),
+          ),
+        );
     }
   }
 }
