@@ -237,23 +237,34 @@ final class Renderer implements RenderServices {
   /// the pipeline cache, the fragment-shader cache, the target pool, and the
   /// fallback albedo and normal textures.
   ///
-  /// **No backend this engine targets exposes an explicit free for a buffer,
-  /// a texture or a pipeline** — the same observation `ResourceCache`'s doc
-  /// comment makes — so there is no device call to make here. "Releasing" a
-  /// resource in this engine has only ever meant dropping the last Dart
-  /// reference to it and letting the collector do its job, and that is
-  /// exactly what this does: it clears the pipeline and fragment-shader
-  /// caches, trims the target pool's free list, and drops the fallback
-  /// textures. Reading [fallbackAlbedo] or [fallbackNormal] afterwards is a
-  /// bug, and throws rather than handing back a texture nothing else may
-  /// still consider live.
+  /// **This used to open by saying no backend exposes an explicit free, and
+  /// that was not true.** `flutter3d_webgl` has always had a real
+  /// `dispose`, and every backend now implements
+  /// `TextureAllocator.releaseTexture` — a no-op where the collector already
+  /// does the job, a `gl.deleteTexture` where nothing else will. So there is a
+  /// device call to make here, and this makes it.
+  ///
+  /// It clears the pipeline and fragment-shader caches, gives the pool's free
+  /// list back to the device, drops the fallback textures and the sort-id
+  /// table, and releases the targets this renderer owns outright: the shadow
+  /// map, both cube atlases, the fallback environment and the debug index
+  /// buffer. Reading [fallbackAlbedo] or [fallbackNormal] afterwards is a bug,
+  /// and throws rather than handing back a texture nothing else may still
+  /// consider live.
+  ///
+  /// **The sort-id table is not housekeeping.** It held a strong reference to
+  /// every material ever drawn, and a material holds its textures, so a
+  /// renderer that had drawn a level kept that level's textures alive however
+  /// thoroughly the resource cache evicted them. It is weak now — see
+  /// [MaterialSortIds] — and clearing it here as well costs nothing.
   ///
   /// What it deliberately does not touch: the HDR, LDR and surface-buffer
   /// render targets. They are reallocated together in [_ensureTargets]
   /// whenever the window resizes, which is the one place their lifetime is
-  /// already managed; folding them into `dispose` would duplicate that
-  /// bookkeeping for a case — a renderer being discarded rather than
-  /// resized — that drops every reference to the `Renderer` itself anyway.
+  /// already managed — and that place now releases the ones it replaces.
+  /// Folding them in here would duplicate that bookkeeping for a case — a
+  /// renderer being discarded rather than resized — that drops every reference
+  /// to the `Renderer` itself anyway.
   ///
   /// A genuine method of this class rather than a member of
   /// `renderer_resources.dart`'s extension, even though the caches it clears
@@ -268,8 +279,32 @@ final class Renderer implements RenderServices {
     _pipelineCache.clear();
     _fragmentShaders.clear();
     targetPool.trim();
+
+    // Released rather than merely dropped, and nulled so a second call is the
+    // no-op this method promises to be.
+    for (final texture in <TextureHandle?>[
+      _fallbackAlbedo,
+      _fallbackNormal,
+      _fallbackEnvironment,
+      _shadowMap,
+      _cubeShadow,
+      _cubeShadowStatic,
+    ]) {
+      if (texture != null) device.releaseTexture(texture);
+    }
     _fallbackAlbedo = null;
     _fallbackNormal = null;
+    _fallbackEnvironment = null;
+    _shadowMap = null;
+    _cubeShadow = null;
+    _cubeShadowStatic = null;
+    _cubeShadowTile = 0;
+
+    final indices = _debugIndexBuffer;
+    if (indices != null) device.releaseGeometry(indices);
+    _debugIndexBuffer = null;
+
+    _renderList.materialIds.clear();
   }
 
   final bool msaaEnabled;
@@ -555,6 +590,27 @@ final class Renderer implements RenderServices {
   void _ensureTargets(int width, int height) {
     if (width == _targetWidth && height == _targetHeight) return;
 
+    // **Everything below is about to be replaced by assigning over a field.**
+    // Where the collector frees a texture that is the whole story; where it
+    // does not — WebGL2 — dropping the handle leaks the driver's object, and
+    // this method is what a person resizing a window calls over and over. Sent
+    // through the frames-in-flight ring rather than freed here, because the
+    // frame these were drawn with may still be reading them.
+    _destroyAfterFrame(_hdrColor);
+    _destroyAfterFrame(_hdrMsaa);
+    _destroyAfterFrame(_surfaceColor);
+    _destroyAfterFrame(_surfaceMsaa);
+    _destroyAfterFrame(_reflectionColor);
+    _destroyAfterFrame(_depthStencil);
+    _destroyAfterFrame(_depthStencilSingle);
+    // The composited frames are the one set with an owner outside this class:
+    // `Texture.asImage` hands one to the widget tree, and the compositor may
+    // still be holding the last of them. The ring is what covers that, and it
+    // is the same ring the pool's own releases wait in.
+    for (final frame in _ldrFrames) {
+      _destroyAfterFrame(frame);
+    }
+
     // From the device, not a literal. Four is what these goldens were recorded
     // with and what both current backends answer; the engine no longer decides
     // it on their behalf.
@@ -709,6 +765,11 @@ final class Renderer implements RenderServices {
       height: height,
       format: hdrFormat,
     );
+    // Two atlases at 75 MB each with the default tile, replaced whenever a
+    // setting the pass reads changes. Dropping them is a free on one backend
+    // and a leak on another — see [_destroyAfterFrame].
+    _destroyAfterFrame(_cubeShadowStatic);
+    _destroyAfterFrame(_cubeShadow);
     _cubeShadowStatic = device.createTexture(spec);
     _cubeShadow = device.createTexture(spec);
     _cubeShadowTile = tile;
@@ -1664,6 +1725,15 @@ final class Renderer implements RenderServices {
     }
     expired.clear();
 
+    // The same slot, for the targets this renderer owns rather than borrows:
+    // reallocated by a resize or a settings change, and given back to the
+    // device instead of to the pool. See [_destroyAfterFrame].
+    final finished = _pendingDestroy[_frameIndex % _kFramesInFlight];
+    for (final texture in finished) {
+      device.releaseTexture(texture);
+    }
+    finished.clear();
+
     // Lights are gathered once up front now, because the shadow pass needs the
     // caster before any view is drawn — and the packed buffer is per frame, not
     // per view.
@@ -1907,6 +1977,17 @@ final class Renderer implements RenderServices {
       // retired at the node that last used it, and releasing again from here
       // would hand one texture back twice.
       resources.releaseAll();
+
+      // **And the counter has to move, or the deferral this frame just relied
+      // on is a frame that never happened.** Releases go into slot
+      // `_frameIndex % 3` and are retired at the top of frame N + 3; leaving
+      // the counter where it is means the very next `render` drains the slot
+      // these were just put in, handing pooled targets back with no deferral
+      // at all — which is exactly the failure the ring exists to prevent, and
+      // it happens on the path where a frame is *already* going wrong. The
+      // comment beside the increment below explains why one frame is not
+      // enough; zero is worse.
+      _frameIndex++;
       rethrow;
     }
 
@@ -1935,14 +2016,33 @@ final class Renderer implements RenderServices {
     // done — not a fixed number of frames later, which is a guess this engine
     // got wrong three times.
     final drawnInto = _ldrCurrent;
-    if (drawnInto != null && _ldrFrames.contains(drawnInto)) {
-      device.onFrameComplete(() => _ldrFree.add(drawnInto));
+    if (drawnInto != null) {
+      // **The membership test belongs inside the callback, not beside it.**
+      // Asked here it is a question about the world at registration time, and
+      // the callback runs later — on Impeller, from the command buffer's
+      // completion or from the next `beginFrame`. In between, a resize can run
+      // `_ensureTargets`, which empties `_ldrFrames` and `_ldrFree` because
+      // every one of them is the wrong size now. The callback then pushed a
+      // texture of the previous window size into the freshly emptied free
+      // list, `_takeLdrFrame` popped it without rechecking, and the next
+      // composite went into a target the size of the window before last.
+      //
+      // WebGL and the software backend never showed it: their
+      // `onFrameComplete` runs synchronously, so there is no in-between. That
+      // is every desktop and mobile build, on any window drag.
+      device.onFrameComplete(() {
+        if (_ldrFrames.contains(drawnInto)) _ldrFree.add(drawnInto);
+      });
     }
     frameClock.stop();
     developer.Timeline.finishSync();
 
     return FrameResult(
       frame: frame,
+      // Asked for and not given. Computed here rather than plumbed out of the
+      // scene pass, because it is a fact about the settings and the device
+      // rather than about anything that happened during the frame.
+      wireframeDeclined: settings.wireframe && !device.supportsWireframe,
       cpuMicros: frameClock.elapsedMicroseconds,
       submitMicros: scenePass.submitMicros,
       drawCalls: passState.drawCalls,
@@ -2058,6 +2158,38 @@ final class Renderer implements RenderServices {
   }
 
   final List<List<TextureHandle>> _pendingRelease =
+      List<List<TextureHandle>>.generate(
+        _kFramesInFlight,
+        (_) => <TextureHandle>[],
+      );
+
+  /// Frees a texture this renderer owns outright, once the GPU can no longer be
+  /// reading it.
+  ///
+  /// The twin of [_releaseAfterFrame], and the difference is who owns the
+  /// texture. That one hands a *pooled* target back to the pool for reuse;
+  /// this one gives a target the renderer made itself back to the device,
+  /// because it is the wrong size or the wrong shape now and will never be
+  /// wanted again.
+  ///
+  /// **Reallocation was a drop, not a free.** A resize remakes the HDR target,
+  /// the surface buffer, the reflection buffer, the depth attachments and the
+  /// MSAA ones — six or seven full-screen textures — and a change of
+  /// `cubeResolution` remakes two shadow atlases that are 75 MB each at the
+  /// default tile. Every one of those was replaced by assigning over the field.
+  /// Where dropping the last reference frees, that is the whole story; on
+  /// WebGL2 nothing frees a `WebGLTexture` but `gl.deleteTexture`, so a person
+  /// resizing a browser window walked the tab towards a lost context.
+  ///
+  /// Through the same ring as the pool for the same reason: `submit` is
+  /// asynchronous, and the frame that was drawn with the old target may still
+  /// be reading it.
+  void _destroyAfterFrame(TextureHandle? texture) {
+    if (texture == null) return;
+    _pendingDestroy[_frameIndex % _kFramesInFlight].add(texture);
+  }
+
+  final List<List<TextureHandle>> _pendingDestroy =
       List<List<TextureHandle>>.generate(
         _kFramesInFlight,
         (_) => <TextureHandle>[],

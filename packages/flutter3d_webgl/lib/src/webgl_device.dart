@@ -165,6 +165,22 @@ final class WebGlDevice implements GraphicsDevice {
       _persistentBuffers.length;
 
   @override
+  void releaseTexture(TextureHandle texture) {
+    final backend = texture.backend;
+    if (backend is! WebGlTexture) return;
+    webglReleaseTexture(
+      _gl,
+      backend,
+      _persistentTextures,
+      _persistentRenderbuffers,
+    );
+  }
+
+  @override
+  void releaseGeometry(GeometryBuffer geometry) =>
+      webglReleaseBuffer(_gl, geometry.backend, _persistentBuffers);
+
+  @override
   void dispose() {
     if (_disposed) {
       throw StateError('WebGlDevice.dispose() was already called');

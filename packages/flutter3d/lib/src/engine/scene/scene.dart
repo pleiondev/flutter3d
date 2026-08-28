@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart';
 
@@ -41,13 +43,35 @@ final class Scene {
   final List<LodGroup> _lodGroups = <LodGroup>[];
 
   /// Everything drawable currently in the scene, in attachment order.
-  List<MeshNode> get meshes => _meshes;
+  ///
+  /// **A view, where these four used to be the lists themselves.** Handing out
+  /// the renderer's own culling registry means any caller can empty it, and a
+  /// registry emptied behind the tree's back desynchronises the two with
+  /// nothing to notice: the nodes are still attached, still have parents, and
+  /// are simply never drawn again. A view costs nothing — it is not a copy —
+  /// and turns that into a throw at the call site that did it.
+  ///
+  /// Built once each rather than per call, for the reason `MechanismWorld.all`
+  /// gives about itself: the renderer reads these every frame.
+  List<MeshNode> get meshes => _meshesView;
+  late final List<MeshNode> _meshesView = UnmodifiableListView<MeshNode>(
+    _meshes,
+  );
 
-  List<LightNode> get lights => _lights;
+  List<LightNode> get lights => _lightsView;
+  late final List<LightNode> _lightsView = UnmodifiableListView<LightNode>(
+    _lights,
+  );
 
-  List<CameraNode> get cameras => _cameras;
+  List<CameraNode> get cameras => _camerasView;
+  late final List<CameraNode> _camerasView = UnmodifiableListView<CameraNode>(
+    _cameras,
+  );
 
-  List<LodGroup> get lodGroups => _lodGroups;
+  List<LodGroup> get lodGroups => _lodGroupsView;
+  late final List<LodGroup> _lodGroupsView = UnmodifiableListView<LodGroup>(
+    _lodGroups,
+  );
 
   /// Ambient light applied where no direct light reaches.
   ///
@@ -86,6 +110,31 @@ final class Scene {
   }
 
   void remove(SceneNode node) => node.removeFromParent();
+
+  /// Detaches everything under the root and empties the registries.
+  ///
+  /// **There was no supported way to tear a scene down**, which is what made a
+  /// level change leak: the caller could detach nodes one at a time, and each
+  /// `unregisterMesh` is a linear scan, so emptying a scene of N meshes cost
+  /// N² — on a renderer whose own benchmarks go to 200 000 objects. Emptying
+  /// the registries once is linear in what is in them.
+  ///
+  /// The nodes are detached as well as forgotten, so anything still holding
+  /// one gets a node with no parent and no scene rather than one that believes
+  /// it is still in a scene that has moved on.
+  ///
+  /// It does not touch the GPU. Meshes, materials and textures belong to
+  /// whatever loaded them — see `ResourceCache` — and a scene that freed them
+  /// would free them out from under the next level that shares one.
+  void clear() {
+    for (final child in root.childrenView.toList(growable: false)) {
+      child.removeFromParent();
+    }
+    _meshes.clear();
+    _lights.clear();
+    _cameras.clear();
+    _lodGroups.clear();
+  }
 
   void registerMesh(MeshNode node) => _meshes.add(node);
 

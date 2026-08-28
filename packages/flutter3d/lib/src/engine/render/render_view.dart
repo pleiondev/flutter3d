@@ -67,7 +67,27 @@ final class RenderView {
 /// distinctly on purpose: `Rect` would collide with Flutter's in every file that
 /// imports both.
 final class ViewportRect {
-  const ViewportRect(this.x, this.y, this.width, this.height);
+  /// Fractions of the target, so every one of these belongs in `[0, 1]` and
+  /// the rectangle has to stay inside it.
+  ///
+  /// Asserted rather than clamped, and rather than nothing — which is what it
+  /// was. A rectangle running off the attachment is clipped by the driver, so
+  /// it produces a picture rather than an error, and a different picture on
+  /// each backend: the split-screen that is half off the bottom looks like a
+  /// layout bug in the application and is a value nobody checked.
+  const ViewportRect(this.x, this.y, this.width, this.height)
+    : assert(x >= 0.0 && x <= 1.0, 'x is a fraction of the target'),
+      assert(y >= 0.0 && y <= 1.0, 'y is a fraction of the target'),
+      assert(width > 0.0 && width <= 1.0, 'width is a fraction, and not zero'),
+      assert(
+        height > 0.0 && height <= 1.0,
+        'height is a fraction, and not zero',
+      ),
+      assert(x + width <= 1.0, 'the viewport runs off the right of the target'),
+      assert(
+        y + height <= 1.0,
+        'the viewport runs off the bottom of the target',
+      );
 
   final double x;
   final double y;
