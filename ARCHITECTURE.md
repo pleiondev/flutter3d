@@ -197,7 +197,7 @@ Applications: `apps/flutter3d_demo_dungeon` (shooter),
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces nineteen rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -1028,7 +1028,7 @@ against whatever entities a game defines.
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
 | Unit tests | **2950 tests** across 23 packages and 5 applications |
-| Structure rules | 19, `dart run tool/structure.dart`, the first CI step |
+| Structure rules | 20, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 32 scenes against **three independent reference sets** —
