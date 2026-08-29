@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:pointer_lock/pointer_lock.dart';
@@ -25,6 +27,10 @@ class _PointerLockExampleState extends State<PointerLockExample>
 
   late final Ticker _ticker;
 
+  /// Held so [dispose] can cancel it: the listener calls `setState`, and a
+  /// subscription that outlives the state would do so into a defunct widget.
+  late final StreamSubscription<CaptureState> _events;
+
   Offset _lastDelta = Offset.zero;
   Offset _total = Offset.zero;
   int _steps = 0;
@@ -46,13 +52,14 @@ class _PointerLockExampleState extends State<PointerLockExample>
       });
     })..start();
 
-    _capture.onStateChanged.listen((CaptureState state) {
+    _events = _capture.onStateChanged.listen((CaptureState state) {
       setState(() => _lastEvent = state.name);
     });
   }
 
   @override
   void dispose() {
+    unawaited(_events.cancel());
     _ticker.dispose();
     super.dispose();
   }

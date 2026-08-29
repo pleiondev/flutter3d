@@ -24,4 +24,14 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
   Future<void> load(String asset) => run.load(asset);
   void observe() => run.observe();
   void save() => run.save();
+
+  @override
+  Future<void> close() {
+    // Unhooked before the stream closes: a load or an advance still in flight
+    // finishes on the session's side, and its report would otherwise be an
+    // emit into a closed cubit — a `StateError` over whatever the screen was
+    // being torn down for.
+    run.onChanged = null;
+    return super.close();
+  }
 }

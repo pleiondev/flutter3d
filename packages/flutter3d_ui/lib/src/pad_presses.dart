@@ -49,7 +49,18 @@ final class PadPresses {
   ///
   /// Null keeps the old behaviour exactly, for a caller that wants every
   /// button to mean "begin".
-  bool offer(PadInput pad, SettingsCubit settings, {PadButton? menuButton}) {
+  ///
+  /// [opening] runs before the panel opens, exactly as `settingsKeys` runs it
+  /// before Escape's toggle and the gear runs it before `show` — it is where a
+  /// game lets go of the pointer and the held keys. The pad's way in was the
+  /// one door that skipped it, so a key held as the panel opened stayed held,
+  /// and closing the panel sent the player walking off on their own.
+  bool offer(
+    PadInput pad,
+    SettingsCubit settings, {
+    PadButton? menuButton,
+    void Function()? opening,
+  }) {
     final held = pad.heldButtons;
 
     // **Per button, not over the whole held set.** `_held` used to be "is
@@ -68,6 +79,9 @@ final class PadPresses {
     }
 
     if (menuButton != null && pressed.contains(menuButton)) {
+      // Only on the way in, matching `settingsKeys`: closing has nothing to
+      // let go of, and the game's keys are its own again the moment it does.
+      if (!settings.state.isOpen) opening?.call();
       settings.toggle();
       return false;
     }

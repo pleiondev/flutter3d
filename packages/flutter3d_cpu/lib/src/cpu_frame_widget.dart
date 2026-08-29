@@ -32,6 +32,12 @@ final class CpuFrame extends StatefulWidget {
 class _CpuFrameState extends State<CpuFrame> {
   ui.Image? _image;
 
+  /// Which decode is allowed to land. The backend presents a new texture every
+  /// frame, so two decodes are routinely in flight at once, and nothing about
+  /// `decodeImageFromPixels` promises they complete in order — a slow older
+  /// frame used to overwrite the newer one that had already landed.
+  int _decodeSequence = 0;
+
   @override
   void initState() {
     super.initState();
@@ -50,15 +56,33 @@ class _CpuFrameState extends State<CpuFrame> {
     for (var i = 0; i < bytes.length; i++) {
       bytes[i] = (t.pixels[i].clamp(0.0, 1.0) * 255.0).round();
     }
+    final sequence = ++_decodeSequence;
     ui.decodeImageFromPixels(
       bytes,
       t.width,
       t.height,
       ui.PixelFormat.rgba8888,
       (image) {
-        if (mounted) setState(() => _image = image);
+        // Every path that does not hand the image to `_image` must dispose it:
+        // a `ui.Image` is a texture the engine holds until told otherwise, and
+        // this callback fires once per presented frame — leaking here was a
+        // texture per frame, not a slow drip.
+        if (!mounted || sequence != _decodeSequence) {
+          image.dispose();
+          return;
+        }
+        setState(() {
+          _image?.dispose();
+          _image = image;
+        });
       },
     );
+  }
+
+  @override
+  void dispose() {
+    _image?.dispose();
+    super.dispose();
   }
 
   @override

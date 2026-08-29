@@ -121,6 +121,19 @@ final class FrameEffects {
     }
   }
 
+  /// Stops every running mover voice, for a level change or a restart.
+  ///
+  /// The `Voice.end` that would have stopped each of these comes from the
+  /// mechanism that began it, and that mechanism is gone with its level — so a
+  /// mover caught mid-travel by a level change was a loop nothing could ever
+  /// stop.
+  void stopVoices() {
+    for (final voice in moverVoices.values) {
+      voice.stop();
+    }
+    moverVoices.clear();
+  }
+
   /// Plays what the soundtrack decided, and keeps the running voices in place.
   ///
   /// The lifetimes are the only thing left here, and they are effects rather

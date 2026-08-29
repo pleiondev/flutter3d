@@ -60,6 +60,13 @@ class _SceneAppState extends State<SceneApp>
   @override
   void dispose() {
     _ticker?.dispose();
+    // The renderer before the device, because the renderer releases its
+    // targets *through* the device; then the device deletes everything it
+    // still tracks and loses the GL context. Skipping this leaked every
+    // texture, buffer and shader for the life of the tab — the platform-view
+    // registry pins the canvas regardless, but the GPU side is ours to free.
+    _renderer?.dispose();
+    _device?.dispose();
     super.dispose();
   }
 

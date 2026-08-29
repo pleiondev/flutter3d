@@ -122,7 +122,8 @@ abstract interface class TextureAllocator {
 ///
 /// Deliberately not a general resource manager. Targets are acquired and
 /// released within a frame, so the pool only has to track which of the textures
-/// it already owns are currently lent out.
+/// it already owns are currently lent out — plus which of those loans a [trim]
+/// has outlived, whose release drops them rather than refiling them.
 final class RenderTargetPool {
   RenderTargetPool(this.allocator);
 
@@ -137,6 +138,16 @@ final class RenderTargetPool {
   /// [TextureHandle] has no value equality, so two interchangeable targets —
   /// same size, same format, therefore equal descriptions — remain two entries.
   final Set<TextureHandle> _lent = <TextureHandle>{};
+
+  /// Loans a [trim] has outlived, by identity like [_lent].
+  ///
+  /// A trim means every spec has changed, and a texture out on loan when it
+  /// runs still carries a pre-trim spec. Refiling it on [release] — which is
+  /// what used to happen — put it in a free list no future [acquire] would
+  /// ever match, where it sat holding its memory until the *next* trim. So the
+  /// trim marks the loans it could not take back, and their release hands them
+  /// to the allocator instead.
+  final Set<TextureHandle> _retired = <TextureHandle>{};
 
   int _created = 0;
 
@@ -168,13 +179,21 @@ final class RenderTargetPool {
     return texture;
   }
 
-  /// Returns a texture for reuse.
+  /// Returns a texture for reuse — or to the allocator, when a [trim] has
+  /// retired its spec while it was out on loan.
   ///
   /// Releasing something the pool never lent out is a bug in the caller, not
   /// something to absorb: it means two owners think they hold the same target.
   void release(TextureHandle texture) {
     if (!_lent.remove(texture)) {
       throw StateError('Released a texture this pool does not own.');
+    }
+    if (_retired.remove(texture)) {
+      // Lent across a trim, so its spec is a pre-resize one nothing will ask
+      // for again. See [_retired]: refiling it is how a texture used to sit in
+      // a dead free list until the next resize.
+      allocator.releaseTexture(texture);
+      return;
     }
     (_free[RenderTargetSpec.of(texture)] ??= <TextureHandle>[]).add(texture);
   }
@@ -190,8 +209,10 @@ final class RenderTargetPool {
   /// all on WebGL2. A resize is exactly when this runs, and a resize is what a
   /// person does repeatedly.
   ///
-  /// The lent ones are deliberately left alone: something is still drawing
-  /// into them, and they come back through [release] when it stops.
+  /// The lent ones are deliberately left alone — something is still drawing
+  /// into them — but they are marked retired: when they come back through
+  /// [release] they go to the allocator rather than into a free list, because
+  /// their pre-trim spec is one no [acquire] after the resize will ever name.
   void trim() {
     for (final bucket in _free.values) {
       for (final texture in bucket) {
@@ -199,6 +220,7 @@ final class RenderTargetPool {
       }
     }
     _free.clear();
+    _retired.addAll(_lent);
   }
 
   @override
