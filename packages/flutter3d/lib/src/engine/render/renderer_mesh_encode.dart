@@ -29,6 +29,13 @@ extension _MeshEncode on Renderer {
     required RenderSettings settings,
     required vm.Matrix4 viewProjection,
     required SceneShadows shadows,
+    // A parameter shadowing the renderer's field on purpose: the scene pass
+    // hands the frame's buffer and slot table in, and `encodeScene` hands in
+    // whatever its scene actually holds. Read from the field they were wrong
+    // for every scene that was not the world's — the view model's studio
+    // lights went unbound, and its light indices read the world's slot rows.
+    required LightBuffer lights,
+    required Float32List shadowSlots,
     required FramePassState state,
   }) {
     final mesh = node.mesh;
@@ -207,7 +214,7 @@ extension _MeshEncode on Renderer {
         encoder.bindUniformBlock(fragmentShader, 'PointShadow', {
           'faces': _cubeFaceMatrices,
           'lights': _cubeLightData,
-          'slots': _shadowSlots,
+          'slots': shadowSlots,
           'params': _pointShadowParams,
           'params2': _pointShadowParams2,
           'params3': _pointShadowParams3,
