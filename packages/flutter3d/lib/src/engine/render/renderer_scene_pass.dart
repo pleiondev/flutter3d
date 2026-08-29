@@ -173,6 +173,8 @@ extension _ScenePasses on Renderer {
             settings: settings,
             viewProjection: viewProjection,
             shadows: shadows,
+            lights: lights,
+            shadowSlots: _shadowSlots,
             state: passState,
           );
         }

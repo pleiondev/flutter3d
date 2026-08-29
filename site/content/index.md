@@ -22,7 +22,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 </div>
 
 <dl class="stats">
-  <div><dt>Tests</dt><dd>2968<small>across 23 packages &amp; 5 apps</small></dd></div>
+  <div><dt>Tests</dt><dd>2970<small>across 23 packages &amp; 5 apps</small></dd></div>
   <div><dt>Need a GPU</dt><dd>~30<small>the Impeller goldens only</small></dd></div>
   <div><dt>Lighting models</dt><dd>6<small>one shader each</small></dd></div>
   <div><dt>Model load</dt><dd>1.1 µs<small>.f3d vs 4.54 ms as OBJ</small></dd></div>

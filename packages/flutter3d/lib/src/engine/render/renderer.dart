@@ -328,6 +328,27 @@ final class Renderer implements RenderServices {
   /// The scene's lights, repacked once per view.
   final LightBuffer lights = LightBuffer();
 
+  /// The scene [lights] was last gathered from — the world scene of the frame
+  /// being drawn. [encodeScene] compares against it: a contributor drawing the
+  /// same scene reuses the frame's tables, and one drawing its own scene gets
+  /// that scene's lights instead of the world's. The view model found the
+  /// difference the visible way: its studio's two lights were never gathered,
+  /// so a metallic weapon was lit by torches metres behind the camera and
+  /// rendered nearly black on every backend at once.
+  Scene? _lightsScene;
+
+  /// Lights for a contributor scene, gathered per [encodeScene] call. Its own
+  /// buffer rather than a re-gather into [lights], because the frame's buffer
+  /// is what the shadow tables were built against and must survive the pass.
+  final LightBuffer _passLights = LightBuffer();
+
+  /// The slot table that says "no light casts a point shadow", for scenes the
+  /// frame's atlas assignment knows nothing about. `slots[i].x < 0` is the
+  /// shader's own early-out, so binding this is cheaper than a flag.
+  static final Float32List _noShadowSlots = Float32List(
+    4 * LightBuffer.maxLights,
+  )..fillRange(0, 4 * LightBuffer.maxLights, -1.0);
+
   // Uniform scratch, reused rather than rebuilt per draw. Writing a fresh
   // Float32List for every member of every draw is precisely the allocation
   // pattern the render list was shaped to avoid.
@@ -1586,6 +1607,26 @@ final class Renderer implements RenderServices {
     final state = frame.state;
     final shadows = SceneShadows.from(frame, casterIndex: casterIndex);
 
+    // Lit by the scene that was passed, not by the frame's. The frame's
+    // buffer and slot table describe the world scene; a contributor handing
+    // in its own scene — the view model's studio is the one that exists —
+    // gets that scene's lights gathered here, and no point shadows, because
+    // the atlas rows were assigned to lights this scene does not contain.
+    // Before this the parameter lit nothing: the view model's two lights
+    // were never gathered, and a held weapon was lit by whatever the world
+    // had nearby.
+    final LightBuffer passLights;
+    final Float32List passShadowSlots;
+    if (identical(scene, _lightsScene)) {
+      passLights = lights;
+      passShadowSlots = _shadowSlots;
+    } else {
+      _passLights.gather(scene.lights);
+      if (_passLights.count == 0) _passLights.useDefaultLight();
+      passLights = _passLights;
+      passShadowSlots = _noShadowSlots;
+    }
+
     _cameraData[0] = cameraPosition.x;
     _cameraData[1] = cameraPosition.y;
     _cameraData[2] = cameraPosition.z;
@@ -1604,6 +1645,8 @@ final class Renderer implements RenderServices {
         // same way: a node's inputs were being chosen somewhere the node could
         // not see, so no declaration could be checked against them.
         shadows: shadows,
+        lights: passLights,
+        shadowSlots: passShadowSlots,
         state: state,
       );
     }
@@ -1739,6 +1782,7 @@ final class Renderer implements RenderServices {
     // per view.
     lights.gather(scene.lights);
     if (lights.count == 0) lights.useDefaultLight();
+    _lightsScene = scene;
     final lightOverflowCount = lights.overflow;
     final shadowCaster = _firstDirectionalIndex();
 
