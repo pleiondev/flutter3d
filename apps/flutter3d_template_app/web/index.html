@@ -18,25 +18,27 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="The application a new project starts as: a level you can walk around.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="racing">
+  <meta name="apple-mobile-web-app-title" content="flutter3d">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>racing</title>
+  <title>flutter3d template</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- flutter_soloud's wasm module and its init glue. Without these two the
-       plugin's Module never exists, openSpeakers throws reading _isInited,
-       and the game plays silent - which is what every demo on the site did.
-       The module also needs SharedArrayBuffer, so the pages are served with
-       COOP/COEP headers; see the site's nginx vhost. -->
+  <!-- flutter_soloud's wasm module and its init glue. Kept in the template
+       so a game grown from it gets sound on the web from day one: without
+       these two the plugin's Module never exists, openSpeakers throws
+       reading _isInited, and the game plays silent - which is what all
+       three demos on the site did. The module also needs SharedArrayBuffer,
+       so serve the page with COOP/COEP headers (the docs site's nginx vhost
+       is the worked example). -->
   <script src="assets/packages/flutter_soloud/web/libflutter_soloud_plugin.js" defer></script>
   <script src="assets/packages/flutter_soloud/web/init_module.dart.js" defer></script>
 </head>
