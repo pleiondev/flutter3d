@@ -1,3 +1,11 @@
+## 0.4.0
+
+* The Android plugin performs the stream's own teardown when detached from an
+  engine — input-device listener unregistered, motion listener detached —
+  instead of leaving the system `InputManager` holding the plugin with a live
+  listener across an engine restart. Idempotent with `onCancel`, which is not
+  guaranteed to have run.
+
 ## 0.3.0
 
 * No changes of its own. The workspace is released as a set, in the order

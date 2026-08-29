@@ -1,3 +1,21 @@
+## 0.4.0
+
+* **A pass's scene is lit by its own lights.** `encodeScene` used to encode
+  whatever scene it was handed with the *frame's* light buffer, gathered from
+  the world at the top of the frame — so a view-model studio's two lights were
+  never uploaded, every held weapon drew near-black, and the studio's light
+  indices read shadow-atlas rows assigned to the world's torches. A scene
+  other than the frame's now gets its own lights gathered into a pass buffer
+  and the no-shadow table; the frame's own scene reuses the frame's buffers
+  unchanged.
+* **Everything the engine creates, something now releases.** `ModelAsset`
+  gained `release`, giving meshes and maps back with identity dedup — surfaces
+  share meshes, materials share maps, and one image can sit in two slots of
+  one material. `Renderer.dispose` releases the window-sized targets and
+  drains both frames-in-flight rings instead of leaving them to a collector
+  that, on WebGL2, deletes nothing. The texture upload path disposes its
+  `ui.Codec`, which had leaked a decoder per decoded image.
+
 ## 0.3.0
 
 * **A point light's normal offset is measured in texels, not metres**, which is

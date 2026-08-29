@@ -1,3 +1,9 @@
+## 0.4.0
+
+* No changes of its own; the version moves with the workspace, whose sibling
+  constraints name a single release. The README's closing section now says
+  what the engine around this package is.
+
 ## 0.3.0
 
 * No changes of its own. The workspace is released as a set, in the order
