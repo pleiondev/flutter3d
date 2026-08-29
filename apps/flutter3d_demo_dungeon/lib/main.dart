@@ -131,14 +131,25 @@ class _GameScreenState extends State<GameScreen>
   /// The level, once it has loaded. Null while it is loading or if it failed.
   /// The run: which level is up, what happened to it, and where next.
   ///
-  /// Built in [_openGraphics], because loading needs a device.
-  late final RunCubit _run;
+  /// Built in [_openGraphics], because loading needs a device — and nullable
+  /// because settings do not wait for one. [_applyConfig] runs from
+  /// `initState` and again when the settings file arrives, and both can beat
+  /// the device: as `late final` this field made the first of those a
+  /// `LateInitializationError` on the opening frame. A config applied before
+  /// there is a run is kept in [_lookScale] and reaches the player when a
+  /// level is staged.
+  RunCubit? _runOrNull;
+
+  /// The run, once [_openRun] has built it. Everything behind the renderer
+  /// guard in [build] may use this; anything that can fire earlier reads
+  /// [_runOrNull].
+  RunCubit get _run => _runOrNull!;
 
   /// What the render loop reads, all of it owned by [_run] now. Getters rather
   /// than fields so there is one answer to "which level is this" — seven fields
   /// assigned in one `setState` were seven chances for a load to leave one of
   /// them describing the level before.
-  LevelReady? get _level => _run.level;
+  LevelReady? get _level => _runOrNull?.level;
   LoadedLevel? get _loaded => _level?.loaded;
   CharacterController? get _body => _level?.staged.player.body;
 
@@ -466,7 +477,7 @@ class _GameScreenState extends State<GameScreen>
   /// chain — starting, dying, restarting, moving on, quitting and coming back —
   /// without a window.
   void _openRun(GraphicsDevice device) {
-    _run = RunCubit(
+    _runOrNull = RunCubit(
       DungeonRun(
         firstLevel: _firstLevel,
         registry: _entityKinds,
@@ -523,7 +534,9 @@ class _GameScreenState extends State<GameScreen>
   @override
   void dispose() {
     // The other half of the rule above: quitting keeps the level you are in.
-    _run.save();
+    // Null if the window closed before the device opened: nothing ran, so
+    // there is nothing to keep.
+    _runOrNull?.save();
     _audio.stopAll();
     unawaited(_soloud?.dispose());
     unawaited(_settings.close());
@@ -773,8 +786,8 @@ class _GameScreenState extends State<GameScreen>
     // and nothing above this ever provides a `RunCubit` — it is owned by this
     // State. So every build before the renderer started threw
     // `ProviderNotFoundException`, which is the red screen the game opened on.
-    // `_run` is `late final` and assigned beside the renderer, so this is also
-    // what keeps it from being read before it is written.
+    // `_run` is assigned beside the renderer, so this is also what keeps it
+    // from being read before it is written.
     if (_renderer == null) return RendererFailure(error: _initError);
     return BlocConsumer<RunCubit, RunStatus<LevelReady>>(
       bloc: _run,
