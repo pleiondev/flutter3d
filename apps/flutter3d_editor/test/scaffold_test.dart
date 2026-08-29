@@ -42,7 +42,6 @@ Map<String, Uint8List> _project({String name = 'My Game'}) {
     template: it.template,
     project: name,
     sources: it.sources,
-    packagesAt: '/somewhere/flutter3d/packages',
   );
 }
 
@@ -213,16 +212,15 @@ void main() {
       );
     });
 
-    test('and points at the checkout it was made from', () {
-      // None of these packages are published, so a path is the only thing that
-      // can be written — and it is true on one machine, which the README says.
+    test('and points at pub.dev rather than at the checkout', () {
+      // The packages are published since 0.4.0, so the pubspec is hosted
+      // versions and true on every machine — it was paths into the checkout,
+      // true only on the machine that made the project.
       final pubspec = _text(_project(), 'pubspec.yaml');
 
-      expect(
-        pubspec,
-        contains('path: /somewhere/flutter3d/packages/flutter3d'),
-      );
-      expect(pubspec, contains('flutter3d_session:'));
+      expect(pubspec, contains('flutter3d: ^0.4.0'));
+      expect(pubspec, contains('flutter3d_session: ^0.4.0'));
+      expect(pubspec, isNot(contains('path:')));
     });
 
     test('and does not ship the file only the editor reads', () {
@@ -275,7 +273,7 @@ void main() {
         template: it.template,
         project: 'x',
         sources: missing,
-        packagesAt: '/p',
+
       ),
       throwsA(isA<StateError>()),
     );

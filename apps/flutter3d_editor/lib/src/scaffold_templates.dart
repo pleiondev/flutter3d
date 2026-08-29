@@ -12,10 +12,11 @@ import 'scaffold.dart';
 
 /// The `pubspec.yaml` a scaffolded project starts with.
 ///
-/// [packagesAt] is where this repository's packages are on this machine — a
-/// path, because they are not published and a new project has to point at the
-/// checkout it was made from.
-String pubspecFor(String name, String packagesAt) =>
+/// Hosted versions, not paths into the checkout. **They were paths for as long
+/// as the packages were unpublished**, which made every scaffolded project
+/// true on the machine that made it and nowhere else; since 0.4.0 the packages
+/// are on pub.dev and a new project travels.
+String pubspecFor(String name) =>
     '''
 name: $name
 description: "A game, started from a template."
@@ -29,17 +30,10 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # **Paths, because none of this is published**, and paths into the checkout
-  # this project was made from — so they are true on the machine that made it
-  # and nowhere else. Moving the project means fixing these lines.
-  flutter3d:
-    path: $packagesAt/flutter3d
-  flutter3d_game:
-    path: $packagesAt/flutter3d_game
-  flutter3d_bridge:
-    path: $packagesAt/flutter3d_bridge
-  flutter3d_session:
-    path: $packagesAt/flutter3d_session
+  flutter3d: ^0.4.0
+  flutter3d_game: ^0.4.0
+  flutter3d_bridge: ^0.4.0
+  flutter3d_session: ^0.4.0
 
   # The assembly layer, which this seed used to leave out — and with it the
   # settings screen, the key rebinding, the pointer capture and the gamepad.
@@ -49,12 +43,10 @@ dependencies:
   # It brings `flutter3d_backend` too, so the game picks its backend the way
   # the three demos do rather than naming Impeller here: a project that names
   # one backend has no web build and no software fallback.
-  flutter3d_app:
-    path: $packagesAt/flutter3d_app
+  flutter3d_app: ^0.4.0
 
   # Sound, which the seed also had none of.
-  flutter3d_audio:
-    path: $packagesAt/flutter3d_audio
+  flutter3d_audio: ^0.4.0
 
   vector_math: ^2.2.0
   # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.

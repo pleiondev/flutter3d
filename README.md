@@ -7,9 +7,11 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-Not published to pub.dev. Build it from this repository — see
-[Running](#running), [CONTRIBUTING.md](CONTRIBUTING.md) and
-[SECURITY.md](SECURITY.md).
+On pub.dev: all twenty-three packages, published by
+[pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
+[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. Or build it
+from this repository — see [Running](#running),
+[CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
 Documentation: <https://flutter3d.pleion.dev> — guides, tutorials for all three
 genres, and the generated API reference.

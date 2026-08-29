@@ -1271,9 +1271,11 @@ rather than a flag.
 
 ## 16. Distribution
 
-Everything is prepared to publish and **nothing is published**: every package
-carries `publish_to: none`, which is the one line between "prepared" and "on the
-internet".
+**Published on 2026-08-29**: all twenty-three packages are on pub.dev at 0.4.0
+under the [pleion.dev](https://pub.dev/publishers/pleion.dev/packages)
+publisher. `publish_to: none` — "the one line between prepared and on the
+internet" — came out of the packages that day; the workspace root, the
+applications and the example apps keep theirs, being repository-only by design.
 
 - **Licence: MIT**, `Copyright (c) 2026 Dmitrii Zolotov`. One `LICENSE` at the root
   and a copy in every package, because pub wants the file inside the archive.
@@ -1288,12 +1290,12 @@ internet".
 - **Sibling dependencies are version constraints, not paths.** `pub publish`
   refuses a path dependency, and a workspace resolves `flutter3d_hardware: ^0.1.0`
   from the checkout anyway, so one line works for both a developer and the server.
-- `tool/publish_check.sh` runs `pub publish --dry-run` for every package with
-  `publish_to` temporarily removed and puts the line back, so a package that loses
-  its licence or grows a path dependency is caught on the day rather than on
-  publishing day.
+- `tool/publish_check.sh` runs `pub publish --dry-run` for every package (it
+  removes and restores a `publish_to` line where one exists, from the days when
+  every pubspec carried one), so a package that loses its licence or grows a
+  path dependency is caught on the day rather than on release day.
 
-**The order, when the day comes**, is set by the dependency graph:
+**The order, used on the day**, is set by the dependency graph:
 
 1. `flutter3d_hardware`, `flutter3d_shaders`, `flutter3d_samples`,
    `flutter3d_audio`, `pad_input`, `pointer_lock`

@@ -8,6 +8,8 @@ description: A 3D engine on Flutter GPU, a game layer on top of it, and two ship
 
 flutter3d is a renderer, a game layer, and three finished games of different genres. The second and third were built without changing a line in the first one's engine packages.
 
+**Playable right now, in this browser:** [the shooter](/shooter/demo/) · [the platformer](/platformer/demo/) · [the racing game](/racing/demo/).
+
 <div class="frameband">
   <p class="frameband-label"><span>One frame, as this engine encodes it</span><span>one command buffer per pass</span></p>
   <div class="frameband-track">
@@ -21,20 +23,13 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
   <p class="frameband-foot">The first four render into <code>r16g16b16a16Float</code>. Metal allows one open encoder per command buffer and flutter_gpu cannot end a render pass, so each pass gets its own command buffer, submitted in order.</p>
 </div>
 
-<dl class="stats">
-  <div><dt>Tests</dt><dd>2975<small>across 23 packages &amp; 5 apps</small></dd></div>
-  <div><dt>Need a GPU</dt><dd>~30<small>the Impeller goldens only</small></dd></div>
-  <div><dt>Lighting models</dt><dd>6<small>one shader each</small></dd></div>
-  <div><dt>Model load</dt><dd>1.1 µs<small>.f3d vs 4.54 ms as OBJ</small></dd></div>
-</dl>
-
 ## Status
 
 | | |
 |---|---|
 | Channel | Flutter 3.47.0 stable, Dart 3.12.2 |
 | Platforms | macOS and the browser are supported and exercised; Android and iOS build and have not been played on a handset; Windows and Linux are unverified |
-| Published | No. Packages resolve by path inside one pub workspace |
+| Published | Yes — all 23 packages, on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start

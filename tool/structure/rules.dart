@@ -666,7 +666,9 @@ List<Finding> _publishingOrder() {
   }
 
   final text = file.readAsStringSync();
-  final steps = text.split('**The order, when the day comes**');
+  // The marker moved when the day came: "when the day comes" became "used on
+  // the day" the day the packages went to pub.dev.
+  final steps = text.split('**The order, used on the day**');
   if (steps.length != 2) {
     return <Finding>[
       const Finding(

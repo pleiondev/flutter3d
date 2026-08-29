@@ -53,7 +53,7 @@ flutter run -d macos
 </div>
 
 <div class="warn">
-<p>Two more that bite once each. The pubspec points at the checkout by <strong>path</strong>, because none of these packages is published — those five lines are true on the machine that made the project and nowhere else, and moving either the project or the checkout means fixing them. And use the same Flutter the checkout uses: a different one writes a macOS project targeting an older system than the packages support, and the build then fails with a deployment-target error that mentions none of this.</p>
+<p>One that bites once. The pubspec names hosted versions from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a> — it pointed into the checkout by <code>path:</code> while the packages were unpublished, and a project made then travels only with its lines fixed. Use a Flutter at least as new as the engine's: an older one writes a macOS project targeting an older system than the packages support, and the build then fails with a deployment-target error that mentions none of this.</p>
 </div>
 
 ## Read what you got {.step}
