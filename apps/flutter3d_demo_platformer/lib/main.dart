@@ -241,9 +241,17 @@ class _GameScreenState extends State<GameScreen>
 
   /// The run: which level is up, how it is going, and where next.
   ///
-  /// Built in [initState]; its `open` waits on [_deviceReady], so the first
-  /// level may be asked for before the renderer has finished opening.
-  late final RunCubit _run;
+  /// Built in [_openGraphics]; its `open` waits on [_deviceReady], so the
+  /// first level may be asked for before the renderer has finished opening.
+  /// Nullable for the reason [_ticker] is: it is assigned only on the success
+  /// path, and as `late final` a device that failed to open turned `dispose`
+  /// into a `LateInitializationError` thrown over the top of the real error.
+  RunCubit? _runOrNull;
+
+  /// The run, once [_openGraphics] has built it. Everything behind the
+  /// renderer guard in [build] may use this; anything that can fire earlier
+  /// reads [_runOrNull].
+  RunCubit get _run => _runOrNull!;
 
   /// What a step sounds like. See `soundtrack.dart` for why this is a class
   /// and not a method: a decision can be tested, an effect inside a widget
@@ -261,7 +269,8 @@ class _GameScreenState extends State<GameScreen>
   double _sayFor = 0.0;
 
   /// Which level is being played. Written by [_loadLevel], read by the save.
-  LevelReady? get _level => _run.level;
+  /// Through [_runOrNull], because [build] asks before the device has opened.
+  LevelReady? get _level => _runOrNull?.level;
 
   /// Where the run was standing when it was last written to disk.
   ///
@@ -382,8 +391,14 @@ class _GameScreenState extends State<GameScreen>
               openDevice(width: kRenderWidth, height: kRenderHeight));
     } catch (error) {
       // Told to whoever is waiting as well, or a level load blocks for ever on
-      // a device that is never coming.
-      if (!_deviceReady.isCompleted) _deviceReady.completeError(error);
+      // a device that is never coming. On this path nobody is: `_run`, the
+      // only listener, is built further down and never will be — so the error
+      // is marked handled, or it resurfaces as an unhandled-async crash beside
+      // the screen already showing it.
+      if (!_deviceReady.isCompleted) {
+        _deviceReady.completeError(error);
+        _deviceReady.future.ignore();
+      }
       if (mounted) _screen.failed(error);
       return;
     }
@@ -406,7 +421,7 @@ class _GameScreenState extends State<GameScreen>
     // whose `RunCubit` this one mirrors. A level that will not load is read
     // straight off `_run.state` in [build] rather than copied into fields
     // here.
-    _run = RunCubit(
+    _runOrNull = RunCubit(
       PlatformerRun(
         firstLevel: _firstLevel,
         saves: _saveFile,
@@ -583,7 +598,14 @@ class _GameScreenState extends State<GameScreen>
   /// starting over once the run is finished. The edge, and the settings' first
   /// refusal of it, are `PadPresses`.
   void _padScreenButtons() {
-    if (!_presses.offer(_pad, _settings, menuButton: PadButton.start)) return;
+    if (!_presses.offer(
+      _pad,
+      _settings,
+      menuButton: PadButton.start,
+      opening: _openSettings,
+    )) {
+      return;
+    }
 
     // Any button begins, which is also how a browser reveals the pad to the
     // page in the first place: it stays invisible until one is pressed.
@@ -861,7 +883,12 @@ class _GameScreenState extends State<GameScreen>
 
   @override
   void dispose() {
-    _run.save();
+    // Null if the device never opened: nothing ran, so there is nothing to
+    // keep — and the cubit to close was never built either.
+    _runOrNull?.save();
+    // Closed like the three below, and the cubit unhooks itself from the
+    // session first — see `RunCubit.close` for why the order matters.
+    unawaited(_runOrNull?.close());
     unawaited(_audio.close());
     unawaited(_screen.close());
     unawaited(_settings.close());

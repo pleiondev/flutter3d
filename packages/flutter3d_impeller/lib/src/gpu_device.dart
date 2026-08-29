@@ -21,6 +21,7 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'gpu_command_encoder.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
+import 'gpu_frame_image.dart';
 import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'host_buffer_grid.dart';
@@ -253,6 +254,13 @@ final class GpuRenderBackend implements GraphicsDevice {
         if (face.lengthInBytes != side * side * 4) return null;
       }
     }
+    // The base faces too, and before the allocation rather than after it, as
+    // this used to be: a cube refused for its face size was a cube already
+    // created, with nothing but the collector to take it back.
+    final expected = _baseLevelLengthInBytes(size, size, format);
+    for (final face in faces) {
+      if (face.lengthInBytes != expected) return null;
+    }
 
     final texture = createGpuTexture(
       StorageMode.hostVisible,
@@ -269,10 +277,6 @@ final class GpuRenderBackend implements GraphicsDevice {
       enableRenderTargetUsage: false,
     );
 
-    final expected = texture.gpuTexture.getBaseMipLevelSizeInBytes();
-    for (final face in faces) {
-      if (face.lengthInBytes != expected) return null;
-    }
     for (var i = 0; i < 6; i++) {
       texture.gpuTexture.overwrite(faces[i], slice: i);
     }
@@ -353,6 +357,17 @@ final class GpuRenderBackend implements GraphicsDevice {
     required ByteData pixels,
     List<ByteData>? mipLevels,
   }) {
+    // `overwrite` demands exactly the base mip size and throws otherwise, so
+    // asking first turns a mismatch into a null the caller can handle. Bytes
+    // per texel is a backend question — padding and alignment are the device's
+    // — which is precisely why this check cannot live above the seam. Asked
+    // *before* the allocation rather than of the allocated texture, as it used
+    // to be: a texture made only to be refused is a texture this backend has
+    // no way to free except the collector.
+    if (pixels.lengthInBytes != _baseLevelLengthInBytes(width, height, format)) {
+      return null;
+    }
+
     final texture = createGpuTexture(
       // Host-visible, because these bytes come from the CPU. That is a
       // consequence of *how the texture is filled* rather than of what it is
@@ -375,15 +390,6 @@ final class GpuRenderBackend implements GraphicsDevice {
       // and the trimming happens there, where the limit is known.
       mipLevelCount: mipLevels == null ? 1 : mipLevels.length + 1,
     );
-
-    // `overwrite` demands exactly the base mip size and throws otherwise, so
-    // asking first turns a mismatch into a null the caller can handle. Bytes
-    // per texel is a backend question — padding and alignment are the device's
-    // — which is precisely why this check cannot live above the seam.
-    if (pixels.lengthInBytes !=
-        texture.gpuTexture.getBaseMipLevelSizeInBytes()) {
-      return null;
-    }
     texture.gpuTexture.overwrite(pixels);
     if (mipLevels != null) {
       // Level by level, and only as far as the texture actually goes: asking
@@ -395,6 +401,30 @@ final class GpuRenderBackend implements GraphicsDevice {
       }
     }
     return texture;
+  }
+
+  /// The byte length `overwrite` will demand for a [width] by [height] base
+  /// level of [format].
+  ///
+  /// flutter_gpu's own arithmetic — `Texture.getMipLevelSizeInBytes`, whole
+  /// blocks times bytes per block — reproduced so the question can be asked
+  /// *before* a texture exists to ask it of. Both upload paths used to
+  /// allocate first and read the answer off the texture, which meant a
+  /// refused upload had already made an allocation nothing could free but the
+  /// collector. Benign on this backend, but an ordering nothing should rest
+  /// on. The extension getters this reads are flutter_gpu's, so a format it
+  /// learns a new size for answers here too.
+  static int _baseLevelLengthInBytes(
+    int width,
+    int height,
+    TextureFormat format,
+  ) {
+    final gpuFormat = format.toGpu();
+    final blocksWide =
+        (width + gpuFormat.blockWidth - 1) ~/ gpuFormat.blockWidth;
+    final blocksHigh =
+        (height + gpuFormat.blockHeight - 1) ~/ gpuFormat.blockHeight;
+    return blocksWide * blocksHigh * gpuFormat.bytesPerBlock;
   }
 
   @override
@@ -411,11 +441,57 @@ final class GpuRenderBackend implements GraphicsDevice {
     _openFrame = GpuFrame();
 
     _frame = (_frame + 1) % _kFramesInFlight;
+    // **This allocator leaks a block per boundary crossing, so past a budget
+    // it is cheaper to throw it away than to keep it.** The bug is upstream:
+    // `flutter_gpu/lib/src/buffer.dart`, `HostBuffer._allocateEmplacement` —
+    // the block-overflow branch always allocates a fresh 1 MB `DeviceBuffer`
+    // and appends it to the current internal frame's `_buffers` list, and
+    // `reset()` only rewinds cursors and rotates the internal ring, never
+    // trimming or reusing the tail. Every frame whose transient writes cross a
+    // block boundary grows the list by a block, forever. The [BlockCursor]
+    // mirrors the crossings exactly (see `host_buffer_grid.dart`), so once a
+    // slot has accumulated [_kTransientBlockBudget] of them we recreate its
+    // `HostBuffer` here, at the one point where doing so is safe — and the
+    // safety argument is the same as the rewind's below: this slot was last
+    // written a full ring of frames ago, so the GPU is done with it, and any
+    // command buffer still in flight holds its own references to the old
+    // `DeviceBuffer`s. Dropping ours frees nothing early; the wrappers go when
+    // the collector gets to them, which is the only release flutter_gpu has.
+    // A flutter_gpu that fixes the overflow branch makes this whole clause —
+    // and `BlockCursor.crossed` — deletable.
+    if (_cursors[_frame].crossed >= _kTransientBlockBudget) {
+      _transients[_frame] = gpu.gpuContext.createHostBuffer(
+        blockLengthInBytes: blockLengthFor(_granule),
+      );
+      _cursors[_frame] = BlockCursor(
+        blockLength: blockLengthFor(_granule),
+        granule: _granule,
+      );
+      _transientRecreations++;
+    }
     // Safe to rewind: this allocator was last written a full ring of frames
     // ago, so the GPU is done with it.
     _transients[_frame].reset();
     _cursors[_frame].reset();
   }
+
+  /// When a transient slot's leaked-block estimate is worth a fresh allocator.
+  ///
+  /// Thirty-two blocks is about 32 MB retained by one slot — three slots, so
+  /// under 100 MB in the worst case before every slot has been recreated. Low
+  /// enough that the leak stays invisible next to the render targets, high
+  /// enough that a scene crossing a boundary or two per frame recreates a slot
+  /// every few hundred frames rather than every few, and each recreation only
+  /// costs the four fresh blocks `HostBuffer`'s constructor allocates.
+  static const int _kTransientBlockBudget = 32;
+
+  /// How many transient allocators have been thrown away over the leak above.
+  ///
+  /// Diagnostic, like [rejectedSubmissions]: a number climbing fast means the
+  /// scene's per-frame transient writes dwarf the block budget, which is worth
+  /// knowing about rather than merely surviving.
+  int get debugTransientRecreations => _transientRecreations;
+  int _transientRecreations = 0;
 
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
@@ -465,15 +541,12 @@ final class GpuRenderBackend implements GraphicsDevice {
     BoxFit fit = BoxFit.fill,
     FilterQuality quality = FilterQuality.none,
   }) =>
-      // `asImage` is the cheap half of Impeller: the image is the same GPU
-      // allocation the pass wrote, not a copy, so presenting costs a widget and
-      // nothing else. That this is free here is exactly why the contract used
-      // to say `ui.Image` — and exactly why saying so was a mistake.
-      RawImage(
-        image: frame.gpuTexture.asImage(),
-        fit: fit,
-        filterQuality: quality,
-      );
+      // A stateful widget rather than `asImage()` inline into a `RawImage`,
+      // which is what this was: the inline image was never disposed, so every
+      // frame left a `ui.Image` for the collector and pinned the frame texture
+      // in the engine's image accounting past the frames-in-flight ring. The
+      // widget owns the image and closes it — see `gpu_frame_image.dart`.
+      GpuFrameImage(frame: frame, fit: fit, quality: quality);
 
   @override
   Future<ByteData?> readPixels(TextureHandle texture) {
@@ -486,9 +559,14 @@ final class GpuRenderBackend implements GraphicsDevice {
     // are decoded as. The two sides of a golden comparison must agree, and the
     // engine's own output is opaque, so this is the layout with no conversion
     // anywhere in the path.
-    return texture.gpuTexture.asImage().toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    );
+    //
+    // The image is closed once the bytes are out. It is only a handle — the
+    // backend still owns the texture — but leaving it open made every readback
+    // a `ui.Image` for the collector, and goldens read back a lot of them.
+    final image = texture.gpuTexture.asImage();
+    return image
+        .toByteData(format: ui.ImageByteFormat.rawRgba)
+        .whenComplete(image.dispose);
   }
 
   /// A deliberate no-op. See the note at [supportsCubeTextures] on

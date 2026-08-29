@@ -126,7 +126,15 @@ class _GameScreenState extends State<GameScreen>
   late final DesktopInput _devices;
   late final PadInput _pad;
   late final GameLoop _loop;
-  late final Ticker _ticker;
+
+  /// Nullable, because the device may never open.
+  ///
+  /// It used to be `late final`, assigned only on the success path of
+  /// [_openGraphics] — and `dispose` called it unconditionally. So a player
+  /// who met the renderer-failure panel, read it, and closed the screen got a
+  /// `LateInitializationError` thrown over the top of the real error. The
+  /// platformer met the same bug first, and this is its fix.
+  Ticker? _ticker;
 
   /// The level, once it has loaded. Null while it is loading or if it failed.
   /// The run: which level is up, what happened to it, and where next.
@@ -251,6 +259,14 @@ class _GameScreenState extends State<GameScreen>
 
   /// Mouse motion picked up from a drag, where there is no pointer to lock.
   final DragLook _dragLook = DragLook();
+
+  /// Whether a pointer layer is the one holding [ShooterActions.fire].
+  ///
+  /// Tracked so a level change can let it go. The layers live inside [_game],
+  /// and a load swaps the whole stack for the loading screen — so no
+  /// pointer-up ever reaches a `Listener` that is gone, and a trigger held
+  /// while walking through an exit stayed pressed into the next level.
+  bool _pointerFiring = false;
 
   /// The mouse's motion — or the drag's, in a browser — plus the pad's.
   ///
@@ -424,7 +440,14 @@ class _GameScreenState extends State<GameScreen>
       bank: Sounds.all,
       occlusion: _occlusionBetween,
     );
-    if (speakers == null || !mounted) return;
+    if (speakers == null) return;
+    if (!mounted) {
+      // The screen is gone and nothing below will adopt this backend, so it is
+      // shut down here — its own doc warns that an engine left initialized
+      // blocks a later open().
+      unawaited(speakers.backend.dispose());
+      return;
+    }
     _soloud = speakers.backend;
     _audio = speakers.scene;
     _applyConfig(_config);
@@ -464,11 +487,30 @@ class _GameScreenState extends State<GameScreen>
     if (loaded == null || _soloud == null) return;
     _ambienceStarted = true;
     for (final torch in loaded.level.ofType(SampleEntities.torch)) {
-      _audio.play(Sounds.torch, torch.position);
+      _ambience.add(_audio.play(Sounds.torch, torch.position));
     }
   }
 
+  /// Ends the level's torches, so the next level can light its own.
+  ///
+  /// **The latch used to be for the session, and the emitters were kept
+  /// nowhere.** So a level change left the old level's loops playing forever
+  /// at stale coordinates — each one costing an occlusion raycast per frame —
+  /// and the new level's torches never got ambience at all, because
+  /// [_startAmbience] believed its work was already done.
+  void _stopAmbience() {
+    for (final torch in _ambience) {
+      torch.stop();
+    }
+    _ambience.clear();
+    _ambienceStarted = false;
+  }
+
   bool _ambienceStarted = false;
+
+  /// What [_startAmbience] created, so [_stopAmbience] can undo it — the same
+  /// bookkeeping `FrameEffects.moverVoices` keeps for the movers.
+  final List<SoundEmitter> _ambience = <SoundEmitter>[];
 
   /// Builds the run once there is a device to load through.
   ///
@@ -516,6 +558,14 @@ class _GameScreenState extends State<GameScreen>
     // Counting that against the machine would light the warning on every level
     // of every run, which is the same as not having one.
     _pace.reset(_loop.clock.droppedSteps);
+    // A fresh level makes its own noises. The soundtrack's running set and the
+    // effects' mover voices both name the old level's mechanisms, and those
+    // will never report `stopped` now — a mover caught mid-travel by the level
+    // change was a stone slab grinding into the next level forever.
+    _soundtrack.reset();
+    _effects.stopVoices();
+    // The old level's torches out, the new level's lit.
+    _stopAmbience();
     _startAmbience();
     // **On entering a level, and on quitting, and at no other time.** This game
     // has no checkpoints — the platformer saves when its respawn point moves,
@@ -537,11 +587,14 @@ class _GameScreenState extends State<GameScreen>
     // Null if the window closed before the device opened: nothing ran, so
     // there is nothing to keep.
     _runOrNull?.save();
+    // Closed like [_settings], and the cubit unhooks itself from the session
+    // first — see `RunCubit.close` for why the order matters.
+    unawaited(_runOrNull?.close());
     _audio.stopAll();
     unawaited(_soloud?.dispose());
     unawaited(_settings.close());
     _keyboard.dispose();
-    _ticker.dispose();
+    _ticker?.dispose();
     _devices.dispose();
     super.dispose();
   }
@@ -640,7 +693,12 @@ class _GameScreenState extends State<GameScreen>
     // the edge this game did not have on the rebinding: a controller resting
     // against something used to bind itself to whatever the panel was waiting
     // for, because the button was read as held rather than as pressed.
-    if (_presses.offer(_pad, _settings, menuButton: PadButton.start) &&
+    if (_presses.offer(
+          _pad,
+          _settings,
+          menuButton: PadButton.start,
+          opening: _openSettings,
+        ) &&
         _runIsOver &&
         _pad.heldButtons.contains(PadButton.start)) {
       unawaited(_run.restart());
@@ -807,7 +865,14 @@ class _GameScreenState extends State<GameScreen>
             final next = level.staged.sim.nextLevel;
             _effects.say(next == null ? 'You are out.' : 'Level complete.');
           case RunLoading<LevelReady>() || RunFailed<LevelReady>():
-            break;
+            // The pointer layers unmount with the level — see [_pointerFiring]
+            // — so whatever they were holding is let go here, where the swap
+            // to the loading screen is announced.
+            _dragLook.end();
+            if (_pointerFiring) {
+              _devices.releasePointer(ShooterActions.fire);
+              _pointerFiring = false;
+            }
         }
       },
       builder: (BuildContext context, RunStatus<LevelReady> run) => _game(run),
@@ -884,6 +949,7 @@ class _GameScreenState extends State<GameScreen>
             if (!Playing.capturesPointer) return;
             if (_devices.isCaptured) {
               _devices.pressPointer(ShooterActions.fire);
+              _pointerFiring = true;
             } else {
               _devices.captureMouse();
             }
@@ -891,6 +957,7 @@ class _GameScreenState extends State<GameScreen>
           onPointerUp: (_) {
             if (!Playing.capturesPointer) return;
             _devices.releasePointer(ShooterActions.fire);
+            _pointerFiring = false;
           },
           child: Stack(
             fit: StackFit.expand,
@@ -938,6 +1005,7 @@ class _GameScreenState extends State<GameScreen>
                       _dragLook.begin();
                       if (!Playing.touch) {
                         _devices.pressPointer(ShooterActions.fire);
+                        _pointerFiring = true;
                       }
                     },
                     onPointerMove: (PointerMoveEvent event) =>
@@ -946,12 +1014,14 @@ class _GameScreenState extends State<GameScreen>
                       _dragLook.end();
                       if (!Playing.touch) {
                         _devices.releasePointer(ShooterActions.fire);
+                        _pointerFiring = false;
                       }
                     },
                     onPointerCancel: (_) {
                       _dragLook.end();
                       if (!Playing.touch) {
                         _devices.releasePointer(ShooterActions.fire);
+                        _pointerFiring = false;
                       }
                     },
                   ),

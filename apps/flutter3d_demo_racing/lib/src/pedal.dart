@@ -42,6 +42,17 @@ class _PedalState extends State<Pedal> {
   }
 
   @override
+  void dispose() {
+    // Unmounted mid-press — the settings panel hides the pedals, a circuit
+    // change swaps the stack — is a normal path, and no pointer-up ever
+    // reaches a widget that is gone. The [InputState] is shared and outlives
+    // this pedal, so the press has to be let go here or the throttle stays
+    // down for good.
+    if (_pointer != null) widget.state.release(widget.action);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final down = _pointer != null;
     return Semantics(

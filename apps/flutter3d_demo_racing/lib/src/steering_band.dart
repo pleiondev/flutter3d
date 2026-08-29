@@ -69,6 +69,21 @@ class _SteeringBandState extends State<SteeringBand> {
   }
 
   @override
+  void dispose() {
+    // Unmounted mid-corner — the settings panel hides the wheel, a circuit
+    // change swaps the stack — is a normal path, and no pointer-up ever
+    // reaches a widget that is gone. The [InputState] is shared and outlives
+    // this band, so the magnitudes have to be withdrawn here or the car stays
+    // at lock for good.
+    if (_pointer != null) {
+      widget.state
+        ..clearActionValue(widget.left)
+        ..clearActionValue(widget.right);
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => Listener(
     behavior: HitTestBehavior.opaque,
     onPointerDown: (PointerDownEvent event) {

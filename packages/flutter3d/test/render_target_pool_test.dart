@@ -123,7 +123,8 @@ void main() {
     });
 
     test('a resize drops what is free and keeps what is out', () {
-      final pool = RenderTargetPool(_FakeAllocator());
+      final allocator = _FakeAllocator();
+      final pool = RenderTargetPool(allocator);
       const spec = RenderTargetSpec(
         width: 640,
         height: 480,
@@ -136,9 +137,14 @@ void main() {
 
       expect(pool.pooledCount, 0);
       expect(pool.lentCount, 1);
-      // Still returnable: trimming forgets the free list, not the loans.
+      // Still returnable — trimming forgets the free list, not the loans —
+      // but a loan that outlived a trim goes back to the allocator rather
+      // than into the pool: its spec was retired by the resize, so nothing
+      // would ever acquire it again and refiling it only parked the texture
+      // until the next trim.
       pool.release(lent);
-      expect(pool.pooledCount, 1);
+      expect(pool.pooledCount, 0);
+      expect(allocator.released, contains(lent));
     });
 
     test('and hands the free ones back rather than merely forgetting', () {

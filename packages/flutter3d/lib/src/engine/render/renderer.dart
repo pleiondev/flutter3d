@@ -258,13 +258,16 @@ final class Renderer implements RenderServices {
   /// thoroughly the resource cache evicted them. It is weak now — see
   /// [MaterialSortIds] — and clearing it here as well costs nothing.
   ///
-  /// What it deliberately does not touch: the HDR, LDR and surface-buffer
-  /// render targets. They are reallocated together in [_ensureTargets]
-  /// whenever the window resizes, which is the one place their lifetime is
-  /// already managed — and that place now releases the ones it replaces.
-  /// Folding them in here would duplicate that bookkeeping for a case — a
-  /// renderer being discarded rather than resized — that drops every reference
-  /// to the `Renderer` itself anyway.
+  /// The window-sized targets — HDR, LDR, surface, reflection, the depth and
+  /// MSAA attachments — are released here too. They used to be left out on the
+  /// argument that discarding a renderer drops every reference to it anyway;
+  /// that frees them where the collector frees textures and frees nothing on
+  /// WebGL2, where only `gl.deleteTexture` does — so a host that rebuilt its
+  /// renderer leaked seven full-screen driver objects per rebuild. Released
+  /// directly rather than through the frames-in-flight ring the resize path
+  /// uses, because that ring is only emptied at the top of a later frame and a
+  /// disposed renderer has no later frames — which is also why both rings are
+  /// drained here.
   ///
   /// A genuine method of this class rather than a member of
   /// `renderer_resources.dart`'s extension, even though the caches it clears
@@ -278,7 +281,53 @@ final class Renderer implements RenderServices {
   void dispose() {
     _pipelineCache.clear();
     _fragmentShaders.clear();
+
+    // Whatever the last frames queued but no frame has retired yet: pooled
+    // targets go back through the pool so the trim below frees them, owned
+    // ones go straight to the device.
+    for (final slot in _pendingRelease) {
+      for (final texture in slot) {
+        targetPool.release(texture);
+      }
+      slot.clear();
+    }
+    for (final slot in _pendingDestroy) {
+      for (final texture in slot) {
+        device.releaseTexture(texture);
+      }
+      slot.clear();
+    }
     targetPool.trim();
+
+    // The window-sized targets `_ensureTargets` owns. On a resize they go
+    // through the frames-in-flight ring because the frame drawn with them may
+    // still be reading; here there is no next frame to wait for, so they are
+    // given back directly, and the size is zeroed so a second call finds
+    // nothing to release.
+    for (final texture in <TextureHandle?>[
+      _hdrColor,
+      _hdrMsaa,
+      _surfaceColor,
+      _surfaceMsaa,
+      _reflectionColor,
+      _depthStencil,
+      _depthStencilSingle,
+      ..._ldrFrames,
+    ]) {
+      if (texture != null) device.releaseTexture(texture);
+    }
+    _hdrColor = null;
+    _hdrMsaa = null;
+    _surfaceColor = null;
+    _surfaceMsaa = null;
+    _reflectionColor = null;
+    _depthStencil = null;
+    _depthStencilSingle = null;
+    _ldrFrames.clear();
+    _ldrFree.clear();
+    _ldrCurrent = null;
+    _targetWidth = 0;
+    _targetHeight = 0;
 
     // Released rather than merely dropped, and nulled so a second call is the
     // no-op this method promises to be.

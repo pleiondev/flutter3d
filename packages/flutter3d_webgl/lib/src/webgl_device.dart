@@ -157,12 +157,16 @@ final class WebGlDevice implements GraphicsDevice {
   /// than one this device quietly absorbs.
   bool _disposed = false;
 
-  /// The count of persistent GL objects currently tracked, for tests. Falls to
-  /// zero after [dispose].
+  /// The count of persistent GL objects currently tracked, for tests: textures,
+  /// renderbuffers and buffers, plus the shader library's compiled shaders and
+  /// linked programs — which are driver objects just the same, and were the one
+  /// class this count (and [dispose]) used to miss. Falls to zero after
+  /// [dispose].
   int get debugTrackedResourceCount =>
       _persistentTextures.length +
       _persistentRenderbuffers.length +
-      _persistentBuffers.length;
+      _persistentBuffers.length +
+      _library.debugTrackedResourceCount;
 
   @override
   void releaseTexture(TextureHandle texture) {
@@ -192,6 +196,30 @@ final class WebGlDevice implements GraphicsDevice {
       _persistentRenderbuffers,
       _persistentBuffers,
     );
+    // The shader library's programs and shaders go with the device that made
+    // them: the library has no life of its own — it is built in [create] and
+    // reachable only through this device — so this is the one moment they can
+    // be deleted.
+    _library.dispose();
+
+    // What can be released of the canvas and the context, released honestly.
+    // The platform-view registry has no unregister, and the factory closure
+    // [_register] handed it holds [_canvas] for the life of the app — that pin
+    // is not this device's to undo. What *is*: the element's place in the
+    // document, and the GPU-side context behind it. `WEBGL_lose_context` is
+    // the one sanctioned way to free a context before its canvas is collected,
+    // so it is asked for here and used where the browser has it.
+    _canvas.remove();
+    final lose =
+        _gl.getExtension('WEBGL_lose_context') as web.WEBGL_lose_context?;
+    lose?.loseContext();
+    // Losing the context queues CONTEXT_LOST_WEBGL. The loss is this method's
+    // own doing rather than an error the caller should be handed — a test
+    // draining the queue after dispose would blame it on the deletes above —
+    // so the queue is drained before returning.
+    for (var i = 0; i < 8; i++) {
+      if (_gl.getError() == web.WebGLRenderingContext.NO_ERROR) break;
+    }
   }
 
   /// Whether half-float textures may be filtered linearly here. Diagnostic:
@@ -376,6 +404,11 @@ final class WebGlDevice implements GraphicsDevice {
   /// package's own and nothing above should have to learn that a DOM element is
   /// involved to show a frame. Registration is idempotent per device: the
   /// factory hands back the one canvas this device draws into.
+  ///
+  /// The registry has no unregister, so the factory — and through it the
+  /// canvas object — outlives [dispose]. That pin is the platform's, not this
+  /// device's; what dispose *can* release of the canvas and its context, it
+  /// does, and says so there.
   late final String viewType = _register();
 
   String _register() {
@@ -431,9 +464,12 @@ final class WebGlDevice implements GraphicsDevice {
       web.WebGL2RenderingContext.READ_FRAMEBUFFER,
     );
     if (status != web.WebGLRenderingContext.FRAMEBUFFER_COMPLETE) {
-      throw StateError(
-        'the frame cannot be read for presenting: ${debugFramebufferStatus()}',
-      );
+      // The status in words first, the delete second: present() runs every
+      // frame, so a frame that stays unreadable would otherwise leak one
+      // framebuffer per frame for as long as the caller keeps trying.
+      final why = debugFramebufferStatus();
+      _gl.deleteFramebuffer(source);
+      throw StateError('the frame cannot be read for presenting: $why');
     }
     _gl.bindFramebuffer(web.WebGL2RenderingContext.DRAW_FRAMEBUFFER, null);
 
