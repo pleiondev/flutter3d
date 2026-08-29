@@ -32,13 +32,19 @@ const String kExitModel = 'assets/models/exit.glb';
 /// Never throws. A level whose doorway will not load is a level that still ends
 /// where it always did: the trigger is the simulation's and this is only what
 /// can be seen.
-Future<void> addExitsTo(
+///
+/// Returns the uploaded asset — or null when there was nothing to draw or the
+/// file would not read — so the level that asked for it can release it in
+/// `RunSession.close`. The asset used to be dropped here after instantiating,
+/// which left its mesh and maps on the device once per level with nothing
+/// holding a name for them.
+Future<ModelAsset?> addExitsTo(
   Scene scene,
   Level level, {
   required GraphicsDevice device,
 }) async {
   final exits = level.ofType(EntityTypes.exit).toList();
-  if (exits.isEmpty) return;
+  if (exits.isEmpty) return null;
 
   try {
     final document = await decodeModelInIsolate(
@@ -65,7 +71,9 @@ Future<void> addExitsTo(
         ..setPositionFrom(exit.position)
         ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), exit.yaw));
     }
+    return asset;
   } catch (error) {
     debugPrint('exit: no doorway drawn ($error)');
+    return null;
   }
 }

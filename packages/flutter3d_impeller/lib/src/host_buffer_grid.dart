@@ -98,6 +98,18 @@ final class BlockCursor {
   /// Bytes taken from the current block.
   int used = 0;
 
+  /// Block boundaries crossed since this cursor was made — cumulative, and
+  /// deliberately not cleared by [reset].
+  ///
+  /// Each crossing is a block the allocator has leaked, not merely used:
+  /// `flutter_gpu/lib/src/buffer.dart`'s `_allocateEmplacement` overflow branch
+  /// *always* allocates a fresh block and appends it to the current internal
+  /// frame's `_buffers` list, and `reset()` only rewinds cursors — nothing ever
+  /// trims or reuses the tail. So this number times [blockLength] is how much
+  /// the `HostBuffer` this mirrors has permanently grown by, which is what the
+  /// backend reads to decide when to throw the whole allocator away.
+  int crossed = 0;
+
   /// How many bytes to write away before a write of [length], or nought when
   /// it fits.
   ///
@@ -113,9 +125,21 @@ final class BlockCursor {
   /// Records a write of [length], having already written any [fillerBefore].
   void took(int length) {
     if (length > blockLength) return;
-    if (used + length > blockLength) used = 0;
+    if (used + length > blockLength) {
+      // The wrap is exactly when the real allocator's overflow branch runs:
+      // either the filler just brought its cursor to the boundary, or the
+      // previous write ended there and no filler was needed. Either way the
+      // write being recorded lands at the start of a freshly appended block.
+      // (An over-long write is the early return above: the allocator gives it
+      // a standalone buffer that is *not* appended to the list, so it is freed
+      // with its view and does not count.)
+      used = 0;
+      crossed++;
+    }
     used += length;
   }
 
+  /// Rewinds the per-frame cursor. [crossed] survives on purpose: the blocks
+  /// it counts survive the allocator's own `reset()` too.
   void reset() => used = 0;
 }

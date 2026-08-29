@@ -224,6 +224,44 @@ final class ModelAsset {
     );
   }
 
+  /// Gives every uploaded mesh and texture back to [device].
+  ///
+  /// The counterpart to [fromDocument], and the same contract as
+  /// `SharedMeshes.dispose`: call it when whoever owns this asset — normally
+  /// one level load — is over, after every instance has left its scene. On
+  /// flutter_gpu the release calls are no-ops and the collector does the work;
+  /// on WebGL2 they are the only thing that ever calls `gl.deleteBuffer` and
+  /// `gl.deleteTexture`, which is where not calling this was a real leak per
+  /// level.
+  ///
+  /// Meshes and textures are deduplicated on the way in — surfaces share
+  /// meshes, materials share maps, and one image can sit in two slots of the
+  /// same material — so each distinct resource is released once, by identity.
+  void release(GraphicsDevice device) {
+    final meshes = Set<DeviceMesh>.identity();
+    final textures = Set<TextureHandle>.identity();
+    for (final part in parts) {
+      meshes.add(part.mesh);
+      final material = part.material;
+      for (final texture in <TextureHandle?>[
+        material.albedo,
+        material.normal,
+        material.metallicRoughness,
+        material.occlusion,
+        material.emissiveTexture,
+      ]) {
+        if (texture != null) textures.add(texture);
+      }
+    }
+    for (final mesh in meshes) {
+      device.releaseGeometry(mesh.vertices);
+      device.releaseGeometry(mesh.indices);
+    }
+    for (final texture in textures) {
+      device.releaseTexture(texture);
+    }
+  }
+
   static Future<Material> _convertMaterial(
     SurfaceMaterial source, {
     required LightingModel lighting,

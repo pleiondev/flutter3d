@@ -103,9 +103,15 @@ final class PlatformerRun extends RunSession<LevelReady> {
 
   Carried? _carried;
 
+  /// The device the last [open] uploaded through, kept so [close] can release
+  /// a level's resources without waiting on [openDevice] again — a level only
+  /// exists once the device does, so this is never null when [close] runs.
+  GraphicsDevice? _device;
+
   @override
   Future<LevelReady> open(String asset) async {
     final device = await openDevice();
+    _device = device;
     final (:kinds, :loaded, :fixtures) = await openLevel(asset, device: device);
 
     final staged = stage(
@@ -168,4 +174,17 @@ final class PlatformerRun extends RunSession<LevelReady> {
   @override
   Future<void> beforeNext(String next) =>
       Future<void>.delayed(pauseBetweenLevels);
+
+  /// Gives a finished level's uploads back to the device.
+  ///
+  /// The hook `RunSession.close`'s own doc was written for, wired up at last:
+  /// the fixtures let go of their nodes, meshes and models, then the level's
+  /// own brushes and maps go back. The level's last, because the fixtures
+  /// were built on its textures and share the objects rather than copies.
+  @override
+  void close(LevelReady level) {
+    level.fixtures.dispose();
+    final device = _device;
+    if (device != null) level.loaded.dispose(device);
+  }
 }

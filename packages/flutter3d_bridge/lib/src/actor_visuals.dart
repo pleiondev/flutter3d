@@ -96,14 +96,18 @@ final class ActorVisuals {
     _playing.remove(actor);
   }
 
-  /// Lets go of every node and every uploaded mesh.
+  /// Lets go of every node, every uploaded mesh and every loaded model.
   ///
   /// The level's, not the game's: what this holds was built for one level and
   /// is worth nothing to the next. See `RunSession.close` for when that is.
   ///
-  /// The models are deliberately left in [_models] — they are a
-  /// `ResourceCache`'s business and are shared between levels, which is the
-  /// whole reason that cache is keyed by path rather than by level.
+  /// **The models used to be deliberately left in [_models]**, on the claim
+  /// that they were "a `ResourceCache`'s business and shared between levels".
+  /// No such cache exists: the map is this instance's own and dies with it, so
+  /// keeping the entries only stranded the uploads — a real driver-object leak
+  /// per level on WebGL2. They are released here now, through the future
+  /// rather than its value, so a model that finishes loading *after* the level
+  /// ended is released the moment it arrives instead of never.
   void dispose() {
     // Anything still reading a file will find this and stop rather than
     // instantiate into a scene that has been torn down.
@@ -114,6 +118,11 @@ final class ActorVisuals {
     _nodes.clear();
     _players.clear();
     _playing.clear();
+    _smoothed.clear();
+    for (final pending in _models.values) {
+      unawaited(pending.then((asset) => asset?.release(_device)));
+    }
+    _models.clear();
     _meshes.dispose();
   }
 

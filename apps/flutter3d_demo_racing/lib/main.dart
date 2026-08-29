@@ -364,6 +364,9 @@ class _RaceScreenState extends State<RaceScreen>
   @override
   void dispose() {
     unawaited(_settings.close());
+    // Closed like [_settings], and the cubit unhooks itself from the season's
+    // progress first — see `RaceCubit.close` for why the order matters.
+    unawaited(_raceCubit.close());
     // **The line this one was missing.** The other two applications close
     // their devices here; without it the `PointerLock` state subscription
     // `DesktopInput` opens outlives the screen, and a hot restart leaves the
@@ -444,12 +447,27 @@ class _RaceScreenState extends State<RaceScreen>
       mixer: _audio.mixer,
       maxVoices: 24,
     );
-    if (speakers == null || !mounted) return;
+    if (speakers == null) return;
+    if (!mounted) {
+      // The screen is gone and `dispose` has already run past `_speakers`, so
+      // the backend has to go down here — its own doc warns that an engine
+      // left initialized blocks a later open().
+      unawaited(speakers.backend.dispose());
+      return;
+    }
 
     setState(() {
       _speakers = speakers.backend;
       _audio = speakers.scene;
-      // Any cars that were built while the device was opening.
+      // Any cars that were built while the device was opening got their voices
+      // on the silent scene, and those are **replaced, not joined**: this used
+      // to only add, so a circuit that loaded first ended up with two looping
+      // sets — `_listen` driving the silent one and the real one playing an
+      // idle nobody was updating.
+      for (final voice in _voices) {
+        voice.stop();
+      }
+      _voices.clear();
       for (final car in _cars) {
         _voices.add(CarVoice(scene: _audio, vehicle: car));
       }
@@ -761,8 +779,14 @@ class _RaceScreenState extends State<RaceScreen>
   /// point for a player who has one of the two devices. There is nothing else
   /// on screen here for a pad button to mean — no title card to take down and
   /// no run to start over — so what `PadPresses` hands back is dropped.
-  void _padRebinding() =>
-      _presses.offer(_pad, _settings, menuButton: PadButton.start);
+  void _padRebinding() => _presses.offer(
+    _pad,
+    _settings,
+    menuButton: PadButton.start,
+    // The same clause Escape and the gear run — the keys the car was holding
+    // are let go, or it comes back accelerating into a wall.
+    opening: _input.clear,
+  );
 
   /// The pad's presses, told apart from its holds.
   final PadPresses _presses = PadPresses();

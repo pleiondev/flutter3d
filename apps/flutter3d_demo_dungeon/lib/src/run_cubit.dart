@@ -23,12 +23,17 @@ final class LevelReady {
     required this.staged,
     required this.actorVisuals,
     required this.fixtureVisuals,
+    this.exitModel,
   });
 
   final LoadedLevel loaded;
   final Staged staged;
   final ActorVisuals actorVisuals;
   final FixtureVisuals fixtureVisuals;
+
+  /// The doorway's uploaded model, held so `DungeonRun.close` can release it.
+  /// Null when the level has no exit or the file would not read.
+  final ModelAsset? exitModel;
 }
 
 /// This game's answers to the five questions a run asks.
@@ -109,7 +114,11 @@ final class DungeonRun extends RunSession<LevelReady> {
     // The way out, which was a trigger with nothing to see. Awaited rather than
     // left running: a doorway that appears a moment after the level does is a
     // wall that turns into an exit while somebody is looking at it.
-    await addExitsTo(loaded.scene, loaded.level, device: device);
+    final exitModel = await addExitsTo(
+      loaded.scene,
+      loaded.level,
+      device: device,
+    );
     final staged = stage(
       loaded.level,
       loaded.collision,
@@ -126,7 +135,23 @@ final class DungeonRun extends RunSession<LevelReady> {
       staged: staged,
       actorVisuals: scene.actors,
       fixtureVisuals: scene.fixtures,
+      exitModel: exitModel,
     );
+  }
+
+  /// Gives a finished level's uploads back to the device.
+  ///
+  /// The hook `RunSession.close`'s own doc was written for, wired up at last:
+  /// the visuals let go of their nodes, meshes and models, then the doorway's
+  /// model and the level's own brushes and maps go back. The level's last,
+  /// because the fixtures were built on its textures and share the objects
+  /// rather than copies.
+  @override
+  void close(LevelReady level) {
+    level.actorVisuals.dispose();
+    level.fixtureVisuals.dispose();
+    level.exitModel?.release(device);
+    level.loaded.dispose(device);
   }
 
   @override
@@ -174,4 +199,14 @@ final class RunCubit extends Cubit<RunStatus<LevelReady>> {
   Future<void> advance() => run.advance();
   void observe() => run.observe();
   void save() => run.save();
+
+  @override
+  Future<void> close() {
+    // Unhooked before the stream closes: a load or an advance still in flight
+    // finishes on the session's side, and its report would otherwise be an
+    // emit into a closed cubit — a `StateError` over whatever the screen was
+    // being torn down for.
+    run.onChanged = null;
+    return super.close();
+  }
 }

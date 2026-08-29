@@ -118,10 +118,15 @@ final class LevelLoader {
     }
 
     final surfaces = const BrushGeometry().build(level);
+    // Remembered on the way in, so `LoadedLevel.dispose` can release exactly
+    // what this loop uploaded and nothing else.
+    final brushMeshes = <DeviceMesh>[];
     for (final surface in surfaces) {
+      final mesh = DeviceMesh.upload(device, _toMeshData(surface));
+      brushMeshes.add(mesh);
       scene.add(
         MeshNode(
-            DeviceMesh.upload(device, _toMeshData(surface)),
+            mesh,
             LevelLoader.materialFrom(
               level.materials[surface.material] ?? LevelMaterial(),
               textures,
@@ -150,6 +155,7 @@ final class LevelLoader {
       issues: <LevelIssue>[...validator.validate(level), ...loadIssues],
       drawCallCount: surfaces.length,
       materialTextures: textures,
+      brushMeshes: brushMeshes,
     );
   }
 

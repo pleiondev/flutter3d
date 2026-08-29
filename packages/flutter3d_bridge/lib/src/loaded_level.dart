@@ -16,7 +16,9 @@ final class LoadedLevel {
     required this.issues,
     required this.drawCallCount,
     Map<String, TextureHandle?>? materialTextures,
-  }) : materialTextures = materialTextures ?? const <String, TextureHandle?>{};
+    List<DeviceMesh>? brushMeshes,
+  }) : materialTextures = materialTextures ?? const <String, TextureHandle?>{},
+       brushMeshes = brushMeshes ?? const <DeviceMesh>[];
 
   final Level level;
   final Scene scene;
@@ -34,4 +36,29 @@ final class LoadedLevel {
   /// Kept so anything built after the load — a door, a lift — can be given the
   /// same texture object rather than uploading a second copy of the same file.
   final Map<String, TextureHandle?> materialTextures;
+
+  /// Every mesh the loader uploaded for the level's own geometry.
+  ///
+  /// Recorded at build so [dispose] can give exactly these back — walking the
+  /// scene instead would also find meshes belonging to `SharedMeshes` and to
+  /// the models, whose owners release them themselves.
+  final List<DeviceMesh> brushMeshes;
+
+  /// Gives the level's own uploads — brush meshes and material maps — back to
+  /// [device].
+  ///
+  /// Call it when the level is over — `RunSession.close` is that moment — and
+  /// after the fixtures built on [materialTextures] are gone, because they
+  /// share these texture objects rather than copies. The same contract as
+  /// `SharedMeshes.dispose`: a no-op release on flutter_gpu, the one real
+  /// `gl.delete*` per resource on WebGL2.
+  void dispose(GraphicsDevice device) {
+    for (final mesh in brushMeshes) {
+      device.releaseGeometry(mesh.vertices);
+      device.releaseGeometry(mesh.indices);
+    }
+    for (final texture in materialTextures.values) {
+      if (texture != null) device.releaseTexture(texture);
+    }
+  }
 }

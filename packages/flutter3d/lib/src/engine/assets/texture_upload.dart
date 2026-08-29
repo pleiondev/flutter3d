@@ -76,7 +76,11 @@ Future<TextureHandle?> uploadEncodedImage(
       mipLevels: levels,
     );
   } finally {
+    // Both halves of the decode: the frame image, and the codec it came from.
+    // The codec is a native decoder instance, and leaking one per texture is
+    // exactly the kind of leak the image's own dispose was added to prevent.
     image.dispose();
+    codec.dispose();
   }
 }
 

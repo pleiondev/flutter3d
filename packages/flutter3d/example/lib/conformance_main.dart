@@ -54,7 +54,10 @@ class _ConformanceAppState extends State<ConformanceApp> {
     );
     // ignore: avoid_print
     print(log);
-    setState(() => _report = log.toString());
+    // Guarded: every check above awaited, and the page may be gone by now. The
+    // print and the exit code below still run either way — they are the point
+    // of this harness, the widget is only a courtesy.
+    if (mounted) setState(() => _report = log.toString());
 
     // **And then leave, with a verdict a script can read.**
     //

@@ -75,7 +75,15 @@ class _SpikePageState extends State<SpikePage>
   late final OrbitController _orbit;
   late final RenderView _view;
 
-  late final Ticker _ticker;
+  /// Nullable, because the backend may never open.
+  ///
+  /// It used to be `late final`, assigned only at the end of `_openScene` — and
+  /// `dispose` called it unconditionally. Tear the page down while the backend
+  /// was still opening, or after it had failed, and the
+  /// `LateInitializationError` thrown from `dispose` skipped every release
+  /// below it, `super.dispose()` included. The platformer's `_ticker` learned
+  /// the same lesson first.
+  Ticker? _ticker;
   Duration _elapsed = Duration.zero;
 
   /// Ref-counted cache, so returning to a source neither re-decodes nor
@@ -440,9 +448,22 @@ class _SpikePageState extends State<SpikePage>
   @override
   void dispose() {
     SchedulerBinding.instance.removeTimingsCallback(_onFrameTimings);
-    _ticker.dispose();
+    _ticker?.dispose();
     _held?.release();
-    _renderer?.dispose();
+    // The rest is keyed on the device, in dependency order: the cache, the
+    // checker texture and the renderer all hold objects the device owns, so
+    // the device goes last. One guard rather than one per field, because
+    // everything below the device in `_openScene` is assigned synchronously
+    // once it exists — a null device means none of those `late final`s were
+    // ever touched.
+    final device = _device;
+    if (device != null) {
+      _assets.clear();
+      final checker = _checkerAlbedo;
+      if (checker != null) device.releaseTexture(checker);
+      _renderer?.dispose();
+      device.dispose();
+    }
     super.dispose();
   }
 

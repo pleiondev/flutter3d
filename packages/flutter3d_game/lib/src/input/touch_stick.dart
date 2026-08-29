@@ -52,6 +52,16 @@ class _TouchStickState extends State<TouchStick> {
   }
 
   @override
+  void dispose() {
+    // Unmounted mid-push — settings opened over the stick, a level swapped
+    // out under it — is a normal path, and no pointer-up ever reaches a widget
+    // that is gone. The [InputState] is shared and outlives this stick, so the
+    // axis has to be zeroed here or the player keeps walking for good.
+    if (_pointer != null) widget.state.setStickAxis(0.0, 0.0);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final size = widget.radius * 2;
     return Listener(

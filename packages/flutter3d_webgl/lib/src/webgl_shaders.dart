@@ -85,9 +85,13 @@ final class WebGlShaderLibrary implements ShaderLibrary {
       // Loudly. A stage that failed to compile and came back null would look
       // exactly like a stage the bundle never had, and the two need different
       // fixes.
-      throw StateError(
-        'the "$name" shader did not compile:\n${_gl.getShaderInfoLog(shader)}',
-      );
+      //
+      // The info log is read before the shader is deleted, and deleted it must
+      // be: this throw escapes `putIfAbsent`, so the failure is never cached
+      // and every retry would otherwise leak one more GL shader.
+      final log = _gl.getShaderInfoLog(shader);
+      _gl.deleteShader(shader);
+      throw StateError('the "$name" shader did not compile:\n$log');
     }
     return ShaderHandle(backend: WebGlShader(shader, isVertex), name: name);
   }
@@ -135,9 +139,14 @@ final class WebGlShaderLibrary implements ShaderLibrary {
         _gl.getProgramParameter(program, web.WebGLRenderingContext.LINK_STATUS)!
             as JSBoolean;
     if (!linked.toDart) {
+      // The log first, the delete second, the throw last — the same discipline
+      // as a failed compile above: the throw escapes `putIfAbsent`, nothing
+      // caches the failure, and a retry would leak one GL program per attempt
+      // if this path kept the object.
+      final log = _gl.getProgramInfoLog(program);
+      _gl.deleteProgram(program);
       throw StateError(
-        'linking ${vertex.name} with ${fragment.name} failed:\n'
-        '${_gl.getProgramInfoLog(program)}',
+        'linking ${vertex.name} with ${fragment.name} failed:\n$log',
       );
     }
 
@@ -147,6 +156,31 @@ final class WebGlShaderLibrary implements ShaderLibrary {
       _reflectBlocks(program),
       _reflectSamplers(program),
     );
+  }
+
+  /// How many compiled shaders and linked programs are currently cached, for
+  /// tests. Falls to zero after [dispose]. The nulls in `_handles` — names the
+  /// sources never had — are cached answers, not GL objects, and do not count.
+  int get debugTrackedResourceCount =>
+      _programs.length + _handles.values.nonNulls.length;
+
+  /// Deletes every cached program and shader, and forgets them.
+  ///
+  /// GL shaders and programs are driver objects like any texture or buffer:
+  /// nothing collects them, so a library that compiled lazily and cached
+  /// forever leaked one of each per entry point for the life of the tab.
+  /// `WebGlDevice.dispose` calls this alongside its own teardown; the maps are
+  /// cleared so the count above falls to zero rather than naming objects the
+  /// driver no longer has.
+  void dispose() {
+    for (final program in _programs.values) {
+      _gl.deleteProgram(program.program);
+    }
+    _programs.clear();
+    for (final handle in _handles.values.nonNulls) {
+      _gl.deleteShader((handle.backend as WebGlShader).shader);
+    }
+    _handles.clear();
   }
 
   /// Vertex attributes, in location order.

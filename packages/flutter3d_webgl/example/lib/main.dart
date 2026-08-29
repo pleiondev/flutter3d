@@ -90,6 +90,17 @@ class _HarnessAppState extends State<HarnessApp> {
   Widget? _frame;
   bool _failed = false;
 
+  /// Held so [dispose] has somebody to hand the GL objects back to. The
+  /// harness only ever draws once, but a device that nothing disposes keeps
+  /// its textures, buffers and shaders in the driver for the life of the tab.
+  WebGlDevice? _device;
+
+  @override
+  void dispose() {
+    _device?.dispose();
+    super.dispose();
+  }
+
   void _say(String line) {
     _log.add(line);
     // ignore: avoid_print
@@ -127,6 +138,7 @@ class _HarnessAppState extends State<HarnessApp> {
       _check(false, 'WebGL2 context');
       return;
     }
+    _device = device;
     _check(true, 'WebGL2 context');
 
     // --- shaders and reflection -------------------------------------------

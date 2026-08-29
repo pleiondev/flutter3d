@@ -80,7 +80,14 @@ final class AudioCubit extends Cubit<AudioReady> {
     required bool Function() stillWanted,
   }) async {
     final speakers = await openSpeakers(bank: Sounds.all, mixer: scene.mixer);
-    if (speakers == null || !stillWanted()) return;
+    if (speakers == null) return;
+    if (!stillWanted()) {
+      // Nobody wants what just opened, and [close] will never see it — the
+      // backend has to go down here, or the engine it leaves initialized
+      // blocks the next open().
+      unawaited(speakers.backend.dispose());
+      return;
+    }
     _backend = speakers.backend;
     scene = speakers.scene;
     applyVolumes(config);

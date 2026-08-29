@@ -98,6 +98,14 @@ class GamepadPlugin :
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
+    // The same teardown onCancel does, because the engine can go while the
+    // stream is still listening — a hot restart never cancels it — and this
+    // object would otherwise stay registered with the InputManager and on the
+    // decor view for as long as the process lives. Both calls are no-ops when
+    // onCancel already ran.
+    inputManager?.unregisterInputDeviceListener(this)
+    detachMotionListener()
+    sink = null
     eventChannel?.setStreamHandler(null)
     eventChannel = null
     inputManager = null

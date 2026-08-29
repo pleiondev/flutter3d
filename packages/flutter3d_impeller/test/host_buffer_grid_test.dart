@@ -36,12 +36,19 @@ final class _Allocator {
 
   int offset = 0;
 
+  /// Times the overflow branch ran. In the real allocator every one of these
+  /// is a fresh block *appended to a list that `reset()` never trims* — the
+  /// leak `BlockCursor.crossed` exists to count. The oversized case above is
+  /// not one: that buffer is standalone and freed with its view.
+  int freshBlocks = 0;
+
   int place(int length) {
     if (length > blockLength) return 0; // its own block, cursor untouched
     var padding = alignment - (offset % alignment);
     padding %= alignment;
     if (offset + padding >= blockLength) {
       offset = length;
+      freshBlocks++;
       return 0; // a fresh block
     }
     offset += padding;
@@ -161,6 +168,42 @@ void main() {
         reason: 'a $size-byte write, rounded to $length, runs past $block',
       );
     }
+  });
+
+  test('and the cursor counts exactly the blocks the allocator appends', () {
+    // The other thing a crossing is: a leak. The overflow branch always
+    // allocates a fresh block and appends it to a list `reset()` never trims,
+    // so the backend throws a `HostBuffer` away once its cursor has counted a
+    // budget of them — which only works if the count is the allocator's own,
+    // write for write, oversized buffers excluded and resets survived.
+    const granule = 256;
+    final block = blockLengthFor(granule);
+    final allocator = _Allocator(blockLength: block, alignment: granule);
+    final cursor = BlockCursor(blockLength: block, granule: granule);
+
+    var size = 1;
+    for (var i = 0; i < 20000; i++) {
+      size = (size * 7919 + 13) % (block + 40000) + 1;
+      final length = roundedTo(size, granule);
+      final filler = cursor.fillerBefore(length);
+      if (filler > 0) allocator.place(filler);
+      cursor.took(length);
+      allocator.place(length);
+    }
+
+    expect(cursor.crossed, allocator.freshBlocks);
+    expect(cursor.crossed, greaterThan(0), reason: 'the test drove nothing');
+
+    final counted = cursor.crossed;
+    cursor.reset();
+    expect(cursor.used, 0);
+    expect(
+      cursor.crossed,
+      counted,
+      reason:
+          'reset forgot the crossings — but the blocks they count '
+          'survive the allocator’s reset, so the count must too',
+    );
   });
 
   test('padding leaves the bytes that were there', () {

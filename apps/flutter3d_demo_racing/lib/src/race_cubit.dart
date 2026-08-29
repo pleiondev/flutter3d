@@ -145,4 +145,14 @@ final class RaceCubit extends Cubit<RaceStatus> {
   void failed(Object error) => progress.failed(error);
   Circuit? finish() => progress.finish();
   void moveOn(Circuit next) => progress.moveOn(next);
+
+  @override
+  Future<void> close() {
+    // Unhooked before the stream closes: a circuit load still in flight
+    // reports through [RaceProgress.onChanged] when it lands, and that report
+    // would otherwise be an emit into a closed cubit — a `StateError` over
+    // whatever the screen was being torn down for.
+    progress.onChanged = null;
+    return super.close();
+  }
 }

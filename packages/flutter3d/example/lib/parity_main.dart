@@ -38,8 +38,14 @@ class _ParityAppState extends State<ParityApp> {
   }
 
   Future<void> _run() async {
+    // Declared outside the try so the error path can release them too: a
+    // failure halfway through the fixtures used to leak the device and the
+    // renderer, and this is exactly the app one runs over and over while
+    // chasing a backend difference.
+    GraphicsDevice? device;
+    Renderer? renderer;
     try {
-      final device = await GpuRenderBackend.create();
+      device = await GpuRenderBackend.create();
       final white = device.createTextureFromPixels(
         width: 1,
         height: 1,
@@ -52,7 +58,7 @@ class _ParityAppState extends State<ParityApp> {
         format: TextureFormat.r8g8b8a8UNormInt,
         pixels: _texel(128, 128, 255),
       )!;
-      final renderer = Renderer.create(
+      renderer = Renderer.create(
         device: device,
         fallbackAlbedo: white,
         fallbackNormal: flat,
@@ -94,12 +100,18 @@ class _ParityAppState extends State<ParityApp> {
       }
       // ignore: avoid_print
       print(buffer);
-      setState(() => _report = buffer.toString());
-      renderer.dispose();
+      // Guarded: everything above awaited, and a report for a page that has
+      // since been torn down has nowhere to go.
+      if (mounted) setState(() => _report = buffer.toString());
     } catch (error, stack) {
       // ignore: avoid_print
       print('$error\n$stack');
-      setState(() => _report = '$error');
+      if (mounted) setState(() => _report = '$error');
+    } finally {
+      // The renderer holds objects the device owns — the fallbacks above
+      // among them — so it goes first.
+      renderer?.dispose();
+      device?.dispose();
     }
   }
 

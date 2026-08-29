@@ -81,7 +81,9 @@ final class WebGlEncoder implements CommandEncoder {
     // engine. The status word is worth more than the discovery.
     final status = _device.debugFramebufferStatus();
     if (status != 'complete') {
-      throw StateError(
+      // Through [_fail], so the framebuffer made a few lines up does not
+      // outlive the constructor that could never hand it to anybody.
+      _fail(
         'render pass target is not drawable: $status. '
         '${descriptor.colors.length} colour attachment(s)'
         '${descriptor.depth != null ? ' and a depth attachment' : ''}. '
@@ -149,7 +151,11 @@ final class WebGlEncoder implements CommandEncoder {
 
   final WebGlDevice _device;
   final web.WebGL2RenderingContext _gl;
-  late final web.WebGLFramebuffer? _framebuffer;
+
+  /// The pass's own framebuffer, or null once [_release] has deleted it.
+  /// Null is what lets [submit] tell a live pass from one already torn down —
+  /// by an earlier submit, or by [_fail] on the way out.
+  web.WebGLFramebuffer? _framebuffer;
 
   /// The attachment's height, for turning top-left rectangles into GL's
   /// bottom-left ones. See [_flipY].
@@ -206,7 +212,7 @@ final class WebGlEncoder implements CommandEncoder {
   @override
   void setPolygonMode(PolygonMode mode) {
     if (canDrawPolygonMode(mode)) return;
-    throw UnsupportedError(
+    _fail(
       'WebGL2 cannot draw PolygonMode.line: OpenGL ES has no glPolygonMode. '
       'Wireframe needs line primitives and an index buffer to match, which is '
       'a decision for the renderer.',
@@ -330,7 +336,7 @@ final class WebGlEncoder implements CommandEncoder {
   void _describeVertices(int slot) {
     final program = _program;
     if (program == null) {
-      throw StateError(
+      _fail(
         'bind a pipeline before binding vertices: the vertex '
         'layout comes from the shader, so there is nothing to describe '
         'against yet',
@@ -340,7 +346,7 @@ final class WebGlEncoder implements CommandEncoder {
     final layout = program.layout;
     if (layout == null) {
       if (slot != 0) {
-        throw StateError(
+        _fail(
           'slot $slot was bound on a pipeline built without a layout. Which '
           'buffer an attribute comes from is exactly what a layout says, and '
           'reflection cannot answer it — build the pipeline with a '
@@ -366,12 +372,9 @@ final class WebGlEncoder implements CommandEncoder {
     }
 
     if (slot < 0 || slot >= layout.buffers.length) {
-      throw RangeError.range(
-        slot,
-        0,
-        layout.buffers.length - 1,
-        'slot',
-        'the pipeline\'s layout describes ${layout.buffers.length} buffers',
+      _fail(
+        'slot $slot is out of range: the pipeline\'s layout describes '
+        '${layout.buffers.length} buffer(s)',
       );
     }
     final buffer = layout.buffers[slot];
@@ -461,14 +464,14 @@ final class WebGlEncoder implements CommandEncoder {
         // the contract allows: a compiler drops a whole block nothing reads.
         // Having the block and not the member means the two ends disagree about
         // its shape, and that is worth stopping for.
-        throw StateError(
+        _fail(
           'uniform block "$blockName" has no member "$name". It has: '
           '${block.offsets.keys.join(', ')}. The engine and the shader '
           'disagree about this block.',
         );
       }
       if (offset ~/ 4 + values.length > data.length) {
-        throw StateError(
+        _fail(
           'uniform block "$blockName" member "$name" wants '
           '${values.length} floats at offset ${offset ~/ 4}, past the block\'s '
           '${data.length}. std140 pads array elements to sixteen bytes; a '
@@ -616,6 +619,16 @@ final class WebGlEncoder implements CommandEncoder {
 
   @override
   void submit() {
+    if (_framebuffer == null) {
+      // Refused rather than repeated. A second submit would re-run the
+      // resolve blits below against a framebuffer the first one deleted —
+      // reads from nothing, silently — so a pass already torn down, by an
+      // earlier submit or by [_fail], says so out loud.
+      throw StateError(
+        'this pass was already submitted, or failed and was cleaned up: '
+        'a WebGlEncoder is one pass, not a reusable object',
+      );
+    }
     // Resolve any multisampled attachment into the texture that was named for
     // it. On flutter_gpu this is `StoreAction.multisampleResolve` and the
     // driver does it at pass end; here it is an explicit blit, which is the
@@ -652,13 +665,37 @@ final class WebGlEncoder implements CommandEncoder {
       _gl.deleteFramebuffer(target);
     }
 
+    _release();
+  }
+
+  /// Deletes what this pass created and nothing else will: the framebuffer
+  /// and every transient and uniform buffer. The lists are cleared and the
+  /// framebuffer nulled so a second run deletes nothing twice — that null is
+  /// also how [submit] recognises a pass already torn down.
+  void _release() {
     for (final buffer in _transient) {
       _gl.deleteBuffer(buffer);
     }
+    _transient.clear();
     for (final buffer in _uniformBuffers) {
       _gl.deleteBuffer(buffer);
     }
+    _uniformBuffers.clear();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, null);
     _gl.deleteFramebuffer(_framebuffer);
+    _framebuffer = null;
+  }
+
+  /// Tears the pass down, then throws.
+  ///
+  /// Every throw out of an encoder ends the pass — nothing resumes one — but
+  /// until this existed the error paths kept what only [submit] deleted, so a
+  /// pass that failed leaked its framebuffer and every transient buffer it had
+  /// made, once per retry. Routing the encoder's own throw sites through here
+  /// makes the cleanup a property of failing rather than a thing each site
+  /// remembers.
+  Never _fail(String message) {
+    _release();
+    throw StateError(message);
   }
 }

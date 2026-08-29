@@ -212,8 +212,13 @@ final class FixtureVisuals {
 
   /// Puts a modelled fixture in the scene once its file has been read.
   Future<void> _addModel(Fixture fixture, String path) async {
+    final generation = _generation;
     final asset = await _models.putIfAbsent(path, () => _load(path));
-    if (asset == null) return;
+    // The level changed while the file was being read. The same race
+    // `ActorVisuals._dress` guards against, met here later: a torch's model
+    // arriving after `dispose` instantiated into a scene nobody draws and put
+    // a row back in a list that had just been cleared.
+    if (asset == null || generation != _generation) return;
 
     final instance = asset.instantiate(scene);
 
@@ -331,10 +336,15 @@ final class FixtureVisuals {
   /// outliving the level that owns it is a leak nobody notices" — and there
   /// was no way to say the level was over. `RunSession.close` is that moment.
   ///
-  /// The decoded models are deliberately kept: a `ModelAsset` is shared
-  /// between levels through a cache keyed by path, and freeing one here would
-  /// take it out from under the next level that wants the same torch.
+  /// **The decoded models used to be deliberately kept**, on the claim that a
+  /// `ModelAsset` was shared between levels through a cache keyed by path.
+  /// There is no such cache — [_models] is this instance's own and dies with
+  /// it — so keeping the entries only stranded the uploads, which is exactly
+  /// the leak the cache's own doc warns about. Released through the future
+  /// rather than its value, so a model still being read is released the
+  /// moment it arrives; the generation bump keeps it out of the scene.
   void dispose() {
+    _generation++;
     for (final piece in _pieces) {
       piece.node.removeFromParent();
     }
@@ -344,8 +354,15 @@ final class FixtureVisuals {
     _glowing.clear();
     _flames.clear();
     _baseGlow.clear();
+    for (final pending in _models.values) {
+      unawaited(pending.then((asset) => asset?.release(device)));
+    }
+    _models.clear();
     meshes.dispose();
   }
+
+  /// Bumped by [dispose], so a model that arrives late can tell.
+  int _generation = 0;
 }
 
 final class _Piece {

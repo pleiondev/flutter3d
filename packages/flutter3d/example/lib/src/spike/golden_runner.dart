@@ -198,13 +198,21 @@ final class GoldenRunner {
   Future<Uint8List> _decode(Uint8List png) async {
     final codec = await ui.instantiateImageCodec(png);
     final frame = await codec.getNextFrame();
-    final data = await frame.image.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    );
-    if (data == null) {
-      throw StateError('the reference image decoded to nothing');
+    try {
+      final data = await frame.image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      );
+      if (data == null) {
+        throw StateError('the reference image decoded to nothing');
+      }
+      return data.buffer.asUint8List();
+    } finally {
+      // The image and its codec are native objects, disposed the way png.dart
+      // in this tree does it. A golden run only decodes one reference per
+      // scene, but there is no reason to leak even that.
+      frame.image.dispose();
+      codec.dispose();
     }
-    return data.buffer.asUint8List();
   }
 
   _Comparison _compare(Uint8List expected, Uint8List actual) {
