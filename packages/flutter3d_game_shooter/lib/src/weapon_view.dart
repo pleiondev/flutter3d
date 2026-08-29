@@ -72,6 +72,11 @@ final class WeaponView {
       far: 10.0,
     );
 
+    // At rest from the first frame. The holder is only positioned by [step],
+    // and a frame drawn before the first simulation step — the frame every
+    // start shows — otherwise draws the weapon at the origin, inside the
+    // camera: an unlit shape filling the middle of the screen.
+    _holder.setPosition(_restPosition.x, _restPosition.y, _restPosition.z);
     _scene.add(_holder);
     for (final entry in models.entries) {
       _byWeapon[entry.key] = entry.value..visible = false;

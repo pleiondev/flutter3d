@@ -37,24 +37,19 @@ final class ViewModelNode extends RenderNode {
   @override
   List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
 
-  /// The point-light atlases, because a weapon held in a shadowed room is in
-  /// shadow, and this pass draws through the same mesh encoder as the world.
+  /// No shadow maps, directional or point. This scene is lit by its own
+  /// lights — `encodeScene` gathers them from the scene it is handed — and
+  /// the world's atlases were assigned to the world's lights, so its slot
+  /// rows mean nothing here and the encoder binds the no-shadow table for
+  /// any scene that is not the frame's own.
   ///
-  /// Undeclared until now, and it still worked — which is precisely the
-  /// problem. The encoder reached into a renderer field for the atlas, so this
-  /// node sampled a resource it had never asked for, was never ordered against
-  /// its producer, and would have kept "working" if that producer had moved.
-  /// Optional rather than hard for the reason the scene's are: a hard read
-  /// would take the weapon off the screen the moment shadows were switched off.
-  ///
-  /// The directional map is deliberately absent. A view model is drawn with its
-  /// own camera and its own near volume, and the world's shadow matrix would
-  /// shadow it with things it is nowhere near.
+  /// An earlier revision declared the point atlases, reasoning that a weapon
+  /// held in a shadowed room is in shadow. It never was: the same mismatch
+  /// that kept the studio's lights unbound made those reads index the wrong
+  /// scene's rows, and a weapon lit by its own studio has nothing for a
+  /// torch's atlas to occlude.
   @override
-  List<ResourceId> get optionalReads => const <ResourceId>[
-    FrameResourceIds.cubeShadow,
-    FrameResourceIds.cubeShadowStatic,
-  ];
+  List<ResourceId> get optionalReads => const <ResourceId>[];
 
   @override
   List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
