@@ -23,25 +23,25 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d_impeller: { path: ../flutter3d/packages/flutter3d_impeller }
-  flutter3d:          { path: ../flutter3d/packages/flutter3d }
-  flutter3d_game:     { path: ../flutter3d/packages/flutter3d_game }
-  flutter3d_game_shooter:  { path: ../flutter3d/packages/flutter3d_game_shooter }
-  flutter3d_bridge:   { path: ../flutter3d/packages/flutter3d_bridge }
-  flutter3d_audio:    { path: ../flutter3d/packages/flutter3d_audio }
-  flutter3d_particles:{ path: ../flutter3d/packages/flutter3d_particles }
+  flutter3d_impeller: ^0.4.0
+  flutter3d:          ^0.4.0
+  flutter3d_game:     ^0.4.0
+  flutter3d_game_shooter:  ^0.4.0
+  flutter3d_bridge:   ^0.4.0
+  flutter3d_audio:    ^0.4.0
+  flutter3d_particles:^0.4.0
   vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test: { sdk: flutter }
   # Only the tests use it, and only to draw a frame without a GPU.
-  flutter3d_cpu: { path: ../flutter3d/packages/flutter3d_cpu }
+  flutter3d_cpu: ^0.4.0
 ```
 
 Set `FLTEnableFlutterGPU` and `FLTEnableImpeller` in `macos/Runner/Info.plist`, and build the shader bundle. Both are covered in the [quickstart](/quickstart/).
 
 <div class="warn">
-<p>The <code>path:</code> lines assume the flutter3d checkout is a sibling of this project. None of these packages is published, so those lines are true on the machine that wrote them and nowhere else; moving the project or the checkout means fixing them. <a href="/first-project/">Your first project</a> covers this and the deployment-target trap beside it.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Working against a checkout instead — for engine changes of your own — means swapping each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the deployment-target trap that lives beside the pubspec.</p>
 </div>
 
 ## Decide what a weapon is {.step}

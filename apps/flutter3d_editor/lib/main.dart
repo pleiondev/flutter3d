@@ -416,7 +416,6 @@ class _EditorScreenState extends State<EditorScreen>
               'assets/templates/${template.id}/$name',
             )).buffer.asUint8List(),
         },
-        packagesAt: _packagesAt() ?? '../../packages',
       );
 
       for (final entry in project.entries) {
@@ -433,21 +432,6 @@ class _EditorScreenState extends State<EditorScreen>
     } catch (error) {
       if (mounted) _cubit.choosingSaid('could not create it: $error');
     }
-  }
-
-  /// Where this checkout keeps its packages, for a new project to point at.
-  ///
-  /// The same climb `Documents` does, looking for the one directory a project's
-  /// path dependencies have to name. Null when the editor is running somewhere
-  /// that is not a checkout, and then the project says so in its own pubspec
-  /// rather than pretending.
-  static String? _packagesAt() {
-    for (final directory in Documents.searchFrom()) {
-      if (Directory('$directory/packages/flutter3d').existsSync()) {
-        return '$directory/packages';
-      }
-    }
-    return null;
   }
 
   /// Reads the game's own `editor.json`, if it keeps one.

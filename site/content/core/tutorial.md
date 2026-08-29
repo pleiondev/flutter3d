@@ -29,12 +29,9 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter3d:
-    path: ../flutter3d/packages/flutter3d
-  flutter3d_impeller:
-    path: ../flutter3d/packages/flutter3d_impeller
-  flutter3d_particles:
-    path: ../flutter3d/packages/flutter3d_particles
+  flutter3d: ^0.4.0
+  flutter3d_impeller: ^0.4.0
+  flutter3d_particles: ^0.4.0
 
   vector_math: ^2.2.0
 
