@@ -1,3 +1,11 @@
+## 0.4.0
+
+* The weapon holder sits at its rest position from construction rather than
+  from the first simulation step, so the frame every start shows no longer
+  draws the weapon at the origin, inside the camera. The light it is drawn
+  under is the renderer's fix — the studio's own lights are uploaded now —
+  and `weapon_view_light_test.dart` holds both.
+
 ## 0.3.0
 
 * `ShooterPhases` names the points inside the step a game can hang its own

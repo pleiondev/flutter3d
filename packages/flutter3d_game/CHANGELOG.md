@@ -1,3 +1,11 @@
+## 0.4.0
+
+* **A touch control lets go when it leaves.** The button and the stick press
+  into a shared `InputState`, and unmounting while pressed is a normal path —
+  settings opening over the control, a level transition. Each now releases its
+  held action or zeroes its axis in `dispose` instead of leaving the runner
+  jumping into the next screen.
+
 ## 0.3.0
 
 * **`Playing` no longer asks `kIsWeb`,** and both answers it used to give about a

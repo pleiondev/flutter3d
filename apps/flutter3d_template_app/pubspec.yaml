@@ -1,7 +1,7 @@
 name: flutter3d_template_app
 description: "The application a new project starts as: a level you can walk around."
 publish_to: 'none'
-version: 0.3.0+1
+version: 0.4.0+1
 resolution: workspace
 
 environment:

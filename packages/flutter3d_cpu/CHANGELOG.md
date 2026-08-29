@@ -1,3 +1,11 @@
+## 0.4.0
+
+* **`CpuFrame` disposes its images.** It had no `dispose` at all — one leaked
+  `ui.Image` per presented frame — and two in-flight decodes could finish out
+  of order. The previous image is disposed when a new one lands, the fresh one
+  when the widget is already gone, and a sequence number keeps a stale frame
+  from overwriting a newer one.
+
 ## 0.3.0
 
 * The composite pass mirrors the grading, vignette, grain and dispersion the

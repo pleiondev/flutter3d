@@ -1,3 +1,9 @@
+## 0.4.0
+
+* No changes of its own beyond a doc comment following `gripLimit` to its new
+  name; the version moves with the workspace, whose sibling constraints name
+  a single release.
+
 ## 0.3.0
 
 * **A parked car stays parked.** `SphereVehicle` had no resistance to rolling

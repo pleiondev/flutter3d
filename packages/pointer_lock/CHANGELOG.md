@@ -1,3 +1,9 @@
+## 0.4.0
+
+* The example stores its state subscription and cancels it in `dispose`,
+  rather than calling `setState` from a listener that outlived the widget.
+  The plugin itself was already symmetric on every path.
+
 ## 0.3.0
 
 * **A web backend.** `document.requestPointerLock` through static interop,

@@ -1,3 +1,11 @@
+## 0.4.0
+
+* **A loan that outlives a `trim` goes back to the allocator.** It used to be
+  refiled under its retired pre-resize spec on release, where no acquire would
+  ever match it — parked until the next trim. The pool now hands it straight
+  back, keeps the throw-on-double-release contract, and has tests for the
+  whole shape.
+
 ## 0.3.0
 
 * `createCubeTextureFromPixels` takes mip levels, which is what image-based

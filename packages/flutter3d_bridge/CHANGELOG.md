@@ -1,3 +1,14 @@
+## 0.4.0
+
+* **A level change releases what the level built.** Both visuals classes kept
+  their models on a comment naming a shared cache that has never existed; they
+  now release them through the future, so a model that finishes reading after
+  its level ended is released the moment it arrives. `LoadedLevel` remembers
+  the brush meshes the loader uploaded and gained `dispose` to give them and
+  the material maps back — `RunSession.close` is the moment both are written
+  for. `FixtureVisuals` got the generation guard its sibling already had, so
+  a late model no longer instantiates into a torn-down scene.
+
 ## 0.3.0
 
 * **A light fixture no longer casts a shadow into its own light.** Every torch

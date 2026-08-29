@@ -1,3 +1,16 @@
+## 0.4.0
+
+* **Shaders and programs are deleted at last.** The library gained `dispose`
+  — every cached stage and every linked program — wired into the device's own,
+  and counted by `debugTrackedResourceCount`; a failed compile or link deletes
+  its object before throwing instead of leaking one per retry.
+* Disposing the device loses the GL context and removes the canvas from the
+  DOM (the platform-view registry still pins the element; it has no
+  unregister). The encoder cleans up its framebuffer and every transient and
+  uniform buffer on any failure path, and a second `submit` is a `StateError`
+  rather than resolve blits against a deleted framebuffer. `_blitToCanvas` no
+  longer leaks a framebuffer per frame when the frame is unreadable.
+
 ## 0.3.0
 
 * Regenerated against the current sources, including the environment sampling
