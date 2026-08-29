@@ -60,7 +60,25 @@ final class SoLoudBackend implements AudioBackend {
   /// somebody eventually calls the wrong one.
   Future<void> open() async {
     if (_soloud.isInitialized) return;
-    await _soloud.init();
+    // The web module races the app. flutter_soloud's two script tags are
+    // loaded with `defer`, the wasm behind them initialises after `main` is
+    // already running, and an `init` called in that gap throws reading
+    // `_isInited` off a module that is not there yet — which every demo on
+    // the site did, on every load, and it looked exactly like a game with no
+    // sound. The gap measured under a second on the deployed demos, so a
+    // patient loop covers it; a genuinely broken engine still surfaces,
+    // because the last attempt rethrows into the caller's own
+    // fallback-to-silence.
+    const attempts = 20;
+    for (var attempt = 1; ; attempt++) {
+      try {
+        await _soloud.init();
+        return;
+      } catch (_) {
+        if (attempt == attempts) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+    }
   }
 
   /// Frees the sources and shuts the engine down.

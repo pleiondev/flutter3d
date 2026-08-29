@@ -1,6 +1,6 @@
 # site
 
-The documentation site for this engine, at **https://flutter3d.pleion.dev/** (basic auth).
+The documentation site for this engine, at **https://flutter3d.pleion.dev/**.
 
 Thirty pages of Markdown, a 250-line build script, and no framework. Every page
 is a file on disk, which is what makes it serveable by nginx with `try_files`
@@ -78,7 +78,8 @@ the published page loads nothing from a CDN.
 
 - **Files** — `bob:/opt/flutter3d`, owned by `www-data`
 - **nginx** — `/etc/nginx/sites-available/flutter3d.pleion.dev`, listening on `127.0.0.1:8790`
-- **Basic auth** — `/etc/nginx/.htpasswd-flutter3d`
+- **Headers** — COOP/COEP site-wide (the demos' audio and skwasm threads need
+  `SharedArrayBuffer`) and `.mjs → text/javascript`, both set in the vhost
 - **Tunnel** — `cloudflared-flutter3d.service`, config at `/etc/cloudflared/flutter3d.yml`
 
 Cloudflare terminates TLS, so nginx serves plain HTTP on a loopback port and is
