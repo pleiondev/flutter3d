@@ -9,7 +9,6 @@ topics:
   - collision
   - simulation
   - game-development
-publish_to: 'none'
 resolution: workspace
 
 environment:

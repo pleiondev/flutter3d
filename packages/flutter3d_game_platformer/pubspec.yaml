@@ -9,7 +9,6 @@ topics:
   - game-engine
   - platformer
   - gameplay
-publish_to: 'none'
 resolution: workspace
 
 environment:

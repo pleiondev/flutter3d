@@ -9,7 +9,6 @@ topics:
   - game-engine
   - racing
   - gameplay
-publish_to: 'none'
 resolution: workspace
 
 environment:
