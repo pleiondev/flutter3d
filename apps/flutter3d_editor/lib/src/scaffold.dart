@@ -89,14 +89,10 @@ String packageName(String typed) {
 /// Lays a new project out: every file, as bytes, against the path it goes to.
 ///
 /// [sources] is the template's own files, by the names its manifest uses.
-/// [packagesAt] is where this repository's packages are on this machine — a
-/// path, because they are not published and a new project has to point at the
-/// checkout it was made from.
 Map<String, Uint8List> scaffold({
   required Template template,
   required String project,
   required Map<String, Uint8List> sources,
-  required String packagesAt,
 }) {
   final name = packageName(project);
   final out = <String, Uint8List>{};
@@ -114,7 +110,7 @@ Map<String, Uint8List> scaffold({
         : bytes;
   }
 
-  out['pubspec.yaml'] = _bytes(pubspecFor(name, packagesAt));
+  out['pubspec.yaml'] = _bytes(pubspecFor(name));
   out['README.md'] = _bytes(readmeFor(name, template));
   // The test arrives with the rest of the template — see `app.test.dart.txt`
   // in the index, and `apps/flutter3d_template_app/test/widget_test.dart`, which is the

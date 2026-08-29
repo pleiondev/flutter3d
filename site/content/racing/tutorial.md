@@ -22,17 +22,17 @@ Twelve steps. The engine underneath is the one the [shooter](/shooter/tutorial/)
 dependencies:
   flutter: { sdk: flutter }
 
-  flutter3d_impeller: { path: ../flutter3d/packages/flutter3d_impeller }
-  flutter3d:          { path: ../flutter3d/packages/flutter3d }
-  flutter3d_game:     { path: ../flutter3d/packages/flutter3d_game }
-  flutter3d_game_racing:   { path: ../flutter3d/packages/flutter3d_game_racing }
-  flutter3d_bridge:   { path: ../flutter3d/packages/flutter3d_bridge }
-  flutter3d_audio:    { path: ../flutter3d/packages/flutter3d_audio }
+  flutter3d_impeller: ^0.4.0
+  flutter3d:          ^0.4.0
+  flutter3d_game:     ^0.4.0
+  flutter3d_game_racing:   ^0.4.0
+  flutter3d_bridge:   ^0.4.0
+  flutter3d_audio:    ^0.4.0
   vector_math: ^2.2.0
 ```
 
 <div class="warn">
-<p>The packages are unpublished, so the pubspec points at a sibling checkout by <strong>path</strong>: those lines are true on the machine that made the project and nowhere else, and moving either the project or the checkout means fixing them. <a href="/first-project/">Your first project</a> covers this and the Flutter version that goes with it.</p>
+<p>The versions come from <a href="https://pub.dev/publishers/pleion.dev/packages">pub.dev</a>. Working against a checkout instead — for engine changes of your own — means swapping each line for a <code>path:</code> into it. <a href="/first-project/">Your first project</a> covers the Flutter version that goes with the pubspec.</p>
 </div>
 
 No `flutter3d_game_shooter` and no `flutter3d_game_platformer`. A genre is a package, and this one inherits nothing from either.
