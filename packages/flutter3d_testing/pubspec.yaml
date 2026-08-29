@@ -3,7 +3,6 @@ description: >-
   Renders a flutter3d scene with no GPU and compares it against a reference
   image, so a game gets pixel regression tests on a machine with no display.
 version: 0.4.0
-publish_to: 'none'
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
