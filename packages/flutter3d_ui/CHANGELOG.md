@@ -1,3 +1,10 @@
+## 0.4.0
+
+* Opening the settings from the gamepad's menu button now runs the same
+  `opening` callback the Escape key and the gear button already ran — the one
+  that clears the input, so a control held on the way into the panel does not
+  stay held under it.
+
 ## 0.3.0
 
 * No changes of its own. The workspace is released as a set, in the order

@@ -1,6 +1,6 @@
 name: flutter3d
 description: "A 3D engine on Flutter GPU: scene graph, glTF/OBJ/.f3d loading, PBR, shadows, bloom, skinning."
-version: 0.3.0
+version: 0.4.0
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -24,7 +24,7 @@ dependencies:
   # backend: `flutter3d` names no graphics API at all, which is what lets an
   # application choose one — `flutter3d_impeller` today — and what would let a WebGL
   # backend exist without touching the engine.
-  flutter3d_hardware: ^0.3.0
+  flutter3d_hardware: ^0.4.0
 
   vector_math: ^2.2.0
 
@@ -37,7 +37,7 @@ dev_dependencies:
   # The Khronos test models, which every decoder test reads from disk. A dev
   # dependency and not a real one: an application that draws a scene needs the
   # decoders and not the fixtures they were checked with.
-  flutter3d_samples: ^0.3.0
+  flutter3d_samples: ^0.4.0
 
 # **This package declares no assets, and that is a decision worth the paragraph.**
 #
