@@ -1,8 +1,12 @@
 ## 0.4.0
 
-* No changes of its own; the version moves with the workspace, whose sibling
-  constraints name a single release. The README's closing section now says
-  what the engine around this package is.
+* **`SoLoudBackend.open` waits out the web module.** flutter_soloud's wasm
+  initialises after `main` is already running, and an `init` called in that
+  gap throws — which, on the web, looked exactly like a game with no sound.
+  `open` now retries for up to five seconds before rethrowing into the
+  caller's fallback-to-silence. The other half of web audio is the
+  application's: two script tags in `index.html` and cross-origin isolation
+  headers, which the template app now carries.
 
 ## 0.3.0
 
