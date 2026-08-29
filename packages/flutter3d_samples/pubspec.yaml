@@ -12,7 +12,6 @@ topics:
   - gltf
   - assets
   - testing
-publish_to: 'none'
 resolution: workspace
 
 # **A package of fixtures, and it is here because of what it costs anywhere

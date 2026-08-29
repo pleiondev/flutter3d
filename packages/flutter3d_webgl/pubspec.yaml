@@ -10,7 +10,6 @@ topics:
   - gpu
   - rendering
   - web
-publish_to: 'none'
 resolution: workspace
 
 # Depends on the HAL and on nothing else of ours — in particular **not** on

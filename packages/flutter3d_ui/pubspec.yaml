@@ -1,7 +1,6 @@
 name: flutter3d_ui
 description: "The screens a game has that are not the game: settings, volumes, rebinding, credits — the parts a player uses before and after playing."
 version: 0.4.0
-publish_to: 'none'
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev

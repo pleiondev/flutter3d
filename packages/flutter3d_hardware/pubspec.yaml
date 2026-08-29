@@ -9,7 +9,6 @@ topics:
   - gpu
   - rendering
   - abstraction
-publish_to: 'none'
 resolution: workspace
 
 # Its own package, and that is the whole point of it. A backend implements this

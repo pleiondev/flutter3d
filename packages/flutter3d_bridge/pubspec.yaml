@@ -8,7 +8,6 @@ topics:
   - game-development
   - game-engine
   - rendering
-publish_to: 'none'
 resolution: workspace
 
 environment:

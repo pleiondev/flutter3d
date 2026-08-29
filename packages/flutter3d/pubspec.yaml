@@ -10,7 +10,6 @@ topics:
   - rendering
   - gpu
   - flutter-gpu
-publish_to: 'none'
 resolution: workspace
 
 environment:

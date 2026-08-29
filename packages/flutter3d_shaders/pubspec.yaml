@@ -9,7 +9,6 @@ topics:
   - glsl
   - graphics
   - gpu
-publish_to: 'none'
 
 # Almost no Dart: one list, and the reason it is here rather than nowhere is
 # that a backend has to be checkable against it. This package is source text —

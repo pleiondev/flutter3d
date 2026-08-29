@@ -9,7 +9,6 @@ topics:
   - game-engine
   - shooter
   - gameplay
-publish_to: 'none'
 resolution: workspace
 
 environment:
