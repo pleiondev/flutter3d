@@ -1239,13 +1239,19 @@ List<Finding> _versionsAgree() {
       ).firstMatch(text);
       if (match == null) continue;
       final asked = match.group(1)!;
-      if (asked != sibling.value) {
+      // Caret-compatible rather than equal, since a patch release moved one
+      // package ahead of the set: `^0.4.0` genuinely covers a sibling that
+      // declares 0.4.1, and demanding equality would force every dependent to
+      // chase a constraint pub already satisfies. What this still catches is
+      // the real failure — a caret that cannot reach what the sibling
+      // declares, which a workspace hides and a server would refuse.
+      if (!_caretCovers(asked, sibling.value)) {
         found.add(
           Finding(
             where,
-            'asks for ${sibling.key} ^$asked, which declares ${sibling.value}. '
-            'A workspace resolves that from the checkout whatever it says; a '
-            'server would not',
+            'asks for ${sibling.key} ^$asked, which declares ${sibling.value} '
+            'and is outside that range. A workspace resolves it from the '
+            'checkout whatever it says; a server would not',
           ),
         );
       }
@@ -1253,6 +1259,30 @@ List<Finding> _versionsAgree() {
   }
 
   return found;
+}
+
+/// Whether `^asked` admits [declared], by pub's caret rule: below 1.0.0 the
+/// minor is the breaking number, so `^0.4.0` reaches 0.4.x and stops at 0.5;
+/// from 1.0.0 the major is, so `^1.2.0` reaches 1.x from 1.2 up.
+bool _caretCovers(String asked, String declared) {
+  List<int>? parts(String version) {
+    final match = RegExp(r'^(\d+)\.(\d+)\.(\d+)').firstMatch(version);
+    if (match == null) return null;
+    return <int>[for (var i = 1; i <= 3; i++) int.parse(match.group(i)!)];
+  }
+
+  final a = parts(asked);
+  final d = parts(declared);
+  if (a == null || d == null) return asked == declared;
+
+  final sameFloor = a[0] == 0
+      ? d[0] == 0 && d[1] == a[1]
+      : d[0] == a[0];
+  if (!sameFloor) return false;
+  for (var i = 0; i < 3; i++) {
+    if (d[i] != a[i]) return d[i] > a[i];
+  }
+  return true;
 }
 
 /// The value of a one-line `key: value` under `environment:` or at the top

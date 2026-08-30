@@ -1,3 +1,15 @@
+## 0.4.1
+
+* **Phones render.** The MSAA sample count is now proven at `create()` rather
+  than assumed: desktop GL happily multisamples a half-float renderbuffer and
+  mobile GLES very often refuses, and the refusal was not an answer at create
+  time but a `GL_INVALID_OPERATION` out of `renderbufferStorageMultisample` on
+  every frame — a white screen on every phone. Proven by a real one-pixel
+  allocation checked with `getError`, not by asking: the Android emulator's GL
+  translator advertises the capability and then errors on the allocation
+  anyway. Where the driver refuses, the renderer takes its ordinary
+  single-sample path and the picture arrives, aliased and alive.
+
 ## 0.4.0
 
 * **Shaders and programs are deleted at last.** The library gained `dispose`
