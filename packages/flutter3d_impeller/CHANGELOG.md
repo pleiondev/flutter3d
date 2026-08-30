@@ -1,3 +1,9 @@
+## 0.4.3
+
+* The pubspec declares its platforms instead of leaving them to pub.dev's
+  detector: every native platform — Android, iOS, macOS, Windows, Linux —
+  and deliberately not the web, which is what `flutter3d_webgl` exists for.
+
 ## 0.4.2
 
 * **The package actually ships its shaders this time.** 0.4.1 claimed this
