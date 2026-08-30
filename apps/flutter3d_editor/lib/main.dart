@@ -27,8 +27,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter3d/flutter3d.dart' hide Material;
 import 'package:flutter3d_bridge/flutter3d_bridge.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:flutter3d_screens/native.dart';
 import 'package:flutter3d_session/flutter3d_session.dart';
-import 'package:flutter3d_ui/native.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vector_math/vector_math.dart' hide Colors;
 

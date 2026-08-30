@@ -1,14 +1,14 @@
 /// What a game on this engine is as an application.
 ///
 /// Not the simulation — that is `flutter3d_game` and the three genre packages.
-/// Not the screens a player uses — that is `flutter3d_ui`. This is the part in
+/// Not the screens a player uses — that is `flutter3d_screens`. This is the part in
 /// between that every one of the three games turned out to have written for
 /// itself: the seam a rendered frame reaches Flutter through, and the run being
 /// played.
 ///
 /// **It exists because neither of its two neighbours can hold it.** A session
 /// reads a level (which needs `flutter3d_bridge`, and therefore the renderer)
-/// and writes a save (which needs `flutter3d_ui`, and therefore storage), and
+/// and writes a save (which needs `flutter3d_screens`, and therefore storage), and
 /// those two packages do not know about each other and should not. A package
 /// that depends on both is the honest answer; growing either one to hold the
 /// other's job is not.

@@ -1,4 +1,4 @@
-name: flutter3d_ui
+name: flutter3d_screens
 description: "The screens a game has that are not the game: settings, volumes, rebinding, credits — the parts a player uses before and after playing."
 version: 0.4.0
 resolution: workspace

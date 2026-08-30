@@ -12,7 +12,7 @@ final device = await openDevice(width: 1280, height: 720);
 
 Five packages hold the wiring a game needs beyond the renderer and the
 simulation: `flutter3d_backend` (which device to open), `flutter3d_session`
-(`SceneSurface`, `RunSession`), `flutter3d_ui` (settings, rebinding, saves),
+(`SceneSurface`, `RunSession`), `flutter3d_screens` (settings, rebinding, saves),
 `pad_input` (a gamepad), `pointer_lock` (desktop mouse capture). None of the
 five know about each other, and this package does not change that — it holds
 no code of its own, only five `export` lines.

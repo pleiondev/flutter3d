@@ -6,6 +6,6 @@
 
 ## 0.3.0
 
-* A barrel over `flutter3d_backend`, `flutter3d_session`, `flutter3d_ui`,
+* A barrel over `flutter3d_backend`, `flutter3d_session`, `flutter3d_screens`,
   `pad_input` and `pointer_lock` — the five packages an application assembles
   itself from, none of which know about each other. No code of its own.

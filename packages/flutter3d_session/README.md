@@ -7,7 +7,7 @@ rendered frame reaches Flutter through, and the run being played.
 
 A session reads a level and writes a save. Reading a level needs
 `flutter3d_bridge`, and therefore the renderer. Writing a save needs
-`flutter3d_ui`, and therefore storage. **Those two packages do not know about
+`flutter3d_screens`, and therefore storage. **Those two packages do not know about
 each other**, deliberately — the bridge has no business knowing what a settings
 file is, and the UI has no business knowing what a scene is.
 

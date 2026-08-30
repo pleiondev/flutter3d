@@ -156,7 +156,7 @@ Scene buildScene(GraphicsDevice device) {
 ```
 
 <div class="note">
-<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_backend</code>, <code>flutter3d_session</code> and <code>flutter3d_ui</code>.</p>
+<p>None of the three shipped games open a device this way. Hand-rolling <code>GpuRenderBackend.create()</code> and a bare <code>Ticker</code> is what this page teaches because it is what is actually happening underneath, but by the second game the same conditional import, frame surface and level lifecycle had been copy-pasted three times. <a href="/core/session/">Assembling an application</a> is the guide for the pattern the games use instead: <code>flutter3d_backend</code>, <code>flutter3d_session</code> and <code>flutter3d_screens</code>.</p>
 </div>
 
 ## Where to go next

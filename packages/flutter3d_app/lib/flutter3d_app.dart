@@ -13,7 +13,7 @@
 ///   runtime fallback to software if Impeller will not start.
 /// * `flutter3d_session` — `SceneSurface`, the widget that hands a frame to
 ///   Flutter, and `RunSession`, a level's load/restart/save/advance sequence.
-/// * `flutter3d_ui` — the settings, rebinding and save screens no game owns.
+/// * `flutter3d_screens` — the settings, rebinding and save screens no game owns.
 /// * `pad_input` — a gamepad, read once per frame.
 /// * `pointer_lock` — desktop mouse capture, for an FPS-style camera.
 ///
@@ -29,7 +29,7 @@
 library;
 
 export 'package:flutter3d_backend/flutter3d_backend.dart';
+export 'package:flutter3d_screens/flutter3d_screens.dart';
 export 'package:flutter3d_session/flutter3d_session.dart';
-export 'package:flutter3d_ui/flutter3d_ui.dart';
 export 'package:pad_input/pad_input.dart';
 export 'package:pointer_lock/pointer_lock.dart';
