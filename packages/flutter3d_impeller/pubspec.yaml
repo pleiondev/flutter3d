@@ -1,6 +1,6 @@
 name: flutter3d_impeller
 description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hardware, and the only place in the stack that names a graphics API."
-version: 0.4.2
+version: 0.4.3
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -17,6 +17,17 @@ resolution: workspace
 # `flutter3d_hardware`, not understanding the renderer.
 environment:
   sdk: ^3.12.2
+
+# Declared rather than left to pub.dev's detector, because the answer is a
+# design fact: Flutter GPU is Metal and Vulkan, so this backend runs on every
+# native platform and deliberately not on the web — the web is what
+# flutter3d_webgl exists for, and the two are one-line swaps of each other.
+platforms:
+  android:
+  ios:
+  linux:
+  macos:
+  windows:
 
 dependencies:
   flutter:
