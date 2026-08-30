@@ -11,7 +11,7 @@ topics:
   - application
 
 # A barrel over five packages the three games already imported individually —
-# flutter3d_backend, flutter3d_session, flutter3d_ui, pad_input, pointer_lock —
+# flutter3d_backend, flutter3d_session, flutter3d_screens, pad_input, pointer_lock —
 # none of which know about each other and none of which should start to. This
 # package adds no code of its own; it exists so an application's own pubspec
 # and main.dart say "the assembly layer" once instead of five names, the way
@@ -31,7 +31,7 @@ dependencies:
 
   flutter3d_backend: ^0.4.0
   flutter3d_session: ^0.4.0
-  flutter3d_ui: ^0.4.0
+  flutter3d_screens: ^0.4.0
   pad_input: ^0.4.0
   pointer_lock: ^0.4.0
 

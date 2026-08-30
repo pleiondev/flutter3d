@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:flutter3d_screens/flutter3d_screens.dart';
 
 import 'run_status.dart';
 

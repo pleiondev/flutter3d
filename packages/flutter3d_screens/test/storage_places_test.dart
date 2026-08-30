@@ -15,7 +15,7 @@
 library;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter3d_ui/src/storage/storage_native.dart';
+import 'package:flutter3d_screens/src/storage/storage_native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

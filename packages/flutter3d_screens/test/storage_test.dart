@@ -24,7 +24,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:flutter3d_screens/flutter3d_screens.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// A storage that keeps everything in a map, for the callers above it.
@@ -127,19 +127,19 @@ void main() {
     test('keeps a document across two of its own instances', () {
       // The real one, whichever it is: `localStorage` under chrome and a file
       // everywhere else. What is checked is the promise both make.
-      final storage = defaultStorage('flutter3d_ui_test');
+      final storage = defaultStorage('flutter3d_screens_test');
       addTearDown(() => storage.remove('probe.json'));
 
       expect(storage.write('probe.json', '{"kept":true}'), isTrue);
 
       expect(
-        defaultStorage('flutter3d_ui_test').read('probe.json'),
+        defaultStorage('flutter3d_screens_test').read('probe.json'),
         '{"kept":true}',
       );
     });
 
     test('and forgets one when asked', () {
-      final storage = defaultStorage('flutter3d_ui_test');
+      final storage = defaultStorage('flutter3d_screens_test');
       storage.write('probe.json', 'x');
 
       storage.remove('probe.json');
@@ -148,7 +148,7 @@ void main() {
     });
 
     test('and reading what was never written is null, not a throw', () {
-      expect(defaultStorage('flutter3d_ui_test').read('absent.json'), isNull);
+      expect(defaultStorage('flutter3d_screens_test').read('absent.json'), isNull);
     });
   });
 }

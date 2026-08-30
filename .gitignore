@@ -61,3 +61,4 @@ build/
 # Machine-local, and asked to stay out of git.
 HANDOFF.md
 .claude/
+.publish-remaining.log

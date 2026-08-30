@@ -84,7 +84,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
       'display: particles are drawn, never simulated in a '
       'fixed step, and their emitters take the frame\'s delta',
   'flutter3d_testing': 'a test helper',
-  'flutter3d_ui': 'screens, which run on the frame clock and say so',
+  'flutter3d_screens': 'screens, which run on the frame clock and say so',
   'flutter3d_session':
       'a run\'s lifecycle: it loads and saves, and steps '
       'nothing itself',

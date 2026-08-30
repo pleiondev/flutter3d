@@ -125,7 +125,7 @@ import 'package:flutter3d_app/flutter3d_app.dart';
 final device = await openDevice(width: 1280, height: 720);
 ```
 
-Thirty-five lines, all of them `export`. It re-exports `flutter3d_backend`, `flutter3d_session`, `flutter3d_ui`, `pad_input` and `pointer_lock`. None of those know about each other, and this does not change that. What it buys is that an application says "the assembly layer" once, the way importing `flutter3d` says "the renderer" once instead of naming `flutter3d_hardware`.
+Thirty-five lines, all of them `export`. It re-exports `flutter3d_backend`, `flutter3d_session`, `flutter3d_screens`, `pad_input` and `pointer_lock`. None of those know about each other, and this does not change that. What it buys is that an application says "the assembly layer" once, the way importing `flutter3d` says "the renderer" once instead of naming `flutter3d_hardware`.
 
 Deliberately **not** behind it: `flutter3d`, `flutter3d_bridge`, `flutter3d_game` and a genre package. Those are content, meaning what a scene looks like and what kind of game this is, and a facade cannot choose a genre on an application's behalf.
 
@@ -137,16 +137,16 @@ Which graphics backend a build draws through: `openDevice({required width, requi
 Kept out of `flutter3d_session`, which would otherwise have to depend on both backends and drag WebGL into `apps/flutter3d_editor`, which has no browser build to choose for.
 
 ### `flutter3d_session`
-The seam a rendered frame reaches Flutter through, and the run being played — neither the simulation nor the screens, so it belongs to neither `flutter3d_bridge` nor `flutter3d_ui`. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires.
+The seam a rendered frame reaches Flutter through, and the run being played — neither the simulation nor the screens, so it belongs to neither `flutter3d_bridge` nor `flutter3d_screens`. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires.
 
 `test/one_assembly_test.dart` checks the rule this package exists to keep: exactly one function per game turns a level document into a run. The platformer had six copies of that assembly before extraction, and they had drifted.
 
 → [Assembling an application](/core/session/)
 
-### `flutter3d_ui`
+### `flutter3d_screens`
 The screens a game has that are not the game: a settings panel with volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes. Nothing here draws a frame or steps a simulation.
 
-Extracted when the second game wanted it, which is this repository's habit rather than a new rule — `CameraRig` says the same about itself. What triggered it was accessibility: rebinding a control is the accommodation that matters most, and the alternative was four hundred lines of panel copied into the second game. A second entry point, `package:flutter3d_ui/native.dart`, holds the one piece that needs a filesystem (an atomic document write), kept off the main barrel so a `dart:io` import never stops a web build compiling.
+Extracted when the second game wanted it, which is this repository's habit rather than a new rule — `CameraRig` says the same about itself. What triggered it was accessibility: rebinding a control is the accommodation that matters most, and the alternative was four hundred lines of panel copied into the second game. A second entry point, `package:flutter3d_screens/native.dart`, holds the one piece that needs a filesystem (an atomic document write), kept off the main barrel so a `dart:io` import never stops a web build compiling.
 
 ## Extensions
 
@@ -201,7 +201,7 @@ The engine's own demo: a model browser with every feature switchable, and the fr
 flowchart TB
   apps["apps/*"] --> genres["flutter3d_game_shooter<br>flutter3d_game_platformer<br>flutter3d_game_racing"]
   apps --> bridge["flutter3d_bridge"]
-  apps --> session["flutter3d_session<br>flutter3d_ui"]
+  apps --> session["flutter3d_session<br>flutter3d_screens"]
   apps --> picker["flutter3d_backend"]
   picker --> gfx["flutter3d_hardware<br><b>the HAL</b>"]
   picker -.-> onebackend["one backend<br><i>impeller · webgl</i>"]

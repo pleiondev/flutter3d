@@ -1,4 +1,4 @@
-# flutter3d_ui
+# flutter3d_screens
 
 The screens a game has that are not the game: settings, volumes, rebinding,
 credits, and where a save goes on each platform.

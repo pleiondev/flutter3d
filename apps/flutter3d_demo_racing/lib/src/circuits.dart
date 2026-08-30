@@ -1,4 +1,4 @@
-import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_ui
+import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_screens
 
 /// One circuit: a spline to drive and the scenery around it.
 ///

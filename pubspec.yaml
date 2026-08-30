@@ -31,7 +31,7 @@ workspace:
   - packages/flutter3d_game_platformer
   - packages/flutter3d_game_racing
   - packages/flutter3d_physics
-  - packages/flutter3d_ui
+  - packages/flutter3d_screens
   - packages/flutter3d_session
   - packages/pad_input
   - packages/pad_input/example
