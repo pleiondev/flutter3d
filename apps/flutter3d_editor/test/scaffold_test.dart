@@ -38,11 +38,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 Map<String, Uint8List> _project({String name = 'My Game'}) {
   final it = _shooter();
-  return scaffold(
-    template: it.template,
-    project: name,
-    sources: it.sources,
-  );
+  return scaffold(template: it.template, project: name, sources: it.sources);
 }
 
 String _text(Map<String, Uint8List> project, String path) =>
@@ -269,12 +265,7 @@ void main() {
       ..remove(it.template.files.keys.first);
 
     expect(
-      () => scaffold(
-        template: it.template,
-        project: 'x',
-        sources: missing,
-
-      ),
+      () => scaffold(template: it.template, project: 'x', sources: missing),
       throwsA(isA<StateError>()),
     );
   });

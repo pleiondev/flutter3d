@@ -148,7 +148,10 @@ void main() {
     });
 
     test('and reading what was never written is null, not a throw', () {
-      expect(defaultStorage('flutter3d_screens_test').read('absent.json'), isNull);
+      expect(
+        defaultStorage('flutter3d_screens_test').read('absent.json'),
+        isNull,
+      );
     });
   });
 }
