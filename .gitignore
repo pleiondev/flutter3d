@@ -62,3 +62,7 @@ build/
 HANDOFF.md
 .claude/
 .publish-remaining.log
+
+# Machine-local working notes, like HANDOFF.md above.
+CLAUDE.md
+site/CLAUDE.md
