@@ -1,3 +1,22 @@
+## 0.4.2
+
+* **The package actually ships its shaders this time.** 0.4.1 claimed this
+  fix and repeated the failure: its `.pubignore` replaced only the package
+  directory's gitignore, while `*.shaderbundle` is excluded by the repository
+  ROOT's — which still applied from above. The explicit `!*.shaderbundle`
+  negation is the whole difference, and this release was checked by reading
+  the dry-run's file list before uploading, which is the step 0.4.1 skipped.
+
+## 0.4.1
+
+* **The package ships its shaders.** 0.4.0 declared
+  `assets/shaders/flutter3d.shaderbundle` and did not contain it: the bundle
+  is generated and gitignored, and pub packages by the gitignore — so every
+  hosted consumer failed at build with "No file or variants found for asset".
+  A `.pubignore` now decides what the archive carries, and the bundle rides
+  along, built fresh at publish. Found the first time anything resolved this
+  backend from pub.dev alone.
+
 ## 0.4.0
 
 * **`present` owns its image.** It returns `GpuFrameImage`, a widget that

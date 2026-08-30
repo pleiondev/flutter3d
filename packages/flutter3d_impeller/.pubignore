@@ -1,0 +1,17 @@
+# What stays out of the published archive.
+#
+# This file exists for what it does NOT say: the repository's .gitignore
+# excludes *.shaderbundle (generated, tied to the Flutter version), and pub
+# packages by the gitignore unless a .pubignore overrides it. 0.4.0 shipped
+# without the bundle because of exactly that — every hosted consumer failed
+# at "No file or variants found for asset" — and this file is the fix: with
+# it present, the gitignore no longer decides, and the bundle rides along.
+# Run tool/build_shaders.sh before publishing, so what rides is fresh.
+#
+# The negation is the load-bearing line. A .pubignore replaces only the
+# .gitignore of its own directory; the repository ROOT's `*.shaderbundle`
+# still applies from above, and only an explicit `!` at this level wins it
+# back. 0.4.1 shipped without the bundle for lack of exactly this line.
+!*.shaderbundle
+build/
+.DS_Store
