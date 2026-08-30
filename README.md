@@ -5,6 +5,7 @@ on top of it, and **three games of different genres** built from both — which 
 the only honest test that the engine is one. It is not a fork, a binding or a
 wrapper around another engine, and it is not affiliated with the Flutter team.
 
+[![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
 On pub.dev: all twenty-three packages, published by
