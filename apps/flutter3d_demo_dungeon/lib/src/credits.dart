@@ -1,6 +1,6 @@
 /// What this game ships that somebody else made.
 ///
-/// The class and the screen are `flutter3d_ui`'s — see `Credit` there. What is
+/// The class and the screen are `flutter3d_screens`'s — see `Credit` there. What is
 /// here is the list, which is this game's alone.
 ///
 /// **This game had no credits screen at all**, and until now it did not need
@@ -9,7 +9,7 @@
 /// first thing in it somebody else made.
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_ui
+import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_screens
 
 /// Everything the game ships that somebody else made.
 ///

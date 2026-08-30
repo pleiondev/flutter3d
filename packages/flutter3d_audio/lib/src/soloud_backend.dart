@@ -37,7 +37,7 @@ final class SoLoudBackend implements AudioBackend {
   /// **It said it to `debugPrint` and nowhere else**, which in a release build
   /// is nowhere at all: a sound that will not decode is silent for the rest of
   /// the session and the only record of it was a console line stripped out of
-  /// the build a player runs. Every storage path in `flutter3d_ui` threads one
+  /// the build a player runs. Every storage path in `flutter3d_screens` threads one
   /// of these; audio was the layer that did not.
   final IssueSink onIssue;
 

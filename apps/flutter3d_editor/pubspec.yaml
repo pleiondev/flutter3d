@@ -37,16 +37,16 @@ dependencies:
   flutter3d_session:
     path: ../../packages/flutter3d_session
 
-  # For `writeFileAtomically`, through `flutter3d_ui/native.dart`. This
+  # For `writeFileAtomically`, through `flutter3d_screens/native.dart`. This
   # application writes the one document in the repository that cannot be
   # regenerated — somebody's hand-built level — and was writing it with the
   # least crash-safe call of anything here.
-  flutter3d_ui:
-    path: ../../packages/flutter3d_ui
+  flutter3d_screens:
+    path: ../../packages/flutter3d_screens
 
   vector_math: ^2.2.0
 
-  # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
   # What goes through it is the screen: which document is open, why one is
   # not, and what the strip along the bottom says. What does **not** is the
   # camera, the scene and the gizmos the render loop reads every frame; a

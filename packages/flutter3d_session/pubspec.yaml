@@ -21,7 +21,7 @@ dependencies:
   # the half a session needs that persists. **Neither package knows about the
   # other**, which is the whole reason this one exists rather than one of them
   # growing to hold both.
-  flutter3d_ui: ^0.4.0
+  flutter3d_screens: ^0.4.0
 
   # The simulation's vocabulary: `Snapshot`, `RunOutcome`, `GameLoop`.
   flutter3d_game: ^0.4.0

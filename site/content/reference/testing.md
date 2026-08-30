@@ -17,7 +17,7 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_hardware` | 13 |
 | `flutter3d_physics` | 137 | | `flutter3d_testing` | 7 |
 | `apps/flutter3d_demo_racing` | 119 | | `apps/flutter3d_template_app` | 4 |
-| `flutter3d_ui` | 110 | | `flutter3d_backend` | 2 |
+| `flutter3d_screens` | 110 | | `flutter3d_backend` | 2 |
 | `flutter3d_cpu` | 109 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 68 | | | |
 | `pad_input` | 64 | | | |
@@ -101,7 +101,7 @@ Four packages carry a `lib/testing.dart`. It is a separate library, so nothing a
 import 'package:flutter3d_hardware/testing.dart';  // FakeBackend
 import 'package:flutter3d_cpu/testing.dart';       // cpuTestDevice
 import 'package:flutter3d_audio/testing.dart';     // soundTableIn
-import 'package:flutter3d_ui/testing.dart';        // creditGaps
+import 'package:flutter3d_screens/testing.dart';        // creditGaps
 ```
 
 `FakeBackend` is a `GraphicsDevice` that draws nothing and records everything: which passes were opened, what they were attached to, what was bound, how many times it drew. `cpuTestDevice` is a `CpuDevice` with the builtin shaders and the two fallback textures a `Renderer` asks for.

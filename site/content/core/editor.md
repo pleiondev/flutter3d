@@ -96,5 +96,5 @@ No file dialog: the path is a `--dart-define`. Nothing is dragged with the mouse
 
 ## Next
 
-- [Assembling an application](/core/session/): what the three game apps do instead of this, through `flutter3d_backend`, `flutter3d_session` and `flutter3d_ui`
+- [Assembling an application](/core/session/): what the three game apps do instead of this, through `flutter3d_backend`, `flutter3d_session` and `flutter3d_screens`
 - [Simulation layer](/core/simulation/): `Level`, `EntityRegistry` and the validator the editor's generated templates are checked against

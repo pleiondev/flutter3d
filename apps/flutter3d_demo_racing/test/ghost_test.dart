@@ -14,7 +14,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter3d/flutter3d.dart';
-import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_ui
+import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_screens
 import 'package:flutter3d_demo_racing/src/ghost_car.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';

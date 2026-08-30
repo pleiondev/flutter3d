@@ -49,7 +49,7 @@ dependencies:
 
   vector_math: ^2.2.0
 
-  # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
+  # State management — see the note in `packages/flutter3d_screens/pubspec.yaml`.
   # What goes through it is the screen: which circuit is up, whether one just
   # failed to read, and what comes after the one just won. What does **not**
   # is the sixty-hertz step, the camera, the particles and the scene; a state
@@ -71,8 +71,8 @@ dev_dependencies:
 
   # `testing.dart`'s `creditGaps` — comparing shipped assets against the
   # credits list. Test-only, so it is not behind the flutter3d_app barrel.
-  flutter3d_ui:
-    path: ../../packages/flutter3d_ui
+  flutter3d_screens:
+    path: ../../packages/flutter3d_screens
 
 # Two traps this repository has paid for before, one of them already sprung
 # here: `FLTEnableFlutterGPU` and `FLTEnableImpeller` have to be in the macOS

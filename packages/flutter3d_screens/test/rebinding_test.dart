@@ -13,7 +13,7 @@
 library;
 
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:flutter3d_screens/flutter3d_screens.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const GameAction _dash = GameAction('dash');

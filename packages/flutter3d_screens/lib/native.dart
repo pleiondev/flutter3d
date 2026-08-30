@@ -1,9 +1,9 @@
 /// The parts of this package that need a filesystem.
 ///
-///     import 'package:flutter3d_ui/native.dart';
+///     import 'package:flutter3d_screens/native.dart';
 ///
 /// A second entry point rather than more exports on the main barrel, for the
-/// reason `flutter3d_hardware/testing.dart` is one: `flutter3d_ui.dart` is
+/// reason `flutter3d_hardware/testing.dart` is one: `flutter3d_screens.dart` is
 /// imported by games that build for the web, and a `dart:io` import anywhere
 /// behind it makes the whole package refuse to compile there. What is here
 /// needs `File` and says so by being somewhere a web build never looks.

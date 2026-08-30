@@ -15,11 +15,11 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_ui
+import 'package:flutter3d_app/flutter3d_app.dart'; // Credit, from flutter3d_screens
 import 'package:flutter3d_audio/flutter3d_audio.dart';
 import 'package:flutter3d_demo_platformer/src/credits.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
-import 'package:flutter3d_ui/testing.dart'; // creditGaps — test-only, not in the barrel
+import 'package:flutter3d_screens/testing.dart'; // creditGaps — test-only, not in the barrel
 import 'package:flutter_test/flutter_test.dart';
 
 /// The panel as the game mounts it: inside a [Scaffold], because the volume
@@ -49,7 +49,7 @@ void main() {
     // The failure this catches is an asset added to the game and to nothing
     // else, which is exactly how an untraced key once arrived in two games.
     //
-    // The comparison is `flutter3d_ui`'s: it was these twelve lines in three
+    // The comparison is `flutter3d_screens`'s: it was these twelve lines in three
     // applications, down to the wording of the failures.
     final gaps = creditGaps(Credits.models, shippedFrom: 'assets/models');
 

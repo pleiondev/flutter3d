@@ -10,7 +10,7 @@
 /// and what to remember, not how to draw one.
 library;
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_ui
+import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_screens
 import 'package:flutter3d_demo_racing/src/circuits.dart';
 import 'package:flutter3d_demo_racing/src/race_cubit.dart';
 import 'package:flutter_test/flutter_test.dart';

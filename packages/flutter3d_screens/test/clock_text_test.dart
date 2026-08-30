@@ -5,7 +5,7 @@
 /// Two games had written this, and between them they had every part of it.
 library;
 
-import 'package:flutter3d_ui/flutter3d_ui.dart';
+import 'package:flutter3d_screens/flutter3d_screens.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

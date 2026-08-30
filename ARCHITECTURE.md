@@ -89,7 +89,7 @@ the default renderer on macOS, and a default is a thing that can change.
 **Dependencies are close to none.** The render core, the physics, the game layer,
 the software rasteriser and the particle system are written here. External:
 `vector_math`, an audio backend, the Flutter SDK, and `flutter_bloc` in
-`flutter3d_ui` and two applications. That is not an end in itself: there is no
+`flutter3d_screens` and two applications. That is not an end in itself: there is no
 Dart equivalent of Jolt, assimp or miniaudio, and an FFI wrapper breaks the web.
 The price is that all of this code is tested here
 ([§13](#13-how-correctness-is-held)). Licences are MIT/BSD/Apache/zlib; no GPL.
@@ -202,7 +202,7 @@ ordinary unit test, and none of the three is visible in a screenshot.
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
 | `flutter3d_bridge` | Simulation state to scene: actor visuals, fixture visuals, particle effects |
 | `flutter3d_audio` | Loading, streaming, 3D positioning, voice limits, mix buses |
-| `flutter3d_ui` | Screens that are not the game: menus, settings, rebinding, storage |
+| `flutter3d_screens` | Screens that are not the game: menus, settings, rebinding, storage |
 | `flutter3d_session` | The run lifecycle that ties a game, a device and a screen together |
 | `flutter3d_app` | The assembly layer, as one import |
 | `flutter3d_testing` | Rendering a scene with no GPU and comparing it against a reference image |
@@ -1303,7 +1303,7 @@ applications and the example apps keep theirs, being repository-only by design.
 3. `flutter3d`, `flutter3d_physics`
 4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`, `flutter3d_particles`
 5. `flutter3d_game`
-6. `flutter3d_ui`, `flutter3d_bridge`, `flutter3d_backend`, `flutter3d_testing`
+6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`, `flutter3d_testing`
 7. `flutter3d_session`
 8. `flutter3d_app`
 9. `flutter3d_game_shooter`, `flutter3d_game_platformer`, `flutter3d_game_racing`

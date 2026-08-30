@@ -112,7 +112,7 @@ final class AudioCubit extends Cubit<AudioReady> {
 
   /// Copies the saved volumes into the mixer the scene is reading.
   ///
-  /// The list of buses is `flutter3d_ui`'s, beside the panel that offers them:
+  /// The list of buses is `flutter3d_screens`'s, beside the panel that offers them:
   /// there were four copies of it and they had already disagreed once.
   void applyVolumes(GameConfig config) =>
       applySavedVolumes(config, scene.mixer);

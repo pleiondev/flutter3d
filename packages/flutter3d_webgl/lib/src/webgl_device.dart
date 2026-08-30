@@ -124,7 +124,53 @@ final class WebGlDevice implements GraphicsDevice {
     // really "the lookup read nothing".
     final floatLinear = gl.getExtension('OES_texture_float_linear');
     return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources))
-      .._floatLinear = floatLinear != null;
+      .._floatLinear = floatLinear != null
+      .._msaaSamples = _provenMsaaSamples(gl);
+  }
+
+  /// The sample count the MSAA path can actually have here, proven rather
+  /// than asked for.
+  ///
+  /// **Desktop GL multisamples a half-float renderbuffer; mobile GLES very
+  /// often does not** — and the refusal is not an answer at create time, it
+  /// is a `GL_INVALID_OPERATION` out of `renderbufferStorageMultisample` on
+  /// every frame, which is a white screen on every phone. That is how the
+  /// demos looked the day somebody first opened them on one.
+  ///
+  /// Proven by doing, not by asking: the Android emulator's GL translator
+  /// *advertises* multisampled RGBA16F through `getInternalformatParameter`
+  /// and then errors on the allocation anyway, so the only trustworthy
+  /// probe is a real one-pixel allocation checked with `getError`. Both
+  /// formats the MSAA framebuffer attaches are tried — half-float colour
+  /// and packed depth-stencil — because a pair only works when both halves
+  /// do. Zero means the renderer takes its ordinary single-sample path.
+  static int _provenMsaaSamples(web.WebGL2RenderingContext gl) {
+    // Drained first: the error queue is cumulative, and a stale entry would
+    // convict the first candidate below of somebody else's mistake.
+    while (gl.getError() != 0) {}
+
+    for (final samples in const <int>[4, 2]) {
+      var ok = true;
+      for (final format in <int>[
+        web.WebGL2RenderingContext.RGBA16F,
+        web.WebGL2RenderingContext.DEPTH24_STENCIL8,
+      ]) {
+        final buffer = gl.createRenderbuffer();
+        gl.bindRenderbuffer(web.WebGLRenderingContext.RENDERBUFFER, buffer);
+        gl.renderbufferStorageMultisample(
+          web.WebGLRenderingContext.RENDERBUFFER,
+          samples,
+          format,
+          1,
+          1,
+        );
+        if (gl.getError() != 0) ok = false;
+        gl.deleteRenderbuffer(buffer);
+      }
+      gl.bindRenderbuffer(web.WebGLRenderingContext.RENDERBUFFER, null);
+      if (ok) return samples;
+    }
+    return 0;
   }
 
   final web.WebGL2RenderingContext _gl;
@@ -261,11 +307,15 @@ final class WebGlDevice implements GraphicsDevice {
   // silently accepts no draws.
   TextureFormat get hdrColorFormat => TextureFormat.r16g16b16a16Float;
 
-  @override
-  int get preferredSampleCount => 4;
+  /// What [_provenMsaaSamples] measured at [create]. Zero on drivers that
+  /// cannot multisample the HDR formats — most phones.
+  int _msaaSamples = 0;
 
   @override
-  bool get supportsOffscreenMsaa => true;
+  int get preferredSampleCount => _msaaSamples;
+
+  @override
+  bool get supportsOffscreenMsaa => _msaaSamples > 1;
 
   @override
   // OpenGL ES has no glPolygonMode. See canDrawPolygonMode.
