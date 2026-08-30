@@ -204,13 +204,16 @@ code {
   color: var(--cyan);
   word-break: break-word;
 }
+/* Big containers are square on purpose: the four-pixel radius on every box
+   is how generated sites look, and rectangles are what a frame, a buffer
+   and a viewport actually are. The radius survives only on small inline
+   things — `code`, kbd, the rail's chips. */
 pre.code {
   position: relative;
   margin: 1.5rem 0;
   padding: 16px 18px;
   background: var(--well);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
   overflow-x: auto;
   font-size: 14px; line-height: 1.65;
 }
@@ -225,7 +228,6 @@ pre.code[data-lang]::before {
   color: var(--muted);
   padding: 6px 9px;
   border-left: 1px solid var(--border); border-bottom: 1px solid var(--border);
-  border-radius: 0 var(--radius) 0 var(--radius);
 }
 
 /* highlight.js, mapped onto the palette rather than a stock theme */
@@ -262,37 +264,38 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 .page img {
   display: block; max-width: 100%; height: auto;
   margin: 1.5rem 0;
-  border: 1px solid var(--border); border-radius: var(--radius);
+  border: 1px solid var(--border);
 }
 
 /* --- diagrams ------------------------------------------------------------ */
 .diagram {
   margin: 1.8rem 0; padding: 20px 16px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
   overflow-x: auto;
 }
 .diagram .mermaid { margin: 0; text-align: center; }
 .diagram .mermaid:not([data-processed]) { color: transparent; }
 
-/* --- callouts ------------------------------------------------------------ */
+/* --- callouts ------------------------------------------------------------
+   Styled like compiler diagnostics, because that is what they are: a note,
+   a warning, an explanation. A flat well between two hairlines and a
+   lowercase mono label with a colon — the way a compiler prints one — and
+   deliberately NOT the rounded box with a coloured left border that every
+   generated docs site wears. */
 .note, .warn, .why {
-  margin: 1.6rem 0; padding: 14px 16px 14px 18px;
-  border: 1px solid var(--border); border-left-width: 2px;
-  border-radius: var(--radius);
-  background: var(--surface);
+  margin: 1.6rem 0; padding: 13px 18px;
+  border-block: 1px solid var(--border-soft);
+  background: var(--well);
   font-size: 15.5px;
 }
-.note { border-left-color: var(--cyan); }
-.warn { border-left-color: var(--rose); }
-.why  { border-left-color: var(--amber); }
 .note p:last-child, .warn p:last-child, .why p:last-child { margin-bottom: 0; }
 .note::before, .warn::before, .why::before {
-  display: block; margin-bottom: 6px;
-  font: 600 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase;
+  display: block; margin-bottom: 5px;
+  font: 600 12.5px/1 var(--mono);
 }
-.note::before { content: "Note"; color: var(--cyan); }
-.warn::before { content: "Watch out"; color: var(--rose); }
-.why::before  { content: "Why it is like this"; color: var(--amber); }
+.note::before { content: "note:"; color: var(--cyan); }
+.warn::before { content: "warning:"; color: var(--rose); }
+.why::before  { content: "why:"; color: var(--amber); }
 
 /* --- tutorial steps ------------------------------------------------------
    Numbers here are real: a tutorial is a sequence and the order carries
@@ -308,21 +311,21 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
   content: counter(step, decimal-leading-zero);
   font: 600 .82em/1 var(--mono); letter-spacing: 0;
   color: var(--amber);
-  border: 1px solid var(--amber-dim); border-radius: var(--radius);
+  border: 1px solid var(--amber-dim);
   padding: 6px 8px; align-self: center; justify-self: start;
 }
 .page { counter-reset: step; }
 
 .goal {
-  margin: 0 0 2rem; padding: 16px 18px;
-  border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--surface);
+  margin: 0 0 2rem; padding: 13px 18px;
+  border-block: 1px solid var(--border-soft);
+  background: var(--well);
   font-size: 15.5px;
 }
 .goal::before {
-  content: "What you end up with";
-  display: block; margin-bottom: 8px;
-  font: 600 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--amber);
+  content: "goal: what you end up with";
+  display: block; margin-bottom: 7px;
+  font: 600 12.5px/1 var(--mono); color: var(--amber);
 }
 .goal ul { margin: 0; padding-left: 1.2rem; }
 
@@ -338,13 +341,12 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 }
 .frameband-track {
   display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;
-  border: 1px solid var(--border); border-radius: var(--radius); padding: 3px;
+  border: 1px solid var(--border); padding: 3px;
   background: var(--surface);
 }
 .pass {
   padding: 11px 10px 10px;
   background: var(--well);
-  border-radius: 2px;
   border-top: 2px solid var(--border);
   min-width: 0;
 }
@@ -377,19 +379,23 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 .cards a {
   display: block; height: 100%;
   padding: 16px 17px;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--border);
   text-decoration: none; color: var(--text);
-  transition: border-color .14s, transform .14s;
+  transition: border-color .14s;
 }
-.cards a:hover { border-color: var(--amber-dim); transform: translateY(-2px); }
+.cards a:hover { border-color: var(--amber-dim); }
+.cards a:hover h3 { text-decoration: underline; text-underline-offset: 3px; }
 .cards h3 {
   margin: 0 0 6px; font: 600 15px/1.3 var(--mono); letter-spacing: -.01em; color: var(--amber);
 }
 .cards p { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--muted); }
+/* The kind reads as a code comment, which is the vernacular this site
+   already speaks everywhere else. */
 .cards .card-kind {
-  display: block; margin-bottom: 9px;
-  font: 500 9.5px/1 var(--mono); letter-spacing: .13em; text-transform: uppercase; color: var(--muted);
+  display: block; margin-bottom: 8px;
+  font: 400 12px/1 var(--mono); text-transform: lowercase; color: var(--muted);
 }
+.cards .card-kind::before { content: "// "; }
 
 /* The generated API index: a package name and the one sentence its pubspec
    already gives. Narrower columns than the prose cards, because twenty-two of
@@ -404,7 +410,7 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 .stats {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
   gap: 1px; margin: 2rem 0;
-  background: var(--border); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--border); border: 1px solid var(--border);
   overflow: hidden;
 }
 .stats div { background: var(--bg); padding: 14px 15px; }
@@ -419,7 +425,7 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 }
 .pager a {
   flex: 1; padding: 13px 15px;
-  border: 1px solid var(--border); border-radius: var(--radius);
+  border: 1px solid var(--border);
   text-decoration: none; color: var(--text); min-width: 0;
 }
 .pager a:hover { border-color: var(--amber-dim); }
@@ -495,7 +501,6 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
 .demo {
   margin: 1.8rem 0 2rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
   background: #000;
   overflow: hidden;
 }
@@ -521,7 +526,7 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
   display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 1px; margin: 1.5rem 0;
   background: var(--border); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden;
+  overflow: hidden;
 }
 .keys div { background: var(--bg); padding: 11px 13px; }
 .keys dt {
