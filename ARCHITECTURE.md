@@ -56,8 +56,8 @@ work in the sentence this replaces:
 |---|---|---|---|---|
 | macOS | yes, Impeller | yes | yes | every commit, and the golden sets |
 | Web | yes, WebGL2 | yes | yes | every commit, `--wasm` |
-| Android | yes, Impeller | yes | n/a | builds; never run on a handset |
-| iOS | yes, Impeller | yes | n/a | simulator only |
+| Android | yes, Impeller (Vulkan) | yes | n/a | played on a handset — a Galaxy A55, touch controls and all |
+| iOS | yes, Impeller (Metal) | yes | n/a | simulator, clean; no physical device yet |
 | Windows | untried | **no** | **no** | no runner directory exists |
 | Linux | untried | **no** | **no** | no runner directory exists |
 
@@ -69,10 +69,15 @@ first-person game on either would be played by dragging the mouse, with no
 controller. The Dart halves that carry every trap are written and tested; what
 is missing is XInput plus `ClipCursor`, and evdev plus XI2 raw motion.
 
-Android and iOS build and none has been played on a handset — what a phone
-alone can answer is whether the on-screen stick is the right size, whether the
-buttons are reachable, whether there is enough screen left to turn the camera,
-and whether the device holds a frame.
+Android has been played on a real handset — the platformer on a Galaxy A55,
+where Impeller picked Vulkan by itself, rendered clean, and the on-screen
+stick and buttons answered the questions only a phone can ask. iOS runs
+clean in the simulator on Metal and still awaits a physical device. One
+warning for anybody testing on the Android *emulator* rather than a phone:
+Flutter refuses the emulator's Vulkan and Impeller-on-GLES fails on the
+translator's missing ES2 extensions, so a white screen there says nothing
+about real devices — `ImpellerBackend: "vulkan"` in the manifest fixes the
+emulator and must not ship.
 
 **Flutter GPU is a per-application setting on every platform, and it fails
 silently.** Apple platforms want `FLTEnableFlutterGPU` in `Info.plist`; Android

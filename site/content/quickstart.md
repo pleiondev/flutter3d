@@ -20,7 +20,7 @@ Fifteen minutes from a fresh checkout to a lit mesh turning on screen. Two of th
 |---|---|
 | Flutter | 3.47.0 stable or newer. The shader bundle format is tied to the SDK version |
 | Dart | 3.12.2 or newer (comes with the SDK above) |
-| Platform | macOS and the browser are supported and exercised. Android and iOS build and have not been played on a handset; Windows and Linux go through Impeller and are unverified |
+| Platform | macOS and the browser are supported and exercised. Android is played on a real handset (Impeller Vulkan); iOS runs clean in the simulator on Metal; Windows and Linux go through Impeller and are unverified |
 | Impeller | Required. Flutter GPU refuses to start on Skia |
 
 ## Resolve the workspace
