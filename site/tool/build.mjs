@@ -238,6 +238,14 @@ function layout({ page, html, toc, index }) {
 <meta name="description" content="${(page.description || 'A 3D engine on Flutter GPU, a game layer on top of it, and three games built from both.').replace(/"/g, '&quot;')}">
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/assets/site.css">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-6F6VZ4H7CF"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-6F6VZ4H7CF');
+</script>
 </head>
 <body class="${isHome ? 'home' : 'doc'}">
 <a class="skip" href="#main">Skip to content</a>
