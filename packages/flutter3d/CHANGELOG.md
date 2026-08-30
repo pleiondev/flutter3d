@@ -1,3 +1,12 @@
+## 0.4.1
+
+* **A minimal example.** `example/lib/minimal_main.dart` is one sphere and one
+  point light in seventy lines, opened through `flutter3d_backend` the way a
+  new application would — and `example.md` puts those lines on pub.dev's
+  Example tab in place of the full model browser. A smoke test runs the file
+  headless through the software fallback, so the claim in its comment is a
+  thing CI checks rather than a thing the comment says.
+
 ## 0.4.0
 
 * **A pass's scene is lit by its own lights.** `encodeScene` used to encode
