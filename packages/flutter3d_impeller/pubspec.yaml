@@ -1,6 +1,6 @@
 name: flutter3d_impeller
 description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hardware, and the only place in the stack that names a graphics API."
-version: 0.4.0
+version: 0.4.2
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues
@@ -63,5 +63,8 @@ flutter:
     # Built by tool/build_shaders.sh through impellerc. Generated, so it is not
     # in the repository — a checkout has to run the script before the first run,
     # and again after every SDK change, because the bundle format is tied to the
-    # Flutter version.
+    # Flutter version. The *published* package DOES carry it: the repository's
+    # gitignore excludes it and pub packages by the gitignore, which is how
+    # 0.4.0 shipped without its own shaders — see .pubignore, whose absence of
+    # this line is the fix.
     - assets/shaders/flutter3d.shaderbundle
