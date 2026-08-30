@@ -364,7 +364,8 @@ final class GpuRenderBackend implements GraphicsDevice {
     // *before* the allocation rather than of the allocated texture, as it used
     // to be: a texture made only to be refused is a texture this backend has
     // no way to free except the collector.
-    if (pixels.lengthInBytes != _baseLevelLengthInBytes(width, height, format)) {
+    if (pixels.lengthInBytes !=
+        _baseLevelLengthInBytes(width, height, format)) {
       return null;
     }
 

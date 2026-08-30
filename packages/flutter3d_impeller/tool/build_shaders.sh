@@ -226,7 +226,7 @@ for entry in ${PACKAGE_INCLUDES+"${PACKAGE_INCLUDES[@]}"}; do
 done
 
 INCLUDES=(--include=shaders)
-for dir in "${EXTRA_INCLUDES[@]}"; do
+for dir in ${EXTRA_INCLUDES+"${EXTRA_INCLUDES[@]}"}; do
   [[ -d "$dir" ]] || die "include directory not found: $dir"
   INCLUDES+=("--include=$(cd "$dir" && pwd)")
 done

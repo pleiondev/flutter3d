@@ -1275,9 +1275,7 @@ bool _caretCovers(String asked, String declared) {
   final d = parts(declared);
   if (a == null || d == null) return asked == declared;
 
-  final sameFloor = a[0] == 0
-      ? d[0] == 0 && d[1] == a[1]
-      : d[0] == a[0];
+  final sameFloor = a[0] == 0 ? d[0] == 0 && d[1] == a[1] : d[0] == a[0];
   if (!sameFloor) return false;
   for (var i = 0; i < 3; i++) {
     if (d[i] != a[i]) return d[i] > a[i];
