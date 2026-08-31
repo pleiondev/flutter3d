@@ -1,0 +1,45 @@
+{
+  "monster": {
+    "model": "assets/models/monster_{kind}.glb",
+    "size": [0.9, 1.9, 0.9]
+  },
+  "torch": {
+    "size": [0.3, 0.55, 0.4],
+    "tint": [1.0, 0.55, 0.12],
+    "parts": [
+      { "shape": "box", "size": [0.16, 0.3, 0.06], "at": [0.0, -0.18, 0.06],
+        "colour": [0.16, 0.15, 0.14] },
+      { "shape": "cylinder", "radius": 0.035, "height": 0.42,
+        "at": [0.0, -0.06, -0.08], "pitch": -0.5,
+        "colour": [0.16, 0.15, 0.14] },
+      { "shape": "cylinder", "radius": 0.075, "height": 0.1,
+        "at": [0.0, 0.08, -0.24], "colour": [0.16, 0.15, 0.14] },
+      { "shape": "sphere", "radius": 0.085, "at": [0.0, 0.19, -0.24],
+        "glow": [1.0, 0.55, 0.14] }
+    ]
+  },
+  "lamp": {
+    "size": [0.4, 0.9, 0.4],
+    "parts": [
+      { "shape": "sphere", "radius": 0.16, "at": [0.0, 0.0, 0.0],
+        "glow": [1.0, 0.86, 0.6] },
+      { "shape": "cylinder", "radius": 0.03, "height": 0.6,
+        "at": [0.0, 0.46, 0.0], "colour": [0.16, 0.15, 0.14] }
+    ]
+  },
+  "player_spawn": { "model": "assets/models/player_spawn.glb",
+    "size": [0.7, 1.8, 0.7]
+  },
+  "pickup": { "model": "assets/models/pickup.glb",
+    "size": [0.45, 0.45, 0.45]
+  },
+  "note": { "model": "assets/models/note.glb",
+    "size": [0.5, 0.66, 0.06]
+  },
+  "exit": { "model": "assets/models/exit.glb",
+    "size": [1.8, 2.6, 0.4]
+  },
+  "door": {
+    "tint": [0.6, 0.62, 0.7]
+  }
+}

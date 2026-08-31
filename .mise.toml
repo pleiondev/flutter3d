@@ -1,0 +1,49 @@
+# The SDK this repository is built with, pinned where the repository can see it.
+#
+# **The shader bundle format is tied to the Flutter version.** `impellerc` from
+# one SDK produces a bundle another may not read, and a mismatch shows up as a
+# renderer that cannot find its shaders — or worse, as pictures that differ for
+# a reason nobody attributes to the toolchain. `tool/golden.sh` says the same in
+# its header, and every golden in this tree was recorded against the version
+# below.
+#
+# CI has always pinned this, in `.github/workflows/ci.yml`. A local checkout did
+# not: the pin lived in `~/.config/mise/config.toml`, which is per-machine and
+# shared with every other project on it. So the version CI promised and the
+# version a developer got were two different facts that happened to agree.
+#
+# Two things this buys beyond agreement:
+#
+#   - **An SDK upgrade becomes a one-line tracked diff**, which `git revert`
+#     undoes. Before this file it was a global config edit with nothing in the
+#     history to say it happened.
+#   - **A git worktree actually isolates.** Without a repo-local pin, a worktree
+#     inherits the global SDK, so two versions cannot be compared side by side —
+#     which is exactly what an upgrade wants to do first.
+#
+# The URL and version-discovery machinery stays in the global config; only the
+# version belongs here, because only the version is a property of this project.
+#
+# **Dart is deliberately not pinned.** It was, at 3.11.5, and the 3.47 upgrade
+# showed why that was a mistake rather than an omission: Flutter carries its own
+# Dart — 3.13.0 in 3.47 — so the pin quietly became a second answer to a
+# question that already had one. `mise current dart` said 3.11.5 while `dart
+# --version` said 3.13.0, and the line went on looking authoritative.
+#
+# Nothing here wants a standalone Dart in any case. Every script that runs one
+# takes it out of the SDK: `build_shaders.sh` and `tool/bench` both reach
+# `<SDK>/bin/cache/dart-sdk/bin/dart` explicitly, for exactly this reason.
+# **Java is pinned for the same reason, and it was found the same way.** The
+# Android runner in `packages/pad_input/example` would not build at all against the
+# JDK that happened to be on the machine — 26 — because the Android Gradle
+# Plugin's `core-for-system-modules` transform runs `jlink --disable-plugin
+# system-modules`, which that JDK refuses. The error names neither Java nor the
+# transform in any useful way, and Flutter's own suggestion for it points at an
+# AGP version that is already newer than the one being used.
+#
+# So the toolchain the Android side is known to build with is written down here
+# rather than discovered again by whoever next runs `flutter build apk`. 21
+# because it is the current LTS and AGP supports it; 17 also works.
+[tools]
+flutter = "3.47.0"
+java = "temurin-21"

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- **Off, and this is the one application here that turns it off.**
+	     The sandbox exists to stop a program touching files nobody handed it,
+	     and this program's entire purpose is to open a level document
+	     somewhere in this repository, change it and write it back over
+	     itself. Under the sandbox that is `PathAccessException: Operation not
+	     permitted` on a path that is plainly there.
+
+	     The alternative Apple offers is a file picker and
+	     `files.user-selected.read-write`, which grants access one file at a
+	     time to whatever a person chose in a dialogue. That is the right
+	     answer for something shipped to strangers; this is a developer tool
+	     that runs from `flutter run` beside the levels it edits, is not
+	     signed, is not distributed and would fail its own first launch under
+	     the rule. The three games keep the sandbox, because a game reads its
+	     own bundle and nothing else. -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+</dict>
+</plist>

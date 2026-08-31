@@ -1,0 +1,30 @@
+name: flutter3d_shaders
+description: The engine's shader sources, in GLSL, for every backend to compile.
+version: 0.3.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+publish_to: 'none'
+
+# Almost no Dart: one list, and the reason it is here rather than nowhere is
+# that a backend has to be checkable against it. This package is source text —
+# the
+# lighting models, the shadow lookup, the post chain. What each backend does
+# with it differs — impellerc compiles it ahead of time into a bundle, WebGL
+# translates it to GLSL ES 3.00 and compiles it in the browser — but what a
+# pixel ends up looking like is decided here, once, for both.
+#
+# It lived in flutter3d_impeller until there was a second backend, which is
+# exactly how long that was the right place for it.
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+resolution: workspace

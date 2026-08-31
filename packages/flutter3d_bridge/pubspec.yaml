@@ -1,0 +1,35 @@
+name: flutter3d_bridge
+description: "The binding between flutter3d and flutter3d_game: level geometry to mesh nodes, actors to visuals, weapons to view models."
+version: 0.3.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Both halves, which is the entire point of this package existing.
+  flutter3d: ^0.3.0
+  flutter3d_particles: ^0.3.0
+  flutter3d_game: ^0.3.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # A `GraphicsDevice` with no GPU under it, so this package's own loader can be
+  # run in a test — which until now it never was.
+  flutter3d_cpu: ^0.3.0
+  flutter_lints: ^6.0.0
+
+# This is the one package allowed to depend on both. `flutter3d_game` depends on
+# `flutter`, `pointer_lock` and `vector_math` and on nothing else — that is what
+# keeps its simulation headless and testable without a device — and `flutter3d`
+# must never learn what a monster is. The mapping between them has to live
+# somewhere, and this is it.

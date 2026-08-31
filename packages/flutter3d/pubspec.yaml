@@ -1,0 +1,48 @@
+name: flutter3d
+description: "A 3D engine on Flutter GPU: scene graph, glTF/OBJ/.f3d loading, PBR, shadows, bloom, skinning."
+version: 0.3.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The graphics vocabulary this package is written against. **Not** a
+  # backend: `flutter3d` names no graphics API at all, which is what lets an
+  # application choose one — `flutter3d_impeller` today — and what would let a WebGL
+  # backend exist without touching the engine.
+  flutter3d_hardware: ^0.3.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# The shader bundle is NOT here any more. It is `impellerc` output — an
+# artefact only one backend can read — so it ships with that backend, in
+# `flutter3d_impeller`. This package names the shaders it wants by entry point
+# (see `LightingModel.shaderName`) and lets whichever backend is wired in
+# supply them.
+flutter:
+  assets:
+    # The official Khronos test models (glTF-Sample-Assets), which the decoders
+    # are verified against and the example browses.
+    #
+    # Declared by this package rather than by the example, because the tests
+    # read them from disk and moving them would split one set of fixtures in
+    # two. The cost is that an application depending on flutter3d bundles them
+    # as well; worth revisiting when the game's bundle size starts to matter.
+    - assets/samples/
+    - assets/samples/cube/
+    - assets/samples/animated_cube/
+    - assets/samples/f3d/
+    - assets/samples/simple_skin/

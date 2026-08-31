@@ -1,0 +1,50 @@
+name: flutter3d_ui
+description: "The screens a game has that are not the game: settings, volumes, rebinding, credits — the parts a player uses before and after playing."
+version: 0.3.0
+publish_to: 'none'
+resolution: workspace
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The vocabulary these screens edit: bindings, actions, the settings map.
+  flutter3d_game: ^0.3.0
+
+  # Volumes are a mixer's, and a settings panel is where they are turned.
+  flutter3d_audio: ^0.3.0
+
+  # For the dead zone's own default, so the panel and the pad cannot disagree
+  # about what "unset" means.
+  pad_input: ^0.3.0
+
+  # A drag is two numbers, and the camera that reads them speaks `Vector2`.
+  vector_math: ^2.2.0
+
+  # `localStorage`, which is where a browser build keeps what a player changed.
+  # Already used by flutter3d_webgl and by the gamepad's web backend.
+  web: ^1.1.0
+  # State management. The screens here are state machines — a panel that is
+  # open, a rebinding that is waiting for a key, a settings document that has
+  # been written — and they lived in `setState` inside two applications, which
+  # is where a state machine goes to stop being testable. A cubit is reachable
+  # from a plain `test()`.
+  #
+  # The exception to `ARCHITECTURE.md` §11.3, and a narrow one: pure Dart, no FFI,
+  # so it does not break the web build — which is what that section's argument
+  # is actually about.
+  flutter_bloc: ^9.1.1
+
+dev_dependencies:
+
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

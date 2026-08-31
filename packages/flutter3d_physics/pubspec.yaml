@@ -1,0 +1,31 @@
+name: flutter3d_physics
+description: "Collision shapes, a broadphase, queries and a character controller. No Flutter, no renderer, no game."
+version: 0.3.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  vector_math: ^2.2.0
+
+dev_dependencies:
+
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, and that is the point of it existing separately.**
+#
+# It came out of `flutter3d_game`, where it already imported nothing but
+# `dart:math`, `vector_math` and its own siblings — so the extraction cost one
+# import line per dependent and changed no behaviour. What it buys is a
+# boundary: a collision world that cannot learn what a monster is, and tests
+# that run on the Dart VM without a Flutter binding.
+#
+# The one thing that had to change is the vocabulary. `CollisionLayers` used to
+# name `monster`, `pickup` and `projectile`; a physics package cannot know what
+# those are. It keeps the mask rule and the all-bits constant, and a game names
+# its own layers.

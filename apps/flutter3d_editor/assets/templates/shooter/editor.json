@@ -1,0 +1,186 @@
+{
+  "player_spawn": {
+    "size": [
+      0.7,
+      1.8,
+      0.7
+    ],
+    "model": "assets/models/player_spawn.glb"
+  },
+  "monster": {
+    "size": [
+      0.7,
+      1.7,
+      0.7
+    ],
+    "defaults": {
+      "kind": "runner"
+    },
+    "model": "assets/models/monster.glb"
+  },
+  "pickup": {
+    "size": [
+      0.45,
+      0.45,
+      0.45
+    ],
+    "defaults": {
+      "gives": "health",
+      "amount": 25
+    },
+    "model": "assets/models/pickup.glb"
+  },
+  "key": {
+    "size": [
+      0.4,
+      0.4,
+      0.4
+    ],
+    "defaults": {
+      "color": "iron"
+    },
+    "model": "assets/models/key.glb"
+  },
+  "note": {
+    "size": [
+      0.4,
+      0.5,
+      0.06
+    ],
+    "defaults": {
+      "text": "Somebody wrote something here."
+    },
+    "model": "assets/models/note.glb"
+  },
+  "torch": {
+    "size": [
+      0.3,
+      0.55,
+      0.4
+    ],
+    "model": "assets/models/torch.glb"
+  },
+  "lamp": {
+    "size": [
+      0.34,
+      0.34,
+      0.34
+    ],
+    "defaults": {
+      "color": "warm"
+    },
+    "model": "assets/models/lamp.glb"
+  },
+  "window": {
+    "size": [
+      1.4,
+      2.2,
+      0.12
+    ],
+    "defaults": {
+      "size": [
+        1.4,
+        2.2,
+        0.12
+      ]
+    }
+  },
+  "door": {
+    "size": [
+      4.0,
+      4.0,
+      1.0
+    ],
+    "defaults": {
+      "size": [
+        4.0,
+        4.0,
+        1.0
+      ],
+      "travel": [
+        0.0,
+        3.8,
+        0.0
+      ],
+      "speed": 2.2,
+      "wait": 4.0
+    }
+  },
+  "lift": {
+    "size": [
+      3.0,
+      0.5,
+      3.0
+    ],
+    "defaults": {
+      "size": [
+        3.0,
+        0.5,
+        3.0
+      ],
+      "travel": [
+        0.0,
+        4.0,
+        0.0
+      ],
+      "speed": 1.5,
+      "wait": 2.0
+    }
+  },
+  "platform": {
+    "size": [
+      3.0,
+      0.4,
+      3.0
+    ],
+    "defaults": {
+      "size": [
+        3.0,
+        0.4,
+        3.0
+      ],
+      "travel": [
+        4.0,
+        0.0,
+        0.0
+      ],
+      "speed": 1.5
+    }
+  },
+  "button": {
+    "size": [
+      0.6,
+      0.6,
+      0.15
+    ],
+    "defaults": {
+      "size": [
+        0.6,
+        0.6,
+        0.15
+      ]
+    }
+  },
+  "trigger": {
+    "size": [
+      4.0,
+      3.0,
+      2.0
+    ],
+    "defaults": {
+      "size": [
+        4.0,
+        3.0,
+        2.0
+      ],
+      "once": false
+    }
+  },
+  "exit": {
+    "size": [
+      1.5,
+      2.5,
+      1.5
+    ]
+  }
+}

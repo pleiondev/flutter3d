@@ -1,0 +1,47 @@
+name: pad_input
+description: "Reads a gamepad's sticks, triggers and buttons as a snapshot the caller asks for, with a dead zone applied and no opinion about what any button means."
+version: 0.3.0
+publish_to: 'none'
+resolution: workspace
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+
+  # `navigator.getGamepads()`, which is the whole of the web backend: the
+  # browser already normalises a controller to the W3C standard mapping, so
+  # there is nothing for native code to do. Already used by flutter3d_webgl.
+  web: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.flutter3d.gamepad
+        pluginClass: GamepadPlugin
+
+      # One Swift source for both, under `darwin/`: `GameController.framework` is
+      # the same framework on macOS and iOS, and a second copy would be a second
+      # copy to fix.
+      macos:
+        pluginClass: GamepadPlugin
+        sharedDarwinSource: true
+
+      ios:
+        pluginClass: GamepadPlugin
+        sharedDarwinSource: true
+
+      # The web needs no registration: the backend is pure Dart and
+      # `lib/src/platform_default.dart` selects it with a conditional export.

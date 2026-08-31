@@ -1,0 +1,42 @@
+# What runs on every push, and why it is four lines of steps.
+#
+# The work is in tool/ci.sh so that CI and a developer run the same thing. A
+# workflow with the commands inlined drifts from what anybody can reproduce
+# locally, and then its failures are nobody's to fix.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    # No GPU here, and none needed: the software backend draws the golden
+    # scenes and cross_backend_test.dart compares the two committed reference
+    # sets. The Impeller half runs from tool/golden.sh on a real device — see
+    # the note at the top of tool/ci.sh.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      # impellerc lives in the engine artifacts, which a bare `flutter` install
+      # has not downloaded yet. The shader bundle cannot be built without it,
+      # and a test fails when the bundle is missing.
+      - run: flutter precache --linux
+
+      # `tool/check_icons.py` redraws the four applications' icons and compares
+      # them with the committed ones. Without Pillow it says so and exits
+      # non-zero, so that step failed on every run for the reason it could not
+      # run at all — a check that proves nothing while looking like one that
+      # does. Not pinned: the check compares pixels within a tolerance, so the
+      # resampler is no longer an input to it.
+      - run: pip install pillow
+
+      - run: tool/ci.sh

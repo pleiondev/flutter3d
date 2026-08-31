@@ -1,0 +1,27 @@
+name: pointer_lock
+description: "Locks the mouse pointer in place and reports its motion as relative deltas, which Flutter itself does not offer on any desktop platform."
+version: 0.3.0
+publish_to: 'none'
+resolution: workspace
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+
+environment:
+  sdk: ^3.12.2
+  flutter: '>=3.3.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      macos:
+        pluginClass: PointerLockPlugin

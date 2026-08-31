@@ -1,0 +1,688 @@
+import 'package:flutter3d/src/engine/render/frame_graph.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+/// A node that does nothing but declare what it touches.
+///
+/// The graph never executes anything — it decides *what* to execute and in
+/// what order — so a node with no body is the honest test subject. A real pass
+/// here would let a test pass for reasons that have nothing to do with
+/// scheduling.
+final class TestNode extends FrameGraphNode {
+  const TestNode(
+    this.name, {
+    this.reads = const <ResourceId>[],
+    this.optionalReads = const <ResourceId>[],
+    this.writes = const <ResourceId>[],
+    this.keeps = const <ResourceId>[],
+    this.isActive = true,
+  });
+
+  @override
+  final String name;
+  @override
+  final List<ResourceId> reads;
+  @override
+  final List<ResourceId> optionalReads;
+  @override
+  final List<ResourceId> writes;
+  @override
+  final List<ResourceId> keeps;
+  @override
+  final bool isActive;
+}
+
+const ResourceId colour = ResourceId('colour');
+const ResourceId depth = ResourceId('depth');
+const ResourceId bloom = ResourceId('bloom');
+const ResourceId final_ = ResourceId('final');
+
+List<String> names(List<FrameGraphNode> nodes) =>
+    nodes.map((n) => n.name).toList();
+
+void main() {
+  group('ordering', () {
+    test('a reader runs after its writer, whatever order they registered in',
+        () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('bloom', writes: <ResourceId>[bloom]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['bloom', 'composite']);
+    });
+
+    test('independent nodes keep registration order', () {
+      // Reproducibility is the point: two passes with no dependency between
+      // them must come out the same way every frame, or the goldens flicker.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('a', reads: <ResourceId>[colour],
+            writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('b', reads: <ResourceId>[colour],
+            writes: <ResourceId>[final_]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['a', 'b']);
+    });
+
+    test('a chain of three resolves end to end', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('third',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('second',
+            reads: <ResourceId>[colour], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('first', writes: <ResourceId>[colour]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['first', 'second', 'third']);
+    });
+
+    test('a node reading and writing one resource does not depend on itself',
+        () {
+      // Read-modify-write is how anything accumulates into a target, and a
+      // self-edge would report it as a cycle.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('accumulate',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[colour]).order),
+          <String>['accumulate']);
+    });
+
+    test('two writers of one resource run in registration order', () {
+      // There is no dependency to derive between them, so something has to
+      // decide, and the only thing an application controls is the order it
+      // registered them in.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('under', writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('over', writes: <ResourceId>[colour]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[colour]).order),
+          <String>['under', 'over']);
+    });
+  });
+
+  group('culling', () {
+    test('a node nothing wants does not run', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('wanted', writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('ignored', writes: <ResourceId>[bloom]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['wanted']);
+      expect(names(compiled.culled), <String>['ignored']);
+    });
+
+    test('culling is transitive', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('wanted', writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('feeds nobody',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[depth]))
+        ..addNode(const TestNode('feeds that', writes: <ResourceId>[bloom]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['wanted']);
+    });
+
+    test('an inactive node takes its consumers with it, and does not throw',
+        () {
+      // Switching bloom off must remove the passes that only fed it. Reporting
+      // an error instead would make every optional feature a special case in
+      // the caller, which is the wiring this exists to delete.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('bloom',
+            reads: <ResourceId>[colour],
+            writes: <ResourceId>[bloom],
+            isActive: false))
+        ..addNode(const TestNode('bloom composite',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('plain composite',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['plain composite']);
+      expect(names(compiled.culled),
+          containsAll(<String>['bloom', 'bloom composite']));
+    });
+
+    test('everything runs when everything is wanted', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('a', writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('b', writes: <ResourceId>[depth]));
+
+      expect(
+        names(graph.compile(outputs: <ResourceId>[colour, depth]).order),
+        <String>['a', 'b'],
+      );
+    });
+  });
+
+  group('diagnostics', () {
+    test('a resource nobody writes is rejected, and the message names both',
+        () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]));
+
+      expect(
+        () => graph.compile(outputs: <ResourceId>[final_]),
+        throwsA(isA<FrameGraphError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('composite'), contains('bloom')),
+        )),
+      );
+    });
+
+    test('an external resource satisfies a read', () {
+      final graph = FrameGraph()
+        ..addExternal(depth)
+        ..addNode(const TestNode('reads depth',
+            reads: <ResourceId>[depth], writes: <ResourceId>[final_]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['reads depth']);
+    });
+
+    test('a cycle is reported with the passes in it', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('a',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('b',
+            reads: <ResourceId>[colour], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('sink',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      expect(
+        () => graph.compile(outputs: <ResourceId>[final_]),
+        throwsA(isA<FrameGraphError>().having(
+          (e) => e.message,
+          'message',
+          allOf(contains('loop'), contains('a'), contains('b')),
+        )),
+      );
+    });
+
+    test('an output nobody produces is rejected', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('a', writes: <ResourceId>[colour]));
+
+      expect(
+        () => graph.compile(outputs: <ResourceId>[final_]),
+        throwsA(isA<FrameGraphError>()),
+      );
+    });
+
+    test('two nodes of one name are rejected at registration', () {
+      final graph = FrameGraph()..addNode(const TestNode('bloom'));
+
+      expect(() => graph.addNode(const TestNode('bloom')),
+          throwsA(isA<FrameGraphError>()));
+    });
+  });
+
+  group('resource lifetime', () {
+    test('a resource is last used by the last node that touches it', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('write', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('read',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.lastUseOf(bloom), 1);
+      expect(compiled.lastUseOf(final_), 1);
+    });
+
+    test('a resource nothing touches has no lifetime', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('a', writes: <ResourceId>[final_]));
+
+      expect(graph.compile(outputs: <ResourceId>[final_]).lastUseOf(bloom),
+          isNull);
+    });
+
+    test('a culled node does not extend a lifetime', () {
+      // The point of computing this at all: a texture handed back as early as
+      // it can be is a texture the next pass can reuse. A pass that does not
+      // run must not hold one open.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('write', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('wanted',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('ignored',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[depth]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['write', 'wanted']);
+      expect(compiled.lastUseOf(bloom), 1);
+      expect(compiled.resources, isNot(contains(depth)));
+    });
+
+    test('the resource list is what the frame actually touches', () {
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('a',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      expect(graph.compile(outputs: <ResourceId>[final_]).resources,
+          unorderedEquals(<ResourceId>[colour, final_]));
+    });
+  });
+
+  group('the release schedule', () {
+    test('releasedAfter names what that step was the last to touch', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('write', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('read',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.releasedAfter(0), isEmpty);
+      expect(compiled.releasedAfter(1),
+          unorderedEquals(<ResourceId>[bloom, final_]));
+    });
+
+    test('an intermediate is released before the frame ends', () {
+      // The saving this exists for: the bloom target goes back to the pool
+      // after the composite reads it, not at the end of the frame, so the next
+      // pass can be handed the same texture.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('bloom', writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('present',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.releasedAfter(1), <ResourceId>[bloom]);
+      expect(compiled.releasedAfter(2),
+          unorderedEquals(<ResourceId>[colour, final_]));
+    });
+
+    test('every resource is released exactly once', () {
+      final graph = FrameGraph()
+        ..addExternal(depth)
+        ..addNode(const TestNode('a',
+            reads: <ResourceId>[depth], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('b',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+      final released = <ResourceId>[
+        for (var i = 0; i < compiled.order.length; i++)
+          ...compiled.releasedAfter(i),
+      ];
+
+      expect(released, unorderedEquals(compiled.resources.toList()));
+      expect(released.toSet().length, released.length);
+    });
+  });
+
+  group('optional reads', () {
+    test('an optional read keeps its producer alive', () {
+      // Without this the shadow passes are culled: nothing declares a hard
+      // read on a shadow map, so nothing wants what they produce.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('shadows', writes: <ResourceId>[depth]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[depth],
+            writes: <ResourceId>[final_]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['shadows', 'scene']);
+    });
+
+    test('an absent optional read does not starve the node', () {
+      // And with this the scene survives shadows being switched off, which a
+      // hard read would not allow: it would take the world with it.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('shadows',
+            writes: <ResourceId>[depth], isActive: false))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[depth],
+            writes: <ResourceId>[final_]));
+
+      expect(names(graph.compile(outputs: <ResourceId>[final_]).order),
+          <String>['scene']);
+    });
+
+    test('an optional read of a name nothing writes is still an error', () {
+      // Optional is about this frame, not about spelling.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[bloom],
+            writes: <ResourceId>[final_]));
+
+      expect(() => graph.compile(outputs: <ResourceId>[final_]),
+          throwsA(isA<FrameGraphError>()));
+    });
+
+    test('an optional read counts as a read for isRead and for lifetime', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('shadows', writes: <ResourceId>[depth]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[depth],
+            writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.isRead(depth), isTrue);
+      expect(compiled.lastUseOf(depth), 1);
+    });
+  });
+
+  group('versions', () {
+    test('each write makes a new version and a read binds to the current one',
+        () {
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('first',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('second',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[colour]);
+
+      // Zero is what the engine handed in; each pass consumes one version and
+      // produces the next, which is what "read-modify-write" means.
+      expect(compiled.readVersionOf(0, colour), 0);
+      expect(compiled.writeVersionOf(0, colour), 1);
+      expect(compiled.readVersionOf(1, colour), 1);
+      expect(compiled.writeVersionOf(1, colour), 2);
+      expect(compiled.currentVersionOf(colour), 2);
+    });
+
+    test('a resource nobody writes stays at the version it arrived with', () {
+      final graph = FrameGraph()
+        ..addExternal(depth)
+        ..addNode(const TestNode('reads it',
+            reads: <ResourceId>[depth], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.currentVersionOf(depth), 0);
+      expect(compiled.readVersionOf(0, depth), 0);
+      expect(compiled.writeVersionOf(0, depth), isNull);
+    });
+
+    test('an old version goes back while the new one is still live', () {
+      // The whole point of the exercise. Reflections read the lit scene and
+      // write a second texture; the first can go to the pool as soon as they
+      // are done with it, even though the name is very much still in use.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('reflections',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('bloom',
+            reads: <ResourceId>[colour], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[colour, bloom],
+            writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order),
+          <String>['reflections', 'bloom', 'composite']);
+      expect(compiled.retiredAfter(0),
+          <ResourceVersion>[ResourceVersion(colour, 0)]);
+      expect(compiled.retiredAfter(2),
+          contains(ResourceVersion(colour, 1)));
+    });
+
+    test('a reader between two writers is bound to the earlier version', () {
+      // Unversioned this was a cycle, and not an obvious one: "depend on every
+      // writer" made the pass in the middle depend on the second writer, which
+      // already depended on it. The name is one resource; the two textures
+      // behind it are not.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('first', writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('between',
+            reads: <ResourceId>[colour], writes: <ResourceId>[bloom]))
+        ..addNode(const TestNode('second',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('present',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order),
+          <String>['first', 'between', 'second', 'present']);
+      expect(compiled.readVersionOf(1, colour), 1);
+      expect(compiled.readVersionOf(3, colour), 2);
+    });
+
+    test('a consumer registered before its producer reads the last version',
+        () {
+      // Registration order decides versions; it does not decide run order, and
+      // a consumer declared first is the ordinary case. It means "the resource
+      // as the frame finally leaves it".
+      final graph = FrameGraph()
+        ..addNode(const TestNode('composite',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('first', writes: <ResourceId>[colour]))
+        ..addNode(const TestNode('second',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['first', 'second', 'composite']);
+      expect(compiled.readVersionOf(2, colour), 2);
+    });
+
+    test('a pass that is switched off does not consume a version', () {
+      // If it did, every pass after it in a chain would be bound to a version
+      // nobody produces — and switching one optional effect off would cull the
+      // whole rest of the chain.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('off',
+            reads: <ResourceId>[colour],
+            writes: <ResourceId>[colour],
+            isActive: false))
+        ..addNode(const TestNode('after',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[colour]);
+
+      expect(names(compiled.order), <String>['after']);
+      expect(compiled.readVersionOf(0, colour), 0);
+      expect(compiled.writeVersionOf(0, colour), 1);
+    });
+
+    test('the output is the newest version anybody actually produced', () {
+      // The last writer starves, so the frame's output is what the writer
+      // before it left — not nothing at all.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('kept',
+            reads: <ResourceId>[colour], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('starved',
+            reads: <ResourceId>[bloom], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('bloom',
+            writes: <ResourceId>[bloom], isActive: false));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['kept']);
+      expect(names(compiled.culled), containsAll(<String>['starved', 'bloom']));
+    });
+
+    test('releasedAfter names a resource once however many versions died', () {
+      // Both versions of the colour die with the one pass that touched it, and
+      // the unversioned view is what a caller counting names wants.
+      final graph = FrameGraph()
+        ..addExternal(colour)
+        ..addNode(const TestNode('overlay',
+            reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[colour]);
+
+      expect(
+        compiled.retiredAfter(0),
+        unorderedEquals(<ResourceVersion>[
+          ResourceVersion(colour, 0),
+          ResourceVersion(colour, 1),
+        ]),
+      );
+      expect(compiled.releasedAfter(0), <ResourceId>[colour]);
+      expect(compiled.lastUseOf(colour), 0);
+    });
+  });
+
+  test('a chain of read-modify-write nodes is not a loop', () {
+    // Two overlays compositing onto one colour each read it and write it back.
+    // "Depend on every writer" makes them depend on each other; the order is
+    // the registration order the write rule already imposes.
+    final graph = FrameGraph()
+      ..addExternal(colour)
+      ..addNode(const TestNode('first',
+          reads: <ResourceId>[colour], writes: <ResourceId>[colour]))
+      ..addNode(const TestNode('second',
+          reads: <ResourceId>[colour], writes: <ResourceId>[colour]));
+
+    expect(names(graph.compile(outputs: <ResourceId>[colour]).order),
+        <String>['first', 'second']);
+  });
+
+  test('an empty graph asking for an external resource is not an error', () {
+    // The frame that draws nothing but the clear.
+    final graph = FrameGraph()..addExternal(colour);
+
+    expect(graph.compile(outputs: <ResourceId>[colour]).order, isEmpty);
+  });
+
+  // A resource whose content survives the frame that produced it. The point
+  // light atlas is the real one: it is loaded rather than cleared, most frames
+  // it draws nothing, and the pixels an earlier frame left are what the next
+  // scene samples. Declared as a write that was a half-truth on every frame the
+  // pass skipped.
+  group('resources kept across frames', () {
+    const atlas = ResourceId('atlas');
+
+    test('a keep orders its readers exactly as a write would', () {
+      // The scheduling half is deliberately unchanged: a keep produces the next
+      // version of the name, so the reader binds to it and is ordered after the
+      // node that maintains it. Anything else would have made "maintained"
+      // mean "unordered".
+      final graph = FrameGraph()
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas], writes: <ResourceId>[final_]))
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['atlas', 'scene']);
+      expect(compiled.readVersionOf(1, atlas), 1);
+      expect(compiled.writeVersionOf(0, atlas), 1);
+    });
+
+    test('what is kept and what is written are told apart by version', () {
+      // The whole point. Both nodes bind a texture; only one of them is
+      // claiming the pixels are this frame's.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('map', writes: <ResourceId>[depth]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas, depth],
+            writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.isKeptVersion(const ResourceVersion(atlas, 1)), isTrue);
+      expect(compiled.isKeptVersion(const ResourceVersion(depth, 1)), isFalse);
+      expect(compiled.keptBy(0), <ResourceId>[atlas]);
+      expect(compiled.keptBy(1), isEmpty);
+    });
+
+    test('a kept resource is a written one everywhere else', () {
+      // Lifetime, release and the in-place aliasing all key on "this node
+      // produced a version of this name", and a keep has to be one of those or
+      // the texture would never be handed anything.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('scene',
+            reads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(compiled.writtenBy(0), <ResourceId>[atlas]);
+      expect(compiled.isRead(atlas), isTrue);
+      expect(compiled.lastUseOf(atlas), 1);
+    });
+
+    test('a keeper nobody wants is culled like any other producer', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('scene', writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['scene']);
+      expect(names(compiled.culled), <String>['atlas']);
+    });
+
+    test('nothing is kept by a node that is switched off', () {
+      // Shadows off is the case. An atlas nobody is maintaining is an atlas
+      // nobody may sample, however many pixels the texture still holds — which
+      // is why an inactive keeper produces no version rather than offering the
+      // last frame's.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas',
+            keeps: <ResourceId>[atlas], isActive: false))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      final compiled = graph.compile(outputs: <ResourceId>[final_]);
+
+      expect(names(compiled.order), <String>['scene']);
+      expect(compiled.isKeptVersion(const ResourceVersion(atlas, 1)), isFalse);
+      expect(compiled.keptBy(0), isEmpty);
+    });
+
+    test('a hard reader of an unmaintained resource is starved', () {
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas',
+            keeps: <ResourceId>[atlas], isActive: false))
+        ..addNode(const TestNode('scene',
+            reads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      expect(graph.compile(outputs: <ResourceId>[final_]).order, isEmpty);
+    });
+
+    test('one name cannot be both written and kept', () {
+      // Two opposite promises about the same pixels. The reader that would
+      // suffer is in another package, and a texture that is sometimes this
+      // frame's and sometimes not is the kind of symptom that gets blamed on a
+      // driver.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('confused',
+            writes: <ResourceId>[atlas], keeps: <ResourceId>[atlas]));
+
+      expect(
+        () => graph.compile(outputs: <ResourceId>[atlas]),
+        throwsA(isA<FrameGraphError>()),
+      );
+    });
+
+    test('a keep makes the name known, so a read of it compiles', () {
+      // The same rule writes have: a name nothing produces is a build error,
+      // and a resource that is only ever maintained must still satisfy it.
+      final graph = FrameGraph()
+        ..addNode(const TestNode('atlas', keeps: <ResourceId>[atlas]))
+        ..addNode(const TestNode('scene',
+            optionalReads: <ResourceId>[atlas], writes: <ResourceId>[final_]));
+
+      expect(() => graph.compile(outputs: <ResourceId>[final_]), returnsNormally);
+    });
+  });
+}

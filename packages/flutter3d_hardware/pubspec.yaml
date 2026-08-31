@@ -1,0 +1,29 @@
+name: flutter3d_hardware
+description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API."
+version: 0.3.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+publish_to: 'none'
+resolution: workspace
+
+# Its own package, and that is the whole point of it. A backend implements this
+# and nothing else: `flutter3d_impeller` depends on it, `flutter3d` depends on it,
+# and neither depends on the other. Before the split this lived inside the
+# engine, so writing a second backend meant depending on the scene graph, the
+# asset loaders and the frame graph to get at eight files.
+#
+# It depends on Flutter only for `dart:ui`, and only for one member —
+# `GraphicsDevice.imageOf`. See the note there.
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

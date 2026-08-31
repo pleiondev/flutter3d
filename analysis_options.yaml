@@ -1,0 +1,67 @@
+# This file configures the analyzer, which statically analyzes Dart code to
+# check for errors, warnings, and lints.
+#
+# The issues identified by the analyzer are surfaced in the UI of Dart-enabled
+# IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
+# invoked from the command line by running `flutter analyze`.
+
+# The following line activates a set of recommended lints for Flutter apps,
+# packages, and plugins designed to encourage good coding practices.
+# Written by the SDK, not by hand. `flutter analyze` on 3.47 rewrites every
+# analysis_options.yaml it reads, printing "Upgrading analysis_options.yaml to
+# exclude build and platform directories" as it goes. It is committed here — in
+# all sixteen of them — because the alternative is a tree that goes dirty every
+# time anyone analyses it, and a CI job that reports modified files it did not
+# modify on purpose.
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  # The lint rules applied to this project can be customized in the
+  # section below to disable rules from the `package:flutter_lints/flutter.yaml`
+  # included above or to enable additional rules. A list of all available lints
+  # and their documentation is published at https://dart.dev/lints.
+  #
+  # Instead of disabling a lint rule for the entire project in the
+  # section below, it can also be suppressed for a single line of code
+  # or a specific dart file by using the `// ignore: name_of_lint` and
+  # `// ignore_for_file: name_of_lint` syntax on the line or in the file
+  # producing the lint.
+  # **One home, and every other package points here.** The eighteen other
+  # `analysis_options.yaml` in this tree are each a two-line `include:` of this
+  # file rather than a copy of it — before, they were nineteen identical copies
+  # of the SDK's boilerplate, which meant enabling a rule was a nineteen-file
+  # commit and nobody ever did it. Zero rules beyond `flutter_lints` have ever
+  # been on.
+  #
+  # The per-package files keep their own `analyzer: exclude:` block, because
+  # that is the part `flutter analyze` on 3.47 rewrites in place — see the note
+  # above. Rules go here.
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - avoid_slow_async_io
+    - cast_nullable_to_non_nullable
+    - collection_methods_unrelated_type
+    - directives_ordering
+    - no_adjacent_strings_in_list
+    - only_throw_errors
+    - prefer_final_locals
+    - throw_in_finally
+    - unawaited_futures
+    - unnecessary_await_in_return
+    - unnecessary_parenthesis
+    - unnecessary_statements
+    - unrelated_type_equality_checks
+    - use_string_in_part_of_directives
+
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options

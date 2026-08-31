@@ -1,0 +1,31 @@
+name: flutter3d_game_platformer
+description: "A second genre: a runner who jumps twice and dashes, things to collect, hazards to fall into, and checkpoints to come back at."
+version: 0.3.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # The engine half. Everything here is content it takes as an argument.
+  flutter3d_game: ^0.3.0
+
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+# Deliberately no dependency on flutter3d. This package is a simulation, and the
+# whole of it is reachable from a test with no device — which is what makes it
+# the instrument SPEC stage 5 wanted: a game that is not a shooter, finding out
+# what the engine assumed. When it grows a visual half it grows a `bridge.dart`
+# beside the barrel, as `flutter3d_game_shooter` has.

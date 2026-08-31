@@ -1,0 +1,55 @@
+name: flutter3d_example
+description: "The engine's own demo: a model browser with every lighting model, shadows, bloom, skinning and the debug overlay."
+publish_to: 'none'
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # The backend. Named here on purpose: this is the one line an application
+  # changes to run on a different graphics API.
+  flutter3d_impeller:
+    path: ../../flutter3d_impeller
+  # cpu_main.dart runs the same engine on the software backend, which is the
+  # only way to see what it costs and whether it looks right while it moves.
+  flutter3d_cpu:
+    path: ../../flutter3d_cpu
+  # conformance_main.dart runs the backend checks that cannot be a test on this
+  # backend. A real dependency rather than a dev one, because it is imported by
+  # an entry point rather than by a test.
+  flutter3d_conformance:
+    path: ../../flutter3d_conformance
+  flutter3d_hardware:
+    path: ../../flutter3d_hardware
+  # The same application on the web, drawing through the other backend. Only
+  # src/spike/backend.dart names either of them.
+  flutter3d_webgl:
+    path: ../../flutter3d_webgl
+  flutter3d:
+    path: ../
+  flutter3d_particles:
+    path: ../../flutter3d_particles
+  # Only the golden runner needs it, to insist its output directory is
+  # absolute — a bundled macOS app runs from the filesystem root.
+  path: ^1.9.0
+  vector_math: ^2.2.0
+  # golden_store_web.dart fetches references over HTTP.
+  web: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    # Models that belong to the demo rather than to the engine. The engine's own
+    # samples are Khronos conformance assets and are declared by the package,
+    # because its tests read them; this is here to exercise the material maps
+    # against something that was not authored for a test.
+    - assets/models/

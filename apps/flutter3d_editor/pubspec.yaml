@@ -1,0 +1,83 @@
+name: flutter3d_editor
+description: "A level editor: open a document, move what is in it, write it back."
+publish_to: 'none'
+version: 0.3.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # **Desktop only, and there is no web half.** The other three applications
+  # pick a backend at compile time because they ship to a browser; this one
+  # exists to write a file back to the disk it came from, which a browser will
+  # not do. One backend, named here, and no `backend_web.dart`.
+  flutter3d_impeller:
+    path: ../../packages/flutter3d_impeller
+
+  flutter3d:
+    path: ../../packages/flutter3d
+
+  # The document, its validator, and the input the camera is flown with.
+  flutter3d_game:
+    path: ../../packages/flutter3d_game
+
+  # Level geometry to mesh nodes. `LevelLoader.build` is what an editor needs
+  # and what a game never did: a level drawn from a document in memory rather
+  # than from an asset.
+  flutter3d_bridge:
+    path: ../../packages/flutter3d_bridge
+
+  # What a brush is, for picking one by pointing at it.
+
+  # The surface a frame reaches Flutter through.
+  flutter3d_session:
+    path: ../../packages/flutter3d_session
+
+  vector_math: ^2.2.0
+
+  # State management — see the note in `packages/flutter3d_ui/pubspec.yaml`.
+  # What goes through it is the screen: which document is open, why one is
+  # not, and what the strip along the bottom says. What does **not** is the
+  # camera, the scene and the gizmos the render loop reads every frame; a
+  # state object per frame is an allocation and a rebuild sixty times a
+  # second, which is the whole reason `EditorCubit` stops where it does.
+  flutter_bloc: ^9.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  # Draws a level without a GPU, which is how the one thing this application
+  # does that a unit test cannot reach — turning a document into a scene — is
+  # checked at all.
+  flutter3d_cpu:
+    path: ../../packages/flutter3d_cpu
+
+  # **The genres, and only here.** A template ships each genre's vocabulary as
+  # data, and the test proves that data against the packages that own the
+  # words — every type exists, and the starter level passes that genre's own
+  # validator and rules. Putting these in `dependencies:` instead would compile
+  # a vocabulary into an editor whose whole design is not having one, which is
+  # the mistake `EntityRegistry`'s own doc records somebody already making.
+  flutter3d_game_shooter:
+    path: ../../packages/flutter3d_game_shooter
+  flutter3d_game_platformer:
+    path: ../../packages/flutter3d_game_platformer
+
+flutter:
+  uses-material-design: true
+
+  # What a template gives a new game. **One line per directory, because a
+  # directory entry is not recursive** — a forgotten line is a `rootBundle`
+  # that throws in front of somebody creating a project, with nothing to warn
+  # about it at compile time. `assets/templates/index.json` lists every file
+  # and a test loads each one, so the forgetting fails in CI instead.
+  assets:
+    - assets/templates/
+    - assets/templates/shooter/
+    - assets/templates/platformer/
