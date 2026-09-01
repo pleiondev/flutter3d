@@ -344,7 +344,8 @@ class _GameScreenState extends State<GameScreen>
             ),
       slotButtons: PadInput.dpadSlots,
     );
-    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook);
+    _loop = GameLoop(input: _input, onStep: _step, drainLook: _drainLook)
+      ..recorders.add(_rewind.recorder);
 
     _view = RenderView(camera: _camera);
 
@@ -531,6 +532,135 @@ class _GameScreenState extends State<GameScreen>
         device: device,
       ),
     );
+    _demos = DemoFile(appName: 'dungeon', onIssue: _sayIssue);
+  }
+
+  /// The last run, as what the player did. See [DemoFile].
+  DemoFile? _demos;
+
+  /// Where the run being recorded started, and in which level.
+  Snapshot? _demoStart;
+  String? _demoLevel;
+
+  /// Starts writing the run down, from the state the level is in now.
+  ///
+  /// Now rather than at load: a level resumed from a save begins mid-run, and
+  /// the demo has to begin where the player did. The tape's seed is the dice
+  /// the snapshot carries, which is the one number a replay cannot do without.
+  void _beginDemo(String asset, LevelReady level) {
+    final start = level.staged.sim.save();
+    _demoStart = start;
+    _demoLevel = asset;
+    // A kill camera still playing when the next level arrives — a restart
+    // pressed through it — is over, and the level it was replaying is gone.
+    _endKillcam(restorePresent: false);
+    _endRecording();
+    final recorder = InputTapeRecorder(seed: start.data.integer('random'));
+    _demoRecorder = recorder;
+    _loop.recorders.add(recorder);
+    // The last few seconds, for the kill camera: a new level has none yet, and
+    // the recorder is put back if a kill camera took it out.
+    _rewind.reset();
+    if (!_loop.recorders.contains(_rewind.recorder)) {
+      _loop.recorders.add(_rewind.recorder);
+    }
+  }
+
+  /// The state the death left, kept while the last seconds play again. Null
+  /// when no kill camera is playing.
+  Snapshot? _killcamPresent;
+
+  /// How far back the kill camera looks.
+  static const double _killcamSeconds = 3.0;
+
+  /// Where the kill camera stands: behind the player's aim and above it.
+  static const double _killcamDistance = 2.5;
+  static const double _killcamHeight = 1.0;
+
+  /// Plays the last seconds before the death again, from outside the body.
+  ///
+  /// What the rewind buffer was kept for. The state three seconds before the
+  /// death is restored and the tape played forward through the ordinary step
+  /// — so the sounds, the flashes and the monsters happen again as they did —
+  /// while the camera stands back from the player instead of behind their
+  /// eyes. Three traps, each closed here:
+  ///
+  /// * the restored state says the game is being played, and `RunSession`
+  ///   would announce a new level on seeing it; [_step] does not ask it while
+  ///   this plays;
+  /// * the devices write into the same input the tape does; they are muted,
+  ///   and the tape lifts the mute for its own writes;
+  /// * the rewind buffer would record the replay into the run's history; its
+  ///   recorder is taken out, and put back when the next level begins.
+  void _startKillcam() {
+    final sim = _sim;
+    if (sim == null || _killcamPresent != null) return;
+    final point = _rewind.rewindBy(_killcamSeconds);
+    if (point == null) return;
+    _killcamPresent = sim.save();
+    _loop.recorders.remove(_rewind.recorder);
+    _input
+      ..clear()
+      ..muted = true;
+    sim.restore(point.snapshot);
+    // From the keyframe to the moment the camera starts, without drawing or
+    // sounding: the step is the simulation's own, not the one with effects.
+    final toPoint = InputTapePlayback(point.tapeToPoint);
+    while (!toPoint.isFinished) {
+      toPoint.applyTo(_input);
+      _input.beginStep();
+      sim.step(_loop.clock.stepSeconds);
+      _input.endStep();
+    }
+    final player = _player;
+    if (player != null) _smoothedPosition.jumpTo(player.body.position);
+    _loop.playback = InputTapePlayback(point.tapeFromPoint);
+  }
+
+  /// Puts the present back once the tape has played, or drops it at once.
+  void _endKillcam({required bool restorePresent}) {
+    final present = _killcamPresent;
+    if (present == null) return;
+    _killcamPresent = null;
+    _loop.playback = null;
+    _input
+      ..muted = false
+      ..clear();
+    // The death, exactly as it was: the replay lands on it by determinism
+    // anyway, and restoring it is what makes that a fact rather than a hope.
+    if (restorePresent) _sim?.restore(present);
+  }
+
+  /// The demo's own recorder, beside the rewind buffer's in the loop.
+  InputTapeRecorder? _demoRecorder;
+
+  /// The last ten seconds of the run, every step of them. See [RewindBuffer].
+  ///
+  /// Ten because that is what a death is worth looking back over; the memory
+  /// is eleven snapshots of the crypt and six hundred tape entries, which the
+  /// buffer's own doc puts a number on.
+  final RewindBuffer _rewind = RewindBuffer(stepsPerSecond: 60, history: 10.0);
+
+  /// Stops the demo's recorder, leaving the rewind buffer's in place.
+  InputTapeRecorder? _endRecording() {
+    final recorder = _demoRecorder;
+    if (recorder != null) _loop.recorders.remove(recorder);
+    _demoRecorder = null;
+    return recorder;
+  }
+
+  /// Writes the run down when it ends, either way.
+  ///
+  /// Either way, because a death is the run somebody wants to send: "it shot
+  /// me through the wall" is a sentence, and the demo is the proof. Written
+  /// once at the end rather than as it goes, for the reason the save is: a
+  /// write per step would put a file in the step budget.
+  void _endDemo() {
+    final recorder = _endRecording();
+    final start = _demoStart;
+    final level = _demoLevel;
+    if (recorder == null || start == null || level == null) return;
+    _demos?.write(Demo(level: level, start: start, tape: recorder.tape));
   }
 
   /// Everything the widget has to do when a level arrives.
@@ -710,13 +840,17 @@ class _GameScreenState extends State<GameScreen>
     // settings panel — it has had one for a while — and the copy had **no
     // `ready` clause at all**, so the loop accumulated simulated time while a
     // level was still loading and threw it away on arrival.
-    _loop.paused = shouldPause(
-      ready: _sim != null,
-      menuOpen: _settings.state.isOpen,
-      pointerIsTheGate: Playing.capturesPointer,
-      pointerHeld: _devices.isCaptured,
-      padConnected: _pad.isConnected,
-    );
+    // A kill camera plays whether or not the pointer is held: the player is
+    // dead, and a replay that waited for a click would never start.
+    _loop.paused = _killcamPresent != null
+        ? _settings.state.isOpen
+        : shouldPause(
+            ready: _sim != null,
+            menuOpen: _settings.state.isOpen,
+            pointerIsTheGate: Playing.capturesPointer,
+            pointerHeld: _devices.isCaptured,
+            padConnected: _pad.isConnected,
+          );
     _steps = _loop.advance(dt);
     _pace.note(
       dropped: _loop.clock.droppedSteps,
@@ -749,7 +883,15 @@ class _GameScreenState extends State<GameScreen>
     if (sim == null || player == null) return;
 
     final heldBefore = _arsenal.current;
+    // Before the step, so the keyframe is the state this step's recorded
+    // entry acts on — the moment `RewindBuffer` and the loop agree about.
+    if (_rewind.keyframeDue) _rewind.keyframe(sim.save());
     sim.step(dt);
+    // The tape's last entry was consumed by the step that just ran, so this
+    // is the moment the replay has arrived back at the death.
+    if (_killcamPresent != null && (_loop.playback?.isFinished ?? true)) {
+      _endKillcam(restorePresent: true);
+    }
 
     // Where everything ended up, for the frame that draws between this step
     // and the next. Here rather than in the frame method because that is what
@@ -796,10 +938,14 @@ class _GameScreenState extends State<GameScreen>
     // The run's own state, republished by the cubit on the step it changes —
     // which is what makes the announcement below a listener rather than an
     // edge detector kept in a field here.
-    _run.observe();
-    // Once a level says there is somewhere to go, go. Does nothing until the
-    // level is finished and nothing twice; the guard is the cubit's.
-    unawaited(_run.advance());
+    // Not while a kill camera plays: the restored state says the game is
+    // being played, and the run would announce a new level on seeing it.
+    if (_killcamPresent == null) {
+      _run.observe();
+      // Once a level says there is somewhere to go, go. Does nothing until the
+      // level is finished and nothing twice; the guard is the cubit's.
+      unawaited(_run.advance());
+    }
 
     // **What is shown is decided in `Reactions` and only performed here**, for
     // the same reason the sound is: three private methods of a widget nothing
@@ -857,15 +1003,20 @@ class _GameScreenState extends State<GameScreen>
       listener: (BuildContext context, RunStatus<LevelReady> run) {
         switch (run) {
           case RunPlaying<LevelReady>(
+            :final asset,
             :final level,
             outcome: RunOutcome.playing,
           ):
             _levelArrived(level);
+            _beginDemo(asset, level);
           case RunPlaying<LevelReady>(outcome: RunOutcome.lost):
             _effects.say('You died. Press R to try again.');
+            _endDemo();
+            _startKillcam();
           case RunPlaying<LevelReady>(:final level, outcome: RunOutcome.won):
             final next = level.staged.sim.nextLevel;
             _effects.say(next == null ? 'You are out.' : 'Level complete.');
+            _endDemo();
           case RunLoading<LevelReady>() || RunFailed<LevelReady>():
             // The pointer layers unmount with the level — see [_pointerFiring]
             // — so whatever they were holding is let go here, where the swap
@@ -1096,6 +1247,24 @@ class _GameScreenState extends State<GameScreen>
   void _placeCamera() {
     final player = _player;
     if (player == null) return;
+
+    if (_killcamPresent != null) {
+      // Standing back from the body rather than behind its eyes, so the death
+      // is seen rather than lived through twice. Through walls when the room
+      // is small; a camera that pushes off the brushes is a later refinement.
+      _smoothedPosition.read(_loop.alpha, _eye);
+      player
+        ..eyeFrom(_eye, _eye)
+        ..aim(_aim);
+      _target.setFrom(_eye);
+      _eye
+        ..addScaled(_aim, -_killcamDistance)
+        ..y += _killcamHeight;
+      _camera
+        ..setPositionFrom(_eye)
+        ..lookAt(_target);
+      return;
+    }
 
     _smoothedPosition.read(_loop.alpha, _eye);
     player

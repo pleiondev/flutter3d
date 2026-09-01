@@ -22,6 +22,7 @@ final class InputFrame {
     this.lookX = 0.0,
     this.lookY = 0.0,
     this.values = const <String, double>{},
+    this.slot,
   });
 
   factory InputFrame.fromJson(Map<String, Object?> json) => InputFrame(
@@ -45,6 +46,7 @@ final class InputFrame {
               .entries)
         entry.key! as String: (entry.value! as num).toDouble(),
     },
+    slot: (json['slot'] as num?)?.toInt(),
   );
 
   /// Action names rather than the actions themselves.
@@ -61,11 +63,22 @@ final class InputFrame {
   final double lookY;
   final Map<String, double> values;
 
+  /// The numbered slot asked for this step, if any.
+  ///
+  /// **Found missing by playing the crypt.** A tape without this replayed six
+  /// hundred steps of the shipped game to the same positions, the same dice
+  /// and the same dead monster, and arrived holding the pistol where the
+  /// player had switched to the shotgun — with the shotgun's shells unspent
+  /// and the pistol's bullets gone. A slot request is neither a press nor a
+  /// release, so a tape of transitions had nowhere to put it.
+  final int? slot;
+
   /// Whether this step is worth writing down at all.
   bool get isIdle =>
       pressed.isEmpty &&
       released.isEmpty &&
       values.isEmpty &&
+      slot == null &&
       stickX == 0.0 &&
       stickY == 0.0 &&
       lookX == 0.0 &&
@@ -79,6 +92,7 @@ final class InputFrame {
     if (lookX != 0.0) 'lx': lookX,
     if (lookY != 0.0) 'ly': lookY,
     if (values.isNotEmpty) 'values': values,
+    if (slot != null) 'slot': slot,
   };
 }
 
@@ -147,11 +161,20 @@ final class InputTapeRecorder {
   final InputTape tape;
 
   void record(InputState input) {
+    // The first entry carries what was already held, as presses. A recording
+    // that begins while the player is walking forward begins after the press
+    // that started the walk, and a replay that never pressed it stands still
+    // where the player moved. Once only: from the second entry on, held state
+    // follows from the transitions the tape already has.
+    final pressed = <String>[
+      if (tape.frames.isEmpty)
+        for (final action in input.heldNow)
+          if (!input.pressed(action)) action.name,
+      for (final action in input.pressedThisStep) action.name,
+    ];
     tape.frames.add(
       InputFrame(
-        pressed: <String>[
-          for (final action in input.pressedThisStep) action.name,
-        ],
+        pressed: pressed,
         released: <String>[
           for (final action in input.releasedThisStep) action.name,
         ],
@@ -163,6 +186,7 @@ final class InputTapeRecorder {
           for (final entry in input.analogueValues.entries)
             entry.key.name: entry.value,
         },
+        slot: input.slotRequest,
       ),
     );
   }
@@ -190,7 +214,19 @@ final class InputTapePlayback {
   void applyTo(InputState input) {
     if (isFinished) return;
     final frame = tape.frames[_step++];
+    // The tape is the one device allowed through a mute — see
+    // [InputState.muted] — so the mute is lifted for exactly these writes and
+    // put back as it was found.
+    final muted = input.muted;
+    input.muted = false;
+    try {
+      _apply(frame, input);
+    } finally {
+      input.muted = muted;
+    }
+  }
 
+  void _apply(InputFrame frame, InputState input) {
     for (final name in frame.pressed) {
       input.press(GameAction(name));
     }
@@ -204,5 +240,7 @@ final class InputTapePlayback {
     for (final entry in frame.values.entries) {
       input.setActionValue(GameAction(entry.key), entry.value);
     }
+    final slot = frame.slot;
+    if (slot != null) input.requestSlot(slot);
   }
 }

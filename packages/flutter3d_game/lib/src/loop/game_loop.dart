@@ -1,6 +1,7 @@
 import 'package:vector_math/vector_math.dart';
 
 import '../input/input_state.dart';
+import '../input/input_tape.dart';
 import 'fixed_step.dart';
 
 /// Ties the clock, the input and the simulation into one call per frame.
@@ -37,6 +38,34 @@ final class GameLoop {
   final void Function(Vector2 out)? drainLook;
 
   final Vector2 _look = Vector2.zero();
+
+  /// Write down what the player does, one entry per step each, while present.
+  ///
+  /// Here rather than at the call site because the moment matters and is easy
+  /// to miss: after the step's look has been added and before the step runs,
+  /// which is the one point where the latches hold what the step is about to
+  /// consume. `InputTapeRecorder`'s own doc says so, and a loop that has the
+  /// moment already is the place to keep it.
+  ///
+  /// A list, because two things want the same entry and neither should know
+  /// about the other: a demo keeps the run from its start, a rewind buffer
+  /// keeps the last few seconds and forgets the rest. Each gets the step
+  /// written into its own tape.
+  final List<InputTapeRecorder> recorders = <InputTapeRecorder>[];
+
+  /// Drives the input from a tape instead of from the devices, while set.
+  ///
+  /// While a tape is playing the frame's own look is drained and dropped, not
+  /// added: the recording holds what the mouse moved on every step, and adding
+  /// this frame's motion on top would turn the view away from where the run
+  /// went. **The devices are the application's to quiet.** A key pressed
+  /// during a replay still reaches [input], because nothing here can tell a
+  /// device from a tape — and should not, since that is also how a player takes
+  /// over from a replay that has run out.
+  ///
+  /// Recording and playing at once records the tape being played, entry for
+  /// entry, which is a way of copying a tape and not a mistake.
+  InputTapePlayback? playback;
 
   /// Whether the simulation is stopped.
   ///
@@ -131,7 +160,15 @@ final class GameLoop {
     final lookY = _look.y * perStep;
 
     for (var i = 0; i < steps; i++) {
-      input.addLook(lookX, lookY);
+      final tape = playback;
+      if (tape != null && !tape.isFinished) {
+        tape.applyTo(input);
+      } else {
+        input.addLook(lookX, lookY);
+      }
+      for (var r = 0; r < recorders.length; r++) {
+        recorders[r].record(input);
+      }
       input.beginStep();
       onStep(clock.stepSeconds);
       input.endStep();

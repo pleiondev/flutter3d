@@ -789,6 +789,33 @@ another level's metres are arithmetically meaningful and physically meaningless 
 restoring one into the wrong level puts the player inside a wall — so `SaveFile`
 refuses to hand out a snapshot without a level name.
 
+**A demo is a save plus a tape.** `Demo` is a level, a snapshot and an
+`InputTape` — where the run started and every step's intent after — and
+because a step reaches for no clock and no loose dice (§9.3) the same three
+reproduce the run exactly. The dungeon records every run through
+`GameLoop.recorders` and writes the last one as `demo.json` when it ends,
+either way, so the file that reproduces a bug exists before anybody thinks to
+ask for it. `apps/flutter3d_demo_dungeon/test/demo_test.dart` plays six hundred
+steps of the shipped crypt, monsters and all, through the document as a string
+and back, and holds the two snapshots byte-equal. **That test found the tape
+dropping slot requests**: positions, dice and a dead monster all agreed, and the
+replay arrived holding the pistol where the player had switched to the shotgun.
+
+**A rewind buffer is a demo with its middle kept.** `RewindBuffer` holds one
+snapshot a second and a tape entry a step for the last `history` seconds and
+forgets the rest, so a moment in the recent past is a keyframe and the entries
+to play forward from it. The dungeon's kill camera restores the state three
+seconds before a death and plays the tape through the ordinary step, sounds and
+all, with the camera standing back from the body; then puts the death back.
+Three things had to be held for that to work, and each is named where it is
+done: the restored state says the game is being played and the run session
+must not announce a new level on seeing it; the devices write into the same
+`InputState` the tape does and are muted while it plays, the tape lifting the
+mute for its own writes; and the buffer's own recorder is taken out so the
+replay is not recorded into the run's history. A crypt snapshot is 1.6 KB as
+JSON, measured by the test that holds a rewind to any moment byte-equal to
+the snapshot the game wrote there.
+
 ---
 
 ## 9. The simulation layer
@@ -1081,7 +1108,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **2992 tests** across 23 packages and 5 applications |
+| Unit tests | **3013 tests** across 23 packages and 5 applications |
 | Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

@@ -92,6 +92,15 @@ final class InputState {
   Iterable<GameAction> get releasedThisStep =>
       List<GameAction>.unmodifiable(_releasedLatch);
 
+  /// Everything held right now, for a recorder that starts mid-run.
+  ///
+  /// A tape records transitions, and a player already holding forward when the
+  /// recording begins made that transition before the first entry — so a
+  /// replay that pressed nothing would stand still where the player walked.
+  /// The recorder writes these as pressed on its first entry, and nothing else
+  /// has a reason to enumerate them.
+  Iterable<GameAction> get heldNow => List<GameAction>.unmodifiable(_held);
+
   /// Every action with an analogue reading, and the reading.
   ///
   /// A trigger held half way is not a press and not a release, so a tape that
@@ -130,7 +139,22 @@ final class InputState {
 
   // MARK: - Writing, from a device
 
+  /// Whether the devices are ignored.
+  ///
+  /// **For a replay, and it is the replay's problem being solved.** A tape
+  /// being played writes into this same object, and the keyboard goes on
+  /// writing too: a player holding forward while a kill camera plays would
+  /// add a second hold to every one the tape presses, and the tape's releases
+  /// would then release nothing. So while this is set every device write is
+  /// dropped — and `InputTapePlayback` lifts it around its own writes, because
+  /// the tape is the one device that is meant to get through.
+  ///
+  /// Held state is not cleared by setting this; call [clear] for that, at the
+  /// moment the replay's own history takes over.
+  bool muted = false;
+
   void press(GameAction action) {
+    if (muted) return;
     if (_toggled.contains(action)) {
       // A press flips it and a release says nothing. Which is the whole feature:
       // see [setToggled].
@@ -164,6 +188,7 @@ final class InputState {
   /// without anybody being identified. A device that pressed twice without
   /// releasing would stay held, and that is a bug in the device.
   void release(GameAction action) {
+    if (muted) return;
     // A toggled action is let go by pressing it again, so the release that ends
     // an ordinary hold has nothing to do here.
     if (_toggled.contains(action)) return;
@@ -223,8 +248,10 @@ final class InputState {
   /// each in a different place. A magnitude of nought is not a release —
   /// releasing is [release] — so a trigger returning to rest still has to say so
   /// both ways.
-  void setActionValue(GameAction action, double magnitude) =>
-      _values[action] = magnitude.clamp(0.0, 1.0);
+  void setActionValue(GameAction action, double magnitude) {
+    if (muted) return;
+    _values[action] = magnitude.clamp(0.0, 1.0);
+  }
 
   /// Stops saying anything about how hard [action] is asked for.
   ///
@@ -235,10 +262,14 @@ final class InputState {
   /// number rather than set it to zero — otherwise the last thing the pad said
   /// shadows the keyboard for the rest of the process, and `W` stops working the
   /// first time anybody touches a trigger.
-  void clearActionValue(GameAction action) => _values.remove(action);
+  void clearActionValue(GameAction action) {
+    if (muted) return;
+    _values.remove(action);
+  }
 
   /// Sets the analogue movement axis, for a stick or a d-pad.
   void setStickAxis(double x, double y) {
+    if (muted) return;
     _stickAxis.setValues(x, y);
     _recomputeMoveAxis();
   }
@@ -246,10 +277,12 @@ final class InputState {
   /// Adds view movement. Called once per mouse event or once per drag update;
   /// the values pile up until a step takes them.
   void addLook(double dx, double dy) {
+    if (muted) return;
     _lookDelta.setValues(_lookDelta.x + dx, _lookDelta.y + dy);
   }
 
   void requestSlot(int slot) {
+    if (muted) return;
     _slotRequest = slot;
   }
 
