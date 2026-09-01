@@ -6,7 +6,9 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../geometry/mesh_geometry.dart';
+import '../geometry/vertex_layout.dart';
 import '../scene/camera_node.dart';
+import '../scene/instanced_mesh_node.dart';
 import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
@@ -94,6 +96,7 @@ final class Renderer implements RenderServices {
     required this.device,
     required this.vertexShader,
     required this.skinnedVertexShader,
+    required this.instancedVertexShader,
     required this.debugLineVertexShader,
     required this.debugLineFragmentShader,
     required this.fullscreenVertexShader,
@@ -164,6 +167,12 @@ final class Renderer implements RenderServices {
   /// declarations — so a skinned mesh cannot share a shader with a static one
   /// however similar the body is.
   final ShaderHandle skinnedVertexShader;
+
+  /// The instanced vertex stage: the standard layout in slot 0 and a
+  /// per-instance transform and colour in slot 1. The same varyings and the
+  /// same `FrameInfo` as [vertexShader], so every fragment shader and both
+  /// shadow passes draw from it unchanged — see `mesh_instanced.vert`.
+  final ShaderHandle instancedVertexShader;
 
   /// The debug overlay's own stage pair. Separate from the mesh shaders because
   /// the line buffer has a different vertex layout, and a backend takes the
@@ -514,6 +523,7 @@ final class Renderer implements RenderServices {
 
   PipelineHandle? _shadowPipeline;
   PipelineHandle? _skinnedShadowPipeline;
+  PipelineHandle? _instancedShadowPipeline;
   PipelineHandle? _bloomUpsamplePipeline;
   PipelineHandle? _compositePipeline;
 
@@ -646,6 +656,7 @@ final class Renderer implements RenderServices {
       device: device,
       vertexShader: require('MeshVertex'),
       skinnedVertexShader: require('MeshSkinnedVertex'),
+      instancedVertexShader: require('MeshInstancedVertex'),
       debugLineVertexShader: require('DebugLineVertex'),
       debugLineFragmentShader: require('DebugLine'),
       fullscreenVertexShader: require('FullscreenVertex'),
@@ -1357,6 +1368,7 @@ final class Renderer implements RenderServices {
   /// stage reads is identical, which is why nothing else about the skinned
   /// path changes between the two.
   PipelineHandle? _skinnedCubeShadowPipeline;
+  PipelineHandle? _instancedCubeShadowPipeline;
   PipelineHandle? _cubeShadowResetPipeline;
 
   /// Skinned casters whose pose has already been evaluated in the pass now

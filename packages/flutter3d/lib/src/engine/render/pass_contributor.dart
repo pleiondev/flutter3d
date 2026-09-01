@@ -28,6 +28,7 @@ export 'contributor_registry.dart';
 final class FramePassState {
   LightingModel? boundPipeline;
   bool? boundSkinned;
+  bool? boundInstanced;
 
   /// The depth test the pass is currently set to.
   ///
@@ -52,6 +53,7 @@ final class FramePassState {
   void invalidatePipeline() {
     boundPipeline = null;
     boundSkinned = null;
+    boundInstanced = null;
   }
 }
 

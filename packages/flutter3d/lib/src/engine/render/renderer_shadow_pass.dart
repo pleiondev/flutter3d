@@ -238,6 +238,8 @@ extension _ShadowPasses on Renderer {
           if (node.shadowIsStatic != static) continue;
           final mesh = node.mesh;
           if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
+          final instanced = node is InstancedMeshNode ? node : null;
+          if (instanced != null && instanced.count == 0) continue;
 
           // A skinned caster needs the skinned vertex stage here for the same
           // reason it needs one in the main pass and in the cascade pass: the
@@ -263,7 +265,13 @@ extension _ShadowPasses on Renderer {
           }
 
           pass.bindPipeline(
-            skinned
+            instanced != null
+                ? (_instancedCubeShadowPipeline ??= device.createPipeline(
+                    instancedVertexShader,
+                    shader,
+                    layout: _kInstancedLayout,
+                  ))
+                : skinned
                 ? (_skinnedCubeShadowPipeline ??= device.createPipeline(
                     skinnedVertexShader,
                     shader,
@@ -273,6 +281,11 @@ extension _ShadowPasses on Renderer {
                     shader,
                   )),
           );
+          final stage = instanced != null
+              ? instancedVertexShader
+              : skinned
+              ? skinnedVertexShader
+              : vertexShader;
           pass.setWindingOrder(
             node.worldIsMirrored
                 ? WindingOrder.clockwise
@@ -284,15 +297,18 @@ extension _ShadowPasses on Renderer {
           mvp
             ..setFrom(_cubeDrawMatrix)
             ..multiply(node.worldMatrix);
-          pass.bindUniformBlock(
-            skinned ? skinnedVertexShader : vertexShader,
-            _kFrameInfoBlock,
-            {
-              'mvp': mvp.storage,
-              'model': node.worldMatrix.storage,
-              'normal_matrix': node.worldNormalMatrix.storage,
-            },
-          );
+          pass.bindUniformBlock(stage, _kFrameInfoBlock, {
+            'mvp': mvp.storage,
+            'model': node.worldMatrix.storage,
+            'normal_matrix': node.worldNormalMatrix.storage,
+          });
+          if (instanced != null) {
+            pass.bindVertexData(
+              instanced.instanceBytes,
+              instanced.count,
+              slot: 1,
+            );
+          }
           if (skeleton != null) {
             // What a skinned caster costs here, plainly: the joint array is
             // bound again for every face this node is drawn into, so one
@@ -326,7 +342,7 @@ extension _ShadowPasses on Renderer {
             });
           }
           pass.bindUniformBlock(shader, 'ShadowLight', {'light': _cubeLight});
-          pass.draw();
+          pass.draw(instanceCount: instanced?.count ?? 1);
           drawn++;
         }
       }
@@ -580,7 +596,9 @@ extension _ShadowPasses on Renderer {
     // Drawing it with the static one would read joints and weights as position
     // and normal — and skipping skinned casters instead would mean a character
     // that walks around without a shadow.
-    bool? boundSkinned;
+    // Which of the three vertex stages the pass currently has bound: 0 the
+    // static one, 1 the skinned one, 2 the instanced one. Null for none.
+    int? boundKind;
 
     _shadowCasters = 0;
     final meshes = scene.meshes;
@@ -610,7 +628,7 @@ extension _ShadowPasses on Renderer {
         );
         casterTile = tile;
         everyFace = false;
-        boundSkinned = null;
+        boundKind = null;
       }
       final drawMatrix = drawMatrices[cascade];
 
@@ -620,6 +638,8 @@ extension _ShadowPasses on Renderer {
         if (!node.shadowCasting.casts) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
+        final instanced = node is InstancedMeshNode ? node : null;
+        if (instanced != null && instanced.count == 0) continue;
 
         // Both sides recorded for a surface that has only one, so the sun does
         // not come through the seam of a single-sided wall. The state carries
@@ -639,19 +659,28 @@ extension _ShadowPasses on Renderer {
 
         final skeleton = node.skeleton;
         final skinned = skeleton != null;
-        if (boundSkinned != skinned) {
-          pass.bindPipeline(
-            skinned
-                ? (_skinnedShadowPipeline ??= device.createPipeline(
-                    skinnedVertexShader,
-                    shadowShader,
-                  ))
-                : (_shadowPipeline ??= device.createPipeline(
-                    vertexShader,
-                    shadowShader,
-                  )),
-          );
-          boundSkinned = skinned;
+        final kind = instanced != null
+            ? 2
+            : skinned
+            ? 1
+            : 0;
+        if (boundKind != kind) {
+          pass.bindPipeline(switch (kind) {
+            2 => _instancedShadowPipeline ??= device.createPipeline(
+              instancedVertexShader,
+              shadowShader,
+              layout: _kInstancedLayout,
+            ),
+            1 => _skinnedShadowPipeline ??= device.createPipeline(
+              skinnedVertexShader,
+              shadowShader,
+            ),
+            _ => _shadowPipeline ??= device.createPipeline(
+              vertexShader,
+              shadowShader,
+            ),
+          });
+          boundKind = kind;
         }
 
         pass.setWindingOrder(
@@ -665,19 +694,30 @@ extension _ShadowPasses on Renderer {
         mvp
           ..setFrom(drawMatrix)
           ..multiply(node.worldMatrix);
-        final stage = skinned ? skinnedVertexShader : vertexShader;
+        final stage = switch (kind) {
+          2 => instancedVertexShader,
+          1 => skinnedVertexShader,
+          _ => vertexShader,
+        };
         pass.bindUniformBlock(stage, _kFrameInfoBlock, {
           'mvp': mvp.storage,
           'model': node.worldMatrix.storage,
           'normal_matrix': node.worldNormalMatrix.storage,
         });
+        if (instanced != null) {
+          pass.bindVertexData(
+            instanced.instanceBytes,
+            instanced.count,
+            slot: 1,
+          );
+        }
         if (skeleton != null) {
           skeleton.update(node.worldMatrix);
           pass.bindUniformBlock(skinnedVertexShader, _kSkinInfoBlock, {
             'joint_matrices': skeleton.matrices,
           });
         }
-        pass.draw();
+        pass.draw(instanceCount: instanced?.count ?? 1);
         // Counted once, not once per cascade: the number answers "how many things
         // cast", and a caster drawn into three tiles is still one caster. The
         // draw call count is the graph's business.

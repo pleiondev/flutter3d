@@ -53,16 +53,81 @@ extension _RendererResources on Renderer {
     });
   }
 
-  PipelineHandle _pipelineFor(LightingModel model, {required bool skinned}) {
+  PipelineHandle _pipelineFor(
+    LightingModel model, {
+    required bool skinned,
+    bool instanced = false,
+  }) {
+    assert(!(skinned && instanced), 'a skinned batch is not a thing here');
+    final key = instanced
+        ? 'instanced/${model.shaderName}'
+        : skinned
+        ? 'skinned/${model.shaderName}'
+        : model.shaderName;
     return _pipelineCache.putIfAbsent(
-      skinned ? 'skinned/${model.shaderName}' : model.shaderName,
-      () => device.createPipeline(
-        skinned ? skinnedVertexShader : vertexShader,
-        _fragmentShaderFor(model),
-      ),
+      key,
+      () => instanced
+          ? device.createPipeline(
+              instancedVertexShader,
+              _fragmentShaderFor(model),
+              layout: _kInstancedLayout,
+            )
+          : device.createPipeline(
+              skinned ? skinnedVertexShader : vertexShader,
+              _fragmentShaderFor(model),
+            ),
     );
   }
 }
+
+/// The two slots an instanced draw binds: the standard vertex in slot 0, one
+/// per vertex, and the placement in slot 1, one per instance.
+///
+/// Declared rather than read off the shader, because a shader's `in`
+/// declarations say what the attributes are and not which buffer each comes
+/// from; the split is what this spec exists to state, and `InstancedMeshNode`
+/// says what slot 1 holds.
+final VertexLayoutSpec _kInstancedLayout = VertexLayoutSpec(<BufferLayout>[
+  BufferLayout(
+    strideInBytes: VertexLayout.standard.strideInBytes,
+    attributes: <InputAttribute>[
+      for (final (name, format) in <(String, VertexFormat)>[
+        ('position', VertexFormat.float32x3),
+        ('normal', VertexFormat.float32x3),
+        ('texcoord', VertexFormat.float32x2),
+        ('tangent', VertexFormat.float32x4),
+        ('color', VertexFormat.float32x4),
+      ])
+        InputAttribute(
+          name: name,
+          format: format,
+          offsetInBytes: VertexLayout.standard.floatOffsetOf(name) * 4,
+        ),
+    ],
+  ),
+  const BufferLayout(
+    strideInBytes: InstancedMeshNode.strideInBytes,
+    stepMode: VertexStepMode.instance,
+    attributes: <InputAttribute>[
+      InputAttribute(name: 'i_row0', format: VertexFormat.float32x4),
+      InputAttribute(
+        name: 'i_row1',
+        format: VertexFormat.float32x4,
+        offsetInBytes: 16,
+      ),
+      InputAttribute(
+        name: 'i_row2',
+        format: VertexFormat.float32x4,
+        offsetInBytes: 32,
+      ),
+      InputAttribute(
+        name: 'i_color',
+        format: VertexFormat.float32x4,
+        offsetInBytes: 48,
+      ),
+    ],
+  ),
+]);
 
 // `Renderer.dispose` is not declared here. An extension's members are only
 // in scope where the extension itself is — and this one is private, visible

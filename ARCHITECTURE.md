@@ -415,6 +415,37 @@ pixel, so a floor running to the horizon still aliases, but it covers the common
 case of a prop holding a four-thousand-pixel texture while occupying thirty pixels
 of screen.
 
+### 4.5 Instancing
+
+`InstancedMeshNode` draws one mesh at many places in one call: a transform and
+a colour per instance, sixteen floats each, stepping once per instance in a
+second vertex buffer slot. The particle system had drawn its embers this way
+since it existed; this is the same path for ordinary meshes, and the backend
+contract already carried everything it needs — `draw(instanceCount:)` and a
+per-instance step mode are implemented by all three backends.
+
+**One vertex shader, three passes.** `mesh_instanced.vert` produces the same
+varyings from the same `FrameInfo` block as `mesh.vert`, so every fragment
+shader in the bundle and both shadow passes draw from it unchanged; what the
+renderer adds is a third pipeline variant beside the skinned one, the slot-1
+binding and the instance count. An instance is placed **relative to its node**,
+so a batch moves with its node the way a child would, and moving a thousand
+costs one uniform write.
+
+What the batch is not: it is culled as one, by the union of its instances'
+bounds; a translucent batch sorts as one; a ray hits its bounds rather than its
+instances; and an instance's scale is expected to be uniform, since a
+non-uniform one skews the normal and the stage says so rather than paying an
+inverse transpose per vertex. Each is a limit the class states, and each is a
+thing to add when a scene asks.
+
+The picture is held by `flutter3d_cpu/test/instancing_test.dart`: a grid of
+sixteen cubes under a sun that casts, drawn once as a batch and once as sixteen
+nodes, agree to within a silhouette's worth of pixels — not byte-identical,
+because the instanced stage multiplies the instance transform into the
+position before the node's matrix where the plain stage folds both into one,
+and the rounding lands an edge pixel over here and there.
+
 ---
 
 ## 5. Scene and camera
@@ -1108,7 +1139,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3013 tests** across 23 packages and 5 applications |
+| Unit tests | **3025 tests** across 23 packages and 5 applications |
 | Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

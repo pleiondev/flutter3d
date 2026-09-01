@@ -118,6 +118,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'BloomDownsample': const CpuStage.fragment(BloomDownsampleShader()),
     'BloomUpsample': const CpuStage.fragment(BloomUpsampleShader()),
     'MeshSkinnedVertex': const CpuStage.vertex(MeshSkinnedVertexShader()),
+    'MeshInstancedVertex': const CpuStage.vertex(MeshInstancedVertexShader()),
     'DebugLineVertex': const CpuStage.vertex(DebugLineVertexShader()),
     'DebugLine': const CpuStage.fragment(DebugLineShader()),
     'ParticleVertex': const CpuStage.vertex(ParticleVertexShader()),

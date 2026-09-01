@@ -3116,6 +3116,16 @@ void _linkTests() {
     ('MeshSkinnedVertex', 'Normals'),
     ('MeshSkinnedVertex', 'ShadowDepth'),
     ('MeshSkinnedVertex', 'ShadowDistance'),
+    // The instanced stage is the third vertex layout the same fragment
+    // shaders are drawn from.
+    ('MeshInstancedVertex', 'Unlit'),
+    ('MeshInstancedVertex', 'Lambert'),
+    ('MeshInstancedVertex', 'BlinnPhong'),
+    ('MeshInstancedVertex', 'Pbr'),
+    ('MeshInstancedVertex', 'Toon'),
+    ('MeshInstancedVertex', 'Normals'),
+    ('MeshInstancedVertex', 'ShadowDepth'),
+    ('MeshInstancedVertex', 'ShadowDistance'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('FullscreenVertex', 'BloomThreshold'),

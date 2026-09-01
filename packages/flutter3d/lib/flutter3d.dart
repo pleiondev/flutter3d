@@ -88,6 +88,7 @@ export 'src/engine/render/view_model_node.dart';
 // The scene graph and everything that walks it.
 export 'src/engine/scene/bvh.dart';
 export 'src/engine/scene/camera_node.dart';
+export 'src/engine/scene/instanced_mesh_node.dart';
 export 'src/engine/scene/light_buffer.dart';
 export 'src/engine/scene/light_node.dart';
 export 'src/engine/scene/lod_group.dart';

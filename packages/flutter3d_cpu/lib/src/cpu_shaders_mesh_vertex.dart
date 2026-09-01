@@ -68,6 +68,85 @@ final class MeshVertexShader implements CpuVertexShader {
 /// The skinned layout is the standard one with joints and weights appended, so
 /// the first sixteen floats are read at the same offsets as `mesh.vert` reads
 /// them.
+/// `mesh_instanced.vert`: the standard mesh, placed by a per-instance affine
+/// transform and tinted by a per-instance colour.
+///
+/// The assembled attributes are slot 0's sixteen floats and then slot 1's
+/// sixteen — three rows of the transform and the colour — in the order
+/// `cpu_vertex_fetch.dart` says: every attribute of slot 0, then every
+/// attribute of slot 1.
+final class MeshInstancedVertexShader implements CpuVertexShader {
+  const MeshInstancedVertexShader();
+
+  static const int _row0 = 16;
+  static const int _row1 = 20;
+  static const int _row2 = 24;
+  static const int _colour = 28;
+
+  @override
+  int get varyingCount => kMeshVaryings;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    final mvp = bindings.mat4('FrameInfo', 'mvp');
+    final model = bindings.mat4('FrameInfo', 'model');
+    final normalMatrix = bindings.mat4('FrameInfo', 'normal_matrix');
+
+    // The rows as the buffer holds them; `Matrix4` wants columns, so each
+    // argument below is one row's worth of a column.
+    final instance = Matrix4(
+      a[_row0],
+      a[_row1],
+      a[_row2],
+      0.0, // column 0
+      a[_row0 + 1],
+      a[_row1 + 1],
+      a[_row2 + 1],
+      0.0, // column 1
+      a[_row0 + 2],
+      a[_row1 + 2],
+      a[_row2 + 2],
+      0.0, // column 2
+      a[_row0 + 3],
+      a[_row1 + 3],
+      a[_row2 + 3],
+      1.0, // column 3
+    );
+    final Vector4 local =
+        instance *
+        Vector4(a[kPosition], a[kPosition + 1], a[kPosition + 2], 1.0);
+    final Vector4 world = model * local;
+    out[kVWorld] = world.x;
+    out[kVWorld + 1] = world.y;
+    out[kVWorld + 2] = world.z;
+
+    final rotation = instance.getRotation();
+    final rotated = rotation.transformed(
+      Vector3(a[kNormal], a[kNormal + 1], a[kNormal + 2]),
+    )..normalize();
+    final n = normalMatrix.getRotation().transformed(rotated);
+    out[kVNormal] = n.x;
+    out[kVNormal + 1] = n.y;
+    out[kVNormal + 2] = n.z;
+
+    out[kVUv] = a[kTexcoord];
+    out[kVUv + 1] = a[kTexcoord + 1];
+    for (var i = 0; i < 4; i++) {
+      out[kVColour + i] = a[kColour + i] * a[_colour + i];
+    }
+
+    final Vector3 t =
+        model.getRotation() *
+        (rotation * Vector3(a[kTangent], a[kTangent + 1], a[kTangent + 2]));
+    out[kVTangent] = t.x;
+    out[kVTangent + 1] = t.y;
+    out[kVTangent + 2] = t.z;
+    out[kVTangent + 3] = a[kTangent + 3];
+
+    return mvp * local;
+  }
+}
+
 final class MeshSkinnedVertexShader implements CpuVertexShader {
   const MeshSkinnedVertexShader();
 

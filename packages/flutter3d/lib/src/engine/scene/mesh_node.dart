@@ -58,7 +58,7 @@ enum ShadowCastingMode {
 /// need no device, and requiring one would mean none of them could be tested
 /// without a GPU. The renderer is the place that cares whether the geometry has
 /// actually been uploaded.
-final class MeshNode extends SceneNode {
+base class MeshNode extends SceneNode {
   MeshNode(this.mesh, this.material, {super.name});
 
   MeshGeometry mesh;
@@ -155,6 +155,18 @@ final class MeshNode extends SceneNode {
   int _poseVersion = -1;
   MeshGeometry? _boundsMesh;
 
+  /// What this node occupies in its own space, before the world transform.
+  ///
+  /// The mesh's bounds, unless a subclass draws more than the mesh — an
+  /// instanced batch is the mesh at many places, and its extent is theirs.
+  Aabb3 get localBounds => mesh.bounds;
+
+  /// Says the cached bounds no longer describe the node.
+  ///
+  /// For a subclass whose [localBounds] can change without the transform or
+  /// the mesh changing, which are the two things the cache is keyed on.
+  void markBoundsDirty() => _boundsVersion = -1;
+
   /// World-space axis-aligned bounds, recomputed only when the transform changes.
   Aabb3 get worldBounds {
     _refreshBounds();
@@ -230,7 +242,7 @@ final class MeshNode extends SceneNode {
 
     // Transforming the eight corners is necessary: rotating an AABB and taking
     // the extents of the result is only correct for axis-aligned rotations.
-    final local = mesh.bounds;
+    final local = localBounds;
     final matrix = worldMatrix;
     final corner = Vector3.zero();
 

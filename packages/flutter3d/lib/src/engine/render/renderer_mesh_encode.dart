@@ -53,11 +53,21 @@ extension _MeshEncode on Renderer {
 
     final skeleton = node.skeleton;
     final skinned = skeleton != null;
+    // A batch draws its instances in one call from a third vertex stage; a
+    // batch with nothing in it draws nothing, and binding for it would leave
+    // the pass state describing a pipeline no draw used.
+    final instanced = node is InstancedMeshNode ? node : null;
+    if (instanced != null && instanced.count == 0) return;
+    final batched = instanced != null;
     if (state.boundPipeline != material.lighting ||
-        state.boundSkinned != skinned) {
-      encoder.bindPipeline(_pipelineFor(material.lighting, skinned: skinned));
+        state.boundSkinned != skinned ||
+        state.boundInstanced != batched) {
+      encoder.bindPipeline(
+        _pipelineFor(material.lighting, skinned: skinned, instanced: batched),
+      );
       state.boundPipeline = material.lighting;
       state.boundSkinned = skinned;
+      state.boundInstanced = batched;
       state.pipelineSwitches++;
     }
 
@@ -96,7 +106,14 @@ extension _MeshEncode on Renderer {
     encoder.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
     encoder.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
 
-    final activeVertexShader = skinned ? skinnedVertexShader : vertexShader;
+    if (instanced != null) {
+      encoder.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
+    }
+    final activeVertexShader = batched
+        ? instancedVertexShader
+        : skinned
+        ? skinnedVertexShader
+        : vertexShader;
     // Typed, because `Matrix4.operator*` returns `dynamic`: without the
     // annotation `.storage` here is an unchecked call on an untyped value,
     // and a typo in it would compile and fail at the draw.
@@ -353,7 +370,7 @@ extension _MeshEncode on Renderer {
       );
     }
 
-    encoder.draw();
+    encoder.draw(instanceCount: instanced?.count ?? 1);
     state.drawCalls++;
   }
 }
