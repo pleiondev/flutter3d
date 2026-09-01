@@ -7,6 +7,8 @@
 /// said nought.
 library;
 
+import 'package:clock/clock.dart' show Clock;
+import 'package:fake_async/fake_async.dart' show FakeAsync;
 import 'package:flutter3d_session/flutter3d_session.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -95,6 +97,55 @@ void main() {
       lessThan(62.5),
       reason: 'a slow frame has to show up at all',
     );
+  });
+
+  test('tick reads the wall, not the ticker', () {
+    // What a ticker passes its callback is the frame's scheduled time. Under
+    // GPU load frames get scheduled in pairs, and the timestamps step by a whole
+    // interval, then by almost nothing, then by a whole interval again — while
+    // the callbacks themselves keep arriving one frame apart. A clock that
+    // subtracts the timestamps reports the stagger as if it were real; one that
+    // reads the wall reports the frames as they were lived.
+    FakeAsync().run((async) {
+      final byTimestamp = FrameClock();
+      final byWall = FrameClock();
+      final staggered = <double>[];
+      final lived = <double>[];
+
+      // Timestamps 0, 33, 33, 66, 66 ms — pairs — at wall 0, 16, 32, 48, 64.
+      for (var frame = 0; frame < 5; frame++) {
+        final scheduled = _ms(((frame + 1) ~/ 2) * 33);
+        staggered.add(byTimestamp.secondsSince(scheduled));
+        lived.add(byWall.tick());
+        async.elapse(_ms(16));
+      }
+
+      expect(staggered.sublist(1), [
+        closeTo(0.033, 1e-9),
+        0.0,
+        closeTo(0.033, 1e-9),
+        0.0,
+      ], reason: 'the ticker path reports the pairing as motion');
+      expect(
+        lived.sublist(1),
+        everyElement(closeTo(0.016, 1e-9)),
+        reason: 'the wall path reports the frames as they were lived',
+      );
+    });
+  });
+
+  test('and tick takes a clock of its own', () {
+    // For a driver that owns time — a golden run, a replay — rather than the
+    // ambient one.
+    var micros = 0;
+    final clock = FrameClock(
+      wallClock: Clock(() => DateTime.fromMicrosecondsSinceEpoch(micros)),
+    );
+
+    clock.tick();
+    micros += 20000;
+
+    expect(clock.tick(), closeTo(0.020, 1e-9));
   });
 
   test('and starting again makes the next frame a first frame', () {

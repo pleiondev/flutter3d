@@ -36,6 +36,32 @@ void main() {
       expect(allocator.slotOf(c), isNull);
     });
 
+    test('the candidates past the rows are named, best first', () {
+      // A seventh torch with `castsShadow` set used to go dark silently, and a
+      // missing shadow reads as a bug in the shadows rather than as a budget.
+      // The refusal is reported so the frame can say so.
+      final allocator = ShadowSlotAllocator(slotCount: 1);
+      final a = FakeLight('a');
+      final b = FakeLight('b');
+      final c = FakeLight('c');
+      final idle = FakeLight('idle');
+
+      final result = allocator.assign(<ShadowCandidate>[
+        candidate(c, 1.0),
+        candidate(idle, 0.0),
+        candidate(a, 3.0),
+        candidate(b, 2.0),
+      ]);
+
+      expect(result.owners, <Object?>[a]);
+      expect(result.denied, <Object>[b, c]);
+      expect(
+        result.denied,
+        isNot(contains(idle)),
+        reason: 'a light with no priority did not ask, so it was not refused',
+      );
+    });
+
     test('a candidate with no priority is not a candidate', () {
       final allocator = ShadowSlotAllocator(slotCount: 2);
       final a = FakeLight('a');

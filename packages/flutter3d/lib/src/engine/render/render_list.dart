@@ -117,6 +117,10 @@ final class RenderList {
     /// hope.
     void consider(MeshNode node) {
       if (!node.visibleInHierarchy) return;
+      // A proxy occluder casts and is never seen. Filtered here rather than in
+      // the shadow pass because this is the pass it is absent from: the shadow
+      // passes walk the scene's registry themselves and want it.
+      if (!node.shadowCasting.drawsColour) return;
       if ((node.layerMask & view.layerMask) == 0) return;
       if (node.mesh.indexCount == 0) return;
 

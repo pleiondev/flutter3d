@@ -382,6 +382,7 @@ class ControlPanel extends StatelessWidget {
             '${frame?.culled ?? 0} culled · '
             '${frame?.lights ?? 0} lights'
             '${(frame?.lightsDropped ?? 0) > 0 ? ' (+${frame!.lightsDropped} dropped)' : ''}'
+            '${(frame?.shadowsDenied ?? 0) > 0 ? ' · ${frame!.shadowsDenied} shadows denied' : ''}'
             '${(frame?.debugLines ?? 0) > 0 ? ' · ${frame!.debugLines} debug lines' : ''}',
             style: textTheme.bodySmall?.copyWith(color: Colors.white60),
           ),

@@ -15,6 +15,7 @@ import '../scene/scene.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
 import 'debug_draw_gizmos.dart';
+import 'empty_frame.dart';
 import 'frame_graph.dart';
 import 'frame_plan.dart';
 import 'frame_resources.dart';
@@ -571,6 +572,13 @@ final class Renderer implements RenderServices {
   TextureHandle? _shadowMap;
   int _shadowResolution = 0;
   int _shadowCasters = 0;
+  int _shadowsDenied = 0;
+
+  /// Whether the current run of empty frames has already been explained.
+  ///
+  /// See the assert at the end of [render]: the report is once per run of
+  /// empty frames, not once per empty frame and not once per renderer.
+  bool _emptyFrameReported = false;
 
   /// Depth for the view-model pass, made on demand.
   ///
@@ -1389,6 +1397,11 @@ final class Renderer implements RenderServices {
   /// needs no redraw. Only what the pass itself uses belongs in this key.
   StaticBakeKey? _staticBakeKey;
 
+  /// The value of `Scene.staticShadowGeneration` the standing bake was drawn
+  /// at, so a static caster that changed how it casts redraws the walls it is
+  /// in. The key above answers the same question about the settings.
+  int _staticBakeGeneration = 0;
+
   int _cubeShadowTile = 0;
   final vm.Matrix4 _cubeMatrix = vm.Matrix4.identity();
 
@@ -1858,6 +1871,7 @@ final class Renderer implements RenderServices {
 
     _collectShadowCandidates(scene, views);
     final assignment = _shadowSlotAllocator.assign(_shadowCandidates);
+    _shadowsDenied = assignment.denied.length;
 
     for (var i = 0; i < _shadowSlots.length; i++) {
       _shadowSlots[i] = -1.0;
@@ -2130,6 +2144,26 @@ final class Renderer implements RenderServices {
     frameClock.stop();
     developer.Timeline.finishSync();
 
+    // A frame that drew nothing says why, once, in debug builds. Once because
+    // the cause is a standing state of the scene rather than an event: a scene
+    // with nothing in it draws nothing sixty times a second, and a message per
+    // frame buries the one that mattered under a thousand copies of itself.
+    // The counter resets as soon as a frame draws, so the *next* black screen
+    // is reported as its own.
+    assert(() {
+      if (passState.drawCalls > 0) {
+        _emptyFrameReported = false;
+        return true;
+      }
+      if (_emptyFrameReported) return true;
+      final why = describeEmptyFrame(scene, views);
+      if (why != null) {
+        _emptyFrameReported = true;
+        developer.log(why, name: 'flutter3d');
+      }
+      return true;
+    }());
+
     return FrameResult(
       frame: frame,
       // Asked for and not given. Computed here rather than plumbed out of the
@@ -2146,6 +2180,7 @@ final class Renderer implements RenderServices {
       lightsDropped: scenePass.lightOverflow,
       pipelines: _pipelineCache.length,
       shadowCasters: _shadowCasters,
+      shadowsDenied: _shadowsDenied,
       skinnedDraws: passState.skinnedDraws,
     );
   }

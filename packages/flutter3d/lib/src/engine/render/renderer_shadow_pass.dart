@@ -224,9 +224,14 @@ extension _ShadowPasses on Renderer {
         pass.draw();
 
         pass.setState(casterState);
+        // Which cull the pass is currently in. A node that casts from every
+        // face switches it and the next ordinary node switches it back, so a
+        // scene with none of them pays nothing and a scene with a few pays one
+        // state change per run of them rather than one per draw.
+        var everyFace = casterCull == CullMode.none;
 
         for (final node in scene.meshes) {
-          if (!node.visibleInHierarchy || !node.castsShadow) continue;
+          if (!node.visibleInHierarchy || !node.shadowCasting.casts) continue;
           // One atlas holds the things that never move, the other the things
           // that do. Splitting them is the whole point: the walls are baked
           // once and only a spinning pickup, a monster or a door is redrawn.
@@ -242,6 +247,20 @@ extension _ShadowPasses on Renderer {
           // joints as a position.
           final skeleton = node.skeleton;
           final skinned = skeleton != null;
+
+          // A single-sided wall recorded from one side only leaks light along
+          // its seam, so a node that asks records both.
+          final wantsEveryFace =
+              node.shadowCasting.castsFromEveryFace ||
+              casterCull == CullMode.none;
+          if (wantsEveryFace != everyFace) {
+            pass.setState(
+              wantsEveryFace
+                  ? casterState.copyWith(cullMode: CullMode.none)
+                  : casterState,
+            );
+            everyFace = wantsEveryFace;
+          }
 
           pass.bindPipeline(
             skinned
@@ -567,6 +586,11 @@ extension _ShadowPasses on Renderer {
     final meshes = scene.meshes;
     final mvp = vm.Matrix4.identity();
 
+    // The strip the cascade loop is currently drawing into, kept so a node
+    // that casts from every face can restate the cull without losing it.
+    var casterTile = full;
+    var everyFace = false;
+
     for (var cascade = 0; cascade < count; cascade++) {
       // Each cascade is the same casters drawn again into its own strip of the
       // atlas. A viewport rather than a second pass: the clear has already
@@ -584,6 +608,8 @@ extension _ShadowPasses on Renderer {
             cullMode: CullMode.frontFace,
           ),
         );
+        casterTile = tile;
+        everyFace = false;
         boundSkinned = null;
       }
       final drawMatrix = drawMatrices[cascade];
@@ -591,9 +617,25 @@ extension _ShadowPasses on Renderer {
       for (var i = 0; i < meshes.length; i++) {
         final node = meshes[i];
         if (!node.visibleInHierarchy) continue;
-        if (!node.castsShadow) continue;
+        if (!node.shadowCasting.casts) continue;
         final mesh = node.mesh;
         if (mesh is! DrawableGeometry || mesh.indexCount == 0) continue;
+
+        // Both sides recorded for a surface that has only one, so the sun does
+        // not come through the seam of a single-sided wall. The state carries
+        // the cascade's own strip with it, or restating the cull would put the
+        // rest of this cascade back into the full atlas.
+        final wantsEveryFace = node.shadowCasting.castsFromEveryFace;
+        if (wantsEveryFace != everyFace) {
+          pass.setState(
+            Renderer._kShadowCasterState.copyWith(
+              viewport: casterTile,
+              scissor: casterTile,
+              cullMode: wantsEveryFace ? CullMode.none : CullMode.frontFace,
+            ),
+          );
+          everyFace = wantsEveryFace;
+        }
 
         final skeleton = node.skeleton;
         final skinned = skeleton != null;

@@ -478,8 +478,10 @@ class _EditorScreenState extends State<EditorScreen>
     _cubit.say(said);
   }
 
-  void _onTick(Duration now) {
-    final dt = _frames.secondsSince(now);
+  void _onTick(Duration _) {
+    // The ticker's argument is the frame's scheduled time, not the present;
+    // `FrameClock` says why the wall is measured instead.
+    final dt = _frames.tick();
 
     _fly.step(
       dt.clamp(0.0, 0.1),

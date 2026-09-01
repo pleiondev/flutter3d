@@ -1,6 +1,7 @@
+import 'package:clock/clock.dart' show Clock, clock;
 import 'package:flutter/scheduler.dart' show Ticker;
 
-/// How long since the last frame, from a [Ticker]'s clock.
+/// How long since the last frame, measured on the wall clock.
 ///
 /// **Five applications had written this out, and the first frame differed in
 /// three ways.** A ticker hands out the time since it started, not the time
@@ -17,14 +18,50 @@ import 'package:flutter/scheduler.dart' show Ticker;
 /// frame either way; the difference is whether the first frame is a measurement
 /// or an assumption.
 ///
+/// **The ticker's own timestamp is not the clock, and that is the second thing
+/// the five had in common.** What a [Ticker] hands to its callback is the
+/// frame's *scheduled* time — the vsync the frame is aimed at — not the moment
+/// the callback runs. While the GPU keeps up the two agree. When it falls
+/// behind, frames get scheduled in pairs: the timestamps step by a whole
+/// interval, then by almost nothing, then by a whole interval again, and every
+/// motion integrated against their differences staggers in time with them —
+/// interpolation, particles, a camera's smoothing — exactly when the machine is
+/// already struggling. [tick] measures the wall instead, through `package:clock`
+/// rather than a `Stopwatch` so that a widget test's `pump` still advances it.
+/// [secondsSince] keeps taking a `Duration` for the caller with a clock of its
+/// own, and for the tests.
+///
 /// It does not clamp. A frame longer than a simulation will accept is the
 /// simulation's business — `GameLoop` refuses it and says how much it took —
 /// and a clock that quietly shortened a two-second stall would leave anything
 /// reading it in disagreement with anything reading the loop.
 final class FrameClock {
-  /// Seconds since the previous frame, and nought on the first one.
+  /// A clock reading the wall, or [wallClock] to read another.
   ///
-  /// Call once a frame: this both answers and advances.
+  /// Null reads the ambient `package:clock` clock, which is real time in an
+  /// application and fake time under `flutter_test`.
+  FrameClock({Clock? wallClock}) : _wall = wallClock;
+
+  final Clock? _wall;
+
+  /// Seconds since the previous [tick], on the wall clock, and nought on the
+  /// first one.
+  ///
+  /// Call once a frame, from the ticker's callback, ignoring what the ticker
+  /// passed: that is the frame's scheduled time, not the present, and the
+  /// difference between two of them is not a frame's length under load.
+  double tick() {
+    final wall = _wall ?? clock;
+    return secondsSince(
+      Duration(microseconds: wall.now().microsecondsSinceEpoch),
+    );
+  }
+
+  /// Seconds since the previous frame, and nought on the first one, from a
+  /// timestamp the caller measured.
+  ///
+  /// Call once a frame: this both answers and advances. [tick] is this with the
+  /// wall clock as the caller.
   double secondsSince(Duration now) {
     final seconds = _last == null ? 0.0 : (now - _last!).inMicroseconds / 1e6;
     _last = now;

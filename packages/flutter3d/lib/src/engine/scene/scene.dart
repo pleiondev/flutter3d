@@ -30,6 +30,23 @@ final class Scene {
 
   final SceneNode root;
 
+  /// How many times something asked for the static shadow atlas to be drawn
+  /// again, which is what a renderer compares against its own last bake.
+  ///
+  /// A counter rather than a flag: the renderer holds two atlases and a bake it
+  /// may skip entirely, so "has this been dealt with" is a question only the
+  /// renderer can answer, and a flag it forgot to clear would bake for ever
+  /// while a flag it cleared too early would bake never.
+  int get staticShadowGeneration => _staticShadowGeneration;
+  int _staticShadowGeneration = 0;
+
+  /// Says the static half of the cube atlas no longer matches the scene.
+  ///
+  /// Called by a static caster that changed how it casts. The pixels it put in
+  /// that atlas were drawn once and are kept for as long as the atlas rows stay
+  /// with the same lights, so nothing else in a frame would notice.
+  void invalidateStaticShadows() => _staticShadowGeneration++;
+
   final List<MeshNode> _meshes = <MeshNode>[];
   final List<LightNode> _lights = <LightNode>[];
   final List<CameraNode> _cameras = <CameraNode>[];

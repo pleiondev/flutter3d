@@ -675,8 +675,10 @@ class _GameScreenState extends State<GameScreen>
     unawaited(_run.load(_firstLevel));
   }
 
-  void _onTick(Duration now) {
-    final dt = _frames.secondsSince(now);
+  void _onTick(Duration _) {
+    // The ticker's argument is the frame's scheduled time, not the present;
+    // `FrameClock` says why the wall is measured instead.
+    final dt = _frames.tick();
 
     // Before the loop, so the frame that reads the pad is the frame it moves in.
     _pad.tick(dt);

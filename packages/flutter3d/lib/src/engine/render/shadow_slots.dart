@@ -46,11 +46,24 @@ final class ShadowCandidate {
 
 /// Who owns which row, and whether the static atlas is stale.
 final class ShadowAssignment {
-  const ShadowAssignment({required this.owners, required this.staticDirty});
+  const ShadowAssignment({
+    required this.owners,
+    required this.staticDirty,
+    this.denied = const <Object>[],
+  });
 
   /// Per slot: the light holding it, or null when the row is unused. Ordered by
   /// slot, so `owners[2]` is atlas row two.
   final List<Object?> owners;
+
+  /// Lights that asked for a row and hold none, best first.
+  ///
+  /// **A light past the row count used to go dark silently**, and that is the
+  /// wrong kind of silence: the level author set `castsShadow` on the seventh
+  /// torch, and the only sign anything refused it was a torch whose shadow
+  /// was missing — which reads as a bug in the shadows, not as a budget. A
+  /// candidate with no priority is not here; it did not ask.
+  final List<Object> denied;
 
   /// Whether the static atlas no longer matches [owners].
   ///
@@ -188,9 +201,17 @@ final class ShadowSlotAllocator {
       break;
     }
 
+    final denied = <Object>[];
+    for (final entry in ranked) {
+      if (!placed.contains(entry.candidate.light)) {
+        denied.add(entry.candidate.light);
+      }
+    }
+
     return ShadowAssignment(
       owners: List<Object?>.unmodifiable(_owners),
       staticDirty: _isStaticDirty(),
+      denied: List<Object>.unmodifiable(denied),
     );
   }
 

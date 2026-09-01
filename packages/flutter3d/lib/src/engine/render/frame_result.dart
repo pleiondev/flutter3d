@@ -23,6 +23,7 @@ final class FrameResult {
     required this.pipelines,
     required this.shadowCasters,
     required this.skinnedDraws,
+    this.shadowsDenied = 0,
     this.wireframeDeclined = false,
   });
 
@@ -89,6 +90,15 @@ final class FrameResult {
 
   /// Meshes drawn into the shadow map, zero when the pass did not run.
   final int shadowCasters;
+
+  /// Point and spot lights that asked for a cube shadow and got no atlas row.
+  ///
+  /// The atlas has `kShadowedLights` rows, and a light past them shades
+  /// unshadowed — which one, decided by relevance and hysteresis rather than
+  /// by scene order, so the count can change as the player walks. Reported for the same reason [lightsDropped] is: a
+  /// `castsShadow` that did nothing should say so, rather than leave the
+  /// author reading a missing shadow as a bug in the shadows.
+  final int shadowsDenied;
 
   /// Draws that went through the skinned vertex stage.
   final int skinnedDraws;

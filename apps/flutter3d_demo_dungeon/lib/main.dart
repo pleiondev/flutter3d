@@ -673,8 +673,10 @@ class _GameScreenState extends State<GameScreen>
     _system = Accommodations.of(context);
   }
 
-  void _onTick(Duration elapsed) {
-    final dt = _frames.secondsSince(elapsed);
+  void _onTick(Duration _) {
+    // The ticker's argument is the frame's scheduled time, not the present;
+    // `FrameClock` says why the wall is measured instead.
+    final dt = _frames.tick();
     if (_fogAlternates) {
       final phase = (_frames.elapsed / 2.0).floor().isEven;
       if (phase != _fogOn) _fogOn = phase;

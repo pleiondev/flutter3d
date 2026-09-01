@@ -124,9 +124,16 @@ final class _CubeShadowStaticNode extends RenderNode {
     // volume is padded, how large a tile is — decides the pixels, so a change
     // to any of it has to redraw them. Everything the *lookup* reads is applied
     // per fragment and needs no bake at all.
+    // **The fourth is the casters themselves.** A static caster that changed
+    // how it casts — a wall that became double-sided, a proxy that stopped
+    // casting — changed pixels only this bake holds, and neither the rows nor
+    // the settings moved. `Scene.staticShadowGeneration` counts those, and a
+    // change to it is as much a reason to redraw as a change to the key.
+    final generation = scene.staticShadowGeneration;
+    final castersChanged = _renderer._staticBakeGeneration != generation;
     final key = StaticBakeKey.of(settings);
     if (shouldBakeStatic(
-      rowsChanged: staticDirty,
+      rowsChanged: staticDirty || castersChanged,
       baked: _renderer._staticShadowBaked,
       was: _renderer._staticBakeKey,
       now: key,
@@ -140,6 +147,7 @@ final class _CubeShadowStaticNode extends RenderNode {
       );
       _renderer._staticShadowBaked = true;
       _renderer._staticBakeKey = key;
+      _renderer._staticBakeGeneration = generation;
       // After drawing, not after deciding: a flag cleared by the decision would
       // promise walls that a skipped pass never drew.
       _renderer._shadowSlotAllocator.recordStaticBake();

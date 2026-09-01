@@ -53,7 +53,12 @@ final class PerspectiveProjection extends Projection {
     this.fovYRadians = math.pi / 4,
     this.near = 0.1,
     this.far = 1000.0,
-  });
+  }) : assert(
+         fovYRadians > 0.0 && fovYRadians < math.pi,
+         'fovYRadians is in radians, and a field of view of 180 degrees or '
+         'more has no projection. A value like 60 or 90 here is degrees: '
+         'multiply by pi / 180.',
+       );
 
   /// Vertical field of view. Vertical rather than horizontal so that widening the
   /// viewport reveals more scene instead of squashing it.

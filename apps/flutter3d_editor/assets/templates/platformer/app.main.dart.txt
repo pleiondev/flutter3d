@@ -232,8 +232,10 @@ class _LevelScreenState extends State<LevelScreen>
     await _level.open(device, world: _world, camera: _camera);
   }
 
-  void _onTick(Duration now) {
-    final dt = _frames.secondsSince(now);
+  void _onTick(Duration _) {
+    // The ticker's argument is the frame's scheduled time, not the present;
+    // `FrameClock` says why the wall is measured instead.
+    final dt = _frames.tick();
 
     final state = _level.state;
     if (state is! LevelReady) return;

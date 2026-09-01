@@ -74,7 +74,8 @@ final class FrameCapture {
       '${frame.lights} lights (${frame.lightsDropped} dropped), '
       '${frame.pipelines} pipelines, '
       '${frame.skinnedDraws} skinned draws, '
-      '${frame.shadowCasters} shadow casters, '
+      '${frame.shadowCasters} shadow casters '
+      '(${frame.shadowsDenied} denied a row), '
       '${frame.debugLines} debug lines, ${frame.submitMicros} us submit',
     );
     unawaited(_write(device, frame.frame));

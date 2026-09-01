@@ -6,6 +6,51 @@ import 'scene.dart';
 import 'scene_node.dart';
 import 'skeleton.dart';
 
+/// How a mesh takes part in the shadow passes.
+///
+/// **Two states were one too few in both directions.** A boolean says a mesh
+/// casts or does not, and two ordinary situations fit neither: a single-sided
+/// wall recorded from its light-facing side only leaks light along its seam,
+/// and a proxy occluder — a coarse box standing in for a detailed tree, or the
+/// unseen half of a level — should cast without being drawn. Both were
+/// expressible only by building a second scene.
+enum ShadowCastingMode {
+  /// Drawn into the shadow maps and into the colour image. The default.
+  on,
+
+  /// Drawn into the colour image and into no shadow map.
+  ///
+  /// What a ground plane wants: it receives a shadow and casts none. What
+  /// anything following the camera wants too — a weapon view model has no
+  /// business in a light's view.
+  off,
+
+  /// Cast from every face, whatever `ShadowSettings.casterFaces` says.
+  ///
+  /// For geometry that is a surface rather than a body: a single-sided wall, a
+  /// fence, an open shell. Recording only the light-facing side of one leaves
+  /// the shadow with nothing behind it and light leaks through the seam; this
+  /// records both sides at the cost of the acne the biases are there to hold
+  /// off.
+  doubleSided,
+
+  /// Drawn into the shadow maps and never into the colour image.
+  ///
+  /// A proxy occluder. The cheap box that casts the expensive tree's shadow,
+  /// or the geometry off the edge of the frame that has to keep the sun off
+  /// what is in it.
+  shadowsOnly;
+
+  /// Whether a shadow pass draws this.
+  bool get casts => this != off;
+
+  /// Whether the colour pass draws this.
+  bool get drawsColour => this != shadowsOnly;
+
+  /// Whether this ignores `ShadowSettings.casterFaces` and records every face.
+  bool get castsFromEveryFace => this == doubleSided;
+}
+
 /// A node that draws a mesh.
 ///
 /// The geometry is a [MeshGeometry] rather than a `GpuMesh`, which is what keeps
@@ -42,12 +87,37 @@ final class MeshNode extends SceneNode {
   /// [_refreshBounds] applies it.
   double skinReach = 0.0;
 
-  /// Whether this node is drawn into the shadow map.
+  /// How this node takes part in the shadow passes.
   ///
   /// Separate from [visible] because the two questions differ: a ground plane
   /// should receive shadows without casting one, and anything that follows the
   /// camera has no business in a light's view at all.
-  bool castsShadow = true;
+  ShadowCastingMode get shadowCasting => _shadowCasting;
+
+  set shadowCasting(ShadowCastingMode mode) {
+    if (mode == _shadowCasting) return;
+    _shadowCasting = mode;
+    // A static caster is drawn into the static half of the cube atlas once and
+    // kept for as long as the rows stay put, so changing how it casts changes
+    // pixels nothing would otherwise redraw. The same trap `StaticBakeKey`
+    // exists for, arriving from the node instead of from the settings.
+    if (shadowIsStatic) scene?.invalidateStaticShadows();
+  }
+
+  ShadowCastingMode _shadowCasting = ShadowCastingMode.on;
+
+  /// Whether this node is drawn into the shadow maps.
+  ///
+  /// A two-state view of [shadowCasting], kept because every level document,
+  /// every application and every test in this repository was written against
+  /// it. Reading it asks only whether the node casts at all, so a
+  /// [ShadowCastingMode.shadowsOnly] proxy reads as true; writing it moves
+  /// between [ShadowCastingMode.on] and [ShadowCastingMode.off] and forgets a
+  /// finer mode that was set, which is why new code sets [shadowCasting].
+  bool get castsShadow => shadowCasting.casts;
+
+  set castsShadow(bool value) =>
+      shadowCasting = value ? ShadowCastingMode.on : ShadowCastingMode.off;
 
   /// Whether this caster never moves.
   ///

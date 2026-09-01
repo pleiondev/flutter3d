@@ -691,8 +691,10 @@ class _RaceScreenState extends State<RaceScreen>
     }
   }
 
-  void _onTick(Duration now) {
-    final dt = _frames.secondsSince(now);
+  void _onTick(Duration _) {
+    // The ticker's argument is the frame's scheduled time, not the present;
+    // `FrameClock` says why the wall is measured instead.
+    final dt = _frames.tick();
 
     // Before the loop advances, so a step and the intent it is stepping with
     // belong to the same frame — see [PadInput].
