@@ -1,10 +1,10 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3046 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3060 tests need a GPU.
 ---
 
 # Testing
 
-3046 tests across 23 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3060 tests across 23 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -72,11 +72,28 @@ test('two runs of one seed agree', () {
 
 That third assertion matters as much as the first two. A determinism test where every run agrees might be testing determinism or might be testing that nothing happens.
 
-<div class="note">
-<p>Determinism here is for reproducible tests, replays and bug investigation — <strong>not</strong> for network synchronisation. A networked game on this stack would be server-authoritative precisely because bit-identical arithmetic cannot be guaranteed between the Dart VM and a browser.</p>
-</div>
-
 `GameRandom` exists because `math.Random` has no readable state, which makes it the one thing in a simulation that cannot be written down. The determinism test found a real defect on its first run: monster thinking was staggered across steps by `Object.hashCode`, which is an address, so two runs of the same seed diverged.
+
+## The same tape on a different machine
+
+Two runs agreeing in one process is the easy half. The half a verifying server needs is two runs agreeing on two *machines* — because a server that recomputes a submitted run only proves something if its arithmetic is the player's arithmetic.
+
+This page used to say that could not be relied on. It had never been measured. `parity_test.dart` measures it: a thousand steps of a character controller through a room of brushes — sweeps, slides, a step-up, a floor snap, the dice, and a broadphase raycast per step — digested every twenty-five steps.
+
+**All forty checkpoints are identical between the Dart VM and Chrome.**
+
+What is not portable is two functions, found by the same file's table of `dart:math` over fixed arguments:
+
+| Function | Same bits in the VM and a browser |
+|---|---|
+| `sqrt`, `sin`, `cos`, `asin`, `atan2`, `exp`, `log`, `pow` | yes |
+| `tan`, `atan` | no |
+
+Both have a portable substitute that is not a compromise: `sin(x) / cos(x)` is bit-identical to the VM's `tan`, and `atan2(x, 1)` is bit-identical to the browser's `atan`.
+
+<div class="note">
+<p><code>why:</code> a digest and not a comparison. Two machines cannot compare their worlds by sending each other their worlds — a snapshot is tens of kilobytes and a run is thousands of steps. <code>StateDigest</code> is 32-bit FNV-1a taken over bits rather than text, with the multiply done in halves so that no intermediate passes 2^53 and a browser gets the same number. <code>DigestTrace</code> takes a checkpoint every so many steps and names the first one two runs disagree at, which turns "the replay diverged" into an interval to bisect.</p>
+</div>
 
 ## What can be tested without a device
 

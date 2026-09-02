@@ -964,14 +964,55 @@ Three things hold the rule, and none does another's work:
   actually diverges;
 - **behavioural tests** — each game's own, because the step belongs to the game;
   they will not say where the leak is;
-- **`determinism_test.dart`** — about what the first two stand on.
+- **`determinism_test.dart`** — about what the first two stand on;
+- **`parity_test.dart`** — about whether the same tape is the same run on a
+  *different machine*, which is a different question and had never been asked.
 
-Determinism here is for reproducible tests, replays and bug investigation, **not
-for network synchronisation**. Floating point in the Dart VM and in a browser build
-need not agree bit for bit, and rigid-body dynamics diverge from the last bit
-within seconds, so deterministic lockstep over the web is a promise nobody could
-keep. The networking model is client–server with an authoritative server and
-snapshots.
+#### Determinism across platforms, measured
+
+This section used to say that floating point in the VM and in a browser "need
+not agree bit for bit", and to conclude from that that determinism here was for
+tests and replays and not for anything over a network. The premise was true as
+a statement about what is guaranteed and it had never been *measured*, and a
+conclusion drawn from an unmeasured premise is where a whole design gets ruled
+out for nothing.
+
+It is measured now, and the answer is narrower than the claim.
+`packages/flutter3d_game/test/parity_test.dart` digests a thousand steps of a
+character controller through a room of brushes — a tape, the dice, sweeps,
+slides, a step-up, a floor snap and a broadphase raycast per step — and takes a
+checkpoint every twenty-five. On macOS-arm64, **all forty checkpoints are
+identical between the Dart VM and Chrome.** Not close: the same bytes.
+
+What is *not* portable is two named functions, found by the same file's table of
+`dart:math` over fixed arguments:
+
+| Function | VM and browser agree? |
+|---|---|
+| `sqrt`, `sin`, `cos`, `asin`, `atan2`, `exp`, `log`, `pow` | yes |
+| `tan`, `atan` | **no** |
+
+Both have a substitute that is portable *and* bit-identical to one of the two
+native answers: `sin(x) / cos(x)` is the VM's `tan` exactly, and `atan2(x, 1)`
+is the browser's `atan` exactly. So the fix is a substitution, not a lookup
+table and not a quantisation.
+
+Three things this does **not** say. It is one processor family running two
+compilers, and Linux is answered by `tool/ci.sh` rather than here. It is the
+character controller and not the rigid-body solver, whose divergence is a
+separate measurement nobody has taken. And `flutter3d_game_racing` calls both
+non-portable functions in its per-step vehicle physics —
+`vehicle/sphere_vehicle.dart` for the yaw rate and `vehicle/tire_model.dart` for
+the Pacejka curve — so the genre with leaderboards and ghosts is the one genre
+currently outside the result above.
+
+The digest is `StateDigest`, and it is 32-bit FNV-1a arrived at by a route a
+browser can walk: the multiply is done in halves so that no intermediate passes
+2^53, numbers go in as the eight bytes of their double rather than as text, and
+map keys are sorted so that the order a restore wrote its fields in cannot read
+as a divergence. `DigestTrace` takes the checkpoints and names the first one two
+runs disagree at, which is what turns "the replay diverged" into an interval to
+bisect.
 
 ### 9.4 Replays
 
@@ -1197,7 +1238,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3046 tests** across 23 packages and 5 applications |
+| Unit tests | **3060 tests** across 23 packages and 5 applications |
 | Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

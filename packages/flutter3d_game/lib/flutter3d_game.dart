@@ -68,6 +68,7 @@ export 'src/save/game_random.dart';
 export 'src/save/replay.dart';
 export 'src/save/rewind.dart';
 export 'src/save/snapshot.dart';
+export 'src/save/state_digest.dart';
 export 'src/save/tally.dart';
 export 'src/world/exit.dart';
 export 'src/world/key_ring.dart';
