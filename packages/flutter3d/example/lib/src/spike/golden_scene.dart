@@ -35,12 +35,19 @@ final class GoldenScene {
     this.sky = const SkySettings(),
     this.instances = 0,
     this.lightmapped = false,
+    this.reflectionProbe = false,
   });
 
   /// Replaces the model with a floor and a wall lit by a hand-built lightmap
   /// and nothing else, for the lightmapped vertex stage and the lit models'
   /// lightmap term. See `GoldenExtras.lightmappedRoom`.
   final bool lightmapped;
+
+  /// Replaces the model with four coloured walls, a floor and two metal
+  /// balls reflecting them through a probe placed at the mirror one: the
+  /// capture into six cube faces, the chain filtered on the device, and the
+  /// physical model reading it. See `GoldenExtras.probeRoom`.
+  final bool reflectionProbe;
 
   /// Draws the source as a batch of this many copies instead of one model.
   ///

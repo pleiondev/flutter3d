@@ -423,6 +423,16 @@ class _SpikePageState extends State<SpikePage>
   /// two agree and a stage reading the wrong float shows it. The model itself
   /// leaves the scene: the batch is the picture, not an addition to it.
   void _batchForGolden(ModelInstance instance) {
+    if (_golden?.scene.reflectionProbe ?? false) {
+      // The room is the picture, as the lightmapped one is. The ambient
+      // strength goes to one because it is also the environment's strength —
+      // the two share the knob, see `Scene.ambientIntensity` — and a mirror
+      // reflecting the room at six per cent is a mirror nobody can read.
+      instance.removeFromScene();
+      _scene.ambientIntensity = 1.0;
+      _modelPivot.add(GoldenExtras.probeRoom(_device!));
+      return;
+    }
     if (_golden?.scene.lightmapped ?? false) {
       // The room is the picture; the model was only ever a way in. And the
       // sun goes out: `GoldenScene.lights` toggles the three lamps and never

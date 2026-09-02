@@ -1,3 +1,25 @@
+## 0.4.3
+
+* **Reflection probes.** `ReflectionProbeNode` is the scene seen from a
+  point: six views drawn into the faces of a cube through `ColorTarget.face`,
+  convolved into a roughness chain on the device through
+  `ColorTarget.mipLevel` — the same lobe `EnvironmentMap.prefilter` builds on
+  the host, as a full-screen pass per face per level — and read by the
+  physical model of the nearest mesh whose `radius` it reaches, one probe per
+  object and no blending. A kept probe is drawn once and again on
+  `invalidate()`; `refreshFaceEveryFrame` redraws a face a frame after the
+  first six. `Scene.probes` is the registry; `probeFaceViewProjection` is the
+  camera each face is drawn through, mirrored in x because the cube-map table
+  is left-handed, and with y negated as well on a bottom-left backend — a
+  half turn there rather than a mirror, so the winding flips on one origin
+  and not the other.
+  `probe-car` is a golden in all three sets. Not built on a device whose
+  `supportsRenderToMip` is false; the material then reads what it read
+  before.
+* The environment cube is sampled with a linear mip filter, so a roughness
+  slides between levels rather than snapping, and so the backend that folds
+  the mip filter into minification reads the level the shader named at all.
+
 ## 0.4.2
 
 * **Lightmaps.** `MeshNode.lightmapped` picks a vertex stage that reads the

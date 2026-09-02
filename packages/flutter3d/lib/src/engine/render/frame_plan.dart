@@ -49,4 +49,13 @@ abstract final class FrameResourceIds {
 
   /// What is shown.
   static const ResourceId frame = ResourceId('frame');
+
+  /// The filtered cube of the [index]th reflection probe in the scene.
+  ///
+  /// One name per probe rather than one for all of them, because a resource
+  /// is a texture and a scene may hold several: the scene node declares an
+  /// optional read of each, which is what orders every probe's capture before
+  /// the world that reflects it.
+  static ResourceId reflectionProbe(int index) =>
+      ResourceId('reflection_probe_$index');
 }

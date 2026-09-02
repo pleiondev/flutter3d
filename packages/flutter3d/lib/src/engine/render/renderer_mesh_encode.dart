@@ -37,6 +37,14 @@ extension _MeshEncode on Renderer {
     required LightBuffer lights,
     required Float32List shadowSlots,
     required FramePassState state,
+    // The probes this draw may reflect, answered by the calling node the way
+    // the shadows are. None by default: the view model and a probe's own
+    // capture both draw without one.
+    _SceneProbes probes = _SceneProbes.none,
+    // Whether the view-projection mirrors the picture. A probe's face is drawn
+    // through one — see `probeFaceViewProjection` — and a mirror reverses
+    // which way every triangle winds, so the winding set below flips with it.
+    bool mirrored = false,
   }) {
     final mesh = node.mesh;
     // The scene deals in MeshGeometry so that culling and picking need no
@@ -88,7 +96,7 @@ extension _MeshEncode on Renderer {
     final normalMatrix = node.worldNormalMatrix;
 
     encoder.setWindingOrder(
-      node.worldIsMirrored
+      node.worldIsMirrored != mirrored
           ? WindingOrder.clockwise
           : WindingOrder.counterClockwise,
     );
@@ -156,7 +164,21 @@ extension _MeshEncode on Renderer {
     // Only when there is a real cube *and* the device can hold one: on a
     // backend with no cube support the fallback is null too, and a level
     // count with nothing bound is the branch this exists to avoid.
-    final environment = scene.environment ?? _environmentFallback(device);
+    //
+    // The nearest probe first, where one reaches this node: a probe is the
+    // room the object is actually in, and the scene's environment is the sky
+    // it may not be able to see. One per object and no blending — see
+    // `_SceneProbes.nearest`.
+    final probe = material.lighting.usesEnvironment
+        ? probes.nearest(node.worldBoundsCentre)
+        : null;
+    final environment =
+        probe?.texture ?? scene.environment ?? _environmentFallback(device);
+    final environmentLevels = probe != null
+        ? probe.levels
+        : scene.environment == null || environment == null
+        ? 0
+        : scene.environmentLevels;
 
     if (material.lighting.usesFragInfo) {
       _baseColorData[0] = material.baseColor.x;
@@ -192,9 +214,7 @@ extension _MeshEncode on Renderer {
       // spent: the environment's level count, and zero when there is none.
       // One number carrying both the roughness scale and the "is there one"
       // flag, so the shader needs no second uniform and no second branch.
-      _frameParams[3] = scene.environment == null || environment == null
-          ? 0.0
-          : scene.environmentLevels.toDouble();
+      _frameParams[3] = environmentLevels.toDouble();
 
       // Its own block, bound beside FragInfo rather than folded into it. See
       // the note in color.glsl: appending to a block six shaders share moves
@@ -332,7 +352,7 @@ extension _MeshEncode on Renderer {
         fragmentShader,
         _kEnvironmentTextureSlot,
         environment,
-        sampler: Renderer._clampSampler,
+        sampler: Renderer._environmentSampler,
       );
     }
     if (material.lighting.usesAlbedoTexture) {

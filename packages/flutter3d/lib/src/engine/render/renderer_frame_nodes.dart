@@ -316,6 +316,119 @@ final class _ShadowMapNode extends RenderNode {
   }
 }
 
+/// One reflection probe, as a graph node: six captures and a chain.
+///
+/// **Maintained, not written**, like the cube atlases and for the same
+/// reason: a probe that is not [ReflectionProbeNode.refreshFaceEveryFrame] is
+/// drawn once and then stands, and one that is redraws a face a frame while
+/// the other five keep what an earlier frame put there. The filtered cube is
+/// therefore provided whether or not this frame drew into it, and the graph
+/// holds the node to that.
+///
+/// It optionally reads the three shadow maps, which is what puts it after the
+/// shadow passes: a probe's picture is lit and shadowed the way the world is,
+/// through the same `_encodeNode`, so it wants what the world wants. And the
+/// scene optionally reads what this provides, which is what puts it before
+/// the scene. Neither ordering is written down as an order.
+///
+/// Inactive on a device that cannot draw into a mip level, and the scene then
+/// reads nothing for this probe and reflects what it reflected before. A
+/// probe with a base level only would be a mirror at every roughness, which
+/// is a picture nobody asked for.
+final class _ReflectionProbeNode extends RenderNode {
+  _ReflectionProbeNode(
+    this._renderer, {
+    required this.scene,
+    required this.probe,
+    required this.index,
+    required this.shadowCaster,
+    required this.clearColor,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final ReflectionProbeNode probe;
+
+  /// Which probe of the scene's this is, which names the resource.
+  final int index;
+
+  /// Which light in the packed buffer the directional map belongs to.
+  final int shadowCaster;
+
+  /// What the primary view clears to: what a probe sees where nothing was
+  /// drawn, so a reflection of the empty sky is the same colour the world's is.
+  final vm.Vector4 clearColor;
+
+  @override
+  String get name => 'reflection probe $index';
+
+  @override
+  bool get isActive =>
+      probe.visibleInHierarchy &&
+      _renderer.device.supportsCubeTextures &&
+      _renderer.device.supportsRenderToMip;
+
+  @override
+  List<ResourceId> get optionalReads => const <ResourceId>[
+    FrameResourceIds.shadowMap,
+    FrameResourceIds.cubeShadow,
+    FrameResourceIds.cubeShadowStatic,
+  ];
+
+  @override
+  List<ResourceId> get keeps => <ResourceId>[
+    FrameResourceIds.reflectionProbe(index),
+  ];
+
+  @override
+  void execute(NodeFrame frame) {
+    final state = _renderer._probeStateFor(probe);
+
+    // Which faces this frame draws. All six the first time, because a cube
+    // with faces nobody drew holds whatever the allocation held; all six
+    // again when a kept probe was invalidated; one, in turn, for a probe that
+    // rolls — and nothing at all for a kept probe that is current.
+    final faces = !state.whole
+        ? List<int>.generate(6, (i) => i)
+        : probe.refreshFaceEveryFrame
+        ? <int>[state.nextFace]
+        : state.generation != probe.generation
+        ? List<int>.generate(6, (i) => i)
+        : const <int>[];
+
+    if (faces.isNotEmpty) {
+      developer.Timeline.startSync('Renderer.reflectionProbe');
+      final shadows = SceneShadows.from(frame, casterIndex: shadowCaster);
+      for (final face in faces) {
+        _renderer._captureProbeFace(
+          resources: frame.resources,
+          scene: scene,
+          probe: probe,
+          state: state,
+          face: face,
+          settings: frame.settings,
+          shadows: shadows,
+          passState: frame.state,
+          clearColor: clearColor,
+        );
+      }
+      state
+        ..whole = true
+        ..nextFace = (state.nextFace + faces.length) % 6
+        ..generation = probe.generation;
+      _renderer._prefilterProbe(state);
+      developer.Timeline.finishSync();
+    }
+
+    // Even when nothing was drawn: the chain holds what an earlier frame put
+    // there, which is exactly what keeping means.
+    frame.resources.provide(
+      FrameResourceIds.reflectionProbe(index),
+      state.filtered,
+    );
+  }
+}
+
 /// The world, as a graph node — the pass everything else is ordered around.
 ///
 /// It writes `hdr_colour` and `surface_buffer`, which is what took those two
@@ -368,10 +481,15 @@ final class _SceneNode extends RenderNode {
   String get name => 'scene';
 
   @override
-  List<ResourceId> get optionalReads => const <ResourceId>[
+  List<ResourceId> get optionalReads => <ResourceId>[
     FrameResourceIds.shadowMap,
     FrameResourceIds.cubeShadow,
     FrameResourceIds.cubeShadowStatic,
+    // Every probe the scene holds, by index. Optional for the reason the maps
+    // are: a probe on a device that cannot filter one is a culled node, and
+    // the world still draws.
+    for (var i = 0; i < scene.probes.length; i++)
+      FrameResourceIds.reflectionProbe(i),
   ];
 
   @override
@@ -379,6 +497,24 @@ final class _SceneNode extends RenderNode {
     FrameResourceIds.hdrColour,
     FrameResourceIds.surfaceBuffer,
   ];
+
+  /// The probes this frame produced, out of the resources this node declared.
+  ///
+  /// Only the names declared above are asked for, and a probe whose node was
+  /// culled answers null and is left out — the same shape [SceneShadows.from]
+  /// has, for the same reason.
+  _SceneProbes _probesFrom(FrameResources resources) =>
+      _SceneProbes(<_ProbeBinding>[
+        for (var i = 0; i < scene.probes.length; i++)
+          if (resources.tryTexture(FrameResourceIds.reflectionProbe(i))
+              case final TextureHandle texture)
+            _ProbeBinding(
+              position: scene.probes[i].readWorldPosition(),
+              radius: scene.probes[i].radius,
+              texture: texture,
+              levels: _renderer._probeStates[scene.probes[i]]!.levels,
+            ),
+      ]);
 
   @override
   void execute(NodeFrame frame) {
@@ -428,6 +564,7 @@ final class _SceneNode extends RenderNode {
       width: frame.width,
       height: frame.height,
       shadows: shadows,
+      probes: _probesFrom(resources),
       passState: frame.state,
       lightOverflowCount: lightOverflow,
       contributors: contributors,

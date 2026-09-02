@@ -13,6 +13,7 @@ import '../scene/light_buffer.dart';
 import '../scene/light_node.dart';
 import '../scene/mesh_node.dart';
 import '../scene/projection.dart';
+import '../scene/reflection_probe_node.dart';
 import '../scene/scene.dart';
 import 'composite_mix.dart';
 import 'debug_draw.dart';
@@ -24,6 +25,7 @@ import 'frame_resources.dart';
 import 'lighting_model.dart';
 import 'material.dart';
 import 'pass_contributor.dart';
+import 'probe_faces.dart';
 import 'procedural_texture.dart';
 import 'render_list.dart';
 import 'render_node.dart';
@@ -46,6 +48,7 @@ part 'renderer_post_pass.dart';
 part 'renderer_sky_pass.dart';
 part 'renderer_resources.dart';
 part 'renderer_frame_nodes.dart';
+part 'renderer_probe_pass.dart';
 
 /// Uniform-block names as seen by shader reflection.
 ///
@@ -62,6 +65,7 @@ const String _kLineInfoBlock = 'LineInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
+const String _kProbeInfoBlock = 'ProbeInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
@@ -369,9 +373,14 @@ final class Renderer implements RenderServices {
       _shadowMap,
       _cubeShadow,
       _cubeShadowStatic,
+      for (final probe in _probeStates.values) ...<TextureHandle>[
+        probe.capture,
+        probe.filtered,
+      ],
     ]) {
       if (texture != null) device.releaseTexture(texture);
     }
+    _probeStates.clear();
     _fallbackAlbedo = null;
     _fallbackNormal = null;
     _fallbackBlack = null;
@@ -440,6 +449,14 @@ final class Renderer implements RenderServices {
   final Float32List _materialData = Float32List(4);
   final Float32List _material2Data = Float32List(4);
   final Float32List _frameParams = Float32List(4);
+
+  /// The reflection probes this renderer has drawn, by the node that placed
+  /// them. Two cubes each, kept across frames — see `renderer_probe_pass.dart`.
+  final Map<ReflectionProbeNode, _ProbeState> _probeStates =
+      <ReflectionProbeNode, _ProbeState>{};
+  final Float32List _probeParams = Float32List(4);
+  final vm.Vector3 _probePosition = vm.Vector3.zero();
+  PipelineHandle? _probePrefilterPipeline;
 
   PipelineHandle? _debugLinePipeline;
 
@@ -1271,6 +1288,7 @@ final class Renderer implements RenderServices {
     required _CubeShadowStaticNode cubeStatic,
     required _CubeShadowNode cube,
     required _ShadowMapNode shadow,
+    required List<_ReflectionProbeNode> probes,
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
@@ -1298,8 +1316,16 @@ final class Renderer implements RenderServices {
       // deleting it.
       ..addNode(cubeStatic)
       ..addNode(cube)
-      ..addNode(shadow)
-      ..addNode(scene);
+      ..addNode(shadow);
+
+    // After the shadows, which a probe's capture samples, and before the
+    // scene, which samples the probe. Both orderings are derived from reads —
+    // a probe optionally reads the three maps and the scene optionally reads
+    // every probe — so this is the version chain in the order it is read.
+    for (final probe in probes) {
+      graph.addNode(probe);
+    }
+    graph.addNode(scene);
 
     for (final node in nodes.of(FramePhase.overlay)) {
       graph.addNode(node);
@@ -1681,6 +1707,24 @@ final class Renderer implements RenderServices {
   /// wrap the opposite edge of the screen into the glow.
   static const SamplerOptions _clampSampler = SamplerOptions.linearClamp;
 
+  /// What an environment cube is read through: linear *between levels* as
+  /// well as within one.
+  ///
+  /// The levels of an environment are its roughness scale, and a shader asks
+  /// for one by number — `textureLod(environment, r, roughness * levels)` —
+  /// so a mip filter is not a detail here. With the nearest level a surface
+  /// snaps between two lobes as its roughness crosses a half; with linear it
+  /// slides. And on a backend that folds the mip filter into minification, a
+  /// sampler that says nothing about levels reads the base level whatever
+  /// level the shader named, which is a mirror at every roughness.
+  static const SamplerOptions _environmentSampler = SamplerOptions(
+    minFilter: MinMagFilter.linear,
+    magFilter: MinMagFilter.linear,
+    mipFilter: MipFilter.linear,
+    widthAddressMode: SamplerAddressMode.clampToEdge,
+    heightAddressMode: SamplerAddressMode.clampToEdge,
+  );
+
   /// Draws every visible mesh of [scene], as the world is drawn.
   ///
   /// The loop the view model pass used to own, lifted onto the plugin
@@ -2021,6 +2065,21 @@ final class Renderer implements RenderServices {
       // answer reflections give.
       camera: ordered.isEmpty ? null : ordered.first.camera,
     );
+    // One node per probe the scene holds, in scene order, so the name the
+    // scene reads for the i-th probe is the name the i-th node provides. A
+    // probe that left the scene since last frame gives its cubes back here.
+    _retireProbesNotIn(scene);
+    final probeNodes = <_ReflectionProbeNode>[
+      for (var i = 0; i < scene.probes.length; i++)
+        _ReflectionProbeNode(
+          this,
+          scene: scene,
+          probe: scene.probes[i],
+          index: i,
+          shadowCaster: shadowCaster,
+          clearColor: ordered.first.clearColor,
+        ),
+    ];
     final sceneNode = _SceneNode(
       this,
       scene: scene,
@@ -2037,6 +2096,7 @@ final class Renderer implements RenderServices {
       cubeStatic: cubeStaticNode,
       cube: cubeNode,
       shadow: shadowNode,
+      probes: probeNodes,
       scene: sceneNode,
       bloom: bloomNode,
       composite: compositeNode,

@@ -382,6 +382,151 @@ abstract final class GoldenExtras {
     out[at + 3] = quantised;
   }
 
+  /// Four coloured walls and a floor around a mirror ball and a brushed one,
+  /// with a probe at the mirror ball reflecting the room into both.
+  ///
+  /// The room is what `probe-car` pins: the probe captures the walls into
+  /// six faces, filters the chain, and the two balls read it — the mirror at
+  /// the base level, the brushed one a level and a half down. Every wall is
+  /// a different colour so a face drawn mirrored, upside down or in another
+  /// face's place shows as the wrong colour on the wrong side of the ball,
+  /// which is the failure nothing but a picture can see.
+  ///
+  /// The walls face inward and are single-sided, so the two nearest the
+  /// camera are culled and the room is seen from outside, the way the
+  /// lightmapped room is. The mirror ball is excluded from its own probe:
+  /// a probe inside a ball would otherwise capture the inside of the ball.
+  static SceneNode probeRoom(GraphicsDevice device) {
+    const half = 1.2;
+    const tall = 1.6;
+    final room = SceneNode(name: 'probe room');
+
+    MeshNode wall(String name, Vector4 colour, List<double> vertices) =>
+        MeshNode(
+          DeviceMesh.upload(
+            device,
+            MeshData(
+              layout: VertexLayout.standard,
+              vertices: Float32List.fromList(vertices),
+              indices: Uint32List.fromList(<int>[0, 1, 2, 0, 2, 3]),
+            ),
+          ),
+          Material(name: name, baseColor: colour, roughness: 0.85),
+          name: name,
+        );
+
+    room
+      ..add(
+        wall('floor', Vector4(0.42, 0.42, 0.44, 1.0), <double>[
+          ..._quad(-half, 0.0, half, 0.0, 1.0, 0.0),
+          ..._quad(half, 0.0, half, 0.0, 1.0, 0.0),
+          ..._quad(half, 0.0, -half, 0.0, 1.0, 0.0),
+          ..._quad(-half, 0.0, -half, 0.0, 1.0, 0.0),
+        ]),
+      )
+      // The far wall, facing +Z into the room: blue.
+      ..add(
+        wall('back wall', Vector4(0.16, 0.30, 0.85, 1.0), <double>[
+          ..._quad(-half, 0.0, -half, 0.0, 0.0, 1.0),
+          ..._quad(half, 0.0, -half, 0.0, 0.0, 1.0),
+          ..._quad(half, tall, -half, 0.0, 0.0, 1.0),
+          ..._quad(-half, tall, -half, 0.0, 0.0, 1.0),
+        ]),
+      )
+      // The near wall, facing −Z: yellow.
+      ..add(
+        wall('front wall', Vector4(0.88, 0.78, 0.18, 1.0), <double>[
+          ..._quad(half, 0.0, half, 0.0, 0.0, -1.0),
+          ..._quad(-half, 0.0, half, 0.0, 0.0, -1.0),
+          ..._quad(-half, tall, half, 0.0, 0.0, -1.0),
+          ..._quad(half, tall, half, 0.0, 0.0, -1.0),
+        ]),
+      )
+      // The left wall, facing +X: red.
+      ..add(
+        wall('left wall', Vector4(0.85, 0.18, 0.14, 1.0), <double>[
+          ..._quad(-half, 0.0, half, 1.0, 0.0, 0.0),
+          ..._quad(-half, 0.0, -half, 1.0, 0.0, 0.0),
+          ..._quad(-half, tall, -half, 1.0, 0.0, 0.0),
+          ..._quad(-half, tall, half, 1.0, 0.0, 0.0),
+        ]),
+      )
+      // The right wall, facing −X: green.
+      ..add(
+        wall('right wall', Vector4(0.18, 0.72, 0.28, 1.0), <double>[
+          ..._quad(half, 0.0, -half, -1.0, 0.0, 0.0),
+          ..._quad(half, 0.0, half, -1.0, 0.0, 0.0),
+          ..._quad(half, tall, half, -1.0, 0.0, 0.0),
+          ..._quad(half, tall, -half, -1.0, 0.0, 0.0),
+        ]),
+      );
+
+    final mirror = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const SphereShape(radius: 0.42, segments: 48, rings: 32).build(),
+      ),
+      Material(
+        name: 'mirror ball',
+        baseColor: Vector4(0.98, 0.98, 0.98, 1.0),
+        metallic: 1.0,
+        roughness: 0.04,
+      ),
+      name: 'mirror ball',
+    )..setPosition(0.0, 0.72, 0.0);
+    final brushed = MeshNode(
+      DeviceMesh.upload(
+        device,
+        const SphereShape(radius: 0.24, segments: 48, rings: 32).build(),
+      ),
+      Material(
+        name: 'brushed ball',
+        baseColor: Vector4(0.95, 0.85, 0.6, 1.0),
+        metallic: 1.0,
+        roughness: 0.45,
+      ),
+      name: 'brushed ball',
+    )..setPosition(0.62, 0.24, 0.5);
+
+    room
+      ..add(mirror)
+      ..add(brushed)
+      ..add(
+        ReflectionProbeNode(name: 'room probe')
+          ..setPosition(0.0, 0.72, 0.0)
+          ..excluded.add(mirror),
+      );
+    return room;
+  }
+
+  /// One standard-layout vertex of a wall: position and normal, a texture
+  /// coordinate nothing samples, a tangent, and white.
+  static List<double> _quad(
+    double x,
+    double y,
+    double z,
+    double nx,
+    double ny,
+    double nz,
+  ) => <double>[
+    x,
+    y,
+    z,
+    nx,
+    ny,
+    nz,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+  ];
+
   /// One standard-layout vertex: position, normal, a texture coordinate
   /// nothing samples, a tangent, and the lightmap coordinate in the colour.
   static List<double> _vertex(

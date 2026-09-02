@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, bloom, cascaded and point shadows, the sky, reflection probes, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -328,6 +328,34 @@ SkySettings(
 One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The model is a three-stop gradient plus a scattering lobe and an analytic sun disc; a `cubemap` replaces all three of those, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
 
 The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `RenderView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
+
+## Reflection probes
+
+A metal reflects what is around it, and a sky is only what is around it outdoors. A `ReflectionProbeNode` is the scene seen from a point: six views drawn into the faces of a cube, convolved into a roughness chain on the device, and read by the physical model of every mesh near enough.
+
+```dart
+final probe = ReflectionProbeNode(
+  radius: 4.0,                    // how far a mesh may be and still reflect it; 0 reaches everything
+  faceSize: 64,                   // each face's edge; 64 is a car body or a mirror ball
+  levels: 4,                      // roughness levels below the mirror
+  refreshFaceEveryFrame: true,    // one face a frame, for something that moves
+  near: 0.5,                      // nearer than this is not in the picture
+)..setPosition(0.0, 0.7, 0.0);
+probe.excluded.add(mirrorBall);   // a ball must not reflect itself
+scene.add(probe);
+```
+
+{{golden probe-car | A mirror ball and a brushed one over four coloured walls, reflecting them through a probe at the mirror: the walls captured into six cube faces, the chain filtered level by level on the device, the brushed ball reading a level and a half down.}}
+
+Two ways of keeping one current. Left alone, the six faces are captured together the first frame the probe is seen and then kept until `invalidate()` says the room changed — one per room at load, which is what a dungeon wants. With `refreshFaceEveryFrame` one face is re-captured each frame, so the cube is six frames behind at worst and a frame costs one view of the scene plus the filter — a car body reflecting the track going past, which is what the racing demo's player car does. A mesh takes the nearest probe whose `radius` reaches its centre, one per object and no blending, and falls back to the scene's environment where none does.
+
+<div class="note">
+<p>The environment's strength is <code>Scene.ambientIntensity</code>, the same knob the flat ambient uses — a room reflected at six per cent is a room nobody can see, so a scene that leans on probes turns it up. The capture draws every mesh through the same encoder as the world, with the frame's lights and shadows and the sky behind them, but binds no probe of its own: a probe drawn into a probe would read a cube that may not have been filled yet.</p>
+</div>
+
+<div class="why">
+<p>A cube map is addressed by a left-handed table — on the +X face column zero looks along +Z — and a right-handed camera puts every face's left on the right, so each view is drawn through a mirror and the winding is flipped with it; a backend whose row zero is at the bottom negates y as well, which makes the two a half turn and leaves the winding alone. Nothing in a picture says whether a face is mirrored, which is why the face table is tested by projecting known directions on both origins, and why the conformance suite clears one face of one level and reads it back through the very stage that fills the chain.</p>
+</div>
 
 ## The look
 
