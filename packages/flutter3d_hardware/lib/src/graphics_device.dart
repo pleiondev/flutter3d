@@ -137,6 +137,25 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// compressed format is never one anywhere.
   bool supportsTextureFormat(TextureFormat format);
 
+  /// The most taps a sampler may take along a foreshortened axis, or 1 for a
+  /// device that filters isotropically and nothing else.
+  ///
+  /// Asked rather than assumed, and a number rather than a boolean for the
+  /// same reason [preferredSampleCount] is: "does anisotropic filtering work"
+  /// and "how far" are different questions. Impeller answers from
+  /// flutter_gpu's `maxSamplerAnisotropy`, WebGL2 from
+  /// `EXT_texture_filter_anisotropic` when the context hands it back and 1
+  /// when it does not, and the software rasteriser with a constant 1 — it
+  /// picks one level per triangle and takes one tap, and says so.
+  ///
+  /// A `SamplerOptions.anisotropy` above this is clamped by the backend
+  /// rather than refused, so a caller may ask for sixteen without asking
+  /// first. The reason to ask anyway is to *decide* — the bridge asks so it
+  /// can hand a level's materials `min(8, maxAnisotropy)` once rather than
+  /// per bind, and a setting that offers the choice to a player has to know
+  /// whether there is one.
+  int get maxAnisotropy;
+
   /// The compiled bundle this device was built with.
   ///
   /// On the device rather than on `RenderServices` because it is a property of

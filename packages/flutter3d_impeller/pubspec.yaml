@@ -1,6 +1,6 @@
 name: flutter3d_impeller
 description: "The flutter_gpu backend for flutter3d: one implementation of flutter3d_hardware, and the only place in the stack that names a graphics API."
-version: 0.4.4
+version: 0.4.5
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

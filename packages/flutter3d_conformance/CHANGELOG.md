@@ -1,3 +1,13 @@
+## 0.4.2
+
+* **A sampler asking for sixteen-way anisotropy is accepted.** Bound on a
+  trilinear sampler, drawn through the textured particle stage and read back
+  at a texel centre — a check that the bind lands on a device that may allow
+  fewer taps, which is three different clamps behind one promise: flutter_gpu
+  clamps inside its bind, WebGL2 has to be clamped before `texParameterf`,
+  and the software rasteriser ignores the field. The capability check asks
+  `maxAnisotropy` and requires at least one.
+
 ## 0.4.1
 
 * The link checks pair `MeshLightmappedVertex` with the lit models.

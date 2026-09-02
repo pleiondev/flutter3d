@@ -1,3 +1,13 @@
+## 0.4.5
+
+* **Anisotropic filtering, through the sampler it always built.**
+  `SamplerOptions.anisotropy` is forwarded as flutter_gpu's `maxAnisotropy`
+  and `maxAnisotropy` on the device is `gpuContext.maxSamplerAnisotropy` —
+  sixteen on every Metal and Vulkan device this has met. Nothing clamps
+  here, because flutter_gpu clamps inside its own bind and says so; the
+  sampler cache keys on the field, so eight taps and one are two objects.
+  `anisotropic-floor` joins the golden set.
+
 ## 0.4.4
 
 * The bundle gains `MeshLightmappedVertex` and every lit stage binds a

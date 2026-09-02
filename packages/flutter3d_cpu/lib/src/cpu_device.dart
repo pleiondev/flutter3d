@@ -101,6 +101,14 @@ final class CpuDevice implements GraphicsDevice {
   bool supportsTextureFormat(TextureFormat format) => !format.isCompressed;
 
   @override
+  // One tap along one axis from one level, chosen per triangle — see
+  // `BoundTexture.sample`. A sampler that asks for more is honoured on the
+  // hardware backends and ignored here, and the answer says so rather than
+  // promising taps this rasteriser does not take: `anisotropic-floor` is the
+  // scene where the two sets are allowed to differ by exactly that.
+  int get maxAnisotropy => 1;
+
+  @override
   // Nothing to probe: a cube here is six arrays of floats and a table saying
   // which of them a direction lands on.
   bool get supportsCubeTextures => true;

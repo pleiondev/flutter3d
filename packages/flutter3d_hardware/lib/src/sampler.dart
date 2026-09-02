@@ -25,7 +25,17 @@ final class SamplerOptions {
     this.mipFilter = MipFilter.nearest,
     this.widthAddressMode = SamplerAddressMode.clampToEdge,
     this.heightAddressMode = SamplerAddressMode.clampToEdge,
-  });
+    this.anisotropy = 1,
+  }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more'),
+       assert(
+         anisotropy == 1 ||
+             (minFilter == MinMagFilter.linear &&
+                 magFilter == MinMagFilter.linear &&
+                 mipFilter == MipFilter.linear),
+         'anisotropy above one needs linear min, mag and mip filters: it is '
+         'taps across the mip chain, and there is nothing to spread over a '
+         'nearest lookup',
+       );
 
   final MinMagFilter minFilter;
   final MinMagFilter magFilter;
@@ -38,6 +48,45 @@ final class SamplerOptions {
 
   final SamplerAddressMode widthAddressMode;
   final SamplerAddressMode heightAddressMode;
+
+  /// How many taps a sample may spread along the direction a texture is
+  /// foreshortened in. One — the default — is isotropic filtering, which is
+  /// every sampler the engine bound before this field existed.
+  ///
+  /// **What it is for.** A floor seen at a grazing angle covers a footprint
+  /// that is a few texels wide and many texels long; a trilinear sampler
+  /// picks one level for the whole footprint, and the level that stops the
+  /// long axis aliasing blurs the short one. Anisotropic filtering takes
+  /// several taps along the long axis from a sharper level instead, and the
+  /// checkerboard on the far side of a room stays a checkerboard.
+  ///
+  /// **It needs the chain and the filters that blend it.** The taps are taken
+  /// across mip levels, so above one this requires [minFilter], [magFilter]
+  /// and [mipFilter] all linear — flutter_gpu refuses the bind otherwise, and
+  /// the constructor asserts it here so the refusal arrives with a Dart stack
+  /// at the place the sampler was built. A texture with no chain gains nothing
+  /// from it, and a device that has none clamps it to one.
+  ///
+  /// Values above `GraphicsDevice.maxAnisotropy` are clamped by the backend,
+  /// which is why asking for sixteen everywhere is safe and why nothing here
+  /// has to know the device. Sixteen is what most hardware offers; eight is
+  /// what the bridge asks for, being where the picture stops improving.
+  final int anisotropy;
+
+  /// This sampler with its [anisotropy] replaced.
+  ///
+  /// A copy rather than a setter because the class is a value, and a
+  /// method rather than a `copyWith` because this is the one field a caller
+  /// ever decides at run time — the filters and wrap modes are a property of
+  /// the asset, the tap count a property of the device it lands on.
+  SamplerOptions withAnisotropy(int anisotropy) => SamplerOptions(
+    minFilter: minFilter,
+    magFilter: magFilter,
+    mipFilter: mipFilter,
+    widthAddressMode: widthAddressMode,
+    heightAddressMode: heightAddressMode,
+    anisotropy: anisotropy,
+  );
 
   /// Smooth and tiling: the default for material textures.
   static const SamplerOptions linearRepeat = SamplerOptions(
@@ -97,7 +146,8 @@ final class SamplerOptions {
       other.magFilter == magFilter &&
       other.mipFilter == mipFilter &&
       other.widthAddressMode == widthAddressMode &&
-      other.heightAddressMode == heightAddressMode;
+      other.heightAddressMode == heightAddressMode &&
+      other.anisotropy == anisotropy;
 
   @override
   int get hashCode => Object.hash(
@@ -106,11 +156,13 @@ final class SamplerOptions {
     mipFilter,
     widthAddressMode,
     heightAddressMode,
+    anisotropy,
   );
 
   @override
   String toString() =>
       'SamplerOptions(min: ${minFilter.name}, '
       'mag: ${magFilter.name}, mip: ${mipFilter.name}, '
-      'u: ${widthAddressMode.name}, v: ${heightAddressMode.name})';
+      'u: ${widthAddressMode.name}, v: ${heightAddressMode.name}, '
+      'anisotropy: $anisotropy)';
 }

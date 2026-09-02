@@ -36,6 +36,7 @@ final class FakeBackend implements GraphicsDevice {
     Set<String> missingShaders = const <String>{},
     this.supportsWireframe = true,
     this.unsupportedFormats = const <TextureFormat>{},
+    this.maxAnisotropy = 16,
   }) : shaders = FakeShaderLibrary(missing: missingShaders);
 
   @override
@@ -48,6 +49,11 @@ final class FakeBackend implements GraphicsDevice {
   @override
   bool supportsTextureFormat(TextureFormat format) =>
       !unsupportedFormats.contains(format);
+
+  /// Sixteen, which is what most hardware answers, and settable so a test
+  /// can be the device that answers one and see what a caller clamps to.
+  @override
+  final int maxAnisotropy;
 
   /// Settable, because the interesting case is the backend that says no —
   /// OpenGL ES has no `glPolygonMode`, and the engine is supposed to decline

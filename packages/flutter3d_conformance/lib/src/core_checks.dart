@@ -41,6 +41,12 @@ Future<void> checkCapabilities(GraphicsDevice device) async {
     'multisampling and less than one means nothing',
   );
   require(
+    device.maxAnisotropy >= 1,
+    'maxAnisotropy is ${device.maxAnisotropy}; one means isotropic '
+    'filtering only and less than one means nothing — a sampler asking for '
+    'the minimum would be refused',
+  );
+  require(
     device.defaultColorFormat != TextureFormat.unknown,
     'defaultColorFormat is unknown, so the frame has nowhere to go',
   );

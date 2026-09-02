@@ -1,3 +1,15 @@
+## 0.4.3
+
+* **Anisotropic filtering, where the context has the extension.**
+  `EXT_texture_filter_anisotropic` is asked for at `create()` like every
+  other extension, and `maxAnisotropy` is its ceiling — one without it.
+  Every bind sets `TEXTURE_MAX_ANISOTROPY_EXT` beside the four parameters
+  it already set, clamped to that ceiling first, because in GL the value is
+  texture state rather than sampler state and a number above the ceiling is
+  `INVALID_VALUE`: an error in the queue and a bind that did not land.
+  `anisotropic-floor` gets a provisional cross-backend budget; its reference
+  is recorded at merge.
+
 ## 0.4.2
 
 * The lightmapped vertex stage, generated with the rest from

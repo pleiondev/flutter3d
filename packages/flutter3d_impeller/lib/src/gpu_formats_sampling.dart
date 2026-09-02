@@ -68,10 +68,12 @@ extension SamplerAddressModeFromGpu on gpu.SamplerAddressMode {
 /// this map can exist.
 ///
 /// It never evicts and does not need to: five enum fields of two, two, two,
-/// three and three values bound it at seventy-two entries however many models a
-/// session loads. Sharing one object between call sites is safe too —
-/// `bindTexture` reads the fields into integers on every call and retains
-/// nothing.
+/// three and three values bound the isotropic samplers at seventy-two entries
+/// however many models a session loads, and the anisotropy field — an integer
+/// the engine only ever sets from `min(8, maxAnisotropy)` or a setting —
+/// multiplies that by the handful of levels anything asks for. Sharing one
+/// object between call sites is safe too — `bindTexture` reads the fields
+/// into integers on every call and retains nothing.
 final Map<SamplerOptions, gpu.SamplerOptions> _samplerCache =
     <SamplerOptions, gpu.SamplerOptions>{};
 
@@ -84,6 +86,11 @@ extension SamplerOptionsToGpu on SamplerOptions {
     mipFilter: mipFilter.toGpu(),
     widthAddressMode: widthAddressMode.toGpu(),
     heightAddressMode: heightAddressMode.toGpu(),
+    // Not clamped here: flutter_gpu clamps to `maxSamplerAnisotropy` inside
+    // `bindTexture`, and a value it has already promised to clamp is not
+    // one this layer has to second-guess. The linear-filter requirement is
+    // the engine's own constructor's, asserted before this is ever reached.
+    maxAnisotropy: anisotropy,
   );
 }
 
@@ -97,5 +104,6 @@ extension SamplerOptionsFromGpu on gpu.SamplerOptions {
     mipFilter: mipFilter.toEngine(),
     widthAddressMode: widthAddressMode.toEngine(),
     heightAddressMode: heightAddressMode.toEngine(),
+    anisotropy: maxAnisotropy,
   );
 }
