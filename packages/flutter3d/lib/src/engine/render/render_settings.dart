@@ -1,12 +1,14 @@
 import 'package:vector_math/vector_math.dart' as vm;
 
 import '../scene/scene_node.dart';
+import 'auto_exposure.dart';
 import 'debug_draw.dart';
 import 'shadow_settings.dart';
 import 'sky_settings.dart';
 
 // Re-exported so that `render_settings.dart` stays the one import an
 // application needs: what moved out is still part of the same vocabulary.
+export 'auto_exposure.dart';
 export 'frame_result.dart';
 export 'shadow_settings.dart';
 
@@ -150,6 +152,7 @@ final class RenderSettings {
     this.ambientOcclusion = const AmbientOcclusionSettings(),
     this.fog = const FogSettings(),
     this.sky = const SkySettings(),
+    this.autoExposure = const AutoExposureSettings(),
   });
 
   final double specular;
@@ -159,9 +162,19 @@ final class RenderSettings {
   /// The default is a demo choice, not a physical constant: with light intensity
   /// at a unitless 1.0 the scene's brightest values land around linear 0.6, so
   /// the tone mapper's shoulder would otherwise go unused and the image would
-  /// read as under-exposed. A real engine derives this from photometric light
-  /// units or auto-exposure.
+  /// read as under-exposed. [autoExposure] derives it from the frame instead,
+  /// and while that is on this is only where the meter starts from.
   final double exposure;
+
+  /// Exposure decided by the frame's own brightness — see
+  /// [AutoExposureSettings].
+  ///
+  /// Off by default, and the goldens are why: every one of them is recorded at
+  /// [exposure], and a meter that ran unasked would move all of them. On, the
+  /// frame gains a small pass that writes the scene's log luminance and a
+  /// readback of it, and the composite exposes with what the meter answered a
+  /// frame or two ago, adapted at the settings' rate.
+  final AutoExposureSettings autoExposure;
   final bool wireframe;
   final bool backfaceCulling;
 
@@ -318,6 +331,7 @@ final class RenderSettings {
     AmbientOcclusionSettings? ambientOcclusion,
     FogSettings? fog,
     SkySettings? sky,
+    AutoExposureSettings? autoExposure,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -337,6 +351,7 @@ final class RenderSettings {
     ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
     fog: fog ?? this.fog,
     sky: sky ?? this.sky,
+    autoExposure: autoExposure ?? this.autoExposure,
   );
 }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:math' as math;
 import 'dart:typed_data';
@@ -46,6 +47,7 @@ part 'renderer_post_pass.dart';
 part 'renderer_sky_pass.dart';
 part 'renderer_resources.dart';
 part 'renderer_frame_nodes.dart';
+part 'renderer_pick_pass.dart';
 
 /// Uniform-block names as seen by shader reflection.
 ///
@@ -62,6 +64,8 @@ const String _kLineInfoBlock = 'LineInfo';
 const String _kSkinInfoBlock = 'SkinInfo';
 const String _kBloomInfoBlock = 'BloomInfo';
 const String _kCompositeInfoBlock = 'CompositeInfo';
+const String _kLuminanceInfoBlock = 'LuminanceInfo';
+const String _kIdInfoBlock = 'IdInfo';
 
 /// Texture slots, unlike uniform blocks, are reflected under the variable name.
 const String _kAlbedoTextureSlot = 'base_color_texture';
@@ -386,6 +390,14 @@ final class Renderer implements RenderServices {
     _debugIndexBuffer = null;
 
     _renderList.materialIds.clear();
+
+    // A question no frame will ever answer is answered now, with nothing:
+    // a future that never completes is a caller waiting for a renderer that
+    // is gone.
+    for (final pick in _pendingPicks) {
+      pick.completer.complete(null);
+    }
+    _pendingPicks.clear();
   }
 
   final bool msaaEnabled;
@@ -620,6 +632,75 @@ final class Renderer implements RenderServices {
   final Float32List _bloomParams = Float32List(4);
   final Float32List _compositeParams = Float32List(4);
   final Float32List _compositeAoTexel = Float32List(4);
+  final Float32List _luminanceParams = Float32List(4);
+
+  /// The exposure as it stands, while auto exposure is on; null until a frame
+  /// has asked for it.
+  ///
+  /// Kept across a setting switched off and on again, so a game that toggles
+  /// the meter for a menu comes back to the exposure it left rather than to
+  /// the setting's number and a second climb.
+  ExposureAdapter? _autoExposure;
+
+  /// Readbacks of the luminance target that came back as an error. Diagnostic:
+  /// a meter that has stopped hearing from the device holds its last answer,
+  /// which looks like a meter that has settled, and this is what tells the
+  /// two apart.
+  int get debugMeterFailures => _meterFailures;
+  int _meterFailures = 0;
+
+  /// Seconds between one `render` and the next, for the adapter's rate.
+  ///
+  /// Measured here rather than passed in, because `render` takes no clock and
+  /// the rate is the one thing in the frame that is about time: the composite
+  /// does not care how long the last frame took, the meter's approach does.
+  final Stopwatch _sinceLastFrame = Stopwatch();
+
+  /// What the composite last exposed with — see [exposure].
+  double _lastExposure = 1.6;
+
+  /// The exposure the last frame was composited with.
+  ///
+  /// The setting's own number, or the meter's answer while
+  /// `RenderSettings.autoExposure` is on. Readable so a HUD can show it and a
+  /// test can watch it climb.
+  double get exposure => _lastExposure;
+
+  /// Questions [pickPixel] has been asked since the last frame, answered by
+  /// the next one.
+  final List<_PickRequest> _pendingPicks = <_PickRequest>[];
+
+  /// Which mesh the next frame draws at ([u], [v]) — fractions of the frame
+  /// from the top left, so a caller with a widget's local position divides by
+  /// the widget's size and need not know the render size.
+  ///
+  /// **Exact by pixel, and answered by the frame after this call.** The next
+  /// [render] draws every visible mesh once more with a stage that writes the
+  /// draw's number instead of its colour, reads the one pixel back through
+  /// `GraphicsDevice.readback`, and completes this with the node whose number
+  /// came back — or null for the clear colour, which is nothing. A hardware
+  /// backend answers a frame or two after that render; the software one
+  /// answers when the render returns.
+  ///
+  /// The old way is `Raycaster`, which is still what a game wants: a ray
+  /// against bounds needs no frame and answers now. This is for the editor,
+  /// where a bounding box is a metre wider than the monster in it and a torch
+  /// hangs inside the wall's box, and "what did I click" has to mean what is
+  /// on the screen.
+  ///
+  /// An instanced batch answers as the batch. A pick asked while no frame
+  /// follows — a renderer nobody renders with again — is answered null by
+  /// [dispose].
+  Future<MeshNode?> pickPixel(double u, double v) {
+    final request = _PickRequest(u, v);
+    _pendingPicks.add(request);
+    return request.completer.future;
+  }
+
+  /// What the composite exposes with this frame.
+  double _exposureFor(RenderSettings settings) => settings.autoExposure.enabled
+      ? _autoExposure?.value ?? settings.exposure
+      : settings.exposure;
 
   /// The look, packed for the composite's uniform block.
   ///
@@ -1274,6 +1355,8 @@ final class Renderer implements RenderServices {
     required _SceneNode scene,
     required _BloomNode bloom,
     required _CompositeNode composite,
+    required _LuminanceNode luminance,
+    required _ObjectIdNode objectIds,
   }) {
     final graph = FrameGraph()
       // The atlas before the directional map, which is the order they were
@@ -1299,7 +1382,11 @@ final class Renderer implements RenderServices {
       ..addNode(cubeStatic)
       ..addNode(cube)
       ..addNode(shadow)
-      ..addNode(scene);
+      ..addNode(scene)
+      // After the scene, whose render list it reuses, and before anything
+      // else: it reads nothing and writes a name nothing else reads, so its
+      // place in the chain is nobody's concern, and inactive it is culled.
+      ..addNode(objectIds);
 
     for (final node in nodes.of(FramePhase.overlay)) {
       graph.addNode(node);
@@ -1307,6 +1394,11 @@ final class Renderer implements RenderServices {
     if (s.reflections.enabled) {
       graph.addNode(_ReflectionsNode(this, view));
     }
+    // After reflections and before bloom: the meter reads the scene as the
+    // composite will, glow not yet added. Registered whether or not it is on,
+    // for the reason every other node is — a name has to be known — and
+    // culled when it is off.
+    graph.addNode(luminance);
     // Before bloom, because the composite reads both and the registration order
     // is the version chain. Registered whether or not it is switched on, for
     // the reason bloom is: a name has to be known for a read of it to compile,
@@ -1343,6 +1435,11 @@ final class Renderer implements RenderServices {
         // own would leave the buffer unread, the scene would not attach it, and
         // the application would read whatever the texture held last.
         if (s.surfaceBuffer) FrameResourceIds.surfaceBuffer,
+        // Both read back rather than read by a node, which is a consumer the
+        // graph cannot see, so both are outputs while their node is active or
+        // the node is culled for producing something nobody wants.
+        if (luminance.isActive) FrameResourceIds.luminance,
+        if (objectIds.isActive) FrameResourceIds.objectIds,
       ],
     );
   }
@@ -1982,6 +2079,28 @@ final class Renderer implements RenderServices {
     final ordered = List<RenderView>.of(views)
       ..sort((a, b) => a.priority.compareTo(b.priority));
 
+    // The meter's adaptation, by the time since the last frame. Stepped before
+    // the graph is built so the composite reads a value this frame's clock has
+    // already moved, and clamped so a stall — a debugger, a tab in the
+    // background — is a step rather than a jump to the target.
+    _sinceLastFrame.stop();
+    final dt = math.min(_sinceLastFrame.elapsedMicroseconds / 1e6, 0.25);
+    _sinceLastFrame
+      ..reset()
+      ..start();
+    if (settings.autoExposure.enabled) {
+      (_autoExposure ??= ExposureAdapter(initial: settings.exposure)).step(
+        dt,
+        settings.autoExposure,
+      );
+    }
+    _lastExposure = _exposureFor(settings);
+
+    // This frame's questions, and none asked after this point: a pick made
+    // from inside a frame callback waits for the frame after.
+    final picks = List<_PickRequest>.of(_pendingPicks, growable: false);
+    _pendingPicks.clear();
+
     // The whole frame, ordered by what each pass declares rather than by where
     // it sits in this method: the cube atlas, the shadow map, the world, the
     // application's overlays, reflections, bloom and the composite. Nothing is
@@ -2031,6 +2150,13 @@ final class Renderer implements RenderServices {
     );
     final bloomNode = _BloomNode(this, settings.bloom);
     final compositeNode = _CompositeNode(this, scene, ordered, settings);
+    final luminanceNode = _LuminanceNode(this, settings.autoExposure);
+    final objectIdNode = _ObjectIdNode(
+      this,
+      scene: scene,
+      ordered: ordered,
+      picks: picks,
+    );
     final frameGraph = _compileFrameGraph(
       views.first,
       settings,
@@ -2040,6 +2166,8 @@ final class Renderer implements RenderServices {
       scene: sceneNode,
       bloom: bloomNode,
       composite: compositeNode,
+      luminance: luminanceNode,
+      objectIds: objectIdNode,
     );
 
     final passState = FramePassState();
@@ -2079,6 +2207,27 @@ final class Renderer implements RenderServices {
               id: FrameResourceIds.ao,
               format: hdrFormat,
               size: const FrameFraction(2),
+            ),
+          )
+          // A fixed small square of bytes, whatever the window does: the meter
+          // reads it back, and sixteen kilobytes is what a readback per frame
+          // may cost. Eight bits because that is what comes back through
+          // `readback` on every backend, and the encoding is in stops so eight
+          // bits is a sixteenth of a stop.
+          ..declare(
+            const ResourceDesc(
+              id: FrameResourceIds.luminance,
+              format: TextureFormat.r8g8b8a8UNormInt,
+              size: AbsolutePixels(ExposureMeter.size, ExposureMeter.size),
+            ),
+          )
+          // The frame's size, because a pick is a pixel of the frame, and eight
+          // bits per channel because the id is three bytes and a readback hands
+          // back exactly those.
+          ..declare(
+            const ResourceDesc(
+              id: FrameResourceIds.objectIds,
+              format: TextureFormat.r8g8b8a8UNormInt,
             ),
           );
 
@@ -2220,6 +2369,7 @@ final class Renderer implements RenderServices {
       shadowCasters: _shadowCasters,
       shadowsDenied: _shadowsDenied,
       skinnedDraws: passState.skinnedDraws,
+      exposure: _lastExposure,
     );
   }
 

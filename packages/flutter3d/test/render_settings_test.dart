@@ -40,6 +40,7 @@ void main() {
       showPointShadowDebug: true,
       reflections: const ReflectionSettings(enabled: true),
       fog: FogSettings(color: Vector3(0.1, 0.2, 0.3), density: 0.05),
+      autoExposure: const AutoExposureSettings(enabled: true),
     );
 
     final copy = original.copyWith();
@@ -79,6 +80,11 @@ void main() {
       reason: 'reflections was one of the six',
     );
     expect(copy.fog, same(original.fog), reason: 'fog was one of the six');
+    expect(
+      copy.autoExposure,
+      same(original.autoExposure),
+      reason: 'autoExposure arrived after the six, and is held the same way',
+    );
   });
 
   test('copyWith replaces what it is given and nothing else', () {

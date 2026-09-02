@@ -25,7 +25,16 @@ final class FrameResult {
     required this.skinnedDraws,
     this.shadowsDenied = 0,
     this.wireframeDeclined = false,
+    this.exposure = 1.6,
   });
+
+  /// The exposure the composite used: the setting's, or — with auto exposure
+  /// on — what the meter had adapted to by this frame.
+  ///
+  /// Reported because it is the one number in the frame that the settings do
+  /// not decide, and a HUD, a test or a person asking "why is this frame so
+  /// bright" has nowhere else to read it.
+  final double exposure;
 
   /// The texture the frame was drawn into.
   ///

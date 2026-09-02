@@ -35,7 +35,17 @@ final class GoldenScene {
     this.sky = const SkySettings(),
     this.instances = 0,
     this.lightmapped = false,
+    this.autoExposure = const AutoExposureSettings(),
   });
+
+  /// Whether the frame's exposure is metered from the frame, and how fast.
+  ///
+  /// Off for every scene but one, since every other scene is recorded at the
+  /// setting's exposure. The one that turns it on does so with an infinite
+  /// rate, so the frame captured is at the target whatever the wall clock
+  /// did between frames — a golden that adapted at a rate would be a golden
+  /// recorded at whatever the run's timing happened to be.
+  final AutoExposureSettings autoExposure;
 
   /// Replaces the model with a floor and a wall lit by a hand-built lightmap
   /// and nothing else, for the lightmapped vertex stage and the lit models'

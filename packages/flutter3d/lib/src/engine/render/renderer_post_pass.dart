@@ -265,6 +265,58 @@ extension _PostPasses on Renderer {
     return target;
   }
 
+  /// Writes the scene's log luminance into [target], the small texture the
+  /// exposure meter reads back.
+  void _encodeLuminance({
+    required TextureHandle target,
+    required TextureHandle scene,
+  }) {
+    developer.Timeline.startSync('Renderer.luminance');
+    final shader = shaders['Luminance'];
+    if (shader == null) {
+      throw StateError(
+        'The bundle has no "Luminance" fragment shader, which auto exposure '
+        'meters with. Rebuild it with tool/build_shaders.sh.',
+      );
+    }
+    // One texel of the *target*, which is the footprint each of its texels
+    // averages over — see luminance.frag — and the two ends of the encoding
+    // the meter decodes with.
+    _luminanceParams[0] = 1.0 / math.max(target.width, 1);
+    _luminanceParams[1] = 1.0 / math.max(target.height, 1);
+    _luminanceParams[2] = ExposureMeter.floorStops;
+    _luminanceParams[3] = 1.0 / ExposureMeter.rangeStops;
+    drawFullscreen(
+      FullscreenDraw(
+        target: target,
+        fragment: shader,
+        textures: <String, TextureHandle>{_kSceneTextureSlot: scene},
+        uniforms: <String, Map<String, Float32List>>{
+          _kLuminanceInfoBlock: <String, Float32List>{
+            'params': _luminanceParams,
+          },
+        },
+      ),
+    );
+    developer.Timeline.finishSync();
+  }
+
+  /// Asks for the luminance target's bytes and hands them to the adapter when
+  /// they arrive. Returns at once; the answer is a frame or two away.
+  void _meterExposure(TextureHandle target, AutoExposureSettings settings) {
+    final adapter = _autoExposure;
+    if (adapter == null) return;
+    device
+        .readback(target)
+        .then(
+          (ByteData bytes) => adapter.meter(bytes, settings),
+          // A refused copy leaves the exposure where it was, which is the
+          // right picture for a frame, and is counted rather than swallowed
+          // so a meter that has stopped hearing back is visible as a number.
+          onError: (Object _, StackTrace _) => _meterFailures++,
+        );
+  }
+
   /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.
   ///
   /// One pass for both because the overlay has to land on the finished image
@@ -304,7 +356,7 @@ extension _PostPasses on Renderer {
       showShadowMap: settings.showShadowMap || settings.showStaticShadowMap,
       hasShadowView: shadowView != null,
       hasGlow: bloom != null,
-      exposure: settings.exposure,
+      exposure: _exposureFor(settings),
       bloomIntensity: settings.bloom.intensity,
       tonemap: settings.tonemap,
     );

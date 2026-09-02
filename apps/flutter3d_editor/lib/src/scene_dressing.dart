@@ -48,6 +48,43 @@ final class SceneDressing {
 
   final List<SceneNode> gizmos = <SceneNode>[];
 
+  /// Which handle each drawn mark, silhouette or model stands for.
+  ///
+  /// **What turns a pixel back into a piece of the document.** The renderer
+  /// answers a click with the mesh it drew there, and a mesh is a box, a
+  /// torch's cup or a monster's arm — none of which the document knows. This
+  /// is the way back: the node a mark was built as, or the holder its parts
+  /// hang under, or the root a model was instantiated at, each to the handle
+  /// it was placed for. The level's own geometry is deliberately absent, since
+  /// its batches belong to no single brush; [handleFor] says what happens
+  /// then.
+  final Map<SceneNode, Handle> owners = <SceneNode, Handle>{};
+
+  /// The handle [node] or something above it was drawn for, or null.
+  ///
+  /// Up the parents rather than the node alone, because what the picking pass
+  /// answers is the leaf that was rasterised — an edge of a cage, one part of
+  /// a silhouette, one mesh of a glTF — and what was placed is the thing
+  /// holding it. Null for the level's geometry and for the selection marker,
+  /// both of which the caller resolves another way.
+  Handle? handleFor(SceneNode? node) {
+    for (var at = node; at != null; at = at.parent) {
+      final owner = owners[at];
+      if (owner != null) return owner;
+    }
+    return null;
+  }
+
+  /// Whether [node] is the selection marker or a bar of it.
+  bool isMarker(SceneNode? node) {
+    final mark = marker;
+    if (mark == null) return false;
+    for (var at = node; at != null; at = at.parent) {
+      if (identical(at, mark)) return true;
+    }
+    return false;
+  }
+
   /// Every map the level named, already uploaded by the loader. What lets a
   /// door be drawn in the iron the document says it is made of.
   Map<String, TextureHandle?> textures = const <String, TextureHandle?>{};
@@ -64,6 +101,7 @@ final class SceneDressing {
   void reset() {
     marker = null;
     gizmos.clear();
+    owners.clear();
   }
 
   /// Puts the selection box around whatever is selected, or takes it away.
@@ -119,6 +157,7 @@ final class SceneDressing {
       scene.remove(gizmo);
     }
     gizmos.clear();
+    owners.clear();
 
     for (final handle in handlesOf(editing.level, looks: looks)) {
       if (handle.kind == Piece.brush) continue;
@@ -155,7 +194,9 @@ final class SceneDressing {
       // their own size, and what tells them apart without knowing either word
       // is that one says what it is made of.
       if (handle.volume && material == null) {
-        gizmos.add(buildCage(scene, handle.centre, handle.size, handle.tint));
+        final cage = buildCage(scene, handle.centre, handle.size, handle.tint);
+        gizmos.add(cage);
+        owners[cage] = handle;
         continue;
       }
 
@@ -193,6 +234,7 @@ final class SceneDressing {
       }
       scene.add(node);
       gizmos.add(node);
+      owners[node] = handle;
     }
   }
 
@@ -269,6 +311,7 @@ final class SceneDressing {
       ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw));
     scene.add(holder);
     gizmos.add(holder);
+    owners[holder] = handle;
 
     final meshes = SharedMeshes(device);
     for (final part in parts) {
@@ -395,6 +438,7 @@ final class SceneDressing {
         ..setPosition(handle.centre.x, handle.centre.y, handle.centre.z)
         ..setRotation(Quaternion.axisAngle(Vector3(0.0, 1.0, 0.0), entity.yaw));
       gizmos.add(instance.root);
+      owners[instance.root] = handle;
       // The mark it stands in for. Found by where it is, because that is what
       // the two have in common and the list is short.
       for (final gizmo in gizmos) {

@@ -545,7 +545,7 @@ class _EditorScreenState extends State<EditorScreen>
     if (from == null || _travelled >= _slop) return;
     final placing = _ready?.placing;
     if (placing == null) {
-      _pick(event.localPosition, size);
+      unawaited(_pick(event.localPosition, size));
       return;
     }
     _put(placing, event.localPosition, size);
@@ -606,19 +606,61 @@ class _EditorScreenState extends State<EditorScreen>
   }
 
   /// Selects whatever is under [at].
-  void _pick(Offset at, Size size) {
+  ///
+  /// **By the pixel, not by a ray against boxes.** The renderer draws the
+  /// next frame once more as ids and reads the one pixel back, so what is
+  /// selected is what is *on the screen* there: a monster's arm rather than
+  /// the metre of air its box adds around it, the wall beside a torch rather
+  /// than the torch whose box the wall was inside. `Picking.at` had a rule for
+  /// that — anything that is not a wall wins within a metre of the nearest hit
+  /// — and the rule was a guess about which of two boxes somebody meant. A
+  /// pixel is not a guess.
+  ///
+  /// The answer comes a frame later, which is why this is asynchronous and why
+  /// it checks the document is still the one it asked about.
+  Future<void> _pick(Offset at, Size size) async {
+    final renderer = _renderer;
     final editing = _editing;
-    final looks = _ready?.looks ?? Looks.none;
-    if (editing == null) return;
-    final along = _rayThrough(at, size);
-    final found = Picking.at(
-      handlesOf(editing.level, looks: looks),
-      _fly.position,
-      along,
+    if (renderer == null || editing == null) return;
+    final node = await renderer.pickPixel(
+      at.dx / size.width,
+      at.dy / size.height,
     );
+    if (!mounted || !identical(editing, _editing)) return;
+    final found = _handleUnder(node, at, size, editing);
     editing.selectHandle(found);
     _placeMarker();
     _cubit.say(found == null ? 'nothing there' : editing.says);
+  }
+
+  /// The piece of the document a drawn [node] stands for, or null.
+  ///
+  /// Three answers. A mark, a silhouette or a model the dressing placed knows
+  /// its handle — see `SceneDressing.owners`. The level's own geometry is one
+  /// batch per material and knows no brush, so the brush is the nearest box
+  /// along the ray through the click; on the face drawn at that pixel that is
+  /// the face's own brush, which is exactly the ray's old job with the
+  /// tie-breaking taken away from it. And the selection cage is drawn over
+  /// whatever is selected, so a click on one of its bars means the thing
+  /// inside it, which the ray still answers best.
+  Handle? _handleUnder(MeshNode? node, Offset at, Size size, Editing editing) {
+    if (node == null) return null;
+    final dressing = _dressing;
+    final looks = _ready?.looks ?? Looks.none;
+    final owned = dressing?.handleFor(node);
+    if (owned != null) return owned;
+
+    final along = _rayThrough(at, size);
+    final handles = handlesOf(editing.level, looks: looks);
+    if (dressing?.isMarker(node) ?? false) {
+      return Picking.at(handles, _fly.position, along);
+    }
+    final index = Picking.brushAt(editing.level.brushes, _fly.position, along);
+    if (index == null) return null;
+    for (final handle in handles) {
+      if (handle.kind == Piece.brush && handle.index == index) return handle;
+    }
+    return null;
   }
 
   // --- what the keys do ------------------------------------------------------
