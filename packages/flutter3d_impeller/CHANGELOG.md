@@ -1,3 +1,13 @@
+## 0.4.4
+
+* **Block-compressed textures upload, and the device is asked first.**
+  `createTextureFromPixels` stops requesting render-target usage for a
+  compressed format, which flutter_gpu refuses before the allocation, and
+  `supportsTextureFormat` repeats flutter_gpu's own per-family answer — BC on
+  a desktop GPU, ETC2 and ASTC on a mobile one, all three on Apple silicon.
+  The conformance suite now draws a BC1 and an ETC2 block through this
+  backend and reads the colour back, which had never been done.
+
 ## 0.4.3
 
 * The pubspec declares its platforms instead of leaving them to pub.dev's

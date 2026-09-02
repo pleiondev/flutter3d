@@ -5,8 +5,8 @@
 /// `::decode_tables` and `::transcode_slice` (the `block_format::cRGBA32`
 /// branch) in `KhronosGroup/KTX-Software`'s
 /// `external/basis_universal/transcoder/basisu_transcoder.cpp`. Verified
-/// against a real encoded file, not against this port's own understanding of
-/// the format — see `~/.claude/plans/ktx2-etc1s-fixture/`.
+/// against real encoded files, not against this port's own understanding of
+/// the format — see `flutter3d_samples/doc/ktx2_fixtures.md`.
 ///
 /// **What this reads.** One image, one level: a codebook of shared ETC1
 /// endpoints (a 555 colour plus a 3-bit intensity-table index — despite the

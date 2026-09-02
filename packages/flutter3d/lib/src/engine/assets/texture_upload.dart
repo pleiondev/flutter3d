@@ -1,6 +1,8 @@
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'ktx2/ktx2.dart';
 import 'model_document.dart';
@@ -23,28 +25,37 @@ import 'model_document.dart';
 /// is the decoded glTF sampler, so an asset that asks for mipmapped
 /// minification gets a chain and one that asks for a single level does not.
 ///
-/// **Compressed formats exist here now, for exactly one path.** Basis
-/// Universal (`ktx2/basis_universal/`) transcodes to plain RGBA8, so it costs
-/// what a PNG of the same dimensions always cost and pays for its mip chain
-/// the same way. A KTX2 file's *own* block-compressed pixels — the ones that
-/// would actually shrink device memory — are read correctly by
-/// [Ktx2Texture.parse] but refused here rather than uploaded: no backend has
-/// agreed yet what happens when one reaches it, and WebGL2's format table
-/// (`webgl_formats.dart`) throws outright for one today. Wiring that in is a
-/// backend-capability decision, not an asset-loading one.
+/// **A KTX2 file reaches the device in its own format when the device
+/// samples it.** Basis Universal (`ktx2/basis_universal/`) transcodes to
+/// plain RGBA8, so it costs what a PNG of the same dimensions always cost;
+/// a file carrying BC, ETC2 or ASTC blocks is uploaded as those blocks —
+/// the upload that actually shrinks device memory — after
+/// [GraphicsDevice.supportsTextureFormat] has said yes, and left out with a
+/// reason through [report] when it says no. Nothing is substituted: a device
+/// without BC7 gets no texture rather than a guess at one, because the guess
+/// would be a decoder this engine does not have.
+///
+/// [report] hears why an image was left out, in a sentence naming the
+/// format or the feature — a refused supercompression scheme, a family the
+/// device does not sample, a size that is not whole blocks. Null loses the
+/// sentence, which is what every caller did before there was one to lose.
 ///
 /// **The chain is not a memory saving.** It is an aliasing fix: without it a
 /// minified surface samples one texel out of every several and crawls as the
-/// camera moves. Paying 33% more memory for it is the trade.
+/// camera moves. Paying 33% more memory for it is the trade. A KTX2 file
+/// that carries its own chain is uploaded with it, and one that does not gets
+/// a chain built here only when its pixels are plain RGBA8 — a block cannot
+/// be halved on the CPU without the encoder the file already went through.
 Future<TextureHandle?> uploadEncodedImage(
   GraphicsDevice device,
   Uint8List encoded, {
   TextureSampling sampling = const TextureSampling(),
+  void Function(String message)? report,
 }) async {
   if (encoded.isEmpty) return null;
 
   if (isKtx2File(encoded)) {
-    return _uploadKtx2(device, sampling, encoded);
+    return _uploadKtx2(device, sampling, encoded, report);
   }
 
   final ui.Codec codec;
@@ -113,34 +124,78 @@ TextureHandle? _uploadRgba8(
 /// Routes a KTX2 file to [Ktx2Texture] rather than `dart:ui`, which does not
 /// read the format at all.
 ///
-/// Two outcomes reach RGBA8 the same way a PNG does: a parse failure (a
-/// feature stage 1 or 2 refuses — a mip chain, an alpha slice, a
-/// supercompression scheme with no Dart decompressor) degrades to "no
-/// texture" exactly like a corrupt PNG does, and a Basis Universal file
-/// reaches [_uploadRgba8] once transcoded. A file that parses into one of its
-/// *own* block-compressed formats is the one outcome this does not forward —
-/// see the doc comment on [uploadEncodedImage] for why.
-TextureHandle? _uploadKtx2(
+/// Four outcomes. A parse failure — a supercompression scheme with no Dart
+/// decompressor, a texture array, a truncated file — is a texture left out
+/// with its reason [report]ed, the same degradation a corrupt PNG gets with
+/// a sentence attached. A single-level RGBA8 result, which is what a Basis
+/// file without a chain transcodes to, goes through [_uploadRgba8] and earns
+/// a built chain like a PNG. Anything else — a Basis file with its own chain,
+/// or a file in one of the block-compressed formats — is uploaded as it is,
+/// levels and all, once the device has said it samples the format; a device
+/// that does not is the fourth outcome, and it is a reason, not a guess.
+///
+/// A transcode is a pass over every block of every level in Dart, so on a
+/// platform with isolates it runs on one: a 2048² Basis texture is a quarter
+/// of a million blocks, and the frame that loads it should not stall for
+/// them. The web has no isolates and decodes where it stands, as the model
+/// loader does. A plain file's parse is a handful of reads and stays here.
+Future<TextureHandle?> _uploadKtx2(
   GraphicsDevice device,
   TextureSampling sampling,
   Uint8List encoded,
-) {
+  void Function(String message)? report,
+) async {
   final Ktx2Texture texture;
   try {
-    texture = Ktx2Texture.parse(encoded);
-  } on Ktx2FormatException {
+    texture = kIsWeb || !isBasisUniversalKtx2(encoded)
+        ? Ktx2Texture.parse(encoded)
+        : await Isolate.run(() => Ktx2Texture.parse(encoded));
+  } on Ktx2FormatException catch (error) {
+    report?.call('KTX2 file left out: ${error.message}');
     return null;
   }
 
-  if (texture.format != TextureFormat.r8g8b8a8UNormInt) {
+  final format = texture.format;
+  final levels = texture.levels;
+  final width = texture.pixelWidth;
+  final height = texture.pixelHeight;
+  if (format == TextureFormat.r8g8b8a8UNormInt && levels.length == 1) {
+    return _uploadRgba8(device, sampling, width, height, levels.single);
+  }
+
+  if (!device.supportsTextureFormat(format)) {
+    report?.call(
+      'KTX2 texture left out: it is ${format.name}, which this device does '
+      'not sample.',
+    );
     return null;
   }
-  return _uploadRgba8(
-    device,
-    sampling,
-    texture.pixelWidth,
-    texture.pixelHeight,
-    texture.levels.single,
+  if (format.isCompressed) {
+    // flutter_gpu's rule for an allocation, applied before one is attempted
+    // on any backend: a block-compressed texture is whole blocks. The other
+    // backends round up and would take it, but a texture that loads on two
+    // backends out of three is the kind of difference this seam exists to
+    // keep out.
+    final block = format.blockLayout;
+    if (width % block.blockWidth != 0 || height % block.blockHeight != 0) {
+      report?.call(
+        'KTX2 texture left out: ${width}x$height is not whole '
+        '${block.blockWidth}x${block.blockHeight} blocks of ${format.name}.',
+      );
+      return null;
+    }
+  }
+
+  final chain =
+      sampling.useMipmaps && device.supportsMipmaps && levels.length > 1
+      ? levels.sublist(1)
+      : null;
+  return device.createTextureFromPixels(
+    width: width,
+    height: height,
+    format: format,
+    pixels: levels.first,
+    mipLevels: chain,
   );
 }
 

@@ -1,6 +1,6 @@
 name: flutter3d_hardware
 description: "The graphics vocabulary flutter3d is written against: formats, handles, a command encoder and a device. Names no graphics API."
-version: 0.4.0
+version: 0.4.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

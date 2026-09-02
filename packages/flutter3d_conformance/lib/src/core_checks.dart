@@ -24,6 +24,17 @@ Future<void> checkCapabilities(GraphicsDevice device) async {
   device.framebufferOrigin;
   device.supportsWireframe;
   device.supportsOffscreenMsaa;
+  // Every format, because the block-compressed tail is where a backend is
+  // most tempted to throw from a lookup table instead of answering: a loader
+  // asks this before uploading, and a throw here is a texture lost with no
+  // reason given.
+  for (final format in TextureFormat.values) {
+    device.supportsTextureFormat(format);
+  }
+  require(
+    device.supportsTextureFormat(TextureFormat.r8g8b8a8UNormInt),
+    'r8g8b8a8UNormInt is not sampled, and every decoded image arrives in it',
+  );
   require(
     device.preferredSampleCount >= 1,
     'preferredSampleCount is ${device.preferredSampleCount}; one means no '

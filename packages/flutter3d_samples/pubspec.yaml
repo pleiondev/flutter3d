@@ -3,7 +3,7 @@ description: >-
   The models flutter3d's decoders are tested against and its demo browses: the
   official Khronos glTF sample assets, the Utah teapot, and the .f3d files
   converted from them.
-version: 0.4.0
+version: 0.4.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

@@ -19,8 +19,9 @@
 /// than one colour to pick a selector for. The expected pixels below are
 /// `basisu -unpack`'s own RGBA32 transcode of the same file — the ground
 /// truth this port either matches or does not; see
-/// `~/.claude/plans/ktx2-etc1s-fixture/README.md` for the full byte-layout
-/// cross-check this fixture was also used for.
+/// `flutter3d_samples/doc/ktx2_fixtures.md` for the full byte-layout
+/// cross-check this fixture was also used for, and for the two files with
+/// mip chains checked below.
 ///
 /// Runs off-device: reading the file is the only I/O, same as
 /// `f3d_test.dart`'s samples.
@@ -89,4 +90,49 @@ void main() {
       }
     },
   );
+
+  // Two more files from the same encoder, each with `-mipmap`, held level by
+  // level against `basisu -unpack`'s RGBA32 output stored raw under
+  // `test/fixtures/ktx2/`. The first carries alpha, so every level is two
+  // ETC1S slices; the second is 64×64 of chequered gradient and noise, which
+  // is sixteen tiles of endpoint prediction and selector runs long enough to
+  // reach the run-length path — an 8×8 gradient is two tiles and never does.
+  for (final (name, width, height, levels) in <(String, int, int, int)>[
+    ('etc1s_alpha_mips', 16, 16, 5),
+    ('etc1s_field_mips', 64, 64, 7),
+  ]) {
+    test(
+      '$name transcodes every level and its alpha as basisu unpacks them',
+      () {
+        final texture = Ktx2Texture.parse(_readSample('ktx2/$name.ktx2'));
+
+        expect(texture.pixelWidth, width);
+        expect(texture.pixelHeight, height);
+        expect(texture.format, TextureFormat.r8g8b8a8UNormInt);
+        expect(texture.levels, hasLength(levels));
+
+        for (var level = 0; level < levels; level++) {
+          final expected = File(
+            'test/fixtures/ktx2/${name}_level_$level.rgba',
+          ).readAsBytesSync();
+          final actual = texture.levels[level].buffer.asUint8List(
+            texture.levels[level].offsetInBytes,
+            texture.levels[level].lengthInBytes,
+          );
+          expect(actual.length, expected.length, reason: 'level $level size');
+          for (var i = 0; i < expected.length; i++) {
+            if (actual[i] != expected[i]) {
+              final pixel = i ~/ 4;
+              final levelWidth = (width >> level).clamp(1, width);
+              fail(
+                'level $level pixel (${pixel % levelWidth}, '
+                '${pixel ~/ levelWidth}) channel ${i % 4}: '
+                'expected ${expected[i]}, got ${actual[i]}',
+              );
+            }
+          }
+        }
+      },
+    );
+  }
 }

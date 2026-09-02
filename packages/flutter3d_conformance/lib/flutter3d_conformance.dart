@@ -31,6 +31,7 @@ library;
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter_test/flutter_test.dart' show test;
 
+import 'src/compressed_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
 import 'src/pass_coverage_checks.dart';
@@ -147,6 +148,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a cube map answers the face a direction points at',
     run: checkCubeFaces,
+  ),
+  (
+    name: 'a compressed format it supports samples its colour back',
+    run: checkCompressedTextureSamples,
   ),
   // Two of the nine rules ARCHITECTURE.md §7.2 states and that no signature
   // can. Both are decisions a new backend has to make deliberately, and

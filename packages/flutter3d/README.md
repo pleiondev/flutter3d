@@ -206,7 +206,10 @@ What is supported:
 | Animations | all samplers and channels; `STEP`, `LINEAR` and `CUBICSPLINE`; translation, rotation, scale and weights (weights decoded but not applied) |
 
 Not there: morph targets, cameras, Draco and meshopt (reported in `warnings`),
-KTX2, TEXCOORD_1 and up.
+TEXCOORD_1 and up. KTX2 is read — `KHR_texture_basisu`'s Basis ETC1S files
+transcode to RGBA8, and a file's own BC, ETC2 or ASTC blocks upload as they
+are where the device samples them — with UASTC and Zstandard still refused by
+name.
 
 Non-fatal decoding problems land in `warnings` and are surfaced in the UI — a
 skipped primitive or an ignored extension explains a model that looks odd but

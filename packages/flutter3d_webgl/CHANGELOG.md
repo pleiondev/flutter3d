@@ -1,3 +1,15 @@
+## 0.4.2
+
+* **Compressed textures, from the extensions the context actually has.**
+  `CompressedTextureSupport` asks for the six extensions once at `create()`
+  (ETC2 is WebGL2 core and still has to be asked for), a compressed upload
+  goes through `compressedTexSubImage2D` with block-rounded sizes, and
+  `supportsTextureFormat` answers from the same table the upload reads, so
+  a format it says yes to is one it takes. Verified in a real Chrome: ETC2
+  uploads and samples, a chain uploads block by block, a short buffer is
+  refused before any GL call, and every LDR format either loads clean or
+  throws naming the missing extension.
+
 ## 0.4.1
 
 * **Phones render.** The MSAA sample count is now proven at `create()` rather

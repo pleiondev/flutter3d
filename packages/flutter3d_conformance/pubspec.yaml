@@ -2,7 +2,7 @@ name: flutter3d_conformance
 description: >-
   The behaviour a flutter3d_hardware backend has to have, as tests it can run
   against itself.
-version: 0.4.0
+version: 0.4.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

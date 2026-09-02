@@ -336,6 +336,12 @@ final class LevelLoader {
         device,
         bytes.buffer.asUint8List(),
         sampling: const TextureSampling(),
+        // A KTX2 the device does not sample, or a feature of one the reader
+        // does not have, is a flat wall with a sentence beside it — the same
+        // treatment a missing file gets below.
+        report: (message) => issues.add(
+          LevelIssue(LevelIssueSeverity.warning, message, where: path),
+        ),
       );
     } catch (error) {
       // A missing texture leaves the material flat rather than stopping the

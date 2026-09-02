@@ -1,3 +1,18 @@
+## 0.4.1
+
+* **`GraphicsDevice.supportsTextureFormat`.** The question a block-compressed
+  format needs asked and none of the backends was asking: every value of
+  `TextureFormat` has a name everywhere, and BC is a desktop family, ETC2 a
+  mobile one, ASTC newer still. A loader asks before it uploads and a no is a
+  texture left out with a reason, not an `ArgumentError` out of an allocation.
+  A backend outside this repository has to add the member; the three inside
+  answer from flutter_gpu's capability, the WebGL2 context's extensions, and a
+  constant no for anything compressed.
+* `TextureFormatCompression`: `isCompressed` and `blockLayout` for every
+  block-compressed value, the one source every backend now reads.
+* `FakeBackend` records the mip chain each upload came with and can be told
+  which formats to refuse.
+
 ## 0.4.0
 
 * **A loan that outlives a `trim` goes back to the allocator.** It used to be

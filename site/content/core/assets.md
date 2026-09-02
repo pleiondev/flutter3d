@@ -78,7 +78,15 @@ unawaited(_dressRunner(device, scene, runner));   // swaps it in later
 | Skins | `joints`, `inverseBindMatrices`, `skeleton`, JOINTS_0/WEIGHTS_0 |
 | Animations | All samplers and channels; STEP, LINEAR, CUBICSPLINE; translation, rotation, scale, and weights (decoded, not applied) |
 
-Not supported: morph targets, cameras, Draco and meshopt, KTX2, TEXCOORD_1 and up. All of them are reported in `warnings` rather than failing the file, and the demo surfaces those, a skipped primitive explains a model that looks odd but still loaded.
+Not supported: morph targets, cameras, Draco and meshopt, TEXCOORD_1 and up. All of them are reported in `warnings` rather than failing the file, and the demo surfaces those, a skipped primitive explains a model that looks odd but still loaded.
+
+## KTX2 and compressed textures
+
+A texture can arrive as a KTX2 container, sniffed before `dart:ui` ever sees the bytes, and two kinds of file come out of it. A Basis Universal ETC1S file is transcoded to RGBA8 in Dart, on an isolate where there is one, with its mip chain and its alpha slice; it costs what a PNG of the same size costs on the device and downloads at a fraction of it. A file carrying its own BC, ETC2 or ASTC blocks is uploaded as those blocks, levels and all, which is the upload that shrinks device memory: a 2048² BC7 texture is 5.6 MB where RGBA8 with a chain is 22.
+
+The device is asked first. `GraphicsDevice.supportsTextureFormat` answers per format, from flutter_gpu's own per-family capability on Impeller, from the extensions the context handed back on WebGL2, and with a constant no for anything compressed on the software rasteriser, which samples raw texels. A no is a texture left out with a sentence in `warnings` naming the format, never a guess at a decoder the engine does not have. In glTF, `KHR_texture_basisu` is read: a core `source` wins while it exists, since a PNG always decodes, and the extension's KTX2 is what a file that ships only that falls back to.
+
+Still refused by name: UASTC, Zstandard and ZLIB supercompression, texture arrays, cube maps and 3D textures. Nothing in this repository produces a KTX2 either; the reader exists for other tools' output until the asset converter grows an encoder step.
 
 <div class="note">
 <p>The node hierarchy is kept <strong>index-aligned with the file</strong>, transform-only nodes included, because animation channels address nodes by index. Rebuilding the hierarchy on instantiation is what lets an animated parent carry its subtree.</p>

@@ -170,6 +170,7 @@ final class ModelAsset {
         device,
         document.images[imageIndex].bytes,
         sampling: sampling,
+        report: (message) => warnings.add('images[$imageIndex]: $message'),
       );
       if (uploaded == null) {
         warnings.add(

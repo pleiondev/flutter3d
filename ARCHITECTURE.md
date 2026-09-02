@@ -771,8 +771,8 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   necessary.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
-  `preferredSampleCount`, `supportsMipmaps`. A backend refuses loudly rather than
-  substituting something that looks similar.
+  `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`. A backend
+  refuses loudly rather than substituting something that looks similar.
 
 **Outside the promise**, because nothing beyond the package should depend on it:
 everything in `flutter3d`'s `src/` past what `flutter3d.dart` exports;
@@ -1354,7 +1354,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3130 tests** across 24 packages and 5 applications |
+| Unit tests | **3139 tests** across 24 packages and 5 applications |
 | Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1499,19 +1499,23 @@ into a bundle.
 indirect draw.
 
 **No compressed texture in an asset this engine ships**, so every texture in
-the three games still costs its uncompressed size — but every backend now
-has an opinion about one that arrives. `texture_upload.dart` sniffs KTX2
-before `dart:ui` ever sees the bytes; Basis Universal/ETC1S transcodes to
-plain RGBA8 (`assets/ktx2/`, verified against a real encoder's output) and
-uploads on all three backends the same way a PNG does. A KTX2 file's own
-block-compressed pixels are read correctly but held back at that one seam —
-see the note on `TextureFormatCompression.isCompressed`
-(`flutter3d_hardware/formats.dart`) for why: Impeller allocates them
-(`gpu_device.dart`), WebGL2 uploads what its context's extensions allow and
-names what they do not (`webgl_formats.dart`, real-Chrome tested), and the
-software rasteriser refuses by name (`cpu_device.dart`) because it samples
-raw texels and always will. What is still missing is upstream of all of
-this: `tool/convert_asset.dart` has no encoder, so nothing produces a
+the three games still costs its uncompressed size — but one that arrives is
+read and, where the device samples it, uploaded as it is.
+`texture_upload.dart` sniffs KTX2 before `dart:ui` ever sees the bytes.
+Basis Universal/ETC1S transcodes to plain RGBA8 on an isolate, mip chain and
+alpha slice included (`flutter3d_samples/assets/ktx2/`, three files held
+level by level against the encoder's own unpack); a file carrying its own
+BC, ETC2 or ASTC blocks goes to the device as those blocks after
+`GraphicsDevice.supportsTextureFormat` has said yes — flutter_gpu's
+per-family capability on Impeller, the context's extensions on WebGL2, a
+constant no on the software rasteriser, which samples raw texels and always
+will. A no is a texture left out with a sentence in the model's warnings or
+the level's issues, never a guess. A conformance check draws one hand-built
+BC1 and one ETC2 block on every backend that claims the family and reads
+the colour back, which is the first time an Impeller compressed upload was
+drawn rather than only allocated. Still refused by name: UASTC, Zstandard
+and ZLIB supercompression, arrays, cube maps, 3D textures. What is missing
+is upstream: `tool/convert_asset.dart` has no encoder, so nothing produces a
 compressed KTX2 for this engine's own pipeline to read.
 
 **No morph targets**, no animation blending or crossfade, and therefore no useful

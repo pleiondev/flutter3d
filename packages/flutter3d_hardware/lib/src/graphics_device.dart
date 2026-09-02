@@ -119,6 +119,24 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// here looks exactly like the wireframe setting having no effect.
   bool get supportsWireframe;
 
+  /// Whether a texture uploaded in [format] can be created and sampled here.
+  ///
+  /// **The question a block-compressed format needs asked, and the one no
+  /// backend was asking.** Every value of `TextureFormat` has a name on every
+  /// backend, and that is where the agreement ends: BC is a desktop family,
+  /// ETC2 a mobile and WebGL2 one, ASTC newer still, and the software
+  /// rasteriser samples raw texels and decodes none of them. Impeller answers
+  /// from flutter_gpu's own per-family capability, WebGL2 from the extensions
+  /// its context handed back, the software backend with a constant no for
+  /// anything compressed. A loader asks here before it uploads, and a false
+  /// is a texture left out with a reason — not an `ArgumentError` out of an
+  /// allocation, and not a texture full of block bytes read as RGBA.
+  ///
+  /// About sampling only. A render target is asked for through
+  /// [hdrColorFormat], [defaultColorFormat] and [createTexture], and a
+  /// compressed format is never one anywhere.
+  bool supportsTextureFormat(TextureFormat format);
+
   /// The compiled bundle this device was built with.
   ///
   /// On the device rather than on `RenderServices` because it is a property of

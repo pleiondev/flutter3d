@@ -342,6 +342,25 @@ final class WebGlDevice implements GraphicsDevice {
   // this backend does not run on at all.
   bool get supportsMipmaps => true;
 
+  /// The same two tables the uploads read, asked as a question instead of
+  /// being thrown at: `textureFormatToGl` for a plain format and
+  /// `compressedTextureFormatToGl` against the extensions this context handed
+  /// back for a block-compressed one. One place decides what this backend
+  /// can take, so the answer here cannot drift from what an upload does.
+  @override
+  bool supportsTextureFormat(TextureFormat format) {
+    try {
+      if (format.isCompressed) {
+        compressedTextureFormatToGl(format, _compressedTextureSupport);
+      } else {
+        textureFormatToGl(format);
+      }
+      return true;
+    } on UnsupportedError {
+      return false;
+    }
+  }
+
   @override
   // WebGL2 has had cube maps since WebGL1, and samples across their edges
   // seamlessly without an extension. Nothing to probe.

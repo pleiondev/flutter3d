@@ -93,6 +93,13 @@ final class CpuDevice implements GraphicsDevice {
   // fragment, which is the one place this backend cannot imitate hardware.
   bool get supportsMipmaps => true;
 
+  /// No to every block-compressed format, and that is the whole answer: this
+  /// backend samples raw texels and has no decoder for a block, by design —
+  /// `createTextureFromPixels` says the same by throwing when one arrives
+  /// anyway. Everything else it stores as floats whatever the format says.
+  @override
+  bool supportsTextureFormat(TextureFormat format) => !format.isCompressed;
+
   @override
   // Nothing to probe: a cube here is six arrays of floats and a table saying
   // which of them a direction lands on.

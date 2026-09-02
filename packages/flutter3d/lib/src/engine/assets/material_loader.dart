@@ -104,7 +104,13 @@ Future<Material> bindMaterial(
       }
       final uploaded = bytes == null
           ? null
-          : await uploadEncodedImage(device, bytes, sampling: binding.sampling);
+          : await uploadEncodedImage(
+              device,
+              bytes,
+              sampling: binding.sampling,
+              report: (message) =>
+                  warnings?.add('${document.images[index]}: $message'),
+            );
       if (uploaded == null) {
         warnings?.add(
           '${document.images[index]} could not be read; the '

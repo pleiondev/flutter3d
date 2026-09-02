@@ -28,12 +28,19 @@ extension _GltfMaterials on GltfLoader {
         return null;
       }
       final texture = textures[textureIndex];
-      final imageIndex = _asInt(texture['source']);
+      // The core image first, when there is one. `KHR_texture_basisu` says a
+      // reader that supports it should prefer its KTX2 over the core PNG, and
+      // this reader supports a third of it: Basis ETC1S, not UASTC and not a
+      // zstd-wrapped file. A PNG beside it always decodes, so the PNG wins
+      // while it exists, and the extension's source is what a file that ships
+      // only the KTX2 falls back to — which is the file that used to lose its
+      // texture here with a one-line warning.
+      final imageIndex =
+          _asInt(texture['source']) ?? _basisuSource(texture, warnings);
       if (imageIndex == null) {
-        // A texture may carry only an extension-provided source (e.g. KTX2),
-        // which we do not decode.
         warnings.add(
-          'textures[$textureIndex] has no core "source" image; ignored.',
+          'textures[$textureIndex] has neither a core "source" image nor a '
+          'KHR_texture_basisu one; ignored.',
         );
         return null;
       }

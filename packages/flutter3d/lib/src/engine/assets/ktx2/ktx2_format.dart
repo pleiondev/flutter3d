@@ -102,7 +102,7 @@ abstract final class Ktx2IndexField {
 /// optionally alpha) slice lives.
 ///
 /// Verified against a real encoded file — see
-/// `~/.claude/plans/ktx2-etc1s-fixture/` — not only against the
+/// `flutter3d_samples/doc/ktx2_fixtures.md` — not only against the
 /// specification text, which for this section is thinner than the container
 /// layout above.
 ///

@@ -1,3 +1,12 @@
+## 0.4.1
+
+* **A compressed format is refused by name, and asked about first.**
+  `createTextureFromPixels` used to read block bytes as RGBA8 and hand back
+  a texture full of noise; it throws naming the format now, and
+  `supportsTextureFormat` says no to every block-compressed value before a
+  loader gets that far, because this backend samples raw texels and always
+  will.
+
 ## 0.4.0
 
 * **`CpuFrame` disposes its images.** It had no `dispose` at all — one leaked

@@ -173,4 +173,4 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 - **No compressed textures, no compute passes, no rendering into a mip level.** These are what `flutter_gpu` still lacks.
 - **No navmesh, no flanking, no squads.** Navigation gets an agent there, not around you.
 - **No touch backend, and no gamepad or mouse capture on Windows or Linux.** `pad_input` covers macOS, iOS, Web and Android; `pointer_lock` covers macOS only. `InputState` is device-agnostic, so the remaining platforms are new implementations of an existing seam, not a design change.
-- **No morph targets, no Draco, no KTX2.** A decoder reports these in `warnings` rather than failing the file.
+- **No morph targets, no Draco, no UASTC.** A decoder reports these in `warnings` rather than failing the file. KTX2 is read: Basis ETC1S transcodes to RGBA8, and BC, ETC2 and ASTC blocks upload as they are where the device samples them.

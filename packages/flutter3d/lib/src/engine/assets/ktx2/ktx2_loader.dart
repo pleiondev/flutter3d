@@ -99,12 +99,13 @@ final class Ktx2Texture {
           '(${_supercompressionName(supercompressionScheme)}), not Basis-LZ.',
         );
       }
-      if (levelCount != 1) {
+      if (levelCount == 0) {
         throw const Ktx2FormatException(
-          'Basis Universal mip chains (levelCount > 1) are not supported yet.',
+          'levelCount is 0, which asks the loader to generate mip levels at '
+          'load time — not implemented yet.',
         );
       }
-      return _parseBasisEtc1s(bytes, view, pixelWidth, pixelHeight);
+      return _parseBasisEtc1s(bytes, view, pixelWidth, pixelHeight, levelCount);
     }
 
     final format = _engineFormat(vkFormat);
@@ -163,10 +164,16 @@ final class Ktx2Texture {
 }
 
 /// The Basis Universal (ETC1S, `supercompressionScheme == basisLZ`) path:
-/// reads the ordinary KTX2 level index for level 0's bytes, then the
-/// supercompression global data — the codebooks and the one `ImageDesc` a
-/// single-level, single-layer, single-face file carries — and transcodes
-/// straight to RGBA8.
+/// reads the supercompression global data — the codebooks and one
+/// `ImageDesc` per mip level — then each level's bytes through the ordinary
+/// KTX2 level index, and transcodes every level straight to RGBA8.
+///
+/// **Alpha is a second slice, not a fifth channel.** ETC1S has no alpha, so
+/// Basis stores an image with alpha as two ETC1S images in one level — the
+/// colour, then the alpha as a grey image — and the `ImageDesc` says where
+/// each is. The alpha slice transcodes through the same call as the colour
+/// one and its green channel is the alpha, which is what the reference
+/// transcoder's `cA32` branch does with it.
 ///
 /// Split out of [Ktx2Texture.parse] because it reads a second, unrelated
 /// section of the container (the global data, not the per-level index) and
@@ -178,23 +185,14 @@ Ktx2Texture _parseBasisEtc1s(
   ByteData view,
   int pixelWidth,
   int pixelHeight,
+  int levelCount,
 ) {
-  // Level 0's own bytes, via the same level index every other vkFormat uses.
-  final levelEntry = kKtx2LevelIndexOffset;
-  final levelByteOffset = _readOffsetOrLength(
-    view,
-    levelEntry,
-    'level 0 offset',
-  );
-  final levelByteLength = _readOffsetOrLength(
-    view,
-    levelEntry + 8,
-    'level 0 length',
-  );
-  if (levelByteOffset + levelByteLength > bytes.lengthInBytes) {
+  final levelIndexEnd =
+      kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+  if (levelIndexEnd > bytes.lengthInBytes) {
     throw Ktx2FormatException(
-      'Level 0 runs from $levelByteOffset for $levelByteLength bytes, past '
-      'the end of a ${bytes.lengthInBytes}-byte file.',
+      'Level index claims $levelCount entries, which runs past the end of '
+      'a ${bytes.lengthInBytes}-byte file.',
     );
   }
 
@@ -215,11 +213,14 @@ Ktx2Texture _parseBasisEtc1s(
       'file.',
     );
   }
+  // One ImageDesc per image, and with no layers and one face an image is a
+  // level: `levelCount` of them, level 0 first, whatever order the levels'
+  // bytes sit in the file.
   if (sgdByteLength <
-      Ktx2GlobalDataField.headerBytes + Ktx2ImageDescField.bytes) {
+      Ktx2GlobalDataField.headerBytes + levelCount * Ktx2ImageDescField.bytes) {
     throw Ktx2FormatException(
       'Supercompression global data is $sgdByteLength bytes, too short for '
-      'its header and one ImageDesc.',
+      'its header and $levelCount ImageDescs.',
     );
   }
 
@@ -236,27 +237,19 @@ Ktx2Texture _parseBasisEtc1s(
   final selectorsByteLength = sgd(Ktx2GlobalDataField.selectorsByteLength);
   final tablesByteLength = sgd(Ktx2GlobalDataField.tablesByteLength);
 
-  final imageDescOffset = sgdByteOffset + Ktx2GlobalDataField.headerBytes;
-  int imageDesc(int field) =>
-      view.getUint32(imageDescOffset + field, Endian.little);
-  final rgbSliceByteOffset = imageDesc(Ktx2ImageDescField.rgbSliceByteOffset);
-  final rgbSliceByteLength = imageDesc(Ktx2ImageDescField.rgbSliceByteLength);
-  final alphaSliceByteLength = imageDesc(
-    Ktx2ImageDescField.alphaSliceByteLength,
-  );
-  if (alphaSliceByteLength != 0) {
+  final imageDescsOffset = sgdByteOffset + Ktx2GlobalDataField.headerBytes;
+  final codebooksOffset =
+      imageDescsOffset + levelCount * Ktx2ImageDescField.bytes;
+  if (codebooksOffset +
+          endpointsByteLength +
+          selectorsByteLength +
+          tablesByteLength >
+      sgdByteOffset + sgdByteLength) {
     throw const Ktx2FormatException(
-      'ETC1S alpha slices are not supported yet.',
+      'The ETC1S codebooks run past the end of the supercompression global '
+      'data.',
     );
   }
-  if (rgbSliceByteOffset + rgbSliceByteLength > levelByteLength) {
-    throw Ktx2FormatException(
-      'ETC1S RGB slice runs from $rgbSliceByteOffset for $rgbSliceByteLength '
-      'bytes, past the end of level 0\'s $levelByteLength-byte data.',
-    );
-  }
-
-  final codebooksOffset = imageDescOffset + Ktx2ImageDescField.bytes;
   final endpointsData = bytes.buffer.asUint8List(
     bytes.offsetInBytes + codebooksOffset,
     endpointsByteLength,
@@ -272,29 +265,86 @@ Ktx2Texture _parseBasisEtc1s(
         selectorsByteLength,
     tablesByteLength,
   );
-  final sliceData = bytes.buffer.asUint8List(
-    bytes.offsetInBytes + levelByteOffset + rgbSliceByteOffset,
-    rgbSliceByteLength,
-  );
 
-  final rgba8 = transcodeEtc1sSliceToRgba8(
-    endpointsData: endpointsData,
-    numEndpoints: endpointCount,
-    selectorsData: selectorsData,
-    numSelectors: selectorCount,
-    tableData: tablesData,
-    sliceData: sliceData,
-    pixelWidth: pixelWidth,
-    pixelHeight: pixelHeight,
-    numBlocksX: (pixelWidth + 3) ~/ 4,
-    numBlocksY: (pixelHeight + 3) ~/ 4,
-  );
+  final levels = <ByteData>[];
+  for (var level = 0; level < levelCount; level++) {
+    final width = pixelWidth >> level;
+    final height = pixelHeight >> level;
+    final levelWidth = width < 1 ? 1 : width;
+    final levelHeight = height < 1 ? 1 : height;
+
+    final levelEntry =
+        kKtx2LevelIndexOffset + level * kKtx2LevelIndexEntryBytes;
+    final levelByteOffset = _readOffsetOrLength(
+      view,
+      levelEntry,
+      'level $level offset',
+    );
+    final levelByteLength = _readOffsetOrLength(
+      view,
+      levelEntry + 8,
+      'level $level length',
+    );
+    if (levelByteOffset + levelByteLength > bytes.lengthInBytes) {
+      throw Ktx2FormatException(
+        'Level $level runs from $levelByteOffset for $levelByteLength bytes, '
+        'past the end of a ${bytes.lengthInBytes}-byte file.',
+      );
+    }
+
+    final imageDescOffset = imageDescsOffset + level * Ktx2ImageDescField.bytes;
+    int imageDesc(int field) =>
+        view.getUint32(imageDescOffset + field, Endian.little);
+    final rgbSliceByteOffset = imageDesc(Ktx2ImageDescField.rgbSliceByteOffset);
+    final rgbSliceByteLength = imageDesc(Ktx2ImageDescField.rgbSliceByteLength);
+    final alphaSliceByteOffset = imageDesc(
+      Ktx2ImageDescField.alphaSliceByteOffset,
+    );
+    final alphaSliceByteLength = imageDesc(
+      Ktx2ImageDescField.alphaSliceByteLength,
+    );
+    if (rgbSliceByteOffset + rgbSliceByteLength > levelByteLength ||
+        alphaSliceByteOffset + alphaSliceByteLength > levelByteLength) {
+      throw Ktx2FormatException(
+        'Level $level\'s ETC1S slices run past the end of its '
+        '$levelByteLength-byte data.',
+      );
+    }
+
+    Uint8List slice(int offset, int length) => bytes.buffer.asUint8List(
+      bytes.offsetInBytes + levelByteOffset + offset,
+      length,
+    );
+    Uint8List transcode(Uint8List sliceData) => transcodeEtc1sSliceToRgba8(
+      endpointsData: endpointsData,
+      numEndpoints: endpointCount,
+      selectorsData: selectorsData,
+      numSelectors: selectorCount,
+      tableData: tablesData,
+      sliceData: sliceData,
+      pixelWidth: levelWidth,
+      pixelHeight: levelHeight,
+      numBlocksX: (levelWidth + 3) ~/ 4,
+      numBlocksY: (levelHeight + 3) ~/ 4,
+    );
+
+    final rgba8 = transcode(slice(rgbSliceByteOffset, rgbSliceByteLength));
+    if (alphaSliceByteLength != 0) {
+      final alpha = transcode(
+        slice(alphaSliceByteOffset, alphaSliceByteLength),
+      );
+      for (var i = 0; i < levelWidth * levelHeight; i++) {
+        rgba8[i * 4 + 3] = alpha[i * 4 + 1];
+      }
+    }
+    levels.add(ByteData.view(rgba8.buffer, 0, rgba8.lengthInBytes));
+  }
 
   return Ktx2Texture._(
     pixelWidth,
     pixelHeight,
     TextureFormat.r8g8b8a8UNormInt,
-    [ByteData.view(rgba8.buffer, 0, rgba8.lengthInBytes)],
+    levels,
   );
 }
 
@@ -359,6 +409,28 @@ String _supercompressionName(int scheme) => switch (scheme) {
   Ktx2SupercompressionScheme.zlib => 'ZLIB',
   _ => 'vendor scheme $scheme',
 };
+
+/// True when [bytes] is a KTX2 file whose `vkFormat` is undefined — a Basis
+/// Universal file, whose pixels are a transcode rather than a copy.
+///
+/// Asked before [Ktx2Texture.parse] by a caller deciding where to run it: a
+/// plain file's parse is a handful of reads and belongs on the calling
+/// isolate, a transcode is a pass over every block and does not.
+bool isBasisUniversalKtx2(Uint8List bytes) {
+  if (!isKtx2File(bytes) ||
+      bytes.lengthInBytes < kKtx2HeaderOffset + Ktx2HeaderField.vkFormat + 4) {
+    return false;
+  }
+  return ByteData.view(
+        bytes.buffer,
+        bytes.offsetInBytes,
+        bytes.lengthInBytes,
+      ).getUint32(
+        kKtx2HeaderOffset + Ktx2HeaderField.vkFormat,
+        Endian.little,
+      ) ==
+      VkFormat.undefined;
+}
 
 /// True when [bytes] begins with the KTX2 identifier.
 ///

@@ -1,3 +1,23 @@
+## 0.4.2
+
+* **KTX2 is read.** A pure-Dart reader for the container, and a port of Basis
+  Universal's ETC1S transcoder verified level by level against the encoder's
+  own unpack of three real files: mip chains and alpha slices included, run
+  on an isolate where there is one. `uploadEncodedImage` sniffs the format
+  before `dart:ui` sees the bytes; a Basis file arrives as RGBA8, and a file
+  carrying its own BC, ETC2 or ASTC blocks is uploaded as those blocks, chain
+  and all, once `GraphicsDevice.supportsTextureFormat` has said the device
+  samples them.
+* `uploadEncodedImage` takes a `report` callback and says why an image was
+  left out — a refused supercompression scheme, a family the device does not
+  sample, a size that is not whole blocks. `ModelAsset` and the material
+  loader route it into their `warnings`.
+* glTF reads `KHR_texture_basisu`: a core `source` wins while it exists, and
+  the extension's KTX2 is what a file that ships only that falls back to. The
+  extension may be required without the file being refused.
+* Still refused by name: UASTC, Zstandard and ZLIB supercompression, texture
+  arrays, cube maps, 3D textures.
+
 ## 0.4.1
 
 * **A minimal example.** `example/lib/minimal_main.dart` is one sphere and one

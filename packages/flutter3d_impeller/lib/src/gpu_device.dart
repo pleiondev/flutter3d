@@ -189,6 +189,16 @@ final class GpuRenderBackend implements GraphicsDevice {
   @override
   bool get supportsMipmaps => gpu.gpuContext.doesSupportManuallyMippedTextures;
 
+  /// flutter_gpu's own answer, which is per compression family underneath:
+  /// BC on a desktop GPU, ETC2 and ASTC on a mobile one, all three on Apple
+  /// silicon, and its `formats.dart` says to ask before allocating. An
+  /// uncompressed format is a yes today because the capability surface does
+  /// not vary by format there; that is flutter_gpu's statement, and this
+  /// repeats it rather than restating it as a table of its own.
+  @override
+  bool supportsTextureFormat(TextureFormat format) =>
+      gpu.gpuContext.supportsTextureFormat(format.toGpu());
+
   /// Probed once, because flutter_gpu reports no capability for it.
   ///
   /// Every other `supports` here answers from `gpuContext`; there is no

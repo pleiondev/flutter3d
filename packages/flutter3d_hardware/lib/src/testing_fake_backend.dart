@@ -35,10 +35,19 @@ final class FakeBackend implements GraphicsDevice {
   FakeBackend({
     Set<String> missingShaders = const <String>{},
     this.supportsWireframe = true,
+    this.unsupportedFormats = const <TextureFormat>{},
   }) : shaders = FakeShaderLibrary(missing: missingShaders);
 
   @override
   final FakeShaderLibrary shaders;
+
+  /// The formats this fake says it cannot sample, so a test can be the
+  /// device that has no BC7 and see what a loader does about it.
+  final Set<TextureFormat> unsupportedFormats;
+
+  @override
+  bool supportsTextureFormat(TextureFormat format) =>
+      !unsupportedFormats.contains(format);
 
   /// Settable, because the interesting case is the backend that says no —
   /// OpenGL ES has no `glPolygonMode`, and the engine is supposed to decline
@@ -150,6 +159,10 @@ final class FakeBackend implements GraphicsDevice {
   /// The bytes of each of those, for a test that cares what colour it was.
   final List<ByteData> uploadedPixels = <ByteData>[];
 
+  /// The chain each of those came with — null for an upload that brought
+  /// none — so a test can tell a base level from a base level and its mips.
+  final List<List<ByteData>?> uploadedMipLevels = <List<ByteData>?>[];
+
   @override
   TextureHandle? createTextureFromPixels({
     required int width,
@@ -166,6 +179,7 @@ final class FakeBackend implements GraphicsDevice {
     );
     uploadedTextures.add(spec);
     uploadedPixels.add(pixels);
+    uploadedMipLevels.add(mipLevels);
     return createTexture(spec);
   }
 

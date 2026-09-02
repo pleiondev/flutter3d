@@ -109,6 +109,12 @@ final class GltfLoader {
       'KHR_materials_unlit',
       'KHR_materials_emissive_strength',
       'KHR_texture_transform',
+      // Supported as far as the KTX2 reader goes — Basis ETC1S, and a file's
+      // own BC/ETC2/ASTC where the device samples them. A UASTC texture in
+      // such a file is refused by name at upload and becomes a warning on the
+      // material rather than a refusal of the whole file, since the geometry
+      // and every other texture are still worth having.
+      'KHR_texture_basisu',
     };
     final unsupported = required.whereType<String>().where(
       (e) => !supported.contains(e),
@@ -141,6 +147,21 @@ List<Map<String, Object?>> _mapList(Object? value) {
 List<int> _intList(Object? value) {
   if (value is! List) return const <int>[];
   return <int>[for (final item in value) ?_asInt(item)];
+}
+
+/// The image a texture's `KHR_texture_basisu` extension names, or null when
+/// it names none. [warnings] hears about an extension block that is there
+/// and malformed, which is a different thing from one that is absent.
+int? _basisuSource(Map<String, Object?> texture, List<String> warnings) {
+  final extensions = texture['extensions'];
+  if (extensions is! Map) return null;
+  final basisu = extensions['KHR_texture_basisu'];
+  if (basisu == null) return null;
+  if (basisu is! Map) {
+    warnings.add('a texture\'s KHR_texture_basisu is not an object; ignored.');
+    return null;
+  }
+  return _asInt(basisu['source']);
 }
 
 int? _asInt(Object? value) {
