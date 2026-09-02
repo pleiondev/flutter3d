@@ -1405,7 +1405,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3172 tests** across 24 packages and 5 applications |
+| Unit tests | **3179 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1609,6 +1609,41 @@ needed for open worlds, and there is no such scenario here.
 [§14](#14-performance-characteristics) are per-subsystem rather than per-frame:
 an external profiler sees Dart calls without knowing which part of a frame they
 are.
+
+**No `GpuImageSurface`**, and that is a measurement rather than a preference.
+flutter_gpu 3.47 added a presentable surface — `createImageSurface`,
+`acquireNextFrame`, `present`, `currentImage` — whose stated job is the one the
+renderer's ring of finished frames does by hand: keep a texture out of rotation
+while Flutter is still reading it. `packages/flutter3d_impeller/tool/surface_probe.sh`
+puts the same clear-only pass through both arrangements for 240 frames at
+1280×800, with Flutter drawing every frame, and reads what each costs. On the
+UI thread they are the same: 130 µs a frame against 148 for the whole step, 41
+against 40 for minting the image (`asImage()` against `currentImage`), 8.3 ms
+between frames either way. There is no copy on either path and no latency —
+the image is a wrapper over the texture in both. Memory is where they differ,
+and the wrong way round: the ring held one texture, the surface fifty-three,
+207 MB, because the surface counts a texture as reusable only when nothing but
+its own records hold it, and among the holders are the native halves of the
+Dart `Texture`, `RenderPass` and `CommandBuffer` every frame makes, which die
+when the collector gets to them. The control says so: the same surface under
+four megabytes a frame of short-lived allocations settles at four textures. The
+pool is paced by the garbage collector, not by the display. The rest of its
+questions have plain answers. `GpuPresentStatus` is `success` on both sides of
+a resize and never anything else for an image surface, by its own documentation
+and as measured; `resize` throws while a frame is acquired, and lets the old
+size go only as its references do; `present` works through a trailing empty
+command buffer, so a backend with one pass per buffer could have used it. It
+would fit `SceneSurface` unchanged — `present` still returns a widget — but the
+renderer's final target would have to come from the device per frame, a
+`TextureHandle` per acquire rather than one per texture, and `readPixels` on a
+presented frame would have to go through `currentImage`. That is a contract
+change bought with a pool that grows until a scavenge, and no frame that gets
+faster. What the probe also says about the ring is written at `_ldrFrames`:
+a texture goes back into rotation when the *renderer's* GPU work is done,
+which is not when the compositor's is, and on a clear-only frame the two are
+eight milliseconds apart. The probe stays so the numbers can be taken again on
+a flutter_gpu whose surface counts references some other way; that is the
+first thing that would answer the ring's gap properly.
 
 **No multithreading of the simulation.** Dart isolates do not share memory, so
 moving the step to a thread is a message protocol and a copy of the frame's state

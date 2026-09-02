@@ -183,7 +183,7 @@ abstract interface class PassEncoder {
 
 The `*Data` variants are for geometry that lives one frame; `uploadGeometry` is for everything else.
 
-## Presenting, and reading back
+## Presenting, and reading back {#presenting}
 
 ```dart
 Widget present(TextureHandle frame, {BoxFit fit, FilterQuality quality});
@@ -196,6 +196,12 @@ Future<ByteData?> readPixels(TextureHandle texture);
 </div>
 
 `readPixels` is a different question with a different cost — it runs when something wants to *look* at what a pass wrote, and returns null for a `deviceTransient` texture, which lives in tile memory and has nothing left to read once the pass has ended.
+
+flutter_gpu 3.47 also offers a `GpuImageSurface`: a pool of presentable textures that Flutter draws as a `ui.Image`, deciding for itself when one may be drawn into again. `present` does not use it, and the reason is measured rather than assumed. `packages/flutter3d_impeller/tool/surface_probe.sh` runs the same clear-only pass through the renderer's ring of finished frames and through a surface, 240 frames each at 1280×800 with Flutter drawing every one, and prints what each costs.
+
+<div class="why">
+<p>Same UI-thread cost — about 130 µs a frame against 148 — the same 8.3 ms between frames, and no copy on either path: the image is a wrapper over the texture in both. Then one texture held against fifty-three. The surface counts a texture as free only once nothing but its own records reference it, and the native halves of the Dart <code>Texture</code>, <code>RenderPass</code> and <code>CommandBuffer</code> a frame makes are references until the collector frees them. The same surface under four megabytes a frame of short-lived allocations settles at four textures, which is the pool being paced by the garbage collector rather than by the display. <code>GpuPresentStatus</code> never says anything but <code>success</code> for an image surface, <code>resize</code> refuses while a frame is out, and <code>present</code> works through a trailing empty command buffer — so the shape would have fit this backend, at the price of a contract change and a pool that grows until a scavenge. The probe stays so the numbers can be taken again on a flutter_gpu that counts references some other way; the verdict is ARCHITECTURE §15.</p>
+</div>
 
 ## The semantics no signature can express {#semantics}
 

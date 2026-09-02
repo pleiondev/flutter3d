@@ -520,6 +520,20 @@ final class Renderer implements RenderServices {
   /// [GraphicsDevice.onFrameComplete] says the work that read it is done, and
   /// a frame that finds none free makes one. On a machine that needs two, two
   /// is what it keeps.
+  ///
+  /// **What that callback tracks is the renderer's GPU work, not the
+  /// compositor's.** The texture is handed to Flutter as an image, and the
+  /// raster thread samples it on its own command buffer, later; the
+  /// completion this waits for is the composite's, which comes first. The
+  /// `GpuImageSurface` probe (`flutter3d_impeller/tool/surface_probe.sh`)
+  /// reduced this arrangement to a clear-only frame and watched it reuse one
+  /// texture at 120 Hz — the compositor's read and the next clear eight
+  /// milliseconds apart on the same queue, in submission order, which is what
+  /// keeps the picture whole rather than anything here. A real frame's passes
+  /// finish later than a clear does, so the ring grows to what the overlap
+  /// needs; but the gap is the compositor's, and only Flutter can close it.
+  /// flutter_gpu's own surface is built to — and was not taken, for the
+  /// reason `ARCHITECTURE.md` §15 gives with the numbers.
   final List<TextureHandle> _ldrFrames = <TextureHandle>[];
   final List<TextureHandle> _ldrFree = <TextureHandle>[];
   TextureHandle? _ldrCurrent;

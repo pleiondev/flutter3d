@@ -1,3 +1,18 @@
+## 0.4.5
+
+* **`GpuImageSurface` was measured, and not taken.** flutter_gpu 3.47's
+  presentable surface does the job the renderer's ring of finished frames
+  does by hand — keep a texture out of rotation while Flutter still reads
+  it. `tool/surface_probe.sh` runs `ImageSurfaceProbe`: the same clear-only
+  pass through that ring and through a surface, 240 frames each at 1280×800
+  with Flutter drawing every one, and prints what each costs. Same UI-thread
+  cost and the same interval between frames, no copy on either path; then
+  one texture held against fifty-three, because the surface counts a texture
+  as reusable only once the collector has freed the native wrappers a frame
+  makes — under allocation churn the same surface settles at four. The probe
+  stays as an instrument; the numbers and the verdict are ARCHITECTURE §15.
+* `vector_math` is declared rather than reached through `flutter_gpu`.
+
 ## 0.4.4
 
 * The bundle gains `MeshLightmappedVertex` and every lit stage binds a

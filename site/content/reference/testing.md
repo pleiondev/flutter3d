@@ -1,17 +1,17 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3172 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3179 tests need a GPU.
 ---
 
 # Testing
 
-3172 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3179 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
 | `flutter3d` | 705 | | `flutter3d_particles` | 68 |
 | `flutter3d_sim` | 336 | | `pad_input` | 59 |
 | `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 52 |
-| `apps/flutter3d_editor` | 194 | | `flutter3d_impeller` | 37 |
+| `apps/flutter3d_editor` | 194 | | `flutter3d_impeller` | 44 |
 | `flutter3d_game_racing` | 193 | | `flutter3d_bridge` | 32 |
 | `flutter3d_game_platformer` | 187 | | `flutter3d_webgl` | 31 |
 | `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_session` | 29 |
@@ -22,7 +22,7 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3057 rather than 3063: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3064 rather than 3070: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -47,6 +47,8 @@ Thirty-four scenes are rendered three times: through Impeller, through the softw
 <div class="warn">
 <p>Flutter GPU requires Impeller, which a headless <code>flutter test</code> cannot give it, so the conformance harness has to be an application that somebody watches run. It was one — and stood there showing a pass list to a human — from the same commit that added a fix meant to be caught by it, until <code>packages/flutter3d_impeller/tool/conformance.sh</code> was written to actually run the suite and return its exit code. Once it did, the suite passed; nobody had known either way before then. The <code>the Impeller conformance runner is reachable</code> rule now keeps that script from going stale — checking that it exists, that it is executable, and that it and the entry point still agree about the line the verdict is read from.</p>
 </div>
+
+The same package has a second instrument in the same shape: `tool/surface_probe.sh` measures flutter_gpu's `GpuImageSurface` against the `asImage()` path `present` uses, on a live GPU, and prints what each costs. It is a measurement rather than a check — its exit code says only whether every path's frame read back as drawn — and what it found is on the [backends](/core/backends/#presenting) page.
 
 ## Every new test is written by breaking what it covers
 
