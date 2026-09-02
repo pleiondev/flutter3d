@@ -25,7 +25,7 @@ Nothing in this section is genre knowledge. That is not a stylistic preference. 
 |---|---|
 | `flutter3d_impeller` | `flutter_gpu` — Metal and Vulkan. The production one |
 | `flutter3d_webgl` | WebGL2 in the browser. Runs the shooter and the platformer at a fixed resolution and a lower frame rate |
-| `flutter3d_cpu` | Nothing — it rasterises in Dart, so thirty-four golden scenes stay checkable with no GPU in the room |
+| `flutter3d_cpu` | Nothing — it rasterises in Dart, so thirty-five golden scenes stay checkable with no GPU in the room |
 
 `flutter3d_conformance` is the suite any fourth one would have to pass, and [Writing a HAL backend](/core/backends/) is the guide for writing that fourth one.
 

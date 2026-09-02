@@ -1427,11 +1427,11 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3172 tests** across 24 packages and 5 applications |
+| Unit tests | **3200 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 34 scenes against **three independent reference sets** —
+**Golden render tests.** 35 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1600,7 +1600,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-four golden scenes the way Impeller does**,
+**The web backend now draws all thirty-five golden scenes the way Impeller does**,
 between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Six scenes were
 in whole percents and every one of them was this backend drawing something else;
