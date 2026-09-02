@@ -396,7 +396,14 @@ final class GpuRenderBackend implements GraphicsDevice {
       // render-target usage. This is the same refusal
       // `createCubeTextureFromPixels` already gives every face, for the same
       // reason: nothing here ever renders into an upload made from bytes.
-      enableRenderTargetUsage: !format.toGpu().isCompressed,
+      //
+      // `format.isCompressed` (`flutter3d_hardware`) rather than
+      // `format.toGpu().isCompressed` (flutter_gpu's own extension): the two
+      // are checked against each other for every value in
+      // `gpu_formats_test.dart`, and this line reads the one every other
+      // backend can also read, so a WebGL2 or CPU call site never has to ask
+      // flutter_gpu's opinion of a format to answer the same question.
+      enableRenderTargetUsage: !format.isCompressed,
     );
     texture.gpuTexture.overwrite(pixels);
     if (mipLevels != null) {

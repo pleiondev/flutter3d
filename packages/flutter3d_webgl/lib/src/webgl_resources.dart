@@ -173,13 +173,27 @@ TextureHandle webglCreateTexture(
 TextureHandle? webglCreateTextureFromPixels(
   web.WebGL2RenderingContext gl,
   List<web.WebGLTexture> persistentTextures,
-  List<web.WebGLRenderbuffer> persistentRenderbuffers, {
+  List<web.WebGLRenderbuffer> persistentRenderbuffers,
+  CompressedTextureSupport compressedSupport, {
   required int width,
   required int height,
   required TextureFormat format,
   required ByteData pixels,
   List<ByteData>? mipLevels,
 }) {
+  if (format.isCompressed) {
+    return _webglCreateCompressedTextureFromPixels(
+      gl,
+      persistentTextures,
+      compressedSupport,
+      width: width,
+      height: height,
+      format: format,
+      pixels: pixels,
+      mipLevels: mipLevels,
+    );
+  }
+
   // RGBA8 is the only format the engine uploads from the CPU, and four bytes
   // a texel is the whole of the size question here — WebGL has no padding to
   // ask about, unlike Impeller's base mip size.
@@ -239,6 +253,102 @@ TextureHandle? webglCreateTextureFromPixels(
     );
   }
   return handle;
+}
+
+/// The compressed-format half of [webglCreateTextureFromPixels].
+///
+/// Split out rather than threaded through the RGBA8 path above as another
+/// branch of `upload`: the two disagree about the size check (block-rounded
+/// against [TextureFormatCompression.blockLayout] here, `width * height * 4`
+/// there), about which GL call fills a level (`compressedTexSubImage2D`, not
+/// `texSubImage2D` — a compressed level cannot go through the same call with
+/// a different format enum, because `texSubImage2D` expects to decode pixels
+/// from what it is handed and a compressed level is not decodable that way),
+/// and about where the internal format comes from
+/// ([compressedTextureFormatToGl], which needs [compressedSupport] to know
+/// whether the extension a format needs is even in this context — a question
+/// [textureFormatToGl] never has to answer, because it refuses every
+/// compressed value unconditionally). Sharing [webglCreateTexture] for the
+/// allocation would have meant teaching it a third format-resolution rule to
+/// stay agnostic between two paths this different.
+TextureHandle? _webglCreateCompressedTextureFromPixels(
+  web.WebGL2RenderingContext gl,
+  List<web.WebGLTexture> persistentTextures,
+  CompressedTextureSupport compressedSupport, {
+  required int width,
+  required int height,
+  required TextureFormat format,
+  required ByteData pixels,
+  List<ByteData>? mipLevels,
+}) {
+  final internal = compressedTextureFormatToGl(format, compressedSupport);
+  final layout = format.blockLayout;
+
+  int levelByteLength(int w, int h) {
+    final blocksWide = (w + layout.blockWidth - 1) ~/ layout.blockWidth;
+    final blocksHigh = (h + layout.blockHeight - 1) ~/ layout.blockHeight;
+    return blocksWide * blocksHigh * layout.bytesPerBlock;
+  }
+
+  if (pixels.lengthInBytes != levelByteLength(width, height)) return null;
+
+  // Every level's size checked before a single byte is uploaded, for the
+  // same reason `webglCreateCubeTextureFromPixels` checks its whole chain
+  // first: `texStorage2D` fixes the level count immutably, so a chain that
+  // turns out malformed halfway through leaves a texture nothing can correct.
+  if (mipLevels != null) {
+    var w = width, h = height;
+    for (final level in mipLevels) {
+      w = w > 1 ? w >> 1 : 1;
+      h = h > 1 ? h >> 1 : 1;
+      if (level.lengthInBytes != levelByteLength(w, h)) return null;
+    }
+  }
+
+  final texture = gl.createTexture();
+  if (texture != null) persistentTextures.add(texture);
+  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_2D, texture);
+  gl.texStorage2D(
+    web.WebGLRenderingContext.TEXTURE_2D,
+    mipLevels == null ? 1 : mipLevels.length + 1,
+    internal,
+    width,
+    height,
+  );
+
+  void upload(int level, int w, int h, ByteData bytes) {
+    gl.compressedTexSubImage2D(
+      web.WebGLRenderingContext.TEXTURE_2D,
+      level,
+      0,
+      0,
+      w,
+      h,
+      internal,
+      bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes).toJS,
+    );
+  }
+
+  upload(0, width, height, pixels);
+  if (mipLevels != null) {
+    var w = width;
+    var h = height;
+    for (var i = 0; i < mipLevels.length; i++) {
+      w = w > 1 ? w >> 1 : 1;
+      h = h > 1 ? h >> 1 : 1;
+      upload(i + 1, w, h, mipLevels[i]);
+    }
+    gl.texParameteri(
+      web.WebGLRenderingContext.TEXTURE_2D,
+      web.WebGL2RenderingContext.TEXTURE_MAX_LEVEL,
+      mipLevels.length,
+    );
+  }
+
+  return webglTextureHandle(
+    WebGlTexture(texture: texture, rendered: false),
+    RenderTargetSpec(width: width, height: height, format: format),
+  );
 }
 
 /// Geometry uploaded once and bound many times, until the device that made it

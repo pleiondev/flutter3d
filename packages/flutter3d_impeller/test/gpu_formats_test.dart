@@ -180,6 +180,29 @@ void main() {
     });
   });
 
+  group('TextureFormat.blockLayout against flutter_gpu\'s own numbers', () {
+    // `flutter3d_hardware` states block width, height and byte cost a second
+    // time — see its doc comment on `TextureBlockLayout` for why a repository
+    // rule against `flutter3d_hardware` importing `flutter_gpu` makes a
+    // second statement unavoidable here, rather than merely tolerated. This is
+    // the check that makes the second statement worth having: a hand-written
+    // number that only ever agreed with itself would not be evidence of
+    // anything.
+    for (final format in TextureFormat.values) {
+      test('$format agrees on isCompressed', () {
+        expect(format.isCompressed, format.toGpu().isCompressed);
+      });
+      if (!format.isCompressed) continue;
+      test('$format', () {
+        final gpuFormat = format.toGpu();
+        final layout = format.blockLayout;
+        expect(layout.blockWidth, gpuFormat.blockWidth);
+        expect(layout.blockHeight, gpuFormat.blockHeight);
+        expect(layout.bytesPerBlock, gpuFormat.bytesPerBlock);
+      });
+    }
+  });
+
   // -- Geometry --------------------------------------------------------------
 
   checkForward(

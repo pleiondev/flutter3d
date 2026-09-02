@@ -95,15 +95,15 @@ enum TextureFormat {
   // targets, shader-writable, or multisampled, and hardware support varies by
   // family.
   //
-  // **No pass in this engine allocates one**, and by the rule in
-  // `command_encoder.dart` a member with no user would be absent. That rule
-  // governs *methods* — an interface member is a guess about a backend. This
-  // enum is governed by the opposite rule, three paragraphs up: mirror
-  // flutter_gpu value for value. The two are not in conflict because they are
-  // about different things. A partial mirror would break the property the
-  // mapping tests actually check — that a value lands on the flutter_gpu value
-  // of the same name — and would put the backends' `switch` statements one
-  // silent step away from mapping the wrong texel layout.
+  // No asset the engine's own three games ship allocates one of these yet —
+  // KTX2 is a decoder for other tools' output, not something
+  // `tool/convert_asset.dart` produces — but every backend now has an answer
+  // for one that arrives: Impeller allocates them (`gpu_device.dart`), WebGL2
+  // uploads what its context's extensions allow and names what they do not
+  // (`webgl_formats.dart`), and the software rasteriser refuses by name
+  // (`cpu_device.dart`) because it samples raw texels and always will. See
+  // [TextureFormatCompression.isCompressed], which every backend now reads
+  // instead of re-listing this exact tail of the enum for itself.
   bc1RGBAUNormInt,
   bc1RGBAUNormIntSRGB,
   bc3RGBAUNormInt,
@@ -121,6 +121,87 @@ enum TextureFormat {
   astc8x8LDRSRGB,
   astc4x4HDR,
   astc8x8HDR,
+}
+
+/// The block footprint and byte cost of a compressed [TextureFormat] —
+/// [blockWidth] by [blockHeight] pixels, [bytesPerBlock] bytes, however many
+/// channels or bits per channel the format packs into that block.
+///
+/// Not derived from flutter_gpu's own `PixelFormatProperties` — that lives
+/// behind `flutter_gpu.dart`, which `flutter3d_hardware` may never import —
+/// so this is a second, independent statement of the same numbers.
+/// `flutter3d_impeller/test/gpu_formats_test.dart` checks the two against
+/// each other for every value; a second implementation that only ever agrees
+/// with the first is worth less than the discrepancy it exists to catch.
+final class TextureBlockLayout {
+  const TextureBlockLayout(
+    this.blockWidth,
+    this.blockHeight,
+    this.bytesPerBlock,
+  );
+
+  final int blockWidth;
+  final int blockHeight;
+  final int bytesPerBlock;
+}
+
+/// Whether a [TextureFormat] is stored in fixed-size blocks rather than one
+/// value per texel, and — for the formats where it is — how big those blocks
+/// are.
+extension TextureFormatCompression on TextureFormat {
+  /// Sample-only everywhere: cannot be a render target, cannot be written by
+  /// a shader, cannot be multisampled. See the doc comment on the enum's
+  /// block-compressed tail for what every backend does with one instead.
+  bool get isCompressed => switch (this) {
+    TextureFormat.bc1RGBAUNormInt ||
+    TextureFormat.bc1RGBAUNormIntSRGB ||
+    TextureFormat.bc3RGBAUNormInt ||
+    TextureFormat.bc3RGBAUNormIntSRGB ||
+    TextureFormat.bc5RGUNormInt ||
+    TextureFormat.bc7RGBAUNormInt ||
+    TextureFormat.bc7RGBAUNormIntSRGB ||
+    TextureFormat.etc2RGB8UNormInt ||
+    TextureFormat.etc2RGB8UNormIntSRGB ||
+    TextureFormat.etc2RGBA8UNormInt ||
+    TextureFormat.etc2RGBA8UNormIntSRGB ||
+    TextureFormat.astc4x4LDR ||
+    TextureFormat.astc4x4LDRSRGB ||
+    TextureFormat.astc8x8LDR ||
+    TextureFormat.astc8x8LDRSRGB ||
+    TextureFormat.astc4x4HDR ||
+    TextureFormat.astc8x8HDR => true,
+    _ => false,
+  };
+
+  /// The block this format is stored in.
+  ///
+  /// Throws for a format [isCompressed] says is false: answering with a made-up
+  /// 1x1 block would let block-rounded arithmetic run silently on a format that
+  /// was never meant to need it, which is exactly the kind of "compiles, runs,
+  /// wrong only for the value that hits it" mistake this file's own library
+  /// comment warns about.
+  TextureBlockLayout get blockLayout => switch (this) {
+    TextureFormat.bc1RGBAUNormInt ||
+    TextureFormat.bc1RGBAUNormIntSRGB ||
+    TextureFormat.etc2RGB8UNormInt ||
+    TextureFormat.etc2RGB8UNormIntSRGB => const TextureBlockLayout(4, 4, 8),
+    TextureFormat.bc3RGBAUNormInt ||
+    TextureFormat.bc3RGBAUNormIntSRGB ||
+    TextureFormat.bc5RGUNormInt ||
+    TextureFormat.bc7RGBAUNormInt ||
+    TextureFormat.bc7RGBAUNormIntSRGB ||
+    TextureFormat.etc2RGBA8UNormInt ||
+    TextureFormat.etc2RGBA8UNormIntSRGB ||
+    TextureFormat.astc4x4LDR ||
+    TextureFormat.astc4x4LDRSRGB ||
+    TextureFormat.astc4x4HDR => const TextureBlockLayout(4, 4, 16),
+    TextureFormat.astc8x8LDR ||
+    TextureFormat.astc8x8LDRSRGB ||
+    TextureFormat.astc8x8HDR => const TextureBlockLayout(8, 8, 16),
+    _ => throw StateError(
+      'TextureFormat.$name is not compressed; it has no block layout.',
+    ),
+  };
 }
 
 /// One term of a blend equation.

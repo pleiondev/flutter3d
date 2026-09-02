@@ -22,6 +22,7 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:web/web.dart' as web;
 
 import 'webgl_encoder.dart';
+import 'webgl_formats.dart';
 import 'webgl_framebuffer.dart';
 import 'webgl_resources.dart';
 import 'webgl_shaders.dart';
@@ -125,7 +126,8 @@ final class WebGlDevice implements GraphicsDevice {
     final floatLinear = gl.getExtension('OES_texture_float_linear');
     return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources))
       .._floatLinear = floatLinear != null
-      .._msaaSamples = _provenMsaaSamples(gl);
+      .._msaaSamples = _provenMsaaSamples(gl)
+      .._compressedTextureSupport = CompressedTextureSupport.query(gl);
   }
 
   /// The sample count the MSAA path can actually have here, proven rather
@@ -272,6 +274,18 @@ final class WebGlDevice implements GraphicsDevice {
   /// see the note in [create].
   bool _floatLinear = false;
 
+  /// Which compressed-texture extensions this context actually has, queried
+  /// once in [create]. See `CompressedTextureSupport`.
+  CompressedTextureSupport _compressedTextureSupport =
+      const CompressedTextureSupport(
+        etc2: false,
+        s3tc: false,
+        s3tcSrgb: false,
+        rgtc: false,
+        bptc: false,
+        astc: false,
+      );
+
   /// Whether this context can sample a half-float texture with linear
   /// filtering. False makes every shadow map read as zero.
   bool get supportsFloatLinearFiltering => _floatLinear;
@@ -380,6 +394,7 @@ final class WebGlDevice implements GraphicsDevice {
     _gl,
     _persistentTextures,
     _persistentRenderbuffers,
+    _compressedTextureSupport,
     width: width,
     height: height,
     format: format,

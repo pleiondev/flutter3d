@@ -1354,7 +1354,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3107 tests** across 24 packages and 5 applications |
+| Unit tests | **3130 tests** across 24 packages and 5 applications |
 | Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1498,15 +1498,21 @@ into a bundle.
 **No compute**, and therefore no GPU particles, GPU skinning, GPU culling or
 indirect draw.
 
-**No compressed textures in the live upload path**, so every texture still
-costs its uncompressed size there. The pieces exist separately: SDK 3.47
-exposes block-compressed formats, Impeller's texture creation accepts them
-(`gpu_device.dart`), and `flutter3d`'s `assets/ktx2/` reads a plain KTX2
-container and transcodes Basis Universal ETC1S straight to RGBA8, verified
-against a real encoder's output. What is missing is the wiring: nothing calls
-any of this from `texture_upload.dart`, and the WebGL and software backends
-have no consumer for a compressed `TextureFormat` at all — deciding what an
-unsupported backend does with one is unstarted work, not an oversight.
+**No compressed texture in an asset this engine ships**, so every texture in
+the three games still costs its uncompressed size — but every backend now
+has an opinion about one that arrives. `texture_upload.dart` sniffs KTX2
+before `dart:ui` ever sees the bytes; Basis Universal/ETC1S transcodes to
+plain RGBA8 (`assets/ktx2/`, verified against a real encoder's output) and
+uploads on all three backends the same way a PNG does. A KTX2 file's own
+block-compressed pixels are read correctly but held back at that one seam —
+see the note on `TextureFormatCompression.isCompressed`
+(`flutter3d_hardware/formats.dart`) for why: Impeller allocates them
+(`gpu_device.dart`), WebGL2 uploads what its context's extensions allow and
+names what they do not (`webgl_formats.dart`, real-Chrome tested), and the
+software rasteriser refuses by name (`cpu_device.dart`) because it samples
+raw texels and always will. What is still missing is upstream of all of
+this: `tool/convert_asset.dart` has no encoder, so nothing produces a
+compressed KTX2 for this engine's own pipeline to read.
 
 **No morph targets**, no animation blending or crossfade, and therefore no useful
 animation state machine — a crossfade is useful on its own, and a state machine

@@ -105,6 +105,13 @@ final class CpuDevice implements GraphicsDevice {
     required List<ByteData> faces,
     List<List<ByteData>>? mipLevels,
   }) {
+    if (format.isCompressed) {
+      throw UnsupportedError(
+        'The software rasteriser samples raw RGBA texels — '
+        'TextureFormat.${format.name} is block-compressed and has no decode '
+        'path here, by design (see ARCHITECTURE.md §15).',
+      );
+    }
     if (faces.length != 6) return null;
 
     CpuTexture? read(ByteData source, int side) {
@@ -183,6 +190,13 @@ final class CpuDevice implements GraphicsDevice {
     required ByteData pixels,
     List<ByteData>? mipLevels,
   }) {
+    if (format.isCompressed) {
+      throw UnsupportedError(
+        'The software rasteriser samples raw RGBA texels — '
+        'TextureFormat.${format.name} is block-compressed and has no decode '
+        'path here, by design (see ARCHITECTURE.md §15).',
+      );
+    }
     final expected = width * height * 4;
     if (pixels.lengthInBytes < expected) return null;
     final texture = CpuTexture(width, height, format);

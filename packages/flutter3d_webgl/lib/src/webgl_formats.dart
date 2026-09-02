@@ -111,13 +111,14 @@ int textureFormatToGl(TextureFormat format) => switch (format) {
   // that quietly substituted RGBA8 for BGRA8 would swap red and blue in
   // every texture it touched.
   //
-  // The compressed formats are a different kind of no. WebGL2 reaches them
-  // through extensions and `compressedTexImage2D`, not through
-  // `texStorage2D` with a sized internal format, so there is no number to
-  // return here even where the hardware has the format. Nothing in this
-  // engine allocates one; they exist in the enum because it mirrors
-  // flutter_gpu value for value, and this arm is what keeps that mirror
-  // from being mistaken for support.
+  // The compressed formats are a different kind of no, and a narrower one
+  // than it looks: they throw *here* because this function is for
+  // `texStorage2D`'s sized internal format, and a compressed format is never
+  // a valid render target or a plain `texSubImage2D` upload — the same
+  // refusal Impeller's own `enableRenderTargetUsage` gives them. An actual
+  // compressed-texture upload goes through `compressedTextureFormatToGl`
+  // instead, which resolves the same values against whatever extensions the
+  // context has, rather than refusing them all unconditionally.
   TextureFormat.unknown ||
   TextureFormat.a8UNormInt ||
   TextureFormat.b8g8r8a8UNormInt ||
@@ -173,3 +174,176 @@ bool canDrawPolygonMode(PolygonMode mode) => switch (mode) {
   PolygonMode.fill => true,
   PolygonMode.line => false,
 };
+
+/// Which compressed-texture extensions this context's [getExtension] answered
+/// for, queried once when the device is made.
+///
+/// **A query every real WebGL2 implementation answers, and it is still made.**
+/// ETC2 is mandated by the OpenGL ES 3.0 core WebGL2 is built on, so
+/// [etc2] is `true` everywhere in practice — but WebGL still requires calling
+/// `getExtension` to unlock a format's tokens for `compressedTexImage2D`
+/// regardless of what the underlying hardware guarantees, so skipping the
+/// call would be assuming a WebGL-specific formality away rather than
+/// answering a real question.
+///
+/// The other five vary by platform: [s3tc] (BC1/BC3) and [s3tcSrgb] are near-
+/// universal on desktop and near-absent on mobile GPUs; [astc] is the
+/// reverse; [rgtc] (BC5) and [bptc] (BC7) are newer and the least reliably
+/// present of the six.
+final class CompressedTextureSupport {
+  const CompressedTextureSupport({
+    required this.etc2,
+    required this.s3tc,
+    required this.s3tcSrgb,
+    required this.rgtc,
+    required this.bptc,
+    required this.astc,
+  });
+
+  final bool etc2;
+  final bool s3tc;
+  final bool s3tcSrgb;
+  final bool rgtc;
+  final bool bptc;
+  final bool astc;
+
+  factory CompressedTextureSupport.query(web.WebGL2RenderingContext gl) =>
+      CompressedTextureSupport(
+        etc2: gl.getExtension('WEBGL_compressed_texture_etc') != null,
+        s3tc: gl.getExtension('WEBGL_compressed_texture_s3tc') != null,
+        s3tcSrgb: gl.getExtension('WEBGL_compressed_texture_s3tc_srgb') != null,
+        rgtc: gl.getExtension('EXT_texture_compression_rgtc') != null,
+        bptc: gl.getExtension('EXT_texture_compression_bptc') != null,
+        astc: gl.getExtension('WEBGL_compressed_texture_astc') != null,
+      );
+}
+
+/// The WebGL2 internal format for a compressed [format], given what
+/// [support] actually has — or a thrown, named refusal for the one it
+/// needs.
+///
+/// **Numbers from the Khronos WebGL extension registry, not derived.**
+/// `package:web` (1.1.1) generates typed constants for
+/// `WEBGL_compressed_texture_{etc,s3tc,s3tc_srgb,astc}`, used below by name;
+/// it generates none for `EXT_texture_compression_rgtc` (BC5) or
+/// `EXT_texture_compression_bptc` (BC7), so those two are the literal
+/// `GLenum` values from each extension's `extension.xml` in
+/// `KhronosGroup/WebGL` — `COMPRESSED_RED_GREEN_RGTC2_EXT = 0x8DBD` and
+/// `COMPRESSED_RGBA_BPTC_UNORM_EXT` / `COMPRESSED_SRGB_ALPHA_BPTC_UNORM_EXT`
+/// = `0x8E8C` / `0x8E8D`.
+///
+/// Thrown rather than returning null, for the same reason [textureFormatToGl]
+/// does: a silent substitution is unavailable here (there is no
+/// almost-as-good compressed format to fall back to) and a silent *failure*
+/// is the one this whole function exists to replace with a message naming
+/// exactly which extension is missing.
+int compressedTextureFormatToGl(
+  TextureFormat format,
+  CompressedTextureSupport support,
+) {
+  int need(bool has, String extension, int glEnum) {
+    if (!has) {
+      throw UnsupportedError(
+        'TextureFormat.${format.name} needs the WebGL2 extension '
+        '"$extension", which this context does not have.',
+      );
+    }
+    return glEnum;
+  }
+
+  return switch (format) {
+    TextureFormat.bc1RGBAUNormInt => need(
+      support.s3tc,
+      'WEBGL_compressed_texture_s3tc',
+      web.WEBGL_compressed_texture_s3tc.COMPRESSED_RGBA_S3TC_DXT1_EXT,
+    ),
+    TextureFormat.bc1RGBAUNormIntSRGB => need(
+      support.s3tcSrgb,
+      'WEBGL_compressed_texture_s3tc_srgb',
+      web
+          .WEBGL_compressed_texture_s3tc_srgb
+          .COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT,
+    ),
+    TextureFormat.bc3RGBAUNormInt => need(
+      support.s3tc,
+      'WEBGL_compressed_texture_s3tc',
+      web.WEBGL_compressed_texture_s3tc.COMPRESSED_RGBA_S3TC_DXT5_EXT,
+    ),
+    TextureFormat.bc3RGBAUNormIntSRGB => need(
+      support.s3tcSrgb,
+      'WEBGL_compressed_texture_s3tc_srgb',
+      web
+          .WEBGL_compressed_texture_s3tc_srgb
+          .COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT,
+    ),
+    // EXT_texture_compression_rgtc: no package:web binding, see the doc
+    // comment above.
+    TextureFormat.bc5RGUNormInt => need(
+      support.rgtc,
+      'EXT_texture_compression_rgtc',
+      0x8DBD,
+    ),
+    // EXT_texture_compression_bptc: no package:web binding, see the doc
+    // comment above.
+    TextureFormat.bc7RGBAUNormInt => need(
+      support.bptc,
+      'EXT_texture_compression_bptc',
+      0x8E8C,
+    ),
+    TextureFormat.bc7RGBAUNormIntSRGB => need(
+      support.bptc,
+      'EXT_texture_compression_bptc',
+      0x8E8D,
+    ),
+    TextureFormat.etc2RGB8UNormInt => need(
+      support.etc2,
+      'WEBGL_compressed_texture_etc',
+      web.WEBGL_compressed_texture_etc.COMPRESSED_RGB8_ETC2,
+    ),
+    TextureFormat.etc2RGB8UNormIntSRGB => need(
+      support.etc2,
+      'WEBGL_compressed_texture_etc',
+      web.WEBGL_compressed_texture_etc.COMPRESSED_SRGB8_ETC2,
+    ),
+    TextureFormat.etc2RGBA8UNormInt => need(
+      support.etc2,
+      'WEBGL_compressed_texture_etc',
+      web.WEBGL_compressed_texture_etc.COMPRESSED_RGBA8_ETC2_EAC,
+    ),
+    TextureFormat.etc2RGBA8UNormIntSRGB => need(
+      support.etc2,
+      'WEBGL_compressed_texture_etc',
+      web.WEBGL_compressed_texture_etc.COMPRESSED_SRGB8_ALPHA8_ETC2_EAC,
+    ),
+    TextureFormat.astc4x4LDR => need(
+      support.astc,
+      'WEBGL_compressed_texture_astc',
+      web.WEBGL_compressed_texture_astc.COMPRESSED_RGBA_ASTC_4x4_KHR,
+    ),
+    TextureFormat.astc4x4LDRSRGB => need(
+      support.astc,
+      'WEBGL_compressed_texture_astc',
+      web.WEBGL_compressed_texture_astc.COMPRESSED_SRGB8_ALPHA8_ASTC_4x4_KHR,
+    ),
+    TextureFormat.astc8x8LDR => need(
+      support.astc,
+      'WEBGL_compressed_texture_astc',
+      web.WEBGL_compressed_texture_astc.COMPRESSED_RGBA_ASTC_8x8_KHR,
+    ),
+    TextureFormat.astc8x8LDRSRGB => need(
+      support.astc,
+      'WEBGL_compressed_texture_astc',
+      web.WEBGL_compressed_texture_astc.COMPRESSED_SRGB8_ALPHA8_ASTC_8x8_KHR,
+    ),
+    // WebGL has no ASTC HDR extension — `WEBGL_compressed_texture_astc` is
+    // LDR-only, and nothing else exposes the profile.
+    TextureFormat.astc4x4HDR ||
+    TextureFormat.astc8x8HDR => throw UnsupportedError(
+      'TextureFormat.${format.name}: WebGL2 has no ASTC HDR extension.',
+    ),
+    _ => throw ArgumentError(
+      'TextureFormat.${format.name} is not compressed; '
+      'textureFormatToGl is for this.',
+    ),
+  };
+}
