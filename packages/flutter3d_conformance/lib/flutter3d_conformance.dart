@@ -36,6 +36,7 @@ import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
 import 'src/pass_coverage_checks.dart';
 import 'src/pipeline_checks.dart';
+import 'src/render_target_checks.dart';
 import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
 
@@ -152,6 +153,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a compressed format it supports samples its colour back',
     run: checkCompressedTextureSamples,
+  ),
+  (
+    name: 'a pass renders into a cube face and a mip',
+    run: checkRenderToCubeFaceAndMip,
   ),
   // Two of the nine rules ARCHITECTURE.md §7.2 states and that no signature
   // can. Both are decisions a new backend has to make deliberately, and

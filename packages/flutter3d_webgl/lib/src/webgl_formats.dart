@@ -153,6 +153,31 @@ int minMagFilterToGl(MinMagFilter filter) => switch (filter) {
   MinMagFilter.linear => web.WebGLRenderingContext.LINEAR,
 };
 
+/// The minification filter, with the mip filter folded in the way GL wants.
+///
+/// **GL puts the mip filter on the minification filter, and a plain `LINEAR`
+/// samples the base level alone whatever level a shader asks for.** That is
+/// the specification, not a driver: with `NEAREST` or `LINEAR` as the min
+/// filter, mipmapping is off and `textureLod` picks between magnification and
+/// minification and nothing else. So a sampler whose [mip] is
+/// [MipFilter.linear] has to become `LINEAR_MIPMAP_LINEAR` here, or a
+/// prefiltered cube — every level of which is a different roughness — reads
+/// as a mirror at every roughness.
+///
+/// [MipFilter.nearest] is left as the plain filter rather than turned into
+/// `*_MIPMAP_NEAREST`, and deliberately: it is the default on every sampler
+/// the engine binds, thirty-four recorded pictures were drawn with the base
+/// level under it, and the one texture that wants a level chosen asks for
+/// the linear mip filter and says so.
+int minFilterToGl(MinMagFilter filter, MipFilter mip) =>
+    switch ((filter, mip)) {
+      (MinMagFilter.nearest, MipFilter.linear) =>
+        web.WebGLRenderingContext.NEAREST_MIPMAP_LINEAR,
+      (MinMagFilter.linear, MipFilter.linear) =>
+        web.WebGLRenderingContext.LINEAR_MIPMAP_LINEAR,
+      (final MinMagFilter plain, MipFilter.nearest) => minMagFilterToGl(plain),
+    };
+
 int addressModeToGl(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => web.WebGLRenderingContext.CLAMP_TO_EDGE,
   SamplerAddressMode.repeat => web.WebGLRenderingContext.REPEAT,

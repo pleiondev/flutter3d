@@ -35,6 +35,7 @@ final class FakeBackend implements GraphicsDevice {
   FakeBackend({
     Set<String> missingShaders = const <String>{},
     this.supportsWireframe = true,
+    this.supportsRenderToMip = true,
     this.unsupportedFormats = const <TextureFormat>{},
   }) : shaders = FakeShaderLibrary(missing: missingShaders);
 
@@ -63,6 +64,39 @@ final class FakeBackend implements GraphicsDevice {
 
   @override
   bool get supportsCubeTextures => true;
+
+  /// Settable for the same reason [supportsWireframe] is: the interesting
+  /// case is the backend that says no — flutter_gpu on OpenGL ES — and the
+  /// renderer is supposed to build a probe without a chain there rather than
+  /// name a level the device will refuse.
+  @override
+  final bool supportsRenderToMip;
+
+  /// Every cube a pass may draw into, with the level count it was asked for,
+  /// so a test can see that a probe allocated what it meant to.
+  final List<({int size, TextureFormat format, int mipLevels})>
+  createdCubeRenderTargets =
+      <({int size, TextureFormat format, int mipLevels})>[];
+
+  @override
+  TextureHandle? createCubeRenderTarget({
+    required int size,
+    required TextureFormat format,
+    int mipLevels = 1,
+  }) {
+    createdCubeRenderTargets.add((
+      size: size,
+      format: format,
+      mipLevels: mipLevels,
+    ));
+    return TextureHandle(
+      backend: 'fake cube ${_serial++}',
+      width: size,
+      height: size,
+      format: format,
+      type: TextureType.textureCube,
+    );
+  }
 
   @override
   TextureHandle? createCubeTextureFromPixels({

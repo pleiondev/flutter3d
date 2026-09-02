@@ -1,3 +1,21 @@
+## 0.4.3
+
+* **A pass renders into a cube face and a mip level.** A cube attachment goes
+  through `framebufferTexture2D` with the face's own target and the level, a
+  pass starts with a viewport the size of that level, and a multisample
+  resolve lands on the same face and level; `createCubeRenderTarget` is one
+  `texStorage2D` on the cube target, so every face of every level is
+  attachable and the texture is complete for a mipmap filter with nothing
+  uploaded. `supportsRenderToMip` is true.
+* **A sampler asking for `MipFilter.linear` gets a mipmap minification
+  filter.** GL keeps the mip filter on the minification filter, and a plain
+  `LINEAR` reads the base level whatever level `textureLod` names — so a
+  prefiltered environment was a mirror at every roughness here. The nearest
+  mip filter stays the plain filter, which keeps every recorded picture where
+  it is; textured particles, which ask for the linear one, now pick a level.
+  `ProbePrefilter` is generated with the rest; `probe-car` joins the golden
+  set, recorded at merge.
+
 ## 0.4.2
 
 * The lightmapped vertex stage, generated with the rest from

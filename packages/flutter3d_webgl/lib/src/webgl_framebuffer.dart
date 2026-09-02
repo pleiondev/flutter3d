@@ -18,20 +18,30 @@ import 'webgl_types.dart';
 /// `deviceTransient` target, see [WebGlTexture] — attaches as a renderbuffer.
 /// Which of the two [handle] is was decided once, when it was created, and
 /// this is the one place both paths meet.
+///
+/// [face] picks the face of a cube and [mipLevel] the level, the way
+/// `ColorTarget` names them. The six face targets are consecutive constants
+/// from `TEXTURE_CUBE_MAP_POSITIVE_X` in the order +X, −X, +Y, −Y, +Z, −Z —
+/// the same order the upload walks them — so a face is an addition rather than
+/// a table. A 2D texture ignores [face], as the interface says it may.
 void attachToFramebuffer(
   web.WebGL2RenderingContext gl,
   int target,
   int attachment,
-  TextureHandle handle,
-) {
+  TextureHandle handle, {
+  int face = 0,
+  int mipLevel = 0,
+}) {
   final backend = handle.backend as WebGlTexture;
   if (backend.texture != null) {
     gl.framebufferTexture2D(
       target,
       attachment,
-      web.WebGLRenderingContext.TEXTURE_2D,
+      backend.target == web.WebGLRenderingContext.TEXTURE_CUBE_MAP
+          ? web.WebGLRenderingContext.TEXTURE_CUBE_MAP_POSITIVE_X + face
+          : web.WebGLRenderingContext.TEXTURE_2D,
       backend.texture,
-      0,
+      mipLevel,
     );
   } else {
     gl.framebufferRenderbuffer(

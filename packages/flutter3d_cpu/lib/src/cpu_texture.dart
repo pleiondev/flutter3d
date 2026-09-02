@@ -51,6 +51,28 @@ final class CpuTexture {
   Float32List depthBuffer() =>
       depth ??= Float32List(width * height)..fillRange(0, width * height, 1.0);
 
+  /// The array a pass named through `ColorTarget.face` and
+  /// `ColorTarget.mipLevel`: [face] of a cube, then [mipLevel] down its chain.
+  ///
+  /// The counterpart of `BoundTexture.sampleCube`'s addressing on the writing
+  /// side, and it walks the same structure — a cube is its faces and a level
+  /// hangs off the face that owns it — so a face rendered here is the face the
+  /// sampler reads. A 2D texture ignores [face], as the interface says it may;
+  /// a level the texture does not have is a caller mistake and throws, which
+  /// is what the other two backends do with an attachment out of range.
+  CpuTexture subresource({int face = 0, int mipLevel = 0}) {
+    final base = faces?[face] ?? this;
+    if (mipLevel == 0) return base;
+    final chain = base.levels;
+    if (chain == null || mipLevel > chain.length) {
+      throw RangeError(
+        'mip level $mipLevel of a texture with '
+        '${(chain?.length ?? 0) + 1} level(s)',
+      );
+    }
+    return chain[mipLevel - 1];
+  }
+
   Vector4 _texel(int px, int py) {
     final i = (py * width + px) * 4;
     return Vector4(pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]);

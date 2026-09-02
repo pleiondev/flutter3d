@@ -1,3 +1,11 @@
+## 0.4.2
+
+* **`ProbePrefilter`**, a full-screen fragment stage that writes one face of
+  one level of a reflection probe: the captured cube convolved by the
+  roughness of the level, with the fixed spiral of taps and the cosine-power
+  lobe `EnvironmentMap.prefilter` uses on the host, and a one-tap copy for
+  the mirror level. `kRequiredShaders` names it.
+
 ## 0.4.1
 
 * **`MeshLightmappedVertex`**, a fourth vertex stage: the standard layout

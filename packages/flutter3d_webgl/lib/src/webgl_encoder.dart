@@ -25,10 +25,16 @@ import 'webgl_framebuffer.dart';
 final class WebGlEncoder implements CommandEncoder {
   WebGlEncoder(this._device, this._gl, RenderPassDescriptor descriptor)
     : _targetHeight = descriptor.colors.isNotEmpty
-          ? descriptor.colors.first.texture.height
+          ? _levelSize(
+              descriptor.colors.first.texture.height,
+              descriptor.colors.first.mipLevel,
+            )
           : (descriptor.depth?.texture.height ?? 0),
       _targetWidth = descriptor.colors.isNotEmpty
-          ? descriptor.colors.first.texture.width
+          ? _levelSize(
+              descriptor.colors.first.texture.width,
+              descriptor.colors.first.mipLevel,
+            )
           : (descriptor.depth?.texture.width ?? 0) {
     _framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(web.WebGLRenderingContext.FRAMEBUFFER, _framebuffer);
@@ -42,10 +48,14 @@ final class WebGlEncoder implements CommandEncoder {
         web.WebGLRenderingContext.FRAMEBUFFER,
         attachment,
         color.texture,
+        face: color.face,
+        mipLevel: color.mipLevel,
       );
       buffers.add(attachment);
       _resolves.add(color.resolveTexture);
       _sources.add(color.texture);
+      _faces.add(color.face);
+      _mipLevels.add(color.mipLevel);
     }
     _gl.drawBuffers(buffers.map((int b) => b.toJS).toList().toJS);
 
@@ -159,13 +169,30 @@ final class WebGlEncoder implements CommandEncoder {
 
   /// The attachment's height, for turning top-left rectangles into GL's
   /// bottom-left ones. See [_flipY].
+  ///
+  /// The height of the *level* the pass draws into, not of the texture: a
+  /// probe filtering its chain attaches level three of a 64-pixel cube, and a
+  /// viewport of sixty-four over an eight-pixel level would put the
+  /// full-screen triangle's centre off the attachment entirely.
   final int _targetHeight;
 
   /// The attachment's width, for the viewport and scissor a pass starts with.
   final int _targetWidth;
 
+  /// [base] halved [mipLevel] times and never below one — the same arithmetic
+  /// `texStorage2D` allocated the level with.
+  static int _levelSize(int base, int mipLevel) {
+    final size = base >> mipLevel;
+    return size < 1 ? 1 : size;
+  }
+
   final List<TextureHandle?> _resolves = <TextureHandle?>[];
   final List<TextureHandle> _sources = <TextureHandle>[];
+
+  /// Which face and level each attachment named, so a resolve lands on the
+  /// same subresource the pass drew into.
+  final List<int> _faces = <int>[];
+  final List<int> _mipLevels = <int>[];
 
   WebGlProgram? _program;
   int _primitive = web.WebGLRenderingContext.TRIANGLES;
@@ -523,7 +550,7 @@ final class WebGlEncoder implements CommandEncoder {
         _gl.texParameteri(backend.target, name, value);
     set(
       web.WebGLRenderingContext.TEXTURE_MIN_FILTER,
-      minMagFilterToGl(options.minFilter),
+      minFilterToGl(options.minFilter, options.mipFilter),
     );
     set(
       web.WebGLRenderingContext.TEXTURE_MAG_FILTER,
@@ -644,6 +671,8 @@ final class WebGlEncoder implements CommandEncoder {
         web.WebGL2RenderingContext.DRAW_FRAMEBUFFER,
         web.WebGLRenderingContext.COLOR_ATTACHMENT0,
         resolve,
+        face: _faces[i],
+        mipLevel: _mipLevels[i],
       );
       _gl.bindFramebuffer(
         web.WebGL2RenderingContext.READ_FRAMEBUFFER,

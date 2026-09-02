@@ -1,3 +1,14 @@
+## 0.4.5
+
+* **A pass renders into a cube face and a mip level.** `ColorTarget.face`
+  becomes the attachment's slice and `ColorTarget.mipLevel` its mip index,
+  which flutter_gpu validates against the texture and refuses out loud;
+  `createCubeRenderTarget` allocates a device-private cube with render-target
+  usage and a chain, and `supportsRenderToMip` repeats
+  `doesSupportFramebufferRenderMipmap` — true on Metal and Vulkan, false on
+  the OpenGL ES path. The bundle gains `ProbePrefilter`; `probe-car` joins
+  the golden set.
+
 ## 0.4.4
 
 * The bundle gains `MeshLightmappedVertex` and every lit stage binds a

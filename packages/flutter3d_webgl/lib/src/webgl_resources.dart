@@ -113,6 +113,52 @@ TextureHandle? webglCreateCubeTextureFromPixels(
   );
 }
 
+/// A cube a pass may draw into, [mipLevels] levels deep and empty. See
+/// `GraphicsDevice.createCubeRenderTarget`.
+///
+/// `texStorage2D` on the cube target allocates every face of every level at
+/// once, immutably, which is what makes each of them attachable through
+/// `framebufferTexture2D` with a face target and a level — and what makes the
+/// texture complete for a mipmap filter without a single upload. The level
+/// count is trimmed the way the upload path trims it, to a chain that reaches
+/// one by one and no further.
+TextureHandle webglCreateCubeRenderTarget(
+  web.WebGL2RenderingContext gl,
+  List<web.WebGLTexture> persistentTextures, {
+  required int size,
+  required TextureFormat format,
+  int mipLevels = 1,
+}) {
+  final fullChain = size <= 1 ? 1 : size.bitLength;
+  final levels = mipLevels < 1
+      ? 1
+      : (mipLevels > fullChain ? fullChain : mipLevels);
+  final texture = gl.createTexture();
+  if (texture != null) persistentTextures.add(texture);
+  gl.bindTexture(web.WebGLRenderingContext.TEXTURE_CUBE_MAP, texture);
+  gl.texStorage2D(
+    web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
+    levels,
+    textureFormatToGl(format),
+    size,
+    size,
+  );
+  return TextureHandle(
+    backend: WebGlTexture(
+      texture: texture,
+      target: web.WebGLRenderingContext.TEXTURE_CUBE_MAP,
+      // Drawn rather than uploaded. Nothing reads a face back through
+      // `readPixels`, so the flag decides nothing today; it is stated so a
+      // reader that does finds the answer written down.
+      rendered: true,
+    ),
+    width: size,
+    height: size,
+    format: format,
+    type: TextureType.textureCube,
+  );
+}
+
 /// A texture or renderbuffer matching [spec], with a chain [levels] deep.
 /// See `GraphicsDevice.createTexture`.
 TextureHandle webglCreateTexture(

@@ -1,3 +1,12 @@
+## 0.4.2
+
+* **A pass renders into a cube face and a mip level.** `CpuTexture.subresource`
+  walks to the array a face and a level own — the same structure
+  `BoundTexture.sampleCube` reads — and every write of a pass goes through
+  it; `createCubeRenderTarget` builds that structure empty, a chain per face.
+  `ProbePrefilterShader` transcribes `probe_prefilter.frag`; `probe-car`
+  joins the golden set.
+
 ## 0.4.1
 
 * The lightmapped vertex stage and the lightmap term in the four lit models,

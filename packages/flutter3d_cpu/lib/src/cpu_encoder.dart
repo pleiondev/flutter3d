@@ -15,7 +15,7 @@ import 'cpu_vertex_fetch.dart';
 final class CpuEncoder implements CommandEncoder {
   CpuEncoder(this._descriptor) {
     for (final color in _descriptor.colors) {
-      final texture = color.texture.backend as CpuTexture;
+      final texture = _attachment(color);
       if (color.loadAction != LoadAction.clear) continue;
       final value = color.clearValue ?? Vector4.zero();
       // The whole attachment, whatever the scissor says. Here that is the
@@ -42,6 +42,15 @@ final class CpuEncoder implements CommandEncoder {
 
   final RenderPassDescriptor _descriptor;
   CpuTexture? _depthTarget;
+
+  /// The array [color] actually names: a face of a cube, a level of a chain,
+  /// or the texture itself. Every write in this pass goes through it, so a
+  /// probe's face and a post pass's full-size target are the same code.
+  static CpuTexture _attachment(ColorTarget color) =>
+      (color.texture.backend as CpuTexture).subresource(
+        face: color.face,
+        mipLevel: color.mipLevel,
+      );
 
   ScreenRect? _viewport;
   ScreenRect? _scissor;
@@ -252,7 +261,7 @@ final class CpuEncoder implements CommandEncoder {
       );
     }
 
-    final target = _descriptor.colors.first.texture.backend as CpuTexture;
+    final target = _attachment(_descriptor.colors.first);
     final view =
         _viewport ??
         ScreenRect(x: 0, y: 0, width: target.width, height: target.height);
@@ -668,7 +677,7 @@ final class CpuEncoder implements CommandEncoder {
     // multi-target path for a call site that does not exist would be inventing
     // the semantics too.
     final extra = _descriptor.colors.length > 1
-        ? _descriptor.colors[1].texture.backend as CpuTexture
+        ? _attachment(_descriptor.colors[1])
         : null;
 
     for (var y = minY; y <= maxY; y++) {
