@@ -98,6 +98,11 @@ a:hover { color: var(--text); }
 }
 .chip-link { text-decoration: none; }
 .chip-link:hover { color: var(--text); border-color: var(--amber-dim); }
+.icon-links { display: flex; gap: 10px; align-items: center; }
+.icon-link { display: inline-flex; color: var(--muted); }
+.icon-link:hover { color: var(--amber); }
+.icon-link svg { width: 16px; height: 16px; display: block; }
+.foot .icon-links { margin-top: 10px; gap: 16px; }
 .rail-toggle {
   display: none; margin-left: auto;
   font: 500 12px var(--mono); color: var(--muted);
