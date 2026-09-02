@@ -39,6 +39,7 @@ description: The shooter, built against the WebGL2 backend and running in this p
 - **A rocket leaves a hole.** A wall a rocket hits is cut, mesh and collision together, and you can walk through what is left. The hole goes into the save and into the demo, so a replay arrives at the same walls.
 - **Every run is written down.** When a run ends, either way, the level, the starting snapshot and every step's intent go out as `demo.json`, so the file that reproduces a bug exists before anybody asks for it.
 - **Walls muffle.** A torch behind a door is quieter *and* duller than one in the room, and one three rooms away is barely there; each wall between a sound and your ears takes half.
+- **The walls light each other.** Every level ships with a baked lightmap: the glow a torch-lit wall throws across the floor, with two bounces, added under the dynamic torches. The torches still flicker; the bounce does not need to.
 - **Rooms behind walls are not drawn.** The crypt ships with a visibility table baked beside it, and a frame leaves out every batch of wall no cell near the eye can see.
 
 ## Fire and look are the same two buttons they are on a desktop

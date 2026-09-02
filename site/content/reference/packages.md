@@ -44,7 +44,7 @@ A rasteriser written in Dart. `CpuDevice` implements the same HAL, plus PNG outp
 
 Not a fallback. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer.
 
-It is how thirty-three golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_backend` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
+It is how thirty-four golden scenes are checkable with no GPU in the room, and it is a dev dependency of every game because three shipped bugs would have been caught by rendering a single frame in a test. It stopped being *only* a dev dependency once `flutter3d_backend` started reaching for it as the runtime fallback when Impeller will not start — a real, if last-resort, production path now, not just a test one.
 
 ### `flutter3d_conformance`
 The suite any fourth backend would have to pass before it counted as one, plus the cross-backend comparison with per-scene budgets.
@@ -61,7 +61,7 @@ Two calls: `renderFrame` builds a frame from a scene and a camera, `expectMatche
 ## Simulation
 
 ### `flutter3d_sim`
-The simulation: `FixedStep`, `GameLoop`, `InputState` and `InputTape`, the `Level` format and its validator, `Breaches` for the holes a blast leaves in it, `LevelVisibility` and the `bake_visibility` tool that writes one, `EntityKind` and the registry, mechanisms and movers, `Actor` / `Brain` / `ActorSystem`, the navigation grid and flow fields and the `Automap` drawn from them, `EcsWorld`, `Snapshot`, `Demo`, `RewindBuffer`, `GameRandom`, `StateDigest`.
+The simulation: `FixedStep`, `GameLoop`, `InputState` and `InputTape`, the `Level` format and its validator, `Breaches` for the holes a blast leaves in it, `LevelVisibility` and the `bake_visibility` tool that writes one, `Lightmap`, its layout and the `bake_lightmap` baker, `EntityKind` and the registry, mechanisms and movers, `Actor` / `Brain` / `ActorSystem`, the navigation grid, its flow fields and jump links and the `Automap` drawn from them, `EcsWorld`, `Snapshot`, `Demo`, `RewindBuffer`, `GameRandom`, `StateDigest`.
 
 **Plain Dart. No Flutter anywhere, and a scan says so** — `the simulation names no Flutter` reads its `lib/`, `test/` and `bin/`. The whole suite runs under `dart test`, and `dart run flutter3d_sim:headless_run` walks a body through the shipped crypt level with no Flutter SDK installed.
 
@@ -89,7 +89,7 @@ Three barrels: `flutter3d_game_shooter.dart` (nothing imports the renderer), `br
 → [What a shooter adds](/shooter/) · [Tutorial](/shooter/tutorial/)
 
 ### `flutter3d_game_platformer`
-`Runner` and `RunnerTuning`, `Surfaces`, `Purse`, collectibles, checkpoints, hazards, springs, one-way platforms, conveyors, crumbling and breakable blocks, climbables, crates, `Patrol` and `Leaper` enemies, `FollowCamera`, and `PlatformerSimulation`.
+`Runner` and `RunnerTuning`, `Surfaces`, `Purse`, collectibles, checkpoints, hazards, springs, one-way platforms, conveyors, crumbling and breakable blocks, climbables, crates, `Patrol`, `Leaper` and `Hunter` enemies, `FollowCamera`, and `PlatformerSimulation`.
 
 Nothing here imports the renderer, so all of it runs in a test with no device.
 
@@ -115,9 +115,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Twenty-two rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Twenty-three rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-two green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-three green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 

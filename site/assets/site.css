@@ -537,3 +537,30 @@ html[data-theme="light"] .hljs-attr { color: #334155; }
   font: 600 12px/1 var(--mono); color: var(--amber); margin-bottom: 5px;
 }
 .keys dd { margin: 0; font-size: 14px; line-height: 1.45; color: var(--muted); }
+
+/* A golden reference image beside the code that renders it. */
+figure.golden {
+  margin: 20px 0 28px; padding: 0;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+  overflow: hidden;
+}
+figure.golden img {
+  display: block; width: 100%; height: auto; max-width: 480px; margin: 0 auto;
+  image-rendering: auto;
+}
+figure.golden.golden3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; }
+figure.golden.golden3 .golden-set { display: block; position: relative; }
+figure.golden.golden3 .golden-set-name {
+  position: absolute; top: 6px; left: 8px;
+  font: 600 11px/1 var(--mono); color: var(--amber);
+  background: rgba(0, 0, 0, 0.55); padding: 3px 6px; border-radius: 3px;
+}
+figure.golden.golden3 figcaption { grid-column: 1 / -1; }
+figure.golden figcaption {
+  padding: 8px 12px; font-size: 13px; line-height: 1.45; color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+figure.golden .golden-name { font: 500 11px/1 var(--mono); color: var(--cyan); margin-left: 6px; }
+@media (max-width: 720px) {
+  figure.golden.golden3 { grid-template-columns: 1fr; }
+}

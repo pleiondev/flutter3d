@@ -51,6 +51,10 @@ List<Rule> get allRules => <Rule>[
     name: 'the documents agree on how many golden scenes there are',
     run: _goldenSceneCount,
   ),
+  (
+    name: 'every picture the site shows is a golden that exists',
+    run: _goldenFiguresExist,
+  ),
   (name: 'the documents agree on how many rules there are', run: _ruleCount),
   (
     name: 'the compiled shader bundle is not older than its sources',
@@ -552,6 +556,14 @@ List<Finding> _ruleCount() {
     'twenty',
     'twenty-one',
     'twenty-two',
+    'twenty-three',
+    'twenty-four',
+    'twenty-five',
+    'twenty-six',
+    'twenty-seven',
+    'twenty-eight',
+    'twenty-nine',
+    'thirty',
   ];
   final actual = allRules.length;
   final found = <Finding>[];
@@ -1363,6 +1375,44 @@ String? _fieldIn(String pubspec, String key) {
 ///
 /// Counted from the software backend's set, which is the one committed in full
 /// and the one the other two are held against.
+/// The site's pictures are `{{golden name}}` references resolved at build
+/// time against the golden sets, so a scene renamed or dropped would break
+/// the site's build — and the site is built on deploy, not in CI. This is the
+/// same check run here, where every push sees it: each name a page shows has
+/// a PNG in every set the figure draws from.
+List<Finding> _goldenFiguresExist() {
+  final found = <Finding>[];
+  final content = Directory('${repositoryRoot.path}/site/content');
+  if (!content.existsSync()) return found;
+  final sets = <String, String>{
+    'impeller': 'packages/flutter3d/test/goldens',
+    'cpu': 'packages/flutter3d_cpu/test/goldens',
+    'webgl': 'packages/flutter3d_webgl/test/goldens',
+  };
+  final reference = RegExp(r'\{\{(golden3?)\s+([\w-]+)');
+  for (final file in content.listSync(recursive: true).whereType<File>()) {
+    if (!file.path.endsWith('.md')) continue;
+    final where = relative(file, content);
+    for (final match in reference.allMatches(file.readAsStringSync())) {
+      final kind = match.group(1)!;
+      final name = match.group(2)!;
+      for (final set in sets.entries) {
+        if (kind == 'golden' && set.key != 'impeller') continue;
+        final png = File('${repositoryRoot.path}/${set.value}/$name.png');
+        if (!png.existsSync()) {
+          found.add(
+            Finding(
+              where,
+              'shows "$name", and the ${set.key} set has no such golden',
+            ),
+          );
+        }
+      }
+    }
+  }
+  return found;
+}
+
 List<Finding> _goldenSceneCount() {
   final goldens = Directory(
     '${repositoryRoot.path}/packages/flutter3d_cpu/test/goldens',

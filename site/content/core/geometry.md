@@ -118,6 +118,8 @@ Generated with Lengyel's method where a mesh has none, taken analytically where 
 <p>The bitangent sign is the part that goes wrong quietly. glTF's bitangent is <code>cross(normal, tangent) * w</code>, and it is <strong>minus</strong> dP/dv — texture V grows downwards while a normal map's green channel points up. Deriving <code>w</code> from <code>+dP/dv</code> gives tangent directions that agree with an exporter to seven digits and signs that are backwards everywhere, which only shows up on mirrored UV islands. The symptom is a normal-mapped surface lighting from the wrong side, on half the model.</p>
 </div>
 
+{{golden normal-mapping | A normal map lit from the side, with the tangents the generator emits.}}
+
 ## Materials
 
 A `Material` is a pipeline selection plus its parameters. Changing `lighting` changes the shader, and therefore where the draw lands in the sort.
@@ -144,6 +146,10 @@ final material = Material(
   drawBucket: 0,
 );
 ```
+
+{{golden lighting-pbr | The same model under the PBR model: Cook-Torrance specular, the flat ambient, one sun.}}
+
+{{golden lighting-toon | And under the toon model, which is one pipeline switch away.}}
 
 ### Neutral fallbacks instead of per-map flags
 

@@ -17,6 +17,47 @@ const root = join(here, '..');
 const contentDir = join(root, 'content');
 const distDir = join(root, 'dist');
 
+// Pictures come from the golden sets, not from a screenshots folder. A golden
+// is re-recorded with the feature it pins, so a picture drawn from one is
+// exactly what the code beside it renders today, and never a stale capture.
+// Impeller's set is the picture of record; the other two are for the testing
+// page, where the three backends' agreement is the point.
+const goldenSets = {
+  impeller: join(root, '../packages/flutter3d/test/goldens'),
+  cpu: join(root, '../packages/flutter3d_cpu/test/goldens'),
+  webgl: join(root, '../packages/flutter3d_webgl/test/goldens'),
+};
+
+// `{{golden shadow-teapot | The teapot's shadow}}` becomes a figure of the
+// Impeller reference; `{{golden3 shadow-teapot | ...}}` shows all three sets
+// side by side. A name no set has stops the build: a picture that is not
+// there is worse than no picture, and this is where it would go unnoticed.
+function goldenFigures(body, file) {
+  return body.replace(
+    /\{\{(golden3?)\s+([\w-]+)\s*(?:\|\s*([^}]*?))?\s*\}\}/g,
+    (match, kind, name, caption) => {
+      for (const [set, dir] of Object.entries(goldenSets)) {
+        if (kind === 'golden' && set !== 'impeller') continue;
+        if (!existsSync(join(dir, `${name}.png`))) {
+          throw new Error(`${file}: no golden "${name}" in the ${set} set`);
+        }
+      }
+      const alt = (caption || name).replace(/"/g, '&quot;');
+      const image = (set) =>
+        `<img src="/goldens/${set}/${name}.png" alt="${alt}" width="480" height="360" loading="lazy">`;
+      const pictures = kind === 'golden'
+        ? image('impeller')
+        : ['impeller', 'cpu', 'webgl']
+            .map((set) => `<span class="golden-set"><span class="golden-set-name">${set}</span>${image(set)}</span>`)
+            .join('');
+      const legend = caption
+        ? `<figcaption>${caption} <span class="golden-name">${name}</span></figcaption>`
+        : `<figcaption><span class="golden-name">${name}</span></figcaption>`;
+      return `<figure class="golden ${kind}">${pictures}${legend}</figure>`;
+    },
+  );
+}
+
 // Stated once. The footer, the topbar and the architecture link all point at the
 // same place, and three copies of a URL is three chances to update two of them.
 const GITHUB = 'https://github.com/pleiondev/flutter3d';
@@ -336,7 +377,7 @@ flat.forEach((page, index) => {
   const source = readFileSync(join(contentDir, page.file), 'utf8');
   const { data, body } = frontMatter(source);
   slugs.clear();
-  const html = md.render(body);
+  const html = md.render(goldenFigures(body, page.file));
   const toc = tocFrom(html);
   const full = { ...page, description: data.description };
   const out = layout({ page: full, html, toc, index });
@@ -369,6 +410,11 @@ writeFileSync(
 // Assets, then the mermaid runtime out of node_modules so the page loads
 // nothing from a CDN.
 cpSync(join(root, 'assets'), join(distDir, 'assets'), { recursive: true });
+// The golden reference images, one directory per backend, so a page can show
+// what a scene renders as — and, on the testing page, how the three agree.
+for (const [name, dir] of Object.entries(goldenSets)) {
+  cpSync(dir, join(distDir, 'goldens', name), { recursive: true });
+}
 cpSync(
   join(root, 'node_modules/mermaid/dist/mermaid.min.js'),
   join(distDir, 'assets/mermaid.min.js'),

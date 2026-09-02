@@ -20,6 +20,8 @@ particles.advance(dt);
 
 That is the whole integration. `ParticleContributor` is a `PassContributor` — the seam that lets something draw inside an existing pass without the renderer learning what it is.
 
+{{golden particles-burst | A seeded burst a little over half a second in: spread, drag and gravity bending the paths, colour and size changing over life.}}
+
 ### Effects are values
 
 ```dart
@@ -80,6 +82,8 @@ final class TorchFire with LightEmitter {
 ### Mesh particles and flipbooks
 
 `MeshParticleContributor` draws instanced meshes rather than quads — debris, sparks with volume. `Flipbook` walks a sprite sheet over a particle's lifetime.
+
+{{golden particles-mesh | Five spheres in a row, one instanced draw, sizes ascending so a backend that drew instance zero five times would be caught.}}
 
 <div class="note">
 <p>The particle shaders live in <code>flutter3d_shaders</code> rather than here. That package is already the shared GLSL every backend compiles from — Impeller into a bundle, WebGL by translation, the CPU backend as Dart transcriptions, so <code>particle.vert</code> living there while the simulation lives here is the arrangement that package exists for.</p>

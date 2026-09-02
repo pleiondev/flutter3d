@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, instanced batches, precomputed visibility, HDR and tone mapping, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -112,6 +112,8 @@ What a batch is not, each stated by the class and each a thing to add when a sce
 - **Picked as a box**: a ray hits the batch's bounds, not an instance.
 - **Uniformly scaled**: a non-uniform scale skews the normal, and the stage says so rather than paying an inverse transpose per vertex.
 
+{{golden instanced-field | Twenty-five cubes in one draw, each placed, turned, scaled and tinted by its slot-1 record, casting onto the ground.}}
+
 <div class="why">
 <p>The picture is held twice. A software test draws sixteen cubes under a sun that casts, once as a batch and once as sixteen nodes, and holds the two within a silhouette's worth of pixels; and <code>instanced-field</code> is a golden scene in all three reference sets. Recording it found both view-model goldens stale on every backend: CI compares each set against the others, and all three had gone stale together.</p>
 </div>
@@ -136,6 +138,23 @@ loaded.culler?.apply(eye);   // once a frame, before render
 </div>
 
 The table carries a hash of the brushes it was baked from and refuses, with a word, a level that has changed since; the dungeon's tests hold the committed sidecars fresh, so a brush moved without a re-bake fails CI rather than hiding a room at run time. The crypt bakes in half a minute and the vaults in two, which is a tool rather than a load. A hole blown in a wall drops the table for the rest of the run, since it is a line of sight the table does not know about.
+
+## Lightmaps
+
+The light a level's walls throw on each other, baked once and added at draw time. A brush face is a rectangle with its own two axes, so its unwrap is itself: the layout packs every visible face onto shelves at a stated density, computed from the level alone by the baker and by the geometry, so the sidecar beside the level carries pixels and a hash and no table that could go stale.
+
+```bash
+dart run flutter3d_sim:bake_lightmap --density 4 --bounces 2 --samples 64 assets/levels/crypt.json
+# writes crypt.lightmap.bin beside it; --direct bakes the direct light in too, for looking at the unwrap
+```
+
+{{golden lightmapped-room | A floor and a wall with no lights at all: what is on them is a hand-built lightmap, a pool on the floor and a glow up the wall.}}
+
+The baker gathers rather than solving form factors. Every texel sends cosine-weighted rays through the level's own collision world and averages what they hit reflects, a bounce at a time; the direct light and its shadows stay dynamic, so torches flicker and doors open, and the map carries the part that does not move. Texels are RGBM in plain RGBA8, decoded as `rgb × a × 8` in the shader. The second texture coordinate rides in the colour attribute: `MeshNode.lightmapped` picks a vertex stage that reads `color.xy` as a place in the atlas and holds the tint at white, so there is no fourth vertex layout, and every lit model adds `albedo × lightmap` beside its ambient with a one-texel black bound where a material has none.
+
+<div class="note">
+<p>Seeded by the texel's index, so two bakes of the same level are the same bytes and CI can bake and compare. The crypt bakes in about twelve seconds at four texels a metre. A ramp's triangles point at a reserved texel holding the level's average bounce; a spot light bakes as a point, since the level format carries no cone; a textured material reflects a mid grey, since the bake reads no texture. The loader refuses a map whose hash does not match the level's brushes, lights and materials, with a sentence in the issues.</p>
+</div>
 
 ## HDR, exposure and tone mapping
 
@@ -170,6 +189,8 @@ const BloomSettings(
 )
 ```
 
+{{golden bloom-sphere | A sphere brighter than display white, and the bloom the half-size chain makes of it.}}
+
 ## Shadows
 
 The shadow pass is a render view whose camera is the light, with an orthographic volume fitted to the scene. Depth goes into a **colour** target, because depth textures cannot be sampled on this platform. Front faces are culled, and the lookup is PCF 3×3 with both a depth bias and a normal offset.
@@ -188,6 +209,8 @@ const ShadowSettings(
   casterFaces: ShadowCasterFaces.back,
 )
 ```
+
+{{golden shadow-teapot | The teapot under a low sun: cascaded directional shadows, PCF 3×3, no bloom.}}
 
 <div class="warn">
 <p>The atlas is <code>resolution × cascades</code> wide. Three cascades at the default 2048 is a six-thousand-pixel HDR texture and about a hundred megabytes. A game usually wants a <em>smaller tile and cascades</em> rather than a large tile without them: three tiles of 1024 cover a level far better than one of 4096.</p>
@@ -208,6 +231,8 @@ const ShadowSettings(
   pointMaxSoftness: 16.0,
 )
 ```
+
+{{golden cube-shadow-many | Several point lights casting at once, each on its own row of the cube atlas.}}
 
 ### What casts, and the static half
 
@@ -237,6 +262,8 @@ RenderSettings(
   showSurfaceBuffer: false,  // composite it instead of the scene, to check it
 )
 ```
+
+{{golden surface-buffer | The second attachment shown instead of the lit image: world-space normal in the colour, depth in the alpha.}}
 
 The shaders write it either way, a pipeline may declare more outputs than its target has attachments, so the flag is purely whether anybody is listening. Whether it is *needed* is answered by the compiled frame graph instead of by a setting, because a setting cannot see what nodes an application registered: `CompiledFrameGraph.isConsumed(FrameResourceIds.surfaceBuffer)`.
 
@@ -296,6 +323,8 @@ SkySettings(
 )
 ```
 
+{{golden sky | The procedural sky behind a model: three stops, a scattering lobe and the sun's disc, all above display white before the tone curve.}}
+
 One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The model is a three-stop gradient plus a scattering lobe and an analytic sun disc; a `cubemap` replaces all three of those, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
 
 The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `RenderView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
@@ -330,6 +359,8 @@ The parts worth reaching for when a frame looks wrong.
 | `showShadowMap` / `showSurfaceBuffer` | Composites a buffer instead of the scene |
 | Timeline spans | `dart:developer` spans around every frame phase |
 | The frame panel | UI / raster / render / submit timings next to draw, pipeline-switch and cull counts |
+
+{{golden debug-overlay | Bounds, normals, light gizmos, world axes and the camera frustum, drawn in one call over the scene.}}
 
 <div class="why">
 <p>A control wired to a settings panel but not to <code>RenderSettings</code> looks convincing. To find out, capture the same frame with the feature on and off and diff the two; a zero difference answers the question. The same check found five of six lighting goldens recording identical images, described under <a href="/reference/testing/">testing</a>.</p>

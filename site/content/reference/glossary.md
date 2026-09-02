@@ -15,6 +15,7 @@ Every word below is a type or a file in this repository, not a general graphics 
   <div><dt>Draw item</dt><dd>One mesh, one material, one transform, sorted into the render list by a packed key. Culling decides which nodes become one</dd></div>
   <div><dt>Contributor</dt><dd>A <code>PassContributor</code>: something that draws inside somebody else's pass without editing the renderer. Particles are the first user</dd></div>
   <div><dt>Batch</dt><dd>An <code>InstancedMeshNode</code>: one mesh at many places in one call, a transform and a colour per instance. Culled, sorted and picked as one thing</dd></div>
+  <div><dt>Lightmap</dt><dd>A <code>Lightmap</code>: the light a brush level's walls throw on each other, baked by gathering and stored beside the level as RGBM. Sampled at a second coordinate that rides in the vertex colour, so it costs no new layout</dd></div>
   <div><dt>Visibility table</dt><dd>A <code>LevelVisibility</code>: the empty space of a brush level cut into cells, and a bit per pair saying whether they see each other. Baked once, stored beside the level, and used to leave out the rooms behind the walls</dd></div>
 </dl>
 
@@ -93,7 +94,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
   <div><dt>Golden</dt><dd>A reference image a scene is compared against. Three independent sets, Impeller, software and WebGL2, each held to zero differing pixels against its own</dd></div>
   <div><dt>Parity fixture</dt><dd>One scene drawn by two backends and compared as a grid of average brightness. Answers "do these two draw the same picture", which a golden cannot</dd></div>
   <div><dt>Conformance</dt><dd>The suite a backend has to pass before it counts as one. Split in two: what needs no shaders, and the rest</dd></div>
-  <div><dt>Structure rule</dt><dd>One of twenty-two scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
+  <div><dt>Structure rule</dt><dd>One of twenty-three scans in <code>tool/structure.dart</code>. They read source text and hold the architecture: that a genre package stays out of another genre, that the documents' numbers are true</dd></div>
 </dl>
 
 ## Next

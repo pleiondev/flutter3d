@@ -122,7 +122,7 @@ flowchart TB
   simp --> physics
 ```
 
-Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_screens` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, twenty-two checks that read source text and run before a build.
+Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_screens` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, twenty-three checks that read source text and run before a build.
 
 Three rules hold the picture up, and `tool/structure.dart` checks each one before a build.
 
@@ -156,7 +156,7 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 
 | | |
 |---|---|
-| Rendering | Six lighting models as pre-built shaders. HDR pipeline with tone mapping and exposure, bloom from a half-size chain, cascaded directional shadows with PCF, point-light shadows with a static half baked once, instanced batches, precomputed visibility for brush levels, screen-space reflections, fog, 4× MSAA, wireframe |
+| Rendering | Six lighting models as pre-built shaders. HDR pipeline with tone mapping and exposure, bloom from a half-size chain, cascaded directional shadows with PCF, point-light shadows with a static half baked once, instanced batches, precomputed visibility and baked lightmaps with bounces for brush levels, screen-space reflections, fog, 4× MSAA, wireframe |
 | Geometry | Surfaces of revolution as the base generator, `MeshData` and `MeshBuilder`, custom vertex layouts, tangent generation with Lengyel's method |
 | Assets | glTF 2.0 / GLB, Wavefront OBJ, and `.f3d`, the engine's own container. Decoding on a background isolate, a reference-counted cache |
 | Animation | All three glTF interpolations, skinning with 64 joint matrices, an `AnimationPlayer` with crossfades, transport and once/loop/ping-pong |

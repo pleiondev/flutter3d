@@ -192,6 +192,8 @@ player
 
 A glTF skin decodes into a `Skeleton` of ordinary scene nodes. 64 joint matrices in a uniform array, four weights a vertex, a separate skinned vertex stage, because a second layout is a second shader, and bounds taken from the **posed** skeleton rather than the bind pose.
 
+{{golden skinned-figure | A skinned figure frozen at a stated second of its clip, so the frame is the same every time it is drawn.}}
+
 ## Next
 
 - [Simulation layer](/core/simulation/): the fixed step the animation is not tied to

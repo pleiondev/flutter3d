@@ -99,6 +99,8 @@ scene.add(LightNode(
 <p><code>readDirection([out])</code> normalises <strong>in place</strong>. An earlier version ended in <code>result.normalized()</code>, which returns a new vector and leaves <code>out</code> holding the un-normalised, un-negated value, so the renderer read its own variable, the light direction was inverted, <code>N·L</code> went negative and clamped to zero, and the scene looked entirely ambient. Pinned now with <code>expect(returned, same(out))</code>.</p>
 </div>
 
+{{golden spot-shadow | A spot light casting from one column of the cube atlas, where a point light would write six.}}
+
 ## The BVH, culling and picking
 
 One BVH over world bounds, shared by frustum culling and by picking, rebuilt only when something actually moves, which the version stamps make cheap to ask.
@@ -160,6 +162,8 @@ final bounds = skeleton.computeBounds(reach: 0.1);
 ## View-model nodes
 
 `ViewModelNode` draws with its own field of view and its own depth range, on top of the scene. That is what a weapon held in the hands needs: a 90° scene camera makes a gun in the corner of the screen look like it is being fired from the elbow.
+
+{{golden view-model-overlay | A held box drawn over the scene in its own pass, placed deliberately inside the model to show it is not clipped by the world.}}
 
 ## Next
 
