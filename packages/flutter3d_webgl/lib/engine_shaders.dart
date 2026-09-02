@@ -50,6 +50,7 @@ out vec3 v_normal;
 out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
+out vec2 v_lightmap_uv;
 
 void main() {
   vec4 world = frame_info.model * vec4(position, 1.0);
@@ -63,6 +64,7 @@ void main() {
   // TBN that is subtly wrong under non-uniform scale.
   v_tangent = vec4(mat3(frame_info.model) * tangent.xyz, tangent.w);
   v_color = color;
+  v_lightmap_uv = vec2(0.0);
 
   gl_Position = frame_info.mvp * vec4(position, 1.0);
 }
@@ -167,6 +169,7 @@ out vec3 v_normal;
 out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
+out vec2 v_lightmap_uv;
 
 /// The blended bone transform for this vertex.
 mat4 SkinMatrix() {
@@ -205,6 +208,7 @@ void main() {
 
   v_texcoord = texcoord;
   v_color = color;
+  v_lightmap_uv = vec2(0.0);
 
   gl_Position = frame_info.mvp * (skin * vec4(position, 1.0));
 }
@@ -253,6 +257,7 @@ out vec3 v_normal;
 out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
+out vec2 v_lightmap_uv;
 
 void main() {
   // Columns from rows: GLSL matrices are column-major, so the constructor is
@@ -274,7 +279,52 @@ void main() {
   v_texcoord = texcoord;
   v_tangent = vec4(mat3(frame_info.model) * (rotation * tangent.xyz), tangent.w);
   v_color = color * i_color;
+  v_lightmap_uv = vec2(0.0);
   gl_Position = frame_info.mvp * local;
+}
+
+''',
+    'MeshLightmappedVertex': r'''#version 300 es
+
+// `mesh.vert` for a level with a baked lightmap.
+//
+// The same vertex layout as every other model — see mesh.vert for why there
+// is one — with one attribute read differently: `color.xy` carries the
+// vertex's place in the lightmap rather than a tint. A brush face has no
+// vertex colour to lose, and a fourth vertex layout would be a fourth
+// pipeline per lighting model on three backends for two floats. So the
+// level's geometry writes its second coordinate where the colour goes, and
+// this stage hands the fragment an opaque white tint and the coordinate.
+in vec3 position;
+in vec3 normal;
+in vec2 texcoord;
+in vec4 tangent;
+in vec4 color;
+
+layout(std140) uniform FrameInfo {
+  mat4 mvp;
+  mat4 model;
+  mat4 normal_matrix;
+}
+frame_info;
+
+out vec3 v_world_position;
+out vec3 v_normal;
+out vec2 v_texcoord;
+out vec4 v_tangent;
+out vec4 v_color;
+out vec2 v_lightmap_uv;
+
+void main() {
+  vec4 world = frame_info.model * vec4(position, 1.0);
+  v_world_position = world.xyz;
+  v_normal = mat3(frame_info.normal_matrix) * normal;
+  v_texcoord = texcoord;
+  v_tangent = vec4(mat3(frame_info.model) * tangent.xyz, tangent.w);
+  v_color = vec4(1.0);
+  v_lightmap_uv = color.xy;
+
+  gl_Position = frame_info.mvp * vec4(position, 1.0);
 }
 
 ''',
@@ -580,6 +630,11 @@ in vec3 v_normal;
 in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
 
 layout(location = 0) out vec4 frag_color;
 
@@ -1492,6 +1547,11 @@ in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
 
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
 layout(location = 0) out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the
@@ -2314,6 +2374,19 @@ uniform sampler2D occlusion_texture;
 /// Emitted colour, multiplied by the emissive factor. Neutral is white, and the
 /// factor defaults to black, so a material with neither emits nothing.
 uniform sampler2D emissive_texture;
+
+/// The level's baked lightmap, RGBM: colour over a shared multiplier, decoded
+/// as `rgb × a × 8`. Sampled at the second coordinate, which every vertex
+/// stage but the lightmapped one leaves at the atlas corner; neutral is
+/// black, so a material without a map adds nothing.
+uniform sampler2D lightmap_texture;
+
+/// The irradiance the lightmap holds at this fragment, in the units a light's
+/// `colour × intensity × attenuation × cos` arrives in.
+vec3 SampleLightmap() {
+  vec4 texel = texture(lightmap_texture, v_lightmap_uv);
+  return texel.rgb * texel.a * 8.0;
+}
 
 /// One function per map, rather than one that applies all four.
 ///
@@ -2500,7 +2573,7 @@ void main() {
   // No ORM map: a purely diffuse model has no response to metallic or
   // roughness, so sampling it would leave a slot the compiler then drops.
   ApplyCommonMaps(s);
-  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + s.emissive,
       s.alpha,
@@ -2587,6 +2660,11 @@ in vec3 v_normal;
 in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
 
 layout(location = 0) out vec4 frag_color;
 
@@ -3410,6 +3488,19 @@ uniform sampler2D occlusion_texture;
 /// Emitted colour, multiplied by the emissive factor. Neutral is white, and the
 /// factor defaults to black, so a material with neither emits nothing.
 uniform sampler2D emissive_texture;
+
+/// The level's baked lightmap, RGBM: colour over a shared multiplier, decoded
+/// as `rgb × a × 8`. Sampled at the second coordinate, which every vertex
+/// stage but the lightmapped one leaves at the atlas corner; neutral is
+/// black, so a material without a map adds nothing.
+uniform sampler2D lightmap_texture;
+
+/// The irradiance the lightmap holds at this fragment, in the units a light's
+/// `colour × intensity × attenuation × cos` arrives in.
+vec3 SampleLightmap() {
+  vec4 texel = texture(lightmap_texture, v_lightmap_uv);
+  return texel.rgb * texel.a * 8.0;
+}
 
 /// One function per map, rather than one that applies all four.
 ///
@@ -3602,7 +3693,7 @@ void main() {
   // Roughness drives the Phong exponent, so the ORM map does reach the
   // output here.
   ApplyMetallicRoughnessMap(s);
-  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + s.emissive,
       s.alpha,
@@ -3698,6 +3789,11 @@ in vec3 v_normal;
 in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
 
 layout(location = 0) out vec4 frag_color;
 
@@ -4521,6 +4617,19 @@ uniform sampler2D occlusion_texture;
 /// Emitted colour, multiplied by the emissive factor. Neutral is white, and the
 /// factor defaults to black, so a material with neither emits nothing.
 uniform sampler2D emissive_texture;
+
+/// The level's baked lightmap, RGBM: colour over a shared multiplier, decoded
+/// as `rgb × a × 8`. Sampled at the second coordinate, which every vertex
+/// stage but the lightmapped one leaves at the atlas corner; neutral is
+/// black, so a material without a map adds nothing.
+uniform sampler2D lightmap_texture;
+
+/// The irradiance the lightmap holds at this fragment, in the units a light's
+/// `colour × intensity × attenuation × cos` arrives in.
+vec3 SampleLightmap() {
+  vec4 texel = texture(lightmap_texture, v_lightmap_uv);
+  return texel.rgb * texel.a * 8.0;
+}
 
 /// One function per map, rather than one that applies all four.
 ///
@@ -4792,6 +4901,10 @@ void main() {
     ambient = (diffuseColor * irradiance + prefiltered * (f0 * ab.x + ab.y)) *
               frag_info.material.z * s.occlusion;
   }
+  // The light the level's walls throw on each other, baked: diffuse only,
+  // since a lightmap holds irradiance and a metal has no diffuse response.
+  // Zero from the one-texel black a material without a map is bound to.
+  ambient += diffuseColor * SampleLightmap() * s.occlusion;
 
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + s.emissive,
@@ -4881,6 +4994,11 @@ in vec3 v_normal;
 in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
 
 layout(location = 0) out vec4 frag_color;
 
@@ -5705,6 +5823,19 @@ uniform sampler2D occlusion_texture;
 /// factor defaults to black, so a material with neither emits nothing.
 uniform sampler2D emissive_texture;
 
+/// The level's baked lightmap, RGBM: colour over a shared multiplier, decoded
+/// as `rgb × a × 8`. Sampled at the second coordinate, which every vertex
+/// stage but the lightmapped one leaves at the atlas corner; neutral is
+/// black, so a material without a map adds nothing.
+uniform sampler2D lightmap_texture;
+
+/// The irradiance the lightmap holds at this fragment, in the units a light's
+/// `colour × intensity × attenuation × cos` arrives in.
+vec3 SampleLightmap() {
+  vec4 texel = texture(lightmap_texture, v_lightmap_uv);
+  return texel.rgb * texel.a * 8.0;
+}
+
 /// One function per map, rather than one that applies all four.
 ///
 /// Not a style choice. The compiler drops a sampler whose result never reaches
@@ -5905,7 +6036,7 @@ void main() {
   // outside the loop — adding it per light would make it brighten with the
   // number of lamps in the scene.
   float rim = pow(1.0 - s.n_dot_v, 3.0) * frag_info.material.w;
-  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
 
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +
@@ -5960,6 +6091,11 @@ in vec3 v_normal;
 in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
 
 layout(location = 0) out vec4 frag_color;
 
@@ -6597,6 +6733,11 @@ in vec3 v_normal;
 in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
 
 layout(location = 0) out vec4 frag_color;
 
@@ -7360,6 +7501,11 @@ in vec3 v_normal;
 in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
 
 layout(location = 0) out vec4 frag_color;
 

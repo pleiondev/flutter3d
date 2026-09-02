@@ -40,7 +40,7 @@ void main() {
   // outside the loop — adding it per light would make it brighten with the
   // number of lamps in the scene.
   float rim = pow(1.0 - s.n_dot_v, 3.0) * frag_info.material.w;
-  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
 
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + vec3(rim * 0.35) +

@@ -1,5 +1,7 @@
 ## 0.4.2
 
+* The lightmapped vertex stage, generated with the rest from
+  `flutter3d_shaders`; `lightmapped-room` joins the golden set.
 * **Compressed textures, from the extensions the context actually has.**
   `CompressedTextureSupport` asks for the six extensions once at `create()`
   (ETC2 is WebGL2 core and still has to be asked for), a compressed upload

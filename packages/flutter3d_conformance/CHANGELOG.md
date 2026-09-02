@@ -1,5 +1,6 @@
 ## 0.4.1
 
+* The link checks pair `MeshLightmappedVertex` with the lit models.
 * **A compressed format the backend claims is drawn and read back.** One
   hand-built BC1 block and one ETC2 block, each uploaded where
   `supportsTextureFormat` says yes and sampled at the centre of a quad; a

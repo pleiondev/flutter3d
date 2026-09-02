@@ -71,6 +71,14 @@ base class MeshNode extends SceneNode {
   /// decision, so a mesh either has both or neither.
   Skeleton? skeleton;
 
+  /// Whether this mesh's vertex colour is its place in a lightmap.
+  ///
+  /// The renderer branches on it to pick the lightmapped vertex shader, the
+  /// way it does on [skeleton] for the skinned one: the same layout, read
+  /// with `color.xy` as a coordinate and the tint held at white. A level's
+  /// brush batches set it when the level came with a map; nothing else does.
+  bool lightmapped = false;
+
   /// How far the surface reaches from its joints, **in the mesh's own units**.
   ///
   /// Used to pad the skinned bounds. Zero would cull a character by the box

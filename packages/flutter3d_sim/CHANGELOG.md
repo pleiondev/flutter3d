@@ -1,3 +1,22 @@
+## 0.4.1
+
+* **Lightmaps.** `LightmapLayout` unwraps every visible brush face onto a
+  planar atlas from the level alone, so the baker and the geometry agree
+  without a table; `LightmapBaker` bakes the light the walls throw on each
+  other by gathering — direct light with shadows through the level's own
+  collision world, then bounces along cosine-weighted rays — seeded by the
+  texel, so two bakes are the same bytes. `Lightmap` stores RGBM in RGBA8
+  with a hash of the brushes, lights and materials, and
+  `dart run flutter3d_sim:bake_lightmap` writes `<level>.lightmap.bin`.
+  `BrushGeometry.build(lightmap:)` hands every vertex its second coordinate.
+* **Jump links.** `NavGrid.bake(jumps:)` finds the gaps and ledges a
+  `JumpReach` clears; a `FlowField` filters them by its own body's reach with
+  the body's width added, relaxes them backwards at their distance plus two
+  cells so a walk of equal length wins, and `jumpAt` says when the next step
+  is a jump. `Navigation.jumpAhead` and `ActorSystem` take off through the
+  controller's buffered request on the take-off cell.
+* `Mind.heading`, for turning to face the way the field said.
+
 ## 0.4.0
 
 * First release. It is `flutter3d_game`'s inside, moved out whole: the fixed

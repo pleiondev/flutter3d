@@ -52,7 +52,9 @@ final class LambertShader implements CpuFragmentShader {
       shade: (s, light) => s.albedo,
       shadowed: true,
     ).scaled(s.occlusion);
-    final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
+    final ambient =
+        (s.albedo.clone()..multiply(s.ambient + sampleLightmap(v, b, c)))
+            .scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
     return writeLit(
       c,
@@ -97,7 +99,9 @@ final class BlinnPhongShader implements CpuFragmentShader {
       },
     ).scaled(s.occlusion);
 
-    final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
+    final ambient =
+        (s.albedo.clone()..multiply(s.ambient + sampleLightmap(v, b, c)))
+            .scaled(s.occlusion);
     final total = lit + ambient + s.emissive;
     return writeLit(
       c,
@@ -247,6 +251,9 @@ final class PbrShader implements CpuFragmentShader {
         ..multiply(f0 * ab.x + Vector3(ab.y, ab.y, ab.y));
       ambient = ((diffusePart + specularPart) * strength).scaled(s.occlusion);
     }
+    // The baked bounce light, diffuse only, as `pbr.frag` adds it.
+    ambient += (diffuseColour.clone()..multiply(sampleLightmap(v, b, c)))
+        .scaled(s.occlusion);
 
     final total = lit + ambient + s.emissive;
     return writeLit(
@@ -295,7 +302,9 @@ final class ToonShader implements CpuFragmentShader {
     final specularStrength = b.vec4('FragInfo', 'material', Vector4.zero()).w;
     final rim =
         math.pow(1.0 - s.nDotV, 3.0).toDouble() * specularStrength * 0.35;
-    final ambient = (s.albedo.clone()..multiply(s.ambient)).scaled(s.occlusion);
+    final ambient =
+        (s.albedo.clone()..multiply(s.ambient + sampleLightmap(v, b, c)))
+            .scaled(s.occlusion);
     final total = lit + ambient + Vector3.all(rim) + s.emissive;
     return writeLit(
       c,

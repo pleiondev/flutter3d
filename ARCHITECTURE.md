@@ -266,7 +266,7 @@ the saves and the collision world.
 
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-two rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-three rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -964,6 +964,29 @@ the holes in order, which is also how a demo with a rocket in it arrives at
 the same walls. The navigation grid keeps its walls; a monster does not learn
 a new route through a breach, which is a limit and not a bug.
 
+**A lightmap is the light the walls throw on each other, baked, and it costs
+no new vertex layout.** A brush face is a rectangle with its own two axes,
+so its unwrap is itself: `LightmapLayout.plan` packs every visible face onto
+shelves at a stated density, computed from the level alone on both sides —
+the baker and the geometry — so the sidecar carries pixels and a hash and no
+table to go stale. `LightmapBaker` gathers rather than solving form factors:
+each texel sends cosine-weighted rays through the level's own collision
+world and averages `albedo × E` at what they hit, a bounce at a time, seeded
+by the texel's index so two bakes are the same bytes. The direct light stays
+dynamic by default and the map holds the bounces, RGBM in RGBA8. The second
+coordinate rides in the colour attribute: `mesh_lightmapped.vert` is the
+standard layout read with `color.xy` as a place in the atlas and the tint
+held at white, a fourth vertex stage rather than a fourth layout, and every
+lit model adds `albedo × lightmap` beside its ambient with a one-texel black
+bound where a material has none, so nothing branches and every picture
+without a map is the bytes it was. The crypt bakes in twelve seconds of CPU
+at four texels a metre; `lightmapped-room` is a golden in all three sets.
+
+Not in it: a ramp's slope points at a reserved texel holding the level's
+average bounce; a spot light bakes as a point, since the level format
+carries no cone; a textured material reflects a mid grey, since the bake
+reads no texture; and a breach drops the map with the visibility table.
+
 ---
 
 ## 9. The simulation layer
@@ -1382,11 +1405,11 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3154 tests** across 24 packages and 5 applications |
-| Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **3172 tests** across 24 packages and 5 applications |
+| Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 33 scenes against **three independent reference sets** —
+**Golden render tests.** 34 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1440,7 +1463,7 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-three of them between 0.01% and 0.6%, measured rather than
+scene, all thirty-four of them between 0.01% and 0.6%, measured rather than
 rounded — a budget far above what was observed has stopped watching.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
@@ -1555,7 +1578,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-three golden scenes the way Impeller does**,
+**The web backend now draws all thirty-four golden scenes the way Impeller does**,
 between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Six scenes were
 in whole percents and every one of them was this backend drawing something else;

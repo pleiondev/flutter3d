@@ -50,6 +50,7 @@ out vec3 v_normal;
 out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
+out vec2 v_lightmap_uv;
 
 /// The blended bone transform for this vertex.
 mat4 SkinMatrix() {
@@ -88,6 +89,7 @@ void main() {
 
   v_texcoord = texcoord;
   v_color = color;
+  v_lightmap_uv = vec2(0.0);
 
   gl_Position = frame_info.mvp * (skin * vec4(position, 1.0));
 }

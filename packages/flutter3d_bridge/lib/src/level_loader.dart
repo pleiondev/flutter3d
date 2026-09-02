@@ -67,6 +67,10 @@ final class LevelLoader {
       jsonDecode(await read(assetPath)) as Map<String, Object?>,
     );
     final (visibility, issue) = await _sidecarVisibility(assetPath, read);
+    final (lightmap, lightmapIssue) = await _sidecarLightmap(
+      assetPath,
+      readAsset ?? rootBundle.load,
+    );
     return build(
       level,
       device: device,
@@ -74,8 +78,43 @@ final class LevelLoader {
       rules: rules,
       readAsset: readAsset,
       visibility: visibility,
-      issues: <LevelIssue>[?issue],
+      lightmap: lightmap,
+      issues: <LevelIssue>[?issue, ?lightmapIssue],
     );
+  }
+
+  /// The lightmap beside a level, or null when there is none — and a word
+  /// when there is one that will not read.
+  ///
+  /// `<level>.lightmap.bin`, baked by `dart run flutter3d_sim:bake_lightmap`.
+  /// The same contract as the visibility sidecar: absent is a level without
+  /// one, unreadable is said out loud and the level plays without it.
+  static Future<(Lightmap?, LevelIssue?)> _sidecarLightmap(
+    String assetPath,
+    AssetBytes read,
+  ) async {
+    final path = assetPath.endsWith('.json')
+        ? '${assetPath.substring(0, assetPath.length - 5)}.lightmap.bin'
+        : '$assetPath.lightmap.bin';
+    final ByteData bytes;
+    try {
+      bytes = await read(path);
+    } catch (_) {
+      return (null, null);
+    }
+    try {
+      return (Lightmap.fromBytes(bytes.buffer.asUint8List()), null);
+    } catch (error) {
+      return (
+        null,
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'the lightmap beside the level could not be read and is ignored: '
+          '$error',
+          where: path,
+        ),
+      );
+    }
   }
 
   /// The visibility table beside a level, or null when there is none — and
@@ -192,6 +231,7 @@ final class LevelLoader {
     List<LevelRule> rules = const <LevelRule>[],
     AssetBytes? readAsset,
     LevelVisibility? visibility,
+    Lightmap? lightmap,
     List<LevelIssue> issues = const <LevelIssue>[],
   }) async {
     // Errors throw with every one listed, because a level with a door whose key
@@ -238,7 +278,44 @@ final class LevelLoader {
       );
       visibility = null;
     }
-    final surfaces = const BrushGeometry().build(level, visibility: visibility);
+    // The same refusal for a lightmap: one baked from other walls or other
+    // lamps lights rooms that are not there.
+    if (lightmap != null && lightmap.isStaleFor(level)) {
+      loadIssues.add(
+        const LevelIssue(
+          LevelIssueSeverity.warning,
+          'the lightmap was baked from different brushes or lights and is '
+          'ignored; run bake_lightmap again',
+        ),
+      );
+      lightmap = null;
+    }
+    // Planned here the same way the baker planned it, from the level and the
+    // map's own density; the map carries pixels and a hash, not a table.
+    final layout = lightmap == null
+        ? null
+        : LightmapLayout.plan(level, texelsPerMetre: lightmap.texelsPerMetre);
+    final lightmapTexture = lightmap == null
+        ? null
+        : device.createTextureFromPixels(
+            width: lightmap.width,
+            height: lightmap.height,
+            format: TextureFormat.r8g8b8a8UNormInt,
+            pixels: ByteData.sublistView(lightmap.pixels),
+          );
+    if (lightmap != null && lightmapTexture == null) {
+      loadIssues.add(
+        const LevelIssue(
+          LevelIssueSeverity.warning,
+          'the lightmap could not be uploaded and is ignored',
+        ),
+      );
+    }
+    final surfaces = const BrushGeometry().build(
+      level,
+      visibility: visibility,
+      lightmap: lightmapTexture == null ? null : layout,
+    );
     // Remembered on the way in, so `LoadedLevel.dispose` can release exactly
     // what this loop uploaded and nothing else.
     final brushMeshes = <DeviceMesh>[];
@@ -252,12 +329,16 @@ final class LevelLoader {
           MeshNode(
               mesh,
               LevelLoader.materialFrom(
-                level.materials[surface.material] ?? LevelMaterial(),
-                textures,
-                name: surface.material,
-              ),
+                  level.materials[surface.material] ?? LevelMaterial(),
+                  textures,
+                  name: surface.material,
+                )
+                ..lightmap = surface.lightmapUvs == null
+                    ? null
+                    : lightmapTexture,
               name: surface.material,
             )
+            ..lightmapped = surface.lightmapUvs != null
             // Brushes are the level: they never move, so their shadow is baked
             // once rather than redrawn six times a frame.
             ..shadowIsStatic = true
@@ -275,15 +356,19 @@ final class LevelLoader {
     }
 
     return LoadedLevel(
-      level: level,
-      scene: scene,
-      collision: collision,
-      issues: <LevelIssue>[...validator.validate(level), ...loadIssues],
-      drawCallCount: surfaces.length,
-      materialTextures: textures,
-      brushMeshes: brushMeshes,
-      culler: visibility == null ? null : VisibilityCuller(visibility, batches),
-    )..brushNodes.addAll(brushNodes);
+        level: level,
+        scene: scene,
+        collision: collision,
+        issues: <LevelIssue>[...validator.validate(level), ...loadIssues],
+        drawCallCount: surfaces.length,
+        materialTextures: textures,
+        brushMeshes: brushMeshes,
+        culler: visibility == null
+            ? null
+            : VisibilityCuller(visibility, batches),
+      )
+      ..brushNodes.addAll(brushNodes)
+      ..lightmap = lightmapTexture;
   }
 
   /// Builds an engine material from a level material and the loaded maps.
@@ -400,9 +485,13 @@ final class LevelLoader {
       vertices[out + 9] = surface.tangents[i * 4 + 1];
       vertices[out + 10] = surface.tangents[i * 4 + 2];
       vertices[out + 11] = surface.tangents[i * 4 + 3];
-      // Vertex colour multiplies the material's, so white leaves it alone.
-      vertices[out + 12] = 1.0;
-      vertices[out + 13] = 1.0;
+      // Vertex colour multiplies the material's, so white leaves it alone —
+      // unless the level has a lightmap, when the lightmapped vertex stage
+      // reads the first two channels as the vertex's place in it and holds
+      // the tint at white itself. See `mesh_lightmapped.vert`.
+      final lightmapUvs = surface.lightmapUvs;
+      vertices[out + 12] = lightmapUvs?[i * 2] ?? 1.0;
+      vertices[out + 13] = lightmapUvs?[i * 2 + 1] ?? 1.0;
       vertices[out + 14] = 1.0;
       vertices[out + 15] = 1.0;
     }

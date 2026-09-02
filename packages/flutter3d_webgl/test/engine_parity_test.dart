@@ -3126,6 +3126,16 @@ void _linkTests() {
     ('MeshInstancedVertex', 'Normals'),
     ('MeshInstancedVertex', 'ShadowDepth'),
     ('MeshInstancedVertex', 'ShadowDistance'),
+    // The lightmapped stage is the fourth: the same layout read with the
+    // colour as a coordinate.
+    ('MeshLightmappedVertex', 'Unlit'),
+    ('MeshLightmappedVertex', 'Lambert'),
+    ('MeshLightmappedVertex', 'BlinnPhong'),
+    ('MeshLightmappedVertex', 'Pbr'),
+    ('MeshLightmappedVertex', 'Toon'),
+    ('MeshLightmappedVertex', 'Normals'),
+    ('MeshLightmappedVertex', 'ShadowDepth'),
+    ('MeshLightmappedVertex', 'ShadowDistance'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('FullscreenVertex', 'BloomThreshold'),

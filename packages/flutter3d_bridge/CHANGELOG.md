@@ -1,3 +1,17 @@
+## 0.4.1
+
+* **A level's sidecars are read beside it.** `LevelLoader` looks for
+  `<level>.visibility.json` and `<level>.lightmap.bin` next to the document,
+  refuses either with a word when its hash no longer matches the level, and
+  otherwise hands the batches to a `VisibilityCuller` and every brush vertex
+  its place in the lightmap, uploaded as one texture the material samples.
+* `SoundOcclusion`: the walls between a sound and the ear, each taking half,
+  as a gain and a muffle for `AudioScene.occlusion`.
+* `LevelLoader.rebuildBrushes` draws the walls again after a breach and
+  invalidates the static shadows; `LoadedLevel` keeps its brush nodes, its
+  culler and its lightmap so it can.
+* Texture uploads that are refused say why, in the level's issues.
+
 ## 0.4.0
 
 * **A level change releases what the level built.** Both visuals classes kept

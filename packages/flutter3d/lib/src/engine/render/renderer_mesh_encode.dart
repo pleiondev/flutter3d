@@ -59,15 +59,26 @@ extension _MeshEncode on Renderer {
     final instanced = node is InstancedMeshNode ? node : null;
     if (instanced != null && instanced.count == 0) return;
     final batched = instanced != null;
+    // A level's batches read their colour as a lightmap coordinate; neither
+    // a skinned mesh nor an instanced one is a level, so the flag is ignored
+    // where it cannot apply rather than asserted against.
+    final lightmapped = node.lightmapped && !skinned && !batched;
     if (state.boundPipeline != material.lighting ||
         state.boundSkinned != skinned ||
-        state.boundInstanced != batched) {
+        state.boundInstanced != batched ||
+        state.boundLightmapped != lightmapped) {
       encoder.bindPipeline(
-        _pipelineFor(material.lighting, skinned: skinned, instanced: batched),
+        _pipelineFor(
+          material.lighting,
+          skinned: skinned,
+          instanced: batched,
+          lightmapped: lightmapped,
+        ),
       );
       state.boundPipeline = material.lighting;
       state.boundSkinned = skinned;
       state.boundInstanced = batched;
+      state.boundLightmapped = lightmapped;
       state.pipelineSwitches++;
     }
 
@@ -113,6 +124,8 @@ extension _MeshEncode on Renderer {
         ? instancedVertexShader
         : skinned
         ? skinnedVertexShader
+        : lightmapped
+        ? lightmappedVertexShader
         : vertexShader;
     // Typed, because `Matrix4.operator*` returns `dynamic`: without the
     // annotation `.storage` here is an unchecked call on an untyped value,
@@ -348,6 +361,16 @@ extension _MeshEncode on Renderer {
         _kEmissiveTextureSlot,
         material.emissiveTexture ?? fallbackAlbedo,
         sampler: material.emissiveSampler,
+      );
+      // Black, not white: the lightmap is added, and a material without one
+      // adds nothing. Bound for every lit model because the shader samples
+      // the slot unconditionally, which is a texel cheaper than a branch and
+      // the same arrangement every other map here uses.
+      encoder.bindTexture(
+        fragmentShader,
+        _kLightmapTextureSlot,
+        material.lightmap ?? fallbackBlack,
+        sampler: material.lightmapSampler ?? Renderer._clampSampler,
       );
     }
     if (material.lighting.usesShadowMap) {

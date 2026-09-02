@@ -22,7 +22,10 @@ const int kVNormal = 3; // vec3
 const int kVUv = 6; // vec2
 const int kVColour = 8; // vec4
 const int kVTangent = 12; // vec4
-const int kMeshVaryings = 16;
+/// Where the fragment is in the level's lightmap; zero from every stage but
+/// the lightmapped one, which reads it out of the colour attribute.
+const int kVLightmap = 16; // vec2
+const int kMeshVaryings = 18;
 
 /// Lights per frame, from `kMaxLights` in `surface.glsl`.
 const int kMaxLights = 8;

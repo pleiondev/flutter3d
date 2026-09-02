@@ -34,6 +34,7 @@ const List<RequiredShader> kRequiredShaders = <RequiredShader>[
   (name: 'FullscreenVertex', fragment: false),
   (name: 'Lambert', fragment: true),
   (name: 'MeshInstancedVertex', fragment: false),
+  (name: 'MeshLightmappedVertex', fragment: false),
   (name: 'MeshSkinnedVertex', fragment: false),
   (name: 'MeshVertex', fragment: false),
   (name: 'MrtProbe', fragment: true),

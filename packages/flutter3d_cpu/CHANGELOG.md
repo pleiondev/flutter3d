@@ -1,5 +1,7 @@
 ## 0.4.1
 
+* The lightmapped vertex stage and the lightmap term in the four lit models,
+  transcribed from the GLSL; the mesh varyings grow by the coordinate.
 * **A compressed format is refused by name, and asked about first.**
   `createTextureFromPixels` used to read block bytes as RGBA8 and hand back
   a texture full of noise; it throws naming the format now, and

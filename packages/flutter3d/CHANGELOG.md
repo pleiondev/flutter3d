@@ -1,5 +1,10 @@
 ## 0.4.2
 
+* **Lightmaps.** `MeshNode.lightmapped` picks a vertex stage that reads the
+  colour attribute as a place in `Material.lightmap`, and every lit model
+  adds `albedo × lightmap` beside its ambient, with a one-texel black bound
+  where a material has none so nothing branches and every picture without a
+  map is the bytes it was. `lightmapped-room` is a golden in all three sets.
 * **KTX2 is read.** A pure-Dart reader for the container, and a port of Basis
   Universal's ETC1S transcoder verified level by level against the encoder's
   own unpack of three real files: mip chains and alpha slices included, run

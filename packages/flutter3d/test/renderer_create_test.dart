@@ -48,7 +48,8 @@ void main() {
 
     expect(renderer.fallbackAlbedo, isNotNull);
     expect(renderer.fallbackNormal, isNotNull);
-    expect(device.uploadedPixels.length, 2);
+    expect(renderer.fallbackBlack, isNotNull);
+    expect(device.uploadedPixels.length, 3);
     expect(device.uploadedPixels[0].buffer.asUint8List(), <int>[
       255,
       255,
@@ -63,6 +64,14 @@ void main() {
       255,
       255,
     ], reason: 'the default normal map is not flat');
+    // The lightmap is added, so the texture a material without one samples
+    // has to add nothing.
+    expect(device.uploadedPixels[2].buffer.asUint8List(), <int>[
+      0,
+      0,
+      0,
+      255,
+    ], reason: 'the default lightmap is not black');
   });
 
   test('and the ones it is given are the ones it uses', () {
@@ -82,9 +91,11 @@ void main() {
 
     expect(renderer.fallbackAlbedo, same(texel));
     expect(renderer.fallbackNormal, same(texel));
+    // One for the texel the test made, one for the black lightmap fallback,
+    // which nobody hands in.
     expect(
       device.uploadedPixels.length,
-      1,
+      2,
       reason: 'it uploaded a fallback it had been handed',
     );
   });

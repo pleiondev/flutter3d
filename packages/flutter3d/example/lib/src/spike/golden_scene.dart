@@ -34,7 +34,13 @@ final class GoldenScene {
     this.groundDrop = 0.0,
     this.sky = const SkySettings(),
     this.instances = 0,
+    this.lightmapped = false,
   });
+
+  /// Replaces the model with a floor and a wall lit by a hand-built lightmap
+  /// and nothing else, for the lightmapped vertex stage and the lit models'
+  /// lightmap term. See `GoldenExtras.lightmappedRoom`.
+  final bool lightmapped;
 
   /// Draws the source as a batch of this many copies instead of one model.
   ///

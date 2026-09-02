@@ -269,6 +269,149 @@ abstract final class GoldenExtras {
   /// spread, nothing else can differ.
   static ParticleSystem stackedParticles() => oneParticle(count: 8);
 
+  /// A floor and a wall whose only light is a lightmap.
+  ///
+  /// The atlas is arithmetic rather than a bake — a warm pool on the floor's
+  /// half, a cool fall-off up the wall's — so the picture depends on nothing
+  /// but the lightmapped vertex stage reading the colour as a coordinate,
+  /// the sampler decoding RGBM, and the lit model adding the result. The
+  /// baker is proved elsewhere, level by level against arithmetic; this is
+  /// the shader path, on every backend.
+  ///
+  /// Drawn with no lights at all, so what is in the frame is the map and the
+  /// flat ambient and nothing that could stand in for either.
+  static MeshNode lightmappedRoom(GraphicsDevice device) {
+    const width = 32;
+    const height = 16;
+    final pixels = Uint8List(width * height * 4);
+    for (var y = 0; y < height; y++) {
+      for (var x = 0; x < width; x++) {
+        final at = (y * width + x) * 4;
+        final (r, g, b) = x < width ~/ 2
+            ? _pool(x, y)
+            : _fall(x - width ~/ 2, y);
+        _rgbm(pixels, at, r, g, b);
+      }
+    }
+    final atlas = device.createTextureFromPixels(
+      width: width,
+      height: height,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(pixels),
+    )!;
+
+    // Two quads in the standard layout, the colour attribute carrying each
+    // corner's place in the atlas: the floor on the left half, the wall on
+    // the right.
+    const half = 1.2;
+    const tall = 1.6;
+    final vertices = Float32List.fromList(<double>[
+      // Floor, wound to face up.
+      ..._vertex(-half, 0.0, half, 0.0, 1.0, 0.0, 0.0, 1.0),
+      ..._vertex(half, 0.0, half, 0.0, 1.0, 0.0, 0.5, 1.0),
+      ..._vertex(half, 0.0, -half, 0.0, 1.0, 0.0, 0.5, 0.0),
+      ..._vertex(-half, 0.0, -half, 0.0, 1.0, 0.0, 0.0, 0.0),
+      // Wall at the back, wound to face the camera.
+      ..._vertex(-half, 0.0, -half, 0.0, 0.0, 1.0, 0.5, 1.0),
+      ..._vertex(half, 0.0, -half, 0.0, 0.0, 1.0, 1.0, 1.0),
+      ..._vertex(half, tall, -half, 0.0, 0.0, 1.0, 1.0, 0.0),
+      ..._vertex(-half, tall, -half, 0.0, 0.0, 1.0, 0.5, 0.0),
+    ]);
+    final indices = Uint32List.fromList(<int>[
+      0,
+      1,
+      2,
+      0,
+      2,
+      3,
+      4,
+      5,
+      6,
+      4,
+      6,
+      7,
+    ]);
+    final mesh = DeviceMesh.upload(
+      device,
+      MeshData(
+        layout: VertexLayout.standard,
+        vertices: vertices,
+        indices: indices,
+      ),
+    );
+    return MeshNode(
+      mesh,
+      Material(
+        name: 'lightmapped room',
+        baseColor: Vector4(0.82, 0.80, 0.76, 1.0),
+        roughness: 0.9,
+      )..lightmap = atlas,
+      name: 'lightmapped room',
+    )..lightmapped = true;
+  }
+
+  /// A warm pool of light centred on the floor's half of the atlas, three
+  /// units of irradiance at the middle and nothing at the rim.
+  static (double, double, double) _pool(int x, int y) {
+    final dx = (x + 0.5) / 8.0 - 1.0;
+    final dy = (y + 0.5) / 8.0 - 1.0;
+    final falloff = (1.0 - math.sqrt(dx * dx + dy * dy)).clamp(0.0, 1.0);
+    // Under one, so the pool reads as a pool after exposure and the tone
+    // curve rather than as a white square: the first recording of this scene
+    // at three was a room with no shading in it, which proves nothing.
+    final e = 0.9 * falloff * falloff;
+    return (e, e * 0.85, e * 0.6);
+  }
+
+  /// A cool glow along the bottom of the wall's half, fading up it.
+  static (double, double, double) _fall(int x, int y) {
+    final e = 0.7 * (1.0 - y / 15.0);
+    return (e * 0.6, e * 0.75, e);
+  }
+
+  /// RGBM at eight: the multiplier rounds up so the colour rounds down and
+  /// nothing clips, the same arithmetic `Lightmap.setIrradiance` uses.
+  static void _rgbm(Uint8List out, int at, double r, double g, double b) {
+    final brightest = math.max(r, math.max(g, b));
+    if (brightest <= 0.0) return;
+    final quantised = ((brightest / 8.0).clamp(0.0, 1.0) * 255.0).ceil();
+    final m = quantised / 255.0 * 8.0;
+    out[at] = (r / m * 255.0).round().clamp(0, 255);
+    out[at + 1] = (g / m * 255.0).round().clamp(0, 255);
+    out[at + 2] = (b / m * 255.0).round().clamp(0, 255);
+    out[at + 3] = quantised;
+  }
+
+  /// One standard-layout vertex: position, normal, a texture coordinate
+  /// nothing samples, a tangent, and the lightmap coordinate in the colour.
+  static List<double> _vertex(
+    double x,
+    double y,
+    double z,
+    double nx,
+    double ny,
+    double nz,
+    double lu,
+    double lv,
+  ) => <double>[
+    x,
+    y,
+    z,
+    nx,
+    ny,
+    nz,
+    0.0,
+    0.0,
+    1.0,
+    0.0,
+    0.0,
+    -1.0,
+    lu,
+    lv,
+    1.0,
+    1.0,
+  ];
+
   /// A stand-in for something held in the player's hands.
   ///
   /// A plain box rather than a weapon, because what is being tested is that

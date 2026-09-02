@@ -61,6 +61,10 @@ final class LoadedLevel {
   /// old ones first.
   List<DeviceMesh> brushMeshes;
 
+  /// The baked lightmap the brush batches sample, when the level came with
+  /// one that matched it. Uploaded by the loader, released by [dispose].
+  TextureHandle? lightmap;
+
   /// Gives the level's own uploads — brush meshes and material maps — back to
   /// [device].
   ///
@@ -77,5 +81,7 @@ final class LoadedLevel {
     for (final texture in materialTextures.values) {
       if (texture != null) device.releaseTexture(texture);
     }
+    final map = lightmap;
+    if (map != null) device.releaseTexture(map);
   }
 }

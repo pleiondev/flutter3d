@@ -8,14 +8,24 @@ import 'brush_surface.dart';
 /// [BrushSurface] passes through while its faces are being emitted, before it
 /// is frozen into typed arrays by [finish].
 final class SurfaceBuilder {
-  SurfaceBuilder(this.material, {required this.castsShadow});
+  SurfaceBuilder(
+    this.material, {
+    required this.castsShadow,
+    this.lightmapped = false,
+  });
 
   final String material;
   final bool castsShadow;
+
+  /// Whether the vertices carry a second texture coordinate into the
+  /// lightmap. See [BrushSurface.lightmapUvs].
+  final bool lightmapped;
+
   final List<double> _positions = <double>[];
   final List<double> _normals = <double>[];
   final List<double> _texcoords = <double>[];
   final List<double> _tangents = <double>[];
+  final List<double> _lightmapUvs = <double>[];
   final List<int> _indices = <int>[];
 
   int get vertexCount => _positions.length ~/ 3;
@@ -32,12 +42,15 @@ final class SurfaceBuilder {
     double ty,
     double tz,
     double u,
-    double v,
-  ) {
+    double v, {
+    double lightmapU = 0.0,
+    double lightmapV = 0.0,
+  }) {
     _positions.addAll(<double>[x, y, z]);
     _normals.addAll(<double>[nx, ny, nz]);
     _texcoords.addAll(<double>[u, v]);
     _tangents.addAll(<double>[tx, ty, tz, -1.0]);
+    if (lightmapped) _lightmapUvs.addAll(<double>[lightmapU, lightmapV]);
   }
 
   /// One triangle over three corners added in order.
@@ -64,6 +77,7 @@ final class SurfaceBuilder {
     normals: Float32List.fromList(_normals),
     texcoords: Float32List.fromList(_texcoords),
     tangents: Float32List.fromList(_tangents),
+    lightmapUvs: lightmapped ? Float32List.fromList(_lightmapUvs) : null,
     indices: Uint32List.fromList(_indices),
   );
 }

@@ -41,6 +41,7 @@ out vec3 v_normal;
 out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
+out vec2 v_lightmap_uv;
 
 void main() {
   // Columns from rows: GLSL matrices are column-major, so the constructor is
@@ -62,5 +63,6 @@ void main() {
   v_texcoord = texcoord;
   v_tangent = vec4(mat3(frame_info.model) * (rotation * tangent.xyz), tangent.w);
   v_color = color * i_color;
+  v_lightmap_uv = vec2(0.0);
   gl_Position = frame_info.mvp * local;
 }

@@ -1,6 +1,6 @@
 name: flutter3d_bridge
 description: "The binding between flutter3d and flutter3d_game: level geometry to mesh nodes, actors to visuals, weapons to view models."
-version: 0.4.0
+version: 0.4.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

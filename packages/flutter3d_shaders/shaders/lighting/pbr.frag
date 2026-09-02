@@ -117,6 +117,10 @@ void main() {
     ambient = (diffuseColor * irradiance + prefiltered * (f0 * ab.x + ab.y)) *
               frag_info.material.z * s.occlusion;
   }
+  // The light the level's walls throw on each other, baked: diffuse only,
+  // since a lightmap holds irradiance and a metal has no diffuse response.
+  // Zero from the one-texel black a material without a map is bound to.
+  ambient += diffuseColor * SampleLightmap() * s.occlusion;
 
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + s.emissive,

@@ -423,6 +423,16 @@ class _SpikePageState extends State<SpikePage>
   /// two agree and a stage reading the wrong float shows it. The model itself
   /// leaves the scene: the batch is the picture, not an addition to it.
   void _batchForGolden(ModelInstance instance) {
+    if (_golden?.scene.lightmapped ?? false) {
+      // The room is the picture; the model was only ever a way in. And the
+      // sun goes out: `GoldenScene.lights` toggles the three lamps and never
+      // the sun, which every other scene wants on, and a lightmap lit by a
+      // sun as well is a lightmap nobody can see.
+      instance.removeFromScene();
+      _sun.visible = false;
+      _modelPivot.add(GoldenExtras.lightmappedRoom(_device!));
+      return;
+    }
     final count = _golden?.scene.instances ?? 0;
     if (count <= 0 || instance.meshes.isEmpty) return;
     final first = instance.meshes.first;

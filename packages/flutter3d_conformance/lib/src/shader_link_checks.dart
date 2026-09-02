@@ -44,6 +44,8 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ('MeshInstancedVertex', 'Pbr'),
     ('MeshInstancedVertex', 'ShadowDepth'),
     ('MeshInstancedVertex', 'ShadowDistance'),
+    ('MeshLightmappedVertex', 'Pbr'),
+    ('MeshLightmappedVertex', 'Lambert'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('DebugLineVertex', 'DebugLine'),

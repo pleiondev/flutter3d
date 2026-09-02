@@ -19,9 +19,19 @@ final class BrushSurface {
     required this.texcoords,
     required this.tangents,
     required this.indices,
+    this.lightmapUvs,
   });
 
   final String material;
+
+  /// Two floats per vertex: where the vertex is in the level's lightmap.
+  ///
+  /// Null when the level has no lightmap, which keeps a batch built without
+  /// one byte-identical to what it always was. With one, every vertex has a
+  /// place — a ramp's triangles point at the atlas's reserved texel — so the
+  /// application can put these where its vertex layout keeps them without a
+  /// second decision per vertex.
+  final Float32List? lightmapUvs;
 
   /// Whether the mesh built from this takes part in the shadow pass.
   ///

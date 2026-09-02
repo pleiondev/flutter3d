@@ -57,12 +57,19 @@ extension _RendererResources on Renderer {
     LightingModel model, {
     required bool skinned,
     bool instanced = false,
+    bool lightmapped = false,
   }) {
     assert(!(skinned && instanced), 'a skinned batch is not a thing here');
+    assert(
+      !(lightmapped && (skinned || instanced)),
+      'a lightmap is baked onto a level, which is neither skinned nor batched',
+    );
     final key = instanced
         ? 'instanced/${model.shaderName}'
         : skinned
         ? 'skinned/${model.shaderName}'
+        : lightmapped
+        ? 'lightmapped/${model.shaderName}'
         : model.shaderName;
     return _pipelineCache.putIfAbsent(
       key,
@@ -73,7 +80,11 @@ extension _RendererResources on Renderer {
               layout: _kInstancedLayout,
             )
           : device.createPipeline(
-              skinned ? skinnedVertexShader : vertexShader,
+              skinned
+                  ? skinnedVertexShader
+                  : lightmapped
+                  ? lightmappedVertexShader
+                  : vertexShader,
               _fragmentShaderFor(model),
             ),
     );

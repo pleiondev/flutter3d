@@ -192,6 +192,21 @@ void applyOcclusionMap(
   s.occlusion = 1.0 + (occlusion - 1.0) * strength;
 }
 
+/// `SampleLightmap`: the baked irradiance at this fragment, RGBM-decoded as
+/// `rgb × a × 8`, or black when the slot holds the renderer's one-texel
+/// fallback — which is every material without a map.
+Vector3 sampleLightmap(Float32List v, ShaderBindings b, FragmentContext c) {
+  final map = b.textures['lightmap_texture'];
+  if (map == null) return Vector3.zero();
+  final texel = map.sample(v[kVLightmap], v[kVLightmap + 1]);
+  final multiplier = texel.w * 8.0;
+  return Vector3(
+    texel.x * multiplier,
+    texel.y * multiplier,
+    texel.z * multiplier,
+  );
+}
+
 void applyEmissiveMap(
   Surface s,
   Float32List v,

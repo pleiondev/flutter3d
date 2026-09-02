@@ -1,3 +1,11 @@
+## 0.4.1
+
+* **`MeshLightmappedVertex`**, a fourth vertex stage: the standard layout
+  with `color.xy` read as the vertex's place in a lightmap and the tint held
+  at white. Every mesh stage now carries a `v_lightmap_uv` varying, and the
+  lit models sample `lightmap_texture` (RGBM, `rgb × a × 8`) beside their
+  ambient. `kRequiredShaders` names the new stage.
+
 ## 0.4.0
 
 * No changes of its own; the version moves with the workspace, whose sibling

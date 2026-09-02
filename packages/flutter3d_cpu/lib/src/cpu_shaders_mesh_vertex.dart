@@ -47,6 +47,8 @@ final class MeshVertexShader implements CpuVertexShader {
     for (var i = 0; i < 4; i++) {
       out[kVColour + i] = a[kColour + i];
     }
+    out[kVLightmap] = 0.0;
+    out[kVLightmap + 1] = 0.0;
 
     // The tangent transforms with the model matrix, not the normal matrix: it
     // lies *in* the surface, so it stretches with the geometry rather than
@@ -60,6 +62,33 @@ final class MeshVertexShader implements CpuVertexShader {
     out[kVTangent + 3] = a[kTangent + 3];
 
     return mvp * local;
+  }
+}
+
+/// `mesh_lightmapped.vert`: the mesh stage reading its colour as a place in
+/// the level's lightmap.
+///
+/// Everything `mesh.vert` does, then the colour handed on as the coordinate
+/// and the tint held at white — which is exactly what the GLSL does, and
+/// reusing the plain stage keeps the two from drifting on the arithmetic
+/// they share.
+final class MeshLightmappedVertexShader implements CpuVertexShader {
+  const MeshLightmappedVertexShader();
+
+  static const MeshVertexShader _plain = MeshVertexShader();
+
+  @override
+  int get varyingCount => kMeshVaryings;
+
+  @override
+  Vector4 run(Float32List a, ShaderBindings bindings, Float32List out) {
+    final clip = _plain.run(a, bindings, out);
+    out[kVLightmap] = a[kColour];
+    out[kVLightmap + 1] = a[kColour + 1];
+    for (var i = 0; i < 4; i++) {
+      out[kVColour + i] = 1.0;
+    }
+    return clip;
   }
 }
 
@@ -134,6 +163,8 @@ final class MeshInstancedVertexShader implements CpuVertexShader {
     for (var i = 0; i < 4; i++) {
       out[kVColour + i] = a[kColour + i] * a[_colour + i];
     }
+    out[kVLightmap] = 0.0;
+    out[kVLightmap + 1] = 0.0;
 
     final Vector3 t =
         model.getRotation() *
@@ -214,6 +245,8 @@ final class MeshSkinnedVertexShader implements CpuVertexShader {
     for (var i = 0; i < 4; i++) {
       out[kVColour + i] = a[kColour + i];
     }
+    out[kVLightmap] = 0.0;
+    out[kVLightmap + 1] = 0.0;
 
     final Vector3 t =
         model.getRotation() *

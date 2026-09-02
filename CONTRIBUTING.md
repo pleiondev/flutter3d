@@ -43,7 +43,7 @@ number should be.
 
 ## Architecture is checked by scans, not by review
 
-`dart run tool/structure.dart` holds twenty-two rules about how the repository is
+`dart run tool/structure.dart` holds twenty-three rules about how the repository is
 arranged — that a genre package names no other genre, that the hardware layer
 names no graphics API, that the engine names no backend, that a simulation step
 reaches for no clock and no loose dice. It runs first in CI and takes under a

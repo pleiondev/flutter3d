@@ -1,3 +1,11 @@
+## 0.4.1
+
+* **`Hunter`**, an enemy that comes after the player across the gaps: it
+  follows the level's flow field and jumps where the field says the next
+  step is a jump, on a grid baked with the enemies' `JumpReach`. `kind:
+  hunter` in a level's `enemy` entity, with `sight` and `patience`; it
+  needs no route.
+
 ## 0.4.0
 
 * No changes of its own; the version moves with the workspace, whose sibling

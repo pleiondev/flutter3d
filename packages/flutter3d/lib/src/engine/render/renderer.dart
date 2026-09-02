@@ -69,6 +69,7 @@ const String _kNormalTextureSlot = 'normal_texture';
 const String _kMetallicRoughnessTextureSlot = 'metallic_roughness_texture';
 const String _kOcclusionTextureSlot = 'occlusion_texture';
 const String _kEmissiveTextureSlot = 'emissive_texture';
+const String _kLightmapTextureSlot = 'lightmap_texture';
 const String _kEnvironmentTextureSlot = 'environment_texture';
 const String _kShadowTextureSlot = 'shadow_texture';
 const String _kPostSourceSlot = 'source_texture';
@@ -97,6 +98,7 @@ final class Renderer implements RenderServices {
     required this.vertexShader,
     required this.skinnedVertexShader,
     required this.instancedVertexShader,
+    required this.lightmappedVertexShader,
     required this.debugLineVertexShader,
     required this.debugLineFragmentShader,
     required this.fullscreenVertexShader,
@@ -108,6 +110,7 @@ final class Renderer implements RenderServices {
     required this.ssaoShader,
     required TextureHandle fallbackAlbedo,
     required TextureHandle fallbackNormal,
+    required TextureHandle fallbackBlack,
     required this.msaaEnabled,
   }) : targetPool = RenderTargetPool(device),
        // `prefer_initializing_formals` wants `this._fallbackAlbedo` here and
@@ -119,7 +122,9 @@ final class Renderer implements RenderServices {
        // ignore: prefer_initializing_formals
        _fallbackAlbedo = fallbackAlbedo,
        // ignore: prefer_initializing_formals
-       _fallbackNormal = fallbackNormal;
+       _fallbackNormal = fallbackNormal,
+       // ignore: prefer_initializing_formals
+       _fallbackBlack = fallbackBlack;
 
   /// The backend, injected rather than reached for.
   ///
@@ -174,6 +179,12 @@ final class Renderer implements RenderServices {
   /// shadow passes draw from it unchanged — see `mesh_instanced.vert`.
   final ShaderHandle instancedVertexShader;
 
+  /// The lightmapped vertex stage: the standard layout with the colour read
+  /// as the vertex's place in the level's lightmap and the tint held at
+  /// white. The same varyings as [vertexShader] plus the coordinate, which
+  /// the other three stages leave at zero — see `mesh_lightmapped.vert`.
+  final ShaderHandle lightmappedVertexShader;
+
   /// The debug overlay's own stage pair. Separate from the mesh shaders because
   /// the line buffer has a different vertex layout, and a backend takes the
   /// layout from the shader's `in` declarations.
@@ -217,6 +228,15 @@ final class Renderer implements RenderServices {
   TextureHandle get fallbackNormal =>
       _fallbackNormal ?? (throw StateError(_kDisposedMessage));
   TextureHandle? _fallbackNormal;
+
+  /// 1x1 black, bound to the lightmap slot of a material without a map: the
+  /// map is added, so black is the neutral that adds nothing.
+  ///
+  /// See [fallbackAlbedo] for why this is a throwing getter over a nullable
+  /// field rather than a plain final one.
+  TextureHandle get fallbackBlack =>
+      _fallbackBlack ?? (throw StateError(_kDisposedMessage));
+  TextureHandle? _fallbackBlack;
 
   /// A one-texel black cube, bound when a scene has no environment.
   ///
@@ -344,6 +364,7 @@ final class Renderer implements RenderServices {
     for (final texture in <TextureHandle?>[
       _fallbackAlbedo,
       _fallbackNormal,
+      _fallbackBlack,
       _fallbackEnvironment,
       _shadowMap,
       _cubeShadow,
@@ -353,6 +374,7 @@ final class Renderer implements RenderServices {
     }
     _fallbackAlbedo = null;
     _fallbackNormal = null;
+    _fallbackBlack = null;
     _fallbackEnvironment = null;
     _shadowMap = null;
     _cubeShadow = null;
@@ -657,6 +679,7 @@ final class Renderer implements RenderServices {
       vertexShader: require('MeshVertex'),
       skinnedVertexShader: require('MeshSkinnedVertex'),
       instancedVertexShader: require('MeshInstancedVertex'),
+      lightmappedVertexShader: require('MeshLightmappedVertex'),
       debugLineVertexShader: require('DebugLineVertex'),
       debugLineFragmentShader: require('DebugLine'),
       fullscreenVertexShader: require('FullscreenVertex'),
@@ -669,6 +692,9 @@ final class Renderer implements RenderServices {
       fallbackAlbedo: fallbackAlbedo ?? SolidColorTexture.white.upload(device),
       fallbackNormal:
           fallbackNormal ?? SolidColorTexture.flatNormal.upload(device),
+      fallbackBlack: SolidColorTexture(
+        vm.Vector4(0.0, 0.0, 0.0, 1.0),
+      ).upload(device),
       msaaEnabled: device.supportsOffscreenMsaa,
     ).._shaders = library;
   }

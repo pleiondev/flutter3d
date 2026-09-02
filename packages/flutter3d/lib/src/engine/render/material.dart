@@ -127,6 +127,15 @@ final class Material {
   TextureHandle? emissiveTexture;
   SamplerOptions? emissiveSampler;
 
+  /// The level's baked lightmap, sampled at the vertex's second coordinate.
+  ///
+  /// Only a mesh drawn with `MeshNode.lightmapped` has a second coordinate
+  /// to sample at; a material with a map on a mesh without one samples the
+  /// map's corner. Null binds a one-texel black, which adds nothing, so every
+  /// lit model samples the slot and nothing branches.
+  TextureHandle? lightmap;
+  SamplerOptions? lightmapSampler;
+
   /// Linear emissive factor, multiplied by the emissive map. Black by default,
   /// so a material with a map but no factor emits nothing — which is what glTF
   /// specifies.
@@ -194,33 +203,36 @@ final class Material {
   /// Textures are shared on purpose: they are device handles, and two materials
   /// pointing at one uploaded image is the arrangement everything downstream
   /// already assumes.
-  Material copy() => Material(
-    name: name,
-    lighting: lighting,
-    baseColor: baseColor.clone(),
-    metallic: metallic,
-    roughness: roughness,
-    albedo: albedo,
-    albedoSampler: albedoSampler,
-    normal: normal,
-    normalSampler: normalSampler,
-    normalScale: normalScale,
-    metallicRoughness: metallicRoughness,
-    metallicRoughnessSampler: metallicRoughnessSampler,
-    occlusion: occlusion,
-    occlusionSampler: occlusionSampler,
-    occlusionStrength: occlusionStrength,
-    emissiveTexture: emissiveTexture,
-    emissiveSampler: emissiveSampler,
-    emissive: emissive.clone(),
-    emissiveStrength: emissiveStrength,
-    alphaMode: alphaMode,
-    alphaCutoff: alphaCutoff,
-    doubleSided: doubleSided,
-    drawBucket: drawBucket,
-    depthWrite: depthWrite,
-    depthCompare: depthCompare,
-  );
+  Material copy() =>
+      Material(
+          name: name,
+          lighting: lighting,
+          baseColor: baseColor.clone(),
+          metallic: metallic,
+          roughness: roughness,
+          albedo: albedo,
+          albedoSampler: albedoSampler,
+          normal: normal,
+          normalSampler: normalSampler,
+          normalScale: normalScale,
+          metallicRoughness: metallicRoughness,
+          metallicRoughnessSampler: metallicRoughnessSampler,
+          occlusion: occlusion,
+          occlusionSampler: occlusionSampler,
+          occlusionStrength: occlusionStrength,
+          emissiveTexture: emissiveTexture,
+          emissiveSampler: emissiveSampler,
+          emissive: emissive.clone(),
+          emissiveStrength: emissiveStrength,
+          alphaMode: alphaMode,
+          alphaCutoff: alphaCutoff,
+          doubleSided: doubleSided,
+          drawBucket: drawBucket,
+          depthWrite: depthWrite,
+          depthCompare: depthCompare,
+        )
+        ..lightmap = lightmap
+        ..lightmapSampler = lightmapSampler;
 }
 
 /// Assigns small dense integers to materials for use as a sort key.

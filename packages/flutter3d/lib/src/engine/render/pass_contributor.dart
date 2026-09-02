@@ -29,6 +29,7 @@ final class FramePassState {
   LightingModel? boundPipeline;
   bool? boundSkinned;
   bool? boundInstanced;
+  bool? boundLightmapped;
 
   /// The depth test the pass is currently set to.
   ///
@@ -54,6 +55,7 @@ final class FramePassState {
     boundPipeline = null;
     boundSkinned = null;
     boundInstanced = null;
+    boundLightmapped = null;
   }
 }
 

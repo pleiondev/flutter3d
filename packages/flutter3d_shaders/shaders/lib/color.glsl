@@ -25,6 +25,11 @@ in vec2 v_texcoord;
 in vec4 v_tangent;
 in vec4 v_color;
 
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
 out vec4 frag_color;
 
 // The second attachment: what a screen-space effect needs to know about the

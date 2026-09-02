@@ -29,7 +29,7 @@ void main() {
   // Roughness drives the Phong exponent, so the ORM map does reach the
   // output here.
   ApplyMetallicRoughnessMap(s);
-  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + s.emissive,
       s.alpha,

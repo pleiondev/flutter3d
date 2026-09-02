@@ -179,6 +179,24 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     instances: 25,
   ),
 
+  // A floor and a wall lit by nothing but a hand-built lightmap: the
+  // lightmapped vertex stage reading the colour as a coordinate, RGBM
+  // decoded, and the lit model adding it. No lights, so nothing else can
+  // put light where the map does not. See GoldenExtras.lightmappedRoom.
+  const GoldenScene(
+    name: 'lightmapped-room',
+    source: 'Cube',
+    // A name no light has, which is how this set says "none": an empty set
+    // means "the default", and the default is every lamp in the demo on.
+    lights: <String>{'none'},
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.3,
+    pitch: 0.45,
+    lightmapped: true,
+  ),
+
   // Eight quads stacked at one point: addition alone. See stackedParticles.
   const GoldenScene(
     name: 'particle-stack',

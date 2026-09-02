@@ -31,6 +31,19 @@ uniform sampler2D occlusion_texture;
 /// factor defaults to black, so a material with neither emits nothing.
 uniform sampler2D emissive_texture;
 
+/// The level's baked lightmap, RGBM: colour over a shared multiplier, decoded
+/// as `rgb × a × 8`. Sampled at the second coordinate, which every vertex
+/// stage but the lightmapped one leaves at the atlas corner; neutral is
+/// black, so a material without a map adds nothing.
+uniform sampler2D lightmap_texture;
+
+/// The irradiance the lightmap holds at this fragment, in the units a light's
+/// `colour × intensity × attenuation × cos` arrives in.
+vec3 SampleLightmap() {
+  vec4 texel = texture(lightmap_texture, v_lightmap_uv);
+  return texel.rgb * texel.a * 8.0;
+}
+
 /// One function per map, rather than one that applies all four.
 ///
 /// Not a style choice. The compiler drops a sampler whose result never reaches

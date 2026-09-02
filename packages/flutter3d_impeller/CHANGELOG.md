@@ -1,5 +1,7 @@
 ## 0.4.4
 
+* The bundle gains `MeshLightmappedVertex` and every lit stage binds a
+  lightmap; `lightmapped-room` joins the golden set.
 * **Block-compressed textures upload, and the device is asked first.**
   `createTextureFromPixels` stops requesting render-target usage for a
   compressed format, which flutter_gpu refuses before the allocation, and

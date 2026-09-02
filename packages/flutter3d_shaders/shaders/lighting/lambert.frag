@@ -21,7 +21,7 @@ void main() {
   // No ORM map: a purely diffuse model has no response to metallic or
   // roughness, so sampling it would leave a slot the compiler then drops.
   ApplyCommonMaps(s);
-  vec3 ambient = s.albedo * s.ambient * s.occlusion;
+  vec3 ambient = s.albedo * (s.ambient + SampleLightmap()) * s.occlusion;
   WriteSurface(
       AccumulateLights(s) * s.occlusion + ambient + s.emissive,
       s.alpha,

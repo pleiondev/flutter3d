@@ -145,6 +145,77 @@ void main() {
       expect(loaded.drawCallCount, greaterThan(0));
     },
   );
+
+  group('a lightmap', () {
+    test('goes onto every brush batch as a second coordinate', () async {
+      final level = _level();
+      final map = const LightmapBaker(
+        texelsPerMetre: 1.0,
+        bounces: 0,
+        includeDirect: true,
+      ).bake(level);
+
+      final loaded = await const LevelLoader().build(
+        level,
+        device: device,
+        registry: registry,
+        lightmap: map,
+      );
+
+      expect(loaded.issues, isEmpty);
+      expect(loaded.lightmap, isNotNull);
+      expect(loaded.brushNodes, isNotEmpty);
+      for (final node in loaded.brushNodes) {
+        expect(node.lightmapped, isTrue);
+        expect(node.material.lightmap, same(loaded.lightmap));
+      }
+    });
+
+    test('baked from other walls is refused with a word', () async {
+      final level = _level();
+      final map = Lightmap(
+        width: 64,
+        height: 64,
+        texelsPerMetre: 1.0,
+        levelHash: 0,
+      );
+
+      final loaded = await const LevelLoader().build(
+        level,
+        device: device,
+        registry: registry,
+        lightmap: map,
+      );
+
+      expect(loaded.lightmap, isNull);
+      expect(loaded.issues, hasLength(1));
+      expect(loaded.issues.single.message, contains('bake_lightmap'));
+      expect(loaded.brushNodes.every((n) => !n.lightmapped), isTrue);
+    });
+
+    test('is looked for beside the document', () async {
+      final asked = <String>[];
+      final loaded = await const LevelLoader().load(
+        'levels/wall.level.json',
+        device: device,
+        registry: registry,
+        readDocument: (String path) async {
+          if (path != 'levels/wall.level.json') {
+            throw StateError('no such document: $path');
+          }
+          return jsonEncode(_levelJson());
+        },
+        readAsset: (String path) async {
+          asked.add(path);
+          throw StateError('no such asset: $path');
+        },
+      );
+
+      expect(asked, contains('levels/wall.level.lightmap.bin'));
+      expect(loaded.lightmap, isNull);
+      expect(loaded.issues, isEmpty, reason: 'a missing map is not an issue');
+    });
+  });
 }
 
 /// One opaque white pixel, as a PNG.

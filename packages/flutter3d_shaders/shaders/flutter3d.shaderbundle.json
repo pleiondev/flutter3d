@@ -71,6 +71,10 @@
     "type": "vertex",
     "file": "shaders/mesh_instanced.vert"
   },
+  "MeshLightmappedVertex": {
+    "type": "vertex",
+    "file": "shaders/mesh_lightmapped.vert"
+  },
   "ParticleVertex": {
     "type": "vertex",
     "file": "shaders/particle.vert"

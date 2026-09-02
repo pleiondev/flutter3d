@@ -7,13 +7,27 @@ import 'brush_index.dart';
 import 'brush_surface.dart';
 import 'level.dart';
 import 'level_visibility.dart';
+import 'lightmap_layout.dart';
 import 'surface_builder.dart';
 
 export 'brush_surface.dart';
 
-/// Chooses the surface a face goes into, by where the face is.
-typedef _BuilderFor =
-    SurfaceBuilder Function(Brush brush, double x, double y, double z);
+/// One visible block face: whose it is, which of the six, and its frame —
+/// the centre, the outward normal, the two axes across it and the half
+/// extents along them. What the geometry emits a quad from and what the
+/// lightmap plans a rectangle for, so the two agree about every face.
+typedef BrushFace = ({
+  int brush,
+  int face,
+  Vector3 normal,
+  Vector3 u,
+  Vector3 v,
+  double centreX,
+  double centreY,
+  double centreZ,
+  double halfU,
+  double halfV,
+});
 
 /// Turns a level's brushes into drawable triangles.
 ///
@@ -50,7 +64,7 @@ final class BrushGeometry {
   /// is culled as a back face, which looks like a hole rather than like a
   /// winding error.
   static final List<(Vector3, Vector3, Vector3)>
-  _faces = <(Vector3, Vector3, Vector3)>[
+  faceAxes = <(Vector3, Vector3, Vector3)>[
     (Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0), Vector3(0.0, 1.0, 0.0)),
     (Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 0.0, 1.0), Vector3(0.0, 1.0, 0.0)),
     (Vector3(0.0, 1.0, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(0.0, 0.0, -1.0)),
@@ -70,9 +84,16 @@ final class BrushGeometry {
   /// per material per cell rather than per material — which is the price of
   /// having something to skip. Without a table the batching is what it was,
   /// which keeps every recorded picture where it is.
-  List<BrushSurface> build(Level level, {LevelVisibility? visibility}) {
+  ///
+  /// With [lightmap], every vertex also carries its second texture
+  /// coordinate — the face's place in the atlas — and [BrushSurface.lightmapUvs]
+  /// is filled; without one it is null and the batches are what they were.
+  List<BrushSurface> build(
+    Level level, {
+    LevelVisibility? visibility,
+    LightmapLayout? lightmap,
+  }) {
     final builders = <String, SurfaceBuilder>{};
-    final index = BrushIndex(level, cellSize);
 
     // Keyed by material and by the shadow answer, because a batch is the
     // smallest thing that can be taken out of the shadow pass — and by the
@@ -83,13 +104,34 @@ final class BrushGeometry {
       final key = '${brush.material}|${brush.castsShadow ? 1 : 0}|$slot';
       return builders.putIfAbsent(
         key,
-        () => SurfaceBuilder(brush.material, castsShadow: brush.castsShadow),
+        () => SurfaceBuilder(
+          brush.material,
+          castsShadow: brush.castsShadow,
+          lightmapped: lightmap != null,
+        ),
       );
     }
 
+    for (final face in blockFaces(level)) {
+      final brush = level.brushes[face.brush];
+      _emitFace(
+        face,
+        level.materialFor(brush),
+        builderFor(brush, face.centreX, face.centreY, face.centreZ),
+        lightmap,
+      );
+    }
     for (final brush in level.brushes) {
-      final material = level.materialFor(brush);
-      _emitBrush(brush, material, index, builderFor);
+      final ramp = brush.ramp;
+      if (ramp == null) continue;
+      final centre = brush.centre;
+      _emitRamp(
+        brush,
+        ramp,
+        level.materialFor(brush),
+        builderFor(brush, centre.x, centre.y, centre.z),
+        lightmap,
+      );
     }
 
     return <BrushSurface>[
@@ -98,83 +140,106 @@ final class BrushGeometry {
     ];
   }
 
-  void _emitBrush(
-    Brush brush,
-    LevelMaterial material,
-    BrushIndex index,
-    _BuilderFor builderFor,
-  ) {
-    final half = brush.halfExtents;
-    final scale = material.texelsPerMetre;
-    final ramp = brush.ramp;
-
-    for (final (normal, u, v) in _faces) {
-      // A ramp keeps two of the block's six faces — the floor and the wall at
-      // the top of the climb — loses the one at the thin end entirely, and
-      // trades the other three for a slope and two triangles.
-      if (ramp != null && !_rampKeeps(ramp, normal)) continue;
-      // Distance from the centre to this face, along its own normal.
-      final offset =
-          normal.x.abs() * half.x +
-          normal.y.abs() * half.y +
-          normal.z.abs() * half.z;
-
-      final centreX = brush.centre.x + normal.x * offset;
-      final centreY = brush.centre.y + normal.y * offset;
-      final centreZ = brush.centre.z + normal.z * offset;
-
-      if (cullHiddenFaces &&
-          index.containsPoint(centreX, centreY, centreZ, brush)) {
-        continue;
-      }
-
-      // Half the face, measured along its own two axes.
-      final halfU =
-          u.x.abs() * half.x + u.y.abs() * half.y + u.z.abs() * half.z;
-      final halfV =
-          v.x.abs() * half.x + v.y.abs() * half.y + v.z.abs() * half.z;
-
-      final out = builderFor(brush, centreX, centreY, centreZ);
-      final first = out.vertexCount;
-      for (final (su, sv) in const <(double, double)>[
-        (-1.0, -1.0),
-        (1.0, -1.0),
-        (1.0, 1.0),
-        (-1.0, 1.0),
-      ]) {
-        final x = centreX + u.x * halfU * su + v.x * halfV * sv;
-        final y = centreY + u.y * halfU * su + v.y * halfV * sv;
-        final z = centreZ + u.z * halfU * su + v.z * halfV * sv;
-
-        out.addVertex(
-          x,
-          y,
-          z,
-          normal.x,
-          normal.y,
-          normal.z,
-          u.x,
-          u.y,
-          u.z,
-          // World position projected onto the face's axes: continuous across
-          // the seam between two brushes, and independent of face size.
-          (x * u.x + y * u.y + z * u.z) * scale,
-          (x * v.x + y * v.y + z * v.z) * scale,
+  /// Every block face the level draws, in brush order and then face order.
+  ///
+  /// The same rules [build] draws by — a ramp keeps two of its six, a face
+  /// whose centre is inside another solid brush is not there — stated once,
+  /// so the lightmap's planner and the geometry cannot disagree about which
+  /// faces exist.
+  Iterable<BrushFace> blockFaces(Level level) sync* {
+    final index = BrushIndex(level, cellSize);
+    for (var b = 0; b < level.brushes.length; b++) {
+      final brush = level.brushes[b];
+      final half = brush.halfExtents;
+      final ramp = brush.ramp;
+      for (var f = 0; f < faceAxes.length; f++) {
+        final (normal, u, v) = faceAxes[f];
+        // A ramp keeps two of the block's six faces — the floor and the wall
+        // at the top of the climb — loses the one at the thin end entirely,
+        // and trades the other three for a slope and two triangles.
+        if (ramp != null && !rampKeeps(ramp, normal)) continue;
+        // Distance from the centre to this face, along its own normal.
+        final offset =
+            normal.x.abs() * half.x +
+            normal.y.abs() * half.y +
+            normal.z.abs() * half.z;
+        final centreX = brush.centre.x + normal.x * offset;
+        final centreY = brush.centre.y + normal.y * offset;
+        final centreZ = brush.centre.z + normal.z * offset;
+        if (cullHiddenFaces &&
+            index.containsPoint(centreX, centreY, centreZ, brush)) {
+          continue;
+        }
+        yield (
+          brush: b,
+          face: f,
+          normal: normal,
+          u: u,
+          v: v,
+          centreX: centreX,
+          centreY: centreY,
+          centreZ: centreZ,
+          // Half the face, measured along its own two axes.
+          halfU: u.x.abs() * half.x + u.y.abs() * half.y + u.z.abs() * half.z,
+          halfV: v.x.abs() * half.x + v.y.abs() * half.y + v.z.abs() * half.z,
         );
       }
-
-      out.addQuad(first);
     }
+  }
 
-    if (ramp != null) {
-      final centre = brush.centre;
-      _emitRamp(
-        brush,
-        ramp,
-        material,
-        builderFor(brush, centre.x, centre.y, centre.z),
+  void _emitFace(
+    BrushFace face,
+    LevelMaterial material,
+    SurfaceBuilder out,
+    LightmapLayout? lightmap,
+  ) {
+    final scale = material.texelsPerMetre;
+    final normal = face.normal;
+    final u = face.u;
+    final v = face.v;
+    final centreX = face.centreX;
+    final centreY = face.centreY;
+    final centreZ = face.centreZ;
+    final halfU = face.halfU;
+    final halfV = face.halfV;
+    final placed = lightmap?.faceOf(face.brush, face.face);
+
+    final first = out.vertexCount;
+    for (final (su, sv) in const <(double, double)>[
+      (-1.0, -1.0),
+      (1.0, -1.0),
+      (1.0, 1.0),
+      (-1.0, 1.0),
+    ]) {
+      final x = centreX + u.x * halfU * su + v.x * halfV * sv;
+      final y = centreY + u.y * halfU * su + v.y * halfV * sv;
+      final z = centreZ + u.z * halfU * su + v.z * halfV * sv;
+      final (lu, lv) = switch ((lightmap, placed)) {
+        (final layout?, final at?) => layout.uvAt(at, su, sv),
+        (final layout?, null) => layout.neutralUv,
+        _ => (0.0, 0.0),
+      };
+
+      out.addVertex(
+        x,
+        y,
+        z,
+        normal.x,
+        normal.y,
+        normal.z,
+        u.x,
+        u.y,
+        u.z,
+        // World position projected onto the face's axes: continuous across
+        // the seam between two brushes, and independent of face size.
+        (x * u.x + y * u.y + z * u.z) * scale,
+        (x * v.x + y * v.y + z * v.z) * scale,
+        lightmapU: lu,
+        lightmapV: lv,
       );
     }
+
+    out.addQuad(first);
   }
 
   /// Whether a ramp keeps the block face pointing along [normal].
@@ -182,23 +247,28 @@ final class BrushGeometry {
   /// Two of the six: the floor, and the wall at the top of the climb. The face
   /// at the thin end is gone entirely — that is the corner being cut — and the
   /// two sides and the top are replaced by triangles and a slope.
-  static bool _rampKeeps(WedgeUphill uphill, Vector3 normal) {
+  static bool rampKeeps(WedgeUphill uphill, Vector3 normal) {
     if (normal.y != 0.0) return normal.y < 0.0;
     return normal.x == uphill.x && normal.z == uphill.z;
   }
 
   /// The slope and the two triangles under it.
+  ///
+  /// None of them is planned in a lightmap — a wedge is not a box face — so
+  /// with a layout their vertices point at its reserved texel.
   void _emitRamp(
     Brush brush,
     WedgeUphill uphill,
     LevelMaterial material,
     SurfaceBuilder out,
+    LightmapLayout? lightmap,
   ) {
     final half = brush.halfExtents;
     final centre = brush.centre;
     final scale = material.texelsPerMetre;
     final axis = uphill.axis;
     final side = axis == 0 ? 2 : 0;
+    final (lightmapU, lightmapV) = lightmap?.neutralUv ?? (0.0, 0.0);
 
     // The slope is a rectangle centred on the brush's own centre, because the
     // cut runs corner to corner. Its two axes are the side of the brush and the
@@ -232,6 +302,8 @@ final class BrushGeometry {
         u.z,
         (x * u.x + y * u.y + z * u.z) * scale,
         (x * v.x + y * v.y + z * v.z) * scale,
+        lightmapU: lightmapU,
+        lightmapV: lightmapV,
       );
     }
     out.addQuad(first);
@@ -280,6 +352,8 @@ final class BrushGeometry {
           faceU.z,
           corner.dot(faceU) * scale,
           corner.dot(faceV) * scale,
+          lightmapU: lightmapU,
+          lightmapV: lightmapV,
         );
       }
       out.addTriangle(base);

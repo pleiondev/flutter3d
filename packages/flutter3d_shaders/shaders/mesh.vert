@@ -35,6 +35,7 @@ out vec3 v_normal;
 out vec2 v_texcoord;
 out vec4 v_tangent;
 out vec4 v_color;
+out vec2 v_lightmap_uv;
 
 void main() {
   vec4 world = frame_info.model * vec4(position, 1.0);
@@ -48,6 +49,7 @@ void main() {
   // TBN that is subtly wrong under non-uniform scale.
   v_tangent = vec4(mat3(frame_info.model) * tangent.xyz, tangent.w);
   v_color = color;
+  v_lightmap_uv = vec2(0.0);
 
   gl_Position = frame_info.mvp * vec4(position, 1.0);
 }
