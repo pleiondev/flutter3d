@@ -191,7 +191,11 @@ extension _PickPass on Renderer {
         pass.bindVertexBuffer(mesh.vertices, mesh.vertexCount);
         pass.bindIndexBuffer(mesh.indices, mesh.indexType, mesh.indexCount);
         if (instanced != null) {
-          pass.bindVertexData(instanced.instanceBytes, instanced.count, slot: 1);
+          pass.bindVertexData(
+            instanced.instanceBytes,
+            instanced.count,
+            slot: 1,
+          );
         }
 
         final stage = batched

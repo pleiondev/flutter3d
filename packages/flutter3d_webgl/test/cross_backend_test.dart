@@ -114,6 +114,12 @@ const Map<String, double> _budgets = <String, double>{
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
   'lightmapped-room': 0.15,
+  // Provisional; recorded at merge. The teapot on its floor, exposed by the
+  // frame: `golden_web.sh` holds a port for the whole of its run, so this
+  // backend's reference is recorded when the branch lands rather than beside
+  // it, and the budget is set where a first recording of a lit scene has
+  // always landed until the measurement replaces it.
+  'auto-exposure': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,

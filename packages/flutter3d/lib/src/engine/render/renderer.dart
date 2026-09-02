@@ -2089,10 +2089,9 @@ final class Renderer implements RenderServices {
       ..reset()
       ..start();
     if (settings.autoExposure.enabled) {
-      (_autoExposure ??= ExposureAdapter(initial: settings.exposure)).step(
-        dt,
-        settings.autoExposure,
-      );
+      (_autoExposure ??= ExposureAdapter(
+        initial: settings.exposure,
+      )).step(dt, settings.autoExposure);
     }
     _lastExposure = _exposureFor(settings);
 

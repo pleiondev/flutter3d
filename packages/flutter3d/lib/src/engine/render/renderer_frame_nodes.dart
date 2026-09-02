@@ -762,9 +762,7 @@ final class _ObjectIdNode extends RenderNode {
   bool get isActive => picks.isNotEmpty;
 
   @override
-  List<ResourceId> get writes => const <ResourceId>[
-    FrameResourceIds.objectIds,
-  ];
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.objectIds];
 
   @override
   void execute(NodeFrame frame) {

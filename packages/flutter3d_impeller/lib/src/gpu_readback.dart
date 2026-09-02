@@ -46,7 +46,8 @@ final class GpuReadback {
 
   /// Staging textures nothing is copying into or reading from, by size and
   /// format.
-  final Map<String, List<TextureHandle>> _idle = <String, List<TextureHandle>>{};
+  final Map<String, List<TextureHandle>> _idle =
+      <String, List<TextureHandle>>{};
 
   /// How many staging textures exist, in the pool or in flight. Diagnostic:
   /// a number that climbs is a caller asking faster than the queue answers.
@@ -76,7 +77,9 @@ final class GpuReadback {
           onRejectedSubmission();
           _give(staging);
           completer.completeError(
-            StateError('the GPU refused the command buffer carrying a readback'),
+            StateError(
+              'the GPU refused the command buffer carrying a readback',
+            ),
           );
           return;
         }

@@ -96,12 +96,16 @@ void main() {
 
     final pass = idPasses().single;
     expect(pass.submitted, isTrue);
+    expect(pass.color.clearValue?.storage, <double>[
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+    ], reason: 'zero is the id nothing has');
     expect(
-      pass.color.clearValue?.storage,
-      <double>[0.0, 0.0, 0.0, 0.0],
-      reason: 'zero is the id nothing has',
+      pass.descriptor.depth!.texture.storageMode,
+      StorageMode.deviceTransient,
     );
-    expect(pass.descriptor.depth!.texture.storageMode, StorageMode.deviceTransient);
     expect(
       pass.recordedOf<RecordedBlend>().map((RecordedBlend b) => b.state),
       everyElement(isNull),
@@ -129,7 +133,12 @@ void main() {
     expect(identical(readback.texture, pass.color.texture), isTrue);
     expect(
       readback.region,
-      const ScreenRect(x: _width * 3 ~/ 4, y: _height ~/ 2, width: 1, height: 1),
+      const ScreenRect(
+        x: _width * 3 ~/ 4,
+        y: _height ~/ 2,
+        width: 1,
+        height: 1,
+      ),
     );
 
     // The fake answers zeros, which is the clear: nothing there.
@@ -176,9 +185,12 @@ void main() {
     expect(device.readbacks, hasLength(2));
   });
 
-  test('a question asked of a renderer that is disposed is answered null', () async {
-    final asked = renderer.pickPixel(0.5, 0.5);
-    renderer.dispose();
-    expect(await asked, isNull);
-  });
+  test(
+    'a question asked of a renderer that is disposed is answered null',
+    () async {
+      final asked = renderer.pickPixel(0.5, 0.5);
+      renderer.dispose();
+      expect(await asked, isNull);
+    },
+  );
 }

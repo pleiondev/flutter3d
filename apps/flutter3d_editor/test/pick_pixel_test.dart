@@ -75,10 +75,7 @@ String _document() => jsonEncode(<String, Object?>{
   final Vector4 clip =
       camera.viewProjection(_width / _height) *
       Vector4(point.x, point.y, point.z, 1.0);
-  return (
-    u: (clip.x / clip.w + 1.0) / 2.0,
-    v: (1.0 - clip.y / clip.w) / 2.0,
-  );
+  return (u: (clip.x / clip.w + 1.0) / 2.0, v: (1.0 - clip.y / clip.w) / 2.0);
 }
 
 void main() {
@@ -118,9 +115,9 @@ void main() {
     final view = RenderView(camera: camera);
     final eye = Vector3(0.0, 1.0, -6.0);
 
-    final monster = handlesOf(editing.level).firstWhere(
-      (Handle h) => h.kind == Piece.entity,
-    );
+    final monster = handlesOf(
+      editing.level,
+    ).firstWhere((Handle h) => h.kind == Piece.entity);
     final onMark = _project(camera, monster.centre);
     // Well to the side of the mark, on the wall behind it.
     final onWall = _project(camera, Vector3(3.0, 2.0, -12.0));

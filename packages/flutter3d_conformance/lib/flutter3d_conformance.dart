@@ -144,7 +144,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     name: 'a pass does not inherit the previous pass\'s scissor',
     run: checkPassDoesNotInheritScissor,
   ),
-  (name: 'a readback of a region reads that region', run: checkReadbackOfRegion),
+  (
+    name: 'a readback of a region reads that region',
+    run: checkReadbackOfRegion,
+  ),
   (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
   (
     name: 'a pipeline switch leaves no stale bindings',

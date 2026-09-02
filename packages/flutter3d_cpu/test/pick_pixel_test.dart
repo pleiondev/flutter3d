@@ -140,8 +140,9 @@ void main() {
       scene: it.scene,
       views: <RenderView>[it.view],
     );
-    final before = (await it.device.readPixels(plain.frame))!.buffer
-        .asUint8List();
+    final before = (await it.device.readPixels(
+      plain.frame,
+    ))!.buffer.asUint8List();
     it.renderer.pickPixel(0.25, 0.5).ignore();
     final picked = it.renderer.render(
       width: _width,
@@ -149,8 +150,9 @@ void main() {
       scene: it.scene,
       views: <RenderView>[it.view],
     );
-    final after = (await it.device.readPixels(picked.frame))!.buffer
-        .asUint8List();
+    final after = (await it.device.readPixels(
+      picked.frame,
+    ))!.buffer.asUint8List();
     expect(after, equals(before));
   });
 }

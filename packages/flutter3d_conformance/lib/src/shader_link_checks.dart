@@ -46,12 +46,13 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ('MeshInstancedVertex', 'ShadowDistance'),
     ('MeshLightmappedVertex', 'Pbr'),
     ('MeshLightmappedVertex', 'Lambert'),
-    // The picking pass draws every mesh again, through whichever vertex stage
-    // the scene pass used for it, so the id stage has to link with all four.
+    // The picking pass draws every mesh again through the stage its layout
+    // needs — plain, skinned or instanced; a lightmapped mesh has the plain
+    // layout and draws through the plain stage — so the id stage has to link
+    // with these three.
     ('MeshVertex', 'ObjectId'),
     ('MeshSkinnedVertex', 'ObjectId'),
     ('MeshInstancedVertex', 'ObjectId'),
-    ('MeshLightmappedVertex', 'ObjectId'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('FullscreenVertex', 'Luminance'),

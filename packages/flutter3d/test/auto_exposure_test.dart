@@ -60,8 +60,8 @@ void main() {
       );
       // Zero stops — one unit of light — is where a scene lit at one sits, and
       // it has to be inside the byte rather than at either end of it.
-      final unit =
-          (-ExposureMeter.floorStops / ExposureMeter.rangeStops * 255).round();
+      final unit = (-ExposureMeter.floorStops / ExposureMeter.rangeStops * 255)
+          .round();
       expect(ExposureMeter.stopsOf(unit), closeTo(0.0, 0.05));
     });
 
@@ -259,10 +259,8 @@ void main() {
       renderer = Renderer.create(device: device);
       scene = Scene()
         ..add(
-          MeshNode(
-            DeviceMesh.upload(device, CuboidShape().build()),
-            Material(),
-          )..setPosition(0.0, 0.0, -5.0),
+          MeshNode(DeviceMesh.upload(device, CuboidShape().build()), Material())
+            ..setPosition(0.0, 0.0, -5.0),
         )
         ..add(CameraNode());
       view = RenderView(camera: scene.cameras.single);
