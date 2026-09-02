@@ -212,16 +212,27 @@ Staged stage(
     player: player,
     start: start,
     navIssues: navIssues,
-    sim: GameSimulation(
-      random: dice,
-      player: player,
-      collision: world,
-      input: input,
-      mechanisms: mechanisms,
-      actors: actors,
-      projectiles: projectiles,
-      shot: shot,
-      levelNext: level.next,
-    )..automap = Automap(navigation.grid),
+    sim:
+        GameSimulation(
+            random: dice,
+            player: player,
+            collision: world,
+            input: input,
+            mechanisms: mechanisms,
+            actors: actors,
+            projectiles: projectiles,
+            shot: shot,
+            levelNext: level.next,
+          )
+          ..automap = Automap(navigation.grid)
+          // Walls crumble; floors, ceilings and the stone of the crypt's
+          // fixtures do not. A rocket through the floor is a player out of the
+          // level, and a ceiling with a hole in it looks out on nothing.
+          ..breaches = Breaches(
+            level,
+            world,
+            breakable: (Brush brush) =>
+                brush.solid && brush.ramp == null && brush.material == 'wall',
+          ),
   );
 }

@@ -65,6 +65,12 @@ final class CollisionWorld {
 
   int get colliderCount => _statics.length + _movers.length;
   int get staticCount => _statics.length;
+
+  /// The static colliders, for a caller that has to find its own among them
+  /// — a level that put its walls here through `addTo` and later has to take
+  /// one out. Read-only: adding and removing go through [add] and [remove],
+  /// which keep the grid's indices true.
+  Iterable<Collider> get statics => _statics;
   int get moverCount => _movers.length;
 
   // Scratch, reused by every query.

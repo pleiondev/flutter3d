@@ -975,6 +975,23 @@ class _GameScreenState extends State<GameScreen>
     // sees the same walls either one did.
     _loaded?.culler?.apply(_eye);
 
+    // A rocket that cut a wall this step: the walls are drawn again from the
+    // brushes as they are now, the same list the collision world already
+    // walks. Rare, and the whole level's batches at once — see
+    // `LevelLoader.rebuildBrushes` for why not just the one.
+    final breaches = sim.breaches;
+    final loaded = _loaded;
+    if (breaches != null &&
+        loaded != null &&
+        breaches.version != _breachVersion) {
+      _breachVersion = breaches.version;
+      const LevelLoader().rebuildBrushes(
+        loaded,
+        device: _run.run.device,
+        brushes: breaches.brushes,
+      );
+    }
+
     _smoothedPosition.push(body.position);
   }
 
@@ -1252,6 +1269,10 @@ class _GameScreenState extends State<GameScreen>
 
   /// Whether the automap is up. See the M key.
   bool _mapOn = false;
+
+  /// The breaches the walls were last drawn with. Reset with the level, as
+  /// `Breaches.version` is.
+  int _breachVersion = 0;
 
   /// Places the camera for the frame about to be drawn.
   ///

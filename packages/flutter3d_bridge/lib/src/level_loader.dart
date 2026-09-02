@@ -119,6 +119,62 @@ final class LevelLoader {
     }
   }
 
+  /// Draws the level's walls again from [brushes], which are no longer the
+  /// document's — a blast has cut some of them.
+  ///
+  /// Every batch is rebuilt rather than the ones a hole touched, because a
+  /// batch is a material's worth of the whole level, or a cell's worth when
+  /// there was a visibility table, and a hole is in one of them either way;
+  /// finding which would cost more thought than the crypt's eleven batches
+  /// cost to build. The visibility table is dropped with the old batches:
+  /// it was baked from walls without holes in them, and a hole is a line of
+  /// sight it does not know about. Textures are the ones the level loaded
+  /// with, so nothing is fetched.
+  void rebuildBrushes(
+    LoadedLevel loaded, {
+    required GraphicsDevice device,
+    required List<Brush> brushes,
+  }) {
+    for (final node in loaded.brushNodes) {
+      node.removeFromParent();
+    }
+    loaded.brushNodes.clear();
+    for (final mesh in loaded.brushMeshes) {
+      device.releaseGeometry(mesh.vertices);
+      device.releaseGeometry(mesh.indices);
+    }
+    loaded.culler?.showAll();
+    loaded.culler = null;
+
+    final level = loaded.level;
+    final cut = Level(
+      name: level.name,
+      brushes: brushes,
+      materials: level.materials,
+    );
+    final surfaces = const BrushGeometry().build(cut);
+    final meshes = <DeviceMesh>[];
+    for (final surface in surfaces) {
+      final mesh = DeviceMesh.upload(device, _toMeshData(surface));
+      meshes.add(mesh);
+      final node =
+          MeshNode(
+              mesh,
+              materialFrom(
+                level.materials[surface.material] ?? LevelMaterial(),
+                loaded.materialTextures,
+                name: surface.material,
+              ),
+              name: surface.material,
+            )
+            ..shadowIsStatic = true
+            ..castsShadow = surface.castsShadow;
+      loaded.scene.add(node);
+      loaded.brushNodes.add(node);
+    }
+    loaded.brushMeshes = meshes;
+  }
+
   /// Everything [load] does except finding the document.
   ///
   /// **The read and the build were one method, and a level had to be an asset
@@ -185,6 +241,7 @@ final class LevelLoader {
     final brushMeshes = <DeviceMesh>[];
     // And with their boxes, so the culler can ask which of them a cell sees.
     final batches = <VisibilityBatch>[];
+    final brushNodes = <MeshNode>[];
     for (final surface in surfaces) {
       final mesh = DeviceMesh.upload(device, _toMeshData(surface));
       brushMeshes.add(mesh);
@@ -207,6 +264,7 @@ final class LevelLoader {
             ..castsShadow = surface.castsShadow;
       scene.add(node);
       batches.add((node: node, bounds: surface.bounds));
+      brushNodes.add(node);
     }
 
     for (final light in level.lights) {
@@ -222,7 +280,7 @@ final class LevelLoader {
       materialTextures: textures,
       brushMeshes: brushMeshes,
       culler: visibility == null ? null : VisibilityCuller(visibility, batches),
-    );
+    )..brushNodes.addAll(brushNodes);
   }
 
   /// Builds an engine material from a level material and the loaded maps.

@@ -133,6 +133,10 @@ final class GameSimulation {
   /// map is drawn from exists, which is after the simulation does.
   Automap? automap;
 
+  /// The holes blasts have made in the level. Null for a game whose walls
+  /// do not crumble; set by the staging, which knows which brushes may.
+  Breaches? breaches;
+
   GameState get state => _state;
   GameState _state = GameState.playing;
 
@@ -382,6 +386,11 @@ final class GameSimulation {
         // among its own is how a crowd turns on itself, and a blast with no
         // owner — one that timed out in the open — has nobody to blame.
         final firedBy = blast.owner?.userData;
+        // The wall it landed on, if it landed on one: a blast in the open
+        // has a normal of nothing and cuts nothing.
+        if (blast.normal.length2 > 0.5) {
+          breaches?.blast(blast.position, blast.normal);
+        }
         for (final entry in blast.damage.entries) {
           final target = entry.key.userData;
           if (target is! Damageable) continue;
@@ -520,6 +529,7 @@ final class GameSimulation {
     // direction that makes a player think they missed things they did not.
     'tally': tally.save(),
     if (automap != null) 'automap': automap!.save(),
+    if (breaches != null) 'breaches': breaches!.save(),
     'monsterCount': _monsterCount,
     'secretCount': _secretCount,
     'counted': _counted,
@@ -549,6 +559,8 @@ final class GameSimulation {
     if (counts != null) tally.restore(counts);
     final seen = from['automap'];
     if (seen is Map) automap?.restore(seen.cast<String, Object?>());
+    final blown = from['breaches'];
+    if (blown is Map) breaches?.restore(blown.cast<String, Object?>());
     _monsterCount = from.integer('monsterCount', _monsterCount);
     _secretCount = from.integer('secretCount', _secretCount);
     _counted = from.flag('counted', _counted);

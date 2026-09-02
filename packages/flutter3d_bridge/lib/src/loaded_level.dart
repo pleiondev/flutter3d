@@ -26,7 +26,14 @@ final class LoadedLevel {
   /// Hides what the camera cannot see, when the level came with a visibility
   /// table that matched its brushes. Null when it did not, and then every
   /// batch is drawn from everywhere, as before there were tables.
-  final VisibilityCuller? culler;
+  ///
+  /// Dropped by `LevelLoader.rebuildBrushes`: a table baked from walls
+  /// without holes in them hides rooms a hole has since opened.
+  VisibilityCuller? culler;
+
+  /// The nodes the brush batches are drawn through, in [scene], so a rebuild
+  /// can take them out before putting the new ones in.
+  final List<MeshNode> brushNodes = <MeshNode>[];
 
   final Level level;
   final Scene scene;
@@ -50,7 +57,9 @@ final class LoadedLevel {
   /// Recorded at build so [dispose] can give exactly these back — walking the
   /// scene instead would also find meshes belonging to `SharedMeshes` and to
   /// the models, whose owners release them themselves.
-  final List<DeviceMesh> brushMeshes;
+  /// Replaced wholesale by `LevelLoader.rebuildBrushes`, which releases the
+  /// old ones first.
+  List<DeviceMesh> brushMeshes;
 
   /// Gives the level's own uploads — brush meshes and material maps — back to
   /// [device].

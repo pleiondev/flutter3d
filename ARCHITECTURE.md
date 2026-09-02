@@ -949,6 +949,21 @@ replay is not recorded into the run's history. A crypt snapshot is 1.6 KB as
 JSON, measured by the test that holds a rewind to any moment byte-equal to
 the snapshot the game wrote there.
 
+**A breach changes the mesh and the collision together, or it is a picture
+of a hole.** The dungeon's walls are boxes, and a box minus a box is at most
+six boxes, so a rocket's hole is arithmetic rather than mesh surgery:
+`subtractBox` in `flutter3d_sim` cuts a brush into the slabs either side of
+the hole, and `Breaches` keeps the level's current brush list, swaps the
+colliders of the brushes a hole cut for the colliders of what is left, and
+bumps a version. The bridge sees the version move and builds the batches
+again from the cut brushes — all of them, since a batch is a material's worth
+of the whole level — and drops the visibility table, which was baked from
+walls without holes in them. The snapshot carries the holes, six numbers
+each, not the brushes: restoring puts the original colliders back and replays
+the holes in order, which is also how a demo with a rocket in it arrives at
+the same walls. The navigation grid keeps its walls; a monster does not learn
+a new route through a breach, which is a limit and not a bug.
+
 ---
 
 ## 9. The simulation layer
@@ -1339,7 +1354,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3080 tests** across 24 packages and 5 applications |
+| Unit tests | **3089 tests** across 24 packages and 5 applications |
 | Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

@@ -53,6 +53,7 @@ export 'src/ecs/entity.dart';
 export 'src/input/game_action.dart';
 export 'src/input/input_state.dart';
 export 'src/input/input_tape.dart';
+export 'src/level/breaches.dart';
 export 'src/level/brush_geometry.dart';
 export 'src/level/entity_kind.dart';
 export 'src/level/json_reader.dart';
