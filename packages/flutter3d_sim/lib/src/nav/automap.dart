@@ -84,13 +84,8 @@ final class Automap {
   bool isWall(int index) => _bit(_wall, index) && !_bit(_floor, index);
 
   /// How many cells are on the map.
-  int get revealedCount {
-    var count = 0;
-    for (var i = 0; i < grid.cellCount; i++) {
-      if (isRevealed(i)) count++;
-    }
-    return count;
-  }
+  int get revealedCount =>
+      Iterable<int>.generate(grid.cellCount).where(isRevealed).length;
 
   /// Whether a map pickup has shown the whole level.
   bool get everythingRevealed => _all;

@@ -226,8 +226,8 @@ final class FlowField {
           // limits, and asking backwards would let a monster path up a cliff.
           if (!grid.canMove(next, cell)) continue;
 
-          var cost2 = cost + _straight;
-          if (dx != 0 && dz != 0) {
+          final diagonal = dx != 0 && dz != 0;
+          if (diagonal) {
             // A diagonal needs both of its sides open, or an agent cuts the
             // corner of a wall and grinds along it — which is precisely the
             // behaviour this whole file exists to remove.
@@ -237,8 +237,8 @@ final class FlowField {
             if (!grid.canMove(sideA, cell) || !grid.canMove(sideB, cell)) {
               continue;
             }
-            cost2 = cost + _diagonal;
           }
+          final cost2 = cost + (diagonal ? _diagonal : _straight);
 
           if (cost2 >= _cost[next]) continue;
           _cost[next] = cost2;
