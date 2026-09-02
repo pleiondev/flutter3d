@@ -1147,6 +1147,34 @@ Mechanisms — doors, lifts, buttons, triggers — compose through signals, and 
 format is versioned and validated before the run. What is lost is hot reload of
 gameplay logic without a rebuild, partly compensated by Flutter's own hot reload.
 
+### 9.8 Navigation
+
+A grid of standing places baked from the brushes, not a navmesh: the format
+has no slopes, so a navmesh over axis-aligned boxes would be a pipeline whose
+output is the rectangles that could have been rasterised directly. One flow
+field per class of body, swept from the player, because nothing targets
+anything else and thirty searches would compute thirty prefixes of one tree.
+Baked from the brushes rather than the collision world so that a door's
+position at load is not frozen into the architecture.
+
+**A jump link is the move the grid cannot express.** The walk is a rise of at
+most a step and a drop of at most a fall; a pit and a ledge are outside it,
+and a field over the grid alone stands a platformer's enemy at the first edge.
+`bakeJumpLinks` scans from every edge cell in eight directions across the
+cells the walk refuses to the first cell it would accept as a landing, and
+writes the rise and the gap on the link. A `JumpReach` — jump speed, gravity,
+running speed — says what a body clears, from the later root of the flight,
+and a field filters the baked links by its own body's reach with that body's
+width added to every gap, since a link is measured centre to centre and a body
+stops a radius short of each edge. The sweep relaxes a link backwards from its
+landing to its take-off at its distance plus two cells, so a walk of equal
+length wins; `ActorSystem` jumps through the controller's buffered request
+when the body stands on the take-off cell, which is the same rule the player's
+jump plays by. Not modelled, and stated: headroom along the arc, moving
+platforms, a run-up longer than the take-off cell. The platformer's `Hunter`
+is the brain built on it, and a test runs a real body over a real three-metre
+pit and asks whether it arrived.
+
 ---
 
 ## 10. Physics
@@ -1354,7 +1382,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3139 tests** across 24 packages and 5 applications |
+| Unit tests | **3154 tests** across 24 packages and 5 applications |
 | Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

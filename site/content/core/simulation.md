@@ -1,5 +1,5 @@
 ---
-description: The fixed step and interpolation, device-agnostic input, the level format and its validator, holes in walls, mechanisms, actors and brains, navigation and the automap, the ECS, snapshots, demos and rewind.
+description: The fixed step and interpolation, device-agnostic input, the level format and its validator, holes in walls, mechanisms, actors and brains, navigation with jump links and the automap, the ECS, snapshots, demos and rewind.
 ---
 
 # Simulation layer
@@ -288,6 +288,20 @@ Three decisions, each with an alternative that looks better and is not:
 <div class="warn">
 <p><strong>Cell size is the setting that matters, and half a metre is often too coarse.</strong> A grid is conservative: a cell touching a wall has a clearance of one however far the wall actually is. At <code>cellSize: 0.5</code> a one-metre corridor is two cells, both touching, so a monster 0.7 wide, which physically fits — is refused the whole passage, and the grid silently falls back to walking straight at the player in exactly the places a route is worth having. The dungeon bakes at 0.25 for that reason.</p>
 <p><strong>One <code>Navigation</code> means one goal.</strong> <code>update</code> re-targets every field it holds. Two callers with different destinations must not share one, or the second one's fields quietly flow to the first one's goal and the symptom is an agent that looks stuck.</p>
+</div>
+
+### Jump links
+
+The grid is a walk: a rise of at most a step, a drop of at most a fall. A platformer is made of everything outside that, and a field over the grid alone reports every pit and every ledge as no way there. A jump link is one extra edge, from a cell at an edge across the cells the walk refuses to a cell on the far side, with the rise and the gap written on it.
+
+```dart
+actors.navigation = Navigation.bake(level, jumps: JumpReach.of(const MovementTuning()));
+```
+
+Links are baked once with the most capable reach a level's bodies have, and a field for a particular body filters them by its own: `JumpReach` is three numbers, jump speed, gravity and running speed, and `gapFor(rise)` is the later root of the flight. A heavy guard with a short hop is never sent across a gap the light one clears. The body's own width is added to every gap, because a link is measured centre to centre between two edge cells and a body's centre stops a radius short of each. `Mind.steerTowardsFocus` follows the route and jumps where the next step is a link, through the same buffered request the player's jump goes through, so a brain that asks every step asks once.
+
+<div class="note">
+<p>A jump costs two cells more than its distance, so a walk of the same length is preferred and a link is taken only where the walk is longer or does not exist. A body in the air cannot turn, and the field does not ask that of it for nothing. Not modelled: headroom along the arc, landings on moving platforms, and a run-up longer than the take-off cell. The platformer's <code>Hunter</code> is the brain built on this: it comes after the player across the gaps, and a test runs a real body over a real three-metre pit.</p>
 </div>
 
 ### The automap

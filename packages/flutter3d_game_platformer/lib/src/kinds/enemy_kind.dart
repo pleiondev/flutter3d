@@ -18,6 +18,23 @@ final class EnemyKind extends EntityKind {
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
+    final kind = entity.string('kind');
+    if (kind != null &&
+        kind != 'patrol' &&
+        kind != 'leaper' &&
+        kind != 'hunter') {
+      out.add(
+        LevelIssue(
+          LevelIssueSeverity.error,
+          'is a "$kind", and this game knows "patrol", "leaper" and "hunter"',
+          where: scope.describe(entity),
+        ),
+      );
+    }
+    // A hunter goes where the player is and holds no route of its own; a
+    // route on one is not an error, only unread.
+    if (kind == 'hunter') return;
+
     final route = entity.properties['route'];
     if (route is! List || route.isEmpty) {
       out.add(
@@ -56,38 +73,28 @@ final class EnemyKind extends EntityKind {
         );
       }
     }
-
-    final kind = entity.string('kind');
-    if (kind != null && kind != 'patrol' && kind != 'leaper') {
-      out.add(
-        LevelIssue(
-          LevelIssueSeverity.error,
-          'is a "$kind", and this game knows "patrol" and "leaper"',
-          where: scope.describe(entity),
-        ),
-      );
-    }
   }
 
   @override
   void spawn(EntityDef entity, SpawnContext context) {
     final actors = context.actors;
+    final kind = entity.string('kind');
     final rows = entity.properties['route'];
-    if (rows is! List || rows.isEmpty) return;
-
     // Read defensively even so: `validate` is what names a bad row to the
     // author, and this is what stops a document that skipped validation from
     // taking the level down with a cast error instead.
     final route = <Vector3>[entity.position.clone()];
-    for (final row in rows) {
-      if (row is! List || row.length < 3) continue;
-      final x = row[0];
-      final y = row[1];
-      final z = row[2];
-      if (x is! num || y is! num || z is! num) continue;
-      route.add(Vector3(x.toDouble(), y.toDouble(), z.toDouble()));
+    if (rows is List) {
+      for (final row in rows) {
+        if (row is! List || row.length < 3) continue;
+        final x = row[0];
+        final y = row[1];
+        final z = row[2];
+        if (x is! num || y is! num || z is! num) continue;
+        route.add(Vector3(x.toDouble(), y.toDouble(), z.toDouble()));
+      }
     }
-    if (route.length < 2) return;
+    if (kind != 'hunter' && route.length < 2) return;
 
     final size = entity.vector('size') ?? defaultSize;
     final body = CharacterController(
@@ -103,9 +110,14 @@ final class EnemyKind extends EntityKind {
       body: body,
       health: Health(entity.number('health') ?? 20.0),
       facing: Facing(),
-      brain: entity.string('kind') == 'leaper'
-          ? Leaper(route: route, speed: speed)
-          : Patrol(route: route, speed: speed),
+      brain: switch (kind) {
+        'leaper' => Leaper(route: route, speed: speed),
+        'hunter' => Hunter(
+          sight: entity.number('sight') ?? 14.0,
+          patience: entity.number('patience') ?? 3.0,
+        ),
+        _ => Patrol(route: route, speed: speed),
+      },
     );
 
     context.reveal(entity, collider: body.collider, size: size);

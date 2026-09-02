@@ -83,7 +83,14 @@ Staged stage(
   // about everything an enemy rolled for.
   final dice = random ?? GameRandom(1);
 
-  final actors = ActorSystem(world: world, random: dice);
+  final actors = ActorSystem(world: world, random: dice)
+    // Baked with the enemies' own reach — they move by the default tuning —
+    // so a hunter is handed the gaps it clears and a level of platforms is a
+    // level it can cross. A patrol never asks the grid and is unaffected.
+    ..navigation = Navigation.bake(
+      level,
+      jumps: JumpReach.of(const MovementTuning()),
+    );
   final mechanisms = MechanismWorld(world);
 
   level.spawnInto(

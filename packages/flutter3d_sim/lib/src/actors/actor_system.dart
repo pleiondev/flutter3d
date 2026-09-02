@@ -41,6 +41,7 @@ import 'package:vector_math/vector_math.dart';
 import '../ecs/ecs_world.dart';
 import '../math/motion.dart';
 import '../math/tolerances.dart';
+import '../nav/jump_links.dart';
 import '../nav/navigation.dart';
 import '../physics/layers.dart';
 import '../save/game_random.dart';
@@ -430,21 +431,63 @@ final class ActorSystem {
   /// the right answer anyway.
   void steerTowardsFocus(Actor actor) {
     final body = actor.body;
-    final routed =
-        body != null &&
-        (navigation?.steer(
-              body.position,
-              _wish,
-              radius: body.halfExtents.x,
-              height: body.halfExtents.y * 2.0,
-            ) ??
-            false);
-    if (routed) return;
+    final routes = navigation;
+    if (body != null && routes != null) {
+      // The body's own reach, read off its tuning: a grid baked with jump
+      // links hands this body the ones it takes, and a grid baked without
+      // makes the reach a number nobody reads.
+      final reach = routes.grid.jumpLinks.isEmpty
+          ? null
+          : JumpReach.of(body.tuning);
+      final routed = routes.steer(
+        body.position,
+        _wish,
+        radius: body.halfExtents.x,
+        height: body.halfExtents.y * 2.0,
+        jump: reach,
+      );
+      if (routed) {
+        if (reach != null) _takeOffIfDue(body, routes, reach);
+        return;
+      }
+    }
     // Straight at it, horizontally. The controller does the sliding, which is
     // what keeps a corner from being a wall.
     _wish.setValues(_toFocus.x, 0.0, _toFocus.z);
     if (_wish.length2 > Tolerance.zeroLength) _wish.normalize();
   }
+
+  /// Jumps when the field's next step from where [body] stands is a link and
+  /// the body is at the take-off.
+  ///
+  /// At the take-off means within the cell's own radius of its centre: a
+  /// link is baked from cell centre to cell centre, and a body that leaves
+  /// from the near side of a half-metre cell lands a quarter metre short of
+  /// where the reach was measured. The request goes through the controller's
+  /// buffered jump like the player's, so asking every step until the body is
+  /// airborne asks exactly once.
+  void _takeOffIfDue(
+    CharacterController body,
+    Navigation routes,
+    JumpReach reach,
+  ) {
+    if (!body.isGrounded) return;
+    final link = routes.jumpAhead(
+      body.position,
+      radius: body.halfExtents.x,
+      height: body.halfExtents.y * 2.0,
+      jump: reach,
+    );
+    if (link == null) return;
+    routes.grid.centreOf(link.from, _takeOff);
+    final dx = _takeOff.x - body.position.x;
+    final dz = _takeOff.z - body.position.z;
+    final within = routes.grid.cellSize * 0.5;
+    if (dx * dx + dz * dz > within * within) return;
+    body.requestJump();
+  }
+
+  final Vector3 _takeOff = Vector3.zero();
 
   /// What [steerTowardsFocus] or [steer] last asked for, so a brain can turn to
   /// face where it is going rather than where the focus is. Around a corner

@@ -221,3 +221,59 @@ final class Leaper extends Patrol {
   final Vector3 _probe = Vector3.zero();
   final SweepHit _far = SweepHit();
 }
+
+/// Something that comes after the player, across the gaps.
+///
+/// The third archetype, and the one the navigation grid's jump links exist
+/// for: a patrol holds its own route and a leaper jumps the gaps in it, but
+/// neither can cross a level to where the player *is*. This one asks the
+/// level for the way — `Mind.steerTowardsFocus`, which follows the flow field
+/// and jumps where the field says the next step is a jump — and so it needs a
+/// level baked with a `JumpReach`, or it stands at the first pit like a
+/// patrol without the sense to turn round.
+///
+/// It notices the player by sight within [sight] metres and forgets them
+/// after [patience] seconds out of sight, so a runner who breaks line of
+/// sight and keeps going is a runner who got away.
+final class Hunter extends Brain {
+  Hunter({this.sight = 14.0, this.patience = 3.0});
+
+  /// How far it sees, in metres.
+  final double sight;
+
+  /// How long it keeps coming after losing sight, in seconds.
+  final double patience;
+
+  double _memory = 0.0;
+
+  /// Whether it is currently after the player. For a test and a save.
+  bool get hunting => _memory > 0.0;
+
+  @override
+  void think(Mind it) {
+    if (it.distance <= sight && it.canSee()) {
+      _memory = patience;
+    }
+  }
+
+  @override
+  void act(Mind it) {
+    if (_memory <= 0.0) {
+      it.halt();
+      return;
+    }
+    _memory -= it.dt;
+    it.steerTowardsFocus();
+    final heading = it.heading;
+    it.turnTowards(heading.x, heading.z);
+  }
+
+  @override
+  Map<String, Object?> save() => <String, Object?>{'memory': _memory};
+
+  @override
+  void restore(Map<String, Object?> from) {
+    final memory = from['memory'];
+    if (memory is num) _memory = memory.toDouble();
+  }
+}

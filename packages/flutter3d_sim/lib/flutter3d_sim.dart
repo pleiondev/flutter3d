@@ -76,6 +76,7 @@ export 'src/math/spline.dart';
 export 'src/math/tolerances.dart';
 export 'src/nav/automap.dart';
 export 'src/nav/flow_field.dart';
+export 'src/nav/jump_links.dart';
 export 'src/nav/nav_grid.dart';
 export 'src/nav/navigation.dart';
 export 'src/physics/layers.dart';

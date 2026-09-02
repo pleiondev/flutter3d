@@ -155,6 +155,11 @@ final class Mind {
   /// Ask to jump. Refused in mid-air, as it is for the player.
   void jump() => system.jump(actor);
 
+  /// Which way the last steer asked to go, for turning to face it. Around a
+  /// corner that is not the way to the focus, and an actor that stares
+  /// through the wall while sliding sideways is the tell of a flow field.
+  Vector3 get heading => system.heading;
+
   /// Turn to face a direction on the ground, at the actor's turn rate.
   void turnTowards(double x, double z) => system.turnTowards(actor, x, z, dt);
 

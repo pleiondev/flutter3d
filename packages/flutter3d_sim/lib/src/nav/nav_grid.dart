@@ -44,6 +44,7 @@ import 'package:vector_math/vector_math.dart';
 import '../level/level.dart';
 import '../level/level_issue.dart';
 import '../math/tolerances.dart';
+import 'jump_links.dart';
 
 /// A lattice of standing places, and how much room each one has.
 final class NavGrid {
@@ -91,6 +92,29 @@ final class NavGrid {
   final Float32List _headroom;
   final Uint8List _clearance;
 
+  final List<JumpLink> _jumpLinks = <JumpLink>[];
+  Map<int, List<int>>? _linksInto;
+
+  /// Every jump the bake found, when it was asked to look — see
+  /// [bake]'s `jumps`. Empty for a grid baked without a reach, which is every
+  /// grid a shooter bakes, and then no field ever sends anything into the air.
+  List<JumpLink> get jumpLinks => List<JumpLink>.unmodifiable(_jumpLinks);
+
+  /// Indices into [jumpLinks] of the links that land in [cell].
+  ///
+  /// The direction a flow field wants: the sweep runs outward from the goal,
+  /// so it reaches a landing cell first and asks which take-offs lead here.
+  List<int> linksInto(int cell) {
+    final into = _linksInto ??= () {
+      final map = <int, List<int>>{};
+      for (var i = 0; i < _jumpLinks.length; i++) {
+        map.putIfAbsent(_jumpLinks[i].to, () => <int>[]).add(i);
+      }
+      return map;
+    }();
+    return into[cell] ?? const <int>[];
+  }
+
   int get cellCount => columns * rows;
 
   /// True when there is nothing to walk on anywhere — an empty level, or one
@@ -130,6 +154,14 @@ final class NavGrid {
 
   bool isWalkable(int index) => _headroom[index] > 0.0;
 
+  /// The centre of a cell, at its floor height, as a fresh vector. For a
+  /// test or a bake; a step uses [centreOf] and its own scratch.
+  Vector3 centreOfCell(int index) {
+    final out = Vector3.zero();
+    centreOf(index, out);
+    return out;
+  }
+
   /// The centre of a cell, at its floor height.
   void centreOf(int index, Vector3 out) {
     final cx = index % columns;
@@ -167,13 +199,40 @@ final class NavGrid {
   ///
   /// [issues] collects what the bake could not decide — see the library
   /// comment on columns with more than one surface.
+  ///
+  /// [jumps] is the most capable jump any body on this grid will make, and
+  /// asking for it bakes the [jumpLinks]: every gap and ledge that reach
+  /// clears, each recorded with what it needs so a field can hand a lesser
+  /// body only the ones it takes. Null bakes none, which is what a level whose
+  /// bodies never leave the ground wants.
   static NavGrid bake(
     Iterable<Brush> brushes, {
     double cellSize = 0.5,
     double agentHeight = 1.7,
     double stepHeight = 0.4,
     double maxFall = 2.0,
+    JumpReach? jumps,
     List<LevelIssue>? issues,
+  }) {
+    final grid = _bakeCells(
+      brushes,
+      cellSize: cellSize,
+      agentHeight: agentHeight,
+      stepHeight: stepHeight,
+      maxFall: maxFall,
+      issues: issues,
+    );
+    if (jumps != null) grid._jumpLinks.addAll(bakeJumpLinks(grid, jumps));
+    return grid;
+  }
+
+  static NavGrid _bakeCells(
+    Iterable<Brush> brushes, {
+    required double cellSize,
+    required double agentHeight,
+    required double stepHeight,
+    required double maxFall,
+    required List<LevelIssue>? issues,
   }) {
     final solid = <Brush>[
       for (final brush in brushes)

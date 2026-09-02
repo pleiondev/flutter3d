@@ -17,6 +17,7 @@ import 'package:vector_math/vector_math.dart';
 import '../level/level.dart';
 import '../level/level_issue.dart';
 import 'flow_field.dart';
+import 'jump_links.dart';
 import 'nav_grid.dart';
 
 /// Somewhere to walk, and the way there.
@@ -24,13 +25,16 @@ final class Navigation {
   Navigation(this.grid);
 
   /// Bakes the level's architecture. See [NavGrid.bake] for what [issues]
-  /// collects — a level with a walkway over a floor is worth hearing about.
+  /// collects — a level with a walkway over a floor is worth hearing about —
+  /// and for what [jumps] adds: the gaps and ledges a body of that reach can
+  /// jump, which a platformer's chasers need and a shooter's monsters do not.
   factory Navigation.bake(
     Level level, {
     double cellSize = 0.5,
     double agentHeight = 1.7,
     double stepHeight = 0.4,
     double maxFall = 2.0,
+    JumpReach? jumps,
     List<LevelIssue>? issues,
   }) => Navigation(
     NavGrid.bake(
@@ -39,13 +43,15 @@ final class Navigation {
       agentHeight: agentHeight,
       stepHeight: stepHeight,
       maxFall: maxFall,
+      jumps: jumps,
       issues: issues,
     ),
   );
 
   final NavGrid grid;
 
-  final Map<int, FlowField> _fields = <int, FlowField>{};
+  final Map<(int, JumpReach?, int), FlowField> _fields =
+      <(int, JumpReach?, int), FlowField>{};
   final Vector3 _goal = Vector3.zero();
   bool _hasGoal = false;
 
@@ -75,18 +81,32 @@ final class Navigation {
   /// slightly different radius that round to the same clearance share one
   /// sweep — which, for a roster of three, is why there are two fields and not
   /// thirty.
-  FlowField fieldFor({required double radius, double height = 0.0}) {
+  FlowField fieldFor({
+    required double radius,
+    double height = 0.0,
+    JumpReach? jump,
+  }) {
     final clearance = grid.clearanceForRadius(radius);
     // Heights are bucketed by a quarter metre for the same reason: nothing in
     // a level is built to finer tolerance than that, and a distinct field per
     // distinct float would defeat the sharing.
     final heightClass = (height / 0.25).ceil();
-    final key = clearance * 1024 + heightClass;
+    // A reach only tells fields apart on a grid that has links for it to
+    // filter; anywhere else every body shares the walking field.
+    final reach = grid.jumpLinks.isEmpty ? null : jump;
+    // A jumping body's width matters to five centimetres — a link is measured
+    // between cell centres and the body flies a radius further at each end —
+    // so two jumpers share a field only when they are the same width to
+    // that; walkers share by clearance alone, as before.
+    final width = reach == null ? 0 : (radius * 40.0).round();
+    final key = (clearance * 1024 + heightClass, reach, width);
     return _fields.putIfAbsent(key, () {
       final field = FlowField(
         grid,
         minClearance: clearance,
         minHeadroom: heightClass * 0.25,
+        jump: reach,
+        jumpMargin: width / 20.0,
       );
       // A field built after the goal was set has to catch up, or the agent
       // that asked for it walks nowhere until the player crosses a cell.
@@ -100,10 +120,23 @@ final class Navigation {
   /// False when the field has nothing to say — see [FlowField.descend]. The
   /// caller should then head straight at its target, which is both what it did
   /// before navigation existed and the right answer within a single cell.
+  ///
+  /// [jump] is how far the body can jump; with it, the route may run through
+  /// the air, and [jumpAhead] says when the next step does.
   bool steer(
     Vector3 from,
     Vector3 out, {
     required double radius,
     double height = 0.0,
-  }) => fieldFor(radius: radius, height: height).descend(from, out);
+    JumpReach? jump,
+  }) => fieldFor(radius: radius, height: height, jump: jump).descend(from, out);
+
+  /// The jump a body of this size and reach has to make next from [from], or
+  /// null when the next step is a walk. See [FlowField.jumpAt].
+  JumpLink? jumpAhead(
+    Vector3 from, {
+    required double radius,
+    double height = 0.0,
+    JumpReach? jump,
+  }) => fieldFor(radius: radius, height: height, jump: jump).jumpAt(from);
 }
