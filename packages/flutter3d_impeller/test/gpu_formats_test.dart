@@ -141,6 +141,45 @@ void main() {
   // the type, so the engine did too — see `gpu_device.createTextureFromPixels`
   // for why removing it changed no picture.
 
+  group('TextureFormat.toGpu().isCompressed', () {
+    // Exactly the block-compressed tail of the enum — see the comment on
+    // `TextureFormat` in `formats.dart`. `createTextureFromPixels` asks this
+    // to decide `enableRenderTargetUsage`: `gpuContext.createTexture` throws
+    // for a compressed format asking for render-target usage, so getting this
+    // set wrong either refuses an upload flutter_gpu would have accepted or
+    // lets one through that fails deep inside the allocation instead of at
+    // the boundary this test checks.
+    const compressed = {
+      TextureFormat.bc1RGBAUNormInt,
+      TextureFormat.bc1RGBAUNormIntSRGB,
+      TextureFormat.bc3RGBAUNormInt,
+      TextureFormat.bc3RGBAUNormIntSRGB,
+      TextureFormat.bc5RGUNormInt,
+      TextureFormat.bc7RGBAUNormInt,
+      TextureFormat.bc7RGBAUNormIntSRGB,
+      TextureFormat.etc2RGB8UNormInt,
+      TextureFormat.etc2RGB8UNormIntSRGB,
+      TextureFormat.etc2RGBA8UNormInt,
+      TextureFormat.etc2RGBA8UNormIntSRGB,
+      TextureFormat.astc4x4LDR,
+      TextureFormat.astc4x4LDRSRGB,
+      TextureFormat.astc8x8LDR,
+      TextureFormat.astc8x8LDRSRGB,
+      TextureFormat.astc4x4HDR,
+      TextureFormat.astc8x8HDR,
+    };
+
+    test('is true for exactly the block-compressed values', () {
+      for (final format in TextureFormat.values) {
+        expect(
+          format.toGpu().isCompressed,
+          compressed.contains(format),
+          reason: '$format',
+        );
+      }
+    });
+  });
+
   // -- Geometry --------------------------------------------------------------
 
   checkForward(

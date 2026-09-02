@@ -390,6 +390,13 @@ final class GpuRenderBackend implements GraphicsDevice {
       // longer chain than the device will hold is trimmed rather than refused —
       // and the trimming happens there, where the limit is known.
       mipLevelCount: mipLevels == null ? 1 : mipLevels.length + 1,
+      // A block-compressed format is sample-only everywhere — see the note on
+      // `TextureFormat`'s compressed values — and `gpuContext.createTexture`
+      // enforces that itself: it throws for a compressed format asking for
+      // render-target usage. This is the same refusal
+      // `createCubeTextureFromPixels` already gives every face, for the same
+      // reason: nothing here ever renders into an upload made from bytes.
+      enableRenderTargetUsage: !format.toGpu().isCompressed,
     );
     texture.gpuTexture.overwrite(pixels);
     if (mipLevels != null) {
