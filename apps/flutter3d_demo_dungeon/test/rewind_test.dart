@@ -100,10 +100,12 @@ void main() {
   });
 
   test('and a snapshot of the crypt is the size the buffer quotes', () {
-    // The buffer's doc says 1.6 kilobytes as JSON, measured here at 1582
-    // bytes. A number in a doc is a claim, and this is where it is held: a
-    // snapshot that doubled would move the memory the doc promises, and one
-    // that halved would mean a system stopped writing itself down.
+    // The buffer's doc says about three kilobytes as JSON, measured here at
+    // 2952 bytes: 1582 of run and the rest the automap's runs after five
+    // seconds of walking. A number in a doc is a claim, and this is where it
+    // is held: a snapshot that doubled would move the memory the doc
+    // promises, and one that halved would mean a system stopped writing
+    // itself down.
     final live = _stageCrypt();
     for (var i = 0; i < 300; i++) {
       live.input.setStickAxis(0.0, 1.0);
@@ -112,6 +114,6 @@ void main() {
     }
     final size = utf8.encode(_bytes(live.staged.sim.save())).length;
 
-    expect(size, inInclusiveRange(1200, 2400), reason: '$size bytes');
+    expect(size, inInclusiveRange(2000, 4500), reason: '$size bytes');
   });
 }

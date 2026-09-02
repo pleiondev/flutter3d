@@ -1076,6 +1076,14 @@ class _GameScreenState extends State<GameScreen>
               event.logicalKey == LogicalKeyboardKey.keyF) {
             setState(() => _fogOn = !_fogOn);
           }
+          // M shows the map the run has drawn so far. The game keeps running
+          // underneath, as it did in the games this one is drawn from: a map
+          // that pauses the fight is a menu, and this is not one.
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.keyM) {
+            setState(() => _mapOn = !_mapOn);
+            return KeyEventResult.handled;
+          }
           return _devices.handleKeyEvent(event);
         },
         child: Listener(
@@ -1224,12 +1232,26 @@ class _GameScreenState extends State<GameScreen>
                 },
                 powers: _inventory.powers,
               ),
+              if (_mapOn && _sim?.automap != null && _player != null)
+                Positioned.fill(
+                  child: Padding(
+                    padding: const EdgeInsets.all(48.0),
+                    child: AutomapView(
+                      automap: _sim!.automap!,
+                      position: body.position,
+                      yaw: _player!.yaw,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// Whether the automap is up. See the M key.
+  bool _mapOn = false;
 
   /// Places the camera for the frame about to be drawn.
   ///

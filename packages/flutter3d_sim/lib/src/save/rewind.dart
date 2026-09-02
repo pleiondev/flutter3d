@@ -28,12 +28,13 @@ import 'snapshot.dart';
 /// [history] behind the present, and everything between it and the next one
 /// stays until that next one is old enough on its own. So the memory is a
 /// keyframe per [keyframeEvery] steps for [history] seconds plus one, and a
-/// tape entry per step for the same. On the crypt a snapshot is 1.6 kilobytes
-/// as JSON — measured, after five seconds of play, by
-/// `apps/flutter3d_demo_dungeon/test/rewind_test.dart` — and rather less as
-/// the map it is kept as; ten seconds with a keyframe a second is eleven of
-/// those and six hundred entries, which is small enough that no game needs to
-/// think about it.
+/// tape entry per step for the same. On the crypt a snapshot is about three
+/// kilobytes as JSON — measured, after five seconds of play, by
+/// `apps/flutter3d_demo_dungeon/test/rewind_test.dart`: 1.6 of the run and
+/// the rest the automap's runs of seen cells — and rather less as the map it
+/// is kept as; ten seconds with a keyframe a second is eleven of those and
+/// six hundred entries, which is small enough that no game needs to think
+/// about it.
 ///
 /// ## What the caller does
 ///

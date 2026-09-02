@@ -128,6 +128,11 @@ final class GameSimulation {
   /// What the level document says follows it.
   final String? levelNext;
 
+  /// The level as the player has seen it, revealed as they walk. Null for a
+  /// game that draws no map; set by the staging once the navigation grid the
+  /// map is drawn from exists, which is after the simulation does.
+  Automap? automap;
+
   GameState get state => _state;
   GameState _state = GameState.playing;
 
@@ -321,6 +326,9 @@ final class GameSimulation {
     }
 
     _world.settle();
+    // After the body has moved and settled, so the map reveals from where
+    // the player is rather than from where they were.
+    if (playing) automap?.reveal(player.body.position);
     systems.run(ShooterPhases.afterPlayer, dt);
 
     final doors = mechanisms;
@@ -511,6 +519,7 @@ final class GameSimulation {
     // was wrong for any run that had ever been resumed — and wrong in the
     // direction that makes a player think they missed things they did not.
     'tally': tally.save(),
+    if (automap != null) 'automap': automap!.save(),
     'monsterCount': _monsterCount,
     'secretCount': _secretCount,
     'counted': _counted,
@@ -538,6 +547,8 @@ final class GameSimulation {
     actors?.restore(from['actors']);
     final counts = from.object('tally');
     if (counts != null) tally.restore(counts);
+    final seen = from['automap'];
+    if (seen is Map) automap?.restore(seen.cast<String, Object?>());
     _monsterCount = from.integer('monsterCount', _monsterCount);
     _secretCount = from.integer('secretCount', _secretCount);
     _counted = from.flag('counted', _counted);

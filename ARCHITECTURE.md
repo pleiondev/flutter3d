@@ -1271,6 +1271,24 @@ the particles or the scene. State per step would be an allocation and a widget
 rebuild sixty times a second, and keeping the frame rate away from the fixed step
 is what the game layer is for.
 
+**The automap is the navigation grid, remembered.** A brush level already has
+its map: every cell an agent can stand in is floor, and the grid was baked from
+the brushes for the monsters before anybody thought of drawing it. `Automap`
+in `flutter3d_sim` adds the memory — which cells the player has been near —
+and it reveals by *walking*, a flood from the player's cell across cells an
+agent could step between, so a wall stops the reveal the way it stops the
+player and the room behind it stays dark until the door is opened. Walls are
+the cells the walk could not enter, not the cells nobody can stand in: the
+grid calls the roof walkable, because a wall's column has one standing place
+and it is the top of the ceiling under open sky, so "unwalkable" would miss
+every wall of every room with a ceiling. A map pickup floods without a radius
+from where the player stands, which is also what keeps the roof and the
+sealed rooms off the map. What was seen is in the snapshot as runs of bits —
+the crypt's bitset would be four kilobytes however little was seen — and
+`AutomapView` in `flutter3d_screens` paints it, centred on the player and
+turned to face the way they do. The dungeon shows it on M and keeps the fight
+running underneath.
+
 ---
 
 ## 12. Extension points
@@ -1321,7 +1339,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3071 tests** across 24 packages and 5 applications |
+| Unit tests | **3080 tests** across 24 packages and 5 applications |
 | Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

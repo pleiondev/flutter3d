@@ -147,7 +147,8 @@ Staged stage(
   // worth having. Four times the cells and twice the bake, both load-time and
   // both small.
   final navIssues = <LevelIssue>[];
-  actors.navigation = Navigation.bake(level, cellSize: 0.25, issues: navIssues);
+  final navigation = Navigation.bake(level, cellSize: 0.25, issues: navIssues);
+  actors.navigation = navigation;
 
   // One ray-caster and one shot for the whole world. The application already
   // shared the ray-caster and built the shot twice; sharing both is the same
@@ -221,6 +222,6 @@ Staged stage(
       projectiles: projectiles,
       shot: shot,
       levelNext: level.next,
-    ),
+    )..automap = Automap(navigation.grid),
   );
 }
