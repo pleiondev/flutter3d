@@ -1,3 +1,20 @@
+## 0.4.2
+
+* **`GraphicsDevice.readback`.** The pixels of a texture, or a region of it,
+  as the passes submitted *before* the call left them, answered without
+  stalling on the GPU — a copy queued in order and a future that resolves when
+  the queue reports it done, a frame or two later. `readPixels` stays for the
+  golden run and the probes, where the caller has stopped drawing and can
+  afford to wait; this is for a caller still drawing that wants last frame's
+  answer while this frame goes on: an exposure meter, an editor's pick. What
+  cannot be read — tile memory, a multisampled target, a cube, a region past
+  the edge — is refused with an `ArgumentError` by `readbackRegionOf`, once,
+  so every backend refuses alike. A backend outside this repository has to add
+  the member.
+* `FakeBackend.readback` records what was asked — texture and region — and
+  answers zeros unless `answerReadback` says otherwise, so a test can be the
+  device that saw a dark frame or a particular id.
+
 ## 0.4.1
 
 * **`GraphicsDevice.supportsTextureFormat`.** The question a block-compressed

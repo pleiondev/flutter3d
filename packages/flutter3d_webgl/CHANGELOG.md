@@ -1,3 +1,18 @@
+## 0.4.3
+
+* **`readback`, through a pixel-pack buffer behind a fence.** `readPixels`
+  with a buffer bound to `PIXEL_PACK_BUFFER` is a command in the stream like
+  any draw — it reads the texture as the commands before it left it — and
+  returns at once where the client-memory form stalls until the GPU has
+  drained everything ahead of it. A `fenceSync` says when the copy is done,
+  polled on a timer rather than blocked on, since the whole engine runs on the
+  thread `clientWaitSync` would block. The region's own y is measured from the
+  bottom for a rendered texture, the way the rows already were, and the rows
+  inside it are turned over the same way; the conformance check that holds a
+  region of a drawn picture to its rows from the top is what found both edges.
+* `Luminance` and `ObjectId`, generated with the rest from `flutter3d_shaders`;
+  `auto-exposure` joins the golden set, its web reference recorded at merge.
+
 ## 0.4.2
 
 * The lightmapped vertex stage, generated with the rest from

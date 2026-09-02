@@ -1,3 +1,18 @@
+## 0.4.2
+
+* **`a readback returns the frame before`**, in the core tier: red is
+  cleared, a readback is asked for and not awaited, blue is cleared over it,
+  and the answer has to be red. The same check holds a two-by-three region to
+  two-by-three pixels and refuses a `deviceTransient` texture and a region
+  past the edge with an `ArgumentError` rather than an answer.
+* **`a readback of a region reads that region`**, in the shader tier: the top
+  half of a picture is painted, a region in the top-left quarter has to be
+  painted and one in the bottom-left not, and a region straddling the edge
+  has its painted rows first — the check that found a backend measuring a
+  region's y from the wrong edge.
+* The link checks pair `ObjectId` with the three vertex stages the picking
+  pass draws through and `Luminance` with the full-screen one.
+
 ## 0.4.1
 
 * The link checks pair `MeshLightmappedVertex` with the lit models.

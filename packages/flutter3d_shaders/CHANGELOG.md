@@ -1,3 +1,14 @@
+## 0.4.2
+
+* **`Luminance`**: the lit scene's log luminance at low resolution, sixteen
+  taps per texel, encoded in eight bits over sixteen stops from minus ten —
+  what an exposure meter reads back. `LuminanceInfo.params` carries the
+  footprint and the two ends of the encoding.
+* **`ObjectId`**: every mesh drawn again through its own vertex stage with a
+  fragment stage that writes the id in `IdInfo.id` as three bytes, into a
+  single attachment, so one pixel read back says which node is under the
+  cursor. `kRequiredShaders` names both.
+
 ## 0.4.1
 
 * **`MeshLightmappedVertex`**, a fourth vertex stage: the standard layout

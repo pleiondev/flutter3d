@@ -1,3 +1,28 @@
+## 0.4.3
+
+* **Auto exposure.** `RenderSettings.autoExposure` meters the frame: a
+  luminance node writes the lit scene's log luminance into a 64×64 eight-bit
+  target, `GraphicsDevice.readback` hands the bytes back a frame or two
+  later, `ExposureMeter` averages the band between two percentiles of their
+  histogram — the brightest fifth, so a dark corridor does not push a torchlit
+  wall past white — and `ExposureAdapter` moves the exposure towards the
+  answer in stops, at one rate climbing and another falling, between two
+  limits. The composite exposes each frame with what the frame before was
+  metered at; `FrameResult.exposure` and `Renderer.exposure` say what that
+  was. Off by default, since every golden is recorded at the setting's own
+  number; `auto-exposure` is the one scene that turns it on, and it is a
+  golden in all three sets.
+* **Picking by pixel.** `Renderer.pickPixel(u, v)` asks the next frame which
+  mesh is drawn at a point: that frame draws every visible mesh once more with
+  the `ObjectId` stage into a frame-sized target, reads the one pixel back and
+  answers with the node whose number came back — null for the clear colour,
+  the batch for an instanced batch. Only on a frame somebody asked; otherwise
+  the node is inactive and the graph culls it. `Raycaster` stays for a game,
+  which wants an answer now and needs no frame.
+* `FrameResourceIds.luminance` and `FrameResourceIds.objectIds`, both frame
+  outputs while their node is active, since their consumer is a readback the
+  graph cannot see.
+
 ## 0.4.2
 
 * **Lightmaps.** `MeshNode.lightmapped` picks a vertex stage that reads the

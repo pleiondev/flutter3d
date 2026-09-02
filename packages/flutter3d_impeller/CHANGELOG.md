@@ -1,3 +1,17 @@
+## 0.4.5
+
+* **`readback`, through a staging texture rather than a buffer.** flutter_gpu
+  3.47 has `copyTextureToBuffer` and no way for Dart to read the
+  `DeviceBuffer` it fills, so the copy goes texture to texture into a pooled
+  staging texture — a command on a command buffer submitted in order, which is
+  what makes the answer the frame before — and the bytes come off it through
+  `asImage().toByteData()` in `submit`'s completion callback, once the queue
+  says the copy ran. Nothing blocks; the pool grows to however many readbacks
+  are in flight, two for a meter that asks every frame. Checked on the GPU by
+  the two new conformance checks and by the `auto-exposure` golden, whose
+  metered frame reproduced to the pixel.
+* The bundle gains `Luminance` and `ObjectId`.
+
 ## 0.4.4
 
 * The bundle gains `MeshLightmappedVertex` and every lit stage binds a

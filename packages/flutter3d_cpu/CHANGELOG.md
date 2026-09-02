@@ -1,3 +1,14 @@
+## 0.4.2
+
+* **`readback`, at once.** Nothing here is in flight — the pass that wrote the
+  floats ran to the end before `submit` returned — so the region is converted
+  on the spot and the future is complete when it is handed back, which is the
+  honest answer and what lets the engine's own tests of the callers run in a
+  plain `flutter test`: a dark room climbing to the ceiling, two boxes picked
+  apart.
+* `Luminance` and `ObjectId` transcribed from the GLSL; `auto-exposure` joins
+  the golden set at 0.581% from Impeller.
+
 ## 0.4.1
 
 * The lightmapped vertex stage and the lightmap term in the four lit models,

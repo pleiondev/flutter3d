@@ -188,6 +188,7 @@ The `*Data` variants are for geometry that lives one frame; `uploadGeometry` is 
 ```dart
 Widget present(TextureHandle frame, {BoxFit fit, FilterQuality quality});
 Future<ByteData?> readPixels(TextureHandle texture);
+Future<ByteData> readback(TextureHandle texture, {ScreenRect? region});
 ```
 
 <div class="why">
@@ -196,6 +197,8 @@ Future<ByteData?> readPixels(TextureHandle texture);
 </div>
 
 `readPixels` is a different question with a different cost — it runs when something wants to *look* at what a pass wrote, and returns null for a `deviceTransient` texture, which lives in tile memory and has nothing left to read once the pass has ended.
+
+`readback` is the same bytes asked a third way: **as the passes submitted before the call left them, and without waiting for the GPU.** A pass submitted afterwards, drawing into the same texture, does not reach the answer; and the caller is not held up by a frame the GPU is still on — the future resolves when the queue reports the copy done, which is a frame or two later. That is what an exposure meter reading a luminance target every frame needs, and what an editor reading the id under the cursor needs. On flutter_gpu the copy is texture to texture into a pooled staging texture, since `DeviceBuffer` has no read path back to Dart; on WebGL2 it is `readPixels` into a pixel-pack buffer behind a fence, polled rather than blocked on; the software rasteriser has nothing in flight and answers at once. What cannot be read — tile memory, a multisampled target, a cube, a region past the edge — is refused with an `ArgumentError` by `readbackRegionOf`, once, for every backend, and the handle carries every fact needed to ask first.
 
 ## The semantics no signature can express {#semantics}
 
@@ -206,6 +209,7 @@ Half of what a backend must *do* is in no signature. These were prose once, whic
 | **A clear covers the whole attachment**, whatever the viewport or scissor say | The point-light atlas clears once and then draws tile by tile. GL does not give this for free — `clearBufferfv` respects `SCISSOR_TEST` |
 | **Rectangles are stated from the top left**, matching where row zero of a render target is | A backend whose framebuffer origin is at the bottom must flip them. The engine will not |
 | **`readPixels` returns rows from the top**, independently of the above | A caller cannot tell which way round it was handed pixels, and a golden compared against a mirrored frame fails as though rendering broke |
+| **`readback` returns the frame before** — the texture as the passes submitted before the call left it, without stalling | A copy made when the driver gets round to it hands an exposure meter the frame *after*; the check clears red, asks, clears blue, and has to get red |
 | **A sampler a shader declares must be bound** | Leaving one unbound is a native crash with no Dart frame on at least one backend, which is why the engine binds a stand-in rather than nothing |
 | **`bindUniformBlock` returns false for a block the shader does not have** | That case is ordinary, a compiler drops a block nothing reads. A block that exists *without a member the caller named* is an error, because then the two ends disagree about its shape and zeros are a plausible-looking value for most of what goes through there |
 | **A null `sampler` means `SamplerOptions.linearRepeat`**, not the constructor's own defaults, which are nearest and clamp | See below. This one cost two percent of every textured golden |
