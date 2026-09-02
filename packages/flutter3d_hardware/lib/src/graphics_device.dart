@@ -119,6 +119,24 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// here looks exactly like the wireframe setting having no effect.
   bool get supportsWireframe;
 
+  /// Whether the depth attachment this device hands out carries a stencil
+  /// that `PassEncoder.setStencil` can test against.
+  ///
+  /// Ask before requesting it, as with [supportsWireframe]: a stencil test
+  /// configured against an attachment that has none passes always on one API
+  /// and is an invalid descriptor on another, and neither is the silhouette
+  /// somebody asked for. The renderer's x-ray stage draws nothing at all on a
+  /// device that answers false, which is a picture without silhouettes rather
+  /// than a frame with something wrong in it.
+  ///
+  /// True on all three backends here — every depth format the engine names
+  /// packs eight stencil bits beside the depth, and the software rasteriser
+  /// keeps a byte per pixel for the purpose. It is a question rather than a
+  /// constant because [defaultDepthStencilFormat] is allowed to be
+  /// [TextureFormat.unknown], and a device with no depth-stencil format has
+  /// no stencil either.
+  bool get supportsStencil;
+
   /// Whether a texture uploaded in [format] can be created and sampled here.
   ///
   /// **The question a block-compressed format needs asked, and the one no

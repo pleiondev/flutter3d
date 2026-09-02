@@ -124,3 +124,15 @@ final class RecordedDepthCompare extends Recorded {
   const RecordedDepthCompare(this.compare);
   final CompareFunction compare;
 }
+
+/// A stencil configuration, with the back face only when one was named.
+final class RecordedStencil extends Recorded {
+  const RecordedStencil(this.front, this.back);
+  final StencilState front;
+  final StencilState? back;
+}
+
+final class RecordedStencilReference extends Recorded {
+  const RecordedStencilReference(this.value);
+  final int value;
+}

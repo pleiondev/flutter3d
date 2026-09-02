@@ -327,6 +327,60 @@ void main() {
     gpu.TextureType.values,
     (v) => v.toGpu(),
   );
+  checkForward(
+    'StencilOperation',
+    StencilOperation.values,
+    gpu.StencilOperation.values,
+    (v) => v.toGpu(),
+  );
+  checkForward(
+    'StencilFace',
+    StencilFace.values,
+    gpu.StencilFace.values,
+    (v) => v.toGpu(),
+  );
+
+  group('StencilState', () {
+    test('every field is carried across, and none is crossed with another', () {
+      // Every field a different value, and the three operations three
+      // different ones, so a translation that put the depth-fail operation
+      // where the pass operation goes could not come back looking right.
+      const ours = StencilState(
+        compare: CompareFunction.notEqual,
+        failOp: StencilOperation.zero,
+        depthFailOp: StencilOperation.incrementWrap,
+        passOp: StencilOperation.setToReferenceValue,
+        readMask: 0x0F,
+        writeMask: 0xF0,
+      );
+
+      final theirs = ours.toGpu();
+      expect(theirs.compareFunction, gpu.CompareFunction.notEqual);
+      expect(theirs.stencilFailureOperation, gpu.StencilOperation.zero);
+      expect(theirs.depthFailureOperation, gpu.StencilOperation.incrementWrap);
+      expect(
+        theirs.depthStencilPassOperation,
+        gpu.StencilOperation.setToReferenceValue,
+      );
+      expect(theirs.readMask, 0x0F);
+      expect(theirs.writeMask, 0xF0);
+    });
+
+    test('the disabled state is flutter_gpu\'s default but for the masks', () {
+      // The one deliberate difference, stated in `StencilState`'s own doc:
+      // eight bits rather than thirty-two, which every stencil format here
+      // makes the same value. Everything else has to agree, or a pass that
+      // says "switch it off" would be saying something else on this backend.
+      final defaults = gpu.StencilConfig();
+      final off = StencilState.disabled.toGpu();
+      expect(off.compareFunction, defaults.compareFunction);
+      expect(off.stencilFailureOperation, defaults.stencilFailureOperation);
+      expect(off.depthFailureOperation, defaults.depthFailureOperation);
+      expect(off.depthStencilPassOperation, defaults.depthStencilPassOperation);
+      expect(off.readMask & 0xFF, defaults.readMask & 0xFF);
+      expect(off.writeMask & 0xFF, defaults.writeMask & 0xFF);
+    });
+  });
 
   group('SamplerOptions', () {
     test('every field is carried across, and none is crossed with another', () {

@@ -40,6 +40,13 @@ final class _Recorder implements PassEncoder {
   @override
   void setBlend(BlendState? state, {int attachment = 0}) =>
       calls.add('blend ${state == null ? 'off' : 'on'}@$attachment');
+  @override
+  void setStencil(StencilState front, {StencilState? back}) => calls.add(
+    'stencil ${front.compare.name}'
+    '${back == null ? '' : ' back ${back.compare.name}'}',
+  );
+  @override
+  void setStencilReference(int value) => calls.add('stencilReference $value');
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -123,5 +130,111 @@ void main() {
 
     expect(a, b);
     expect(a.hashCode, b.hashCode);
+  });
+
+  test('the stencil comes last, and the reference after it', () {
+    // After depth, because that is the order the questions are asked in —
+    // and after everything, because a stencil that went first would sit
+    // between nothing: no other field reads it.
+    final encoder = _Recorder()
+      ..setState(
+        const PassState(
+          stencilReference: 1,
+          depthCompare: CompareFunction.greater,
+          stencil: StencilState(compare: CompareFunction.notEqual),
+          depthWrite: false,
+        ),
+      );
+
+    expect(encoder.calls, <String>[
+      'depthWrite false',
+      'depthCompare greater',
+      'stencil notEqual',
+      'stencilReference 1',
+    ]);
+  });
+
+  test('a back face rides on the same call as the front', () {
+    final encoder = _Recorder()
+      ..setState(
+        const PassState(
+          stencil: StencilState(compare: CompareFunction.equal),
+          stencilBack: StencilState(compare: CompareFunction.never),
+        ),
+      );
+
+    expect(encoder.calls, <String>['stencil equal back never']);
+  });
+
+  test('a back face without a front is refused', () {
+    // One call carries both, so a state with only the back half has nothing
+    // to emit it on. Silently emitting nothing would be a mask that never
+    // arrived, which is the shape of bug every optional field here exists to
+    // make visible.
+    expect(
+      () => PassState(
+        stencilBack: const StencilState(compare: CompareFunction.equal),
+      ),
+      throwsA(isA<AssertionError>()),
+    );
+  });
+
+  test('copyWith carries the stencil fields, and equality reads them', () {
+    const marked = StencilState(
+      compare: CompareFunction.always,
+      passOp: StencilOperation.setToReferenceValue,
+    );
+    const base = PassState(stencil: marked, stencilReference: 1);
+
+    final changed = base.copyWith(depthWrite: false);
+
+    expect(changed.stencil, marked);
+    expect(changed.stencilReference, 1);
+    expect(changed, isNot(base));
+    expect(
+      const PassState(stencil: marked, stencilReference: 1),
+      base,
+      reason: 'two states naming the same stencil are the same state',
+    );
+    expect(
+      const PassState(stencil: marked, stencilReference: 2),
+      isNot(base),
+      reason: 'and a different reference is a different state',
+    );
+  });
+
+  test('StencilState defaults to the test switched off', () {
+    // What a pass starts with, and what a caller says to switch it back off:
+    // the two have to be the same value or a pass could not tell whether it
+    // was done.
+    const fresh = StencilState();
+    expect(fresh, StencilState.disabled);
+    expect(fresh.compare, CompareFunction.always);
+    expect(fresh.failOp, StencilOperation.keep);
+    expect(fresh.depthFailOp, StencilOperation.keep);
+    expect(fresh.passOp, StencilOperation.keep);
+    expect(fresh.readMask, 0xFF);
+    expect(fresh.writeMask, 0xFF);
+    expect(
+      const StencilState(writeMask: 0x0F),
+      isNot(StencilState.disabled),
+      reason: 'every field takes part in equality',
+    );
+    expect(
+      const StencilState(passOp: StencilOperation.invert).hashCode,
+      const StencilState(passOp: StencilOperation.invert).hashCode,
+    );
+  });
+
+  test('the formats that carry a stencil are exactly the three', () {
+    // Every depth format the engine names packs one, which is why nothing
+    // above the backends ever had to ask — and why a backend opening a pass
+    // can enable the test whenever there is a depth attachment at all.
+    final withStencil = TextureFormat.values.where((f) => f.hasStencil);
+    expect(withStencil, <TextureFormat>[
+      TextureFormat.s8UInt,
+      TextureFormat.d24UnormS8Uint,
+      TextureFormat.d32FloatS8UInt,
+    ]);
   });
 }

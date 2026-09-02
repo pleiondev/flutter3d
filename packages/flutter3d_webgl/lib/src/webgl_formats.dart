@@ -24,6 +24,25 @@ int compareFunctionToGl(CompareFunction f) => switch (f) {
   CompareFunction.greaterEqual => web.WebGLRenderingContext.GEQUAL,
 };
 
+/// What a stencil operation is called in GL.
+int stencilOperationToGl(StencilOperation op) => switch (op) {
+  StencilOperation.keep => web.WebGLRenderingContext.KEEP,
+  StencilOperation.zero => web.WebGLRenderingContext.ZERO,
+  StencilOperation.setToReferenceValue => web.WebGLRenderingContext.REPLACE,
+  StencilOperation.incrementClamp => web.WebGLRenderingContext.INCR,
+  StencilOperation.decrementClamp => web.WebGLRenderingContext.DECR,
+  StencilOperation.invert => web.WebGLRenderingContext.INVERT,
+  StencilOperation.incrementWrap => web.WebGLRenderingContext.INCR_WRAP,
+  StencilOperation.decrementWrap => web.WebGLRenderingContext.DECR_WRAP,
+};
+
+/// Which face a `stencil*Separate` call addresses.
+int stencilFaceToGl(StencilFace face) => switch (face) {
+  StencilFace.both => web.WebGLRenderingContext.FRONT_AND_BACK,
+  StencilFace.front => web.WebGLRenderingContext.FRONT,
+  StencilFace.back => web.WebGLRenderingContext.BACK,
+};
+
 /// Which faces the rasteriser discards.
 ///
 /// Null means culling is switched off entirely — `gl.disable(CULL_FACE)` —

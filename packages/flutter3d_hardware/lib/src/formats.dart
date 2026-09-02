@@ -123,6 +123,22 @@ enum TextureFormat {
   astc8x8HDR,
 }
 
+/// Whether a [TextureFormat] carries an eight-bit stencil beside its depth.
+///
+/// Asked by a backend when it opens a pass: a stencil test against an
+/// attachment that has no stencil is specified to pass always on GL and to be
+/// an invalid descriptor on Metal, and neither answer is what a caller who
+/// configured one meant. Every depth format this engine names carries one,
+/// which is why nothing above the backends has ever had to ask.
+extension TextureFormatStencil on TextureFormat {
+  bool get hasStencil => switch (this) {
+    TextureFormat.s8UInt ||
+    TextureFormat.d24UnormS8Uint ||
+    TextureFormat.d32FloatS8UInt => true,
+    _ => false,
+  };
+}
+
 /// The block footprint and byte cost of a compressed [TextureFormat] —
 /// [blockWidth] by [blockHeight] pixels, [bytesPerBlock] bytes, however many
 /// channels or bits per channel the format packs into that block.
@@ -303,6 +319,47 @@ enum CompareFunction {
   /// Passes if new_value >= current_value.
   greaterEqual,
 }
+
+/// What happens to a stencil value once the stencil and depth tests have
+/// decided a fragment's fate.
+///
+/// One operation is chosen for each of the three outcomes — see
+/// `StencilState` — and the value it produces is masked by the write mask
+/// before it lands. Names and order are flutter_gpu's, for the reason the
+/// library docstring gives.
+enum StencilOperation {
+  /// Leaves the stored value alone.
+  keep,
+
+  /// Stores zero.
+  zero,
+
+  /// Stores the reference value set by `PassEncoder.setStencilReference`.
+  setToReferenceValue,
+
+  /// Adds one, and stays at the maximum rather than wrapping.
+  incrementClamp,
+
+  /// Subtracts one, and stays at zero rather than wrapping.
+  decrementClamp,
+
+  /// Flips every bit.
+  invert,
+
+  /// Adds one, and wraps to zero past the maximum.
+  incrementWrap,
+
+  /// Subtracts one, and wraps to the maximum past zero.
+  decrementWrap,
+}
+
+/// Which side of a triangle a stencil configuration applies to.
+///
+/// The engine configures both sides alike through `PassEncoder.setStencil`
+/// and names a back face only when a caller hands one; this enum is what the
+/// Impeller translation maps onto, and is here because every enum
+/// flutter_gpu has is mirrored one for one.
+enum StencilFace { both, front, back }
 
 /// What a backend's clip space maps depth onto.
 ///

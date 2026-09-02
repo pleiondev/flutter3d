@@ -38,6 +38,7 @@ import 'src/pass_coverage_checks.dart';
 import 'src/pipeline_checks.dart';
 import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
+import 'src/stencil_checks.dart';
 
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the
@@ -163,6 +164,12 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'setDepthWrite(false) stops depth writes',
     run: checkDepthWriteIsHonoured,
+  ),
+  // The stencil in the shape the x-ray stage uses it: a mark that leaves the
+  // picture alone, then `equal` and `notEqual` reading it back.
+  (
+    name: 'a stencil test keeps what it should',
+    run: checkStencilKeepsWhatItShould,
   ),
 ];
 

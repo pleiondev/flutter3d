@@ -37,11 +37,38 @@ final class CpuEncoder implements CommandEncoder {
         depth.clearValue,
       );
       _depthTarget = texture;
+      // The stencil only where the format says there is one — the test
+      // against an attachment without a stencil is specified to pass always,
+      // and a null here is how the loops below get that for free.
+      if (depth.texture.format.hasStencil) {
+        final stencil = texture.stencilBuffer();
+        if (depth.stencilLoadAction == LoadAction.clear) {
+          stencil.fillRange(0, stencil.length, depth.stencilClearValue & 0xFF);
+        }
+        _stencilTarget = stencil;
+      }
     }
   }
 
   final RenderPassDescriptor _descriptor;
   CpuTexture? _depthTarget;
+  Uint8List? _stencilTarget;
+
+  // Off on both faces until a pass says otherwise, which is what a fresh
+  // `flutter_gpu` pass and a fresh GL context both start with.
+  StencilState _stencilFront = StencilState.disabled;
+  StencilState _stencilBack = StencilState.disabled;
+  int _stencilReference = 0;
+
+  /// The buffer to test against, or null when nothing would change: no
+  /// attachment carries one, or both faces are still switched off. Asked once
+  /// per primitive so the thirty-odd scenes that never mention the stencil
+  /// pay a null check per triangle and nothing per fragment.
+  Uint8List? get _activeStencil =>
+      _stencilFront == StencilState.disabled &&
+          _stencilBack == StencilState.disabled
+      ? null
+      : _stencilTarget;
 
   ScreenRect? _viewport;
   ScreenRect? _scissor;
@@ -125,6 +152,15 @@ final class CpuEncoder implements CommandEncoder {
 
   @override
   void setDepthCompare(CompareFunction compare) => _depthCompare = compare;
+
+  @override
+  void setStencil(StencilState front, {StencilState? back}) {
+    _stencilFront = front;
+    _stencilBack = back ?? front;
+  }
+
+  @override
+  void setStencilReference(int value) => _stencilReference = value & 0xFF;
 
   @override
   void setBlend(BlendState? state, {int attachment = 0}) => _blend = state;
@@ -356,6 +392,10 @@ final class CpuEncoder implements CommandEncoder {
     if (steps <= 0) return;
 
     final depth = _depthTarget?.depthBuffer();
+    // A line has no facing, so it takes the front state — which is what GL
+    // does with a primitive it cannot classify.
+    final stencil = _activeStencil;
+    final stencilState = _stencilFront;
     final interpolated = Float32List(varyingCount);
     final context = FragmentContext();
 
@@ -397,7 +437,9 @@ final class CpuEncoder implements CommandEncoder {
 
       final z = sz[0] + (sz[1] - sz[0]) * t;
       final index = y * target.width + x;
-      if (depth != null && !_depthPasses(z, depth[index])) continue;
+      final fate = _fateOf(stencil, stencilState, index, z, depth);
+      final op = _operationFor(fate, stencilState);
+      if (fate != _fatePass && op == StencilOperation.keep) continue;
 
       final iw = invW[0] + (invW[1] - invW[0]) * t;
       for (var v = 0; v < varyingCount; v++) {
@@ -411,6 +453,8 @@ final class CpuEncoder implements CommandEncoder {
       context.surface = null;
       final colour = pipeline.fragment.run(interpolated, bindings, context);
       if (colour == null) continue;
+      if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
+      if (fate != _fatePass) continue;
 
       final at = index * 4;
       target.pixels[at] = colour.x;
@@ -419,6 +463,94 @@ final class CpuEncoder implements CommandEncoder {
       target.pixels[at + 3] = colour.w;
       if (depth != null && _depthWrite) depth[index] = z;
     }
+  }
+
+  /// A fragment the stencil test rejected.
+  static const int _fateStencilFail = 0;
+
+  /// A fragment the stencil test passed and the depth test rejected.
+  static const int _fateDepthFail = 1;
+
+  /// A fragment both tests passed: shaded, and written if it is not discarded.
+  static const int _fatePass = 2;
+
+  /// Which of the three outcomes a fragment at [index] and depth [z] meets.
+  ///
+  /// The stencil test first and the depth test second, which is the order
+  /// the specification runs them in and the order that decides which of a
+  /// state's three operations applies. Without a stencil there is only the
+  /// depth test, and the answer is the one this rasteriser always gave.
+  int _fateOf(
+    Uint8List? stencil,
+    StencilState state,
+    int index,
+    double z,
+    Float32List? depth,
+  ) {
+    if (stencil != null && !_stencilPasses(state, stencil[index])) {
+      return _fateStencilFail;
+    }
+    if (depth != null && !_depthPasses(z, depth[index])) {
+      return _fateDepthFail;
+    }
+    return _fatePass;
+  }
+
+  static StencilOperation _operationFor(int fate, StencilState state) =>
+      switch (fate) {
+        _fateStencilFail => state.failOp,
+        _fateDepthFail => state.depthFailOp,
+        _ => state.passOp,
+      };
+
+  /// The reference against the stored value, both through the read mask, with
+  /// the reference as the "new" side of the comparison — `less` passes when
+  /// the reference is below what is stored, as [CompareFunction] says.
+  bool _stencilPasses(StencilState state, int stored) {
+    final reference = _stencilReference & state.readMask;
+    final current = stored & state.readMask;
+    return switch (state.compare) {
+      CompareFunction.never => false,
+      CompareFunction.always => true,
+      CompareFunction.less => reference < current,
+      CompareFunction.lessEqual => reference <= current,
+      CompareFunction.greater => reference > current,
+      CompareFunction.greaterEqual => reference >= current,
+      CompareFunction.equal => reference == current,
+      CompareFunction.notEqual => reference != current,
+    };
+  }
+
+  /// Applies [op] to the byte at [index], through the write mask.
+  ///
+  /// **After the fragment stage, not before it**, in both rasterisers. A
+  /// discarded fragment updates neither depth nor stencil on any of the three
+  /// backends — that is what makes `discard` useless for a marking draw and
+  /// [BlendState.keepDestination] necessary — so the operation a fragment
+  /// earned by failing a test is still only applied once the stage has said
+  /// the fragment exists. The cost is a shader run for a failing fragment
+  /// whose operation is not `keep`; a failing fragment whose operation *is*
+  /// `keep` is skipped before shading, exactly as it always was.
+  void _stencilWrite(
+    Uint8List stencil,
+    int index,
+    StencilState state,
+    StencilOperation op,
+  ) {
+    if (op == StencilOperation.keep) return;
+    final stored = stencil[index];
+    final value = switch (op) {
+      StencilOperation.keep => stored,
+      StencilOperation.zero => 0,
+      StencilOperation.setToReferenceValue => _stencilReference,
+      StencilOperation.incrementClamp => math.min(stored + 1, 0xFF),
+      StencilOperation.decrementClamp => math.max(stored - 1, 0),
+      StencilOperation.invert => ~stored,
+      StencilOperation.incrementWrap => stored + 1,
+      StencilOperation.decrementWrap => stored - 1,
+    };
+    stencil[index] =
+        (stored & ~state.writeMask) | (value & state.writeMask & 0xFF);
   }
 
   /// How many floats one vertex is, from the buffer and the count.
@@ -625,6 +757,11 @@ final class CpuEncoder implements CommandEncoder {
     );
 
     final depth = _depthTarget?.depthBuffer();
+    // Per face, decided before the winding swap above changed what "front"
+    // means for the edge functions: the state a triangle is tested against is
+    // the one for the side the camera sees.
+    final stencil = _activeStencil;
+    final stencilState = frontFacing ? _stencilFront : _stencilBack;
     final interpolated = Float32List(varyingCount);
     final context = FragmentContext();
 
@@ -694,7 +831,11 @@ final class CpuEncoder implements CommandEncoder {
 
         final z = sz[0] * b0 + sz[1] * b1 + sz[2] * b2;
         final index = y * target.width + x;
-        if (depth != null && !_depthPasses(z, depth[index])) continue;
+        final fate = _fateOf(stencil, stencilState, index, z, depth);
+        final op = _operationFor(fate, stencilState);
+        // Rejected with nothing to record: gone before the stage runs, which
+        // is the early-z every scene without a stencil has always had.
+        if (fate != _fatePass && op == StencilOperation.keep) continue;
 
         // Perspective-correct: interpolate over 1/w and divide back.
         final iw = invW[0] * b0 + invW[1] * b1 + invW[2] * b2;
@@ -713,6 +854,8 @@ final class CpuEncoder implements CommandEncoder {
         context.surface = null;
         final colour = pipeline.fragment.run(interpolated, bindings, context);
         if (colour == null) continue;
+        if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
+        if (fate != _fatePass) continue;
 
         // Attachment one, when the stage wrote it and the pass has one. Both
         // conditions matter: the lit models always write it and the shadow
@@ -727,35 +870,94 @@ final class CpuEncoder implements CommandEncoder {
         }
 
         final at = index * 4;
-        if (_blend == null) {
+        final blend = _blend;
+        if (blend == null) {
           target.pixels[at] = colour.x;
           target.pixels[at + 1] = colour.y;
           target.pixels[at + 2] = colour.z;
           target.pixels[at + 3] = colour.w;
         } else {
-          // Only the two the engine uses: source-over and additive. A general
-          // blend equation nothing asks for would be a guess about a call site.
-          final srcAlpha = _blend!.sourceColorFactor == BlendFactor.sourceAlpha
-              ? colour.w
-              : 1.0;
-          final dstFactor =
-              _blend!.destinationColorFactor == BlendFactor.oneMinusSourceAlpha
-              ? 1.0 - colour.w
-              : 1.0;
-          target.pixels[at] =
-              colour.x * srcAlpha + target.pixels[at] * dstFactor;
-          target.pixels[at + 1] =
-              colour.y * srcAlpha + target.pixels[at + 1] * dstFactor;
-          target.pixels[at + 2] =
-              colour.z * srcAlpha + target.pixels[at + 2] * dstFactor;
-          target.pixels[at + 3] =
-              colour.w * srcAlpha + target.pixels[at + 3] * dstFactor;
+          _blendInto(blend, target.pixels, at, colour);
         }
 
         if (depth != null && _depthWrite) depth[index] = z;
       }
     }
   }
+
+  /// The blend equation, factor by factor.
+  ///
+  /// This used to recognise exactly two states — source-over and additive —
+  /// by testing two of their factors, on the argument that a general equation
+  /// nothing asked for was a guess about a call site. The third state asked:
+  /// [BlendState.keepDestination] is zero and one, which the two tests read
+  /// as "one and one" and drew the marking pass's colour straight over the
+  /// picture it was meant to leave alone. Every factor but the four that need
+  /// a blend constant is a line here now; those four throw, because the
+  /// interface has no way to set one and a silent 1.0 would be exactly the
+  /// mistake this replaces.
+  static void _blendInto(
+    BlendState blend,
+    Float32List pixels,
+    int at,
+    Vector4 source,
+  ) {
+    final sa = source.w;
+    final da = pixels[at + 3];
+    for (var channel = 0; channel < 3; channel++) {
+      final s = source[channel];
+      final d = pixels[at + channel];
+      pixels[at + channel] = _combine(
+        blend.colorOperation,
+        s * _factor(blend.sourceColorFactor, s, sa, d, da, alpha: false),
+        d * _factor(blend.destinationColorFactor, s, sa, d, da, alpha: false),
+      );
+    }
+    pixels[at + 3] = _combine(
+      blend.alphaOperation,
+      sa * _factor(blend.sourceAlphaFactor, sa, sa, da, da, alpha: true),
+      da * _factor(blend.destinationAlphaFactor, sa, sa, da, da, alpha: true),
+    );
+  }
+
+  static double _combine(BlendOperation op, double s, double d) => switch (op) {
+    BlendOperation.add => s + d,
+    BlendOperation.subtract => s - d,
+    BlendOperation.reverseSubtract => d - s,
+  };
+
+  /// One factor for one channel: [s] and [d] are that channel's source and
+  /// destination, [sa] and [da] the two alphas. [alpha] says the channel is
+  /// the alpha itself, where the specification pins the saturated factor at
+  /// one.
+  static double _factor(
+    BlendFactor factor,
+    double s,
+    double sa,
+    double d,
+    double da, {
+    required bool alpha,
+  }) => switch (factor) {
+    BlendFactor.zero => 0.0,
+    BlendFactor.one => 1.0,
+    BlendFactor.sourceColor => s,
+    BlendFactor.oneMinusSourceColor => 1.0 - s,
+    BlendFactor.sourceAlpha => sa,
+    BlendFactor.oneMinusSourceAlpha => 1.0 - sa,
+    BlendFactor.destinationColor => d,
+    BlendFactor.oneMinusDestinationColor => 1.0 - d,
+    BlendFactor.destinationAlpha => da,
+    BlendFactor.oneMinusDestinationAlpha => 1.0 - da,
+    BlendFactor.sourceAlphaSaturated => alpha ? 1.0 : math.min(sa, 1.0 - da),
+    BlendFactor.blendColor ||
+    BlendFactor.oneMinusBlendColor ||
+    BlendFactor.blendAlpha ||
+    BlendFactor.oneMinusBlendAlpha => throw UnsupportedError(
+      'BlendFactor.${factor.name} reads a blend constant, and the interface '
+      'has no way to set one. Answering with a made-up constant would draw a '
+      'plausible picture nobody asked for.',
+    ),
+  };
 
   bool _depthPasses(double incoming, double stored) => switch (_depthCompare) {
     CompareFunction.never => false,

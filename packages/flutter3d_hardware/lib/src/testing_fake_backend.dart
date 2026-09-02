@@ -35,8 +35,16 @@ final class FakeBackend implements GraphicsDevice {
   FakeBackend({
     Set<String> missingShaders = const <String>{},
     this.supportsWireframe = true,
+    this.supportsStencil = true,
     this.unsupportedFormats = const <TextureFormat>{},
   }) : shaders = FakeShaderLibrary(missing: missingShaders);
+
+  /// Settable for the same reason [supportsWireframe] is: the case worth a
+  /// test is the device that says no, where the x-ray stage has to draw
+  /// nothing rather than configure a test against an attachment with no
+  /// stencil in it.
+  @override
+  final bool supportsStencil;
 
   @override
   final FakeShaderLibrary shaders;

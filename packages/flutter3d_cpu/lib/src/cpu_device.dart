@@ -79,6 +79,11 @@ final class CpuDevice implements GraphicsDevice {
   bool get supportsOffscreenMsaa => false;
 
   @override
+  // A byte per pixel beside the depth, tested and written the way the
+  // specification says, every operation of the eight. See `CpuEncoder`.
+  bool get supportsStencil => true;
+
+  @override
   // Line *primitives* are drawn — debug geometry arrives as those. Wireframe
   // is a different request: it asks for triangles to be drawn as their edges,
   // which means clipping and joining edges this rasteriser has no path for.

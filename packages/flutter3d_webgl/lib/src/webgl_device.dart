@@ -336,6 +336,11 @@ final class WebGlDevice implements GraphicsDevice {
   bool get supportsWireframe => false;
 
   @override
+  // `DEPTH24_STENCIL8` is WebGL2 core, and it is the format every depth
+  // attachment this backend makes is allocated in.
+  bool get supportsStencil => true;
+
+  @override
   // WebGL2 samples a hand-built chain correctly as a matter of specification:
   // `texStorage2D` allocates every level and `TEXTURE_MAX_LEVEL` bounds it. The
   // device this capability exists to warn about is an OpenGL ES 2 one, which
