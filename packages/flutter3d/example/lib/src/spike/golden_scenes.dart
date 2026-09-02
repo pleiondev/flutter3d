@@ -197,6 +197,25 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     lightmapped: true,
   ),
 
+  // The demo's ground plane under the cube, retextured with a checkerboard
+  // that has a mip chain and a sampler asking for eight-way anisotropy, seen
+  // from just above it. Along the far half every check is a few texels tall
+  // and many wide, which is the one footprint a trilinear sampler cannot
+  // serve: it blurs the checks to serve the long axis, and an anisotropic
+  // one keeps them. The hardware backends draw the taps and the software
+  // one answers `maxAnisotropy` of one and draws without them, so the cross-
+  // backend budget for this scene is the measured size of that difference —
+  // see GoldenExtras.checkerFloor.
+  const GoldenScene(
+    name: 'anisotropic-floor',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    yaw: 0.35,
+    pitch: 0.12,
+    anisotropicFloor: true,
+  ),
+
   // Eight quads stacked at one point: addition alone. See stackedParticles.
   const GoldenScene(
     name: 'particle-stack',

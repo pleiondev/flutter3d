@@ -1,3 +1,14 @@
+## 0.4.2
+
+* **A level's brushes are filtered anisotropically, as far as the device
+  goes.** `LevelLoader.tilingSamplerFor` is the tiling sampler every wall
+  had with `min(8, maxAnisotropy)` taps, decided once per level and handed
+  to `materialFrom` through its new `tiling` argument by the loader and the
+  fixture visuals alike. Eight rather than sixteen because that is where a
+  corridor floor stops visibly improving; clamped here rather than left to
+  the backend because the renderer's own setting respects a sampler that
+  already carries a level, and the level it carries should be a true one.
+
 ## 0.4.1
 
 * **A level's sidecars are read beside it.** `LevelLoader` looks for

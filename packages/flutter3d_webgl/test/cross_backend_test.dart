@@ -114,6 +114,10 @@ const Map<String, double> _budgets = <String, double>{
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
   'lightmapped-room': 0.15,
+  // Provisional; recorded at merge. A checkerboard floor seen along its
+  // length with eight-way anisotropy on both backends — what differs is how
+  // far each driver's taps reach, and that is measured once the picture is.
+  'anisotropic-floor': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,

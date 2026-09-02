@@ -335,12 +335,16 @@ extension _MeshEncode on Renderer {
         sampler: Renderer._clampSampler,
       );
     }
+    // The material's own samplers, with the setting's anisotropy applied
+    // where it applies — see `_anisotropic`. The lightmap and the shadow map
+    // are not model textures and keep their clamped samplers as they are.
+    final anisotropy = settings.anisotropy;
     if (material.lighting.usesAlbedoTexture) {
       encoder.bindTexture(
         fragmentShader,
         _kAlbedoTextureSlot,
         material.albedo ?? fallbackAlbedo,
-        sampler: material.albedoSampler,
+        sampler: _anisotropic(material.albedoSampler, anisotropy),
       );
     }
     if (material.lighting.usesMaterialMaps) {
@@ -348,19 +352,19 @@ extension _MeshEncode on Renderer {
         fragmentShader,
         _kNormalTextureSlot,
         material.normal ?? fallbackNormal,
-        sampler: material.normalSampler,
+        sampler: _anisotropic(material.normalSampler, anisotropy),
       );
       encoder.bindTexture(
         fragmentShader,
         _kOcclusionTextureSlot,
         material.occlusion ?? fallbackAlbedo,
-        sampler: material.occlusionSampler,
+        sampler: _anisotropic(material.occlusionSampler, anisotropy),
       );
       encoder.bindTexture(
         fragmentShader,
         _kEmissiveTextureSlot,
         material.emissiveTexture ?? fallbackAlbedo,
-        sampler: material.emissiveSampler,
+        sampler: _anisotropic(material.emissiveSampler, anisotropy),
       );
       // Black, not white: the lightmap is added, and a material without one
       // adds nothing. Bound for every lit model because the shader samples
@@ -389,7 +393,7 @@ extension _MeshEncode on Renderer {
         fragmentShader,
         _kMetallicRoughnessTextureSlot,
         material.metallicRoughness ?? fallbackAlbedo,
-        sampler: material.metallicRoughnessSampler,
+        sampler: _anisotropic(material.metallicRoughnessSampler, anisotropy),
       );
     }
 

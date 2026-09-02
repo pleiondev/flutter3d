@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -203,6 +204,7 @@ final class LevelLoader {
                 level.materials[surface.material] ?? LevelMaterial(),
                 loaded.materialTextures,
                 name: surface.material,
+                tiling: tilingSamplerFor(device),
               ),
               name: surface.material,
             )
@@ -332,6 +334,7 @@ final class LevelLoader {
                   level.materials[surface.material] ?? LevelMaterial(),
                   textures,
                   name: surface.material,
+                  tiling: tilingSamplerFor(device),
                 )
                 ..lightmap = surface.lightmapUvs == null
                     ? null
@@ -381,6 +384,7 @@ final class LevelLoader {
     LevelMaterial source,
     Map<String, TextureHandle?> textures, {
     String? name,
+    SamplerOptions tiling = _tiling,
   }) {
     final material = Material(
       name: name,
@@ -399,12 +403,33 @@ final class LevelLoader {
       // it twice is not waste — it is what the two slots are for.
       ..metallicRoughness = textures[source.orm]
       ..occlusion = textures[source.orm]
-      ..albedoSampler = _tiling
-      ..normalSampler = _tiling
-      ..metallicRoughnessSampler = _tiling
-      ..occlusionSampler = _tiling;
+      ..albedoSampler = tiling
+      ..normalSampler = tiling
+      ..metallicRoughnessSampler = tiling
+      ..occlusionSampler = tiling;
     return material;
   }
+
+  /// How far the filter may reach across a brush surface at a grazing angle.
+  ///
+  /// Eight, not sixteen. Sixteen is what the hardware offers and eight is where
+  /// a corridor floor stops visibly improving; past it the taps cost fill rate
+  /// on a phone for a difference nobody has pointed at. Clamped to what the
+  /// device answers, so a device without the filter gets the sampler it always
+  /// had and the software rasteriser — which answers one — draws its own set.
+  static const int tilingAnisotropy = 8;
+
+  /// [_tiling] with the taps this [device] can take, up to
+  /// [tilingAnisotropy].
+  ///
+  /// Decided once per level rather than per bind: the renderer's own
+  /// `RenderSettings.anisotropy` leaves a sampler that already carries a
+  /// level alone, so a level's walls are not turned up twice, and a game that
+  /// turns the setting down for a slower phone still has the level's floors
+  /// filtered — which is deliberate, because a brush floor seen along its
+  /// length is the surface the filter is for.
+  static SamplerOptions tilingSamplerFor(GraphicsDevice device) =>
+      _tiling.withAnisotropy(math.min(tilingAnisotropy, device.maxAnisotropy));
 
   static Future<TextureHandle?> _upload(
     GraphicsDevice device,
@@ -452,6 +477,10 @@ final class LevelLoader {
   /// Trilinear, so the chain built at upload is blended rather than merely
   /// allocated: with `MipFilter.nearest` — the default — the levels are there
   /// and the picture is the one that has no levels at all.
+  ///
+  /// Isotropic here, which is the default a caller of [materialFrom] gets
+  /// with no device to ask; a level loaded through this class gets
+  /// [tilingSamplerFor] instead.
   static const SamplerOptions _tiling = SamplerOptions.trilinearRepeat;
 
   /// Interleaves the level package's plain arrays into the engine's layout.

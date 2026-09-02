@@ -240,6 +240,11 @@ class _SpikePageState extends State<SpikePage>
     // Receives shadows without casting one: a plane's own back face in the
     // shadow map would fight the surface it is meant to darken.
     _ground.castsShadow = false;
+    // The one scene that looks at the floor rather than past it. The plane,
+    // its size and its place are the demo's; only the surface changes.
+    if (_golden?.scene.anisotropicFloor ?? false) {
+      _ground.material = GoldenExtras.checkerFloor(device);
+    }
 
     _camera = _scene.add(CameraNode(name: 'main camera'));
 
