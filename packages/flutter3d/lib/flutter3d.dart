@@ -44,12 +44,14 @@ export 'src/engine/animation/animation_player.dart';
 export 'src/engine/animation/animation_target.dart';
 export 'src/engine/animation/animation_track.dart';
 // Assets: decoders for glTF/GLB, OBJ, the project's own .f3d container and its
-// .fmat material, plus loading and caching.
+// .fmat material, the KTX2 compressed-texture container, plus loading and
+// caching.
 export 'src/engine/assets/asset_resolver.dart';
 export 'src/engine/assets/f3d/f3d.dart';
 export 'src/engine/assets/fmat/fmat.dart';
 export 'src/engine/assets/gltf/gltf.dart';
 export 'src/engine/assets/gltf_resolvers.dart';
+export 'src/engine/assets/ktx2/ktx2.dart';
 export 'src/engine/assets/material_loader.dart';
 export 'src/engine/assets/model_asset.dart';
 export 'src/engine/assets/model_document.dart';
