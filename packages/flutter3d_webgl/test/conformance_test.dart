@@ -10,6 +10,7 @@
 library;
 
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_webgl/engine_shaders.dart';
 import 'package:flutter3d_webgl/flutter3d_webgl.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,5 +27,15 @@ void main() {
       if (device == null) fail('no WebGL2 context in this browser');
       return device;
     },
+    // The same sources the device was built with, as the section a packed
+    // bundle would carry. No SDK: the section is text the browser compiles.
+    ownShaders: () async => (
+      id: ShaderBundle.webglSection,
+      bytes: encodeWebGlSection(
+        vertex: engineShaders.vertex,
+        fragment: engineShaders.fragment,
+      ),
+      sdk: '',
+    ),
   );
 }

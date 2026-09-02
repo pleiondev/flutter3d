@@ -22,12 +22,14 @@ import 'gpu_command_encoder.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
 import 'gpu_frame_image.dart';
+import 'gpu_loaded_shaders.dart';
 import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'host_buffer_grid.dart';
 
 export 'gpu_command_encoder.dart';
 export 'gpu_frame.dart';
+export 'gpu_loaded_shaders.dart';
 export 'gpu_shader_library.dart';
 
 /// flutter_gpu as a [GraphicsDevice].
@@ -154,6 +156,12 @@ final class GpuRenderBackend implements GraphicsDevice {
 
   @override
   ShaderLibrary get shaders => _library;
+
+  /// Through `ShaderLibrary.fromBytes`, once the header's SDK is this one's.
+  /// See [GpuLoadedShaderLibrary] for what a reload does and cannot do here.
+  @override
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes) =>
+      GpuLoadedShaderLibrary.load(bytes, running: runningSdk);
 
   @override
   // Through `gpu_texture.dart`, which keeps the first answer — see the note

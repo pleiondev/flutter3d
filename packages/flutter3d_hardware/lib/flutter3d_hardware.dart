@@ -40,5 +40,9 @@ export 'src/pass_state.dart';
 export 'src/render_target_pool.dart';
 export 'src/sampler.dart';
 export 'src/shader.dart';
+
+/// A bundle that arrives as bytes: the container every backend reads its own
+/// section of, and the refusal a device answers with when it cannot.
+export 'src/shader_bundle.dart';
 export 'src/texture.dart';
 export 'src/vertex_layout_spec.dart';

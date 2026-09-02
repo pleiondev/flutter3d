@@ -14,10 +14,16 @@
 /// richer than "look a stage up, pair two of them, bind the pair" would be
 /// modelling a client that does not exist.
 ///
+/// What *can* arrive at run time is a whole bundle, as bytes — see
+/// `GraphicsDevice.loadShaders` and [LoadedShaderLibrary]. That adds one thing
+/// to the vocabulary, reloading, and nothing to what a stage is.
+///
 /// What the handles *do* buy is that the type of a stage is not a backend type.
 /// That is what lets [ShaderHandle] appear in `CommandEncoder.bindUniformBlock`
 /// and in the extension-facing frames without dragging a backend into them.
 library;
+
+import 'dart:typed_data';
 
 /// One compiled stage of a pipeline — a vertex or a fragment program.
 ///
@@ -74,6 +80,37 @@ final class PipelineHandle {
 abstract interface class ShaderLibrary {
   /// The stage called [name], or null if the bundle has none.
   ShaderHandle? operator [](String name);
+}
+
+/// A library a device built from bytes it was handed, and can rebuild.
+///
+/// What `GraphicsDevice.loadShaders` returns. It answers names like any
+/// [ShaderLibrary]; what it adds is [reload], and the one promise that makes
+/// reloading worth having: **a handle already handed out keeps its identity
+/// and keeps working.** The renderer resolves its vertex stages once and holds
+/// the handles for its lifetime, so a reload that answered the same names with
+/// new handles would leave every pipeline the renderer builds afterwards
+/// linking against stale objects. Each backend keeps the promise its own way —
+/// flutter_gpu mutates the stage in place, WebGL swaps the compiled object
+/// inside the handle, the software rasteriser never had anything to swap — and
+/// the conformance suite checks it by identity.
+///
+/// Reloading does not rebuild pipelines. A pipeline is a pair of stages linked
+/// on the backend, and the linked object is the caller's to drop:
+/// `Renderer.reloadShaders` is the engine's half of the same gesture.
+abstract interface class LoadedShaderLibrary implements ShaderLibrary {
+  /// The bundle's own name, as its header spells it — what a refusal names.
+  String get name;
+
+  /// Reparses [bytes] into this library in place.
+  ///
+  /// [bytes] are a whole bundle, the same shape `GraphicsDevice.loadShaders`
+  /// took, and the same refusals apply: bytes that are not a bundle, a section
+  /// this backend has none of, an SDK it was not compiled on, a stage this
+  /// backend cannot run. A refused reload throws `ShaderBundleRefused` and
+  /// **leaves the library as it was**, so an editor that rebuilt a bundle
+  /// wrongly keeps drawing with the one that worked.
+  void reload(ByteData bytes);
 }
 
 /// Two libraries consulted in order, the first winning.

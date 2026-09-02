@@ -30,6 +30,44 @@ final class FakeShaderLibrary implements ShaderLibrary {
         );
 }
 
+/// What [FakeBackend.loadShaders] hands back: the bundle's own names, answered
+/// with handles that survive a reload.
+///
+/// A fake keeps the one promise that matters about a loaded library — a
+/// handle already handed out is the same handle after [reload] — because the
+/// renderer holds its vertex stages for its lifetime and a test of the reload
+/// path needs a device that behaves the way the three real ones do.
+final class FakeLoadedShaderLibrary implements LoadedShaderLibrary {
+  FakeLoadedShaderLibrary(ShaderBundle bundle) : _bundle = bundle;
+
+  ShaderBundle _bundle;
+  final Map<String, ShaderHandle> _handles = <String, ShaderHandle>{};
+
+  /// How many times [reload] has been called, for a test that wants to know
+  /// an editor's watcher fired.
+  int reloads = 0;
+
+  @override
+  String get name => _bundle.name;
+
+  /// The stages the last accepted bundle claimed.
+  Iterable<String> get names => _bundle.names;
+
+  @override
+  ShaderHandle? operator [](String name) => _bundle.names.contains(name)
+      ? _handles.putIfAbsent(
+          name,
+          () => ShaderHandle(backend: name, name: name),
+        )
+      : null;
+
+  @override
+  void reload(ByteData bytes) {
+    _bundle = ShaderBundle.decode(bytes);
+    reloads++;
+  }
+}
+
 /// A device that records rather than draws.
 final class FakeBackend implements GraphicsDevice {
   FakeBackend({
@@ -48,6 +86,21 @@ final class FakeBackend implements GraphicsDevice {
   @override
   bool supportsTextureFormat(TextureFormat format) =>
       !unsupportedFormats.contains(format);
+
+  /// Every library [loadShaders] has handed out, in order, so a test can
+  /// reach the one an application holds and count its reloads.
+  final List<FakeLoadedShaderLibrary> loadedLibraries =
+      <FakeLoadedShaderLibrary>[];
+
+  /// Decodes the bundle — so bytes that are not one are refused the way every
+  /// real backend refuses them — and answers its names. No section is read:
+  /// a fake compiles nothing, which is also the software rasteriser's answer.
+  @override
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async {
+    final library = FakeLoadedShaderLibrary(ShaderBundle.decode(bytes));
+    loadedLibraries.add(library);
+    return library;
+  }
 
   /// Settable, because the interesting case is the backend that says no —
   /// OpenGL ES has no `glPolygonMode`, and the engine is supposed to decline

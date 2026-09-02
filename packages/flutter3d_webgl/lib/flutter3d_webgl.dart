@@ -15,5 +15,9 @@
 library;
 
 export 'src/open.dart';
+
+/// The `webgl` section of a loadable bundle, as the packer writes it and the
+/// device reads it. No browser in it, so a harness on the VM can write one.
+export 'src/webgl_bundle_section.dart';
 export 'src/webgl_device.dart';
 export 'src/webgl_shaders.dart';

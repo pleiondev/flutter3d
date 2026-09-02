@@ -18,5 +18,9 @@ void main() {
       height: height,
       shaders: CpuShaderLibrary(builtinCpuShaders()),
     ),
+    // Nothing compiled to pack: this backend answers a bundle's names with
+    // the Dart stages it already has, which is what the check then holds it
+    // to.
+    ownShaders: () async => null,
   );
 }
