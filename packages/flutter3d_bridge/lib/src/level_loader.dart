@@ -173,6 +173,9 @@ final class LevelLoader {
       loaded.brushNodes.add(node);
     }
     loaded.brushMeshes = meshes;
+    // The static half of the point shadows was drawn from walls that are no
+    // longer there; without this a hole keeps casting the wall's shadow.
+    loaded.scene.invalidateStaticShadows();
   }
 
   /// Everything [load] does except finding the document.
