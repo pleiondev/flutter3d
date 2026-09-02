@@ -12,7 +12,7 @@
 # serves the build, answers the page's fetches and drives Chrome.
 #
 # **One build for the whole suite.** The scene is a query parameter rather than
-# a compile-time define, so thirty-four scenes are thirty-three navigations instead
+# a compile-time define, so thirty-five scenes are thirty-four navigations instead
 # of twenty-six dart2js runs. That is the only reason this is minutes rather
 # than an hour.
 set -euo pipefail
