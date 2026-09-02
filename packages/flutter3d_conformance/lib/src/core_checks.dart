@@ -164,6 +164,122 @@ Future<void> checkRowOrder(GraphicsDevice device) async {
   );
 }
 
+/// A readback answers with the texture as the passes *before* the call left
+/// it, and lets the passes after it go on.
+///
+/// The contract `GraphicsDevice.readback` states in words, made a picture: red
+/// is cleared, the readback is asked for and **not awaited**, blue is cleared
+/// over it, and only then is the answer read. A backend that copies at some
+/// later convenient moment — when the driver gets to it, when the next frame
+/// composites — hands back blue, and blue is exactly what an exposure meter
+/// would silently adapt to a frame late.
+///
+/// Two more things the same picture can say. A region is a region: two by three
+/// pixels asked for come back as two by three pixels, not as the whole texture
+/// with an offset. And what cannot be read is refused with an [ArgumentError]
+/// rather than answered with something — tile memory, a region past the edge —
+/// because the handle carries every fact the caller needs to ask first.
+Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
+  const size = 8;
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+
+  void clearTo(Vector4 colour) => device
+      .beginRenderPass(
+        RenderPassDescriptor(
+          colors: <ColorTarget>[
+            ColorTarget(
+              texture: target,
+              loadAction: LoadAction.clear,
+              clearValue: colour,
+            ),
+          ],
+        ),
+      )
+      .submit();
+
+  clearTo(Vector4(1.0, 0.0, 0.0, 1.0));
+  final asked = device.readback(target);
+  clearTo(Vector4(0.0, 0.0, 1.0, 1.0));
+
+  final red = (await asked).buffer.asUint8List();
+  require(
+    red.length == size * size * 4,
+    'a readback of the whole ${size}x$size texture came back as '
+    '${red.length} bytes, not ${size * size * 4}',
+  );
+  require(
+    red[0] > 200 && red[2] < 50,
+    'the readback asked for between a red clear and a blue clear came back '
+    '(${red[0]}, ${red[1]}, ${red[2]}): the copy ran after the pass '
+    'submitted behind it, so a caller gets the frame after rather than the '
+    'frame before',
+  );
+  final last = (size * size - 1) * 4;
+  require(
+    red[last] > 200 && red[last + 2] < 50,
+    'the last pixel of the readback is not red, so the copy covered less '
+    'than the region',
+  );
+
+  final corner = (await device.readback(
+    target,
+    region: const ScreenRect(x: 6, y: 5, width: 2, height: 3),
+  )).buffer.asUint8List();
+  require(
+    corner.length == 2 * 3 * 4,
+    'a two by three region came back as ${corner.length} bytes, not 24',
+  );
+  require(
+    corner[2] > 200 && corner[0] < 50 && corner[20 + 2] > 200,
+    'the region read after the blue clear is not blue',
+  );
+
+  final transient = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      storageMode: StorageMode.deviceTransient,
+    ),
+  );
+  require(
+    _refuses(() => device.readback(transient)),
+    'a deviceTransient texture was accepted for readback; tile memory holds '
+    'nothing after the pass, and the contract says refuse with an '
+    'ArgumentError rather than answer',
+  );
+  require(
+    _refuses(
+      () => device.readback(
+        target,
+        region: const ScreenRect(x: 4, y: 4, width: 8, height: 2),
+      ),
+    ),
+    'a region past the edge of the texture was accepted; on one backend that '
+    'is a driver error and on another a short read, and neither is an answer',
+  );
+}
+
+/// Whether [ask] throws an [ArgumentError] *synchronously*, which is what a
+/// refusal is: a future that fails later is a readback that was accepted.
+bool _refuses(Future<ByteData> Function() ask) {
+  try {
+    // Deliberately not awaited and not listened to: what matters is the throw
+    // before any future exists. A backend that accepted the request hands back
+    // a future here, and that is the failure.
+    ask().ignore();
+    return false;
+  } on ArgumentError {
+    return true;
+  }
+}
+
 Future<void> checkGeometryUsage(GraphicsDevice device) async {
   // Not a hint. WebGL binds a buffer to its target for life, so one uploaded as
   // vertices can never be bound as indices — the attempt is an

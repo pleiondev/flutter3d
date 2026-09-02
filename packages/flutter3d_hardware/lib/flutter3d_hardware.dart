@@ -35,6 +35,9 @@ export 'src/mip_chain.dart';
 // file's header for why it is here rather than in the engine.
 export 'src/pass_state.dart';
 
+/// What a readback may ask for, checked once for every backend.
+export 'src/readback.dart';
+
 /// Reuse of render targets, and the description that makes two of them
 /// interchangeable.
 export 'src/render_target_pool.dart';

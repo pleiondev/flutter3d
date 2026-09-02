@@ -655,6 +655,139 @@ final class WebGlDevice implements GraphicsDevice {
     return ByteData.sublistView(flipped);
   }
 
+  /// `readPixels` into a pixel-pack buffer behind a fence, and the bytes
+  /// fetched once the fence says the GPU got there.
+  ///
+  /// The two halves of the contract, said in GL's terms. **In order**: a
+  /// `readPixels` with a buffer bound to `PIXEL_PACK_BUFFER` is a command in
+  /// the stream like any draw, so it reads the texture as the commands before
+  /// it left it and nothing issued afterwards reaches it. **Without waiting**:
+  /// the same call with client memory as its destination stalls until the GPU
+  /// has drained everything before it — that is what [readPixels] costs, and
+  /// what a golden run can afford — where a pack buffer returns at once and a
+  /// `fenceSync` says when the copy is done. The wait is a poll on a timer
+  /// rather than a `clientWaitSync` with a timeout, because the latter blocks
+  /// the thread this whole engine runs on.
+  @override
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) {
+    final rect = readbackRegionOf(texture, region);
+    final backend = texture.backend as WebGlTexture;
+    if (!backend.isSampleable && backend.renderbuffer == null) {
+      throw ArgumentError.value(
+        texture,
+        'texture',
+        'has neither a texture nor a renderbuffer behind it on this backend',
+      );
+    }
+
+    final framebuffer = _gl.createFramebuffer();
+    _gl.bindFramebuffer(
+      web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+      framebuffer,
+    );
+    attachToFramebuffer(
+      _gl,
+      web.WebGL2RenderingContext.READ_FRAMEBUFFER,
+      web.WebGLRenderingContext.COLOR_ATTACHMENT0,
+      texture,
+    );
+
+    final length = rect.width * rect.height * 4;
+    final pack = _gl.createBuffer();
+    _gl.bindBuffer(web.WebGL2RenderingContext.PIXEL_PACK_BUFFER, pack);
+    _gl.bufferData(
+      web.WebGL2RenderingContext.PIXEL_PACK_BUFFER,
+      length.toJS,
+      web.WebGL2RenderingContext.STREAM_READ,
+    );
+    // The region is stated from the top, and GL measures from the bottom for
+    // a texture it drew — the same distinction [readPixels] draws, applied
+    // to the rectangle rather than to the rows: a rendered texture's row y from
+    // the top is row `height - y - h` from the bottom, and an uploaded one's is
+    // row y, because `texImage2D` put the first row given at zero.
+    final y = backend.rendered ? texture.height - rect.y - rect.height : rect.y;
+    _gl.readPixels(
+      rect.x,
+      y,
+      rect.width,
+      rect.height,
+      web.WebGLRenderingContext.RGBA,
+      web.WebGLRenderingContext.UNSIGNED_BYTE,
+      0.toJS,
+    );
+    final sync = _gl.fenceSync(
+      web.WebGL2RenderingContext.SYNC_GPU_COMMANDS_COMPLETE,
+      0,
+    );
+    // Sent rather than left in the queue. A fence that is never flushed is a
+    // fence that signals when the browser next composites, which may be never
+    // for a page drawing nothing else.
+    _gl.flush();
+    _gl.bindBuffer(web.WebGL2RenderingContext.PIXEL_PACK_BUFFER, null);
+    _gl.bindFramebuffer(web.WebGL2RenderingContext.READ_FRAMEBUFFER, null);
+    _gl.deleteFramebuffer(framebuffer);
+
+    if (sync == null) {
+      _gl.deleteBuffer(pack);
+      throw StateError('the context refused a fence for the readback');
+    }
+    return _collectReadback(sync, pack, rect, flip: backend.rendered);
+  }
+
+  Future<ByteData> _collectReadback(
+    web.WebGLSync sync,
+    web.WebGLBuffer? pack,
+    ScreenRect rect, {
+    required bool flip,
+  }) async {
+    try {
+      // Bounded, because a fence on a context that has been lost never
+      // signals, and a readback that never answers is a caller that never
+      // stops waiting for it.
+      var waited = Duration.zero;
+      const step = Duration(milliseconds: 1);
+      const patience = Duration(seconds: 2);
+      while (true) {
+        final status = _gl.clientWaitSync(sync, 0, 0);
+        if (status == web.WebGL2RenderingContext.ALREADY_SIGNALED ||
+            status == web.WebGL2RenderingContext.CONDITION_SATISFIED) {
+          break;
+        }
+        if (status == web.WebGL2RenderingContext.WAIT_FAILED) {
+          throw StateError('the readback fence failed');
+        }
+        if (waited >= patience) {
+          throw StateError('the readback fence did not signal in $patience');
+        }
+        await Future<void>.delayed(step);
+        waited += step;
+      }
+
+      final bytes = Uint8List(rect.width * rect.height * 4);
+      _gl.bindBuffer(web.WebGL2RenderingContext.PIXEL_PACK_BUFFER, pack);
+      _gl.getBufferSubData(
+        web.WebGL2RenderingContext.PIXEL_PACK_BUFFER,
+        0,
+        bytes.toJS,
+      );
+      _gl.bindBuffer(web.WebGL2RenderingContext.PIXEL_PACK_BUFFER, null);
+
+      if (!flip) return ByteData.sublistView(bytes);
+      // Rows come up from the bottom of the region; the contract wants them
+      // from the top, as [readPixels] says at length.
+      final stride = rect.width * 4;
+      final flipped = Uint8List(bytes.length);
+      for (var row = 0; row < rect.height; row++) {
+        final from = (rect.height - 1 - row) * stride;
+        flipped.setRange(row * stride, row * stride + stride, bytes, from);
+      }
+      return ByteData.sublistView(flipped);
+    } finally {
+      _gl.deleteSync(sync);
+      _gl.deleteBuffer(pack);
+    }
+  }
+
   /// The GL error queue, drained, or null when it was empty.
   ///
   /// Diagnostic only, and it exists because guessing was cheaper than looking

@@ -231,6 +231,35 @@ final class FakeBackend implements GraphicsDevice {
   Future<ByteData?> readPixels(TextureHandle texture) =>
       Future<ByteData?>.value();
 
+  /// Every readback asked for, in order: which texture and which region.
+  ///
+  /// Recorded because the thing worth testing about a readback off a device is
+  /// that it was asked for at all, of the right texture, for the right pixel —
+  /// what comes back is the backend's business, and this one has no pixels.
+  final List<({TextureHandle texture, ScreenRect region})> readbacks =
+      <({TextureHandle texture, ScreenRect region})>[];
+
+  /// What a readback answers, or null for a region of zeros.
+  ///
+  /// A test that wants the renderer to *act* on a readback — an exposure that
+  /// climbs, a pick that finds something — sets this to hand back the bytes
+  /// the pass would have produced.
+  ByteData Function(TextureHandle texture, ScreenRect region)? answerReadback;
+
+  /// Refuses what the contract refuses, records the rest, and answers zeros
+  /// unless [answerReadback] says otherwise.
+  @override
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) {
+    final resolved = readbackRegionOf(texture, region);
+    readbacks.add((texture: texture, region: resolved));
+    final answer = answerReadback;
+    return Future<ByteData>.value(
+      answer == null
+          ? ByteData(resolved.width * resolved.height * 4)
+          : answer(texture, resolved),
+    );
+  }
+
   @override
   CommandEncoder beginRenderPass(RenderPassDescriptor descriptor) {
     final pass = FakePass(descriptor);

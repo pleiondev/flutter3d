@@ -319,6 +319,29 @@ final class CpuDevice implements GraphicsDevice {
     return ByteData.sublistView(out);
   }
 
+  /// The region, converted on the spot.
+  ///
+  /// Nothing here is in flight: the pass that wrote these floats ran to the
+  /// end before `submit` returned, so "the texture as the passes before this
+  /// call left it" is simply the texture. The future is already complete when
+  /// it is handed back, which is the honest answer and also what makes the
+  /// engine's own tests of the callers run in a plain `flutter test`.
+  @override
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) {
+    final rect = readbackRegionOf(texture, region);
+    final backend = texture.backend as CpuTexture;
+    final out = Uint8List(rect.width * rect.height * 4);
+    final source = backend.pixels;
+    for (var y = 0; y < rect.height; y++) {
+      final from = ((rect.y + y) * backend.width + rect.x) * 4;
+      final to = y * rect.width * 4;
+      for (var i = 0; i < rect.width * 4; i++) {
+        out[to + i] = (source[from + i].clamp(0.0, 1.0) * 255.0).round();
+      }
+    }
+    return Future<ByteData>.value(ByteData.sublistView(out));
+  }
+
   @override
   Widget present(
     TextureHandle frame, {

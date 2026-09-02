@@ -87,6 +87,110 @@ Future<void> checkPassCoversItsAttachment(GraphicsDevice device) async {
   );
 }
 
+/// A readback of a region reads that region of a *drawn* picture, rows from
+/// the top.
+///
+/// The core check settles the ordering with clears, and a clear is the same
+/// colour everywhere — so it cannot tell a region from its mirror image, and a
+/// mirror image is precisely what a backend whose framebuffer origin is at the
+/// bottom produces when it forgets to turn a rendered region over. The
+/// whole-texture [GraphicsDevice.readPixels] learned that lesson once; a
+/// region has an extra way to get it wrong, because the rectangle's own y has
+/// to be measured from the other edge as well as the rows inside it.
+///
+/// So: the top half of clip space is painted, and a region in the top-left
+/// quarter must be painted while one in the bottom-left quarter must not. A
+/// region straddling the middle then has its painted rows first.
+Future<void> checkReadbackOfRegion(GraphicsDevice device) async {
+  const size = 16;
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw anything',
+  );
+
+  // y from 0 to 1, x over the whole of it: the top half of the picture on
+  // every backend, since clip +y is up wherever row zero is stored.
+  final topHalf = Float32List.fromList(<double>[
+    -1, 0, 0.5, 0, 1, 0, 1, //
+    1, 0, 0.5, 0, 1, 0, 1,
+    1, 1, 0.5, 0, 1, 0, 1,
+    -1, 1, 0.5, 0, 1, 0, 1,
+  ]);
+  final indices = Uint16List.fromList(<int>[0, 1, 2, 0, 2, 3]);
+
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ),
+  );
+  pass
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexData(ByteData.sublistView(topHalf), 4)
+    ..bindIndexData(ByteData.sublistView(indices), IndexType.int16, 6)
+    ..draw();
+  pass.submit();
+
+  const quarter = size ~/ 4;
+  final top = (await device.readback(
+    target,
+    region: const ScreenRect(x: 0, y: 0, width: quarter, height: quarter),
+  )).buffer.asUint8List();
+  final bottom = (await device.readback(
+    target,
+    region: const ScreenRect(
+      x: 0,
+      y: size - quarter,
+      width: quarter,
+      height: quarter,
+    ),
+  )).buffer.asUint8List();
+  require(
+    top[1] > 128,
+    'a region in the top-left quarter of a picture whose top half is painted '
+    'came back unpainted (green ${top[1]}): the region was measured from the '
+    'wrong edge',
+  );
+  require(
+    bottom[1] < 128,
+    'a region in the bottom-left quarter came back painted (green '
+    '${bottom[1]}): the region was measured from the wrong edge',
+  );
+
+  // Two rows above the middle and two below, in one region: the painted rows
+  // have to come first, or the rows inside the region were not turned over.
+  final straddling = (await device.readback(
+    target,
+    region: const ScreenRect(x: 0, y: size ~/ 2 - 2, width: 2, height: 4),
+  )).buffer.asUint8List();
+  int green(int row) => straddling[(row * 2) * 4 + 1];
+  require(
+    green(0) > 128 && green(1) > 128 && green(2) < 128 && green(3) < 128,
+    'a region straddling the painted edge came back with rows '
+    '${<int>[for (var r = 0; r < 4; r++) green(r)]} from the top; the '
+    'painted two should be first',
+  );
+}
+
 /// A pass does not inherit the rectangle the previous one was clipped to.
 ///
 /// **The half of the last check that costs a whole frame rather than a corner.**

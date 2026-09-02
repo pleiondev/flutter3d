@@ -22,6 +22,7 @@ import 'gpu_command_encoder.dart';
 import 'gpu_formats.dart';
 import 'gpu_frame.dart';
 import 'gpu_frame_image.dart';
+import 'gpu_readback.dart';
 import 'gpu_shader_library.dart';
 import 'gpu_texture.dart';
 import 'host_buffer_grid.dart';
@@ -593,6 +594,19 @@ final class GpuRenderBackend implements GraphicsDevice {
         .toByteData(format: ui.ImageByteFormat.rawRgba)
         .whenComplete(image.dispose);
   }
+
+  /// A copy queued in order and read off a staging texture when the queue
+  /// says it ran — see `gpu_readback.dart` for why not `copyTextureToBuffer`.
+  @override
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region}) =>
+      _readback.read(texture, region);
+
+  late final GpuReadback _readback = GpuReadback(
+    onRejectedSubmission: noteRejectedSubmission,
+  );
+
+  /// How many staging textures the readbacks have made so far. Diagnostic.
+  int get debugReadbackStagingCount => _readback.debugStagingCount;
 
   /// A deliberate no-op. See the note at [supportsCubeTextures] on
   /// `_probeCubes`: flutter_gpu's `Texture` has no native dispose, so every
