@@ -152,17 +152,18 @@ audio.update(ears);
 
 `maxVoices` caps how many sound at once. When more want to play, `priority`, distance and `maxInstances` decide, so forty coins in a heap do not drown a door opening behind you.
 
-Occlusion is a callback, because what counts as blocking is a game's answer:
+Occlusion is a callback, because what counts as blocking is a game's answer. The bridge's `SoundOcclusion` is the answer a brush level gives: it walks the ray from the source to the ear through the collision world and lets every obstacle it meets take half, down to a floor that keeps a distant torch from switching off as the player rounds a corner.
 
 ```dart
-final audio = AudioScene(
-  backend: backend,
-  occlusion: (Vector3 from, Vector3 to) {
-    return world.raycast(from, direction, distance, ray,
-        mask: CollisionLayers.world) ? 0.35 : 1.0;
-  },
-);
+final occlusion = SoundOcclusion(collision, perObstacle: 0.5, maxObstacles: 4, floor: 0.06);
+final audio = AudioScene(backend: backend, occlusion: occlusion.between);
 ```
+
+**A wall makes a sound quieter and duller, and both come from that one number.** The share that got through is the gain; one minus it goes beside it to the backend as a *muffle*, which `SoLoudBackend` turns into a low-pass cutoff per voice, geometric between 16 kHz open and 600 Hz through a wall, because hearing is geometric. Thickness is not measured, so every wall counts once however thick, and the answer is pure, so a replay sounds the way the run did.
+
+<div class="why">
+<p>The dungeon had a wall test since its first commit and it was yes-or-no: a torch behind a door and a torch three rooms away were the same torch.</p>
+</div>
 
 ### Buses
 

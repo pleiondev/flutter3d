@@ -1,10 +1,12 @@
 ---
-description: The fixed step and interpolation, device-agnostic input, the level format and its validator, mechanisms, actors and brains, navigation, the ECS and snapshots.
+description: The fixed step and interpolation, device-agnostic input, the level format and its validator, holes in walls, mechanisms, actors and brains, navigation and the automap, the ECS, snapshots, demos and rewind.
 ---
 
 # Simulation layer
 
-`flutter3d_game` is the half that runs without a device. It knows what a body, a brain, a mechanism and a step are, and nothing about what any of them is doing, because that belongs to a genre.
+`flutter3d_sim` is the half that runs without a device. It knows what a body, a brain, a mechanism and a step are, and nothing about what any of them is doing, because that belongs to a genre.
+
+It is plain Dart, with no Flutter anywhere, and a scan says so. The devices stayed behind in `flutter3d_game`: the touch stick, the keyboard and mouse, the gamepad route and the widget that hosts them, which re-exports the whole of this package so a game that imported that one keeps working. The reason is a server: one that verifies a submitted run has to replay it through the same simulation the player ran, and that server is a Dart process in a container with no Flutter SDK.
 
 ## The fixed step
 
@@ -110,6 +112,20 @@ A level is JSON: brushes, materials, lights, entities, fog, and where to go next
 | `EntityDef` | A `type`, a position, a yaw, a name, and free-form `properties` |
 
 `Level.ofType('torch')`, `Level.named('east door')` and `Level.materialFor(brush)` are the read side. `brush_geometry.dart` turns brushes into mesh data and `level_collision.dart` turns them into colliders.
+
+### Holes in the walls
+
+A brush is a box, and a box minus a box is at most six boxes, so a hole is arithmetic rather than mesh surgery. `subtractBox(brush, hole)` returns what is left of one brush; `Breaches` keeps the level's current brush list, swaps the colliders a hole cut for the colliders of the pieces, and bumps a `version` so whoever draws the level rebuilds its batches.
+
+```dart
+final breaches = Breaches(level, collision,
+    breakable: (Brush b) => b.solid && b.ramp == null && b.material == 'wall');
+
+// A rocket against a wall: 1.6 m wide, 2 m high, 2 m deep, from the surface in.
+breaches.blast(hit.position, hit.normal);
+```
+
+The snapshot carries the holes, six numbers each, and restoring replays them onto the level as authored, which is also how a demo with a rocket in it arrives at the same walls. A ramp is never cut, since a wedge minus a box is not a set of wedges. The navigation grid keeps its walls: a monster does not learn a route through a breach, which is a limit and not a bug.
 
 ### Entity kinds: the level's vocabulary is your game's
 
@@ -274,6 +290,19 @@ Three decisions, each with an alternative that looks better and is not:
 <p><strong>One <code>Navigation</code> means one goal.</strong> <code>update</code> re-targets every field it holds. Two callers with different destinations must not share one, or the second one's fields quietly flow to the first one's goal and the symptom is an agent that looks stuck.</p>
 </div>
 
+### The automap
+
+The grid is already the map: every cell an agent can stand in is floor, baked from the brushes for the monsters before anybody thought of drawing it. `Automap` adds the memory, which cells the player has been near, and it reveals by *walking*: a flood from the player's cell across cells an agent could step between, so a wall stops the reveal the way it stops the player, and the room behind a closed door stays dark until it opens.
+
+```dart
+final automap = Automap(navigation.grid, revealRadius: 6.0);
+
+automap.reveal(player.position);      // each step
+automap.revealAll(player.position);   // a map pickup: everything reachable from here
+```
+
+Walls are the cells the walk could not enter, not the cells nobody can stand in; the grid calls a roof walkable, because a wall's column has one standing place and it is on top. What was seen goes into the snapshot as runs of bits. `AutomapView` in `flutter3d_screens` paints it, centred on the player and turned the way they face, and the dungeon shows it on M with the fight running underneath.
+
 ## The ECS, and how far it has got
 
 `EcsWorld` is tested, and **two systems have moved onto it: actors and projectiles.** Mechanisms and the player still hold their own state and write their own saves.
@@ -309,6 +338,42 @@ simulation.restore(snapshot);
 `GameRandom` exists because `math.Random` has no readable state, which makes it the one thing in a simulation that cannot be written down. Pass one instance everywhere and two loads of the same save agree for ever; leave it out and they agree until the first flinch roll.
 
 The other half of a determinism test is the input, and `InputTape` is that: what the player did, one entry per fixed step, recorded as transitions rather than the held set. A replay, a reproducible bug report and a test that plays a whole level all run off one tape at a few bytes a second.
+
+### Demos
+
+A demo is a save plus a tape. `Demo` is a level name, the `Snapshot` a run started from and the `InputTape` of every step after, and because a step reaches for no clock and no loose dice, the three reproduce the run exactly, monsters and all.
+
+```dart
+final recorder = InputTapeRecorder(seed: seed);
+loop.recorders.add(recorder);              // written as each step is taken
+
+// When the run ends, either way.
+demos.write(Demo(level: levelName, start: startSnapshot, tape: recorder.tape));
+```
+
+`GameLoop.recorders` is a list, so a demo recorder and a rewind buffer can both listen. The dungeon records every run and writes the last one as `demo.json` through `DemoFile` when it ends, so the file that reproduces a bug exists before anybody thinks to ask for it.
+
+<div class="why">
+<p>A test plays six hundred steps of the shipped crypt through the document as a string and back, and holds the two snapshots byte-equal. It found the tape dropping weapon-slot requests on its first run: positions, dice and a dead monster all agreed, and the replay arrived holding the pistol where the player had switched to the shotgun.</p>
+</div>
+
+### Rewind
+
+`RewindBuffer` is a demo with its middle kept: one keyframe a second and a tape entry a step for the last `history` seconds, and nothing older. A moment in the recent past is a keyframe and the entries to play forward from it.
+
+```dart
+final rewind = RewindBuffer(stepsPerSecond: 60, history: 3.0, seed: seed);
+loop.recorders.add(rewind.recorder);
+
+// After each step.
+if (rewind.keyframeDue) rewind.keyframe(sim.save());
+
+// A kill camera: the last three seconds, through the ordinary step.
+final RewindPoint? point = rewind.rewindBy(3.0);
+if (point != null) sim.restore(point.snapshot);   // then play the tape forward from point.step
+```
+
+`history` is a game's number, not the engine's: a kill camera wants three seconds, a rewind mechanic wants whatever the design says. The dungeon's kill camera restores the state three seconds before a death and plays the tape through the ordinary step, sounds and all, with the camera standing back from the body, then puts the death back. Three things had to be held for that to work: the restored state says the game is being played and the run session must not announce a new level on seeing it; the devices write into the same `InputState` the tape does and are `muted` while it plays, the tape lifting the mute for its own writes; and the buffer's own recorder is taken out, so the replay is not recorded into the run's history.
 
 ## Layers
 

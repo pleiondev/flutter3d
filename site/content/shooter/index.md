@@ -254,6 +254,19 @@ mechanisms.events.messages;
 
 Lists filled during the step and drained by the caller after it. A `Stream` would deliver *after* the step that produced the event, which is the one property the fixed step exists to protect.
 
+## Two things a level may carry
+
+Both optional, both null by default, and both in the snapshot when present.
+
+```dart
+sim
+  ..automap = Automap(navigation.grid)
+  ..breaches = Breaches(level, collision,
+      breakable: (Brush b) => b.solid && b.ramp == null && b.material == 'wall');
+```
+
+The step reveals the automap around the player while the game is being played, and a detonation with a surface normal hands `breaches.blast` the hit, so a rocket against a wall the game calls breakable cuts it. The dungeon lets only its `wall` material break, which is what the predicate is for: a floor with a hole in it is a different game. Both are described on the [simulation page](/core/simulation/#holes-in-the-walls).
+
 ## Ready to build one?
 
 The [shooter tutorial](/shooter/tutorial/) assembles all of this into a playable game in fourteen steps.

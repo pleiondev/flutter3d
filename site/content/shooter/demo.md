@@ -28,8 +28,18 @@ description: The shooter, built against the WebGL2 backend and running in this p
   <div><dt>E or F</dt><dd>Use: doors, lifts, buttons, notes</dd></div>
   <div><dt>Space</dt><dd>Jump</dd></div>
   <div><dt>Shift</dt><dd>Sprint</dd></div>
+  <div><dt>M</dt><dd>The automap: what you have walked, with the fight running underneath</dd></div>
+  <div><dt>R</dt><dd>Restart, once the run is over</dd></div>
   <div><dt>F</dt><dd>Toggles the fog, which is also a before-and-after measurement</dd></div>
 </dl>
+
+## What else is in the crypt
+
+- **Dying plays back.** The last three seconds run again through the ordinary step, sounds and all, with the camera standing back from the body; then the death is put back. That is a `RewindBuffer`, one keyframe a second and the tape between, and it is the [simulation page's](/core/simulation/#rewind) worked example.
+- **A rocket leaves a hole.** A wall a rocket hits is cut, mesh and collision together, and you can walk through what is left. The hole goes into the save and into the demo, so a replay arrives at the same walls.
+- **Every run is written down.** When a run ends, either way, the level, the starting snapshot and every step's intent go out as `demo.json`, so the file that reproduces a bug exists before anybody asks for it.
+- **Walls muffle.** A torch behind a door is quieter *and* duller than one in the room, and one three rooms away is barely there; each wall between a sound and your ears takes half.
+- **Rooms behind walls are not drawn.** The crypt ships with a visibility table baked beside it, and a frame leaves out every batch of wall no cell near the eye can see.
 
 ## Fire and look are the same two buttons they are on a desktop
 

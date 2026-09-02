@@ -4,17 +4,18 @@ description: The engine under all three games: the HAL and its three backends, t
 
 # What core is
 
-Core is everything all three games use and none of them owns. Five packages that never learn what a monster, a coin or a lap is, plus three backends that never learn what a scene is.
+Core is everything all three games use and none of them owns. Six packages that never learn what a monster, a coin or a lap is, plus three backends that never learn what a scene is.
 
 Nothing in this section is genre knowledge. That is not a stylistic preference. It is the property that made the second game possible to write, and every page here says which test enforces it.
 
-## The five packages
+## The six packages
 
 | Package | What it owns | Depends on |
 |---|---|---|
 | [`flutter3d`](/core/rendering/) | The renderer, the scene graph, geometry, decoders, animation | `flutter3d_hardware` and nothing below it |
 | [`flutter3d_hardware`](/core/architecture/#the-hal) | **The HAL** — devices, encoders, buffers, textures, pipelines, passes. No implementation at all | nothing |
-| [`flutter3d_game`](/core/simulation/) | Fixed step, input, levels, mechanisms, actors, navigation, ECS, snapshots | `flutter3d_physics`, `vector_math`, one Flutter import |
+| [`flutter3d_sim`](/core/simulation/) | Fixed step, input, levels and holes in them, mechanisms, actors, navigation and the automap, ECS, snapshots, demos, rewind | `flutter3d_physics`, `vector_math`. Plain Dart, no Flutter |
+| `flutter3d_game` | The devices: touch stick and buttons, keyboard and mouse, the gamepad route. Re-exports `flutter3d_sim` | `flutter3d_sim` and Flutter |
 | [`flutter3d_physics`](/core/physics/) | Shapes, broadphase, sweeps, rays, character controller, rigid bodies | nothing. Plain Dart |
 | [`flutter3d_bridge`](/core/architecture/#the-bridge) | Level geometry to mesh nodes, actor to visual, fixture to light | both sides, and it is the only package allowed to |
 
@@ -85,7 +86,7 @@ Each page below stands alone, but this is the order in which each one stops bein
   <li><a href="/core/rendering/">
     <span class="card-kind">03</span>
     <h3>The frame</h3>
-    <p>Render views, the pass order, HDR, bloom, cascaded shadows, fog, reflections, and the frame graph that schedules them.</p>
+    <p>Render views, the pass order, instanced batches, precomputed visibility, HDR, bloom, cascaded shadows, fog, reflections, and the frame graph that schedules them.</p>
   </a></li>
   <li><a href="/core/scene/">
     <span class="card-kind">04</span>
@@ -105,7 +106,7 @@ Each page below stands alone, but this is the order in which each one stops bein
   <li><a href="/core/simulation/">
     <span class="card-kind">07</span>
     <h3>Simulation layer</h3>
-    <p>The fixed step, device-agnostic input, the level format and its validator, mechanisms, actors, navigation, the ECS and saves.</p>
+    <p>The fixed step, device-agnostic input, the level format and holes in its walls, mechanisms, actors, navigation and the automap, the ECS, saves, demos and rewind.</p>
   </a></li>
   <li><a href="/core/physics/">
     <span class="card-kind">08</span>

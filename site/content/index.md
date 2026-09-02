@@ -99,8 +99,9 @@ flowchart TB
     cpu["flutter3d_cpu<br>software"]
   end
 
-  subgraph sim["simulating, no Flutter, no GPU"]
-    game["flutter3d_game<br>step, input, levels, actors, ECS"]
+  subgraph sim["simulating, no GPU"]
+    game["flutter3d_game<br>the devices: touch, keys, pad"]
+    simp["flutter3d_sim<br>step, input, levels, actors, ECS<br><i>no Flutter at all</i>"]
     physics["flutter3d_physics<br>shapes, sweeps, controller"]
   end
 
@@ -117,7 +118,8 @@ flowchart TB
   impeller --> gfx
   webgl --> gfx
   cpu --> gfx
-  game --> physics
+  game --> simp
+  simp --> physics
 ```
 
 Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_screens` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, twenty-two checks that read source text and run before a build.
@@ -154,16 +156,16 @@ Each backend exists for a different reason. Impeller is the production one. WebG
 
 | | |
 |---|---|
-| Rendering | Six lighting models as pre-built shaders. HDR pipeline with tone mapping and exposure, bloom from a half-size chain, cascaded directional shadows with PCF, point-light shadows, screen-space reflections, fog, 4× MSAA, wireframe |
+| Rendering | Six lighting models as pre-built shaders. HDR pipeline with tone mapping and exposure, bloom from a half-size chain, cascaded directional shadows with PCF, point-light shadows with a static half baked once, instanced batches, precomputed visibility for brush levels, screen-space reflections, fog, 4× MSAA, wireframe |
 | Geometry | Surfaces of revolution as the base generator, `MeshData` and `MeshBuilder`, custom vertex layouts, tangent generation with Lengyel's method |
 | Assets | glTF 2.0 / GLB, Wavefront OBJ, and `.f3d`, the engine's own container. Decoding on a background isolate, a reference-counted cache |
 | Animation | All three glTF interpolations, skinning with 64 joint matrices, an `AnimationPlayer` with crossfades, transport and once/loop/ping-pong |
 | Scene | Version-stamped nodes, a BVH shared by culling and picking, LOD groups by screen coverage, orbit and follow cameras, CPU raycasting |
-| Simulation | A fixed step with interpolation, device-agnostic input with latched edges, a level format with a validator, mechanisms, actors and brains, a navigation grid with flow fields, an ECS, snapshots |
+| Simulation | A fixed step with interpolation, device-agnostic input with latched edges, a level format with a validator, holes blown in its walls, mechanisms, actors and brains, a navigation grid with flow fields and an automap drawn from it, an ECS, snapshots, demos that replay a run exactly, a rewind buffer for a kill camera |
 | Input | Gamepad through `pad_input` on macOS, iOS, Web and Android, read as a per-frame snapshot; desktop mouse capture for FPS-style cameras through `pointer_lock`, so far on macOS only |
 | Physics | Overlap, sweeps and rays over a uniform-grid broadphase, a character controller that walks, jumps, climbs a step and rides a lift, and rigid bodies without rotation |
 | Driving | A track as a spline with width, camber and surface bands, a sphere-and-frame vehicle, a tire curve with a friction circle, lap counting through checkpoints, AI drivers and ghost tapes |
-| Extras | A pooled particle system that draws in one call, positional audio with attenuation, panning, occlusion and voice limiting |
+| Extras | A pooled particle system that draws in one call, positional audio with attenuation, panning, voice limiting, and occlusion through the level's walls that muffles a sound as well as quietening it |
 
 ## What it does not do
 

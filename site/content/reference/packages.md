@@ -61,7 +61,7 @@ Two calls: `renderFrame` builds a frame from a scene and a camera, `expectMatche
 ## Simulation
 
 ### `flutter3d_sim`
-The simulation: `FixedStep`, `GameLoop`, `InputState` and `InputTape`, the `Level` format and its validator, `EntityKind` and the registry, mechanisms and movers, `Actor` / `Brain` / `ActorSystem`, the navigation grid and flow fields, `EcsWorld`, `Snapshot`, `GameRandom`, `StateDigest`.
+The simulation: `FixedStep`, `GameLoop`, `InputState` and `InputTape`, the `Level` format and its validator, `Breaches` for the holes a blast leaves in it, `LevelVisibility` and the `bake_visibility` tool that writes one, `EntityKind` and the registry, mechanisms and movers, `Actor` / `Brain` / `ActorSystem`, the navigation grid and flow fields and the `Automap` drawn from them, `EcsWorld`, `Snapshot`, `Demo`, `RewindBuffer`, `GameRandom`, `StateDigest`.
 
 **Plain Dart. No Flutter anywhere, and a scan says so** — `the simulation names no Flutter` reads its `lib/`, `test/` and `bin/`. The whole suite runs under `dart test`, and `dart run flutter3d_sim:headless_run` walks a body through the shipped crypt level with no Flutter SDK installed.
 
@@ -105,7 +105,7 @@ Draws nothing, for the same reason the other two genres don't: a car that unders
 ## Where the halves meet
 
 ### `flutter3d_bridge`
-The only package allowed to depend on both sides. `LevelLoader` (a document becomes a scene *and* a collision world), `ActorVisuals`, `FixtureVisuals`, `SharedMeshes`. Everything in it is mechanism; what a torch looks like arrives through `FixtureAppearance` and `ActorAppearance`.
+The only package allowed to depend on both sides. `LevelLoader` (a document becomes a scene *and* a collision world, and its `rebuildBrushes` draws the walls again after a breach), `VisibilityCuller` (the visibility table applied to the batches once a frame), `SoundOcclusion` (the walls between a sound and the ear, as a gain and a muffle), `ActorVisuals`, `FixtureVisuals`, `SharedMeshes`. Everything in it is mechanism; what a torch looks like arrives through `FixtureAppearance` and `ActorAppearance`.
 
 ## Keeping the rules
 
@@ -144,14 +144,14 @@ Which graphics backend a build draws through: `openDevice({required width, requi
 Kept out of `flutter3d_session`, which would otherwise have to depend on both backends and drag WebGL into `apps/flutter3d_editor`, which has no browser build to choose for.
 
 ### `flutter3d_session`
-The seam a rendered frame reaches Flutter through, and the run being played — neither the simulation nor the screens, so it belongs to neither `flutter3d_bridge` nor `flutter3d_screens`. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires.
+The seam a rendered frame reaches Flutter through, and the run being played — neither the simulation nor the screens, so it belongs to neither `flutter3d_bridge` nor `flutter3d_screens`. `SceneSurface` is the widget that hands a frame to Flutter, with its `RenderSettings` read from a function called once per frame rather than stored, so anything derived from the camera is derived after it moved. `RunSession<L>` is loading a level, restarting it, moving to the next, saving, resuming, and reporting how a run ended — an ordinary class that two of the three games wrap in a cubit, which the package neither knows nor requires. `FrameClock` is how long since the last frame, measured on the wall clock rather than read off the ticker: five applications had written that out, three said a sixtieth of a second on the first frame and one said nought, and a ticker's timestamp is the vsync a frame was aimed at, which steps in pairs when the GPU falls behind.
 
 `test/one_assembly_test.dart` checks the rule this package exists to keep: exactly one function per game turns a level document into a run. The platformer had six copies of that assembly before extraction, and they had drifted.
 
 → [Assembling an application](/core/session/)
 
 ### `flutter3d_screens`
-The screens a game has that are not the game: a settings panel with volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, and where a licence's attribution goes. Nothing here draws a frame or steps a simulation.
+The screens a game has that are not the game: a settings panel with volumes, gamepad and accessibility sliders, a rebinding list that takes a key or a pad button, `AutomapView` for what an `Automap` has seen, and where a licence's attribution goes. Nothing here draws a frame or steps a simulation.
 
 Extracted when the second game wanted it, which is this repository's habit rather than a new rule — `CameraRig` says the same about itself. What triggered it was accessibility: rebinding a control is the accommodation that matters most, and the alternative was four hundred lines of panel copied into the second game. A second entry point, `package:flutter3d_screens/native.dart`, holds the one piece that needs a filesystem (an atomic document write), kept off the main barrel so a `dart:io` import never stops a web build compiling.
 

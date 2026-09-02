@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, HDR and tone mapping, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, HDR and tone mapping, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -90,6 +90,53 @@ flowchart LR
 
 `MaterialSortIds` hands each material a small integer so the key packs into one word. `key_sort.dart` needs no device and is unit tested on its own.
 
+## Instancing
+
+`InstancedMeshNode` draws one mesh at many places in one call: a transform and a colour per instance, sixteen floats each, in a second vertex buffer that steps once per instance.
+
+```dart
+final pillars = InstancedMeshNode(mesh, material, capacity: 25, name: 'pillars');
+for (var i = 0; i < 25; i++) {
+  pillars.setTransform(i, Matrix4.translation(Vector3(i % 5 * 3.0, 0, i ~/ 5 * 3.0)));
+  pillars.setColor(i, Vector4(1.0, 0.9, 0.8, 1.0));
+}
+scene.add(pillars);
+```
+
+An instance is placed **relative to its node**, so a batch moves with the node the way a child would, and moving a thousand costs one uniform write. `mesh_instanced.vert` produces the same varyings from the same `FrameInfo` block as `mesh.vert`, so every lighting model and both shadow passes draw a batch unchanged; what the renderer adds is a third pipeline variant beside the skinned one, the slot-1 binding and the instance count. All three backends already carried `draw(instanceCount:)` and a per-instance step mode, because the particle system had drawn its embers this way since it existed.
+
+What a batch is not, each stated by the class and each a thing to add when a scene asks:
+
+- **Culled as one**, by the union of its instances' bounds.
+- **Sorted as one**: a translucent batch sorts by the node, not by each instance.
+- **Picked as a box**: a ray hits the batch's bounds, not an instance.
+- **Uniformly scaled**: a non-uniform scale skews the normal, and the stage says so rather than paying an inverse transpose per vertex.
+
+<div class="why">
+<p>The picture is held twice. A software test draws sixteen cubes under a sun that casts, once as a batch and once as sixteen nodes, and holds the two within a silhouette's worth of pixels; and <code>instanced-field</code> is a golden scene in all three reference sets. Recording it found both view-model goldens stale on every backend: CI compares each set against the others, and all three had gone stale together.</p>
+</div>
+
+## Precomputed visibility
+
+A brush level is the one kind of level occlusion culling is cheap for. `LevelVisibility` divides the empty space between the walls into cells three metres on a side and keeps a bit per pair saying whether they see each other. A frame asks which cell the eye is in and turns off every batch of brush geometry that touches no cell that one can see. The frustum still runs afterwards; the two answer different questions, and a room behind a wall in front of the camera is caught by this one alone.
+
+```bash
+dart run flutter3d_sim:bake_visibility assets/levels/crypt.json
+# writes assets/levels/crypt.visibility.json beside it
+```
+
+`LevelLoader` reads the sidecar on its own. With a table, `BrushGeometry` bins each face by the cell its centre falls in, so a room's walls become that room's batches; a level whose walls are three batches has nothing a frame could leave out. A level without a table batches exactly as it did, which is what keeps every recorded picture where it is.
+
+```dart
+loaded.culler?.apply(eye);   // once a frame, before render
+```
+
+<div class="warn">
+<p>The one failure the feature must not have is a room hidden while somebody can see into it. The bake is a sample, twenty-seven points a cell and rays through the level's own collision world, and every error is pushed the safe way: a cell no sample of which is in empty space is closed and an eye in one sees everything, a batch is drawn if <em>any</em> cell it overlaps is visible, and a query asks on behalf of every cell within a metre of the eye. That metre was measured, not chosen. Against fifty-five hundred random unblocked rays through the dungeon's three levels, none crossed cells the table calls hidden at a metre, one at half a metre, twenty-two at nought. The price is culling: the crypt's standing point sees 54% of cells instead of 41%, paid for a room that never pops.</p>
+</div>
+
+The table carries a hash of the brushes it was baked from and refuses, with a word, a level that has changed since; the dungeon's tests hold the committed sidecars fresh, so a brush moved without a re-bake fails CI rather than hiding a room at run time. The crypt bakes in half a minute and the vaults in two, which is a tool rather than a load. A hole blown in a wall drops the table for the rest of the run, since it is a line of sight the table does not know about.
+
 ## HDR, exposure and tone mapping
 
 The scene renders into `r16g16b16a16Float`. Tone mapping (Khronos PBR Neutral), exposure and the sRGB encode all happen in the composite pass.
@@ -161,6 +208,20 @@ const ShadowSettings(
   pointMaxSoftness: 16.0,
 )
 ```
+
+### What casts, and the static half
+
+Each mesh node says whether it belongs in a light's view at all:
+
+```dart
+ground.shadowCasting = ShadowCastingMode.off;           // receives, never casts
+leaves.shadowCasting = ShadowCastingMode.doubleSided;   // from every face, whatever casterFaces says
+proxy.shadowCasting = ShadowCastingMode.shadowsOnly;    // in the maps, not in the picture
+```
+
+`off` is what a ground plane wants, and what anything following the camera needs: a weapon view model has no business in a light's view. `shadowsOnly` is a low-polygon stand-in that casts on behalf of a mesh too expensive to draw into six faces a frame.
+
+A point light keeps two cube atlases, one for what moves and one for what does not, and the static one is drawn once at load; `shadowIsStatic = true` on a node puts it there. It is redrawn when the rows change hands, when the texture is reallocated and when a setting the pass reads changes. `StaticBakeKey` names which settings those are, the caster faces, the padding and the tile, and leaves out the ones only the lookup reads, since baking again for a bias would redraw six views of the level to produce the pixels already there. `Scene.invalidateStaticShadows()` is for a level that changed underneath, which is what a hole blown in a wall calls.
 
 <div class="why">
 <p><code>showPointShadowDebug</code> paints the penumbra estimate into the surface buffer and composites that instead of the lit image — red is penumbra width, green is blocker distance, blue means the search found nothing. It exists because two explanations for a broken contact-hardening estimate were argued from the finished picture and both were wrong. The quantity that settles it never left the shader, so the debugging was five runs of guessing where it should have been one run of looking.</p>

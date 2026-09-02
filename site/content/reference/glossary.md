@@ -14,6 +14,8 @@ Every word below is a type or a file in this repository, not a general graphics 
   <div><dt>Pass</dt><dd>One <code>beginRenderPass</code> and everything drawn before it is submitted. A frame here is shadows, sky, scene, then post, each in its own command buffer</dd></div>
   <div><dt>Draw item</dt><dd>One mesh, one material, one transform, sorted into the render list by a packed key. Culling decides which nodes become one</dd></div>
   <div><dt>Contributor</dt><dd>A <code>PassContributor</code>: something that draws inside somebody else's pass without editing the renderer. Particles are the first user</dd></div>
+  <div><dt>Batch</dt><dd>An <code>InstancedMeshNode</code>: one mesh at many places in one call, a transform and a colour per instance. Culled, sorted and picked as one thing</dd></div>
+  <div><dt>Visibility table</dt><dd>A <code>LevelVisibility</code>: the empty space of a brush level cut into cells, and a bit per pair saying whether they see each other. Baked once, stored beside the level, and used to leave out the rooms behind the walls</dd></div>
 </dl>
 
 ## Lighting and shadows
@@ -23,6 +25,7 @@ Every word below is a type or a file in this repository, not a general graphics 
   <div><dt>Cascade</dt><dd>One tile of the directional light's shadow map. Three tiles covering near, middle and far beat one large tile covering everything</dd></div>
   <div><dt>Cube atlas</dt><dd>Where point and spot shadows live: six faces across, one row per shadowed light, six lights at once. Sized by <code>ShadowSettings.cubeResolution</code>, which is <em>not</em> the cascade's <code>resolution</code></dd></div>
   <div><dt>Static / dynamic atlas</dt><dd>Two cube atlases. The static one holds what never moves and is drawn once at load; the dynamic one is redrawn as things move. The shader samples both and keeps the nearer occluder</dd></div>
+  <div><dt>Shadow casting mode</dt><dd>A <code>ShadowCastingMode</code> on a mesh node: <code>on</code>, <code>off</code> for a floor or a view model, <code>doubleSided</code> for leaves, <code>shadowsOnly</code> for a stand-in that casts for a mesh too expensive to draw six times</dd></div>
   <div><dt>Normal offset</dt><dd>How far a shadow lookup moves along the surface normal before it measures, in <strong>texels</strong> of the face it lands on. It clears the width of one texel, which grows with distance — a fixed offset in metres is why a floor once shadowed itself</dd></div>
   <div><dt>Penumbra</dt><dd>The soft edge. Estimated from how far the blocker is, which is why the filter searches before it filters</dd></div>
 </dl>
@@ -47,6 +50,7 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
   <div><dt>Fixture</dt><dd>A <code>Fixture</code>: an entity that has been placed and given a mechanism. What the bridge turns into something you can see</dd></div>
   <div><dt>Mechanism</dt><dd>A <code>Mechanism</code>: the behaviour behind a fixture. A door that opens, a light that flickers, a platform that moves</dd></div>
   <div><dt>Level light</dt><dd>A <code>LevelLight</code>: type, colour, range, intensity, and whether it casts. A fixture can dim the one it owns by name</dd></div>
+  <div><dt>Breach</dt><dd>A hole in a brush, kept by <code>Breaches</code>. A box minus a box is at most six boxes, so the mesh and the collision change together and the snapshot carries the hole as six numbers</dd></div>
 </dl>
 
 ## Simulation
@@ -58,6 +62,10 @@ A level is JSON. These are its parts, and a game reads all of them through `Leve
   <div><dt>Brain</dt><dd>A <code>Brain</code>: what an actor decides each step. States, targets, a path to walk</dd></div>
   <div><dt>Snapshot</dt><dd>Everything a save needs, taken from the simulation and restored into it. Not the tuning: a save that carried the balance patch would restore a car built by an older one</dd></div>
   <div><dt>Replay / tape</dt><dd>A recording of <em>intents</em>, not of positions. Replayed through the same fixed step it reproduces the run exactly, which is what makes a bug in a race reproducible</dd></div>
+  <div><dt>Demo</dt><dd>A <code>Demo</code>: a level name, the snapshot a run started from and the tape of every step after. A save plus a tape, and the file the dungeon writes when a run ends</dd></div>
+  <div><dt>Rewind buffer</dt><dd>A <code>RewindBuffer</code>: a demo with its middle kept, one keyframe a second and a tape entry a step for the last few seconds. What a kill camera plays back</dd></div>
+  <div><dt>Automap</dt><dd>An <code>Automap</code>: the navigation grid, remembered. Revealed by a walk from the player's cell, so a closed door keeps the room behind it dark</dd></div>
+  <div><dt>Sound occlusion</dt><dd>A <code>SoundOcclusion</code> in the bridge: the share of a sound that gets through the walls between it and the ear. The rest becomes a muffle, a low-pass filter on that voice</dd></div>
 </dl>
 
 ## Physics
