@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter3d/flutter3d.dart' as engine;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
+import 'package:vector_math/vector_math.dart' as vm show Matrix4;
 import 'package:vector_math/vector_math.dart' show Aabb3, Vector3, Vector4;
 
 import 'src/spike/backend.dart';
@@ -415,6 +416,45 @@ class _SpikePageState extends State<SpikePage>
     });
   }
 
+  /// Replaces a loaded model with a batch of it, for `GoldenScene.instances`.
+  ///
+  /// The first mesh of the model, drawn that many times on a grid under the
+  /// same pivot, each copy turned, scaled and tinted by its index so that no
+  /// two agree and a stage reading the wrong float shows it. The model itself
+  /// leaves the scene: the batch is the picture, not an addition to it.
+  void _batchForGolden(ModelInstance instance) {
+    final count = _golden?.scene.instances ?? 0;
+    if (count <= 0 || instance.meshes.isEmpty) return;
+    final first = instance.meshes.first;
+    final batch = InstancedMeshNode(
+      first.mesh,
+      first.material,
+      capacity: count,
+      name: 'batch',
+    );
+    final side = math.sqrt(count).ceil();
+    final half = (side - 1) / 2.0;
+    for (var i = 0; i < count; i++) {
+      final row = i ~/ side;
+      final col = i % side;
+      final scale = 0.5 + 0.15 * (i % 4);
+      batch.addInstance(
+        vm.Matrix4.identity()
+          ..setTranslationRaw((col - half) * 1.6, 0.0, (row - half) * 1.6)
+          ..rotateY(i * 0.37)
+          ..scaleByDouble(scale, scale, scale, 1.0),
+        color: Vector4(
+          0.55 + 0.45 * ((i * 7) % 5) / 4.0,
+          0.55 + 0.45 * ((i * 3) % 5) / 4.0,
+          0.55 + 0.45 * ((i * 11) % 5) / 4.0,
+          1.0,
+        ),
+      );
+    }
+    instance.removeFromScene();
+    _modelPivot.add(batch);
+  }
+
   /// Index of the model named by `FLUTTER3D_SOURCE`, or 0.
   ///
   /// Matched case-insensitively on a substring so a capture command can say
@@ -511,6 +551,7 @@ class _SpikePageState extends State<SpikePage>
       final instance = asset.instantiate(_scene, parent: _modelPivot);
       _instance = instance;
       _asset = asset;
+      _batchForGolden(instance);
 
       // An animated model plays by default: a viewer that loads a clip and then
       // shows a still frame looks broken. A capture can pin it instead.

@@ -439,12 +439,26 @@ non-uniform one skews the normal and the stage says so rather than paying an
 inverse transpose per vertex. Each is a limit the class states, and each is a
 thing to add when a scene asks.
 
-The picture is held by `flutter3d_cpu/test/instancing_test.dart`: a grid of
-sixteen cubes under a sun that casts, drawn once as a batch and once as sixteen
-nodes, agree to within a silhouette's worth of pixels — not byte-identical,
-because the instanced stage multiplies the instance transform into the
-position before the node's matrix where the plain stage folds both into one,
-and the rounding lands an edge pixel over here and there.
+The picture is held twice. `flutter3d_cpu/test/instancing_test.dart` draws a
+grid of sixteen cubes under a sun that casts, once as a batch and once as
+sixteen nodes, and holds the two to within a silhouette's worth of pixels —
+not byte-identical, because the instanced stage multiplies the instance
+transform into the position before the node's matrix where the plain stage
+folds both into one, and the rounding lands an edge pixel over here and there.
+And `instanced-field` is a golden scene in all three reference sets: twenty-five
+cubes placed, turned, scaled and tinted by their slot-1 records, casting onto
+the ground, held at zero against each backend's own picture and across
+backends at 1.1% (software) and 0.4% (web) against Impeller — the silhouette
+count of twenty-five cubes, the same kind of number `normal-mapping` carries.
+
+**Recording that scene found two stale references.** Both view-model goldens
+had been recorded before the weapon was lit by its own studio rather than by
+the room's lights (29 August), and never re-recorded: the picture had changed
+on every backend by design, and the only comparisons CI runs — each committed
+set against the others — passed because all three sets were stale together.
+Held to their own pictures, all three failed by the same 19 358 pixels.
+Re-recorded, and the lesson is the one the golden script's own header gives:
+a reference is a claim about the present only for as long as somebody runs it.
 
 ---
 
@@ -1143,7 +1157,7 @@ against whatever entities a game defines.
 | Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 32 scenes against **three independent reference sets** —
+**Golden render tests.** 33 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1197,7 +1211,7 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-two of them between 0.01% and 0.6%, measured rather than
+scene, all thirty-three of them between 0.01% and 0.6%, measured rather than
 rounded — a budget far above what was observed has stopped watching.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
@@ -1296,7 +1310,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-two golden scenes the way Impeller does**,
+**The web backend now draws all thirty-three golden scenes the way Impeller does**,
 between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Six scenes were
 in whole percents and every one of them was this backend drawing something else;

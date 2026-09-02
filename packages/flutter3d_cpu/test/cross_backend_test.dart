@@ -79,6 +79,7 @@ const Map<String, double> _budgets = <String, double>{
   // multisampling on edges, so a budget above the particle floor is the shape
   // of the fixture rather than a fault in it — measured at 0.716%.
   'particles-mesh': 0.75,
+  'instanced-field': 1.15,
   // 1.417% measured once model textures started carrying a mip chain. The rise
   // is the one difference this backend cannot close: it picks a level from a
   // per-triangle gradient, where hardware differences a quad of neighbouring

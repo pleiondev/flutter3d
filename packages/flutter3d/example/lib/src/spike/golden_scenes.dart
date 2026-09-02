@@ -167,6 +167,17 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     pitch: 0.0,
     particles: true,
   ),
+  // Ordinary meshes through the instanced vertex stage: twenty-five cubes as
+  // one draw, each placed, turned, scaled and tinted by its own slot-1 record,
+  // casting onto the ground. Shadows on, because the instanced stage serves
+  // the shadow passes too and a batch that cast nothing would pass this
+  // scene while failing every level built from one.
+  const GoldenScene(
+    name: 'instanced-field',
+    source: 'Cube',
+    bloom: false,
+    instances: 25,
+  ),
 
   // Eight quads stacked at one point: addition alone. See stackedParticles.
   const GoldenScene(

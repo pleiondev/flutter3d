@@ -112,6 +112,7 @@ const Map<String, double> _budgets = <String, double>{
   'skinned-figure': 0.1,
   'particles-textured': 0.1,
   'particles-mesh': 0.2,
+  'instanced-field': 0.42,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,

@@ -33,7 +33,16 @@ final class GoldenScene {
     this.moverFrames = 0,
     this.groundDrop = 0.0,
     this.sky = const SkySettings(),
+    this.instances = 0,
   });
+
+  /// Draws the source as a batch of this many copies instead of one model.
+  ///
+  /// Zero draws the model as loaded. Above zero the first mesh of the loaded
+  /// model becomes an `InstancedMeshNode` of this many instances laid out on
+  /// a grid, each turned, scaled and tinted by its index — the picture that
+  /// pins the instanced vertex stage on every backend.
+  final int instances;
 
   /// File name, without an extension, under `test/goldens/`.
   final String name;
