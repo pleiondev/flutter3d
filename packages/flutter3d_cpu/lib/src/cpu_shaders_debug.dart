@@ -35,6 +35,21 @@ final class DebugLineShader implements CpuFragmentShader {
       Vector4(v[0], v[1], v[2], v[3]);
 }
 
+/// `object_id.frag`: the id the renderer handed this draw, as three bytes.
+///
+/// One attachment: the picking target has no surface buffer beside it, so
+/// nothing is written to the context's second output, the way the shadow
+/// stages leave it.
+final class ObjectIdShader implements CpuFragmentShader {
+  const ObjectIdShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final id = b.vec4('IdInfo', 'id', Vector4.zero());
+    return Vector4(id.x, id.y, id.z, 1.0);
+  }
+}
+
 /// `normals.frag`: the world normal as colour.
 ///
 /// A debug view, and the fastest way to tell a geometry bug from a lighting

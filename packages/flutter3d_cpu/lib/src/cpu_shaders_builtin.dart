@@ -114,6 +114,8 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Pbr': const CpuStage.fragment(PbrShader()),
     'Toon': const CpuStage.fragment(ToonShader()),
     'Normals': const CpuStage.fragment(NormalsShader()),
+    'ObjectId': const CpuStage.fragment(ObjectIdShader()),
+    'Luminance': const CpuStage.fragment(LuminanceShader()),
     'BloomThreshold': const CpuStage.fragment(BloomThresholdShader()),
     'BloomDownsample': const CpuStage.fragment(BloomDownsampleShader()),
     'BloomUpsample': const CpuStage.fragment(BloomUpsampleShader()),

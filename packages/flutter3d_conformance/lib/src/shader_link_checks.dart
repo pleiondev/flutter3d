@@ -46,8 +46,15 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ('MeshInstancedVertex', 'ShadowDistance'),
     ('MeshLightmappedVertex', 'Pbr'),
     ('MeshLightmappedVertex', 'Lambert'),
+    // The picking pass draws every mesh again, through whichever vertex stage
+    // the scene pass used for it, so the id stage has to link with all four.
+    ('MeshVertex', 'ObjectId'),
+    ('MeshSkinnedVertex', 'ObjectId'),
+    ('MeshInstancedVertex', 'ObjectId'),
+    ('MeshLightmappedVertex', 'ObjectId'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
+    ('FullscreenVertex', 'Luminance'),
     ('DebugLineVertex', 'DebugLine'),
     ('ParticleVertex', 'Particle'),
     // The sky is the only pair where both stages are new at once, so it is the
