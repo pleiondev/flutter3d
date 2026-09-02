@@ -124,11 +124,23 @@ void main() {
         registry: registry,
         readDocument: (String path) async {
           read.add(path);
+          // Only the document is there; a reader that answered every path
+          // with it would hand the loader a level where it expects a
+          // visibility table.
+          if (path != 'levels/wall.level.json') {
+            throw StateError('no such document: $path');
+          }
           return jsonEncode(_levelJson());
         },
       );
 
-      expect(read, <String>['levels/wall.level.json']);
+      // The document, and then the visibility table that may sit beside it.
+      // The second read failing is a level without a table, which is every
+      // level that has not been baked, and is not an issue.
+      expect(read, <String>[
+        'levels/wall.level.json',
+        'levels/wall.level.visibility.json',
+      ]);
       expect(loaded.issues, isEmpty);
       expect(loaded.drawCallCount, greaterThan(0));
     },

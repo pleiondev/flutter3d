@@ -983,6 +983,11 @@ class _GameScreenState extends State<GameScreen>
     _ears.aimAt(_eye, player.yaw);
     _audio.update(_ears);
 
+    // What the walls hide from here is left undrawn. Once a step rather than
+    // once a frame: the eye moves in the step, and a frame between two steps
+    // sees the same walls either one did.
+    _loaded?.culler?.apply(_eye);
+
     _smoothedPosition.push(body.position);
   }
 

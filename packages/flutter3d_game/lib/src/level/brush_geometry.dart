@@ -6,9 +6,14 @@ import 'package:vector_math/vector_math.dart';
 import 'brush_index.dart';
 import 'brush_surface.dart';
 import 'level.dart';
+import 'level_visibility.dart';
 import 'surface_builder.dart';
 
 export 'brush_surface.dart';
+
+/// Chooses the surface a face goes into, by where the face is.
+typedef _BuilderFor =
+    SurfaceBuilder Function(Brush brush, double x, double y, double z);
 
 /// Turns a level's brushes into drawable triangles.
 ///
@@ -54,24 +59,37 @@ final class BrushGeometry {
     (Vector3(0.0, 0.0, -1.0), Vector3(-1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0)),
   ];
 
-  /// One surface per material actually used, per answer about shadows.
-  List<BrushSurface> build(Level level) {
+  /// One surface per material actually used, per answer about shadows — and,
+  /// given [visibility], per visibility cell as well.
+  ///
+  /// **A batch is the smallest thing a frame can leave out**, so a level
+  /// whose walls are three batches is a level that draws all its walls from
+  /// everywhere. With a table, each face joins the batch of the cell its
+  /// centre falls in: a room's walls become that room's batches, and a frame
+  /// in the next room draws none of them. The cost is draw calls — a batch
+  /// per material per cell rather than per material — which is the price of
+  /// having something to skip. Without a table the batching is what it was,
+  /// which keeps every recorded picture where it is.
+  List<BrushSurface> build(Level level, {LevelVisibility? visibility}) {
     final builders = <String, SurfaceBuilder>{};
     final index = BrushIndex(level, cellSize);
 
-    for (final brush in level.brushes) {
-      final material = level.materialFor(brush);
-      // Keyed by both, because a batch is the smallest thing that can be taken
-      // out of the shadow pass. A level with no fences in it produces exactly
-      // the batches it always did.
-      final key = brush.castsShadow
-          ? brush.material
-          : '${brush.material}\u0000';
-      final builder = builders.putIfAbsent(
+    // Keyed by material and by the shadow answer, because a batch is the
+    // smallest thing that can be taken out of the shadow pass — and by the
+    // cell, when there is a table to say which cell a face is in. A level
+    // with no fences and no table produces exactly the batches it always did.
+    SurfaceBuilder builderFor(Brush brush, double x, double y, double z) {
+      final slot = visibility == null ? -1 : visibility.slotOf(x, y, z);
+      final key = '${brush.material}|${brush.castsShadow ? 1 : 0}|$slot';
+      return builders.putIfAbsent(
         key,
         () => SurfaceBuilder(brush.material, castsShadow: brush.castsShadow),
       );
-      _emitBrush(brush, material, index, builder);
+    }
+
+    for (final brush in level.brushes) {
+      final material = level.materialFor(brush);
+      _emitBrush(brush, material, index, builderFor);
     }
 
     return <BrushSurface>[
@@ -84,7 +102,7 @@ final class BrushGeometry {
     Brush brush,
     LevelMaterial material,
     BrushIndex index,
-    SurfaceBuilder out,
+    _BuilderFor builderFor,
   ) {
     final half = brush.halfExtents;
     final scale = material.texelsPerMetre;
@@ -116,6 +134,7 @@ final class BrushGeometry {
       final halfV =
           v.x.abs() * half.x + v.y.abs() * half.y + v.z.abs() * half.z;
 
+      final out = builderFor(brush, centreX, centreY, centreZ);
       final first = out.vertexCount;
       for (final (su, sv) in const <(double, double)>[
         (-1.0, -1.0),
@@ -147,7 +166,15 @@ final class BrushGeometry {
       out.addQuad(first);
     }
 
-    if (ramp != null) _emitRamp(brush, ramp, material, out);
+    if (ramp != null) {
+      final centre = brush.centre;
+      _emitRamp(
+        brush,
+        ramp,
+        material,
+        builderFor(brush, centre.x, centre.y, centre.z),
+      );
+    }
   }
 
   /// Whether a ramp keeps the block face pointing along [normal].

@@ -6,6 +6,7 @@ import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 
 import 'loaded_level.dart';
+import 'visibility_culler.dart';
 
 export 'loaded_level.dart';
 
@@ -60,16 +61,63 @@ final class LevelLoader {
     List<LevelRule> rules = const <LevelRule>[],
     AssetBytes? readAsset,
     DocumentText? readDocument,
-  }) async => build(
-    Level.fromJson(
-      jsonDecode(await (readDocument ?? rootBundle.loadString)(assetPath))
-          as Map<String, Object?>,
-    ),
-    device: device,
-    registry: registry,
-    rules: rules,
-    readAsset: readAsset,
-  );
+  }) async {
+    final read = readDocument ?? rootBundle.loadString;
+    final level = Level.fromJson(
+      jsonDecode(await read(assetPath)) as Map<String, Object?>,
+    );
+    final (visibility, issue) = await _sidecarVisibility(assetPath, read);
+    return build(
+      level,
+      device: device,
+      registry: registry,
+      rules: rules,
+      readAsset: readAsset,
+      visibility: visibility,
+      issues: <LevelIssue>[?issue],
+    );
+  }
+
+  /// The visibility table beside a level, or null when there is none — and
+  /// a word when there is one that will not read.
+  ///
+  /// `<level>.visibility.json`, baked by `dart run flutter3d_game:bake_visibility`
+  /// and kept beside the document because the document is generated and the
+  /// table would not survive its regeneration. A missing sidecar is a level
+  /// without one — every level had none until now — and a sidecar that will
+  /// not read is said out loud through the issues rather than swallowed,
+  /// since the level plays either way and the person who wrote a table that
+  /// does not parse is the one who wants to hear it.
+  static Future<(LevelVisibility?, LevelIssue?)> _sidecarVisibility(
+    String assetPath,
+    DocumentText read,
+  ) async {
+    final path = assetPath.endsWith('.json')
+        ? '${assetPath.substring(0, assetPath.length - 5)}.visibility.json'
+        : '$assetPath.visibility.json';
+    final String text;
+    try {
+      text = await read(path);
+    } catch (_) {
+      return (null, null);
+    }
+    try {
+      return (
+        LevelVisibility.fromJson(jsonDecode(text) as Map<String, Object?>),
+        null,
+      );
+    } catch (error) {
+      return (
+        null,
+        LevelIssue(
+          LevelIssueSeverity.warning,
+          'the visibility table beside the level could not be read and is '
+          'ignored: $error',
+          where: path,
+        ),
+      );
+    }
+  }
 
   /// Everything [load] does except finding the document.
   ///
@@ -84,6 +132,8 @@ final class LevelLoader {
     required EntityRegistry registry,
     List<LevelRule> rules = const <LevelRule>[],
     AssetBytes? readAsset,
+    LevelVisibility? visibility,
+    List<LevelIssue> issues = const <LevelIssue>[],
   }) async {
     // Errors throw with every one listed, because a level with a door whose key
     // is in no room is a level that cannot be finished, and finding that out
@@ -104,7 +154,7 @@ final class LevelLoader {
     // console.** `LoadedLevel` has carried `issues` since the validator did,
     // and this is the same kind of fact: the level plays, a wall is flat, and
     // the person who renamed the file is the one who wants to hear about it.
-    final loadIssues = <LevelIssue>[];
+    final loadIssues = <LevelIssue>[...issues];
     for (final source in level.materials.values) {
       for (final path in <String?>[source.albedo, source.normal, source.orm]) {
         if (path == null || textures.containsKey(path)) continue;
@@ -117,31 +167,46 @@ final class LevelLoader {
       }
     }
 
-    final surfaces = const BrushGeometry().build(level);
+    // A table baked from other brushes describes other walls. Refused with a
+    // word rather than applied: a stale table hides rooms that are there.
+    if (visibility != null && visibility.isStaleFor(level)) {
+      loadIssues.add(
+        const LevelIssue(
+          LevelIssueSeverity.warning,
+          'the visibility table was baked from different brushes and is '
+          'ignored; run bake_visibility again',
+        ),
+      );
+      visibility = null;
+    }
+    final surfaces = const BrushGeometry().build(level, visibility: visibility);
     // Remembered on the way in, so `LoadedLevel.dispose` can release exactly
     // what this loop uploaded and nothing else.
     final brushMeshes = <DeviceMesh>[];
+    // And with their boxes, so the culler can ask which of them a cell sees.
+    final batches = <VisibilityBatch>[];
     for (final surface in surfaces) {
       final mesh = DeviceMesh.upload(device, _toMeshData(surface));
       brushMeshes.add(mesh);
-      scene.add(
-        MeshNode(
-            mesh,
-            LevelLoader.materialFrom(
-              level.materials[surface.material] ?? LevelMaterial(),
-              textures,
+      final node =
+          MeshNode(
+              mesh,
+              LevelLoader.materialFrom(
+                level.materials[surface.material] ?? LevelMaterial(),
+                textures,
+                name: surface.material,
+              ),
               name: surface.material,
-            ),
-            name: surface.material,
-          )
-          // Brushes are the level: they never move, so their shadow is baked
-          // once rather than redrawn six times a frame.
-          ..shadowIsStatic = true
-          // A fence is not architecture. See `Brush.castsShadow` — and note
-          // that this is why surfaces are batched by that answer as well as by
-          // material: a batch is the smallest thing that can be left out.
-          ..castsShadow = surface.castsShadow,
-      );
+            )
+            // Brushes are the level: they never move, so their shadow is baked
+            // once rather than redrawn six times a frame.
+            ..shadowIsStatic = true
+            // A fence is not architecture. See `Brush.castsShadow` — and note
+            // that this is why surfaces are batched by that answer as well as
+            // by material: a batch is the smallest thing that can be left out.
+            ..castsShadow = surface.castsShadow;
+      scene.add(node);
+      batches.add((node: node, bounds: surface.bounds));
     }
 
     for (final light in level.lights) {
@@ -156,6 +221,7 @@ final class LevelLoader {
       drawCallCount: surfaces.length,
       materialTextures: textures,
       brushMeshes: brushMeshes,
+      culler: visibility == null ? null : VisibilityCuller(visibility, batches),
     );
   }
 

@@ -460,6 +460,50 @@ Held to their own pictures, all three failed by the same 19 358 pixels.
 Re-recorded, and the lesson is the one the golden script's own header gives:
 a reference is a claim about the present only for as long as somebody runs it.
 
+### 4.6 Precomputed visibility
+
+A brush level is the one kind of level occlusion culling is cheap for, and
+`LevelVisibility` is that culling: the empty space between the walls divided
+into a grid of cells, a bit per pair of cells saying whether they see each
+other, baked once by `dart run flutter3d_game:bake_visibility` and stored
+beside the level as `<level>.visibility.json`. A frame asks which cell the eye
+is in and turns off every batch of brush geometry that touches no cell that
+one can see. The frustum still runs afterwards; the two answer different
+questions, and a room behind a wall in front of the camera is caught by this
+one alone.
+
+**Two cells see each other when a ray between sample points in each crosses
+no solid brush** — twenty-seven points a cell, through the level's own
+collision world, with cells that touch always visible. That is a sample, and
+a sample can miss a line that squeezes past a doorway's edge, which would hide
+a room somebody can see into: the one failure the feature must not have. So
+the errors are pushed the safe way three times over. A cell no sample of which
+is in empty space is closed, and an eye in a closed cell — or off the grid —
+sees everything. A batch is drawn if *any* cell its box overlaps is visible.
+And a query asks on behalf of every cell within a metre of the eye and grows
+the box it asks about by a metre, because the misses cluster at cell
+boundaries; the metre was measured, not chosen. Against fifty-five hundred
+random unblocked rays through the dungeon's three levels, none crossed cells
+the table calls hidden at a metre, one at half a metre, twenty-two at nought.
+The price is culling: the crypt's standing point sees 54% of cells instead of
+41%, and it is paid for a room that never pops.
+
+**Batching pays for it.** A batch is the smallest thing a frame can leave out,
+and a level whose walls are three batches draws all its walls from everywhere;
+with a table, `BrushGeometry` bins each face by the cell its centre falls in,
+so a room's walls become that room's batches. A level without a table batches
+exactly as it did, which is what keeps every recorded picture where it is.
+
+The table carries a hash of the brushes it was baked from and a table whose
+hash no longer matches is refused with a word; the dungeon's tests hold the
+committed sidecars fresh, so a brush moved without a re-bake fails CI rather
+than hiding a room at run time. The bake is deterministic and slow enough to
+be a tool rather than a load — the crypt takes half a minute, the vaults two
+— and the first bake of a three-room test level saw straight through its
+floor, because a sample point had landed exactly on the floor's corner and a
+ray that begins on a box's surface is not blocked by it. Samples within a
+centimetre of a wall are closed now, and the test that found it is kept.
+
 ---
 
 ## 5. Scene and camera
@@ -1153,7 +1197,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3025 tests** across 23 packages and 5 applications |
+| Unit tests | **3046 tests** across 23 packages and 5 applications |
 | Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1323,7 +1367,9 @@ what closing part of it produced — three new parity fixtures found the sky
 blacking out every frame, and a reference set of thirty-two found a lighting
 model drawing nothing.
 
-**No occlusion culling, FXAA or TAA.** Screen-space ambient occlusion and
+**No occlusion culling for anything but a brush level, and no FXAA or TAA.**
+A brush level has the precomputed visibility of [§4.6](#46-precomputed-visibility);
+a model imported from glTF is culled by the frustum alone. Screen-space ambient occlusion and
 reflections exist and are off by default; neither has a golden scene, so what
 is pinned about them is their settings and their shader, not their picture.
 

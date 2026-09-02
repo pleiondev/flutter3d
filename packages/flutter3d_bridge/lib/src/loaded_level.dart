@@ -1,6 +1,8 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 
+import 'visibility_culler.dart';
+
 /// A loaded level, in the two forms the game needs it.
 ///
 /// One authored document produces both, which is the point: geometry the player
@@ -17,8 +19,14 @@ final class LoadedLevel {
     required this.drawCallCount,
     Map<String, TextureHandle?>? materialTextures,
     List<DeviceMesh>? brushMeshes,
+    this.culler,
   }) : materialTextures = materialTextures ?? const <String, TextureHandle?>{},
        brushMeshes = brushMeshes ?? const <DeviceMesh>[];
+
+  /// Hides what the camera cannot see, when the level came with a visibility
+  /// table that matched its brushes. Null when it did not, and then every
+  /// batch is drawn from everywhere, as before there were tables.
+  final VisibilityCuller? culler;
 
   final Level level;
   final Scene scene;

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 
+import 'package:vector_math/vector_math.dart';
+
 /// The triangles of every brush sharing one material *and* one answer about
 /// shadows.
 ///
@@ -53,6 +55,30 @@ final class BrushSurface {
   final Float32List tangents;
 
   final Uint32List indices;
+
+  /// The box around every vertex, for deciding whether a batch can be seen.
+  ///
+  /// Computed on first use from the positions, so a surface built by hand
+  /// and one built by `BrushGeometry` answer the same way.
+  late final Aabb3 bounds = _computeBounds();
+
+  Aabb3 _computeBounds() {
+    if (positions.isEmpty) return Aabb3();
+    var minX = double.infinity, minY = double.infinity, minZ = double.infinity;
+    var maxX = -double.infinity,
+        maxY = -double.infinity,
+        maxZ = -double.infinity;
+    for (var i = 0; i + 2 < positions.length; i += 3) {
+      final x = positions[i], y = positions[i + 1], z = positions[i + 2];
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (z < minZ) minZ = z;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+      if (z > maxZ) maxZ = z;
+    }
+    return Aabb3.minMax(Vector3(minX, minY, minZ), Vector3(maxX, maxY, maxZ));
+  }
 
   int get vertexCount => positions.length ~/ 3;
   int get triangleCount => indices.length ~/ 3;
