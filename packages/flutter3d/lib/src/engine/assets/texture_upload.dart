@@ -2,13 +2,17 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'ktx2/ktx2.dart';
 import 'model_document.dart';
 
-/// Decodes an encoded image (PNG, JPEG, …) and uploads it through [device].
+/// Decodes an encoded image (PNG, JPEG, KTX2, …) and uploads it through
+/// [device].
 ///
-/// Decoding goes through `dart:ui`, which is why this sits beside the decoders
-/// rather than in the glTF layer: keeping the parser free of `dart:ui` is what
-/// lets it be unit tested without a Flutter binding.
+/// PNG/JPEG decoding goes through `dart:ui`, which is why this sits beside the
+/// decoders rather than in the glTF layer: keeping the parser free of
+/// `dart:ui` is what lets it be unit tested without a Flutter binding. KTX2 is
+/// sniffed and routed to [Ktx2Texture] before `dart:ui` ever sees the bytes —
+/// see [_uploadKtx2].
 ///
 /// It used to live in the backend directory, because uploading needed the
 /// backend context. Nothing about decoding a PNG was ever backend-specific;
@@ -19,22 +23,29 @@ import 'model_document.dart';
 /// is the decoded glTF sampler, so an asset that asks for mipmapped
 /// minification gets a chain and one that asks for a single level does not.
 ///
-/// One limitation of the current backend still shapes this, and it is not
-/// expressed in the seam because it is not a decision anybody makes: there are
-/// no compressed pixel formats, so everything lands as RGBA8. A 2048² texture
-/// costs 16 MB of device memory regardless of how small its PNG was, and a mip
-/// chain adds a third of that again.
+/// **Compressed formats exist here now, for exactly one path.** Basis
+/// Universal (`ktx2/basis_universal/`) transcodes to plain RGBA8, so it costs
+/// what a PNG of the same dimensions always cost and pays for its mip chain
+/// the same way. A KTX2 file's *own* block-compressed pixels — the ones that
+/// would actually shrink device memory — are read correctly by
+/// [Ktx2Texture.parse] but refused here rather than uploaded: no backend has
+/// agreed yet what happens when one reaches it, and WebGL2's format table
+/// (`webgl_formats.dart`) throws outright for one today. Wiring that in is a
+/// backend-capability decision, not an asset-loading one.
 ///
 /// **The chain is not a memory saving.** It is an aliasing fix: without it a
 /// minified surface samples one texel out of every several and crawls as the
-/// camera moves. Paying 33% more memory for it is the trade, and the way out of
-/// the trade is compressed formats, which nothing here has.
+/// camera moves. Paying 33% more memory for it is the trade.
 Future<TextureHandle?> uploadEncodedImage(
   GraphicsDevice device,
   Uint8List encoded, {
   TextureSampling sampling = const TextureSampling(),
 }) async {
   if (encoded.isEmpty) return null;
+
+  if (isKtx2File(encoded)) {
+    return _uploadKtx2(device, sampling, encoded);
+  }
 
   final ui.Codec codec;
   try {
@@ -61,20 +72,7 @@ Future<TextureHandle?> uploadEncodedImage(
     // pixels and its dimensions at the same moment, and building the chain
     // elsewhere would mean decoding the PNG twice. `ModelAsset` caches by image
     // index, so each distinct image pays for its chain once.
-    final levels = buildsMipChain(device, sampling, image.width, image.height)
-        ? MipChain.build(data, image.width, image.height)
-        : null;
-
-    // Null when the decoder and the device disagree about how many bytes that
-    // image is — which degrades to "no texture" rather than taking the whole
-    // model down with it. The size the device wants is the device's to know.
-    return device.createTextureFromPixels(
-      width: image.width,
-      height: image.height,
-      format: TextureFormat.r8g8b8a8UNormInt,
-      pixels: data,
-      mipLevels: levels,
-    );
+    return _uploadRgba8(device, sampling, image.width, image.height, data);
   } finally {
     // Both halves of the decode: the frame image, and the codec it came from.
     // The codec is a native decoder instance, and leaking one per texture is
@@ -82,6 +80,68 @@ Future<TextureHandle?> uploadEncodedImage(
     image.dispose();
     codec.dispose();
   }
+}
+
+/// The tail [uploadEncodedImage] shares between a `dart:ui` decode and an
+/// ETC1S transcode: both end up holding straight RGBA8 bytes and a
+/// width/height at the same moment, which is exactly what [buildsMipChain]
+/// and [MipChain.build] want, and a second call site building the chain
+/// differently is how two loaders end up with two answers.
+///
+/// Null when the source and the device disagree about how many bytes that
+/// image is — which degrades to "no texture" rather than taking the whole
+/// model down with it. The size the device wants is the device's to know.
+TextureHandle? _uploadRgba8(
+  GraphicsDevice device,
+  TextureSampling sampling,
+  int width,
+  int height,
+  ByteData pixels,
+) {
+  final levels = buildsMipChain(device, sampling, width, height)
+      ? MipChain.build(pixels, width, height)
+      : null;
+  return device.createTextureFromPixels(
+    width: width,
+    height: height,
+    format: TextureFormat.r8g8b8a8UNormInt,
+    pixels: pixels,
+    mipLevels: levels,
+  );
+}
+
+/// Routes a KTX2 file to [Ktx2Texture] rather than `dart:ui`, which does not
+/// read the format at all.
+///
+/// Two outcomes reach RGBA8 the same way a PNG does: a parse failure (a
+/// feature stage 1 or 2 refuses — a mip chain, an alpha slice, a
+/// supercompression scheme with no Dart decompressor) degrades to "no
+/// texture" exactly like a corrupt PNG does, and a Basis Universal file
+/// reaches [_uploadRgba8] once transcoded. A file that parses into one of its
+/// *own* block-compressed formats is the one outcome this does not forward —
+/// see the doc comment on [uploadEncodedImage] for why.
+TextureHandle? _uploadKtx2(
+  GraphicsDevice device,
+  TextureSampling sampling,
+  Uint8List encoded,
+) {
+  final Ktx2Texture texture;
+  try {
+    texture = Ktx2Texture.parse(encoded);
+  } on Ktx2FormatException {
+    return null;
+  }
+
+  if (texture.format != TextureFormat.r8g8b8a8UNormInt) {
+    return null;
+  }
+  return _uploadRgba8(
+    device,
+    sampling,
+    texture.pixelWidth,
+    texture.pixelHeight,
+    texture.levels.single,
+  );
 }
 
 /// Whether an image of this size, sampled this way, gets a mip chain.
