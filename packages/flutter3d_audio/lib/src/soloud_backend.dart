@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_soloud/flutter_soloud.dart';
 
@@ -98,8 +100,9 @@ final class SoLoudBackend implements AudioBackend {
   @override
   Future<void> preload(String asset) async {
     if (_sources.containsKey(asset)) return;
+    final AudioSource source;
     try {
-      _sources[asset] = await _soloud.loadAsset(asset);
+      source = await _soloud.loadAsset(asset);
     } catch (error) {
       // A missing sound leaves the game silent in one place rather than
       // stopping it. Losing a footstep should not cost the play-test — but it
@@ -107,6 +110,69 @@ final class SoLoudBackend implements AudioBackend {
       // and a sound that failed to decode look like from the outside.
       _failed.add(asset);
       onIssue('could not load "$asset": $error');
+      return;
+    }
+    _sources[asset] = source;
+    // A low-pass on every source, open all the way, so a voice heard through
+    // a wall can be dulled by moving its cutoff rather than by starting a
+    // filter mid-sound — which is a click. Per source rather than global,
+    // because a global filter has one cutoff for every voice at once, and a
+    // torch behind the door and a torch beside you are not the same torch.
+    try {
+      final filter = source.filters.biquadFilter;
+      if (!filter.isActive) filter.activate();
+      filter.type().value = _kLowPass;
+      filter.frequency().value = _kOpenCutoff;
+    } catch (error) {
+      if (!_filterRefused) {
+        _filterRefused = true;
+        onIssue(
+          'no low-pass filter on this platform, walls only quieten: $error',
+        );
+      }
+    }
+  }
+
+  /// SoLoud's biquad type for a low-pass.
+  static const double _kLowPass = 0.0;
+
+  /// Cutoffs at the two ends of a muffle: open, and heard through a wall.
+  static const double _kOpenCutoff = 16000.0;
+  static const double _kWallCutoff = 600.0;
+
+  /// Said once. A platform without the filter is a platform where walls only
+  /// quieten, which is what every platform did until now.
+  bool _filterRefused = false;
+
+  /// Which source each live voice came from, for reaching its filter.
+  final Map<SoundHandle, AudioSource> _voiceSource =
+      <SoundHandle, AudioSource>{};
+
+  /// The muffle each voice was last given, so a voice nothing has changed
+  /// costs no call into the engine.
+  final Map<SoundHandle, double> _voiceMuffle = <SoundHandle, double>{};
+
+  /// Moves a voice's cutoff to where [muffle] says.
+  ///
+  /// Geometric between the two ends, because hearing is: half way in the
+  /// ratio is half way in pitch, where half way in hertz would be nearly
+  /// open. Skipped when the voice is where it was, to the hundredth.
+  void _applyMuffle(SoundHandle handle, double muffle) {
+    if (_filterRefused) return;
+    final source = _voiceSource[handle];
+    if (source == null) return;
+    final clamped = muffle.clamp(0.0, 1.0);
+    final last = _voiceMuffle[handle];
+    if (last != null && (last - clamped).abs() < 0.01) return;
+    _voiceMuffle[handle] = clamped;
+    try {
+      source.filters.biquadFilter.frequency(soundHandle: handle).value =
+          _kOpenCutoff * math.pow(_kWallCutoff / _kOpenCutoff, clamped);
+    } catch (error) {
+      _filterRefused = true;
+      onIssue(
+        'the low-pass filter refused a voice, walls only quieten: $error',
+      );
     }
   }
 
@@ -117,6 +183,7 @@ final class SoLoudBackend implements AudioBackend {
     required double pan,
     required double rate,
     required bool loop,
+    double muffle = 0.0,
   }) {
     final source = _sources[asset];
     if (source == null) return null;
@@ -131,6 +198,8 @@ final class SoLoudBackend implements AudioBackend {
       // the handle immediately afterwards is the same frame, so nothing is
       // audible at the wrong speed.
       if (rate != 1.0) _soloud.setRelativePlaySpeed(handle, rate);
+      _voiceSource[handle] = source;
+      if (muffle > 0.0) _applyMuffle(handle, muffle);
       return handle;
     } catch (error) {
       onIssue('could not play "$asset": $error');
@@ -151,6 +220,7 @@ final class SoLoudBackend implements AudioBackend {
     required double gain,
     required double pan,
     required double rate,
+    double muffle = 0.0,
   }) {
     final handle = voice as SoundHandle;
     try {
@@ -161,12 +231,16 @@ final class SoLoudBackend implements AudioBackend {
     } catch (error) {
       onIssue('could not update a voice: $error');
     }
+    _applyMuffle(handle, muffle);
   }
 
   @override
   void stop(VoiceId voice) {
+    final handle = voice as SoundHandle;
+    _voiceSource.remove(handle);
+    _voiceMuffle.remove(handle);
     try {
-      _soloud.stop(voice as SoundHandle);
+      _soloud.stop(handle);
     } catch (error) {
       onIssue('could not stop a voice: $error');
     }

@@ -24,4 +24,5 @@ export 'src/actor_visuals.dart';
 export 'src/fixture_visuals.dart';
 export 'src/level_loader.dart';
 export 'src/shared_meshes.dart';
+export 'src/sound_occlusion.dart';
 export 'src/visibility_culler.dart';

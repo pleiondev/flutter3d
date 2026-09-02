@@ -226,10 +226,6 @@ class _GameScreenState extends State<GameScreen>
   // easiest way to hand the collector work it does not need.
   final Vector3 _aim = Vector3.zero();
 
-  // Scratch for the occlusion ray, which runs once per audible source per
-  // frame and must not allocate.
-  final Vector3 _sound = Vector3.zero();
-
   /// Toggled by F, and also on its own every two seconds while
   /// [_fogAlternates] is set.
   ///
@@ -241,8 +237,6 @@ class _GameScreenState extends State<GameScreen>
 
   /// Off in normal play. Turned on for a measurement.
   static const bool _fogAlternates = bool.fromEnvironment('DUNGEON_FOG_AB');
-
-  final RayHit _soundRay = RayHit();
 
   /// The mixer. Built with the silent backend so a build that cannot open an
   /// audio device still runs — and replaced with the real one once SoLoud is
@@ -456,24 +450,16 @@ class _GameScreenState extends State<GameScreen>
   }
 
   /// How much of a sound survives the trip from [from] to [to].
-  double _occlusionBetween(Vector3 from, Vector3 to) {
-    final loaded = _loaded;
-    if (loaded == null) return 1.0;
-    _sound
-      ..setFrom(to)
-      ..sub(from);
-    final distance = _sound.length;
-    if (distance < 1e-3) return 1.0;
-    _sound.scale(1.0 / distance);
-    final blocked = loaded.collision.raycast(
-      from,
-      _sound,
-      distance,
-      _soundRay,
-      mask: CollisionLayers.world,
-    );
-    return blocked ? 0.35 : 1.0;
-  }
+  double _occlusionBetween(Vector3 from, Vector3 to) =>
+      _soundOcclusion?.between(from, to) ?? 1.0;
+
+  /// The walls between a sound and the ear, per level. Null until one loads.
+  ///
+  /// Every obstacle takes half, so a torch behind a door and a torch three
+  /// rooms away are no longer the same torch — see `SoundOcclusion`. The
+  /// muffle that goes with the loss reaches the backend as a low-pass, which
+  /// is the "through a wall" a player recognises.
+  SoundOcclusion? _soundOcclusion;
 
   /// The torches, which run for as long as the level does.
   ///
@@ -670,6 +656,7 @@ class _GameScreenState extends State<GameScreen>
   /// a smoothed camera position, an accumulator full of loading time, and a
   /// looping sound.
   void _levelArrived(LevelReady level) {
+    _soundOcclusion = SoundOcclusion(level.loaded.collision);
     // The player is built by the staging, which knows the compiled-in default
     // and nothing about what this player has chosen. Applied here rather than
     // threaded through, because a setting changed mid-run has to reach the

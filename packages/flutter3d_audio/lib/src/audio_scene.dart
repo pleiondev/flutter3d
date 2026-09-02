@@ -34,6 +34,11 @@ final class SoundEmitter {
   /// being heard — a debug overlay, or a monster deciding not to bother.
   double audibleGain = 0.0;
   double pan = 0.0;
+
+  /// How much the walls dull this sound, from 0 (clear) to 1. Set by
+  /// [AudioScene.update] from the occlusion callback and handed to the
+  /// backend beside the gain.
+  double muffle = 0.0;
   bool get isAudible => audibleGain > 0.0;
 
   bool _stopped = false;
@@ -211,11 +216,17 @@ final class AudioScene {
     var gain = sound.gain * emitter.gain * sound.attenuation.gainAt(distance);
 
     final occlude = occlusion;
+    var through = 1.0;
     if (gain > 0.0 && occlude != null && distance > 1e-6) {
-      gain *= occlude(emitter.position, listener.position).clamp(0.0, 1.0);
+      through = occlude(emitter.position, listener.position).clamp(0.0, 1.0);
+      gain *= through;
     }
 
     emitter.audibleGain = gain;
+    // Quieter is half of what a wall does; the other half is duller, and a
+    // backend that can filter is told how much. One minus the share that got
+    // through, so a wall that halves the sound muffles it by half.
+    emitter.muffle = 1.0 - through;
 
     // Pan is the left-right component of the direction, and nothing else. A
     // sound on top of the listener has no direction at all, and panning it
@@ -266,6 +277,7 @@ final class AudioScene {
             pan: emitter.pan,
             rate: emitter._dealtRate * emitter.rate,
             loop: emitter.sound.loop,
+            muffle: emitter.muffle,
           );
         } else {
           backend.update(
@@ -273,6 +285,7 @@ final class AudioScene {
             gain: gain,
             pan: emitter.pan,
             rate: emitter._dealtRate * emitter.rate,
+            muffle: emitter.muffle,
           );
         }
         continue;

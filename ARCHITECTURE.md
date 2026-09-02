@@ -1243,6 +1243,21 @@ limits and priorities, and mix buses. `AudioBus` is an open value class like
 `GameAction`, and a bus is spent when a voice is issued rather than when it is
 chosen. No Doppler.
 
+**A wall makes a sound quieter and duller, and both come from one number.**
+`AudioScene.occlusion` is a callback the game supplies, because the walls are
+the game's; the bridge's `SoundOcclusion` answers it by walking the ray from
+the source to the ear through the level's collision world, letting every
+obstacle it meets take half, down to a floor that keeps a distant torch from
+switching off as the player rounds a corner. Thickness is not measured — a ray
+that begins inside a box is not stopped by that box, so every wall counts once
+however thick — and the answer is pure, so a replay sounds the way the run
+did. The share that got through goes to the backend as the gain; one minus it
+goes beside it as a *muffle*, which the SoLoud backend turns into a low-pass
+cutoff per voice, geometric between 16 kHz open and 600 Hz through a wall,
+because hearing is geometric. The dungeon had a wall test since its first
+commit and it was yes-or-no: a torch behind a door and a torch three rooms
+away were the same torch.
+
 ### 11.3 UI
 
 Flutter. Unicode, DPI scaling, layout containers and world-space panels all come
@@ -1306,7 +1321,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3063 tests** across 24 packages and 5 applications |
+| Unit tests | **3071 tests** across 24 packages and 5 applications |
 | Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

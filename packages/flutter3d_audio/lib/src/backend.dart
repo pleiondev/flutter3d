@@ -20,12 +20,19 @@ abstract interface class AudioBackend {
   /// than an optional one on purpose: a one-shot that begins at rate one and is
   /// corrected a frame later is audible as a chirp, so there is no
   /// `setRate(voice, rate)` to forget to call.
+  ///
+  /// [muffle] is how much of the sound's top end the world takes away, from
+  /// 0 (clear) to 1 (heard through a wall): a backend that can filter turns
+  /// it into a low-pass cutoff, and one that cannot ignores it. Optional so
+  /// a backend written before there was a wall between anything keeps
+  /// working; `SoundOcclusion` in the bridge is what supplies it.
   VoiceId? start(
     String asset, {
     required double gain,
     required double pan,
     required double rate,
     required bool loop,
+    double muffle = 0.0,
   });
 
   /// Changes a voice that is already playing.
@@ -43,6 +50,7 @@ abstract interface class AudioBackend {
     required double gain,
     required double pan,
     required double rate,
+    double muffle = 0.0,
   });
 
   void stop(VoiceId voice);
@@ -76,8 +84,10 @@ final class SilentBackend implements AudioBackend {
     required double pan,
     required double rate,
     required bool loop,
+    double muffle = 0.0,
   }) {
-    final voice = SilentVoice(_next++, asset, gain, pan, rate, loop);
+    final voice = SilentVoice(_next++, asset, gain, pan, rate, loop)
+      ..muffle = muffle;
     started.add(voice);
     return voice;
   }
@@ -88,12 +98,14 @@ final class SilentBackend implements AudioBackend {
     required double gain,
     required double pan,
     required double rate,
+    double muffle = 0.0,
   }) {
     final live = voice as SilentVoice;
     live
       ..gain = gain
       ..pan = pan
-      ..rate = rate;
+      ..rate = rate
+      ..muffle = muffle;
     live.updates++;
   }
 
@@ -123,6 +135,9 @@ final class SilentVoice {
   final bool loop;
   bool alive = true;
   int updates = 0;
+
+  /// The last muffle handed over, so a test can see a wall reach the voice.
+  double muffle = 0.0;
 
   @override
   String toString() => 'voice($asset, gain: $gain, pan: $pan, rate: $rate)';
