@@ -1,3 +1,19 @@
+## 0.4.5
+
+* **A bundle loaded from bytes, and refused when its SDK is not this one.**
+  `GpuRenderBackend.loadShaders` reparses `impellerc` output through
+  `ShaderLibrary.fromBytes`, and `GpuLoadedShaderLibrary.refresh` through
+  `reinitializeFromBytes`, so a handle already handed out wraps the stage that
+  now carries the new code. The header's SDK token is held to `runningSdk` —
+  the first token of `Platform.version` — before the section is looked at:
+  the bundle format is tied to the Flutter version, and a stage compiled for
+  another one draws something else rather than failing to parse. A mismatch,
+  a missing `impeller` section and bytes flutter_gpu cannot parse are all
+  `ShaderBundleRefused` naming the bundle. `impellerSectionOf` is the pure
+  half, tested without a device.
+* `tool/conformance.sh` also wants the example's own loadable bundle built,
+  since the harness is the example and its pubspec now declares the asset.
+
 ## 0.4.4
 
 * The bundle gains `MeshLightmappedVertex` and every lit stage binds a

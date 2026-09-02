@@ -114,7 +114,7 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
   });
 
   @override
-  void reload(ByteData bytes) {
+  void refresh(ByteData bytes) {
     final bundle = ShaderBundle.decode(bytes);
     final section = impellerSectionOf(bundle, running: running);
     // flutter_gpu leaves the live shaders alone when the bytes do not parse,
@@ -132,7 +132,7 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
     _handles.removeWhere((_, ShaderHandle? handle) => handle == null);
   }
 
-  /// What [reload] holds the header to. The process's own SDK, always: a
+  /// What [refresh] holds the header to. The process's own SDK, always: a
   /// library loaded against one token is reloaded against the same one.
   String get running => runningSdk;
 }

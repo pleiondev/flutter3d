@@ -78,7 +78,7 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
       _bundle.names.contains(name) ? _own[name] : null;
 
   @override
-  void reload(ByteData bytes) {
+  void refresh(ByteData bytes) {
     final bundle = ShaderBundle.decode(bytes);
     // Checked before anything is replaced: a refused reload leaves the
     // library as it was, which is the contract.

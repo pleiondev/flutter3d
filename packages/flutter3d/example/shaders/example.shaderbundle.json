@@ -1,0 +1,6 @@
+{
+  "ExampleStripes": {
+    "type": "fragment",
+    "file": "shaders/example_stripes.frag"
+  }
+}

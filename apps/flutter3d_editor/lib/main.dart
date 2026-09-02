@@ -48,6 +48,7 @@ import 'src/palette_items.dart';
 import 'src/picking.dart';
 import 'src/scaffold.dart';
 import 'src/scene_dressing.dart';
+import 'src/shader_watch.dart';
 import 'src/vocabulary.dart';
 
 /// The document opened on launch.
@@ -59,6 +60,15 @@ const String kLevelPath = String.fromEnvironment(
   'level',
   defaultValue: '../flutter3d_demo_dungeon/assets/levels/crypt.json',
 );
+
+/// A shader bundle to draw with and keep watching, or nothing.
+///
+/// `--dart-define=shaders=<path>.f3dshaders`, resolved the way [kLevelPath]
+/// is. Loaded through `GraphicsDevice.loadShaders` and handed to the renderer
+/// as `materials`, so every stage in it wins the name over the engine's; then
+/// polled, so a rebuilt bundle shows on the next frame. See `ShaderWatch`,
+/// and the README for the loop this is for.
+const String kShadersPath = String.fromEnvironment('shaders');
 
 /// What this editor calls itself when it takes ownership of a document.
 const String kAuthor = 'apps/flutter3d_editor';
@@ -108,6 +118,9 @@ class _EditorScreenState extends State<EditorScreen>
   GraphicsDevice? _device;
   Renderer? _renderer;
   Scene? _scene;
+
+  /// The bundle [kShadersPath] named, kept current. Null when none was.
+  ShaderWatch? _shaders;
 
   final CameraNode _camera = CameraNode(name: 'editor');
   final FlyCamera _fly = FlyCamera();
@@ -206,12 +219,19 @@ class _EditorScreenState extends State<EditorScreen>
       final device = await GpuRenderBackend.create();
       if (!mounted) return;
       _device = device;
-      _renderer = Renderer.create(device: device);
-      _dressing = SceneDressing(device);
 
       // Where the document actually is — see `Documents`, and the launch that
       // found nothing because a bundle's working directory is `/`.
       final tried = Documents.searchFrom();
+
+      // The shader bundle, before the renderer: it is the renderer's
+      // `materials`, and a bundle that will not load is the same failure as
+      // an engine shader that will not, reported the same way.
+      final shaders = await _openShaders(device, from: tried);
+      if (!mounted) return;
+      _renderer = Renderer.create(device: device, materials: shaders?.library);
+      _shaders = shaders?..start();
+      _dressing = SceneDressing(device);
       final found = Documents.find(
         kLevelPath,
         from: tried,
@@ -235,6 +255,50 @@ class _EditorScreenState extends State<EditorScreen>
     } catch (error) {
       if (mounted) _cubit.failed(error);
     }
+  }
+
+  /// Loads the bundle [kShadersPath] names and arranges to keep reading it,
+  /// or null when no bundle was named.
+  ///
+  /// The path is looked for the way the level's is. A bundle named and not
+  /// found throws rather than being skipped: an editor asked to draw with a
+  /// file and drawing without it would look like the file having no effect,
+  /// which is the one thing this loop exists to make impossible.
+  Future<ShaderWatch?> _openShaders(
+    GraphicsDevice device, {
+    required List<String> from,
+  }) async {
+    if (kShadersPath.isEmpty) return null;
+    final found = Documents.find(
+      kShadersPath,
+      from: from,
+      exists: (String path) => File(path).existsSync(),
+    );
+    if (found == null) {
+      throw FileSystemException(
+        Documents.couldNotFind(
+          kShadersPath,
+          Documents.candidates(kShadersPath, from: from),
+        ),
+      );
+    }
+    final file = File(found);
+    Future<ByteData> read() async =>
+        (await file.readAsBytes()).buffer.asByteData();
+    final library = await device.loadShaders(await read());
+    return ShaderWatch(
+      library: library,
+      modifiedAt: () => file.existsSync() ? file.lastModifiedSync() : null,
+      readBytes: read,
+      // The renderer's half: every pipeline linked so far is dropped and the
+      // next frame links the refreshed stages.
+      onRefreshed: () {
+        _renderer?.relinkShaders();
+        _cubit.say('shaders: ${library.name} reloaded');
+      },
+      onRefused: (ShaderBundleRefused refused) =>
+          _cubit.say('shaders: $refused'),
+    );
   }
 
   /// Opens the document at [found], which is known to be there.
@@ -837,6 +901,7 @@ class _EditorScreenState extends State<EditorScreen>
 
   @override
   void dispose() {
+    _shaders?.dispose();
     _ticker?.dispose();
     _keyboard.dispose();
     unawaited(_keys.dispose());

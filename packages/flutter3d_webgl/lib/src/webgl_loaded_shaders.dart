@@ -19,7 +19,7 @@ import 'webgl_shaders.dart';
 
 /// A [LoadedShaderLibrary] over sources a bundle carried.
 ///
-/// Handles keep their identity across [reload] the only way GL allows: the
+/// Handles keep their identity across [refresh] the only way GL allows: the
 /// compiled object behind each handle already handed out is replaced, and
 /// every program linked from the old one is forgotten through the device's
 /// library so the next link uses the new code. See `WebGlShader.shader`.
@@ -91,7 +91,7 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
   }
 
   @override
-  void reload(ByteData bytes) {
+  void refresh(ByteData bytes) {
     final bundle = ShaderBundle.decode(bytes);
     final sources = _sourcesOf(bundle);
 

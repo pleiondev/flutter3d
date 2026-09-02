@@ -36,6 +36,15 @@ if [[ ! -f "$BUNDLE" ]]; then
   exit 2
 fi
 
+# And the example's own loadable bundle, which its pubspec declares: Flutter
+# will not build the harness without it, and the message it gives names an
+# asset rather than the script that writes one.
+LOADABLE="$EXAMPLE_DIR/assets/shaders/example.f3dshaders"
+if [[ ! -f "$LOADABLE" ]]; then
+  echo "the example's shader bundle is missing; run $EXAMPLE_DIR/tool/build_shaders.sh" >&2
+  exit 2
+fi
+
 if [[ "$STAY" == true ]]; then
   ( cd "$EXAMPLE_DIR" && exec flutter run -d macos -t lib/conformance_main.dart \
       --dart-define=stay=true )

@@ -116,14 +116,14 @@ void main() {
       _bundle(<String>['MeshVertex', 'Unlit']),
     );
     expect(
-      () => loaded.reload(_bundle(<String>['Unlit', 'Nothing'], name: 'v2')),
+      () => loaded.refresh(_bundle(<String>['Unlit', 'Nothing'], name: 'v2')),
       throwsA(isA<ShaderBundleRefused>().having((r) => r.name, 'name', 'v2')),
     );
     expect(loaded.name, 'effects');
     expect(loaded['Unlit'], isNotNull);
     expect(loaded['Nothing'], isNull);
 
-    loaded.reload(_bundle(<String>['Unlit', 'Pbr'], name: 'v3'));
+    loaded.refresh(_bundle(<String>['Unlit', 'Pbr'], name: 'v3'));
     expect(loaded.name, 'v3');
     expect(loaded['Pbr'], isNotNull);
     expect(loaded['MeshVertex'], isNull, reason: 'the new bundle dropped it');

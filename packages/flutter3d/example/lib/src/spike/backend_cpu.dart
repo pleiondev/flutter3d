@@ -16,12 +16,20 @@ library;
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 
+import 'example_stripes_cpu.dart';
+
 /// Whether this build was asked for the software backend.
 const bool kUseCpuBackend = bool.fromEnvironment('cpuBackend');
 
+/// The engine's stages and the example's own, which is how a look in a
+/// loadable bundle reaches the backend that compiles nothing: the bundle
+/// names `ExampleStripes`, and this is the Dart that answers to it.
 GraphicsDevice createCpuBackend({required int width, required int height}) =>
     CpuDevice(
       width: width,
       height: height,
-      shaders: CpuShaderLibrary(builtinCpuShaders()),
+      shaders: CpuShaderLibrary(<String, CpuStage>{
+        ...builtinCpuShaders(),
+        'ExampleStripes': const CpuStage.fragment(ExampleStripesShader()),
+      }),
     );

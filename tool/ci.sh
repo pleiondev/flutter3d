@@ -67,6 +67,12 @@ step "pub get" flutter pub get
 # traps that test exists to catch.
 step "shaders" in_dir packages/flutter3d_impeller ./tool/build_shaders.sh
 
+# The example's own loadable bundle — the engine's build script pointed at the
+# example's manifest, then the WebGL package's packer. Gitignored like the
+# engine's bundle and declared as an asset, so the example does not build
+# without it; the `loaded-shader` golden is what loads it.
+step "example shaders" in_dir packages/flutter3d/example ./tool/build_shaders.sh
+
 # **And the one structure rule that could not fire where the scan runs.** The
 # bundle is gitignored, so a fresh checkout has none and the freshness rule
 # returned "nothing to compare" on the only machine that runs every rule — for

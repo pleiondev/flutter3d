@@ -100,16 +100,16 @@ Future<void> checkLoadedLibrary(
   // because a reload that kept the handle and broke the stage behind it
   // would pass the identity check and fail at the first frame.
   try {
-    loaded.reload(bundle.encode());
+    loaded.refresh(bundle.encode());
   } on ShaderBundleRefused catch (refused) {
     throw ConformanceFailure(
-      'reloading the bundle it had just accepted was refused: $refused',
+      'refreshing the bundle it had just accepted was refused: $refused',
     );
   }
   require(
     identical(loaded['MeshVertex'], vertex) &&
         identical(loaded['Pbr'], fragment),
-    'a reload handed out new handles for MeshVertex or Pbr; the ones already '
+    'a refresh handed out new handles for MeshVertex or Pbr; the ones already '
     'handed out must keep their identity, or every pipeline the renderer '
     'builds afterwards links against stale stages',
   );
@@ -117,7 +117,7 @@ Future<void> checkLoadedLibrary(
     device.createPipeline(loaded['MeshVertex']!, loaded['Pbr']!);
   } catch (error) {
     throw ConformanceFailure(
-      'MeshVertex + Pbr do not link after a reload: $error',
+      'MeshVertex + Pbr do not link after a refresh: $error',
     );
   }
 

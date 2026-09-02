@@ -139,14 +139,14 @@ void main() {
     expect(magenta[2], greaterThan(200));
 
     // The reload. Same handle, new code, and the renderer told to link
-    // again. Mutation: leave out `renderer.reloadShaders()` — the cached
+    // again. Mutation: leave out `renderer.relinkShaders()` — the cached
     // program still holds the magenta stage and the second read fails.
-    loaded.reload(
+    loaded.refresh(
       _bundle(<String, String>{'Flat': _flat('0.0, 1.0, 0.0')}, name: 'v2'),
     );
     expect(identical(loaded['Flat'], handle), isTrue);
     expect(loaded.name, 'v2');
-    renderer.reloadShaders();
+    renderer.relinkShaders();
     final green = await _centre(device, renderer, scene, camera);
     expect(green[1], greaterThan(200));
     expect(green[0], lessThan(60));
@@ -155,7 +155,7 @@ void main() {
     // A reload that does not compile is refused by name and changes nothing;
     // the next frame is still green.
     expect(
-      () => loaded.reload(
+      () => loaded.refresh(
         _bundle(<String, String>{
           'Flat': _flat('1.0, 0.0, 0.0', compiles: false),
         }, name: 'broken'),
@@ -167,7 +167,7 @@ void main() {
       ),
     );
     expect(loaded.name, 'v2');
-    renderer.reloadShaders();
+    renderer.relinkShaders();
     expect(
       await _centre(device, renderer, scene, camera),
       green,
@@ -176,7 +176,7 @@ void main() {
 
     // And one that dropped the stage in use.
     expect(
-      () => loaded.reload(
+      () => loaded.refresh(
         _bundle(<String, String>{'Other': _flat('1.0, 0.0, 0.0')}),
       ),
       throwsA(

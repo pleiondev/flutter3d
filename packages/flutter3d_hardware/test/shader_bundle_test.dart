@@ -164,9 +164,9 @@ void main() {
       expect(before, isNotNull);
       expect(loaded['NoSuchStage'], isNull);
 
-      loaded.reload(_sample().encode());
+      loaded.refresh(_sample().encode());
       expect(identical(loaded['Stripes'], before), isTrue);
-      expect(device.loadedLibraries.single.reloads, 1);
+      expect(device.loadedLibraries.single.refreshes, 1);
 
       expect(
         () => device.loadShaders(ByteData(16)),

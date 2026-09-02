@@ -347,6 +347,33 @@ const LookSettings(
 
 The order inside the composite is the one a camera imposes: the lens disperses colour before the sensor sees it, grading is a decision about a displayable image and follows the tone map, and grain and vignette are the film and the barrel, so they come last.
 
+## Loadable shader bundles
+
+The engine's shaders are compiled ahead of time and loaded by asset path. A bundle can also arrive as **bytes** — downloaded, read off a disk, rebuilt while the application is running — and every backend reads its own part of it.
+
+```dart
+final bytes = await rootBundle.load('assets/shaders/effects.f3dshaders');
+final effects = await device.loadShaders(bytes);      // LoadedShaderLibrary
+final renderer = Renderer.create(device: device, materials: effects);
+
+const stripes = LightingModel('Stripes', 'ExampleStripes',
+    usesFragInfo: false, usesAlbedoTexture: false, usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false, usesMaterialParameters: false);
+Material(name: 'striped', lighting: stripes);          // names a stage only the bundle has
+```
+
+A `.f3dshaders` file is a header — the bundle's name, the SDK it was compiled on, the stages it claims — and one section per backend: `impellerc` output for Impeller, GLSL ES text for WebGL2. The software rasteriser compiles nothing and answers the bundle's names with the Dart stages the device already has, so the same call works on all three; a name it has no Dart for refuses the bundle, naming the stage. `packages/flutter3d_webgl/tool/pack_shaders.dart` writes the file from a manifest and the `impellerc` output, and `packages/flutter3d/example/tool/build_shaders.sh` is the two-step recipe an application copies.
+
+{{golden loaded-shader | The teapot wearing `ExampleStripes`, a look the engine never shipped: compiled into the example's own bundle and loaded from bytes before the renderer was built. Leave the bundle out and `Renderer.create` refuses to start, naming the stage.}}
+
+**Refused by name, never answered with nothing.** Bytes that are not a bundle, a bundle with no section for the running backend, a compiled section from another SDK — the bundle format follows the Flutter version, and a stage compiled for another one does not fail to parse so much as draw something else — all throw `ShaderBundleRefused` carrying the bundle's name. A device that returned an empty library instead would produce a renderer failing at its first draw for want of a stage, which names the stage rather than the file to rebuild.
+
+**Refreshing in place.** `LoadedShaderLibrary.refresh(bytes)` reparses a bundle the library already holds, and the handles already handed out are the same objects afterwards — flutter_gpu mutates the stage in place, WebGL swaps the compiled object behind the handle. That is what lets a renderer that resolved its stages once keep drawing through them; `Renderer.relinkShaders()` is the other half, dropping every pipeline so the next frame links the refreshed code. A refused refresh leaves the library as it was. The editor is built on exactly this: pass `--dart-define=shaders=<path>.f3dshaders` and it polls the file, so an edited shader shows on the next frame after the bundle is rebuilt — the recipe is in `apps/flutter3d_editor/README.md`.
+
+<div class="why">
+<p>Two callers wanted this and neither is served by an asset. An editor rebuilding a shader wants to see it without restarting, and an application shipping a look the engine never heard of wants it on every backend it runs on — from one file. The conformance check <code>a library loaded from bytes answers to the same names</code> holds each backend to loading its own shaders from bytes, linking through the loaded handles, and keeping their identity across a refresh.</p>
+</div>
+
 ## Observability
 
 The parts worth reaching for when a frame looks wrong.

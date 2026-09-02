@@ -85,7 +85,7 @@ abstract interface class ShaderLibrary {
 /// A library a device built from bytes it was handed, and can rebuild.
 ///
 /// What `GraphicsDevice.loadShaders` returns. It answers names like any
-/// [ShaderLibrary]; what it adds is [reload], and the one promise that makes
+/// [ShaderLibrary]; what it adds is [refresh], and the one promise that makes
 /// reloading worth having: **a handle already handed out keeps its identity
 /// and keeps working.** The renderer resolves its vertex stages once and holds
 /// the handles for its lifetime, so a reload that answered the same names with
@@ -97,7 +97,7 @@ abstract interface class ShaderLibrary {
 ///
 /// Reloading does not rebuild pipelines. A pipeline is a pair of stages linked
 /// on the backend, and the linked object is the caller's to drop:
-/// `Renderer.reloadShaders` is the engine's half of the same gesture.
+/// `Renderer.relinkShaders` is the engine's half of the same gesture.
 abstract interface class LoadedShaderLibrary implements ShaderLibrary {
   /// The bundle's own name, as its header spells it — what a refusal names.
   String get name;
@@ -110,7 +110,7 @@ abstract interface class LoadedShaderLibrary implements ShaderLibrary {
   /// backend cannot run. A refused reload throws `ShaderBundleRefused` and
   /// **leaves the library as it was**, so an editor that rebuilt a bundle
   /// wrongly keeps drawing with the one that worked.
-  void reload(ByteData bytes);
+  void refresh(ByteData bytes);
 }
 
 /// Two libraries consulted in order, the first winning.

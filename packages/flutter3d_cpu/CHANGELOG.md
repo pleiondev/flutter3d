@@ -1,3 +1,14 @@
+## 0.4.2
+
+* **A bundle loaded from bytes answers with the Dart this backend has.**
+  `CpuDevice.loadShaders` compiles nothing — there is nothing here to compile
+  — so `CpuLoadedShaderLibrary` answers each name the bundle claims with the
+  device's own stage under that name, and refuses a bundle naming a stage it
+  has no Dart for, naming the stages. An application's own look reaches this
+  backend the way it always has, as a Dart stage handed to `CpuDevice.shaders`;
+  the bundle that names it on the hardware backends then loads here too.
+  `CpuShaderLibrary` caches its handles so their identity survives a refresh.
+
 ## 0.4.1
 
 * The lightmapped vertex stage and the lightmap term in the four lit models,

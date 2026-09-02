@@ -708,6 +708,13 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   `PipelineHandle`, `ShaderLibrary`. A handle carries a description and an opaque
   backend object. `TextureHandle` deliberately has no `==`: the pool lends by
   identity and the frame releases by identity, and value equality would break both.
+- **`ShaderBundle`, `ShaderBundleRefused` and `LoadedShaderLibrary`** — a bundle
+  that arrives as bytes, the one exception a device answers when it will not load
+  it, and the library it answers when it will. `GraphicsDevice.loadShaders` takes
+  the bytes; the library's `refresh` reparses new bytes in place and **keeps the
+  identity of every handle already handed out**, which is the promise the
+  renderer's held vertex stages rest on, and which the conformance suite checks
+  by `identical`.
 - **The sixteen enums in `formats.dart`**, plus `SamplerOptions`,
   `RenderTargetSpec`, `TextureAllocator` and `RenderTargetPool`. Their value names
   are load-bearing beyond the package: the Impeller translation asserts each maps
@@ -773,6 +780,14 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`. A backend
   refuses loudly rather than substituting something that looks similar.
+  `loadShaders` is the same rule from the other side: there is nothing to ask
+  first, so the refusal *is* the answer — `ShaderBundleRefused`, naming the
+  bundle, for bytes that are not one, a section the backend has none of, a
+  compiled section from another SDK, or a stage the software backend has no Dart
+  for. **Never an empty library**, which would fail at the first draw naming a
+  stage rather than the file to rebuild. The one backend that compiles nothing
+  answers a bundle's names with the stages it already has, and that is the honest
+  version of "loaded" there.
 
 **Outside the promise**, because nothing beyond the package should depend on it:
 everything in `flutter3d`'s `src/` past what `flutter3d.dart` exports;
@@ -793,8 +808,13 @@ asking for a member nobody wrote gets zeros, and a caller naming a member the
 block lacks is an error.
 
 This is also the limit on extensions. An application that builds its own bundle
-can add a lighting model, because `LightingModel` is a value class. One that does
-not control the bundle cannot.
+can add a lighting model, because `LightingModel` is a value class — and since
+`GraphicsDevice.loadShaders`, the bundle need not be an asset: a `.f3dshaders`
+file packs one compiled section per backend behind a header naming the stages,
+and `Renderer.create(materials:)` layers the loaded library over the engine's.
+What has not changed is the other direction — a stage still has to exist in
+*some* bundle for *this* backend, and the software rasteriser's version of that
+is a Dart stage handed to its device under the same name.
 
 ### 7.4 Two rules a fragment stage keeps
 
@@ -1393,9 +1413,11 @@ gone. Systems run by explicit `order`, then by registration order, and never by
 whatever a hash map returns.
 
 Beyond the three: `PassContributor` extends a render pass,
-`LightingModel` is open to an application that builds its own shader bundle, and
-`EntityKind` catalogues are injected rather than fixed, so a level format validates
-against whatever entities a game defines.
+`LightingModel` is open to an application that builds its own shader bundle —
+shipped as an asset or loaded from bytes through `GraphicsDevice.loadShaders`,
+and refreshed in place while the application runs — and `EntityKind` catalogues
+are injected rather than fixed, so a level format validates against whatever
+entities a game defines.
 
 ---
 

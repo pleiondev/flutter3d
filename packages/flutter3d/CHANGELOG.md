@@ -1,3 +1,18 @@
+## 0.4.3
+
+* **`Renderer.relinkShaders`: the engine's half of a hot reload.** A
+  `LoadedShaderLibrary.refresh` swaps the code behind a stage and keeps the
+  handle; a pipeline is a pair of stages linked, and the linked object still
+  holds the old code until it is built again. This drops every pipeline the
+  renderer linked — materials, shadows, sky, post, debug lines — so the next
+  frame links the refreshed stages, at the cost of the first frame.
+* **`loaded-shader`**, a golden in the Impeller and software sets: the teapot
+  wearing `ExampleStripes`, a look compiled into the example's own bundle
+  (`example/shaders/`, built by `example/tool/build_shaders.sh`) and loaded
+  from bytes through `GraphicsDevice.loadShaders` before the renderer is
+  built. `GoldenScene.shaderBundle` names the asset; the software backend
+  draws it from the example's own Dart transcription.
+
 ## 0.4.2
 
 * **Lightmaps.** `MeshNode.lightmapped` picks a vertex stage that reads the

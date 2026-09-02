@@ -1,3 +1,21 @@
+## 0.4.2
+
+* **`GraphicsDevice.loadShaders`: a shader bundle arrives as bytes.** The
+  one way a shader reaches a device without being an asset, for an editor
+  that rebuilds a bundle and wants to see it without restarting and for an
+  application that ships a look the engine never heard of and wants it on
+  every backend. `ShaderBundle` is the container — a header naming the
+  bundle, the SDK it was compiled on and the stages it claims, then one
+  section per backend — with `encode`/`decode` checked against each other.
+  `LoadedShaderLibrary` is what comes back: a `ShaderLibrary` with `refresh`,
+  which reparses new bytes in place and **keeps the identity of every handle
+  already handed out**. `ShaderBundleRefused` is the one exception a device
+  answers when it will not load a bundle, and it names the bundle: never an
+  empty library, which would fail at the first draw naming a stage rather
+  than the file to rebuild.
+* `FakeBackend.loadShaders` and `FakeLoadedShaderLibrary`, which keep the
+  same identity promise so a test of a reload path proves something.
+
 ## 0.4.1
 
 * **`GraphicsDevice.supportsTextureFormat`.** The question a block-compressed

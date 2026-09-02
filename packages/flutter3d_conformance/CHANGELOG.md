@@ -1,3 +1,16 @@
+## 0.4.2
+
+* **`a library loaded from bytes answers to the same names`.** The backend's
+  own shaders, packed as a bundle by the harness — `OwnShaderSection` is the
+  section id, the bytes and the SDK to stamp, or null from a backend that
+  compiles nothing — are loaded through `loadShaders` and held to answering
+  every name in `kRequiredShaders`, linking `MeshVertex + Pbr` through the
+  loaded handles, keeping those handles' identity across a refresh, refusing
+  bytes that are not a bundle with `ShaderBundleRefused`, and never answering
+  a claimed stage no section holds with a handle. `runDeviceConformance`
+  takes `ownShaders` and `conformanceChecksWith` builds the list for a
+  harness that is not a test runner.
+
 ## 0.4.1
 
 * The link checks pair `MeshLightmappedVertex` with the lit models.

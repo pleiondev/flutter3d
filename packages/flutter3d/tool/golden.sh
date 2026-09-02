@@ -80,6 +80,16 @@ if [[ ! -f "$BUNDLE" ]]; then
   exit 2
 fi
 
+# The example's own loadable bundle, for `loaded-shader`. Declared in the
+# example's pubspec, so every scene needs it to build, not only the one that
+# loads it — and under --cpu as much as on Impeller, since the file carries a
+# section for each and the software backend reads its stage list.
+LOADABLE="$EXAMPLE_DIR/assets/shaders/example.f3dshaders"
+if [[ ! -f "$LOADABLE" ]]; then
+  echo "the example's shader bundle is missing; run example/tool/build_shaders.sh" >&2
+  exit 2
+fi
+
 APP='flutter3d.app/Contents/MacOS/flutter3d'
 
 # How long one scene may take before it is treated as stalled rather than slow.

@@ -1,5 +1,6 @@
 import 'package:flutter3d/flutter3d.dart';
 
+import 'golden_extras.dart';
 import 'golden_scene.dart';
 
 /// The frames CI renders.
@@ -459,6 +460,26 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     ground: false,
     bloom: false,
     sky: SkySettings(enabled: true, sunIntensity: 6.0),
+  ),
+
+  // A look the engine never shipped, drawn through a bundle loaded from
+  // bytes at run time: the example's own `ExampleStripes`, compiled into
+  // `assets/shaders/example.f3dshaders` by the example's build script and
+  // handed to `GraphicsDevice.loadShaders` before the renderer is built. The
+  // picture is bands by normal height, which nothing in the engine draws —
+  // and the proof is by refusal as much as by pixel: leave the bundle out and
+  // `Renderer.create` throws for want of the stage, on every backend.
+  //
+  // No lights, shadow or bloom: the stage reads none of them, and a scene
+  // about where a shader came from should not depend on anything else.
+  const GoldenScene(
+    name: 'loaded-shader',
+    source: 'obj: Teapot',
+    lighting: GoldenExtras.stripes,
+    shaderBundle: GoldenExtras.exampleShaderBundle,
+    shadows: false,
+    bloom: false,
+    ground: false,
   ),
 ];
 

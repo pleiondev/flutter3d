@@ -21,6 +21,12 @@ dependencies:
   flutter3d:
     path: ../../packages/flutter3d
 
+  # The device's vocabulary, for the one thing the editor asks a device
+  # directly: `loadShaders`, and the `LoadedShaderLibrary` it keeps refreshing
+  # while somebody edits a shader. See `src/shader_watch.dart`.
+  flutter3d_hardware:
+    path: ../../packages/flutter3d_hardware
+
   # The document, its validator, and the input the camera is flown with.
   flutter3d_game:
     path: ../../packages/flutter3d_game
