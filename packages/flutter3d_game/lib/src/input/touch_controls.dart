@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import 'input_state.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'touch_action.dart';
 import 'touch_button.dart';
 import 'touch_stick.dart';

@@ -29,7 +29,7 @@ flutter3d is a renderer, a game layer, and three finished games of different gen
 |---|---|
 | Channel | Flutter 3.47.0 stable, Dart 3.12.2 |
 | Platforms | macOS and the browser are supported and exercised; Android is played on a real handset (Impeller Vulkan, touch controls); iOS runs clean in the simulator on Metal; Windows and Linux are unverified |
-| Published | Yes — all 23 packages, on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher |
+| Published | Yes — 23 of the 24 packages, on [pub.dev](https://pub.dev/publishers/pleion.dev/packages) under the pleion.dev publisher |
 | Stability | Pre-1.0. The graphics HAL carries a written compatibility promise; nothing else does |
 
 ## Where to start
@@ -71,7 +71,7 @@ All three run in a browser on the WebGL2 backend and are embedded on their demo 
 
 ## The package split
 
-Twenty-three packages. Each boundary is a rule that a test enforces.
+Twenty-four packages. Each boundary is a rule that a test enforces.
 
 ```mermaid
 flowchart TB
@@ -120,7 +120,7 @@ flowchart TB
   game --> physics
 ```
 
-Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_screens` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, twenty-one checks that read source text and run before a build.
+Five more packages exist that this diagram deliberately leaves out, because none of them changes what an app may know: `flutter3d_backend` picks the device (Impeller or WebGL2) at compile time, so the conditional import an app needs is written once and not per project; `flutter3d_session` holds `SceneSurface` and `RunSession`, the frame surface and level lifecycle that every app used to reimplement; `flutter3d_screens` is the settings, rebinding and save screens no game owns; `pad_input` and `pointer_lock` are gamepad and mouse-capture, read once per frame like everything else `flutter3d_game` polls. `flutter3d_app` re-exports all five, so an application names the assembly layer once. [Assembling an application](/core/session/) walks all five with the real code that uses them. One more, `flutter3d_conformance`, is test-only: it is what a backend has to pass before it can appear in the table below. The rules this diagram states are not a package at all — they are `tool/structure.dart`, twenty-two checks that read source text and run before a build.
 
 Three rules hold the picture up, and `tool/structure.dart` checks each one before a build.
 

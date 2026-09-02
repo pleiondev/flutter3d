@@ -99,7 +99,7 @@ const Map<String, String> notARepeatableStep = <String, String>{
 /// Files inside a scanned package that are allowed to be unrepeatable, and why.
 const Map<String, Map<String, String>> repeatableStepExempt =
     <String, Map<String, String>>{
-      'flutter3d_game': <String, String>{
+      'flutter3d_sim': <String, String>{
         'lib/src/save/game_random.dart': 'it is the seeded generator',
       },
     };

@@ -1,8 +1,7 @@
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'package:pad_input/pad_input.dart';
 
 import '../config/game_config.dart';
-import 'game_action.dart';
-import 'input_state.dart';
 
 /// What a stick's two axes are for.
 enum PadStickUse {

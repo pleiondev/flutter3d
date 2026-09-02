@@ -26,10 +26,10 @@ dependencies:
   # translator — the same shape `DesktopInput` has beside the keyboard.
   pad_input: ^0.4.0
 
-  # Collision, queries and the character controller. Extracted because it
-  # imported nothing from here, and because a collision world that knows what a
-  # monster is cannot be used by a game that has none.
-  flutter3d_physics: ^0.4.0
+  # The simulation, and `flutter3d_physics` through it. Extracted because none
+  # of it imported Flutter and a verifying server cannot install a Flutter SDK
+  # to advance a step — see that package's pubspec for the whole reason.
+  flutter3d_sim: ^0.4.0
 
   vector_math: ^2.2.0
 

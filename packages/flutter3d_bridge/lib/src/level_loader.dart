@@ -81,7 +81,7 @@ final class LevelLoader {
   /// The visibility table beside a level, or null when there is none — and
   /// a word when there is one that will not read.
   ///
-  /// `<level>.visibility.json`, baked by `dart run flutter3d_game:bake_visibility`
+  /// `<level>.visibility.json`, baked by `dart run flutter3d_sim:bake_visibility`
   /// and kept beside the document because the document is generated and the
   /// table would not survive its regeneration. A missing sidecar is a level
   /// without one — every level had none until now — and a sidecar that will

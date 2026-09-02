@@ -1,4 +1,4 @@
-import 'game_action.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// Something on a device that can be bound: a key, a mouse button, a pad's face
 /// button.

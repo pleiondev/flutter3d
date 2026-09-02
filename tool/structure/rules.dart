@@ -25,6 +25,7 @@ List<Rule> get allRules => <Rule>[
   (name: 'a genre package draws only where it says', run: _genreIsolation),
   (name: 'a genre package reaches no other genre', run: _noSidewaysGenre),
   (name: 'a step reaches for no clock and no loose dice', run: _repeatableStep),
+  (name: 'the simulation names no Flutter', run: _simNamesNoFlutter),
   (name: 'the hardware layer names no graphics API', run: _hardwareNamesNoApi),
   (name: 'the engine names no backend', run: _engineNamesNoBackend),
   (name: 'each assembly has one home per application', run: _oneAssembly),
@@ -219,6 +220,62 @@ List<Finding> _repeatableStep() {
           ),
         );
       }
+    }
+  }
+  return found;
+}
+
+// ---------------------------------------------------------- the server's half
+
+/// `flutter3d_sim` may not name Flutter — in its library, its tests or its
+/// binaries.
+///
+/// **This is the rule the package was created to make checkable.** A server
+/// that verifies a submitted run has to replay it through the same simulation
+/// the player ran, and that server is a Dart process in a container. One
+/// `package:flutter/foundation.dart` for one `debugPrint` puts a Flutter SDK on
+/// the critical path of the whole service, and it does so silently: everything
+/// still builds, every test still passes, and the failure arrives months later
+/// as a container that will not start.
+///
+/// The old invariant was a sentence in a pubspec — "depends only on flutter,
+/// mouse_capture and vector_math" — which was both unchecked and wrong: the
+/// package it described reached Flutter in eight files out of eighty-nine, and
+/// nobody knew because nothing counted.
+///
+/// Tests and `bin/` are scanned as well as `lib/`, deliberately. A suite that
+/// needs `flutter_test` to run is a suite CI can only run through Flutter, and
+/// then the claim "this package stands alone" is true of the library and false
+/// of the thing anybody actually executes.
+List<Finding> _simNamesNoFlutter() {
+  final package = packages['flutter3d_sim'];
+  if (package == null) {
+    return <Finding>[
+      const Finding(
+        'flutter3d_sim',
+        'is not a package any more, so the rule that it stays plain Dart has '
+            'outlived its subject — delete the rule or restore the package',
+      ),
+    ];
+  }
+
+  // `package:flutter/`, `dart:ui` and `flutter_test` together, for the reason
+  // `hardwareMayUseFlutter` gives about the first two: widgets re-export half
+  // of `dart:ui`, so naming one without the other is a rule with a door in it.
+  final forbidden = RegExp(
+    r"'(package:flutter/|package:flutter_test/|dart:ui)",
+  );
+  final found = <Finding>[];
+  for (final where in <String>['lib', 'test', 'bin']) {
+    for (final file in dartFilesIn(Directory('${package.path}/$where'))) {
+      if (!forbidden.hasMatch(file.readAsStringSync())) continue;
+      found.add(
+        Finding(
+          relative(file, repositoryRoot),
+          'names Flutter. This package is what a server runs without a Flutter '
+          'SDK; whatever wants Flutter belongs in flutter3d_game',
+        ),
+      );
     }
   }
   return found;

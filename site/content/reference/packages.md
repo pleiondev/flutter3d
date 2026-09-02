@@ -4,7 +4,7 @@ description: Every package in the workspace, what it owns, what it depends on, a
 
 # Package index
 
-Twenty-three packages and five applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file.
+Twenty-four packages and five applications, resolved as one [pub workspace](https://dart.dev/tools/pub/workspaces), so a single `flutter pub get` covers everything against one lock file.
 
 ## Engine
 
@@ -60,12 +60,19 @@ Two calls: `renderFrame` builds a frame from a scene and a camera, `expectMatche
 
 ## Simulation
 
-### `flutter3d_game`
-The game layer: `FixedStep`, `GameLoop`, `InputState`, the `Level` format and its validator, `EntityKind` and the registry, mechanisms and movers, `Actor` / `Brain` / `ActorSystem`, the navigation grid and flow fields, `EcsWorld`, `Snapshot`, `GameRandom`.
+### `flutter3d_sim`
+The simulation: `FixedStep`, `GameLoop`, `InputState` and `InputTape`, the `Level` format and its validator, `EntityKind` and the registry, mechanisms and movers, `Actor` / `Brain` / `ActorSystem`, the navigation grid and flow fields, `EcsWorld`, `Snapshot`, `GameRandom`, `StateDigest`.
 
-Imports Flutter in exactly one file, because a key event is a Flutter type. Re-exports `flutter3d_physics`, so a game gets a working world from one import.
+**Plain Dart. No Flutter anywhere, and a scan says so** — `the simulation names no Flutter` reads its `lib/`, `test/` and `bin/`. The whole suite runs under `dart test`, and `dart run flutter3d_sim:headless_run` walks a body through the shipped crypt level with no Flutter SDK installed.
+
+That is not tidiness. A server that verifies a submitted run has to replay it through the same simulation the player ran — a second copy of the game logic on the server proves nothing about the first — and that server is a Dart process in a container.
 
 → [Simulation layer](/core/simulation/)
+
+### `flutter3d_game`
+What was left when the simulation moved out: the touch stick, the touch button and the controls that lay them out, keyboard and mouse, the accessibility settings that read a `MediaQuery`, and the diagnostics sink. Eight files that wanted Flutter, out of the eighty-nine this package used to hold.
+
+Re-exports the whole of `flutter3d_sim` and `flutter3d_physics` through it, so a game that imported this one keeps working unchanged.
 
 ### `flutter3d_physics`
 Collision shapes, a uniform-grid broadphase, sweeps and rays that do not tunnel, `CharacterController`, `Dynamics` and `RigidBody`. Plain Dart, no Flutter, no renderer, runs under `dart test`.
@@ -108,9 +115,9 @@ There is no package for this. The rules about how the repository is arranged (wh
 dart run tool/structure.dart
 ```
 
-Twenty-one rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
+Twenty-two rules, under a second, no `pub get` and no device: every one of them reads source text. They were a `boundaries_test.dart` in each package until thirteen packages of twenty-one turned out to have none, all thirteen clean and not one of them checked. A runner that walks `packages/` covers a package the day it exists.
 
-The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-one green scans be reported behind it. See [Testing](/reference/testing/).
+The detectors prove they fire before a single file is scanned, and a broken detector stops the run rather than letting twenty-two green scans be reported behind it. See [Testing](/reference/testing/).
 
 ## Assembling an application
 

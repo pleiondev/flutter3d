@@ -8,9 +8,12 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: all twenty-three packages, published by
+On pub.dev: twenty-three of the twenty-four packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
-[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. Or build it
+[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The
+twenty-fourth is `flutter3d_sim`, new here and not released yet: the
+simulation, as plain Dart, so a server can replay a run without a Flutter SDK.
+Or build it
 from this repository — see [Running](#running),
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
@@ -122,7 +125,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-3063 tests across twenty-three packages and five applications, and the only
+3063 tests across twenty-four packages and five applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 33 scenes checkable in a headless run.
@@ -160,7 +163,7 @@ declares and the compiled binary has not got — and binding a slot a compiled
 shader does not have takes the frame down. The message names nothing that leads
 back to the file that was edited.
 
-So `dart run tool/structure.dart` checks it: one of its twenty-one rules compares
+So `dart run tool/structure.dart` checks it: one of its twenty-two rules compares
 the bundle against the sources it was built from and says which of them are
 newer. The rule skips when there is no bundle at all, which is every fresh
 checkout and every CI run — `impellerc` is not there to build one, and a rule

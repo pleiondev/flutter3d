@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import 'input_state.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// A stick under a thumb, reporting into [InputState.setStickAxis].
 class TouchStick extends StatefulWidget {

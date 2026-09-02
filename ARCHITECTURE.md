@@ -169,13 +169,17 @@ copy, and is the bridge into the widget tree.
 
 ## 3. The package map
 
-Twenty-three packages and five applications in one pub workspace — one
+Twenty-four packages and five applications in one pub workspace — one
 `flutter pub get` for the repository.
 
 ### 3.1 The layering rule
 
 > **`flutter3d_game` does not depend on `flutter3d`.** The simulation, the input
 > and the collisions know nothing about how a frame is drawn.
+>
+> **And `flutter3d_sim` does not depend on Flutter.** The simulation does not
+> know that a screen exists either, which is a stronger claim and a checked
+> one — see §3.3.
 
 Everything else follows from it. The things that break quietly — a collision
 passing through a wall once in a thousand steps, a jump of different heights on
@@ -183,8 +187,9 @@ different monitors, a keypress eaten at a low frame rate — are reachable from 
 ordinary unit test, and none of the three is visible in a screenshot.
 
 `flutter3d_bridge` is the only package allowed to depend on both sides.
-`flutter3d_physics` is pure Dart with no Flutter, so its tests run under
-`dart test`.
+`flutter3d_physics` and `flutter3d_sim` are pure Dart with no Flutter, so their
+tests run under `dart test` — and so does a whole simulated run, which is the
+point of §3.3.
 
 ### 3.2 The packages
 
@@ -201,7 +206,8 @@ ordinary unit test, and none of the three is visible in a screenshot.
 | `flutter3d_samples` | The Khronos test models the decoders are checked against and the demo browses. Fixtures, so that a game depending on the engine does not carry them |
 | `flutter3d_particles` | CPU emitters and the particle pass contributor |
 | `flutter3d_physics` | Collision world, character controller, rigid bodies, spatial grid |
-| `flutter3d_game` | The genre-neutral game layer: fixed step, input, level format, actors, ECS, snapshots |
+| `flutter3d_sim` | The simulation: fixed step, ECS, level format, actors, navigation, saves, replays, camera rig. Plain Dart |
+| `flutter3d_game` | The Flutter half of the game layer: touch and keyboard input, accessibility settings, diagnostics. Re-exports `flutter3d_sim` |
 | `flutter3d_game_shooter` | Shooter rules: weapons, hitscan, projectiles, inventory, monsters |
 | `flutter3d_game_platformer` | Platformer rules: runner, coins, hazards, checkpoints |
 | `flutter3d_game_racing` | Racing rules: cars, circuits, laps, ghosts |
@@ -220,9 +226,47 @@ Applications: `apps/flutter3d_demo_dungeon` (shooter),
 seed a new project starts from), plus the engine's own example — five
 applications, which is the count the workspace list is held to.
 
+
+### 3.3 Why the simulation is its own package
+
+`flutter3d_game` was a Flutter package, and it was one for **eight files out of
+eighty-nine**: five touch and keyboard widgets, one `MediaQuery` read for the
+accessibility settings, and one `debugPrint`. The loop, the entity store, the
+level format, the saves, the world logic, the actors, the navigation, the camera
+rig and the maths imported nothing from Flutter and never had.
+
+That would be a tidiness argument on its own. The reason it was worth doing is
+that **a server which verifies a submitted run has to replay it through the same
+simulation the player ran.** Not an equivalent implementation and not a rules
+check: the moment a second copy of the game logic exists on the server, the
+verification stops proving anything about the first. That server is an ordinary
+Dart process in a container, and a Flutter SDK there to advance a headless step
+is a blocker rather than an inconvenience.
+
+Two things hold the boundary, and the comment above is neither of them:
+
+- **the scan** — `the simulation names no Flutter` in `tool/structure.dart`
+  reads this package's `lib/`, `test/` and `bin/` and fails on the first import
+  of `package:flutter/`, `package:flutter_test/` or `dart:ui`. Tests and
+  binaries are scanned as well as the library on purpose: a suite that needs
+  `flutter_test` to run is a suite CI can only run through Flutter, and then the
+  claim is true of the library and false of the thing anybody executes;
+- **`dart run flutter3d_sim:headless_run`**, which walks a body through the
+  shipped crypt level and prints a `DigestTrace`. It is a binary rather than a
+  test because `flutter test` would only have proved that the code compiles
+  under a Flutter toolchain, which was never in question.
+
+The old invariant this replaces was a sentence in a pubspec — "depends only on
+flutter, mouse_capture and vector_math" — which was unchecked, and wrong about
+the package it described.
+
+Nothing moved that a caller can see: `flutter3d_game` re-exports the whole of
+`flutter3d_sim`, so an existing import keeps handing over the loop, the level,
+the saves and the collision world.
+
 ### 3.3 Rules that are scanned, not remembered
 
-`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-one rules in
+`tool/structure.dart` walks `packages/` and `apps/` and enforces twenty-two rules in
 under a second, as the first step of CI. They cover the *arrangement* of the code
 — who imports what, what a name says, where a thing may live — while anything
 about what the code *does* stays a test.
@@ -465,7 +509,7 @@ a reference is a claim about the present only for as long as somebody runs it.
 A brush level is the one kind of level occlusion culling is cheap for, and
 `LevelVisibility` is that culling: the empty space between the walls divided
 into a grid of cells, a bit per pair of cells saying whether they see each
-other, baked once by `dart run flutter3d_game:bake_visibility` and stored
+other, baked once by `dart run flutter3d_sim:bake_visibility` and stored
 beside the level as `<level>.visibility.json`. A frame asks which cell the eye
 is in and turns off every batch of brush geometry that touches no cell that
 one can see. The frustum still runs afterwards; the two answer different
@@ -1262,8 +1306,8 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3063 tests** across 23 packages and 5 applications |
-| Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
+| Unit tests | **3063 tests** across 24 packages and 5 applications |
+| Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
 **Golden render tests.** 33 scenes against **three independent reference sets** —
@@ -1489,7 +1533,8 @@ applications and the example apps keep theirs, being repository-only by design.
    `flutter3d_audio`, `pad_input`, `pointer_lock`
 2. `flutter3d_conformance`
 3. `flutter3d`, `flutter3d_physics`
-4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`, `flutter3d_particles`
+4. `flutter3d_impeller`, `flutter3d_webgl`, `flutter3d_cpu`, `flutter3d_particles`,
+   `flutter3d_sim`
 5. `flutter3d_game`
 6. `flutter3d_screens`, `flutter3d_bridge`, `flutter3d_backend`, `flutter3d_testing`
 7. `flutter3d_session`

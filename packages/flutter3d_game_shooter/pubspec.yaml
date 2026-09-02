@@ -24,8 +24,12 @@ dependencies:
 
   # Named rather than leant on through the game layer's re-export: this package
   # builds colliders and worlds itself, and a dependency you use is a dependency
-  # you declare.
+  # you declare. The same reason names the simulation, which is where the fixed
+  # step, the levels, the actors and the saves live since they stopped needing
+  # Flutter — `flutter3d_game` still re-exports it, and this package uses it
+  # directly enough to say so.
   flutter3d_physics: ^0.4.0
+  flutter3d_sim: ^0.4.0
 
   # Only `bridge.dart` imports this — the view model of a weapon held in the
   # hands is a shooter's, not a renderer's and not a bridge's. The simulation

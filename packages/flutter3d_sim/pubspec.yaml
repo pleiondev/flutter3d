@@ -1,0 +1,46 @@
+name: flutter3d_sim
+description: "The simulation: a fixed step, an ECS, levels, navigation, saves and replays. Plain Dart, so it runs on a server."
+version: 0.4.0
+repository: https://github.com/pleiondev/flutter3d
+homepage: https://flutter3d.pleion.dev
+issue_tracker: https://github.com/pleiondev/flutter3d/issues
+topics:
+  - game-development
+  - simulation
+  - game-engine
+  - determinism
+resolution: workspace
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # Collision, queries and the character controller — already plain Dart, and
+  # extracted from the same package this was, for the same reason.
+  flutter3d_physics: ^0.4.0
+
+  vector_math: ^2.2.0
+
+dev_dependencies:
+  test: ^1.25.0
+  flutter_lints: ^6.0.0
+
+# **A plain Dart package, and the whole point is what it may not import.**
+#
+# It came out of `flutter3d_game`, which is a Flutter package — and was one for
+# eight files out of eighty-nine. Five of those are touch and keyboard widgets,
+# one reads `MediaQuery`, one wanted `debugPrint`. Nothing in the loop, the
+# entity store, the level format, the saves, the world logic, the actors, the
+# navigation, the camera rig or the maths had any use for Flutter at all, and
+# they are what moved here.
+#
+# What it buys is not tidiness. A server that verifies a submitted run has to
+# replay it through **the same simulation the player ran**, not through an
+# equivalent reimplementation — the moment there is a second copy of the game
+# logic the verification stops proving anything. That server is a Dart process
+# in a container, and a Flutter SDK in a container to run a headless step is a
+# blocker rather than an inconvenience.
+#
+# The rule is held by `tool/structure.dart` and not by this comment: this
+# package may not name Flutter anywhere, and the scan reads the source to say
+# so before anything is built.

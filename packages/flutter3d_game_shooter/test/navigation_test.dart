@@ -8,17 +8,17 @@
 /// would fail the second.
 library;
 
-import 'package:flutter3d_game/src/actors/actor_system.dart';
-import 'package:flutter3d_game/src/level/level.dart';
-import 'package:flutter3d_game/src/level/level_issue.dart';
-import 'package:flutter3d_game/src/nav/flow_field.dart';
-import 'package:flutter3d_game/src/nav/nav_grid.dart';
-import 'package:flutter3d_game/src/nav/navigation.dart';
-import 'package:flutter3d_game/src/physics/layers.dart';
-import 'package:flutter3d_game/src/save/game_random.dart';
 import 'package:flutter3d_game_shooter/flutter3d_game_shooter.dart';
 import 'package:flutter3d_game_shooter/sample.dart';
 import 'package:flutter3d_physics/flutter3d_physics.dart';
+import 'package:flutter3d_sim/src/actors/actor_system.dart';
+import 'package:flutter3d_sim/src/level/level.dart';
+import 'package:flutter3d_sim/src/level/level_issue.dart';
+import 'package:flutter3d_sim/src/nav/flow_field.dart';
+import 'package:flutter3d_sim/src/nav/nav_grid.dart';
+import 'package:flutter3d_sim/src/nav/navigation.dart';
+import 'package:flutter3d_sim/src/physics/layers.dart';
+import 'package:flutter3d_sim/src/save/game_random.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 

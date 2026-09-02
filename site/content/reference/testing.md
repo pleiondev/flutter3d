@@ -4,23 +4,23 @@ description: Three independent golden sets, mutation-checking every new test, de
 
 # Testing
 
-3063 tests across 23 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3063 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 705 | | `pad_input` | 59 |
-| `flutter3d_game` | 405 | | `flutter3d_audio` | 52 |
-| `flutter3d_game_shooter` | 291 | | `flutter3d_impeller` | 37 |
-| `apps/flutter3d_editor` | 194 | | `flutter3d_bridge` | 32 |
-| `flutter3d_game_racing` | 193 | | `flutter3d_webgl` | 31 |
-| `flutter3d_game_platformer` | 187 | | `flutter3d_session` | 29 |
-| `apps/flutter3d_demo_platformer` | 168 | | `pointer_lock` | 28 |
-| `flutter3d_physics` | 137 | | `flutter3d_hardware` | 17 |
-| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_testing` | 7 |
-| `flutter3d_cpu` | 112 | | `apps/flutter3d_template_app` | 4 |
-| `flutter3d_screens` | 110 | | `flutter3d_backend` | 2 |
+| `flutter3d` | 705 | | `flutter3d_particles` | 68 |
+| `flutter3d_sim` | 336 | | `pad_input` | 59 |
+| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 52 |
+| `apps/flutter3d_editor` | 194 | | `flutter3d_impeller` | 37 |
+| `flutter3d_game_racing` | 193 | | `flutter3d_bridge` | 32 |
+| `flutter3d_game_platformer` | 187 | | `flutter3d_webgl` | 31 |
+| `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_session` | 29 |
+| `flutter3d_physics` | 137 | | `pointer_lock` | 28 |
+| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_hardware` | 17 |
+| `flutter3d_cpu` | 112 | | `flutter3d_testing` | 7 |
+| `flutter3d_screens` | 110 | | `apps/flutter3d_template_app` | 4 |
+| `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
-| `flutter3d_particles` | 68 | | | |
 
 The rows sum to 3057 rather than 3063: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
 
@@ -175,7 +175,7 @@ They ask how the code is *arranged*: who imports what, what a name says, where a
 dart run tool/structure.dart
 ```
 
-Twenty-one rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
+Twenty-two rules, under a second. Nothing they read needs `pub get`, a shader bundle or a device, so finding out in minute four that a package imports a genre was finding out late what was knowable in second one.
 
 | Rule | What it refuses |
 |---|---|

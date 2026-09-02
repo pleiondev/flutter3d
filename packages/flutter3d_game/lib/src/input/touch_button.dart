@@ -2,8 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
-import 'game_action.dart';
-import 'input_state.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// A round button that holds an action down while a finger is on it.
 class TouchButton extends StatefulWidget {

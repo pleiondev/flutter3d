@@ -1,4 +1,4 @@
-import 'game_action.dart';
+import 'package:flutter3d_sim/flutter3d_sim.dart';
 
 /// One labelled button on a touch screen.
 final class TouchAction {

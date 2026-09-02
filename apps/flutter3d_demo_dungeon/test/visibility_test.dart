@@ -84,7 +84,7 @@ void main() {
         expect(
           table.isStaleFor(level),
           isFalse,
-          reason: 'run dart run flutter3d_game:bake_visibility',
+          reason: 'run dart run flutter3d_sim:bake_visibility',
         );
       });
 

@@ -140,7 +140,7 @@ for package in packages/*/; do
   # nests today, which is exactly why it was worth fixing before one does.
   [ -n "$(find "$package/test" -name '*_test.dart' -print -quit 2>/dev/null)" ] || continue
   # Plain Dart, and it is the point of that package that it needs no Flutter.
-  if [ "$name" = "flutter3d_physics" ]; then
+  if [ "$name" = "flutter3d_physics" ] || [ "$name" = "flutter3d_sim" ]; then
     step "test $name" in_dir "$package" dart test
   else
     step "test $name" in_dir "$package" flutter test
@@ -183,6 +183,7 @@ step "test pointer_lock (browser)" in_dir packages/pointer_lock flutter test --p
 # packages whose failures need thousands of steps in a loop and the browser is
 # the slower place to do that.
 step "test flutter3d_physics (browser)" in_dir packages/flutter3d_physics dart test -p chrome
+step "test flutter3d_sim (browser)" in_dir packages/flutter3d_sim dart test -p chrome
 step "test flutter3d_game (browser)" in_dir packages/flutter3d_game flutter test --platform chrome
 
 # An example with tests, which until `packages/pad_input/example` there was none of.
