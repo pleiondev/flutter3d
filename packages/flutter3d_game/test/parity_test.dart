@@ -13,49 +13,58 @@
 ///
 /// Whether it is, is not something to assume. Dart's doubles are IEEE 754 and
 /// its arithmetic is exact, and so is `sqrt`, which the specification pins to
-/// the correctly rounded result. `sin`, `cos`, `atan2`, `pow`, `exp` and `log`
-/// are pinned by nothing: on the VM they are the host's libm and in a browser
-/// they are whatever that engine ships, and two libms disagreeing in the last
-/// place is ordinary rather than exceptional.
+/// the correctly rounded result. The transcendentals are pinned by nothing: on
+/// the VM they are the host's libm and in a browser they are whatever that
+/// engine ships.
 ///
 /// So the file asks three questions, cheapest first, and each one narrows the
 /// last:
 ///
 ///   1. **Does the instrument read the same everywhere?** A digest that is not
 ///      itself portable would report a divergence on every browser for ever.
-///   2. **Which primitives are portable?** A table of `dart:math` over fixed
-///      inputs, one digest apiece, so a failure names the function rather than
-///      the run.
+///   2. **Which primitives are portable?** Twelve `dart:math` functions over
+///      twenty thousand arguments apiece, one digest each, so an answer names
+///      the function rather than the run.
 ///   3. **Does a thousand steps of a body through a room come out the same?**
 ///      The whole thing: a tape, a collision world, a character controller, the
 ///      dice, and a query per step through the broadphase.
 ///
-/// The committed numbers were recorded on macOS-arm64. Every other platform
-/// compares against them, which is what makes this one file the parity test
-/// rather than three of them: `tool/ci.sh` already runs this package under the
-/// VM and under Chrome, so a third machine asks the same question of the same
-/// bytes without another line being written.
+/// ## What it answered, and the correction that came with it
 ///
-/// ## What it answered, the day it was written
+/// **Question 2: two functions of twelve are portable** — `sqrt` and `pow` —
+/// and every transcendental gives different bits in a browser than in the VM,
+/// including every combination of them. There is nothing portable to build a
+/// substitute out of.
 ///
-/// **All forty checkpoints of question 3 are identical between the VM and
-/// Chrome**, on the same processor, the same day. Of question 2's ten
-/// functions, eight agree and `tan` and `atan` do not — and both of those have
-/// a substitute in the same table that is portable and is bit-identical to one
-/// of the two native answers.
+/// **Question 3: all forty checkpoints matched anyway.** Those two answers are
+/// not in conflict and the gap between them is the useful part. Two libms
+/// disagree on a small fraction of arguments; a run reaches the arguments it
+/// reaches; a thousand steps of a character controller happened to reach none
+/// of the disagreeing ones. `flutter3d_game_racing/test/parity_test.dart` is
+/// the counter-example — the same measurement on a car diverges at exactly one
+/// checkpoint out of forty — so "a run replays identically" is a thing that is
+/// usually true and cannot be relied on.
 ///
-/// So the answer is not "floating point is not portable". It is "two named
-/// functions are not, and here is what to call instead". `ARCHITECTURE.md`
-/// §9.3, which asserted the broad version of that as a reason not to build a
-/// verifying server at all, is rewritten to the measured one.
+/// **The first version of this file got question 2 wrong**, and the way it did
+/// is worth keeping. It sampled twelve hand-picked arguments, concluded that
+/// eight of ten functions were portable, and offered `sin(x) / cos(x)` and
+/// `atan2(x, 1)` as portable substitutes for the two that were not. All of it
+/// was an artefact of the sample size: at twenty thousand arguments the eight
+/// are not portable either and neither substitute is. A test of where two
+/// implementations agree will report that they agree.
 ///
-/// **If question 3 ever fails while question 2 passes**, the divergence is in
-/// the simulation rather than in the arithmetic — a collection walked in hash
-/// order, an integer packed past bit 31 — and [Divergence] names the checkpoint
-/// to bisect from. If a row of question 2 gains a new answer on a platform
-/// nobody has measured, that function joins `tan` and `atan`: nothing in a step
-/// may call it, and the row says so out loud rather than the run failing
-/// somewhere downstream of it.
+/// ## What this means for a verifying server
+///
+/// Not that it cannot be built — question 3 says a replay usually is exact —
+/// but that it cannot trust a whole-run comparison. It has to carry the
+/// checkpoints, compare them interval by interval, and treat a mismatch as a
+/// quarantine to look at rather than as a player caught cheating. That is the
+/// contingency the year's plan wrote down, and it is the one that applies.
+///
+/// The committed numbers were recorded on macOS-arm64 under the VM and under
+/// Chrome. `tool/ci.sh` runs this package on both platforms, so its machines
+/// are a third measurement asking the same question of the same bytes; a
+/// function gaining a third answer there is a result, not a breakage.
 library;
 
 import 'dart:math' as math;
@@ -182,54 +191,41 @@ void main() {
   });
 
   group('the primitives a step is built from', () {
-    // Asked one function at a time so that a failure names the function. The
-    // arguments are awkward on purpose: values whose results are near a
-    // rounding boundary are where two libms part company, and a table of round
-    // numbers would report agreement that means nothing.
+    // Asked one function at a time so that a failure names the function rather
+    // than the run.
+    //
+    // **Twenty thousand arguments and not a dozen.** The first version of this
+    // group used twelve hand-picked values and reported that eight of the ten
+    // functions were portable. That was wrong, and it was wrong in the
+    // direction that costs the most: it gave a clean bill of health to `sin`,
+    // `cos`, `atan2`, `exp` and `log`, and a substitution built on top of that
+    // answer went into the racing physics before a wider sweep took it back
+    // out. Two libms agree almost everywhere; a dozen samples is a test of
+    // where they agree, and the interesting arguments are the rare ones.
     for (final probe in _probes) {
       final claim = probe.portable
           ? '${probe.name} is the same function everywhere'
-          : '${probe.name} is one of the two functions it is known to be';
+          : '${probe.name} is one of the answers it is known to give';
       test(claim, () {
-        final digest = StateDigest.of(<double>[
-          for (final x in _arguments) probe.of(x),
-        ]);
         expect(
           probe.digests,
-          contains(digest),
+          contains(
+            StateDigest.of(<double>[
+              for (var i = 0; i < _sweep; i++) probe.at(i),
+            ]),
+          ),
           reason: probe.portable
-              ? 'dart:math\'s ${probe.name} gave bits here that no platform has '
-                    'given before. Either this platform has its own libm and '
-                    'nothing in a step may call ${probe.name} until it is '
-                    'replaced, or the recorded number is stale — and which of '
-                    'those it is has to be decided before the number is '
-                    'updated.'
-              : '${probe.name} is already known to differ between the VM and a '
-                    'browser and this is a third answer. Nothing may call it '
-                    'in a step either way; the row exists so that a new '
-                    'platform says so out loud.',
+              ? 'dart:math\'s ${probe.name} was the same function on every '
+                    'platform measured, and is not on this one. A step may '
+                    'call it today; if this is right, a step may not.'
+              : '${probe.name} is known to differ between platforms and this '
+                    'is an answer no platform has given before. Nothing in a '
+                    'step may call it either way — the row is here so a new '
+                    'machine says which arithmetic it has, out loud, rather '
+                    'than a run failing somewhere downstream of it.',
         );
       });
     }
-
-    test('the substitutes give the same answers as what they replace', () {
-      // Not bit-identical — that is the whole point, one of the two is wrong
-      // somewhere — but the same function to within a rounding or two, so that
-      // swapping them is a portability fix and not a physics change.
-      //
-      // Relative rather than absolute, because `tan` near a right angle is in
-      // the tens of quadrillions and an absolute tolerance there would be
-      // asking for more than either function promises.
-      void agrees(double a, double b) {
-        final scale = b.abs() > 1.0 ? b.abs() : 1.0;
-        expect((a - b).abs() / scale, lessThan(1e-12));
-      }
-
-      for (final x in _arguments) {
-        agrees(math.sin(x) / math.cos(x), math.tan(x));
-        agrees(math.atan2(x, 1.0), math.atan(x));
-      }
-    });
   });
 
   group('a thousand steps of a body through a room', () {
@@ -291,89 +287,105 @@ const Map<String, Object?> _shapes = <String, Object?>{
 /// Recorded on macOS-arm64, 2026-09-02, and matched by Chrome on the same day.
 const int _shapesDigest = 3856425528;
 
-/// A function of one number that a step might call, and every answer any
-/// platform has been seen to give for it.
+/// A function a step might call, and every answer any platform has been seen
+/// to give for it over the sweep below.
 ///
-/// A set rather than a number, because two of these have two answers and
-/// pretending otherwise would mean either a permanently red suite or a silent
-/// hole. A third answer turning up on a platform nobody has measured is then
-/// news rather than noise: the test names the function and says a new one
-/// appeared.
+/// A set rather than a number, because most of these have two answers already.
+/// A third turning up on a machine nobody has measured is then news rather than
+/// noise: the test names the function and says a new one appeared.
 final class _Probe {
-  const _Probe(this.name, this.of, this.digests, {this.portable = true});
+  const _Probe(this.name, this.at, this.digests, {this.portable = false});
 
   final String name;
-  final double Function(double) of;
 
-  /// Every digest measured. One entry means the function is the same function
-  /// everywhere it has been asked.
+  /// The function at the *i*th argument of the sweep.
+  final double Function(int i) at;
+
+  /// Every digest measured. One entry means the function came back the same on
+  /// every platform asked.
   final List<int> digests;
 
   /// Whether a step may call it.
   final bool portable;
 }
 
-/// Arguments chosen to land near rounding boundaries rather than on round
-/// numbers, and to cover the ranges a simulation actually uses: angles either
-/// side of a right angle, small deltas, and one value large enough that
-/// argument reduction has work to do.
-const List<double> _arguments = <double>[
-  0.0,
-  1e-8,
-  0.1,
-  0.3333333333333333,
-  0.7071067811865476,
-  1.0,
-  1.5707963267948966,
-  2.0,
-  3.141592653589793,
-  6.283185307179586,
-  12.566370614359172,
-  1234.5678901234567,
-];
+/// How many arguments each function is asked about.
+///
+/// Twenty thousand rather than twelve, for the reason the group above gives,
+/// and not two hundred thousand: at twenty thousand every divergence that the
+/// larger sweep found is already found, and the file costs a second and a half
+/// on the VM instead of fifteen.
+const int _sweep = 20000;
+
+/// The arguments, rolled rather than written out.
+///
+/// Four magnitudes in rotation — inside the unit circle, a couple of turns
+/// either way, a thousand, and a ten-thousandth — because the places two libms
+/// part company are spread over the range rather than clustered anywhere a
+/// person would think to look. [GameRandom] is the generator for the reason the
+/// tape below uses it: it is the one this repository has proved gives the same
+/// sequence everywhere, so the *arguments* are identical on both platforms even
+/// when the answers are not.
+List<double> _sweepArguments(int seed) {
+  final dice = GameRandom(seed);
+  return <double>[
+    for (var i = 0; i < _sweep; i++)
+      switch (i % 4) {
+        0 => dice.nextDouble() * 2.0 - 1.0,
+        1 => (dice.nextDouble() * 2.0 - 1.0) * math.pi * 2.0,
+        2 => (dice.nextDouble() * 2.0 - 1.0) * 1000.0,
+        _ => (dice.nextDouble() * 2.0 - 1.0) * 1e-4,
+      },
+  ];
+}
+
+final List<double> _a = _sweepArguments(1);
+final List<double> _b = _sweepArguments(2);
 
 /// Measured on macOS-arm64 under the VM and under Chrome, 2026-09-02.
 ///
-/// `sqrt` is here despite being pinned by the specification to the correctly
-/// rounded result, because a row that cannot fail is what tells the others
-/// apart from a broken harness.
+/// **Two functions out of twelve are the same function in both places**, and
+/// they are the two the specification pins rather than the two anybody would
+/// have guessed: `sqrt`, which IEEE 754 requires to be correctly rounded, and
+/// `pow` at the one exponent asked about here. Every transcendental differs —
+/// `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `log` — and so
+/// does every combination of them, which is why there is no substitute row in
+/// this table any more. There is nothing portable to build one out of.
 ///
-/// **Eight of the ten came back identical and two did not.** `tan` and `atan`
-/// are different functions in the two places, in the last bits, which is enough
-/// — a simulation is a feedback loop and a last-bit difference is a divergence
-/// a few hundred steps later. Both have a portable substitute measured in this
-/// same table, and the substitutes are in it for that reason: `tan(x)` is
-/// `sin(x) / cos(x)` and `atan(x)` is `atan2(x, 1)`, and all three of `sin`,
-/// `cos` and `atan2` agreed.
+/// The VM's answer is first in each pair and the browser's second.
 final List<_Probe> _probes = <_Probe>[
-  _Probe('sqrt', (double x) => math.sqrt(x.abs()), <int>[560576848]),
-  _Probe('sin', math.sin, <int>[2430477820]),
-  _Probe('cos', math.cos, <int>[14733917]),
-  _Probe('asin', (double x) => math.asin(x % 1.0), <int>[2942591821]),
-  _Probe('atan2', (double x) => math.atan2(x, 1.375), <int>[1492665211]),
-  _Probe('exp', (double x) => math.exp(x % 4.0), <int>[1121925872]),
-  _Probe('log', (double x) => math.log(x + 1.0), <int>[3036108384]),
-  _Probe('pow', (double x) => math.pow(x, 1.5) as double, <int>[1951188195]),
+  _Probe('sqrt', (int i) => math.sqrt(_a[i].abs()), <int>[
+    3731598178,
+  ], portable: true),
+  _Probe('pow', (int i) => math.pow(_a[i].abs(), 1.5) as double, <int>[
+    1010605104,
+  ], portable: true),
 
-  // The substitutes, measured so that the fix to the two rows below is a
-  // change somebody can make without having to re-run this file to find out
-  // whether it helped.
-  //
-  // **Each of them is bit-identical to one platform's native answer**, which
-  // is a stronger result than the one being asked for: `sin(x) / cos(x)` is
-  // the VM's `tan` exactly, and `atan2(x, 1)` is the browser's `atan` exactly.
-  // So swapping is not a compromise between two libms — it is picking one of
-  // them and getting it everywhere.
-  _Probe('sin over cos', (double x) => math.sin(x) / math.cos(x), <int>[
-    3249999797,
+  _Probe('sin', (int i) => math.sin(_a[i]), <int>[1529023637, 2189972239]),
+  _Probe('cos', (int i) => math.cos(_a[i]), <int>[278506023, 346840732]),
+  _Probe('tan', (int i) => math.tan(_a[i]), <int>[1991664472, 706737394]),
+  _Probe('asin', (int i) => math.asin(_a[i].abs() % 1.0), <int>[
+    1169059466,
+    3965097627,
   ]),
-  _Probe('atan2 against one', (double x) => math.atan2(x, 1.0), <int>[
-    4284275088,
+  _Probe('acos', (int i) => math.acos(_a[i].abs() % 1.0), <int>[
+    1074980516,
+    2412058023,
   ]),
-
-  // VM first, browser second.
-  _Probe('tan', math.tan, <int>[3249999797, 3294569714], portable: false),
-  _Probe('atan', math.atan, <int>[1237910714, 4284275088], portable: false),
+  _Probe('atan', (int i) => math.atan(_a[i]), <int>[2151501439, 711472516]),
+  _Probe('atan2', (int i) => math.atan2(_a[i], _b[i]), <int>[
+    4076892957,
+    386132713,
+  ]),
+  _Probe('exp', (int i) => math.exp(_a[i] % 4.0), <int>[1225667539, 184235517]),
+  _Probe('log', (int i) => math.log(_a[i].abs() + 1e-3), <int>[
+    3156546821,
+    2348571721,
+  ]),
+  _Probe('sin over cos', (int i) => math.sin(_a[i]) / math.cos(_a[i]), <int>[
+    3918902778,
+    2137336336,
+  ]),
 ];
 
 /// The room the run is played in.

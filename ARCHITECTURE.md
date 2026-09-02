@@ -977,34 +977,58 @@ a statement about what is guaranteed and it had never been *measured*, and a
 conclusion drawn from an unmeasured premise is where a whole design gets ruled
 out for nothing.
 
-It is measured now, and the answer is narrower than the claim.
-`packages/flutter3d_game/test/parity_test.dart` digests a thousand steps of a
-character controller through a room of brushes — a tape, the dice, sweeps,
-slides, a step-up, a floor snap and a broadphase raycast per step — and takes a
-checkpoint every twenty-five. On macOS-arm64, **all forty checkpoints are
-identical between the Dart VM and Chrome.** Not close: the same bytes.
+It is measured now. The answer is not the one the old text asserted and not the
+opposite of it either, and the difference between the two measurements is the
+part worth carrying.
 
-What is *not* portable is two named functions, found by the same file's table of
-`dart:math` over fixed arguments:
+**The primitives.** Twelve `dart:math` functions, twenty thousand arguments
+apiece, digested and compared between the Dart VM and Chrome on macOS-arm64:
 
-| Function | VM and browser agree? |
+| Function | Same bits in both |
 |---|---|
-| `sqrt`, `sin`, `cos`, `asin`, `atan2`, `exp`, `log`, `pow` | yes |
-| `tan`, `atan` | **no** |
+| `sqrt`, `pow` | yes |
+| `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `exp`, `log` | **no** |
 
-Both have a substitute that is portable *and* bit-identical to one of the two
-native answers: `sin(x) / cos(x)` is the VM's `tan` exactly, and `atan2(x, 1)`
-is the browser's `atan` exactly. So the fix is a substitution, not a lookup
-table and not a quantisation.
+Every transcendental differs, and so does every combination of them. There is
+nothing portable to build a substitute out of.
 
-Three things this does **not** say. It is one processor family running two
-compilers, and Linux is answered by `tool/ci.sh` rather than here. It is the
-character controller and not the rigid-body solver, whose divergence is a
-separate measurement nobody has taken. And `flutter3d_game_racing` calls both
-non-portable functions in its per-step vehicle physics —
-`vehicle/sphere_vehicle.dart` for the yaw rate and `vehicle/tire_model.dart` for
-the Pacejka curve — so the genre with leaderboards and ghosts is the one genre
-currently outside the result above.
+**The simulations.** A thousand steps digested every twenty-five:
+
+| Scenario | Checkpoints matching |
+|---|---|
+| Character controller through a room of brushes | **40 of 40** |
+| `SphereVehicle` on flat ground, scripted driver | 17 of 40, first divergence at step 75 |
+
+Those are consistent, and the gap between them is the finding. Two libms
+disagree on a small fraction of arguments; whether a run diverges is a question
+about which arguments *that* run reaches. Walking reaches almost no
+transcendental. Driving is made of them — `tan` in the bicycle-model steering,
+`atan` twice a step per tyre in the Pacejka curve, `atan2` for the slip angle,
+`tan` again in the coefficient the curve is built from.
+
+**A correction, kept because the shape of the mistake recurs.** The first
+version of the primitives table sampled twelve hand-picked arguments and
+reported eight of ten functions portable, with `sin(x) / cos(x)` and
+`atan2(x, 1)` as portable substitutes for the two that were not. All of it was
+an artefact of the sample size. The substitution went into the vehicle before a
+wider sweep took it back out — it does cut the car's disagreement from
+twenty-three checkpoints to one, which is a large effect and not a fix, because
+a change justified by "it diverges less often" has failures that are rarer and
+no less real. **A test of where two implementations agree will report that they
+agree.**
+
+**What this settles for a verifying server.** Not that it cannot be built, but
+that it cannot compare whole runs across platforms and call a mismatch
+cheating. Either a run is replayed on the platform it was played on, or the
+step stops calling functions whose answers are a property of the machine — a
+polynomial, a table, or a quantised argument, none of which is written. The
+checkpoints are how a mismatch is localised either way, and a mismatch is a
+quarantine somebody looks at rather than a verdict.
+
+Two things this does **not** say. It is one processor family running two
+compilers; Linux is answered by `tool/ci.sh`, which runs both packages under
+the VM and under Chrome. And it is the character controller and the arcade
+vehicle, not the rigid-body solver, whose divergence nobody has measured.
 
 The digest is `StateDigest`, and it is 32-bit FNV-1a arrived at by a route a
 browser can walk: the multiply is done in halves so that no intermediate passes
@@ -1238,7 +1262,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3060 tests** across 23 packages and 5 applications |
+| Unit tests | **3063 tests** across 23 packages and 5 applications |
 | Structure rules | 21, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

@@ -1,27 +1,28 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3060 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3063 tests need a GPU.
 ---
 
 # Testing
 
-3060 tests across 23 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3063 tests across 23 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 682 | | `flutter3d_audio` | 52 |
-| `flutter3d_game` | 363 | | `flutter3d_impeller` | 36 |
-| `flutter3d_game_shooter` | 291 | | `flutter3d_webgl` | 31 |
-| `apps/flutter3d_editor` | 194 | | `pointer_lock` | 28 |
-| `flutter3d_game_racing` | 189 | | `flutter3d_session` | 27 |
-| `flutter3d_game_platformer` | 187 | | `flutter3d_bridge` | 26 |
-| `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_hardware` | 13 |
-| `flutter3d_physics` | 137 | | `flutter3d_testing` | 7 |
-| `apps/flutter3d_demo_racing` | 119 | | `apps/flutter3d_template_app` | 4 |
+| `flutter3d` | 705 | | `pad_input` | 59 |
+| `flutter3d_game` | 405 | | `flutter3d_audio` | 52 |
+| `flutter3d_game_shooter` | 291 | | `flutter3d_impeller` | 37 |
+| `apps/flutter3d_editor` | 194 | | `flutter3d_bridge` | 32 |
+| `flutter3d_game_racing` | 193 | | `flutter3d_webgl` | 31 |
+| `flutter3d_game_platformer` | 187 | | `flutter3d_session` | 29 |
+| `apps/flutter3d_demo_platformer` | 168 | | `pointer_lock` | 28 |
+| `flutter3d_physics` | 137 | | `flutter3d_hardware` | 17 |
+| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_testing` | 7 |
+| `flutter3d_cpu` | 112 | | `apps/flutter3d_template_app` | 4 |
 | `flutter3d_screens` | 110 | | `flutter3d_backend` | 2 |
-| `flutter3d_cpu` | 109 | | `flutter3d_shaders` | 1 |
+| `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 | `flutter3d_particles` | 68 | | | |
-| `pad_input` | 64 | | | |
-| `apps/flutter3d_demo_dungeon` | 62 | | | |
+
+The rows sum to 3057 rather than 3063: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -78,18 +79,20 @@ That third assertion matters as much as the first two. A determinism test where 
 
 Two runs agreeing in one process is the easy half. The half a verifying server needs is two runs agreeing on two *machines* — because a server that recomputes a submitted run only proves something if its arithmetic is the player's arithmetic.
 
-This page used to say that could not be relied on. It had never been measured. `parity_test.dart` measures it: a thousand steps of a character controller through a room of brushes — sweeps, slides, a step-up, a floor snap, the dice, and a broadphase raycast per step — digested every twenty-five steps.
+This page used to say that could not be relied on. It had never been measured. `parity_test.dart` measures it, by digesting a simulation every twenty-five steps and comparing the digests across platforms.
 
-**All forty checkpoints are identical between the Dart VM and Chrome.**
-
-What is not portable is two functions, found by the same file's table of `dart:math` over fixed arguments:
-
-| Function | Same bits in the VM and a browser |
+| Scenario | Checkpoints matching, VM against Chrome |
 |---|---|
-| `sqrt`, `sin`, `cos`, `asin`, `atan2`, `exp`, `log`, `pow` | yes |
-| `tan`, `atan` | no |
+| Character controller through a room of brushes | **40 of 40** |
+| Arcade vehicle on flat ground | 17 of 40, first divergence at step 75 |
 
-Both have a portable substitute that is not a compromise: `sin(x) / cos(x)` is bit-identical to the VM's `tan`, and `atan2(x, 1)` is bit-identical to the browser's `atan`.
+Both numbers come from the same day and the same machine, and they do not conflict. Of twelve `dart:math` functions asked about twenty thousand arguments each, only `sqrt` and `pow` give the same bits in both places; every transcendental differs, and so does every combination of them. Whether a run diverges is therefore a question about which arguments it reaches. Walking reaches almost no transcendental. Driving is made of them.
+
+<div class="note">
+<p><code>warning:</code> the first version of that table sampled twelve hand-picked arguments and reported eight of ten functions portable. It was an artefact of the sample size, and a substitution built on the wrong answer went into the vehicle before a wider sweep took it out. <strong>A test of where two implementations agree will report that they agree.</strong></p>
+</div>
+
+What this settles: a run can be replayed exactly on the platform it was played on, and cannot be compared bit for bit across platforms in a simulation built out of transcendentals. A verifier localises a mismatch to an interval and quarantines it; it does not call it cheating.
 
 <div class="note">
 <p><code>why:</code> a digest and not a comparison. Two machines cannot compare their worlds by sending each other their worlds — a snapshot is tens of kilobytes and a run is thousands of steps. <code>StateDigest</code> is 32-bit FNV-1a taken over bits rather than text, with the multiply done in halves so that no intermediate passes 2^53 and a browser gets the same number. <code>DigestTrace</code> takes a checkpoint every so many steps and names the first one two runs disagree at, which turns "the replay diverged" into an interval to bisect.</p>
