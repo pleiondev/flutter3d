@@ -1,3 +1,14 @@
+## 0.4.1
+
+* **The simulation moved out, and nothing that imports this package changes a
+  line.** The fixed step, the entity store, the level format, saves, demos, the
+  rewind buffer, actors, navigation and the maths are `flutter3d_sim` now — a
+  plain Dart package with no Flutter in it, so a server can replay a run
+  through the same simulation the player ran. This package keeps the eight
+  files that reached Flutter — the touch stick and button, keyboard and mouse,
+  the gamepad route, the `MediaQuery` read and the diagnostics sink — and
+  re-exports `flutter3d_sim` and `flutter3d_physics` whole.
+
 ## 0.4.0
 
 * **A touch control lets go when it leaves.** The button and the stick press

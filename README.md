@@ -8,11 +8,11 @@ wrapper around another engine, and it is not affiliated with the Flutter team.
 [![CI](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml/badge.svg)](https://github.com/pleiondev/flutter3d/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-On pub.dev: twenty-three of the twenty-four packages, published by
+On pub.dev: all twenty-four packages, published by
 [pleion.dev](https://pub.dev/publishers/pleion.dev/packages) — start with
-[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The
-twenty-fourth is `flutter3d_sim`, new here and not released yet: the
-simulation, as plain Dart, so a server can replay a run without a Flutter SDK.
+[`flutter3d`](https://pub.dev/packages/flutter3d) and a backend. The newest is
+[`flutter3d_sim`](https://pub.dev/packages/flutter3d_sim): the simulation, as
+plain Dart, so a server can replay a run without a Flutter SDK.
 Or build it
 from this repository — see [Running](#running),
 [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
