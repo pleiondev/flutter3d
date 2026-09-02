@@ -1354,7 +1354,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3103 tests** across 24 packages and 5 applications |
+| Unit tests | **3104 tests** across 24 packages and 5 applications |
 | Structure rules | 22, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1498,9 +1498,15 @@ into a bundle.
 **No compute**, and therefore no GPU particles, GPU skinning, GPU culling or
 indirect draw.
 
-**No compressed textures in use**, so every texture costs its uncompressed size.
-SDK 3.47 exposes block-compressed formats; nothing here consumes them yet, and
-KTX2/Basis transcoding has no Dart implementation.
+**No compressed textures in the live upload path**, so every texture still
+costs its uncompressed size there. The pieces exist separately: SDK 3.47
+exposes block-compressed formats, Impeller's texture creation accepts them
+(`gpu_device.dart`), and `flutter3d`'s `assets/ktx2/` reads a plain KTX2
+container and transcodes Basis Universal ETC1S straight to RGBA8, verified
+against a real encoder's output. What is missing is the wiring: nothing calls
+any of this from `texture_upload.dart`, and the WebGL and software backends
+have no consumer for a compressed `TextureFormat` at all — deciding what an
+unsupported backend does with one is unstarted work, not an oversight.
 
 **No morph targets**, no animation blending or crossfade, and therefore no useful
 animation state machine — a crossfade is useful on its own, and a state machine

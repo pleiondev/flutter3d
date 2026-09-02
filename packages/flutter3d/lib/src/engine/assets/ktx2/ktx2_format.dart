@@ -82,6 +82,71 @@ const int kKtx2IndexBytes = 32;
 const int kKtx2LevelIndexOffset = kKtx2IndexOffset + kKtx2IndexBytes; // 80
 const int kKtx2LevelIndexEntryBytes = 24;
 
+/// Byte offsets of the Index section's fields, relative to
+/// [kKtx2IndexOffset] — the pointers to the data format descriptor, the
+/// key/value data, and (for a Basis Universal file) the supercompression
+/// global data this stage now reads.
+abstract final class Ktx2IndexField {
+  static const int dfdByteOffset = 0;
+  static const int dfdByteLength = 4;
+  static const int kvdByteOffset = 8;
+  static const int kvdByteLength = 12;
+  static const int sgdByteOffset = 16; // u64
+  static const int sgdByteLength = 24; // u64
+}
+
+/// The Basis Universal "supercompression global data" a
+/// `supercompressionScheme == basisLZ` file carries: the endpoint and
+/// selector codebooks, the per-block bitstream's Huffman tables, and one
+/// `ImageDesc` per image telling where in the level's own bytes the RGB (and
+/// optionally alpha) slice lives.
+///
+/// Verified against a real encoded file — see
+/// `~/.claude/plans/ktx2-etc1s-fixture/` — not only against the
+/// specification text, which for this section is thinner than the container
+/// layout above.
+///
+/// ```
+/// Global data header, at sgdByteOffset, 20 bytes
+///   u16 endpointCount,  u16 selectorCount
+///   u32 endpointsByteLength
+///   u32 selectorsByteLength
+///   u32 tablesByteLength
+///   u32 extendedByteLength
+///
+/// ImageDesc, 20 bytes, one per image — this stage reads exactly one,
+/// because it refuses every KTX2 file with more than one level, layer or
+/// face before reaching this section
+///   u32 imageFlags
+///   u32 rgbSliceByteOffset,   u32 rgbSliceByteLength
+///   u32 alphaSliceByteOffset, u32 alphaSliceByteLength
+///
+/// Then, back to back: endpointsData, selectorsData, tablesData.
+/// ```
+///
+/// The slice offsets are relative to the *level's* bytes (the ones the
+/// ordinary KTX2 level index in `ktx2_loader.dart` already finds) — not to
+/// this section — confirmed on the real file: `rgbSliceByteOffset` was `0`
+/// and the level's own bytes started elsewhere in the file entirely.
+abstract final class Ktx2GlobalDataField {
+  static const int endpointCount = 0; // u16
+  static const int selectorCount = 2; // u16
+  static const int endpointsByteLength = 4;
+  static const int selectorsByteLength = 8;
+  static const int tablesByteLength = 12;
+  static const int extendedByteLength = 16;
+  static const int headerBytes = 20;
+}
+
+abstract final class Ktx2ImageDescField {
+  static const int imageFlags = 0;
+  static const int rgbSliceByteOffset = 4;
+  static const int rgbSliceByteLength = 8;
+  static const int alphaSliceByteOffset = 12;
+  static const int alphaSliceByteLength = 16;
+  static const int bytes = 20;
+}
+
 /// Byte offsets of the header fields, relative to [kKtx2HeaderOffset].
 abstract final class Ktx2HeaderField {
   static const int vkFormat = 0;
