@@ -52,6 +52,25 @@
 * The bundle gains `Luminance` and `ObjectId`; `ObjectId` samples the
   material's texture against its cutoff, so a pick through a masked
   material's hole answers with what is behind it.
+* **`GpuImageSurface` was measured, and not taken.** flutter_gpu 3.47's
+  presentable surface does the job the renderer's ring of finished frames
+  does by hand — keep a texture out of rotation while Flutter still reads
+  it. `tool/surface_probe.sh` runs the probe: the same clear-only pass
+  through that ring and through a surface, 240 frames each at 1280×800 with
+  Flutter drawing every one, and prints what each costs. Same UI-thread cost
+  and the same interval between frames, no copy on either path; then the
+  surface holding five textures at four megabytes of short-lived allocation
+  per frame and forty-seven with none at all, against the ring's two. Only
+  those two rates were run, so the count a real frame would pay is a range
+  rather than a number. The forty-seven is what shows the mechanism — a
+  texture counts as reusable only once the collector has freed the native
+  wrappers a frame makes — and the ring's two is the count of the variant
+  that makes the surface's own promise, keeping the presented frame back a
+  frame longer.
+  The script is the only part that lives here; the probe itself is in the
+  engine's example beside the entry point that runs it, since it reaches
+  flutter_gpu directly and is no part of this backend's API. The numbers and
+  the verdict are ARCHITECTURE §15.
 
 ## 0.4.4
 

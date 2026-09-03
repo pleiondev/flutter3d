@@ -33,10 +33,7 @@ List<Rule> get allRules => <Rule>[
   (name: 'the repository lists agree with the workspace', run: _listsAgree),
   (name: 'every exemption names a file that is there', run: _exemptionsResolve),
   (name: 'no application silences a print', run: _noSilencedPrints),
-  (
-    name: 'the Impeller conformance runner is reachable',
-    run: _conformanceRunner,
-  ),
+  (name: 'the Impeller runners are reachable', run: _impellerRunners),
   (name: 'the document says how many tests there are', run: _testCount),
   (
     name: 'an application that draws asks its platform for the GPU',
@@ -913,74 +910,123 @@ List<Finding> _noSilencedPrints() {
   return found;
 }
 
-List<Finding> _conformanceRunner() {
+/// A script in the Impeller backend that drives an application in the
+/// engine's example and reads a verdict off what it prints.
+///
+/// [verdictIn] is the file the verdict line is written in — the entry point
+/// itself, or a report class it prints — and [marker] is the part of that
+/// line both it and the script's grep must contain.
+typedef _Runner = ({
+  String script,
+  String entryPoint,
+  String verdictIn,
+  String marker,
+});
+
+/// The scripts that run something on a live GPU, each with the entry point it
+/// drives and the line it reads its verdict from.
+const List<_Runner> _impellerRunnerList = <_Runner>[
+  (
+    script: 'tool/conformance.sh',
+    entryPoint: 'lib/conformance_main.dart',
+    verdictIn: 'lib/conformance_main.dart',
+    marker: 'passed, ',
+  ),
+  (
+    script: 'tool/surface_probe.sh',
+    entryPoint: 'lib/surface_probe_main.dart',
+    verdictIn: 'lib/surface_probe_report.dart',
+    marker: 'surface probe done, ',
+  ),
+];
+
+List<Finding> _impellerRunners() {
   // Flutter GPU needs Impeller, which a headless `flutter test` does not
-  // enable, so this backend's conformance runs from a script driving an
-  // application. A pointer that has rotted is worse than no pointer.
-  final found = <Finding>[];
+  // enable, so this backend's conformance — and its surface probe, which is
+  // the same shape — run from a script driving an application. A pointer
+  // that has rotted is worse than no pointer, and the second script would
+  // have rotted the way the first once did: nothing but this compares its
+  // grep with the line the application prints.
   final dir = packages['flutter3d_impeller'];
   if (dir == null) {
     return <Finding>[const Finding('flutter3d_impeller', 'is not there')];
   }
+  return <Finding>[
+    for (final runner in _impellerRunnerList) ..._runnerFindings(dir, runner),
+  ];
+}
 
-  final script = File('${dir.path}/tool/conformance.sh');
+List<Finding> _runnerFindings(Directory backend, _Runner runner) {
+  final scriptWhere = 'flutter3d_impeller/${runner.script}';
+  final script = File('${backend.path}/${runner.script}');
   if (!script.existsSync()) {
     return <Finding>[
-      const Finding(
-        'flutter3d_impeller/tool/conformance.sh',
-        'is how this backend is checked, and it is not there',
-      ),
+      Finding(scriptWhere, 'is how this backend is run, and it is not there'),
     ];
   }
+
+  final found = <Finding>[];
   // The owner-execute bit, which is a POSIX idea. Windows reports a mode of
   // nought for every file, so asking there would fail this rule on a machine
   // that cannot run a shell script in the first place — a false red about
   // something the developer could not act on.
   if (!Platform.isWindows && script.statSync().mode & 0x40 == 0) {
     found.add(
-      const Finding(
-        'flutter3d_impeller/tool/conformance.sh',
-        'is not executable, so the one thing that runs the checks cannot run',
+      Finding(
+        scriptWhere,
+        'is not executable, so the one thing that runs it cannot run',
       ),
     );
   }
 
   final source = script.readAsStringSync();
-  if (!source.contains('lib/conformance_main.dart')) {
+  if (!source.contains(runner.entryPoint)) {
     found.add(
-      const Finding(
-        'flutter3d_impeller/tool/conformance.sh',
-        'no longer names the entry point it drives',
+      Finding(scriptWhere, 'no longer names the entry point it drives'),
+    );
+  }
+  if (!source.contains(runner.marker)) {
+    found.add(
+      Finding(
+        scriptWhere,
+        'no longer greps for `${runner.marker}`, the line the verdict is '
+        'read from',
       ),
     );
   }
 
-  final app = File(
-    '${repositoryRoot.path}/packages/flutter3d/example/lib/conformance_main.dart',
-  );
+  final example = '${repositoryRoot.path}/packages/flutter3d/example';
+  final app = File('$example/${runner.entryPoint}');
+  final appWhere = 'flutter3d/example/${runner.entryPoint}';
   if (!app.existsSync()) {
     found.add(
-      const Finding(
-        'flutter3d/example/lib/conformance_main.dart',
-        'the script drives an entry point that is not there',
-      ),
+      Finding(appWhere, 'the script drives an entry point that is not there'),
     );
     return found;
   }
-  final appSource = app.readAsStringSync();
-  if (!appSource.contains('passed, ')) {
+  if (!app.readAsStringSync().contains('exit(')) {
     found.add(
-      const Finding(
-        'flutter3d/example/lib/conformance_main.dart',
-        'no longer prints the line the script reads its verdict from',
+      Finding(
+        appWhere,
+        'no longer exits with a code, so the script would wait for ever',
       ),
     );
   }
-  if (!appSource.contains('exit(')) {
+
+  final verdict = File('$example/${runner.verdictIn}');
+  final verdictWhere = 'flutter3d/example/${runner.verdictIn}';
+  if (!verdict.existsSync()) {
     found.add(
-      const Finding(
-        'flutter3d/example/lib/conformance_main.dart',
-        'no longer exits with a code, so the script would wait for ever',
+      Finding(
+        verdictWhere,
+        'is where the verdict line lived, and is not there',
+      ),
+    );
+  } else if (!verdict.readAsStringSync().contains(runner.marker)) {
+    found.add(
+      Finding(
+        verdictWhere,
+        'no longer prints the line the script reads its verdict from',
       ),
     );
   }

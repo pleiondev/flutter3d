@@ -1494,7 +1494,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3304 tests** across 24 packages and 5 applications |
+| Unit tests | **3311 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1721,6 +1721,93 @@ needed for open worlds, and there is no such scenario here.
 [§14](#14-performance-characteristics) are per-subsystem rather than per-frame:
 an external profiler sees Dart calls without knowing which part of a frame they
 are.
+
+**No `GpuImageSurface`**, and that is a measurement rather than a preference.
+flutter_gpu 3.47 added a presentable surface — `createImageSurface`,
+`acquireNextFrame`, `present`, `currentImage` — whose stated job is the one the
+renderer's ring of finished frames does by hand: keep a texture out of rotation
+while Flutter is still reading it. `packages/flutter3d_impeller/tool/surface_probe.sh`
+puts the same clear-only pass through both arrangements for 240 frames at
+1280×800, with Flutter drawing every frame, and reads what each costs. On the
+UI thread they are the same, and the spread between runs is wider than the
+gap between paths: 95–105 µs a frame for the whole step on every path,
+125–160 µs at the 95th percentile, 30–35 µs to mint the image (`asImage()`
+against `currentImage`), 8.3 ms between frames either way, which is the
+display period. The worst single frames — a 9 ms step, one 51 ms gap — landed
+in the phase that ran first, before the window had settled, and not in one
+path rather than the other; the report prints the worst of every run so that
+stays visible.
+There is no copy on either path and no latency: the image is a wrapper over
+the texture in both.
+
+Memory differs, and what the probe has is two points on a scale rather than a
+figure for this engine. At four megabytes of short-lived allocation per frame
+— the churn path, a rate chosen to turn the young generation over at the
+display's pace — the pool peaks at five textures, about twenty megabytes. Run
+with no allocation at all the same surface reaches forty-seven, some 180 MB.
+The like-for-like ring is two textures, about eight megabytes, run without the
+churn; nothing in it waits for a collector, so it has no reason to move with
+the allocation rate, but that is the mechanism talking and not a second run.
+
+No rate between those two was run, so where a real frame would sit is a
+question this probe does not answer — and the convenient guess is the wrong
+way round. Four megabytes a frame is a lot of garbage; this repository's own
+style rule exists to keep a frame from making any (hot-loop buffers reused,
+`final` by default, accumulators through language expressions), so a frame
+that renders a scene should sit nearer the no-allocation end than the churn
+one. The forty-seven is worth keeping for the same reason it is worth
+distrusting as a prediction: it isolates the mechanism. The surface counts a
+texture as reusable only when nothing but its own records hold it, and among
+the holders are the native halves of the Dart `Texture`, `RenderPass` and
+`CommandBuffer` every frame makes, which die when the collector gets to them.
+The pool is paced by the garbage collector, not by the display. So the memory
+the engine would pay is five textures against two at best and more than that
+if its frames allocate as little as they are written to — and either way it
+is not what decides this.
+
+The comparison is two-against-five rather than one-against-five because the
+two sides do not promise the same thing. The plain ring holds one texture:
+its callback fires when the *renderer's* GPU work is done, which is before
+Flutter has read the image. The surface holds a texture until Flutter has let
+go as well, so the probe runs a third variant — a ring that keeps the
+presented frame out of rotation for one frame more — and that one costs two
+textures for the surface's guarantee. The one-texture figure buys less.
+
+The rest of the questions have plain answers. `resize` throws while a frame is
+acquired; under the same allocation churn the pool around a resize goes
+3 → 2 → 3, so nothing of the old size is accumulating. The earlier reading of
+that phase, taken before it churned, was 27 → 26 → 56 — 26 old plus 30 new,
+nothing let go — and said only that nothing had been collected yet, which is
+why the churn is there. `present` works through a trailing empty command
+buffer, so a backend with one pass per buffer could have used it.
+`GpuPresentStatus` is not measured and cannot be: in this SDK
+`GpuImageSurfaceFrame.present` ends with `return GpuPresentStatus.success;`,
+so the value is pinned in the Dart wrapper rather than read from the engine —
+the answer to "what does `outOfDate` do on resize" is read off the source, not
+off a run. Reading the API rather than running it, the shape would fit
+`SceneSurface` unchanged — `present` still returns a widget — but the
+renderer's final target would have to come from the device per frame, a
+`TextureHandle` per acquire rather than one per texture, and `readPixels` on a
+presented frame would have to go through `currentImage`, since `present`
+invalidates the texture it was given. That is a contract change bought with
+three more textures at the one churn rate measured, more if a frame allocates
+less, and no frame that gets faster, which is the verdict.
+
+What the probe also says about the ring is written at `_ldrFrames`: a texture
+goes back into rotation when the renderer's GPU work is done, which is not
+when the compositor's is. The probe does not see the compositor's read; it
+sees one display period between a clear and the next, with the read landing
+somewhere inside it. Its readback is no evidence about that read either: one
+frame per path, the last, taken out of the texture the probe owns rather than
+out of the composite, so what it says is that the image handed to Flutter
+wraps the texture the path drew. A torn composite is not a thing it could
+come back wrong on. Its phases share one
+process and `GpuImageSurface` has no `dispose` here, so the later phases run
+on top of the pools the earlier ones left — a confound that can only push a
+later count up, which is the direction that would have hidden the churn
+finding rather than made it. The probe stays so the numbers can be taken again
+on a flutter_gpu whose surface counts references some other way; that is the
+first thing that would answer the ring's gap properly.
 
 **No multithreading of the simulation.** Dart isolates do not share memory, so
 moving the step to a thread is a message protocol and a copy of the frame's state

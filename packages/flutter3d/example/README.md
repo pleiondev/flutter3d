@@ -24,5 +24,6 @@ flutter run
 
 The other entry points are instruments, not demos: `cpu_main.dart` runs the
 same browser on the software backend, `conformance_main.dart` runs the backend
-contract checks that cannot be a plain test, and `parity_main.dart` compares
-backends against each other.
+contract checks that cannot be a plain test, `surface_probe_main.dart` measures
+flutter_gpu's `GpuImageSurface` against the path `present` uses, and
+`parity_main.dart` compares backends against each other.
