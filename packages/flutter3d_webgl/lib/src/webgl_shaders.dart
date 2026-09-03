@@ -164,27 +164,53 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     );
   }
 
-  /// Deletes every linked program that involves one of [stale], so the next
-  /// [link] of the same pair links again.
+  /// Programs [forgetPrograms] took out of the cache and has not yet deleted.
+  ///
+  /// **Forgotten is not deleted, and the gap is a frame.** A refresh swaps
+  /// the code behind a handle; the renderer's own pipeline cache still holds
+  /// a `PipelineHandle` over the program linked from the old code until
+  /// `Renderer.relinkShaders` runs, and nothing says the two happen in one
+  /// turn — an application refreshing from a file watcher's callback draws a
+  /// frame in between. Deleting the program at once made that frame call
+  /// `useProgram` on a deleted object, `INVALID_VALUE`, and every material on
+  /// the loaded look vanished for a frame where flutter_gpu keeps drawing the
+  /// old code. So the old program is kept until the next refresh or
+  /// [dispose], which is what `LoadedShaderLibrary` promises: the linked
+  /// object is the caller's to drop. The old shader object it was linked from
+  /// is deleted while attached, which GL keeps alive for as long as the
+  /// program is — so retiring the program retires the whole pair.
+  final List<web.WebGLProgram> _retired = <web.WebGLProgram>[];
+
+  /// Takes every linked program that involves one of [stale] out of the
+  /// cache, so the next [link] of the same pair links again.
   ///
   /// Called by a loaded library after it has swapped the compiled object
   /// behind a handle: the handle is the same, the code is not, and a program
-  /// linked from the old code would draw it until this runs.
+  /// linked from the old code would draw it until this runs. The programs
+  /// themselves are retired rather than deleted — see [_retired] — and the
+  /// previous refresh's retired programs are deleted here, since by the next
+  /// refresh the caller has relinked or is not going to.
   void forgetPrograms(Iterable<ShaderHandle> stale) {
+    _deleteRetired();
     final gone = stale.toSet();
     for (final vertex in gone) {
       final byFragment = _programs.remove(vertex);
       if (byFragment == null) continue;
-      for (final program in byFragment.values) {
-        _gl.deleteProgram(program.program);
-      }
+      _retired.addAll(byFragment.values.map((p) => p.program));
     }
     for (final byFragment in _programs.values) {
       for (final fragment in gone) {
         final program = byFragment.remove(fragment);
-        if (program != null) _gl.deleteProgram(program.program);
+        if (program != null) _retired.add(program.program);
       }
     }
+  }
+
+  void _deleteRetired() {
+    for (final program in _retired) {
+      _gl.deleteProgram(program);
+    }
+    _retired.clear();
   }
 
   WebGlProgram _link(ShaderHandle vertex, ShaderHandle fragment) {
@@ -215,11 +241,13 @@ final class WebGlShaderLibrary implements ShaderLibrary {
     );
   }
 
-  /// How many compiled shaders and linked programs are currently cached, for
-  /// tests. Falls to zero after [dispose]. The nulls in `_handles` — names the
-  /// sources never had — are cached answers, not GL objects, and do not count.
+  /// How many compiled shaders and linked programs are currently held, for
+  /// tests: the cached ones and the retired ones a refresh has not yet let
+  /// go of, since both are driver objects. Falls to zero after [dispose]. The
+  /// nulls in `_handles` — names the sources never had — are cached answers,
+  /// not GL objects, and do not count.
   int get debugTrackedResourceCount =>
-      _programCount + _handles.values.nonNulls.length;
+      _programCount + _retired.length + _handles.values.nonNulls.length;
 
   int get _programCount => _programs.values.fold(
     0,
@@ -240,6 +268,7 @@ final class WebGlShaderLibrary implements ShaderLibrary {
   /// linking goes through the device's library whichever library answered the
   /// names — so this is also where they go.
   void dispose() {
+    _deleteRetired();
     for (final byFragment in _programs.values) {
       for (final program in byFragment.values) {
         _gl.deleteProgram(program.program);

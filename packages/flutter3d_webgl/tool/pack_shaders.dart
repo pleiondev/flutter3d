@@ -30,7 +30,8 @@
 ///                     what `flutter3d/example/tool/build_shaders.sh` does.
 ///                     A `dart` from elsewhere in PATH stamps its own version,
 ///                     and the Impeller backend then refuses the bundle; the
-///                     packer says so when it stamps a default beside an
+///                     packer says so when the dart it is running on is not
+///                     a Flutter SDK's and it stamps a default beside an
 ///                     impeller section.
 ///   --out PATH        where to write the bundle (required).
 ///
@@ -134,11 +135,13 @@ void main(List<String> args) {
         .asByteData();
   }
 
-  if (options.impeller != null && options.sdk == null) {
+  if (options.impeller != null && options.sdk == null && !_onFlutterSdkDart) {
     // The one way the header goes wrong silently: the section came out of
     // the Flutter SDK's impellerc and the token out of whichever `dart` is
     // first in PATH. Said once, here, because the refusal it causes names
-    // the two versions and not the reason they differ.
+    // the two versions and not the reason they differ — and said only on a
+    // dart that is not a Flutter SDK's, because a warning that fires on every
+    // correct run too is read on none of them.
     stderr.writeln(
       'pack_shaders: sdk "$_thisSdk" stamped from this dart, which has to be '
       'the Flutter SDK\'s own (<flutter root>/bin/cache/dart-sdk/bin/dart) — '
@@ -207,7 +210,10 @@ final class _Options {
         case '--package':
           package = value();
         case '--include':
-          includes.add(value());
+          // Normalised the way the package root is: the keys an `#include`
+          // is matched by are cut at the root's length, and a trailing slash
+          // would take the first character of every one with it.
+          includes.add(value().replaceAll(RegExp(r'/$'), ''));
         case '--impeller':
           impeller = value();
         case '--name':
@@ -245,6 +251,16 @@ final class _Options {
 /// The first token of this process's `Platform.version` — what the Impeller
 /// backend reads off its own, so the two agree when one Dart did both jobs.
 final String _thisSdk = Platform.version.split(' ').first;
+
+/// Whether this process's dart is the one a Flutter SDK carries.
+///
+/// The SDK's dart lives at `<flutter root>/bin/cache/dart-sdk/bin/dart`, and
+/// that path is the only thing that tells it from a standalone install with
+/// the same version string. Resolved rather than as invoked, because a
+/// symlink or `fvm` shim in PATH points at one of the two as well.
+final bool _onFlutterSdkDart = Platform.resolvedExecutable.contains(
+  '/bin/cache/dart-sdk/',
+);
 
 const String _usage = '''
 usage: dart run tool/pack_shaders.dart --manifest PATH --out PATH

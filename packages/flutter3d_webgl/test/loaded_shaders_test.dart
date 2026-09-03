@@ -146,6 +146,15 @@ void main() {
     );
     expect(identical(loaded['Flat'], handle), isTrue);
     expect(loaded.name, 'v2');
+    // A frame between the refresh and the relink is the old picture, not a
+    // missing one: the program the renderer still holds was retired, not
+    // deleted. Mutation: delete it in `forgetPrograms` and this frame binds
+    // a deleted program — INVALID_VALUE, no draw, the clear colour.
+    expect(
+      await _centre(device, renderer, scene, camera),
+      magenta,
+      reason: 'a pipeline linked before the refresh draws the code it had',
+    );
     renderer.relinkShaders();
     final green = await _centre(device, renderer, scene, camera);
     expect(green[1], greaterThan(200));

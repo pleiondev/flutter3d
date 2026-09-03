@@ -138,8 +138,11 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
       rethrow;
     }
 
-    // The swap. Programs first, because a program still names the old shader
-    // object until it is deleted, and a deleted-while-attached shader lingers.
+    // The swap. The programs are retired, not deleted: a `PipelineHandle`
+    // the renderer holds keeps drawing the old code until it relinks, which
+    // is what the HAL promises. The old shader object is deleted while still
+    // attached to them, and GL keeps such a shader alive for as long as the
+    // program is — so the pair goes together when the program does.
     _linker.forgetPrograms(fresh.keys);
     for (final entry in fresh.entries) {
       final stage = entry.key.backend as WebGlShader;

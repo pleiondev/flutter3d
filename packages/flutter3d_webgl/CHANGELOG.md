@@ -12,15 +12,27 @@
   answering one name — a loaded `Pbr` layered over the engine's — used to
   share whichever program linked first; identity is what a pipeline depends
   on, so identity is the key, and a refresh evicts through `forgetPrograms`.
+* **A refresh retires the old programs; it does not delete them.** The
+  renderer's pipeline cache holds a `PipelineHandle` over the program linked
+  from the old code until `Renderer.relinkShaders` runs, and nothing says the
+  two happen in one turn: an application refreshing from a file watcher's
+  callback draws a frame in between, and that frame used to bind a deleted
+  program — `INVALID_VALUE`, and every material on the loaded look gone for
+  a frame where flutter_gpu kept drawing the old code. The program is now
+  kept until the next refresh or `dispose`, which is what the HAL promises;
+  the pixel test reads the frame in between and expects the old colour.
 * `tool/pack_shaders.dart` writes a `.f3dshaders` bundle from a manifest and
   impellerc's output, translating the GLSL for this backend the way
   `generate_shaders.dart` does; `tool/source_package.dart` is the package
   resolver both now share. `golden_web.sh` wants the example's own bundle
   built first, since the example's pubspec declares it. The packer reads the
   container through `flutter3d_hardware/shader_bundle.dart`, the Flutter-free
-  entry point, and says so on stderr when it stamps the SDK token from its
-  own `dart` beside an impeller section — the one way the header goes wrong
-  silently.
+  entry point, and says so on stderr when it stamps the SDK token from a
+  `dart` that is not a Flutter SDK's beside an impeller section — the one
+  way the header goes wrong silently, and said only then, because a warning
+  that fires on every correct run too is read on none of them. An
+  `--include` root with a trailing slash is normalised like the package
+  root, rather than losing the first character of every key under it.
 * **A refresh is held to the header's stage list as well as the section.**
   A bundle whose header dropped a stage in use while its `webgl` section
   still carried the source was accepted; the conformance suite now asks, and
