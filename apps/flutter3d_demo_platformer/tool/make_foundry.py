@@ -239,7 +239,8 @@ checkpoint("the gatehouse", 128.0, 5, respawn=127.0)
 # of wall against a double jump of 3.13: the way through is the door.
 for x in (-13.0, 13.0):
     route([x, 4.0, 134.0], [18.0, 8.0, 2.0], "stone")
-gate("the amber gate", [0.0, 2.5, 134.0], "amber", size=(8.0, 5.0, 2.0))
+gate("the amber gate", [0.0, 2.5, 134.0], "amber", size=(8.0, 5.0, 2.0),
+     lintel=8.0)
 plate("the amber gate's plate", "the amber gate", [0.0, 1.6, 131.0],
       size=(6.0, 3.0, 3.0))
 lamp("the gate lamp west", [-6.0, 1.0, 131.0])

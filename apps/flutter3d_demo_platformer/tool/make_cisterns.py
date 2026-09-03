@@ -203,7 +203,8 @@ for x in (-13.0, 13.0):
 # with no plate never opens: see `plate` in levelkit.
 for x in (-12.0, 12.0):
     route([x, 3.0, 124.0], [16.0, 6.0, 2.0], "stone")
-gate("the rust gate", [0.0, 2.5, 124.0], "red", size=(8.0, 5.0, 2.0))
+gate("the rust gate", [0.0, 2.5, 124.0], "red", size=(8.0, 5.0, 2.0),
+     lintel=6.0)
 plate("the rust gate's plate", "the rust gate", [0.0, 1.6, 121.0],
       size=(6.0, 3.0, 3.0))
 lamp("the gate lamp west", [-6.0, 1.0, 122.0])

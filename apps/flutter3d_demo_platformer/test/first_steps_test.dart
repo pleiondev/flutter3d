@@ -342,6 +342,100 @@ void main() {
     }
   });
 
+  test('no gate in any shipped level has a slot over the door', () {
+    // **The same shape of mistake as the buried coins above, and it shipped in
+    // four of the five gates.** A door is always shorter than the wall it is
+    // set into — five metres in eight, five in six — and the difference is a
+    // hole unless somebody fills it. In the document that reads as an archway.
+    // To a runner it reads as a ledge: an autopilot carrying no key climbed the
+    // one over Spire's gate to 26.93 m, against a wall top of 27, went over the
+    // door and finished the game with the key still on its shelf.
+    //
+    // **What this is not is a claim that the gates are unavoidable.** Twelve
+    // metres of wall was tried there and the same autopilot reached 32.9: a
+    // wall jump takes any face within fourteen centimetres, there is no height
+    // at which it stops and no surface a document can mark as unclimbable, so
+    // no wall in this game seals anything. `ascent_route_test.dart` says the
+    // same about its two gates and says why three tests claiming otherwise were
+    // written and deleted. A hole in a wall is a different thing from a wall
+    // that can be climbed, and it is the one a document can be held to.
+    //
+    // Mutation: drop the `lintel` argument from any `gate(...)` call and
+    // regenerate. The stone over that door stops being written and this names
+    // the level, the gate and the size of the gap.
+    final complaints = <String>[];
+    for (final path in <String>[
+      'assets/levels/first_steps.json',
+      'assets/levels/ascent.json',
+      'assets/levels/cisterns.json',
+      'assets/levels/foundry.json',
+      'assets/levels/spire.json',
+    ]) {
+      final level = Level.fromJson(
+        jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
+      );
+      for (final door in level.entities.where(
+        (EntityDef e) => e.type == 'door',
+      )) {
+        final size = door.vector('size');
+        if (size == null) continue;
+        final foot = door.position.y - size.y / 2.0;
+        final head = door.position.y + size.y / 2.0;
+
+        // Everything solid standing in the doorway's own column, and the top of
+        // the wall it is set into. "Beside" and "above" are decided by the
+        // door's own width, so a wall that moves takes this with it.
+        final above = <(double, double)>[];
+        final beside = <double>[];
+        for (final brush in level.brushes) {
+          if ((brush.centre.z - door.position.z).abs() > 1.5) continue;
+          if (brush.centre.y + brush.size.y / 2.0 <= foot + 0.01) continue;
+          final apart = (brush.centre.x - door.position.x).abs();
+          if (apart < (size.x + brush.size.x) / 2.0 - 0.01) {
+            above.add((
+              brush.centre.y - brush.size.y / 2.0,
+              brush.centre.y + brush.size.y / 2.0,
+            ));
+          } else if (apart >= size.x / 2.0 - 0.01) {
+            beside.add(brush.centre.y + brush.size.y / 2.0);
+          }
+        }
+        if (beside.isEmpty) {
+          complaints.add('$path: ${door.name} stands in no wall at all');
+          continue;
+        }
+
+        above.sort(
+          ((double, double) a, (double, double) b) => a.$1.compareTo(b.$1),
+        );
+        var filled = head;
+        for (final (bottom, top) in above) {
+          if (bottom > filled + 0.01) break;
+          filled = math.max(filled, top);
+        }
+
+        final wall = beside.reduce(math.max);
+        if (wall - filled > 0.01) {
+          complaints.add(
+            '$path: ${door.name} is filled to $filled and the wall beside it '
+            'reaches $wall — a slot ${wall - filled} m tall over the door',
+          );
+        }
+        // And a door with stone over it has somewhere to open to that is not
+        // that stone: it sinks. One whose wall is its own height may rise.
+        final travel = door.vector('travel');
+        if (travel != null && filled > head + 0.01 && travel.y > 0.0) {
+          complaints.add(
+            '$path: ${door.name} opens upwards into ${filled - head} m of '
+            'stone it cannot pass through',
+          );
+        }
+      }
+    }
+
+    expect(complaints, isEmpty, reason: complaints.join('\n'));
+  });
+
   test('the low passage can actually be crawled through', () {
     // It could not. The floor's top was at y = 6 and the slab's underside at
     // 6.5 — half a metre against a crouched body 0.9 m tall — so the room that
