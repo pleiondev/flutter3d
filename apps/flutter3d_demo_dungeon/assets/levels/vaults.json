@@ -196,6 +196,7 @@
     }
   ],
   "entities": [
+    {"type": "reflection_probe", "at": [0.0, 2.0, 6.0]},
     {"type": "player_spawn", "at": [0.0, 0.0, 9.0], "yaw": 0.0},
     {"type": "torch", "at": [-4.75, 2.8, 8.0], "yaw": 1.5708, "light": "landing_west"},
     {"type": "torch", "at": [4.75, 2.8, 8.0], "yaw": -1.5708, "light": "landing_east"},
@@ -205,6 +206,7 @@
       "yaw": 0.0,
       "text": "Two locks, and they gave a key to each of the wings. Neither warden trusted the other."
     },
+    {"type": "reflection_probe", "at": [0.0, 2.5, -8.0]},
     {"type": "lamp", "at": [0.0, 4.2, -8.0], "light": "cross_lamp", "color": [1.0, 0.78, 0.42]},
     {"type": "pickup", "at": [0.0, 0.8, -4.0], "gives": "health", "amount": 25},
     {
@@ -229,6 +231,7 @@
       "material": "iron",
       "key": "iron"
     },
+    {"type": "reflection_probe", "at": [-20.0, 2.0, -8.0]},
     {"type": "torch", "at": [-25.75, 2.8, -8.0], "yaw": 1.5708, "light": "west_far"},
     {"type": "torch", "at": [-20.0, 2.8, -14.75], "yaw": 0.0, "light": "west_north"},
     {"type": "monster", "at": [-22.0, 0.0, -12.0], "kind": "runner"},
@@ -254,6 +257,7 @@
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
     },
+    {"type": "reflection_probe", "at": [20.0, 2.0, -8.0]},
     {"type": "torch", "at": [25.75, 2.8, -2.0], "yaw": -1.5708, "light": "east_near"},
     {"type": "torch", "at": [25.75, 2.8, -14.0], "yaw": -1.5708, "light": "east_far"},
     {"type": "monster", "at": [20.0, 0.0, -15.0], "kind": "shooter"},
@@ -271,6 +275,7 @@
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
     },
+    {"type": "reflection_probe", "at": [0.0, 4.0, -26.0]},
     {"type": "torch", "at": [-5.75, 3.0, -26.0], "yaw": 1.5708, "light": "shaft_west"},
     {
       "type": "lift",

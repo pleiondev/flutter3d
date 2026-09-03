@@ -98,7 +98,7 @@ def _piece(fixed, axis, low, high, bottom, top, material):
 
 
 def room(centre, size, *, height=HEIGHT, floor="floor", wall="wall",
-         ceiling="ceiling", doors=(), ceilinged=True):
+         ceiling="ceiling", doors=(), ceilinged=True, probe=True):
     """A room: floor, ceiling, and four walls with [doors] cut through them.
 
     [centre] is the middle of the floor and [size] is the inside, so two rooms
@@ -109,11 +109,21 @@ def room(centre, size, *, height=HEIGHT, floor="floor", wall="wall",
     Sides are named by the axis, not by any compass in the fiction: **north is
     −Z**, which is the direction the camera faces at yaw zero, so "the door on
     the north wall" is the one ahead of you when you walk in facing forward.
+
+    **A room reflects itself.** With [probe], one `reflection_probe` entity
+    stands at the middle of the room, half way up: a key or a barrel in it
+    reflects these walls under these torches rather than a sky a crypt does
+    not have. A corridor asks for none — whatever stands in one takes the
+    nearest room's, which is the room the corridor leads to.
     """
     cx, _, cz = centre
     w, _, d = size
     x0, x1 = cx - w / 2.0, cx + w / 2.0
     z0, z1 = cz - d / 2.0, cz + d / 2.0
+
+    if probe:
+        entities.append({"type": "reflection_probe",
+                         "at": rounded((cx, height / 2.0, cz))})
 
     _box((cx, -THICK / 2.0, cz), (w + THICK * 2, THICK, d + THICK * 2), floor)
     if ceilinged:
@@ -151,11 +161,11 @@ def corridor(frm, to, *, width=3.0, height=3.0, floor="floor", wall="wall",
     if abs(x0 - x1) > 1e-6:
         room(((x0 + x1) / 2.0, 0.0, z0), (abs(x1 - x0), 0.0, width),
              height=height, floor=floor, wall=wall, ceiling=ceiling,
-             doors=doors)
+             doors=doors, probe=False)
     else:
         room((x0, 0.0, (z0 + z1) / 2.0), (width, 0.0, abs(z1 - z0)),
              height=height, floor=floor, wall=wall, ceiling=ceiling,
-             doors=doors)
+             doors=doors, probe=False)
 
 
 def pillar(at, *, size=(1.2, HEIGHT, 1.2), material="stone"):

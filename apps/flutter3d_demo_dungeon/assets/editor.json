@@ -41,5 +41,12 @@
   },
   "door": {
     "tint": [0.6, 0.62, 0.7]
+  },
+  "reflection_probe": {
+    "size": [0.4, 0.4, 0.4],
+    "parts": [
+      { "shape": "sphere", "radius": 0.18, "at": [0.0, 0.0, 0.0],
+        "glow": [0.55, 0.8, 1.0] }
+    ]
   }
 }

@@ -433,7 +433,20 @@ keeps `probe-car` comparable across the three sets. A probe is a graph node that
 *keeps* its cube, like the atlases: a kept probe is drawn once and again on
 `invalidate()`, a rolling one redraws a face a frame after its first six. The
 physical model takes the nearest probe whose radius reaches the mesh's centre,
-one per object and no blending, and the scene's environment where none does.
+one per object and no blending, and the scene's environment where none does. A
+probe is read at its own `intensity` rather than at `Scene.ambientIntensity`:
+the sky environment stands in for indirect light and shares the ambient knob, a
+probe is that light measured, and a crypt whose ambient sits at six per cent
+would otherwise reflect its torch-lit walls at six per cent. The strength
+travels in the slot the flat ambient already uses, since a draw reads one term
+or the other and never both. `isCaptured` says when every face stands, which is
+what a level holds its visibility culling for — a kept probe captured on the
+first frame, after the culler had hidden every room but the player's, would be
+a picture of walls with nothing beyond them. A level asks for one with a
+`reflection_probe` entity, the format's word and a kind a game puts in its own
+vocabulary; the bridge builds the node the way it builds a light, and the
+dungeon's generators put one at the middle of every room, which is the second
+consumer beside the racing car's rolling one.
 
 Each face is drawn through a mirror. The cube-map table is left-handed — on the
 +X face column zero looks along +Z — and a right-handed camera puts every face's
@@ -1439,7 +1452,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3197 tests** across 24 packages and 5 applications |
+| Unit tests | **3216 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

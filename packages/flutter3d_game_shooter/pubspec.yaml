@@ -1,6 +1,6 @@
 name: flutter3d_game_shooter
 description: "The parts of a first-person shooter that are not parts of an engine: monsters, weapons, an inventory, and the step order that ties them together."
-version: 0.4.0
+version: 0.4.1
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
 issue_tracker: https://github.com/pleiondev/flutter3d/issues

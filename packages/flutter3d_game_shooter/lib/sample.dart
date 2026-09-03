@@ -251,6 +251,10 @@ EntityRegistry sampleRegistry({bool monsters = true}) =>
       const NoteKind(),
       const ExitKind(),
       ...sampleLightKinds(),
+      // The format's own word, spoken here because this game's rooms are lit
+      // by torches and nothing else: a probe per room is what lets a key or
+      // a barrel reflect the room it is in rather than a sky it cannot see.
+      const ReflectionProbeKind(),
     ]);
 
 /// What this game asks of a level as a whole.

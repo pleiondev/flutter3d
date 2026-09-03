@@ -21,4 +21,9 @@ abstract final class EntityTypes {
   static const String button = 'button';
   static const String trigger = 'trigger';
   static const String exit = 'exit';
+
+  /// A point the room is reflected from — see `ReflectionProbeKind`. The
+  /// format's word rather than a game's, because a reflection is a fact
+  /// about a room and not about what happens in it.
+  static const String reflectionProbe = 'reflection_probe';
 }

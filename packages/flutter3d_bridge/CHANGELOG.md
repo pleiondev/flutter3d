@@ -1,3 +1,20 @@
+## 0.4.2
+
+* **A level's probes are built with its lights.** `LevelLoader.build` turns
+  every `reflection_probe` entity into a kept `ReflectionProbeNode` at the
+  entity's position, with the document's numbers where it gave any and the
+  probe's own defaults where it did not; `LoadedLevel.probes` keeps them and
+  `rebuildBrushes` invalidates every one, since a kept probe holds the wall
+  a rocket went through.
+* **The culler waits for the probes.** `LoadedLevel.cull` is the way to
+  apply the visibility table now: a kept probe is captured on the first frame
+  it is seen, and a culler applied from the player's cell before that has
+  already hidden every room but the player's — the probe in the vault would
+  capture its walls with nothing behind them. Until every probe stands every
+  batch shows, which costs a frame or two of the whole level; a device that
+  builds no probe is not waited for. `probesCaptured` is the question on its
+  own.
+
 ## 0.4.1
 
 * **A level's sidecars are read beside it.** `LevelLoader` looks for

@@ -222,6 +222,51 @@ void main() {
     );
   });
 
+  test(
+    'and its probes stand after the first frame, before a room is hidden',
+    () async {
+      // The order the level keeps. A kept probe is captured on the first frame
+      // it is seen; the visibility culler, applied from the player's cell, has
+      // hidden every room but the hall. Applied first, the probe in the vault
+      // captures the vault's walls with nothing behind them and nobody sees it
+      // — a reflection is a plausible picture from the wrong room. So the
+      // level holds its culler until every probe stands, and this is the whole
+      // level doing exactly that: nothing hidden before the frame, every probe
+      // captured by it, and the rooms behind walls hidden again after.
+      //
+      // Mutation: apply the culler directly in `_step` — the first assertion
+      // fails on the shipped crypt, which hides batches from the spawn.
+      final it = await _shown();
+      final loaded = it.level.loaded;
+      expect(
+        loaded.probes,
+        isNotEmpty,
+        reason: 'the crypt places one per room',
+      );
+      expect(loaded.culler, isNotNull, reason: 'the crypt ships a table');
+      final eye = Vector3.zero();
+      it.level.staged.player.eye(eye);
+
+      loaded.cull(eye, device: it.device);
+      expect(loaded.culler!.hidden, 0, reason: 'held until the probes stand');
+      expect(loaded.probes.any((p) => p.isCaptured), isFalse);
+
+      await _drawFromTheStart(it);
+      expect(
+        loaded.probes.every((p) => p.isCaptured),
+        isTrue,
+        reason: 'a kept probe is drawn on the first frame it is seen',
+      );
+
+      loaded.cull(eye, device: it.device);
+      expect(
+        loaded.culler!.hidden,
+        greaterThan(0),
+        reason: 'the rooms behind walls are hidden again, as they always were',
+      );
+    },
+  );
+
   test('and the level the crypt names next loads and draws too', () async {
     // Two errors that are indistinguishable from the simulation's side, where
     // the state is `finished` and the name is a name either way: a typo in the

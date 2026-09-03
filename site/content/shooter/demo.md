@@ -41,6 +41,7 @@ description: The shooter, built against the WebGL2 backend and running in this p
 - **Walls muffle.** A torch behind a door is quieter *and* duller than one in the room, and one three rooms away is barely there; each wall between a sound and your ears takes half.
 - **The walls light each other.** Every level ships with a baked lightmap: the glow a torch-lit wall throws across the floor, with two bounces, added under the dynamic torches. The torches still flicker; the bounce does not need to.
 - **Rooms behind walls are not drawn.** The crypt ships with a visibility table baked beside it, and a frame leaves out every batch of wall no cell near the eye can see.
+- **The metal reflects the room it is in.** Every room has a [reflection probe](/core/rendering/#reflection-probes) at its middle, captured once on the first frame with every wall showing — the culler waits for it — and kept: a key, a door and a torch bracket reflect the torch-lit walls around them rather than a sky a crypt does not have.
 
 ## Fire and look are the same two buttons they are on a desktop
 

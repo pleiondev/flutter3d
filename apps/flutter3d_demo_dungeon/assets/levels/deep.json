@@ -162,6 +162,7 @@
     }
   ],
   "entities": [
+    {"type": "reflection_probe", "at": [0.0, 1.75, 4.0]},
     {"type": "player_spawn", "at": [0.0, 0.0, 6.0], "yaw": 0.0},
     {"type": "torch", "at": [-3.75, 2.4, 5.0], "yaw": 1.5708, "light": "arrival_west"},
     {
@@ -171,15 +172,18 @@
       "text": "Nothing below here was buried. It came down on its own."
     },
     {"type": "pickup", "at": [2.5, 0.8, 6.0], "gives": "shells", "amount": 8},
+    {"type": "reflection_probe", "at": [0.0, 1.75, -8.0]},
     {"type": "torch", "at": [4.75, 2.4, -8.0], "yaw": -1.5708, "light": "first_east"},
     {"type": "monster", "at": [0.0, 0.0, -11.0], "kind": "tank"},
     {"type": "pickup", "at": [-4.0, 0.8, -6.0], "gives": "health", "amount": 25},
+    {"type": "reflection_probe", "at": [0.0, 1.75, -20.0]},
     {"type": "torch", "at": [-5.75, 2.4, -17.0], "yaw": 1.5708, "light": "narrow_west"},
     {"type": "torch", "at": [5.75, 2.4, -23.0], "yaw": -1.5708, "light": "narrow_east"},
     {"type": "monster", "at": [-4.0, 0.0, -23.0], "kind": "tank"},
     {"type": "monster", "at": [4.0, 0.0, -17.0], "kind": "shooter"},
     {"type": "monster", "at": [4.0, 0.0, -23.0], "kind": "runner"},
     {"type": "pickup", "at": [0.0, 0.8, -17.0], "gives": "bullets", "amount": 20},
+    {"type": "reflection_probe", "at": [0.0, 2.5, -34.0]},
     {"type": "lamp", "at": [0.0, 4.2, -34.0], "light": "last_lamp", "color": [0.55, 0.78, 1.0]},
     {"type": "monster", "at": [-6.0, 0.0, -37.0], "kind": "tank"},
     {"type": "monster", "at": [6.0, 0.0, -37.0], "kind": "tank"},

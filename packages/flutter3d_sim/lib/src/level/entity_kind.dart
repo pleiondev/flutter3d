@@ -15,6 +15,7 @@ export 'level_scope.dart';
 export 'light_fixture_kind.dart';
 export 'mover_kinds.dart';
 export 'player_spawn_kind.dart';
+export 'reflection_probe_kind.dart';
 export 'trigger_kinds.dart';
 
 /// Everything one kind of level entity knows about itself.

@@ -336,6 +336,7 @@ A metal reflects what is around it, and a sky is only what is around it outdoors
 ```dart
 final probe = ReflectionProbeNode(
   radius: 4.0,                    // how far a mesh may be and still reflect it; 0 reaches everything
+  intensity: 1.0,                 // the room as it was drawn; its own knob, not the scene's ambient
   faceSize: 64,                   // each face's edge; 64 is a car body or a mirror ball
   levels: 4,                      // roughness levels below the mirror
   refreshFaceEveryFrame: true,    // one face a frame, for something that moves
@@ -349,8 +350,10 @@ scene.add(probe);
 
 Two ways of keeping one current. Left alone, the six faces are captured together the first frame the probe is seen and then kept until `invalidate()` says the room changed — one per room at load, which is what a dungeon wants. With `refreshFaceEveryFrame` one face is re-captured each frame, so the cube is six frames behind at worst and a frame costs one view of the scene plus the filter — a car body reflecting the track going past, which is what the racing demo's player car does. A mesh takes the nearest probe whose `radius` reaches its centre, one per object and no blending, and falls back to the scene's environment where none does.
 
+A level asks for one with a `reflection_probe` entity — the [format's own word](/core/simulation/#the-level-format), which a game puts in its vocabulary with `ReflectionProbeKind` — and `LevelLoader` builds a kept probe where the entity stands; the dungeon's generators put one at the middle of every room. `isCaptured` says when every face stands, and a level with a visibility table applies it through `LoadedLevel.cull`, which holds the culler until then: a kept probe captured after the culler had hidden every room but the player's would be a picture of walls with nothing beyond them.
+
 <div class="note">
-<p>The environment's strength is <code>Scene.ambientIntensity</code>, the same knob the flat ambient uses — a room reflected at six per cent is a room nobody can see, so a scene that leans on probes turns it up. The capture draws every mesh through the same encoder as the world, with the frame's lights and shadows and the sky behind them, but binds no probe of its own: a probe drawn into a probe would read a cube that may not have been filled yet.</p>
+<p>A probe is read at its own <code>intensity</code>, one by default, and not at <code>Scene.ambientIntensity</code>. A sky environment stands in for indirect light and shares the ambient knob with the flat term, so a scene that dims one dims both; a probe is that light measured — the torch-lit walls at the strength the frame drew them — and a crypt whose ambient sits at six per cent would otherwise reflect its walls at six per cent, which is a room nobody can see. Where a probe is read the flat ambient is not, so the two never add. The capture draws every mesh through the same encoder as the world, with the frame's lights and shadows and the sky behind them, but binds no probe of its own: a probe drawn into a probe would read a cube that may not have been filled yet.</p>
 </div>
 
 <div class="why">

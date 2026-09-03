@@ -1,3 +1,15 @@
+## 0.4.2
+
+* **A level can ask to be reflected.** `EntityTypes.reflectionProbe` is the
+  format's word for a point a room is reflected from, and
+  `ReflectionProbeKind` is the kind that validates one: `radius`,
+  `intensity`, `faceSize`, `levels`, `near` and `far` are all optional and
+  each is refused where the renderer would otherwise assert on it at load.
+  Pure data to the simulation — nothing spawns and nothing is revealed — and
+  a word a game has to put in its own vocabulary, so a game without probes
+  reads the entity as unknown rather than growing a reflection it did not
+  ask for.
+
 ## 0.4.1
 
 * **Lightmaps.** `LightmapLayout` unwraps every visible brush face onto a
