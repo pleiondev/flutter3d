@@ -691,6 +691,98 @@ final class _CompositeNode extends RenderNode {
   }
 }
 
+/// The scene's brightness, as a graph node, and the readback that meters it.
+///
+/// Reads the lit scene as everything before bloom left it — reflections in,
+/// glow not yet added, exposure not yet applied — because that is the light
+/// the exposure is a decision about. Writes a fixed 64×64 target the graph
+/// allocates, and then asks the device for its bytes; the answer arrives a
+/// frame or two later and lands in the renderer's [ExposureAdapter], which the
+/// composite reads at the top of every frame. Nothing here waits.
+///
+/// A frame output while it is on — see [Renderer._compileFrameGraph] — because
+/// no node reads the target and a node whose output nobody reads is culled.
+/// The consumer is the readback, which the graph cannot see, exactly as an
+/// application reading the surface buffer is a consumer it cannot see.
+final class _LuminanceNode extends RenderNode {
+  _LuminanceNode(this._renderer, this._settings);
+
+  final Renderer _renderer;
+  final AutoExposureSettings _settings;
+
+  @override
+  String get name => 'luminance';
+
+  @override
+  bool get isActive => _settings.enabled;
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.luminance];
+
+  @override
+  void execute(NodeFrame frame) {
+    final target = frame.resources.texture(FrameResourceIds.luminance);
+    _renderer._encodeLuminance(
+      target: target,
+      scene: frame.resources.texture(FrameResourceIds.hdrColour),
+    );
+    _renderer._meterExposure(target, _settings);
+    frame.state.drawCalls++;
+  }
+}
+
+/// The picking pass, as a graph node. Active only on a frame somebody asked
+/// [Renderer.pickPixel] on; see `renderer_pick_pass.dart`.
+///
+/// A frame output while it is active, for the reason the luminance node is:
+/// its consumer is a readback, not a node.
+final class _ObjectIdNode extends RenderNode {
+  _ObjectIdNode(
+    this._renderer, {
+    required this.scene,
+    required this.ordered,
+    required this.picks,
+  });
+
+  final Renderer _renderer;
+  final Scene scene;
+  final List<RenderView> ordered;
+
+  /// This frame's questions, taken off the renderer when the node was built
+  /// so a question asked mid-frame waits for the next one.
+  final List<_PickRequest> picks;
+
+  @override
+  String get name => 'object ids';
+
+  @override
+  bool get isActive => picks.isNotEmpty;
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.objectIds];
+
+  @override
+  void execute(NodeFrame frame) {
+    final drawn = _renderer._encodeObjectIds(
+      resources: frame.resources,
+      target: frame.resources.texture(FrameResourceIds.objectIds),
+      scene: scene,
+      ordered: ordered,
+      settings: frame.settings,
+      width: frame.width,
+      height: frame.height,
+      picks: picks,
+    );
+    frame.state.drawCalls += drawn;
+    // Its own pipelines, so the tracker's answer about the mesh pipelines is
+    // stale for whatever draws next.
+    frame.state.invalidatePipeline();
+  }
+}
+
 /// What [Renderer._encodeScene] hands back to the frame.
 final class _ScenePass {
   const _ScenePass({

@@ -119,6 +119,15 @@ const Map<String, double> _budgets = <String, double>{
   // backend and not the other. The stage itself agrees — the bundle's Dart
   // twin is the GLSL line for line — which is what a transcription is for.
   'loaded-shader': 0.52,
+  // 0.581% measured: the teapot on its floor with the exposure metered from
+  // the frame. `shadow-teapot` is the same model on the same floor at the
+  // setting's exposure and sits at 0.454%, so the two meters — one reading a
+  // GPU's luminance target, one a transcription's — asked for exposures a
+  // sixteenth of a stop apart at most, which is the byte they encode in, and
+  // the extra tenth of a percent is the floor's gradient crossing the channel
+  // threshold where the silhouette alone would not. Set just above, as every
+  // budget in this file is.
+  'auto-exposure': 0.6,
   'cube-shadow-mover': 0.56,
   'cube-shadow-lit': 0.55,
   'shadow-teapot': 0.52,

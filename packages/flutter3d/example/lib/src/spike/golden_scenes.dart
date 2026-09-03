@@ -503,6 +503,30 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     bloom: false,
     ground: false,
   ),
+  // The teapot on its floor, exposed by the frame rather than by the setting:
+  // the luminance pass, the readback, the meter and the composite reading the
+  // meter's answer, on every backend.
+  //
+  // **With the ground, and that is the point of choosing this model.** The
+  // meter reads the brightest fifth of the frame, and a sphere alone against
+  // black is a tenth of it — the band reaches into the black, the target
+  // shoots past the ceiling, and the scene pins an exposure of exactly eight
+  // whatever the meter did on the way. A floor fills the frame with lit
+  // stone, so the metered value lands *between* the limits and the picture
+  // moves with the arithmetic that put it there. Instant adaptation, and the
+  // reason is on `GoldenScene.autoExposure`: the frame captured has to be the
+  // frame after any metered frame, whatever the clock said in between.
+  const GoldenScene(
+    name: 'auto-exposure',
+    source: 'obj: Teapot',
+    shadows: false,
+    bloom: false,
+    autoExposure: AutoExposureSettings(
+      enabled: true,
+      speedUp: double.infinity,
+      speedDown: double.infinity,
+    ),
+  ),
 ];
 
 /// Looks up a scene by name.

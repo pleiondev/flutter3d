@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto exposure, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, picking by pixel, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -192,6 +192,33 @@ RenderSettings(
 
 <div class="warn">
 <p>A clear colour is authored display-referred, but the scene target holds linear light and the composite pass encodes on the way out. Convert the clear to linear or it goes through the encode twice and the background washes out.</p>
+</div>
+
+### Auto exposure
+
+The frame can set its own exposure. With it on, a small pass writes the lit scene's log luminance into a 64×64 eight-bit target, the device reads the bytes back without waiting for the GPU, and the composite exposes the *next* frame with what the meter answered, adapted at a rate rather than at once.
+
+```dart
+RenderSettings(
+  autoExposure: AutoExposureSettings(
+    enabled: true,          // off by default: every golden is recorded at `exposure`
+    minExposure: 0.25,      // where the meter stops, whatever the frame says
+    maxExposure: 8.0,
+    speedUp: 1.5,           // per second, climbing into the dark
+    speedDown: 3.0,         // and falling back into the light, faster
+    target: 0.18,           // what the metered brightness is exposed to: middle grey
+    lowPercentile: 0.8,     // the band of the histogram that counts —
+    highPercentile: 0.98,   // the brightest fifth, so a dark corridor does not
+  ),                        // push a torchlit wall past white
+)
+```
+
+{{golden auto-exposure | The teapot on its floor, exposed by the frame rather than by the setting: the meter read the brightest fifth of the picture and put it at middle grey.}}
+
+`frame.exposure` and `renderer.exposure` say what the composite used. The dungeon turns this on: a room with a torch in view is exposed to the torchlit walls, and a corridor with none in view brightens until it can be seen, the way eyes do.
+
+<div class="why">
+<p>Metered in stops, adapted in stops. Halving and doubling the exposure are the same size of step to an eye, and a lerp on the multiplier would make the climb out of a dark room ten times faster than the fall into it. The band rather than the mean: darkness is most of most frames, and a mean of every texel meters the far wall and blows out whatever is lit. And a frame or two late by construction: <code>GraphicsDevice.readback</code> answers with the frame as the passes before the call left it and never stalls on the GPU, so the exposure a frame is composited at is what the frame before was metered at. The golden scene adapts at an infinite rate for exactly that reason — the frame captured has to be the frame after any metered one whatever the clock did between them.</p>
 </div>
 
 ## Bloom
@@ -408,6 +435,26 @@ The parts worth reaching for when a frame looks wrong.
 | The frame panel | UI / raster / render / submit timings next to draw, pipeline-switch and cull counts |
 
 {{golden debug-overlay | Bounds, normals, light gizmos, world axes and the camera frustum, drawn in one call over the scene.}}
+
+## Picking by pixel
+
+`Raycaster` answers "what did I point at" from bounds, needs no frame and answers now, which is what a game wants. An editor wants what is *on the screen*: a monster's arm rather than the metre of box around it, the wall beside a torch rather than the torch whose box the wall is inside.
+
+```dart
+// Fractions of the frame from the top left, so a widget's local position
+// divides by the widget's size and never learns the render size.
+final node = await renderer.pickPixel(at.dx / size.width, at.dy / size.height);
+```
+
+The next `render` draws every visible mesh once more with a stage that writes the draw's number instead of its colour, reads the one pixel back, and completes the future with the node whose number came back — null for the clear colour, the batch for an instanced batch. A hardware backend answers a frame or two after that render; the software one when the render returns. On frames nobody asked, the pass is inactive and the frame graph culls it, so it costs nothing until a click. What the scene pass throws away, the id stage throws away too: a masked material's fragments under its cutoff, so a click through a fence's hole answers with what is seen through it. And a frame that fails — in a pass, or before one when the graph refuses a node — answers the question with the failure rather than never, which is why the editor's click handler catches.
+
+<div class="note">
+<p><code>A blended surface is picked as though it were opaque.</code> Glass, a translucent marker, an additive flash: the id pass draws them like anything else, so a click on one answers with the surface and not with what is visible through it. The two kinds of see-through are different claims and the pass treats them differently on purpose — <code>MASK</code> says "there is nothing here", which is a hole and is discarded in both passes, and <code>BLEND</code> says "there is something here, faintly", which is still a thing to click on. A caller that wants the box behind the glass filters the answer; the renderer does not guess which of the two was meant.</p>
+</div>
+
+<div class="note">
+<p>The level editor selects with this and resolves the level's own geometry — one batch per material, no brush of its own — back to a brush by the ray through the click, which on the face drawn at that pixel is the face's own. What went away is the tie-breaking rule the ray needed on its own: "anything that is not a wall wins within a metre of the nearest hit", a guess about which of two boxes somebody meant. A pixel is not a guess.</p>
+</div>
 
 <div class="why">
 <p>A control wired to a settings panel but not to <code>RenderSettings</code> looks convincing. To find out, capture the same frame with the feature on and off and diff the two; a zero difference answers the question. The same check found five of six lighting goldens recording identical images, described under <a href="/reference/testing/">testing</a>.</p>

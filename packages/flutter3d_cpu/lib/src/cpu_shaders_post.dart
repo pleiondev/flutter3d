@@ -166,6 +166,41 @@ double _hash(double x, double y) {
   return t - t.floorToDouble();
 }
 
+/// `luminance.frag`: the scene's log luminance, sixteen taps per texel, in
+/// eight bits.
+///
+/// The encoding is the shader's and the decoding is `ExposureMeter`'s, and the
+/// two are held together by the exposure test rather than by this file: a
+/// floor or a range that drifted here would meter a scene as a different
+/// brightness and read as a tuning problem.
+final class LuminanceShader implements CpuFragmentShader {
+  const LuminanceShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final scene = bindings.textures['scene_texture'];
+    if (scene == null) return Vector4(0.0, 0.0, 0.0, 1.0);
+    final params = bindings.vec4(
+      'LuminanceInfo',
+      'params',
+      Vector4(0.0, 0.0, -10.0, 1.0 / 16.0),
+    );
+    var sum = 0.0;
+    for (var j = 0; j < 4; j++) {
+      for (var i = 0; i < 4; i++) {
+        final ox = ((i + 0.5) / 4.0 - 0.5) * params.x;
+        final oy = ((j + 0.5) / 4.0 - 0.5) * params.y;
+        final s = scene.sample(v[0] + ox, v[1] + oy);
+        sum += 0.2126 * s.x + 0.7152 * s.y + 0.0722 * s.z;
+      }
+    }
+    final mean = sum / 16.0;
+    final stops = math.log(math.max(mean, 1e-6)) / math.ln2;
+    final encoded = ((stops - params.z) * params.w).clamp(0.0, 1.0);
+    return Vector4(encoded, encoded, encoded, 1.0);
+  }
+}
+
 /// `mrt_probe.frag`: two constants into two attachments.
 ///
 /// It exists to answer whether a backend writes the second target at all, so

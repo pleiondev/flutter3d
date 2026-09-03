@@ -8,6 +8,7 @@ import 'package:vector_math/vector_math.dart';
 import 'cpu_shader.dart';
 import 'cpu_shaders_color.dart';
 import 'cpu_shaders_layout.dart';
+import 'cpu_shaders_surface.dart' show uvFootprint;
 
 /// `debug_line.vert`: position and colour, through one matrix.
 final class DebugLineVertexShader implements CpuVertexShader {
@@ -33,6 +34,35 @@ final class DebugLineShader implements CpuFragmentShader {
   @override
   Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) =>
       Vector4(v[0], v[1], v[2], v[3]);
+}
+
+/// `object_id.frag`: the id the renderer handed this draw, as three bytes.
+///
+/// One attachment: the picking target has no surface buffer beside it, so
+/// nothing is written to the context's second output, the way the shadow
+/// stages leave it.
+///
+/// A masked material's hole is a hole here too: the alpha is the one
+/// [readSurface] computes — texel, tint, vertex colour — held against the
+/// cutoff in `IdInfo.mask.x`, and a fragment under it is discarded before the
+/// id is written, so a click through the hole answers with what is behind it.
+final class ObjectIdShader implements CpuFragmentShader {
+  const ObjectIdShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings b, FragmentContext c) {
+    final mask = b.vec4('IdInfo', 'mask', Vector4(-1.0, 1.0, 0.0, 0.0));
+    if (mask.x >= 0.0) {
+      final uv = uvFootprint(c);
+      final texture = b.textures['base_color_texture'];
+      final texel = texture == null
+          ? 1.0
+          : texture.sample(v[kVUv], v[kVUv + 1], du: uv.du, dv: uv.dv).w;
+      if (texel * mask.y * v[kVColour + 3] < mask.x) return null;
+    }
+    final id = b.vec4('IdInfo', 'id', Vector4.zero());
+    return Vector4(id.x, id.y, id.z, 1.0);
+  }
 }
 
 /// `normals.frag`: the world normal as colour.

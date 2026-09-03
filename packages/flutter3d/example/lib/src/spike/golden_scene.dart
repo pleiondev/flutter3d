@@ -38,7 +38,17 @@ final class GoldenScene {
     this.lightmapped = false,
     this.anisotropicFloor = false,
     this.shaderBundle,
+    this.autoExposure = const AutoExposureSettings(),
   });
+
+  /// Whether the frame's exposure is metered from the frame, and how fast.
+  ///
+  /// Off for every scene but one, since every other scene is recorded at the
+  /// setting's exposure. The one that turns it on does so with an infinite
+  /// rate, so the frame captured is at the target whatever the wall clock
+  /// did between frames — a golden that adapted at a rate would be a golden
+  /// recorded at whatever the run's timing happened to be.
+  final AutoExposureSettings autoExposure;
 
   /// An asset holding a loadable shader bundle, layered under the engine's
   /// as the renderer's `materials`, so [lighting] may name a stage only that

@@ -132,6 +132,10 @@ List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
   (name: 'uploaded pixels keep their row order', run: checkRowOrder),
   (name: 'a buffer is uploaded for its declared use', run: checkGeometryUsage),
   (name: 'a cube takes the mip chain it is handed', run: checkCubeMipLevels),
+  (
+    name: 'a readback returns the frame before',
+    run: checkReadbackReturnsTheFrameBefore,
+  ),
 ];
 
 /// The checks that need the shader bundle and a pipeline.
@@ -153,6 +157,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a pass does not inherit the previous pass\'s scissor',
     run: checkPassDoesNotInheritScissor,
+  ),
+  (
+    name: 'a readback of a region reads that region',
+    run: checkReadbackOfRegion,
   ),
   (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
   (

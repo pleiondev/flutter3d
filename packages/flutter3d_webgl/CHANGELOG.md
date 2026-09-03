@@ -58,6 +58,25 @@
   the refusal names the stage as it did for a source that went missing.
 * A pixel test draws a wall through a loaded look, refreshes the bundle and
   reads the new colour back through the same handle.
+* **`readback`, through a pixel-pack buffer behind a fence.** `readPixels`
+  with a buffer bound to `PIXEL_PACK_BUFFER` is a command in the stream like
+  any draw — it reads the texture as the commands before it left it — and
+  returns at once where the client-memory form stalls until the GPU has
+  drained everything ahead of it. A `fenceSync` says when the copy is done,
+  polled on a timer rather than blocked on, since the whole engine runs on the
+  thread `clientWaitSync` would block. The region's own y is measured from the
+  bottom for a rendered texture, the way the rows already were, and the rows
+  inside it are turned over the same way; the conformance check that holds a
+  region of a drawn picture to its rows from the top is what found both edges.
+* `Luminance` and `ObjectId`, generated with the rest from `flutter3d_shaders`;
+  `auto-exposure` joins the golden set, its web reference recorded at merge.
+  `ObjectId` samples the material's texture against its cutoff, so a pick
+  through a masked material's hole answers with what is behind it.
+* A readback of anything but an eight-bit RGBA texture is refused before it
+  reaches `readPixels`, by the rule every backend shares. Asked for a
+  half-float target, this backend's `readPixels(RGBA, UNSIGNED_BYTE)` was an
+  `INVALID_OPERATION` that left the pack buffer at zeros and the future
+  completing successfully with a black picture.
 
 ## 0.4.2
 

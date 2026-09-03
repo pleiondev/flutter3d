@@ -52,7 +52,7 @@ Each exists for a different reason, and none of them is a fallback for another.
 
 Its shaders are GLSL ES 3.00 generated from `flutter3d_shaders`, and nothing checks that the generated file is current. That is the same bargain the compiled Impeller bundle makes, and it has already cost one silent failure.
 
-**`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes thirty-six golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
+**`flutter3d_cpu`** is the one that makes the agreement mean something. Two hardware backends agreeing proves less than it looks like: both are driven by a C API and both rasterise on a GPU, so an assumption shared by graphics hardware would be invisible to the pair of them. This one shares nothing with either, no driver, no shading language, no command buffer. It is also what makes thirty-seven golden scenes checkable in a headless run, and what caught three bugs that every simulation test passed.
 
 Any new backend has to pass `flutter3d_conformance` before it counts as one.
 
@@ -76,6 +76,10 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   Widget present(...);
 
   Future<ByteData?> readPixels(TextureHandle texture);
+
+  /// The frame before, without waiting for it: what an exposure meter and
+  /// a picking pass read.
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region});
 }
 ```
 

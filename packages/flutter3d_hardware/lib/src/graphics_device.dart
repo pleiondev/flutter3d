@@ -412,6 +412,56 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// memory, and there is nothing there to read once the pass has ended.
   Future<ByteData?> readPixels(TextureHandle texture);
 
+  /// The pixels of [region] — the whole texture by default — **as they stand
+  /// at this point in the queue**, without waiting for the GPU to get there.
+  ///
+  /// Same bytes as [readPixels]: premultiplied RGBA8, rows from the top, the
+  /// region's own width times four per row. What differs is *when* the
+  /// question is answered, and that is the whole reason this exists beside
+  /// it. [readPixels] is for looking at a finished picture: a golden run, a
+  /// probe, a test — a caller that has stopped drawing and can afford to wait.
+  /// This is for a caller that is still drawing and wants last frame's answer
+  /// while this frame goes on: an exposure meter reading a luminance target,
+  /// an editor reading the id under the cursor. Two promises make that work:
+  ///
+  ///  * **The copy is queued where it was asked for.** A pass submitted after
+  ///    this call, drawing into the same texture, does not reach the bytes:
+  ///    they are the texture as the passes before this call left it. The
+  ///    conformance check `a readback returns the frame before` clears red,
+  ///    asks, clears blue, and gets red.
+  ///  * **Nothing here stalls the caller.** The hardware backends copy on the
+  ///    GPU and resolve the future when the queue reports the copy done —
+  ///    flutter_gpu through `submit`'s completion callback, WebGL2 through a
+  ///    pixel-pack buffer and a fence — so the frame being encoded is not
+  ///    held up by a frame the GPU is still on. The software rasteriser has
+  ///    nothing to wait for and answers at once, which is the truth there.
+  ///
+  /// The future therefore usually completes a frame or two later, and a caller
+  /// that wants this frame's picture has asked the wrong question. Ask for
+  /// [readPixels] instead.
+  ///
+  /// [region] is stated from the top left, in the texture's own pixels, like
+  /// every rectangle in this interface, and must lie inside the texture. One
+  /// pixel is a legitimate region and the cheapest one: the editor's pick reads
+  /// exactly that.
+  ///
+  /// Throws an [ArgumentError] rather than answering null for what cannot be
+  /// read — a `deviceTransient` texture, a multisampled one, a cube, a region
+  /// outside the texture, and a texture in any format but the two linear
+  /// eight-bit RGBA layouts (`readbackFormats`: `r8g8b8a8UNormInt` and
+  /// `b8g8r8a8UNormInt`). The handle carries every one of those facts, so the
+  /// caller can ask before requesting; a null here would have to be told apart
+  /// from a copy the driver refused, and those are different mistakes. The
+  /// format is refused rather than converted because the three backends would
+  /// convert differently — one of them into a picture of zeros with no error —
+  /// and the bytes above are promised to be the same bytes everywhere. A float
+  /// target is read through [readPixels], or drawn into an eight-bit one
+  /// first, which is what the exposure meter's luminance pass is. An sRGB
+  /// target is refused for the same reason with a message of its own: the
+  /// encoding is what the three would disagree about, one handing back the
+  /// stored bytes and another the linear values they stand for.
+  Future<ByteData> readback(TextureHandle texture, {ScreenRect? region});
+
   /// Releases one geometry buffer, rather than waiting for the whole device to
   /// go.
   ///

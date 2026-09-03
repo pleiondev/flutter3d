@@ -26,6 +26,71 @@
   from bytes through `GraphicsDevice.loadShaders` before the renderer is
   built. `GoldenScene.shaderBundle` names the asset; the software backend
   draws it from the example's own Dart transcription.
+* **Auto exposure.** `RenderSettings.autoExposure` meters the frame: a
+  luminance node writes the lit scene's log luminance into a 64×64 eight-bit
+  target, `GraphicsDevice.readback` hands the bytes back a frame or two
+  later, `ExposureMeter` averages the band between two percentiles of their
+  histogram — the brightest fifth, so a dark corridor does not push a torchlit
+  wall past white — and `ExposureAdapter` moves the exposure towards the
+  answer in stops, at one rate climbing and another falling, between two
+  limits. The composite exposes each frame with what the frame before was
+  metered at; `FrameResult.exposure` and `Renderer.exposure` say what that
+  was. Off by default, since every golden is recorded at the setting's own
+  number; `auto-exposure` is the one scene that turns it on. Its Impeller and
+  software references are recorded here; the web one is not, because
+  `golden_web.sh` holds a fixed port for the whole of its run and so records
+  when the branch lands.
+* **Picking by pixel.** `Renderer.pickPixel(u, v)` asks the next frame which
+  mesh is drawn at a point: that frame draws every visible mesh once more with
+  the `ObjectId` stage into a frame-sized target, reads the one pixel back and
+  answers with the node whose number came back — null for the clear colour,
+  the batch for an instanced batch. Only on a frame somebody asked; otherwise
+  the node is inactive and the graph culls it. A frame that fails after the
+  question was asked answers it with the failure rather than never.
+  `Raycaster` stays for a game, which wants an answer now and needs no frame.
+* `FrameResourceIds.luminance` and `FrameResourceIds.objectIds`, both frame
+  outputs while their node is active, since their consumer is a readback the
+  graph cannot see.
+* **A pick through a hole answers with what is seen through it.** A masked
+  material — glTF's `MASK` — discards under its cutoff in the scene pass, and
+  the id stage now discards the same fragments: it is handed the material's
+  texture, cutoff and tint alpha in `IdInfo.mask`, so a click through a
+  fence's hole answers with the thing behind the fence rather than the fence.
+  Before, the id pass wrote every fragment and picked the plane the hole was
+  cut in, which contradicted the one promise picking by pixel makes.
+* **A frame that fails to build answers its questions too.** The catch that
+  answers a pending `pickPixel` with the frame's failure covered the passes
+  but not what came before them — an application node reading a name
+  nothing writes fails in the graph's compile, and a question taken off the
+  renderer there was on no list anybody would ever finish. Both catches now
+  answer it, and the test is a node with a misspelled read.
+* **The exposure meter asks once per answer.** A readback in flight is not
+  joined by another: the luminance pass still runs every frame, the copy and
+  the download behind it are skipped until the last one has landed. On
+  flutter_gpu each answer is a `toByteData` off a staging texture, and a
+  meter asking every frame kept two or three of those in the air and a
+  staging pool to match; an exposure that adapts over seconds cannot tell a
+  reading every frame from one every other frame.
+* **A device that refuses on the spot costs the question, not the frame.**
+  Both readbacks are asked through `Future.sync`, because a refusal is
+  synchronous by contract — `readbackRegionOf` throws before a future exists —
+  and the backends refuse that way on their own account too: WebGL2 gives no
+  fence for a lost context, flutter_gpu throws rather than returning false
+  when a copy is turned down. Asked bare, the first of those came out of the
+  luminance or the id node and took the whole picture down over a click, and
+  the exposure meter's in-flight flag stayed set for ever, so it never asked
+  the device again and `debugMeterFailures` stayed at nought — the one number
+  that would have said so.
+* **A blended surface is picked as though it were opaque**, written down
+  rather than left to whichever way the pass fell. Glass, a translucent
+  marker, an additive flash answer with themselves and not with what is seen
+  through them: `MASK` says "there is nothing here" and is discarded in both
+  passes, `BLEND` says "there is something here, faintly", and that is still a
+  thing to click on. `Renderer.pickPixel` says so and a software-backend test
+  holds it — a red pane at half alpha over a box, the click answering the pane
+  while the picture shows the box through it.
+* `FrameResult.exposure` defaults to `RenderSettings.defaultExposure` rather
+  than to its own copy of the number.
 
 ## 0.4.2
 

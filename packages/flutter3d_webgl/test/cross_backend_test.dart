@@ -131,6 +131,8 @@ const Map<String, double> _budgets = <String, double>{
   // band edge: the software backend measured 0.495% against Impeller for the
   // same reason.
   'loaded-shader': 0.5,
+  // Provisional; recorded at merge — see [_provisional].
+  'auto-exposure': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,
@@ -155,7 +157,21 @@ const Map<String, double> _budgets = <String, double>{
 /// that has one** — so recording it without moving it into the table above
 /// with its measured budget is a red test, not a forgotten step. Empty is the
 /// ordinary state of this set.
-const Set<String> _provisional = <String>{'anisotropic-floor', 'loaded-shader'};
+///
+/// **A named gap rather than a missing key.** Left as a missing key the whole
+/// comparison would simply not exist, which is a scene nobody looks at; named
+/// here it is a comparison that is *deliberately* not run.
+const Set<String> _provisional = <String>{
+  'anisotropic-floor',
+  'auto-exposure',
+  'loaded-shader',
+};
+
+/// What the runner prints beside a comparison [_provisional] holds back,
+/// so the gap is read off the run rather than out of this file.
+const String _skipReason =
+    'no web reference yet: record it with tool/golden_web.sh --update, which '
+    'holds a fixed port and so runs when the branch lands';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -204,11 +220,6 @@ void main() {
     test('webgl and impeller draw ${entry.key} the same picture', () async {
       // Mutation: record the set with the scene still listed as provisional,
       // and the test above fails rather than this one quietly passing.
-      if (_provisional.contains(entry.key)) {
-        markTestSkipped('provisional; recorded at merge');
-        return;
-      }
-
       final a = File('${mine.path}/${entry.key}.png');
       final b = File('${theirs.path}/${entry.key}.png');
       expect(a.existsSync(), isTrue, reason: '${a.path} is missing');
@@ -233,7 +244,7 @@ void main() {
         lessThanOrEqualTo(entry.value),
         reason: 'this backend moved away from the hardware one',
       );
-    });
+    }, skip: _provisional.contains(entry.key) ? _skipReason : null);
   }
 }
 

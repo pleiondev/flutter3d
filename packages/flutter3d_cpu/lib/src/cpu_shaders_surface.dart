@@ -90,9 +90,17 @@ final class Surface {
 
 /// `ReadSurface` from `surface.glsl`.
 ///
-/// Alpha masking is not here: `material2.x` is negative for every material the
-/// fixtures use, and a discard nothing exercises would be a guess.
-Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
+/// Null is the GLSL's `discard`: a masked material's fragment under its
+/// cutoff. Every model that calls this hands the null on, the way a discarded
+/// fragment reaches no lighting loop. Transcribed once the picking stage
+/// needed the same hole — an id pass that saw a fence where the picture shows
+/// the thing behind it would be picking something the eye cannot see — and a
+/// scene pass without it would then have disagreed with the pick.
+Surface? readSurface(
+  Float32List v,
+  ShaderBindings bindings,
+  FragmentContext c,
+) {
   final uv = uvFootprint(c);
   final tint = bindings.vec4('FragInfo', 'base_color', Vector4(1, 1, 1, 1));
   final texture = bindings.textures['base_color_texture'];
@@ -107,6 +115,15 @@ Surface readSurface(Float32List v, ShaderBindings bindings, FragmentContext c) {
     toLinear(texel.z) * toLinear(tint.z) * v[kVColour + 2],
   );
   final alpha = texel.w * tint.w * v[kVColour + 3];
+
+  // Alpha masking, glTF's third alpha mode, before anything else for the
+  // reason the GLSL gives: a discarded fragment should not pay for the
+  // lighting loop. A negative cutoff is "not masked", the encoding the engine
+  // writes into `material2.x`.
+  final cutoff = bindings
+      .vec4('FragInfo', 'material2', Vector4(-1.0, 1.0, 1.0, 1.0))
+      .x;
+  if (cutoff >= 0.0 && alpha < cutoff) return null;
 
   final normal = Vector3(v[kVNormal], v[kVNormal + 1], v[kVNormal + 2]);
   final length = normal.length;

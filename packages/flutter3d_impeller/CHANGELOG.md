@@ -31,6 +31,27 @@
   on this backend: the reloaded `Pbr` took the edit on the next frame, which
   is what `reinitializeFromBytes` marking every stage dirty buys even when
   the entry points collide with the asset bundle's.
+* **`readback`, through a staging texture rather than a buffer.** flutter_gpu
+  3.47 has `copyTextureToBuffer` and no way for Dart to read the
+  `DeviceBuffer` it fills, so the copy goes texture to texture into a pooled
+  staging texture — a command on a command buffer submitted in order, which is
+  what makes the answer the frame before — and the bytes come off it through
+  `asImage().toByteData()` in `submit`'s completion callback, once the queue
+  says the copy ran. Nothing blocks; the pool grows to however many readbacks
+  are in flight — one for the exposure meter, which waits for its answer
+  before it asks again, and one for each pick asked in the same breath.
+  Checked on the GPU by
+  the two new conformance checks and by the `auto-exposure` golden, whose
+  metered frame reproduced to the pixel.
+* **A refused copy gives its staging texture back.** flutter_gpu throws rather
+  than returns false when `copyTextureToTexture` or `submit` is refused
+  outright, and the staging texture taken for that readback was never
+  returned to the pool — GPU memory nothing can free, since flutter_gpu has
+  no dispose, with `debugReadbackStagingCount` climbing by one per refusal as
+  the only sign. Every path out of `read` now returns it.
+* The bundle gains `Luminance` and `ObjectId`; `ObjectId` samples the
+  material's texture against its cutoff, so a pick through a masked
+  material's hole answers with what is behind it.
 
 ## 0.4.4
 

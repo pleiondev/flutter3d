@@ -47,6 +47,14 @@ abstract final class FrameResourceIds {
   /// buffer twelve times per pixel.
   static const ResourceId ao = ResourceId('ao');
 
+  /// The scene's log luminance at a fixed small size, for the exposure meter
+  /// to read back. Produced only while auto exposure is on.
+  static const ResourceId luminance = ResourceId('luminance');
+
+  /// Which node drew each pixel, as an id in RGBA8. Produced only on a frame
+  /// something asked to pick from.
+  static const ResourceId objectIds = ResourceId('object_ids');
+
   /// What is shown.
   static const ResourceId frame = ResourceId('frame');
 }

@@ -7874,5 +7874,302 @@ void main() {
 }
 
 ''',
+    'Luminance': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The scene's brightness at low resolution, for the exposure meter to read
+// back.
+//
+// Drawn into a small target — 64×64 — so a readback of it is a few kilobytes
+// rather than a frame, and encoded as **log luminance in eight bits**: linear
+// values would spend most of the byte on the top stop and nothing on the
+// shadows, and an exposure is a stops question. Each texel averages sixteen
+// taps across its own footprint of the scene, so the estimate is the mean of
+// what it covers rather than one point in it.
+//
+// What comes out is a picture only in the sense that a histogram is: nothing
+// reads it as an image, so which way up it lands is nobody's concern — the
+// meter counts texels. See `ExposureMeter` for the other end of the encoding.
+precision highp float;
+
+in vec2 v_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+/// The lit scene, linear and unbounded.
+uniform sampler2D scene_texture;
+
+layout(std140) uniform LuminanceInfo {
+  /// x, y: one texel of *this* target, in uv — the footprint each texel
+  /// averages over. z: the stop the encoding starts at. w: one over how many
+  /// stops the byte spans.
+  vec4 params;
+}
+luminance_info;
+
+/// Rec. 709 luma, the same weights the composite uses.
+float Luma(vec3 color) { return dot(color, vec3(0.2126, 0.7152, 0.0722)); }
+
+void main() {
+  vec2 footprint = luminance_info.params.xy;
+  float sum = 0.0;
+  for (int j = 0; j < 4; j++) {
+    for (int i = 0; i < 4; i++) {
+      // Four by four, centred: from three eighths of a texel before the
+      // middle to three eighths after it.
+      vec2 offset = ((vec2(float(i), float(j)) + 0.5) / 4.0 - 0.5) * footprint;
+      sum += Luma(texture(scene_texture, v_uv + offset).rgb);
+    }
+  }
+  float mean = sum / 16.0;
+  // A floor well below anything a scene lights, so black encodes as the first
+  // stop rather than as minus infinity.
+  float stops = log2(max(mean, 1e-6));
+  float encoded =
+      clamp((stops - luminance_info.params.z) * luminance_info.params.w, 0.0, 1.0);
+  frag_color = vec4(encoded, encoded, encoded, 1.0);
+}
+
+''',
+    'ObjectId': r'''#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp samplerCube;
+
+// The picking pass: the id the renderer gave this node, and nothing else.
+//
+// A `Normals`-shaped stage — every mesh drawn again through the same vertex
+// stages, with a fragment stage that writes a constant instead of a colour —
+// into an RGBA8 target one pixel of which is then read back. The id arrives
+// as three bytes in [0, 1] so an eight-bit store hands it back exactly; the
+// renderer decodes `r + g·256 + b·65536`, and zero is the clear colour, which
+// is what "nothing here" reads as.
+//
+// One attachment, not two: the target is the id texture and there is no
+// surface buffer beside it, so the second output is left undeclared the way the
+// shadow passes leave it — see `shadow_depth.frag`.
+//
+// Includes lib/color.glsl rather than lib/surface.glsl for the reason
+// `normals.frag` gives: merely declaring FragInfo would leave it visible to
+// reflection while the compiled shader binds no buffer for it, and binding
+// that phantom block is a native crash on Metal. This stage declares a block of
+// its own and reads that.
+#define F3D_NO_SURFACE_BUFFER
+// --- lib/color.glsl ---
+// Colour space helpers and the fragment output interface.
+//
+// Split out of surface.glsl so a shader that needs no material inputs — the
+// normals debug view — can avoid DECLARING the FragInfo uniform block at all.
+// That matters more than it looks: reflection metadata reports a block as
+// present merely because it was declared, even when the compiled shader binds
+// no such buffer, so a declared-but-unused block is indistinguishable from a
+// used one until Metal crashes on the bind.
+
+#ifndef COLOR_GLSL_
+#define COLOR_GLSL_
+
+precision highp float;
+
+const float kPi = 3.14159265359;
+
+// One varying set shared by every fragment shader, matching mesh.vert.
+//
+// All five are declared here, including the two the debug models never read: a
+// fragment shader whose `in` block disagrees with the vertex shader's `out`
+// block fails to link, and there is no partial-match rule to lean on.
+in vec3 v_world_position;
+in vec3 v_normal;
+in vec2 v_texcoord;
+in vec4 v_tangent;
+in vec4 v_color;
+
+/// Where this fragment is in the level's lightmap. Zero from every vertex
+/// stage but `mesh_lightmapped.vert`, and read only by the lit models, which
+/// sample a one-texel black there when a material has no map.
+in vec2 v_lightmap_uv;
+
+layout(location = 0) out vec4 frag_color;
+
+// The second attachment: what a screen-space effect needs to know about the
+// surface it is looking at. World-space normal in rgb, window-space depth in a.
+//
+// Depth travels here rather than in a depth texture because flutter_gpu cannot
+// sample one — the same reason the shadow pass writes its depth into a colour
+// target. See ARCHITECTURE.md §2.
+//
+// Guarded, because not every stage that includes this header draws into a
+// two-attachment target. The shadow pass draws into one, and a pipeline
+// declaring an output its target has no slot for is a mismatch worth avoiding
+// rather than discovering.
+#ifndef F3D_NO_SURFACE_BUFFER
+layout(location = 1) out vec4 frag_surface;
+#endif
+
+/// Octahedral encoding: a unit vector in two channels instead of three.
+///
+/// Worth the arithmetic because the fourth channel is already spent on depth,
+/// and without a free channel there is nowhere to put roughness — which is the
+/// difference between a reflection that knows stone from a mirror and one that
+/// does not. The error is well under a degree, far below anything a reflection
+/// off rough stone would show.
+vec2 EncodeOctahedral(vec3 n) {
+  n /= abs(n.x) + abs(n.y) + abs(n.z);
+  vec2 e = n.xy;
+  if (n.z < 0.0) {
+    e = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0,
+                                 n.y >= 0.0 ? 1.0 : -1.0);
+  }
+  return e * 0.5 + 0.5;
+}
+
+/// Where a debug pass leaves the picture it wants shown instead of the normal.
+///
+/// Declared here, in the header every lit shader includes **first**, and
+/// written from surface.glsl, which is included after. The alternative was a
+/// new member on a shared uniform block; a global costs nothing and moves no
+/// offsets. It is read at the moment the surface buffer is written, which
+/// happens after the lighting loop has run, so the value is there by then.
+vec3 g_debug_surface = vec3(0.0);
+bool g_debug_surface_on = false;
+
+/// Records the geometry of this fragment for whatever runs after the scene.
+///
+/// Called from the same place that writes colour, so a surface cannot be lit
+/// into the frame without also describing itself — which is the failure that
+/// leaves a screen-space effect reflecting whatever was in the buffer before.
+///
+/// rg: octahedral normal. b: perceptual roughness. a: window depth.
+void WriteSurfaceGeometry(float roughness) {
+#ifndef F3D_NO_SURFACE_BUFFER
+  // A debug pass takes the buffer over rather than getting one of its own.
+  // The surface buffer already has an attachment, a viewer and a golden; a
+  // second one would need all three built before it could answer anything.
+  if (g_debug_surface_on) {
+    frag_surface = vec4(g_debug_surface, gl_FragCoord.z);
+    return;
+  }
+  frag_surface = vec4(EncodeOctahedral(normalize(v_normal)),
+                      clamp(roughness, 0.0, 1.0), gl_FragCoord.z);
+#endif
+}
+
+/// Distance fog, in its own block rather than folded into FragInfo.
+///
+/// Its own because color.glsl is included before FragInfo is declared, and
+/// because appending to a block that half a dozen shaders already share is a
+/// way to move offsets nobody expected to move. Two vec4s is a cheap price for
+/// not touching any of that.
+layout(std140) uniform FogInfo {
+  /// rgb: linear fog colour. w: density per metre, zero for no fog.
+  vec4 fog;
+
+  /// xyz: camera position in world space. Duplicated from FragInfo so this
+  /// block stands alone; a vec3 is cheaper than a coupling.
+  vec4 eye;
+}
+fog_info;
+
+/// Fades [color] toward the fog with distance from the eye.
+///
+/// Exponential rather than linear, because linear fog has a visible plane
+/// where it starts and a dungeon corridor is exactly where that shows.
+vec3 ApplyFog(vec3 color) {
+  float density = fog_info.fog.w;
+  if (density <= 0.0) return color;
+  float d = distance(v_world_position, fog_info.eye.xyz);
+  return mix(fog_info.fog.rgb, color, clamp(exp(-density * d), 0.0, 1.0));
+}
+
+/// sRGB to linear. Textures are authored in sRGB, but lighting is only correct
+/// in linear space; skipping this is what makes naive renderers look muddy.
+vec3 SrgbToLinear(vec3 srgb) {
+  return mix(
+      srgb / 12.92,
+      pow((srgb + vec3(0.055)) / 1.055, vec3(2.4)),
+      step(vec3(0.04045), srgb));
+}
+
+/// Linear to sRGB. The render target is a plain UNorm format rather than an
+/// sRGB one, so the encode has to happen here.
+vec3 LinearToSrgb(vec3 linear) {
+  return mix(
+      linear * 12.92,
+      1.055 * pow(linear, vec3(1.0 / 2.4)) - vec3(0.055),
+      step(vec3(0.0031308), linear));
+}
+
+/// Writes scene-referred linear light into the HDR target.
+///
+/// No tone map and no sRGB encode: those moved into the composite pass, which
+/// is the entire point of rendering into `r16g16b16a16Float` first. Applying
+/// them here meant every model wrote display-referred colour into an 8-bit
+/// buffer, so anything above display white was gone before post-processing
+/// could see it — and bloom is a function of exactly that.
+///
+/// Exposure moved with them, for the same reason: it belongs on the same side
+/// of the display transform as the tone map.
+void WriteSurface(vec3 linearColor, float alpha, float roughness) {
+  frag_color = vec4(ApplyFog(linearColor), alpha);
+  WriteSurfaceGeometry(roughness);
+}
+
+/// For a stage with no material to speak of.
+///
+/// Fully rough, which is the honest default: a surface that cannot say how
+/// polished it is should not be reflected off.
+void WriteSurface(vec3 linearColor, float alpha) {
+  WriteSurface(linearColor, alpha, 1.0);
+}
+
+/// Writes a value that is already display-referred.
+///
+/// For debug output, where the colour is not a light value at all: a normal
+/// encoded as RGB means nothing after a tone curve. Converting to linear here
+/// means the composite pass's sRGB encode hands the original back unchanged,
+/// provided the view also turns tone mapping and exposure off — which is what
+/// `RenderSettings.tonemap` is for.
+void WriteDisplayColor(vec3 displayColor, float alpha) {
+  frag_color = vec4(SrgbToLinear(displayColor), alpha);
+  WriteSurfaceGeometry(1.0);
+}
+
+#endif  // COLOR_GLSL_
+
+
+layout(std140) uniform IdInfo {
+  /// xyz: the id, low byte first, each as a fraction of 255. w: unused.
+  vec4 id;
+
+  /// x: the material's alpha cutoff, negative when it is not masked — the
+  /// encoding `FragInfo.material2.x` uses. y: the tint's alpha, the
+  /// `base_color.a` the scene pass multiplies the texel by. zw: unused.
+  vec4 mask;
+}
+id_info;
+
+/// The same texture the scene pass reads, for the one thing it reads it for
+/// here: where a masked material's alpha falls under its cutoff is a hole, and
+/// a hole is where the thing behind it is on the screen.
+uniform sampler2D base_color_texture;
+
+void main() {
+  // What the scene pass threw away, thrown away here too, before the write: a
+  // click through a fence's hole has to answer with what is seen through it.
+  // The alpha is the one `ReadSurface` computes — texel, tint, vertex colour —
+  // or the two stages would disagree about where the hole is.
+  float cutoff = id_info.mask.x;
+  if (cutoff >= 0.0) {
+    float alpha = texture(base_color_texture, v_texcoord).a *
+                  id_info.mask.y * v_color.a;
+    if (alpha < cutoff) discard;
+  }
+  frag_color = vec4(id_info.id.xyz, 1.0);
+}
+
+''',
   },
 );

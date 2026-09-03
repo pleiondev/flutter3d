@@ -430,6 +430,35 @@ half-size targets down and a tent filter back up. `LookSettings` adds colour
 grading, vignette, grain and chromatic aberration in the same pass; the software
 backend mirrors all of it, so the two references can be compared exactly.
 
+**Two passes that write numbers rather than pictures, read back a frame later.**
+`GraphicsDevice.readback` copies a texture — or one pixel of it — as the passes
+before the call left it and answers without stalling on the GPU, and two nodes
+are built on it. *Auto exposure*: with `RenderSettings.autoExposure` on, a
+luminance node writes the lit scene's log luminance into a 64×64 eight-bit
+target, the bytes come back a frame or two later, `ExposureMeter` averages the
+band between two percentiles of their histogram — the brightest fifth, so a
+dark corridor does not push a torchlit wall past white — and `ExposureAdapter`
+moves the exposure towards the answer in stops, at one rate climbing and another
+falling, between two limits. The composite exposes each frame with what the
+frame before was metered at. Off by default, because every golden is recorded
+at the setting's own number; `auto-exposure` is the one scene that turns it on,
+instantly, so the captured frame is the frame after any metered one whatever the
+clock did between them. *Picking by pixel*: `Renderer.pickPixel` asks the next
+frame which mesh is drawn at a point; that frame draws every visible mesh once
+more with the `ObjectId` stage into a frame-sized RGBA8 target, reads the one
+pixel back and answers with the node whose number came back. Only on a frame
+somebody asked, or the node is inactive and culled. What the scene pass throws
+away the id stage throws away too: a masked material's fragments under its
+cutoff, so a click through a fence's hole answers with what is seen through it.
+A frame that fails — in a pass, or before one in the graph's compile — answers
+its questions with the failure rather than never. The editor selects with it —
+what is on the screen rather than a box a metre wider than the monster in it —
+and resolves the level's own batches back to a brush by the ray, which on the
+face drawn at that pixel is the face's own. Both are outputs of the frame while
+they run, since their consumer is a readback the graph cannot see; the meter
+asks for its readback once per answer rather than once per frame, so a queue
+that answers a frame or two late holds one copy in the air rather than three.
+
 **Contributors.** A pass can be extended without editing the renderer:
 `PassContributor` receives a `PassEncoder` — the recording half of the interface,
 with no `submit` — so a contributor cannot end somebody else's pass. Particles are
@@ -778,18 +807,43 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   bug — **when a backend must choose between being right and being comparable,
   comparable wins**, and the choice earns a test that fails the day it stops being
   necessary.
+- **A readback returns the frame before.** `readback` hands back a texture — or
+  a region of it — as the passes *submitted before the call* left it, and does
+  not wait for the GPU: the hardware backends queue the copy and resolve when
+  the queue reports it done, so the answer arrives a frame or two later. A
+  backend that copied when the driver got round to it would hand an exposure
+  meter the frame *after*. What cannot be read — tile memory, a multisampled
+  target, a cube, a region past the edge, and any format but the two linear
+  eight-bit RGBA layouts (`readbackFormats`) — is refused with an
+  `ArgumentError` by `readbackRegionOf`, once, for all three. The format is
+  refused rather than converted because the bytes are promised to be the same
+  everywhere and a half-float target was three answers on three backends: on
+  WebGL2 a `readPixels` the context rejects, a pack buffer still at zeros and a
+  future completing successfully with a black picture. **The sRGB twins are
+  refused for the same reason and were not, at first**: eight bits per channel
+  is the wrong test, since flutter_gpu reads an encoded texture through
+  `toByteData` and may hand back the linear values it stands for where WebGL2
+  hands back what is stored. Two of the four admitted formats were a promise
+  nothing checked and no caller made — every readback target the engine
+  declares is `r8g8b8a8UNormInt` — so the set is the two that a copy can be
+  honest about. The check is `a readback
+  returns the frame before`, which also hands over the device's own
+  `hdrColorFormat` and expects the refusal, and its shader-tier twin holds a
+  region of a drawn picture to its rows from the top.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
-  `maxAnisotropy`. A backend refuses loudly rather than substituting something
-  that looks similar. `loadShaders` is the same rule from the other side: there
-  is nothing to ask first, so the refusal *is* the answer —
-  `ShaderBundleRefused`, naming the bundle, for bytes that are not one, a
-  section the backend has none of, a compiled section from another SDK, or a
-  stage the software backend has no Dart for. **Never an empty library**, which
-  would fail at the first draw naming a stage rather than the file to rebuild.
-  The one backend that compiles nothing answers a bundle's names with the stages
-  it already has, and that is the honest version of "loaded" there.
+  `maxAnisotropy`, and the storage mode, sample count, type and format a
+  `TextureHandle` carries before asking `readback` for it. A backend refuses
+  loudly rather than substituting something that looks similar. `loadShaders`
+  is the same rule from the other side: there is nothing to ask first, so the
+  refusal *is* the answer — `ShaderBundleRefused`, naming the bundle, for bytes
+  that are not one, a section the backend has none of, a compiled section from
+  another SDK, or a stage the software backend has no Dart for. **Never an
+  empty library**, which would fail at the first draw naming a stage rather
+  than the file to rebuild. The one backend that compiles nothing answers a
+  bundle's names with the stages it already has, and that is the honest version
+  of "loaded" there.
 - **`SamplerOptions.anisotropy` above the device's `maxAnisotropy` is clamped,
   never refused.** The one exception to the rule above, and a deliberate one:
   the field is documented as "ask for sixteen anywhere", so a backend lowers
@@ -800,6 +854,7 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   the constructor asserts; the taps are taken across the chain and flutter_gpu
   refuses them on a nearest filter. The conformance check asks for twice what
   the device answers, which is above every ceiling, and reads a texel back.
+
 
 **Outside the promise**, because nothing beyond the package should depend on it:
 everything in `flutter3d`'s `src/` past what `flutter3d.dart` exports;
@@ -1439,11 +1494,11 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3259 tests** across 24 packages and 5 applications |
+| Unit tests | **3304 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 36 scenes against **three independent reference sets** —
+**Golden render tests.** 37 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1457,6 +1512,15 @@ CI; recording needs the hardware, and for the browser set that means
 `flutter3d_webgl/tool/golden_web.sh`, which builds the example for the web,
 serves it, and drives Chrome once per scene — a page cannot open a file or write
 one, so it fetches its reference over HTTP and posts back what it drew.
+
+**The browser set is recorded when a branch lands, not beside it**, because
+that script holds one fixed port for the whole of its run and two of them
+cannot share a machine. So a branch that adds a scene commits the Impeller and
+software references and names the missing third in `_awaitingReference` in
+`flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with
+that reason printed rather than quietly absent, and the moment the PNG appears
+the check fails until the name comes out and the provisional budget is replaced
+by the measurement. `auto-exposure` is the one entry in it today.
 
 **What the third set found on the day it was recorded.** Six scenes disagreed by
 whole percents rather than by a silhouette's worth, and one of the six turned out
@@ -1497,8 +1561,10 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-six of them between 0.01% and 0.6%, measured rather than
-rounded — a budget far above what was observed has stopped watching.
+scene, every measured one between 0.01% and 0.6%, measured rather than
+rounded — a budget far above what was observed has stopped watching. The
+budgets that are not measurements are the provisional ones beside the scenes
+this backend has yet to record, and they say so.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
 in the test's comment. This is not a ritual: the rule regularly finds tests that
@@ -1583,6 +1649,15 @@ into a bundle.
 **No compute**, and therefore no GPU particles, GPU skinning, GPU culling or
 indirect draw.
 
+**No buffer readback on flutter_gpu.** SDK 3.47 has `copyTextureToBuffer`, and
+no way for Dart to read the `DeviceBuffer` it fills — `overwrite` and `flush` go
+one way. So `GraphicsDevice.readback` copies texture to texture into a pooled
+staging texture on that backend and takes the bytes off it through the one route
+there is, `asImage().toByteData()`, once `submit`'s completion callback says the
+copy ran. It keeps both halves of the contract and costs a staging texture per
+readback in flight; a `DeviceBuffer` that could be read would make it a copy
+and a `Uint8List`.
+
 **No compressed texture in an asset this engine ships**, so every texture in
 the three games still costs its uncompressed size — but one that arrives is
 read and, where the device samples it, uploaded as it is.
@@ -1612,9 +1687,12 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-six golden scenes the way Impeller does**,
-between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
-silhouette's worth of disagreement two rasterisers always have. Six scenes were
+**The web backend draws every golden scene it has recorded the way Impeller
+does**, between 0.01% and 0.6% of pixels differing by more than 8 per channel —
+the silhouette's worth of disagreement two rasterisers always have. It is short
+of the other two sets by the scenes named provisional in its own comparison,
+each waiting for the browser recording described in
+[§13](#13-how-correctness-is-held). Six scenes were
 in whole percents and every one of them was this backend drawing something else;
 [§13](#13-how-correctness-is-held) keeps what each turned out to be, because in
 all six the picture was wrong in a place nothing was looking.

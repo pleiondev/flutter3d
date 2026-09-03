@@ -130,5 +130,13 @@
   "SkyCube": {
     "type": "fragment",
     "file": "shaders/sky_cube.frag"
+  },
+  "Luminance": {
+    "type": "fragment",
+    "file": "shaders/post/luminance.frag"
+  },
+  "ObjectId": {
+    "type": "fragment",
+    "file": "shaders/lighting/object_id.frag"
   }
 }

@@ -134,6 +134,12 @@ class _SpikePageState extends State<SpikePage>
   final bool _showShadowMap =
       GoldenRunner.fromEnvironment()?.scene.shadowMap ?? false;
 
+  /// Metered exposure, on for the one golden that asks and off otherwise —
+  /// the viewer's own exposure slider is the setting the meter would replace.
+  final AutoExposureSettings _autoExposure =
+      GoldenRunner.fromEnvironment()?.scene.autoExposure ??
+      const AutoExposureSettings();
+
   BloomSettings _bloom = BloomSettings(
     enabled: GoldenRunner.fromEnvironment()?.scene.bloom ?? true,
   );
@@ -875,6 +881,7 @@ class _SpikePageState extends State<SpikePage>
                             showSurfaceBuffer: _showSurfaceBuffer,
                             showShadowMap: _showShadowMap,
                             sky: _sky,
+                            autoExposure: _autoExposure,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;

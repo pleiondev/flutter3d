@@ -4,9 +4,14 @@
 /// else in that file is a knob turned before a frame; this is the texture and
 /// the counters that come back after one. It referenced nothing there and
 /// nothing there referenced it, which is what made the misfiling invisible.
+/// The one thing it reads from there now is the default exposure, so that the
+/// number lives in one place rather than in a literal here that would drift
+/// from the setting's the day somebody changed it.
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+
+import 'render_settings.dart' show RenderSettings;
 
 /// One rendered frame.
 final class FrameResult {
@@ -25,7 +30,16 @@ final class FrameResult {
     required this.skinnedDraws,
     this.shadowsDenied = 0,
     this.wireframeDeclined = false,
+    this.exposure = RenderSettings.defaultExposure,
   });
+
+  /// The exposure the composite used: the setting's, or — with auto exposure
+  /// on — what the meter had adapted to by this frame.
+  ///
+  /// Reported because it is the one number in the frame that the settings do
+  /// not decide, and a HUD, a test or a person asking "why is this frame so
+  /// bright" has nowhere else to read it.
+  final double exposure;
 
   /// The texture the frame was drawn into.
   ///

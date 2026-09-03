@@ -1155,6 +1155,13 @@ class _GameScreenState extends State<GameScreen>
                     color: loaded.level.fogColor,
                     density: _fogOn ? loaded.level.fogDensity : 0.0,
                   ),
+                  // Metered from the frame, which a crypt lit by torches is
+                  // the case for: a room with a torch in view is exposed to
+                  // the torchlit walls, and a corridor with none in view
+                  // brightens until it can be seen, the way eyes do. The
+                  // engine's default rates — a slow climb into the dark, a
+                  // quick fall back into the light.
+                  autoExposure: const AutoExposureSettings(enabled: true),
                 ),
               ),
               // Hold to fire and drag to aim, which is what a captured pointer

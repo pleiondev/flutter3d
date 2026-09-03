@@ -41,6 +41,7 @@ void main() {
       reflections: const ReflectionSettings(enabled: true),
       fog: FogSettings(color: Vector3(0.1, 0.2, 0.3), density: 0.05),
       anisotropy: 8,
+      autoExposure: const AutoExposureSettings(enabled: true),
     );
 
     final copy = original.copyWith();
@@ -86,6 +87,11 @@ void main() {
       reason:
           'anisotropy dropped by copyWith is a setting that goes back to '
           'one tap the moment a game changes its exposure',
+    );
+    expect(
+      copy.autoExposure,
+      same(original.autoExposure),
+      reason: 'autoExposure arrived after the six, and is held the same way',
     );
   });
 
