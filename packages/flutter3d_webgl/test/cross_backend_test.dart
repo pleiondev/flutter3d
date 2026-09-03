@@ -114,9 +114,10 @@ const Map<String, double> _budgets = <String, double>{
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
   'lightmapped-room': 0.15,
-  // provisional; recorded at merge. The stage is a `step` over the normal's
-  // height, so expect the teapot's silhouette plus every band edge — the
-  // software backend measured 0.495% against Impeller for the same reason.
+  // provisional; recorded at merge — see [_provisional]. The stage is a `step`
+  // over the normal's height, so expect the teapot's silhouette plus every
+  // band edge: the software backend measured 0.495% against Impeller for the
+  // same reason.
   'loaded-shader': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
@@ -131,6 +132,18 @@ const Map<String, double> _budgets = <String, double>{
   'shadow-map': 0.01,
   'surface-buffer': 0.01,
 };
+
+/// Scenes budgeted before this set had a picture of them.
+///
+/// `tool/golden_web.sh` holds a fixed port and records the set on one
+/// machine, so a scene that lands on a branch arrives here with a budget and
+/// no reference, and the reference is recorded at merge. Written down rather
+/// than left to the merger's memory: the first test below accepts a missing
+/// reference only for a scene named here, and **refuses a scene named here
+/// that has one** — so recording it without moving it into the table above
+/// with its measured budget is a red test, not a forgotten step. Empty is the
+/// ordinary state of this set.
+const Set<String> _provisional = <String>{'loaded-shader'};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -155,14 +168,35 @@ void main() {
       reason: 'recorded by tool/golden_web.sh --update and not compared here',
     );
     expect(
-      _budgets.keys.toSet().difference(recorded),
+      _budgets.keys.toSet().difference(recorded).difference(_provisional),
       isEmpty,
-      reason: 'a budget for a scene this backend has no reference for',
+      reason:
+          'a budget for a scene this backend has no reference for, and not '
+          'named in _provisional',
+    );
+    expect(
+      _provisional.difference(_budgets.keys.toSet()),
+      isEmpty,
+      reason: 'provisional is a state of a budget, so it needs one',
+    );
+    expect(
+      _provisional.intersection(recorded),
+      isEmpty,
+      reason:
+          'recorded now: set the measured budget in the table and drop the '
+          'scene from _provisional',
     );
   });
 
   for (final entry in _budgets.entries) {
     test('webgl and impeller draw ${entry.key} the same picture', () async {
+      // Mutation: record the set with the scene still listed as provisional,
+      // and the test above fails rather than this one quietly passing.
+      if (_provisional.contains(entry.key)) {
+        markTestSkipped('provisional; recorded at merge');
+        return;
+      }
+
       final a = File('${mine.path}/${entry.key}.png');
       final b = File('${theirs.path}/${entry.key}.png');
       expect(a.existsSync(), isTrue, reason: '${a.path} is missing');
