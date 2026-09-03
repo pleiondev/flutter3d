@@ -83,14 +83,16 @@ const Map<String, double> _budgets = <String, double>{
   // 0.318% measured: the room is two lit quads, and the edge of each is the
   // whole of what the two backends disagree about.
   'lightmapped-room': 0.4,
-  // 4.771% measured, and the one budget in this file that is a feature
+  // 3.811% measured, and the one budget in this file that is a feature
   // rather than a floor. Impeller takes eight taps along the floor and this
   // backend answers `maxAnisotropy` of one and takes one — see
-  // `CpuDevice.maxAnisotropy` — so the far half of the checkerboard is
-  // sharp on one set and blurred on the other, on purpose. Set just above
-  // the measurement all the same: a narrower gap is the filter being lost on
-  // Impeller, a wider one is a change in something other than the filter.
-  'anisotropic-floor': 5.0,
+  // `CpuDevice.maxAnisotropy` — so the middle distance of the checkerboard
+  // is sharp on one set and blurred on the other, on purpose; the far
+  // reaches melt to one tone on both, which is why the number is not
+  // larger. Set just above the measurement all the same: a narrower gap is
+  // the filter being lost on Impeller, a wider one is a change in something
+  // other than the filter.
+  'anisotropic-floor': 4.0,
   // 1.417% measured once model textures started carrying a mip chain. The rise
   // is the one difference this backend cannot close: it picks a level from a
   // per-triangle gradient, where hardware differences a quad of neighbouring

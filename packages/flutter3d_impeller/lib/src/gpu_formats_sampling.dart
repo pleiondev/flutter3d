@@ -97,6 +97,13 @@ extension SamplerOptionsToGpu on SamplerOptions {
 /// Maps `package:flutter_gpu`'s sampler options back to the engine's
 /// [SamplerOptions], built fresh each call — the cache above is keyed the
 /// other way.
+///
+/// `maxAnisotropy` comes across only where the engine's constructor would
+/// accept it — all three filters linear. flutter_gpu's options are mutable
+/// and check nothing when built, so a nearest filter beside `maxAnisotropy:
+/// 8` is a value that exists and that its `bindTexture` then throws on; a
+/// conversion is not the place for that throw, and one tap is the only
+/// sampler such options can describe without it.
 extension SamplerOptionsFromGpu on gpu.SamplerOptions {
   SamplerOptions toEngine() => SamplerOptions(
     minFilter: minFilter.toEngine(),
@@ -104,6 +111,11 @@ extension SamplerOptionsFromGpu on gpu.SamplerOptions {
     mipFilter: mipFilter.toEngine(),
     widthAddressMode: widthAddressMode.toEngine(),
     heightAddressMode: heightAddressMode.toEngine(),
-    anisotropy: maxAnisotropy,
+    anisotropy: _isTrilinear ? maxAnisotropy : 1,
   );
+
+  bool get _isTrilinear =>
+      minFilter == gpu.MinMagFilter.linear &&
+      magFilter == gpu.MinMagFilter.linear &&
+      mipFilter == gpu.MipFilter.linear;
 }

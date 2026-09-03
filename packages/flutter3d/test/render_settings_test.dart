@@ -97,6 +97,15 @@ void main() {
     expect(const RenderSettings().copyWith(anisotropy: 16).anisotropy, 16);
   });
 
+  test('anisotropy below one is refused where it is written', () {
+    // Mutation: drop the constructor's assert. Zero then reaches the
+    // renderer, which reads it as one tap and draws — the same rule
+    // `SamplerOptions` asserts, held here so the two agree on what a count
+    // of taps is.
+    expect(() => RenderSettings(anisotropy: 0), throwsAssertionError);
+    expect(() => RenderSettings(anisotropy: -4), throwsAssertionError);
+  });
+
   test('copyWith replaces what it is given and nothing else', () {
     const original = RenderSettings(
       exposure: 1.0,

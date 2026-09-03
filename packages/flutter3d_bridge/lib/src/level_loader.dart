@@ -193,6 +193,7 @@ final class LevelLoader {
       materials: level.materials,
     );
     final surfaces = const BrushGeometry().build(cut);
+    final tiling = tilingSamplerFor(device);
     final meshes = <DeviceMesh>[];
     for (final surface in surfaces) {
       final mesh = DeviceMesh.upload(device, _toMeshData(surface));
@@ -204,7 +205,7 @@ final class LevelLoader {
                 level.materials[surface.material] ?? LevelMaterial(),
                 loaded.materialTextures,
                 name: surface.material,
-                tiling: tilingSamplerFor(device),
+                tiling: tiling,
               ),
               name: surface.material,
             )
@@ -324,6 +325,9 @@ final class LevelLoader {
     // And with their boxes, so the culler can ask which of them a cell sees.
     final batches = <VisibilityBatch>[];
     final brushNodes = <MeshNode>[];
+    // Once per level, as `tilingSamplerFor` promises: one object, shared by
+    // every brush surface below.
+    final tiling = tilingSamplerFor(device);
     for (final surface in surfaces) {
       final mesh = DeviceMesh.upload(device, _toMeshData(surface));
       brushMeshes.add(mesh);
@@ -334,7 +338,7 @@ final class LevelLoader {
                   level.materials[surface.material] ?? LevelMaterial(),
                   textures,
                   name: surface.material,
-                  tiling: tilingSamplerFor(device),
+                  tiling: tiling,
                 )
                 ..lightmap = surface.lightmapUvs == null
                     ? null

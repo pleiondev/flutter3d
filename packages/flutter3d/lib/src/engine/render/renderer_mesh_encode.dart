@@ -336,9 +336,10 @@ extension _MeshEncode on Renderer {
       );
     }
     // The material's own samplers, with the setting's anisotropy applied
-    // where it applies — see `_anisotropic`. The lightmap and the shadow map
+    // where it applies — see `_anisotropic`. Clamped to the device here,
+    // once for the up-to-five binds below. The lightmap and the shadow map
     // are not model textures and keep their clamped samplers as they are.
-    final anisotropy = settings.anisotropy;
+    final anisotropy = _anisotropyLevel(settings.anisotropy);
     if (material.lighting.usesAlbedoTexture) {
       encoder.bindTexture(
         fragmentShader,

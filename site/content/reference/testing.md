@@ -1,24 +1,24 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3191 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3193 tests need a GPU.
 ---
 
 # Testing
 
-3191 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3193 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 705 | | `flutter3d_particles` | 68 |
-| `flutter3d_sim` | 336 | | `pad_input` | 59 |
-| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 52 |
-| `apps/flutter3d_editor` | 194 | | `flutter3d_impeller` | 37 |
-| `flutter3d_game_racing` | 193 | | `flutter3d_bridge` | 32 |
-| `flutter3d_game_platformer` | 187 | | `flutter3d_webgl` | 31 |
+| `flutter3d` | 740 | | `flutter3d_particles` | 68 |
+| `flutter3d_sim` | 379 | | `pad_input` | 64 |
+| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 55 |
+| `apps/flutter3d_editor` | 194 | | `flutter3d_bridge` | 45 |
+| `flutter3d_game_racing` | 193 | | `flutter3d_impeller` | 44 |
+| `flutter3d_game_platformer` | 190 | | `flutter3d_webgl` | 44 |
 | `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_session` | 29 |
 | `flutter3d_physics` | 137 | | `pointer_lock` | 28 |
-| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_hardware` | 17 |
-| `flutter3d_cpu` | 112 | | `flutter3d_testing` | 7 |
-| `flutter3d_screens` | 110 | | `apps/flutter3d_template_app` | 4 |
+| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_hardware` | 26 |
+| `flutter3d_cpu` | 115 | | `flutter3d_testing` | 7 |
+| `flutter3d_screens` | 112 | | `apps/flutter3d_template_app` | 4 |
 | `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 

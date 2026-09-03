@@ -419,6 +419,28 @@ void main() {
       expect(identical(one.toGpu(), eight.toGpu()), isFalse);
       expect(identical(eight.toGpu(), one.withAnisotropy(8).toGpu()), isTrue);
     });
+
+    test('taps on a nearest filter come back as one', () {
+      // Mutation: pass `maxAnisotropy` through unconditionally. flutter_gpu
+      // lets these options exist — its check lives in `bindTexture` — and
+      // the engine's constructor does not, so the translation would throw
+      // an assertion out of what is meant to be a lossless read-back.
+      final theirs = gpu.SamplerOptions(
+        minFilter: gpu.MinMagFilter.nearest,
+        magFilter: gpu.MinMagFilter.linear,
+        mipFilter: gpu.MipFilter.linear,
+        maxAnisotropy: 8,
+      );
+      expect(theirs.toEngine().anisotropy, 1);
+      expect(theirs.toEngine().minFilter, MinMagFilter.nearest);
+      final bilinear = gpu.SamplerOptions(
+        minFilter: gpu.MinMagFilter.linear,
+        magFilter: gpu.MinMagFilter.linear,
+        mipFilter: gpu.MipFilter.nearest,
+        maxAnisotropy: 8,
+      );
+      expect(bilinear.toEngine().anisotropy, 1);
+    });
   });
 
   group('the colour format the context stops reporting', () {

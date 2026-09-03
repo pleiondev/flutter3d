@@ -677,12 +677,16 @@ class _SpikePageState extends State<SpikePage>
     final radius = math.max(extent.length, 1e-3);
 
     // Dropped for the golden that needs a gap between caster and receiver; see
-    // GoldenScene.groundDrop. Widened with it so the shadow still lands on it.
-    final drop = radius * (_golden?.scene.groundDrop ?? 0.0);
+    // GoldenScene.groundDrop. Widened with it so the shadow still lands on it,
+    // and stretched for the golden that looks along it rather than past it —
+    // see GoldenScene.groundScale.
+    final golden = _golden?.scene;
+    final drop = radius * (golden?.groundDrop ?? 0.0);
+    final reach = radius * ((golden?.groundScale ?? 3.0) + drop);
     _scene.add(_ground);
     _ground
       ..setPosition(centre.x, bounds.min.y - radius * 0.02 - drop, centre.z)
-      ..setScale(radius * (3.0 + drop), 1.0, radius * (3.0 + drop));
+      ..setScale(reach, 1.0, reach);
   }
 
   /// Puts the point and spot lights at a sensible distance for this model.

@@ -151,7 +151,7 @@ final class RenderSettings {
     this.fog = const FogSettings(),
     this.sky = const SkySettings(),
     this.anisotropy = 1,
-  });
+  }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more');
 
   final double specular;
 

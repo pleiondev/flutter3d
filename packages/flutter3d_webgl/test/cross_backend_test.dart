@@ -117,6 +117,14 @@ const Map<String, double> _budgets = <String, double>{
   // Provisional; recorded at merge. A checkerboard floor seen along its
   // length with eight-way anisotropy on both backends — what differs is how
   // far each driver's taps reach, and that is measured once the picture is.
+  //
+  // Expect the measurement to land well above this, and not because of the
+  // anisotropy: this backend never sets a `*_MIPMAP_*` minification filter —
+  // `minMagFilterToGl` ignores `mipFilter` — so its taps are taken from the
+  // base level, where Impeller's are taken across the chain. Until the
+  // filter is derived from the pair (see the 0.4.3 changelog), the far half
+  // of the floor here is the base level's aliasing and Impeller's is not.
+  // Whoever records this: the gap is the mip filter, not the taps.
   'anisotropic-floor': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,

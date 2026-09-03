@@ -353,19 +353,23 @@ abstract final class GoldenExtras {
   /// A checkerboard with its mip chain, sampled with the taps the device
   /// allows up to eight, for the demo's ground plane.
   ///
-  /// Thirty-two checks across two hundred and fifty-six texels, so the base
+  /// Sixty-four checks across five hundred and twelve texels, so the base
   /// level has eight texels to a check and the fourth level one — the
   /// chain a trilinear sampler blurs the far checks into and an anisotropic
-  /// one does not have to. Built here rather than loaded, for the reason
-  /// every fixture in this file is: a picture that depends on a PNG depends
-  /// on a decoder, and the bytes of a checkerboard are arithmetic.
+  /// one does not have to. Sixty-four rather than thirty-two because the
+  /// plane it tiles reaches twelve radii from the cube (see
+  /// `GoldenScene.groundScale`): a third of a unit to a check puts the
+  /// middle distance at a few pixels tall and tens wide, the footprint the
+  /// filter is for. Built here rather than loaded, for the reason every
+  /// fixture in this file is: a picture that depends on a PNG depends on a
+  /// decoder, and the bytes of a checkerboard are arithmetic.
   ///
   /// The sampler is what the bridge hands a level's brushes — trilinear and
   /// repeating, with `min(8, maxAnisotropy)` taps — so the scene pins the
   /// path a corridor floor takes and not a path built for the picture.
   static Material checkerFloor(GraphicsDevice device) {
-    const size = 256;
-    const checks = 32;
+    const size = 512;
+    const checks = 64;
     const texelsPerCheck = size ~/ checks;
     final pixels = Uint8List(size * size * 4);
     for (var y = 0; y < size; y++) {
@@ -389,10 +393,7 @@ abstract final class GoldenExtras {
       pixels: base,
       mipLevels: MipChain.build(base, size, size),
     )!;
-    return Material(
-      name: 'checker floor',
-      roughness: 0.9,
-    )
+    return Material(name: 'checker floor', roughness: 0.9)
       ..albedo = texture
       ..albedoSampler = SamplerOptions.trilinearRepeat.withAnisotropy(
         math.min(8, device.maxAnisotropy),
