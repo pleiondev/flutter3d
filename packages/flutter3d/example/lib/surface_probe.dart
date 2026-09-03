@@ -17,7 +17,11 @@
 /// clear-only pass through each path for a run of frames, with Flutter drawing
 /// the result every frame so the compositor's references are real ones, and
 /// reports what each costs on the UI thread, how many textures each ends up
-/// holding, and whether the picture read back is the one that was drawn. The
+/// holding, and whether the last image each path handed Flutter wraps the
+/// texture that path drew. That last one is a check on the wrapper and not on
+/// the compositor: nothing here can see what the raster thread sampled, so
+/// the race a present path exists to prevent is outside what this measures —
+/// see `readbackOk` in `surface_probe_report.dart`. The
 /// ring is run twice, because the two arrangements do not promise the same
 /// thing: once as the renderer has it, and once holding the presented frame
 /// back for one frame more, which is the promise the surface makes and the
@@ -181,6 +185,12 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
 
   /// Whether the centre texel of [image] is [colour], within the rounding an
   /// eight-bit channel allows.
+  ///
+  /// Called once per phase, on the last image it made, after its loop has
+  /// ended — so what it can catch is an image over the wrong texture, and
+  /// what it cannot is the compositor reading a texture being written. The
+  /// read goes back through the same texture this side owns; there is no
+  /// path from here to the pixels Flutter put on screen.
   static Future<bool> _holds(ui.Image image, vm.Vector4 colour) async {
     final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     if (bytes == null) return false;
@@ -384,6 +394,15 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
   /// Short-lived allocations per churned frame: enough small objects to fill
   /// the young generation every frame or two, so a scavenge — and the
   /// finalisers that free native wrappers — runs at the display's pace.
+  ///
+  /// **One rate, and the only other one measured is zero.** The churn path
+  /// and the paths without it are the two ends of a scale, and nothing was
+  /// run in between, so the pool size a given allocation rate buys is not
+  /// something this probe knows — only that four megabytes a frame holds it
+  /// at five textures and no allocation at all lets it reach forty-seven.
+  /// A run at 512 KB and one at 64 KB would fill the middle in; they would
+  /// cost two more phases on top of a probe whose phases already share their
+  /// pools, and nothing decided here turned on the answer.
   static const int _kChurnBytes = 4 << 20;
 
   /// The churn itself: kept in a field so the allocation is not dead code,

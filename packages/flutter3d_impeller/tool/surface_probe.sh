@@ -8,8 +8,11 @@
 # The report is a handful of lines — one per present path with its UI-thread
 # cost, texture count and readback, one for the resize phase — ending with
 # `=== surface probe done, N failed ===`. N counts the readbacks that came
-# back wrong, over the five present paths and the resized frame; the timings
-# are for reading, not for judging.
+# back wrong — one per present path and one for the resized surface, each of
+# that phase's last frame, and each only asking whether the image a path hands
+# Flutter wraps the texture it drew. Nothing here sees what the compositor
+# sampled, so a torn frame is not something N can report. The timings are for
+# reading, not for judging.
 # What the numbers meant when this was written, and what was decided on them,
 # is ARCHITECTURE.md §15.
 #

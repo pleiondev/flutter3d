@@ -529,16 +529,21 @@ final class Renderer implements RenderServices {
   /// clear-only frame and watched it reuse one texture at the display's
   /// pace: one display period, 8.3 ms on the machine measured, between a
   /// clear and the next, with the compositor's read landing somewhere inside
-  /// it, and every frame reading back as drawn. Most likely both sit on one
-  /// queue in submission order, and that is what keeps the picture whole
-  /// rather than anything here — which the probe did not observe and nothing
-  /// in this repository checks. A real frame's passes finish later than a
-  /// clear does, so the ring grows to what the overlap needs. The ring could
-  /// close the gap itself — keep a presented texture out of rotation for one
-  /// more presented frame, at the cost of one more texture, which is the
-  /// effect the backend's own presentable surface buys with a reference
+  /// it. What the probe cannot do is catch that read going wrong. It reads
+  /// one frame back per path — the last — and it reads it out of the texture
+  /// this side owns rather than out of the composite Flutter drew, so a
+  /// picture torn on the raster thread leaves no mark on it. Most likely both
+  /// sit on one queue in submission order, and that is what keeps the picture
+  /// whole rather than anything here — which the probe did not observe and
+  /// nothing in this repository checks. A real frame's passes finish later
+  /// than a clear does, so the ring grows to what the overlap needs. The ring
+  /// could close the gap itself — keep a presented texture out of rotation
+  /// for one more presented frame, at the cost of one more texture, which is
+  /// the effect the backend's own presentable surface buys with a reference
   /// count; the probe runs that variant too — and does not, because no torn
-  /// frame has been seen.
+  /// frame has been seen since the ring replaced the single texture. That is
+  /// an eye on the samples and the golden scenes rather than an instrument,
+  /// and it is the whole of the evidence.
   /// That surface was measured and not taken, for the reason §15 gives with
   /// the numbers.
   final List<TextureHandle> _ldrFrames = <TextureHandle>[];

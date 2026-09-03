@@ -79,7 +79,15 @@ final class PresentPathMeasurement {
   final int bytesPerTexture;
 
   /// Whether the last frame's image, read back, held the colour it was
-  /// cleared to — the one correctness question a present path has to answer.
+  /// cleared to.
+  ///
+  /// A sanity check on the wrapper, and worth no more than that: the read
+  /// goes through `ui.Image.toByteData` into the texture the path itself
+  /// owns, once, after the run — so it says the image handed to Flutter is
+  /// over the texture the path drew, and says nothing about what the
+  /// compositor sampled. The race a present path exists to prevent — a frame
+  /// overwritten while the raster thread still reads it — is not a thing this
+  /// can come back wrong on, on either path.
   final bool readbackOk;
 
   /// Anything the path wants said next to its numbers.
@@ -149,11 +157,15 @@ final class SurfaceProbeReport {
   final List<PresentPathMeasurement> paths;
   final ResizeOutcome resize;
 
-  /// How many of the yes-or-no questions came back no.
+  /// How many of the yes-or-no questions came back no: one readback per
+  /// present path and one for the resized surface, each of that phase's last
+  /// frame.
   ///
-  /// The numbers are for reading; these are for a script. A present path
-  /// whose image does not hold what was drawn, or a resize that leaves the
-  /// surface showing the wrong picture, is a failure whatever the timings say.
+  /// The numbers are for reading; these are for a script. A path whose image
+  /// does not wrap what it drew, or a resize that leaves the surface showing
+  /// the wrong picture, is a failure whatever the timings say — while a path
+  /// that tears under the compositor passes this, for the reason
+  /// [PresentPathMeasurement.readbackOk] gives.
   int get failures =>
       paths.where((PresentPathMeasurement p) => !p.readbackOk).length +
       (resize.readbackOk ? 0 : 1);

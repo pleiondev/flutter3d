@@ -6,13 +6,15 @@
   it. `tool/surface_probe.sh` runs the probe: the same clear-only pass
   through that ring and through a surface, 240 frames each at 1280×800 with
   Flutter drawing every one, and prints what each costs. Same UI-thread cost
-  and the same interval between frames, no copy on either path; then five
-  textures held against two, once a frame allocates anything at all. With no
-  allocation the surface reaches forty-seven, which is what shows the
-  mechanism — a texture counts as reusable only once the collector has freed
-  the native wrappers a frame makes — and the ring's two is the count of the
-  variant that makes the surface's own promise, keeping the presented frame
-  back a frame longer.
+  and the same interval between frames, no copy on either path; then the
+  surface holding five textures at four megabytes of short-lived allocation
+  per frame and forty-seven with none at all, against the ring's two. Only
+  those two rates were run, so the count a real frame would pay is a range
+  rather than a number. The forty-seven is what shows the mechanism — a
+  texture counts as reusable only once the collector has freed the native
+  wrappers a frame makes — and the ring's two is the count of the variant
+  that makes the surface's own promise, keeping the presented frame back a
+  frame longer.
   The script is the only part that lives here; the probe itself is in the
   engine's example beside the entry point that runs it, since it reaches
   flutter_gpu directly and is no part of this backend's API. The numbers and
