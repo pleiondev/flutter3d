@@ -37,6 +37,7 @@ void main() {
       surfaceBuffer: true,
       showSurfaceBuffer: true,
       showShadowMap: true,
+      showStaticShadowMap: true,
       showPointShadowDebug: true,
       reflections: const ReflectionSettings(enabled: true),
       fog: FogSettings(color: Vector3(0.1, 0.2, 0.3), density: 0.05),
@@ -70,6 +71,17 @@ void main() {
       copy.showShadowMap,
       original.showShadowMap,
       reason: 'showShadowMap was one of the six',
+    );
+    expect(
+      copy.showStaticShadowMap,
+      original.showStaticShadowMap,
+      reason:
+          'showStaticShadowMap was the seventh, and it was lost the whole '
+          'time this file was watching the other six: the field reached the '
+          'constructor and never reached copyWith, so a game that turned the '
+          'static atlas view on lost it the next time it changed anything '
+          'else — which is the exact shape of the bug above, arriving after '
+          'the list was written',
     );
     expect(
       copy.showPointShadowDebug,
