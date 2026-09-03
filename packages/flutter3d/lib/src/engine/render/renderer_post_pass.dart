@@ -303,9 +303,15 @@ extension _PostPasses on Renderer {
 
   /// Asks for the luminance target's bytes and hands them to the adapter when
   /// they arrive. Returns at once; the answer is a frame or two away.
+  ///
+  /// Not while the last ask is still unanswered — see [_meterInFlight]. The
+  /// pass that wrote the target has run either way; what is skipped is the
+  /// copy and the download behind it, and the frame is metered again the
+  /// frame after the answer lands.
   void _meterExposure(TextureHandle target, AutoExposureSettings settings) {
     final adapter = _autoExposure;
-    if (adapter == null) return;
+    if (adapter == null || _meterInFlight) return;
+    _meterInFlight = true;
     device
         .readback(target)
         .then(
@@ -314,7 +320,8 @@ extension _PostPasses on Renderer {
           // right picture for a frame, and is counted rather than swallowed
           // so a meter that has stopped hearing back is visible as a number.
           onError: (Object _, StackTrace _) => _meterFailures++,
-        );
+        )
+        .whenComplete(() => _meterInFlight = false);
   }
 
   /// The final pass: bloom in, tone map, sRGB, then the debug overlay on top.

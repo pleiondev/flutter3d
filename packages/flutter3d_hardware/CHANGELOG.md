@@ -11,6 +11,16 @@
   the edge — is refused with an `ArgumentError` by `readbackRegionOf`, once,
   so every backend refuses alike. A backend outside this repository has to add
   the member.
+* **A readback is eight-bit RGBA or it is refused.** `readbackFormats` names
+  the four layouts — `r8g8b8a8`, `b8g8r8a8`, and their sRGB twins — and
+  `readbackRegionOf` refuses any other format by name. The contract promises
+  the same bytes on every backend, and a half-float target broke it three
+  ways: on WebGL2 `readPixels(RGBA, UNSIGNED_BYTE)` of a float attachment is
+  an `INVALID_OPERATION` that leaves the pack buffer at zeros and the future
+  completing successfully with a black picture; flutter_gpu converted through
+  `toByteData`; the software rasteriser clamped its floats. A float texture is
+  read through `readPixels`, or drawn into an eight-bit target first, which is
+  what the exposure meter's luminance pass is for.
 * `FakeBackend.readback` records what was asked — texture and region — and
   answers zeros unless `answerReadback` says otherwise, so a test can be the
   device that saw a dark frame or a particular id.

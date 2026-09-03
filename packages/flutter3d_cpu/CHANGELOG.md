@@ -8,6 +8,14 @@
   apart.
 * `Luminance` and `ObjectId` transcribed from the GLSL; `auto-exposure` joins
   the golden set at 0.581% from Impeller.
+* **Alpha masking, transcribed.** `ReadSurface`'s discard under the cutoff
+  had been left out on the grounds that no fixture exercised it; the picking
+  stage needed the same hole, and an id pass that discards where the scene
+  pass does not would pick what the eye cannot see. `readSurface` now answers
+  null for a masked fragment under its cutoff and every lit model hands the
+  null on, `ObjectId` samples the texture against `IdInfo.mask` the way the
+  GLSL does, and the test is a red fence with a hole in front of a white box:
+  the pick through the hole says box, and so does the pixel.
 
 ## 0.4.1
 

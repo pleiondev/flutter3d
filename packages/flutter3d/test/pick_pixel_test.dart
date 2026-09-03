@@ -49,6 +49,28 @@ final class _FailingNode extends RenderNode {
   void execute(NodeFrame frame) => throw StateError('the overlay went wrong');
 }
 
+/// An application node that reads a name nothing writes. The graph refuses it
+/// at compile, before any pass has run — so by the time the frame fails, the
+/// question was taken off the renderer and no pass ever handed it to the
+/// device.
+final class _MisreadingNode extends RenderNode {
+  const _MisreadingNode();
+
+  @override
+  String get name => 'misreading overlay';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[
+    ResourceId('a_texture_nothing_writes'),
+  ];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) {}
+}
+
 /// One pixel's worth of bytes carrying [id].
 ByteData _pixelWith(int id) {
   final bytes = Uint8List(4);
@@ -206,6 +228,68 @@ void main() {
     expect(idPasses(), hasLength(1));
     expect(device.readbacks, hasLength(2));
   });
+
+  test('hands the id stage a masked material\'s texture and cutoff', () async {
+    // A fence: a texture with holes in it, masked at a third, tinted to half
+    // opacity. The scene pass discards under the cutoff; the id stage has to
+    // be handed the same three numbers — texture, cutoff, tint alpha — or a
+    // click through a hole answers with the fence. Mutation: bind −1 for
+    // every material — the stage never discards; leave the tint alpha out —
+    // a half-opaque fence's holes move.
+    final holes = device.createTextureFromPixels(
+      width: 1,
+      height: 1,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData(4),
+    )!;
+    left.material
+      ..albedo = holes
+      ..alphaMode = MaterialAlphaMode.mask
+      ..alphaCutoff = 0.3
+      ..baseColor.w = 0.5;
+    renderer.pickPixel(0.5, 0.5).ignore();
+    frame();
+
+    final pass = idPasses().single;
+    final masks = pass
+        .recordedOf<RecordedUniformBlock>()
+        .where((RecordedUniformBlock b) => b.block == 'IdInfo')
+        .map((RecordedUniformBlock b) => b.members['mask']!)
+        .toList();
+    expect(masks, hasLength(2));
+    expect(masks[0][0], closeTo(0.3, 1e-6), reason: 'the fence\'s cutoff');
+    expect(masks[0][1], closeTo(0.5, 1e-6), reason: 'and its tint\'s alpha');
+    expect(masks[1][0], -1.0, reason: 'an unmasked material is not masked');
+
+    // Every draw binds the slot — the stage declares it, and a sampler
+    // nothing was bound to is undefined — and the fence binds its own.
+    final bound = pass
+        .recordedOf<RecordedTexture>()
+        .where((RecordedTexture t) => t.slot == 'base_color_texture')
+        .map((RecordedTexture t) => t.texture)
+        .toList();
+    expect(bound, hasLength(2));
+    expect(identical(bound[0], holes), isTrue);
+    expect(identical(bound[1], renderer.fallbackAlbedo), isTrue);
+  });
+
+  test(
+    'a question whose frame fails to build is answered with the failure',
+    () async {
+      // The graph refuses a node reading a name nothing writes before any pass
+      // has run: no id pass, no readback, nothing that could ever answer the
+      // question but the frame itself. Mutation: take the questions off the
+      // renderer outside the `try` that builds the frame — the completer is
+      // on no list anybody finishes, and this test hangs on the await until
+      // the runner gives up on it.
+      renderer.addNode(const _MisreadingNode());
+      final asked = renderer.pickPixel(0.5, 0.5);
+      expect(frame, throwsA(isA<FrameGraphError>()));
+      expect(idPasses(), isEmpty, reason: 'no pass ran');
+      expect(device.readbacks, isEmpty);
+      await expectLater(asked, throwsA(isA<FrameGraphError>()));
+    },
+  );
 
   test(
     'a question asked of a renderer that is disposed is answered null',

@@ -23,6 +23,28 @@
 * `FrameResourceIds.luminance` and `FrameResourceIds.objectIds`, both frame
   outputs while their node is active, since their consumer is a readback the
   graph cannot see.
+* **A pick through a hole answers with what is seen through it.** A masked
+  material — glTF's `MASK` — discards under its cutoff in the scene pass, and
+  the id stage now discards the same fragments: it is handed the material's
+  texture, cutoff and tint alpha in `IdInfo.mask`, so a click through a
+  fence's hole answers with the thing behind the fence rather than the fence.
+  Before, the id pass wrote every fragment and picked the plane the hole was
+  cut in, which contradicted the one promise picking by pixel makes.
+* **A frame that fails to build answers its questions too.** The catch that
+  answers a pending `pickPixel` with the frame's failure covered the passes
+  but not what came before them — an application node reading a name
+  nothing writes fails in the graph's compile, and a question taken off the
+  renderer there was on no list anybody would ever finish. Both catches now
+  answer it, and the test is a node with a misspelled read.
+* **The exposure meter asks once per answer.** A readback in flight is not
+  joined by another: the luminance pass still runs every frame, the copy and
+  the download behind it are skipped until the last one has landed. On
+  flutter_gpu each answer is a `toByteData` off a staging texture, and a
+  meter asking every frame kept two or three of those in the air and a
+  staging pool to match; an exposure that adapts over seconds cannot tell a
+  reading every frame from one every other frame.
+* `FrameResult.exposure` defaults to `RenderSettings.defaultExposure` rather
+  than to its own copy of the number.
 
 ## 0.4.2
 

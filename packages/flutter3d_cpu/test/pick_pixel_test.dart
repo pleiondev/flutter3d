@@ -10,6 +10,9 @@
 /// because the rasteriser put it there and for no other reason.
 library;
 
+import 'dart:math' as math;
+import 'dart:typed_data';
+
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -128,6 +131,82 @@ void main() {
     );
     expect(identical(await left, batch), isTrue);
     expect(await gap, isNull);
+  });
+
+  test('a hole in a masked material picks what is behind it', () async {
+    // A fence in front of the left box, turned to face the camera: a red
+    // plane three metres wide at z = −4, textured with two texels — the left
+    // one opaque, the right one clear — and masked at a half, so its right
+    // half is a hole. A click on the solid half answers the fence; a click
+    // through the hole answers the box behind it. And the picture agrees,
+    // which is the whole claim of picking by pixel: the pixel through the
+    // hole is the box's white, not the fence's red.
+    //
+    // Where the clicks land: at z = −4 with a field of view of one radian
+    // and a 3:2 frame, half the width is 3.28 metres, so x = −2.75 — the
+    // middle of the solid half — is 0.08 of the way across and x = −1.25 —
+    // the middle of the hole — is 0.31. The box behind spans x from −3.5 to
+    // −0.5, so the hole looks onto its face.
+    //
+    // Mutation: write the id without the discard — both clicks answer the
+    // fence; drop the discard from the scene pass instead — the picture shows
+    // red where the pick says box, and this test is what tells the two apart.
+    final it = _twoBoxes();
+    final holes = it.device.createTextureFromPixels(
+      width: 2,
+      height: 1,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: ByteData.sublistView(
+        Uint8List.fromList(<int>[255, 255, 255, 255, 255, 255, 255, 0]),
+      ),
+    )!;
+    final fence =
+        MeshNode(
+            DeviceMesh.upload(
+              it.device,
+              const PlaneShape(width: 3.0, depth: 3.0).build(),
+            ),
+            Material(
+              name: 'fence',
+              lighting: LightingModel.unlit,
+              baseColor: Vector4(1.0, 0.0, 0.0, 1.0),
+              albedo: holes,
+              albedoSampler: SamplerOptions.nearestClamp,
+              alphaMode: MaterialAlphaMode.mask,
+              alphaCutoff: 0.5,
+            ),
+            name: 'fence',
+          )
+          ..setPosition(-2.0, 0.0, -4.0)
+          // The plane lies in XZ facing +Y; a quarter turn about X stands it up
+          // facing +Z, towards the camera, with u still running left to right.
+          ..setRotation(
+            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+          );
+    it.scene.add(fence);
+
+    final solid = it.renderer.pickPixel(0.08, 0.5);
+    final hole = it.renderer.pickPixel(0.31, 0.5);
+    final result = it.renderer.render(
+      width: _width,
+      height: _height,
+      scene: it.scene,
+      views: <RenderView>[it.view],
+    );
+    expect((await solid)?.name, 'fence');
+    expect((await hole)?.name, 'left');
+
+    final pixels = (await it.device.readPixels(
+      result.frame,
+    ))!.buffer.asUint8List();
+    int channel(double u, int c) =>
+        pixels[((_height ~/ 2) * _width + (u * _width).floor()) * 4 + c];
+    // Red against green rather than green against zero: the tone curve pulls
+    // a saturated red towards white on its way to the display, so the green
+    // is not nought — but it is well under the red, and on the box it is not.
+    expect(channel(0.08, 0), greaterThan(150), reason: 'the fence is red');
+    expect(channel(0.08, 1), lessThan(channel(0.08, 0) - 80));
+    expect(channel(0.31, 1), greaterThan(150), reason: 'the box is white');
   });
 
   test('the picture is not touched by the pass', () async {

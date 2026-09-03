@@ -618,14 +618,24 @@ class _EditorScreenState extends State<EditorScreen>
   ///
   /// The answer comes a frame later, which is why this is asynchronous and why
   /// it checks the document is still the one it asked about.
+  ///
+  /// And the answer can be a failure rather than a node: the frame the question
+  /// belonged to went down, the fence the web backend waits on never signalled,
+  /// the GPU refused the copy. Caught here, because this is called unawaited
+  /// from a pointer handler and an error nobody catches is an unhandled one in
+  /// the zone — a red box for what is, to the person clicking, a click that
+  /// found nothing.
   Future<void> _pick(Offset at, Size size) async {
     final renderer = _renderer;
     final editing = _editing;
     if (renderer == null || editing == null) return;
-    final node = await renderer.pickPixel(
-      at.dx / size.width,
-      at.dy / size.height,
-    );
+    final MeshNode? node;
+    try {
+      node = await renderer.pickPixel(at.dx / size.width, at.dy / size.height);
+    } on Object catch (error) {
+      if (mounted) _cubit.say('could not pick: $error');
+      return;
+    }
     if (!mounted || !identical(editing, _editing)) return;
     final found = _handleUnder(node, at, size, editing);
     editing.selectHandle(found);

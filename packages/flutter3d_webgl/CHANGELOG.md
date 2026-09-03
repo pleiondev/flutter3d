@@ -12,6 +12,13 @@
   region of a drawn picture to its rows from the top is what found both edges.
 * `Luminance` and `ObjectId`, generated with the rest from `flutter3d_shaders`;
   `auto-exposure` joins the golden set, its web reference recorded at merge.
+  `ObjectId` samples the material's texture against its cutoff, so a pick
+  through a masked material's hole answers with what is behind it.
+* A readback of anything but an eight-bit RGBA texture is refused before it
+  reaches `readPixels`, by the rule every backend shares. Asked for a
+  half-float target, this backend's `readPixels(RGBA, UNSIGNED_BYTE)` was an
+  `INVALID_OPERATION` that left the pack buffer at zeros and the future
+  completing successfully with a black picture.
 
 ## 0.4.2
 

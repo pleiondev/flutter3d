@@ -30,6 +30,22 @@ final class _PickRequest {
   final Completer<MeshNode?> completer = Completer<MeshNode?>();
 }
 
+/// Answers every question in [picks] still open with [error]: the frame they
+/// were asked of did not happen.
+///
+/// Still open, and not simply every one, because the id pass may already have
+/// handed a question to the device, and the device's own answer checks the
+/// same way before it completes — whichever of the two arrives second at a
+/// finished completer would otherwise throw from inside a `then`, where nothing
+/// is listening. Called from both catches in `Renderer.render`: the one around
+/// building the frame, where an application node reading a name nothing writes
+/// fails, and the one around running it.
+void _failPicks(List<_PickRequest> picks, Object error, StackTrace stack) {
+  for (final pick in picks) {
+    if (!pick.completer.isCompleted) pick.completer.completeError(error, stack);
+  }
+}
+
 extension _PickPass on Renderer {
   /// The id stage, resolved on first use rather than at `Renderer.create`,
   /// like the particle and sky stages: an application whose bundle predates
@@ -224,6 +240,18 @@ extension _PickPass on Renderer {
         // A fresh list per draw rather than the renderer's usual reused
         // scratch: this pass runs on the frame somebody clicked, not on every
         // frame, and a recording backend keeps the list it was handed.
+        //
+        // **What the scene pass throws away is thrown away here too.** A
+        // masked material — glTF's `MASK`: a fence, a leaf, a grate —
+        // discards every fragment whose alpha falls under its cutoff, and
+        // what is on the screen through the hole is the thing behind it. The
+        // id stage samples the same texture against the same cutoff, so a
+        // click through the hole answers with what the eye sees there rather
+        // than with the plane the hole is cut in. The cutoff is negative for
+        // a material that is not masked, the encoding `material2.x` already
+        // uses, and the tint's alpha rides beside it because the scene pass
+        // multiplies the texel by that as well.
+        final masked = material.alphaMode == MaterialAlphaMode.mask;
         pass.bindUniformBlock(_objectIdShader, _kIdInfoBlock, {
           'id': Float32List.fromList(<double>[
             (id & 0xFF) / 255.0,
@@ -231,7 +259,24 @@ extension _PickPass on Renderer {
             ((id >> 16) & 0xFF) / 255.0,
             1.0,
           ]),
+          'mask': Float32List.fromList(<double>[
+            masked ? material.alphaCutoff : -1.0,
+            material.baseColor.w,
+            0.0,
+            0.0,
+          ]),
         });
+        // For every draw, not only the masked ones: the stage declares the
+        // sampler, and a sampler a stage has that nothing was bound to is
+        // undefined on one backend and a dropped draw on another. An unmasked
+        // material's texture is sampled and ignored, which is what the scene
+        // pass does with it as well.
+        pass.bindTexture(
+          _objectIdShader,
+          _kAlbedoTextureSlot,
+          material.albedo ?? fallbackAlbedo,
+          sampler: material.albedoSampler,
+        );
 
         pass.draw(instanceCount: instanced?.count ?? 1);
       }

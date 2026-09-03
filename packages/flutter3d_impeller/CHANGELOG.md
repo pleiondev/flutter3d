@@ -10,7 +10,15 @@
   are in flight, two for a meter that asks every frame. Checked on the GPU by
   the two new conformance checks and by the `auto-exposure` golden, whose
   metered frame reproduced to the pixel.
-* The bundle gains `Luminance` and `ObjectId`.
+* **A refused copy gives its staging texture back.** flutter_gpu throws rather
+  than returns false when `copyTextureToTexture` or `submit` is refused
+  outright, and the staging texture taken for that readback was never
+  returned to the pool — GPU memory nothing can free, since flutter_gpu has
+  no dispose, with `debugReadbackStagingCount` climbing by one per refusal as
+  the only sign. Every path out of `read` now returns it.
+* The bundle gains `Luminance` and `ObjectId`; `ObjectId` samples the
+  material's texture against its cutoff, so a pick through a masked
+  material's hole answers with what is behind it.
 
 ## 0.4.4
 

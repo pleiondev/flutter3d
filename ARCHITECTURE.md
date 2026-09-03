@@ -447,11 +447,17 @@ clock did between them. *Picking by pixel*: `Renderer.pickPixel` asks the next
 frame which mesh is drawn at a point; that frame draws every visible mesh once
 more with the `ObjectId` stage into a frame-sized RGBA8 target, reads the one
 pixel back and answers with the node whose number came back. Only on a frame
-somebody asked, or the node is inactive and culled. The editor selects with it —
+somebody asked, or the node is inactive and culled. What the scene pass throws
+away the id stage throws away too: a masked material's fragments under its
+cutoff, so a click through a fence's hole answers with what is seen through it.
+A frame that fails — in a pass, or before one in the graph's compile — answers
+its questions with the failure rather than never. The editor selects with it —
 what is on the screen rather than a box a metre wider than the monster in it —
 and resolves the level's own batches back to a brush by the ray, which on the
 face drawn at that pixel is the face's own. Both are outputs of the frame while
-they run, since their consumer is a readback the graph cannot see.
+they run, since their consumer is a readback the graph cannot see; the meter
+asks for its readback once per answer rather than once per frame, so a queue
+that answers a frame or two late holds one copy in the air rather than three.
 
 **Contributors.** A pass can be extended without editing the renderer:
 `PassContributor` receives a `PassEncoder` — the recording half of the interface,
@@ -798,15 +804,21 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   the queue reports it done, so the answer arrives a frame or two later. A
   backend that copied when the driver got round to it would hand an exposure
   meter the frame *after*. What cannot be read — tile memory, a multisampled
-  target, a cube, a region past the edge — is refused with an `ArgumentError`
-  by `readbackRegionOf`, once, for all three. The check is `a readback returns
-  the frame before`, and its shader-tier twin holds a region of a drawn picture
-  to its rows from the top.
+  target, a cube, a region past the edge, and any format but eight-bit RGBA
+  (`readbackFormats`) — is refused with an `ArgumentError` by
+  `readbackRegionOf`, once, for all three. The format is refused rather than
+  converted because the bytes are promised to be the same everywhere and a
+  half-float target was three answers on three backends: on WebGL2 a
+  `readPixels` the context rejects, a pack buffer still at zeros and a future
+  completing successfully with a black picture. The check is `a readback
+  returns the frame before`, which also hands over the device's own
+  `hdrColorFormat` and expects the refusal, and its shader-tier twin holds a
+  region of a drawn picture to its rows from the top.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`, and the
-  storage mode, sample count and type a `TextureHandle` carries before asking
-  `readback` for it. A backend refuses loudly rather than substituting
+  storage mode, sample count, type and format a `TextureHandle` carries before
+  asking `readback` for it. A backend refuses loudly rather than substituting
   something that looks similar.
 
 **Outside the promise**, because nothing beyond the package should depend on it:
@@ -1440,7 +1452,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3204 tests** across 24 packages and 5 applications |
+| Unit tests | **3213 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

@@ -386,9 +386,16 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   ///
   /// Throws an [ArgumentError] rather than answering null for what cannot be
   /// read — a `deviceTransient` texture, a multisampled one, a cube, a region
-  /// outside the texture. The handle carries every one of those facts, so the
-  /// caller can ask before requesting; a null here would have to be told apart
-  /// from a copy the driver refused, and those are different mistakes.
+  /// outside the texture, and a texture in any format but eight-bit RGBA
+  /// (`readbackFormats`: the two `UNormInt` layouts and their sRGB twins).
+  /// The handle carries every one of those facts, so the caller can ask
+  /// before requesting; a null here would have to be told apart from a copy
+  /// the driver refused, and those are different mistakes. The format is
+  /// refused rather than converted because the three backends would convert
+  /// differently — one of them into a picture of zeros with no error — and
+  /// the bytes above are promised to be the same bytes everywhere. A float
+  /// target is read through [readPixels], or drawn into an eight-bit one
+  /// first, which is what the exposure meter's luminance pass is.
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region});
 
   /// Releases one geometry buffer, rather than waiting for the whole device to

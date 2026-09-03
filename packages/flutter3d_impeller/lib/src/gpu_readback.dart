@@ -21,10 +21,13 @@
 /// the bytes are out.
 ///
 /// Staging textures are pooled by size and format rather than made per call:
-/// a meter reads a 64×64 target every frame, and flutter_gpu has no dispose, so
-/// one allocation per frame would be one 16 KB texture per frame for the
-/// collector. The pool grows to however many readbacks are in flight at once —
-/// two, for a caller that asks every frame and hears back a frame later.
+/// a meter reads a 64×64 target frame after frame, and flutter_gpu has no
+/// dispose, so one allocation per frame would be one 16 KB texture per frame
+/// for the collector. The pool grows to however many readbacks are in flight at
+/// once — one for the exposure meter, which waits for its answer before it asks
+/// again, and one per question for a pick. A staging texture is given back on
+/// every path out, the refused ones included: one the pool lost would be GPU
+/// memory nothing can free.
 library;
 
 import 'dart:async';
@@ -57,57 +60,68 @@ final class GpuReadback {
   Future<ByteData> read(TextureHandle texture, ScreenRect? region) {
     final rect = readbackRegionOf(texture, region);
     final staging = _take(rect.width, rect.height, texture.format);
-
-    final buffer = gpu.gpuContext.createCommandBuffer();
-    buffer.copyTextureToTexture(
-      gpu.TextureRegion(
-        texture.gpuTexture,
-        x: rect.x,
-        y: rect.y,
-        width: rect.width,
-        height: rect.height,
-      ),
-      gpu.TextureDestinationRegion(staging.gpuTexture),
-    );
-
     final completer = Completer<ByteData>();
-    buffer.submit(
-      completionCallback: (bool ok) {
-        if (!ok) {
-          onRejectedSubmission();
-          _give(staging);
-          completer.completeError(
-            StateError(
-              'the GPU refused the command buffer carrying a readback',
-            ),
-          );
-          return;
-        }
-        // The same route `readPixels` takes, off a texture nothing is drawing
-        // into. Closed once the bytes are out, for the reason given there: a
-        // handle left open is a `ui.Image` for the collector per readback.
-        final image = staging.gpuTexture.asImage();
-        image
-            .toByteData(format: ui.ImageByteFormat.rawRgba)
-            .then(
-              (ByteData? bytes) {
-                if (bytes == null) {
-                  completer.completeError(
-                    StateError('the staging texture read back as nothing'),
-                  );
-                } else {
-                  completer.complete(bytes);
-                }
-              },
-              onError: (Object error, StackTrace stack) =>
-                  completer.completeError(error, stack),
-            )
-            .whenComplete(() {
-              image.dispose();
-              _give(staging);
-            });
-      },
-    );
+
+    // Given back on the way out of a throw, because flutter_gpu throws rather
+    // than returns false when the copy or the submit is refused outright — an
+    // error string from the context is an exception here — and a staging
+    // texture taken and never returned is one the pool has lost: flutter_gpu
+    // has no dispose, so it is GPU memory for the collector, and
+    // [debugStagingCount] climbing by one per refusal is the only sign.
+    try {
+      final buffer = gpu.gpuContext.createCommandBuffer();
+      buffer.copyTextureToTexture(
+        gpu.TextureRegion(
+          texture.gpuTexture,
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: rect.height,
+        ),
+        gpu.TextureDestinationRegion(staging.gpuTexture),
+      );
+      buffer.submit(
+        completionCallback: (bool ok) {
+          if (!ok) {
+            onRejectedSubmission();
+            _give(staging);
+            completer.completeError(
+              StateError(
+                'the GPU refused the command buffer carrying a readback',
+              ),
+            );
+            return;
+          }
+          // The same route `readPixels` takes, off a texture nothing is
+          // drawing into. Closed once the bytes are out, for the reason given
+          // there: a handle left open is a `ui.Image` for the collector per
+          // readback.
+          final image = staging.gpuTexture.asImage();
+          image
+              .toByteData(format: ui.ImageByteFormat.rawRgba)
+              .then(
+                (ByteData? bytes) {
+                  if (bytes == null) {
+                    completer.completeError(
+                      StateError('the staging texture read back as nothing'),
+                    );
+                  } else {
+                    completer.complete(bytes);
+                  }
+                },
+                onError: (Object error, StackTrace stack) =>
+                    completer.completeError(error, stack),
+              )
+              .whenComplete(() {
+                image.dispose();
+                _give(staging);
+              });
+        },
+      );
+    } catch (_) {
+      _give(staging);
+      rethrow;
+    }
     return completer.future;
   }
 

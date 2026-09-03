@@ -311,6 +311,25 @@ void main() {
       expect(readback.region, ScreenRect.of(pass.color.texture));
     });
 
+    test('asks the device once per answer, not once per frame', () async {
+      // The fake answers on a microtask, so two frames with nothing pumped
+      // between them are two frames with the first ask still in the air: the
+      // second frame draws its luminance and asks nothing. Pumped, the
+      // answer lands and the next frame asks again. Mutation: drop the
+      // in-flight check — three readbacks for three frames, and on
+      // flutter_gpu a staging pool that grows to the queue's depth.
+      const settings = RenderSettings(
+        autoExposure: AutoExposureSettings(enabled: true),
+      );
+      frame(settings);
+      frame(settings);
+      expect(luminancePasses(), hasLength(2), reason: 'the pass ran twice');
+      expect(device.readbacks, hasLength(1), reason: 'one ask in the air');
+      await pumpEventQueue();
+      frame(settings);
+      expect(device.readbacks, hasLength(2));
+    });
+
     test('exposes the next frame with what the last one metered', () async {
       // The device answers black, so the target is the ceiling; at an infinite
       // rate the frame after the readback is composited at the ceiling. The

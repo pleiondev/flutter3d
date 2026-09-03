@@ -264,6 +264,22 @@ Future<void> checkReadbackReturnsTheFrameBefore(GraphicsDevice device) async {
     'a region past the edge of the texture was accepted; on one backend that '
     'is a driver error and on another a short read, and neither is an answer',
   );
+
+  // The engine's own HDR colour, which is the texture a caller is most likely
+  // to hand over by mistake. The contract promises eight-bit RGBA, and a
+  // backend that accepts a half-float target answers with whatever its
+  // conversion path does — on WebGL2 that is a `readPixels` the context
+  // rejects, a pack buffer still full of zeros and a future that completes
+  // successfully with a black picture.
+  final hdr = device.createTexture(
+    RenderTargetSpec(width: size, height: size, format: device.hdrColorFormat),
+  );
+  require(
+    _refuses(() => device.readback(hdr)),
+    'a ${device.hdrColorFormat.name} texture was accepted for readback; the '
+    'contract hands back eight-bit RGBA and refuses any other format with an '
+    'ArgumentError, so that three backends do not convert three ways',
+  );
 }
 
 /// Whether [ask] throws an [ArgumentError] *synchronously*, which is what a
