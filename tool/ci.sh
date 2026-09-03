@@ -100,21 +100,29 @@ step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/ma
 
 # **The levels and the tracks, which `ARCHITECTURE.md` claimed were covered and
 # were not.** §13 says anything a tool produces is regenerated here and diffed;
-# the icons, the models and the WebGL table were, and the six Python generators
-# that write every level document in the repository were not — with their
-# outputs tracked. `apps/flutter3d_demo_racing/test/frame_test.dart` even
-# carries a hand-written note telling a reader to run `make_track.py` after
-# changing a sky preset, which is a manual stand-in for exactly this step.
+# the icons, the models and the WebGL table were, and the Python generators that
+# write every level document in the repository were not — with their outputs
+# tracked. `apps/flutter3d_demo_racing/test/frame_test.dart` even carries a
+# hand-written note telling a reader to run `make_track.py` after changing a sky
+# preset, which is a manual stand-in for exactly this step.
 #
-# All six are byte-reproducible, which was checked before this was added rather
-# than assumed: a generator that is not is a step that fails on somebody else's
-# machine for a reason that is nobody's fault.
+# **And then the list this step kept by hand went stale, which is why it does
+# not keep one any more.** It named its generators one by one and said "all six
+# are byte-reproducible"; by then there were twelve, and two of them —
+# `make_cistern.py` and `make_sanctum.py` — had never been run here at all,
+# though both write a tracked, shipped document. They were reproducible. Nothing
+# had ever asked. `tool/regenerate_levels.py` reads `generatedBy` out of the
+# documents themselves, so a new level is covered the day it is committed and
+# there is no list left to forget.
+# `apps` and not `apps/*/assets`: a wildcard pathspec in the middle of a path
+# matches nothing here, so the diff passed whatever the generators wrote — a
+# check that cannot fail, which is worse than the stale list it replaced. Caught
+# by breaking a generator and watching the step stay green. The whole tree is
+# clean by the time this step runs, so the wider pathspec costs nothing.
 step "levels" bash -c '
   set -e
-  (cd apps/flutter3d_demo_dungeon && python3 tool/make_crypt.py >/dev/null && python3 tool/make_vaults.py >/dev/null && python3 tool/make_deep.py >/dev/null)
-  (cd apps/flutter3d_demo_platformer && python3 tool/make_level.py >/dev/null && python3 tool/make_first_steps.py >/dev/null && python3 tool/make_cisterns.py >/dev/null && python3 tool/make_foundry.py >/dev/null && python3 tool/make_spire.py >/dev/null)
-  (cd apps/flutter3d_demo_racing && python3 tool/make_track.py >/dev/null)
-  git diff --exit-code -- "apps/flutter3d_demo_dungeon/assets/levels" "apps/flutter3d_demo_platformer/assets/levels" "apps/flutter3d_demo_racing/assets"
+  python3 tool/regenerate_levels.py
+  git diff --exit-code -- apps
 '
 
 # **The WebGL table is generated and nothing checked that it was current.** Its
