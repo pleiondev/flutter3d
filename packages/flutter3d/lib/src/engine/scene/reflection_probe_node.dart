@@ -1,3 +1,5 @@
+import 'package:flutter3d_hardware/flutter3d_hardware.dart' show GraphicsDevice;
+
 import 'mesh_node.dart';
 import 'scene.dart';
 import 'scene_node.dart';
@@ -34,6 +36,7 @@ import 'scene_node.dart';
 final class ReflectionProbeNode extends SceneNode {
   ReflectionProbeNode({
     this.radius = 0.0,
+    this.intensity = 1.0,
     this.faceSize = 64,
     this.levels = 4,
     this.refreshFaceEveryFrame = false,
@@ -42,11 +45,25 @@ final class ReflectionProbeNode extends SceneNode {
     super.name,
   }) : assert(faceSize >= 4, 'a face needs room for a chain below it'),
        assert(levels >= 1, 'a probe with no levels reflects one roughness'),
-       assert(near > 0.0 && far > near, 'expected 0 < near < far');
+       assert(near > 0.0 && far > near, 'expected 0 < near < far'),
+       assert(intensity >= 0.0, 'a probe cannot take light away');
 
   /// How far a mesh may be from this probe and still reflect it, measured to
   /// the mesh's bounds centre. Zero reaches everything.
   double radius;
+
+  /// How strongly what this probe captured lights the surfaces that read it.
+  ///
+  /// One is the room as it was drawn. **Its own knob, not the scene's
+  /// ambient strength**, and the difference is what a dark room shows: a sky
+  /// environment stands in for indirect light and shares
+  /// `Scene.ambientIntensity` with the flat ambient, so a scene that dims
+  /// one dims both; a probe is that light *measured* — the torch-lit walls
+  /// at the strength the frame drew them — and a crypt whose ambient is six
+  /// per cent would reflect its walls at six per cent, which is a room nobody
+  /// can see. Where a probe is read the flat ambient is not, so the two never
+  /// add.
+  double intensity;
 
   /// The edge of each face in pixels; the sharpest reflection this can hold.
   ///
@@ -87,6 +104,31 @@ final class ReflectionProbeNode extends SceneNode {
 
   int get generation => _generation;
   int _generation = 0;
+
+  /// Whether every face stands at the current generation.
+  ///
+  /// False until the renderer has drawn all six, and false again from
+  /// [invalidate] until it has drawn them again. What a level holds its
+  /// visibility culling for: a kept probe is captured on the first frame it
+  /// is seen, and a culler that had already hidden every room but the
+  /// player's would leave the probe a picture of walls with nothing beyond
+  /// them.
+  bool get isCaptured => _capturedGeneration == _generation;
+  int _capturedGeneration = -1;
+
+  /// Records that the renderer has drawn every face at the current
+  /// generation. The renderer's to call, after a capture.
+  void markCaptured() => _capturedGeneration = _generation;
+
+  /// Whether [device] can build a probe at all: a cube a pass can aim at one
+  /// face of, and a level below the base it can aim at too.
+  ///
+  /// The renderer's own test for building one, shared so that whoever waits
+  /// on [isCaptured] can tell "not yet" from "never" — on flutter_gpu over
+  /// OpenGL ES no probe is drawn, and a level that held its culling for one
+  /// would hold it for the whole run.
+  static bool supportedOn(GraphicsDevice device) =>
+      device.supportsCubeTextures && device.supportsRenderToMip;
 
   @override
   void onAttachedToScene(Scene scene) => scene.registerProbe(this);

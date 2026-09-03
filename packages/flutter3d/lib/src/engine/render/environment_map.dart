@@ -14,17 +14,21 @@ import 'sky_settings.dart';
 /// cube. The shader then samples the level that matches the surface, and a
 /// mirror and a matte wall read the same texture at different levels.
 ///
-/// **Convolved here rather than on the GPU, and that is not a workaround.**
-/// Prefiltering on a GPU means rendering into a mip level, which this channel
-/// does not offer; but it also means doing at load what would otherwise be done
-/// on a machine that has to hold a frame budget. The engine already builds 2D
-/// mip chains this way — see `MipChain.build` — so this is the same seam, and
-/// both backends receive the same bytes, which is what keeps the two golden sets
-/// comparable.
+/// **Convolved here on the host, and the same lobe is convolved on the
+/// device.** The device does it for a reflection probe — a full-screen pass
+/// per face per level, `ColorTarget.mipLevel` naming each, with the same fixed
+/// spiral and cosine-power lobe as [prefilter] — because a probe is drawn on a
+/// machine holding a frame budget and its picture never leaves the GPU. An
+/// environment built from bytes the host already has stays here: the two
+/// callers are a sky at thirty-two pixels and a studio at sixteen, where the
+/// convolution is a fraction of a millisecond and the bytes are the same on
+/// every backend, which is what keeps the golden sets comparable. The engine
+/// builds 2D mip chains at the same seam — see `MipChain.build`.
 ///
 /// The cost is stated rather than discovered: this is O(faces × texels × taps)
 /// in Dart, so a 128-pixel environment is a fraction of a second and a
-/// 512-pixel one is not something to do while a level is on screen.
+/// 512-pixel one is not something to do while a level is on screen — that
+/// size wants uploading as a base level and filtering the way a probe is.
 abstract final class EnvironmentMap {
   /// Faces in the order the hardware layer documents: +X, −X, +Y, −Y, +Z, −Z.
   ///

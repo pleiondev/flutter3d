@@ -93,6 +93,13 @@ final class _Stage {
       .recordedOf<RecordedUniformBlock>()
       .lastWhere((it) => it.block == 'FragInfo')
       .members['frame_params']![3];
+
+  /// The ambient strength the ball's draw told the shader — `material.z`,
+  /// which scales the environment term and the flat one alike.
+  double get ambientStrength => scenePass
+      .recordedOf<RecordedUniformBlock>()
+      .lastWhere((it) => it.block == 'FragInfo')
+      .members['material']![2];
 }
 
 void main() {
@@ -195,6 +202,42 @@ void main() {
       expect(stage.environmentLevels, 2.0, reason: 'the nearer probe');
       expect(near.levels, 2);
     });
+
+    test('is read at its own strength, and the scene\'s where it is not', () {
+      // A crypt keeps its flat ambient at six per cent, and a probe read at
+      // six per cent is a room nobody can see. Mutation: keep writing
+      // `scene.ambientIntensity` into `material.z` regardless — every
+      // torch-lit wall reflects at a sixteenth of its brightness.
+      final stage = _Stage();
+      stage.scene.ambientIntensity = 0.06;
+      final probe = stage.scene.add(ReflectionProbeNode(intensity: 0.8));
+      stage.frame();
+      expect(stage.ambientStrength, closeTo(0.8, 1e-6));
+
+      // Out of reach: the flat term is back, at the scene's strength.
+      probe
+        ..radius = 1.0
+        ..setPosition(10.0, 0.0, 0.0);
+      stage.frame();
+      expect(stage.ambientStrength, closeTo(0.06, 1e-6));
+    });
+
+    test('says when every face stands', () {
+      // What a level holds its culler for. Mutation: mark the probe
+      // captured before the faces are drawn — the culler hides the rooms,
+      // and the probe captures walls with nothing beyond them.
+      final stage = _Stage();
+      final probe = stage.scene.add(ReflectionProbeNode());
+      expect(probe.isCaptured, isFalse);
+
+      stage.frame();
+      expect(probe.isCaptured, isTrue);
+
+      probe.invalidate();
+      expect(probe.isCaptured, isFalse, reason: 'the faces are stale again');
+      stage.frame();
+      expect(probe.isCaptured, isTrue);
+    });
   });
 
   group('a rolling probe', () {
@@ -276,12 +319,17 @@ void main() {
       // alone — the chain is requested, refused at the attachment, and the
       // frame throws out of a pass.
       final stage = _Stage(device: FakeBackend(supportsRenderToMip: false));
-      stage.scene.add(ReflectionProbeNode());
+      final probe = stage.scene.add(ReflectionProbeNode());
       stage.frame();
 
       expect(stage.captures, isEmpty);
       expect(stage.filters, isEmpty);
       expect(stage.environmentLevels, 0.0);
+      expect(
+        probe.isCaptured,
+        isFalse,
+        reason: 'nothing was drawn, and a level waiting on it must not wait',
+      );
     });
   });
 

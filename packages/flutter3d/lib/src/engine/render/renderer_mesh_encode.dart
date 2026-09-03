@@ -192,7 +192,12 @@ extension _MeshEncode on Renderer {
 
       _materialData[0] = material.metallic;
       _materialData[1] = material.roughness;
-      _materialData[2] = scene.ambientIntensity;
+      // The ambient strength, which is also the environment's — the shader
+      // scales both by this one number and uses one *or* the other. A probe
+      // brings its own: a captured room is read at the strength the frame drew
+      // it, and the flat term a scene dims to six per cent is not consulted
+      // while a probe is bound. See `ReflectionProbeNode.intensity`.
+      _materialData[2] = probe?.intensity ?? scene.ambientIntensity;
       _materialData[3] = settings.specular;
 
       // A negative cutoff means "not masked". The shader compares against

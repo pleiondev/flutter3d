@@ -51,12 +51,17 @@ final class _ProbeBinding {
   const _ProbeBinding({
     required this.position,
     required this.radius,
+    required this.intensity,
     required this.texture,
     required this.levels,
   });
 
   final vm.Vector3 position;
   final double radius;
+
+  /// What the draw's ambient strength becomes while this probe is bound —
+  /// see `ReflectionProbeNode.intensity`.
+  final double intensity;
   final TextureHandle texture;
   final int levels;
 }

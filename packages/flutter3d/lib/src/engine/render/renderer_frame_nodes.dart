@@ -365,8 +365,7 @@ final class _ReflectionProbeNode extends RenderNode {
   @override
   bool get isActive =>
       probe.visibleInHierarchy &&
-      _renderer.device.supportsCubeTextures &&
-      _renderer.device.supportsRenderToMip;
+      ReflectionProbeNode.supportedOn(_renderer.device);
 
   @override
   List<ResourceId> get optionalReads => const <ResourceId>[
@@ -417,6 +416,11 @@ final class _ReflectionProbeNode extends RenderNode {
         ..nextFace = (state.nextFace + faces.length) % 6
         ..generation = probe.generation;
       _renderer._prefilterProbe(state);
+      // Every face now stands at this generation — all six were just drawn,
+      // or one was and the other five already stood — which is what a level
+      // waits for before it hides the rooms the probe cannot see from the
+      // player's cell.
+      probe.markCaptured();
       developer.Timeline.finishSync();
     }
 
@@ -511,6 +515,7 @@ final class _SceneNode extends RenderNode {
             _ProbeBinding(
               position: scene.probes[i].readWorldPosition(),
               radius: scene.probes[i].radius,
+              intensity: scene.probes[i].intensity,
               texture: texture,
               levels: _renderer._probeStates[scene.probes[i]]!.levels,
             ),

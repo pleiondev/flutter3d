@@ -16,6 +16,15 @@
   `probe-car` is a golden in all three sets. Not built on a device whose
   `supportsRenderToMip` is false; the material then reads what it read
   before.
+* **A probe is read at its own strength.** `ReflectionProbeNode.intensity`,
+  one by default, is what the surfaces that read a probe scale it by — not
+  `Scene.ambientIntensity`, which the sky environment shares with the flat
+  ambient. A probe is the room's light measured, and a crypt whose ambient
+  sits at six per cent would otherwise reflect its walls at six per cent. The
+  strength travels in the slot the flat ambient already uses, since a draw
+  reads one term or the other. `isCaptured` says when every face stands at
+  the current generation, so a level can hold its visibility culling until
+  its kept probes have seen the whole of it.
 * The environment cube is sampled with a linear mip filter, so a roughness
   slides between levels rather than snapping, and so the backend that folds
   the mip filter into minification reads the level the shader named at all.
