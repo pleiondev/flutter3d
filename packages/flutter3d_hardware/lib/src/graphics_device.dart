@@ -122,9 +122,11 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// level. What this decides is whether a probe's roughness chain can be
   /// filtered on the device: a reflection probe renders six views into a cube
   /// and then convolves them into the levels below, and the second half needs
-  /// a level to draw into. A device that says no gets probes with a base level
-  /// only, sampled as a mirror at every roughness — which is why the renderer
-  /// asks here before building one.
+  /// a level to draw into. A device that says no gets **no probe at all** —
+  /// see `ReflectionProbeNode.supportedOn`, which asks this and
+  /// [supportsCubeTextures] together — because a cube with a base level only
+  /// is a mirror at every roughness, which is a picture nobody asked for; the
+  /// material there goes on reading the scene's environment.
   bool get supportsRenderToMip;
 
   /// Allocates a cube texture a pass can draw into, face by face and level by

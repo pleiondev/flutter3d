@@ -13,7 +13,9 @@
   is left-handed, and with y negated as well on a bottom-left backend — a
   half turn there rather than a mirror, so the winding flips on one origin
   and not the other.
-  `probe-car` is a golden in all three sets. Not built on a device whose
+  `probe-car` is a golden scene: recorded for Impeller and the software
+  rasteriser, and recorded for the web set at the merge, which is when that
+  set is written. Not built on a device whose
   `supportsRenderToMip` is false; the material then reads what it read
   before.
 * **A probe is read at its own strength.** `ReflectionProbeNode.intensity`,

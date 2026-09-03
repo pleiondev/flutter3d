@@ -111,9 +111,15 @@ void main() {
         textureLod(environment_texture, reflected, s.roughness * levels).rgb;
     vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
 
-    // Scaled by the same ambient strength the flat term uses, so a scene that
-    // dials its indirect light down dials both, and the two are interchangeable
-    // rather than additive.
+    // Scaled by the strength in the slot the flat term above reads, which is
+    // why the two are interchangeable rather than additive: whichever term
+    // runs, it runs at `material.z`. **What that number is depends on what is
+    // bound.** A scene's own environment is scaled by `Scene.ambientIntensity`,
+    // the same knob the flat term uses, so a scene that dials its indirect
+    // light down dials both; a reflection probe brings its own
+    // `ReflectionProbeNode.intensity` instead, because a probe is the room's
+    // light already measured. The renderer decides which — see `_encodeNode`
+    // in renderer_mesh_encode.dart — and this stage cannot tell them apart.
     ambient = (diffuseColor * irradiance + prefiltered * (f0 * ab.x + ab.y)) *
               frag_info.material.z * s.occlusion;
   }
