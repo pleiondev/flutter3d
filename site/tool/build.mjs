@@ -42,7 +42,10 @@ function goldenFigures(body, file) {
           throw new Error(`${file}: no golden "${name}" in the ${set} set`);
         }
       }
-      const alt = (caption || name).replace(/"/g, '&quot;');
+      // The caption lands in a raw HTML block, which markdown-it passes through
+      // untouched, so a caption marks code with <code> rather than backticks;
+      // the alt text is the same words with the tags taken off.
+      const alt = (caption || name).replace(/<[^>]+>/g, '').replace(/"/g, '&quot;');
       const image = (set) =>
         `<img src="/goldens/${set}/${name}.png" alt="${alt}" width="480" height="360" loading="lazy">`;
       const pictures = kind === 'golden'

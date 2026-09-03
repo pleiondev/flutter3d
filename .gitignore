@@ -55,6 +55,12 @@ app.*.map.json
 # nothing to notice it but a reviewer reading a diff of Metal source.
 *.shaderbundle
 
+# A loadable bundle packed by tool/pack_shaders.dart, which carries an
+# impellerc section and so is tied to the SDK the same way. The example's
+# `example.f3dshaders` is the one in this tree; `tool/build_shaders.sh`
+# beside it writes it.
+*.f3dshaders
+
 # Flutter build output in any package, not just the root.
 build/
 

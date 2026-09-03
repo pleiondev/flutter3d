@@ -10,6 +10,20 @@
   is above the ceiling on any device — sixteen is also what every desktop
   context answers, so it alone would never reach a clamp. The capability check
   asks `maxAnisotropy` and requires at least one.
+* **`a library loaded from bytes answers to the same names`.** The backend's
+  own shaders, packed as a bundle by the harness — `OwnShaderSection` is the
+  section id, the bytes and the SDK to stamp, or null from a backend that
+  compiles nothing — are loaded through `loadShaders` and held to answering
+  every name in `kRequiredShaders`, linking `MeshVertex + Pbr` through the
+  loaded handles, keeping those handles' identity across a refresh, refusing
+  bytes that are not a bundle with `ShaderBundleRefused`, and never answering
+  a claimed stage no section holds with a handle. `runDeviceConformance`
+  takes `ownShaders` and `conformanceChecksWith` builds the list for a
+  harness that is not a test runner. The same check then refreshes with a
+  bundle that no longer names `Pbr` while the `Pbr` handle is in use, and
+  requires a `ShaderBundleRefused` naming the bundle and the stage with the
+  library left as it was — the half of the identity promise the three
+  backends had been keeping three different ways.
 
 ## 0.4.1
 

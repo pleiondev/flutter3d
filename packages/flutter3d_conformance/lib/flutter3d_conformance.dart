@@ -34,11 +34,15 @@ import 'package:flutter_test/flutter_test.dart' show test;
 import 'src/compressed_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
+import 'src/loaded_bundle_checks.dart';
 import 'src/pass_coverage_checks.dart';
 import 'src/pipeline_checks.dart';
 import 'src/sampling_checks.dart';
 import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
+
+export 'src/loaded_bundle_checks.dart'
+    show OwnShaderSection, loadedBundleChecks;
 
 /// Builds a device to test. Called fresh for each check, because a backend that
 /// leaves state behind should fail on its own account rather than on the
@@ -83,11 +87,20 @@ typedef ConformanceCheck = ({
 /// golden suite drives an application. That backend runs [conformanceChecks]
 /// from an app instead; the checks are the same list either way, which is the
 /// point of it being a list.
+///
+/// [ownShaders] is the backend's own shaders as the section of a loadable
+/// bundle — see [OwnShaderSection] — and adds the loaded-library check when
+/// given. Optional, so a backend can pass the rest before it can pack one;
+/// every backend in this repository passes it.
 void runDeviceConformance({
   required String backend,
   required DeviceFactory makeDevice,
+  Future<OwnShaderSection?> Function()? ownShaders,
 }) {
-  for (final check in conformanceChecks) {
+  final checks = ownShaders == null
+      ? conformanceChecks
+      : conformanceChecksWith(ownShaders);
+  for (final check in checks) {
     test('$backend: ${check.name}', () async {
       final device = makeDevice(width: 64, height: 64);
       try {
@@ -177,4 +190,13 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
 List<ConformanceCheck> get conformanceChecks => <ConformanceCheck>[
   ...coreChecks,
   ...shaderChecks,
+];
+
+/// [conformanceChecks] and the check that needs the backend's own shaders
+/// as bytes — see [loadedBundleChecks] for why that one is a function.
+List<ConformanceCheck> conformanceChecksWith(
+  Future<OwnShaderSection?> Function() ownShaders,
+) => <ConformanceCheck>[
+  ...conformanceChecks,
+  ...loadedBundleChecks(ownShaders),
 ];

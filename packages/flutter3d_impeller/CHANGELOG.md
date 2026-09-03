@@ -7,6 +7,30 @@
   here, because flutter_gpu clamps inside its own bind and says so; the
   sampler cache keys on the field, so eight taps and one are two objects.
   `anisotropic-floor` joins the golden set.
+* **A bundle loaded from bytes, and refused when its SDK is not this one.**
+  `GpuRenderBackend.loadShaders` reparses `impellerc` output through
+  `ShaderLibrary.fromBytes`, and `GpuLoadedShaderLibrary.refresh` through
+  `reinitializeFromBytes`, so a handle already handed out wraps the stage that
+  now carries the new code. The header's SDK token is held to `runningSdk` —
+  the first token of `Platform.version` — before the section is looked at:
+  the bundle format is tied to the Flutter version, and a stage compiled for
+  another one draws something else rather than failing to parse. A mismatch,
+  a missing `impeller` section and bytes flutter_gpu cannot parse are all
+  `ShaderBundleRefused` naming the bundle. `impellerSectionOf` is the pure
+  half, tested without a device.
+* `tool/conformance.sh` also wants the example's own loadable bundle built,
+  since the harness is the example and its pubspec now declares the asset.
+* **A refresh is held to the header's stage list before flutter_gpu sees a
+  byte.** A bundle that no longer names a stage already handed out is
+  refused, naming it, rather than reparsed over a live handle — the contract
+  `LoadedShaderLibrary.refresh` states. And `GpuLoadedShaderLibrary` keeps
+  the SDK token its load was given, so a library loaded against one token is
+  never refreshed against another.
+* The editor's hot-reload loop — the packed engine bundle loaded over the
+  engine's own asset, a stage edited, rebuilt and repacked — was exercised
+  on this backend: the reloaded `Pbr` took the edit on the next frame, which
+  is what `reinitializeFromBytes` marking every stage dirty buys even when
+  the entry points collide with the asset bundle's.
 
 ## 0.4.4
 

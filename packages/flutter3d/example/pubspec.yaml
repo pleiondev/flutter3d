@@ -63,3 +63,10 @@ flutter:
     # because its tests read them; this is here to exercise the material maps
     # against something that was not authored for a test.
     - assets/models/
+    # The example's own loadable shader bundle, written by tool/build_shaders.sh
+    # from shaders/. Generated and gitignored for the reason the engine's
+    # bundle is — its Impeller section is tied to the Flutter version — so a
+    # checkout runs that script before the first `flutter run`, and Flutter
+    # refuses to build without it rather than shipping a demo whose
+    # `loaded-shader` scene cannot find its bytes.
+    - assets/shaders/example.f3dshaders

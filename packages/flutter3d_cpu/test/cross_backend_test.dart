@@ -113,6 +113,12 @@ const Map<String, double> _budgets = <String, double>{
   // A spot that had gone its own way somewhere would show up as a scene with
   // its own noise floor.
   'spot-shadow': 0.46,
+  // 0.495% measured. The teapot's silhouette, and then every band edge on
+  // it: the loaded stage is a `step` over the normal's height, so the stripe
+  // boundaries are one more set of edges for multisampling to soften on one
+  // backend and not the other. The stage itself agrees — the bundle's Dart
+  // twin is the GLSL line for line — which is what a transcription is for.
+  'loaded-shader': 0.52,
   'cube-shadow-mover': 0.56,
   'cube-shadow-lit': 0.55,
   'shadow-teapot': 0.52,

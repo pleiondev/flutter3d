@@ -484,6 +484,50 @@ final class Renderer implements RenderServices {
   /// mistaken for unused.
   int get pipelineCount => _pipelineCache.length;
 
+  /// Drops every pipeline this renderer has linked, so the next frame links
+  /// them again from whatever the stages are now.
+  ///
+  /// **The engine's half of a hot reload.** A `LoadedShaderLibrary.refresh`
+  /// swaps the code behind a stage while keeping the handle — that is its
+  /// promise — but a pipeline is a pair of stages *linked*, and the linked
+  /// object on every backend still holds the old code until it is built
+  /// again. Nothing here compiles, so the cost is one link per pipeline the
+  /// next frame binds, which is exactly the cost of the first frame.
+  ///
+  /// Every cache goes, not only the material pipelines: a bundle handed in as
+  /// `materials` wins any name it shares with the engine's, so a reload can
+  /// have changed the sky, a shadow stage or the composite as easily as a
+  /// look. The fragment-stage cache goes with them, because a stage the
+  /// reloaded bundle newly answers has to be looked up again to be found.
+  ///
+  /// The resolved vertex stages the renderer holds — `vertexShader` and its
+  /// siblings — are not re-resolved; they do not need to be, since their
+  /// handles are the same objects after a reload. What this cannot do is pick
+  /// up a stage a bundle *newly* lists under a name the renderer resolved to
+  /// nothing at `Renderer.create`; that path throws at create, so there is no
+  /// renderer to reload.
+  ///
+  /// Contributors keep their own pipelines — `ParticleContributor` links once
+  /// and holds — and are not reached from here; a contributor that wants to
+  /// follow a reload exposes its own way to drop what it linked.
+  void relinkShaders() {
+    _pipelineCache.clear();
+    _fragmentShaders.clear();
+    _fullscreenPipelines.clear();
+    _debugLinePipeline = null;
+    _shadowPipeline = null;
+    _skinnedShadowPipeline = null;
+    _instancedShadowPipeline = null;
+    _bloomUpsamplePipeline = null;
+    _compositePipeline = null;
+    _skyPipeline = null;
+    _skyCubePipeline = null;
+    _cubeShadowPipeline = null;
+    _skinnedCubeShadowPipeline = null;
+    _instancedCubeShadowPipeline = null;
+    _cubeShadowResetPipeline = null;
+  }
+
   final Map<String, ShaderHandle> _fragmentShaders = <String, ShaderHandle>{};
 
   /// Textures reused across frames and across bloom levels.

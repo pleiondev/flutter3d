@@ -163,6 +163,48 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// and a handle from one device means nothing to another.
   ShaderLibrary get shaders;
 
+  /// Builds a library from a bundle that arrived as bytes.
+  ///
+  /// **The one way a shader reaches a device without being an asset.** The
+  /// engine's own bundle is compiled ahead of time and loaded by asset path,
+  /// which is right for the engine and useless for two callers: an editor that
+  /// rebuilds a bundle and wants to see the result without restarting, and an
+  /// application that ships or fetches shaders the engine never heard of and
+  /// wants them on every backend it runs on. Both hand bytes in here and get a
+  /// [LoadedShaderLibrary] back — layered under the engine's with
+  /// `LayeredShaderLibrary`, or handed to `Renderer.create` as `materials`.
+  ///
+  /// [bytes] are a `ShaderBundle`: a header naming the bundle, the SDK it was
+  /// compiled on and the stages it holds, then one section per backend that
+  /// needs compiled code. Each backend takes its own section — Impeller
+  /// reparses `impellerc` output through `ShaderLibrary.fromBytes`, WebGL2
+  /// compiles the GLSL ES text the browser is given — and the software
+  /// rasteriser, which runs Dart and compiles nothing, answers the bundle's
+  /// names with the stages it already has.
+  ///
+  /// **Refused by name, never answered with nothing.** Bytes that are not a
+  /// bundle, a bundle with no section for this backend, a compiled section
+  /// from an SDK other than the running one, and — on the backend that cannot
+  /// compile — a stage it has no Dart for all throw `ShaderBundleRefused`
+  /// carrying the bundle's name. A device that returned an empty library
+  /// instead would produce a renderer failing at the first draw for want of a
+  /// stage, which names the stage and not the file to rebuild. The SDK check
+  /// is what a compiled section needs: the bundle format is tied to the
+  /// Flutter version, and a stage compiled for another one does not fail to
+  /// parse so much as draw something else.
+  ///
+  /// **A loaded library lives as long as the device.** There is no call to
+  /// release one — a backend keeps what it compiled until `dispose`, and
+  /// the handles it handed out are held by whatever resolved them, so a
+  /// release would have to know who. An application whose shaders change
+  /// over its run loads one bundle and `refresh`es it in place, which is what
+  /// the identity promise is for; loading a fresh bundle per level keeps
+  /// every level's stages for the device's lifetime.
+  ///
+  /// Asynchronous because flutter_gpu's own loader is; on every backend here
+  /// the future completes in the same turn.
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes);
+
   /// Links two stages into something that can be bound.
   ///
   /// Expensive — it compiles and links on the backend — so callers cache. The

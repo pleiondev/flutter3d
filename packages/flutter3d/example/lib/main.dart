@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d/flutter3d.dart' as engine;
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_particles/flutter3d_particles.dart';
@@ -323,7 +324,19 @@ class _SpikePageState extends State<SpikePage>
 
     try {
       _checkerAlbedo = const CheckerboardTexture().upload(device);
-      _renderer = Renderer.create(device: device);
+      // A golden that names a bundle gets it loaded first and layered under
+      // the engine's, so its lighting model can name a stage only the bundle
+      // has. Inside the same `try` as the renderer: a refused bundle is a
+      // sentence naming the file, and it belongs on the same panel as a
+      // missing engine shader.
+      final ShaderLibrary? materials = switch (_golden?.scene.shaderBundle) {
+        null => null,
+        final String asset => await device.loadShaders(
+          await rootBundle.load(asset),
+        ),
+      };
+      if (!mounted) return;
+      _renderer = Renderer.create(device: device, materials: materials);
     } catch (error, stack) {
       _initError = error;
       _initStack = stack;

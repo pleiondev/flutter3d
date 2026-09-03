@@ -37,7 +37,18 @@ final class GoldenScene {
     this.instances = 0,
     this.lightmapped = false,
     this.anisotropicFloor = false,
+    this.shaderBundle,
   });
+
+  /// An asset holding a loadable shader bundle, layered under the engine's
+  /// as the renderer's `materials`, so [lighting] may name a stage only that
+  /// bundle has. Null draws with the engine's shaders alone.
+  ///
+  /// The one input here that reaches the device before the renderer exists:
+  /// `GraphicsDevice.loadShaders` runs on the bytes, on whichever backend the
+  /// build is, and the scene is the proof that the same file loads on all
+  /// three. See `GoldenExtras.exampleShaderBundle`.
+  final String? shaderBundle;
 
   /// Replaces the model with a floor and a wall lit by a hand-built lightmap
   /// and nothing else, for the lightmapped vertex stage and the lit models'

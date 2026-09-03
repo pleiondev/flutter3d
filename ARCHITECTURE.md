@@ -708,6 +708,15 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   `PipelineHandle`, `ShaderLibrary`. A handle carries a description and an opaque
   backend object. `TextureHandle` deliberately has no `==`: the pool lends by
   identity and the frame releases by identity, and value equality would break both.
+- **`ShaderBundle`, `ShaderBundleRefused` and `LoadedShaderLibrary`** — a bundle
+  that arrives as bytes, the one exception a device answers when it will not load
+  it, and the library it answers when it will. `GraphicsDevice.loadShaders` takes
+  the bytes; the library's `refresh` reparses new bytes in place and **keeps the
+  identity of every handle already handed out**, which is the promise the
+  renderer's held vertex stages rest on, and which the conformance suite checks
+  by `identical`. A loaded library lives as long as the device — there is no
+  release, and `loadShaders` says why — so an application whose shaders change
+  loads one bundle and refreshes it.
 - **The sixteen enums in `formats.dart`**, plus `SamplerOptions`,
   `RenderTargetSpec`, `TextureAllocator` and `RenderTargetPool`. Their value names
   are load-bearing beyond the package: the Impeller translation asserts each maps
@@ -773,7 +782,14 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
   `maxAnisotropy`. A backend refuses loudly rather than substituting something
-  that looks similar.
+  that looks similar. `loadShaders` is the same rule from the other side: there
+  is nothing to ask first, so the refusal *is* the answer —
+  `ShaderBundleRefused`, naming the bundle, for bytes that are not one, a
+  section the backend has none of, a compiled section from another SDK, or a
+  stage the software backend has no Dart for. **Never an empty library**, which
+  would fail at the first draw naming a stage rather than the file to rebuild.
+  The one backend that compiles nothing answers a bundle's names with the stages
+  it already has, and that is the honest version of "loaded" there.
 - **`SamplerOptions.anisotropy` above the device's `maxAnisotropy` is clamped,
   never refused.** The one exception to the rule above, and a deliberate one:
   the field is documented as "ask for sixteen anywhere", so a backend lowers
@@ -782,8 +798,8 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   extension's ceiling is `INVALID_VALUE`, the software rasteriser by answering
   one and taking one tap. Above one it sits on a trilinear sampler only, which
   the constructor asserts; the taps are taken across the chain and flutter_gpu
-  refuses them on a nearest filter. The conformance check binds sixteen and
-  reads a texel back.
+  refuses them on a nearest filter. The conformance check asks for twice what
+  the device answers, which is above every ceiling, and reads a texel back.
 
 **Outside the promise**, because nothing beyond the package should depend on it:
 everything in `flutter3d`'s `src/` past what `flutter3d.dart` exports;
@@ -804,8 +820,13 @@ asking for a member nobody wrote gets zeros, and a caller naming a member the
 block lacks is an error.
 
 This is also the limit on extensions. An application that builds its own bundle
-can add a lighting model, because `LightingModel` is a value class. One that does
-not control the bundle cannot.
+can add a lighting model, because `LightingModel` is a value class — and since
+`GraphicsDevice.loadShaders`, the bundle need not be an asset: a `.f3dshaders`
+file packs one compiled section per backend behind a header naming the stages,
+and `Renderer.create(materials:)` layers the loaded library over the engine's.
+What has not changed is the other direction — a stage still has to exist in
+*some* bundle for *this* backend, and the software rasteriser's version of that
+is a Dart stage handed to its device under the same name.
 
 ### 7.4 Two rules a fragment stage keeps
 
@@ -1404,9 +1425,11 @@ gone. Systems run by explicit `order`, then by registration order, and never by
 whatever a hash map returns.
 
 Beyond the three: `PassContributor` extends a render pass,
-`LightingModel` is open to an application that builds its own shader bundle, and
-`EntityKind` catalogues are injected rather than fixed, so a level format validates
-against whatever entities a game defines.
+`LightingModel` is open to an application that builds its own shader bundle —
+shipped as an asset or loaded from bytes through `GraphicsDevice.loadShaders`,
+and refreshed in place while the application runs — and `EntityKind` catalogues
+are injected rather than fixed, so a level format validates against whatever
+entities a game defines.
 
 ---
 
@@ -1416,11 +1439,11 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3225 tests** across 24 packages and 5 applications |
+| Unit tests | **3259 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 35 scenes against **three independent reference sets** —
+**Golden render tests.** 36 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1474,7 +1497,7 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-five of them between 0.01% and 0.6%, measured rather than
+scene, all thirty-six of them between 0.01% and 0.6%, measured rather than
 rounded — a budget far above what was observed has stopped watching.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
@@ -1589,7 +1612,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-five golden scenes the way Impeller does**,
+**The web backend now draws all thirty-six golden scenes the way Impeller does**,
 between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Six scenes were
 in whole percents and every one of them was this backend drawing something else;

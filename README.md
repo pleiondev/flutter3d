@@ -81,6 +81,11 @@ flutter pub get
 # rebuilding changes nothing an application loads.
 (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 
+# The second bundle: the one the engine demo loads at runtime rather than links.
+# The demo's pubspec declares it as an asset, so without this the demo and the
+# golden set stop at "No file or variants found for asset" before anything runs.
+(cd packages/flutter3d/example && ./tool/build_shaders.sh)
+
 # The shooter
 (cd apps/flutter3d_demo_dungeon && flutter run -d macos)
 
@@ -125,10 +130,10 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-3225 tests across twenty-four packages and five applications, and the only
+3259 tests across twenty-four packages and five applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
-backend, which is what makes 35 scenes checkable in a headless run.
+backend, which is what makes 36 scenes checkable in a headless run.
 
 Two of the steps are browser steps — `flutter test --platform chrome` for the
 WebGL backend and for the browser half of `pointer_lock` — and one of them

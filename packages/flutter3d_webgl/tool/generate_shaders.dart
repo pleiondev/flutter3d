@@ -18,8 +18,15 @@ import 'dart:io';
 
 import 'package:flutter3d_webgl/src/glsl_translate.dart';
 
+import 'source_package.dart';
+
 void main(List<String> args) {
-  final root = _sourcePackageRoot();
+  final String root;
+  try {
+    root = packageRoot('flutter3d_shaders');
+  } on StateError catch (error) {
+    _fail(error.message);
+  }
   final shaders = Directory('$root/shaders');
   if (!shaders.existsSync()) {
     _fail('no shaders/ in $root');
@@ -92,41 +99,6 @@ void main(List<String> args) {
     'wrote ${target.path}: ${vertex.length} vertex, ${fragment.length} '
     'fragment',
   );
-}
-
-/// Where `flutter3d_shaders` unpacked to, from the package config.
-String _sourcePackageRoot() {
-  var dir = Directory.current;
-  while (true) {
-    final config = File('${dir.path}/.dart_tool/package_config.json');
-    if (config.existsSync()) {
-      final json =
-          jsonDecode(config.readAsStringSync()) as Map<String, dynamic>;
-      for (final entry in (json['packages'] as List<dynamic>)) {
-        final package = entry as Map<String, dynamic>;
-        if (package['name'] != 'flutter3d_shaders') continue;
-        // rootUri is a URI and relative for a workspace member, resolved
-        // against .dart_tool/ — which is why this is Uri.resolve and not a
-        // string join.
-        final base = Uri.directory('${dir.path}/.dart_tool/');
-        return base
-            .resolve(package['rootUri'] as String)
-            .toFilePath()
-            .replaceAll(RegExp(r'/$'), '');
-      }
-      _fail(
-        'flutter3d_shaders is not in ${config.path}. '
-        'Is it a dependency, and has `flutter pub get` run?',
-      );
-    }
-    final parent = dir.parent;
-    if (parent.path == dir.path) {
-      _fail(
-        'no .dart_tool/package_config.json above ${Directory.current.path}',
-      );
-    }
-    dir = parent;
-  }
 }
 
 Never _fail(String message) {

@@ -111,7 +111,12 @@ What works today:
 #    declaring anything. Generated, so it is not in the repository.
 (cd ../flutter3d_impeller && ./tool/build_shaders.sh)
 
-# 2. Run the demo
+# 2. Build the demo's own bundle, which it loads at runtime rather than links.
+#    Declared as an asset in example/pubspec.yaml and gitignored like the one
+#    above, so without it the build stops before the demo opens.
+(cd example && ./tool/build_shaders.sh)
+
+# 3. Run the demo
 (cd example && flutter run -d macos)
 ```
 
@@ -274,7 +279,7 @@ either does not start or silently renders nothing. Worth keeping to hand.
 | A black viewport with no errors at all | `Viewport` and `Scissor` default to a **zero-sized** rect and the API does not complain about drawing into one. Set both explicitly every frame |
 | The scene is all ambient, as if the light shone away from the camera | Getters shaped like `readDirection([out])` ended in `result.normalized()`, which returns a **new** vector and leaves `out` holding the un-normalized, un-negated value. The renderer read its own variable rather than the return value, so the light direction was inverted: `N·L` went negative and clamped to zero. Normalize **in place** (`normalize()`), and pin it with `expect(returned, same(out))` |
 | `Binding has not yet been initialized` when reading assets off the UI isolate | `BackgroundIsolateBinaryMessenger.ensureInitialized(token)` grants a background isolate a working channel but creates no `ServicesBinding`, and `rootBundle` resolves through `ServicesBinding.instance`. Routing `flutter/assets` by hand fails deeper still — Flutter's own reply handler throws on a cast. Keep file reads on the UI isolate and request siblings over a port |
-| Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. Re-run `flutter3d_impeller/tool/build_shaders.sh` |
+| Shaders stop loading after `flutter upgrade` | The shader bundle format is tied to the Flutter version. Re-run **both** builders: `flutter3d_impeller/tool/build_shaders.sh` for the bundle every application links, and `flutter3d/example/tool/build_shaders.sh` for the one the demo loads at runtime. The second fails by name rather than by format — `loadShaders` refuses a bundle it cannot read, so the symptom is a demo that opens and draws nothing |
 | A normal-mapped surface lights from the wrong side, on half the model | The bitangent sign. glTF's bitangent is `cross(normal, tangent) * w`, and it is **minus** dP/dv — texture V grows downwards while a normal map's green channel points up. Deriving `w` from `+dP/dv` gives tangent directions that agree with an exporter to seven digits and signs that are backwards everywhere, which only shows up on mirrored UV islands. `NormalTangentMirrorTest` settles it: it ships authored tangents for geometry `NormalTangentTest` leaves bare |
 | A texture is bound but the shader has no such slot | The compiler drops a sampler whose result never reaches the output, exactly as it does an unused uniform block. A model that samples a map and then ignores the value — Lambert reading metallic-roughness — ends up without the slot. `tool/build_shaders.sh` prints the compiled binding table so the metadata can be checked against it |
 | `A command encoder is already encoding to this command buffer` | Metal allows one open encoder per command buffer, and flutter_gpu has no way to end a `RenderPass`. A multi-pass frame needs a **command buffer per pass**, submitted in order — buffers on the same queue execute in submission order, so that is also how the passes get sequenced |

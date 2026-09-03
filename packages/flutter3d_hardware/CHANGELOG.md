@@ -12,6 +12,43 @@
   with rather than to guard: the bridge asks it once per level. `FakeBackend`
   answers sixteen and can be told otherwise. `withAnisotropy` copies a
   sampler with the one field a caller decides at run time.
+* **`GraphicsDevice.loadShaders`: a shader bundle arrives as bytes.** The
+  one way a shader reaches a device without being an asset, for an editor
+  that rebuilds a bundle and wants to see it without restarting and for an
+  application that ships a look the engine never heard of and wants it on
+  every backend. `ShaderBundle` is the container — a header naming the
+  bundle, the SDK it was compiled on and the stages it claims, then one
+  section per backend — with `encode`/`decode` checked against each other.
+  `LoadedShaderLibrary` is what comes back: a `ShaderLibrary` with `refresh`,
+  which reparses new bytes in place and **keeps the identity of every handle
+  already handed out**. `ShaderBundleRefused` is the one exception a device
+  answers when it will not load a bundle, and it names the bundle: never an
+  empty library, which would fail at the first draw naming a stage rather
+  than the file to rebuild.
+* `FakeBackend.loadShaders` and `FakeLoadedShaderLibrary`, which keep the
+  same identity promise so a test of a reload path proves something;
+  `FakeBackend.linkedPipelines` records every pair linked, in order, so a
+  test can tell a frame that relinked from one that did not.
+* **A loaded library lives as long as the device**, and `loadShaders` now
+  says so: there is no release, because the handles it handed out are held
+  by whatever resolved them, so an application whose shaders change loads
+  one bundle and refreshes it in place. `LoadedShaderLibrary` also says what
+  a pipeline linked before a refresh does until it is dropped — draws the
+  code it had, on every backend — since one backend did not keep that.
+* **A refresh that drops a stage in use is refused, naming the stage.** The
+  other half of the identity promise, and `LoadedShaderLibrary.refresh` now
+  says so: a handle is the renderer's for its lifetime, so a bundle that no
+  longer names that stage would leave a live handle over nothing — a stale
+  pipeline on one backend, a link error on another. Every backend and the
+  fake refuse it the same way, before anything is swapped, and the
+  conformance suite holds them to it.
+* `ShaderBundle.decode` refuses a string field that is not UTF-8 as a
+  `ShaderBundleRefused`, rather than letting the decoder's own
+  `FormatException` out as the one exception that was not a refusal.
+* `package:flutter3d_hardware/shader_bundle.dart` exports the container on
+  its own, with no Flutter behind it: the barrel reaches `package:flutter`
+  through `GraphicsDevice`, and the tool that packs a bundle is a `dart run`
+  script.
 
 ## 0.4.1
 

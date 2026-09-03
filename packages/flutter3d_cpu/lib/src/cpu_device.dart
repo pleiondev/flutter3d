@@ -44,6 +44,13 @@ final class CpuDevice implements GraphicsDevice {
   @override
   final CpuShaderLibrary shaders;
 
+  /// The bundle's names, answered with this device's own Dart stages; a name
+  /// it has no Dart for is a refusal naming the bundle and the stage. See
+  /// [CpuLoadedShaderLibrary]. Nothing is compiled, so nothing is waited for.
+  @override
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async =>
+      CpuLoadedShaderLibrary.load(shaders, bytes);
+
   /// What [present] shows: the last frame handed to it.
   CpuTexture? _presented;
 

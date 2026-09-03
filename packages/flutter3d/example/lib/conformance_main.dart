@@ -11,7 +11,9 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart' hide Material;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter3d_conformance/flutter3d_conformance.dart';
+import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 
 void main() => runApp(const ConformanceApp());
@@ -35,7 +37,16 @@ class _ConformanceAppState extends State<ConformanceApp> {
   Future<void> _run() async {
     final log = StringBuffer();
     var failed = 0;
-    for (final check in conformanceChecks) {
+    // The engine's own compiled bundle, as the section a packed bundle would
+    // carry: the same `impellerc` output the device loaded by asset path,
+    // read as bytes and stamped with the SDK this process runs on.
+    Future<OwnShaderSection?> ownShaders() async => (
+      id: ShaderBundle.impellerSection,
+      bytes: await rootBundle.load(GpuRenderBackend.defaultBundleAsset),
+      sdk: runningSdk,
+    );
+    final checks = conformanceChecksWith(ownShaders);
+    for (final check in checks) {
       // A device each, as the test wrapper does: a backend that leaves state
       // behind should fail on its own account rather than on the previous
       // check's.
@@ -49,7 +60,7 @@ class _ConformanceAppState extends State<ConformanceApp> {
       }
     }
     log.writeln(
-      '=== ${conformanceChecks.length - failed} passed, '
+      '=== ${checks.length - failed} passed, '
       '$failed failed ===',
     );
     // ignore: avoid_print

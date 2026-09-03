@@ -17,6 +17,32 @@ abstract final class GoldenExtras {
   /// changing it invalidates every recorded reference.
   static const int seed = 20260809;
 
+  /// The example's own loadable shader bundle, as an asset path.
+  ///
+  /// Written by `tool/build_shaders.sh` from `shaders/`, and loaded through
+  /// `GraphicsDevice.loadShaders` by the scene that names it. On Impeller
+  /// that is `impellerc` output reparsed from bytes, on WebGL the translated
+  /// GLSL ES compiled by the browser, and on the software backend the names
+  /// answered by [stripes]' Dart twin in `example_stripes_cpu.dart`.
+  static const String exampleShaderBundle = 'assets/shaders/example.f3dshaders';
+
+  /// The look the bundle carries: bands of two colours by normal height.
+  ///
+  /// Nothing about this is registered anywhere. The string is the whole
+  /// binding, resolved against the library handed to the renderer, and the
+  /// flags say the stage reads nothing the engine would bind — no FragInfo,
+  /// no maps, no parameters — which is what keeps the renderer from binding a
+  /// block the compiled stage has no slot for.
+  static const LightingModel stripes = LightingModel(
+    'Stripes',
+    'ExampleStripes',
+    usesFragInfo: false,
+    usesAlbedoTexture: false,
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
+
   /// Simulated seconds before the frame is drawn.
   ///
   /// Chosen so the burst is mid-flight: at zero every particle sits on the

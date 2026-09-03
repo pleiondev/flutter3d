@@ -24,11 +24,13 @@ import 'package:web/web.dart' as web;
 import 'webgl_encoder.dart';
 import 'webgl_formats.dart';
 import 'webgl_framebuffer.dart';
+import 'webgl_loaded_shaders.dart';
 import 'webgl_resources.dart';
 import 'webgl_shaders.dart';
 import 'webgl_types.dart';
 
 export 'webgl_encoder.dart';
+export 'webgl_loaded_shaders.dart';
 export 'webgl_types.dart';
 
 /// WebGL2 as a [GraphicsDevice].
@@ -236,7 +238,26 @@ final class WebGlDevice implements GraphicsDevice {
       _persistentTextures.length +
       _persistentRenderbuffers.length +
       _persistentBuffers.length +
-      _library.debugTrackedResourceCount;
+      _library.debugTrackedResourceCount +
+      _loaded.fold(
+        0,
+        (int count, WebGlLoadedShaderLibrary library) =>
+            count + library.debugTrackedResourceCount,
+      );
+
+  /// Every library [loadShaders] built, so [dispose] can delete what they
+  /// compiled: a loaded stage is a driver object like any of the engine's.
+  final List<WebGlLoadedShaderLibrary> _loaded = <WebGlLoadedShaderLibrary>[];
+
+  /// The bundle's `webgl` section, compiled by the browser on first use.
+  /// Nothing is waited for; the future is the interface's, for the backend
+  /// whose loader is asynchronous.
+  @override
+  Future<LoadedShaderLibrary> loadShaders(ByteData bytes) async {
+    final library = WebGlLoadedShaderLibrary.load(_gl, _library, bytes);
+    _loaded.add(library);
+    return library;
+  }
 
   @override
   void releaseTexture(TextureHandle texture) {
@@ -269,7 +290,12 @@ final class WebGlDevice implements GraphicsDevice {
     // The shader library's programs and shaders go with the device that made
     // them: the library has no life of its own — it is built in [create] and
     // reachable only through this device — so this is the one moment they can
-    // be deleted.
+    // be deleted. The loaded libraries first, because their programs live in
+    // the device's library and are forgotten through it.
+    for (final library in _loaded) {
+      library.dispose();
+    }
+    _loaded.clear();
     _library.dispose();
 
     // What can be released of the canvas and the context, released honestly.

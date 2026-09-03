@@ -12,7 +12,7 @@
 # serves the build, answers the page's fetches and drives Chrome.
 #
 # **One build for the whole suite.** The scene is a query parameter rather than
-# a compile-time define, so thirty-five scenes are thirty-four navigations instead
+# a compile-time define, so thirty-six scenes are thirty-six navigations instead
 # of twenty-six dart2js runs. That is the only reason this is minutes rather
 # than an hour.
 set -euo pipefail
@@ -31,6 +31,13 @@ for arg in "$@"; do
 done
 
 if [[ "$BUILD" == true ]]; then
+  # The example's own loadable bundle, for `loaded-shader`: its pubspec
+  # declares the asset, so the web build fails without it, naming an asset
+  # rather than the script that writes one.
+  if [[ ! -f "$EXAMPLE_DIR/assets/shaders/example.f3dshaders" ]]; then
+    echo "the example's shader bundle is missing; run $EXAMPLE_DIR/tool/build_shaders.sh" >&2
+    exit 2
+  fi
   echo "building the example for the web…"
   # Not --release: the release compiler drops the assertions this engine uses to
   # say what went wrong, and a golden run that fails silently is the thing the
