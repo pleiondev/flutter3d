@@ -240,6 +240,12 @@ extension _PickPass on Renderer {
 
     // After the submit, so the copy is queued behind the pass that fills the
     // target — which is the whole of what `readback` promises about order.
+    //
+    // Both answers check before they complete. A frame that fails after this
+    // node has run answers its questions with the failure — see the catch in
+    // `render` — and the device still hands back what it read; the readback
+    // arriving second at a completer already finished would throw from inside
+    // a `then`, where nothing is listening.
     final answers = List<MeshNode>.unmodifiable(drawn);
     for (final pick in picks) {
       final x = (pick.u * target.width).floor().clamp(0, target.width - 1);
@@ -251,6 +257,7 @@ extension _PickPass on Renderer {
           )
           .then(
             (ByteData pixel) {
+              if (pick.completer.isCompleted) return;
               final id =
                   pixel.getUint8(0) |
                   (pixel.getUint8(1) << 8) |
@@ -259,8 +266,10 @@ extension _PickPass on Renderer {
                 id == 0 || id > answers.length ? null : answers[id - 1],
               );
             },
-            onError: (Object error, StackTrace stack) =>
-                pick.completer.completeError(error, stack),
+            onError: (Object error, StackTrace stack) {
+              if (pick.completer.isCompleted) return;
+              pick.completer.completeError(error, stack);
+            },
           );
     }
     developer.Timeline.finishSync();

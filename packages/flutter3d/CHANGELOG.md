@@ -17,8 +17,9 @@
   the `ObjectId` stage into a frame-sized target, reads the one pixel back and
   answers with the node whose number came back — null for the clear colour,
   the batch for an instanced batch. Only on a frame somebody asked; otherwise
-  the node is inactive and the graph culls it. `Raycaster` stays for a game,
-  which wants an answer now and needs no frame.
+  the node is inactive and the graph culls it. A frame that fails after the
+  question was asked answers it with the failure rather than never.
+  `Raycaster` stays for a game, which wants an answer now and needs no frame.
 * `FrameResourceIds.luminance` and `FrameResourceIds.objectIds`, both frame
   outputs while their node is active, since their consumer is a readback the
   graph cannot see.

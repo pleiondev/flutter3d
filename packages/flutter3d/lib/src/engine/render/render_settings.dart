@@ -134,7 +134,7 @@ final class FogSettings {
 final class RenderSettings {
   const RenderSettings({
     this.specular = 1.0,
-    this.exposure = 1.6,
+    this.exposure = defaultExposure,
     this.wireframe = false,
     this.backfaceCulling = true,
     this.debug = const DebugDrawOptions(),
@@ -165,6 +165,10 @@ final class RenderSettings {
   /// read as under-exposed. [autoExposure] derives it from the frame instead,
   /// and while that is on this is only where the meter starts from.
   final double exposure;
+
+  /// What [exposure] is when nothing says otherwise — named, because the
+  /// renderer reports this as the exposure of a frame it has not drawn yet.
+  static const double defaultExposure = 1.6;
 
   /// Exposure decided by the frame's own brightness — see
   /// [AutoExposureSettings].

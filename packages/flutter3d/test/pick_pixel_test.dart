@@ -14,7 +14,10 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/src/engine/geometry/box_shapes.dart';
 import 'package:flutter3d/src/engine/geometry/mesh_geometry.dart';
+import 'package:flutter3d/src/engine/render/frame_graph.dart';
+import 'package:flutter3d/src/engine/render/frame_plan.dart';
 import 'package:flutter3d/src/engine/render/material.dart';
+import 'package:flutter3d/src/engine/render/render_node.dart';
 import 'package:flutter3d/src/engine/render/render_view.dart';
 import 'package:flutter3d/src/engine/render/renderer.dart';
 import 'package:flutter3d/src/engine/scene/camera_node.dart';
@@ -26,6 +29,25 @@ import 'package:flutter_test/flutter_test.dart';
 
 const int _width = 64;
 const int _height = 48;
+
+/// An application node that fails. Registered in the overlay phase, it runs
+/// after the id pass, so the frame goes down with a question the device has
+/// already been handed.
+final class _FailingNode extends RenderNode {
+  const _FailingNode();
+
+  @override
+  String get name => 'failing overlay';
+
+  @override
+  List<ResourceId> get reads => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  List<ResourceId> get writes => const <ResourceId>[FrameResourceIds.hdrColour];
+
+  @override
+  void execute(NodeFrame frame) => throw StateError('the overlay went wrong');
+}
 
 /// One pixel's worth of bytes carrying [id].
 ByteData _pixelWith(int id) {
@@ -191,6 +213,25 @@ void main() {
       final asked = renderer.pickPixel(0.5, 0.5);
       renderer.dispose();
       expect(await asked, isNull);
+    },
+  );
+
+  test(
+    'a question whose frame fails is answered with the failure, once',
+    () async {
+      // The id pass has run and handed its readback to the device by the time
+      // the overlay throws, so the question is answered twice over: by the
+      // frame's catch, with the failure, and a microtask later by the device,
+      // with a pixel. Mutation: drop the `isCompleted` check in the pick pass —
+      // the second answer throws "Future already completed" from inside a
+      // `then`, which is an unhandled error nobody's `await` sees.
+      renderer.addNode(const _FailingNode());
+      final asked = renderer.pickPixel(0.5, 0.5);
+      expect(frame, throwsStateError);
+      expect(device.readbacks, hasLength(1), reason: 'the id pass had run');
+      await expectLater(asked, throwsStateError);
+      // The device's answer, arriving at a completer already finished.
+      await pumpEventQueue();
     },
   );
 }

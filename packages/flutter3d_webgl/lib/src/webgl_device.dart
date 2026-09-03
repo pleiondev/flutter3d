@@ -763,14 +763,17 @@ final class WebGlDevice implements GraphicsDevice {
         waited += step;
       }
 
-      final bytes = Uint8List(rect.width * rect.height * 4);
+      // Filled on the JS side and copied back, the way [readPixels] does it.
+      // Under dart2js `toJS` is the same buffer, so writing into it would fill
+      // a Dart list too; under dart2wasm it is a copy, and a Dart list handed
+      // across that way comes back as the zeros it was made with. The Chrome
+      // tests run dart2js and would not notice the difference — the `--wasm`
+      // build in ci.sh is what would, one meter pinned at maxExposure later.
+      final js = Uint8List(rect.width * rect.height * 4).toJS;
       _gl.bindBuffer(web.WebGL2RenderingContext.PIXEL_PACK_BUFFER, pack);
-      _gl.getBufferSubData(
-        web.WebGL2RenderingContext.PIXEL_PACK_BUFFER,
-        0,
-        bytes.toJS,
-      );
+      _gl.getBufferSubData(web.WebGL2RenderingContext.PIXEL_PACK_BUFFER, 0, js);
       _gl.bindBuffer(web.WebGL2RenderingContext.PIXEL_PACK_BUFFER, null);
+      final bytes = Uint8List.fromList(js.toDart);
 
       if (!flip) return ByteData.sublistView(bytes);
       // Rows come up from the bottom of the region; the contract wants them

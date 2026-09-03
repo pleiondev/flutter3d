@@ -657,7 +657,7 @@ final class Renderer implements RenderServices {
   final Stopwatch _sinceLastFrame = Stopwatch();
 
   /// What the composite last exposed with — see [exposure].
-  double _lastExposure = 1.6;
+  double _lastExposure = RenderSettings.defaultExposure;
 
   /// The exposure the last frame was composited with.
   ///
@@ -1383,9 +1383,10 @@ final class Renderer implements RenderServices {
       ..addNode(cube)
       ..addNode(shadow)
       ..addNode(scene)
-      // After the scene, whose render list it reuses, and before anything
-      // else: it reads nothing and writes a name nothing else reads, so its
-      // place in the chain is nobody's concern, and inactive it is culled.
+      // After the scene, whose render list it builds and sorts again the same
+      // way, and before anything else: it reads nothing and writes a name
+      // nothing else reads, so its place in the chain is nobody's concern,
+      // and inactive it is culled.
       ..addNode(objectIds);
 
     for (final node in nodes.of(FramePhase.overlay)) {
@@ -2265,11 +2266,24 @@ final class Renderer implements RenderServices {
         );
         resources.endNode(i);
       }
-    } catch (_) {
+    } catch (error, stack) {
       // Only on the way out. On the ordinary path every version has already
       // retired at the node that last used it, and releasing again from here
       // would hand one texture back twice.
       resources.releaseAll();
+
+      // The frame's questions go down with the frame. They were taken off
+      // `_pendingPicks` above, so no later frame will see them, and `dispose`
+      // will not either; a completer nobody finishes is an editor awaiting a
+      // click for ever. A question the id node had already handed to the
+      // device is answered by the device — and refused here first, since the
+      // frame it belongs to did not happen — which is why the readback's own
+      // answer checks before it completes.
+      for (final pick in picks) {
+        if (!pick.completer.isCompleted) {
+          pick.completer.completeError(error, stack);
+        }
+      }
 
       // **And the counter has to move, or the deferral this frame just relied
       // on is a frame that never happened.** Releases go into slot
