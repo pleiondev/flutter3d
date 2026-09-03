@@ -168,7 +168,7 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   // The clamp the HAL promises for `SamplerOptions.anisotropy`: a request
   // above `maxAnisotropy` is lowered, never refused, on every backend.
   (
-    name: 'a sampler asking for sixteen-way anisotropy is accepted',
+    name: 'a sampler asking for more anisotropy than there is is accepted',
     run: checkAnisotropicSamplerAccepted,
   ),
 ];
