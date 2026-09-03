@@ -55,7 +55,16 @@ FAILED=0
 # failed on two. This warning is only ever about a dirty working tree, which is
 # a developer's business — every readiness fact this step exists to catch says
 # something else.
-ALLOWED='modified in git'
+#
+# The second entry is a *hint* rather than a warning, and it is here because
+# this repository bumps versions as work lands and publishes in batches. So a
+# package whose last release was 0.4.0 and whose pubspec now says 0.4.2 gets
+# told the step is not incremental — which is true, and is the shape of a repo
+# with unreleased bumps rather than a package that is not ready. The version
+# itself is still held: `the publishing order names every package` and `every
+# package agrees about versions with the workspace` are structure rules, and a
+# version that disagrees with anything fails there instead.
+ALLOWED='modified in git|The previous version is'
 
 for dir in packages/*/; do
   name="$(basename "$dir")"
@@ -77,7 +86,7 @@ PY
     continue
   fi
 
-  unexpected="$(echo "$out" | grep '^\* ' | grep -v "$ALLOWED")"
+  unexpected="$(echo "$out" | grep '^\* ' | grep -Ev "$ALLOWED")"
   if [ -n "$unexpected" ]; then
     printf '%-28s WARNINGS\n' "$name"
     echo "$unexpected" | sed 's/^/    /'
