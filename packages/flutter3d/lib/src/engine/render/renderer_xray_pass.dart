@@ -35,6 +35,29 @@ extension _XrayPass on Renderer {
   /// when the mask is zero, the device has no stencil, or no visible node is
   /// on the layer, which is what keeps every picture without silhouettes the
   /// bytes it was.
+  ///
+  /// **Two ways a marked node draws no silhouette and says nothing about
+  /// it.** Both are the stage working as built rather than faults, and both
+  /// are the sort of thing that gets reported as one.
+  ///
+  /// The list read here is `_renderList`, which is what survived culling. A
+  /// marked node the frustum test dropped, or one a level's precomputed
+  /// visibility dropped — `flutter3d_sim`'s `visibility_culler`, which the
+  /// dungeon uses — is not in it and contributes nothing. So a sensor does
+  /// not show a monster the level says cannot be seen from here, which reads
+  /// as a bug from a corridor away and is the culler's answer, not this
+  /// stage's. Nothing shorter than "draw the marked nodes from an unculled
+  /// list" changes it, and that is a per-frame cost for a per-app decision.
+  ///
+  /// **Only opaque geometry hides anything**, because only opaque geometry
+  /// writes depth, and the paint's `greater` test is against the depth
+  /// buffer. A monster behind glass, or behind a particle sheet, is in front
+  /// of everything the buffer knows about and gets no silhouette — which is
+  /// right, since it can be seen through them, and worth stating because the
+  /// picture and the reason are far apart. A marked node whose *own* material
+  /// is transparent is unaffected: both draws take their depth state from the
+  /// override material rather than from the node's, so a transparent monster
+  /// behind a wall gets exactly the silhouette an opaque one would.
   void _encodeXray({
     required PassEncoder encoder,
     required Scene scene,

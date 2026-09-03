@@ -264,7 +264,7 @@ RenderSettings(
 )
 ```
 
-{{golden stencil-xray | A wall, a cube behind it and a cube in front. The far cube is a silhouette through the wall and lit where it shows above it; the silhouette stops where the near cube's lit face is.}}
+{{golden stencil-xray | A wall, a cube behind it and a cube in front. The far cube is a silhouette through the wall and lit where it shows above it; the silhouette is notched around the near cube's lit face.}}
 
 Two draws per marked node at the end of the scene pass, and a stencil between them. The first *marks*: the node is drawn again with no colour — `BlendState.keepDestination`, since `flutter_gpu` has no colour write mask and a discarded fragment writes no stencil — and a depth test of `lessEqual`, storing one wherever a fragment passes, which after the opaque half is exactly where the node is visible. The second *paints*: a flat unlit colour with a depth test of `greater`, only where something nearer is in the buffer, and a stencil test of `notEqual` one, only where no marked node's visible part is.
 
@@ -273,6 +273,8 @@ Two draws per marked node at the end of the scene pass, and a stencil between th
 </div>
 
 The colour is linear light, before exposure and the tone curve; fog is left off the silhouette, since a sensor that lost its monsters to the far end of a corridor would be a sensor with the corridor's own range. On a device whose `supportsStencil` is false the stage draws nothing, and a scene with no layer named emits not one stencil call — which is what keeps every other picture on this page the bytes it was. The dungeon's sensor power-up switches it on for the actors' layer for as long as the power-up lasts.
+
+Two silences worth knowing before one is reported as a bug. The stage draws from the render list, which is what survived culling, so a marked node the frustum test or a level's precomputed visibility dropped has no silhouette — that is the culler's answer, not this stage's, and it is why a sensor does not show the monster in the next room. And only opaque geometry writes depth, so only opaque geometry hides: something behind glass or behind a sheet of particles is in front of everything the depth buffer knows about and is drawn as itself. A marked node whose own material is transparent is unaffected, and gets the silhouette an opaque one would.
 
 ## The surface buffer
 

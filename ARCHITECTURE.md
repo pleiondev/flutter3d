@@ -435,8 +435,8 @@ backend mirrors all of it, so the two references can be compared exactly.
 with no `submit` — so a contributor cannot end somebody else's pass. Particles are
 the first user.
 
-**X-ray silhouettes.** `RenderSettings.xray` names a layer, and every visible
-node on it is drawn twice more at the end of the scene pass, after the
+**X-ray silhouettes.** `RenderSettings.xray` names a layer, and every node on it
+that survived culling is drawn twice more at the end of the scene pass, after the
 transparent half and before the contributors. The first draw *marks*: no colour
 (`BlendState.keepDestination`), no depth write, a depth test of `lessEqual`, and
 a stencil that stores one wherever a fragment passes — which, after the opaque
@@ -452,6 +452,29 @@ whose `supportsStencil` is false gets no silhouettes and no stencil calls; a
 scene with no layer named gets not one call more than it did before the stage
 existed, which is what keeps every other golden the bytes it was. The dungeon's
 sensor power-up is the consumer.
+
+**"Culling" above is doing work, and so is "nearer".** The stage reads the render
+list, which is post-cull, so a marked node the frustum test dropped — or one a
+level's precomputed visibility dropped, §4.6, which is what the dungeon uses —
+contributes nothing. A sensor therefore does not show the monster in the next
+room, which is the culler's answer rather than this stage's and is the first
+thing to check when one is reported missing. And only opaque geometry writes
+depth, so only opaque geometry hides: something behind glass or behind a particle
+sheet is in front of everything the depth buffer knows about and gets no
+silhouette. A marked node whose *own* material is transparent is unaffected —
+both extra draws take their depth state from the override material, not the
+node's.
+
+**What it costs is per marked node and is not measured yet.** Two more passes
+through the node encoder each, skinning included, so a marked skinned actor is
+posed and drawn three times per view where an unmarked one is drawn once; nothing
+else in the frame changes, and a frame with no marked node in the list emits
+nothing at all. No frame time has been taken for the one application that turns
+it on — a vaults frame with the sensor on against one with it off, from the
+`Renderer.encodeDraws` timeline event — and until it is, the number to expect is
+unknown rather than small. If it turns out to matter, the lever is the pose: the
+mark and the paint could skin from the one the lit draw already computed instead
+of recomputing it twice.
 
 ### 4.4 Culling and level of detail
 
@@ -1439,7 +1462,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3204 tests** across 24 packages and 5 applications |
+| Unit tests | **3206 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

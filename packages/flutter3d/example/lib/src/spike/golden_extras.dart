@@ -421,11 +421,20 @@ abstract final class GoldenExtras {
   /// Placed for a camera looking straight down −Z: the wall stands across
   /// the view, the far cube is behind it with a sliver showing above its
   /// top, and the near cube stands to the left, in front of the wall and —
-  /// on screen — across part of the far cube. Three things in one frame:
-  /// the far cube's silhouette through the wall, its visible sliver lit
-  /// rather than flat, and the silhouette stopping where the near cube's lit
-  /// face is. The third is the stencil's; a depth test alone paints the far
-  /// cube's silhouette over the near cube.
+  /// on screen — over the lower left of the far cube's hidden part. Three
+  /// things in one frame: the far cube's silhouette through the wall, its
+  /// visible sliver lit rather than flat, and the silhouette notched where
+  /// the near cube's lit face is. The third is the stencil's; a depth test
+  /// alone paints the far cube's silhouette over the near cube.
+  ///
+  /// **The overlap is the fixture, not decoration, and it is measured.** In
+  /// the recorded 480x360 frame the silhouette occupies roughly x 217..262
+  /// and the near cube's face reaches up into it, so the silhouette's rows
+  /// below the near cube's top edge are the narrower part of an L. A change
+  /// to either position that pulls the two apart leaves the picture agreeing
+  /// with every reference while the property it was recorded for is gone —
+  /// which is why `xray_frame_test.dart` asserts the same thing in pixels
+  /// rather than leaving it to this frame alone.
   static List<MeshNode> xrayRoom(GraphicsDevice device) {
     final wall = MeshNode(
       DeviceMesh.upload(
@@ -467,7 +476,11 @@ abstract final class GoldenExtras {
             name: 'near cube',
           )
           ..layerMask = 1 | xrayLayer
-          ..setPosition(-0.32, 0.4, 0.9);
+          // High enough that its top edge cuts into the far cube's hidden
+          // part rather than clearing it below: at 0.4 the two footprints
+          // missed each other by two pixels and the frame proved two of the
+          // three things it is described as proving.
+          ..setPosition(-0.32, 0.7, 0.9);
     return <MeshNode>[wall, behind, inFront];
   }
 
