@@ -22,6 +22,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:flutter3d_demo_racing/src/circuits.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
@@ -51,6 +52,7 @@ final class _Session {
     race = staged.race;
     cars_.addAll(staged.cars);
     simulation = staged.sim;
+    ai = staged.ai;
   }
 
   final CollisionWorld world = CollisionWorld();
@@ -58,6 +60,7 @@ final class _Session {
   late final TrackSpline track;
   late final RaceState race;
   late final RacingSimulation simulation;
+  late final AiDriver ai;
 
   RacerProgress get player => race.progress[0];
 
@@ -227,6 +230,120 @@ void main() {
       // and a driver that cannot stay on it is a road that cannot be raced.
       expect(offRoadSteps / (120.0 / _dt), lessThan(0.1));
     });
+  });
+
+  group('every circuit in the season', () {
+    // **The gorge's tests, once each for the three that came after it** —
+    // written over the season's own list rather than copied per circuit, so
+    // a sixth circuit is covered the day it is added to `Season.circuits`
+    // and not the day somebody remembers. What the gorge taught is that a
+    // circuit is nine numbers away from being undriveable, and that none of
+    // those nine is visible in a file that parses.
+    for (final circuit in Season.circuits) {
+      group(circuit.name, () {
+        test('is a road a grid fits on, with its checkpoints in order', () {
+          final track = _shipped(circuit.name).track;
+
+          expect(track.length, greaterThan(500.0));
+          for (var s = 0.0; s < track.length; s += 5.0) {
+            expect(
+              track.widthAt(s),
+              greaterThan(8.0),
+              reason: 'narrower than two cars at $s m',
+            );
+          }
+
+          // Mutation: write the checkpoints as fractions of a lap the
+          // generator got the wrong way round. `TrackSpline` refuses those;
+          // what it cannot refuse is a checkpoint on the line itself, which
+          // a lap counter walks past before the lap has begun.
+          expect(track.checkpoints, isNotEmpty);
+          expect(track.checkpoints.first, greaterThan(0.0));
+          expect(track.checkpoints.last, lessThan(track.length));
+          for (var i = 1; i < track.checkpoints.length; i++) {
+            expect(track.checkpoints[i], greaterThan(track.checkpoints[i - 1]));
+          }
+        });
+
+        test('can be driven all the way round, past every checkpoint', () {
+          final it = _Session(circuit: circuit.name);
+          var respawns = 0;
+          var offRoadSteps = 0;
+          var passed = 0;
+
+          it.driveFor(
+            120.0,
+            watch: () {
+              if (it.player.respawnedThisStep) respawns += 1;
+              if (it.player.offRoad) offRoadSteps += 1;
+              if (it.player.checkpointThisStep) passed += 1;
+            },
+          );
+
+          expect(
+            it.player.lap,
+            greaterThanOrEqualTo(1),
+            reason: '${circuit.name} cannot be got round',
+          );
+          expect(respawns, 0, reason: 'the racing line needed a reset');
+          expect(offRoadSteps / (120.0 / _dt), lessThan(0.1));
+          expect(passed, greaterThanOrEqualTo(it.track.checkpoints.length));
+
+          // Not a number: a range set by the road. Nothing here can average
+          // more than the car's sixty metres a second, and a lap of the
+          // longest circuit slower than a minute is a circuit the reference
+          // driver spent half of on the grass.
+          final lap = it.player.bestLap!;
+          expect(lap, greaterThan(it.track.length / 60.0));
+          expect(
+            lap,
+            lessThan(60.0),
+            reason: 'a lap of ${circuit.name} takes $lap s',
+          );
+        });
+
+        test('and the rivals get round it too', () {
+          // The driver above is the test's own. This is the one the game
+          // ships: a field of `AiDriver`s, avoiding each other, on the
+          // circuit as it is raced. A circuit the rivals cannot lap is a
+          // race the player wins by standing still.
+          final it = _Session(
+            circuit: circuit.name,
+            cars: kFieldSize,
+            mode: RaceMode.race,
+          );
+          final respawns = List<int>.filled(kFieldSize, 0);
+          final steps = (150.0 / _dt).round();
+
+          for (var step = 0; step < steps; step++) {
+            for (var i = 0; i < kFieldSize; i++) {
+              it.ai.drive(
+                it.cars_[i],
+                it.simulation.inputs[i],
+                others: it.cars_,
+              );
+            }
+            it.simulation.step(_dt);
+            for (var i = 0; i < kFieldSize; i++) {
+              if (it.race.progress[i].respawnedThisStep) respawns[i] += 1;
+            }
+          }
+
+          for (var i = 0; i < kFieldSize; i++) {
+            expect(
+              it.race.progress[i].lap,
+              greaterThanOrEqualTo(1),
+              reason: 'rival $i never finished a lap of ${circuit.name}',
+            );
+            expect(
+              respawns[i],
+              lessThan(3),
+              reason: 'rival $i was put back ${respawns[i]} times',
+            );
+          }
+        });
+      });
+    }
   });
 
   test('the checkpoints are all passed on the way round', () {

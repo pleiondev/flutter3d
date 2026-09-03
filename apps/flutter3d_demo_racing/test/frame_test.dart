@@ -29,6 +29,7 @@ import 'dart:typed_data';
 
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_cpu/flutter3d_cpu.dart';
+import 'package:flutter3d_demo_racing/src/circuits.dart';
 import 'package:flutter3d_demo_racing/src/looks.dart';
 import 'package:flutter3d_demo_racing/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
@@ -57,7 +58,11 @@ final class _Shown {
     this.sky,
   );
 
-  static Future<_Shown> build({int cars = 2, SkyPreset? sky}) async {
+  static Future<_Shown> build({
+    int cars = 2,
+    SkyPreset? sky,
+    String circuit = 'ring',
+  }) async {
     final device = CpuDevice(
       width: _width,
       height: _height,
@@ -78,7 +83,7 @@ final class _Shown {
     // The shipped circuit, read off disk the way the game reads it. A test that
     // built its own would be a test of a circuit nobody drives.
     final document = TrackDocument.fromJson(
-      jsonDecode(File('assets/tracks/ring.json').readAsStringSync())
+      jsonDecode(File('assets/tracks/$circuit.json').readAsStringSync())
           as Map<String, Object?>,
     );
     final track = document.track;
@@ -352,6 +357,30 @@ void main() {
     );
   });
 
+  test('and so is every other circuit in the season', () async {
+    // The ring is the one the tests above know the colours of: they count
+    // tarmac and grass as the morning lights them, and a dawn or a dusk
+    // paints both something else. So the claim here is the one that does not
+    // depend on the hour — that hiding the road changes the picture, which
+    // it cannot unless the road was in it. A circuit whose level parses and
+    // whose road never reaches the renderer passes every simulation test in
+    // this directory and fails this one.
+    for (final circuit in Season.circuits.skip(1)) {
+      final shown = await _Shown.build(circuit: circuit.name);
+      shown.run(3.0);
+
+      final withRoad = await shown.draw();
+      final withoutRoad = await shown.draw(hiding: 'road');
+
+      expect(
+        _differences(withRoad, withoutRoad),
+        greaterThan(400),
+        reason:
+            'the camera is behind a car on ${circuit.name} and sees no road',
+      );
+    }
+  });
+
   test('the road is what the car is on, not something beside it', () async {
     // The claim the generated road exists to make: the mesh and the driving
     // surface come from one description. Hiding the road leaves a car-shaped
@@ -533,94 +562,110 @@ void main() {
   });
 
   group('the track file', () {
-    test('its sky block is the preset it names', () async {
-      // Mutation: change a number in `SKY_PRESETS` in `make_track.py` and not
-      // in `sky.dart`. The generated circuit and the fallback every fixture
-      // uses would then be two different afternoons, and nothing else in the
-      // repository compares them.
-      final document =
-          jsonDecode(File('assets/tracks/ring.json').readAsStringSync())
-              as Map<String, Object?>;
-      final block = document['sky'];
-      expect(
-        block,
-        isA<Map<String, Object?>>(),
-        reason: 'run tool/make_track.py',
-      );
+    // Once per circuit rather than once for the ring: the three below are
+    // about what the generator derives from a preset, and each circuit names
+    // its own — a season raced at five hours is five chances for the sun in
+    // the level and the sun in the sky to disagree.
+    for (final circuit in Season.circuits) {
+      group(circuit.name, () {
+        test('its sky block is the preset it names', () async {
+          // Mutation: change a number in `SKY_PRESETS` in `make_track.py` and not
+          // in `sky.dart`. The generated circuit and the fallback every fixture
+          // uses would then be two different afternoons, and nothing else in the
+          // repository compares them.
+          final document =
+              jsonDecode(File(circuit.track).readAsStringSync())
+                  as Map<String, Object?>;
+          final block = document['sky'];
+          expect(
+            block,
+            isA<Map<String, Object?>>(),
+            reason: 'run tool/make_track.py',
+          );
 
-      final written = SkyPreset.fromJson(block! as Map<String, Object?>);
-      final named = SkyPresets.byName(written.name);
-      expect(
-        named,
-        isNotNull,
-        reason: '"${written.name}" is not a preset sky.dart knows',
-      );
+          final written = SkyPreset.fromJson(block! as Map<String, Object?>);
+          final named = SkyPresets.byName(written.name);
+          expect(
+            named,
+            isNotNull,
+            reason: '"${written.name}" is not a preset sky.dart knows',
+          );
 
-      expect(written.fogDensity, closeTo(named!.fogDensity, 1e-9));
-      expect(written.sunElevationDeg, closeTo(named.sunElevationDeg, 1e-9));
-      expect(written.sunAzimuthDeg, closeTo(named.sunAzimuthDeg, 1e-9));
-      expect(written.exposure, closeTo(named.exposure, 1e-9));
-      expect(written.sunDisc, closeTo(named.sunDisc, 1e-9));
-      expect(written.ambientIntensity, closeTo(named.ambientIntensity, 1e-9));
-      expect((written.horizon - named.horizon).length, lessThan(1e-6));
-      expect((written.zenith - named.zenith).length, lessThan(1e-6));
-      expect((written.sunColor - named.sunColor).length, lessThan(1e-6));
-    });
+          expect(written.fogDensity, closeTo(named!.fogDensity, 1e-9));
+          expect(written.sunElevationDeg, closeTo(named.sunElevationDeg, 1e-9));
+          expect(written.sunAzimuthDeg, closeTo(named.sunAzimuthDeg, 1e-9));
+          expect(written.exposure, closeTo(named.exposure, 1e-9));
+          expect(written.sunDisc, closeTo(named.sunDisc, 1e-9));
+          expect(
+            written.ambientIntensity,
+            closeTo(named.ambientIntensity, 1e-9),
+          );
+          expect((written.horizon - named.horizon).length, lessThan(1e-6));
+          expect((written.zenith - named.zenith).length, lessThan(1e-6));
+          expect((written.sunColor - named.sunColor).length, lessThan(1e-6));
+        });
 
-    test('the sun in the level is the sun in the sky', () async {
-      // The level's one directional light is derived from the preset by the
-      // generator. If it ever stops being, shadows fall one way and the glow in
-      // the sky sits the other, which is the sort of wrongness a person sees
-      // without being able to name.
-      final document =
-          jsonDecode(File('assets/tracks/ring.json').readAsStringSync())
-              as Map<String, Object?>;
-      final level = document['level']! as Map<String, Object?>;
-      final light =
-          (level['lights']! as List<Object?>).first! as Map<String, Object?>;
-      final written = (light['direction']! as List<Object?>)
-          .map((Object? v) => (v! as num).toDouble())
-          .toList();
+        test('the sun in the level is the sun in the sky', () async {
+          // The level's one directional light is derived from the preset by the
+          // generator. If it ever stops being, shadows fall one way and the glow in
+          // the sky sits the other, which is the sort of wrongness a person sees
+          // without being able to name.
+          final document =
+              jsonDecode(File(circuit.track).readAsStringSync())
+                  as Map<String, Object?>;
+          final level = document['level']! as Map<String, Object?>;
+          final light =
+              (level['lights']! as List<Object?>).first!
+                  as Map<String, Object?>;
+          final written = (light['direction']! as List<Object?>)
+              .map((Object? v) => (v! as num).toDouble())
+              .toList();
 
-      final sky = SkyPreset.fromJson(document['sky']! as Map<String, Object?>);
-      final expected = sky.sunDirection;
-      expect(
-        Vector3(
-          written[0],
-          written[1],
-          written[2],
-        ).normalized().dot(expected.normalized()),
-        closeTo(1.0, 1e-3),
-      );
-    });
+          final sky = SkyPreset.fromJson(
+            document['sky']! as Map<String, Object?>,
+          );
+          final expected = sky.sunDirection;
+          expect(
+            Vector3(
+              written[0],
+              written[1],
+              written[2],
+            ).normalized().dot(expected.normalized()),
+            closeTo(1.0, 1e-3),
+          );
+        });
 
-    test('the ground reaches past where the haze hides its edge', () async {
-      // The ground is a square and past its edge there is nothing at all. What
-      // stops that showing is the haze, so the two are one decision: the
-      // generator sizes the ground from the density, and this is the assertion
-      // that it actually did.
-      //
-      // Mutation: put the reach back to a literal. A preset with clearer air
-      // would then end in a visible line halfway to the horizon, and every
-      // other test in this file would pass.
-      final document =
-          jsonDecode(File('assets/tracks/ring.json').readAsStringSync())
-              as Map<String, Object?>;
-      final level = document['level']! as Map<String, Object?>;
-      final brushes = level['brushes']! as List<Object?>;
-      final ground = brushes.first! as Map<String, Object?>;
-      final size = (ground['size']! as List<Object?>)
-          .map((Object? v) => (v! as num).toDouble())
-          .toList();
+        test('the ground reaches past where the haze hides its edge', () async {
+          // The ground is a square and past its edge there is nothing at all. What
+          // stops that showing is the haze, so the two are one decision: the
+          // generator sizes the ground from the density, and this is the assertion
+          // that it actually did.
+          //
+          // Mutation: put the reach back to a literal. A preset with clearer air
+          // would then end in a visible line halfway to the horizon, and every
+          // other test in this file would pass.
+          final document =
+              jsonDecode(File(circuit.track).readAsStringSync())
+                  as Map<String, Object?>;
+          final level = document['level']! as Map<String, Object?>;
+          final brushes = level['brushes']! as List<Object?>;
+          final ground = brushes.first! as Map<String, Object?>;
+          final size = (ground['size']! as List<Object?>)
+              .map((Object? v) => (v! as num).toDouble())
+              .toList();
 
-      final sky = SkyPreset.fromJson(document['sky']! as Map<String, Object?>);
-      final reach = size[0] / 2;
-      expect(
-        math.exp(-sky.fogDensity * reach),
-        lessThan(0.15),
-        reason: 'the edge of the ground is still visible through the air',
-      );
-    });
+          final sky = SkyPreset.fromJson(
+            document['sky']! as Map<String, Object?>,
+          );
+          final reach = size[0] / 2;
+          expect(
+            math.exp(-sky.fogDensity * reach),
+            lessThan(0.15),
+            reason: 'the edge of the ground is still visible through the air',
+          );
+        });
+      });
+    }
   });
 }
 

@@ -1,10 +1,10 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3172 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3177 tests need a GPU.
 ---
 
 # Testing
 
-3172 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3177 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|

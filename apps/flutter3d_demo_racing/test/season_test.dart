@@ -7,7 +7,8 @@
 /// anywhere, and a car driving round a finished race until the window was
 /// closed. The other two games have moved a player from one level to the next
 /// since they were written; this is racing catching up, and the second circuit
-/// is what makes the difference visible.
+/// is what makes the difference visible. The season is five now; the chain is
+/// the same chain, three links longer.
 library;
 
 import 'dart:convert';
@@ -35,12 +36,17 @@ final class _Storage implements Storage {
 }
 
 void main() {
-  test('the season is a chain, and it ends', () {
-    expect(
-      Season.circuits.length,
-      greaterThan(1),
-      reason: 'a season of one circuit is the game that had no chain',
-    );
+  test('the season is a chain of five, and it ends', () {
+    // Five by name rather than "more than one": a circuit dropped from the
+    // list by accident is a season a player finishes an evening early, and
+    // nothing else in the game would say so.
+    expect(Season.circuits.map((Circuit c) => c.name).toList(), <String>[
+      'ring',
+      'gorge',
+      'flats',
+      'quarry',
+      'ridge',
+    ], reason: 'the season is raced in this order, easiest to hardest');
 
     var at = Season.first;
     final seen = <String>[at.name];
@@ -61,6 +67,25 @@ void main() {
       isNull,
       reason: 'the season never ends, so a player never finishes it',
     );
+  });
+
+  test('and every circuit is told apart by name and by title', () {
+    // The name is the file and the save; the title is what the screen says
+    // between circuits. Two circuits sharing either is a player told they
+    // are somewhere they are not — or, for the name, a save that resumes on
+    // the wrong one.
+    final names = Season.circuits.map((Circuit c) => c.name).toSet();
+    final titles = Season.circuits.map((Circuit c) => c.title).toSet();
+
+    expect(names.length, Season.circuits.length);
+    expect(titles.length, Season.circuits.length);
+    for (final circuit in Season.circuits) {
+      expect(
+        circuit.title.trim(),
+        isNotEmpty,
+        reason: '${circuit.name} is untitled',
+      );
+    }
   });
 
   test('and every circuit in it ships both of its files', () {
