@@ -2,11 +2,12 @@
 ///
 /// The fake device pins the *sequence* the stage emits; this pins what the
 /// sequence does to a picture when every call is honoured, on the one backend
-/// where a picture can be drawn in a test. Four questions, one per case: a
+/// where a picture can be drawn in a test. Five questions, one per case: a
 /// cube nothing hides keeps its own colour everywhere, a cube a wall hides
 /// comes back as the silhouette colour where the wall is, a hidden cube's
-/// silhouette stops at a *second* marked cube standing in front of it, and a
-/// glass wall hides nothing at all.
+/// silhouette stops at a *second* marked cube standing in front of it, the
+/// surface buffer is left describing the nearest surface, and a glass wall
+/// hides nothing at all.
 ///
 /// **The third case is the one the stencil exists for**, and it is the only
 /// one here that fails without it. With a single marked node the mark
@@ -14,6 +15,16 @@
 /// and its own visible fragments fail `greater` against the depth they wrote.
 /// Turning the silhouette's compare to `always` leaves the first two cases
 /// green and takes this one down by 255 pixels.
+///
+/// **The fourth is the one the x-ray fragment shader exists for.** Drawing the
+/// two extra passes with `LightingModel.unlit` instead of
+/// `LightingModel.xray` — which is what they used to do — takes it down by 745
+/// pixels of 6912. Both extra draws contribute, and each was measured on its
+/// own by marking one cube at a time: 324 pixels where the silhouette stamped
+/// a hidden cube's normal, roughness and depth over the wall in front of it,
+/// and 676 where the mark overwrote a marked node's own roughness with the
+/// flat 1.0 an unlit surface reports. Together they come to less than the sum,
+/// because the stencil that notches the silhouette notches the damage too.
 library;
 
 import 'dart:typed_data';
@@ -143,6 +154,86 @@ Future<Uint8List> _frame({
   return bytes!.buffer.asUint8List();
 }
 
+/// The same idea as [_frame], for the second attachment rather than the first.
+///
+/// Three nodes, chosen so that each of the stage's two extra draws lands
+/// somewhere the surface buffer already has an answer for:
+///
+///  * a **far cube**, marked, entirely behind the wall — where the silhouette's
+///    `greater` test passes, which is the wall's pixels;
+///  * a **near cube**, marked, in front of the wall and rough 0.15 — where the
+///    mark's `lessEqual` test passes, which is its own pixels, and where 0.15
+///    is a roughness a flat unlit draw could not have written;
+///  * the **wall** itself, rough 0.9, to have something for the far cube's
+///    silhouette to be stamped over.
+///
+/// Rendered with `showSurfaceBuffer`, so the frame that comes back *is* the
+/// surface buffer put through the composite. Both cubes are Lambert rather
+/// than unlit for the roughness alone: unlit writes a flat 1.0, which is
+/// exactly what an unlit silhouette would have written on top of it, and a
+/// fixture where the wrong answer equals the right one proves nothing.
+Future<Uint8List> _surfaceFrame({required bool xray}) async {
+  final device = CpuDevice(
+    width: _width,
+    height: _height,
+    shaders: CpuShaderLibrary(builtinCpuShaders()),
+  );
+  final renderer = Renderer.create(device: device);
+  final scene = Scene();
+
+  MeshNode node(String name, Vector3 size, double roughness) => MeshNode(
+    DeviceMesh.upload(device, CuboidShape(size: size).build()),
+    Material(
+      name: name,
+      baseColor: Vector4(0.6, 0.6, 0.6, 1.0),
+      lighting: LightingModel.lambert,
+      roughness: roughness,
+    ),
+    name: name,
+  );
+
+  scene.add(
+    node('far', Vector3(2.0, 2.0, 2.0), 0.4)
+      ..layerMask = 1 | _layer
+      ..setPosition(0.0, 0.0, -8.0),
+  );
+  scene.add(
+    node('wall', Vector3(6.0, 6.0, 0.2), 0.9)..setPosition(0.0, 0.0, -5.0),
+  );
+  scene.add(
+    node('near', Vector3(1.0, 1.0, 1.0), 0.15)
+      ..layerMask = 1 | _layer
+      ..setPosition(-0.18, -0.27, -3.0),
+  );
+
+  final camera = CameraNode(
+    projection: const PerspectiveProjection(
+      fovYRadians: 1.0,
+      near: 0.1,
+      far: 50.0,
+    ),
+  );
+  camera.lookAt(Vector3(0.0, 0.0, -8.0));
+  scene.add(camera);
+
+  final result = renderer.render(
+    width: _width,
+    height: _height,
+    scene: scene,
+    views: <RenderView>[RenderView(camera: camera)],
+    settings: RenderSettings(
+      bloom: const BloomSettings(enabled: false),
+      shadows: const ShadowSettings(enabled: false),
+      tonemap: false,
+      exposure: 1.0,
+      showSurfaceBuffer: true,
+      xray: XraySettings(color: _silhouette, layerMask: xray ? _layer : 0),
+    ),
+  );
+  final bytes = await device.readPixels(result.frame);
+  return bytes!.buffer.asUint8List();
+}
+
 int _count(Uint8List rgba, bool Function(int, int, int) wanted) {
   var count = 0;
   for (var i = 0; i < rgba.length; i += 4) {
@@ -225,6 +316,29 @@ void main() {
       _count(held, _isSilhouette),
       footprint - (face - _count(over, _isNear)),
       reason: 'the silhouette lost exactly the pixels the near cube kept',
+    );
+  });
+
+  test('a silhouette says nothing about the surface it covers', () async {
+    // The surface buffer's one invariant: it describes the NEAREST surface,
+    // and SSAO and reflections read it as such. Both extra draws are aimed
+    // straight at it — the silhouette passes exactly where a marked node is
+    // behind what the depth buffer holds, and the mark passes exactly where
+    // one is visible — so a stage that wrote attachment one would occlude and
+    // reflect off a monster that is not in the picture.
+    //
+    // Byte equality rather than a tolerance, and it is the honest assertion:
+    // the buffer is the same buffer, so the two frames are the same frame.
+    final off = await _surfaceFrame(xray: false);
+    final on = await _surfaceFrame(xray: true);
+    expect(on, off);
+
+    // And the fixture is one where that could have failed. Without it, a run
+    // where nothing drew would compare two empty frames and pass.
+    expect(
+      _count(off, (r, g, b) => r > 8 || g > 8 || b > 8),
+      greaterThan(_width * _height ~/ 2),
+      reason: 'most of the frame is a surface with something written in it',
     );
   });
 

@@ -11,7 +11,12 @@
   batches come for free. Nothing is emitted when the mask is zero, the
   device has no stencil, or nothing visible is on the layer — every other
   golden is the bytes it was. `stencil-xray` joins the set on all three
-  backends.
+  backends. Neither extra draw writes the surface buffer: they use
+  `LightingModel.xray`, which is unlit with its second output compiled away,
+  so a silhouette describes no surface to ambient occlusion or reflections —
+  and it cannot, since it is drawn precisely where its node is behind
+  something else. A software test holds one scene's surface buffer
+  byte-identical with silhouettes on and off.
 
 ## 0.4.2
 

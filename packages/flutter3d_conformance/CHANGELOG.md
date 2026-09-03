@@ -7,6 +7,9 @@
   backend whose `supportsStencil` is false is asked nothing, as with a
   compressed format it does not sample. The capability check reads
   `supportsStencil` with the rest.
+* The link checks pair `Xray` with all three mesh vertex stages. It declares
+  one output where every other lighting entry point declares two, which is the
+  pairing least like the rest of the table.
 
 ## 0.4.1
 

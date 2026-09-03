@@ -3099,6 +3099,7 @@ void _linkTests() {
   // the shader and the golden set was in a position to say so.
   const pairs = <(String, String)>[
     ('MeshVertex', 'Unlit'),
+    ('MeshVertex', 'Xray'),
     ('MeshVertex', 'Lambert'),
     ('MeshVertex', 'BlinnPhong'),
     ('MeshVertex', 'Pbr'),
@@ -3109,6 +3110,7 @@ void _linkTests() {
     // The skinned stage draws the same models from a second vertex layout, so
     // every one of them is a pair here too.
     ('MeshSkinnedVertex', 'Unlit'),
+    ('MeshSkinnedVertex', 'Xray'),
     ('MeshSkinnedVertex', 'Lambert'),
     ('MeshSkinnedVertex', 'BlinnPhong'),
     ('MeshSkinnedVertex', 'Pbr'),
@@ -3119,6 +3121,7 @@ void _linkTests() {
     // The instanced stage is the third vertex layout the same fragment
     // shaders are drawn from.
     ('MeshInstancedVertex', 'Unlit'),
+    ('MeshInstancedVertex', 'Xray'),
     ('MeshInstancedVertex', 'Lambert'),
     ('MeshInstancedVertex', 'BlinnPhong'),
     ('MeshInstancedVertex', 'Pbr'),

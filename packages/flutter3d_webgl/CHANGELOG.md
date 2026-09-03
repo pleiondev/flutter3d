@@ -9,6 +9,11 @@
   `stencilFunc`, which would otherwise clamp it and make this the one backend
   where a wider value means something else. `stencil-xray` joins the golden set
   with a provisional budget, recorded at merge.
+* `Xray` is generated with the rest from `flutter3d_shaders`, and linked
+  against all three mesh vertex stages in the parity grid. It is the entry
+  point that makes this backend's `setBlend` limitation moot: the index it
+  ignores would otherwise have been the only way to keep a silhouette out of
+  the surface buffer here.
 
 ## 0.4.2
 

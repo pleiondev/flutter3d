@@ -224,8 +224,11 @@ void main() {
     expect(silhouette, Float32List.fromList(<double>[0.1, 0.9, 0.2, 1.0]));
     expect(
       blocks.last.shader.name,
-      'Unlit',
-      reason: 'a silhouette is a flat colour, whatever the node is made of',
+      'Xray',
+      reason:
+          'a silhouette is a flat colour, whatever the node is made of — and '
+          'the stage draws it with the one shader that declares no surface '
+          'output, so a hidden node describes no surface',
     );
     // And the fog block bound beside it says no fog, so a far monster reads
     // as far rather than as absent.

@@ -1,3 +1,14 @@
+## 0.4.2
+
+* **`Xray`**, a seventh lighting entry point: `unlit.frag` with
+  `F3D_NO_SURFACE_BUFFER` defined, so it declares no second output at all.
+  The x-ray stage draws its mark and its silhouette with it. Drawn unlit they
+  wrote the surface buffer — the silhouette wherever its `greater` test
+  passed, which is where the marked node is *behind* what the depth buffer
+  holds — so a hidden node's normal, roughness and depth landed on top of the
+  surface in front of it, and every screen-space effect reads that buffer as
+  the nearest surface. `kRequiredShaders` names the new entry point.
+
 ## 0.4.1
 
 * **`MeshLightmappedVertex`**, a fourth vertex stage: the standard layout

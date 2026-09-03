@@ -551,15 +551,24 @@ final class Renderer implements RenderServices {
   /// arrays are: a material per node per frame is an allocation in the draw
   /// loop. The colour is written into `baseColor` from the settings each
   /// frame, and `doubleSided` from the node each draw.
+  ///
+  /// **[LightingModel.xray] rather than [LightingModel.unlit], and the
+  /// difference is the surface buffer.** Unlit writes attachment one like
+  /// every other model — a silhouette would then have stamped a hidden
+  /// monster's normal and depth over the wall in front of it, since the
+  /// paint's depth test passes exactly where the monster is behind something.
+  /// Nothing in the blend state could take that back: it protects attachment
+  /// zero, and only on the backends whose `setBlend` honours an attachment
+  /// index. `xray.frag` declares no second output at all.
   final Material _xrayMark = Material(
     name: 'x-ray mark',
-    lighting: LightingModel.unlit,
+    lighting: LightingModel.xray,
     depthWrite: false,
     depthCompare: CompareFunction.lessEqual,
   );
   final Material _xraySilhouette = Material(
     name: 'x-ray silhouette',
-    lighting: LightingModel.unlit,
+    lighting: LightingModel.xray,
     depthWrite: false,
     depthCompare: CompareFunction.greater,
   );

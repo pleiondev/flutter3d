@@ -1,10 +1,10 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3206 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3207 tests need a GPU.
 ---
 
 # Testing
 
-3206 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3207 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -16,13 +16,13 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `flutter3d_game_platformer` | 190 | | `flutter3d_bridge` | 42 |
 | `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_session` | 29 |
 | `flutter3d_physics` | 137 | | `flutter3d_hardware` | 29 |
-| `flutter3d_cpu` | 131 | | `pointer_lock` | 28 |
+| `flutter3d_cpu` | 132 | | `pointer_lock` | 28 |
 | `apps/flutter3d_demo_racing` | 119 | | `flutter3d_testing` | 7 |
 | `flutter3d_screens` | 112 | | `apps/flutter3d_template_app` | 4 |
 | `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3200 rather than 3206: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3201 rather than 3207: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
 
 Every number above is held by the same rule as the headline. It was not, for a while, and the table drifted 145 tests behind the first line of its own page — which is exactly the argument this page makes about everything else, arriving at the page itself.
 

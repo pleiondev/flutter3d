@@ -453,6 +453,21 @@ scene with no layer named gets not one call more than it did before the stage
 existed, which is what keeps every other golden the bytes it was. The dungeon's
 sensor power-up is the consumer.
 
+**Both extra draws use `Xray`, a seventh fragment shader, and the surface
+buffer is why.** It is `unlit.frag` with `F3D_NO_SURFACE_BUFFER` in front of
+it, so it declares no second output. Drawn unlit, the silhouette wrote
+attachment one wherever its `greater` test passed — which is exactly where the
+marked node is *behind* what the depth buffer holds — so a hidden monster's
+normal, roughness and depth landed on top of the wall in front of it, and SSAO
+and reflections read that buffer as the nearest surface. A blend state could
+not take it back: `BlendState.keepDestination` covers attachment zero, and
+`setBlend`'s attachment index is honoured on Impeller, ignored on WebGL2 (which
+needs `EXT_draw_buffers_indexed` for per-attachment blending) and bypassed
+entirely by the software rasteriser's surface write — so the three backends
+disagreed about what was left there. A software test renders the same scene
+with `showSurfaceBuffer` twice, silhouettes on and off, and requires the two
+frames to be equal byte for byte.
+
 **"Culling" above is doing work, and so is "nearer".** The stage reads the render
 list, which is post-cull, so a marked node the frustum test dropped — or one a
 level's precomputed visibility dropped, §4.6, which is what the dungeon uses —
@@ -674,6 +689,13 @@ and the clash would force every application to resolve an import conflict.
 Six ship: Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon and Normals. Each is a
 separate pre-built fragment shader, so switching models switches pipeline — which
 is why the renderer caches pipelines by shader name and sorts by it.
+
+A seventh, `LightingModel.xray`, exists and is deliberately not on that list.
+It is not a way to light a material; it is what the x-ray stage draws its two
+extra passes with, and it is Unlit with the surface buffer taken away. `LightingModel.builtIn` is what a picker
+offers and what `fmat` writes a shader name from, so a model whose whole
+purpose is to say nothing about the surface has no business being offered.
+See [§4.3](#43-passes).
 
 `LightingModel` is a **value class, not an enum**, so the list is not closed: an
 application that builds its own bundle can add an entry and the renderer caches a
@@ -1462,7 +1484,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3206 tests** across 24 packages and 5 applications |
+| Unit tests | **3207 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

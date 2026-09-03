@@ -10,6 +10,9 @@
   testing two of their factors, and `BlendState.keepDestination` — zero and
   one — read as one and one. Every factor is a line now; the four that need
   a blend constant throw, because the interface has no way to set one.
+* `XrayShader`, the transcription of `xray.frag`: the albedo and not one word
+  about the surface, so `FragmentContext.surface` is left null and the encoder
+  writes nothing to attachment one.
 * `stencil-xray` joins the golden set.
 
 ## 0.4.1

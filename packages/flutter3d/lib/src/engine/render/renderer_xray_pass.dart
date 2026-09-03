@@ -27,6 +27,15 @@
 /// monster is skinned in both, an instanced batch is drawn as a batch, and
 /// the mesh's own culling and winding are what they were — the only things
 /// that change are the material, the blend and the stencil.
+///
+/// **Neither draw touches the surface buffer**, and that took a shader of its
+/// own rather than a blend state. See `LightingModel.xray` and the note on
+/// `_xrayMark` in `renderer.dart`: a blend protects attachment zero, and only
+/// on the backends whose `setBlend` honours an attachment index, so the
+/// silhouette — whose depth test passes precisely where a marked node is
+/// *behind* what the buffer holds — would have described hidden geometry to
+/// SSAO and to reflections. `xray.frag` declares no second output, so there is
+/// nothing to protect.
 part of 'renderer.dart';
 
 extension _XrayPass on Renderer {

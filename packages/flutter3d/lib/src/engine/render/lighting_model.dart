@@ -56,6 +56,24 @@ final class LightingModel {
     usesMetallicRoughnessMap: false,
     usesMaterialParameters: false,
   );
+
+  /// [unlit] with the surface buffer taken away, and the x-ray stage's alone.
+  ///
+  /// **Deliberately absent from [builtIn]**, which is the list a picker offers
+  /// and `fmat` writes a material's shader name from. This is not a way to
+  /// light a material; it is the fragment stage
+  /// `renderer_xray_pass.dart` draws its two extra passes with, and a material
+  /// asking for it in a scene file would be asking for a surface that lies
+  /// about itself to every screen-space effect. The flags match [unlit]
+  /// exactly, because `xray.frag` is `unlit.frag` with one `#define` in front
+  /// of it.
+  static const LightingModel xray = LightingModel(
+    'X-ray',
+    'Xray',
+    usesMaterialMaps: false,
+    usesMetallicRoughnessMap: false,
+    usesMaterialParameters: false,
+  );
   static const LightingModel lambert = LightingModel(
     'Lambert',
     'Lambert',
