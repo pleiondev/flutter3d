@@ -81,6 +81,11 @@ flutter pub get
 # rebuilding changes nothing an application loads.
 (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
 
+# The second bundle: the one the engine demo loads at runtime rather than links.
+# The demo's pubspec declares it as an asset, so without this the demo and the
+# golden set stop at "No file or variants found for asset" before anything runs.
+(cd packages/flutter3d/example && ./tool/build_shaders.sh)
+
 # The shooter
 (cd apps/flutter3d_demo_dungeon && flutter run -d macos)
 

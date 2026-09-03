@@ -33,12 +33,15 @@ cd flutter3d
 flutter pub get
 ```
 
-## Build the shader bundle
+## Build the shader bundles
 
-Required before the first run, and again after every Flutter SDK change.
+Required before the first run, and again after every Flutter SDK change. There
+are two: the engine's own, which every application links, and the engine demo's,
+which it loads at runtime and names as an asset.
 
 ```bash
 (cd packages/flutter3d_impeller && ./tool/build_shaders.sh)
+(cd packages/flutter3d/example && ./tool/build_shaders.sh)
 ```
 
 <div class="warn">
