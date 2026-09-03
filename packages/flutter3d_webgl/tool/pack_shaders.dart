@@ -25,7 +25,13 @@
 ///                     (default: the manifest's stem).
 ///   --sdk TOKEN       the Dart SDK the impeller section was compiled with
 ///                     (default: this process's). Run the packer with the
-///                     same SDK that ran impellerc and the default is right.
+///                     same SDK that ran impellerc and the default is right:
+///                     `<flutter root>/bin/cache/dart-sdk/bin/dart`, which is
+///                     what `flutter3d/example/tool/build_shaders.sh` does.
+///                     A `dart` from elsewhere in PATH stamps its own version,
+///                     and the Impeller backend then refuses the bundle; the
+///                     packer says so when it stamps a default beside an
+///                     impeller section.
 ///   --out PATH        where to write the bundle (required).
 ///
 /// Why this lives here: the WebGL section is the only one that has to be
@@ -39,7 +45,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter3d_hardware/src/shader_bundle.dart';
+// The container alone: the package's barrel reaches `package:flutter`, which
+// a `dart run` tool cannot load. `shader_bundle.dart` says so.
+import 'package:flutter3d_hardware/shader_bundle.dart';
 import 'package:flutter3d_webgl/src/glsl_translate.dart';
 import 'package:flutter3d_webgl/src/webgl_bundle_section.dart';
 
@@ -126,9 +134,21 @@ void main(List<String> args) {
         .asByteData();
   }
 
+  if (options.impeller != null && options.sdk == null) {
+    // The one way the header goes wrong silently: the section came out of
+    // the Flutter SDK's impellerc and the token out of whichever `dart` is
+    // first in PATH. Said once, here, because the refusal it causes names
+    // the two versions and not the reason they differ.
+    stderr.writeln(
+      'pack_shaders: sdk "$_thisSdk" stamped from this dart, which has to be '
+      'the Flutter SDK\'s own (<flutter root>/bin/cache/dart-sdk/bin/dart) — '
+      'the one whose impellerc wrote ${options.impeller} — or the Impeller '
+      'backend refuses the bundle; pass --sdk to stamp another',
+    );
+  }
   final bundle = ShaderBundle(
     name: options.name,
-    sdk: options.impeller == null ? '' : options.sdk,
+    sdk: options.impeller == null ? '' : options.sdk ?? _thisSdk,
     stages: stages,
     sections: sections,
   );
@@ -161,7 +181,10 @@ final class _Options {
   final List<String> includes;
   final String? impeller;
   final String name;
-  final String sdk;
+
+  /// The token `--sdk` gave, or null for this process's — kept apart so the
+  /// packer can say when it fell back.
+  final String? sdk;
   final String out;
 
   static _Options parse(List<String> args) {
@@ -213,11 +236,15 @@ final class _Options {
       includes: includes,
       impeller: impeller,
       name: name ?? stem,
-      sdk: sdk ?? Platform.version.split(' ').first,
+      sdk: sdk,
       out: out,
     );
   }
 }
+
+/// The first token of this process's `Platform.version` — what the Impeller
+/// backend reads off its own, so the two agree when one Dart did both jobs.
+final String _thisSdk = Platform.version.split(' ').first;
 
 const String _usage = '''
 usage: dart run tool/pack_shaders.dart --manifest PATH --out PATH

@@ -13,6 +13,17 @@
   half, tested without a device.
 * `tool/conformance.sh` also wants the example's own loadable bundle built,
   since the harness is the example and its pubspec now declares the asset.
+* **A refresh is held to the header's stage list before flutter_gpu sees a
+  byte.** A bundle that no longer names a stage already handed out is
+  refused, naming it, rather than reparsed over a live handle — the contract
+  `LoadedShaderLibrary.refresh` states. And `GpuLoadedShaderLibrary` keeps
+  the SDK token its load was given, so a library loaded against one token is
+  never refreshed against another.
+* The editor's hot-reload loop — the packed engine bundle loaded over the
+  engine's own asset, a stage edited, rebuilt and repacked — was exercised
+  on this backend: the reloaded `Pbr` took the edit on the next frame, which
+  is what `reinitializeFromBytes` marking every stage dirty buys even when
+  the entry points collide with the asset bundle's.
 
 ## 0.4.4
 

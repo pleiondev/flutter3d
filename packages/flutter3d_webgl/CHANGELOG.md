@@ -16,7 +16,15 @@
   impellerc's output, translating the GLSL for this backend the way
   `generate_shaders.dart` does; `tool/source_package.dart` is the package
   resolver both now share. `golden_web.sh` wants the example's own bundle
-  built first, since the example's pubspec declares it.
+  built first, since the example's pubspec declares it. The packer reads the
+  container through `flutter3d_hardware/shader_bundle.dart`, the Flutter-free
+  entry point, and says so on stderr when it stamps the SDK token from its
+  own `dart` beside an impeller section — the one way the header goes wrong
+  silently.
+* **A refresh is held to the header's stage list as well as the section.**
+  A bundle whose header dropped a stage in use while its `webgl` section
+  still carried the source was accepted; the conformance suite now asks, and
+  the refusal names the stage as it did for a source that went missing.
 * A pixel test draws a wall through a loaded look, refreshes the bundle and
   reads the new colour back through the same handle.
 

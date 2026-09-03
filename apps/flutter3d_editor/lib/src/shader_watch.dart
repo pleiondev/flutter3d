@@ -28,6 +28,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io' show FileSystemException;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
@@ -35,12 +36,13 @@ import 'package:flutter3d_hardware/flutter3d_hardware.dart';
 final class ShaderWatch {
   ShaderWatch({
     required this.library,
+    required this._seen,
     required this.modifiedAt,
     required this.readBytes,
     required this.onRefreshed,
     required this.onRefused,
     this.every = const Duration(milliseconds: 500),
-  }) : _seen = modifiedAt();
+  });
 
   /// The library the bundle was loaded into.
   final LoadedShaderLibrary library;
@@ -54,7 +56,8 @@ final class ShaderWatch {
   /// Called after a refresh was accepted — the renderer's cue to relink.
   final void Function() onRefreshed;
 
-  /// Called with what the device said when it refused the new bytes.
+  /// Called with what the device said when it refused the new bytes — or,
+  /// with the same shape, that the bytes could not be read at all.
   final void Function(ShaderBundleRefused refused) onRefused;
 
   /// How often to look.
@@ -62,6 +65,12 @@ final class ShaderWatch {
 
   /// The modification time the library currently reflects, accepted or not:
   /// a refused write is not tried again until the file moves.
+  ///
+  /// Handed in as `seen` rather than taken here, and taken **before** the
+  /// bytes the library was loaded from were read: a write that lands between
+  /// that read and this constructor moves the time past what was passed in,
+  /// and the first poll takes it. Taken here, after the read, it would be
+  /// the time of a file the library has never seen.
   DateTime? _seen;
 
   Timer? _timer;
@@ -81,7 +90,25 @@ final class ShaderWatch {
     if (now == null || now == _seen) return false;
     _reading = true;
     try {
-      final bytes = await readBytes();
+      final ByteData bytes;
+      try {
+        bytes = await readBytes();
+      } on FileSystemException catch (error) {
+        // The tools that write a bundle replace it — remove, then write —
+        // and a stat that landed between the two sees a file the read then
+        // cannot open. Reported the way a refusal is, and recorded as seen
+        // for the same reason: the write that finishes moves the time
+        // again, and that is the poll that reads it. Unhandled, this would
+        // be an error out of `Timer.periodic` with nothing to catch it.
+        _seen = now;
+        onRefused(
+          ShaderBundleRefused(
+            name: library.name,
+            reason: 'the file could not be read: ${error.message}',
+          ),
+        );
+        return false;
+      }
       // Read, then recorded: whatever the outcome, this write has been seen.
       _seen = now;
       try {

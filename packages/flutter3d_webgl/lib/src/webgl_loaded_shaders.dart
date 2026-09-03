@@ -99,14 +99,18 @@ final class WebGlLoadedShaderLibrary implements LoadedShaderLibrary {
     // anything is swapped, so a stage that no longer compiles — or that the
     // new bundle dropped — refuses the whole reload and leaves the library
     // drawing what it drew. An editor rebuilding a bundle wrongly keeps its
-    // picture rather than losing it.
+    // picture rather than losing it. Dropped from the header's stage list
+    // or from the section's sources, either one: the header is what the
+    // bundle claims, and it is what the other backends hold a refresh to.
     final fresh = <ShaderHandle, web.WebGLShader>{};
     try {
       for (final handle in _handles.values.nonNulls) {
         final stage = handle.backend as WebGlShader;
-        final source = stage.isVertex
-            ? sources.vertex[handle.name]
-            : sources.fragment[handle.name];
+        final source = bundle.names.contains(handle.name)
+            ? stage.isVertex
+                  ? sources.vertex[handle.name]
+                  : sources.fragment[handle.name]
+            : null;
         if (source == null) {
           throw ShaderBundleRefused(
             name: bundle.name,

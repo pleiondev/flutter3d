@@ -68,12 +68,13 @@ ByteData impellerSectionOf(ShaderBundle bundle, {required String running}) {
 /// Editing a stage that exists is the case a hot reload is for, and that case
 /// works.
 final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
-  GpuLoadedShaderLibrary._(this._name, this._library);
+  GpuLoadedShaderLibrary._(this._name, this._library, this.running);
 
   /// Builds the library from a whole bundle, or refuses it by name.
   ///
   /// [running] is the SDK token to hold the header to — [runningSdk] outside
-  /// a test.
+  /// a test — and the library keeps it: every [refresh] is held to the same
+  /// token the load was.
   static Future<GpuLoadedShaderLibrary> load(
     ByteData bytes, {
     required String running,
@@ -97,12 +98,16 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
         reason: 'flutter_gpu returned no library for its compiled section',
       );
     }
-    return GpuLoadedShaderLibrary._(bundle.name, library);
+    return GpuLoadedShaderLibrary._(bundle.name, library, running);
   }
 
   String _name;
   final gpu.ShaderLibrary _library;
   final Map<String, ShaderHandle?> _handles = <String, ShaderHandle?>{};
+
+  /// What [refresh] holds the header to: the token [load] was given, so a
+  /// library loaded against one SDK is never reloaded against another.
+  final String running;
 
   @override
   String get name => _name;
@@ -117,6 +122,23 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
   void refresh(ByteData bytes) {
     final bundle = ShaderBundle.decode(bytes);
     final section = impellerSectionOf(bundle, running: running);
+    // A stage already handed out that the new header no longer names is a
+    // refusal before flutter_gpu sees a byte: reparsing would leave the
+    // handle over whatever the old registration still holds, and the
+    // contract is that a live handle always has a stage in the bundle.
+    final dropped = <String>[
+      for (final entry in _handles.entries)
+        if (entry.value != null && !bundle.names.contains(entry.key)) entry.key,
+    ];
+    if (dropped.isNotEmpty) {
+      throw ShaderBundleRefused(
+        name: bundle.name,
+        reason:
+            'it no longer has the stage${dropped.length == 1 ? '' : 's'} '
+            '${dropped.map((String n) => '"$n"').join(', ')}, which '
+            '${dropped.length == 1 ? 'is' : 'are'} already in use',
+      );
+    }
     // flutter_gpu leaves the live shaders alone when the bytes do not parse,
     // which is the contract here too: a refused reload changes nothing.
     final error = _library.reinitializeFromBytes(section);
@@ -131,8 +153,4 @@ final class GpuLoadedShaderLibrary implements LoadedShaderLibrary {
     // the promise, and stay.
     _handles.removeWhere((_, ShaderHandle? handle) => handle == null);
   }
-
-  /// What [refresh] holds the header to. The process's own SDK, always: a
-  /// library loaded against one token is reloaded against the same one.
-  String get running => runningSdk;
 }

@@ -9,6 +9,7 @@
 /// the shader.
 library;
 
+import 'dart:io' show FileSystemException;
 import 'dart:typed_data';
 
 import 'package:flutter3d_editor/src/shader_watch.dart';
@@ -32,10 +33,13 @@ void main() {
   final refreshed = <int>[];
   final refused = <ShaderBundleRefused>[];
 
-  ShaderWatch watch() => ShaderWatch(
+  late Future<ByteData> Function() read;
+
+  ShaderWatch watch({DateTime? seen}) => ShaderWatch(
     library: library,
+    seen: seen ?? modified,
     modifiedAt: () => modified,
-    readBytes: () async => onDisk,
+    readBytes: () => read(),
     onRefreshed: () => refreshed.add(library.refreshes),
     onRefused: refused.add,
   );
@@ -44,9 +48,46 @@ void main() {
     device = FakeBackend();
     onDisk = _bundle('v1');
     modified = DateTime(2026, 9, 3, 10);
+    read = () async => onDisk;
     library = await device.loadShaders(onDisk) as FakeLoadedShaderLibrary;
     refreshed.clear();
     refused.clear();
+  });
+
+  test('a write between the load and the watch is not missed', () async {
+    // The bytes were read at ten o'clock; the file moved a minute later,
+    // before the watch existed. Mutation: take `_seen` from `modifiedAt()`
+    // in the constructor rather than from `seen` — the later write is
+    // stamped as seen, and the library never reads it.
+    onDisk = _bundle('v2');
+    modified = DateTime(2026, 9, 3, 10, 1);
+    final it = watch(seen: DateTime(2026, 9, 3, 10));
+    expect(await it.poll(), isTrue);
+    expect(library.name, 'v2');
+  });
+
+  test('a file that cannot be read is reported and waited out', () async {
+    // The bundle is being replaced — removed, not yet written — when the
+    // poll reads it. Mutation: drop the `on FileSystemException` in `poll`
+    // and the error escapes the timer with nothing to catch it. Recorded as
+    // seen, because the write that finishes moves the time again.
+    final it = watch();
+    read = () => throw const FileSystemException('half-written');
+    modified = DateTime(2026, 9, 3, 10, 1);
+    expect(await it.poll(), isFalse);
+    expect(refused, hasLength(1));
+    expect(refused.single.name, 'v1');
+    expect(refused.single.reason, contains('half-written'));
+    expect(library.name, 'v1');
+    expect(await it.poll(), isFalse);
+    expect(refused, hasLength(1), reason: 'not retried until the file moves');
+
+    // Written in full: taken.
+    onDisk = _bundle('v2');
+    read = () async => onDisk;
+    modified = DateTime(2026, 9, 3, 10, 2);
+    expect(await it.poll(), isTrue);
+    expect(library.name, 'v2');
   });
 
   test('a file that has not moved is left alone', () async {

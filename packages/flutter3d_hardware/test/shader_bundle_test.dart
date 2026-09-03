@@ -101,6 +101,44 @@ void main() {
     );
   });
 
+  test('a string field that is not UTF-8 is refused, not thrown through', () {
+    // `utf8.decode` throws its own `FormatException`, which is the one
+    // exception `decode` would otherwise let out that is not a refusal.
+    // Mutation: drop the `on FormatException` in `_Reader.string` and the
+    // second case throws a `FormatException` past the matcher. The first
+    // corrupts the name, which is read before the name is known, so the
+    // refusal has none to give; the second corrupts the SDK field, after it.
+    final bytes = _sample().encode();
+    const nameAt = 4 + 4 + 4; // magic, version, the name's length
+    final badName = ByteData.sublistView(
+      Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      ),
+    )..setUint8(nameAt, 0xFF);
+    expect(
+      () => ShaderBundle.decode(badName),
+      throwsA(
+        isA<ShaderBundleRefused>()
+            .having((r) => r.name, 'name', isEmpty)
+            .having((r) => r.reason, 'reason', contains('UTF-8')),
+      ),
+    );
+    const sdkAt = nameAt + 'effects'.length + 4;
+    final badSdk = ByteData.sublistView(
+      Uint8List.fromList(
+        bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+      ),
+    )..setUint8(sdkAt, 0xFF);
+    expect(
+      () => ShaderBundle.decode(badSdk),
+      throwsA(
+        isA<ShaderBundleRefused>()
+            .having((r) => r.name, 'name', 'effects')
+            .having((r) => r.reason, 'reason', contains('UTF-8')),
+      ),
+    );
+  });
+
   test('a format version this reader does not know is refused', () {
     final bytes = _sample().encode();
     bytes.setUint32(4, 99, Endian.little);
@@ -166,6 +204,27 @@ void main() {
 
       loaded.refresh(_sample().encode());
       expect(identical(loaded['Stripes'], before), isTrue);
+      expect(device.loadedLibraries.single.refreshes, 1);
+
+      // And the other half: a bundle without the stage in hand is refused,
+      // naming it, and counts as no refresh.
+      expect(
+        () => loaded.refresh(
+          const ShaderBundle(
+            name: 'v2',
+            sdk: '',
+            stages: <ShaderBundleStage>[
+              ShaderBundleStage('MeshVertex', fragment: false),
+            ],
+          ).encode(),
+        ),
+        throwsA(
+          isA<ShaderBundleRefused>()
+              .having((r) => r.name, 'name', 'v2')
+              .having((r) => r.reason, 'reason', contains('"Stripes"')),
+        ),
+      );
+      expect(loaded.name, 'effects');
       expect(device.loadedLibraries.single.refreshes, 1);
 
       expect(

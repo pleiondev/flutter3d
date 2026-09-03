@@ -109,24 +109,55 @@ void main() {
   );
 
   test('a refused reload leaves the library as it was', () async {
-    // Mutation: assign `_bundle` before the check in `reload` and the library
+    // Mutation: assign `_bundle` before the check in `refresh` and the library
     // ends up naming a stage it cannot answer — `loaded['Unlit']` goes null.
     final device = _device();
     final loaded = await device.loadShaders(
       _bundle(<String>['MeshVertex', 'Unlit']),
     );
     expect(
-      () => loaded.refresh(_bundle(<String>['Unlit', 'Nothing'], name: 'v2')),
+      () => loaded.refresh(
+        _bundle(<String>['MeshVertex', 'Unlit', 'Nothing'], name: 'v2'),
+      ),
       throwsA(isA<ShaderBundleRefused>().having((r) => r.name, 'name', 'v2')),
     );
     expect(loaded.name, 'effects');
     expect(loaded['Unlit'], isNotNull);
     expect(loaded['Nothing'], isNull);
 
-    loaded.refresh(_bundle(<String>['Unlit', 'Pbr'], name: 'v3'));
+    loaded.refresh(_bundle(<String>['MeshVertex', 'Unlit', 'Pbr'], name: 'v3'));
     expect(loaded.name, 'v3');
     expect(loaded['Pbr'], isNotNull);
-    expect(loaded['MeshVertex'], isNull, reason: 'the new bundle dropped it');
+  });
+
+  test('a bundle that dropped a stage in use is refused, naming it', () async {
+    // The contract `LoadedShaderLibrary.refresh` states and every backend
+    // keeps: the renderer holds a handle for its lifetime, so a bundle that
+    // no longer names that stage cannot be taken. Mutation: drop the
+    // `_handedOut` check from `refresh` — v2 is accepted and `MeshVertex`,
+    // which the renderer still holds, answers null from then on.
+    final device = _device();
+    final loaded = await device.loadShaders(
+      _bundle(<String>['MeshVertex', 'Unlit', 'Pbr']),
+    );
+    final vertex = loaded['MeshVertex'];
+    expect(vertex, isNotNull);
+    // Pbr was never asked for, so a bundle without it is nobody's loss.
+    expect(
+      () => loaded.refresh(_bundle(<String>['Unlit', 'Pbr'], name: 'v2')),
+      throwsA(
+        isA<ShaderBundleRefused>()
+            .having((r) => r.name, 'name', 'v2')
+            .having((r) => r.reason, 'reason', contains('"MeshVertex"')),
+      ),
+    );
+    expect(loaded.name, 'effects');
+    expect(identical(loaded['MeshVertex'], vertex), isTrue);
+
+    loaded.refresh(_bundle(<String>['MeshVertex', 'Unlit'], name: 'v3'));
+    expect(loaded.name, 'v3');
+    expect(loaded['Pbr'], isNull, reason: 'never handed out, so droppable');
+    expect(identical(loaded['MeshVertex'], vertex), isTrue);
   });
 
   test(

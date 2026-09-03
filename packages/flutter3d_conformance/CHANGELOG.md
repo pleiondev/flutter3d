@@ -9,7 +9,11 @@
   bytes that are not a bundle with `ShaderBundleRefused`, and never answering
   a claimed stage no section holds with a handle. `runDeviceConformance`
   takes `ownShaders` and `conformanceChecksWith` builds the list for a
-  harness that is not a test runner.
+  harness that is not a test runner. The same check then refreshes with a
+  bundle that no longer names `Pbr` while the `Pbr` handle is in use, and
+  requires a `ShaderBundleRefused` naming the bundle and the stage with the
+  library left as it was — the half of the identity promise the three
+  backends had been keeping three different ways.
 
 ## 0.4.1
 

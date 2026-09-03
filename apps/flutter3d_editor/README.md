@@ -37,9 +37,14 @@ games use, and lets somebody fly around it and change it.
 Point the editor at a loadable shader bundle and it keeps reading it:
 
 ```sh
-# 1. Pack the engine's own shaders as a loadable bundle, once.
+# 1. Pack the engine's own shaders as a loadable bundle, once. The packer runs
+#    on the Flutter SDK's own dart — the bundle's header carries that dart's
+#    version, and the editor refuses a bundle stamped with any other — which
+#    is the same rule packages/flutter3d/example/tool/build_shaders.sh keeps.
 cd packages/flutter3d_impeller && ./tool/build_shaders.sh && cd ../flutter3d_webgl
-dart run tool/pack_shaders.dart \
+DART="$(flutter --version --machine | tr -d ' \n' |
+  sed -n 's/.*"flutterRoot":"\([^"]*\)".*/\1/p')/bin/cache/dart-sdk/bin/dart"
+"$DART" run tool/pack_shaders.dart \
   --manifest ../flutter3d_shaders/shaders/flutter3d.shaderbundle.json \
   --impeller ../flutter3d_impeller/assets/shaders/flutter3d.shaderbundle \
   --name engine --out /tmp/engine.f3dshaders
@@ -48,9 +53,10 @@ dart run tool/pack_shaders.dart \
 cd ../../apps/flutter3d_editor
 flutter run -d macos --dart-define=shaders=/tmp/engine.f3dshaders
 
-# 3. Edit a stage — say packages/flutter3d_shaders/shaders/lighting/lambert.frag —
-#    and run step 1 again. The bar says "shaders: engine reloaded" and the
-#    level is drawn with the new stage on the next frame.
+# 3. Edit a stage the level draws with — the crypt's materials are PBR, so
+#    packages/flutter3d_shaders/shaders/lighting/pbr.frag — and run step 1
+#    again. The bar says "shaders: engine reloaded" and the level is drawn
+#    with the new stage on the next frame.
 ```
 
 What happens underneath: the bundle is loaded through `GraphicsDevice.loadShaders`
@@ -60,12 +66,29 @@ time twice a second; when it moves, the bytes are read again and the library is
 refreshed in place — the handles the renderer holds stay the same objects — and
 `Renderer.relinkShaders` drops every pipeline so the next frame links the new
 code. A bundle that will not load — a shader that no longer compiles, a section
-built with another SDK — is refused by name in the bar and the previous shaders
-keep drawing, so a broken rebuild costs a line of text rather than the viewport.
+built with another SDK, one that dropped a stage the renderer holds — is refused
+by name in the bar and the previous shaders keep drawing, so a broken rebuild
+costs a line of text rather than the viewport.
 
 Two limits, both flutter_gpu's: a stage *added* to the bundle under a name the
 editor had already looked up and found missing stays missing until a restart,
 and a bundle must be packed with the same SDK the editor is built with.
+
+One thing worth knowing about *this* bundle in particular: it holds the same
+entry points the engine's own asset bundle registered at start-up, and
+flutter_gpu keeps those in one process-wide table by the shader's file name.
+Loading the packed engine over the asset therefore shares the code that was
+registered first — the two are identical, so nothing shows — and it is the
+**refresh** that changes the picture: `reinitializeFromBytes` marks every stage
+in the loaded library dirty, so the next pipeline build registers the edited
+code under the name and every material drawn through the loaded `Pbr` takes it.
+A bundle of an application's own stages, under its own names, has no such
+overlap and behaves the same at load and at refresh.
+
+Exercised on 2026-09-03, Flutter 3.47.0 (Dart 3.13.0), on macOS with Impeller:
+the crypt opened through the packed engine bundle, `pbr.frag` was tinted and
+rebuilt, the bar read `shaders: engine reloaded`, and the level took the tint
+on the next frame; the tint reverted the same way.
 
 ## Starting a game
 

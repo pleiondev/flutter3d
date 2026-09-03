@@ -212,19 +212,26 @@ void main() {
     final fragment = loaded['Pbr'];
     expect(vertex, isNotNull);
     expect(fragment, isNotNull);
-    expect(() => device.createPipeline(vertex!, fragment!), returnsNormally);
-    // Two libraries, one name, two handles: the program cache keys on the
-    // handle and not the word, so both link. Mutation: key `_programs` on
-    // names again and the engine's `MeshVertex+Pbr` is handed back for the
-    // loaded pair — which this cannot see, but the count below can.
-    device.createPipeline(
-      device.shaders['MeshVertex']!,
-      device.shaders['Pbr']!,
-    );
     expect(
       identical(vertex, device.shaders['MeshVertex']),
       isFalse,
       reason: 'a loaded library compiles its own stage',
+    );
+    // Two libraries, one name, two handles: the program cache keys on the
+    // handle and not the word, so both pairs link, and link separately.
+    // All four stages are compiled before the count is taken, so it moves
+    // by programs alone. Mutation: key `_programs` on names again and the
+    // engine's `MeshVertex+Pbr` is handed back for the loaded pair — one
+    // program, not two.
+    final engineVertex = device.shaders['MeshVertex']!;
+    final enginePbr = device.shaders['Pbr']!;
+    final before = device.debugTrackedResourceCount;
+    expect(() => device.createPipeline(vertex!, fragment!), returnsNormally);
+    device.createPipeline(engineVertex, enginePbr);
+    expect(
+      device.debugTrackedResourceCount - before,
+      2,
+      reason: 'two pairs of distinct handles are two linked programs',
     );
   });
 

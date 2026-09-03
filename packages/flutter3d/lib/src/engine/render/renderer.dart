@@ -487,7 +487,7 @@ final class Renderer implements RenderServices {
   /// Drops every pipeline this renderer has linked, so the next frame links
   /// them again from whatever the stages are now.
   ///
-  /// **The engine's half of a hot reload.** A `LoadedShaderLibrary.reload`
+  /// **The engine's half of a hot reload.** A `LoadedShaderLibrary.refresh`
   /// swaps the code behind a stage while keeping the handle — that is its
   /// promise — but a pipeline is a pair of stages *linked*, and the linked
   /// object on every backend still holds the old code until it is built

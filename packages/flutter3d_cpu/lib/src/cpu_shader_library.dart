@@ -68,21 +68,44 @@ final class CpuLoadedShaderLibrary implements LoadedShaderLibrary {
   final ShaderLibrary _own;
   ShaderBundle _bundle;
 
+  /// Every name answered with a handle so far — what a reload may not drop.
+  ///
+  /// Kept here rather than read off `_own`, because the device's library
+  /// answers every built-in name whether or not this bundle ever did: what
+  /// the contract protects is a handle *this* library handed out.
+  final Set<String> _handedOut = <String>{};
+
   @override
   String get name => _bundle.name;
 
   /// The device's own handle for a name the bundle claims, so identity is
   /// shared with the built-in library and survives any reload for free.
   @override
-  ShaderHandle? operator [](String name) =>
-      _bundle.names.contains(name) ? _own[name] : null;
+  ShaderHandle? operator [](String name) {
+    if (!_bundle.names.contains(name)) return null;
+    final handle = _own[name];
+    if (handle != null) _handedOut.add(name);
+    return handle;
+  }
 
   @override
   void refresh(ByteData bytes) {
     final bundle = ShaderBundle.decode(bytes);
-    // Checked before anything is replaced: a refused reload leaves the
+    // Both checked before anything is replaced: a refused reload leaves the
     // library as it was, which is the contract.
     _requireEveryStage(_own, bundle);
+    final dropped = _handedOut
+        .where((String n) => !bundle.names.contains(n))
+        .toList();
+    if (dropped.isNotEmpty) {
+      throw ShaderBundleRefused(
+        name: bundle.name,
+        reason:
+            'it no longer has the stage${dropped.length == 1 ? '' : 's'} '
+            '${dropped.map((String n) => '"$n"').join(', ')}, which '
+            '${dropped.length == 1 ? 'is' : 'are'} already in use',
+      );
+    }
     _bundle = bundle;
   }
 }

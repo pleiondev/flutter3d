@@ -125,7 +125,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-3200 tests across twenty-four packages and five applications, and the only
+3204 tests across twenty-four packages and five applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 35 scenes checkable in a headless run.

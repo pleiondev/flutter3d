@@ -283,12 +283,19 @@ class _EditorScreenState extends State<EditorScreen>
       );
     }
     final file = File(found);
+    DateTime? modifiedAt() =>
+        file.existsSync() ? file.lastModifiedSync() : null;
     Future<ByteData> read() async =>
         (await file.readAsBytes()).buffer.asByteData();
+    // The time first, the bytes second: a write that lands between the two
+    // is then a change the first poll sees, rather than one that was
+    // stamped as seen and never read. `ShaderWatch._seen` says why.
+    final seen = modifiedAt();
     final library = await device.loadShaders(await read());
     return ShaderWatch(
       library: library,
-      modifiedAt: () => file.existsSync() ? file.lastModifiedSync() : null,
+      seen: seen,
+      modifiedAt: modifiedAt,
       readBytes: read,
       // The renderer's half: every pipeline linked so far is dropped and the
       // next frame links the refreshed stages.

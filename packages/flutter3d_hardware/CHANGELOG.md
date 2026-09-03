@@ -15,6 +15,20 @@
   than the file to rebuild.
 * `FakeBackend.loadShaders` and `FakeLoadedShaderLibrary`, which keep the
   same identity promise so a test of a reload path proves something.
+* **A refresh that drops a stage in use is refused, naming the stage.** The
+  other half of the identity promise, and `LoadedShaderLibrary.refresh` now
+  says so: a handle is the renderer's for its lifetime, so a bundle that no
+  longer names that stage would leave a live handle over nothing — a stale
+  pipeline on one backend, a link error on another. Every backend and the
+  fake refuse it the same way, before anything is swapped, and the
+  conformance suite holds them to it.
+* `ShaderBundle.decode` refuses a string field that is not UTF-8 as a
+  `ShaderBundleRefused`, rather than letting the decoder's own
+  `FormatException` out as the one exception that was not a refusal.
+* `package:flutter3d_hardware/shader_bundle.dart` exports the container on
+  its own, with no Flutter behind it: the barrel reaches `package:flutter`
+  through `GraphicsDevice`, and the tool that packs a bundle is a `dart run`
+  script.
 
 ## 0.4.1
 

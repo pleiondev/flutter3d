@@ -110,6 +110,17 @@ abstract interface class LoadedShaderLibrary implements ShaderLibrary {
   /// backend cannot run. A refused reload throws `ShaderBundleRefused` and
   /// **leaves the library as it was**, so an editor that rebuilt a bundle
   /// wrongly keeps drawing with the one that worked.
+  ///
+  /// **A bundle that no longer names a stage already handed out is refused
+  /// too, naming the stage.** The handle is the renderer's for its lifetime —
+  /// that is the identity promise above — so a library that answered a name
+  /// once and then accepted a bundle without it would leave a live handle
+  /// over a stage the bundle does not have: on one backend a pipeline that
+  /// still draws the old code, on another a link error at the next frame,
+  /// and in both cases a picture that disagrees with the file. Every backend
+  /// refuses the same way, before anything is swapped, and the conformance
+  /// suite holds them to it. A name that was asked for and answered null is
+  /// not in use, and a bundle may drop or add it freely.
   void refresh(ByteData bytes);
 }
 

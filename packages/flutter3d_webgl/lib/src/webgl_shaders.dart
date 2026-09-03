@@ -47,7 +47,7 @@ final class WebGlShader {
   /// backend.** flutter_gpu mutates a stage in place when a bundle is
   /// reparsed; GL has no such thing — a `WebGLShader` is compiled once from
   /// one source — so keeping the `ShaderHandle` the renderer holds means
-  /// swapping what sits behind it. `WebGlLoadedShaderLibrary.reload` is the
+  /// swapping what sits behind it. `WebGlLoadedShaderLibrary.refresh` is the
   /// one writer, and it deletes the object it replaces.
   web.WebGLShader shader;
   final bool isVertex;

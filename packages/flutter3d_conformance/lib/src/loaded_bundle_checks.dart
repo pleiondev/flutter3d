@@ -121,6 +121,40 @@ Future<void> checkLoadedLibrary(
     );
   }
 
+  // The other half of the identity promise: a bundle that no longer names a
+  // stage already handed out is refused, naming the stage, and the library
+  // is left as it was. Accepting it would leave the renderer holding `Pbr`
+  // over a bundle that has no `Pbr` — a picture that disagrees with the
+  // file, differently on every backend. The check is made before anything
+  // is swapped, so the name and the handles afterwards are the old ones.
+  final dropping = ShaderBundle(
+    name: 'drops Pbr',
+    sdk: own?.sdk ?? '',
+    stages: <ShaderBundleStage>[
+      for (final stage in _engineStages())
+        if (stage.name != 'Pbr') stage,
+    ],
+    sections: <String, ByteData>{if (own != null) own.id: own.bytes},
+  );
+  try {
+    loaded.refresh(dropping.encode());
+    throw const ConformanceFailure(
+      'a refresh with a bundle that no longer names Pbr was accepted while '
+      'the Pbr handle was in use',
+    );
+  } on ShaderBundleRefused catch (refused) {
+    require(
+      refused.name == 'drops Pbr' && refused.reason.contains('Pbr'),
+      'the refusal for a dropped stage names neither the bundle nor the '
+      'stage: $refused',
+    );
+  }
+  require(
+    loaded.name == bundle.name && identical(loaded['Pbr'], fragment),
+    'a refused refresh changed the library: it is now called '
+    '"${loaded.name}" and Pbr is ${loaded['Pbr']}',
+  );
+
   // A bundle naming a stage nobody has. Two honest answers, depending on
   // what the backend is: refused at load naming the stage, which is the
   // software rasteriser's — it cannot compile, so a name it has no Dart for

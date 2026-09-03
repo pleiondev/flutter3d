@@ -63,7 +63,22 @@ final class FakeLoadedShaderLibrary implements LoadedShaderLibrary {
 
   @override
   void refresh(ByteData bytes) {
-    _bundle = ShaderBundle.decode(bytes);
+    final bundle = ShaderBundle.decode(bytes);
+    // The other half of the promise, kept the way the real backends keep it:
+    // a bundle that dropped a stage somebody holds is refused, naming it.
+    final dropped = _handles.keys
+        .where((String n) => !bundle.names.contains(n))
+        .toList();
+    if (dropped.isNotEmpty) {
+      throw ShaderBundleRefused(
+        name: bundle.name,
+        reason:
+            'it no longer has the stage${dropped.length == 1 ? '' : 's'} '
+            '${dropped.map((String n) => '"$n"').join(', ')}, which '
+            '${dropped.length == 1 ? 'is' : 'are'} already in use',
+      );
+    }
+    _bundle = bundle;
     refreshes++;
   }
 }

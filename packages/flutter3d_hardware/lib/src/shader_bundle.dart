@@ -149,11 +149,11 @@ final class ShaderBundle {
   /// Reads what [encode] wrote.
   ///
   /// Throws [ShaderBundleRefused] for anything that is not a bundle: the wrong
-  /// magic, a version this reader does not know, or a length that runs off the
-  /// end. Refused rather than returning null because the caller is a device
-  /// being handed bytes it was told were shaders, and the two ways that can be
-  /// wrong — not a bundle, and a bundle it cannot run — deserve the same
-  /// exception with different words.
+  /// magic, a version this reader does not know, a length that runs off the
+  /// end, or a string field that is not UTF-8. Refused rather than returning
+  /// null because the caller is a device being handed bytes it was told were
+  /// shaders, and the two ways that can be wrong — not a bundle, and a bundle
+  /// it cannot run — deserve the same exception with different words.
   static ShaderBundle decode(ByteData bytes) {
     final reader = _Reader(bytes);
     if (bytes.lengthInBytes < 8 || reader.ascii(4) != magic) {
@@ -261,9 +261,20 @@ final class _Reader {
   String string() {
     final length = u32();
     _need(length);
-    final text = utf8.decode(
-      _bytes.buffer.asUint8List(_bytes.offsetInBytes + _at, length),
-    );
+    final String text;
+    try {
+      text = utf8.decode(
+        _bytes.buffer.asUint8List(_bytes.offsetInBytes + _at, length),
+      );
+    } on FormatException catch (error) {
+      // The decoder's own exception would be the one thing `decode` lets out
+      // that is not a refusal; a string that is not UTF-8 is bytes that are
+      // not a bundle, and says so the same way.
+      throw ShaderBundleRefused(
+        name: '',
+        reason: 'a string field in the header is not UTF-8: ${error.message}',
+      );
+    }
     _at += length;
     return text;
   }

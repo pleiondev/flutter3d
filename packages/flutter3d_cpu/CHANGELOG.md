@@ -8,6 +8,12 @@
   backend the way it always has, as a Dart stage handed to `CpuDevice.shaders`;
   the bundle that names it on the hardware backends then loads here too.
   `CpuShaderLibrary` caches its handles so their identity survives a refresh.
+* **A refresh that drops a stage in use is refused, naming it.**
+  `CpuLoadedShaderLibrary` remembers every name it answered with a handle,
+  and a bundle that no longer names one of them is refused before it is
+  taken — the contract `LoadedShaderLibrary.refresh` now states, kept the
+  same way on every backend. Only a name that was handed out counts: a
+  stage the bundle claimed and nobody asked for may come and go.
 
 ## 0.4.1
 
