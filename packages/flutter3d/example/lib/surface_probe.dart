@@ -18,9 +18,15 @@
 /// the result every frame so the compositor's references are real ones, and
 /// reports what each costs on the UI thread, how many textures each ends up
 /// holding, and whether the picture read back is the one that was drawn. The
+/// ring is run twice, because the two arrangements do not promise the same
+/// thing: once as the renderer has it, and once holding the presented frame
+/// back for one frame more, which is the promise the surface makes and the
+/// only version of the ring whose texture count is comparable with it. The
 /// surface's own questions get a phase each: whether `present` can go through
 /// a trailing empty command buffer (the shape a one-pass-per-buffer backend
-/// would need), and what `resize` does to the pool and to `GpuPresentStatus`.
+/// would need), and what `resize` does to the pool. What `GpuPresentStatus`
+/// says is not measured anywhere here and could not be: `present` returns a
+/// constant in the Dart wrapper — see [ResizeOutcome].
 ///
 /// Written against flutter_gpu directly rather than through the HAL, on
 /// purpose: the question is what the API gives, and a handle wrapping it
@@ -105,9 +111,22 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
 
   int get _bytesPerTexture => widget.width * widget.height * 4;
 
+  /// Every phase, in order, in one launch of the application.
+  ///
+  /// **The order is a confound, and the report says so.** `GpuImageSurface`
+  /// has no `dispose` in flutter_gpu 3.47, so a surface and its pool outlive
+  /// the phase that made them until a finaliser gets to them: `churn` and the
+  /// resize phase run on top of the two pools the phases before them left,
+  /// something like a hundred textures. That is a reason for the later
+  /// phases' numbers to read high, never low, so the finding they carry — a
+  /// surface under allocation churn settles at a handful of textures — is if
+  /// anything understated by running last. A run per phase would remove the
+  /// confound and cost four application launches; it is not worth it while
+  /// the confound points the safe way.
   Future<void> _run() async {
     final paths = <PresentPathMeasurement>[
-      await _ringPath(),
+      await _ringPath(name: 'ring', holdLastPresented: false),
+      await _ringPath(name: 'ring held', holdLastPresented: true),
       await _surfacePath(name: 'surface', trailing: false),
       await _surfacePath(name: 'trailing', trailing: true),
       await _surfacePath(name: 'churn', trailing: false, churn: true),
@@ -178,24 +197,45 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
   /// textures this side owns, one taken per frame, each returned when the
   /// command buffer that wrote it reports completion, and a new one made
   /// when none is free. Presented with `asImage()`.
-  Future<PresentPathMeasurement> _ringPath() async {
+  ///
+  /// With [holdLastPresented] the texture shown on the previous frame stays
+  /// out of rotation for one frame more, even once its own completion has
+  /// fired. That is the variant whose promise is the surface's promise, and
+  /// it is here because the plain ring's is weaker: the completion callback
+  /// reports the *renderer's* GPU work, and the compositor reads the texture
+  /// after that (see `_ldrFrames` in `renderer.dart`). The surface holds a
+  /// texture until Flutter has let go of the image as well, so comparing the
+  /// plain ring's count with the surface's compares two different guarantees;
+  /// this one and the surface are the like-for-like pair.
+  Future<PresentPathMeasurement> _ringPath({
+    required String name,
+    required bool holdLastPresented,
+  }) async {
     final owned = <gpu.Texture>[];
-    final free = <gpu.Texture>[];
+    // Textures whose writing command buffer has reported completion, which is
+    // the only list a frame takes from — under [holdLastPresented] it passes
+    // over the one it presented last, which may be in here already.
+    final settled = <gpu.Texture>[];
     final step = <int>[];
     final image = <int>[];
     final interval = <int>[];
     final between = Stopwatch()..start();
     var lastImage = _shown;
     var lastColour = _colourOf(0);
+    gpu.Texture? presentedLast;
 
     for (var i = 0; i < widget.frames; i++) {
       if (i > 0) interval.add(between.elapsedMicroseconds);
       between.reset();
       final clock = Stopwatch()..start();
 
+      final held = holdLastPresented ? presentedLast : null;
+      final ready = settled.indexWhere(
+        (gpu.Texture texture) => !identical(texture, held),
+      );
       final gpu.Texture target;
-      if (free.isNotEmpty) {
-        target = free.removeLast();
+      if (ready >= 0) {
+        target = settled.removeAt(ready);
       } else {
         target = gpu.gpuContext.createTexture(
           gpu.StorageMode.devicePrivate,
@@ -209,7 +249,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       _clearTo(
         target,
         colour,
-      ).submit(completionCallback: (_) => free.add(target));
+      ).submit(completionCallback: (_) => settled.add(target));
       final mint = Stopwatch()..start();
       final minted = target.asImage();
       mint.stop();
@@ -219,12 +259,13 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       image.add(mint.elapsedMicroseconds);
       lastImage = minted;
       lastColour = colour;
-      await _show(minted, 'ring ${i + 1}/${widget.frames}');
+      presentedLast = target;
+      await _show(minted, '$name ${i + 1}/${widget.frames}');
       if (!mounted) break;
     }
 
     return PresentPathMeasurement(
-      name: 'ring',
+      name: name,
       stepMicros: MicrosSamples(step),
       imageMicros: MicrosSamples(image),
       intervalMicros: MicrosSamples(interval),
@@ -279,6 +320,12 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       final colour = _colourOf(i);
       final frame = surface.acquireNextFrame();
       final drew = _clearTo(frame.colorTexture, colour);
+      // What `present` returns is dropped on purpose. In flutter_gpu 3.47
+      // `GpuImageSurfaceFrame.present` ends with
+      // `return GpuPresentStatus.success;` — the value is a constant in the
+      // Dart wrapper, so folding it into `note` would add a check that cannot
+      // fire and a line that reads like evidence. A `present` that has
+      // something to say says it by throwing, which is caught below.
       try {
         if (trailing) {
           final tail = gpu.gpuContext.createCommandBuffer();
@@ -352,18 +399,34 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
   }
 
   /// What `resize` says while a frame is out: the error's text, or `no error`.
+  ///
+  /// Asked with a quarter of the frame rather than the half the phase itself
+  /// resizes to, on purpose. If the API ever permits this, the surface is left
+  /// at a size the phase's own `resize` then changes — so the counts around it
+  /// still measure a resize. Asking with the same half would leave the phase
+  /// resizing a surface that was already there, and printing three numbers
+  /// about nothing.
   String _resizeWhileHeld(gpu.GpuImageSurface surface) {
     try {
-      surface.resize(widget.width ~/ 2, widget.height ~/ 2);
+      surface.resize(widget.width ~/ 4, widget.height ~/ 4);
       return 'no error';
     } catch (error) {
       return '$error';
     }
   }
 
-  /// A surface drawn at one size, resized to half, and drawn again: what
-  /// `present` reports on either side, what the pool does with the textures
-  /// of the old size, and whether `resize` refuses while a frame is out.
+  /// A surface drawn at one size, resized to half, and drawn again: what the
+  /// pool does with the textures of the old size, and whether `resize`
+  /// refuses while a frame is out.
+  ///
+  /// Every frame here churns, the way the `churn` path does. Without it the
+  /// third texture count would only repeat what every other phase shows —
+  /// nothing collected yet — and could not tell a surface that keeps the old
+  /// size from a collector that has not run.
+  ///
+  /// `GpuPresentStatus` is not among the findings: `present` returns a
+  /// constant in the Dart wrapper, so there is nothing here to read. See
+  /// [ResizeOutcome].
   Future<ResizeOutcome> _resizePhase() async {
     final surface = gpu.gpuContext.createImageSurface(
       widget.width,
@@ -371,24 +434,23 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       format: _format,
     );
 
-    Future<(gpu.GpuPresentStatus, ui.Image?)> draw(int i, String phase) async {
+    Future<ui.Image?> draw(int i, String phase) async {
       final frame = surface.acquireNextFrame();
       final drew = _clearTo(frame.colorTexture, _colourOf(i));
-      final status = frame.present(drew);
+      frame.present(drew);
       drew.submit();
       final minted = surface.currentImage;
+      _churn();
       if (minted != null) await _show(minted, phase);
-      return (status, minted);
+      return minted;
     }
 
-    // Every frame's outcome, kept, so the ones the report wants — the last
-    // status before the resize, the first after it, the last image drawn —
-    // are read off the lists rather than remembered as the loop goes. Both
-    // loops stop short only when the widget is gone, in which case nothing
-    // reads the result.
-    final before = <(gpu.GpuPresentStatus, ui.Image?)>[];
+    // Every frame's image, kept, so the one the report wants — the last drawn
+    // at the new size — is read off the list rather than remembered as the
+    // loop goes. Both loops stop short only when the widget is gone, in which
+    // case nothing reads the result.
     for (var i = 0; i < _kResizeFrames && mounted; i++) {
-      before.add(await draw(i, 'resize before ${i + 1}'));
+      await draw(i, 'resize before ${i + 1}');
     }
 
     final held = surface.acquireNextFrame();
@@ -399,19 +461,17 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
     surface.resize(widget.width ~/ 2, widget.height ~/ 2);
     final backingJustAfter = surface.debugBackingTextureCount;
 
-    final after = <(gpu.GpuPresentStatus, ui.Image?)>[];
+    final after = <ui.Image?>[];
     for (var i = 0; i < _kResizeFrames && mounted; i++) {
       after.add(await draw(_kResizeFrames + i, 'resize after ${i + 1}'));
     }
 
-    final lastImage = after.isEmpty ? null : after.last.$2;
+    final lastImage = after.isEmpty ? null : after.last;
     final lastColour = _colourOf(_kResizeFrames + after.length - 1);
     return ResizeOutcome(
-      statusBefore: before.isEmpty ? 'none' : before.last.$1.name,
-      statusAfter: after.isEmpty ? 'none' : after.first.$1.name,
       backingBefore: backingBefore,
       backingJustAfter: backingJustAfter,
-      backingSettled: surface.debugBackingTextureCount,
+      backingAfterThirtyFrames: surface.debugBackingTextureCount,
       whileAcquired: whileAcquired,
       readbackOk:
           lastImage != null &&

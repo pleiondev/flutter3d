@@ -7,8 +7,9 @@
 #
 # The report is a handful of lines — one per present path with its UI-thread
 # cost, texture count and readback, one for the resize phase — ending with
-# `=== surface probe done, N failed ===`. N counts present paths whose image
-# did not hold what was drawn; the timings are for reading, not for judging.
+# `=== surface probe done, N failed ===`. N counts the readbacks that came
+# back wrong, over the five present paths and the resized frame; the timings
+# are for reading, not for judging.
 # What the numbers meant when this was written, and what was decided on them,
 # is ARCHITECTURE.md §15.
 #
@@ -54,7 +55,7 @@ if ! ( cd "$EXAMPLE_DIR" && flutter build macos --debug \
   exit 1
 fi
 
-# The run: four paths of a few seconds each and the resize, paced by the
+# The run: five paths of a few seconds each and the resize, paced by the
 # display, on top of the incremental build. Five minutes is generous for that
 # and short enough that a window that never reports is noticed.
 TIMEOUT=${FLUTTER3D_PROBE_TIMEOUT:-300}

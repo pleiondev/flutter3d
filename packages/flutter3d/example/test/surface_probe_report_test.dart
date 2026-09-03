@@ -9,9 +9,10 @@
 /// findings count as failures, and the verdict line the script greps for.
 /// Each test was written by breaking what it covers, and the mutation is
 /// named where the test is: the nearest-rank round became a floor, the empty
-/// case threw, the resize readback and then a path's readback were left out
-/// of the failure count, each number was dropped from its line in turn, and
-/// the note was left off — each was seen to fail before it passed.
+/// case threw, the worst sample became the last one rather than the largest,
+/// the resize readback and then a path's readback were left out of the
+/// failure count, each number was dropped from its line in turn, and the note
+/// was left off — each was seen to fail before it passed.
 library;
 
 import 'package:flutter3d_example/surface_probe_report.dart';
@@ -30,11 +31,9 @@ PresentPathMeasurement _path(String name, {bool readbackOk = true}) =>
     );
 
 const ResizeOutcome _resize = ResizeOutcome(
-  statusBefore: 'success',
-  statusAfter: 'success',
   backingBefore: 3,
   backingJustAfter: 3,
-  backingSettled: 2,
+  backingAfterThirtyFrames: 2,
   whileAcquired: 'Bad state: cannot resize',
   readbackOk: true,
 );
@@ -91,11 +90,9 @@ void main() {
         frames: 240,
         paths: <PresentPathMeasurement>[_path('ring')],
         resize: const ResizeOutcome(
-          statusBefore: 'success',
-          statusAfter: 'success',
           backingBefore: 3,
           backingJustAfter: 3,
-          backingSettled: 3,
+          backingAfterThirtyFrames: 3,
           whileAcquired: 'no error',
           readbackOk: false,
         ),
@@ -114,16 +111,19 @@ void main() {
       final lines = report.lines;
       expect(lines, hasLength(5));
       expect(lines.first, 'surface-probe  1280x800, 240 frames per path');
-      // The path line: median step 100, p95 120; median image 20, p95 30;
-      // three textures of 4 MB each at the peak, two left at the end.
-      expect(lines[1], startsWith('ring     '));
-      expect(lines[1], contains('step p50   100us p95   120us'));
-      expect(lines[1], contains('image p50    20us p95    30us'));
-      expect(lines[1], contains('interval p50  16.7ms p95  33.3ms'));
+      // The path line: median step 100, p95 and worst 120; median image 20,
+      // p95 and worst 30; three textures of 4 MB each at the peak, two left
+      // at the end. The name sits in a column wide enough for `ring held`.
+      expect(lines[1], startsWith('ring      '));
+      expect(lines[1], contains('step p50   100us p95   120us max   120us'));
+      expect(lines[1], contains('image p50    20us p95    30us max    30us'));
+      expect(
+        lines[1],
+        contains('interval p50  16.7ms p95  33.3ms max  33.3ms'),
+      );
       expect(lines[1], contains('textures 3 peak (11.7 MB) 2 at end'));
       expect(lines[1], endsWith('readback ok'));
-      expect(lines[3], startsWith('resize   status success -> success'));
-      expect(lines[3], contains('backing 3 -> 3 -> 2'));
+      expect(lines[3], startsWith('resize    backing 3 -> 3 -> 2'));
       expect(lines[3], contains('while acquired: Bad state: cannot resize'));
       expect(lines.last, '=== surface probe done, 0 failed ===');
     });

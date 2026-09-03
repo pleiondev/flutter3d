@@ -6,7 +6,12 @@
   conformance suite: an application, because Flutter GPU needs Impeller and
   a headless test does not have it. In the example rather than in the
   backend because it reaches flutter_gpu directly, and an instrument is not
-  part of a backend's API. Its report and arithmetic are held by a headless
+  part of a backend's API. It runs the ring twice — as the renderer has it,
+  and holding the presented frame back one frame more, which is the promise
+  the surface makes and the only version whose texture count compares with
+  it — and its allocation control runs over the resize as well, so a pool
+  that has not shrunk means the surface kept something rather than that the
+  collector had not run. Its report and arithmetic are held by a headless
   test in `example/test`.
 * **The ring of finished frames says what its accounting tracks.** The
   callback that returns a frame texture to rotation fires when the

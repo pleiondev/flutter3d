@@ -7,11 +7,15 @@
 /// application, the way the conformance suite does on that backend.
 library;
 
-/// A list of measurements in microseconds, and the two summaries that matter.
+/// A list of measurements in microseconds, and the three summaries that
+/// matter.
 ///
 /// The median says what a frame usually costs and the 95th percentile says
 /// what the bad ones cost, which is the number a frame budget is actually
-/// held to. A mean hides both.
+/// held to. A mean hides both. The worst sample is kept beside them because a
+/// single forty-millisecond hitch in two hundred and forty frames is invisible
+/// at the 95th percentile and is exactly the kind of thing a present path is
+/// suspected of.
 final class MicrosSamples {
   const MicrosSamples(this.samples);
 
@@ -48,8 +52,8 @@ final class PresentPathMeasurement {
     this.note = '',
   });
 
-  /// `ring`, `surface`, `trailing` or `churn` — see the probe for what each
-  /// does.
+  /// `ring`, `ring held`, `surface`, `trailing` or `churn` — see the probe
+  /// for what each does.
   final String name;
 
   /// The whole of one frame's work on the UI thread: take a target, encode
@@ -86,30 +90,40 @@ final class PresentPathMeasurement {
 }
 
 /// What happened when the surface was resized between frames.
+///
+/// What `present` returned is deliberately not here. In flutter_gpu 3.47
+/// `GpuImageSurfaceFrame.present` ends with `return GpuPresentStatus.success;`
+/// — the value is a constant in the Dart wrapper, not something the engine is
+/// asked — so a `success -> success` printed on either side of a resize would
+/// be a measurement that cannot come out any other way. That question is
+/// answered by reading the SDK, and `ARCHITECTURE.md` §15 says so.
 final class ResizeOutcome {
   const ResizeOutcome({
-    required this.statusBefore,
-    required this.statusAfter,
     required this.backingBefore,
     required this.backingJustAfter,
-    required this.backingSettled,
+    required this.backingAfterThirtyFrames,
     required this.whileAcquired,
     required this.readbackOk,
   });
 
-  /// `GpuPresentStatus` of the last present before the resize and the first
-  /// after it, as the enum's name; `none` if that side drew nothing.
-  final String statusBefore;
-  final String statusAfter;
-
   /// `debugBackingTextureCount` at three moments: before the resize, right
-  /// after it, and after enough frames for the old-size textures to be let go.
+  /// after it, and after thirty more frames drawn at the new size.
+  ///
+  /// Those thirty run under the same allocation churn the `churn` path uses,
+  /// so the collector has been through the native wrappers several times over
+  /// by the third reading. Without that the third number says nothing about
+  /// the surface — a pool that has not shrunk is a pool nothing has collected
+  /// yet, which is what every other phase of this probe shows anyway.
   final int backingBefore;
   final int backingJustAfter;
-  final int backingSettled;
+  final int backingAfterThirtyFrames;
 
   /// What `resize` did while a frame was acquired: the error's text, or
   /// `no error` if it allowed it.
+  ///
+  /// Asked with a size the phase does not itself resize to, so a permitted
+  /// resize leaves a state the counts below would plainly be measuring
+  /// nothing from, rather than one that looks like a measurement.
   final String whileAcquired;
 
   /// Whether a frame at the new size read back with its clear colour.
@@ -154,13 +168,16 @@ final class SurfaceProbeReport {
   ];
 
   static String _pathLine(PresentPathMeasurement path) =>
-      '${path.name.padRight(9)}'
+      '${_label(path.name)}'
       'step p50 ${_us(path.stepMicros.median)} '
-      'p95 ${_us(path.stepMicros.p95)}  '
+      'p95 ${_us(path.stepMicros.p95)} '
+      'max ${_us(path.stepMicros.max)}  '
       'image p50 ${_us(path.imageMicros.median)} '
-      'p95 ${_us(path.imageMicros.p95)}  '
+      'p95 ${_us(path.imageMicros.p95)} '
+      'max ${_us(path.imageMicros.max)}  '
       'interval p50 ${_ms(path.intervalMicros.median)} '
-      'p95 ${_ms(path.intervalMicros.p95)}  '
+      'p95 ${_ms(path.intervalMicros.p95)} '
+      'max ${_ms(path.intervalMicros.max)}  '
       'textures ${path.texturesPeak} peak '
       '(${path.megabytes.toStringAsFixed(1)} MB) '
       '${path.texturesAtEnd} at end  '
@@ -168,12 +185,15 @@ final class SurfaceProbeReport {
       '${path.note.isEmpty ? '' : '  ${path.note}'}';
 
   String get _resizeLine =>
-      'resize   '
-      'status ${resize.statusBefore} -> ${resize.statusAfter}  '
+      '${_label('resize')}'
       'backing ${resize.backingBefore} -> ${resize.backingJustAfter} '
-      '-> ${resize.backingSettled}  '
+      '-> ${resize.backingAfterThirtyFrames}  '
       'while acquired: ${resize.whileAcquired}  '
       'readback ${resize.readbackOk ? 'ok' : 'WRONG'}';
+
+  /// The name a line opens with, in a column wide enough for the longest of
+  /// them and one space clear of the numbers.
+  static String _label(String name) => name.padRight(10);
 
   static String _us(int micros) => '${micros}us'.padLeft(7);
   static String _ms(int micros) =>
