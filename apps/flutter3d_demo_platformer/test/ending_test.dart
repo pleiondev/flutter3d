@@ -41,19 +41,38 @@ Map<String, Object?> _level(String name) =>
 void main() {
   test('the shipped levels say which one is the last', () {
     // **What `finale` reads, checked against the content rather than assumed.**
-    // The flag is `nextLevel == null`, so a third level chained after Ascent
-    // would move the ending — and this is the test that would say so instead of
-    // the credits quietly appearing halfway through the game.
-    expect(
-      _level('first_steps.json')['next'],
-      isNotNull,
-      reason: 'the tutorial is not the end of the game',
-    );
-    expect(
-      _level('ascent.json')['next'],
-      isNull,
-      reason: 'Ascent is the last level, and the ending belongs to it',
-    );
+    // The flag is `nextLevel == null`, so the ending belongs to whichever
+    // document says nothing about what comes next — and this is the test that
+    // says where that is instead of the credits quietly appearing halfway
+    // through the game.
+    //
+    // **It used to name Ascent, and Ascent stopped being the last level.**
+    // Three more were written after it, and the line that had to change to move
+    // the ending was one `next` in one generator. So this walks the chain from
+    // the level the application opens rather than asserting anything about a
+    // particular document: five levels, each naming the one after it, and the
+    // fifth naming nothing.
+    final chain = <String>[];
+    String? name = 'first_steps.json';
+    while (name != null) {
+      expect(chain, isNot(contains(name)), reason: 'the chain loops at $name');
+      chain.add(name);
+      final next = _level(name)['next'];
+      expect(
+        next,
+        anyOf(isNull, isA<String>()),
+        reason: '$name says its next level is $next',
+      );
+      name = next is String ? next.replaceFirst('assets/levels/', '') : null;
+    }
+
+    expect(chain, <String>[
+      'first_steps.json',
+      'ascent.json',
+      'cisterns.json',
+      'foundry.json',
+      'spire.json',
+    ]);
   });
 
   group('the ending', () {

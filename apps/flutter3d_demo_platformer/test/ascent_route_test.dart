@@ -32,110 +32,27 @@
 /// whether a route exists at all, which is the only one this test asks.
 library;
 
-import 'dart:convert';
-import 'dart:io';
+// **The autopilot lives in `climbing.dart` now**, and it was written here. The
+// three levels that follow Ascent each wanted the same forty lines of steering,
+// trick ladder and give-up rule, and four copies of a driver drift apart
+// exactly the way `staging.dart`'s header describes five copies of the game's
+// assembly drifting apart. What is still here is this level's route.
 import 'dart:math' as math;
 
-import 'package:flutter3d_demo_platformer/src/staging.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:flutter3d_game_platformer/flutter3d_game_platformer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vector_math/vector_math.dart';
 
-const double _dt = 1.0 / 60.0;
+import 'climbing.dart';
 
-Level _shipped() => Level.fromJson(
-  jsonDecode(File('assets/levels/ascent.json').readAsStringSync())
-      as Map<String, Object?>,
-);
+const String _ascent = 'assets/levels/ascent.json';
 
-/// The shipped level, the shipped registry, and a runner that can be steered.
-final class _Climb {
-  _Climb() {
-    level.addTo(world);
-    // `stage` is what `main.dart` calls. A harness that assembles the level its
-    // own way is a harness that agrees with any bug the game has.
-    staged = stage(level, world, input: input, registry: kinds);
-  }
-
-  final EntityRegistry kinds = platformerRegistry();
-  late final Staged staged;
-  Dynamics get dynamics => staged.dynamics;
-  MechanismWorld get mechanisms => staged.mechanisms;
-  ActorSystem get actors => staged.actors;
-  Runner get runner => staged.runner;
-  PlatformerSimulation get sim => staged.sim;
-
-  final Level level = _shipped();
-  final CollisionWorld world = CollisionWorld();
-  final InputState input = InputState();
-
-  final Set<GameAction> _held = <GameAction>{};
-
-  void _step(Set<GameAction> want, Vector3 goal) {
-    input.beginStep();
-    for (final action in want.difference(_held)) {
-      input.press(action);
-    }
-    for (final action in _held.difference(want)) {
-      input.release(action);
-    }
-    _held
-      ..clear()
-      ..addAll(want);
-    // The camera owns "forward", exactly as in the game — so steering is a
-    // camera yaw and a held key, and never a written-down velocity.
-    final to = goal - runner.position;
-    sim.cameraYaw = math.atan2(to.x, to.z);
-    sim.step(_dt);
-    input.endStep();
-  }
-
-  /// Heads for [goal] until it is within [within], or gives up.
-  ///
-  /// The trick ladder is the one `first_steps_test.dart` uses and for the same
-  /// reason: a player who stops getting anywhere tries the next thing they
-  /// know. Progress resets it, so a dash learned in one place is not carried
-  /// into the next.
-  bool driveTo(
-    Vector3 goal, {
-    double within = 1.6,
-    int steps = 5400,
-    bool Function()? until,
-  }) {
-    var trick = 0;
-    var stuck = 0;
-    var best = (runner.position - goal).length;
-
-    for (var i = 0; i < steps; i++) {
-      final want = <GameAction>{GameAction.moveForward};
-      if (trick >= 1 && i % 30 < 22) want.add(GameAction.jump);
-      if (trick == 2 && i % 30 == 5) want.add(PlatformerActions.dash);
-      if (trick == 3 && i % 14 < 3) want.add(GameAction.jump);
-      _step(want, goal);
-
-      if (until != null && until()) return true;
-      final away = (runner.position - goal).length;
-      if (until == null && away <= within) return true;
-      if (away < best - 0.2) {
-        best = away;
-        stuck = 0;
-        trick = 0;
-      } else if (++stuck > 240) {
-        stuck = 0;
-        trick = (trick + 1) % 4;
-      }
-    }
-    return false;
-  }
-
-  Vector3 named(String name) =>
-      level.entities.firstWhere((EntityDef e) => e.name == name).position;
-}
+Level _shipped() => shippedLevel(_ascent);
 
 void main() {
   test('both keys can be fetched and the summit reached', () {
-    final climb = _Climb();
+    final climb = Climb(_ascent);
 
     // Places worth being, in order. Three of them are not on the walked line
     // and that is the point: the green key is a detour west, and the blue one
@@ -155,21 +72,9 @@ void main() {
       ('the summit', climb.named('the summit')),
     ];
 
-    final reached = <String>[];
-    for (final (name, at) in route) {
-      // The summit is not a place to stand near, it is an event: the exit is a
-      // volume, and what ends the level is touching it.
-      final arrived = name == 'the summit'
-          ? climb.driveTo(at, until: () => climb.sim.state == RunState.finished)
-          : climb.driveTo(at);
-      if (!arrived) {
-        fail(
-          'stopped on the way to "$name" at ${climb.runner.position}, '
-          'having reached: ${reached.join(', ')}',
-        );
-      }
-      reached.add(name);
-    }
+    // The summit is not a place to stand near, it is an event: the exit is a
+    // volume, and what ends the level is touching it.
+    climb.walkThrough(route, finishAt: 'the summit');
 
     expect(
       climb.runner.keys,
@@ -281,17 +186,17 @@ void main() {
     // speed and the moment the second one is pressed all decide it. **Jump is
     // held**, because releasing while rising cuts the jump short — a probe that
     // presses and releases in one frame measures 0.47 m and believes it.
-    final climb = _Climb();
+    final climb = Climb(_ascent);
     climb.runner.body.teleport(Vector3(0.0, 1.0, 143.0));
     for (var i = 0; i < 120; i++) {
-      climb._step(<GameAction>{}, Vector3(0.0, 1.0, 143.0));
+      climb.step(<GameAction>{}, Vector3(0.0, 1.0, 143.0));
     }
     final ground = climb.runner.position.y;
 
     double rise({required int secondAt}) {
       climb.runner.body.teleport(Vector3(0.0, ground, 143.0));
       for (var i = 0; i < 30; i++) {
-        climb._step(<GameAction>{}, Vector3(0.0, ground, 143.0));
+        climb.step(<GameAction>{}, Vector3(0.0, ground, 143.0));
       }
       var top = climb.runner.position.y;
       for (var i = 0; i < 150; i++) {
@@ -300,7 +205,7 @@ void main() {
         final want = i == secondAt - 1
             ? <GameAction>{}
             : <GameAction>{GameAction.jump};
-        climb._step(want, Vector3(0.0, ground + 10.0, 143.0));
+        climb.step(want, Vector3(0.0, ground + 10.0, 143.0));
         top = math.max(top, climb.runner.position.y);
       }
       return top - ground;

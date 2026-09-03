@@ -48,7 +48,7 @@ genres, and the generated API reference.
 | [`packages/flutter3d_app`](packages/flutter3d_app) | What every application repeats: storage, settings, the frame clock, the screens |
 | [`packages/flutter3d_game_racing`](packages/flutter3d_game_racing) | A third genre: a car simulated as a sphere, a circuit read from a spline, lap timing and a ghost |
 | [`apps/flutter3d_demo_dungeon`](apps/flutter3d_demo_dungeon) | The shooter, and a headless test that plays it to the exit. Desktop, web, Android and iOS |
-| [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
+| [`apps/flutter3d_demo_platformer`](apps/flutter3d_demo_platformer) | The second game: five levels, third person, two jumps and a dash, and no line of the engine changed to allow it. Desktop, web, Android and iOS |
 | [`apps/flutter3d_demo_racing`](apps/flutter3d_demo_racing) | The third game: a season of five circuits, three rivals and the lap you drove before, drawn beside the one you are driving |
 | [`apps/flutter3d_editor`](apps/flutter3d_editor) | A level editor that reads the same documents the games do, and writes projects from templates |
 | [`apps/flutter3d_template_app`](apps/flutter3d_template_app) | The application a new project starts as, and the source the editor's templates are generated from |
@@ -125,7 +125,7 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-3175 tests across twenty-four packages and five applications, and the only
+3199 tests across twenty-four packages and five applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
 backend, which is what makes 33 scenes checkable in a headless run.

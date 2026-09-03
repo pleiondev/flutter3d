@@ -26,8 +26,8 @@ assumed — see `_doubleJumpHeight` in `test/playthrough_test.dart`. As of writi
 the runner walks at 6 m/s, jumps 1.8 m, double-jumps 3.13 m and clears about
 7.5 m of gap.
 
-The vocabulary — brushes, coins, movers, the writer — lives in `levelkit.py`,
-which this and `make_first_steps.py` share.
+The vocabulary — brushes, coins, movers, keys, gates, the writer — lives in
+`levelkit.py`, which every one of the five generators shares.
 """
 
 from levelkit import *  # noqa: F403
@@ -69,7 +69,7 @@ route([60.5, 4.0, 105.0], [1.0, 8.0, 274.0], "stone")
 route([0.0, 4.0, -30.5], [122.0, 8.0, 1.0], "stone")
 route([0.0, 4.0, 233.5], [122.0, 8.0, 1.0], "stone")
 
-entities.append({"type": "player_spawn", "at": [0.0, 0.0, -22.0]})
+spawn([0.0, 0.0, -22.0])
 coin([0.0, 0.8, -16.0], "coin one")
 coin([-3.0, 0.8, -11.0], "coin two")
 coin([3.0, 0.8, -11.0], "coin three")
@@ -95,10 +95,7 @@ coin([-35.0, 0.8, -6.0], "yard coin two")
 coin([-40.0, 0.8, -12.0], "yard coin three")
 for i, z in enumerate((-18.0, -14.0, -6.0, -2.0)):
     coin([-46.0, 5.0, z], f"vault coin {i + 1}")
-entities.append({
-    "type": "key", "name": "the green key", "at": [-46.0, 5.2, -10.0],
-    "color": "green", "material": "brass", "model": "assets/models/key.glb",
-})
+key("the green key", [-46.0, 5.2, -10.0], "green")
 
 # The east plateau, with its own stair up.
 route([-30.0, 2.0, 18.0], [12.0, 4.0, 12.0], "stone")
@@ -248,10 +245,7 @@ route([7.0, 4.0, 44.0], [6.0, 8.0, 10.0], "stone")
 coin([0.0, 3.0, 44.0], "the shaft coin")
 coin([0.0, 6.0, 42.0], "the second shaft coin")
 coin([0.0, 9.0, 42.0], "the third shaft coin")
-entities.append({
-    "type": "key", "name": "the blue key", "at": [0.0, 9.0, 46.0],
-    "color": "blue", "material": "brass", "model": "assets/models/key.glb",
-})
+key("the blue key", [0.0, 9.0, 46.0], "blue")
 
 checkpoint("the canyon rim", 53.0, 3, respawn=52.0)
 hazard("the gulf", [0.0, -4.0, 62.0], [122.0, 6.0, 12.0], instant=True)
@@ -318,11 +312,7 @@ coin([-38.0, 7.8, 74.0], "tower coin two")
 coin([-42.0, 7.8, 78.0], "tower coin three")
 coin([-38.0, 7.8, 78.0], "tower coin four")
 
-entities.append({
-    "type": "door", "name": "the blue gate", "at": [0.0, 2.5, 80.0],
-    "size": [4.0, 5.0, 2.0], "travel": [0.0, 5.2, 0.0], "speed": 6.0,
-    "wait": 0.0, "key": "blue", "material": "brass",
-})
+gate("the blue gate", [0.0, 2.5, 80.0], "blue")
 plate("the blue gate's plate", "the blue gate", [0.0, 1.6, 77.0],
       size=(6.0, 3.0, 3.0))
 
@@ -353,11 +343,7 @@ for i, (x, z) in enumerate((
 )):
     coin([x, 0.8, z], f"maze coin {i + 1}")
 
-entities.append({
-    "type": "door", "name": "the green gate", "at": [0.0, 2.5, 120.5],
-    "size": [6.0, 5.0, 2.0], "travel": [0.0, 5.2, 0.0], "speed": 6.0,
-    "wait": 0.0, "key": "green", "material": "brass",
-})
+gate("the green gate", [0.0, 2.5, 120.5], "green", size=(6.0, 5.0, 2.0))
 plate("the green gate's plate", "the green gate", [0.0, 1.6, 118.0],
       size=(6.0, 3.0, 3.0))
 
@@ -552,10 +538,7 @@ for i, (x, z) in enumerate((
     (-4.0, 226.0), (-2.8, 223.2), (0.0, 222.0), (2.8, 223.2),
 )):
     coin([x, 11.0, z], f"ring coin {i + 1}")
-entities.append({
-    "type": "exit", "name": "the summit", "at": [0.0, 11.7, 226.0],
-    "size": [5.0, 3.0, 5.0], "text": "The summit.",
-})
+exit_at("the summit", [0.0, 11.7, 226.0], "The summit.")
 
 # The colonnade below the stair.
 for i in range(6):
@@ -656,5 +639,11 @@ levelkit.write(
     "ascent.json",
     name="Ascent",
     lights=LIGHTS,
+    # **Ascent is no longer where the game stops.** It was the last level for as
+    # long as there were two, and the summit's exit put up the credits; three
+    # levels follow it now, and what a finished level does next is a line in the
+    # document rather than a rule in the application — so the ending moves by
+    # moving this.
+    next_level="assets/levels/cisterns.json",
     tool="tool/make_level.py",
 )

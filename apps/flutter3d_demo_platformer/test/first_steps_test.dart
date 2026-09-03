@@ -299,7 +299,7 @@ void main() {
     });
   });
 
-  test('nothing a player must reach is inside a wall — in both shipped levels', () {
+  test('nothing a player must reach is inside a wall — in any shipped level', () {
     // **The new rule, applied to the thing it was written for.** A test that
     // builds its own fixture proves the code path; this loads the documents the
     // game actually ships and asks about them. Fourteen coins and a crate were
@@ -309,9 +309,16 @@ void main() {
     // Mutation: put any of them back. `python3 tool/make_first_steps.py` now
     // refuses outright, and if a document is edited past the generator this
     // catches it.
+    //
+    // Every level the game ships, not the two it shipped when this was written:
+    // a rule applied to the documents that happened to exist on the day is a
+    // rule the next document is exempt from.
     for (final path in <String>[
       'assets/levels/first_steps.json',
       'assets/levels/ascent.json',
+      'assets/levels/cisterns.json',
+      'assets/levels/foundry.json',
+      'assets/levels/spire.json',
     ]) {
       final level = Level.fromJson(
         jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>,
