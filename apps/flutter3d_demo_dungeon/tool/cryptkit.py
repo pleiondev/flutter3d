@@ -20,6 +20,7 @@ Nothing holds state between documents: `start()` resets everything, and each
 script calls it before it builds.
 """
 
+import math
 import sys
 from pathlib import Path
 
@@ -111,8 +112,35 @@ def _piece(fixed, axis, low, high, bottom, top, material):
              (thick, top - bottom, high - low), material)
 
 
+PROBE_REACH = 10.0
+"""How far a reflection probe is trusted to stand for, in metres.
+
+Under the twelve metres `levels_test.dart` holds every pickup and key to, so
+that a room whose grid is exactly spaced still leaves the check something to
+fail on. Above it the picture a probe took is a view from another part of the
+room, which reads as a reflection of the wrong wall rather than as a blur.
+"""
+
+
+def _probe_grid(cx, cz, w, d):
+    """Probe positions covering a room [w] by [d] centred on [cx], [cz].
+
+    One for a room that fits inside [PROBE_REACH] of its middle, and otherwise
+    as few as leave nothing further than that from one — evenly spaced, so a
+    room twice the reach gets two per axis at the quarters rather than one at
+    the middle and one in a corner.
+    """
+    def positions(centre, extent):
+        count = max(1, math.ceil(extent / (PROBE_REACH * 2.0)))
+        step = extent / count
+        start = centre - extent / 2.0 + step / 2.0
+        return [start + i * step for i in range(count)]
+
+    return [(x, z) for x in positions(cx, w) for z in positions(cz, d)]
+
+
 def room(centre, size, *, height=HEIGHT, base=0.0, floor="floor", wall="wall",
-         ceiling="ceiling", doors=(), ceilinged=True):
+         ceiling="ceiling", doors=(), ceilinged=True, probe=True):
     """A room: floor, ceiling, and four walls with [doors] cut through them.
 
     [centre] is the middle of the floor and [size] is the inside, so two rooms
@@ -130,6 +158,19 @@ def room(centre, size, *, height=HEIGHT, base=0.0, floor="floor", wall="wall",
     Sides are named by the axis, not by any compass in the fiction: **north is
     −Z**, which is the direction the camera faces at yaw zero, so "the door on
     the north wall" is the one ahead of you when you walk in facing forward.
+
+    **A room reflects itself.** With [probe], `reflection_probe` entities stand
+    half way up on a grid across the room: a key or a barrel in it reflects
+    these walls under these torches rather than a sky a crypt does not have. A
+    corridor asks for none — whatever stands in one takes the nearest room's,
+    which is the room the corridor leads to.
+
+    A grid rather than one at the middle, because a probe is a picture taken
+    from a point and a hall is not a point. One probe served every room in the
+    first three levels and none of them is more than fourteen metres across;
+    the sanctum's altar hall is thirty-two, so its far corners reflected a
+    view from far enough away to be the wrong room. [PROBE_REACH] is how far
+    one is trusted to stand for, and the count follows from the size.
     """
     cx, _, cz = centre
     w, _, d = size
@@ -138,6 +179,14 @@ def room(centre, size, *, height=HEIGHT, base=0.0, floor="floor", wall="wall",
 
     _box((cx, base - THICK / 2.0, cz), (w + THICK * 2, THICK, d + THICK * 2),
          floor)
+    # Half way up this room's own walls, which is not half way up the level:
+    # the cistern's basin sits below the rooms around it, and a probe placed
+    # from zero would stand in the water's ceiling.
+    if probe:
+        for px, pz in _probe_grid(cx, cz, w, d):
+            entities.append({"type": "reflection_probe",
+                             "at": rounded((px, base + height / 2.0, pz))})
+
     if ceilinged:
         _box((cx, base + height + THICK / 2.0, cz),
              (w + THICK * 2, THICK, d + THICK * 2), ceiling)
@@ -174,11 +223,11 @@ def corridor(frm, to, *, width=3.0, height=3.0, floor="floor", wall="wall",
     if abs(x0 - x1) > 1e-6:
         room(((x0 + x1) / 2.0, 0.0, z0), (abs(x1 - x0), 0.0, width),
              height=height, floor=floor, wall=wall, ceiling=ceiling,
-             doors=doors)
+             doors=doors, probe=False)
     else:
         room((x0, 0.0, (z0 + z1) / 2.0), (width, 0.0, abs(z1 - z0)),
              height=height, floor=floor, wall=wall, ceiling=ceiling,
-             doors=doors)
+             doors=doors, probe=False)
 
 
 def pillar(at, *, size=(1.2, HEIGHT, 1.2), material="stone"):

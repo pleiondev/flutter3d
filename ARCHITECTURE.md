@@ -422,6 +422,53 @@ behaving differently is what a player reads as broken shadows, and they are righ
 Six rows at the tile above is 75 MB against 50; at the tile it inherited before,
 the same step would have been 302.
 
+**Reflection probes.** A `ReflectionProbeNode` is the scene seen from a point:
+six views drawn straight into the faces of a cube — `ColorTarget.face` names the
+attachment — and then convolved into the levels below it by a full-screen pass
+per face per level, `ColorTarget.mipLevel` naming each. The convolution is the
+same fixed-spiral cosine-power lobe `EnvironmentMap.prefilter` runs on the host,
+transcribed for the device, so a chain built either way is the same lobe; the
+software rasteriser writes into the array a face and a level own, which is what
+keeps `probe-car` comparable across the three sets. A probe is a graph node that
+*keeps* its cube, like the atlases: a kept probe is drawn once and again on
+`invalidate()`, a rolling one redraws a face a frame after its first six. The
+physical model takes the nearest probe whose radius reaches the mesh's centre,
+one per object and no blending, and the scene's environment where none does. A
+probe is read at its own `intensity` rather than at `Scene.ambientIntensity`:
+the sky environment stands in for indirect light and shares the ambient knob, a
+probe is that light measured, and a crypt whose ambient sits at six per cent
+would otherwise reflect its torch-lit walls at six per cent. The strength
+travels in the slot the flat ambient already uses, since a draw reads one term
+or the other and never both. A *lightmapped* draw reads no probe at all, which
+is that same rule from the other side: a lightmap is this surface's indirect
+light measured per texel, a probe's roughest level is a coarser answer to the
+same question, and the lit models add the lightmap on top of the environment
+rather than choosing — so a wall taking both would count the room's bounce
+twice. The walls keep the bake and the probe lights what the bake does not
+reach; what a rough dielectric gives up is a specular lobe worth very little.
+One whole cube is captured per frame across the scene, so a level with a probe
+in every room stands over as many frames as it has rooms rather than paying
+four or five sixfold captures of an unculled level on the frame it loads; a
+probe waiting its turn binds nothing, and one whose chain is merely stale keeps
+showing it. `isCaptured` says when every face stands, which is
+what a level holds its visibility culling for — a kept probe captured on the
+first frame, after the culler had hidden every room but the player's, would be
+a picture of walls with nothing beyond them. A level asks for one with a
+`reflection_probe` entity, the format's word and a kind a game puts in its own
+vocabulary; the bridge builds the node the way it builds a light, and the
+dungeon's generators put one at the middle of every room, which is the second
+consumer beside the racing car's rolling one.
+
+Each face is drawn through a mirror. The cube-map table is left-handed — on the
++X face column zero looks along +Z — and a right-handed camera puts every face's
+left on the right, so the projection negates x and the mesh encoder flips the
+winding it sets per node; a bottom-left backend stores row zero at the picture's
+bottom, so there y is negated as well — two negated axes are a half turn, and
+the winding stays. Neither sign is visible in a picture, which is why
+`probe_faces_test.dart` projects the table's directions
+through every face on both origins and `flutter3d_conformance` clears one face
+of one level and reads it back through the prefilter stage.
+
 **HDR and composite.** The scene renders into `r16g16b16a16Float`. Tone mapping
 (Khronos PBR Neutral), exposure and the sRGB encode happen in a composite pass,
 which is what lets anything above display white survive long enough for
@@ -911,9 +958,21 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
   `supportsOffscreenMsaa`, `supportsStencil`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
-  `maxAnisotropy`, and the storage mode, sample count, type and format a
-  `TextureHandle` carries before asking `readback` for it. A backend refuses
-  loudly rather than substituting something that looks similar. `loadShaders`
+  `maxAnisotropy`, `supportsRenderToMip`, and the storage mode, sample count,
+  type and format a `TextureHandle` carries before asking `readback` for it. A
+  backend refuses loudly rather than substituting something that looks similar.
+  `supportsRenderToMip` is the one that splits a single backend by platform:
+  flutter_gpu attaches a cube face everywhere and a mip level below the base
+  only on Metal and Vulkan, and the renderer builds a probe's chain where it
+  can and no probe where it cannot.
+- **A colour attachment names a face and a level**, and a pass's initial
+  viewport covers the *level*: a 64-pixel cube at level two is sixteen across.
+  The software rasteriser writes into the array that face and level own; GL
+  attaches a face target and a level; Impeller a slice and a mip index. And on
+  GL the mip filter lives on the minification filter, so a sampler that says
+  nothing about levels reads the base whatever level a shader named —
+  `MipFilter.linear` is what `LINEAR_MIPMAP_LINEAR` is spelled as here.
+ `loadShaders`
   is the same rule from the other side: there is nothing to ask first, so the
   refusal *is* the answer — `ShaderBundleRefused`, naming the bundle, for bytes
   that are not one, a section the backend has none of, a compiled section from
@@ -1572,11 +1631,11 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3346 tests** across 24 packages and 5 applications |
+| Unit tests | **3393 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 38 scenes against **three independent reference sets** —
+**Golden render tests.** 39 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1654,7 +1713,7 @@ releases a button every step never tests what holding it does.
 
 **Documents are compared against the tree.** The test count, the structure-rule
 count and the publishing order each have a scan, because a number in prose is a
-number nobody recounts — the test count said "3346 tests in 12 packages" when there
+number nobody recounts — the test count said "1230 tests in 12 packages" when there
 were nearly three thousand. What a scan catches is not a wrong number but a
 document quietly describing the repository of a year ago.
 
@@ -1713,6 +1772,18 @@ speed: a Draco decoder, a KTX2 transcoder, or an audio engine. Native code also
 costs a signed dylib per platform, a build per Android ABI, two debugging
 toolchains, and `SIGSEGV`s with no Dart stack; and it does not cure jank, since a
 native call from the UI isolate blocks it exactly as Dart does.
+
+**A rolling reflection probe costs the racing frame two milliseconds of build on
+Impeller and one in Chrome.** Measured with `FrameTimingLog`
+(`--dart-define=FLUTTER3D_TIMINGS=true`, profile builds) on the player's car —
+one sixty-four-pixel face a frame and the chain refiltered — against the same
+frame with the probe switched off (`FLUTTER3D_PLAYER_PROBE=false`), over the
+same span of race time: on macOS (Apple M3 Pro, Metal) the build half goes from
+4.7 to 7.0 ms and the raster half stays at 0.2; in Chrome (WebAssembly,
+960×540) from 16.2 to 17.2 ms in both halves. The cost is the walk, not the
+pixels: a face is every mesh in the scene encoded again from another point, and
+thirty filter passes into a cube no wider than sixty-four are the small part. A
+kept probe pays it once.
 
 ---
 

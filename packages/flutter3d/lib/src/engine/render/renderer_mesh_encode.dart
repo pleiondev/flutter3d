@@ -59,6 +59,14 @@ extension _MeshEncode on Renderer {
     // the texture slots the model declares — is exactly what it must not
     // grow a second copy of.
     _DrawOverride? override,
+    // The probes this draw may reflect, answered by the calling node the way
+    // the shadows are. None by default: the view model and a probe's own
+    // capture both draw without one.
+    _SceneProbes probes = _SceneProbes.none,
+    // Whether the view-projection mirrors the picture. A probe's face is drawn
+    // through one — see `probeFaceViewProjection` — and a mirror reverses
+    // which way every triangle winds, so the winding set below flips with it.
+    bool mirrored = false,
   }) {
     final mesh = node.mesh;
     // The scene deals in MeshGeometry so that culling and picking need no
@@ -114,7 +122,7 @@ extension _MeshEncode on Renderer {
     final normalMatrix = node.worldNormalMatrix;
 
     encoder.setWindingOrder(
-      node.worldIsMirrored
+      node.worldIsMirrored != mirrored
           ? WindingOrder.clockwise
           : WindingOrder.counterClockwise,
     );
@@ -186,7 +194,34 @@ extension _MeshEncode on Renderer {
     // Only when there is a real cube *and* the device can hold one: on a
     // backend with no cube support the fallback is null too, and a level
     // count with nothing bound is the branch this exists to avoid.
-    final environment = scene.environment ?? _environmentFallback(device);
+    //
+    // The nearest probe first, where one reaches this node: a probe is the
+    // room the object is actually in, and the scene's environment is the sky
+    // it may not be able to see. One per object and no blending — see
+    // `_SceneProbes.nearest`.
+    //
+    // **A lightmapped draw reads no probe**, and that is the same "one term or
+    // the other, never both" rule the ambient strength above follows. A
+    // lightmap *is* this surface's indirect light, measured per texel and
+    // baked; a probe's roughest level is a coarser guess at the same quantity,
+    // and the shader adds the lightmap on top of the environment rather than
+    // choosing between them, so a wall that took both would count the room's
+    // bounce twice. The walls keep the bake, which is finer than a probe can
+    // be, and the probe lights everything the bake does not reach: props,
+    // enemies, anything skinned or batched — none of which carries a lightmap
+    // coordinate, which is why the local `lightmapped` is the one asked here
+    // rather than `node.lightmapped`. What a wall gives up is its specular
+    // lobe, and a rough dielectric's is very nearly nothing.
+    final probe = material.lighting.usesEnvironment && !lightmapped
+        ? probes.nearest(node.worldBoundsCentre)
+        : null;
+    final environment =
+        probe?.texture ?? scene.environment ?? _environmentFallback(device);
+    final environmentLevels = probe != null
+        ? probe.levels
+        : scene.environment == null || environment == null
+        ? 0
+        : scene.environmentLevels;
 
     if (material.lighting.usesFragInfo) {
       _baseColorData[0] = material.baseColor.x;
@@ -200,7 +235,12 @@ extension _MeshEncode on Renderer {
 
       _materialData[0] = material.metallic;
       _materialData[1] = material.roughness;
-      _materialData[2] = scene.ambientIntensity;
+      // The ambient strength, which is also the environment's — the shader
+      // scales both by this one number and uses one *or* the other. A probe
+      // brings its own: a captured room is read at the strength the frame drew
+      // it, and the flat term a scene dims to six per cent is not consulted
+      // while a probe is bound. See `ReflectionProbeNode.intensity`.
+      _materialData[2] = probe?.intensity ?? scene.ambientIntensity;
       _materialData[3] = settings.specular;
 
       // A negative cutoff means "not masked". The shader compares against
@@ -222,9 +262,7 @@ extension _MeshEncode on Renderer {
       // spent: the environment's level count, and zero when there is none.
       // One number carrying both the roughness scale and the "is there one"
       // flag, so the shader needs no second uniform and no second branch.
-      _frameParams[3] = scene.environment == null || environment == null
-          ? 0.0
-          : scene.environmentLevels.toDouble();
+      _frameParams[3] = environmentLevels.toDouble();
 
       // Its own block, bound beside FragInfo rather than folded into it. See
       // the note in color.glsl: appending to a block six shaders share moves
@@ -366,7 +404,7 @@ extension _MeshEncode on Renderer {
         fragmentShader,
         _kEnvironmentTextureSlot,
         environment,
-        sampler: Renderer._clampSampler,
+        sampler: Renderer._environmentSampler,
       );
     }
     // The material's own samplers, with the setting's anisotropy applied

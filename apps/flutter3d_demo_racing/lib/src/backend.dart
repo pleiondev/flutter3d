@@ -40,3 +40,14 @@ const int kRenderHeight = 540;
 /// question that has to keep agreeing with the first.
 const int kShadowCascades = kFixedResolution ? 2 : 3;
 const int kShadowResolution = kFixedResolution ? 1024 : 2048;
+
+/// Whether the player's bodywork gets its reflection probe.
+///
+/// On, and a build turns it off with `--dart-define=FLUTTER3D_PLAYER_PROBE=false`
+/// to measure what it costs: the same circuit, the same frame, with and
+/// without the one face a frame the probe redraws. What it costs is written
+/// beside the probe in the site's rendering page, from this switch.
+const bool kPlayerProbe = bool.fromEnvironment(
+  'FLUTTER3D_PLAYER_PROBE',
+  defaultValue: true,
+);

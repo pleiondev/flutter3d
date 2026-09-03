@@ -322,6 +322,7 @@
     }
   ],
   "entities": [
+    {"type": "reflection_probe", "at": [0.0, 2.0, 14.0]},
     {"type": "player_spawn", "at": [0.0, 0.0, 16.0], "yaw": 0.0},
     {"type": "torch", "at": [-4.75, 2.8, 14.0], "yaw": 1.5708, "light": "landing_west"},
     {"type": "torch", "at": [4.75, 2.8, 14.0], "yaw": -1.5708, "light": "landing_east"},
@@ -332,6 +333,8 @@
       "text": "The wardens flooded the cistern to keep what is in it from climbing out. It did not work."
     },
     {"type": "pickup", "at": [3.0, 0.8, 12.0], "gives": "shells", "amount": 8},
+    {"type": "reflection_probe", "at": [-6.0, 1.9, -6.0]},
+    {"type": "reflection_probe", "at": [6.0, 1.9, -6.0]},
     {"type": "lamp", "at": [0.0, 4.0, -6.0], "light": "basin_lamp", "color": [0.5, 0.85, 0.8]},
     {"type": "torch", "at": [-11.75, 2.0, -12.0], "yaw": 1.5708, "light": "basin_northwest"},
     {"type": "torch", "at": [11.75, 2.0, -12.0], "yaw": -1.5708, "light": "basin_northeast"},
@@ -357,10 +360,12 @@
       "key": "brass"
     },
     {"type": "trigger", "at": [0.0, 1.5, -14.4], "size": [6.0, 3.0, 2.0], "target": "sluice_gate", "once": false},
+    {"type": "reflection_probe", "at": [-15.0, 0.3, 2.0]},
     {"type": "torch", "at": [-16.75, 1.0, 2.0], "yaw": 1.5708, "light": "alcove"},
     {"type": "secret", "at": [-15.0, 0.05, 2.0], "size": [2.0, 2.5, 2.0]},
     {"type": "pickup", "at": [-15.0, -0.4, 2.0], "gives": "rockets", "amount": 4},
     {"type": "pickup", "at": [-16.0, -0.4, 1.0], "gives": "armour", "amount": 25},
+    {"type": "reflection_probe", "at": [-19.0, 2.0, -6.0]},
     {"type": "torch", "at": [-24.75, 2.8, -6.0], "yaw": 1.5708, "light": "sluice_west"},
     {"type": "torch", "at": [-19.0, 2.8, -10.75], "yaw": 0.0, "light": "sluice_north"},
     {"type": "monster", "at": [-22.0, 0.0, -9.0], "kind": "shooter"},
@@ -378,6 +383,7 @@
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
     },
+    {"type": "reflection_probe", "at": [19.0, 2.5, -6.0]},
     {"type": "lamp", "at": [19.0, 4.2, -6.0], "light": "pump_lamp", "color": [1.0, 0.78, 0.42]},
     {"type": "torch", "at": [24.75, 3.0, -9.0], "yaw": -1.5708, "light": "pump_northeast"},
     {"type": "torch", "at": [24.75, 3.0, -3.0], "yaw": -1.5708, "light": "pump_southeast"},
@@ -397,6 +403,7 @@
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
     },
+    {"type": "reflection_probe", "at": [0.0, 2.0, -28.0]},
     {"type": "torch", "at": [-5.75, 2.8, -25.0], "yaw": 1.5708, "light": "drain_west"},
     {"type": "torch", "at": [5.75, 2.8, -31.0], "yaw": -1.5708, "light": "drain_east"},
     {"type": "monster", "at": [0.0, 0.0, -30.0], "kind": "tank"},
@@ -417,6 +424,7 @@
       "key": "iron"
     },
     {"type": "trigger", "at": [0.0, 1.5, -31.4], "size": [4.0, 3.0, 2.0], "target": "outflow_gate", "once": false},
+    {"type": "reflection_probe", "at": [0.0, 2.5, -43.0]},
     {"type": "torch", "at": [-4.75, 3.0, -43.0], "yaw": 1.5708, "light": "outflow_west"},
     {"type": "pickup", "at": [3.0, 0.8, -41.0], "gives": "armour", "amount": 25},
     {"type": "exit", "name": "the_sanctum", "at": [0.0, 1.3, -45.0]}

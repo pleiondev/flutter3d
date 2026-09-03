@@ -334,6 +334,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
+  /// What a frame costs, printed when `FLUTTER3D_TIMINGS` asks. This is the
+  /// game the player's probe is measured in — see `kPlayerProbe`.
+  final FrameTimingLog _timings = FrameTimingLog(label: 'race');
+
   @override
   void initState() {
     // Settings before devices: the bindings a player saved are the ones the
@@ -372,6 +376,7 @@ class _RaceScreenState extends State<RaceScreen>
     unawaited(_devices.dispose());
     _keyboard.dispose();
     _ticker?.dispose();
+    _timings.stop();
     for (final voice in _voices) {
       voice.stop();
     }
@@ -426,6 +431,7 @@ class _RaceScreenState extends State<RaceScreen>
     // see [_scene] — and there is nothing to step until the circuit is read, so
     // the loop simply returns early until it is.
     _ticker = createTicker(_onTick)..start();
+    _timings.start();
     await _loadCircuit(device);
   }
 
@@ -537,6 +543,30 @@ class _RaceScreenState extends State<RaceScreen>
           // ride height above the tarmac, and the model hangs from wherever its
           // own origin is.
           _carLift.add(floor - _cars[i].tuning.rideHeight);
+          // **The player's bodywork reflects the track going past.** A probe
+          // under the car's own node, so it goes where the car goes, refreshed
+          // one face a frame so the cube is six frames behind at worst; the
+          // car's own meshes are left out of it, or the probe would capture
+          // the inside of the car. Rivals keep the sky alone: a probe per car
+          // is a view of the circuit per car per frame, and nobody looks at a
+          // rival's door closely enough to pay for it.
+          if (i == 0 && kPlayerProbe) {
+            final centre = (asset.localBounds.min + asset.localBounds.max)
+              ..scale(0.5);
+            final probe = ReflectionProbeNode(
+              name: 'player probe',
+              refreshFaceEveryFrame: true,
+              // Reaches the player's own panels — the car is under four and
+              // a half metres long — and not a rival lined up beside it.
+              radius: 2.5,
+              // Past the bodywork the exclusion already leaves out, so a
+              // wheel arch a few centimetres from the probe does not fill a
+              // face either.
+              near: 0.5,
+            )..setPosition(centre.x, centre.y, centre.z);
+            probe.excluded.addAll(instance.meshes);
+            node.add(probe);
+          }
         }
         _carNodes.add(node);
         // Both endpoints start on the grid slot. Left at zero the first drawn

@@ -40,6 +40,7 @@ final class GoldenScene {
     this.shaderBundle,
     this.autoExposure = const AutoExposureSettings(),
     this.xray = const XraySettings(),
+    this.reflectionProbe = false,
   });
 
   /// Whether the frame's exposure is metered from the frame, and how fast.
@@ -77,6 +78,12 @@ final class GoldenScene {
   ///
   /// Needs [ground]; the plane it retextures is the demo's own.
   final bool anisotropicFloor;
+
+  /// Replaces the model with four coloured walls, a floor and two metal
+  /// balls reflecting them through a probe placed at the mirror one: the
+  /// capture into six cube faces, the chain filtered on the device, and the
+  /// physical model reading it. See `GoldenExtras.probeRoom`.
+  final bool reflectionProbe;
 
   /// Draws the source as a batch of this many copies instead of one model.
   ///

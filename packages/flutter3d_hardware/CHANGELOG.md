@@ -105,6 +105,17 @@
   leaves the picture alone.
 * `FakeBackend` can be told it has no stencil, and `FakePass` records the
   stencil state and reference it was left with.
+* **A colour attachment names a face and a level.** `ColorTarget.face` picks
+  a face of a cube in the order the uploads take them, `ColorTarget.mipLevel`
+  a level below the base, and a pass's initial viewport covers the level.
+  What a reflection probe is drawn into, and the first time anything in the
+  engine renders into a face or a mip.
+* **`GraphicsDevice.createCubeRenderTarget`** allocates a cube a pass may
+  draw into, device-private and empty, with a chain of the length asked for
+  and trimmed to what the device will hold; **`supportsRenderToMip`** says
+  whether a level below the base can be attached at all, which is the one
+  capability that splits flutter_gpu by platform. `FakeBackend` records both
+  and answers the capability either way.
 
 ## 0.4.1
 

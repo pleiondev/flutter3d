@@ -349,6 +349,7 @@
     }
   ],
   "entities": [
+    {"type": "reflection_probe", "at": [0.0, 2.0, 14.0]},
     {"type": "player_spawn", "at": [0.0, 0.0, 16.0], "yaw": 0.0},
     {"type": "torch", "at": [-4.75, 2.8, 14.0], "yaw": 1.5708, "light": "vestibule_west"},
     {"type": "torch", "at": [4.75, 2.8, 14.0], "yaw": -1.5708, "light": "vestibule_east"},
@@ -359,6 +360,10 @@
       "text": "Two wardens kept the sanctum, and they kept its keys apart, as they always did. What they kept it from is still in it."
     },
     {"type": "pickup", "at": [3.0, 0.8, 12.0], "gives": "health", "amount": 25},
+    {"type": "reflection_probe", "at": [-7.0, 3.5, -14.0]},
+    {"type": "reflection_probe", "at": [-7.0, 3.5, -2.0]},
+    {"type": "reflection_probe", "at": [7.0, 3.5, -14.0]},
+    {"type": "reflection_probe", "at": [7.0, 3.5, -2.0]},
     {"type": "lamp", "at": [0.0, 6.2, -14.0], "light": "nave_north", "color": [1.0, 0.85, 0.55]},
     {"type": "lamp", "at": [0.0, 6.2, -2.0], "light": "nave_south", "color": [1.0, 0.85, 0.55]},
     {"type": "torch", "at": [-13.75, 3.0, -4.0], "yaw": 1.5708, "light": "nave_southwest"},
@@ -405,6 +410,7 @@
       "target": "sanctum_inner",
       "once": false
     },
+    {"type": "reflection_probe", "at": [-21.0, 2.0, -12.0]},
     {"type": "torch", "at": [-26.75, 2.8, -9.0], "yaw": 1.5708, "light": "reliquary_west"},
     {"type": "torch", "at": [-21.0, 2.8, -7.25], "yaw": 3.1416, "light": "reliquary_south"},
     {"type": "monster", "at": [-22.0, 0.0, -12.0], "kind": "tank"},
@@ -422,11 +428,13 @@
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
     },
+    {"type": "reflection_probe", "at": [-19.0, 1.5, -21.0]},
     {"type": "torch", "at": [-21.75, 2.0, -21.0], "yaw": 1.5708, "light": "hidden"},
     {"type": "secret", "at": [-19.0, 1.25, -21.0], "size": [2.0, 2.5, 2.0]},
     {"type": "pickup", "at": [-19.0, 0.8, -22.0], "gives": "rockets", "amount": 8},
     {"type": "pickup", "at": [-17.0, 0.8, -22.0], "gives": "armour", "amount": 25},
     {"type": "pickup", "at": [-21.0, 0.8, -22.0], "gives": "health", "amount": 25},
+    {"type": "reflection_probe", "at": [21.0, 2.0, -12.0]},
     {"type": "torch", "at": [26.75, 2.8, -9.0], "yaw": -1.5708, "light": "wardens_northeast"},
     {"type": "torch", "at": [26.75, 2.8, -15.0], "yaw": -1.5708, "light": "wardens_southeast"},
     {"type": "monster", "at": [22.0, 0.0, -9.0], "kind": "tank"},
@@ -445,6 +453,7 @@
       "size": [0.7, 0.7, 0.7],
       "tint": [0.95, 0.6, 0.2]
     },
+    {"type": "reflection_probe", "at": [0.0, 2.5, -33.0]},
     {"type": "lamp", "at": [0.0, 4.2, -33.0], "light": "choir_lamp", "color": [1.0, 0.85, 0.55]},
     {"type": "monster", "at": [-6.0, 0.0, -36.0], "kind": "shooter"},
     {"type": "monster", "at": [6.0, 0.0, -36.0], "kind": "shooter"},
@@ -453,6 +462,10 @@
     {"type": "pickup", "at": [0.0, 0.8, -33.0], "gives": "rockets", "amount": 4},
     {"type": "pickup", "at": [-7.0, 0.8, -33.0], "gives": "health", "amount": 25},
     {"type": "pickup", "at": [7.0, 0.8, -33.0], "gives": "armour", "amount": 25},
+    {"type": "reflection_probe", "at": [-8.0, 4.5, -65.0]},
+    {"type": "reflection_probe", "at": [-8.0, 4.5, -51.0]},
+    {"type": "reflection_probe", "at": [8.0, 4.5, -65.0]},
+    {"type": "reflection_probe", "at": [8.0, 4.5, -51.0]},
     {"type": "lamp", "at": [0.0, 8.2, -50.0], "light": "altar_south", "color": [1.0, 0.85, 0.55]},
     {"type": "lamp", "at": [0.0, 8.2, -64.0], "light": "altar_north", "color": [1.0, 0.85, 0.55]},
     {"type": "torch", "at": [-15.75, 3.5, -48.0], "yaw": 1.5708, "light": "altar_southwest"},

@@ -973,8 +973,10 @@ class _GameScreenState extends State<GameScreen>
 
     // What the walls hide from here is left undrawn. Once a step rather than
     // once a frame: the eye moves in the step, and a frame between two steps
-    // sees the same walls either one did.
-    _loaded?.culler?.apply(_eye);
+    // sees the same walls either one did. Through the level rather than its
+    // culler, because the level knows to wait for its probes — see
+    // `LoadedLevel.cull`.
+    _loaded?.cull(_eye, device: _run.run.device);
 
     // A rocket that cut a wall this step: the walls are drawn again from the
     // brushes as they are now, the same list the collision world already

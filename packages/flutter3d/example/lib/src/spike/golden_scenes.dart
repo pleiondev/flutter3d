@@ -240,6 +240,31 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     xray: XraySettings(layerMask: GoldenExtras.xrayLayer),
   ),
 
+  // A mirror ball and a brushed one over four coloured walls, reflecting them
+  // through a probe: six views drawn into the faces of a cube, the chain
+  // convolved into its levels on the device, and the physical model picking
+  // the nearest probe. Nothing else in the suite renders into a cube face or
+  // a mip level, so this is the picture that says whether a face is mirrored,
+  // upside down or transposed — and a face wrong in any of those ways is a
+  // reflection that looks plausible and shows the wrong wall.
+  //
+  // The brushed ball is what pins the chain: a mirror alone reads the base
+  // level and would pass with the levels below it never filtered.
+  //
+  // No sun shadows and no bloom, so the frame is the room and its
+  // reflection; the walls are lit by the sun and the key light as every
+  // scene's model is.
+  const GoldenScene(
+    name: 'probe-car',
+    source: 'Cube',
+    shadows: false,
+    bloom: false,
+    ground: false,
+    yaw: 0.7,
+    pitch: 0.35,
+    reflectionProbe: true,
+  ),
+
   // Eight quads stacked at one point: addition alone. See stackedParticles.
   const GoldenScene(
     name: 'particle-stack',

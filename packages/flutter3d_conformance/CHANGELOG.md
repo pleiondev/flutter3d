@@ -49,6 +49,13 @@
 * The link checks pair `Xray` with all three mesh vertex stages. It declares
   one output where every other lighting entry point declares two, which is the
   pairing least like the rest of the table.
+* **`a pass renders into a cube face and a mip`.** Three clears into three
+  subresources of one cube — a face's base, another face's base, and the
+  first face's second level where the device says it can — read back through
+  the probe prefilter stage with a single tap, so a backend that cleared the
+  whole cube, the base level, or face zero ends with the wrong colour in the
+  wrong place. The capability check reads `supportsRenderToMip`; the link
+  checks pair `FullscreenVertex` with `ProbePrefilter`.
 
 ## 0.4.1
 

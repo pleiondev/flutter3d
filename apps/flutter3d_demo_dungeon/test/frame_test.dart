@@ -99,10 +99,17 @@ Future<({LevelReady level, CpuDevice device, Renderer renderer})> _shown({
   );
 }
 
-/// One frame from where the player is standing, as bytes.
+/// A frame from where the player is standing, as bytes.
+///
+/// [frames] draws that many in a row through one camera and returns the last;
+/// anything under one still draws one. More than one is what a level with
+/// several probes needs before all of them stand: the renderer captures one
+/// whole cube a frame, so a crypt's four take four frames — see
+/// `_claimWholeProbeCapture`.
 Future<Uint8List> _drawFromTheStart(
-  ({LevelReady level, CpuDevice device, Renderer renderer}) it,
-) async {
+  ({LevelReady level, CpuDevice device, Renderer renderer}) it, {
+  int frames = 1,
+}) async {
   final player = it.level.staged.player;
   final scene = it.level.loaded.scene;
 
@@ -126,18 +133,27 @@ Future<Uint8List> _drawFromTheStart(
   camera.lookAt(eye + aim);
   scene.add(camera);
 
-  final result = it.renderer.render(
-    width: _width,
-    height: _height,
-    scene: scene,
-    views: <RenderView>[
-      RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
-    ],
-    settings: const RenderSettings(),
-  );
-  final pixels = await it.device.readPixels(result.frame);
-  expect(pixels, isNotNull, reason: 'the frame could not be read back');
-  return pixels!.buffer.asUint8List();
+  final views = <RenderView>[
+    RenderView(camera: camera, clearColor: Vector4(0.0, 0.0, 0.0, 1.0)),
+  ];
+
+  Future<Uint8List> once() async {
+    final result = it.renderer.render(
+      width: _width,
+      height: _height,
+      scene: scene,
+      views: views,
+      settings: const RenderSettings(),
+    );
+    final pixels = await it.device.readPixels(result.frame);
+    expect(pixels, isNotNull, reason: 'the frame could not be read back');
+    return pixels!.buffer.asUint8List();
+  }
+
+  for (var i = 1; i < frames; i++) {
+    await once();
+  }
+  return once();
 }
 
 /// What a frame is, in the three numbers this file asks about.
@@ -221,6 +237,65 @@ void main() {
           'level is drawn and nothing in it is lit',
     );
   });
+
+  test(
+    'and its probes stand a frame apiece, before a room is hidden',
+    () async {
+      // The order the level keeps. A kept probe is captured on a frame of its
+      // own; the visibility culler, applied from the player's cell, has hidden
+      // every room but the hall. Applied first, the probe in the vault
+      // captures the vault's walls with nothing behind them and nobody sees it
+      // — a reflection is a plausible picture from the wrong room. So the
+      // level holds its culler until every probe stands, and this is the whole
+      // level doing exactly that: nothing hidden before the frames, every
+      // probe captured by them, and the rooms behind walls hidden again after.
+      //
+      // A frame apiece and not all at once: the renderer draws one whole cube
+      // per frame, because four probes times six views of a level nothing is
+      // yet allowed to cull is a stall on the frame the level appears. What
+      // that costs is the frames below, drawn without culling.
+      //
+      // Mutation: apply the culler directly in `_step` — the first assertion
+      // fails on the shipped crypt, which hides batches from the spawn.
+      final it = await _shown();
+      final loaded = it.level.loaded;
+      expect(
+        loaded.probes,
+        isNotEmpty,
+        reason: 'the crypt places one per room',
+      );
+      expect(loaded.culler, isNotNull, reason: 'the crypt ships a table');
+      final eye = Vector3.zero();
+      it.level.staged.player.eye(eye);
+
+      loaded.cull(eye, device: it.device);
+      expect(loaded.culler!.hidden, 0, reason: 'held until the probes stand');
+      expect(loaded.probes.any((p) => p.isCaptured), isFalse);
+
+      await _drawFromTheStart(it);
+      expect(
+        loaded.probes.where((p) => p.isCaptured),
+        hasLength(1),
+        reason: 'one whole cube a frame, and the rest wait their turn',
+      );
+      loaded.cull(eye, device: it.device);
+      expect(loaded.culler!.hidden, 0, reason: 'still held: three to go');
+
+      await _drawFromTheStart(it, frames: loaded.probes.length - 1);
+      expect(
+        loaded.probes.every((p) => p.isCaptured),
+        isTrue,
+        reason: 'as many frames as the level has probes, and they all stand',
+      );
+
+      loaded.cull(eye, device: it.device);
+      expect(
+        loaded.culler!.hidden,
+        greaterThan(0),
+        reason: 'the rooms behind walls are hidden again, as they always were',
+      );
+    },
+  );
 
   test('and so is every level the crypt leads on to', () async {
     // Two errors that are indistinguishable from the simulation's side, where

@@ -1,5 +1,6 @@
 import 'package:flutter3d/flutter3d.dart';
 import 'package:flutter3d_game/flutter3d_game.dart';
+import 'package:vector_math/vector_math.dart';
 
 import 'visibility_culler.dart';
 
@@ -19,9 +20,11 @@ final class LoadedLevel {
     required this.drawCallCount,
     Map<String, TextureHandle?>? materialTextures,
     List<DeviceMesh>? brushMeshes,
+    List<ReflectionProbeNode>? probes,
     this.culler,
   }) : materialTextures = materialTextures ?? const <String, TextureHandle?>{},
-       brushMeshes = brushMeshes ?? const <DeviceMesh>[];
+       brushMeshes = brushMeshes ?? const <DeviceMesh>[],
+       probes = probes ?? const <ReflectionProbeNode>[];
 
   /// Hides what the camera cannot see, when the level came with a visibility
   /// table that matched its brushes. Null when it did not, and then every
@@ -29,7 +32,39 @@ final class LoadedLevel {
   ///
   /// Dropped by `LevelLoader.rebuildBrushes`: a table baked from walls
   /// without holes in them hides rooms a hole has since opened.
+  ///
+  /// Applied through [cull] rather than directly, which is what keeps it
+  /// from hiding a room a probe has not seen yet.
   VisibilityCuller? culler;
+
+  /// The reflection probes the document placed, in [scene] — one per
+  /// `reflection_probe` entity, kept rather than rolling.
+  final List<ReflectionProbeNode> probes;
+
+  /// Whether every probe has been drawn whole — or never will be, on a device
+  /// that builds none, which must not be waited for.
+  bool probesCaptured(GraphicsDevice device) =>
+      !ReflectionProbeNode.supportedOn(device) ||
+      probes.every((ReflectionProbeNode probe) => probe.isCaptured);
+
+  /// Hides what [eye] cannot see, once the level's probes have seen it whole.
+  ///
+  /// **The culler waits for the probes, and the order is the whole point.**
+  /// A kept probe is captured on the first frame it is seen, from where it
+  /// stands; a culler applied from the player's cell before that has already
+  /// hidden every room but the player's, and the probe in the vault would
+  /// capture the vault's walls with nothing behind them. So until every probe
+  /// stands, every batch shows, which costs a frame or two of the whole
+  /// level and nothing after. Does nothing for a level with no table.
+  void cull(Vector3 eye, {required GraphicsDevice device}) {
+    final culler = this.culler;
+    if (culler == null) return;
+    if (probesCaptured(device)) {
+      culler.apply(eye);
+    } else {
+      culler.showAll();
+    }
+  }
 
   /// The nodes the brush batches are drawn through, in [scene], so a rebuild
   /// can take them out before putting the new ones in.

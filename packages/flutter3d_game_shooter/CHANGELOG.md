@@ -6,6 +6,10 @@
   one power-up the renderer reads rather than the simulation. A gift rather
   than a setting so that seeing through a wall is a thing a level hands out
   and takes back.
+* **The sample vocabulary speaks `reflection_probe`.** `sampleRegistry`
+  includes `ReflectionProbeKind`, so a level of this game may place a probe
+  per room and a key or a barrel in it reflects the torch-lit walls around
+  it rather than a sky a crypt does not have.
 
 ## 0.4.0
 

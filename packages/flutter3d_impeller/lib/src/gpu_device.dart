@@ -259,6 +259,36 @@ final class GpuRenderBackend implements GraphicsDevice {
     }
   }
 
+  /// flutter_gpu's own answer: true on Metal and Vulkan, false on its OpenGL
+  /// ES path, where a `ColorAttachment.mipLevel` other than zero is refused.
+  /// A cube *face* is attachable everywhere — the same capability's note says
+  /// so — which is why this gates the probe's chain and not the probe.
+  @override
+  bool get supportsRenderToMip =>
+      gpu.gpuContext.doesSupportFramebufferRenderMipmap;
+
+  @override
+  TextureHandle? createCubeRenderTarget({
+    required int size,
+    required TextureFormat format,
+    int mipLevels = 1,
+  }) {
+    if (!supportsCubeTextures) return null;
+    return createGpuTexture(
+      // Device-private: nothing on the host ever writes a face, and the two
+      // things that read one — the prefilter and the lit shaders — are passes.
+      StorageMode.devicePrivate,
+      size,
+      size,
+      format: format,
+      type: TextureType.textureCube,
+      // Trimmed to what the device will allocate inside `createGpuTexture`,
+      // as every chain here is.
+      mipLevelCount: mipLevels,
+      enableRenderTargetUsage: true,
+    );
+  }
+
   @override
   TextureHandle? createCubeTextureFromPixels({
     required int size,
@@ -304,9 +334,9 @@ final class GpuRenderBackend implements GraphicsDevice {
       // One more than the levels below it, the same arithmetic
       // `createTextureFromPixels` does.
       mipLevelCount: levels.isEmpty ? 1 : levels.length + 1,
-      // Nothing renders into a face: `ColorTarget` carries no slice, so a cube
-      // can only ever be filled from the host. Asking for render-target usage
-      // would be asking for an allocation nothing can use.
+      // Filled from the host and never drawn into: a cube a pass renders into
+      // is `createCubeRenderTarget`'s, and asking for render-target usage on
+      // an upload would be asking for an allocation nothing uses that way.
       enableRenderTargetUsage: false,
     );
 
@@ -662,6 +692,13 @@ final class GpuRenderBackend implements GraphicsDevice {
               loadAction: color.loadAction.toGpu(),
               storeAction: color.storeAction.toGpu(),
               clearValue: color.clearValue,
+              // A cube face is a slice here, in the same +X, −X, +Y, −Y, +Z,
+              // −Z order `overwrite` takes one in. flutter_gpu validates both
+              // against the texture and throws with the range, which is the
+              // loud refusal `ColorTarget.mipLevel` promises on a device
+              // whose `supportsRenderToMip` is false.
+              slice: color.face,
+              mipLevel: color.mipLevel,
             ),
         ],
         depthStencilAttachment: switch (descriptor.depth) {

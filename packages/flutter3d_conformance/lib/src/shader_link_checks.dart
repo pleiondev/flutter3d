@@ -64,6 +64,11 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('FullscreenVertex', 'Luminance'),
+    // The probe's convolution reads a cube through the full-screen stage,
+    // which no other post pass does; the pair is what the render-to-face
+    // check draws with, so a stage that does not link fails here by name
+    // rather than there as a blank readback.
+    ('FullscreenVertex', 'ProbePrefilter'),
     ('DebugLineVertex', 'DebugLine'),
     ('ParticleVertex', 'Particle'),
     // The sky is the only pair where both stages are new at once, so it is the

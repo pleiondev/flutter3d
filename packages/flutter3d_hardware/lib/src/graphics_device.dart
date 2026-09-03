@@ -107,6 +107,58 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// top of it rather than a replacement for it.
   bool get supportsCubeTextures;
 
+  /// Whether a pass can draw into a mip level below the base — see
+  /// `ColorTarget.mipLevel`.
+  ///
+  /// Asked rather than assumed, and it is the one capability here that splits
+  /// a single backend by platform: flutter_gpu reports it as
+  /// `doesSupportFramebufferRenderMipmap`, true on Metal and Vulkan and false
+  /// on its OpenGL ES path, where an attachment naming a level other than zero
+  /// is refused. WebGL2 attaches any level with `framebufferTexture2D`, and
+  /// the software rasteriser writes into whichever array it is pointed at.
+  ///
+  /// Rendering into a cube *face* is not gated by this — every backend that
+  /// answers true to [supportsCubeTextures] can attach a face at the base
+  /// level. What this decides is whether a probe's roughness chain can be
+  /// filtered on the device: a reflection probe renders six views into a cube
+  /// and then convolves them into the levels below, and the second half needs
+  /// a level to draw into. A device that says no gets **no probe at all** —
+  /// see `ReflectionProbeNode.supportedOn`, which asks this and
+  /// [supportsCubeTextures] together — because a cube with a base level only
+  /// is a mirror at every roughness, which is a picture nobody asked for; the
+  /// material there goes on reading the scene's environment.
+  bool get supportsRenderToMip;
+
+  /// Allocates a cube texture a pass can draw into, face by face and level by
+  /// level, with nothing in it yet.
+  ///
+  /// The counterpart of [createCubeTextureFromPixels] for a cube the device
+  /// fills itself. That one uploads a chain built on the host and refuses
+  /// render-target usage, because until reflection probes nothing rendered
+  /// into a face; this one is device-private, holds [mipLevels] levels counting
+  /// the base, and is named as an attachment through `ColorTarget.face` and
+  /// `ColorTarget.mipLevel`. Its contents start undefined, as
+  /// [createTexture]'s do — a pass clears what it draws into.
+  ///
+  /// [format] is what a probe wants: the HDR colour format, so a reflected sun
+  /// keeps its range. A depth attachment for a face is an ordinary 2D texture
+  /// of the face's size from [createTexture], not part of the cube.
+  ///
+  /// Null when the device cannot make cubes — ask [supportsCubeTextures] — and
+  /// a chain longer than the device will allocate is trimmed to what it will,
+  /// the same rule the upload path follows. Ask [supportsRenderToMip] before
+  /// drawing into any level but the base.
+  ///
+  /// Not from the render target pool, and deliberately: `RenderTargetSpec` is
+  /// the pool's key and carries no shape, so a cube in the pool would be lent
+  /// out in a 2D target's place — see `TextureHandle.type`. Probes are few and
+  /// long-lived, and the renderer holds them itself.
+  TextureHandle? createCubeRenderTarget({
+    required int size,
+    required TextureFormat format,
+    int mipLevels = 1,
+  });
+
   /// Whether [PolygonMode.line] can be drawn.
   ///
   /// False on OpenGL ES, which has no `glPolygonMode` — wireframe there means
@@ -491,7 +543,8 @@ abstract interface class GraphicsDevice implements TextureAllocator {
 
   /// Releases every persistent resource this device holds — the textures and
   /// geometry buffers handed out by [createTexture], [createTextureFromPixels],
-  /// [createCubeTextureFromPixels] and [uploadGeometry].
+  /// [createCubeTextureFromPixels], [createCubeRenderTarget] and
+  /// [uploadGeometry].
   ///
   /// **What "release" means is a property of the backend, not a promise this
   /// method makes uniformly.** WebGL2 objects are explicitly deletable — a

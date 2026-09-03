@@ -27,10 +27,10 @@ import 'gpu_formats.dart';
 /// [type] is passed through rather than inferred. flutter_gpu derives a
 /// multisample type from [sampleCount] on its own, but a cube is not something
 /// any other argument implies, and it changes what the texture *is*:
-/// `gpu.Texture.sliceCount` becomes six, and `overwrite` starts taking a face
-/// index. A cube also asks for [enableRenderTargetUsage] false at every call
-/// site there is — nothing renders into a face, because `ColorTarget` has no
-/// slice to render into.
+/// `gpu.Texture.sliceCount` becomes six, `overwrite` starts taking a face
+/// index, and a `ColorAttachment` may name a slice. An uploaded cube asks for
+/// [enableRenderTargetUsage] false; a probe's cube, which a pass draws into
+/// face by face through `ColorTarget.face`, asks for true.
 TextureHandle createGpuTexture(
   StorageMode storageMode,
   int width,

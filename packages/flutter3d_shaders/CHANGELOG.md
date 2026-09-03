@@ -20,6 +20,11 @@
   holds — so a hidden node's normal, roughness and depth landed on top of the
   surface in front of it, and every screen-space effect reads that buffer as
   the nearest surface. `kRequiredShaders` names the new entry point.
+* **`ProbePrefilter`**, a full-screen fragment stage that writes one face of
+  one level of a reflection probe: the captured cube convolved by the
+  roughness of the level, with the fixed spiral of taps and the cosine-power
+  lobe `EnvironmentMap.prefilter` uses on the host, and a one-tap copy for
+  the mirror level. `kRequiredShaders` names it.
 
 ## 0.4.1
 

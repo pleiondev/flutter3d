@@ -170,6 +170,40 @@ void main() {
     }
   });
 
+  test('and every room reflects itself: a probe per room, standing in air', () {
+    // The generator puts a `reflection_probe` at the middle of every room it
+    // builds and none in a corridor. What a document can be held to is the
+    // half that would go wrong quietly: a probe inside a brush captures the
+    // inside of a wall, and something a player reaches for with no probe in
+    // reach reflects a sky a crypt does not have. Twelve metres is the far
+    // corner of the widest room from its middle, with a little to spare.
+    for (final step in _chain()) {
+      final probes = step.level.ofType(EntityTypes.reflectionProbe).toList();
+      expect(probes, isNotEmpty, reason: '${step.path} reflects nothing');
+      for (final probe in probes) {
+        expect(
+          _solidAt(step.level, probe.position),
+          isFalse,
+          reason: '${step.path}: a probe at ${probe.position} is inside a wall',
+        );
+      }
+      for (final wanted in step.level.entities.where(
+        (EntityDef e) => e.type == EntityTypes.key || e.type == 'pickup',
+      )) {
+        final nearest = probes
+            .map((EntityDef p) => p.position.distanceTo(wanted.position))
+            .reduce(math.min);
+        expect(
+          nearest,
+          lessThan(12.0),
+          reason:
+              '${step.path}: the ${wanted.type} at ${wanted.position} has no '
+              'room\'s probe within reach, and reflects nothing',
+        );
+      }
+    }
+  });
+
   test('and every locked door has its key somewhere on the same level', () {
     // **The failure a chain makes possible.** Keys do not carry between levels
     // — deliberately, because a player arriving at the second level holding the

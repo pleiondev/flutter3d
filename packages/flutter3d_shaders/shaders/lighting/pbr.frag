@@ -111,15 +111,32 @@ void main() {
         textureLod(environment_texture, reflected, s.roughness * levels).rgb;
     vec2 ab = EnvBrdfApprox(s.roughness, s.n_dot_v);
 
-    // Scaled by the same ambient strength the flat term uses, so a scene that
-    // dials its indirect light down dials both, and the two are interchangeable
-    // rather than additive.
+    // Scaled by the strength in the slot the flat term above reads, which is
+    // why the two are interchangeable rather than additive: whichever term
+    // runs, it runs at `material.z`. **What that number is depends on what is
+    // bound.** A scene's own environment is scaled by `Scene.ambientIntensity`,
+    // the same knob the flat term uses, so a scene that dials its indirect
+    // light down dials both; a reflection probe brings its own
+    // `ReflectionProbeNode.intensity` instead, because a probe is the room's
+    // light already measured. The renderer decides which — see `_encodeNode`
+    // in renderer_mesh_encode.dart — and this stage cannot tell them apart.
     ambient = (diffuseColor * irradiance + prefiltered * (f0 * ab.x + ab.y)) *
               frag_info.material.z * s.occlusion;
   }
   // The light the level's walls throw on each other, baked: diffuse only,
   // since a lightmap holds irradiance and a metal has no diffuse response.
   // Zero from the one-texel black a material without a map is bound to.
+  //
+  // **Added rather than chosen between, and the choosing happens above this
+  // shader.** A lightmap and an environment's roughest level are two answers
+  // to the same question — how much indirect light reaches this point — so a
+  // draw that had both would count it twice. There is no flag here to branch
+  // on: a material without a map is bound the neutral black by design (see
+  // material_maps.glsl), which is what makes this a plain add. The renderer
+  // keeps the two apart instead, by handing no reflection probe to a
+  // lightmapped draw; see `_encodeNode` in renderer_mesh_encode.dart. A sky
+  // environment over a lightmapped level still adds, and should: sky light
+  // is not what the bake measured.
   ambient += diffuseColor * SampleLightmap() * s.occlusion;
 
   WriteSurface(

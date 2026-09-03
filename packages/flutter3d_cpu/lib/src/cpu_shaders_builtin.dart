@@ -43,6 +43,7 @@ import 'cpu_shaders_lit.dart';
 import 'cpu_shaders_mesh_vertex.dart';
 import 'cpu_shaders_particles.dart';
 import 'cpu_shaders_post.dart';
+import 'cpu_shaders_probe.dart';
 import 'cpu_shaders_reflections.dart';
 import 'cpu_shaders_shadow_passes.dart';
 import 'cpu_shaders_sky.dart';
@@ -57,6 +58,7 @@ export 'cpu_shaders_lit.dart';
 export 'cpu_shaders_mesh_vertex.dart';
 export 'cpu_shaders_particles.dart';
 export 'cpu_shaders_post.dart';
+export 'cpu_shaders_probe.dart';
 export 'cpu_shaders_reflections.dart';
 export 'cpu_shaders_shadow_directional.dart';
 export 'cpu_shaders_shadow_passes.dart';
@@ -135,6 +137,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'Particle': const CpuStage.fragment(ParticleShader()),
     'Reflections': const CpuStage.fragment(ReflectionsShader()),
     'Ssao': const CpuStage.fragment(SsaoShader()),
+    'ProbePrefilter': const CpuStage.fragment(ProbePrefilterShader()),
     'MrtProbe': const CpuStage.fragment(MrtProbeShader()),
     'Composite': const CpuStage.fragment(CompositeShader()),
     'ShadowDepth': const CpuStage.fragment(ShadowDepthShader()),

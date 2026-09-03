@@ -1,5 +1,5 @@
 ---
-description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto exposure, bloom, cascaded and point shadows, the sky, fog, screen-space reflections, ambient occlusion, colour grading, picking by pixel, and the frame graph that schedules them.
+description: Render views, the pass order, instanced batches, precomputed visibility, baked lightmaps, HDR and tone mapping, auto exposure, bloom, cascaded and point shadows, the sky, reflection probes, fog, screen-space reflections, ambient occlusion, colour grading, picking by pixel, and the frame graph that schedules them.
 ---
 
 # The frame
@@ -401,6 +401,39 @@ SkySettings(
 One full-screen triangle, encoded inside the scene pass between the opaque half and the transparent half: after the opaque half so that every covered pixel fails the depth test before the sky's fragment stage runs, and before the transparent half so glass has something to blend with. The model is a three-stop gradient plus a scattering lobe and an analytic sun disc; a `cubemap` replaces all three of those, with a `tint` on top. Colours are **linear and scene-referred**, multiplied by exposure and rolled through the tone curve like everything else, so the first sky anybody writes looks too bright. `SkySettings.sample(direction)` runs the same arithmetic on the CPU, for a fog colour that has to match the horizon or a light picked from the sky.
 
 The painted alternative is `SkyDome` with a `SkyGradient`, an inside-out sphere with the colours baked into its vertices. It needs no shader and, unlike a frame-wide setting, can differ per `RenderView`; what it cannot do is a sun disc, and fog eats it unless it stays small and follows the camera.
+
+## Reflection probes
+
+A metal reflects what is around it, and a sky is only what is around it outdoors. A `ReflectionProbeNode` is the scene seen from a point: six views drawn into the faces of a cube, convolved into a roughness chain on the device, and read by the physical model of every mesh near enough.
+
+```dart
+final probe = ReflectionProbeNode(
+  radius: 4.0,                    // how far a mesh may be and still reflect it; 0 reaches everything
+  intensity: 1.0,                 // the room as it was drawn; its own knob, not the scene's ambient
+  faceSize: 64,                   // each face's edge; 64 is a car body or a mirror ball
+  levels: 4,                      // roughness levels below the mirror
+  refreshFaceEveryFrame: true,    // one face a frame, for something that moves
+  near: 0.5,                      // nearer than this is not in the picture
+)..setPosition(0.0, 0.7, 0.0);
+probe.excluded.add(mirrorBall);   // a ball must not reflect itself
+scene.add(probe);
+```
+
+{{golden probe-car | A mirror ball and a brushed one over four coloured walls, reflecting them through a probe at the mirror: the walls captured into six cube faces, the chain filtered level by level on the device, the brushed ball reading a level and a half down.}}
+
+Two ways of keeping one current. Left alone, the six faces are captured together the first frame the probe is seen and then kept until `invalidate()` says the room changed — one per room at load, which is what a dungeon wants. One probe does that per frame and the rest wait their turn, so a crypt with four rooms stands over four frames instead of drawing twenty-four views of an unculled level in one; a probe still waiting binds nothing rather than an allocation nobody has drawn into, and the level goes on drawing every batch until the last of them stands. With `refreshFaceEveryFrame` one face is re-captured each frame, so the cube is six frames behind at worst and a frame costs one view of the scene plus the filter — a car body reflecting the track going past, which is what the racing demo's player car does. A mesh takes the nearest probe whose `radius` reaches its centre, one per object and no blending, and falls back to the scene's environment where none does.
+
+A level asks for one with a `reflection_probe` entity — the [format's own word](/core/simulation/#the-level-format), which a game puts in its vocabulary with `ReflectionProbeKind` — and `LevelLoader` builds a kept probe where the entity stands; the dungeon's generators put one at the middle of every room. `isCaptured` says when every face stands, and a level with a visibility table applies it through `LoadedLevel.cull`, which holds the culler until then: a kept probe captured after the culler had hidden every room but the player's would be a picture of walls with nothing beyond them.
+
+What a rolling one costs, measured on the racing demo's frame — the player's car with `refreshFaceEveryFrame`, one sixty-four-pixel face redrawn a frame and the chain refiltered — through `--dart-define=FLUTTER3D_TIMINGS=true`, with the probe switched off by `FLUTTER3D_PLAYER_PROBE=false` for the comparison and the same span of race time on both sides. On Impeller (macOS, Apple M3 Pro, a profile build) the build half of a frame goes from 4.7 to 7.0 ms and the raster half stays at 0.2; in Chrome (WebAssembly, 960×540) from 16.2 to 17.2 ms, in both halves alike. Two milliseconds and one: a face is one more walk over every mesh in the scene, encoded again from another point, and the thirty filter passes behind it are small. A kept probe costs that once, on the frame it is captured, and nothing after.
+
+<div class="note">
+<p>A probe is read at its own <code>intensity</code>, one by default, and not at <code>Scene.ambientIntensity</code>. A sky environment stands in for indirect light and shares the ambient knob with the flat term, so a scene that dims one dims both; a probe is that light measured — the torch-lit walls at the strength the frame drew them — and a crypt whose ambient sits at six per cent would otherwise reflect its walls at six per cent, which is a room nobody can see. Where a probe is read the flat ambient is not, so the two never add. A lightmapped surface reads no probe at all, for the same reason from the other side: the bake already is the indirect light there, measured per texel, and a probe over it would count the room's bounce twice. So a crypt's walls keep their bake and its props take the probe — which is also why a probe costs a dungeon nothing on the surfaces it has the least to say about, a rough wall's specular lobe being very nearly nothing. The capture draws every mesh through the same encoder as the world, with the frame's lights and shadows and the sky behind them, but binds no probe of its own: a probe drawn into a probe would read a cube that may not have been filled yet.</p>
+</div>
+
+<div class="why">
+<p>A cube map is addressed by a left-handed table — on the +X face column zero looks along +Z — and a right-handed camera puts every face's left on the right, so each view is drawn through a mirror and the winding is flipped with it; a backend whose row zero is at the bottom negates y as well, which makes the two a half turn and leaves the winding alone. Nothing in a picture says whether a face is mirrored, which is why the face table is tested by projecting known directions on both origins, and why the conformance suite clears one face of one level and reads it back through the very stage that fills the chain.</p>
+</div>
 
 ## The look
 

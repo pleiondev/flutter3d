@@ -139,10 +139,38 @@ final class ColorTarget {
     this.loadAction = LoadAction.clear,
     this.storeAction = StoreAction.store,
     this.clearValue,
-  });
+    this.face = 0,
+    this.mipLevel = 0,
+  }) : assert(face >= 0 && face < 6, 'a texture has at most six faces'),
+       assert(mipLevel >= 0, 'a mip level counts down from the base');
 
   /// Where the rasteriser writes. Multisampled when [resolveTexture] is set.
   final TextureHandle texture;
+
+  /// Which face of a cube [texture] the pass draws into, in the order every
+  /// backend uploads them: **+X, −X, +Y, −Y, +Z, −Z**. Zero for a 2D texture,
+  /// which has only the one.
+  ///
+  /// This is what makes a reflection probe a *pass* rather than a readback: a
+  /// probe is the scene seen from a point, and six views drawn straight into
+  /// the six faces of one cube is the whole of it. The face is chosen at the
+  /// attachment rather than by a viewport into an atlas — the point-light
+  /// shadows do that — because a sampler's cube lookup is the reader here, and
+  /// a sampler reads faces, not tiles.
+  final int face;
+
+  /// Which level of [texture]'s mip chain the pass draws into. Zero is the base.
+  ///
+  /// The viewport a pass starts with covers the *level*, not the base: a
+  /// 64-pixel cube at level two is sixteen pixels across, and a backend reports
+  /// that size for the pass. A depth attachment beside it has to be that size
+  /// too, and is a plain 2D texture at its own base level.
+  ///
+  /// Ask `GraphicsDevice.supportsRenderToMip` before asking for anything but
+  /// zero. The one backend that cannot — flutter_gpu on OpenGL ES — refuses
+  /// at the attachment, which is louder than drawing into the base level and
+  /// leaving the chain as it was allocated.
+  final int mipLevel;
 
   /// Where a multisampled [texture] is resolved to when the pass ends.
   ///

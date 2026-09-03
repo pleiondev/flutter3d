@@ -430,6 +430,24 @@ final class WebGlDevice implements GraphicsDevice {
   bool get supportsCubeTextures => true;
 
   @override
+  // `framebufferTexture2D` takes a level, and WebGL2 attaches any level of an
+  // immutable texture — the mip-level restriction was WebGL1's.
+  bool get supportsRenderToMip => true;
+
+  @override
+  TextureHandle? createCubeRenderTarget({
+    required int size,
+    required TextureFormat format,
+    int mipLevels = 1,
+  }) => webglCreateCubeRenderTarget(
+    _gl,
+    _persistentTextures,
+    size: size,
+    format: format,
+    mipLevels: mipLevels,
+  );
+
+  @override
   TextureHandle? createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,

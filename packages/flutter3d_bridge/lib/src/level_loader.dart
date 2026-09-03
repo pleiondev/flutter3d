@@ -218,6 +218,12 @@ final class LevelLoader {
     // The static half of the point shadows was drawn from walls that are no
     // longer there; without this a hole keeps casting the wall's shadow.
     loaded.scene.invalidateStaticShadows();
+    // And so were the probes: a kept probe holds the wall the rocket went
+    // through. Redrawn with every batch showing, since the culler went with
+    // the old batches above.
+    for (final probe in loaded.probes) {
+      probe.invalidate();
+    }
   }
 
   /// Everything [load] does except finding the document.
@@ -362,6 +368,18 @@ final class LevelLoader {
       scene.add(_toLightNode(light));
     }
 
+    // A probe wherever the document asks for one, built the way the lights
+    // are rather than spawned: it is a scene node and the simulation has no
+    // use for it. The kind that validates the entity is the game's to speak
+    // — see `ReflectionProbeKind` — and by now it has.
+    final probes = <ReflectionProbeNode>[
+      for (final entity in level.ofType(EntityTypes.reflectionProbe))
+        _toProbeNode(entity),
+    ];
+    for (final probe in probes) {
+      scene.add(probe);
+    }
+
     return LoadedLevel(
         level: level,
         scene: scene,
@@ -370,6 +388,7 @@ final class LevelLoader {
         drawCallCount: surfaces.length,
         materialTextures: textures,
         brushMeshes: brushMeshes,
+        probes: probes,
         culler: visibility == null
             ? null
             : VisibilityCuller(visibility, batches),
@@ -377,6 +396,25 @@ final class LevelLoader {
       ..brushNodes.addAll(brushNodes)
       ..lightmap = lightmapTexture;
   }
+
+  /// A kept probe at the entity's position, with the document's numbers
+  /// where it gave any and the probe's own defaults where it did not.
+  ///
+  /// The defaults are restated rather than reached for because the node's
+  /// are constructor defaults, and a document that says nothing means those.
+  /// Kept, never rolling: a level's rooms do not move, and a probe that
+  /// redrew a face a frame would spend a view of the level on a picture it
+  /// already has.
+  static ReflectionProbeNode _toProbeNode(EntityDef entity) =>
+      ReflectionProbeNode(
+        name: entity.name,
+        radius: entity.number('radius') ?? 0.0,
+        intensity: entity.number('intensity') ?? 1.0,
+        faceSize: entity.integer('faceSize') ?? 64,
+        levels: entity.integer('levels') ?? 4,
+        near: entity.number('near') ?? 0.05,
+        far: entity.number('far') ?? 200.0,
+      )..setPositionFrom(entity.position);
 
   /// Builds an engine material from a level material and the loaded maps.
   ///

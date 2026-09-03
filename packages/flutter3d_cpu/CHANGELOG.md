@@ -51,6 +51,12 @@
   about the surface, so `FragmentContext.surface` is left null and the encoder
   writes nothing to attachment one.
 * `stencil-xray` joins the golden set.
+* **A pass renders into a cube face and a mip level.** `CpuTexture.subresource`
+  walks to the array a face and a level own — the same structure
+  `BoundTexture.sampleCube` reads — and every write of a pass goes through
+  it; `createCubeRenderTarget` builds that structure empty, a chain per face.
+  `ProbePrefilterShader` transcribes `probe_prefilter.frag`; `probe-car`
+  joins the golden set.
 
 ## 0.4.1
 

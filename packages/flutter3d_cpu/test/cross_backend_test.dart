@@ -101,6 +101,13 @@ const Map<String, double> _budgets = <String, double>{
   // screen, which is what the scene is recorded for: 0.641% before, 0.614%
   // after, so the notch costs these two backends nothing to agree on.
   'stencil-xray': 0.63,
+  // 0.491% measured: two balls, five quads and the reflections in the balls,
+  // and every differing pixel on a silhouette or on the rim of a reflection
+  // where a face meets its neighbour — the same band the cube-shadow scenes
+  // sit in. The probe's own chain agrees, which is the finding: a lobe
+  // sampled bilinearly on one side and nearest on the other is still the
+  // same lobe.
+  'probe-car': 0.52,
   // 1.417% measured once model textures started carrying a mip chain. The rise
   // is the one difference this backend cannot close: it picks a level from a
   // per-triangle gradient, where hardware differences a quad of neighbouring

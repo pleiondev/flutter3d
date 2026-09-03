@@ -115,6 +115,13 @@ const Map<String, double> _budgets = <String, double>{
   'view-model-point-shadow': 0.2,
   'bloom-sphere': 0.1,
   'skinned-figure': 0.1,
+  // Predates the mipmap minification filter — `minFilterToGl` folds
+  // `MipFilter.linear` in now, and every texture uploaded with a chain asks
+  // for that filter, so this scene's particle sheet samples a level here
+  // where it used to sample the base. The number below was measured against
+  // the old behaviour and is to be re-measured in the same pass that records
+  // `probe-car`, against a reference re-recorded with
+  // `tool/golden_web.sh --update particles-textured` if the picture moved.
   'particles-textured': 0.1,
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
@@ -140,6 +147,11 @@ const Map<String, double> _budgets = <String, double>{
   'auto-exposure': 0.5,
   // Provisional; recorded at merge — see [_provisional].
   'stencil-xray': 0.5,
+  // Provisional; recorded at merge. The web set is recorded by a script that
+  // holds a fixed port, so the picture lands with the merge rather than with
+  // the branch, and the budget is set to be tightened to the measurement then.
+  // See [_provisional], which is what keeps this suite green until then.
+  'probe-car': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,
@@ -186,6 +198,7 @@ const Set<String> _provisional = <String>{
   'anisotropic-floor',
   'auto-exposure',
   'loaded-shader',
+  'probe-car',
   'stencil-xray',
 };
 

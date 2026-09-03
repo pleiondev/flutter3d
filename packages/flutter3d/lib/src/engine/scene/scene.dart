@@ -7,6 +7,7 @@ import 'camera_node.dart';
 import 'light_node.dart';
 import 'lod_group.dart';
 import 'mesh_node.dart';
+import 'reflection_probe_node.dart';
 import 'scene_node.dart';
 
 /// A scene: a hierarchy of nodes plus flat registries of what is in it.
@@ -59,6 +60,13 @@ final class Scene {
   /// rather than to the number of LODs.
   final List<LodGroup> _lodGroups = <LodGroup>[];
 
+  /// Reflection probes, in attachment order.
+  ///
+  /// A registry for the same reason the lights are one: the renderer gives
+  /// each of these a pass every frame, and a mesh picks the nearest of them
+  /// per draw, so both want a list rather than a tree walk.
+  final List<ReflectionProbeNode> _probes = <ReflectionProbeNode>[];
+
   /// Everything drawable currently in the scene, in attachment order.
   ///
   /// **A view, where these four used to be the lists themselves.** Handing out
@@ -89,6 +97,10 @@ final class Scene {
   late final List<LodGroup> _lodGroupsView = UnmodifiableListView<LodGroup>(
     _lodGroups,
   );
+
+  List<ReflectionProbeNode> get probes => _probesView;
+  late final List<ReflectionProbeNode> _probesView =
+      UnmodifiableListView<ReflectionProbeNode>(_probes);
 
   /// Ambient light applied where no direct light reaches.
   ///
@@ -151,6 +163,7 @@ final class Scene {
     _lights.clear();
     _cameras.clear();
     _lodGroups.clear();
+    _probes.clear();
   }
 
   void registerMesh(MeshNode node) => _meshes.add(node);
@@ -168,6 +181,10 @@ final class Scene {
   void registerLodGroup(LodGroup node) => _lodGroups.add(node);
 
   void unregisterLodGroup(LodGroup node) => _lodGroups.remove(node);
+
+  void registerProbe(ReflectionProbeNode node) => _probes.add(node);
+
+  void unregisterProbe(ReflectionProbeNode node) => _probes.remove(node);
 
   /// First light of the given type, or null.
   ///

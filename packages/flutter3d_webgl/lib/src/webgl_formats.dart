@@ -172,6 +172,40 @@ int minMagFilterToGl(MinMagFilter filter) => switch (filter) {
   MinMagFilter.linear => web.WebGLRenderingContext.LINEAR,
 };
 
+/// The minification filter, with the mip filter folded in the way GL wants.
+///
+/// **GL puts the mip filter on the minification filter, and a plain `LINEAR`
+/// samples the base level alone whatever level a shader asks for.** That is
+/// the specification, not a driver: with `NEAREST` or `LINEAR` as the min
+/// filter, mipmapping is off and `textureLod` picks between magnification and
+/// minification and nothing else. So a sampler whose [mip] is
+/// [MipFilter.linear] has to become `LINEAR_MIPMAP_LINEAR` here, or a
+/// prefiltered cube — every level of which is a different roughness — reads
+/// as a mirror at every roughness.
+///
+/// [MipFilter.nearest] is left as the plain filter rather than turned into
+/// `*_MIPMAP_NEAREST`, and deliberately: it is [SamplerOptions]' default, it
+/// is what a texture with a single level is bound with, and turning it into a
+/// mipmap filter would change nothing there but the driver's opinion of it.
+///
+/// **What this does move.** Every sampler that says [MipFilter.linear] now
+/// minifies through the chain, not only the probe's cube:
+/// `SamplerOptions.trilinearRepeat` under the particle sprite and under a
+/// level's tiling textures, and `samplerOptionsFor`, which pairs the filter
+/// with `TextureSampling.useMipmaps` and so covers every model texture that
+/// carries a chain. That is the filtering those assets asked for and this
+/// backend was not giving; the recorded picture of a scene with such a
+/// texture moves with it, and `particles-textured` is the one in the golden
+/// set — see the note beside its budget in `test/cross_backend_test.dart`.
+int minFilterToGl(MinMagFilter filter, MipFilter mip) =>
+    switch ((filter, mip)) {
+      (MinMagFilter.nearest, MipFilter.linear) =>
+        web.WebGLRenderingContext.NEAREST_MIPMAP_LINEAR,
+      (MinMagFilter.linear, MipFilter.linear) =>
+        web.WebGLRenderingContext.LINEAR_MIPMAP_LINEAR,
+      (final MinMagFilter plain, MipFilter.nearest) => minMagFilterToGl(plain),
+    };
+
 int addressModeToGl(SamplerAddressMode mode) => switch (mode) {
   SamplerAddressMode.clampToEdge => web.WebGLRenderingContext.CLAMP_TO_EDGE,
   SamplerAddressMode.repeat => web.WebGLRenderingContext.REPEAT,

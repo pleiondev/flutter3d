@@ -113,6 +113,8 @@ A level is JSON: brushes, materials, lights, entities, fog, and where to go next
 
 `Level.ofType('torch')`, `Level.named('east door')` and `Level.materialFor(brush)` are the read side. `brush_geometry.dart` turns brushes into mesh data and `level_collision.dart` turns them into colliders.
 
+The format's own entity words are `EntityTypes`: `player_spawn`, `key`, `door`, `lift`, `platform`, `button`, `trigger`, `exit`, and `reflection_probe` — a point the room around it is [reflected from](/core/rendering/#reflection-probes), with optional `radius`, `intensity`, `faceSize`, `levels`, `near` and `far`. Pure data to the simulation: `ReflectionProbeKind` validates one and spawns nothing, and the bridge's `LevelLoader` builds the probe the way it builds a light node.
+
 ### Holes in the walls
 
 A brush is a box, and a box minus a box is at most six boxes, so a hole is arithmetic rather than mesh surgery. `subtractBox(brush, hole)` returns what is left of one brush; `Breaches` keeps the level's current brush list, swaps the colliders a hole cut for the colliders of the pieces, and bumps a `version` so whoever draws the level rebuilds its batches.

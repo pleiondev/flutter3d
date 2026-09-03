@@ -126,6 +126,47 @@ final class CpuDevice implements GraphicsDevice {
   bool get supportsCubeTextures => true;
 
   @override
+  // A level is an array like any other, and the rasteriser writes into
+  // whichever one the attachment names — see `CpuTexture.subresource`.
+  bool get supportsRenderToMip => true;
+
+  @override
+  TextureHandle? createCubeRenderTarget({
+    required int size,
+    required TextureFormat format,
+    int mipLevels = 1,
+  }) {
+    // The same shape `createCubeTextureFromPixels` builds, so
+    // `BoundTexture.sampleCube` reads a rendered cube exactly as it reads an
+    // uploaded one: six faces hanging off face zero, a chain per face. The
+    // chain reaches one by one and no further, which is where the upload's
+    // arithmetic stops too.
+    final faces = List<CpuTexture>.generate(
+      6,
+      (_) => CpuTexture(size, size, format),
+    );
+    if (mipLevels > 1) {
+      for (final face in faces) {
+        final chain = <CpuTexture>[];
+        var side = size;
+        for (var level = 1; level < mipLevels && side > 1; level++) {
+          side = side >> 1;
+          chain.add(CpuTexture(side, side, format));
+        }
+        face.levels = chain;
+      }
+    }
+    final cube = faces[0]..faces = faces;
+    return TextureHandle(
+      backend: cube,
+      width: size,
+      height: size,
+      format: format,
+      type: TextureType.textureCube,
+    );
+  }
+
+  @override
   TextureHandle? createCubeTextureFromPixels({
     required int size,
     required TextureFormat format,

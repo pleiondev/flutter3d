@@ -25,6 +25,7 @@ Future<void> checkCapabilities(GraphicsDevice device) async {
   device.supportsWireframe;
   device.supportsOffscreenMsaa;
   device.supportsStencil;
+  device.supportsRenderToMip;
   // Every format, because the block-compressed tail is where a backend is
   // most tempted to throw from a lookup table instead of answering: a loader
   // asks this before uploading, and a throw here is a texture lost with no

@@ -107,6 +107,10 @@
     "type": "fragment",
     "file": "shaders/post/ssao.frag"
   },
+  "ProbePrefilter": {
+    "type": "fragment",
+    "file": "shaders/post/probe_prefilter.frag"
+  },
   "ShadowDistance": {
     "type": "fragment",
     "file": "shaders/lighting/shadow_distance.frag"

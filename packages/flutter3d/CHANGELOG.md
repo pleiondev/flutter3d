@@ -126,6 +126,58 @@
   and it cannot, since it is drawn precisely where its node is behind
   something else. A software test holds one scene's surface buffer
   byte-identical with silhouettes on and off.
+* **Reflection probes.** `ReflectionProbeNode` is the scene seen from a
+  point: six views drawn into the faces of a cube through `ColorTarget.face`,
+  convolved into a roughness chain on the device through
+  `ColorTarget.mipLevel` — the same lobe `EnvironmentMap.prefilter` builds on
+  the host, as a full-screen pass per face per level — and read by the
+  physical model of the nearest mesh whose `radius` it reaches, one probe per
+  object and no blending. A kept probe is drawn once and again on
+  `invalidate()`; `refreshFaceEveryFrame` redraws a face a frame after the
+  first six. `Scene.probes` is the registry; `probeFaceViewProjection` is the
+  camera each face is drawn through, mirrored in x because the cube-map table
+  is left-handed, and with y negated as well on a bottom-left backend — a
+  half turn there rather than a mirror, so the winding flips on one origin
+  and not the other.
+  `probe-car` is a golden scene: recorded for Impeller and the software
+  rasteriser, and recorded for the web set at the merge, which is when that
+  set is written. Not built on a device whose
+  `supportsRenderToMip` is false; the material then reads what it read
+  before.
+* **A probe is read at its own strength.** `ReflectionProbeNode.intensity`,
+  one by default, is what the surfaces that read a probe scale it by — not
+  `Scene.ambientIntensity`, which the sky environment shares with the flat
+  ambient. A probe is the room's light measured, and a crypt whose ambient
+  sits at six per cent would otherwise reflect its walls at six per cent. The
+  strength travels in the slot the flat ambient already uses, since a draw
+  reads one term or the other. `isCaptured` says when every face stands at
+  the current generation, so a level can hold its visibility culling until
+  its kept probes have seen the whole of it. Measured on the racing demo's
+  player car, a rolling probe costs the frame two milliseconds of build on
+  Impeller and one in Chrome, and nothing in the raster half.
+* **A lightmapped draw reads no probe**, which is the same "one term or the
+  other" rule the strength above follows, from the other side. A lightmap
+  holds this surface's indirect light per texel; a probe's roughest level is a
+  coarser answer to the same question, and the lit models add the lightmap on
+  top of the environment rather than choosing — so a crypt wall that took both
+  counted the room's bounce twice, once baked and once captured. The walls
+  keep the bake, which is finer than a probe can be, and the probe lights what
+  the bake does not reach: props, enemies, anything skinned or batched. What a
+  wall gives up is its specular lobe, and a rough dielectric's is very nearly
+  nothing.
+* **One whole cube a frame, across the scene.** A level with a probe in every
+  room used to capture all of them on the frame the level appeared —
+  four probes is twenty-four views of a level the visibility culler is still
+  holding off, inside one frame, at load. Now the first probe that has none
+  takes the frame and the rest wait their turn, so a level stands over as many
+  frames as it has rooms with a probe and the cost is paid in frames drawn
+  without culling rather than in one very long one. A probe waiting its turn
+  binds nothing rather than an allocation nobody has drawn into; one whose
+  chain is merely stale keeps showing it. A rolling probe's single face is not
+  rationed.
+* The environment cube is sampled with a linear mip filter, so a roughness
+  slides between levels rather than snapping, and so the backend that folds
+  the mip filter into minification reads the level the shader named at all.
 
 ## 0.4.2
 
