@@ -332,7 +332,14 @@ final class NavGrid {
       if (tops.isEmpty) continue;
       tops.sort();
 
-      var chosen = -1.0;
+      // **Nothing chosen yet is null, not a negative number.** It was −1.0,
+      // and −1.0 is a height: a room whose floor is under the origin — a
+      // sunken basin, a cellar — answered "nothing chosen" at every cell in
+      // it, so the next surface up won instead, and in a room with a ceiling
+      // that is the top of the roof. The grid then said the whole room was
+      // eight metres above where anybody stands, which reads as a level with
+      // no floor in it and nothing else at all.
+      double? chosen;
       var chosenRoom = 0.0;
       var enclosed = 0;
       var previous = double.negativeInfinity;
@@ -360,13 +367,13 @@ final class NavGrid {
         if (room < agentHeight) continue;
 
         if (room < maxHeadroom) enclosed++;
-        if (chosen < 0.0) {
+        if (chosen == null) {
           chosen = top;
           chosenRoom = room;
         }
       }
 
-      if (chosen < 0.0) continue;
+      if (chosen == null) continue;
       floor[index] = chosen;
       headroom[index] = chosenRoom;
 

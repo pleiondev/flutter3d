@@ -1,4 +1,4 @@
-/// The three documents this game ships, and the chain through them.
+/// The five documents this game ships, and the chain through them.
 ///
 ///     flutter test test/levels_test.dart
 ///
@@ -7,7 +7,7 @@
 /// half a generator cannot: that the chain arrives somewhere, that every
 /// document on it loads, and that each one can be stood up in.
 ///
-/// Walked from the level list rather than from a list written here, so a fourth
+/// Walked from the level list rather than from a list written here, so a sixth
 /// document added to the chain is checked the day it is added.
 library;
 
@@ -50,7 +50,7 @@ List<({String path, Level level})> _chain() {
 }
 
 void main() {
-  test('the chain is three levels and ends', () {
+  test('the chain is five levels and ends', () {
     // Ending matters as much as arriving: a last level with a `next` is a game
     // that shows an error screen instead of credits.
     final chain = _chain();
@@ -59,6 +59,8 @@ void main() {
       'assets/levels/crypt.json',
       'assets/levels/vaults.json',
       'assets/levels/deep.json',
+      'assets/levels/cistern.json',
+      'assets/levels/sanctum.json',
     ]);
     expect(chain.last.level.next, isNull, reason: 'the last level leads on');
   });
@@ -114,6 +116,60 @@ void main() {
     }
   });
 
+  test('and the way out of each is walkable from where the player lands', () {
+    // **The half the previous test cannot ask.** A key on the same level is
+    // not a key a player can get to: put the brass key behind the brass door
+    // and every check in this file still passes, and the level is unfinishable
+    // from the first step.
+    //
+    // So the locks are honoured. Every door whose key is not held yet is put
+    // into the level as a brush and the grid is baked with it standing there;
+    // whatever keys are walkable from the spawn are then taken, the doors they
+    // open come out, and the grid is baked again. When that stops adding keys,
+    // the way out has to be reachable — and if it is not, no order of play
+    // reaches it either, because this took every key it could get at each turn.
+    for (final (:path, :level) in _chain()) {
+      final document =
+          jsonDecode(File(path).readAsStringSync()) as Map<String, Object?>;
+      final spawn = level.playerStart!.position;
+      final exit = level.entities
+          .firstWhere((EntityDef e) => e.type == 'exit')
+          .position;
+      final keys = <(String, Vector3)>[
+        for (final key in level.entities.where(
+          (EntityDef e) => e.type == EntityTypes.key,
+        ))
+          if (key.properties['color'] case final String colour)
+            (colour, key.position),
+      ];
+
+      var held = <String>{};
+      var reached = false;
+      // One turn per key at most: a turn that opens nothing ends it.
+      for (var turn = 0; turn <= keys.length; turn++) {
+        final nav = Navigation.bake(_shut(document, held), cellSize: 0.25);
+        if (_walkable(nav, spawn, exit)) {
+          reached = true;
+          break;
+        }
+        final within = <String>{
+          for (final (colour, at) in keys)
+            if (_walkable(nav, spawn, at)) colour,
+        };
+        if (within.length == held.length) break;
+        held = within;
+      }
+
+      expect(
+        reached,
+        isTrue,
+        reason:
+            '$path: nothing walks from the spawn at $spawn to the way out '
+            'at $exit, with the keys it can reach ($held) in hand',
+      );
+    }
+  });
+
   test('and every locked door has its key somewhere on the same level', () {
     // **The failure a chain makes possible.** Keys do not carry between levels
     // — deliberately, because a player arriving at the second level holding the
@@ -141,8 +197,8 @@ void main() {
   });
 
   test('and the fight gets harder rather than merely longer', () {
-    // Not a rule the engine could enforce, and worth writing down anyway: three
-    // levels that are the same fight three times is a game with one level in
+    // Not a rule the engine could enforce, and worth writing down anyway: five
+    // levels that are the same fight five times is a game with one level in
     // it. Counted by kind, because that is what changes — the crypt has no
     // tanks and the deep is mostly tanks.
     int tanksIn(Level level) => level.entities
@@ -170,43 +226,44 @@ void main() {
     //
     // Against a wall means within a hand's width of some solid brush: this is
     // asking "is it on something", not "is it exactly flush".
-    final level = Level.fromJson(
-      jsonDecode(File(_first).readAsStringSync()) as Map<String, Object?>,
-    );
-
-    for (final note in level.entities.where(
-      (EntityDef e) => e.type == 'note',
-    )) {
-      final at = note.position;
-      var nearest = double.infinity;
-      for (final brush in level.brushes) {
-        if (!brush.solid) continue;
-        final dx = math.max(
-          (at.x - brush.centre.x).abs() - brush.size.x / 2,
-          0.0,
+    //
+    // Every document, not only the first: each level opens with a page on the
+    // wall by the door, and each one is placed by hand at the wall's own face.
+    for (final (:path, :level) in _chain()) {
+      for (final note in level.entities.where(
+        (EntityDef e) => e.type == 'note',
+      )) {
+        final at = note.position;
+        var nearest = double.infinity;
+        for (final brush in level.brushes) {
+          if (!brush.solid) continue;
+          final dx = math.max(
+            (at.x - brush.centre.x).abs() - brush.size.x / 2,
+            0.0,
+          );
+          final dy = math.max(
+            (at.y - brush.centre.y).abs() - brush.size.y / 2,
+            0.0,
+          );
+          final dz = math.max(
+            (at.z - brush.centre.z).abs() - brush.size.z / 2,
+            0.0,
+          );
+          nearest = math.min(nearest, math.sqrt(dx * dx + dy * dy + dz * dz));
+        }
+        expect(
+          nearest,
+          lessThan(0.2),
+          reason:
+              '$path: the note at $at is ${nearest.toStringAsFixed(2)} m from '
+              'the nearest wall, which is a page floating in the air',
         );
-        final dy = math.max(
-          (at.y - brush.centre.y).abs() - brush.size.y / 2,
-          0.0,
-        );
-        final dz = math.max(
-          (at.z - brush.centre.z).abs() - brush.size.z / 2,
-          0.0,
-        );
-        nearest = math.min(nearest, math.sqrt(dx * dx + dy * dy + dz * dz));
       }
-      expect(
-        nearest,
-        lessThan(0.2),
-        reason:
-            'the note at $at is ${nearest.toStringAsFixed(2)} m from the '
-            'nearest wall, which is a page floating in the air',
-      );
     }
   });
 
   test('and neither does the way out of any of them', () {
-    // **The same mistake as the note, in all three documents at once.** A way
+    // **The same mistake as the note, in every document at once.** A way
     // out is drawn as an arch two metres and six tall, centred on its own
     // middle; the position was authored as 2.4, 2.4 and 5.0 by eye, so every
     // arch in the game hung one and a tenth metres off the ground. The game
@@ -315,6 +372,54 @@ void main() {
     }
   });
 }
+
+/// [document] with every door whose key is not in [held] built as a wall.
+///
+/// A door is an entity and the navigation grid is baked from brushes, so a
+/// grid asked about the level as written is a grid with every door wide open.
+/// Standing them up as brushes is what makes the routing question the one a
+/// player faces.
+Level _shut(Map<String, Object?> document, Set<String> held) {
+  final doors = (document['entities']! as List<Object?>)
+      .cast<Map<String, Object?>>()
+      .where((Map<String, Object?> e) => e['type'] == 'door');
+  return Level.fromJson(<String, Object?>{
+    ...document,
+    'brushes': <Object?>[
+      ...document['brushes']! as List<Object?>,
+      for (final door in doors)
+        if (door['key'] case final String key)
+          if (!held.contains(key))
+            <String, Object?>{
+              'at': door['at'],
+              'size': door['size'],
+              'material': door['material'] ?? 'iron',
+            },
+    ],
+  });
+}
+
+/// Whether a body the player's height walks from [from] to [to].
+///
+/// The field is swept from the destination and read at the start, which is
+/// the direction the grid's own height rule is asked in: a ledge that can be
+/// dropped off cannot be climbed back up, and a route that only works one way
+/// is not one.
+///
+/// **The player's height, and not the player's width.** `playthrough_test`
+/// writes down why it needs two fields to walk the crypt: a grid cell touching
+/// a wall has a clearance of one whatever the wall's real distance, so a field
+/// asked for the player's 0.35 abandons every corner and, in the deep, the
+/// three-metre room with a pillar in it. The narrow field covers those, and
+/// the character controller slides along the walls the routes then hug. Asking
+/// the wide one here would fail on a level the game ships and a player
+/// finishes.
+bool _walkable(Navigation nav, Vector3 from, Vector3 to) =>
+    (nav.fieldFor(
+      radius: 0.0,
+      height: 1.8,
+    )..rebuild(to)).walkingDistanceTo(from) !=
+    null;
 
 /// Whether any solid brush of [level] covers [point].
 bool _solidAt(Level level, Vector3 point) {

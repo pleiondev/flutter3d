@@ -3,8 +3,9 @@
 
     python3 tool/make_deep.py
 
-The last one, and the only one that asks a question the first two did not:
-**which weapon**, and it asks it by taking away the freedom to answer wrong.
+The middle of five, and the only one that asks a question the first two did
+not: **which weapon**, and it asks it by taking away the freedom to answer
+wrong.
 
 The crypt is a corridor and the vaults are a choice of order. Here the rooms are
 small, the tanks are slow and hard, and the ammunition on the floor is less than
@@ -16,7 +17,10 @@ That is the whole design, and it is why this level has no keys, no lift and no
 crossroads. Everything it has to say is said by the shape of the rooms and by
 what is not lying about in them.
 
-**No `next`.** This is the end of the game, and the application says so.
+**This used to be the end of the game.** The way out is called `the_surface`
+still, because the name is what the level's own note leads a player to expect;
+what it opens onto now is the cistern, and the sanctum after that is where the
+chain ends.
 """
 
 import cryptkit as k
@@ -38,8 +42,10 @@ def build():
     k.spawn((0.0, 0.0, 6.0))
     k.torch((-3.4, 2.4, 5.0), name="arrival_west", yaw=1.5708,
             colour=(0.55, 0.78, 1.0), intensity=4.5)
+    # On the north wall, west of the doorway, for the reason the vaults' one
+    # moved: a page in the middle of a doorway is a page hanging in the air.
     k.note(
-        (0.0, 1.6, 0.6),
+        (-2.5, 1.6, 0.03),
         "Nothing below here was buried. It came down on its own.",
     )
     k.pickup("shells", (2.5, 0.8, 6.0), amount=8)
@@ -93,8 +99,8 @@ def build():
     k.pickup("armour", (-7.0, 0.8, -30.0), amount=25)
     k.exit_at("the_surface", (0.0, 0.0, -39.0))
 
-    # No `next_level`: this is the end of the game.
-    k.write("deep.json", name="The Deep", tool=TOOL)
+    k.write("deep.json", name="The Deep",
+            next_level="assets/levels/cistern.json", tool=TOOL)
 
 
 if __name__ == "__main__":

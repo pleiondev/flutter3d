@@ -249,6 +249,7 @@ EntityRegistry sampleRegistry({bool monsters = true}) =>
       const ButtonKind(),
       const TriggerKind(),
       const NoteKind(),
+      const SecretKind(),
       const ExitKind(),
       ...sampleLightKinds(),
     ]);

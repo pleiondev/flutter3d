@@ -1,9 +1,9 @@
-/// The crypt's visibility table, held against rays it never sampled.
+/// Each level's visibility table, held against rays it never sampled.
 ///
 ///     flutter test test/visibility_test.dart
 ///
 /// The table is a sample and this is the check on it: thousands of random
-/// pairs of points in the crypt's empty space, a straight ray between each
+/// pairs of points in the level's empty space, a straight ray between each
 /// pair through the level's own collision world, and the rule that an
 /// unblocked ray between two cells means the table says they see each other.
 /// A table that hides a room somebody can see into fails here, which is the
@@ -75,7 +75,13 @@ Aabb3 _extent(Level level) {
 }
 
 void main() {
-  for (final name in <String>['crypt', 'vaults', 'deep']) {
+  for (final name in <String>[
+    'crypt',
+    'vaults',
+    'deep',
+    'cistern',
+    'sanctum',
+  ]) {
     group(name, () {
       final level = _level(name);
       final table = _sidecar(name);

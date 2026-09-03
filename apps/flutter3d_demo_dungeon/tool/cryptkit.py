@@ -50,14 +50,28 @@ def start():
 # ── Architecture ────────────────────────────────────────────────────────────
 
 
-def _box(at, size, material, casts=True):
+def _box(at, size, material, casts=True, solid=True):
     row = {"at": rounded(at), "size": rounded(size), "material": material}
     # A fence is not architecture: omitted when true, so the documents do not
     # grow a line per brush saying the obvious.
     if not casts:
         row["castsShadow"] = False
+    # Water is walked through, not into: a brush that is drawn and stops
+    # nothing. Omitted when solid for the same reason as above.
+    if not solid:
+        row["solid"] = False
     brushes.append(row)
     return row
+
+
+def block(at, size, material, *, casts=True, solid=True):
+    """One brush, as it is: a pier, a dais, a slab of water.
+
+    The rooms build their own walls and a pillar knows its own shape; this is
+    for the piece of architecture that is only a box and needs no arithmetic
+    done for it.
+    """
+    return _box(at, size, material, casts=casts, solid=solid)
 
 
 def _wall_with_holes(fixed, axis, span, base, height, holes, material):
@@ -97,14 +111,21 @@ def _piece(fixed, axis, low, high, bottom, top, material):
              (thick, top - bottom, high - low), material)
 
 
-def room(centre, size, *, height=HEIGHT, floor="floor", wall="wall",
+def room(centre, size, *, height=HEIGHT, base=0.0, floor="floor", wall="wall",
          ceiling="ceiling", doors=(), ceilinged=True):
     """A room: floor, ceiling, and four walls with [doors] cut through them.
 
     [centre] is the middle of the floor and [size] is the inside, so two rooms
     whose centres are `size` apart share a wall rather than overlapping. Each
     door is `(side, offset, width, height)` where side is `north`, `south`,
-    `east` or `west` and offset is along that wall from its middle.
+    `east` or `west` and offset is along that wall from its middle; a fifth
+    number is the sill, the height the opening starts at, for a room whose
+    floor is lower than its neighbour's.
+
+    [base] is where the floor's top face is. Zero for every room the first
+    three levels have; the cistern's basin sits a metre and a fifth below the
+    rooms around it, and its walls run from the water up to the same ceiling as
+    theirs, so [height] is measured from [base] rather than from zero.
 
     Sides are named by the axis, not by any compass in the fiction: **north is
     −Z**, which is the direction the camera faces at yaw zero, so "the door on
@@ -115,25 +136,27 @@ def room(centre, size, *, height=HEIGHT, floor="floor", wall="wall",
     x0, x1 = cx - w / 2.0, cx + w / 2.0
     z0, z1 = cz - d / 2.0, cz + d / 2.0
 
-    _box((cx, -THICK / 2.0, cz), (w + THICK * 2, THICK, d + THICK * 2), floor)
+    _box((cx, base - THICK / 2.0, cz), (w + THICK * 2, THICK, d + THICK * 2),
+         floor)
     if ceilinged:
-        _box((cx, height + THICK / 2.0, cz),
+        _box((cx, base + height + THICK / 2.0, cz),
              (w + THICK * 2, THICK, d + THICK * 2), ceiling)
 
     holes = {"north": [], "south": [], "east": [], "west": []}
-    for side, offset, width, door_height in doors:
+    for side, offset, width, door_height, *sill in doors:
         if side not in holes:
             raise SystemExit(f"a room has a door on its {side!r} side")
         along = (cx if side in ("north", "south") else cz) + offset
-        holes[side].append((along, width, 0.0, door_height))
+        low = sill[0] if sill else base
+        holes[side].append((along, width, low, low + door_height))
 
-    _wall_with_holes(z0 - THICK / 2.0, "x", (x0 - THICK, x1 + THICK), 0.0,
+    _wall_with_holes(z0 - THICK / 2.0, "x", (x0 - THICK, x1 + THICK), base,
                      height, holes["north"], wall)
-    _wall_with_holes(z1 + THICK / 2.0, "x", (x0 - THICK, x1 + THICK), 0.0,
+    _wall_with_holes(z1 + THICK / 2.0, "x", (x0 - THICK, x1 + THICK), base,
                      height, holes["south"], wall)
-    _wall_with_holes(x1 + THICK / 2.0, "z", (z0, z1), 0.0,
+    _wall_with_holes(x1 + THICK / 2.0, "z", (z0, z1), base,
                      height, holes["east"], wall)
-    _wall_with_holes(x0 - THICK / 2.0, "z", (z0, z1), 0.0,
+    _wall_with_holes(x0 - THICK / 2.0, "z", (z0, z1), base,
                      height, holes["west"], wall)
 
 
@@ -162,13 +185,27 @@ def pillar(at, *, size=(1.2, HEIGHT, 1.2), material="stone"):
     _box(at, size, material)
 
 
-def stair(frm, to, *, width=3.0, steps=8, material="stone"):
+def stair(frm, to, *, width=3.0, steps=8, bottom=0.0, material="stone"):
     """A flight, as steps rather than a ramp.
 
     Boxes because this game's bodies climb: `CharacterController` steps up
     anything under its step height, and a stack of boxes is what that was
-    written for. A ramp would need the collision wedge the platformer uses, and
-    a crypt has no use for one anywhere else.
+    written for. The level format has a ramp brush now and the platformer uses
+    it, but the navigation grid reads a ramp as the box it is cut from, so a
+    monster would refuse a slope it could physically walk. Steps it paths over.
+
+    Every step stands on [bottom], which is the floor of the room the flight
+    is in — zero unless the room is sunken. A step whose top would be at or
+    under the floor is not built.
+
+    **A step shallower than a navigation cell is a step nothing walks up.**
+    The grid keeps one surface per column and refuses any surface another
+    brush stands in, so a cell straddling two steps has no floor at all: the
+    flight bakes as a line of dead cells and the room past it is unreachable.
+    The application bakes at a quarter of a metre, so give a flight as many
+    steps as it has metres of run and no more — and start it half a run short
+    of the ledge, since a step is centred on the point it is placed at, so its
+    edges land where the lattice does.
     """
     (x0, y0, z0), (x1, y1, z1) = frm, to
     for i in range(steps):
@@ -176,10 +213,12 @@ def stair(frm, to, *, width=3.0, steps=8, material="stone"):
         y = y0 + (y1 - y0) * t
         x = x0 + (x1 - x0) * t
         z = z0 + (z1 - z0) * t
+        if y - bottom < 0.05:
+            continue
         along_x = abs(x1 - x0) > abs(z1 - z0)
         run = (abs(x1 - x0) if along_x else abs(z1 - z0)) / steps
-        _box((x, y / 2.0, z),
-             (run if along_x else width, max(y, 0.1), width if along_x else run),
+        _box((x, (bottom + y) / 2.0, z),
+             (run if along_x else width, y - bottom, width if along_x else run),
              material)
 
 
@@ -310,6 +349,18 @@ def note(at, text, *, yaw=0.0):
                      "yaw": round(yaw, 4), "text": text})
 
 
+def secret(at, *, size=(2.0, 2.5, 2.0)):
+    """A place that counts the first time somebody walks into it.
+
+    Nothing is drawn for it — `SecretKind` says why — so what makes it a
+    secret is where the author put it: behind a pillar, through an opening a
+    metre wide, in a room the plan does not lead to. The reward is whatever
+    else is in that room.
+    """
+    entities.append({"type": "secret", "at": rounded(at),
+                     "size": rounded(size)})
+
+
 # How tall the arch a way out is drawn as stands, in metres.
 #
 # `tool/make_models.py`'s `exit_arch`, which is centred on its own middle like
@@ -397,6 +448,10 @@ def _buried():
             continue
         x, y, z = row["at"]
         for brush in brushes:
+            # Water is not a wall: a thing standing in it is a thing standing
+            # in the room, which is where the cistern's rockets are.
+            if brush.get("solid") is False:
+                continue
             bx, by, bz = brush["at"]
             sx, sy, sz = brush["size"]
             if (abs(x - bx) < sx / 2.0 and abs(y - by) < sy / 2.0
@@ -408,9 +463,23 @@ def _buried():
     return walled_in
 
 
+#: What standing water looks like: dark, near-black green, and glossy. No
+#: maps, because it is a plane the player wades through and a stone texture
+#: on it would be a floor. Not in `MATERIALS` because only the cistern has any,
+#: and a table every level carries should hold only what every level uses.
+WATER = {
+    "baseColor": [0.08, 0.16, 0.15, 1.0],
+    "roughness": 0.12,
+    "metallic": 0.0,
+}
+
+
 def write(filename, *, name, fog=(0.034, 0.034, 0.034), density=0.035,
-          next_level=None, tool):
-    """Writes the document and says what went into it."""
+          next_level=None, materials=None, tool):
+    """Writes the document and says what went into it.
+
+    [materials] are this level's own, added to the table every level shares.
+    """
     walled_in = _buried()
     if walled_in:
         raise SystemExit(
@@ -425,7 +494,7 @@ def write(filename, *, name, fog=(0.034, 0.034, 0.034), density=0.035,
         "generatedBy": tool,
         "fogColor": list(fog),
         "fogDensity": density,
-        "materials": MATERIALS,
+        "materials": {**MATERIALS, **(materials or {})},
         "brushes": brushes,
         "lights": lights,
         "entities": entities,

@@ -222,33 +222,48 @@ void main() {
     );
   });
 
-  test('and the level the crypt names next loads and draws too', () async {
+  test('and so is every level the crypt leads on to', () async {
     // Two errors that are indistinguishable from the simulation's side, where
     // the state is `finished` and the name is a name either way: a typo in the
     // next level's file name, and a level with no light in it.
-    final it = await _shown();
-    final next = it.level.staged.sim.nextLevel;
-    if (next == null) {
+    //
+    // Walked to the end of the chain rather than one step along it, because a
+    // level nobody has drawn is a level nobody knows draws: the fourth is
+    // lit through water and the fifth is a hall the size of the other four,
+    // and neither is the crypt in any way this file can assume.
+    final first = await _shown();
+    if (first.level.staged.sim.nextLevel == null) {
       // Not a failure: the shipped crypt is allowed to be the last level. It
       // says so here rather than passing silently, because "there is no next
       // level" and "this test checked nothing" look identical otherwise.
-      expect(next, isNull, reason: 'the crypt is the last level');
+      expect(first.level.staged.sim.nextLevel, isNull, reason: 'no next level');
       return;
     }
 
-    final frame = _describe(await _drawFromTheStart(await _shown(asset: next)));
+    final drawn = <String>[];
+    var next = first.level.staged.sim.nextLevel;
+    while (next != null) {
+      final it = await _shown(asset: next);
+      final frame = _describe(await _drawFromTheStart(it));
 
-    expect(
-      frame.lit,
-      greaterThan((_width * _height) ~/ 2),
-      reason: '$next loads and draws nothing',
-    );
-    expect(
-      frame.brightest,
-      greaterThan(24),
-      reason:
-          '$next has no light in it, which looks exactly like a level '
-          'that is fine from the simulation\'s side',
-    );
+      expect(
+        frame.lit,
+        greaterThan((_width * _height) ~/ 2),
+        reason: '$next loads and draws nothing',
+      );
+      expect(
+        frame.brightest,
+        greaterThan(24),
+        reason:
+            '$next has no light in it, which looks exactly like a level '
+            'that is fine from the simulation\'s side',
+      );
+
+      drawn.add(next);
+      next = it.level.staged.sim.nextLevel;
+    }
+
+    // ignore: avoid_print
+    print('drew ${drawn.length} levels after the crypt: ${drawn.join(', ')}');
   });
 }

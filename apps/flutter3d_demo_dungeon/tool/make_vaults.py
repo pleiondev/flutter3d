@@ -48,8 +48,11 @@ def build():
     k.spawn((0.0, 0.0, 9.0))
     k.torch((-4.4, 2.8, 8.0), name="landing_west", yaw=1.5708)
     k.torch((4.4, 2.8, 8.0), name="landing_east", yaw=-1.5708)
+    # On the north wall, west of the doorway. It hung in the middle of the
+    # doorway itself until `levels_test.dart` started asking every document
+    # what the crypt had already been asked.
     k.note(
-        (0.0, 1.6, 1.6),
+        (-3.5, 1.6, 1.03),
         "Two locks, and they gave a key to each of the wings. "
         "Neither warden trusted the other.",
     )

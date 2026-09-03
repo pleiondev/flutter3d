@@ -527,7 +527,7 @@ sees everything. A batch is drawn if *any* cell its box overlaps is visible.
 And a query asks on behalf of every cell within a metre of the eye and grows
 the box it asks about by a metre, because the misses cluster at cell
 boundaries; the metre was measured, not chosen. Against fifty-five hundred
-random unblocked rays through the dungeon's three levels, none crossed cells
+random unblocked rays through three of the dungeon's levels, none crossed cells
 the table calls hidden at a metre, one at half a metre, twenty-two at nought.
 The price is culling: the crypt's standing point sees 54% of cells instead of
 41%, and it is paid for a room that never pops.
@@ -1405,7 +1405,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3175 tests** across 24 packages and 5 applications |
+| Unit tests | **3177 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
