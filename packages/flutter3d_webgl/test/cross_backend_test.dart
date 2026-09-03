@@ -97,7 +97,10 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
-  'normal-mapping': 0.6,
+  // 0.098% measured. It was 0.6 while this backend sampled a normal map's
+  // base level where Impeller sampled its chain; the minification filter now
+  // follows the sampler's `mipFilter`, and what is left is the silhouette.
+  'normal-mapping': 0.11,
   'cube-shadow-mover': 0.4,
   'cube-shadow-lit': 0.4,
   'shadow-teapot': 0.3,
@@ -115,43 +118,44 @@ const Map<String, double> _budgets = <String, double>{
   'view-model-point-shadow': 0.2,
   'bloom-sphere': 0.1,
   'skinned-figure': 0.1,
-  // Predates the mipmap minification filter — `minFilterToGl` folds
-  // `MipFilter.linear` in now, and every texture uploaded with a chain asks
-  // for that filter, so this scene's particle sheet samples a level here
-  // where it used to sample the base. The number below was measured against
-  // the old behaviour and is to be re-measured in the same pass that records
-  // `probe-car`, against a reference re-recorded with
-  // `tool/golden_web.sh --update particles-textured` if the picture moved.
-  'particles-textured': 0.1,
+  // **Exactly zero, and it was 0.1.** Four sprites at four distances, each
+  // landing on a different level of a chain — the one scene in the set whose
+  // subject is the mip chain, and the one that measured a disagreement for as
+  // long as `minFilterToGl` ignored `mipFilter` and took every tap from the
+  // base level. It now folds `MipFilter.linear` in, both backends walk the
+  // same chain, and the two rasterisers agree to the byte. Held at the
+  // suite's floor rather than at zero, which is where every scene that agrees
+  // exactly sits.
+  'particles-textured': 0.01,
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
   'lightmapped-room': 0.15,
-  // Provisional; recorded at merge. A checkerboard floor seen along its
-  // length with eight-way anisotropy on both backends — what differs is how
-  // far each driver's taps reach, and that is measured once the picture is.
-  //
-  // Expect the measurement to land well above this, and not because of the
-  // anisotropy: this backend never sets a `*_MIPMAP_*` minification filter —
-  // `minMagFilterToGl` ignores `mipFilter` — so its taps are taken from the
-  // base level, where Impeller's are taken across the chain. Until the
-  // filter is derived from the pair (see the 0.4.3 changelog), the far half
-  // of the floor here is the base level's aliasing and Impeller's is not.
-  // Whoever records this: the gap is the mip filter, not the taps.
-  'anisotropic-floor': 0.5,
-  // provisional; recorded at merge — see [_provisional]. The stage is a `step`
-  // over the normal's height, so expect the teapot's silhouette plus every
-  // band edge: the software backend measured 0.495% against Impeller for the
-  // same reason.
-  'loaded-shader': 0.5,
-  // Provisional; recorded at merge — see [_provisional].
-  'auto-exposure': 0.5,
-  // Provisional; recorded at merge — see [_provisional].
-  'stencil-xray': 0.5,
-  // Provisional; recorded at merge. The web set is recorded by a script that
-  // holds a fixed port, so the picture lands with the merge rather than with
-  // the branch, and the budget is set to be tightened to the measurement then.
-  // See [_provisional], which is what keeps this suite green until then.
-  'probe-car': 0.5,
+  // 0.051% measured. A checkerboard floor seen along its length with
+  // eight-way anisotropy on both backends. It was expected to land well
+  // above this: the taps were to be read from the base level here and across
+  // the chain on Impeller, because `minFilterToGl` ignored `mipFilter`. That
+  // is fixed, both backends walk the chain, and what is left is the
+  // silhouette of the cube standing on the floor.
+  'anisotropic-floor': 0.06,
+  // 0.348% measured. The stage is a `step` over the normal's height, so what
+  // differs is the teapot's silhouette plus every band edge on it — the
+  // software backend measured 0.495% against Impeller for the same reason.
+  'loaded-shader': 0.36,
+  // 0.361% measured. The teapot on its floor at an exposure metered from the
+  // frame: two meters reading two rasterisers' luminance targets ask for
+  // exposures a fraction of a stop apart, and the floor's gradient is where
+  // that crosses the channel threshold.
+  'auto-exposure': 0.37,
+  // 0.065% measured. Three boxes, a wall and a silhouette through it. The
+  // silhouette's interior agrees exactly, as a flat colour has to; the
+  // number is its edge and the shadows' edges.
+  'stencil-xray': 0.07,
+  // 0.247% measured. Two balls reflecting four coloured walls through a cube
+  // captured on the device and convolved into its own chain — six renders
+  // into faces and levels on each backend, agreeing to a quarter of a
+  // percent, which is the silhouettes of the balls and the walls' edges in
+  // what they reflect.
+  'probe-car': 0.26,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,
@@ -168,39 +172,26 @@ const Map<String, double> _budgets = <String, double>{
 
 /// Scenes budgeted before this set had a picture of them.
 ///
-/// `tool/golden_web.sh` holds a fixed port and records the set on one
-/// machine, so a scene that lands on a branch arrives here with a budget and
-/// no reference, and the reference is recorded at merge. Written down rather
-/// than left to the merger's memory: the first test below accepts a missing
-/// reference only for a scene named here, and **refuses a scene named here
-/// that has one** — so recording it without moving it into the table above
-/// with its measured budget is a red test, not a forgotten step. Empty is the
-/// ordinary state of this set.
+/// **Why a scene can arrive without its picture.** `tool/golden_web.sh` holds
+/// one fixed port for the whole of its run, so two branches recording the
+/// browser set at once record each other's frames. A branch that adds a scene
+/// therefore lands the Impeller and software references, which need no port,
+/// and leaves this one to the merge — where the whole set is recorded once.
+/// The budget it arrives with is the ceiling every other scene here sits
+/// under rather than a measurement.
 ///
-/// **A named gap rather than a missing key.** Left as a missing key the whole
+/// **A named gap rather than a missing key.** Left as a missing key the
 /// comparison would simply not exist, which is a scene nobody looks at; named
-/// here it is a comparison that is *deliberately* not run.
-///
-/// **Why a scene can arrive without its picture.** `tool/golden_web.sh` holds a
-/// fixed port for the whole run, so two branches recording the browser set at
-/// once record each other's frames. A branch that adds a scene therefore lands
-/// the Impeller and software references, which need no port, and leaves this
-/// one to the merge — where the whole set is recorded once. The budget above is
-/// provisional until then: the ceiling every other scene here sits under rather
-/// than a measurement.
+/// here it is a comparison that is *deliberately* not run, and the runner
+/// prints [_skipReason] beside it.
 ///
 /// **This set empties itself.** The first test below asserts that these are
-/// exactly the scenes with no reference on disk, so recording the picture fails
-/// the suite until the name is removed from here and the budget replaced with
+/// exactly the scenes with no reference on disk, so recording the picture
+/// fails the suite until the name is taken out and the budget replaced with
 /// what was measured. A scene parked here and forgotten is the one thing this
 /// file cannot afford: a name in this set is a comparison that never runs.
-const Set<String> _provisional = <String>{
-  'anisotropic-floor',
-  'auto-exposure',
-  'loaded-shader',
-  'probe-car',
-  'stencil-xray',
-};
+/// Empty is the ordinary state of it, and the state it is in now.
+const Set<String> _provisional = <String>{};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

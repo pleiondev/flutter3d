@@ -1653,11 +1653,12 @@ one, so it fetches its reference over HTTP and posts back what it drew.
 **The browser set is recorded when a branch lands, not beside it**, because
 that script holds one fixed port for the whole of its run and two of them
 cannot share a machine. So a branch that adds a scene commits the Impeller and
-software references and names the missing third in `_awaitingReference` in
+software references and names the missing third in `_provisional` in
 `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with
 that reason printed rather than quietly absent, and the moment the PNG appears
 the check fails until the name comes out and the provisional budget is replaced
-by the measurement. `auto-exposure` is the one entry in it today.
+by the measurement. The set is empty today, which is its ordinary state; five
+scenes passed through it at the merge that recorded this set.
 
 **What the third set found on the day it was recorded.** Six scenes disagreed by
 whole percents rather than by a silhouette's worth, and one of the six turned out
@@ -1698,10 +1699,10 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, every measured one between 0.01% and 0.6%, measured rather than
-rounded — a budget far above what was observed has stopped watching. The
-budgets that are not measurements are the provisional ones beside the scenes
-this backend has yet to record, and they say so.
+scene, all thirty-nine of them between 0.01% and 0.37%, measured rather than
+rounded — a budget far above what was observed has stopped watching. A scene
+this backend has yet to record carries a provisional ceiling instead, and says
+so; there are none today.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
 in the test's comment. This is not a ritual: the rule regularly finds tests that
@@ -1836,12 +1837,12 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend draws every golden scene it has recorded the way Impeller
-does**, between 0.01% and 0.6% of pixels differing by more than 8 per channel —
-the silhouette's worth of disagreement two rasterisers always have. It is short
-of the other two sets by the scenes named provisional in its own comparison,
-each waiting for the browser recording described in
-[§13](#13-how-correctness-is-held). Six scenes were
+**The web backend draws all thirty-nine golden scenes the way Impeller does**,
+between 0.01% and 0.37% of pixels differing by more than 8 per channel — the
+silhouette's worth of disagreement two rasterisers always have. Two of those
+numbers fell when the minification filter learned to read a sampler's
+`mipFilter`: `particles-textured`, the one scene whose subject is a mip chain,
+went from a tenth of a percent to nothing at all. Six scenes were
 in whole percents and every one of them was this backend drawing something else;
 [§13](#13-how-correctness-is-held) keeps what each turned out to be, because in
 all six the picture was wrong in a place nothing was looking.
