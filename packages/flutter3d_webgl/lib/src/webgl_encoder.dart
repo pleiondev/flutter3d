@@ -192,9 +192,13 @@ final class WebGlEncoder implements CommandEncoder {
   /// the same call as the compare — `stencilFunc(func, ref, mask)` — where
   /// the contract keeps them apart. Either setter therefore repeats the
   /// other's half; three calls per face, a handful of times a frame.
+  ///
+  /// Narrowed before it reaches GL, which would otherwise *clamp* it to the
+  /// attachment's range and make this the one backend where a reference of
+  /// 0x101 means 255 rather than 1.
   @override
   void setStencilReference(int value) {
-    _stencilReference = value;
+    _stencilReference = StencilState.narrowReference(value);
     _applyStencil();
   }
 

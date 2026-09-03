@@ -131,6 +131,10 @@ abstract interface class PassEncoder {
   /// The value the stencil test compares against and
   /// [StencilOperation.setToReferenceValue] stores. Eight bits; zero until
   /// set.
+  ///
+  /// A wider value keeps its low eight bits and loses the rest, on every
+  /// backend, through [StencilState.narrowReference] — see it for why the
+  /// three would otherwise each answer differently.
   void setStencilReference(int value);
 
   /// Blending for one colour attachment; null switches it off.

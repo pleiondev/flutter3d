@@ -226,6 +226,16 @@ void main() {
     );
   });
 
+  test('a stencil reference is narrowed to eight bits, not clamped', () {
+    // The contract's own answer, in the one place all three backends read it
+    // from. Clamping is what GL would have done left to itself, so the pair
+    // below is the distinction the function exists to remove.
+    expect(StencilState.narrowReference(1), 1);
+    expect(StencilState.narrowReference(0xFF), 0xFF);
+    expect(StencilState.narrowReference(0x101), 1, reason: 'not 255');
+    expect(StencilState.narrowReference(0x100), 0);
+  });
+
   test('the formats that carry a stencil are exactly the three', () {
     // Every depth format the engine names packs one, which is why nothing
     // above the backends ever had to ask — and why a backend opening a pass

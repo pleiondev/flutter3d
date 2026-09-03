@@ -172,6 +172,30 @@ void main() {
     expect(fixture.stencilAtCentre, 0xAF);
   });
 
+  test('a reference wider than a byte keeps its low eight bits', () {
+    // The one place all three backends could have disagreed and none of them
+    // would have said so: masking wraps 0x109 to 9, GL's `stencilFunc` clamps
+    // it to 255, and flutter_gpu forwards it. `StencilState.narrowReference`
+    // is the one answer now, and this reads it off an attachment — the only
+    // backend where it can be read at all.
+    //
+    // **What this can and cannot catch, because the two are not the same.**
+    // Deleting the narrowing here changes nothing: the stencil attachment is
+    // a `Uint8List`, so it truncates whatever it is handed and arrives at the
+    // same 9. What this bites is the *other* answer — a backend that took up
+    // GL's clamp would store 255 and this would fail. The call itself is
+    // pinned where it is made, in `flutter3d_hardware`'s `pass_state_test`.
+    final fixture = _Fixture(stencilClear: 0);
+    fixture.pass
+      ..setStencilReference(0x109)
+      ..setStencil(
+        const StencilState(passOp: StencilOperation.setToReferenceValue),
+      );
+    fixture.draw(0.5, <double>[1, 0, 0]);
+    fixture.pass.submit();
+    expect(fixture.stencilAtCentre, 9, reason: 'not 255, and not 0x109');
+  });
+
   test('the read mask hides bits from the comparison', () {
     // Stored 0x10 against a reference of zero: unequal as bytes, equal once
     // the low nibble is all that is compared.

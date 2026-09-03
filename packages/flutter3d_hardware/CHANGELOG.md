@@ -10,6 +10,10 @@
 * **`GraphicsDevice.supportsStencil`**, to ask before configuring a test
   against an attachment that has none, and `TextureFormatStencil.hasStencil`
   for the formats that carry one.
+* **`StencilState.narrowReference`**, which is where "eight bits" is decided
+  once instead of three times. Left to themselves a software rasteriser wraps
+  an out-of-range reference, GL clamps it and flutter_gpu forwards it, so the
+  same value meant three things; every backend narrows through this now.
 * **`BlendState.keepDestination`**: zero from the source, one from the
   destination. flutter_gpu has no colour write mask and a discarded fragment
   writes no stencil, so this is the one way a draw marks the stencil and

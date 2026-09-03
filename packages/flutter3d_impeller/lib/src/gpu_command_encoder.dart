@@ -120,7 +120,8 @@ final class GpuCommandEncoder implements CommandEncoder {
   }
 
   @override
-  void setStencilReference(int value) => _pass.setStencilReference(value);
+  void setStencilReference(int value) =>
+      _pass.setStencilReference(StencilState.narrowReference(value));
 
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {

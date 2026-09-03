@@ -160,7 +160,8 @@ final class CpuEncoder implements CommandEncoder {
   }
 
   @override
-  void setStencilReference(int value) => _stencilReference = value & 0xFF;
+  void setStencilReference(int value) =>
+      _stencilReference = StencilState.narrowReference(value);
 
   @override
   void setBlend(BlendState? state, {int attachment = 0}) => _blend = state;

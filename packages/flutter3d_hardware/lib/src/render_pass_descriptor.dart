@@ -194,6 +194,24 @@ final class StencilState {
   /// The test off: every fragment passes it and none changes the buffer.
   static const StencilState disabled = StencilState();
 
+  /// The eight bits a stencil reference has, out of whatever it was handed.
+  ///
+  /// Every backend narrows through this rather than each in its own way, and
+  /// the reason is that the three ways do not agree. A software rasteriser
+  /// that masks wraps 0x101 to 1; WebGL2's `stencilFunc` is specified to
+  /// *clamp* the reference to the attachment's range, so the same value
+  /// becomes 255 there; flutter_gpu passes it to a descriptor field and says
+  /// nothing. One call site behind all three makes the answer the contract's
+  /// rather than the backend's — which matters the day something wants a
+  /// second marked layer and starts counting references upward.
+  ///
+  /// **A mask rather than an assert**, which was the other candidate. Eight
+  /// bits is a fact about every stencil attachment the engine can allocate,
+  /// not a house rule a caller is breaking, and an assert would have left the
+  /// three backends disagreeing in a release build — which is the half of the
+  /// problem that cannot be caught by running the tests.
+  static int narrowReference(int value) => value & 0xFF;
+
   /// How the reference value is compared against what is stored. The
   /// reference is the *new* value in [CompareFunction]'s wording: `less`
   /// passes when the reference is below the stored value.

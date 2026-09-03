@@ -723,7 +723,10 @@ Changing any of these breaks a backend, and that is the bar for changing them.
 - **`RenderPassDescriptor`, `ColorTarget`, `DepthTarget`, `ScreenRect`,
   `BlendState`, `StencilState`.** `DepthTarget` says how its stencil is loaded,
   stored and cleared; `StencilState` is flutter_gpu's `StencilConfig` with
-  eight-bit masks, and `StencilState.disabled` is what every pass starts with.
+  eight-bit masks, `StencilState.disabled` is what every pass starts with, and
+  `StencilState.narrowReference` is where the eight bits of a *reference* are
+  decided — once, rather than once per backend, which is how a software
+  rasteriser came to wrap what GL clamps.
 - **Handles** — `TextureHandle`, `GeometryBuffer`, `ShaderHandle`,
   `PipelineHandle`, `ShaderLibrary`. A handle carries a description and an opaque
   backend object. `TextureHandle` deliberately has no `==`: the pool lends by
@@ -1436,7 +1439,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3202 tests** across 24 packages and 5 applications |
+| Unit tests | **3204 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
