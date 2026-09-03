@@ -70,11 +70,7 @@ final class RaceFailed extends RaceStatus {
 /// two file paths, and the render loop's own state would turn every step of
 /// it into an allocation and an emit.
 final class RaceProgress {
-  RaceProgress({required this.season, this.onChanged}) {
-    _current = season.read();
-  }
-
-  final SeasonProgress season;
+  RaceProgress({this.onChanged});
 
   /// Called after every transition. [RaceCubit] passes its own `emit` through
   /// here, the same way a game's cubit does for `RunSession`.
@@ -84,8 +80,12 @@ final class RaceProgress {
   RaceStatus _status = const RaceLoading();
 
   /// Which circuit is current — being read, being raced, or just finished.
+  ///
+  /// Always the first at a launch. Nothing about a season is saved: it is one
+  /// sitting, and a game that remembered the circuit reached opened on the
+  /// second one for anybody who had won the first.
   Circuit get current => _current;
-  late Circuit _current;
+  Circuit _current = Season.first;
 
   /// The circuit in [current] has been read and is ready to draw.
   void ready() => _emit(Racing(_current));
@@ -93,24 +93,14 @@ final class RaceProgress {
   /// It would not read, or the device under it would not open.
   void failed(Object error) => _emit(RaceFailed(error));
 
-  /// The circuit in [current] has been won. Decides what comes next and
-  /// writes it down, but does not load it — [moveOn] does that once the
-  /// screen's own pause at the finish line has run out.
+  /// The circuit in [current] has been won. Decides what comes next but does
+  /// not load it — [moveOn] does that once the screen's own pause at the
+  /// finish line has run out.
   ///
   /// Returns the same circuit as [RaceOver.next], which is what the screen
   /// needs in order to know whether to schedule that pause at all.
   Circuit? finish() {
     final next = Season.after(_current);
-    if (next == null) {
-      // The season starts again next launch. A deliberate clear rather than a
-      // name meaning "done": a saved file naming a circuit this build does
-      // not ship already reads as the first one, and one meaning is easier to
-      // keep true than two.
-      season.clear();
-      _emit(RaceOver(_current, next: null));
-      return null;
-    }
-    season.reached(next);
     _emit(RaceOver(_current, next: next));
     return next;
   }

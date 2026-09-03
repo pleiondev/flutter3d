@@ -181,9 +181,7 @@ class _RaceScreenState extends State<RaceScreen>
   /// nothing that remembered having been anywhere, and a car going round a
   /// finished race forever. See `race_cubit.dart` for why this is a cubit
   /// rather than fields beside this one, the way it used to be.
-  late final RaceCubit _raceCubit = RaceCubit(
-    RaceProgress(season: SeasonProgress(storage: defaultStorage('racing'))),
-  );
+  late final RaceCubit _raceCubit = RaceCubit(RaceProgress());
 
   Circuit get _circuit => _raceCubit.circuit;
 
@@ -606,15 +604,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// start because an asset moved is worse than a car that is a rectangle.
   /// The player has finished the race. On to the next circuit, or that was the
   /// season.
-  ///
-  /// Saved before the next circuit is loaded rather than after: the moment a
-  /// save is for is the one where the machine might not reach the end of the
-  /// load, and a player who is put back on the circuit they have just won has
-  /// lost the race they won.
   void _finishedHere() {
-    // Deciding what comes next, remembering it, and saying so are all
-    // `_raceCubit.finish()`'s job now — see `RaceProgress.finish` for the
-    // season-complete clause this used to hold directly.
+    // Deciding what comes next and saying so are both `_raceCubit.finish()`'s
+    // job now — see `RaceProgress.finish` for the season-complete clause this
+    // used to hold directly.
     final next = _raceCubit.finish();
     if (next != null) unawaited(_moveOn(next));
   }

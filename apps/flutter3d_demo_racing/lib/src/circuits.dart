@@ -1,5 +1,3 @@
-import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_screens
-
 /// One circuit: a spline to drive and the scenery around it.
 ///
 /// The two files are one document, split by the generator — see
@@ -34,8 +32,10 @@ final class Circuit {
 /// for them. A season is the same idea with the middle taken out: nobody resumes
 /// a race half a lap in, so `snapshotOf` and `restoreInto` would be two required
 /// overrides returning nothing — ceremony that reads as a feature. What is
-/// actually kept between launches is which circuit and which best lap, and both
-/// are one line of their own file.
+/// actually kept between launches is the best lap, one line of its own file —
+/// and not which circuit: a season is one sitting, and every launch starts it
+/// at the first circuit. It used to be saved, and the effect was a game that
+/// opened on the second circuit for anyone who had ever won the first.
 ///
 /// That does not mean this screen went back to `setState`. It has its own
 /// cubit — see `RaceProgress` and `RaceCubit` in `race_cubit.dart` — built
@@ -59,40 +59,4 @@ abstract final class Season {
     if (at < 0 || at + 1 >= circuits.length) return null;
     return circuits[at + 1];
   }
-
-  /// The circuit called [name], or null — which is what a saved progress file
-  /// naming a circuit this build no longer ships resolves to.
-  static Circuit? named(String name) {
-    for (final circuit in circuits) {
-      if (circuit.name == name) return circuit;
-    }
-    return null;
-  }
-}
-
-/// How far into the season somebody has got, kept between launches.
-///
-/// One line of a document rather than a field of a bigger one, for the same
-/// reason the ghost is its own file: a run is lost when the game cannot read
-/// its own save, and the less each file has to say the less there is to lose.
-final class SeasonProgress {
-  SeasonProgress({required this.storage});
-
-  final Storage storage;
-
-  static const String _name = 'season.json';
-
-  /// Where to start. The first circuit when there is nothing saved, when the
-  /// file is unreadable, or when it names a circuit this build does not have.
-  Circuit read() {
-    final text = storage.read(_name);
-    if (text == null) return Season.first;
-    return Season.named(text.trim()) ?? Season.first;
-  }
-
-  /// Remembers that [circuit] is where the player is now.
-  void reached(Circuit circuit) => storage.write(_name, circuit.name);
-
-  /// Forgets it. The season starts again.
-  void clear() => storage.remove(_name);
 }

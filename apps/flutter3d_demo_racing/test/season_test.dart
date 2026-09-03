@@ -13,26 +13,10 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter3d_app/flutter3d_app.dart'; // Storage, from flutter3d_screens
 import 'package:flutter3d_demo_racing/src/circuits.dart';
+import 'package:flutter3d_demo_racing/src/race_cubit.dart';
 import 'package:flutter3d_game_racing/flutter3d_game_racing.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-final class _Storage implements Storage {
-  final Map<String, String> documents = <String, String>{};
-
-  @override
-  String? read(String name) => documents[name];
-
-  @override
-  bool write(String name, String contents) {
-    documents[name] = contents;
-    return true;
-  }
-
-  @override
-  void remove(String name) => documents.remove(name);
-}
 
 void main() {
   test('the season is a chain, and it ends', () {
@@ -106,42 +90,19 @@ void main() {
     expect(generated, Season.circuits.map((Circuit c) => c.name).toSet());
   });
 
-  group('where somebody got to', () {
-    test('starts at the beginning and is kept once they move on', () {
-      final storage = _Storage();
-      final progress = SeasonProgress(storage: storage);
-      expect(progress.read().name, Season.first.name);
+  test('and nothing about where somebody got to outlives the window', () {
+    // The circuit reached used to be saved and read back at the next launch,
+    // and the effect was a game that opened on the second circuit for anyone
+    // who had ever won the first. A season is one sitting; the only thing
+    // kept between launches is the best lap, and that is the ghost's file.
+    final race = RaceProgress();
 
-      progress.reached(Season.circuits[1]);
-
-      expect(
-        SeasonProgress(storage: storage).read().name,
-        Season.circuits[1].name,
-        reason: 'a circuit reached is lost at the window close',
-      );
-    });
-
-    test('and a finished season starts again rather than sticking', () {
-      // The last circuit is not saved as "done", because there is nothing to
-      // load when it is. Clearing means the next launch is a season, which is
-      // the only other honest answer.
-      final storage = _Storage();
-      final progress = SeasonProgress(storage: storage)
-        ..reached(Season.circuits.last);
-
-      progress.clear();
-
-      expect(progress.read().name, Season.first.name);
-    });
-
-    test('and a save naming a circuit this build dropped is not a crash', () {
-      // The file outlives the build that wrote it. A name nobody ships any
-      // more is a player put back at the start, not a game that will not open.
-      final storage = _Storage()..documents['season.json'] = 'nurburgring';
-
-      expect(SeasonProgress(storage: storage).read().name, Season.first.name);
-      expect(Season.named('nurburgring'), isNull);
-    });
+    expect(race.current.name, Season.first.name);
+    expect(
+      Season.circuits.map((Circuit c) => c.name),
+      isNot(contains('season')),
+      reason: 'no circuit may be named after the file this used to be',
+    );
   });
 
   test('and the game itself moves on when a race is won', () {
@@ -151,9 +112,9 @@ void main() {
     // uncalled.
     //
     // Split across two files now that the season lives in `RaceProgress`
-    // rather than in fields of the widget: what comes next and what is
-    // remembered about it are `race_cubit.dart`'s job, and the widget's own
-    // job is noticing the finish line at all and not hard-coding a circuit.
+    // rather than in fields of the widget: what comes next is
+    // `race_cubit.dart`'s job, and the widget's own job is noticing the
+    // finish line at all and not hard-coding a circuit.
     final game = File('lib/main.dart').readAsStringSync();
     final cubit = File('lib/src/race_cubit.dart').readAsStringSync();
 
@@ -169,8 +130,10 @@ void main() {
     );
     expect(
       cubit,
-      contains('season.reached('),
-      reason: 'the player moves on and nothing remembers it',
+      isNot(contains('storage')),
+      reason:
+          'the circuit reached is being saved again, and the next launch '
+          'will open on it rather than on the first',
     );
     expect(
       game,
