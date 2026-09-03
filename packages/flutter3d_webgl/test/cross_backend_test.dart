@@ -32,6 +32,11 @@
 /// whole percents is this backend drawing something else. Six scenes were in
 /// the second group and every one of them has been moved to the first, so the
 /// whole table is now a floor to hold rather than a list of things to fix.
+///
+/// The exception is any scene named in [_pending], whose picture is not
+/// recorded yet and whose budget is therefore a placeholder rather than a
+/// measurement. Its case is skipped, and the first test below is what stops
+/// the name from staying there once the picture arrives.
 @TestOn('vm')
 library;
 
@@ -114,11 +119,7 @@ const Map<String, double> _budgets = <String, double>{
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
   'lightmapped-room': 0.15,
-  // Provisional; recorded at merge. The browser set is recorded by a script
-  // that holds a fixed port, so the scene's reference lands with the merge
-  // rather than with the branch, and the budget is the ceiling every other
-  // scene here sits under rather than a measurement — replace it with the
-  // measured number the first time the picture is compared.
+  // Provisional; recorded at merge — see [_pending].
   'stencil-xray': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
@@ -133,6 +134,24 @@ const Map<String, double> _budgets = <String, double>{
   'shadow-map': 0.01,
   'surface-buffer': 0.01,
 };
+
+/// Scenes whose budget is above, and whose browser reference is not committed
+/// yet — recorded when the branch that adds the scene is merged.
+///
+/// **Why a scene can arrive without its picture.** `tool/golden_web.sh` holds a
+/// fixed port for the whole run, so two branches recording the browser set at
+/// once record each other's frames. A branch that adds a scene therefore lands
+/// the Impeller and software references, which need no port, and leaves this
+/// one to the merge — where the whole set is recorded once. The budget above is
+/// provisional until then: the ceiling every other scene here sits under rather
+/// than a measurement.
+///
+/// **This set empties itself.** The first test below asserts that these are
+/// exactly the scenes with no reference on disk, so recording the picture fails
+/// the suite until the name is removed from here and the budget replaced with
+/// what was measured. A scene parked here and forgotten is the one thing this
+/// file cannot afford: a name in this set is a comparison that never runs.
+const Set<String> _pending = <String>{'stencil-xray'};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -158,8 +177,10 @@ void main() {
     );
     expect(
       _budgets.keys.toSet().difference(recorded),
-      isEmpty,
-      reason: 'a budget for a scene this backend has no reference for',
+      _pending,
+      reason:
+          'a budget for a scene this backend has no reference for, and '
+          'not one this file admits is waiting for the merge to record it',
     );
   });
 
@@ -189,9 +210,16 @@ void main() {
         lessThanOrEqualTo(entry.value),
         reason: 'this backend moved away from the hardware one',
       );
-    });
+    }, skip: _pending.contains(entry.key) ? _skipReason : null);
   }
 }
+
+/// Said in full at every skipped case, because a skip whose reason is a word is
+/// a skip nobody removes.
+const String _skipReason =
+    'the browser reference is recorded at merge, by tool/golden_web.sh, which '
+    'holds a fixed port — record it, drop the name from _pending and replace '
+    'the provisional budget with the number this case prints';
 
 Future<Uint8List> _rgba(File file) async {
   final codec = await ui.instantiateImageCodec(file.readAsBytesSync());
