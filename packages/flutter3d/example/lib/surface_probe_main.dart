@@ -12,7 +12,9 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart' hide Material;
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+
+import 'surface_probe.dart';
+import 'surface_probe_report.dart';
 
 void main() => runApp(const SurfaceProbeApp());
 

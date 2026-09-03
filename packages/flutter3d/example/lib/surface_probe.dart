@@ -3,10 +3,11 @@
 ///
 /// **A measurement, not a feature.** flutter_gpu 3.47 added a presentable
 /// surface — `createImageSurface`, `acquireNextFrame`, `present`,
-/// `currentImage` — whose stated purpose is the problem this backend already
-/// solves by hand: a finished frame is a texture Flutter is still reading, and
-/// drawing into it again before the compositor has let go is a picture made
-/// of two frames. The renderer keeps a ring of finished frames and returns one
+/// `currentImage` — whose stated purpose is the problem the Impeller backend
+/// already solves by hand: a finished frame is a texture Flutter is still
+/// reading, and drawing into it again before the compositor has let go is a
+/// picture made of two frames. The renderer keeps a ring of finished frames
+/// and returns one
 /// to rotation when `GraphicsDevice.onFrameComplete` says the GPU is done
 /// with it; the surface keeps its own pool and decides reuse from Flutter's
 /// own reference count. Same job, two owners.
@@ -23,24 +24,28 @@
 ///
 /// Written against flutter_gpu directly rather than through the HAL, on
 /// purpose: the question is what the API gives, and a handle wrapping it
-/// would put this backend's own bookkeeping on both sides of the comparison.
-/// Nothing here constructs a `TextureHandle`, and nothing in the engine calls
-/// this; `packages/flutter3d/example/lib/surface_probe_main.dart` runs it and
-/// `tool/surface_probe.sh` reads what it prints. The verdict, with the numbers,
-/// is in `ARCHITECTURE.md` §15.
+/// would put the backend's own bookkeeping on both sides of the comparison.
+/// Nothing here constructs a `TextureHandle`, and nothing in the engine or
+/// the backend calls this. It lives in the example rather than in
+/// `flutter3d_impeller` for the same reason: an instrument that reaches the
+/// API directly is not part of the backend's published surface, and the one
+/// thing it borrows from the backend — the colour format the context answers
+/// with — is already public. `surface_probe_main.dart` runs it and
+/// `packages/flutter3d_impeller/tool/surface_probe.sh` reads what it prints.
+/// The verdict, with the numbers, is in `ARCHITECTURE.md` §15.
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
+import 'package:flutter3d_impeller/flutter3d_impeller.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:vector_math/vector_math.dart' as vm;
 
-import 'gpu_formats.dart';
-import 'gpu_surface_probe_report.dart';
-import 'gpu_texture.dart';
+import 'surface_probe_report.dart';
 
 /// Runs the probe as soon as it is on screen, showing each frame it presents,
 /// and hands the finished [SurfaceProbeReport] to [onDone].
@@ -60,8 +65,9 @@ final class ImageSurfaceProbe extends StatefulWidget {
 
   final void Function(SurfaceProbeReport report) onDone;
 
-  /// Frames per path. Four seconds at sixty hertz — long enough for a pool to
-  /// settle at the size the display actually needs.
+  /// Frames per path. Two seconds on a 120 Hz display and four at sixty —
+  /// the probe runs at whatever pace the display sets, and either is long
+  /// enough for a pool to reach the size the display actually needs.
   final int frames;
 
   /// The frame size, in pixels. A window's worth rather than a golden's, so a
@@ -222,7 +228,9 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       stepMicros: MicrosSamples(step),
       imageMicros: MicrosSamples(image),
       intervalMicros: MicrosSamples(interval),
-      textures: owned.length,
+      // The ring never lets a texture go, so its peak is its end.
+      texturesPeak: owned.length,
+      texturesAtEnd: owned.length,
       bytesPerTexture: _bytesPerTexture,
       readbackOk: lastImage != null && await _holds(lastImage, lastColour),
     );
@@ -254,8 +262,11 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
     final step = <int>[];
     final image = <int>[];
     final interval = <int>[];
+    // `debugBackingTextureCount` after each frame: the pool's size as it
+    // moves, from which the peak and the end are read. The two differ when
+    // the pool has just been scavenged, so both are reported.
+    final backing = <int>[];
     final between = Stopwatch()..start();
-    var textures = 0;
     var lastImage = _shown;
     var lastColour = _colourOf(0);
     var note = '';
@@ -296,9 +307,7 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
 
       step.add(clock.elapsedMicroseconds);
       image.add(mint.elapsedMicroseconds);
-      if (surface.debugBackingTextureCount > textures) {
-        textures = surface.debugBackingTextureCount;
-      }
+      backing.add(surface.debugBackingTextureCount);
       lastImage = minted;
       lastColour = colour;
       if (churn) _churn();
@@ -311,7 +320,8 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       stepMicros: MicrosSamples(step),
       imageMicros: MicrosSamples(image),
       intervalMicros: MicrosSamples(interval),
-      textures: textures,
+      texturesPeak: backing.fold(0, math.max),
+      texturesAtEnd: surface.debugBackingTextureCount,
       bytesPerTexture: _bytesPerTexture,
       readbackOk:
           note.isEmpty &&
@@ -371,11 +381,14 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
       return (status, minted);
     }
 
-    var statusBefore = gpu.GpuPresentStatus.success;
-    for (var i = 0; i < _kResizeFrames; i++) {
-      final (status, _) = await draw(i, 'resize before ${i + 1}');
-      statusBefore = status;
-      if (!mounted) break;
+    // Every frame's outcome, kept, so the ones the report wants — the last
+    // status before the resize, the first after it, the last image drawn —
+    // are read off the lists rather than remembered as the loop goes. Both
+    // loops stop short only when the widget is gone, in which case nothing
+    // reads the result.
+    final before = <(gpu.GpuPresentStatus, ui.Image?)>[];
+    for (var i = 0; i < _kResizeFrames && mounted; i++) {
+      before.add(await draw(i, 'resize before ${i + 1}'));
     }
 
     final held = surface.acquireNextFrame();
@@ -386,24 +399,16 @@ final class _ImageSurfaceProbeState extends State<ImageSurfaceProbe> {
     surface.resize(widget.width ~/ 2, widget.height ~/ 2);
     final backingJustAfter = surface.debugBackingTextureCount;
 
-    var statusAfter = gpu.GpuPresentStatus.success;
-    ui.Image? lastImage;
-    var lastColour = _colourOf(0);
-    for (var i = 0; i < _kResizeFrames; i++) {
-      final colour = _colourOf(_kResizeFrames + i);
-      final (status, minted) = await draw(
-        _kResizeFrames + i,
-        'resize after ${i + 1}',
-      );
-      if (i == 0) statusAfter = status;
-      lastImage = minted;
-      lastColour = colour;
-      if (!mounted) break;
+    final after = <(gpu.GpuPresentStatus, ui.Image?)>[];
+    for (var i = 0; i < _kResizeFrames && mounted; i++) {
+      after.add(await draw(_kResizeFrames + i, 'resize after ${i + 1}'));
     }
 
+    final lastImage = after.isEmpty ? null : after.last.$2;
+    final lastColour = _colourOf(_kResizeFrames + after.length - 1);
     return ResizeOutcome(
-      statusBefore: statusBefore.name,
-      statusAfter: statusAfter.name,
+      statusBefore: before.isEmpty ? 'none' : before.last.$1.name,
+      statusAfter: after.isEmpty ? 'none' : after.first.$1.name,
       backingBefore: backingBefore,
       backingJustAfter: backingJustAfter,
       backingSettled: surface.debugBackingTextureCount,

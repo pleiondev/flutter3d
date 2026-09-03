@@ -14,6 +14,12 @@
 #
 # A script driving an application, for the reason conformance.sh is one:
 # Flutter GPU needs Impeller, which a headless `flutter test` does not enable.
+#
+# The build runs first and untimed, the run after it against a clock. A cold
+# build of the example is minutes, and more than the old ten when another
+# checkout has the same application open: two worktrees launching the same
+# bundle at once can leave this one waiting on a window that never reports.
+# If the run says "never reported", look for another flutter3d_example running.
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -33,15 +39,25 @@ if [[ "$STAY" == true ]]; then
   exit $?
 fi
 
-# A cold build is minutes; the probe itself is four phases of a few seconds
-# each, paced by the display.
-TIMEOUT=${FLUTTER3D_PROBE_TIMEOUT:-600}
-
 # A file rather than command substitution, as golden.sh explains: the
 # application inherits the write end of a pipe and a surviving app holds the
 # substitution open long after `flutter run` has exited.
 LOG="$(mktemp -t flutter3d_surface_probe)"
 trap 'rm -f "$LOG"' EXIT
+
+# The build, with no clock on it. `flutter run` below builds again, but
+# against what this left behind, which is seconds rather than minutes.
+if ! ( cd "$EXAMPLE_DIR" && flutter build macos --debug \
+    -t lib/surface_probe_main.dart ) >"$LOG" 2>&1; then
+  echo "the build failed. Last of its output:"
+  tail -30 "$LOG"
+  exit 1
+fi
+
+# The run: four paths of a few seconds each and the resize, paced by the
+# display, on top of the incremental build. Five minutes is generous for that
+# and short enough that a window that never reports is noticed.
+TIMEOUT=${FLUTTER3D_PROBE_TIMEOUT:-300}
 
 ( cd "$EXAMPLE_DIR" && exec flutter run -d macos --debug \
     -t lib/surface_probe_main.dart ) >"$LOG" 2>&1 &

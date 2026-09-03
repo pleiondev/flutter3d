@@ -39,9 +39,6 @@ dependencies:
 
   flutter3d_hardware: ^0.4.0
 
-  # Already here through flutter_gpu, whose clear values are its vectors;
-  # named because the surface probe constructs one.
-  vector_math: ^2.2.0
 
 dev_dependencies:
   # Not flutter3d_conformance, though this backend is the one it exists for.

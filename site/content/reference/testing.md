@@ -8,21 +8,21 @@ description: Three independent golden sets, mutation-checking every new test, de
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 705 | | `flutter3d_particles` | 68 |
-| `flutter3d_sim` | 336 | | `pad_input` | 59 |
-| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 52 |
-| `apps/flutter3d_editor` | 194 | | `flutter3d_impeller` | 44 |
-| `flutter3d_game_racing` | 193 | | `flutter3d_bridge` | 32 |
-| `flutter3d_game_platformer` | 187 | | `flutter3d_webgl` | 31 |
+| `flutter3d` | 731 | | `flutter3d_particles` | 68 |
+| `flutter3d_sim` | 379 | | `pad_input` | 59 |
+| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 55 |
+| `apps/flutter3d_editor` | 194 | | `flutter3d_webgl` | 44 |
+| `flutter3d_game_racing` | 193 | | `flutter3d_impeller` | 40 |
+| `flutter3d_game_platformer` | 190 | | `flutter3d_bridge` | 40 |
 | `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_session` | 29 |
 | `flutter3d_physics` | 137 | | `pointer_lock` | 28 |
-| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_hardware` | 17 |
-| `flutter3d_cpu` | 112 | | `flutter3d_testing` | 7 |
-| `flutter3d_screens` | 110 | | `apps/flutter3d_template_app` | 4 |
+| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_hardware` | 22 |
+| `flutter3d_cpu` | 115 | | `flutter3d_testing` | 7 |
+| `flutter3d_screens` | 112 | | `apps/flutter3d_template_app` | 4 |
 | `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3064 rather than 3070: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3166 rather than 3179: the remaining thirteen live in `packages/*/example/test`, which the count includes and this table does not. The rule holds only the total, so the rows are recounted by hand — `rg -c '^\s*(test|testWidgets)\(' packages/<p>/test` — rather than carried forward by adding a change to a stale number, which is how the table once drifted by twenty-six on one row while the total stayed right.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -45,10 +45,10 @@ Thirty-four scenes are rendered three times: through Impeller, through the softw
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.
 
 <div class="warn">
-<p>Flutter GPU requires Impeller, which a headless <code>flutter test</code> cannot give it, so the conformance harness has to be an application that somebody watches run. It was one — and stood there showing a pass list to a human — from the same commit that added a fix meant to be caught by it, until <code>packages/flutter3d_impeller/tool/conformance.sh</code> was written to actually run the suite and return its exit code. Once it did, the suite passed; nobody had known either way before then. The <code>the Impeller conformance runner is reachable</code> rule now keeps that script from going stale — checking that it exists, that it is executable, and that it and the entry point still agree about the line the verdict is read from.</p>
+<p>Flutter GPU requires Impeller, which a headless <code>flutter test</code> cannot give it, so the conformance harness has to be an application that somebody watches run. It was one — and stood there showing a pass list to a human — from the same commit that added a fix meant to be caught by it, until <code>packages/flutter3d_impeller/tool/conformance.sh</code> was written to actually run the suite and return its exit code. Once it did, the suite passed; nobody had known either way before then. The <code>the Impeller runners are reachable</code> rule now keeps that script from going stale — checking that it exists, that it is executable, and that it and the entry point still agree about the line the verdict is read from.</p>
 </div>
 
-The same package has a second instrument in the same shape: `tool/surface_probe.sh` measures flutter_gpu's `GpuImageSurface` against the `asImage()` path `present` uses, on a live GPU, and prints what each costs. It is a measurement rather than a check — its exit code says only whether every path's frame read back as drawn — and what it found is on the [backends](/core/backends/#presenting) page.
+The same package has a second instrument in the same shape, held by the same rule: `tool/surface_probe.sh` measures flutter_gpu's `GpuImageSurface` against the `asImage()` path `present` uses, on a live GPU, and prints what each costs. The probe itself lives in the engine's example beside the entry point that runs it, not in the backend — it reaches flutter_gpu directly, and is no part of what the backend publishes. It is a measurement rather than a check — its exit code says only whether every path's frame read back as drawn — and what it found is on the [backends](/core/backends/#presenting) page.
 
 ## Every new test is written by breaking what it covers
 
@@ -195,7 +195,7 @@ Twenty-three rules, under a second. Nothing they read needs `pub get`, a shader 
 | `every exemption names a file that is there` | An allowlist entry whose file has moved, or whose case only resolves on macOS |
 | `the compiled shader bundle is not older than its sources` | A bundle built before the GLSL was edited, which fails as `failed to bind texture` rather than as a shader behaving oddly |
 
-Ten more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller conformance runner for rot, and four numbers that go stale on their own: the test count, the golden scene count, the structure-rule count and the publishing order, each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too.
+Ten more check the lists against the workspace, every pubspec's floors and sibling constraints, a package for a dependency on an application, the applications for a silenced `print` and for the flag that turns the GPU on, the Impeller runners — conformance and the surface probe — for rot, and four numbers that go stale on their own: the test count, the golden scene count, the structure-rule count and the publishing order, each compared against the tree. A number in prose is a number nobody recounts, so the counting rules read this site's pages too.
 
 <div class="why">
 <p>These were a <code>boundaries_test.dart</code> in each package, and thirteen packages of twenty-one had none: all thirteen clean, and not one of them checked. A runner that walks <code>packages/</code> itself covers a package the day it exists rather than the day somebody remembers to add a file to it.</p>

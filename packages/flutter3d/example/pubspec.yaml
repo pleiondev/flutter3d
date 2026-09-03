@@ -13,6 +13,12 @@ dependencies:
   # changes to run on a different graphics API.
   flutter3d_impeller:
     path: ../../flutter3d_impeller
+  # surface_probe.dart measures flutter_gpu's own presentable surface against
+  # the path the backend uses, and has to reach the API directly to do it — a
+  # handle wrapping it would put the backend's bookkeeping on both sides of
+  # the comparison. No demo, and nothing else here, names it.
+  flutter_gpu:
+    sdk: flutter
   # cpu_main.dart runs the same engine on the software backend, which is the
   # only way to see what it costs and whether it looks right while it moves.
   flutter3d_cpu:

@@ -2,17 +2,19 @@
 ///
 ///     flutter test test/surface_probe_report_test.dart
 ///
-/// The probe itself runs as an application — `tool/surface_probe.sh` — and
-/// its numbers are read by a person and by a script. Both read the same
-/// lines, so the lines are what is pinned here: which percentile a sample
-/// lands at, which findings count as failures, and the verdict line the
-/// script greps for. Each test was written by breaking what it covers: the
-/// nearest-rank round became a floor, the resize readback was left out of
-/// the failure count, and the verdict's words were changed — each was seen
-/// to fail before it passed.
+/// The probe itself runs as an application —
+/// `packages/flutter3d_impeller/tool/surface_probe.sh` — and its numbers are
+/// read by a person and by a script. Both read the same lines, so the lines
+/// are what is pinned here: which percentile a sample lands at, which
+/// findings count as failures, and the verdict line the script greps for.
+/// Each test was written by breaking what it covers, and the mutation is
+/// named where the test is: the nearest-rank round became a floor, the empty
+/// case threw, the resize readback and then a path's readback were left out
+/// of the failure count, each number was dropped from its line in turn, and
+/// the note was left off — each was seen to fail before it passed.
 library;
 
-import 'package:flutter3d_impeller/flutter3d_impeller.dart';
+import 'package:flutter3d_example/surface_probe_report.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 PresentPathMeasurement _path(String name, {bool readbackOk = true}) =>
@@ -21,7 +23,8 @@ PresentPathMeasurement _path(String name, {bool readbackOk = true}) =>
       stepMicros: const MicrosSamples(<int>[120, 80, 100]),
       imageMicros: const MicrosSamples(<int>[10, 30, 20]),
       intervalMicros: const MicrosSamples(<int>[16600, 16700, 33300]),
-      textures: 3,
+      texturesPeak: 3,
+      texturesAtEnd: 2,
       bytesPerTexture: 1280 * 800 * 4,
       readbackOk: readbackOk,
     );
@@ -47,16 +50,21 @@ void main() {
     });
 
     test('an empty run reports zero rather than throwing', () {
+      // Mutation: the empty guard removed, which makes `sorted[-1]` throw.
       const none = MicrosSamples(<int>[]);
       expect(none.median, 0);
       expect(none.p95, 0);
       expect(none.max, 0);
     });
 
-    test('a single sample is every percentile', () {
-      const one = MicrosSamples(<int>[7]);
-      expect(one.percentile(0.0), 7);
-      expect(one.percentile(1.0), 7);
+    test('the ends are pinned and the middle rounds up', () {
+      // Two samples make the rounding visible: rank (2 - 1) * 0.5 = 0.5,
+      // which `round` takes to 1 and a floor would take to 0. A single sample
+      // would have passed floor, ceil and `samples[0]` alike.
+      const two = MicrosSamples(<int>[10, 20]);
+      expect(two.percentile(0.0), 10);
+      expect(two.percentile(1.0), 20);
+      expect(two.percentile(0.5), 20);
     });
   });
 
@@ -107,12 +115,12 @@ void main() {
       expect(lines, hasLength(5));
       expect(lines.first, 'surface-probe  1280x800, 240 frames per path');
       // The path line: median step 100, p95 120; median image 20, p95 30;
-      // three textures of 4 MB each.
+      // three textures of 4 MB each at the peak, two left at the end.
       expect(lines[1], startsWith('ring     '));
       expect(lines[1], contains('step p50   100us p95   120us'));
       expect(lines[1], contains('image p50    20us p95    30us'));
       expect(lines[1], contains('interval p50  16.7ms p95  33.3ms'));
-      expect(lines[1], contains('textures 3 (11.7 MB)'));
+      expect(lines[1], contains('textures 3 peak (11.7 MB) 2 at end'));
       expect(lines[1], endsWith('readback ok'));
       expect(lines[3], startsWith('resize   status success -> success'));
       expect(lines[3], contains('backing 3 -> 3 -> 2'));
@@ -131,7 +139,8 @@ void main() {
             stepMicros: const MicrosSamples(<int>[]),
             imageMicros: const MicrosSamples(<int>[]),
             intervalMicros: const MicrosSamples(<int>[]),
-            textures: 0,
+            texturesPeak: 0,
+            texturesAtEnd: 0,
             bytesPerTexture: 64 * 64 * 4,
             readbackOk: false,
             note: 'present threw: Exception: no',

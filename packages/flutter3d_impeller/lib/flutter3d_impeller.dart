@@ -9,9 +9,4 @@ library;
 
 export 'src/gpu_device.dart';
 export 'src/gpu_formats.dart';
-// An instrument, not part of the backend: the `GpuImageSurface` probe that
-// `tool/surface_probe.sh` runs. Exported because the application that hosts
-// it lives in another package, the way the conformance harness does.
-export 'src/gpu_surface_probe.dart';
-export 'src/gpu_surface_probe_report.dart';
 export 'src/gpu_texture.dart';

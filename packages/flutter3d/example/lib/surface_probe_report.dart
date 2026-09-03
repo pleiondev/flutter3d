@@ -3,8 +3,8 @@
 /// Kept apart from the probe itself because this half has no GPU in it: the
 /// statistics and the report are plain Dart over lists of microseconds, and
 /// that is the half a headless test can hold still. The other half —
-/// `gpu_surface_probe.dart` — needs Impeller under it and runs as an
-/// application, the way the conformance suite does on this backend.
+/// `surface_probe.dart` — needs Impeller under it and runs as an
+/// application, the way the conformance suite does on that backend.
 library;
 
 /// A list of measurements in microseconds, and the two summaries that matter.
@@ -41,7 +41,8 @@ final class PresentPathMeasurement {
     required this.stepMicros,
     required this.imageMicros,
     required this.intervalMicros,
-    required this.textures,
+    required this.texturesPeak,
+    required this.texturesAtEnd,
     required this.bytesPerTexture,
     required this.readbackOk,
     this.note = '',
@@ -63,10 +64,14 @@ final class PresentPathMeasurement {
   /// display's own pace unless something in the path stalls it.
   final MicrosSamples intervalMicros;
 
-  /// How many finished-frame textures the path ended up holding.
-  final int textures;
+  /// The most finished-frame textures the path held at once, sampled after
+  /// each frame, and how many it held when the run ended. For the ring the
+  /// two are the same number, since it never lets one go; a surface's pool
+  /// shrinks when the collector runs, so its end can sit below its peak.
+  final int texturesPeak;
+  final int texturesAtEnd;
 
-  /// What one of them costs, so [textures] can be read as memory.
+  /// What one of them costs, so [texturesPeak] can be read as memory.
   final int bytesPerTexture;
 
   /// Whether the last frame's image, read back, held the colour it was
@@ -76,7 +81,8 @@ final class PresentPathMeasurement {
   /// Anything the path wants said next to its numbers.
   final String note;
 
-  double get megabytes => textures * bytesPerTexture / (1024 * 1024);
+  /// The peak, as memory.
+  double get megabytes => texturesPeak * bytesPerTexture / (1024 * 1024);
 }
 
 /// What happened when the surface was resized between frames.
@@ -92,7 +98,7 @@ final class ResizeOutcome {
   });
 
   /// `GpuPresentStatus` of the last present before the resize and the first
-  /// after it, as the enum's name.
+  /// after it, as the enum's name; `none` if that side drew nothing.
   final String statusBefore;
   final String statusAfter;
 
@@ -139,7 +145,7 @@ final class SurfaceProbeReport {
       (resize.readbackOk ? 0 : 1);
 
   /// The report, one line per finding, ending with the verdict line
-  /// `tool/surface_probe.sh` reads.
+  /// `packages/flutter3d_impeller/tool/surface_probe.sh` reads.
   List<String> get lines => <String>[
     'surface-probe  ${width}x$height, $frames frames per path',
     for (final path in paths) _pathLine(path),
@@ -155,8 +161,9 @@ final class SurfaceProbeReport {
       'p95 ${_us(path.imageMicros.p95)}  '
       'interval p50 ${_ms(path.intervalMicros.median)} '
       'p95 ${_ms(path.intervalMicros.p95)}  '
-      'textures ${path.textures} '
-      '(${path.megabytes.toStringAsFixed(1)} MB)  '
+      'textures ${path.texturesPeak} peak '
+      '(${path.megabytes.toStringAsFixed(1)} MB) '
+      '${path.texturesAtEnd} at end  '
       'readback ${path.readbackOk ? 'ok' : 'WRONG'}'
       '${path.note.isEmpty ? '' : '  ${path.note}'}';
 

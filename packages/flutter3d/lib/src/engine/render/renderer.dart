@@ -524,16 +524,20 @@ final class Renderer implements RenderServices {
   /// **What that callback tracks is the renderer's GPU work, not the
   /// compositor's.** The texture is handed to Flutter as an image, and the
   /// raster thread samples it on its own command buffer, later; the
-  /// completion this waits for is the composite's, which comes first. The
-  /// `GpuImageSurface` probe (`flutter3d_impeller/tool/surface_probe.sh`)
-  /// reduced this arrangement to a clear-only frame and watched it reuse one
-  /// texture at 120 Hz — the compositor's read and the next clear eight
-  /// milliseconds apart on the same queue, in submission order, which is what
-  /// keeps the picture whole rather than anything here. A real frame's passes
-  /// finish later than a clear does, so the ring grows to what the overlap
-  /// needs; but the gap is the compositor's, and only Flutter can close it.
-  /// flutter_gpu's own surface is built to — and was not taken, for the
-  /// reason `ARCHITECTURE.md` §15 gives with the numbers.
+  /// completion this waits for is the renderer's, which comes first. The
+  /// surface probe (`ARCHITECTURE.md` §15) reduced this arrangement to a
+  /// clear-only frame and watched it reuse one texture at the display's
+  /// pace: one display period, 8.3 ms on the machine measured, between a
+  /// clear and the next, with the compositor's read landing somewhere inside
+  /// it — on the same queue and in submission order, which is what keeps the
+  /// picture whole rather than anything here. A real frame's passes finish
+  /// later than a clear does, so the ring grows to what the overlap needs.
+  /// The ring could close the gap itself — keep a presented texture out of
+  /// rotation for one more presented frame, at the cost of one more texture,
+  /// which is the effect the backend's own presentable surface buys with a
+  /// reference count — and does not, because no torn frame has been seen.
+  /// That surface was measured and not taken, for the reason §15 gives with
+  /// the numbers.
   final List<TextureHandle> _ldrFrames = <TextureHandle>[];
   final List<TextureHandle> _ldrFree = <TextureHandle>[];
   TextureHandle? _ldrCurrent;

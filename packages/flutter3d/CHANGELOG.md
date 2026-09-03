@@ -1,14 +1,18 @@
 ## 0.4.3
 
-* `example/lib/surface_probe_main.dart` hosts the Impeller backend's
-  `GpuImageSurface` probe, the way `conformance_main.dart` hosts its
+* `example/lib/surface_probe.dart` measures flutter_gpu's `GpuImageSurface`
+  against the `asImage()` path `present` uses, and
+  `surface_probe_main.dart` runs it the way `conformance_main.dart` runs the
   conformance suite: an application, because Flutter GPU needs Impeller and
-  a headless test does not have it.
+  a headless test does not have it. In the example rather than in the
+  backend because it reaches flutter_gpu directly, and an instrument is not
+  part of a backend's API. Its report and arithmetic are held by a headless
+  test in `example/test`.
 * **The ring of finished frames says what its accounting tracks.** The
   callback that returns a frame texture to rotation fires when the
   renderer's own GPU work is done, which is before the compositor has
   sampled the texture; the note at `_ldrFrames` now says so, with what the
-  probe measured and why the picture stays whole regardless.
+  probe measured, what the ring could do about it, and why it has not.
 
 ## 0.4.2
 
