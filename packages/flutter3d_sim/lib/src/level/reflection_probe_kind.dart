@@ -48,16 +48,27 @@ final class ReflectionProbeKind extends EntityKind {
       ),
     );
 
+    // **Written out rather than interpolated.** `'${300.0}'` is "300.0" on the
+    // Dart VM and "300" in a browser, because the two disagree about how an
+    // integral double prints — and this package is the half of the engine that
+    // has to say the same thing on a server as in a tab. A validator whose
+    // message differs by platform is a report that cannot be compared with the
+    // one a player's browser produced.
+    String number(double it) =>
+        it == it.roundToDouble() && it.abs() < 1e15 ? '${it.toInt()}.0' : '$it';
+
     final radius = entity.number('radius');
     if (radius != null && radius < 0.0) {
       refuse(
-        'has a radius of $radius; zero reaches everything, and nothing is '
-        'nearer than that',
+        'has a radius of ${number(radius)}; zero reaches everything, and '
+        'nothing is nearer than that',
       );
     }
     final intensity = entity.number('intensity');
     if (intensity != null && intensity < 0.0) {
-      refuse('has an intensity of $intensity, which would take light away');
+      refuse(
+        'has an intensity of ${number(intensity)}, which would take light away',
+      );
     }
     final faceSize = entity.integer('faceSize');
     if (faceSize != null && faceSize < 4) {
@@ -80,7 +91,7 @@ final class ReflectionProbeKind extends EntityKind {
     final resolvedNear = near ?? _defaultNear;
     final resolvedFar = far ?? _defaultFar;
     String said(double? given, double resolved) =>
-        given == null ? '$resolved by default' : '$given';
+        given == null ? '${number(resolved)} by default' : number(given);
     if (resolvedNear <= 0.0) {
       refuse(
         'has a near plane of ${said(near, resolvedNear)}, which has to be in '
