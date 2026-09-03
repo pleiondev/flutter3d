@@ -62,7 +62,11 @@ void main() {
     // carry eight, and the wall's shading crawls where its colour does not.
     final tiling = LevelLoader.tilingSamplerFor(FakeBackend(maxAnisotropy: 16));
     final material = LevelLoader.materialFrom(
-      LevelMaterial(albedo: 'wall.png', normal: 'wall_n.png', orm: 'wall_orm.png'),
+      LevelMaterial(
+        albedo: 'wall.png',
+        normal: 'wall_n.png',
+        orm: 'wall_orm.png',
+      ),
       const <String, TextureHandle?>{},
       tiling: tiling,
     );

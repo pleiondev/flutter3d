@@ -42,15 +42,14 @@ Map<String, SamplerOptions?> _bind(
     ..lookAt(Vector3(0.0, 0.0, 1.0));
   scene.add(
     MeshNode(
-        DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.0)).build()),
-        engine.Material(name: 'box', lighting: LightingModel.pbr)
-          ..albedo = texel
-          ..albedoSampler = albedoSampler
-          ..normal = texel
-          ..normalSampler = albedoSampler,
-        name: 'box',
-      )
-      ..setPosition(0.0, 0.0, 5.0),
+      DeviceMesh.upload(device, CuboidShape(size: Vector3.all(1.0)).build()),
+      engine.Material(name: 'box', lighting: LightingModel.pbr)
+        ..albedo = texel
+        ..albedoSampler = albedoSampler
+        ..normal = texel
+        ..normalSampler = albedoSampler,
+      name: 'box',
+    )..setPosition(0.0, 0.0, 5.0),
   );
   renderer.render(
     width: 64,
