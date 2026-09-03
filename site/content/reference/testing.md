@@ -22,7 +22,7 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3057 rather than 3063: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3193, which is the whole count and not a coincidence: six of those tests live in `packages/*/example/test` — one of `flutter3d`'s and five of `pad_input`'s — and are folded into their package's row here rather than left out of it, as they were while this table and the sentence above it were counted apart.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
