@@ -44,11 +44,21 @@ class Circuit:
     # readable.
     points: int = 32
 
-    # The shape. `base` sets how big the circuit is; the two lobes are what turn
-    # a ring into a lap with corners worth naming.
+    # The shape. `base` sets how big the circuit is; the lobes are what turn a
+    # ring into a lap with corners worth naming. Each is the amplitude of one
+    # harmonic of the radius: two lobes stretch the ring into an oval, three
+    # bend it into a rounded triangle, four put a corner on each side. A
+    # circuit is the sum of whichever it uses.
+    #
+    # The one rule the shape has to keep is that the radius stays positive
+    # all the way round — the lobes together smaller than the base. A radius
+    # that reaches nought is a curve through its own centre, and past that a
+    # curve that crosses itself; `check` refuses either before anything is
+    # written.
     base_radius: float = 150.0
     lobe_two: float = 34.0
     lobe_three: float = 22.0
+    lobe_four: float = 0.0
 
     # How much the circuit climbs and falls, top to bottom.
     relief: float = 9.0
@@ -83,6 +93,7 @@ def centre_line(circuit):
             circuit.base_radius
             + circuit.lobe_two * math.cos(2 * angle)
             + circuit.lobe_three * math.cos(3 * angle)
+            + circuit.lobe_four * math.cos(4 * angle)
         )
         points.append(
             (
@@ -153,6 +164,57 @@ def build(circuit):
             }
         )
     return entries
+
+
+def check(circuit):
+    """Refuses a circuit that cannot be raced, before it is written.
+
+    Everything here is something `playthrough_test.dart` would also catch —
+    later, in Dart, after a JSON file has been committed. The point of doing it
+    in the generator is that the number at fault is named in the script that
+    holds it, rather than as a car off the road at a distance along a lap.
+    """
+    lobes = (
+        abs(circuit.lobe_two)
+        + abs(circuit.lobe_three)
+        + abs(circuit.lobe_four)
+    )
+    if circuit.base_radius <= lobes:
+        # A radius that reaches nought somewhere on the lap is a curve
+        # through its own centre; past that, one that crosses itself. A
+        # radius that stays positive cannot: every ray from the centre meets
+        # the road exactly once, so no two parts of it can meet each other.
+        raise ValueError(
+            f"{circuit.name}: the lobes ({lobes}) reach the base radius "
+            f"({circuit.base_radius}), so the circuit would cross itself"
+        )
+    if circuit.narrowest < 8.0:
+        # The grid starts two cars abreast, four metres apart, and the
+        # playthrough holds every part of the road to the same eight metres.
+        raise ValueError(
+            f"{circuit.name}: narrower than the grid at {circuit.narrowest} m"
+        )
+    if circuit.narrowest > circuit.widest:
+        raise ValueError(f"{circuit.name}: narrowest is wider than widest")
+    if circuit.lap_checkpoints < 2:
+        # One checkpoint is none: the lap counter needs somewhere to have
+        # been before the line, or a car reversed over it counts a lap.
+        raise ValueError(f"{circuit.name}: a lap needs at least two checkpoints")
+    for start, end in circuit.barriers:
+        if not 0.0 <= start < end <= 1.0:
+            raise ValueError(
+                f"{circuit.name}: barrier {start}-{end} is not a stretch of "
+                "one lap"
+            )
+    if circuit.preset not in SKY_PRESETS:
+        raise ValueError(f"{circuit.name}: no preset called {circuit.preset}")
+
+
+def tightest_radius(points):
+    """The smallest radius of any corner, in metres — the number that decides
+    whether the lap can be driven at all. See the note on the gorge below."""
+    sharpest = max(abs(curvature_at(points, i)) for i in range(len(points)))
+    return 1.0 / sharpest if sharpest > 1e-9 else math.inf
 
 
 def sign(value):
@@ -478,10 +540,82 @@ CIRCUITS = (
         barriers=((0.03, 0.17), (0.41, 0.55), (0.70, 0.86)),
         pillar_clearance=70.0,
     ),
+    # Three more, and the season is five. Each is a different kind of lap
+    # rather than another gorge: the one thing the two above do not give a
+    # player is a circuit that is *fast*, and the one thing neither gives the
+    # season is a last circuit that is harder than everything before it.
+    #
+    # The flats, first light. A banked oval — the two-lobe harmonic alone, at
+    # a base big enough that the sides come out nearly straight and the ends
+    # a hundred and forty metres round. Nothing here is a corner a car brakes
+    # for; the width and the camber are what let it be driven flat out, and
+    # the flat relief is the name. A breather after the gorge, and the only
+    # lap in the season that is about speed rather than about the wheel.
+    Circuit(
+        name="flats",
+        preset="dawn",
+        points=40,
+        base_radius=195.0,
+        lobe_two=34.0,
+        lobe_three=0.0,
+        relief=3.0,
+        widest=24.0,
+        narrowest=18.0,
+        shoulder=7.0,
+        max_bank=11.0,
+        lap_checkpoints=4,
+        barriers=((0.0, 0.11), (0.39, 0.61), (0.89, 1.0)),
+        pillar_clearance=60.0,
+    ),
+    # The quarry, noon. Corners no tighter than the gorge's, and everything
+    # else worse: a road that closes to nine and a half metres, and a climb
+    # of twenty-four — the most in the season — so that every corner is
+    # arrived at either uphill, which hides it, or downhill, which arrives at
+    # it too fast. Raced under a high sun with the clearest air of the five,
+    # because a circuit this hilly is one a player has to be able to see.
+    Circuit(
+        name="quarry",
+        preset="noon",
+        points=36,
+        base_radius=135.0,
+        lobe_two=24.0,
+        lobe_three=22.0,
+        relief=24.0,
+        widest=14.0,
+        narrowest=9.5,
+        max_bank=8.0,
+        lap_checkpoints=6,
+        barriers=((0.03, 0.15), (0.36, 0.50), (0.68, 0.82)),
+        pillar_clearance=70.0,
+    ),
+    # The ridge, dusk. The last circuit, and the one the other four are
+    # practice for: the longest lap in the season, with every harmonic the
+    # shape has, so the corners come at every rhythm — and the tightest of
+    # them tighter than anything on the gorge. Nine metres wide through the
+    # slow stuff, a real climb, eight checkpoints, and the light going. How
+    # tight is decided the way the gorge's was: the reference driver in
+    # `playthrough_test.dart` has to get round.
+    Circuit(
+        name="ridge",
+        preset="dusk",
+        points=48,
+        base_radius=190.0,
+        lobe_two=40.0,
+        lobe_three=36.0,
+        lobe_four=20.0,
+        relief=20.0,
+        widest=15.0,
+        narrowest=9.0,
+        max_bank=9.0,
+        lap_checkpoints=8,
+        barriers=((0.02, 0.12), (0.27, 0.38), (0.52, 0.64), (0.78, 0.90)),
+        pillar_clearance=75.0,
+    ),
 )
 
 
 def write(circuit):
+    check(circuit)
     points = centre_line(circuit)
     length = lap_length(points)
     entries = build(circuit)
@@ -554,6 +688,7 @@ def write(circuit):
     print(
         f"{out.name} + {level_out.name}: {len(entries)} points, "
         f"about {length:.0f} m round, "
+        f"tightest corner {tightest_radius(points):.0f} m, "
         f"width {min(widths):.1f}-{max(widths):.1f} m, "
         f"camber up to {max(banks):.1f} degrees, "
         f"{circuit.lap_checkpoints - 1} checkpoints, "

@@ -1,5 +1,5 @@
 name: flutter3d_demo_racing
-description: "An arcade racer: one circuit, a car that can be made to slide, and a lap time to beat."
+description: "An arcade racer: a season of five circuits, a car that can be made to slide, and a lap time to beat."
 publish_to: 'none'
 version: 0.4.0+1
 resolution: workspace

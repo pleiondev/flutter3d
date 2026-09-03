@@ -23,9 +23,10 @@ final class Circuit {
 /// **A chain, which this game did not have and the other two did.** The
 /// platformer and the crypt both move a player from one level to the next and
 /// keep where they got to; racing had a single `const` asset path and no idea
-/// that anything ever ended. Two circuits is the smallest number that makes the
-/// difference visible — and the second one is not a variant of the first: it is
-/// tighter, hillier, narrower and raced at a different hour.
+/// that anything ever ended. Two circuits was the smallest number that made
+/// the difference visible; five is a season. None of them is a variant of
+/// another — see the notes on each in `tool/make_track.py` — and they are
+/// ordered so that the last is the hardest, which is what a season is for.
 ///
 /// **Why this is not a `RunSession`.** The other two games load a level,
 /// snapshot it, restore it and move on, and `flutter3d_session` holds that shape
@@ -49,6 +50,9 @@ abstract final class Season {
   static const List<Circuit> circuits = <Circuit>[
     Circuit(name: 'ring', title: 'The Ring'),
     Circuit(name: 'gorge', title: 'The Gorge'),
+    Circuit(name: 'flats', title: 'The Flats'),
+    Circuit(name: 'quarry', title: 'The Quarry'),
+    Circuit(name: 'ridge', title: 'The Ridge'),
   ];
 
   static Circuit get first => circuits.first;
