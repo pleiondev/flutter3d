@@ -1169,46 +1169,81 @@ List<Finding> _testCount() {
 /// that demanded one would be red on the machines least able to do anything
 /// about it. This is a rule about a bundle that exists being current, not about
 /// there being one.
+///
+/// **Two bundles, one rule.** The example's own loadable bundle —
+/// `flutter3d/example/assets/shaders/example.f3dshaders`, what the
+/// `loaded-shader` golden loads on all three backends — is gitignored for the
+/// same reason and goes stale the same way, against the example's own GLSL and
+/// against the engine's, which it `#include`s. Left out, the golden keeps
+/// passing on the code compiled before the edit, which is exactly the silence
+/// this rule exists to break.
 List<Finding> _shaderBundleIsCurrent() {
-  final dir = packages['flutter3d_impeller'];
-  if (dir == null) {
+  final impeller = packages['flutter3d_impeller'];
+  if (impeller == null) {
     return <Finding>[const Finding('flutter3d_impeller', 'is not there')];
   }
-
-  final bundle = File('${dir.path}/assets/shaders/flutter3d.shaderbundle');
-  if (!bundle.existsSync()) return const <Finding>[];
-
+  final engine = packages['flutter3d'];
+  if (engine == null) {
+    return <Finding>[const Finding('flutter3d', 'is not there')];
+  }
   final sources = packages['flutter3d_shaders'];
   if (sources == null) {
     return <Finding>[const Finding('flutter3d_shaders', 'is not there')];
   }
 
+  final engineGlsl = Directory('${sources.path}/shaders');
+  return <Finding>[
+    ..._bundleOlderThan(
+      File('${impeller.path}/assets/shaders/flutter3d.shaderbundle'),
+      'flutter3d_impeller/assets/shaders/flutter3d.shaderbundle',
+      <Directory>[engineGlsl],
+      rebuild: '(cd packages/flutter3d_impeller && ./tool/build_shaders.sh)',
+    ),
+    ..._bundleOlderThan(
+      File('${engine.path}/example/assets/shaders/example.f3dshaders'),
+      'flutter3d/example/assets/shaders/example.f3dshaders',
+      <Directory>[Directory('${engine.path}/example/shaders'), engineGlsl],
+      rebuild: '(cd packages/flutter3d/example && ./tool/build_shaders.sh)',
+    ),
+  ];
+}
+
+/// The finding for [bundle] being older than any GLSL under [sourceDirs], or
+/// nothing — including when there is no bundle, for the reason the rule gives.
+List<Finding> _bundleOlderThan(
+  File bundle,
+  String where,
+  List<Directory> sourceDirs, {
+  required String rebuild,
+}) {
+  if (!bundle.existsSync()) return const <Finding>[];
+
   final built = bundle.lastModifiedSync();
-  final newer = <String>[];
-  for (final file in Directory(
-    '${sources.path}/shaders',
-  ).listSync(recursive: true).whereType<File>()) {
-    if (!file.path.endsWith('.frag') &&
-        !file.path.endsWith('.vert') &&
-        !file.path.endsWith('.glsl')) {
-      continue;
-    }
-    if (file.lastModifiedSync().isAfter(built)) {
-      newer.add(file.path.split('/').last);
-    }
-  }
+  final newer =
+      sourceDirs
+          .where((dir) => dir.existsSync())
+          .expand((dir) => dir.listSync(recursive: true).whereType<File>())
+          .where(
+            (file) =>
+                file.path.endsWith('.frag') ||
+                file.path.endsWith('.vert') ||
+                file.path.endsWith('.glsl') ||
+                file.path.endsWith('.shaderbundle.json'),
+          )
+          .where((file) => file.lastModifiedSync().isAfter(built))
+          .map((file) => file.path.split('/').last)
+          .toList()
+        ..sort();
   if (newer.isEmpty) return const <Finding>[];
 
-  newer.sort();
   return <Finding>[
     Finding(
-      'flutter3d_impeller/assets/shaders/flutter3d.shaderbundle',
+      where,
       'is older than ${newer.length} of its sources '
-          '(${newer.take(4).join(', ')}${newer.length > 4 ? ', …' : ''}). '
-          'Rebuild it: (cd packages/flutter3d_impeller && '
-          './tool/build_shaders.sh). Until then an application loads the stage '
-          'compiled before the edit, and a slot the new source declares fails '
-          'to bind',
+      '(${newer.take(4).join(', ')}${newer.length > 4 ? ', …' : ''}). '
+      'Rebuild it: $rebuild. Until then an application loads the stage '
+      'compiled before the edit, and a slot the new source declares fails '
+      'to bind',
     ),
   ];
 }
