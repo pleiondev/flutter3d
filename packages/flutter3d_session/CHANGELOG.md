@@ -1,3 +1,11 @@
+## 0.4.1
+
+* **A frame's cost, on request.** `FrameTimingLog` prints the mean and the
+  worst of a frame's build and raster halves over every window of frames,
+  when a build says `--dart-define=FLUTTER3D_TIMINGS=true`, and registers
+  nothing otherwise. Two numbers rather than a frame rate, because a frame
+  rate says a frame was late and not which half made it so.
+
 ## 0.4.0
 
 * No changes of its own; the version moves with the workspace, whose sibling

@@ -24,7 +24,9 @@
   strength travels in the slot the flat ambient already uses, since a draw
   reads one term or the other. `isCaptured` says when every face stands at
   the current generation, so a level can hold its visibility culling until
-  its kept probes have seen the whole of it.
+  its kept probes have seen the whole of it. Measured on the racing demo's
+  player car, a rolling probe costs the frame two milliseconds of build on
+  Impeller and one in Chrome, and nothing in the raster half.
 * The environment cube is sampled with a linear mip filter, so a roughness
   slides between levels rather than snapping, and so the backend that folds
   the mip filter into minification reads the level the shader named at all.

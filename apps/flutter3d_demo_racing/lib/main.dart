@@ -336,6 +336,10 @@ class _RaceScreenState extends State<RaceScreen>
   /// How long since the last frame, and how long since the first.
   final FrameClock _frames = FrameClock();
 
+  /// What a frame costs, printed when `FLUTTER3D_TIMINGS` asks. This is the
+  /// game the player's probe is measured in — see `kPlayerProbe`.
+  final FrameTimingLog _timings = FrameTimingLog(label: 'race');
+
   @override
   void initState() {
     // Settings before devices: the bindings a player saved are the ones the
@@ -374,6 +378,7 @@ class _RaceScreenState extends State<RaceScreen>
     unawaited(_devices.dispose());
     _keyboard.dispose();
     _ticker?.dispose();
+    _timings.stop();
     for (final voice in _voices) {
       voice.stop();
     }
@@ -428,6 +433,7 @@ class _RaceScreenState extends State<RaceScreen>
     // see [_scene] — and there is nothing to step until the circuit is read, so
     // the loop simply returns early until it is.
     _ticker = createTicker(_onTick)..start();
+    _timings.start();
     await _loadCircuit(device);
   }
 
@@ -546,7 +552,7 @@ class _RaceScreenState extends State<RaceScreen>
           // the inside of the car. Rivals keep the sky alone: a probe per car
           // is a view of the circuit per car per frame, and nobody looks at a
           // rival's door closely enough to pay for it.
-          if (i == 0) {
+          if (i == 0 && kPlayerProbe) {
             final centre = (asset.localBounds.min + asset.localBounds.max)
               ..scale(0.5);
             final probe = ReflectionProbeNode(

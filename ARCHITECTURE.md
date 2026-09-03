@@ -1583,6 +1583,18 @@ costs a signed dylib per platform, a build per Android ABI, two debugging
 toolchains, and `SIGSEGV`s with no Dart stack; and it does not cure jank, since a
 native call from the UI isolate blocks it exactly as Dart does.
 
+**A rolling reflection probe costs the racing frame two milliseconds of build on
+Impeller and one in Chrome.** Measured with `FrameTimingLog`
+(`--dart-define=FLUTTER3D_TIMINGS=true`, profile builds) on the player's car —
+one sixty-four-pixel face a frame and the chain refiltered — against the same
+frame with the probe switched off (`FLUTTER3D_PLAYER_PROBE=false`), over the
+same span of race time: on macOS (Apple M3 Pro, Metal) the build half goes from
+4.7 to 7.0 ms and the raster half stays at 0.2; in Chrome (WebAssembly,
+960×540) from 16.2 to 17.2 ms in both halves. The cost is the walk, not the
+pixels: a face is every mesh in the scene encoded again from another point, and
+thirty filter passes into a cube no wider than sixty-four are the small part. A
+kept probe pays it once.
+
 ---
 
 ## 15. Limits

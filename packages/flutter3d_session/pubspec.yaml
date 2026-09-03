@@ -1,6 +1,6 @@
 name: flutter3d_session
 description: "What a game on this engine is as an application: the surface a frame is handed to Flutter through, and the run being played."
-version: 0.4.0
+version: 0.4.1
 resolution: workspace
 repository: https://github.com/pleiondev/flutter3d
 homepage: https://flutter3d.pleion.dev
