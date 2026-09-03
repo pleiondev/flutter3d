@@ -209,15 +209,13 @@ DOOR_TOP = SUMMIT[2] + 5.0
 for x in (-8.0, 8.0):
     route([x, (SUMMIT[2] + GATE_TOP) / 2.0, 140.0],
           [8.0, GATE_TOP - SUMMIT[2], 2.0], "stone")
-# The door sinks rather than rises. A door that lifts needs somewhere to lift
-# into, and the whole point of the lintel is that there is nowhere: below is the
+# The lintel and the sinking are `gate`'s doing, not this file's: the stone from
+# the door's head to the wall's top is what `lintel` writes, and a door with
+# stone over it sinks because there is nowhere for it to rise. Below is the
 # summit's own twenty-eight metres of rock, where a lowered portcullis is out of
-# sight because it is inside the mountain. See `gate` in levelkit.
+# sight because it is inside the mountain.
 gate("the slate gate", [0.0, (SUMMIT[2] + DOOR_TOP) / 2.0, 140.0], "slate",
-     size=(8.0, DOOR_TOP - SUMMIT[2], 2.0),
-     travel=[0.0, -(DOOR_TOP - SUMMIT[2]) - 0.2, 0.0])
-route([0.0, (DOOR_TOP + GATE_TOP) / 2.0, 140.0],
-      [8.0, GATE_TOP - DOOR_TOP, 2.0], "stone")
+     size=(8.0, DOOR_TOP - SUMMIT[2], 2.0), lintel=GATE_TOP)
 
 # **The plate is five metres deep and starts at the summit's own lip**, which is
 # further back and wider than any other plate in the game. A door moves 5.2 m at

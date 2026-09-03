@@ -312,7 +312,10 @@ coin([-38.0, 7.8, 74.0], "tower coin two")
 coin([-42.0, 7.8, 78.0], "tower coin three")
 coin([-38.0, 7.8, 78.0], "tower coin four")
 
-gate("the blue gate", [0.0, 2.5, 80.0], "blue")
+# The wall either side of it is eight metres of wood and the door is five, so
+# the lintel is three: without it the gate is an archway with a ledge over it.
+# See `gate` in levelkit on why a door with stone over it sinks.
+gate("the blue gate", [0.0, 2.5, 80.0], "blue", lintel=8.0, material="wood")
 plate("the blue gate's plate", "the blue gate", [0.0, 1.6, 77.0],
       size=(6.0, 3.0, 3.0))
 
@@ -343,7 +346,11 @@ for i, (x, z) in enumerate((
 )):
     coin([x, 0.8, z], f"maze coin {i + 1}")
 
-gate("the green gate", [0.0, 2.5, 120.5], "green", size=(6.0, 5.0, 2.0))
+# The maze's walls are five metres and so is this door, so there is nothing to
+# fill and it keeps the ordinary upward travel. Said out loud rather than left
+# out: a gate with no `lintel` is a gate nobody checked.
+gate("the green gate", [0.0, 2.5, 120.5], "green", size=(6.0, 5.0, 2.0),
+     lintel=5.0)
 plate("the green gate's plate", "the green gate", [0.0, 1.6, 118.0],
       size=(6.0, 3.0, 3.0))
 

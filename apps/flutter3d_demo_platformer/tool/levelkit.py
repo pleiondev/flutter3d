@@ -271,18 +271,39 @@ def key(name, at, color):
     })
 
 
-def gate(name, at, color, size=(4.0, 5.0, 2.0), travel=None):
-    """A door that needs a key. It lifts clear of its own height when opened.
+def gate(name, at, color, size=(4.0, 5.0, 2.0), travel=None, lintel=None,
+         material="stone"):
+    """A door that needs a key, and the stone over it.
 
-    `travel` is where it goes when it opens, and the default is straight up by
-    its own height. **A door that rises has to have somewhere to rise into**,
-    which is a fact about the wall around it rather than about the door: lift a
-    five-metre door inside an eight-metre wall and the two metres of stone above
-    it have to go somewhere, and if the answer is "there is no stone above it"
-    then the wall has a hole in it that is exactly as tall as the door's own
-    travel. Passing a downward travel is how a door in a sealed wall works —
-    it sinks into the floor, which is what a portcullis does anyway.
+    `lintel` is the top of the wall this door stands in. **Give it one and the
+    slot cannot be authored**, which is the whole reason it exists: a door is
+    always shorter than the wall it is set into, and the difference is a hole
+    unless somebody remembers to fill it. Four of the five gates in this game
+    shipped with that hole — three metres over Ascent's blue gate and over
+    Foundry's, one over the rust gate — and each of them reads in the document
+    as an arch and to a runner as a ledge. An autopilot carrying no key climbed
+    the one over Spire's gate, went over the door and finished the game.
+
+    So the wall above the door is written here, from the door's head to
+    `lintel`, in `material`; and a door with stone over it **sinks** rather than
+    rising, because a door that rises has to have somewhere to rise into and the
+    point of the lintel is that there is nowhere. A door whose wall is exactly
+    its own height needs no stone and keeps the ordinary upward travel.
+
+    `travel` overrides all of that for a door that wants to go somewhere else.
     """
+    head = at[1] + size[1] / 2.0
+    if lintel is not None:
+        if lintel < head - 0.01:
+            raise SystemExit(
+                f"gate {name!r} is {size[1]} m tall in a wall {lintel - at[1] + size[1] / 2.0} m "
+                f"tall: the door is taller than the wall it is set into")
+        if lintel > head + 0.01:
+            route([at[0], (head + lintel) / 2.0, at[2]],
+                  [size[0], lintel - head, size[2]], material)
+            if travel is None:
+                travel = [0.0, -(size[1] + 0.2), 0.0]
+
     entities.append({
         "type": "door", "name": name, "at": _r(at), "size": _r(size),
         "travel": _r(travel if travel is not None else [0.0, size[1] + 0.2, 0.0]),
