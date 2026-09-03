@@ -1681,6 +1681,54 @@ final class Renderer implements RenderServices {
   /// wrap the opposite edge of the screen into the glow.
   static const SamplerOptions _clampSampler = SamplerOptions.linearClamp;
 
+  /// Material samplers with `RenderSettings.anisotropy` applied, one per
+  /// distinct sampler the materials carry.
+  ///
+  /// A cache for the same reason the Impeller translation has one: a bind
+  /// happens several times per draw and hundreds of times per frame, and
+  /// `withAnisotropy` allocates. Bounded by the handful of samplers the
+  /// engine's loaders ever build; an entry is replaced rather than joined
+  /// when the setting changes, so a slider dragged across the range costs
+  /// one allocation per stop rather than a map that grows with it.
+  final Map<SamplerOptions, SamplerOptions> _anisotropicSamplers =
+      <SamplerOptions, SamplerOptions>{};
+
+  /// The device's ceiling on taps, asked for once.
+  ///
+  /// A property of the device, not of the frame: on Impeller the question is
+  /// a call across the FFI boundary, and a bind path that asked it up to
+  /// five times per draw would spend more on the question than on the map
+  /// lookup the answer feeds. Lazy, so a renderer that never draws a
+  /// textured mesh never asks.
+  late final int _maxAnisotropy = device.maxAnisotropy;
+
+  /// `RenderSettings.anisotropy` as this device can honour it — the level
+  /// every material sampler of the frame is raised to, decided once per
+  /// mesh rather than once per bind.
+  int _anisotropyLevel(int requested) => math.min(requested, _maxAnisotropy);
+
+  /// [sampler] raised to [level] taps — or [sampler] itself, which is the
+  /// common case and allocates nothing.
+  ///
+  /// Left alone: a null sampler (the backends' linear-and-repeat default,
+  /// which blends no levels), one that is not trilinear, one that already
+  /// asks for taps of its own — the bridge's, sized to the device at load —
+  /// and every sampler when [level] is one. [level] arrives already clamped
+  /// to the device by [_anisotropyLevel], so what remains on the bind path
+  /// is a handful of field comparisons and one map lookup.
+  SamplerOptions? _anisotropic(SamplerOptions? sampler, int level) {
+    if (sampler == null || level <= 1) return sampler;
+    if (sampler.anisotropy != 1 ||
+        sampler.minFilter != MinMagFilter.linear ||
+        sampler.magFilter != MinMagFilter.linear ||
+        sampler.mipFilter != MipFilter.linear) {
+      return sampler;
+    }
+    final cached = _anisotropicSamplers[sampler];
+    if (cached != null && cached.anisotropy == level) return cached;
+    return _anisotropicSamplers[sampler] = sampler.withAnisotropy(level);
+  }
+
   /// Draws every visible mesh of [scene], as the world is drawn.
   ///
   /// The loop the view model pass used to own, lifted onto the plugin

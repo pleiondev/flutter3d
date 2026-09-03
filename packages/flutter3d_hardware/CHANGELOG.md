@@ -1,3 +1,18 @@
+## 0.4.2
+
+* **`SamplerOptions.anisotropy` and `GraphicsDevice.maxAnisotropy`.** A
+  floor seen along its length covers a footprint a few texels tall and many
+  wide, and a trilinear sampler picks one level for the whole of it — the
+  level that stops the long axis aliasing blurs the short one. The field is
+  a count of taps along that long axis, one by default so every picture is
+  the bytes it was, checked at construction to sit on a trilinear sampler
+  because that is flutter_gpu's rule and the taps are taken across the
+  chain, and clamped by every backend to what the device answers, so
+  sixteen is a safe thing to ask for. The device getter is there to decide
+  with rather than to guard: the bridge asks it once per level. `FakeBackend`
+  answers sixteen and can be told otherwise. `withAnisotropy` copies a
+  sampler with the one field a caller decides at run time.
+
 ## 0.4.1
 
 * **`GraphicsDevice.supportsTextureFormat`.** The question a block-compressed

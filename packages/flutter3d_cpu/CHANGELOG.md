@@ -1,3 +1,13 @@
+## 0.4.2
+
+* **`maxAnisotropy` is one, and means it.** This rasteriser picks one level
+  per triangle and takes one tap, so a sampler asking for eight is honoured
+  on the hardware backends and ignored here — and the device says so rather
+  than promising taps it does not take. `anisotropic-floor` is recorded in
+  this backend's own set without them, and the cross-backend budget for the
+  scene is the measured size of that difference, which is the one place the
+  two sets are allowed to disagree on purpose.
+
 ## 0.4.1
 
 * The lightmapped vertex stage and the lightmap term in the four lit models,

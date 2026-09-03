@@ -1,3 +1,25 @@
+## 0.4.3
+
+* **Anisotropic filtering, where the context has the extension.**
+  `EXT_texture_filter_anisotropic` is asked for at `create()` like every
+  other extension, and `maxAnisotropy` is its ceiling — one without it.
+  Every bind sets `TEXTURE_MAX_ANISOTROPY_EXT` beside the four parameters
+  it already set, clamped to that ceiling first, because in GL the value is
+  texture state rather than sampler state and a number above the ceiling is
+  `INVALID_VALUE`: an error in the queue and a bind that did not land.
+  `anisotropic-floor` gets a provisional cross-backend budget; its reference
+  is recorded at merge.
+* **Known, and not fixed here: the minification filter never names the mip
+  chain.** `minMagFilterToGl` maps `minFilter` alone, so a trilinear sampler
+  binds as `LINEAR` rather than `LINEAR_MIPMAP_LINEAR` — the levels are
+  uploaded and `TEXTURE_MAX_LEVEL` is set, and none of them is sampled.
+  The anisotropic taps above are therefore taken from the base level, not
+  across the chain as `SamplerOptions` describes, and the far half of
+  `anisotropic-floor` aliases here where Impeller's blurs and then sharpens.
+  The fix is a `TEXTURE_MIN_FILTER` derived from the pair (`minFilter`,
+  `mipFilter`) and the texture's level count; it moves every textured
+  web golden at once and is its own change.
+
 ## 0.4.2
 
 * The lightmapped vertex stage, generated with the rest from

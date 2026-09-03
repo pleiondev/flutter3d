@@ -127,7 +127,29 @@ final class WebGlDevice implements GraphicsDevice {
     return WebGlDevice._(gl, canvas, WebGlShaderLibrary(gl, sources))
       .._floatLinear = floatLinear != null
       .._msaaSamples = _provenMsaaSamples(gl)
+      .._maxAnisotropy = _queryMaxAnisotropy(gl)
       .._compressedTextureSupport = CompressedTextureSupport.query(gl);
+  }
+
+  /// What `EXT_texture_filter_anisotropic` allows here, or 1 without it.
+  ///
+  /// Asked for at create time like every other extension, because in WebGL
+  /// an extension is not on until `getExtension` has named it — and the
+  /// parameter it unlocks reads as an error until then. The extension is
+  /// universal on desktop browsers and near-universal on mobile ones, but
+  /// "near" is the word, so the answer is a query rather than a constant.
+  static int _queryMaxAnisotropy(web.WebGL2RenderingContext gl) {
+    if (gl.getExtension('EXT_texture_filter_anisotropic') == null) return 1;
+    final value = gl.getParameter(
+      web.EXT_texture_filter_anisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
+    );
+    // A float per the extension's specification, whole-valued in practice.
+    // Floored rather than rounded so a driver answering 15.99 is not asked
+    // for sixteen, which would be INVALID_VALUE on every bind.
+    final max = value != null && value.isA<JSNumber>()
+        ? (value as JSNumber).toDartDouble.floor()
+        : 1;
+    return max < 1 ? 1 : max;
   }
 
   /// The sample count the MSAA path can actually have here, proven rather
@@ -289,6 +311,16 @@ final class WebGlDevice implements GraphicsDevice {
   /// Whether this context can sample a half-float texture with linear
   /// filtering. False makes every shadow map read as zero.
   bool get supportsFloatLinearFiltering => _floatLinear;
+
+  /// What [_queryMaxAnisotropy] found at [create]. One without the extension.
+  int _maxAnisotropy = 1;
+
+  /// The extension's ceiling, and the number every bind clamps to: in GL the
+  /// parameter is texture state rather than sampler state, and a value above
+  /// this is `INVALID_VALUE` — an error in the queue, a bind that did not
+  /// land, and a picture that is merely blurrier than asked for.
+  @override
+  int get maxAnisotropy => _maxAnisotropy;
 
   @override
   ShaderLibrary get shaders => _library;

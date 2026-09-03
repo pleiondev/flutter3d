@@ -537,6 +537,20 @@ final class WebGlEncoder implements CommandEncoder {
       web.WebGLRenderingContext.TEXTURE_WRAP_T,
       addressModeToGl(options.heightAddressMode),
     );
+    // Set on every bind like the four above, and for the same reason: in GL
+    // these are properties of the texture, not of the bind, so the same image
+    // bound by a second shader with a plain sampler would otherwise keep the
+    // taps the first one asked for. Skipped entirely where the extension is
+    // absent — the enum is unknown to the context then, and setting it would
+    // be INVALID_ENUM on every draw.
+    final maxAnisotropy = _device.maxAnisotropy;
+    if (maxAnisotropy > 1) {
+      _gl.texParameterf(
+        backend.target,
+        web.EXT_texture_filter_anisotropic.TEXTURE_MAX_ANISOTROPY_EXT,
+        options.anisotropy.clamp(1, maxAnisotropy).toDouble(),
+      );
+    }
 
     _gl.uniform1i(_gl.getUniformLocation(program.program, slot), unit);
   }

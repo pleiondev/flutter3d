@@ -350,6 +350,56 @@ abstract final class GoldenExtras {
     )..lightmapped = true;
   }
 
+  /// A checkerboard with its mip chain, sampled with the taps the device
+  /// allows up to eight, for the demo's ground plane.
+  ///
+  /// Sixty-four checks across five hundred and twelve texels, so the base
+  /// level has eight texels to a check and the fourth level one — the
+  /// chain a trilinear sampler blurs the far checks into and an anisotropic
+  /// one does not have to. Sixty-four rather than thirty-two because the
+  /// plane it tiles reaches twelve radii from the cube (see
+  /// `GoldenScene.groundScale`): a third of a unit to a check puts the
+  /// middle distance at a few pixels tall and tens wide, the footprint the
+  /// filter is for. Built here rather than loaded, for the reason every
+  /// fixture in this file is: a picture that depends on a PNG depends on a
+  /// decoder, and the bytes of a checkerboard are arithmetic.
+  ///
+  /// The sampler is what the bridge hands a level's brushes — trilinear and
+  /// repeating, with `min(8, maxAnisotropy)` taps — so the scene pins the
+  /// path a corridor floor takes and not a path built for the picture.
+  static Material checkerFloor(GraphicsDevice device) {
+    const size = 512;
+    const checks = 64;
+    const texelsPerCheck = size ~/ checks;
+    final pixels = Uint8List(size * size * 4);
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        final dark = ((x ~/ texelsPerCheck) + (y ~/ texelsPerCheck)).isOdd;
+        final at = (y * size + x) * 4;
+        // Two greys with a little warmth apart, so a blurred check is a
+        // visibly different colour from either rather than a mid grey that
+        // could pass for one of them.
+        pixels[at] = dark ? 64 : 224;
+        pixels[at + 1] = dark ? 60 : 216;
+        pixels[at + 2] = dark ? 56 : 200;
+        pixels[at + 3] = 255;
+      }
+    }
+    final base = ByteData.sublistView(pixels);
+    final texture = device.createTextureFromPixels(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+      pixels: base,
+      mipLevels: MipChain.build(base, size, size),
+    )!;
+    return Material(name: 'checker floor', roughness: 0.9)
+      ..albedo = texture
+      ..albedoSampler = SamplerOptions.trilinearRepeat.withAnisotropy(
+        math.min(8, device.maxAnisotropy),
+      );
+  }
+
   /// A warm pool of light centred on the floor's half of the atlas, three
   /// units of irradiance at the middle and nothing at the rim.
   static (double, double, double) _pool(int x, int y) {

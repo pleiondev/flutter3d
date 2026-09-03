@@ -80,6 +80,11 @@ final class MyDevice implements GraphicsDevice {
 
   @override
   bool get supportsWireframe => true;
+
+  /// Taps a sampler may take along a foreshortened axis; 1 for none. A
+  /// request above this is clamped by the backend, never refused.
+  @override
+  int get maxAnisotropy => 16;
 }
 ```
 
@@ -91,6 +96,7 @@ final class MyDevice implements GraphicsDevice {
 | `supportsMipmaps` | Not a slower texture, a **black** one. On OpenGL ES 2 without `GL_APPLE_texture_max_level`, a hand-built chain samples as black |
 | `supportsWireframe` | OpenGL ES has no `glPolygonMode`. Filling the triangles instead looks exactly like the wireframe setting having no effect |
 | `preferredSampleCount` | One number instead of a boolean, because "does MSAA work" and "how much" are different questions |
+| `maxAnisotropy` | The one query whose overshoot is *clamped* rather than refused: `SamplerOptions.anisotropy` above it is lowered to it. Forward it unclamped to WebGL2 and every bind above the ceiling is `INVALID_VALUE`, silently, and the floor is merely blurrier than asked for |
 
 <div class="warn">
 <p><strong>Refuse loudly rather than substituting something similar.</strong> Every silent substitution on this list has cost somebody a day, because the failure mode is a plausible picture.</p>

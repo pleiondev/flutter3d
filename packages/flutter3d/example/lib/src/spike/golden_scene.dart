@@ -32,15 +32,24 @@ final class GoldenScene {
     this.extraPointShadows = 0,
     this.moverFrames = 0,
     this.groundDrop = 0.0,
+    this.groundScale = 3.0,
     this.sky = const SkySettings(),
     this.instances = 0,
     this.lightmapped = false,
+    this.anisotropicFloor = false,
   });
 
   /// Replaces the model with a floor and a wall lit by a hand-built lightmap
   /// and nothing else, for the lightmapped vertex stage and the lit models'
   /// lightmap term. See `GoldenExtras.lightmappedRoom`.
   final bool lightmapped;
+
+  /// Tiles the ground with a checkerboard sampled with as much anisotropy as
+  /// the device allows, up to eight, so that a low [pitch] looks along it.
+  /// See `GoldenExtras.checkerFloor`.
+  ///
+  /// Needs [ground]; the plane it retextures is the demo's own.
+  final bool anisotropicFloor;
 
   /// Draws the source as a batch of this many copies instead of one model.
   ///
@@ -95,6 +104,15 @@ final class GoldenScene {
   /// is why every shadow scene here answered the same way however the filter
   /// was set. Contact hardening cannot be judged without a gap to harden over.
   final double groundDrop;
+
+  /// How far the ground reaches from the model, in model radii each way.
+  ///
+  /// Three is the demo's: a floor wide enough for a shadow to land on and
+  /// not so wide that it is the picture. A scene about the floor wants it to
+  /// be the picture — [anisotropicFloor] stretches it to twelve, so that at a
+  /// low [pitch] the far checks run to the horizon behind the model rather
+  /// than ending a few checks past it.
+  final double groundScale;
 
   /// Frames to turn the model for before holding it still, or zero to leave it
   /// where it is.

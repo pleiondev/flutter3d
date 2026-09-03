@@ -391,6 +391,56 @@ void main() {
       const c = SamplerOptions(minFilter: MinMagFilter.nearest);
       expect(identical(a.toGpu(), c.toGpu()), isFalse);
     });
+
+    test('anisotropy is carried across as maxAnisotropy, and back', () {
+      // Mutation: leave `maxAnisotropy` out of `toGpu`. flutter_gpu's default
+      // is one, every bind is isotropic, and the only thing that says so is
+      // the far half of `anisotropic-floor` being blurrier than recorded.
+      final eight = SamplerOptions.trilinearRepeat.withAnisotropy(8);
+      final theirs = eight.toGpu();
+      expect(theirs.maxAnisotropy, 8);
+      expect(theirs.minFilter, gpu.MinMagFilter.linear);
+      expect(theirs.mipFilter, gpu.MipFilter.linear);
+      expect(theirs.toEngine(), eight);
+      expect(theirs.toEngine().anisotropy, 8);
+    });
+
+    test('the default is flutter_gpu\'s: one tap', () {
+      expect(const SamplerOptions().toGpu().maxAnisotropy, 1);
+      expect(gpu.SamplerOptions().maxAnisotropy, 1);
+    });
+
+    test('a different anisotropy is a different flutter_gpu object', () {
+      // The cache is keyed on the description, so the field has to be part
+      // of what "same description" means — otherwise eight taps and one
+      // would share an object and whichever was asked for first would win.
+      final one = SamplerOptions.trilinearRepeat;
+      final eight = one.withAnisotropy(8);
+      expect(identical(one.toGpu(), eight.toGpu()), isFalse);
+      expect(identical(eight.toGpu(), one.withAnisotropy(8).toGpu()), isTrue);
+    });
+
+    test('taps on a nearest filter come back as one', () {
+      // Mutation: pass `maxAnisotropy` through unconditionally. flutter_gpu
+      // lets these options exist — its check lives in `bindTexture` — and
+      // the engine's constructor does not, so the translation would throw
+      // an assertion out of what is meant to be a lossless read-back.
+      final theirs = gpu.SamplerOptions(
+        minFilter: gpu.MinMagFilter.nearest,
+        magFilter: gpu.MinMagFilter.linear,
+        mipFilter: gpu.MipFilter.linear,
+        maxAnisotropy: 8,
+      );
+      expect(theirs.toEngine().anisotropy, 1);
+      expect(theirs.toEngine().minFilter, MinMagFilter.nearest);
+      final bilinear = gpu.SamplerOptions(
+        minFilter: gpu.MinMagFilter.linear,
+        magFilter: gpu.MinMagFilter.linear,
+        mipFilter: gpu.MipFilter.nearest,
+        maxAnisotropy: 8,
+      );
+      expect(bilinear.toEngine().anisotropy, 1);
+    });
   });
 
   group('the colour format the context stops reporting', () {

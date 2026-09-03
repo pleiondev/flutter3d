@@ -30,6 +30,10 @@ final class FixtureVisuals {
   /// The backend everything here uploads through.
   final GraphicsDevice device;
 
+  /// The sampler a fixture's maps tile with — the level's own, sized to the
+  /// device once here rather than once per door, key and torch.
+  late final SamplerOptions _tiling = LevelLoader.tilingSamplerFor(device);
+
   /// Where this says what it could not draw — a door's model that would not
   /// load, which leaves a box where a door should be.
   final IssueSink onIssue;
@@ -104,6 +108,7 @@ final class FixtureVisuals {
         source,
         level.materialTextures,
         name: fixture.material,
+        tiling: _tiling,
       ),
       name: fixture.entity.name ?? fixture.entity.type,
     )..setPositionFrom(fixture.position);
@@ -231,6 +236,7 @@ final class FixtureVisuals {
         source,
         level.materialTextures,
         name: fixture.material,
+        tiling: _tiling,
       );
       _tint(material, fixture);
       for (final node in instance.nodes) {

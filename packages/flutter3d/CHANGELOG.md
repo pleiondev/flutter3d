@@ -1,3 +1,20 @@
+## 0.4.3
+
+* **`RenderSettings.anisotropy`.** Taps a model's texture samplers may take
+  along a foreshortened axis, applied at bind time to every material sampler
+  that is trilinear and carries no level of its own, clamped to
+  `GraphicsDevice.maxAnisotropy` on the way. One by default, so every
+  picture is the bytes it was. A setting rather than a property of the
+  asset because glTF has no way to say it: a `sampler` in the file names
+  filters and wrap modes and nothing about taps. A level's brushes do not
+  come through here — the bridge sizes their sampler to the device at load,
+  and the setting leaves a sampler that already asks for taps alone.
+  `anisotropic-floor` joins the Impeller and software golden sets, with the
+  WebGL reference recorded at merge: the demo's ground under the cube,
+  stretched to the horizon, retextured with a checkerboard and its chain
+  and seen from just above it. The setting is asserted to be one or more,
+  as `SamplerOptions.anisotropy` already was.
+
 ## 0.4.2
 
 * **Lightmaps.** `MeshNode.lightmapped` picks a vertex stage that reads the

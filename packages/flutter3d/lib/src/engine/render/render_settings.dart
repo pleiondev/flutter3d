@@ -150,9 +150,32 @@ final class RenderSettings {
     this.ambientOcclusion = const AmbientOcclusionSettings(),
     this.fog = const FogSettings(),
     this.sky = const SkySettings(),
-  });
+    this.anisotropy = 1,
+  }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more');
 
   final double specular;
+
+  /// Taps a model's texture samplers may take along a foreshortened axis.
+  ///
+  /// Applied at bind time to every material sampler that is trilinear and
+  /// asks for no anisotropy of its own; one — the default — leaves every
+  /// sampler as the asset loaded it. Clamped to `GraphicsDevice.maxAnisotropy`
+  /// on the way, so sixteen is a safe thing to ask for and a device that
+  /// filters isotropically draws the picture it always drew.
+  ///
+  /// **A setting rather than a property of the asset**, because glTF has no
+  /// way to say it: a `sampler` in the file names filters and wrap modes and
+  /// nothing about taps, so a model's textures arrive at one and this is
+  /// where a game turns them up. A level's brush materials do not come
+  /// through here — the bridge hands them `min(8, maxAnisotropy)` when it
+  /// builds them, since it knows the device and a brush floor at a grazing
+  /// angle is the surface the filter exists for.
+  ///
+  /// Bilinear samplers are left alone whatever this says: the taps are taken
+  /// across the mip chain, and a sampler that blends no levels has nothing
+  /// to spread them over. That is also flutter_gpu's rule, which refuses
+  /// anisotropy on a nearest filter.
+  final int anisotropy;
 
   /// Linear multiplier applied before tone mapping.
   ///
@@ -318,6 +341,7 @@ final class RenderSettings {
     AmbientOcclusionSettings? ambientOcclusion,
     FogSettings? fog,
     SkySettings? sky,
+    int? anisotropy,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -337,6 +361,7 @@ final class RenderSettings {
     ambientOcclusion: ambientOcclusion ?? this.ambientOcclusion,
     fog: fog ?? this.fog,
     sky: sky ?? this.sky,
+    anisotropy: anisotropy ?? this.anisotropy,
   );
 }
 

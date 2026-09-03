@@ -199,6 +199,13 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool supportsTextureFormat(TextureFormat format) =>
       gpu.gpuContext.supportsTextureFormat(format.toGpu());
 
+  /// flutter_gpu's own answer: sixteen on every Metal and Vulkan device this
+  /// has run on, and one where the driver has no anisotropic sampler. A
+  /// sampler asking for more than this is clamped inside `bindTexture`, which
+  /// is flutter_gpu's documented behaviour and not a courtesy of this layer.
+  @override
+  int get maxAnisotropy => gpu.gpuContext.maxSamplerAnisotropy;
+
   /// Probed once, because flutter_gpu reports no capability for it.
   ///
   /// Every other `supports` here answers from `gpuContext`; there is no

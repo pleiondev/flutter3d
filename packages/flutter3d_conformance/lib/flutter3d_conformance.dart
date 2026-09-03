@@ -36,6 +36,7 @@ import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
 import 'src/pass_coverage_checks.dart';
 import 'src/pipeline_checks.dart';
+import 'src/sampling_checks.dart';
 import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
 
@@ -163,6 +164,12 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'setDepthWrite(false) stops depth writes',
     run: checkDepthWriteIsHonoured,
+  ),
+  // The clamp the HAL promises for `SamplerOptions.anisotropy`: a request
+  // above `maxAnisotropy` is lowered, never refused, on every backend.
+  (
+    name: 'a sampler asking for more anisotropy than there is is accepted',
+    run: checkAnisotropicSamplerAccepted,
   ),
 ];
 

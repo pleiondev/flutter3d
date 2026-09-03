@@ -771,8 +771,19 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   necessary.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
   `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
-  `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`. A backend
-  refuses loudly rather than substituting something that looks similar.
+  `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
+  `maxAnisotropy`. A backend refuses loudly rather than substituting something
+  that looks similar.
+- **`SamplerOptions.anisotropy` above the device's `maxAnisotropy` is clamped,
+  never refused.** The one exception to the rule above, and a deliberate one:
+  the field is documented as "ask for sixteen anywhere", so a backend lowers
+  the number to what it has — flutter_gpu inside its own bind, WebGL2 before
+  `texParameterf` because the value is texture state and a number above the
+  extension's ceiling is `INVALID_VALUE`, the software rasteriser by answering
+  one and taking one tap. Above one it sits on a trilinear sampler only, which
+  the constructor asserts; the taps are taken across the chain and flutter_gpu
+  refuses them on a nearest filter. The conformance check binds sixteen and
+  reads a texel back.
 
 **Outside the promise**, because nothing beyond the package should depend on it:
 everything in `flutter3d`'s `src/` past what `flutter3d.dart` exports;
@@ -1405,11 +1416,11 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3201 tests** across 24 packages and 5 applications |
+| Unit tests | **3225 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 34 scenes against **three independent reference sets** —
+**Golden render tests.** 35 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1463,7 +1474,7 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-four of them between 0.01% and 0.6%, measured rather than
+scene, all thirty-five of them between 0.01% and 0.6%, measured rather than
 rounded — a budget far above what was observed has stopped watching.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
@@ -1578,7 +1589,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-four golden scenes the way Impeller does**,
+**The web backend now draws all thirty-five golden scenes the way Impeller does**,
 between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Six scenes were
 in whole percents and every one of them was this backend drawing something else;

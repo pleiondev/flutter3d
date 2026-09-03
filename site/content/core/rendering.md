@@ -156,6 +156,26 @@ The baker gathers rather than solving form factors. Every texel sends cosine-wei
 <p>Seeded by the texel's index, so two bakes of the same level are the same bytes and CI can bake and compare. The crypt bakes in about twelve seconds at four texels a metre. A ramp's triangles point at a reserved texel holding the level's average bounce; a spot light bakes as a point, since the level format carries no cone; a textured material reflects a mid grey, since the bake reads no texture. The loader refuses a map whose hash does not match the level's brushes, lights and materials, with a sentence in the issues.</p>
 </div>
 
+## Anisotropic filtering
+
+A floor seen along its length covers a footprint on the texture that is a few texels tall and many texels wide, and a trilinear sampler picks one mip level for the whole of it: the level that stops the long axis aliasing blurs the short one, and the checks on the far side of a room melt into grey. An anisotropic sampler takes several taps along the long axis from a sharper level instead, and the checks stay checks.
+
+{{golden anisotropic-floor | The demo's ground under the cube, retextured with a checkerboard and its mip chain and seen from just above it: eight taps on Impeller and WebGL2, one on the software rasteriser, which answers `maxAnisotropy` of one and draws its own set without them.}}
+
+`SamplerOptions.anisotropy` is the count of taps, one by default so every picture is the bytes it was, and it sits on a trilinear sampler only — the taps are taken across the chain, and flutter_gpu refuses them on a nearest filter, so the constructor asserts it where the sampler is built. A request above `GraphicsDevice.maxAnisotropy` is clamped by every backend rather than refused, which is what makes sixteen a safe thing to ask for.
+
+```dart
+// A level's brushes: decided once, from the device, by the bridge.
+material.albedoSampler = LevelLoader.tilingSamplerFor(device); // min(8, maxAnisotropy)
+
+// A model's textures: glTF has no way to ask, so a setting turns them up.
+RenderSettings(anisotropy: 8) // applied to every trilinear material sampler at bind time
+```
+
+<div class="note">
+<p>Two paths on purpose. A brush floor at a grazing angle is the surface the filter exists for, so the bridge hands a level's materials <code>min(8, maxAnisotropy)</code> when it builds them, eight being where a corridor stops visibly improving. A glTF <code>sampler</code> names filters and wrap modes and nothing about taps, so a model's textures arrive at one and <code>RenderSettings.anisotropy</code> is where a game raises them; it leaves a sampler that already carries a level alone, so turning the setting down for a slower phone does not turn a level's floors off.</p>
+</div>
+
 ## HDR, exposure and tone mapping
 
 The scene renders into `r16g16b16a16Float`. Tone mapping (Khronos PBR Neutral), exposure and the sRGB encode all happen in the composite pass.
