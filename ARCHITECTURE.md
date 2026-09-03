@@ -714,7 +714,9 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   the bytes; the library's `refresh` reparses new bytes in place and **keeps the
   identity of every handle already handed out**, which is the promise the
   renderer's held vertex stages rest on, and which the conformance suite checks
-  by `identical`.
+  by `identical`. A loaded library lives as long as the device — there is no
+  release, and `loadShaders` says why — so an application whose shaders change
+  loads one bundle and refreshes it.
 - **The sixteen enums in `formats.dart`**, plus `SamplerOptions`,
   `RenderTargetSpec`, `TextureAllocator` and `RenderTargetPool`. Their value names
   are load-bearing beyond the package: the Impeller translation asserts each maps
@@ -1427,7 +1429,7 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3204 tests** across 24 packages and 5 applications |
+| Unit tests | **3206 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

@@ -174,6 +174,14 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// Flutter version, and a stage compiled for another one does not fail to
   /// parse so much as draw something else.
   ///
+  /// **A loaded library lives as long as the device.** There is no call to
+  /// release one — a backend keeps what it compiled until `dispose`, and
+  /// the handles it handed out are held by whatever resolved them, so a
+  /// release would have to know who. An application whose shaders change
+  /// over its run loads one bundle and `refresh`es it in place, which is what
+  /// the identity promise is for; loading a fresh bundle per level keeps
+  /// every level's stages for the device's lifetime.
+  ///
   /// Asynchronous because flutter_gpu's own loader is; on every backend here
   /// the future completes in the same turn.
   Future<LoadedShaderLibrary> loadShaders(ByteData bytes);

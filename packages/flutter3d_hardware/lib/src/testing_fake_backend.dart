@@ -251,15 +251,22 @@ final class FakeBackend implements GraphicsDevice {
     return createTexture(spec);
   }
 
+  /// Every pair linked so far, by name and in order, so a test can tell
+  /// whether a frame linked anything — a renderer that relinked drops every
+  /// pipeline it held and links each one again, and one it forgot to drop
+  /// shows up here as a link that did not happen.
+  final List<String> linkedPipelines = <String>[];
+
   @override
   PipelineHandle createPipeline(
     ShaderHandle vertex,
     ShaderHandle fragment, {
     VertexLayoutSpec? layout,
-  }) => PipelineHandle(
-    backend: '${vertex.name}+${fragment.name}',
-    name: '${vertex.name}+${fragment.name}',
-  );
+  }) {
+    final name = '${vertex.name}+${fragment.name}';
+    linkedPipelines.add(name);
+    return PipelineHandle(backend: name, name: name);
+  }
 
   /// Recorded with its usage, because a backend exists that cannot change its
   /// mind about one later.

@@ -14,7 +14,15 @@
   empty library, which would fail at the first draw naming a stage rather
   than the file to rebuild.
 * `FakeBackend.loadShaders` and `FakeLoadedShaderLibrary`, which keep the
-  same identity promise so a test of a reload path proves something.
+  same identity promise so a test of a reload path proves something;
+  `FakeBackend.linkedPipelines` records every pair linked, in order, so a
+  test can tell a frame that relinked from one that did not.
+* **A loaded library lives as long as the device**, and `loadShaders` now
+  says so: there is no release, because the handles it handed out are held
+  by whatever resolved them, so an application whose shaders change loads
+  one bundle and refreshes it in place. `LoadedShaderLibrary` also says what
+  a pipeline linked before a refresh does until it is dropped — draws the
+  code it had, on every backend — since one backend did not keep that.
 * **A refresh that drops a stage in use is refused, naming the stage.** The
   other half of the identity promise, and `LoadedShaderLibrary.refresh` now
   says so: a handle is the renderer's for its lifetime, so a bundle that no

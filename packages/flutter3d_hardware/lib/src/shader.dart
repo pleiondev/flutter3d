@@ -97,7 +97,13 @@ abstract interface class ShaderLibrary {
 ///
 /// Reloading does not rebuild pipelines. A pipeline is a pair of stages linked
 /// on the backend, and the linked object is the caller's to drop:
-/// `Renderer.relinkShaders` is the engine's half of the same gesture.
+/// `Renderer.relinkShaders` is the engine's half of the same gesture. Until
+/// it is dropped it keeps drawing the code it was linked from, on every
+/// backend — a frame between a refresh and a relink is the old picture, not
+/// a missing one.
+///
+/// There is no `dispose`: a loaded library lives as long as the device that
+/// built it, and `GraphicsDevice.loadShaders` says why.
 abstract interface class LoadedShaderLibrary implements ShaderLibrary {
   /// The bundle's own name, as its header spells it — what a refusal names.
   String get name;
