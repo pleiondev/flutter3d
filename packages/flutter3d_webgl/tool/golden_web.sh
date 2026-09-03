@@ -12,9 +12,13 @@
 # serves the build, answers the page's fetches and drives Chrome.
 #
 # **One build for the whole suite.** The scene is a query parameter rather than
-# a compile-time define, so thirty-five scenes are thirty-four navigations instead
-# of twenty-six dart2js runs. That is the only reason this is minutes rather
-# than an hour.
+# a compile-time define, so the thirty-five scenes are one dart2js run and a
+# navigation each, rather than a dart2js run each. That is the only reason this
+# is minutes rather than an hour.
+#
+# One number, on purpose. The line used to carry three; a structure rule holds
+# the count of scenes and nothing held the other two, so they were bumped by
+# hand until they disagreed with it and with each other.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

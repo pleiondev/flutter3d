@@ -8,21 +8,23 @@ description: Three independent golden sets, mutation-checking every new test, de
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 705 | | `flutter3d_particles` | 68 |
-| `flutter3d_sim` | 336 | | `pad_input` | 59 |
-| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 52 |
-| `apps/flutter3d_editor` | 194 | | `flutter3d_impeller` | 37 |
-| `flutter3d_game_racing` | 193 | | `flutter3d_bridge` | 32 |
-| `flutter3d_game_platformer` | 187 | | `flutter3d_webgl` | 31 |
+| `flutter3d` | 738 | | `flutter3d_particles` | 68 |
+| `flutter3d_sim` | 379 | | `pad_input` | 59 |
+| `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 55 |
+| `apps/flutter3d_editor` | 194 | | `flutter3d_webgl` | 44 |
+| `flutter3d_game_racing` | 193 | | `flutter3d_impeller` | 42 |
+| `flutter3d_game_platformer` | 190 | | `flutter3d_bridge` | 42 |
 | `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_session` | 29 |
-| `flutter3d_physics` | 137 | | `pointer_lock` | 28 |
-| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_hardware` | 17 |
-| `flutter3d_cpu` | 112 | | `flutter3d_testing` | 7 |
-| `flutter3d_screens` | 110 | | `apps/flutter3d_template_app` | 4 |
+| `flutter3d_physics` | 137 | | `flutter3d_hardware` | 29 |
+| `flutter3d_cpu` | 131 | | `pointer_lock` | 28 |
+| `apps/flutter3d_demo_racing` | 119 | | `flutter3d_testing` | 7 |
+| `flutter3d_screens` | 112 | | `apps/flutter3d_template_app` | 4 |
 | `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3057 rather than 3063: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3200 rather than 3206: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
+
+Every number above is held by the same rule as the headline. It was not, for a while, and the table drifted 145 tests behind the first line of its own page — which is exactly the argument this page makes about everything else, arriving at the page itself.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
