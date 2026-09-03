@@ -207,6 +207,7 @@
     },
     {"type": "lamp", "at": [0.0, 4.2, -8.0], "light": "cross_lamp", "color": [1.0, 0.78, 0.42]},
     {"type": "pickup", "at": [0.0, 0.8, -4.0], "gives": "health", "amount": 25},
+    {"type": "pickup", "at": [2.0, 0.8, -4.0], "gives": "sensor", "amount": 30},
     {
       "type": "door",
       "at": [0.0, 2.5, -14.0],

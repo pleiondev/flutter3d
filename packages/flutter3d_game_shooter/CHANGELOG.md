@@ -1,3 +1,12 @@
+## 0.4.1
+
+* **The sensor.** A power-up that shows what walks behind the walls, as
+  silhouettes, for as long as it lasts: `PowerUpGift('sensor')` in the
+  sample gifts and `Inventory.hasSensor` beside the other two, which is the
+  one power-up the renderer reads rather than the simulation. A gift rather
+  than a setting so that seeing through a wall is a thing a level hands out
+  and takes back.
+
 ## 0.4.0
 
 * The weapon holder sits at its rest position from construction rather than

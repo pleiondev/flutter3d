@@ -193,6 +193,10 @@ final GiftRegistry sampleGifts = GiftRegistry(<Gift>[
   const KeyGift(),
   const PowerUpGift('invulnerability', defaultAmount: 20.0),
   const PowerUpGift('berserk', defaultAmount: 30.0),
+  // Shows what walks behind the walls, as silhouettes, for as long as it
+  // lasts. A gift rather than a setting so that seeing through a wall is a
+  // thing the level hands out and takes back — see `Inventory.hasSensor`.
+  const PowerUpGift('sensor', defaultAmount: 30.0),
 ]);
 
 /// What this game's own entity types are called in a document.

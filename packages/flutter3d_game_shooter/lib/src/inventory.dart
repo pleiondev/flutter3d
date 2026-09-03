@@ -53,6 +53,14 @@ final class Inventory with KeyHolder {
   bool get isInvulnerable => has('invulnerability');
   bool get isBerserk => has('berserk');
 
+  /// Whether the walls show what is behind them.
+  ///
+  /// The one power-up the renderer reads rather than the simulation: a game
+  /// that carries it turns `RenderSettings.xray` on for the actors' layer,
+  /// and the monsters behind the walls are drawn as silhouettes. Named here
+  /// beside the other two so the string lives in one place.
+  bool get hasSensor => has('sensor');
+
   /// Starts or refreshes a power-up. Never stacks — see [PowerUpGift].
   void empower(String power, double seconds) {
     if (seconds <= 0.0) return;
