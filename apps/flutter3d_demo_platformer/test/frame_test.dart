@@ -690,31 +690,54 @@ void main() {
     });
   });
 
-  test('the level a finished level names is one that loads and draws', () async {
+  test('every level the chain names loads and draws', () async {
     // The end of E5, asserted where it can actually go wrong. `sim.nextLevel`
     // is a string in a document; the failure it invites is a typo, or a level
     // that loads and shows nothing because its own lights never spawned. Both
     // of those look identical from the simulation's side — the state is
     // `finished` and the name is a name.
     //
-    // Mutation: point `next` at a level that does not exist, or at one with no
-    // lights. The first throws here; the second draws a flat frame.
-    final first = await _Shown.build(level: 'assets/levels/first_steps.json');
-    final next = first.level.next;
-    expect(next, isNotNull, reason: 'the teaching level leads nowhere');
+    // **The chain rather than one hop.** This was written when there were two
+    // levels and it checked the second; there are five now, and a level that
+    // nothing ever opens is a level whose first frame nobody has ever seen —
+    // which is a class of bug the other four cannot report, because each of
+    // them only says whether the *simulation* is right.
+    //
+    // Mutation: point any `next` at a level that does not exist, or at one with
+    // no lights. The first throws here; the second draws a flat frame.
+    final walked = <String>[];
+    String? asset = 'assets/levels/first_steps.json';
+    while (asset != null) {
+      expect(
+        walked,
+        isNot(contains(asset)),
+        reason: 'the chain comes back to $asset, so the game never ends',
+      );
+      walked.add(asset);
 
-    final second = await _Shown.build(level: next!);
-    final at = second.runner.position;
-    second.look(from: at + Vector3(0.0, 3.0, -8.0), at: at);
+      final shown = await _Shown.build(level: asset);
+      final at = shown.runner.position;
+      shown.look(from: at + Vector3(0.0, 3.0, -8.0), at: at);
 
-    final grid = parityGrid(await second.draw(), _width, _height);
-    final low = grid.reduce((int a, int b) => a < b ? a : b);
-    final high = grid.reduce((int a, int b) => a > b ? a : b);
-    expect(
-      high - low,
-      greaterThan(20),
-      reason: 'the first frame of the next level is fog',
-    );
+      final grid = parityGrid(await shown.draw(), _width, _height);
+      final low = grid.reduce((int a, int b) => a < b ? a : b);
+      final high = grid.reduce((int a, int b) => a > b ? a : b);
+      expect(
+        high - low,
+        greaterThan(20),
+        reason: 'the first frame of $asset is fog',
+      );
+
+      asset = shown.level.next;
+    }
+
+    expect(walked, <String>[
+      'assets/levels/first_steps.json',
+      'assets/levels/ascent.json',
+      'assets/levels/cisterns.json',
+      'assets/levels/foundry.json',
+      'assets/levels/spire.json',
+    ], reason: 'the game is not the five levels it ships');
   });
 
   test('the level is drawn at all', () async {

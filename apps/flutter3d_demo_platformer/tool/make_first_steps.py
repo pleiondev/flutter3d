@@ -20,7 +20,8 @@ sized against what the runner measurably does — 1.8 m of jump, 3.13 m with
 both, 7.5 m of gap, 18 m/s of dash — so a gap that is meant to need a dash is
 one a double jump genuinely cannot cross.
 
-The vocabulary lives in `levelkit.py`, shared with `make_level.py`.
+The vocabulary lives in `levelkit.py`, shared with the four generators that
+write the levels this one leads into.
 """
 
 from levelkit import *  # noqa: F403

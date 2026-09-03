@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""The pieces both of this game's levels are built out of.
+"""The pieces this game's levels are built out of.
 
-Two documents now — `make_first_steps.py` and `make_level.py` — and the moment
-there were two, every helper in the second was something the first wanted. What
-lives here is the vocabulary: a brush, a coin, a crate, a mover, a route guard
-and the writer. What lives in each script is the *arrangement*, which is the
-part worth reading.
+Five documents now — `make_first_steps.py`, `make_level.py` and the three that
+came after it — and the moment there were two, every helper in the second was
+something the first wanted. What lives here is the vocabulary: a brush, a coin,
+a crate, a mover, a key and its gate, a route guard and the writer. What lives
+in each script is the *arrangement*, which is the part worth reading.
 
 Nothing here holds state between levels: `start()` resets the lists, and each
 script calls it before it builds anything.
@@ -134,10 +134,18 @@ def spring(name, at, speed=15.0, size=2.6):
     })
 
 
-def checkpoint(name, z, order, respawn=None):
+def checkpoint(name, z, order, respawn=None, y=0.0, x=0.0):
+    """A post across the way, and where a death after it puts you back.
+
+    `y` is the floor the post stands on. The first three levels kept every
+    checkpoint at ground level and the parameter did not exist; a level that
+    climbs puts posts on terraces, and a respawn at `y = 0` under a terrace six
+    metres thick is a runner reborn inside the rock.
+    """
     entities.append({
-        "type": "checkpoint", "name": name, "at": _r([0.0, 1.0, z]),
-        "order": order, "respawn": _r([0.0, 0.0, respawn if respawn is not None else z]),
+        "type": "checkpoint", "name": name, "at": _r([x, y + 1.0, z]),
+        "order": order,
+        "respawn": _r([x, y, respawn if respawn is not None else z]),
         "size": [24.0, 3.0, 1.0],
     })
 
@@ -203,13 +211,31 @@ def climbable(name, at, size=(1.2, 8.0, 1.2), swing=0.0, period=2.4, phase=0.0):
     entities.append(row)
 
 
-def enemy(name, at, route, kind="patrol", speed=0.55, size=(0.7, 0.7, 0.7)):
-    """Something that walks a route and hurts on contact."""
-    entities.append({
+def enemy(name, at, route=(), kind="patrol", speed=0.55, size=(0.7, 0.7, 0.7),
+          sight=None, patience=None):
+    """Something that walks and hurts on contact.
+
+    A `patrol` and a `leaper` walk the route: their own position, then the
+    points listed. A `hunter` holds no route — it asks the level's navigation
+    for the way to the player — so the key is omitted for one rather than
+    written empty, which is a list a reader would go looking for a meaning in.
+
+    `sight` and `patience` are the hunter's, in metres and seconds: how far it
+    notices you and how long it keeps coming once it cannot see you. Both left
+    out means the defaults in `EnemyKind`, which are fourteen metres and three
+    seconds — a long chase, and a level that wants a brief one has to say so.
+    """
+    row = {
         "type": "enemy", "name": name, "at": _r(at), "size": _r(size),
         "kind": kind, "speed": speed, "material": "brass",
-        "route": [_r(point) for point in route],
-    })
+    }
+    if route:
+        row["route"] = [_r(point) for point in route]
+    if sight is not None:
+        row["sight"] = sight
+    if patience is not None:
+        row["patience"] = patience
+    entities.append(row)
 
 
 def lamp(name, at, size=(0.4, 1.6, 0.4)):
@@ -231,6 +257,39 @@ def plate(name, target, at, size=(4.0, 2.0, 4.0)):
         "type": "trigger", "name": name, "at": _r(at), "size": _r(size),
         "target": target, "once": False,
     })
+
+
+def spawn(at):
+    entities.append({"type": "player_spawn", "at": _r(at)})
+
+
+def key(name, at, color):
+    """A key on the floor. `color` is the word a gate names to ask for it."""
+    entities.append({
+        "type": "key", "name": name, "at": _r(at), "color": color,
+        "material": "brass", "model": "assets/models/key.glb",
+    })
+
+
+def gate(name, at, color, size=(4.0, 5.0, 2.0)):
+    """A door that needs a key. It lifts clear of its own height when opened."""
+    entities.append({
+        "type": "door", "name": name, "at": _r(at), "size": _r(size),
+        "travel": [0.0, size[1] + 0.2, 0.0], "speed": 6.0, "wait": 0.0,
+        "key": color, "material": "brass",
+    })
+
+
+def exit_at(name, at, text, size=(5.0, 3.0, 5.0)):
+    entities.append({
+        "type": "exit", "name": name, "at": _r(at), "size": _r(size),
+        "text": text,
+    })
+
+
+def point_light(at, color, intensity=26.0, range=44.0):
+    return {"at": _r(at), "color": list(color), "intensity": intensity,
+            "range": range}
 
 
 def pillar(x, z, height, width=2.4, material="stone", top_coin=True):

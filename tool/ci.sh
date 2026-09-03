@@ -106,7 +106,7 @@ step "models" bash -c 'python3 tool/make_models.py >/dev/null && python3 tool/ma
 step "levels" bash -c '
   set -e
   (cd apps/flutter3d_demo_dungeon && python3 tool/make_crypt.py >/dev/null && python3 tool/make_vaults.py >/dev/null && python3 tool/make_deep.py >/dev/null)
-  (cd apps/flutter3d_demo_platformer && python3 tool/make_level.py >/dev/null && python3 tool/make_first_steps.py >/dev/null)
+  (cd apps/flutter3d_demo_platformer && python3 tool/make_level.py >/dev/null && python3 tool/make_first_steps.py >/dev/null && python3 tool/make_cisterns.py >/dev/null && python3 tool/make_foundry.py >/dev/null && python3 tool/make_spire.py >/dev/null)
   (cd apps/flutter3d_demo_racing && python3 tool/make_track.py >/dev/null)
   git diff --exit-code -- "apps/flutter3d_demo_dungeon/assets/levels" "apps/flutter3d_demo_platformer/assets/levels" "apps/flutter3d_demo_racing/assets"
 '

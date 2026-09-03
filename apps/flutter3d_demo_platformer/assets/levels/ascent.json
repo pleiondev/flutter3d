@@ -3114,5 +3114,6 @@
       "what": "coin",
       "model": "assets/models/coin.glb"
     }
-  ]
+  ],
+  "next": "assets/levels/cisterns.json"
 }
