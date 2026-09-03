@@ -39,6 +39,16 @@
   region's y from the wrong edge.
 * The link checks pair `ObjectId` with the three vertex stages the picking
   pass draws through and `Luminance` with the full-screen one.
+* **`a stencil test keeps what it should`.** A mark written where a mesh is,
+  through `BlendState.keepDestination` so the picture is left alone, then
+  `equal` landing only on the mark and `notEqual` only off it — three pixels
+  read back, and each of the three ways to be wrong named in its failure. A
+  backend whose `supportsStencil` is false is asked nothing, as with a
+  compressed format it does not sample. The capability check reads
+  `supportsStencil` with the rest.
+* The link checks pair `Xray` with all three mesh vertex stages. It declares
+  one output where every other lighting entry point declares two, which is the
+  pairing least like the rest of the table.
 
 ## 0.4.1
 

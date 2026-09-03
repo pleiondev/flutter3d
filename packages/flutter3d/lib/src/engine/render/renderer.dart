@@ -43,6 +43,7 @@ export 'render_settings.dart';
 part 'renderer_shadow_pass.dart';
 part 'renderer_scene_pass.dart';
 part 'renderer_mesh_encode.dart';
+part 'renderer_xray_pass.dart';
 part 'renderer_post_pass.dart';
 part 'renderer_sky_pass.dart';
 part 'renderer_resources.dart';
@@ -624,6 +625,36 @@ final class Renderer implements RenderServices {
 
   // `hdrFormat` is declared in `renderer_resources.dart`, alongside the
   // caches that key off it.
+
+  /// The two materials every marked node is drawn again with, and the nodes
+  /// this view marks. See `renderer_xray_pass.dart`.
+  ///
+  /// Held rather than built per frame for the reason the uniform scratch
+  /// arrays are: a material per node per frame is an allocation in the draw
+  /// loop. The colour is written into `baseColor` from the settings each
+  /// frame, and `doubleSided` from the node each draw.
+  ///
+  /// **[LightingModel.xray] rather than [LightingModel.unlit], and the
+  /// difference is the surface buffer.** Unlit writes attachment one like
+  /// every other model — a silhouette would then have stamped a hidden
+  /// monster's normal and depth over the wall in front of it, since the
+  /// paint's depth test passes exactly where the monster is behind something.
+  /// Nothing in the blend state could take that back: it protects attachment
+  /// zero, and only on the backends whose `setBlend` honours an attachment
+  /// index. `xray.frag` declares no second output at all.
+  final Material _xrayMark = Material(
+    name: 'x-ray mark',
+    lighting: LightingModel.xray,
+    depthWrite: false,
+    depthCompare: CompareFunction.lessEqual,
+  );
+  final Material _xraySilhouette = Material(
+    name: 'x-ray silhouette',
+    lighting: LightingModel.xray,
+    depthWrite: false,
+    depthCompare: CompareFunction.greater,
+  );
+  final List<MeshNode> _xrayNodes = <MeshNode>[];
 
   PipelineHandle? _shadowPipeline;
   PipelineHandle? _skinnedShadowPipeline;
@@ -1796,6 +1827,26 @@ final class Renderer implements RenderServices {
     depthWrite: false,
     depthCompare: CompareFunction.always,
   );
+
+  /// The marking draw of the x-ray stage: every fragment passes, and each
+  /// one stores the reference. Paired with a depth test of `lessEqual` and
+  /// no depth writes, so what is stored is one wherever a marked node is the
+  /// nearest thing in the frame — its visible part, and nothing else.
+  static const StencilState _kXrayMarkStencil = StencilState(
+    passOp: StencilOperation.setToReferenceValue,
+  );
+
+  /// The silhouette draw: only where nothing marked is visible. Paired with
+  /// a depth test of `greater`, so a fragment lands only where the node is
+  /// behind what the scene drew *and* no marked node's visible part is in
+  /// front of it.
+  static const StencilState _kXraySilhouetteStencil = StencilState(
+    compare: CompareFunction.notEqual,
+  );
+
+  /// The one reference the stage uses. A byte, so up to two hundred and
+  /// fifty-five layers could be told apart; one is what a silhouette needs.
+  static const int _kXrayReference = 1;
 
   /// What each view re-establishes at the top of the scene pass.
   ///

@@ -40,6 +40,7 @@ import 'src/pipeline_checks.dart';
 import 'src/sampling_checks.dart';
 import 'src/semantics_checks.dart';
 import 'src/shader_link_checks.dart';
+import 'src/stencil_checks.dart';
 
 export 'src/loaded_bundle_checks.dart'
     show OwnShaderSection, loadedBundleChecks;
@@ -191,6 +192,12 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'a sampler asking for more anisotropy than there is is accepted',
     run: checkAnisotropicSamplerAccepted,
+  ),
+  // The stencil in the shape the x-ray stage uses it: a mark that leaves the
+  // picture alone, then `equal` and `notEqual` reading it back.
+  (
+    name: 'a stencil test keeps what it should',
+    run: checkStencilKeepsWhatItShould,
   ),
 ];
 

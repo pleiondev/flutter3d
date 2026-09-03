@@ -63,8 +63,16 @@ final class PassState {
     this.blendAttachment = 0,
     this.depthWrite,
     this.depthCompare,
+    this.stencil,
+    this.stencilBack,
+    this.stencilReference,
   }) : blend = identical(blend, _unsetBlend) ? null : blend as BlendState?,
-       setsBlend = !identical(blend, _unsetBlend);
+       setsBlend = !identical(blend, _unsetBlend),
+       assert(
+         stencilBack == null || stencil != null,
+         'a back-face stencil state without a front one has no call to ride '
+         'on: setStencil takes the front and, optionally, the back',
+       );
 
   final ScreenRect? viewport;
   final ScreenRect? scissor;
@@ -84,6 +92,19 @@ final class PassState {
   final bool? depthWrite;
   final CompareFunction? depthCompare;
 
+  /// The stencil test for front faces — and for back faces too, unless
+  /// [stencilBack] says otherwise. Unset emits nothing, like every field here:
+  /// a pass that never mentions the stencil keeps whatever it started with,
+  /// which the contract says is [StencilState.disabled].
+  final StencilState? stencil;
+
+  /// A different test for back faces. Only meaningful beside [stencil]; the
+  /// constructor asserts as much.
+  final StencilState? stencilBack;
+
+  /// The reference value the stencil test compares against.
+  final int? stencilReference;
+
   /// This state with some fields replaced.
   ///
   /// Cannot clear a field: passing null means "leave it as it was", which is
@@ -100,6 +121,9 @@ final class PassState {
     int? blendAttachment,
     bool? depthWrite,
     CompareFunction? depthCompare,
+    StencilState? stencil,
+    StencilState? stencilBack,
+    int? stencilReference,
   }) => PassState(
     viewport: viewport ?? this.viewport,
     scissor: scissor ?? this.scissor,
@@ -113,6 +137,9 @@ final class PassState {
     blendAttachment: blendAttachment ?? this.blendAttachment,
     depthWrite: depthWrite ?? this.depthWrite,
     depthCompare: depthCompare ?? this.depthCompare,
+    stencil: stencil ?? this.stencil,
+    stencilBack: stencilBack ?? this.stencilBack,
+    stencilReference: stencilReference ?? this.stencilReference,
   );
 
   @override
@@ -128,7 +155,10 @@ final class PassState {
       other.setsBlend == setsBlend &&
       other.blendAttachment == blendAttachment &&
       other.depthWrite == depthWrite &&
-      other.depthCompare == depthCompare;
+      other.depthCompare == depthCompare &&
+      other.stencil == stencil &&
+      other.stencilBack == stencilBack &&
+      other.stencilReference == stencilReference;
 
   @override
   int get hashCode => Object.hash(
@@ -143,6 +173,9 @@ final class PassState {
     blendAttachment,
     depthWrite,
     depthCompare,
+    stencil,
+    stencilBack,
+    stencilReference,
   );
 
   @override
@@ -157,6 +190,9 @@ final class PassState {
       if (setsBlend) 'blend: ${blend == null ? 'off' : 'on'}',
       if (depthWrite != null) 'depthWrite: $depthWrite',
       if (depthCompare != null) 'depthCompare: ${depthCompare!.name}',
+      if (stencil != null) 'stencil: ${stencil!.compare.name}',
+      if (stencilBack != null) 'stencilBack: ${stencilBack!.compare.name}',
+      if (stencilReference != null) 'stencilReference: $stencilReference',
     ];
     return 'PassState(${parts.join(', ')})';
   }
@@ -177,9 +213,9 @@ extension PassStateApply on PassEncoder {
   /// calls whose relative order does not matter; on the other two they are
   /// fields of a descriptor read at draw time.
   ///
-  /// Geometry first, then topology, then blending, then depth — which reads in
-  /// the order a reader asks the questions: where, what shape, how combined,
-  /// how occluded.
+  /// Geometry first, then topology, then blending, then depth, then the
+  /// stencil — which reads in the order a reader asks the questions: where,
+  /// what shape, how combined, how occluded, and what the mask says.
   void setState(PassState state) {
     if (state.viewport != null) setViewport(state.viewport!);
     if (state.scissor != null) setScissor(state.scissor!);
@@ -192,5 +228,11 @@ extension PassStateApply on PassEncoder {
     }
     if (state.depthWrite != null) setDepthWrite(state.depthWrite!);
     if (state.depthCompare != null) setDepthCompare(state.depthCompare!);
+    if (state.stencil != null) {
+      setStencil(state.stencil!, back: state.stencilBack);
+    }
+    if (state.stencilReference != null) {
+      setStencilReference(state.stencilReference!);
+    }
   }
 }

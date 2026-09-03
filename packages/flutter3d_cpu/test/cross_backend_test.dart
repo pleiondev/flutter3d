@@ -93,6 +93,14 @@ const Map<String, double> _budgets = <String, double>{
   // the filter being lost on Impeller, a wider one is a change in something
   // other than the filter.
   'anisotropic-floor': 4.0,
+  // 0.614% measured. Three boxes on a floor, each with a shadow, and a
+  // silhouette whose edge is the far cube's against the wall: more edge than
+  // the one-cube scenes, and edges are what the two backends disagree on.
+  // The silhouette's interior agrees exactly, as a flat colour has to.
+  // Re-measured when the near cube was raised to overlap the far one on
+  // screen, which is what the scene is recorded for: 0.641% before, 0.614%
+  // after, so the notch costs these two backends nothing to agree on.
+  'stencil-xray': 0.63,
   // 1.417% measured once model textures started carrying a mip chain. The rise
   // is the one difference this backend cannot close: it picks a level from a
   // per-triangle gradient, where hardware differences a quad of neighbouring

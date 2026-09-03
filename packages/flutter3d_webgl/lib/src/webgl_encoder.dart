@@ -73,6 +73,25 @@ final class WebGlEncoder implements CommandEncoder {
       _gl.depthMask(true);
       _gl.clearDepth(depth.clearValue);
       _gl.clear(web.WebGLRenderingContext.DEPTH_BUFFER_BIT);
+
+      // The stencil starts every pass switched off, whatever the last pass
+      // left — the contract says so, and here the setters are context state
+      // that would otherwise carry straight over. The mask goes back to every
+      // bit *before* the clear, for the same reason `depthMask(true)` is
+      // above it: a clear lands only through the write mask.
+      if (depth.texture.format.hasStencil) {
+        _gl.stencilMask(0xFF);
+        _gl.stencilFunc(web.WebGLRenderingContext.ALWAYS, 0, 0xFF);
+        _gl.stencilOp(
+          web.WebGLRenderingContext.KEEP,
+          web.WebGLRenderingContext.KEEP,
+          web.WebGLRenderingContext.KEEP,
+        );
+        if (depth.stencilLoadAction == LoadAction.clear) {
+          _gl.clearStencil(depth.stencilClearValue);
+          _gl.clear(web.WebGLRenderingContext.STENCIL_BUFFER_BIT);
+        }
+      }
     }
 
     // Checked, not assumed. An incomplete framebuffer is not an error in
@@ -147,6 +166,66 @@ final class WebGlEncoder implements CommandEncoder {
     } else {
       _gl.disable(web.WebGLRenderingContext.DEPTH_TEST);
     }
+    // The stencil test the same way: on whenever the attachment carries one,
+    // in the disabled configuration set above, and off when nothing does.
+    // Enabled-but-inert rather than switched on at the first `setStencil`,
+    // so that switching it back off is one state rather than two.
+    if (depth != null && depth.texture.format.hasStencil) {
+      _gl.enable(web.WebGLRenderingContext.STENCIL_TEST);
+    } else {
+      _gl.disable(web.WebGLRenderingContext.STENCIL_TEST);
+    }
+  }
+
+  StencilState _stencilFront = StencilState.disabled;
+  StencilState _stencilBack = StencilState.disabled;
+  int _stencilReference = 0;
+
+  @override
+  void setStencil(StencilState front, {StencilState? back}) {
+    _stencilFront = front;
+    _stencilBack = back ?? front;
+    _applyStencil();
+  }
+
+  /// Re-issues the whole configuration, because GL keeps the reference on
+  /// the same call as the compare — `stencilFunc(func, ref, mask)` — where
+  /// the contract keeps them apart. Either setter therefore repeats the
+  /// other's half; three calls per face, a handful of times a frame.
+  ///
+  /// Narrowed before it reaches GL, which would otherwise *clamp* it to the
+  /// attachment's range and make this the one backend where a reference of
+  /// 0x101 means 255 rather than 1.
+  @override
+  void setStencilReference(int value) {
+    _stencilReference = StencilState.narrowReference(value);
+    _applyStencil();
+  }
+
+  void _applyStencil() {
+    if (_stencilFront == _stencilBack) {
+      _applyStencilFace(StencilFace.both, _stencilFront);
+      return;
+    }
+    _applyStencilFace(StencilFace.front, _stencilFront);
+    _applyStencilFace(StencilFace.back, _stencilBack);
+  }
+
+  void _applyStencilFace(StencilFace face, StencilState state) {
+    final target = stencilFaceToGl(face);
+    _gl.stencilFuncSeparate(
+      target,
+      compareFunctionToGl(state.compare),
+      _stencilReference,
+      state.readMask,
+    );
+    _gl.stencilOpSeparate(
+      target,
+      stencilOperationToGl(state.failOp),
+      stencilOperationToGl(state.depthFailOp),
+      stencilOperationToGl(state.passOp),
+    );
+    _gl.stencilMaskSeparate(target, state.writeMask);
   }
 
   final WebGlDevice _device;

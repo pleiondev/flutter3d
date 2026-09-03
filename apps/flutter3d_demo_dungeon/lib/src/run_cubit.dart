@@ -8,6 +8,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'exit_door.dart';
 import 'fixture_looks.dart';
+import 'layers.dart';
 import 'monster_looks.dart';
 import 'staging.dart';
 
@@ -98,6 +99,9 @@ final class DungeonRun extends RunSession<LevelReady> {
         loaded.scene,
         appearance: const DungeonMonsters(),
         device: device,
+        // On their own layer as well as the world's, which is what lets the
+        // sensor draw their silhouettes and nothing else's.
+        layerMask: DungeonLayers.world | DungeonLayers.actors,
       ),
       fixtures:
           FixtureVisuals(

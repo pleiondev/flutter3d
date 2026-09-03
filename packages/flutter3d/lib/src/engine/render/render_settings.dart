@@ -131,6 +131,40 @@ final class FogSettings {
   static final vm.Vector3 _defaultColor = vm.Vector3(0.05, 0.05, 0.05);
 }
 
+/// Silhouettes of what the walls hide.
+///
+/// A node whose `layerMask` meets [layerMask] is drawn twice more at the end
+/// of the scene pass: once to mark the stencil wherever it is *visible*, and
+/// once as a flat colour wherever it fails the depth test and the stencil
+/// says no visible part of a marked node is there. The stencil is what keeps
+/// the lit half of a half-hidden monster lit — without it, a far limb behind
+/// a near one would paint its silhouette over the part the player can see —
+/// and it is what the second draw of a second monster is masked by.
+///
+/// Off by default, because [layerMask] is zero and a mask that meets nothing
+/// draws nothing; the dungeon switches it on for the seconds a sensor
+/// power-up lasts. The stage draws nothing at all on a device whose
+/// `supportsStencil` is false, which is a picture without silhouettes rather
+/// than a frame with something wrong in it.
+final class XraySettings {
+  const XraySettings({this.color, this.layerMask = 0});
+
+  /// Which nodes get a silhouette: those whose `SceneNode.layerMask` shares
+  /// a bit with this. Zero is off.
+  final int layerMask;
+
+  /// Linear light, before exposure and the tone curve, as every colour in
+  /// the HDR target is. Null takes the default, an orange bright enough to
+  /// read through a dark corridor without blooming.
+  final vm.Vector3? color;
+
+  vm.Vector3 get resolvedColor => color ?? _defaultColor;
+
+  bool get enabled => layerMask != 0;
+
+  static final vm.Vector3 _defaultColor = vm.Vector3(1.0, 0.32, 0.08);
+}
+
 final class RenderSettings {
   const RenderSettings({
     this.specular = 1.0,
@@ -154,6 +188,7 @@ final class RenderSettings {
     this.sky = const SkySettings(),
     this.anisotropy = 1,
     this.autoExposure = const AutoExposureSettings(),
+    this.xray = const XraySettings(),
   }) : assert(anisotropy >= 1, 'anisotropy is a count of taps, one or more');
 
   final double specular;
@@ -260,6 +295,9 @@ final class RenderSettings {
   /// and sixty golden images are recorded against there being none.
   final SkySettings sky;
 
+  /// Silhouettes of the nodes on a layer, drawn where something hides them.
+  final XraySettings xray;
+
   /// Composites the shadow map instead of the scene.
   ///
   /// A shadow map is the one buffer in the renderer that nothing has ever
@@ -360,6 +398,7 @@ final class RenderSettings {
     SkySettings? sky,
     int? anisotropy,
     AutoExposureSettings? autoExposure,
+    XraySettings? xray,
   }) => RenderSettings(
     specular: specular ?? this.specular,
     exposure: exposure ?? this.exposure,
@@ -381,6 +420,7 @@ final class RenderSettings {
     sky: sky ?? this.sky,
     anisotropy: anisotropy ?? this.anisotropy,
     autoExposure: autoExposure ?? this.autoExposure,
+    xray: xray ?? this.xray,
   );
 }
 

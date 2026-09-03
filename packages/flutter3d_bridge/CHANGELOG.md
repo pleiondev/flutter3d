@@ -8,6 +8,11 @@
   corridor floor stops visibly improving; clamped here rather than left to
   the backend because the renderer's own setting respects a sampler that
   already carries a level, and the level it carries should be a true one.
+* **`ActorVisuals.layerMask`.** The layers every actor's mesh is drawn on,
+  capsule and model alike, set on each mesh node because a render list asks
+  the node it draws and not its parents. The default layer alone unless a
+  game says otherwise — and the reason one would is `RenderSettings.xray`,
+  which names a layer to draw silhouettes for.
 
 ## 0.4.1
 

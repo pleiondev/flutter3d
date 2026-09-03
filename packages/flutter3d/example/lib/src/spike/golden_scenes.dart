@@ -220,6 +220,26 @@ final List<GoldenScene> kGoldenScenes = <GoldenScene>[
     anisotropicFloor: true,
   ),
 
+  // A wall, a cube behind it and a cube in front, the two cubes on the x-ray
+  // layer: the hidden one is drawn as a flat silhouette through the wall, the
+  // visible one is lit as any cube is, and where the near cube's lit face
+  // covers the far one on screen the silhouette is notched around it — which
+  // is the stencil doing the half of the job a depth test alone cannot. That
+  // notch is the frame's reason for existing; see GoldenExtras.xrayRoom for
+  // where the two footprints have to sit for it to be there at all.
+  //
+  // Bloom off so the silhouette's colour is the colour asked for and not a
+  // glow of it; the camera straight on, so which cube the wall hides does not
+  // depend on how the demo frames the scene.
+  const GoldenScene(
+    name: 'stencil-xray',
+    source: 'Cube',
+    bloom: false,
+    yaw: 0.0,
+    pitch: 0.25,
+    xray: XraySettings(layerMask: GoldenExtras.xrayLayer),
+  ),
+
   // Eight quads stacked at one point: addition alone. See stackedParticles.
   const GoldenScene(
     name: 'particle-stack',

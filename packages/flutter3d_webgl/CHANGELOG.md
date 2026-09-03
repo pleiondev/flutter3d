@@ -77,6 +77,20 @@
   half-float target, this backend's `readPixels(RGBA, UNSIGNED_BYTE)` was an
   `INVALID_OPERATION` that left the pack buffer at zeros and the future
   completing successfully with a black picture.
+* **The stencil test, as context state kept honest.** Enabled whenever the
+  attachment carries a stencil and reset to the disabled configuration at
+  every pass, so nothing carries over; the reference re-issued with the
+  compare, because GL keeps the two on one `stencilFunc`; a stencil clear
+  through a write mask of every bit, for the reason the depth clear sets
+  `depthMask` first. The reference is narrowed to eight bits before it reaches
+  `stencilFunc`, which would otherwise clamp it and make this the one backend
+  where a wider value means something else. `stencil-xray` joins the golden set
+  with a provisional budget, recorded at merge.
+* `Xray` is generated with the rest from `flutter3d_shaders`, and linked
+  against all three mesh vertex stages in the parity grid. It is the entry
+  point that makes this backend's `setBlend` limitation moot: the index it
+  ignores would otherwise have been the only way to keep a silhouette out of
+  the surface buffer here.
 
 ## 0.4.2
 

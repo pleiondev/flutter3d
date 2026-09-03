@@ -85,6 +85,26 @@
 * `FakeBackend.readback` records what was asked — texture and region — and
   answers zeros unless `answerReadback` says otherwise, so a test can be the
   device that saw a dark frame or a particular id.
+* **The stencil, whole.** `StencilState` — compare, the three operations,
+  two eight-bit masks — with `StencilOperation` and `StencilFace` mirrored
+  from flutter_gpu value for value; `PassEncoder.setStencil` for one face or
+  both and `setStencilReference` beside it; the same three fields on
+  `PassState`, emitted after depth; and `DepthTarget` saying how its stencil
+  is loaded, stored and cleared. A pass starts with the test off on both
+  faces, whatever the pass before it set.
+* **`GraphicsDevice.supportsStencil`**, to ask before configuring a test
+  against an attachment that has none, and `TextureFormatStencil.hasStencil`
+  for the formats that carry one.
+* **`StencilState.narrowReference`**, which is where "eight bits" is decided
+  once instead of three times. Left to themselves a software rasteriser wraps
+  an out-of-range reference, GL clamps it and flutter_gpu forwards it, so the
+  same value meant three things; every backend narrows through this now.
+* **`BlendState.keepDestination`**: zero from the source, one from the
+  destination. flutter_gpu has no colour write mask and a discarded fragment
+  writes no stencil, so this is the one way a draw marks the stencil and
+  leaves the picture alone.
+* `FakeBackend` can be told it has no stencil, and `FakePass` records the
+  stencil state and reference it was left with.
 
 ## 0.4.1
 

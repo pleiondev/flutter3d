@@ -32,6 +32,11 @@
 /// whole percents is this backend drawing something else. Six scenes were in
 /// the second group and every one of them has been moved to the first, so the
 /// whole table is now a floor to hold rather than a list of things to fix.
+///
+/// The exception is any scene named in [_provisional], whose picture is not
+/// recorded yet and whose budget is therefore a placeholder rather than a
+/// measurement. Its case is skipped, and the first test below is what stops
+/// the name from staying there once the picture arrives.
 @TestOn('vm')
 library;
 
@@ -133,6 +138,8 @@ const Map<String, double> _budgets = <String, double>{
   'loaded-shader': 0.5,
   // Provisional; recorded at merge — see [_provisional].
   'auto-exposure': 0.5,
+  // Provisional; recorded at merge — see [_provisional].
+  'stencil-xray': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,
@@ -161,17 +168,26 @@ const Map<String, double> _budgets = <String, double>{
 /// **A named gap rather than a missing key.** Left as a missing key the whole
 /// comparison would simply not exist, which is a scene nobody looks at; named
 /// here it is a comparison that is *deliberately* not run.
+///
+/// **Why a scene can arrive without its picture.** `tool/golden_web.sh` holds a
+/// fixed port for the whole run, so two branches recording the browser set at
+/// once record each other's frames. A branch that adds a scene therefore lands
+/// the Impeller and software references, which need no port, and leaves this
+/// one to the merge — where the whole set is recorded once. The budget above is
+/// provisional until then: the ceiling every other scene here sits under rather
+/// than a measurement.
+///
+/// **This set empties itself.** The first test below asserts that these are
+/// exactly the scenes with no reference on disk, so recording the picture fails
+/// the suite until the name is removed from here and the budget replaced with
+/// what was measured. A scene parked here and forgotten is the one thing this
+/// file cannot afford: a name in this set is a comparison that never runs.
 const Set<String> _provisional = <String>{
   'anisotropic-floor',
   'auto-exposure',
   'loaded-shader',
+  'stencil-xray',
 };
-
-/// What the runner prints beside a comparison [_provisional] holds back,
-/// so the gap is read off the run rather than out of this file.
-const String _skipReason =
-    'no web reference yet: record it with tool/golden_web.sh --update, which '
-    'holds a fixed port and so runs when the branch lands';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -247,6 +263,13 @@ void main() {
     }, skip: _provisional.contains(entry.key) ? _skipReason : null);
   }
 }
+
+/// Said in full at every skipped case, because a skip whose reason is a word is
+/// a skip nobody removes.
+const String _skipReason =
+    'the browser reference is recorded at merge, by tool/golden_web.sh, which '
+    'holds a fixed port — record it, drop the name from _provisional and '
+    'replace the provisional budget with the number this case prints';
 
 Future<Uint8List> _rgba(File file) async {
   final codec = await ui.instantiateImageCodec(file.readAsBytesSync());

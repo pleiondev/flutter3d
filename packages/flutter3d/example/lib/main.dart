@@ -140,6 +140,10 @@ class _SpikePageState extends State<SpikePage>
       GoldenRunner.fromEnvironment()?.scene.autoExposure ??
       const AutoExposureSettings();
 
+  /// The silhouettes the golden scene asks for, or none.
+  final XraySettings _xray =
+      GoldenRunner.fromEnvironment()?.scene.xray ?? const XraySettings();
+
   BloomSettings _bloom = BloomSettings(
     enabled: GoldenRunner.fromEnvironment()?.scene.bloom ?? true,
   );
@@ -455,6 +459,15 @@ class _SpikePageState extends State<SpikePage>
       instance.removeFromScene();
       _sun.visible = false;
       _modelPivot.add(GoldenExtras.lightmappedRoom(_device!));
+      return;
+    }
+    if (_golden?.scene.xray.enabled ?? false) {
+      // The wall and its two cubes are the picture, as the lightmapped room
+      // is; the model was only ever a way in.
+      instance.removeFromScene();
+      for (final node in GoldenExtras.xrayRoom(_device!)) {
+        _modelPivot.add(node);
+      }
       return;
     }
     final count = _golden?.scene.instances ?? 0;
@@ -882,6 +895,7 @@ class _SpikePageState extends State<SpikePage>
                             showShadowMap: _showShadowMap,
                             sky: _sky,
                             autoExposure: _autoExposure,
+                            xray: _xray,
                           ),
                           onFrame: (frame) {
                             _lastFrame = frame;

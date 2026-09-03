@@ -53,6 +53,14 @@ Future<void> checkLinking(GraphicsDevice device) async {
     ('MeshVertex', 'ObjectId'),
     ('MeshSkinnedVertex', 'ObjectId'),
     ('MeshInstancedVertex', 'ObjectId'),
+    // The x-ray stage draws a marked node through whichever vertex stage the
+    // node already used, so its fragment shader is linked against all three
+    // the scene can reach. It declares one output where the others declare
+    // two, which is the pairing least like the rest of this table and the one
+    // most worth linking here.
+    ('MeshVertex', 'Xray'),
+    ('MeshSkinnedVertex', 'Xray'),
+    ('MeshInstancedVertex', 'Xray'),
     ('ShadowTileResetVertex', 'ShadowTileReset'),
     ('FullscreenVertex', 'Composite'),
     ('FullscreenVertex', 'Luminance'),

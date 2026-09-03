@@ -100,6 +100,29 @@ final class GpuCommandEncoder implements CommandEncoder {
   void setDepthCompare(CompareFunction compare) =>
       _pass.setDepthCompareOperation(compare.toGpu());
 
+  /// One call for both faces when they agree, two when they do not.
+  ///
+  /// flutter_gpu's own default for `targetFace` is `both`, and a fresh
+  /// `RenderPass` starts with the test off on both — so a pass that never
+  /// reaches here is exactly the pass this backend drew before the stencil
+  /// existed, byte for byte.
+  @override
+  void setStencil(StencilState front, {StencilState? back}) {
+    if (back == null) {
+      _pass.setStencilConfig(front.toGpu());
+      return;
+    }
+    _pass.setStencilConfig(
+      front.toGpu(),
+      targetFace: StencilFace.front.toGpu(),
+    );
+    _pass.setStencilConfig(back.toGpu(), targetFace: StencilFace.back.toGpu());
+  }
+
+  @override
+  void setStencilReference(int value) =>
+      _pass.setStencilReference(StencilState.narrowReference(value));
+
   @override
   void setBlend(BlendState? state, {int attachment = 0}) {
     _pass.setColorBlendEnable(state != null, colorAttachmentIndex: attachment);

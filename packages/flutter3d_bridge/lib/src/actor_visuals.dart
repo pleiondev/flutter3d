@@ -27,11 +27,22 @@ final class ActorVisuals {
     required this.appearance,
     required GraphicsDevice device,
     IssueSink? onIssue,
+    this.layerMask = 1,
   }) : _meshes = SharedMeshes(device),
        _device = device,
        onIssue = onIssue ?? printIssue;
 
   final Scene scene;
+
+  /// The layers every actor's mesh is drawn on, capsule and model alike.
+  ///
+  /// The default layer alone, unless a game says otherwise — and the reason
+  /// one would is `RenderSettings.xray`, which names a layer to draw
+  /// silhouettes for. A game that puts its actors on a layer of their own
+  /// can show what walks behind a wall without showing the wall's own
+  /// furniture. Set on every mesh node rather than on the actor's root,
+  /// because a render list asks the node it draws and not its parents.
+  final int layerMask;
 
   /// Where this says what it could not draw.
   ///
@@ -141,7 +152,8 @@ final class ActorVisuals {
       () => CapsuleShape(radius: radius, height: height),
     );
 
-    final node = MeshNode(mesh, appearance.materialFor(actor), name: key);
+    final node = MeshNode(mesh, appearance.materialFor(actor), name: key)
+      ..layerMask = layerMask;
     scene.add(node);
     _nodes[actor] = node;
   }
@@ -165,6 +177,9 @@ final class ActorVisuals {
     }
 
     final instance = asset.instantiate(scene);
+    for (final mesh in instance.meshes) {
+      mesh.layerMask = layerMask;
+    }
     final capsule = _nodes.remove(actor);
     if (capsule != null) scene.remove(capsule);
 

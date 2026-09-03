@@ -28,6 +28,12 @@ final class FakePass implements CommandEncoder {
   bool? depthWrite;
   CompareFunction? depthCompare;
 
+  /// The stencil state the pass was left in, per face. Null means it was
+  /// never mentioned, which is the answer every pass but the x-ray's gives.
+  StencilState? stencilFront;
+  StencilState? stencilBack;
+  int? stencilReference;
+
   int get drawCount => commands.whereType<RecordedDraw>().length;
 
   ColorTarget get color => descriptor.colors.single;
@@ -74,6 +80,19 @@ final class FakePass implements CommandEncoder {
   void setDepthCompare(CompareFunction compare) {
     depthCompare = compare;
     commands.add(RecordedDepthCompare(compare));
+  }
+
+  @override
+  void setStencil(StencilState front, {StencilState? back}) {
+    stencilFront = front;
+    stencilBack = back ?? front;
+    commands.add(RecordedStencil(front, back));
+  }
+
+  @override
+  void setStencilReference(int value) {
+    stencilReference = value;
+    commands.add(RecordedStencilReference(value));
   }
 
   @override

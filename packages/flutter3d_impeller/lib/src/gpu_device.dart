@@ -196,6 +196,13 @@ final class GpuRenderBackend implements GraphicsDevice {
   bool get supportsWireframe => true;
 
   @override
+  // flutter_gpu's depth-stencil format is documented never to be depth-only,
+  // so a device that names one has a stencil beside its depth; one that
+  // answers `unknown` has neither, and the x-ray stage stays off.
+  bool get supportsStencil =>
+      gpu.gpuContext.defaultDepthStencilFormat != gpu.PixelFormat.unknown;
+
+  @override
   bool get supportsMipmaps => gpu.gpuContext.doesSupportManuallyMippedTextures;
 
   /// flutter_gpu's own answer, which is per compression family underneath:
@@ -659,11 +666,15 @@ final class GpuRenderBackend implements GraphicsDevice {
         ],
         depthStencilAttachment: switch (descriptor.depth) {
           null => null,
-          // Cleared on entry and discarded on exit, because that is the only
-          // thing any pass in this engine has ever wanted. See [DepthTarget].
+          // Depth cleared on entry and discarded on exit, because that is the
+          // only thing any pass in this engine has ever wanted; the stencil
+          // half is the descriptor's to say. See [DepthTarget].
           final DepthTarget depth => gpu.DepthStencilAttachment(
             texture: depth.texture.gpuTexture,
             depthClearValue: depth.clearValue,
+            stencilLoadAction: depth.stencilLoadAction.toGpu(),
+            stencilStoreAction: depth.stencilStoreAction.toGpu(),
+            stencilClearValue: depth.stencilClearValue,
           ),
         },
       );

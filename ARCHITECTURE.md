@@ -464,6 +464,62 @@ that answers a frame or two late holds one copy in the air rather than three.
 with no `submit` — so a contributor cannot end somebody else's pass. Particles are
 the first user.
 
+**X-ray silhouettes.** `RenderSettings.xray` names a layer, and every node on it
+that survived culling is drawn twice more at the end of the scene pass, after the
+transparent half and before the contributors. The first draw *marks*: no colour
+(`BlendState.keepDestination`), no depth write, a depth test of `lessEqual`, and
+a stencil that stores one wherever a fragment passes — which, after the opaque
+half, is exactly the node's visible pixels. The second *paints*: a flat unlit
+colour with a depth test of `greater`, only where something nearer is in the
+buffer, and a stencil test of `notEqual` one, only where no marked node's visible
+part is. Every mark is written before any paint. The stencil is not decorative:
+a depth test alone paints a node's silhouette over its own visible half — a far
+limb behind a near one — and one monster's silhouette through the monster in
+front of it. Both draws go through the same node encoder as the lit draw, so a
+skinned monster is skinned three times and a batch is drawn as a batch. A device
+whose `supportsStencil` is false gets no silhouettes and no stencil calls; a
+scene with no layer named gets not one call more than it did before the stage
+existed, which is what keeps every other golden the bytes it was. The dungeon's
+sensor power-up is the consumer.
+
+**Both extra draws use `Xray`, a seventh fragment shader, and the surface
+buffer is why.** It is `unlit.frag` with `F3D_NO_SURFACE_BUFFER` in front of
+it, so it declares no second output. Drawn unlit, the silhouette wrote
+attachment one wherever its `greater` test passed — which is exactly where the
+marked node is *behind* what the depth buffer holds — so a hidden monster's
+normal, roughness and depth landed on top of the wall in front of it, and SSAO
+and reflections read that buffer as the nearest surface. A blend state could
+not take it back: `BlendState.keepDestination` covers attachment zero, and
+`setBlend`'s attachment index is honoured on Impeller, ignored on WebGL2 (which
+needs `EXT_draw_buffers_indexed` for per-attachment blending) and bypassed
+entirely by the software rasteriser's surface write — so the three backends
+disagreed about what was left there. A software test renders the same scene
+with `showSurfaceBuffer` twice, silhouettes on and off, and requires the two
+frames to be equal byte for byte.
+
+**"Culling" above is doing work, and so is "nearer".** The stage reads the render
+list, which is post-cull, so a marked node the frustum test dropped — or one a
+level's precomputed visibility dropped, §4.6, which is what the dungeon uses —
+contributes nothing. A sensor therefore does not show the monster in the next
+room, which is the culler's answer rather than this stage's and is the first
+thing to check when one is reported missing. And only opaque geometry writes
+depth, so only opaque geometry hides: something behind glass or behind a particle
+sheet is in front of everything the depth buffer knows about and gets no
+silhouette. A marked node whose *own* material is transparent is unaffected —
+both extra draws take their depth state from the override material, not the
+node's.
+
+**What it costs is per marked node and is not measured yet.** Two more passes
+through the node encoder each, skinning included, so a marked skinned actor is
+posed and drawn three times per view where an unmarked one is drawn once; nothing
+else in the frame changes, and a frame with no marked node in the list emits
+nothing at all. No frame time has been taken for the one application that turns
+it on — a vaults frame with the sensor on against one with it off, from the
+`Renderer.encodeDraws` timeline event — and until it is, the number to expect is
+unknown rather than small. If it turns out to matter, the lever is the pose: the
+mark and the paint could skin from the one the lit draw already computed instead
+of recomputing it twice.
+
 ### 4.4 Culling and level of detail
 
 Frustum culling runs over a flat registry of renderables, with world bounds cached
@@ -663,6 +719,13 @@ Six ship: Unlit, Lambert, Blinn-Phong, PBR (GGX), Toon and Normals. Each is a
 separate pre-built fragment shader, so switching models switches pipeline — which
 is why the renderer caches pipelines by shader name and sorts by it.
 
+A seventh, `LightingModel.xray`, exists and is deliberately not on that list.
+It is not a way to light a material; it is what the x-ray stage draws its two
+extra passes with, and it is Unlit with the surface buffer taken away. `LightingModel.builtIn` is what a picker
+offers and what `fmat` writes a shader name from, so a model whose whole
+purpose is to say nothing about the surface has no business being offered.
+See [§4.3](#43-passes).
+
 `LightingModel` is a **value class, not an enum**, so the list is not closed: an
 application that builds its own bundle can add an entry and the renderer caches a
 pipeline for it like any other. What it cannot do is add a shader to a bundle it
@@ -732,7 +795,12 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   is the recording half without `submit`, so handing a contributor an
   already-submitted pass is a type error rather than a comment warning about one.
 - **`RenderPassDescriptor`, `ColorTarget`, `DepthTarget`, `ScreenRect`,
-  `BlendState`.**
+  `BlendState`, `StencilState`.** `DepthTarget` says how its stencil is loaded,
+  stored and cleared; `StencilState` is flutter_gpu's `StencilConfig` with
+  eight-bit masks, `StencilState.disabled` is what every pass starts with, and
+  `StencilState.narrowReference` is where the eight bits of a *reference* are
+  decided — once, rather than once per backend, which is how a software
+  rasteriser came to wrap what GL clamps.
 - **Handles** — `TextureHandle`, `GeometryBuffer`, `ShaderHandle`,
   `PipelineHandle`, `ShaderLibrary`. A handle carries a description and an opaque
   backend object. `TextureHandle` deliberately has no `==`: the pool lends by
@@ -746,7 +814,7 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   by `identical`. A loaded library lives as long as the device — there is no
   release, and `loadShaders` says why — so an application whose shaders change
   loads one bundle and refreshes it.
-- **The sixteen enums in `formats.dart`**, plus `SamplerOptions`,
+- **The eighteen enums in `formats.dart`**, plus `SamplerOptions`,
   `RenderTargetSpec`, `TextureAllocator` and `RenderTargetPool`. Their value names
   are load-bearing beyond the package: the Impeller translation asserts each maps
   to the flutter_gpu value of the *same name*, which catches a mapping that swapped
@@ -830,8 +898,18 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   returns the frame before`, which also hands over the device's own
   `hdrColorFormat` and expects the refusal, and its shader-tier twin holds a
   region of a drawn picture to its rows from the top.
+- **A pass starts with the stencil test off, on both faces**, whatever the pass
+  before it set — the same rule as the viewport and the scissor, and for the same
+  backend: on WebGL the stencil setters are context state. A caller that turns
+  the test on says `setStencil(StencilState.disabled)` when it is done. The test
+  is meaningful only against a depth attachment whose format
+  `TextureFormatStencil.hasStencil` says carries one, and **a discarded fragment
+  writes no stencil**, whichever of the three operations it earned — which is why
+  a draw that exists to mark the stencil blends with `BlendState.keepDestination`
+  rather than discarding, and why the software rasteriser runs the fragment stage
+  before applying an operation a failing fragment would otherwise have earned.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
-  `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
+  `supportsOffscreenMsaa`, `supportsStencil`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
   `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`,
   `maxAnisotropy`, and the storage mode, sample count, type and format a
   `TextureHandle` carries before asking `readback` for it. A backend refuses
@@ -1494,11 +1572,11 @@ entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3311 tests** across 24 packages and 5 applications |
+| Unit tests | **3346 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 37 scenes against **three independent reference sets** —
+**Golden render tests.** 38 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1576,7 +1654,7 @@ releases a button every step never tests what holding it does.
 
 **Documents are compared against the tree.** The test count, the structure-rule
 count and the publishing order each have a scan, because a number in prose is a
-number nobody recounts — the test count said "1230 tests in 12 packages" when there
+number nobody recounts — the test count said "3346 tests in 12 packages" when there
 were nearly three thousand. What a scan catches is not a wrong number but a
 document quietly describing the repository of a year ago.
 

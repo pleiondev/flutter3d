@@ -1,6 +1,7 @@
 /// The engine's shaders, written in Dart.
 ///
-/// All twenty-four of them: both mesh stages, six lighting models, the two
+/// All twenty-four of them: both mesh stages, six lighting models and the flat
+/// one the x-ray stage draws with, the two
 /// shadow passes and the atlas tile reset, three bloom stages, the composite,
 /// reflections, debug lines, particles and the MRT probe. The demo application
 /// runs end to end on this backend, and eleven of its twelve golden scenes
@@ -109,6 +110,7 @@ Map<String, CpuStage> builtinCpuShaders() {
     'MeshVertex': const CpuStage.vertex(MeshVertexShader()),
     'FullscreenVertex': const CpuStage.vertex(FullscreenVertexShader()),
     'Unlit': const CpuStage.fragment(UnlitShader()),
+    'Xray': const CpuStage.fragment(XrayShader()),
     'Lambert': const CpuStage.fragment(LambertShader()),
     'BlinnPhong': const CpuStage.fragment(BlinnPhongShader()),
     'Pbr': const CpuStage.fragment(PbrShader()),

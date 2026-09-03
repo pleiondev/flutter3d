@@ -194,6 +194,21 @@ extension _ScenePasses on Renderer {
         state: passState,
       );
       encodeHalf(_renderList.transparent);
+      // After everything that writes depth and everything that blends over
+      // it, because a silhouette is drawn where the depth test *fails*: the
+      // walls have to be in the buffer for a monster to be behind one. Before
+      // the contributors, so a particle drawn without depth writes still
+      // lands over a silhouette the way it lands over the monster itself.
+      _encodeXray(
+        encoder: pass,
+        scene: scene,
+        settings: settings,
+        viewProjection: viewProjection,
+        shadows: shadows,
+        lights: lights,
+        shadowSlots: _shadowSlots,
+        state: passState,
+      );
       developer.Timeline.finishSync();
 
       for (final plugin in contributors) {

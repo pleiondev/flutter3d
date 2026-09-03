@@ -153,6 +153,41 @@ void main() {
     });
   });
 
+  group('the layers an actor is drawn on', () {
+    test('a capsule goes on the layers the game names', () {
+      // The sensor's whole premise: `RenderSettings.xray` names a layer, and
+      // the actors have to be on it for the silhouettes to be theirs and not
+      // the furniture's. On the node the render list asks, not on the actor.
+      //
+      // Mutation: drop `..layerMask = layerMask` from `add`. The capsule stays
+      // on the default layer alone, and the mask below reads as one.
+      final scene = Scene();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+        layerMask: 1 | (1 << 1),
+      )..add(_actor());
+
+      expect(scene.meshes.single.layerMask, 1 | (1 << 1));
+      visuals.dispose();
+    });
+
+    test('and on the default layer alone when the game says nothing', () {
+      // Every game before the sensor named no layer, and every one of them
+      // draws exactly as it did.
+      final scene = Scene();
+      final visuals = ActorVisuals(
+        scene,
+        appearance: const _PlainLook(),
+        device: FakeBackend(),
+      )..add(_actor());
+
+      expect(scene.meshes.single.layerMask, 1);
+      visuals.dispose();
+    });
+  });
+
   group('letting a level go', () {
     test('an actor removed takes its node out of the scene', () {
       // **There was `add` and no counterpart.** An actor removed through

@@ -11,11 +11,11 @@
 /// draw, submit. That shape is what [CommandEncoder] models. It was derived by
 /// reading all eight pass sites in the renderer plus the two in the extension
 /// API, and **every member here has at least one caller**; anything flutter_gpu
-/// offers that no pass in this engine uses — stencil configuration, depth
-/// range, separate depth and stencil load/store actions, non-indexed draws —
-/// is absent rather than passed through. An interface member with no user is a
-/// guess about a second backend, and this file was written when there was no
-/// second backend to check a guess against.
+/// offers that no pass in this engine uses — depth range, separate depth
+/// load/store actions, non-indexed draws — is absent rather than passed
+/// through. An interface member with no user is a guess about a second
+/// backend, and this file was written when there was no second backend to
+/// check a guess against.
 ///
 /// Instancing was on that list until mesh particles needed it, which is the
 /// rule working rather than failing. It arrived when something asked, and it
@@ -25,6 +25,15 @@
 /// member no pass here has ever wanted. There are three backends now, so the
 /// guess can be checked, and it is: by a conformance test rather than a
 /// golden, because the three reach instancing three different ways.
+///
+/// The stencil was on it too, and left it the same way: the x-ray stage marks
+/// where an enemy is visible and paints a silhouette where it is not, and
+/// that is a stencil test or nothing. It arrived whole — flutter_gpu's
+/// configuration, reference and per-face split, under [PassEncoder.setStencil]
+/// and [PassEncoder.setStencilReference] — because the two consumers behind
+/// it, a selection outline and a portal, each want a different corner of the
+/// same eight operations, and a member per corner would be three interfaces
+/// for one piece of hardware.
 ///
 /// ## Where flutter_gpu's model and the engine's intent differ
 ///
@@ -103,6 +112,30 @@ abstract interface class PassEncoder {
 
   void setDepthWrite(bool enabled);
   void setDepthCompare(CompareFunction compare);
+
+  /// The stencil test for the draws that follow.
+  ///
+  /// [front] applies to front-facing triangles and, when [back] is null, to
+  /// back-facing ones as well — which is what every caller in this engine
+  /// wants, and why the second is optional rather than required. A pass
+  /// starts with [StencilState.disabled] on both faces, whatever the previous
+  /// pass left, and a caller that turned the test on says
+  /// `setStencil(StencilState.disabled)` when it is done: on a backend whose
+  /// setters are global context state, the next draw inherits this one's.
+  ///
+  /// Meaningful only against a depth attachment whose format
+  /// `TextureFormatStencil.hasStencil` says carries one. Ask
+  /// `GraphicsDevice.supportsStencil` before configuring it at all.
+  void setStencil(StencilState front, {StencilState? back});
+
+  /// The value the stencil test compares against and
+  /// [StencilOperation.setToReferenceValue] stores. Eight bits; zero until
+  /// set.
+  ///
+  /// A wider value keeps its low eight bits and loses the rest, on every
+  /// backend, through [StencilState.narrowReference] — see it for why the
+  /// three would otherwise each answer differently.
+  void setStencilReference(int value);
 
   /// Blending for one colour attachment; null switches it off.
   ///

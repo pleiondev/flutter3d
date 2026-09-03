@@ -23,6 +23,7 @@ import 'src/backend.dart';
 import 'src/credits.dart';
 import 'src/frame_effects.dart';
 import 'src/hud.dart';
+import 'src/layers.dart';
 import 'src/reactions.dart';
 import 'src/run_cubit.dart';
 import 'src/sounds.dart';
@@ -1162,6 +1163,13 @@ class _GameScreenState extends State<GameScreen>
                   // engine's default rates — a slow climb into the dark, a
                   // quick fall back into the light.
                   autoExposure: const AutoExposureSettings(enabled: true),
+                  // The sensor: while the power-up lasts, whatever walks
+                  // behind a wall is drawn through it as a silhouette. The
+                  // actors are on their own layer for exactly this, and a
+                  // mask of zero — the default — draws nothing extra.
+                  xray: _inventory.hasSensor
+                      ? const XraySettings(layerMask: DungeonLayers.actors)
+                      : const XraySettings(),
                 ),
               ),
               // Hold to fire and drag to aim, which is what a captured pointer

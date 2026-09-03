@@ -42,6 +42,7 @@ void main() {
       fog: FogSettings(color: Vector3(0.1, 0.2, 0.3), density: 0.05),
       anisotropy: 8,
       autoExposure: const AutoExposureSettings(enabled: true),
+      xray: XraySettings(color: Vector3(0.9, 0.1, 0.1), layerMask: 4),
     );
 
     final copy = original.copyWith();
@@ -93,6 +94,11 @@ void main() {
       same(original.autoExposure),
       reason: 'autoExposure arrived after the six, and is held the same way',
     );
+    expect(
+      copy.xray,
+      same(original.xray),
+      reason: 'xray arrived after the six, and this is what keeps it',
+    );
   });
 
   test('anisotropy is one tap unless asked for', () {
@@ -110,6 +116,18 @@ void main() {
     // of taps is.
     expect(() => RenderSettings(anisotropy: 0), throwsAssertionError);
     expect(() => RenderSettings(anisotropy: -4), throwsAssertionError);
+  });
+
+  test('x-ray is off until a layer is named', () {
+    // Off by the mask rather than by a flag: a mask that meets nothing draws
+    // nothing, and a flag beside it would be a second thing to forget.
+    expect(const XraySettings().enabled, isFalse);
+    expect(const XraySettings(layerMask: 2).enabled, isTrue);
+    expect(
+      const RenderSettings().xray.enabled,
+      isFalse,
+      reason: 'the default settings draw no silhouettes',
+    );
   });
 
   test('copyWith replaces what it is given and nothing else', () {

@@ -51,6 +51,18 @@ final class CpuTexture {
   Float32List depthBuffer() =>
       depth ??= Float32List(width * height)..fillRange(0, width * height, 1.0);
 
+  /// The stencil, a byte per pixel beside [depth]. Allocated on first use for
+  /// the same reason the depth is: it belongs to the one texture per frame
+  /// that is a depth attachment, and to none of the others.
+  ///
+  /// Eight bits, which is what every stencil format the engine names holds,
+  /// and a `Uint8List` masks a stored value to that width by itself — which
+  /// is the wrap the two wrapping operations want and the clamp the two
+  /// clamping ones have to add.
+  Uint8List? stencil;
+
+  Uint8List stencilBuffer() => stencil ??= Uint8List(width * height);
+
   Vector4 _texel(int px, int py) {
     final i = (py * width + px) * 4;
     return Vector4(pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]);

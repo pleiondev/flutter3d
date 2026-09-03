@@ -39,6 +39,7 @@ final class GoldenScene {
     this.anisotropicFloor = false,
     this.shaderBundle,
     this.autoExposure = const AutoExposureSettings(),
+    this.xray = const XraySettings(),
   });
 
   /// Whether the frame's exposure is metered from the frame, and how fast.
@@ -59,6 +60,11 @@ final class GoldenScene {
   /// build is, and the scene is the proof that the same file loads on all
   /// three. See `GoldenExtras.exampleShaderBundle`.
   final String? shaderBundle;
+
+  /// Silhouettes for the nodes on a layer, and — when the mask names one —
+  /// the model replaced by a wall with two cubes about it. See
+  /// `GoldenExtras.xrayRoom`.
+  final XraySettings xray;
 
   /// Replaces the model with a floor and a wall lit by a hand-built lightmap
   /// and nothing else, for the lightmapped vertex stage and the lit models'
@@ -187,5 +193,6 @@ final class GoldenScene {
     shadows: base.shadows.copyWith(enabled: shadows),
     bloom: base.bloom.copyWith(enabled: bloom),
     tonemap: lighting != LightingModel.normals,
+    xray: xray,
   );
 }

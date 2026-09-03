@@ -1040,16 +1040,29 @@ List<Finding> _testCount() {
   // prose is a number nobody recounts.
   final root = repositoryRoot;
   final declaration = RegExp(r'^\s*(test|testWidgets)\(');
-  var counted = 0;
-  for (final dir in <Directory>[
-    for (final p in packages.values) Directory('${p.path}/test'),
-    for (final p in packages.values) Directory('${p.path}/example/test'),
-    for (final a in apps.values) Directory('${a.path}/test'),
-  ]) {
-    for (final file in dartFilesIn(dir)) {
-      counted += file.readAsLinesSync().where(declaration.hasMatch).length;
-    }
-  }
+  int testsIn(Directory dir) => dartFilesIn(dir)
+      .map((f) => f.readAsLinesSync().where(declaration.hasMatch).length)
+      .fold(0, (a, b) => a + b);
+
+  // Broken out per directory rather than summed as it goes, because the site's
+  // testing page prints the breakdown as a table and a table nothing counts is
+  // a table that drifts. That one did: its rows summed to 145 fewer than the
+  // headline three lines above them, each stale by a different amount, which
+  // is the failure mode this whole rule exists for wearing a different hat.
+  //
+  // The keys are the labels the table uses — a package by its own name, an
+  // application prefixed `apps/`.
+  final perDirectory = <String, int>{
+    for (final entry in packages.entries)
+      entry.key: testsIn(Directory('${entry.value.path}/test')),
+    for (final entry in apps.entries)
+      'apps/${entry.key}': testsIn(Directory('${entry.value.path}/test')),
+  };
+  final inExamples = packages.values
+      .map((p) => testsIn(Directory('${p.path}/example/test')))
+      .fold(0, (a, b) => a + b);
+  final inTable = perDirectory.values.fold(0, (a, b) => a + b);
+  final counted = inTable + inExamples;
 
   // **Two documents, because checking one of them taught the other to lie.**
   // ARCHITECTURE.md was held to this count and stayed right; the README, which
@@ -1192,6 +1205,65 @@ List<Finding> _testCount() {
           ),
         );
       }
+    }
+  }
+
+  // The per-package table on the testing page, which is the same scan told
+  // one directory at a time. A row is held to its directory, a directory with
+  // tests is held to having a row, and the sentence under the table that
+  // reconciles the two totals is held to both.
+  final breakdown = File('${root.path}/site/content/reference/testing.md');
+  if (breakdown.existsSync()) {
+    final text = breakdown.readAsStringSync();
+    final where = _inRepository(breakdown);
+    final rows = <String, int>{
+      for (final m in RegExp(r'\| `([\w/]+)` \| (\d+) \|').allMatches(text))
+        m.group(1)!: int.parse(m.group(2)!),
+    };
+    for (final row in rows.entries) {
+      final actual = perDirectory[row.key];
+      if (actual == null) {
+        found.add(
+          Finding(
+            where,
+            'has a row for ${row.key}, which is not a '
+            'package or an application',
+          ),
+        );
+      } else if (actual != row.value) {
+        found.add(
+          Finding(
+            where,
+            '${row.key}: the table says ${row.value}; '
+            'there are $actual',
+          ),
+        );
+      }
+    }
+    for (final entry in perDirectory.entries) {
+      if (entry.value > 0 && !rows.containsKey(entry.key)) {
+        found.add(
+          Finding(where, '${entry.key} has ${entry.value} tests and no row'),
+        );
+      }
+    }
+    final sum = RegExp(r'rows sum to (\d+) rather than (\d+)').firstMatch(text);
+    if (sum == null) {
+      found.add(
+        Finding(
+          where,
+          'no longer reconciles the table with the total, so '
+          'nothing here can tell whether the gap is still what it says',
+        ),
+      );
+    } else if (sum.group(1) != '$inTable' || sum.group(2) != '$counted') {
+      found.add(
+        Finding(
+          where,
+          'says the rows sum to ${sum.group(1)} rather than '
+          '${sum.group(2)}; they sum to $inTable rather than $counted',
+        ),
+      );
     }
   }
   return found;

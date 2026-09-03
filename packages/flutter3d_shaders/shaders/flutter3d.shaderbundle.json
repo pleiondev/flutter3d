@@ -7,6 +7,10 @@
     "type": "fragment",
     "file": "shaders/lighting/unlit.frag"
   },
+  "Xray": {
+    "type": "fragment",
+    "file": "shaders/lighting/xray.frag"
+  },
   "Lambert": {
     "type": "fragment",
     "file": "shaders/lighting/lambert.frag"

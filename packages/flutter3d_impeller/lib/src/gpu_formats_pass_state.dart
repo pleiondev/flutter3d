@@ -80,6 +80,49 @@ extension CompareFunctionToGpu on CompareFunction {
   };
 }
 
+/// Maps the engine's [StencilOperation] to its `package:flutter_gpu`
+/// equivalent.
+extension StencilOperationToGpu on StencilOperation {
+  gpu.StencilOperation toGpu() => switch (this) {
+    StencilOperation.keep => gpu.StencilOperation.keep,
+    StencilOperation.zero => gpu.StencilOperation.zero,
+    StencilOperation.setToReferenceValue =>
+      gpu.StencilOperation.setToReferenceValue,
+    StencilOperation.incrementClamp => gpu.StencilOperation.incrementClamp,
+    StencilOperation.decrementClamp => gpu.StencilOperation.decrementClamp,
+    StencilOperation.invert => gpu.StencilOperation.invert,
+    StencilOperation.incrementWrap => gpu.StencilOperation.incrementWrap,
+    StencilOperation.decrementWrap => gpu.StencilOperation.decrementWrap,
+  };
+}
+
+/// Maps the engine's [StencilFace] to its `package:flutter_gpu` equivalent.
+extension StencilFaceToGpu on StencilFace {
+  gpu.StencilFace toGpu() => switch (this) {
+    StencilFace.both => gpu.StencilFace.both,
+    StencilFace.front => gpu.StencilFace.front,
+    StencilFace.back => gpu.StencilFace.back,
+  };
+}
+
+/// Maps the engine's [StencilState] to a `package:flutter_gpu`
+/// `StencilConfig`, field for field.
+///
+/// A fresh object per call rather than a cache like the sampler's: the x-ray
+/// stage sets this a handful of times per frame, not hundreds, and
+/// `setStencilConfig` reads the fields out at once rather than holding the
+/// object.
+extension StencilStateToGpu on StencilState {
+  gpu.StencilConfig toGpu() => gpu.StencilConfig(
+    compareFunction: compare.toGpu(),
+    stencilFailureOperation: failOp.toGpu(),
+    depthFailureOperation: depthFailOp.toGpu(),
+    depthStencilPassOperation: passOp.toGpu(),
+    readMask: readMask,
+    writeMask: writeMask,
+  );
+}
+
 /// Maps the engine's [BlendFactor] to its `package:flutter_gpu` equivalent.
 extension BlendFactorToGpu on BlendFactor {
   gpu.BlendFactor toGpu() => switch (this) {

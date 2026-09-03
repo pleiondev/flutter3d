@@ -130,10 +130,10 @@ Or one package at a time:
 (cd packages/flutter3d_physics && dart test)   # plain Dart, no Flutter needed
 ```
 
-3311 tests across twenty-four packages and five applications, and the only
+3346 tests across twenty-four packages and five applications, and the only
 ones that need a GPU are the
 Impeller half of the golden set. The other half is rendered by the software
-backend, which is what makes 37 scenes checkable in a headless run.
+backend, which is what makes 38 scenes checkable in a headless run.
 
 Two of the steps are browser steps — `flutter test --platform chrome` for the
 WebGL backend and for the browser half of `pointer_lock` — and one of them

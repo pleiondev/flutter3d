@@ -35,6 +35,35 @@ final class UnlitShader implements CpuFragmentShader {
   }
 }
 
+/// `xray.frag`: the same albedo, and not one word about the surface.
+///
+/// The whole of what makes it a second shader is what it does NOT do —
+/// [FragmentContext.surface] is left null, so `cpu_encoder.dart` writes
+/// nothing to attachment one. The GLSL says it with `#define
+/// F3D_NO_SURFACE_BUFFER`, which compiles `WriteSurfaceGeometry` away; here
+/// the transcription is `writeLit` without the `writeSurface` half, which is
+/// `applyFog` and the alpha.
+///
+/// **Not a call to [UnlitShader] with the surface cleared afterwards.** That
+/// would work and would read as a tidy-up rather than as the point: a
+/// silhouette is drawn where its node is *behind* what the depth buffer holds,
+/// so anything it wrote to the surface buffer would describe geometry that is
+/// not visible — and SSAO and reflections read that buffer as the nearest
+/// surface. See `renderer_xray_pass.dart`.
+final class XrayShader implements CpuFragmentShader {
+  const XrayShader();
+
+  @override
+  Vector4? run(Float32List v, ShaderBindings bindings, FragmentContext c) {
+    final s = readSurface(v, bindings, c);
+    // Discarded under a mask cutoff, exactly as every other model here is: a
+    // silhouette must have the holes the thing it stands for has.
+    if (s == null) return null;
+    final fogged = applyFog(s.albedo, v, bindings);
+    return Vector4(fogged.x, fogged.y, fogged.z, s.alpha);
+  }
+}
+
 /// `lambert.frag`: pure diffuse, the cheapest model that still reads as
 /// three-dimensional.
 final class LambertShader implements CpuFragmentShader {

@@ -1,6 +1,6 @@
 /// What a render pass draws into, in the engine's own vocabulary: a rectangle,
-/// a blend equation, and the colour and depth attachments a
-/// [RenderPassDescriptor] bundles them into.
+/// a blend equation, a stencil configuration, and the colour and depth
+/// attachments a [RenderPassDescriptor] bundles them into.
 ///
 /// Split out of `command_encoder.dart` because these are value types with no
 /// behaviour beyond equality — [PassEncoder] and [CommandEncoder] are the
@@ -86,6 +86,23 @@ final class BlendState {
     destinationAlphaFactor: BlendFactor.one,
   );
 
+  /// The attachment kept exactly as it was: nothing of the source, all of the
+  /// destination.
+  ///
+  /// **A draw that exists for its side effects.** flutter_gpu has no colour
+  /// write mask, and a fragment that `discard`s writes neither depth nor
+  /// stencil — so a pass that wants to mark the stencil where a mesh is, and
+  /// leave the picture alone, has exactly one way to say so, and this is it.
+  /// The x-ray stage's marking draw is the caller; a backend has to honour
+  /// the zero and one factors for it, which the software rasteriser did not
+  /// until it had a reason to.
+  static const BlendState keepDestination = BlendState(
+    sourceColorFactor: BlendFactor.zero,
+    destinationColorFactor: BlendFactor.one,
+    sourceAlphaFactor: BlendFactor.zero,
+    destinationAlphaFactor: BlendFactor.one,
+  );
+
   final BlendOperation colorOperation;
   final BlendFactor sourceColorFactor;
   final BlendFactor destinationColorFactor;
@@ -146,22 +163,140 @@ final class ColorTarget {
   final vm.Vector4? clearValue;
 }
 
-/// The depth attachment of a pass.
+/// How the stencil test treats the draws that follow, for one face.
 ///
-/// Far narrower than what the backend offers, and that is the engine's model
-/// rather than an omission: every pass here clears depth on entry, discards it
-/// on exit, and uses no stencil at all. There is nothing to configure, so
-/// nothing is offered. A pass that wanted to *load* depth would be asking for
-/// something no pass in this engine has ever asked for, and the interface
-/// should grow when one does.
+/// A value type with `==`, like [BlendState] and for the same two reasons: a
+/// backend can cache one native object per distinct state, and a test can
+/// assert on the state a pass was left in.
+///
+/// The field set is flutter_gpu's `StencilConfig`. The defaults are the test
+/// switched off — always passes, nothing written — which is what every pass
+/// that never mentions the stencil gets, and what [disabled] names so a pass
+/// that *did* mention it can say it is done.
+///
+/// **The masks default to eight bits, not thirty-two.** flutter_gpu's own
+/// default is `0xFFFFFFFF`, and the difference is invisible on it: every
+/// stencil format `TextureFormat` names holds eight bits, so the high bits of
+/// a mask meet nothing. The narrower default is stated because a backend
+/// exists — WebGL2 — whose `stencilMask` is *specified* against the
+/// attachment's bit depth, and a value the specification calls out of range
+/// is a value somebody will eventually have to explain.
+final class StencilState {
+  const StencilState({
+    this.compare = CompareFunction.always,
+    this.failOp = StencilOperation.keep,
+    this.depthFailOp = StencilOperation.keep,
+    this.passOp = StencilOperation.keep,
+    this.readMask = 0xFF,
+    this.writeMask = 0xFF,
+  });
+
+  /// The test off: every fragment passes it and none changes the buffer.
+  static const StencilState disabled = StencilState();
+
+  /// The eight bits a stencil reference has, out of whatever it was handed.
+  ///
+  /// Every backend narrows through this rather than each in its own way, and
+  /// the reason is that the three ways do not agree. A software rasteriser
+  /// that masks wraps 0x101 to 1; WebGL2's `stencilFunc` is specified to
+  /// *clamp* the reference to the attachment's range, so the same value
+  /// becomes 255 there; flutter_gpu passes it to a descriptor field and says
+  /// nothing. One call site behind all three makes the answer the contract's
+  /// rather than the backend's — which matters the day something wants a
+  /// second marked layer and starts counting references upward.
+  ///
+  /// **A mask rather than an assert**, which was the other candidate. Eight
+  /// bits is a fact about every stencil attachment the engine can allocate,
+  /// not a house rule a caller is breaking, and an assert would have left the
+  /// three backends disagreeing in a release build — which is the half of the
+  /// problem that cannot be caught by running the tests.
+  static int narrowReference(int value) => value & 0xFF;
+
+  /// How the reference value is compared against what is stored. The
+  /// reference is the *new* value in [CompareFunction]'s wording: `less`
+  /// passes when the reference is below the stored value.
+  final CompareFunction compare;
+
+  /// What happens to the stored value when the stencil test fails.
+  final StencilOperation failOp;
+
+  /// What happens when the stencil test passes and the depth test fails.
+  final StencilOperation depthFailOp;
+
+  /// What happens when both tests pass.
+  final StencilOperation passOp;
+
+  /// Which bits of the stored value and the reference take part in the
+  /// comparison.
+  final int readMask;
+
+  /// Which bits of the stored value an operation may change.
+  final int writeMask;
+
+  @override
+  bool operator ==(Object other) =>
+      other is StencilState &&
+      other.compare == compare &&
+      other.failOp == failOp &&
+      other.depthFailOp == depthFailOp &&
+      other.passOp == passOp &&
+      other.readMask == readMask &&
+      other.writeMask == writeMask;
+
+  @override
+  int get hashCode =>
+      Object.hash(compare, failOp, depthFailOp, passOp, readMask, writeMask);
+
+  @override
+  String toString() =>
+      'StencilState(${compare.name}, fail: ${failOp.name}, '
+      'depthFail: ${depthFailOp.name}, pass: ${passOp.name}, '
+      'read: 0x${readMask.toRadixString(16)}, '
+      'write: 0x${writeMask.toRadixString(16)})';
+}
+
+/// The depth and stencil attachment of a pass.
+///
+/// Narrower than what the backend offers, and that is the engine's model
+/// rather than an omission: every pass here clears depth on entry and
+/// discards it on exit, so those two have nothing to configure and nothing is
+/// offered. A pass that wanted to *load* depth would be asking for something
+/// no pass in this engine has ever asked for, and the interface should grow
+/// when one does.
+///
+/// The stencil half *is* configurable, because the x-ray stage asked: it
+/// marks the stencil inside the scene pass and reads the marks back a few
+/// draws later, which needs the buffer cleared to a known value on entry. The
+/// three fields are flutter_gpu's own, and their defaults — clear to zero,
+/// throw away at the end — are what every pass that never mentions the
+/// stencil has always had.
 final class DepthTarget {
-  const DepthTarget({required this.texture, this.clearValue = 1.0});
+  const DepthTarget({
+    required this.texture,
+    this.clearValue = 1.0,
+    this.stencilLoadAction = LoadAction.clear,
+    this.stencilStoreAction = StoreAction.dontCare,
+    this.stencilClearValue = 0,
+  });
 
   final TextureHandle texture;
 
   /// The far plane. One under this engine's `[0, 1]` depth convention; a
   /// reversed-Z backend would want zero, which is why it is a parameter.
   final double clearValue;
+
+  /// What the stencil holds when the pass opens. [LoadAction.clear] fills it
+  /// with [stencilClearValue] across the whole attachment, as every clear
+  /// here does; [LoadAction.load] keeps what the last pass stored.
+  final LoadAction stencilLoadAction;
+
+  /// Whether the stencil survives the pass. Nothing in this engine reads one
+  /// across passes yet, so the default discards it, which is free on tile
+  /// memory and merely honest elsewhere.
+  final StoreAction stencilStoreAction;
+
+  /// Eight bits, masked to the attachment's depth by the backend.
+  final int stencilClearValue;
 }
 
 /// Everything a pass draws into.
