@@ -1,3 +1,18 @@
+## 0.4.3
+
+* **X-ray silhouettes.** `RenderSettings.xray` names a layer, and every
+  visible node on it is drawn twice more at the end of the scene pass: once
+  to mark the stencil where it is visible, with no colour and no depth
+  write, and once as a flat unlit colour where it fails the depth test and
+  the stencil says no marked node's visible part is there. The stencil is
+  what keeps the lit half of a half-hidden monster lit and one monster from
+  painting through another; every mark is written before any paint. Both
+  draws go through the same node encoder as the lit one, so skinning and
+  batches come for free. Nothing is emitted when the mask is zero, the
+  device has no stencil, or nothing visible is on the layer — every other
+  golden is the bytes it was. `stencil-xray` joins the set on all three
+  backends.
+
 ## 0.4.2
 
 * **Lightmaps.** `MeshNode.lightmapped` picks a vertex stage that reads the

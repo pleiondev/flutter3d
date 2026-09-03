@@ -114,6 +114,12 @@ const Map<String, double> _budgets = <String, double>{
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
   'lightmapped-room': 0.15,
+  // Provisional; recorded at merge. The browser set is recorded by a script
+  // that holds a fixed port, so the scene's reference lands with the merge
+  // rather than with the branch, and the budget is the ceiling every other
+  // scene here sits under rather than a measurement — replace it with the
+  // measured number the first time the picture is compared.
+  'stencil-xray': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
   'cube-shadow-crowded': 0.01,

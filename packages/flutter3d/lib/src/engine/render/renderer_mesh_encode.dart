@@ -13,6 +13,22 @@
 /// list, which is what stayed behind.
 part of 'renderer.dart';
 
+/// What the x-ray stage swaps in when it draws a node again.
+///
+/// A material for the node's own, and a blend the material cannot express:
+/// [BlendState.keepDestination] is not an alpha mode, and the marking draw
+/// needs it to leave the picture alone. Depth is not here because the
+/// material already carries it — `depthWrite` and `depthCompare` are the two
+/// fields a backdrop asked for, and a silhouette wants exactly those two.
+final class _DrawOverride {
+  const _DrawOverride({required this.material, required this.blend});
+
+  final Material material;
+
+  /// Null is blending off, as it is on `setBlend`.
+  final BlendState? blend;
+}
+
 extension _MeshEncode on Renderer {
   /// Encodes one mesh node into an open pass.
   ///
@@ -37,6 +53,12 @@ extension _MeshEncode on Renderer {
     required LightBuffer lights,
     required Float32List shadowSlots,
     required FramePassState state,
+    // The x-ray stage's, and null for every other caller: the node is drawn
+    // with a different material and a blend its alpha mode cannot say, and
+    // the rest of this procedure — pipeline, matrices, skinning, instancing,
+    // the texture slots the model declares — is exactly what it must not
+    // grow a second copy of.
+    _DrawOverride? override,
   }) {
     final mesh = node.mesh;
     // The scene deals in MeshGeometry so that culling and picking need no
@@ -49,7 +71,7 @@ extension _MeshEncode on Renderer {
         'GPU buffers. Upload it with DeviceMesh.upload before drawing it.',
       );
     }
-    final material = node.material;
+    final material = override?.material ?? node.material;
 
     final skeleton = node.skeleton;
     final skinned = skeleton != null;
@@ -61,8 +83,12 @@ extension _MeshEncode on Renderer {
     final batched = instanced != null;
     // A level's batches read their colour as a lightmap coordinate; neither
     // a skinned mesh nor an instanced one is a level, so the flag is ignored
-    // where it cannot apply rather than asserted against.
-    final lightmapped = node.lightmapped && !skinned && !batched;
+    // where it cannot apply rather than asserted against. Nor is a
+    // silhouette: an override draws through the plain stage, whose clip
+    // position is the same arithmetic, rather than linking a fourth pipeline
+    // for a term the flat colour never reads.
+    final lightmapped =
+        node.lightmapped && !skinned && !batched && override == null;
     if (state.boundPipeline != material.lighting ||
         state.boundSkinned != skinned ||
         state.boundInstanced != batched ||
@@ -99,7 +125,11 @@ extension _MeshEncode on Renderer {
     encoder.setCullMode(cull ? CullMode.backFace : CullMode.none);
 
     final blend = material.alphaMode == MaterialAlphaMode.blend;
-    encoder.setBlend(blend ? BlendState.alphaBlend : null);
+    encoder.setBlend(
+      override != null
+          ? override.blend
+          : (blend ? BlendState.alphaBlend : null),
+    );
     // Transparent surfaces must not occlude what is behind them — unless the
     // material has an opinion, which is how a backdrop says it is drawn but
     // is not there.
@@ -199,7 +229,11 @@ extension _MeshEncode on Renderer {
       // Its own block, bound beside FragInfo rather than folded into it. See
       // the note in color.glsl: appending to a block six shaders share moves
       // offsets nobody expected to move.
-      final fog = settings.fog;
+      //
+      // None for a silhouette. Fog is a property of a surface in air, and a
+      // silhouette is a marker: a sensor that lost its monsters to the far
+      // end of a corridor would be a sensor with the corridor's own range.
+      final fog = override == null ? settings.fog : const FogSettings();
       _fogData[0] = fog.resolvedColor.x;
       _fogData[1] = fog.resolvedColor.y;
       _fogData[2] = fog.resolvedColor.z;

@@ -83,6 +83,11 @@ const Map<String, double> _budgets = <String, double>{
   // 0.318% measured: the room is two lit quads, and the edge of each is the
   // whole of what the two backends disagree about.
   'lightmapped-room': 0.4,
+  // 0.641% measured. Three boxes on a floor, each with a shadow, and a
+  // silhouette whose edge is the far cube's against the wall: more edge than
+  // the one-cube scenes, and edges are what the two backends disagree on.
+  // The silhouette's interior agrees exactly, as a flat colour has to.
+  'stencil-xray': 0.66,
   // 1.417% measured once model textures started carrying a mip chain. The rise
   // is the one difference this backend cannot close: it picks a level from a
   // per-triangle gradient, where hardware differences a quad of neighbouring

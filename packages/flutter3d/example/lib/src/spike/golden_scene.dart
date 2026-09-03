@@ -35,7 +35,13 @@ final class GoldenScene {
     this.sky = const SkySettings(),
     this.instances = 0,
     this.lightmapped = false,
+    this.xray = const XraySettings(),
   });
+
+  /// Silhouettes for the nodes on a layer, and — when the mask names one —
+  /// the model replaced by a wall with two cubes about it. See
+  /// `GoldenExtras.xrayRoom`.
+  final XraySettings xray;
 
   /// Replaces the model with a floor and a wall lit by a hand-built lightmap
   /// and nothing else, for the lightmapped vertex stage and the lit models'
@@ -148,5 +154,6 @@ final class GoldenScene {
     shadows: base.shadows.copyWith(enabled: shadows),
     bloom: base.bloom.copyWith(enabled: bloom),
     tonemap: lighting != LightingModel.normals,
+    xray: xray,
   );
 }

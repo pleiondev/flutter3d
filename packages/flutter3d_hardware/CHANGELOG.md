@@ -1,3 +1,22 @@
+## 0.4.2
+
+* **The stencil, whole.** `StencilState` — compare, the three operations,
+  two eight-bit masks — with `StencilOperation` and `StencilFace` mirrored
+  from flutter_gpu value for value; `PassEncoder.setStencil` for one face or
+  both and `setStencilReference` beside it; the same three fields on
+  `PassState`, emitted after depth; and `DepthTarget` saying how its stencil
+  is loaded, stored and cleared. A pass starts with the test off on both
+  faces, whatever the pass before it set.
+* **`GraphicsDevice.supportsStencil`**, to ask before configuring a test
+  against an attachment that has none, and `TextureFormatStencil.hasStencil`
+  for the formats that carry one.
+* **`BlendState.keepDestination`**: zero from the source, one from the
+  destination. flutter_gpu has no colour write mask and a discarded fragment
+  writes no stencil, so this is the one way a draw marks the stencil and
+  leaves the picture alone.
+* `FakeBackend` can be told it has no stencil, and `FakePass` records the
+  stencil state and reference it was left with.
+
 ## 0.4.1
 
 * **`GraphicsDevice.supportsTextureFormat`.** The question a block-compressed

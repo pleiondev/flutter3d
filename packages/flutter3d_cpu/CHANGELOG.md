@@ -1,3 +1,17 @@
+## 0.4.2
+
+* **A stencil buffer, a byte per pixel beside the depth.** Every one of the
+  eight operations, both masks, the reference and a state per face, tested
+  before the depth test and applied after the fragment stage — so a discard
+  writes nothing, as it does on hardware — with a fixture per rule in
+  `stencil_test.dart`. Nothing is asked per fragment while the test is off,
+  so the thirty-four scenes that never mention it draw as they did.
+* **The blend equation, factor by factor.** Two states were recognised by
+  testing two of their factors, and `BlendState.keepDestination` — zero and
+  one — read as one and one. Every factor is a line now; the four that need
+  a blend constant throw, because the interface has no way to set one.
+* `stencil-xray` joins the golden set.
+
 ## 0.4.1
 
 * The lightmapped vertex stage and the lightmap term in the four lit models,

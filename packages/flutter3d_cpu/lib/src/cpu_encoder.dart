@@ -435,7 +435,7 @@ final class CpuEncoder implements CommandEncoder {
         continue;
       }
 
-      final z = sz[0] + (sz[1] - sz[0]) * t;
+      final z = _asStored(sz[0] + (sz[1] - sz[0]) * t);
       final index = y * target.width + x;
       final fate = _fateOf(stencil, stencilState, index, z, depth);
       final op = _operationFor(fate, stencilState);
@@ -463,6 +463,25 @@ final class CpuEncoder implements CommandEncoder {
       target.pixels[at + 3] = colour.w;
       if (depth != null && _depthWrite) depth[index] = z;
     }
+  }
+
+  /// One float, for rounding a depth to what the buffer can hold.
+  final Float32List _storedDepth = Float32List(1);
+
+  /// [z] as the depth buffer would store it.
+  ///
+  /// **Compared at the buffer's precision, not the arithmetic's.** The buffer
+  /// is a `Float32List` and the interpolation is in doubles, so a surface
+  /// drawn twice — which is what the x-ray stage does — used to compare a
+  /// double against its own rounded copy: `lessEqual` failed against the
+  /// pixel the same triangle had just written, by one part in ten million,
+  /// and `greater` passed, so a cube in plain view was painted as its own
+  /// silhouette. Hardware has one precision on both sides of the test; this
+  /// gives the rasteriser the same, and a coincident surface now ties the way
+  /// it ties on a GPU rather than winning or losing by rounding.
+  double _asStored(double z) {
+    _storedDepth[0] = z;
+    return _storedDepth[0];
   }
 
   /// A fragment the stencil test rejected.
@@ -829,7 +848,7 @@ final class CpuEncoder implements CommandEncoder {
         final b1 = w2 / area;
         final b2 = w0 / area;
 
-        final z = sz[0] * b0 + sz[1] * b1 + sz[2] * b2;
+        final z = _asStored(sz[0] * b0 + sz[1] * b1 + sz[2] * b2);
         final index = y * target.width + x;
         final fate = _fateOf(stencil, stencilState, index, z, depth);
         final op = _operationFor(fate, stencilState);

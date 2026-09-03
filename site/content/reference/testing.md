@@ -1,10 +1,10 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3172 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3200 tests need a GPU.
 ---
 
 # Testing
 
-3172 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3200 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
@@ -34,12 +34,12 @@ tool/ci.sh                                   # shaders, analyze, every test
 
 ## Three independent golden sets, not one
 
-Thirty-four scenes are rendered three times: through Impeller, through the software rasteriser in `flutter3d_cpu`, and through WebGL2 in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
+Thirty-five scenes are rendered three times: through Impeller, through the software rasteriser in `flutter3d_cpu`, and through WebGL2 in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
 
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 
 <div class="why">
-<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps thirty-four scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
+<p>Independently written implementations agreeing is evidence; one implementation agreeing with itself is not. The software set also keeps thirty-five scenes checkable in a headless run: recording the other two takes a GPU or a browser, but comparing the committed sets takes neither.</p>
 </div>
 
 `cross_backend_test.dart` compares them with per-scene budgets, and any new backend has to pass `flutter3d_conformance` before it counts as one.

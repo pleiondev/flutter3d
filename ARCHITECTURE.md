@@ -435,6 +435,24 @@ backend mirrors all of it, so the two references can be compared exactly.
 with no `submit` — so a contributor cannot end somebody else's pass. Particles are
 the first user.
 
+**X-ray silhouettes.** `RenderSettings.xray` names a layer, and every visible
+node on it is drawn twice more at the end of the scene pass, after the
+transparent half and before the contributors. The first draw *marks*: no colour
+(`BlendState.keepDestination`), no depth write, a depth test of `lessEqual`, and
+a stencil that stores one wherever a fragment passes — which, after the opaque
+half, is exactly the node's visible pixels. The second *paints*: a flat unlit
+colour with a depth test of `greater`, only where something nearer is in the
+buffer, and a stencil test of `notEqual` one, only where no marked node's visible
+part is. Every mark is written before any paint. The stencil is not decorative:
+a depth test alone paints a node's silhouette over its own visible half — a far
+limb behind a near one — and one monster's silhouette through the monster in
+front of it. Both draws go through the same node encoder as the lit draw, so a
+skinned monster is skinned three times and a batch is drawn as a batch. A device
+whose `supportsStencil` is false gets no silhouettes and no stencil calls; a
+scene with no layer named gets not one call more than it did before the stage
+existed, which is what keeps every other golden the bytes it was. The dungeon's
+sensor power-up is the consumer.
+
 ### 4.4 Culling and level of detail
 
 Frustum culling runs over a flat registry of renderables, with world bounds cached
@@ -703,12 +721,14 @@ Changing any of these breaks a backend, and that is the bar for changing them.
   is the recording half without `submit`, so handing a contributor an
   already-submitted pass is a type error rather than a comment warning about one.
 - **`RenderPassDescriptor`, `ColorTarget`, `DepthTarget`, `ScreenRect`,
-  `BlendState`.**
+  `BlendState`, `StencilState`.** `DepthTarget` says how its stencil is loaded,
+  stored and cleared; `StencilState` is flutter_gpu's `StencilConfig` with
+  eight-bit masks, and `StencilState.disabled` is what every pass starts with.
 - **Handles** — `TextureHandle`, `GeometryBuffer`, `ShaderHandle`,
   `PipelineHandle`, `ShaderLibrary`. A handle carries a description and an opaque
   backend object. `TextureHandle` deliberately has no `==`: the pool lends by
   identity and the frame releases by identity, and value equality would break both.
-- **The sixteen enums in `formats.dart`**, plus `SamplerOptions`,
+- **The eighteen enums in `formats.dart`**, plus `SamplerOptions`,
   `RenderTargetSpec`, `TextureAllocator` and `RenderTargetPool`. Their value names
   are load-bearing beyond the package: the Impeller translation asserts each maps
   to the flutter_gpu value of the *same name*, which catches a mapping that swapped
@@ -769,10 +789,21 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   bug — **when a backend must choose between being right and being comparable,
   comparable wins**, and the choice earns a test that fails the day it stops being
   necessary.
+- **A pass starts with the stencil test off, on both faces**, whatever the pass
+  before it set — the same rule as the viewport and the scissor, and for the same
+  backend: on WebGL the stencil setters are context state. A caller that turns
+  the test on says `setStencil(StencilState.disabled)` when it is done. The test
+  is meaningful only against a depth attachment whose format
+  `TextureFormatStencil.hasStencil` says carries one, and **a discarded fragment
+  writes no stencil**, whichever of the three operations it earned — which is why
+  a draw that exists to mark the stencil blends with `BlendState.keepDestination`
+  rather than discarding, and why the software rasteriser runs the fragment stage
+  before applying an operation a failing fragment would otherwise have earned.
 - **Ask before requesting what a backend may not have** — `supportsWireframe`,
-  `supportsOffscreenMsaa`, `depthRange`, `framebufferOrigin`, `hdrColorFormat`,
-  `preferredSampleCount`, `supportsMipmaps`, `supportsTextureFormat`. A backend
-  refuses loudly rather than substituting something that looks similar.
+  `supportsOffscreenMsaa`, `supportsStencil`, `depthRange`, `framebufferOrigin`,
+  `hdrColorFormat`, `preferredSampleCount`, `supportsMipmaps`,
+  `supportsTextureFormat`. A backend refuses loudly rather than substituting
+  something that looks similar.
 
 **Outside the promise**, because nothing beyond the package should depend on it:
 everything in `flutter3d`'s `src/` past what `flutter3d.dart` exports;
@@ -1405,11 +1436,11 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3172 tests** across 24 packages and 5 applications |
+| Unit tests | **3200 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
-**Golden render tests.** 34 scenes against **three independent reference sets** —
+**Golden render tests.** 35 scenes against **three independent reference sets** —
 Impeller, the software rasteriser and WebGL2 — each held to zero differing pixels
 against its own set, with a per-channel tolerance of 8. Each backend records its
 own because a shared set would need one tolerance doing two jobs: "did this
@@ -1463,7 +1494,7 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-four of them between 0.01% and 0.6%, measured rather than
+scene, all thirty-five of them between 0.01% and 0.6%, measured rather than
 rounded — a budget far above what was observed has stopped watching.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
@@ -1578,7 +1609,7 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-four golden scenes the way Impeller does**,
+**The web backend now draws all thirty-five golden scenes the way Impeller does**,
 between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
 silhouette's worth of disagreement two rasterisers always have. Six scenes were
 in whole percents and every one of them was this backend drawing something else;

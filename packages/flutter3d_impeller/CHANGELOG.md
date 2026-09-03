@@ -1,3 +1,13 @@
+## 0.4.5
+
+* **The stencil passes through.** `setStencil` becomes `setStencilConfig`
+  for both faces or one call per face, `setStencilReference` its own, and
+  `DepthTarget`'s stencil load, store and clear reach the
+  `DepthStencilAttachment`. `supportsStencil` answers from whether the
+  context names a depth-stencil format at all. `stencil-xray` joins the
+  golden set, and the conformance suite marks a stencil and reads it back
+  through this backend.
+
 ## 0.4.4
 
 * The bundle gains `MeshLightmappedVertex` and every lit stage binds a

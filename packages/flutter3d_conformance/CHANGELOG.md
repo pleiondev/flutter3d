@@ -1,3 +1,13 @@
+## 0.4.2
+
+* **`a stencil test keeps what it should`.** A mark written where a mesh is,
+  through `BlendState.keepDestination` so the picture is left alone, then
+  `equal` landing only on the mark and `notEqual` only off it — three pixels
+  read back, and each of the three ways to be wrong named in its failure. A
+  backend whose `supportsStencil` is false is asked nothing, as with a
+  compressed format it does not sample. The capability check reads
+  `supportsStencil` with the rest.
+
 ## 0.4.1
 
 * The link checks pair `MeshLightmappedVertex` with the lit models.

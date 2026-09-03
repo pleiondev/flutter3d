@@ -412,6 +412,65 @@ abstract final class GoldenExtras {
     1.0,
   ];
 
+  /// The layer the x-ray scene's cubes are on, beside the default one.
+  static const int xrayLayer = 1 << 4;
+
+  /// A wall with a cube behind it and a cube in front, the cubes on
+  /// [xrayLayer].
+  ///
+  /// Placed for a camera looking straight down −Z: the wall stands across
+  /// the view, the far cube is behind it with a sliver showing above its
+  /// top, and the near cube stands to the left, in front of the wall and —
+  /// on screen — across part of the far cube. Three things in one frame:
+  /// the far cube's silhouette through the wall, its visible sliver lit
+  /// rather than flat, and the silhouette stopping where the near cube's lit
+  /// face is. The third is the stencil's; a depth test alone paints the far
+  /// cube's silhouette over the near cube.
+  static List<MeshNode> xrayRoom(GraphicsDevice device) {
+    final wall = MeshNode(
+      DeviceMesh.upload(
+        device,
+        CuboidShape(size: Vector3(3.0, 1.2, 0.16)).build(),
+      ),
+      Material(
+        name: 'wall',
+        baseColor: Vector4(0.72, 0.70, 0.66, 1.0),
+        roughness: 0.85,
+      ),
+      name: 'wall',
+    )..setPosition(0.0, 0.6, 0.0);
+
+    final cube = DeviceMesh.upload(
+      device,
+      CuboidShape(size: Vector3(0.8, 0.8, 0.8)).build(),
+    );
+    final behind =
+        MeshNode(
+            cube,
+            Material(
+              name: 'far cube',
+              baseColor: Vector4(0.30, 0.55, 0.85, 1.0),
+              roughness: 0.4,
+            ),
+            name: 'far cube',
+          )
+          ..layerMask = 1 | xrayLayer
+          ..setPosition(0.0, 0.9, -1.2);
+    final inFront =
+        MeshNode(
+            cube,
+            Material(
+              name: 'near cube',
+              baseColor: Vector4(0.35, 0.75, 0.40, 1.0),
+              roughness: 0.4,
+            ),
+            name: 'near cube',
+          )
+          ..layerMask = 1 | xrayLayer
+          ..setPosition(-0.32, 0.4, 0.9);
+    return <MeshNode>[wall, behind, inFront];
+  }
+
   /// A stand-in for something held in the player's hands.
   ///
   /// A plain box rather than a weapon, because what is being tested is that
