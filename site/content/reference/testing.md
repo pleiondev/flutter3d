@@ -1,14 +1,14 @@
 ---
-description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3213 tests need a GPU.
+description: Three independent golden sets, mutation-checking every new test, determinism and snapshots, and why only about thirty of 3217 tests need a GPU.
 ---
 
 # Testing
 
-3213 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
+3217 tests across 24 packages and five applications, counted the same way the `the document says how many tests there are` rule does: a scan of every `test(`/`testWidgets(` call. The rule holds `ARCHITECTURE.md` §13, the README and this page to the answer — the README went on saying 1242 across thirteen packages for as long as nothing compared it with anything. About thirty need a GPU; the [architecture](/core/architecture/) is what keeps the number that low.
 
 | Package | Tests | | Package | Tests |
 |---|---|---|---|---|
-| `flutter3d` | 753 | | `flutter3d_particles` | 68 |
+| `flutter3d` | 758 | | `flutter3d_particles` | 68 |
 | `flutter3d_sim` | 379 | | `pad_input` | 59 |
 | `flutter3d_game_shooter` | 291 | | `flutter3d_audio` | 55 |
 | `apps/flutter3d_editor` | 196 | | `flutter3d_webgl` | 44 |
@@ -16,13 +16,13 @@ description: Three independent golden sets, mutation-checking every new test, de
 | `flutter3d_game_platformer` | 190 | | `flutter3d_bridge` | 40 |
 | `apps/flutter3d_demo_platformer` | 168 | | `flutter3d_session` | 29 |
 | `flutter3d_physics` | 137 | | `pointer_lock` | 28 |
-| `flutter3d_cpu` | 123 | | `flutter3d_hardware` | 22 |
+| `flutter3d_cpu` | 125 | | `flutter3d_hardware` | 28 |
 | `apps/flutter3d_demo_racing` | 119 | | `flutter3d_testing` | 7 |
 | `flutter3d_screens` | 112 | | `apps/flutter3d_template_app` | 4 |
 | `flutter3d_game` | 69 | | `flutter3d_backend` | 2 |
 | `apps/flutter3d_demo_dungeon` | 69 | | `flutter3d_shaders` | 1 |
 
-The rows sum to 3198 rather than 3204: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
+The rows sum to 3211 rather than 3217: the remaining six live in `packages/*/example/test`, which the count includes and this table does not.
 
 `flutter3d_app` and `flutter3d_samples` are not in the table and have no `test/` at all. One is a barrel of thirty-five `export` lines and the other is test data with two path constants over it; what there is to check about them is structural, and other packages' decoder tests are what exercise the samples. `flutter3d_conformance` is missing for a different reason: it is invoked as a script harness rather than through `flutter test`, so it does not surface in a grep of `test(` calls either. See below for what that cost once.
 
@@ -35,6 +35,8 @@ tool/ci.sh                                   # shaders, analyze, every test
 ## Three independent golden sets, not one
 
 Thirty-five scenes are rendered three times: through Impeller, through the software rasteriser in `flutter3d_cpu`, and through WebGL2 in a driven browser. Each backend is held to zero differing pixels against its own set, with a per-channel tolerance of 8.
+
+The browser's set is recorded when a branch lands rather than beside it — `golden_web.sh` holds one fixed port for the whole of its run — so a new scene is in two sets for as long as that takes. Which one, and what it is waiting for, is `_awaitingReference` in `flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with the reason printed instead of quietly missing, and the check beside it fails the moment the reference lands and the name is still there. `auto-exposure` is the one entry today.
 
 {{golden3 shadow-teapot | One scene, three sets: a GPU through Metal, a rasteriser written in Dart, and a browser. The pictures on this site are the Impeller set.}}
 

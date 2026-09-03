@@ -330,6 +330,45 @@ void main() {
       expect(device.readbacks, hasLength(2));
     });
 
+    test(
+      'a device that refuses on the spot costs a count, not the frame',
+      () async {
+        // Every backend refuses *synchronously*: `readbackRegionOf` throws
+        // before a future exists, which is what the conformance check tests
+        // for, and WebGL2 does the same when a lost context will not give it a
+        // fence. The fake refuses that way here, from inside `answerReadback`.
+        //
+        // Three claims, and the middle one is the reason the first two are
+        // worth anything. Mutation: call `device.readback` bare rather than
+        // through `Future.sync` — the throw comes out of the luminance node,
+        // `render` rethrows it, this test's `frame` throws instead of returning
+        // a picture, and `_meterInFlight` is left true for ever, so the two
+        // later expectations fail as well.
+        device.answerReadback = (_, _) =>
+            throw StateError('the context refused a fence for the readback');
+        const settings = RenderSettings(
+          exposure: 1.6,
+          autoExposure: AutoExposureSettings(enabled: true),
+        );
+        final result = frame(settings);
+        expect(result.exposure, 1.6, reason: 'the frame was drawn and exposed');
+        expect(device.readbacks, hasLength(1), reason: 'the device was asked');
+        await pumpEventQueue();
+        expect(
+          renderer.debugMeterFailures,
+          1,
+          reason: 'counted, not swallowed',
+        );
+
+        // And the meter is not wedged: the ask that failed is over, so the next
+        // frame asks again rather than believing one is still in the air.
+        frame(settings);
+        expect(device.readbacks, hasLength(2));
+        await pumpEventQueue();
+        expect(renderer.debugMeterFailures, 2);
+      },
+    );
+
     test('exposes the next frame with what the last one metered', () async {
       // The device answers black, so the target is the ceiling; at an infinite
       // rate the frame after the readback is composited at the ceiling. The

@@ -402,6 +402,10 @@ final node = await renderer.pickPixel(at.dx / size.width, at.dy / size.height);
 The next `render` draws every visible mesh once more with a stage that writes the draw's number instead of its colour, reads the one pixel back, and completes the future with the node whose number came back — null for the clear colour, the batch for an instanced batch. A hardware backend answers a frame or two after that render; the software one when the render returns. On frames nobody asked, the pass is inactive and the frame graph culls it, so it costs nothing until a click. What the scene pass throws away, the id stage throws away too: a masked material's fragments under its cutoff, so a click through a fence's hole answers with what is seen through it. And a frame that fails — in a pass, or before one when the graph refuses a node — answers the question with the failure rather than never, which is why the editor's click handler catches.
 
 <div class="note">
+<p><code>A blended surface is picked as though it were opaque.</code> Glass, a translucent marker, an additive flash: the id pass draws them like anything else, so a click on one answers with the surface and not with what is visible through it. The two kinds of see-through are different claims and the pass treats them differently on purpose — <code>MASK</code> says "there is nothing here", which is a hole and is discarded in both passes, and <code>BLEND</code> says "there is something here, faintly", which is still a thing to click on. A caller that wants the box behind the glass filters the answer; the renderer does not guess which of the two was meant.</p>
+</div>
+
+<div class="note">
 <p>The level editor selects with this and resolves the level's own geometry — one batch per material, no brush of its own — back to a brush by the ray through the click, which on the face drawn at that pixel is the face's own. What went away is the tie-breaking rule the ray needed on its own: "anything that is not a wall wins within a metre of the nearest hit", a guess about which of two boxes somebody meant. A pixel is not a guess.</p>
 </div>
 

@@ -706,6 +706,16 @@ final class Renderer implements RenderServices {
   /// what is seen through it. A pick asked while no frame follows — a
   /// renderer nobody renders with again — is answered null by [dispose].
   ///
+  /// **A blended surface is picked as though it were opaque**, and that is the
+  /// one place this parts company with what the eye sees. Glass, a translucent
+  /// marker, an additive flash: the id pass draws them like everything else,
+  /// so a click on one answers with the surface rather than with the thing
+  /// visible through it. Transparency and a hole are different questions —
+  /// `MASK` says "there is nothing here", which the pass honours, and `BLEND`
+  /// says "there is something here, faintly", which is still something to
+  /// click on. A caller that wants the thing behind the glass filters the
+  /// answer; the renderer does not guess which of the two was meant.
+  ///
   /// **Or with an error.** The frame the question belongs to can fail — a
   /// pass throws, or the graph refuses an application node before any pass
   /// has run — and the question is then completed with that failure rather

@@ -386,16 +386,19 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   ///
   /// Throws an [ArgumentError] rather than answering null for what cannot be
   /// read — a `deviceTransient` texture, a multisampled one, a cube, a region
-  /// outside the texture, and a texture in any format but eight-bit RGBA
-  /// (`readbackFormats`: the two `UNormInt` layouts and their sRGB twins).
-  /// The handle carries every one of those facts, so the caller can ask
-  /// before requesting; a null here would have to be told apart from a copy
-  /// the driver refused, and those are different mistakes. The format is
-  /// refused rather than converted because the three backends would convert
-  /// differently — one of them into a picture of zeros with no error — and
-  /// the bytes above are promised to be the same bytes everywhere. A float
+  /// outside the texture, and a texture in any format but the two linear
+  /// eight-bit RGBA layouts (`readbackFormats`: `r8g8b8a8UNormInt` and
+  /// `b8g8r8a8UNormInt`). The handle carries every one of those facts, so the
+  /// caller can ask before requesting; a null here would have to be told apart
+  /// from a copy the driver refused, and those are different mistakes. The
+  /// format is refused rather than converted because the three backends would
+  /// convert differently — one of them into a picture of zeros with no error —
+  /// and the bytes above are promised to be the same bytes everywhere. A float
   /// target is read through [readPixels], or drawn into an eight-bit one
-  /// first, which is what the exposure meter's luminance pass is.
+  /// first, which is what the exposure meter's luminance pass is. An sRGB
+  /// target is refused for the same reason with a message of its own: the
+  /// encoding is what the three would disagree about, one handing back the
+  /// stored bytes and another the linear values they stand for.
   Future<ByteData> readback(TextureHandle texture, {ScreenRect? region});
 
   /// Releases one geometry buffer, rather than waiting for the whole device to

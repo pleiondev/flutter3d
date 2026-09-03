@@ -46,11 +46,40 @@ void main() {
     expect(readbackRegionOf(_texture(), corner), corner);
   });
 
-  test('every eight-bit RGBA layout is read back as it is', () {
+  test('every layout it admits is a linear eight-bit RGBA one', () {
+    // The set itself, not a sample of it: what `readbackFormats` promises is
+    // that a backend copying these bytes straight out has told the truth on
+    // every one of them, and nothing but a linear eight-bit layout can. A
+    // format added here without a conformance pass over it is the defect this
+    // catches. Mutation: put an sRGB twin back — the layout check fails, and
+    // so does the refusal below.
+    expect(readbackFormats, <TextureFormat>{
+      TextureFormat.r8g8b8a8UNormInt,
+      TextureFormat.b8g8r8a8UNormInt,
+    });
     for (final format in readbackFormats) {
       expect(
         readbackRegionOf(_texture(format: format), null),
         const ScreenRect(width: 8, height: 6),
+        reason: format.name,
+      );
+    }
+  });
+
+  test('refuses an sRGB layout, and says why that one is different', () {
+    // Eight bits per channel and still not the same bytes everywhere: one
+    // backend reads an sRGB texture through `toByteData`, which may hand back
+    // the linear values the encoding stands for, and another reads the stored
+    // bytes as they sit. The message has to send the caller somewhere else
+    // than the float one does — the bytes exist, it is the view of them that
+    // is wrong — so it is checked by what it names.
+    for (final format in const <TextureFormat>[
+      TextureFormat.r8g8b8a8UNormIntSRGB,
+      TextureFormat.b8g8r8a8UNormIntSRGB,
+    ]) {
+      expect(
+        () => readbackRegionOf(_texture(format: format), null),
+        _refusalNaming('sRGB texture is not '),
         reason: format.name,
       );
     }

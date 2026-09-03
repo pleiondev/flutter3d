@@ -804,13 +804,20 @@ A backend that gets one of these wrong compiles and draws the wrong thing.
   the queue reports it done, so the answer arrives a frame or two later. A
   backend that copied when the driver got round to it would hand an exposure
   meter the frame *after*. What cannot be read — tile memory, a multisampled
-  target, a cube, a region past the edge, and any format but eight-bit RGBA
-  (`readbackFormats`) — is refused with an `ArgumentError` by
-  `readbackRegionOf`, once, for all three. The format is refused rather than
-  converted because the bytes are promised to be the same everywhere and a
-  half-float target was three answers on three backends: on WebGL2 a
-  `readPixels` the context rejects, a pack buffer still at zeros and a future
-  completing successfully with a black picture. The check is `a readback
+  target, a cube, a region past the edge, and any format but the two linear
+  eight-bit RGBA layouts (`readbackFormats`) — is refused with an
+  `ArgumentError` by `readbackRegionOf`, once, for all three. The format is
+  refused rather than converted because the bytes are promised to be the same
+  everywhere and a half-float target was three answers on three backends: on
+  WebGL2 a `readPixels` the context rejects, a pack buffer still at zeros and a
+  future completing successfully with a black picture. **The sRGB twins are
+  refused for the same reason and were not, at first**: eight bits per channel
+  is the wrong test, since flutter_gpu reads an encoded texture through
+  `toByteData` and may hand back the linear values it stands for where WebGL2
+  hands back what is stored. Two of the four admitted formats were a promise
+  nothing checked and no caller made — every readback target the engine
+  declares is `r8g8b8a8UNormInt` — so the set is the two that a copy can be
+  honest about. The check is `a readback
   returns the frame before`, which also hands over the device's own
   `hdrColorFormat` and expects the refusal, and its shader-tier twin holds a
   region of a drawn picture to its rows from the top.
@@ -1452,7 +1459,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3213 tests** across 24 packages and 5 applications |
+| Unit tests | **3217 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 
@@ -1470,6 +1477,15 @@ CI; recording needs the hardware, and for the browser set that means
 `flutter3d_webgl/tool/golden_web.sh`, which builds the example for the web,
 serves it, and drives Chrome once per scene — a page cannot open a file or write
 one, so it fetches its reference over HTTP and posts back what it drew.
+
+**The browser set is recorded when a branch lands, not beside it**, because
+that script holds one fixed port for the whole of its run and two of them
+cannot share a machine. So a branch that adds a scene commits the Impeller and
+software references and names the missing third in `_awaitingReference` in
+`flutter3d_webgl/test/cross_backend_test.dart`: the comparison is skipped with
+that reason printed rather than quietly absent, and the moment the PNG appears
+the check fails until the name comes out and the provisional budget is replaced
+by the measurement. `auto-exposure` is the one entry in it today.
 
 **What the third set found on the day it was recorded.** Six scenes disagreed by
 whole percents rather than by a silhouette's worth, and one of the six turned out
@@ -1510,8 +1526,10 @@ pass turned its input over. The view built to check the atlas cancelled the very
 error it was pointed at and agreed with Impeller to the pixel for six sessions.
 
 What holds it now is `flutter3d_webgl/test/cross_backend_test.dart`: a budget per
-scene, all thirty-five of them between 0.01% and 0.6%, measured rather than
-rounded — a budget far above what was observed has stopped watching.
+scene, every measured one between 0.01% and 0.6%, measured rather than
+rounded — a budget far above what was observed has stopped watching. The one
+budget that is not a measurement is the provisional one beside the scene this
+backend has yet to record, and it says so.
 
 **Every new test is written by breaking what it covers**, and the mutation is named
 in the test's comment. This is not a ritual: the rule regularly finds tests that
@@ -1634,9 +1652,11 @@ metres. The directional light's cascades fit the view up to that distance and
 nothing beyond it casts — a level whose far end matters visually wants the
 number raised, and pays for it in texels.
 
-**The web backend now draws all thirty-five golden scenes the way Impeller does**,
-between 0.01% and 0.6% of pixels differing by more than 8 per channel — the
-silhouette's worth of disagreement two rasterisers always have. Six scenes were
+**The web backend draws every golden scene it has recorded the way Impeller
+does**, between 0.01% and 0.6% of pixels differing by more than 8 per channel —
+the silhouette's worth of disagreement two rasterisers always have. It is one
+short of the other two sets while `auto-exposure` waits for the browser
+recording described in [§13](#13-how-correctness-is-held). Six scenes were
 in whole percents and every one of them was this backend drawing something else;
 [§13](#13-how-correctness-is-held) keeps what each turned out to be, because in
 all six the picture was wrong in a place nothing was looking.

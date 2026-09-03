@@ -10,8 +10,10 @@
   limits. The composite exposes each frame with what the frame before was
   metered at; `FrameResult.exposure` and `Renderer.exposure` say what that
   was. Off by default, since every golden is recorded at the setting's own
-  number; `auto-exposure` is the one scene that turns it on, and it is a
-  golden in all three sets.
+  number; `auto-exposure` is the one scene that turns it on. Its Impeller and
+  software references are recorded here; the web one is not, because
+  `golden_web.sh` holds a fixed port for the whole of its run and so records
+  when the branch lands.
 * **Picking by pixel.** `Renderer.pickPixel(u, v)` asks the next frame which
   mesh is drawn at a point: that frame draws every visible mesh once more with
   the `ObjectId` stage into a frame-sized target, reads the one pixel back and
@@ -43,6 +45,24 @@
   meter asking every frame kept two or three of those in the air and a
   staging pool to match; an exposure that adapts over seconds cannot tell a
   reading every frame from one every other frame.
+* **A device that refuses on the spot costs the question, not the frame.**
+  Both readbacks are asked through `Future.sync`, because a refusal is
+  synchronous by contract — `readbackRegionOf` throws before a future exists —
+  and the backends refuse that way on their own account too: WebGL2 gives no
+  fence for a lost context, flutter_gpu throws rather than returning false
+  when a copy is turned down. Asked bare, the first of those came out of the
+  luminance or the id node and took the whole picture down over a click, and
+  the exposure meter's in-flight flag stayed set for ever, so it never asked
+  the device again and `debugMeterFailures` stayed at nought — the one number
+  that would have said so.
+* **A blended surface is picked as though it were opaque**, written down
+  rather than left to whichever way the pass fell. Glass, a translucent
+  marker, an additive flash answer with themselves and not with what is seen
+  through them: `MASK` says "there is nothing here" and is discarded in both
+  passes, `BLEND` says "there is something here, faintly", and that is still a
+  thing to click on. `Renderer.pickPixel` says so and a software-backend test
+  holds it — a red pane at half alpha over a box, the click answering the pane
+  while the picture shows the box through it.
 * `FrameResult.exposure` defaults to `RenderSettings.defaultExposure` rather
   than to its own copy of the number.
 

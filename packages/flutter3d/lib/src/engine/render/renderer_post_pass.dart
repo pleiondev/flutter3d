@@ -312,8 +312,18 @@ extension _PostPasses on Renderer {
     final adapter = _autoExposure;
     if (adapter == null || _meterInFlight) return;
     _meterInFlight = true;
-    device
-        .readback(target)
+    // **`Future.sync`, and it is what makes the sentence above true.** A
+    // refusal is synchronous by contract — `readbackRegionOf` throws an
+    // `ArgumentError` before any future exists, which is exactly what the
+    // conformance check tests for — and the backends throw on their own
+    // account too: WebGL2 refuses a fence when the context has been lost,
+    // flutter_gpu throws rather than returning false when a copy or a submit
+    // is refused. Called bare, every one of those would leave the handler
+    // below untouched and come out of this node, so a lost context would
+    // take the whole frame down. Wrapped, the throw is the future's failure,
+    // where it is counted — and `whenComplete` clears the flag, without which
+    // the meter would never ask the device again.
+    Future<ByteData>.sync(() => device.readback(target))
         .then(
           (ByteData bytes) => adapter.meter(bytes, settings),
           // A refused copy leaves the exposure where it was, which is the

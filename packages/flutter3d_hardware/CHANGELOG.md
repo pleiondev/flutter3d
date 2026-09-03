@@ -11,8 +11,9 @@
   the edge — is refused with an `ArgumentError` by `readbackRegionOf`, once,
   so every backend refuses alike. A backend outside this repository has to add
   the member.
-* **A readback is eight-bit RGBA or it is refused.** `readbackFormats` names
-  the four layouts — `r8g8b8a8`, `b8g8r8a8`, and their sRGB twins — and
+* **A readback is linear eight-bit RGBA or it is refused.**
+  `readbackFormats` names two layouts — `r8g8b8a8UNormInt` and
+  `b8g8r8a8UNormInt`, the same four bytes in either order — and
   `readbackRegionOf` refuses any other format by name. The contract promises
   the same bytes on every backend, and a half-float target broke it three
   ways: on WebGL2 `readPixels(RGBA, UNSIGNED_BYTE)` of a float attachment is
@@ -21,6 +22,17 @@
   `toByteData`; the software rasteriser clamped its floats. A float texture is
   read through `readPixels`, or drawn into an eight-bit target first, which is
   what the exposure meter's luminance pass is for.
+* **The sRGB twins are refused too, with a message of their own.** They were
+  admitted on the grounds of being eight bits per channel, which is the wrong
+  test: the question is whether three backends hand back the same bytes, and
+  for an encoded texture nothing said they would — flutter_gpu reads through
+  `asImage().toByteData(rawRgba)`, which may hand back the linear values the
+  encoding stands for, WebGL2 hands back what is stored, and the software
+  rasteriser rounds its own floats. Nothing asked: every readback target the
+  engine declares is `r8g8b8a8UNormInt`, so the two formats were a promise no
+  conformance check ever made. The refusal points at the same texture's
+  `UNormInt` layout rather than at drawing it into another target, because
+  that is the different fix a different mistake needs.
 * `FakeBackend.readback` records what was asked — texture and region — and
   answers zeros unless `answerReadback` says otherwise, so a test can be the
   device that saw a dark frame or a particular id.

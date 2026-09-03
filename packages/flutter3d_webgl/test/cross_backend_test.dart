@@ -114,11 +114,7 @@ const Map<String, double> _budgets = <String, double>{
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
   'lightmapped-room': 0.15,
-  // Provisional; recorded at merge. The teapot on its floor, exposed by the
-  // frame: `golden_web.sh` holds a port for the whole of its run, so this
-  // backend's reference is recorded when the branch lands rather than beside
-  // it, and the budget is set where a first recording of a lit scene has
-  // always landed until the measurement replaces it.
+  // Provisional; recorded at merge — see [_awaitingReference].
   'auto-exposure': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
@@ -133,6 +129,26 @@ const Map<String, double> _budgets = <String, double>{
   'shadow-map': 0.01,
   'surface-buffer': 0.01,
 };
+
+/// Scenes this backend has a budget for and no reference yet.
+///
+/// **A named gap rather than a missing key.** `tool/golden_web.sh` builds the
+/// example for the web, serves it on a fixed port and drives Chrome once per
+/// scene, so it cannot run beside a branch that is still moving — this
+/// backend's reference for a new scene is recorded when the branch lands, and
+/// the budget above is where a first recording of a lit scene has always sat
+/// until the measurement replaces it. Left as a missing key the whole
+/// comparison would simply not exist, which is a scene nobody looks at; named
+/// here it is a comparison that is *deliberately* not run, and the check below
+/// makes the entry impossible to leave behind: the moment the PNG appears it
+/// fails until the name is taken out and the budget measured.
+const Set<String> _awaitingReference = <String>{'auto-exposure'};
+
+/// What the runner prints beside a comparison [_awaitingReference] holds back,
+/// so the gap is read off the run rather than out of this file.
+const String _skipReason =
+    'no web reference yet: record it with tool/golden_web.sh --update, which '
+    'holds a fixed port and so runs when the branch lands';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -157,9 +173,16 @@ void main() {
       reason: 'recorded by tool/golden_web.sh --update and not compared here',
     );
     expect(
-      _budgets.keys.toSet().difference(recorded),
+      _budgets.keys.toSet().difference(recorded).difference(_awaitingReference),
       isEmpty,
       reason: 'a budget for a scene this backend has no reference for',
+    );
+    expect(
+      recorded.intersection(_awaitingReference),
+      isEmpty,
+      reason:
+          'recorded now, so take the name out of _awaitingReference and '
+          'put the measured number in the budget beside it',
     );
   });
 
@@ -189,7 +212,7 @@ void main() {
         lessThanOrEqualTo(entry.value),
         reason: 'this backend moved away from the hardware one',
       );
-    });
+    }, skip: _awaitingReference.contains(entry.key) ? _skipReason : null);
   }
 }
 

@@ -292,6 +292,31 @@ void main() {
   );
 
   test(
+    'a device that refuses on the spot fails the question, not the frame',
+    () async {
+      // A refusal is synchronous by contract — `readbackRegionOf` throws
+      // before a future exists — and a backend refuses on its own account the
+      // same way: a WebGL2 context that has been lost gives no fence, and
+      // flutter_gpu throws rather than returning false when a copy is turned
+      // down. What that must cost is the two questions and nothing else.
+      //
+      // Mutation: ask the device bare rather than through `Future.sync` — the
+      // throw comes out of the id node, `render` fails the whole frame, and
+      // the second question is never even asked, so the picture is lost over
+      // a click.
+      device.answerReadback = (_, _) =>
+          throw StateError('the context refused a fence for the readback');
+      final first = renderer.pickPixel(0.25, 0.5);
+      final second = renderer.pickPixel(0.75, 0.5);
+      frame();
+      expect(idPasses(), hasLength(1), reason: 'the pass ran');
+      expect(device.readbacks, hasLength(2), reason: 'both were asked');
+      await expectLater(first, throwsStateError);
+      await expectLater(second, throwsStateError);
+    },
+  );
+
+  test(
     'a question asked of a renderer that is disposed is answered null',
     () async {
       final asked = renderer.pickPixel(0.5, 0.5);

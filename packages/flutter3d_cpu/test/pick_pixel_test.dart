@@ -209,6 +209,75 @@ void main() {
     expect(channel(0.31, 1), greaterThan(150), reason: 'the box is white');
   });
 
+  test('a blended surface is picked as though it were opaque', () async {
+    // The other half of the rule the fence tests. A hole says "there is
+    // nothing here" and is discarded in both passes; blending says "there is
+    // something here, faintly", and the pass picks it — glass, a translucent
+    // marker, an additive flash all answer with themselves. This is the case
+    // where the pick and the eye deliberately disagree, so it is written down
+    // as a test rather than left to whichever way the pass happened to fall.
+    //
+    // A red pane at half alpha, two metres wide and five tall, at z = −4 in
+    // front of the left box — whose near face is at z = −4.5, since a cuboid
+    // three metres on a side centred at z = −6 reaches half way back to the
+    // camera. The frame is 6.56 metres across at the pane and 7.37 at that
+    // face, so the pane shows as u 0.04 to 0.35 against the box's 0.03 to
+    // 0.43, and the pane overhangs it top and bottom where the box stops at
+    // v 0.20. Three points come out of that: (0.25, 0.5) is the pane over the
+    // box, (0.25, 0.05) the pane over nothing, and (0.40, 0.5) the box past
+    // the pane's edge.
+    //
+    // Mutation: leave the transparent half out of the id pass — the click on
+    // the pane answers "left", and the note on `pickPixel` saying otherwise
+    // becomes a description of nothing.
+    final it = _twoBoxes();
+    final glass =
+        MeshNode(
+            DeviceMesh.upload(
+              it.device,
+              const PlaneShape(width: 2.0, depth: 5.0).build(),
+            ),
+            Material(
+              name: 'glass',
+              lighting: LightingModel.unlit,
+              baseColor: Vector4(1.0, 0.0, 0.0, 0.5),
+              alphaMode: MaterialAlphaMode.blend,
+            ),
+            name: 'glass',
+          )
+          ..setPosition(-2.0, 0.0, -4.0)
+          ..setRotation(
+            Quaternion.axisAngle(Vector3(1.0, 0.0, 0.0), math.pi / 2),
+          );
+    it.scene.add(glass);
+
+    final through = it.renderer.pickPixel(0.25, 0.5);
+    final alone = it.renderer.pickPixel(0.25, 0.05);
+    final past = it.renderer.pickPixel(0.40, 0.5);
+    final result = it.renderer.render(
+      width: _width,
+      height: _height,
+      scene: it.scene,
+      views: <RenderView>[it.view],
+    );
+    expect((await through)?.name, 'glass', reason: 'the pane, not the box');
+    expect((await alone)?.name, 'glass');
+    expect((await past)?.name, 'left', reason: 'past the pane, the box');
+
+    // And the eye does see the box through it, which is what makes this a
+    // disagreement worth naming: the pane over the box is far brighter in
+    // green than the same pane over the background, because the box's white
+    // is what is coming through.
+    final pixels = (await it.device.readPixels(
+      result.frame,
+    ))!.buffer.asUint8List();
+    int channel(double u, double v, int c) =>
+        pixels[(((v * _height).floor() * _width) + (u * _width).floor()) * 4 +
+            c];
+    expect(channel(0.25, 0.5, 1), greaterThan(channel(0.25, 0.05, 1) + 60));
+    expect(channel(0.25, 0.5, 0), greaterThan(200), reason: 'and it is red');
+  });
+
   test('the picture is not touched by the pass', () async {
     // The id pass draws into a target of its own. Mutation: draw into the
     // frame — the frame comes back as ids.

@@ -7,7 +7,9 @@
   what makes the answer the frame before — and the bytes come off it through
   `asImage().toByteData()` in `submit`'s completion callback, once the queue
   says the copy ran. Nothing blocks; the pool grows to however many readbacks
-  are in flight, two for a meter that asks every frame. Checked on the GPU by
+  are in flight — one for the exposure meter, which waits for its answer
+  before it asks again, and one for each pick asked in the same breath.
+  Checked on the GPU by
   the two new conformance checks and by the `auto-exposure` golden, whose
   metered frame reproduced to the pixel.
 * **A refused copy gives its staging texture back.** flutter_gpu throws rather

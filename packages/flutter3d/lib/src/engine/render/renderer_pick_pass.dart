@@ -197,10 +197,23 @@ extension _PickPass on Renderer {
               ? CullMode.backFace
               : CullMode.none,
         );
+        // **`?? true`, where the scene pass has `?? !blend`, and the
+        // difference is a decision rather than an oversight.** A blended
+        // surface is picked as though it were opaque: glass, a marker, an
+        // additive flash all answer with themselves and not with what is seen
+        // through them. That is what an editor wants — a click selects the
+        // thing clicked, and a pane of glass is a thing — and it is what
+        // matching the scene pass would give anyway, since the id stage does
+        // not blend: the pane writes its number over the box either way, and
+        // all the write decides is which of two *transparent* surfaces at one
+        // pixel wins. Writing makes that the nearer one whatever order they
+        // were drawn in; not writing makes it whichever was drawn last.
+        //
         // A material that says it is drawn but not there — a backdrop — keeps
         // that here: it writes no depth, so what is behind it is what a click
-        // on it finds. Everything else writes, blended or not, because the
-        // nearest surface a pixel shows is the one somebody pointed at.
+        // on it finds. The one way to be seen through *and* picked through is
+        // the masked one below, where the fragment is discarded in both passes
+        // and there is no surface at that pixel at all.
         pass.setDepthWrite(material.depthWrite ?? true);
         pass.setDepthCompare(material.depthCompare ?? CompareFunction.less);
 
@@ -291,31 +304,40 @@ extension _PickPass on Renderer {
     // `render` — and the device still hands back what it read; the readback
     // arriving second at a completer already finished would throw from inside
     // a `then`, where nothing is listening.
+    //
+    // **Asked through `Future.sync`**, because a device refuses synchronously:
+    // `readbackRegionOf` throws before any future exists, and so does a WebGL2
+    // context that has lost its fence or a flutter_gpu copy that is turned
+    // down. Called bare, the first refusal would come out of this node and
+    // fail the whole frame — the picture with it — where what it is is one
+    // question that cannot be answered. Wrapped, it lands in the handler
+    // below, the pick is completed with the error the caller is told to catch,
+    // and every other question in the list still gets asked.
     final answers = List<MeshNode>.unmodifiable(drawn);
     for (final pick in picks) {
       final x = (pick.u * target.width).floor().clamp(0, target.width - 1);
       final y = (pick.v * target.height).floor().clamp(0, target.height - 1);
-      device
-          .readback(
-            target,
-            region: ScreenRect(x: x, y: y, width: 1, height: 1),
-          )
-          .then(
-            (ByteData pixel) {
-              if (pick.completer.isCompleted) return;
-              final id =
-                  pixel.getUint8(0) |
-                  (pixel.getUint8(1) << 8) |
-                  (pixel.getUint8(2) << 16);
-              pick.completer.complete(
-                id == 0 || id > answers.length ? null : answers[id - 1],
-              );
-            },
-            onError: (Object error, StackTrace stack) {
-              if (pick.completer.isCompleted) return;
-              pick.completer.completeError(error, stack);
-            },
+      Future<ByteData>.sync(
+        () => device.readback(
+          target,
+          region: ScreenRect(x: x, y: y, width: 1, height: 1),
+        ),
+      ).then(
+        (ByteData pixel) {
+          if (pick.completer.isCompleted) return;
+          final id =
+              pixel.getUint8(0) |
+              (pixel.getUint8(1) << 8) |
+              (pixel.getUint8(2) << 16);
+          pick.completer.complete(
+            id == 0 || id > answers.length ? null : answers[id - 1],
           );
+        },
+        onError: (Object error, StackTrace stack) {
+          if (pick.completer.isCompleted) return;
+          pick.completer.completeError(error, stack);
+        },
+      );
     }
     developer.Timeline.finishSync();
     return drawn.length;
