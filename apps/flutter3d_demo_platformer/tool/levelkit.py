@@ -271,11 +271,22 @@ def key(name, at, color):
     })
 
 
-def gate(name, at, color, size=(4.0, 5.0, 2.0)):
-    """A door that needs a key. It lifts clear of its own height when opened."""
+def gate(name, at, color, size=(4.0, 5.0, 2.0), travel=None):
+    """A door that needs a key. It lifts clear of its own height when opened.
+
+    `travel` is where it goes when it opens, and the default is straight up by
+    its own height. **A door that rises has to have somewhere to rise into**,
+    which is a fact about the wall around it rather than about the door: lift a
+    five-metre door inside an eight-metre wall and the two metres of stone above
+    it have to go somewhere, and if the answer is "there is no stone above it"
+    then the wall has a hole in it that is exactly as tall as the door's own
+    travel. Passing a downward travel is how a door in a sealed wall works —
+    it sinks into the floor, which is what a portcullis does anyway.
+    """
     entities.append({
         "type": "door", "name": name, "at": _r(at), "size": _r(size),
-        "travel": [0.0, size[1] + 0.2, 0.0], "speed": 6.0, "wait": 0.0,
+        "travel": _r(travel if travel is not None else [0.0, size[1] + 0.2, 0.0]),
+        "speed": 6.0, "wait": 0.0,
         "key": color, "material": "brass",
     })
 

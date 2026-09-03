@@ -177,19 +177,54 @@ enemy("the second warden", [-7.0, 12.6, 94.0], [[7.0, 12.6, 94.0]],
 tower(*SUMMIT)
 checkpoint("the threshold", 136.0, 6, respawn=136.0, y=SUMMIT[2])
 
-# The slate gate, and its plate in front of it. Eight metres of wall on a
-# platform twenty-four across, against a double jump of 3.13: the way through is
-# the door, and the door wants the key off the spur.
+# The slate gate: a wall right across the summit, a door in the middle of it,
+# and stone from the door's head to the parapet.
+#
+# **The first version of this wall had a hole in it the height of the door.**
+# The sides were eight metres and the door was five, and nothing filled the
+# three between the door's top and the wall's — which reads in the document as a
+# doorway with an arch over it, and reads to a runner as a ledge to climb to. An
+# autopilot with no key walked up to it and finished the game.
+#
+# **What the lintel does not do is make the gate compulsory, and that is not a
+# thing this level can do.** Twelve metres of wall was tried next and the same
+# autopilot got its feet to 32.9 m: a wall jump asks the world for any face
+# within fourteen centimetres and there is no height at which it stops working,
+# no surface a document can mark as unclimbable, and therefore no wall in this
+# game that seals anything against somebody willing to kick off it forty times.
+# Ascent's own test says the same thing about its two gates and says why three
+# tests claiming otherwise were written and deleted.
+#
+# So the honest description of this door is: it is the way through, it is the
+# reason the key is on the spur, and a player who would rather climb the wall
+# beside it may. The defect that was worth fixing is the slot — a wall with a
+# hole in it is a mistake whatever the wall jump can do, and it is the thing a
+# document can be held to. `spire_test.dart` holds it to that and to nothing it
+# cannot keep.
+#
+# One number decides the wall and the stone over the door, so the two cannot
+# drift apart and leave a slot between them again.
+GATE_TOP = SUMMIT[2] + 8.0
+DOOR_TOP = SUMMIT[2] + 5.0
 for x in (-8.0, 8.0):
-    route([x, SUMMIT[2] + 4.0, 140.0], [8.0, 8.0, 2.0], "stone")
-gate("the slate gate", [0.0, SUMMIT[2] + 2.5, 140.0], "slate",
-     size=(8.0, 5.0, 2.0))
+    route([x, (SUMMIT[2] + GATE_TOP) / 2.0, 140.0],
+          [8.0, GATE_TOP - SUMMIT[2], 2.0], "stone")
+# The door sinks rather than rises. A door that lifts needs somewhere to lift
+# into, and the whole point of the lintel is that there is nowhere: below is the
+# summit's own twenty-eight metres of rock, where a lowered portcullis is out of
+# sight because it is inside the mountain. See `gate` in levelkit.
+gate("the slate gate", [0.0, (SUMMIT[2] + DOOR_TOP) / 2.0, 140.0], "slate",
+     size=(8.0, DOOR_TOP - SUMMIT[2], 2.0),
+     travel=[0.0, -(DOOR_TOP - SUMMIT[2]) - 0.2, 0.0])
+route([0.0, (DOOR_TOP + GATE_TOP) / 2.0, 140.0],
+      [8.0, GATE_TOP - DOOR_TOP, 2.0], "stone")
+
 # **The plate is five metres deep and starts at the summit's own lip**, which is
-# further back and wider than any other plate in the game. A door rises 5.2 m at
+# further back and wider than any other plate in the game. A door moves 5.2 m at
 # six metres a second, which is nine tenths of a second, and a runner arriving at
 # a walk of six covers five and a half in that time: a plate three metres out
-# means meeting the door half open, and a door half open is one that carries its
-# visitor up with it. Standing on the top step of the tower is the moment the
+# means meeting the door half open, and a door half open is one that drags its
+# visitor along with it. Standing on the top step of the tower is the moment the
 # door should start moving.
 plate("the slate gate's plate", "the slate gate", [0.0, SUMMIT[2] + 1.6, 136.5],
       size=(8.0, 3.0, 5.0))

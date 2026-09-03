@@ -140,9 +140,19 @@ final class Climb {
   /// kind of mistake. **A key is not a place either.** Standing a metre and a
   /// half from one is arriving by any distance a route driver uses and is not
   /// picking it up, and a route that says it fetched a key it never touched is
-  /// worse than no route at all: the level after the gate was reached by a bot
-  /// that dashed through a locked door, which is a thing this engine's runner
-  /// can do to two metres of oak at eighteen metres a second.
+  /// worse than no route at all — which is not a hypothetical: Spire's exit was
+  /// reached, and the level finished, by a runner holding nothing at all.
+  ///
+  /// **How it got there is worth knowing, because the first answer was wrong.**
+  /// It was written down here as a dash through the door, and it is not: a dash
+  /// is eighteen metres a second, which is thirty centimetres in a frame
+  /// against two metres of door, and nothing tunnels. What actually happened
+  /// was a wall jump — the gate's wall had a slot over the door and the runner
+  /// climbed to it, measured at 26.93 m against a wall top of 27, with the
+  /// trick ladder still on walking. The slot is gone. The climb is not: see the
+  /// note on the gate in `make_spire.py` for why no wall in this game seals
+  /// anything, and why this parameter is what makes a route's claim about a key
+  /// true rather than the gate being shut.
   void walkThrough(
     List<(String, Vector3)> route, {
     int steps = 5400,

@@ -317,6 +317,81 @@ void main() {
     expect(climb.sim.state, RunState.finished);
   });
 
+  test('the gate is a wall with a door in it and no slot over the door', () {
+    // **The defect this was written for, and the shape of claim it is allowed
+    // to make.** The wall across the summit was eight metres and the door in it
+    // was five, with nothing filling the three between the door's head and the
+    // wall's top. In the document that reads as an arch. To a runner it reads
+    // as a ledge, and an autopilot carrying no key climbed to 26.93 m — against
+    // a wall top of 27 — went over the door and finished the game.
+    //
+    // **What is checked is the wall, not the bot.** Twelve metres of wall was
+    // tried and the same autopilot reached 32.9: a wall jump takes any face
+    // within fourteen centimetres, there is no height at which it stops and no
+    // surface a level can mark as unclimbable, so no wall here seals anything.
+    // Ascent's own test says the same about its two gates. A claim that this
+    // gate is unavoidable would be a claim a bot can already disprove; a claim
+    // that the wall has no hole in it is one the document either keeps or does
+    // not.
+    //
+    // Mutation: delete the lintel, or shorten the side walls to the door's
+    // height. The stack over the doorway stops being continuous and this names
+    // the gap.
+    final level = shippedLevel(_spire);
+    final door = level.entities.firstWhere(
+      (EntityDef e) => e.name == 'the slate gate',
+    );
+    final size = door.vector('size')!;
+    final floor = door.position.y - size.y / 2.0;
+    final across = door.position.z;
+
+    // Every solid thing standing over the doorway, lowest first — the door
+    // itself included, because a door is what fills the bottom of the hole.
+    final stack = <(double, double)>[
+      (floor, floor + size.y),
+      for (final brush in level.brushes)
+        if ((brush.centre.z - across).abs() < 1.5 &&
+            (brush.centre.x - door.position.x).abs() <
+                (size.x + brush.size.x) / 2.0 &&
+            brush.centre.y > floor)
+          (
+            brush.centre.y - brush.size.y / 2.0,
+            brush.centre.y + brush.size.y / 2.0,
+          ),
+    ]..sort(((double, double) a, (double, double) b) => a.$1.compareTo(b.$1));
+
+    var sealed = floor;
+    for (final (bottom, top) in stack) {
+      if (bottom > sealed + 0.01) break;
+      sealed = math.max(sealed, top);
+    }
+
+    final sides = <double>[
+      for (final brush in level.brushes)
+        if ((brush.centre.z - across).abs() < 1.5 &&
+            (brush.centre.x - door.position.x).abs() >= size.x / 2.0 &&
+            brush.centre.y > floor)
+          brush.centre.y + brush.size.y / 2.0,
+    ];
+    expect(sides, isNotEmpty, reason: 'the gate stands in no wall at all');
+
+    expect(
+      sealed,
+      greaterThanOrEqualTo(sides.reduce(math.max) - 0.01),
+      reason:
+          'the doorway is filled to $sealed and the wall beside it reaches '
+          '${sides.reduce(math.max)}, so there is a slot over the door',
+    );
+
+    // And the door has somewhere to go that is not that slot: it sinks into the
+    // summit rather than lifting into the stone above it.
+    expect(
+      door.vector('travel')!.y,
+      lessThan(0.0),
+      reason: 'the door opens upwards into a lintel it cannot pass through',
+    );
+  });
+
   test('it is the last level, and says so by saying nothing', () {
     // `finale` in the HUD is `nextLevel == null`, and that is the whole of how
     // the credits know the game is over.
