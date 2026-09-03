@@ -104,27 +104,30 @@ final class _SceneProbes {
 }
 
 extension _ProbePasses on Renderer {
-  /// The state for [probe], allocated on first sight and reallocated when
-  /// the probe's shape changed.
+  /// The state for [probe], allocated the first time it is seen.
   ///
-  /// Levels are clamped to what every backend allocates for [faceSize] — the
+  /// **Allocated once and never re-shaped.** `ReflectionProbeNode.faceSize`
+  /// and `.levels` are final and this map is keyed by the node, so a state's
+  /// shape cannot go out of date with the probe it belongs to; a probe that
+  /// wants a different face size is a different probe. A branch here that
+  /// compared the two and released a pair of cubes on a mismatch would be
+  /// unreachable, and an unreachable branch that frees textures is worse than
+  /// no branch at all — no test can reach it and nothing keeps it honest.
+  /// Cubes go back through [_retireProbesNotIn], when the probe leaves.
+  _ProbeState _probeStateFor(ReflectionProbeNode probe) =>
+      _probeStates[probe] ??= _newProbeState(probe);
+
+  /// Two cubes for a probe seen for the first time: the six views and the
+  /// chain filtered out of them.
+  ///
+  /// Levels are clamped to what every backend allocates for `faceSize` — the
   /// chain flutter_gpu will hold stops one short of one-by-one, and a shader
   /// told the chain is longer than the texture reads past its last level.
-  _ProbeState _probeStateFor(ReflectionProbeNode probe) {
+  _ProbeState _newProbeState(ReflectionProbeNode probe) {
     final levels = math.min(
       probe.levels,
       math.max(1, probe.faceSize.bitLength - 2),
     );
-    final existing = _probeStates[probe];
-    if (existing != null &&
-        existing.faceSize == probe.faceSize &&
-        existing.levels == levels) {
-      return existing;
-    }
-    if (existing != null) {
-      _destroyAfterFrame(existing.capture);
-      _destroyAfterFrame(existing.filtered);
-    }
     final capture = device.createCubeRenderTarget(
       size: probe.faceSize,
       format: hdrFormat,
@@ -140,14 +143,36 @@ extension _ProbePasses on Renderer {
         'cube for a reflection probe',
       );
     }
-    final state = _ProbeState(
+    return _ProbeState(
       capture: capture,
       filtered: filtered,
       faceSize: probe.faceSize,
       levels: levels,
     );
-    _probeStates[probe] = state;
-    return state;
+  }
+
+  /// Grants this frame's one whole-cube capture, or refuses it.
+  ///
+  /// **A level puts a probe in every room, and they are all first seen on the
+  /// same frame.** The crypt has four and the vaults five; six views of the
+  /// whole level each — drawn before the visibility culler is allowed to hide
+  /// anything, because `LoadedLevel.cull` waits for the probes — is twenty-four
+  /// or thirty encodes of everything plus a hundred and fifty filter passes,
+  /// all inside the frame the level appears on. That is a stall a player reads
+  /// as the level hanging, and it lands on the load, which is exactly where a
+  /// game can least afford one.
+  ///
+  /// So a whole cube is rationed to one probe a frame and the rest wait their
+  /// turn: a level's probes stand after as many frames as it has rooms with
+  /// one, and what that costs is those extra frames drawn without culling,
+  /// which is the cheap side of the trade. A rolling probe's single face is
+  /// **not** rationed — it is one view, it is due every frame, and a car whose
+  /// turn came round every fifth frame would reflect a track half a second
+  /// old.
+  bool _claimWholeProbeCapture() {
+    if (_wholeProbeCaptured) return false;
+    _wholeProbeCaptured = true;
+    return true;
   }
 
   /// Lets go of every probe that is no longer in [scene].

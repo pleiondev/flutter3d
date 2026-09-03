@@ -169,7 +169,20 @@ extension _MeshEncode on Renderer {
     // room the object is actually in, and the scene's environment is the sky
     // it may not be able to see. One per object and no blending — see
     // `_SceneProbes.nearest`.
-    final probe = material.lighting.usesEnvironment
+    //
+    // **A lightmapped draw reads no probe**, and that is the same "one term or
+    // the other, never both" rule the ambient strength above follows. A
+    // lightmap *is* this surface's indirect light, measured per texel and
+    // baked; a probe's roughest level is a coarser guess at the same quantity,
+    // and the shader adds the lightmap on top of the environment rather than
+    // choosing between them, so a wall that took both would count the room's
+    // bounce twice. The walls keep the bake, which is finer than a probe can
+    // be, and the probe lights everything the bake does not reach: props,
+    // enemies, anything skinned or batched — none of which carries a lightmap
+    // coordinate, which is why the local `lightmapped` is the one asked here
+    // rather than `node.lightmapped`. What a wall gives up is its specular
+    // lobe, and a rough dielectric's is very nearly nothing.
+    final probe = material.lighting.usesEnvironment && !lightmapped
         ? probes.nearest(node.worldBoundsCentre)
         : null;
     final environment =

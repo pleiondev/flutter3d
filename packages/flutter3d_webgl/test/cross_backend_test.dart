@@ -110,6 +110,13 @@ const Map<String, double> _budgets = <String, double>{
   'view-model-point-shadow': 0.2,
   'bloom-sphere': 0.1,
   'skinned-figure': 0.1,
+  // Predates the mipmap minification filter — `minFilterToGl` folds
+  // `MipFilter.linear` in now, and every texture uploaded with a chain asks
+  // for that filter, so this scene's particle sheet samples a level here
+  // where it used to sample the base. The number below was measured against
+  // the old behaviour and is to be re-measured in the same pass that records
+  // `probe-car`, against a reference re-recorded with
+  // `tool/golden_web.sh --update particles-textured` if the picture moved.
   'particles-textured': 0.1,
   'particles-mesh': 0.2,
   'instanced-field': 0.42,
@@ -117,6 +124,7 @@ const Map<String, double> _budgets = <String, double>{
   // Provisional; recorded at merge. The web set is recorded by a script that
   // holds a fixed port, so the picture lands with the merge rather than with
   // the branch, and the budget is set to be tightened to the measurement then.
+  // See [_recordedAtMerge], which is what keeps this suite green until then.
   'probe-car': 0.5,
   'cube-shadow': 0.01,
   'cube-shadow-many': 0.01,
@@ -131,6 +139,19 @@ const Map<String, double> _budgets = <String, double>{
   'shadow-map': 0.01,
   'surface-buffer': 0.01,
 };
+
+/// Budgets whose picture is not in the tree yet.
+///
+/// `tool/golden_web.sh` serves the recorder on a fixed port, so a web set is
+/// recorded once, at the merge, rather than on every branch that adds a scene;
+/// a branch declares its budget here and the picture arrives with the merge.
+/// Both the coverage check and the scene's own comparison stand aside for a
+/// name in this set, and nothing else does.
+///
+/// **Empty it as each picture lands.** A name left here after its PNG is
+/// recorded silences a real scene, which is the one failure this file exists
+/// to make impossible.
+const Set<String> _recordedAtMerge = <String>{'probe-car'};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -155,9 +176,14 @@ void main() {
       reason: 'recorded by tool/golden_web.sh --update and not compared here',
     );
     expect(
-      _budgets.keys.toSet().difference(recorded),
+      _budgets.keys.toSet().difference(recorded).difference(_recordedAtMerge),
       isEmpty,
       reason: 'a budget for a scene this backend has no reference for',
+    );
+    expect(
+      _recordedAtMerge.intersection(recorded),
+      isEmpty,
+      reason: 'recorded now, so it is no longer waiting for the merge',
     );
   });
 
@@ -187,7 +213,7 @@ void main() {
         lessThanOrEqualTo(entry.value),
         reason: 'this backend moved away from the hardware one',
       );
-    });
+    }, skip: _recordedAtMerge.contains(entry.key) ? 'recorded at merge' : null);
   }
 }
 

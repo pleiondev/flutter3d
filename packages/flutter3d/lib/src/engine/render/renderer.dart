@@ -454,6 +454,13 @@ final class Renderer implements RenderServices {
   /// them. Two cubes each, kept across frames — see `renderer_probe_pass.dart`.
   final Map<ReflectionProbeNode, _ProbeState> _probeStates =
       <ReflectionProbeNode, _ProbeState>{};
+
+  /// Whether a probe has already drawn a whole cube this frame.
+  ///
+  /// The frame's budget, and one is the whole of it — see
+  /// `_claimWholeProbeCapture`. Cleared where the probe nodes are built,
+  /// which is once per `render`.
+  bool _wholeProbeCaptured = false;
   final Float32List _probeParams = Float32List(4);
   final vm.Vector3 _probePosition = vm.Vector3.zero();
   PipelineHandle? _probePrefilterPipeline;
@@ -2067,8 +2074,10 @@ final class Renderer implements RenderServices {
     );
     // One node per probe the scene holds, in scene order, so the name the
     // scene reads for the i-th probe is the name the i-th node provides. A
-    // probe that left the scene since last frame gives its cubes back here.
+    // probe that left the scene since last frame gives its cubes back here,
+    // and this frame's one whole-cube capture is up for claiming again.
     _retireProbesNotIn(scene);
+    _wholeProbeCaptured = false;
     final probeNodes = <_ReflectionProbeNode>[
       for (var i = 0; i < scene.probes.length; i++)
         _ReflectionProbeNode(

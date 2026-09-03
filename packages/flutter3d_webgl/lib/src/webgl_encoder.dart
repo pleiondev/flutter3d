@@ -679,15 +679,24 @@ final class WebGlEncoder implements CommandEncoder {
         _framebuffer,
       );
       _gl.readBuffer(web.WebGLRenderingContext.COLOR_ATTACHMENT0 + i);
+      // The *level's* extent on both sides, not the texture's. Nothing in the
+      // engine resolves into a level below the base today — the probe passes
+      // that name one are single-sampled and ask for no resolve — but the
+      // constructor computes its viewport through [_levelSize] for exactly
+      // this reason, and a blit that read the base rectangle out of a
+      // sixteen-pixel level would be reading three quarters of it out of
+      // nothing. Written the same way here so the first pass that does resolve
+      // into a level finds this already right.
+      final level = _mipLevels[i];
       _gl.blitFramebuffer(
         0,
         0,
-        source.width,
-        source.height, //
+        _levelSize(source.width, level),
+        _levelSize(source.height, level), //
         0,
         0,
-        resolve.width,
-        resolve.height, //
+        _levelSize(resolve.width, level),
+        _levelSize(resolve.height, level), //
         web.WebGLRenderingContext.COLOR_BUFFER_BIT,
         web.WebGLRenderingContext.NEAREST,
       );

@@ -165,10 +165,19 @@ int minMagFilterToGl(MinMagFilter filter) => switch (filter) {
 /// as a mirror at every roughness.
 ///
 /// [MipFilter.nearest] is left as the plain filter rather than turned into
-/// `*_MIPMAP_NEAREST`, and deliberately: it is the default on every sampler
-/// the engine binds, thirty-four recorded pictures were drawn with the base
-/// level under it, and the one texture that wants a level chosen asks for
-/// the linear mip filter and says so.
+/// `*_MIPMAP_NEAREST`, and deliberately: it is [SamplerOptions]' default, it
+/// is what a texture with a single level is bound with, and turning it into a
+/// mipmap filter would change nothing there but the driver's opinion of it.
+///
+/// **What this does move.** Every sampler that says [MipFilter.linear] now
+/// minifies through the chain, not only the probe's cube:
+/// `SamplerOptions.trilinearRepeat` under the particle sprite and under a
+/// level's tiling textures, and `samplerOptionsFor`, which pairs the filter
+/// with `TextureSampling.useMipmaps` and so covers every model texture that
+/// carries a chain. That is the filtering those assets asked for and this
+/// backend was not giving; the recorded picture of a scene with such a
+/// texture moves with it, and `particles-textured` is the one in the golden
+/// set — see the note beside its budget in `test/cross_backend_test.dart`.
 int minFilterToGl(MinMagFilter filter, MipFilter mip) =>
     switch ((filter, mip)) {
       (MinMagFilter.nearest, MipFilter.linear) =>

@@ -359,6 +359,9 @@ final class _ReflectionProbeNode extends RenderNode {
   /// drawn, so a reflection of the empty sky is the same colour the world's is.
   final vm.Vector4 clearColor;
 
+  /// Every face, in order: what a first capture and an invalidated one draw.
+  static const List<int> _kWholeCube = <int>[0, 1, 2, 3, 4, 5];
+
   @override
   String get name => 'reflection probe $index';
 
@@ -383,17 +386,27 @@ final class _ReflectionProbeNode extends RenderNode {
   void execute(NodeFrame frame) {
     final state = _renderer._probeStateFor(probe);
 
-    // Which faces this frame draws. All six the first time, because a cube
-    // with faces nobody drew holds whatever the allocation held; all six
+    // Which faces this frame would draw. All six the first time, because a
+    // cube with faces nobody drew holds whatever the allocation held; all six
     // again when a kept probe was invalidated; one, in turn, for a probe that
     // rolls — and nothing at all for a kept probe that is current.
-    final faces = !state.whole
-        ? List<int>.generate(6, (i) => i)
+    final wanted = !state.whole
+        ? _kWholeCube
         : probe.refreshFaceEveryFrame
         ? <int>[state.nextFace]
         : state.generation != probe.generation
-        ? List<int>.generate(6, (i) => i)
+        ? _kWholeCube
         : const <int>[];
+
+    // And which it may. One whole cube a frame across the scene, so a level
+    // whose every room holds a probe stands over as many frames as it has
+    // rooms rather than in one very long one — see `_claimWholeProbeCapture`,
+    // which is where the argument for that is written down. A probe that
+    // waits keeps `whole` false and `isCaptured` false, so nothing binds its
+    // unfilled cube and the level goes on drawing every batch until it stands.
+    final faces = wanted.length == _kWholeCube.length
+        ? (_renderer._claimWholeProbeCapture() ? wanted : const <int>[])
+        : wanted;
 
     if (faces.isNotEmpty) {
       developer.Timeline.startSync('Renderer.reflectionProbe');
@@ -507,18 +520,28 @@ final class _SceneNode extends RenderNode {
   /// Only the names declared above are asked for, and a probe whose node was
   /// culled answers null and is left out — the same shape [SceneShadows.from]
   /// has, for the same reason.
+  ///
+  /// A probe whose cube has never been drawn whole is left out too, and that
+  /// is what makes staggering safe: a probe waiting its turn still *provides*
+  /// its texture, because a node that keeps a resource provides it on every
+  /// frame it runs, and an allocation nobody has drawn into holds whatever was
+  /// in that memory. Read `_ProbeState.whole` rather than `isCaptured`: an
+  /// invalidated probe waiting to redraw has a stale chain, and a stale
+  /// reflection is a far better answer than none.
   _SceneProbes _probesFrom(FrameResources resources) =>
       _SceneProbes(<_ProbeBinding>[
         for (var i = 0; i < scene.probes.length; i++)
-          if (resources.tryTexture(FrameResourceIds.reflectionProbe(i))
-              case final TextureHandle texture)
-            _ProbeBinding(
-              position: scene.probes[i].readWorldPosition(),
-              radius: scene.probes[i].radius,
-              intensity: scene.probes[i].intensity,
-              texture: texture,
-              levels: _renderer._probeStates[scene.probes[i]]!.levels,
-            ),
+          if (_renderer._probeStates[scene.probes[i]]
+              case final _ProbeState state when state.whole)
+            if (resources.tryTexture(FrameResourceIds.reflectionProbe(i))
+                case final TextureHandle texture)
+              _ProbeBinding(
+                position: scene.probes[i].readWorldPosition(),
+                radius: scene.probes[i].radius,
+                intensity: scene.probes[i].intensity,
+                texture: texture,
+                levels: state.levels,
+              ),
       ]);
 
   @override

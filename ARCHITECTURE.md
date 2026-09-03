@@ -439,7 +439,18 @@ the sky environment stands in for indirect light and shares the ambient knob, a
 probe is that light measured, and a crypt whose ambient sits at six per cent
 would otherwise reflect its torch-lit walls at six per cent. The strength
 travels in the slot the flat ambient already uses, since a draw reads one term
-or the other and never both. `isCaptured` says when every face stands, which is
+or the other and never both. A *lightmapped* draw reads no probe at all, which
+is that same rule from the other side: a lightmap is this surface's indirect
+light measured per texel, a probe's roughest level is a coarser answer to the
+same question, and the lit models add the lightmap on top of the environment
+rather than choosing — so a wall taking both would count the room's bounce
+twice. The walls keep the bake and the probe lights what the bake does not
+reach; what a rough dielectric gives up is a specular lobe worth very little.
+One whole cube is captured per frame across the scene, so a level with a probe
+in every room stands over as many frames as it has rooms rather than paying
+four or five sixfold captures of an unculled level on the frame it loads; a
+probe waiting its turn binds nothing, and one whose chain is merely stale keeps
+showing it. `isCaptured` says when every face stands, which is
 what a level holds its visibility culling for — a kept probe captured on the
 first frame, after the culler had hidden every room but the player's, would be
 a picture of walls with nothing beyond them. A level asks for one with a
@@ -1452,7 +1463,7 @@ against whatever entities a game defines.
 |---|---|
 | Style | `dart format` |
 | Analysis | `flutter analyze` clean across the workspace, no warnings |
-| Unit tests | **3216 tests** across 24 packages and 5 applications |
+| Unit tests | **3219 tests** across 24 packages and 5 applications |
 | Structure rules | 23, `dart run tool/structure.dart`, the first CI step |
 | CI | GitHub Actions over `tool/ci.sh`, on `ubuntu-latest`, with no graphics card |
 

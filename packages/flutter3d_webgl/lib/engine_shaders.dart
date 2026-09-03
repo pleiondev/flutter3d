@@ -4904,6 +4904,17 @@ void main() {
   // The light the level's walls throw on each other, baked: diffuse only,
   // since a lightmap holds irradiance and a metal has no diffuse response.
   // Zero from the one-texel black a material without a map is bound to.
+  //
+  // **Added rather than chosen between, and the choosing happens above this
+  // shader.** A lightmap and an environment's roughest level are two answers
+  // to the same question — how much indirect light reaches this point — so a
+  // draw that had both would count it twice. There is no flag here to branch
+  // on: a material without a map is bound the neutral black by design (see
+  // material_maps.glsl), which is what makes this a plain add. The renderer
+  // keeps the two apart instead, by handing no reflection probe to a
+  // lightmapped draw; see `_encodeNode` in renderer_mesh_encode.dart. A sky
+  // environment over a lightmapped level still adds, and should: sky light
+  // is not what the bake measured.
   ambient += diffuseColor * SampleLightmap() * s.occlusion;
 
   WriteSurface(

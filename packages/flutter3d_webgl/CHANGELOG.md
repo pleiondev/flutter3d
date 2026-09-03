@@ -6,15 +6,23 @@
   resolve lands on the same face and level; `createCubeRenderTarget` is one
   `texStorage2D` on the cube target, so every face of every level is
   attachable and the texture is complete for a mipmap filter with nothing
-  uploaded. `supportsRenderToMip` is true.
+  uploaded. `supportsRenderToMip` is true. The resolve blits the *level's*
+  extent on both sides rather than the base texture's, which nothing in the
+  engine needs yet — every pass that names a level is single-sampled — and
+  which is where to look when one does.
 * **A sampler asking for `MipFilter.linear` gets a mipmap minification
   filter.** GL keeps the mip filter on the minification filter, and a plain
   `LINEAR` reads the base level whatever level `textureLod` names — so a
   prefiltered environment was a mirror at every roughness here. The nearest
-  mip filter stays the plain filter, which keeps every recorded picture where
-  it is; textured particles, which ask for the linear one, now pick a level.
-  `ProbePrefilter` is generated with the rest; `probe-car` joins the golden
-  set, recorded at merge.
+  mip filter stays the plain filter, so every picture drawn from single-level
+  textures stays where it is; the ones whose textures carry a chain now
+  minify through it, which is the filtering the asset asked for and this
+  backend was quietly not giving. `particles-textured` is that case in the
+  golden set — its sprite is a checkerboard with a hand-built chain and
+  `SamplerOptions.trilinearRepeat` under it — so that reference is to be
+  re-recorded and its cross-backend budget re-measured in the same pass that
+  records `probe-car`. `ProbePrefilter` is generated with the rest;
+  `probe-car` joins the golden set, recorded at merge.
 
 ## 0.4.2
 

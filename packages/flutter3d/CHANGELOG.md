@@ -27,6 +27,26 @@
   its kept probes have seen the whole of it. Measured on the racing demo's
   player car, a rolling probe costs the frame two milliseconds of build on
   Impeller and one in Chrome, and nothing in the raster half.
+* **A lightmapped draw reads no probe**, which is the same "one term or the
+  other" rule the strength above follows, from the other side. A lightmap
+  holds this surface's indirect light per texel; a probe's roughest level is a
+  coarser answer to the same question, and the lit models add the lightmap on
+  top of the environment rather than choosing — so a crypt wall that took both
+  counted the room's bounce twice, once baked and once captured. The walls
+  keep the bake, which is finer than a probe can be, and the probe lights what
+  the bake does not reach: props, enemies, anything skinned or batched. What a
+  wall gives up is its specular lobe, and a rough dielectric's is very nearly
+  nothing.
+* **One whole cube a frame, across the scene.** A level with a probe in every
+  room used to capture all of them on the frame the level appeared —
+  four probes is twenty-four views of a level the visibility culler is still
+  holding off, inside one frame, at load. Now the first probe that has none
+  takes the frame and the rest wait their turn, so a level stands over as many
+  frames as it has rooms with a probe and the cost is paid in frames drawn
+  without culling rather than in one very long one. A probe waiting its turn
+  binds nothing rather than an allocation nobody has drawn into; one whose
+  chain is merely stale keeps showing it. A rolling probe's single face is not
+  rationed.
 * The environment cube is sampled with a linear mip filter, so a roughness
   slides between levels rather than snapping, and so the backend that folds
   the mip filter into minification reads the level the shader named at all.

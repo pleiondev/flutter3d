@@ -196,6 +196,11 @@ void main() {
       stage.scene.add(
         ReflectionProbeNode(levels: 4)..setPosition(3.0, 0.0, 0.0),
       );
+      // Twice, because a whole cube is rationed to one probe a frame and a
+      // probe with no cube is not a candidate: after one frame this would
+      // answer "the nearer one" with only one of them standing, which is not
+      // the question.
+      stage.frame();
       stage.frame();
 
       // Told apart by their level counts, which is what the shader is told.
@@ -220,6 +225,74 @@ void main() {
         ..setPosition(10.0, 0.0, 0.0);
       stage.frame();
       expect(stage.ambientStrength, closeTo(0.06, 1e-6));
+    });
+
+    test('a lightmapped surface keeps its bake and reads no probe', () {
+      // One term or the other, never both. A lightmap holds this surface's
+      // indirect light per texel; a probe's roughest level is a coarser guess
+      // at the same quantity, and `pbr.frag` adds the lightmap on top of the
+      // environment rather than choosing. Mutation: hand the probe to a
+      // lightmapped draw anyway — every crypt wall counts the room's bounce
+      // twice, once baked and once captured, and no golden covers a dungeon.
+      final stage = _Stage();
+      stage.scene.ambientIntensity = 0.06;
+      stage.ball.lightmapped = true;
+      stage.scene.add(ReflectionProbeNode(intensity: 0.9, levels: 3));
+      stage.frame();
+
+      expect(stage.captures.length, 6, reason: 'the probe still captures');
+      expect(stage.environmentLevels, 0.0);
+      expect(
+        stage.environment.texture.width,
+        1,
+        reason: 'the one-texel fallback cube, not the probe',
+      );
+      expect(
+        stage.ambientStrength,
+        closeTo(0.06, 1e-6),
+        reason: 'the flat term, at the strength the bake was made under',
+      );
+
+      // And the same node without the bake takes the probe, which is what
+      // says the exclusion is the lightmap rather than anything else here.
+      stage.ball.lightmapped = false;
+      stage.frame();
+      expect(stage.environmentLevels, 3.0);
+      expect(stage.ambientStrength, closeTo(0.9, 1e-6));
+    });
+
+    test('waits its turn: one whole cube a frame, and no cube until it is '
+        'drawn', () {
+      // A crypt puts a probe in every room and every one of them is first seen
+      // on the frame the level appears, with the culler held off until they
+      // all stand — four probes is twenty-four views of the whole level in one
+      // frame. Mutation: drop the claim in `_ReflectionProbeNode.execute` —
+      // the picture is identical and the load stalls.
+      //
+      // The nearer of the two is added second, so the one that gets the first
+      // frame's turn is not the one the ball would rather have — which is what
+      // makes the level counts below say who is bound as well as who drew.
+      final stage = _Stage();
+      final first = stage.scene.add(
+        ReflectionProbeNode(levels: 1)..setPosition(0.5, 0.0, 0.0),
+      );
+      final second = stage.scene.add(ReflectionProbeNode(levels: 2));
+
+      stage.frame();
+      expect(stage.captures.length, 6, reason: 'one probe, not two');
+      expect(first.isCaptured, isTrue);
+      expect(second.isCaptured, isFalse);
+      // And the nearer one, which has no cube yet, is not the one bound: an
+      // allocation nobody drew into holds whatever the memory held.
+      expect(stage.environmentLevels, 1.0);
+
+      stage.frame();
+      expect(stage.captures.length, 6, reason: 'the second probe, now');
+      expect(second.isCaptured, isTrue);
+      expect(stage.environmentLevels, 2.0, reason: 'the nearer one, at last');
+
+      stage.frame();
+      expect(stage.captures, isEmpty, reason: 'both stand and both are kept');
     });
 
     test('says when every face stands', () {

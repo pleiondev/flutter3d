@@ -98,6 +98,22 @@ void main() {
         );
       });
     }
+
+    test('a probe whose near plane is past the far one it did not name', () {
+      // The case the pair-wise check used to miss: one number, an
+      // ordinary-looking document, and the far plane it says nothing about is
+      // two hundred. Mutation: compare `near` against zero and `far` against
+      // `near ?? 0.0` — this validates clean and the node asserts on it at
+      // load, which is the whole thing this kind is here to prevent.
+      final errors = _errors(<String, Object?>{'near': 300.0});
+      expect(errors, hasLength(1), reason: errors.join('\n'));
+      expect(errors.single.message, contains('300.0'));
+      expect(
+        errors.single.message,
+        contains('200.0 by default'),
+        reason: 'the message says which of the two the document supplied',
+      );
+    });
   });
 
   test('spawns nothing: a probe is the renderer\'s to build', () {

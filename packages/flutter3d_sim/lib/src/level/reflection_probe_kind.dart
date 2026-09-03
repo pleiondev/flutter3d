@@ -21,9 +21,22 @@ import 'level_issue.dart';
 ///  * `intensity` — how strongly the captured room lights what reads it; one.
 ///  * `faceSize` — each face's edge in pixels; sixty-four.
 ///  * `levels` — roughness levels below the mirror; four.
-///  * `near`, `far` — where each face's view begins and ends.
+///  * `near`, `far` — where each face's view begins and ends; five centimetres
+///    and two hundred metres.
 final class ReflectionProbeKind extends EntityKind {
   const ReflectionProbeKind() : super(EntityTypes.reflectionProbe);
+
+  /// The near and far planes a document that names neither ends up with.
+  ///
+  /// Restated here rather than reached for, and it has to be: the numbers
+  /// belong to `ReflectionProbeNode`'s constructor, in the renderer, which
+  /// this package must not know exists — the bridge's `_toProbeNode` restates
+  /// them for the same reason. What they buy here is the pair *after* the
+  /// defaults are filled in, which is the pair the node asserts on: a document
+  /// that names only a near plane still has a far one, and comparing its near
+  /// against zero says nothing about whether the two make a view.
+  static const double _defaultNear = 0.05;
+  static const double _defaultFar = 200.0;
 
   @override
   void validate(EntityDef entity, LevelScope scope, List<LevelIssue> out) {
@@ -57,13 +70,28 @@ final class ReflectionProbeKind extends EntityKind {
     if (levels != null && levels < 1) {
       refuse('has $levels levels; a probe with none reflects one roughness');
     }
+    // Both planes resolved before either is judged. `{"near": 300}` names one
+    // number, is a perfectly ordinary-looking document, and used to validate
+    // clean — the far plane it did not name is two hundred, and the node
+    // asserted `0 < near < far` at load with the scene half built, which is
+    // the failure this kind exists to take instead.
     final near = entity.number('near');
     final far = entity.number('far');
-    if (near != null && near <= 0.0) {
-      refuse('has a near plane of $near, which has to be in front of it');
-    }
-    if (far != null && far <= (near ?? 0.0)) {
-      refuse('has a far plane of $far, which is not beyond its near plane');
+    final resolvedNear = near ?? _defaultNear;
+    final resolvedFar = far ?? _defaultFar;
+    String said(double? given, double resolved) =>
+        given == null ? '$resolved by default' : '$given';
+    if (resolvedNear <= 0.0) {
+      refuse(
+        'has a near plane of ${said(near, resolvedNear)}, which has to be in '
+        'front of it',
+      );
+    } else if (resolvedFar <= resolvedNear) {
+      refuse(
+        'has a near plane of ${said(near, resolvedNear)} and a far plane of '
+        '${said(far, resolvedFar)}; a face is drawn between the two, so the '
+        'far one has to be beyond the near',
+      );
     }
   }
 }

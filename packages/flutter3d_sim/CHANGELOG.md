@@ -5,7 +5,11 @@
   `ReflectionProbeKind` is the kind that validates one: `radius`,
   `intensity`, `faceSize`, `levels`, `near` and `far` are all optional and
   each is refused where the renderer would otherwise assert on it at load.
-  Pure data to the simulation — nothing spawns and nothing is revealed — and
+  The two planes are resolved against the probe's own defaults before either
+  is judged, so a document naming only a near plane past two hundred metres is
+  refused here rather than at load: the far plane it did not name is still a
+  far plane. Pure data to the simulation — nothing spawns and nothing is
+  revealed — and
   a word a game has to put in its own vocabulary, so a game without probes
   reads the entity as unknown rather than growing a reflection it did not
   ask for.
