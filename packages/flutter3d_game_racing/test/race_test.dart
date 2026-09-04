@@ -575,4 +575,68 @@ void main() {
       );
     });
   });
+
+  group('what a step says happened', () {
+    // The flags these events replace lived on one RacerProgress each, so a
+    // caller found out *who* by knowing whose flag it had just read. That
+    // works while you walk the grid in a loop and stops working the moment
+    // anything wants the field's moments in the order they happened.
+
+    test('a lap and the record it set arrive in that order', () {
+      final it = Race(laps: 3);
+      final order = <String>[];
+      driveRound(
+        it,
+        seconds: 40.0,
+        watch: () {
+          for (final event in it.simulation.events.drain()) {
+            if (event is LapCompleted) order.add('lap');
+            if (event is BestLapSet) order.add('best');
+          }
+        },
+      );
+
+      expect(order, isNotEmpty, reason: 'nobody completed a lap');
+      expect(order.first, 'lap');
+      expect(order[1], 'best', reason: 'a first lap is always a best lap');
+    });
+
+    test('and every one of them names the car it happened to', () {
+      final it = Race(cars: 2, laps: 2);
+      final seen = <int>{};
+      driveRound(
+        it,
+        seconds: 30.0,
+        watch: () {
+          for (final event in it.simulation.events.drain()) {
+            if (event is! RacerEvent) continue;
+            seen.add(event.racer.index);
+            // The shorthand the base exists for, and the question a HUD asks
+            // of every event it is handed.
+            expect(event.isPlayer, event.racer.index == 0);
+          }
+        },
+      );
+
+      expect(seen, contains(0), reason: 'the player did nothing worth saying');
+      expect(
+        seen.length,
+        greaterThan(1),
+        reason: 'only one car was ever mentioned, on a grid of two',
+      );
+    });
+
+    test('the countdown counts down, once per light', () {
+      final it = Race(mode: RaceMode.race, laps: 1);
+      final lights = <int>[];
+      for (var i = 0; i < 300; i++) {
+        it.simulation.step(_step);
+        for (final event in it.simulation.events.drain()) {
+          if (event is CountdownTicked) lights.add(event.remaining);
+        }
+      }
+
+      expect(lights, <int>[2, 1, 0]);
+    });
+  });
 }

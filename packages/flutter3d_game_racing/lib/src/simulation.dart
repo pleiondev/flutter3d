@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter3d_game/flutter3d_game.dart';
 import 'package:vector_math/vector_math.dart';
 
+import 'events.dart';
 import 'race_state.dart';
 import 'track.dart';
 import 'vehicle/vehicle_controller.dart';
@@ -90,6 +91,13 @@ final class RacingSimulation {
   final double contactRestitution;
 
   /// True on the step the race ended.
+  /// What this step did, for a game that wants to hear about it.
+  ///
+  /// Drain it after the step; see `events.dart`. Unlike the flags beside it,
+  /// every event names the car it happened to, so the field's moments can be
+  /// read in the order they happened rather than by walking the grid.
+  final GameEvents events = GameEvents();
+
   bool finishedThisStep = false;
 
   /// Advances one fixed step.
@@ -160,13 +168,17 @@ final class RacingSimulation {
     final before = race.countdown.ceil();
     race.countdown -= dt;
     final after = race.countdown.ceil();
-    if (after != before) race.countdownTickThisStep = true;
+    if (after != before) {
+      race.countdownTickThisStep = true;
+      events.add(CountdownTicked(after));
+    }
 
     if (race.countdown > 0.0) return false;
 
     race.countdown = 0.0;
     race.phase = RacePhase.running;
     race.startedThisStep = true;
+    events.add(const RaceStarted());
     return true;
   }
 
@@ -249,7 +261,10 @@ final class RacingSimulation {
 
     final wasOffRoad = racer.offRoad;
     racer.offRoad = racer.lateral.abs() > track.widthAt(current) / 2.0;
-    if (racer.offRoad && !wasOffRoad) racer.leftRoadThisStep = true;
+    if (racer.offRoad && !wasOffRoad) {
+      racer.leftRoadThisStep = true;
+      events.add(LeftTheRoad(racer));
+    }
 
     if (!racing || racer.finished || race.mode == RaceMode.freeRoam) {
       if (race.mode == RaceMode.freeRoam) racer.totalTime += dt;
@@ -277,7 +292,10 @@ final class RacingSimulation {
     }
 
     final wrong = _backwards[index] > 12.0;
-    if (wrong && !racer.wrongWay) racer.wrongWayStartedThisStep = true;
+    if (wrong && !racer.wrongWay) {
+      racer.wrongWayStartedThisStep = true;
+      events.add(WentWrongWay(racer));
+    }
     racer.wrongWay = wrong;
   }
 
@@ -296,6 +314,7 @@ final class RacingSimulation {
         _swept(previous, moved, checkpoints[racer.nextCheckpoint], length)) {
       racer.nextCheckpoint += 1;
       racer.checkpointThisStep = true;
+      events.add(CheckpointPassed(racer));
     }
   }
 
@@ -320,20 +339,24 @@ final class RacingSimulation {
     racer.nextCheckpoint = 0;
     racer.lastLap = racer.lapTime;
     racer.lapCompletedThisStep = true;
+    events.add(LapCompleted(racer));
 
     final best = racer.bestLap;
     if (best == null || racer.lastLap < best) {
       racer.bestLap = racer.lastLap;
       racer.bestLapThisStep = true;
+      events.add(BestLapSet(racer));
     }
     racer.lapTime = 0.0;
 
     if (race.mode == RaceMode.race && racer.lap >= race.laps) {
       racer.finishedAt = race.elapsed;
       racer.finishedThisStep = true;
+      events.add(RacerFinished(racer));
       if (race.progress.every((RacerProgress other) => other.finished)) {
         race.phase = RacePhase.finished;
         finishedThisStep = true;
+        events.add(const RaceFinished());
       }
     }
   }
@@ -380,6 +403,7 @@ final class RacingSimulation {
       ..offRoad = false
       ..wrongWay = false
       ..respawnedThisStep = true;
+    events.add(Respawned(racer));
 
     // No `reindex` here, unlike the platformer's revive. That one runs at the
     // top of a step and returns before the step's own reindex; this runs at the

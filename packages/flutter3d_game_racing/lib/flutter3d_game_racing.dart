@@ -19,6 +19,7 @@ library;
 export 'src/ai/ai_driver.dart';
 export 'src/ai/ai_tuning.dart';
 export 'src/chase_camera.dart';
+export 'src/events.dart';
 export 'src/ghost.dart';
 export 'src/layers.dart';
 export 'src/race_phase.dart';
