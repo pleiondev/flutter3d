@@ -4,6 +4,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:vector_math/vector_math.dart' show Vector4;
 
 /// One thing recorded into a pass, in order.
 ///
@@ -33,6 +34,11 @@ final class RecordedBlend extends Recorded {
   const RecordedBlend(this.state, this.attachment);
   final BlendState? state;
   final int attachment;
+}
+
+final class RecordedBlendColor extends Recorded {
+  const RecordedBlendColor(this.color);
+  final Vector4 color;
 }
 
 final class RecordedTexture extends Recorded {

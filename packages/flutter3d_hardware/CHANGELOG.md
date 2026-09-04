@@ -124,6 +124,16 @@
   whether a level below the base can be attached at all, which is the one
   capability that splits flutter_gpu by platform. `FakeBackend` records both
   and answers the capability either way.
+* **`PassEncoder.setBlendColor`, and `GraphicsDevice.supportsBlendColor`
+  beside it.** Four `BlendFactor` values read a blend constant nothing could
+  set, so a `BlendState` naming one threw on the software rasteriser and
+  evaluated to zero on the other two — a plausible picture with a term missing
+  from it. The setter is the missing half; the capability is there because
+  flutter_gpu exposes no blend-constant setter at all, and a backend answering
+  false must now refuse both the setter and a state naming one of the four
+  rather than drawing it as zero. `BlendState.usesBlendColor` is where that
+  list of four lives, so a backend cannot go on accepting a value the enum
+  grows later.
 
 ## 0.4.1
 

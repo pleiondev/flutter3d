@@ -72,6 +72,18 @@
 ///     without setting an equation, or sets one without enabling. So there is
 ///     one method and `null` means off.
 ///
+///     The blend *constant* is the second, and it is the one place the rule at
+///     the top of this file is bent rather than followed. [BlendFactor] has
+///     four values that read a constant, mirrored from flutter_gpu the way the
+///     rest of that enum is; flutter_gpu itself has no setter for it, so for as
+///     long as there was no [PassEncoder.setBlendColor] those four were a state
+///     a caller could ask for and no backend could honour — the software one
+///     threw and the other two evaluated the term as zero, which is a picture
+///     rather than an error. The member exists to make the enum's own promise
+///     keepable, its only caller is the conformance check that holds it, and a
+///     backend without the constant says so through
+///     `GraphicsDevice.supportsBlendColor` and refuses.
+///
 /// [ScreenRect], [BlendState] and the descriptor types a pass is opened with
 /// are `render_pass_descriptor.dart`, re-exported from here — this file is the
 /// two verbs, [PassEncoder] and [CommandEncoder], and everything above is
@@ -79,6 +91,8 @@
 library;
 
 import 'dart:typed_data';
+
+import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'formats.dart';
 import 'geometry_buffer.dart';
@@ -177,6 +191,33 @@ abstract interface class PassEncoder {
   /// capability query beside it, and neither exists; write the state you want
   /// on attachment zero and treat the index as a hint until they do.
   void setBlend(BlendState? state, {int attachment = 0});
+
+  /// The constant the four constant-reading [BlendFactor]s multiply by.
+  ///
+  /// [BlendFactor.blendColor] and [BlendFactor.oneMinusBlendColor] read one
+  /// channel of [color] per channel, [BlendFactor.blendAlpha] and
+  /// [BlendFactor.oneMinusBlendAlpha] read its alpha for every channel — GL's
+  /// `CONSTANT_COLOR`/`CONSTANT_ALPHA` split, which is what Metal and Vulkan
+  /// spell the same way.
+  ///
+  /// **A pass starts with it at transparent black**, whatever the pass before
+  /// it set, and that is the same promise [setStencilReference] makes for the
+  /// same reason: on a backend whose setters are global context state the next
+  /// pass would otherwise inherit this one's, and the term is a multiplier, so
+  /// inheriting it moves a picture rather than breaking one. Zero is the value
+  /// that makes an unset constant contribute nothing.
+  ///
+  /// **Ask `GraphicsDevice.supportsBlendColor` first.** A backend that answers
+  /// false throws an [UnsupportedError] from here *and* from [setBlend] when
+  /// the state names one of the four factors, rather than drawing the term as
+  /// zero — flutter_gpu exposes no blend-constant setter, so the Impeller
+  /// backend is that backend today.
+  ///
+  /// Held by the conformance check
+  /// `a blend constant reaches the blend, or is refused`, which draws with the
+  /// constant on a backend that has one and demands the two refusals from a
+  /// backend that has not.
+  void setBlendColor(Vector4 color);
 
   /// Binds the pair of stages the following draws run.
   ///

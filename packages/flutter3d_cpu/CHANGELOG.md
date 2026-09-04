@@ -57,6 +57,10 @@
   it; `createCubeRenderTarget` builds that structure empty, a chain per face.
   `ProbePrefilterShader` transcribes `probe_prefilter.frag`; `probe-car`
   joins the golden set.
+* **The blend constant, which this backend used to throw for.**
+  `setBlendColor` is a field on the pass and four arms in the blend equation,
+  so all fifteen `BlendFactor` values are drawn rather than eleven.
+  `supportsBlendColor` answers true.
 
 ## 0.4.1
 

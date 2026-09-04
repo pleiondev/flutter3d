@@ -15,6 +15,7 @@ import 'dart:js_interop';
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:vector_math/vector_math.dart' show Vector4;
 import 'package:web/web.dart' as web;
 
 import 'webgl_device.dart';
@@ -69,6 +70,14 @@ final class WebGlEncoder implements CommandEncoder {
     // The symptom was one white row out of four, and shadows that read as
     // absent because the lookup landed in memory nobody had written.
     _gl.disable(web.WebGLRenderingContext.SCISSOR_TEST);
+
+    // The blend constant starts every pass at transparent black, the same
+    // promise the stencil's setters get reset for below and for the same
+    // reason: `glBlendColor` is context state, so a pass that names
+    // `CONSTANT_COLOR` without setting a constant would multiply by whatever
+    // the pass before it happened to leave. Unlike the stencil this is not
+    // gated on an attachment — any pass can blend.
+    _gl.blendColor(0, 0, 0, 0);
 
     final depth = descriptor.depth;
     if (depth != null) {
@@ -379,6 +388,15 @@ final class WebGlEncoder implements CommandEncoder {
       blendFactorToGl(state.destinationAlphaFactor),
     );
   }
+
+  /// `glBlendColor`, which is what `CONSTANT_COLOR` and `CONSTANT_ALPHA` read.
+  ///
+  /// Context state, like every other setter here, which is why the pass
+  /// constructor puts it back to transparent black — see the reset beside the
+  /// stencil's.
+  @override
+  void setBlendColor(Vector4 color) =>
+      _gl.blendColor(color.x, color.y, color.z, color.w);
 
   @override
   void bindPipeline(PipelineHandle pipeline) {

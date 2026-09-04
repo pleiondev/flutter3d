@@ -86,6 +86,12 @@ final class CpuDevice implements GraphicsDevice {
   bool get supportsOffscreenMsaa => false;
 
   @override
+  // A field on the pass and four arms in the blend equation, which is the whole
+  // of what a blend constant is when the blending is arithmetic this backend
+  // does itself.
+  bool get supportsBlendColor => true;
+
+  @override
   // A byte per pixel beside the depth, tested and written the way the
   // specification says, every operation of the eight. See `CpuEncoder`.
   bool get supportsStencil => true;

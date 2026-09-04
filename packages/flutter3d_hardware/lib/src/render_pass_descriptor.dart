@@ -110,6 +110,30 @@ final class BlendState {
   final BlendFactor sourceAlphaFactor;
   final BlendFactor destinationAlphaFactor;
 
+  /// Whether any of the four factors reads the constant
+  /// `PassEncoder.setBlendColor` sets.
+  ///
+  /// Asked by a backend that has no constant, so it can refuse the state
+  /// instead of evaluating the term as zero — which is what two of the three
+  /// did for as long as nothing could set one. One place decides which factors
+  /// those are, because a backend that spelled the list out itself would go on
+  /// accepting a value the enum grew afterwards.
+  bool get usesBlendColor =>
+      <BlendFactor>[
+        sourceColorFactor,
+        destinationColorFactor,
+        sourceAlphaFactor,
+        destinationAlphaFactor,
+      ].any(
+        (BlendFactor factor) => switch (factor) {
+          BlendFactor.blendColor ||
+          BlendFactor.oneMinusBlendColor ||
+          BlendFactor.blendAlpha ||
+          BlendFactor.oneMinusBlendAlpha => true,
+          _ => false,
+        },
+      );
+
   @override
   bool operator ==(Object other) =>
       other is BlendState &&

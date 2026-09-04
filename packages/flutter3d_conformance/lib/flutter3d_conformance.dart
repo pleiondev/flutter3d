@@ -14,18 +14,18 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: twenty of the twenty-eight link stages and draw. A new backend
-/// following the old promise would have met twenty shader checks it could do
-/// nothing about, so the lists say which is which — [coreChecks] needs clears,
-/// uploads and readback alone, [shaderChecks] needs the bundle. The tiers
-/// answer "can this be asked yet", not "does this matter": the buffer-usage
-/// check sat in the first list for as long as it asserted nothing, and asking
-/// it properly is what moved it to the second. What still needs a shader and is
-/// not here (an unbound sampler) stays in `ARCHITECTURE.md` §7, and is named
-/// there as such. A uniform block's members used to be on that list and are
-/// checked now — see [checkUniformMemberMismatchIsRefused], which asks a
-/// backend whether it reflects its shaders before holding it to a rule only
-/// reflection can keep.
+/// pipeline: twenty-three of the thirty-one link stages and draw. A new
+/// backend following the old promise would have met twenty-three shader checks
+/// it could do nothing about, so the lists say which is which — [coreChecks]
+/// needs clears, uploads and readback alone, [shaderChecks] needs the bundle.
+/// The tiers answer "can this be asked yet", not "does this matter": the
+/// buffer-usage check sat in the first list for as long as it asserted
+/// nothing, and asking it properly is what moved it to the second. What still
+/// needs a shader and is not here (an unbound sampler) stays in
+/// `ARCHITECTURE.md` §7, and is named there as such. A uniform block's members
+/// used to be on that list and are checked now — see
+/// [checkUniformMemberMismatchIsRefused], which asks a backend whether it
+/// reflects its shaders before holding it to a rule only reflection can keep.
 ///
 /// **The counts in this file are held to the lists by `tool/structure.dart`.**
 /// They were three different wrong answers at once — "five of the twelve", "the
@@ -35,19 +35,29 @@
 ///
 /// **The checks themselves live under `src/`, grouped by what they are testing**
 /// — capability queries and readback, shader-bundle and link checks, a pass's
-/// own coverage of its attachment, a pipeline switch's binding isolation, and
-/// instancing/cube-texture draws — so that finding "the row-order check" or
-/// "the scissor-inheritance check" does not mean scrolling past eleven others.
+/// own coverage of its attachment, a pipeline switch's binding isolation,
+/// instancing and cube-texture draws, the blend constant, a multisample
+/// resolve, and the id stage picking reads back — so that finding "the
+/// row-order check" or "the scissor-inheritance check" does not mean scrolling
+/// past eleven others.
+///
+/// **A check may decline**, and [ConformanceDeclined] is how: a backend that
+/// answers false to the capability a check is about is not asked, and the
+/// harness prints which backend declined and why rather than a green line for
+/// something it never ran.
 library;
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
-import 'package:flutter_test/flutter_test.dart' show test;
+import 'package:flutter_test/flutter_test.dart' show markTestSkipped, test;
 
+import 'src/blend_checks.dart';
 import 'src/compressed_checks.dart';
 import 'src/core_checks.dart';
 import 'src/draw_checks.dart';
 import 'src/loaded_bundle_checks.dart';
+import 'src/multisample_checks.dart';
 import 'src/pass_coverage_checks.dart';
+import 'src/picking_checks.dart';
 import 'src/pipeline_checks.dart';
 import 'src/refusal_checks.dart';
 import 'src/render_target_checks.dart';
@@ -72,6 +82,34 @@ final class ConformanceFailure implements Exception {
   @override
   String toString() => message;
 }
+
+/// Raised by a check the backend is not in a position to answer at all.
+///
+/// **Not a failure, and — this is the point — not a silent pass either.** A
+/// check that cannot run on a backend used to `return`, which the harnesses
+/// reported as PASS: the multisample check would have said the software
+/// rasteriser resolves correctly, which it does not do at all. Both harnesses —
+/// [runDeviceConformance] and the application the Impeller backend runs from —
+/// report it as a skip instead, and both print [reason], because the person
+/// running a device harness is usually not the person who wrote the check.
+///
+/// [decline] builds one, and stamps the backend's own type on the front so the
+/// line says who declined as well as why.
+final class ConformanceDeclined implements Exception {
+  const ConformanceDeclined(this.reason);
+  final String reason;
+  @override
+  String toString() => reason;
+}
+
+/// Ends the check with no verdict: [device] cannot be asked this, and [why]
+/// says what it answered.
+///
+/// [why] is a sentence about the capability, not about the check — "answers
+/// false to supportsOffscreenMsaa, and multisamples nothing" — because it is
+/// read on its own, beside a check name, by somebody holding a phone.
+Never decline(GraphicsDevice device, String why) =>
+    throw ConformanceDeclined('${device.runtimeType} $why');
 
 /// Fails the check unless [condition].
 ///
@@ -120,6 +158,11 @@ void runDeviceConformance({
       final device = makeDevice(width: 64, height: 64);
       try {
         await check.run(device);
+      } on ConformanceDeclined catch (declined) {
+        // Skipped, not passed. A runner that prints a green line for a check
+        // the backend never ran is the same lie as the `return` this replaced,
+        // only louder.
+        markTestSkipped('$backend: ${declined.reason}');
       } finally {
         // **A device per check and none of them disposed**, which on the one
         // backend where dispose actually frees anything meant a suite that
@@ -137,9 +180,9 @@ void runDeviceConformance({
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit twenty shader checks it had no way to act on yet. Clears, uploads
-/// and readback only: the answers here are the cheapest ones to get, and they
-/// are the ones worth having first.
+/// have hit twenty-three shader checks it had no way to act on yet. Clears,
+/// uploads and readback only: the answers here are the cheapest ones to get,
+/// and they are the ones worth having first.
 List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
   (name: 'answers every capability query', run: checkCapabilities),
   (name: 'the HDR format it names is renderable', run: checkHdrRenderable),
@@ -252,6 +295,26 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
   (
     name: 'every primitive type is assembled as itself or refused',
     run: checkPrimitiveTypesAreDrawnOrRefused,
+  ),
+  // The four BlendFactor values that read a constant, which for as long as
+  // nothing could set one were the enum's dead corner: two backends drew the
+  // term as zero and said nothing.
+  (
+    name: 'a blend constant reaches the blend, or is refused',
+    run: checkBlendColorReachesTheBlend,
+  ),
+  // The three multisampling fields of the HAL, which nothing held. The one
+  // check here a backend may decline — see `decline`, and the software
+  // rasteriser, which multisamples nothing and says so.
+  (
+    name: 'a multisample resolve resolves',
+    run: checkMultisampleResolveResolves,
+  ),
+  // Picking, drawn and decoded on the software backend alone until now — and
+  // the only draw in this suite through the standard five-attribute layout.
+  (
+    name: 'an object id survives the draw and the readback',
+    run: checkObjectIdDrawsAndDecodes,
   ),
 ];
 

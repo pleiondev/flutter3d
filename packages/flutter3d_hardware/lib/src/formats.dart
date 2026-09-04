@@ -222,27 +222,26 @@ extension TextureFormatCompression on TextureFormat {
 
 /// One term of a blend equation.
 ///
-/// **The last four read a blend constant this interface has no way to set**, and
-/// they are the one dead corner of these enums. [blendColor],
-/// [oneMinusBlendColor], [blendAlpha] and [oneMinusBlendAlpha] all multiply by
-/// a colour a caller would set with something like `setBlendColor` —
-/// `PassEncoder` has no such member, because no pass in this engine has ever
-/// wanted one, and this file's own rule is that the values mirror flutter_gpu's
-/// one for one rather than being pruned to what is reachable.
+/// **The last four read a blend constant, and `PassEncoder.setBlendColor` is
+/// how it is set.** [blendColor], [oneMinusBlendColor], [blendAlpha] and
+/// [oneMinusBlendAlpha] all multiply by that colour, which is transparent black
+/// until a pass says otherwise.
 ///
-/// So they are here and they cannot be used, and the three backends disagree
-/// about what that means: the software rasteriser throws an [UnsupportedError]
-/// naming the reason, WebGL2 maps them to `CONSTANT_COLOR` and friends against
-/// a constant nobody ever set — which GL defines as transparent black, so the
-/// term silently evaluates to zero — and Impeller hands them to flutter_gpu,
-/// whose own default is the same. Two of the three therefore draw a plausible
-/// picture with a term missing from it.
+/// They used to be the one dead corner of these enums — no setter anywhere, and
+/// three backends disagreeing about what that meant: the software rasteriser
+/// threw, WebGL2 mapped them to `CONSTANT_COLOR` against a constant nobody had
+/// set, and Impeller handed them to flutter_gpu whose default is the same
+/// transparent black. Two of the three drew a plausible picture with a term
+/// missing from it, which is the failure this enum's own doc comment was
+/// written to warn about and could not prevent.
 ///
-/// A `BlendState` built from one of these is a mistake in every case today.
-/// Adding the setter, or refusing them in all three backends, are both real
-/// answers; what is not an answer is the current arrangement, and it is written
-/// down here so a fourth backend does not have to work out which of the three
-/// to copy.
+/// **A backend may still not have the constant, and one here does not.** Ask
+/// `GraphicsDevice.supportsBlendColor` before naming any of these four:
+/// flutter_gpu exposes no blend-constant setter at all, so the Impeller backend
+/// answers false and *refuses* a [BlendState] naming one rather than drawing
+/// the term as zero. That refusal is the promise the false answer carries, and
+/// the conformance check `a blend constant reaches the blend, or is refused`
+/// holds both halves of it.
 enum BlendFactor {
   zero,
   one,

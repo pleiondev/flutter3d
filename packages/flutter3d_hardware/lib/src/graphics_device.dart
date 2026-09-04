@@ -87,6 +87,23 @@ abstract interface class GraphicsDevice implements TextureAllocator {
   /// give the engine an offscreen target to use it on.
   bool get supportsOffscreenMsaa;
 
+  /// Whether `PassEncoder.setBlendColor` reaches the hardware.
+  ///
+  /// The four [BlendFactor] values that read a blend constant are only usable
+  /// where this is true. It is not a property of the hardware — Metal, Vulkan
+  /// and GL all have the constant — but of what the backend can reach: the
+  /// Impeller backend goes through flutter_gpu, whose `RenderPass` exposes no
+  /// blend-constant setter at all, so it answers false and there is nothing it
+  /// can do about that from Dart.
+  ///
+  /// **False carries a promise, and it is a refusal.** A backend that answers
+  /// false throws an [UnsupportedError] from `PassEncoder.setBlendColor`, and
+  /// throws from `PassEncoder.setBlend` when the state names one of the four —
+  /// see `BlendState.usesBlendColor`. Drawing the term as zero instead is the
+  /// exact failure this capability was added to end: a plausible picture with a
+  /// term missing from it, and nothing anywhere saying so.
+  bool get supportsBlendColor;
+
   /// Whether a texture built with a hand-supplied mip chain samples correctly.
   ///
   /// Asked rather than assumed, and the failure it guards against is not a

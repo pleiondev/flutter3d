@@ -399,6 +399,12 @@ final class WebGlDevice implements GraphicsDevice {
   bool get supportsOffscreenMsaa => _msaaSamples > 1;
 
   @override
+  // `glBlendColor` is WebGL1 core, and `CONSTANT_COLOR`/`CONSTANT_ALPHA` are
+  // what the four constant-reading factors already mapped to — the setter was
+  // the missing half, not the reader.
+  bool get supportsBlendColor => true;
+
+  @override
   // OpenGL ES has no glPolygonMode. See canDrawPolygonMode.
   bool get supportsWireframe => false;
 

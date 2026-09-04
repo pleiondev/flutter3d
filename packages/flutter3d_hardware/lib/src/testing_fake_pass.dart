@@ -4,6 +4,7 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter3d_hardware/flutter3d_hardware.dart';
+import 'package:vector_math/vector_math.dart' show Vector4;
 
 import 'testing_recorded.dart';
 
@@ -98,6 +99,10 @@ final class FakePass implements CommandEncoder {
   @override
   void setBlend(BlendState? state, {int attachment = 0}) =>
       commands.add(RecordedBlend(state, attachment));
+
+  @override
+  void setBlendColor(Vector4 color) =>
+      commands.add(RecordedBlendColor(color.clone()));
 
   @override
   void bindPipeline(PipelineHandle pipeline) =>

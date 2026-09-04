@@ -92,6 +92,13 @@ final class CpuEncoder implements CommandEncoder {
   bool _depthWrite = false;
   CompareFunction _depthCompare = CompareFunction.less;
   BlendState? _blend;
+
+  /// The constant the four constant-reading factors multiply by.
+  ///
+  /// Transparent black until a pass sets it, which the HAL states and which
+  /// costs nothing to keep here: the field is the pass's, so a pass that never
+  /// mentions the constant cannot inherit the previous one's.
+  final Vector4 _blendColor = Vector4.zero();
   CpuPipeline? _pipeline;
 
   ByteData? _vertices;
@@ -181,6 +188,9 @@ final class CpuEncoder implements CommandEncoder {
   /// attachments, so nothing it draws depends on them differing.
   @override
   void setBlend(BlendState? state, {int attachment = 0}) => _blend = state;
+
+  @override
+  void setBlendColor(Vector4 color) => _blendColor.setFrom(color);
 
   @override
   void bindPipeline(PipelineHandle pipeline) =>
@@ -910,7 +920,7 @@ final class CpuEncoder implements CommandEncoder {
           target.pixels[at + 2] = colour.z;
           target.pixels[at + 3] = colour.w;
         } else {
-          _blendInto(blend, target.pixels, at, colour);
+          _blendInto(blend, _blendColor, target.pixels, at, colour);
         }
 
         if (depth != null && _depthWrite) depth[index] = z;
@@ -925,31 +935,68 @@ final class CpuEncoder implements CommandEncoder {
   /// nothing asked for was a guess about a call site. The third state asked:
   /// [BlendState.keepDestination] is zero and one, which the two tests read
   /// as "one and one" and drew the marking pass's colour straight over the
-  /// picture it was meant to leave alone. Every factor but the four that need
-  /// a blend constant is a line here now; those four throw, because the
-  /// interface has no way to set one and a silent 1.0 would be exactly the
-  /// mistake this replaces.
+  /// picture it was meant to leave alone. Every factor is a line here now: the
+  /// last four to arrive read [constant], which threw for as long as
+  /// `PassEncoder` had no way to set one.
   static void _blendInto(
     BlendState blend,
+    Vector4 constant,
     Float32List pixels,
     int at,
     Vector4 source,
   ) {
     final sa = source.w;
     final da = pixels[at + 3];
+    final ba = constant.w;
     for (var channel = 0; channel < 3; channel++) {
       final s = source[channel];
       final d = pixels[at + channel];
+      final bc = constant[channel];
       pixels[at + channel] = _combine(
         blend.colorOperation,
-        s * _factor(blend.sourceColorFactor, s, sa, d, da, alpha: false),
-        d * _factor(blend.destinationColorFactor, s, sa, d, da, alpha: false),
+        s *
+            _factor(
+              blend.sourceColorFactor,
+              s,
+              sa,
+              d,
+              da,
+              bc,
+              ba,
+              alpha: false,
+            ),
+        d *
+            _factor(
+              blend.destinationColorFactor,
+              s,
+              sa,
+              d,
+              da,
+              bc,
+              ba,
+              alpha: false,
+            ),
       );
     }
+    // The alpha channel with every argument read off the alphas, [constant]'s
+    // included: GL's `CONSTANT_COLOR` for the alpha channel *is* the constant's
+    // alpha, which is why `bc` and `ba` are the same value here and different
+    // above.
     pixels[at + 3] = _combine(
       blend.alphaOperation,
-      sa * _factor(blend.sourceAlphaFactor, sa, sa, da, da, alpha: true),
-      da * _factor(blend.destinationAlphaFactor, sa, sa, da, da, alpha: true),
+      sa *
+          _factor(blend.sourceAlphaFactor, sa, sa, da, da, ba, ba, alpha: true),
+      da *
+          _factor(
+            blend.destinationAlphaFactor,
+            sa,
+            sa,
+            da,
+            da,
+            ba,
+            ba,
+            alpha: true,
+          ),
     );
   }
 
@@ -960,7 +1007,8 @@ final class CpuEncoder implements CommandEncoder {
   };
 
   /// One factor for one channel: [s] and [d] are that channel's source and
-  /// destination, [sa] and [da] the two alphas. [alpha] says the channel is
+  /// destination, [sa] and [da] the two alphas, [bc] the blend constant's own
+  /// value for this channel and [ba] its alpha. [alpha] says the channel is
   /// the alpha itself, where the specification pins the saturated factor at
   /// one.
   static double _factor(
@@ -968,7 +1016,9 @@ final class CpuEncoder implements CommandEncoder {
     double s,
     double sa,
     double d,
-    double da, {
+    double da,
+    double bc,
+    double ba, {
     required bool alpha,
   }) => switch (factor) {
     BlendFactor.zero => 0.0,
@@ -982,14 +1032,10 @@ final class CpuEncoder implements CommandEncoder {
     BlendFactor.destinationAlpha => da,
     BlendFactor.oneMinusDestinationAlpha => 1.0 - da,
     BlendFactor.sourceAlphaSaturated => alpha ? 1.0 : math.min(sa, 1.0 - da),
-    BlendFactor.blendColor ||
-    BlendFactor.oneMinusBlendColor ||
-    BlendFactor.blendAlpha ||
-    BlendFactor.oneMinusBlendAlpha => throw UnsupportedError(
-      'BlendFactor.${factor.name} reads a blend constant, and the interface '
-      'has no way to set one. Answering with a made-up constant would draw a '
-      'plausible picture nobody asked for.',
-    ),
+    BlendFactor.blendColor => bc,
+    BlendFactor.oneMinusBlendColor => 1.0 - bc,
+    BlendFactor.blendAlpha => ba,
+    BlendFactor.oneMinusBlendAlpha => 1.0 - ba,
   };
 
   bool _depthPasses(double incoming, double stored) => switch (_depthCompare) {
