@@ -62,6 +62,21 @@ final class FragmentContext {
   /// shadow passes — leaves this alone, and the device then writes nothing,
   /// which is the same thing a pass with one attachment does.
   Vector4? surface;
+
+  /// A picture a debug pass wants shown instead of the geometry.
+  ///
+  /// The stand-in for `g_debug_surface` and `g_debug_surface_on` in
+  /// `lib/color.glsl`, which are two file-scope globals there and cannot be
+  /// two here: a Dart shader is one object shared by every fragment, so the
+  /// thing that is per-fragment is this context. Set deep inside the lighting —
+  /// the point-shadow penumbra estimate is what fills it — and read at the
+  /// moment [surface] is written, which happens after, so the value is there by
+  /// then.
+  ///
+  /// A debug pass takes the surface buffer over rather than getting one of its
+  /// own: that buffer already has an attachment, a viewer and a golden, and a
+  /// second one would need all three built before it could answer anything.
+  Vector3? debugSurface;
 }
 
 /// Turns interpolated varyings into a colour.

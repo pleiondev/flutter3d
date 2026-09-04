@@ -104,8 +104,9 @@ final class GpuRenderBackend implements GraphicsDevice {
   ///
   /// It lives here rather than on `Renderer` because it is `impellerc` output:
   /// an artefact only this backend can read, built by this package's
-  /// `tool/build_shaders.sh` from this package's `shaders/`. The engine names
-  /// the shaders it wants by entry point and does not know what compiled them.
+  /// `tool/build_shaders.sh` from the GLSL in `flutter3d_shaders`, which every
+  /// backend compiles its own way. The engine names the shaders it wants by
+  /// entry point and does not know what compiled them.
   ///
   /// The `packages/<name>/` prefix is how Flutter addresses a dependency's
   /// assets, and it is the same string from inside this package as from an

@@ -304,16 +304,6 @@ bool _refuses(Future<ByteData> Function() ask) {
   }
 }
 
-Future<void> checkGeometryUsage(GraphicsDevice device) async {
-  // Not a hint. WebGL binds a buffer to its target for life, so one uploaded as
-  // vertices can never be bound as indices — the attempt is an
-  // INVALID_OPERATION, the draw is dropped, and the frame comes back the clear
-  // colour with nothing logged.
-  final bytes = ByteData(64);
-  device.uploadGeometry(bytes, GeometryUsage.vertices);
-  device.uploadGeometry(bytes, GeometryUsage.indices);
-}
-
 /// A cube takes the mip chain it is handed, and refuses a malformed one.
 ///
 /// **The levels of a cube are a roughness scale, not a size optimisation.** A
@@ -371,4 +361,79 @@ Future<void> checkCubeMipLevels(GraphicsDevice device) async {
     mipLevels: <List<ByteData>>[faces(2).sublist(0, 5)],
   );
   require(short == null, 'a level with five faces was accepted');
+}
+
+/// A 2D upload takes the buffer its description asks for, and no other.
+///
+/// **The flat twin of the check above, and it was missing.** The cube path had
+/// a size rule stated and enforced on every backend; the ordinary
+/// `createTextureFromPixels` had the rule stated on the interface — "null when
+/// [pixels] is not the size the device wants" — and enforced on two of the
+/// three. The software rasteriser tested `<` rather than `!=` and sampled the
+/// prefix of anything longer, so a decoder that disagreed with the engine about
+/// a texture's dimensions was refused on the hardware backends and quietly
+/// accepted on that one. That is a picture that differs by platform with
+/// nothing anywhere to see it.
+///
+/// Short and long are both refused, and the long case is the point: short is a
+/// read past the end, which a backend catches whether or not it means to.
+Future<void> checkPixelBufferSize(GraphicsDevice device) async {
+  const width = 4;
+  const height = 4;
+  const format = TextureFormat.r8g8b8a8UNormInt;
+  const exact = width * height * 4;
+
+  require(
+    device.createTextureFromPixels(
+          width: width,
+          height: height,
+          format: format,
+          pixels: ByteData(exact),
+        ) !=
+        null,
+    'a buffer of exactly the described size was refused',
+  );
+
+  require(
+    device.createTextureFromPixels(
+          width: width,
+          height: height,
+          format: format,
+          pixels: ByteData(exact - 4),
+        ) ==
+        null,
+    'a buffer one texel short was accepted, which is a read past its end',
+  );
+
+  // Mutation: put `pixels.lengthInBytes < expected` back in `CpuDevice`, which
+  // is where this came from — the software backend fails on this expectation
+  // and on no other.
+  require(
+    device.createTextureFromPixels(
+          width: width,
+          height: height,
+          format: format,
+          pixels: ByteData(exact * 2),
+        ) ==
+        null,
+    'a buffer twice the described size was accepted. Its prefix is not the '
+    'image the caller meant: the two ends disagree about the dimensions, and '
+    'sampling the prefix draws something plausible and wrong',
+  );
+
+  // A chain whose levels are not the sizes the chain says they are, refused
+  // for the reason a cube's is: it is a caller that has built the chain with
+  // the wrong arithmetic, and a device that takes it hides that until
+  // something minifies.
+  require(
+    device.createTextureFromPixels(
+          width: width,
+          height: height,
+          format: format,
+          pixels: ByteData(exact),
+          mipLevels: <ByteData>[ByteData(exact)],
+        ) ==
+        null,
+    'a mip level the size of the base was accepted',
+  );
 }

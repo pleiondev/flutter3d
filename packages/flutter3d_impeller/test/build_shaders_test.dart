@@ -1,4 +1,5 @@
-/// That `dart run flutter3d_impeller:build_shaders` finds the script it runs.
+/// That `dart run flutter3d_impeller:build_shaders` finds the script it runs,
+/// and puts the bundle where the package that asked for it can load it.
 ///
 ///     flutter test test/build_shaders_test.dart
 ///
@@ -63,6 +64,137 @@ void main() {
         entry,
         contains('/tool/build_shaders.sh'),
         reason: 'and must look for the script beside itself',
+      );
+    });
+  });
+
+  group('the bundle lands in the package that owns it', () {
+    // The script needs an SDK to find `impellerc` under, and asking for the
+    // real one would tie this test to `flutter precache` and to a compiler run
+    // measured in seconds. So it gets a fake: a directory shaped like
+    // bin/cache/artifacts/engine/<platform>, with an `impellerc` that writes
+    // one line of plausible Metal at whatever `--sl=` names. Everything the
+    // script decides — which manifest, which include roots, and the output path
+    // this group is about — it decides before reaching the compiler.
+    late Directory temp;
+
+    setUp(() => temp = Directory.systemTemp.createTempSync('f3d_bundle_out'));
+    tearDown(() => temp.deleteSync(recursive: true));
+
+    String write(String relative, String contents) {
+      final file = File('${temp.path}/$relative')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync(contents);
+      return file.path;
+    }
+
+    void executable(String path) {
+      final chmod = Process.runSync('chmod', ['+x', path]);
+      expect(chmod.exitCode, 0, reason: 'chmod +x $path: ${chmod.stderr}');
+    }
+
+    String stubSdk() {
+      executable(
+        write('sdk/bin/cache/artifacts/engine/stub/impellerc', '''
+#!/usr/bin/env bash
+for arg in "\$@"; do
+  case "\$arg" in
+    --sl=*) printf 'fragment demo_fragment_main(constant FragInfo& frag_info)\\n' \\
+              > "\${arg#--sl=}" ;;
+  esac
+done
+'''),
+      );
+      Directory(
+        '${temp.path}/sdk/bin/cache/artifacts/engine/stub/shader_lib',
+      ).createSync(recursive: true);
+      return '${temp.path}/sdk';
+    }
+
+    ProcessResult run(String script, List<String> arguments, String sdk) =>
+        Process.runSync(
+          'bash',
+          [script, '--platform', 'stub', ...arguments],
+          environment: {'FLUTTER_ROOT': sdk},
+        );
+
+    test('which is the extension, when an extension is what we were given', () {
+      // The published instruction is `dart run flutter3d_impeller:build_shaders`
+      // from the extension's root, and bin/build_shaders.dart turns that into
+      // `--package <the extension>`. The bundle is then the extension's asset:
+      // it is the extension's pubspec that declares it and the extension's name
+      // that an application loads it under.
+      //
+      // Mutation: put `OUT="$OWNER/…"` back in tool/build_shaders.sh — this
+      // fails on both expectations, the bundle landing in flutter3d_impeller
+      // instead, which in a pub-cache install is not even writable.
+      final sdk = stubSdk();
+      write('extension/shaders/demo.shaderbundle.json', '{}');
+
+      final result = run('${_thisPackage.path}/tool/build_shaders.sh', [
+        '--package',
+        '${temp.path}/extension',
+      ], sdk);
+
+      expect(
+        File(
+          '${temp.path}/extension/assets/shaders/demo.shaderbundle',
+        ).existsSync(),
+        isTrue,
+        reason: 'exit ${result.exitCode}\n${result.stdout}\n${result.stderr}',
+      );
+      expect(
+        File(
+          '${_thisPackage.path}/assets/shaders/demo.shaderbundle',
+        ).existsSync(),
+        isFalse,
+        reason: 'the extension\'s bundle must not be written into this package',
+      );
+    });
+
+    test('and is still this package, when sources.txt sends us elsewhere', () {
+      // The other direction, and the reason the output path is not simply the
+      // package being read: flutter3d_impeller's own GLSL lives in
+      // flutter3d_shaders, and the compiled bundle stays here regardless.
+      //
+      // The redirection resolves the source package by running
+      // tool/package_root.dart with the SDK's Dart, so the stub SDK ships a
+      // `dart` that answers with the fixture's path and nothing else.
+      //
+      // Mutation: set BUNDLE_OWNER to PACKAGE unconditionally — this fails,
+      // the engine's bundle landing in flutter3d_shaders, which no application
+      // lists in its assets.
+      final sdk = stubSdk();
+      write('source/shaders/demo.shaderbundle.json', '{}');
+      final script = write(
+        'owner/tool/build_shaders.sh',
+        File('${_thisPackage.path}/tool/build_shaders.sh').readAsStringSync(),
+      );
+      write('owner/tool/sources.txt', 'demo_sources\n');
+      write(
+        'owner/tool/package_root.dart',
+        '// never run: the stub answers.\n',
+      );
+      executable(
+        write('sdk/bin/cache/dart-sdk/bin/dart', '''
+#!/usr/bin/env bash
+echo '${temp.path}/source'
+'''),
+      );
+
+      final result = run(script, const [], sdk);
+
+      expect(
+        File(
+          '${temp.path}/owner/assets/shaders/demo.shaderbundle',
+        ).existsSync(),
+        isTrue,
+        reason: 'exit ${result.exitCode}\n${result.stdout}\n${result.stderr}',
+      );
+      expect(
+        Directory('${temp.path}/source/assets').existsSync(),
+        isFalse,
+        reason: 'the package the GLSL came from gets no bundle',
       );
     });
   });

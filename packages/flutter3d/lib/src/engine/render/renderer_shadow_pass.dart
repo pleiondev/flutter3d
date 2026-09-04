@@ -17,6 +17,28 @@
 /// one does, this was a rewrite rather than a move.
 part of 'renderer.dart';
 
+/// Which faces a shadow pass culls to record the side [faces] names.
+///
+/// Culling the front faces is what leaves the back ones drawn, and the other
+/// way about. The enum is named after what ends up *recorded* rather than after
+/// what is culled, which is the way round that reads correctly at a call site.
+///
+/// **Shared because it was not, and one of the two passes had a constant in its
+/// place.** The cube atlas read the setting from the day it existed; the
+/// directional pass wrote `CullMode.frontFace` in three places with a comment
+/// explaining why the back of a caster is the right thing to record — which is
+/// what `ShadowCasterFaces.back` means, and is the default, so the setting
+/// looked like it worked and its other two values did nothing at all. What that
+/// costs is not a subtlety: a single-sided caster — a wall, a fence panel, a
+/// billboard — has no back face, so under a hardcoded `frontFace` the sun goes
+/// straight through it, and `front` and `both`, the two answers to exactly that,
+/// were unreachable.
+CullMode _casterCull(ShadowCasterFaces faces) => switch (faces) {
+  ShadowCasterFaces.front => CullMode.backFace,
+  ShadowCasterFaces.back => CullMode.frontFace,
+  ShadowCasterFaces.both => CullMode.none,
+};
+
 /// The pass that draws what the sun cannot see, and the one that draws what a
 /// lamp cannot.
 extension _ShadowPasses on Renderer {
@@ -102,15 +124,7 @@ extension _ShadowPasses on Renderer {
       ),
     );
 
-    final casterCull = switch (settings.casterFaces) {
-      // Culling the front faces is what leaves the back ones drawn, and the
-      // other way about. The enum is named after what ends up *recorded*
-      // rather than after what is culled, which is the way round that reads
-      // correctly at a call site.
-      ShadowCasterFaces.front => CullMode.backFace,
-      ShadowCasterFaces.back => CullMode.frontFace,
-      ShadowCasterFaces.both => CullMode.none,
-    };
+    final casterCull = _casterCull(settings.casterFaces);
     final casterState = Renderer._kShadowCasterState.copyWith(
       cullMode: casterCull,
     );
@@ -574,15 +588,18 @@ extension _ShadowPasses on Renderer {
     );
 
     final full = ScreenRect(width: atlasWidth, height: resolution);
-    // The same caster state the cube atlas uses, with one difference: front
-    // faces culled, so the depth stored is the *back* of each caster. That
-    // moves the comparison surface away from the lit face and removes most of
-    // the acne before bias and normal offset have to deal with any.
+    // The same caster state the cube atlas uses, and now the same cull: whose
+    // side is recorded is `ShadowSettings.casterFaces`, which defaults to the
+    // back — the depth stored is then the far wall of each caster, which moves
+    // the comparison surface away from the lit face and removes most of the
+    // acne before bias and normal offset have to deal with any. That default is
+    // what this line used to say outright. See [_casterCull].
+    final casterCull = _casterCull(settings.casterFaces);
     pass.setState(
       Renderer._kShadowCasterState.copyWith(
         viewport: full,
         scissor: full,
-        cullMode: CullMode.frontFace,
+        cullMode: casterCull,
       ),
     );
 
@@ -607,7 +624,11 @@ extension _ShadowPasses on Renderer {
     // The strip the cascade loop is currently drawing into, kept so a node
     // that casts from every face can restate the cull without losing it.
     var casterTile = full;
-    var everyFace = false;
+    // Already true when the setting asks for every face, as the cube pass does
+    // it: otherwise the first node that asks for one restates a cull the pass
+    // is already in, and — worse — the next ordinary node restates it back to
+    // something the setting did not ask for.
+    var everyFace = casterCull == CullMode.none;
 
     for (var cascade = 0; cascade < count; cascade++) {
       // Each cascade is the same casters drawn again into its own strip of the
@@ -623,11 +644,11 @@ extension _ShadowPasses on Renderer {
           Renderer._kShadowCasterState.copyWith(
             viewport: tile,
             scissor: tile,
-            cullMode: CullMode.frontFace,
+            cullMode: casterCull,
           ),
         );
         casterTile = tile;
-        everyFace = false;
+        everyFace = casterCull == CullMode.none;
         boundKind = null;
       }
       final drawMatrix = drawMatrices[cascade];
@@ -645,13 +666,15 @@ extension _ShadowPasses on Renderer {
         // not come through the seam of a single-sided wall. The state carries
         // the cascade's own strip with it, or restating the cull would put the
         // rest of this cascade back into the full atlas.
-        final wantsEveryFace = node.shadowCasting.castsFromEveryFace;
+        final wantsEveryFace =
+            node.shadowCasting.castsFromEveryFace ||
+            casterCull == CullMode.none;
         if (wantsEveryFace != everyFace) {
           pass.setState(
             Renderer._kShadowCasterState.copyWith(
               viewport: casterTile,
               scissor: casterTile,
-              cullMode: wantsEveryFace ? CullMode.none : CullMode.frontFace,
+              cullMode: wantsEveryFace ? CullMode.none : casterCull,
             ),
           );
           everyFace = wantsEveryFace;

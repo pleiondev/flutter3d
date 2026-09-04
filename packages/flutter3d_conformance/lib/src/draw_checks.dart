@@ -91,6 +91,102 @@ Future<void> checkInstancedDraw(GraphicsDevice device) async {
   );
 }
 
+/// A buffer uploaded for a use is bound for that use, and draws.
+///
+/// **This check used to assert nothing.** It uploaded sixty-four zero bytes
+/// twice, once under each [GeometryUsage], and returned — so it passed on a
+/// backend that took the argument and threw it away, which is the only backend
+/// it was written for. `GeometryUsage` is documented as "not a hint" precisely
+/// because WebGL binds a buffer to its target for life: a buffer uploaded as
+/// vertices can never afterwards be bound as indices, the attempt is an
+/// `INVALID_OPERATION`, the draw is dropped, and the frame comes back the clear
+/// colour with nothing logged. Nothing short of drawing can tell.
+///
+/// So it draws, and through the *persistent* buffers — `uploadGeometry` and
+/// `bindVertexBuffer`/`bindIndexBuffer` — which every mesh in the engine uses
+/// and which no other check here touches: the rest bind bytes built for the
+/// frame. A backend that uploaded both under one target, or that lost the
+/// distinction between them, reads back the clear colour.
+///
+/// It moved out of [coreChecks] to get here. It cannot be answered without a
+/// pipeline, and a list that promises "clears, uploads and readback only" was
+/// the wrong place to keep a question that needs a draw.
+Future<void> checkGeometryUsage(GraphicsDevice device) async {
+  const size = 16;
+
+  final target = device.createTexture(
+    const RenderTargetSpec(
+      width: size,
+      height: size,
+      format: TextureFormat.r8g8b8a8UNormInt,
+    ),
+  );
+  final vertex = device.shaders['DebugLineVertex'];
+  final fragment = device.shaders['DebugLine'];
+  require(
+    vertex != null && fragment != null,
+    'the debug-line stages are missing, so this cannot draw anything',
+  );
+
+  // Four vertices, of which the indices name the last three: a triangle
+  // covering the target, opaque red. The first is far off screen, so a backend
+  // that drew vertices in order instead of through the buffer it was handed
+  // draws a sliver nobody can see and this reads back the clear colour. Naming
+  // 0, 1, 2 would have let exactly that pass.
+  final vertices = Float32List.fromList(<double>[
+    -9, -9, 0.5, 1, 0, 0, 1, //
+    -1, -1, 0.5, 1, 0, 0, 1,
+    3, -1, 0.5, 1, 0, 0, 1,
+    -1, 3, 0.5, 1, 0, 0, 1,
+  ]);
+  final indices = Uint16List.fromList(<int>[1, 2, 3]);
+
+  final vertexBuffer = device.uploadGeometry(
+    ByteData.sublistView(vertices),
+    GeometryUsage.vertices,
+  );
+  final indexBuffer = device.uploadGeometry(
+    ByteData.sublistView(indices),
+    GeometryUsage.indices,
+  );
+
+  final pass = device.beginRenderPass(
+    RenderPassDescriptor(
+      colors: <ColorTarget>[
+        ColorTarget(
+          texture: target,
+          loadAction: LoadAction.clear,
+          clearValue: Vector4.zero(),
+        ),
+      ],
+    ),
+  );
+  pass
+    ..bindPipeline(device.createPipeline(vertex!, fragment!))
+    ..setPrimitiveType(PrimitiveType.triangle)
+    ..setCullMode(CullMode.none)
+    ..bindUniformBlock(vertex, 'LineInfo', <String, Float32List>{
+      'view_projection': Float32List.fromList(Matrix4.identity().storage),
+    })
+    ..bindVertexBuffer(vertexBuffer, 4)
+    ..bindIndexBuffer(indexBuffer, IndexType.int16, 3)
+    ..draw()
+    ..submit();
+
+  final pixels = await device.readPixels(target);
+  require(pixels != null, 'the target could not be read back');
+  final red = pixels!.buffer.asUint8List()[0];
+  // Mutation: drop the bytes on the floor in `CpuPassEncoder.bindIndexBuffer` —
+  // the software backend then reads back the clear colour and fails here, which
+  // the version of this check that only uploaded could not do.
+  require(
+    red > 250,
+    'an indexed draw through buffers uploaded as vertices and as indices left '
+    'the clear colour ($red, not 255). The two uses were not kept apart, or '
+    'the persistent buffers are not bindable the way the engine binds them',
+  );
+}
+
 /// Six faces, six directions, six colours.
 ///
 /// The face order — +X, −X, +Y, −Y, +Z, −Z — is documented once, on

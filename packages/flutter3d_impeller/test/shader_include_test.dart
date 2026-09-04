@@ -1,10 +1,13 @@
 // What has to stay true for an extension package to build shaders of its own.
 //
 // An extension's material writes `#include <lib/color.glsl>` and asks impellerc
-// to resolve it out of `<flutter3d>/shaders`. Two things can quietly break that,
-// and neither shows up until somebody outside this repository tries to build:
+// to resolve it out of `<flutter3d_shaders>/shaders`, an include root it names
+// itself — installing a backend does not confer one. Two things can quietly
+// break that, and neither shows up until somebody outside this repository tries
+// to build:
 //
-//   * flutter3d stops shipping the headers, and the include resolves to nothing;
+//   * flutter3d_shaders stops shipping the headers, and the include resolves to
+//     nothing;
 //   * the include root stops being findable, because it was written down as a
 //     relative path that is only true for a path dependency.
 //

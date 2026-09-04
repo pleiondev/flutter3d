@@ -1208,6 +1208,31 @@ List<Finding> _testCount() {
     }
   }
 
+  // A package README that counts its own tests is held to its own directory,
+  // not to the workspace. This is the number a stranger meets first, because it
+  // is the one on pub.dev, and it was the last one nobody recounted:
+  // `packages/flutter3d/README.md` said 682 twice — stated once in the feature
+  // list and once in the layout tree — while its own test directory held nearly
+  // eight hundred. Only a README that states a count is held to it; none has
+  // to, which is why every other package passes this by having nothing to say.
+  for (final entry in packages.entries) {
+    final readme = File('${entry.value.path}/README.md');
+    if (!readme.existsSync()) continue;
+    final own = perDirectory[entry.key] ?? 0;
+    for (final m in RegExp(
+      r'(\d+) tests',
+    ).allMatches(readme.readAsStringSync())) {
+      if (m.group(1) != '$own') {
+        found.add(
+          Finding(
+            _inRepository(readme),
+            'says ${m.group(1)} tests; ${entry.key}/test holds $own',
+          ),
+        );
+      }
+    }
+  }
+
   // The per-package table on the testing page, which is the same scan told
   // one directory at a time. A row is held to its directory, a directory with
   // tests is held to having a row, and the sentence under the table that

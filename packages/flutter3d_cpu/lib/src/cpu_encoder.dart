@@ -409,27 +409,19 @@ final class CpuEncoder implements CommandEncoder {
     final interpolated = Float32List(varyingCount);
     final context = FragmentContext();
 
-    // Screen-space gradients, once for the whole triangle, and only when a
-    // bound texture actually has levels to choose between. Solved from the
-    // three window positions and the three varying values: the standard
-    // two-by-two system whose determinant is the signed area already computed
-    // above.
-    if (_hasMippedTexture()) {
-      final det =
-          (sx[1] - sx[0]) * (sy[2] - sy[0]) - (sx[2] - sx[0]) * (sy[1] - sy[0]);
-      if (det != 0.0) {
-        final inv = 1.0 / det;
-        final ddx = context.ddx = Float32List(varyingCount);
-        final ddy = context.ddy = Float32List(varyingCount);
-        for (var k = 0; k < varyingCount; k++) {
-          final v0 = varyings[0][k];
-          final d1 = varyings[1][k] - v0;
-          final d2 = varyings[2][k] - v0;
-          ddx[k] = (d1 * (sy[2] - sy[0]) - d2 * (sy[1] - sy[0])) * inv;
-          ddy[k] = (d2 * (sx[1] - sx[0]) - d1 * (sx[2] - sx[0])) * inv;
-        }
-      }
-    }
+    // **No screen-space gradients here, and that is the answer rather than an
+    // omission.** The triangle path solves them from three window positions;
+    // this one has two, and the solve was copied down here whole — it read
+    // `sx[2]` and `sy[2]` out of two-element lists, so any line drawn while a
+    // bound texture happened to carry a chain came back as a `RangeError` out
+    // of the rasteriser rather than as a frame. Debug geometry samples nothing,
+    // which is why it never fired.
+    //
+    // A line has no area and therefore no second direction to differentiate
+    // along: there is no derivative to have, only a derivative along the run,
+    // which says nothing about how fast a coordinate moves across the pixel.
+    // Left unset, `BoundTexture.sample` takes the base level — the sharpest
+    // one, and the only defensible choice for a primitive one pixel wide.
     final scissor = _scissor;
 
     for (var step = 0; step <= steps; step++) {
@@ -461,6 +453,10 @@ final class CpuEncoder implements CommandEncoder {
 
       context.coord.setValues(x + 0.5, y + 0.5, z, iw);
       context.surface = null;
+      // Cleared with it, and for the same reason the coordinate is rebuilt: one
+      // context serves every fragment, so a debug picture left over from the
+      // last one would be shown for this one.
+      context.debugSurface = null;
       final colour = pipeline.fragment.run(interpolated, bindings, context);
       if (colour == null) continue;
       if (stencil != null) _stencilWrite(stencil, index, stencilState, op);
@@ -881,6 +877,7 @@ final class CpuEncoder implements CommandEncoder {
         // to it would see the next fragment's values.
         context.coord.setValues(px, py, z, iw);
         context.surface = null;
+        context.debugSurface = null;
         final colour = pipeline.fragment.run(interpolated, bindings, context);
         if (colour == null) continue;
         if (stencil != null) _stencilWrite(stencil, index, stencilState, op);

@@ -14,10 +14,13 @@
 ///
 /// **Two tiers, and the split is a correction.** This file used to say it was
 /// shader-free as a whole, and that stopped being true the day a check needed a
-/// pipeline: five of the twelve now link stages and draw. A new backend
-/// following the old promise would have met five failures it could do nothing
-/// about, so the lists say which is which — [coreChecks] needs clears, uploads
-/// and readback alone, [shaderChecks] needs the bundle. What still needs a
+/// pipeline: most of them now link stages and draw. A new backend following the
+/// old promise would have met a pile of failures it could do nothing about, so
+/// the lists say which is which — [coreChecks] needs clears, uploads and
+/// readback alone, [shaderChecks] needs the bundle. The tiers are the answer to
+/// "can this be asked yet", not to "is this important": the buffer-usage check
+/// sat in the first list for as long as it asserted nothing, and asking it
+/// properly moved it to the second. What still needs a
 /// shader and is not here (an unbound sampler) stays in `ARCHITECTURE.md` §7,
 /// and is named there as such. A uniform block's members used to be on that
 /// list and are checked now — see [checkUniformMemberMismatchIsRefused], which
@@ -135,8 +138,11 @@ List<ConformanceCheck> get coreChecks => <ConformanceCheck>[
   (name: 'the HDR format it names is renderable', run: checkHdrRenderable),
   (name: 'a clear covers the whole attachment', run: checkClearCoversAll),
   (name: 'uploaded pixels keep their row order', run: checkRowOrder),
-  (name: 'a buffer is uploaded for its declared use', run: checkGeometryUsage),
   (name: 'a cube takes the mip chain it is handed', run: checkCubeMipLevels),
+  (
+    name: 'a pixel buffer of the wrong size is refused',
+    run: checkPixelBufferSize,
+  ),
   (
     name: 'a readback returns the frame before',
     run: checkReadbackReturnsTheFrameBefore,
@@ -168,6 +174,10 @@ List<ConformanceCheck> get shaderChecks => <ConformanceCheck>[
     run: checkReadbackOfRegion,
   ),
   (name: 'an instanced draw draws every instance', run: checkInstancedDraw),
+  (
+    name: 'a buffer is uploaded for its declared use, and draws as it',
+    run: checkGeometryUsage,
+  ),
   (
     name: 'a pipeline switch leaves no stale bindings',
     run: checkPipelineSwitchKeepsBindingsApart,

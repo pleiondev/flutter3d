@@ -361,11 +361,6 @@ final class WebGlDevice implements GraphicsDevice {
   @override
   TextureFormat get defaultDepthStencilFormat => TextureFormat.d24UnormS8Uint;
 
-  /// WebGL2 has multisampled renderbuffers, so offscreen MSAA exists — but it
-  /// cannot be *sampled*, only blitted. The engine uses MSAA by attaching a
-  /// multisampled colour and a resolve target, which is exactly a blit, so the
-  /// answer is honest.
-  @override
   @override
   // OpenGL, and WebGL2 exposes no glClipControl to change it.
   FramebufferOrigin get framebufferOrigin => FramebufferOrigin.bottomLeft;
@@ -386,6 +381,20 @@ final class WebGlDevice implements GraphicsDevice {
   @override
   int get preferredSampleCount => _msaaSamples;
 
+  /// WebGL2 has multisampled renderbuffers, so offscreen MSAA exists — but it
+  /// cannot be *sampled*, only blitted. The engine uses MSAA by attaching a
+  /// multisampled colour and a resolve target, which is exactly a blit, so the
+  /// answer is honest.
+  ///
+  /// Measured rather than assumed: [_provenMsaaSamples] asks the driver at
+  /// [create] and comes back zero on the ones that cannot multisample an HDR
+  /// format, which is most phones.
+  ///
+  /// This paragraph spent a while attached to [framebufferOrigin] instead,
+  /// behind a doubled `@override` — so the generated API docs of a published
+  /// package carried an MSAA rationale on the framebuffer-origin getter, and
+  /// the capability a caller is told to ask before requesting MSAA had nothing
+  /// on it at all.
   @override
   bool get supportsOffscreenMsaa => _msaaSamples > 1;
 

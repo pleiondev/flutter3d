@@ -10,8 +10,11 @@
 ///
 /// Three things have to hold:
 ///
-///   * off is *exactly* off — thirty-one goldens are recorded against that, and
-///     "nearly one" is not the same claim as one;
+///   * off is *exactly* off — every golden in every set is recorded against
+///     that, and "nearly one" is not the same claim as one. Said without a
+///     number on purpose: this line carried "thirty-one goldens" for eight
+///     scenes past the point where that was true, and the rule that recounts
+///     the scenes reads the scripts, `ARCHITECTURE.md` and the site, not Dart;
 ///   * an inside corner goes darker than a flat wall lit the same way;
 ///   * the sky, where nothing was drawn, occludes nothing — otherwise every
 ///     silhouette in the frame gains a dark outline, which is the classic way
