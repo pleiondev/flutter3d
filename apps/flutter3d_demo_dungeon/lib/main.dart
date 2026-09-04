@@ -1187,22 +1187,24 @@ class _GameScreenState extends State<GameScreen>
                 view: _view,
                 onBeforeFrame: _placeCamera,
                 settings: () => RenderSettings(
-                  // Off, and for one reason rather than the two written here
-                  // before. Rough stone is no longer the problem: the surface
-                  // buffer carries perceptual roughness in its blue channel
-                  // and `reflections.frag` fades the march out over it, so the
-                  // walls stopped lighting up and the floor kept its streak.
+                  // Off, and no longer for either of the reasons written here
+                  // before. Rough stone stopped being the problem when the
+                  // surface buffer began carrying perceptual roughness in its
+                  // blue channel and `reflections.frag` started fading the
+                  // march out over it. The hit test stopped being one too: it
+                  // measured `thickness` in window depth, which is not a
+                  // distance — a few centimetres of stone near the camera and
+                  // metres across the room, so a ray passing well behind a
+                  // distant wall counted as landing on it and painted a
+                  // highlight through solid rock. That is fixed; the march now
+                  // asks how far behind in metres. See `ReflectionSettings`.
                   //
-                  // What is left is the hit test. The march has only the
-                  // front-most depth to compare against, and it compares in
-                  // *window* depth, which is not linear: near the camera
-                  // `thickness` is a few centimetres of stone, and far from it
-                  // the same number is metres, so a ray that passes well
-                  // behind a distant wall still counts as landing on it and
-                  // paints whatever is drawn at that pixel — a highlight
-                  // through solid rock, in the room the crypt is least able
-                  // to afford it. A view-space difference would fix it; until
-                  // then this stays off rather than shipping the artefact.
+                  // What keeps it off here is a cost rather than a defect. SSR
+                  // needs the surface buffer, and attaching it turns MSAA off
+                  // for the whole scene pass, so the crypt would trade the
+                  // antialiasing of every edge in the frame for a wet look on
+                  // the floor. That is a decision about how the crypt should
+                  // look, and nothing has drawn one with it on to judge.
                   reflections: const ReflectionSettings(),
                   // Straight from the document. A crypt without fog is a crypt
                   // with a visible far wall, and the far wall is the thing an
