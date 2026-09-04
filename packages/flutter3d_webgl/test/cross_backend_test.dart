@@ -26,12 +26,13 @@
 /// the browser pass drags this in and every case fails on a missing library
 /// rather than on a picture.
 ///
-/// **The budgets below are measurements, and none of them is a defect any
-/// more.** That distinction is the point of the file: a number near a fifth of
-/// a percent is multisampling on a silhouette and nothing to do; a number in
-/// whole percents is this backend drawing something else. Six scenes were in
-/// the second group and every one of them has been moved to the first, so the
-/// whole table is now a floor to hold rather than a list of things to fix.
+/// **The budgets below are measurements, and one of them is a defect.** That
+/// distinction is the point of the file: a number near a fifth of a percent is
+/// multisampling on a silhouette and nothing to do; a number in whole percents
+/// is this backend drawing something else. Six scenes were in the second group
+/// and all six were fixed — and then `ambient-occlusion-corner` arrived and
+/// took their place, on the day the effect was first compared at all. It is
+/// marked below.
 ///
 /// The exception is any scene named in [_provisional], whose picture is not
 /// recorded yet and whose budget is therefore a placeholder rather than a
@@ -97,6 +98,21 @@ const int _channel = 8;
 /// pointed at and agreed with Impeller to the pixel for six sessions.
 ///
 const Map<String, double> _budgets = <String, double>{
+  // 0.558% measured, against 0.633% from the software rasteriser — two
+  // independent implementations of the march landing within a tenth of a
+  // percent of each other and of Impeller, which is what agreement looks like.
+  'screen-space-reflections': 0.57,
+  // **4.861% measured, and a defect budget rather than a floor.** Read it
+  // beside the software backend's 7.647% for the same scene: all three
+  // implementations of `ssao.frag` disagree, with each other and pairwise, and
+  // no two of them are within the suite's noise floor. That is not one
+  // transcription drifting from a reference — it is three answers to one
+  // twelve-tap march, and until somebody says which is right, none of the
+  // three can be called the reference.
+  //
+  // The scene was added because the effect had shipped, was drawn by three
+  // backends, and had a picture check on one. It found this in its first run.
+  'ambient-occlusion-corner': 4.9,
   // 0.098% measured. It was 0.6 while this backend sampled a normal map's
   // base level where Impeller sampled its chain; the minification filter now
   // follows the sampler's `mipFilter`, and what is left is the silhouette.
