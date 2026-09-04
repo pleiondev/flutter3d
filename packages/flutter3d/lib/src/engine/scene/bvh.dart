@@ -68,6 +68,12 @@ final class SceneBvh {
 
   int get nodeCount => _nodeCount;
 
+  /// How many meshes are in the tree, as against [nodeCount] of tree nodes.
+  ///
+  /// The two together are what a profiler reads to judge the build: meshes per
+  /// node falling towards one means the tree has stopped separating anything and
+  /// is costing more than the loop it replaced. Nothing here reads either;
+  /// [rebuildCount] is the one the engine's own tests watch.
   int get meshCount => _meshCount;
 
   /// How many times the tree has been rebuilt, so a scene that thrashes it is

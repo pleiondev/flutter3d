@@ -80,6 +80,13 @@ abstract base class Mover extends Mechanism {
 
   /// How long it has been sitting still at whichever end it is at.
   double _held = 0.0;
+
+  /// The same, read from outside.
+  ///
+  /// The mover decides on its own when to set off again, so nothing here reads
+  /// the clock it is counting. It is for a game that wants to warn before a door
+  /// closes — a sound, or a light that starts blinking a second out — which
+  /// needs the dwell time and not merely the state.
   double get heldFor => _held;
 
   MoverState get state {

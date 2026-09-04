@@ -586,6 +586,11 @@ final class GpuRenderBackend implements GraphicsDevice {
   /// Diagnostic, like [rejectedSubmissions]: a number climbing fast means the
   /// scene's per-frame transient writes dwarf the block budget, which is worth
   /// knowing about rather than merely surviving.
+  ///
+  /// Nothing here reads it — the engine survives either way, which is the point.
+  /// It is for whoever is looking at a frame time that grew: this and
+  /// [debugReadbackStagingCount] are the two numbers that say the cost is
+  /// allocation rather than drawing.
   int get debugTransientRecreations => _transientRecreations;
   int _transientRecreations = 0;
 
@@ -676,6 +681,10 @@ final class GpuRenderBackend implements GraphicsDevice {
   );
 
   /// How many staging textures the readbacks have made so far. Diagnostic.
+  ///
+  /// For the same caller as [debugTransientRecreations], reading the other half
+  /// of the same question: a golden run makes one of these per picture, and a
+  /// frame that is not being read back should make none at all.
   int get debugReadbackStagingCount => _readback.debugStagingCount;
 
   /// A deliberate no-op. See the note at [supportsCubeTextures] on

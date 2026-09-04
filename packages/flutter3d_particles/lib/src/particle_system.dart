@@ -84,6 +84,10 @@ final class ParticleSystem {
   /// A number that climbs during ordinary play means the cap is wrong; a number
   /// that never resets means it climbed once, three levels ago, and nobody can
   /// tell whether it is still climbing.
+  ///
+  /// Which is who it is for: a game showing [dropped] on a debug overlay, that
+  /// clears it when a level starts so the number on screen is about the level
+  /// being played. Nothing here calls it, because nothing here plays twice.
   void resetDropped() => _dropped = 0;
 
   /// How many of [_pool] are alive. **The live ones are always `_pool[0.._alive)`.**

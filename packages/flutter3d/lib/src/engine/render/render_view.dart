@@ -94,6 +94,12 @@ final class ViewportRect {
   final double width;
   final double height;
 
+  /// Whether this viewport is the whole target.
+  ///
+  /// Nothing here asks: the engine sets the viewport either way and lets the
+  /// hardware clip. It is for a caller writing a pass of its own that has a
+  /// faster path when it owns the whole target — a full-target clear, or a blit
+  /// that can skip the scissor — and needs to know which case it is in.
   bool get isFullTarget =>
       x == 0.0 && y == 0.0 && width == 1.0 && height == 1.0;
 

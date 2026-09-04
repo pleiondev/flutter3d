@@ -130,6 +130,11 @@ final class FlowField {
   }
 
   /// Cost to the goal in tenths of a cell, or [unreachable].
+  ///
+  /// Steering reads the direction, not the cost, so nothing here calls this. It
+  /// is for a tool that draws the field — a level editor colouring cells by
+  /// distance, which is how an unreachable pocket behind a wall somebody meant
+  /// to make a door is found before a player finds it.
   int costAt(int index) => _cost[index];
 
   /// How far it is to the goal by walking, in world units, or `null` when

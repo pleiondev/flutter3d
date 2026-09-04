@@ -100,6 +100,167 @@ String codeOf(String source) => source
     .map((String line) => line.replaceAll(RegExp(r'//.*'), ''))
     .join('\n');
 
+/// The source's prose: its comments, with the markers off and the wrap undone.
+///
+/// **The mirror of [codeOf], and the reason a rule can read Dart at all.** A
+/// claim in a doc comment is wrapped wherever eighty columns fell, so
+/// `thirty-one` and `goldens` are one sentence to a reader and two lines to a
+/// regular expression — and a counting rule that reads the file as it is on
+/// disk sees half the claims in the repository and misses the other half for no
+/// reason it could ever explain.
+///
+/// A line that is not a comment ends the run rather than joining it, so the last
+/// word of one comment and the first word of the next, three hundred lines
+/// apart, never read as a phrase.
+///
+/// It takes `//` inside a string literal for a comment, which [codeOf] does from
+/// the other side. Left alone: the counting rules read this for sentences about
+/// how many of something there are, and no URL has ever been one.
+String proseOf(String source) {
+  final out = StringBuffer();
+  var running = false;
+  for (final line in source.split('\n')) {
+    final match = _commentText.firstMatch(line);
+    if (match == null) {
+      if (running) out.write('\n');
+      running = false;
+      continue;
+    }
+    if (running) out.write(' ');
+    out.write(match.group(1)!.trim());
+    running = true;
+  }
+  return out.toString();
+}
+
+final RegExp _commentText = RegExp(r'//+ ?(.*)$');
+
+// ------------------------------------------------------ who a member is for
+
+/// Words for somebody this repository does not contain.
+///
+/// A public member nothing here calls exists for a caller outside, and the rule
+/// that finds it cannot tell a sentence naming that caller from a sentence
+/// restating the member's own name. This list is what it *can* tell: whether the
+/// sentence names anybody at all.
+///
+/// **Stated so it is not mistaken for coverage.** A doc comment saying "the
+/// caller must not hold this past the frame" passes on the word `caller` while
+/// naming nobody. What the check buys is that the omission is visible — an
+/// accessor with a one-line restatement of its own name is reported, every time,
+/// which is the shape every member in the found set had.
+const List<String> kOutsideCallerWords = <String>[
+  'caller',
+  'callers',
+  'whoever',
+  'anybody',
+  'anyone',
+  'a game',
+  'a tool',
+  'a level editor',
+  'an editor',
+  'an application',
+  'a profiler',
+  'a debugger',
+  'a reader',
+  'an embedder',
+];
+
+/// Whether [doc] names somebody outside this repository.
+bool saysWhoReachesForIt(String doc) {
+  final said = doc.toLowerCase();
+  return kOutsideCallerWords.any(said.contains);
+}
+
+// ------------------------------------------------------------ public members
+
+/// One member a class offers: its name, where it is, and what it says for itself.
+typedef Member = ({String name, int line, String doc});
+
+/// The declarations a member can be written as.
+///
+/// Indented on purpose — a member is inside something, and a top-level function
+/// is a different question with a different answer. Ordered getter, setter,
+/// method, field, because a getter's `get` would otherwise be read as a method's
+/// return type.
+final List<RegExp> _memberForms = <RegExp>[
+  RegExp(
+    r'''^\s+(?:external\s+)?(?:static\s+)?[\w<>,\s?\[\]$.]+?\s+get\s+([a-zA-Z]\w*)\s*(?:=>|\{)''',
+  ),
+  RegExp(r'^\s+(?:static\s+)?set\s+([a-zA-Z]\w*)\s*\('),
+  RegExp(
+    r'^\s+(?:external\s+)?(?:static\s+)?'
+    r'(?:void|bool|int|double|String|num|Future<[^>]*>|List<[^>]*>|'
+    r'Map<[^>]*>|Iterable<[^>]*>|[A-Z]\w*(?:<[^=;]*>)?\??)'
+    r'\s+([a-z]\w*)\s*(?:<[\w,\s]+>)?\s*\(',
+  ),
+  RegExp(
+    r'''^\s+(?:static\s+)?(?:late\s+)?(?:final|const)\s+[\w<>,\s?\[\]$.]+\s+([a-z]\w*)\s*(?:=|;)''',
+  ),
+];
+
+/// Words that begin a line the way a declaration does and are not one.
+const Set<String> _notAMemberName = <String>{
+  'assert', 'await', 'case', 'const', 'else', 'factory', 'final', 'for', 'get',
+  'if', 'late', 'new', 'operator', 'required', 'return', 'set', 'super',
+  'switch', 'this', 'type', 'var', 'void', 'while', 'yield', //
+};
+
+/// Annotations that answer the question before it is asked.
+///
+/// `@override` is named by the thing it implements, so a rule about members
+/// nothing names would report every one of them and mean nothing by it.
+/// `@Deprecated` carries a sentence about who is still calling it and what to
+/// call instead — which is the sentence, in the place the analyser reads.
+const Set<String> _annotationsThatAnswer = <String>{'@override', '@Deprecated'};
+
+/// Every public member [source] declares, with the doc comment above it.
+///
+/// The doc is the run of `///` lines immediately above, joined — which is the
+/// sentence the reader sees, and the only thing a rule can ask about.
+///
+/// An annotation's argument list runs over several lines, and the run is
+/// followed rather than parsed: any line between an `@` and the declaration
+/// belongs to it. A blank line ends the run, because nothing in Dart puts one
+/// inside an annotation and something eventually will put one above a member.
+List<Member> publicMembersIn(String source) {
+  final lines = source.split('\n');
+  final found = <Member>[];
+  final doc = <String>[];
+  var annotating = false;
+  var answered = false;
+  for (var i = 0; i < lines.length; i++) {
+    final line = lines[i];
+    final trimmed = line.trim();
+    if (trimmed.startsWith('///')) {
+      doc.add(trimmed.substring(3).trim());
+      continue;
+    }
+    if (trimmed.startsWith('@')) {
+      annotating = true;
+      answered = answered || _annotationsThatAnswer.any(trimmed.startsWith);
+      continue;
+    }
+    final name = _memberForms
+        .map((RegExp form) => form.firstMatch(line)?.group(1))
+        .firstWhere((String? it) => it != null, orElse: () => null);
+    if (name == null) {
+      if (annotating && trimmed.isNotEmpty) continue;
+      doc.clear();
+      annotating = false;
+      answered = false;
+      continue;
+    }
+    if (!answered && !name.startsWith('_') && !_notAMemberName.contains(name)) {
+      found.add((name: name, line: i + 1, doc: doc.join(' ')));
+    }
+    doc.clear();
+    annotating = false;
+    answered = false;
+  }
+  return found;
+}
+
 /// Whether one word is another, allowing for how English inflects it.
 ///
 /// `stompedThisStep` and `coins` are the same leak as `stomp` and `coin`, and a
@@ -352,6 +513,118 @@ List<Finding> proveDetectorsWork() {
     unrepeatableIn('// Random() would be wrong here.') == null,
     'a comment',
     'prose explaining the rule must not break it',
+  );
+
+  // Prose. The wrap is the whole reason this exists — the claim that went
+  // uncounted for eight recordings was written across two lines — so the wrap
+  // is the first thing proved. Mutation: join the lines with '\n' instead of
+  // ' ' and this is the check that goes red.
+  //
+  // Counting files rather than scenes on purpose: a proof written in the
+  // vocabulary of a counting rule would be a claim about that count, sitting in
+  // a file that rule reads.
+  fires(
+    'prose',
+    proseOf(
+      '/// the loader read thirty-one\n/// files.',
+    ).contains('thirty-one files'),
+    'a claim wrapped across two doc-comment lines',
+  );
+  fires(
+    'prose',
+    proseOf(
+      '// eleven of them, and\n// no more than that.',
+    ).contains('eleven of them, and no more than that.'),
+    'a claim wrapped across two line comments',
+  );
+  quiet(
+    'prose',
+    !proseOf(
+      '// ends in six\nfinal x = 1;\n// files begin here',
+    ).contains('six files'),
+    'two comments with code between them',
+    'the last word of one and the first of the next are not a phrase',
+  );
+  quiet(
+    'prose',
+    proseOf("final name = 'thirty files';").isEmpty,
+    'a string literal',
+    'code is not prose; that is what codeOf is for',
+  );
+
+  // Who a member is for.
+  fires(
+    'who it is for',
+    !saysWhoReachesForIt('Index of the level currently visible.'),
+    'a doc comment that restates the member name',
+  );
+  fires('who it is for', !saysWhoReachesForIt(''), 'no doc comment at all');
+  quiet(
+    'who it is for',
+    saysWhoReachesForIt(
+      'Read by whoever wants to know which surface the tyres are on.',
+    ),
+    'a sentence naming whoever reads it',
+    'the sentence the rule asks for must satisfy it',
+  );
+  quiet(
+    'who it is for',
+    saysWhoReachesForIt('Kept so a caller can say which sounds are missing.'),
+    'a sentence naming a caller',
+    'the sentence the rule asks for must satisfy it',
+  );
+
+  // Public members. The three forms that were actually in the found set, and
+  // the two ways of not being a member at all.
+  //
+  // Invented names, and for the same reason the prose proofs count files: the
+  // rule these feed counts how often an identifier is written in the
+  // repository, so a proof naming a real member would be one of its references.
+  fires(
+    'public members',
+    publicMembersIn('class A {\n  int get sproutCount => _n;\n}').length == 1,
+    'a getter',
+  );
+  fires(
+    'public members',
+    publicMembersIn('class A {\n  void resetTally() => _d = 0;\n}').length == 1,
+    'a method',
+  );
+  fires(
+    'public members',
+    publicMembersIn(
+      'class A {\n  /// Says who.\n  final int width = 1;\n}',
+    ).single.doc.contains('Says who'),
+    'the doc comment above a field',
+  );
+  quiet(
+    'public members',
+    publicMembersIn('class A {\n  int get _hidden => 1;\n}').isEmpty,
+    'a private getter',
+    'a private member is nobody outside this repository\'s business',
+  );
+  quiet(
+    'public members',
+    publicMembersIn(
+      'class A {\n  @override\n  int get length => 1;\n}',
+    ).isEmpty,
+    'an @override',
+    'the thing it implements is what names it',
+  );
+  quiet(
+    'public members',
+    publicMembersIn(
+      'class A {\n  @Deprecated(\n    "Ask the graph instead.",\n  )\n'
+      '  bool get old => true;\n}',
+    ).isEmpty,
+    'a @Deprecated whose message runs over several lines',
+    'the annotation already says who is still calling it and what instead',
+  );
+  quiet(
+    'public members',
+    publicMembersIn('int topLevel() => 1;').isEmpty,
+    'a top-level function',
+    'a member is inside something',
   );
 
   // Reaching.

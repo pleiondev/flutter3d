@@ -177,6 +177,12 @@ final class InstancedMeshNode extends MeshNode {
   }
 
   /// Says the buffer was written through [instanceData].
+  ///
+  /// Every writer in this repository goes through [setTransform] and its
+  /// neighbours, which say so themselves. This is the other half of
+  /// [instanceData]'s bargain, and it is for a caller that filled the whole
+  /// buffer at once — a field regenerated per frame — and has to say so, because
+  /// nothing watched it happen.
   void markInstancesChanged() => _touched();
 
   void _check(int index) {

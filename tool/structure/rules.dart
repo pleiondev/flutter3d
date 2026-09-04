@@ -49,6 +49,10 @@ List<Rule> get allRules => <Rule>[
     run: _goldenSceneCount,
   ),
   (
+    name: 'a public member nothing calls says who it is for',
+    run: _unreferencedPublicMembers,
+  ),
+  (
     name: 'every picture the site shows is a golden that exists',
     run: _goldenFiguresExist,
   ),
@@ -1016,6 +1020,34 @@ List<Finding> _exemptionsResolve() {
     check('engineCompilesOffDevice', 'flutter3d', path);
   }
 
+  // The scene-count exemptions are keyed on a path *and* on the sentence, so
+  // they rot two ways: a file that moved, and a sentence that was rewritten
+  // while the exemption sparing it stayed behind. The second is the dangerous
+  // one — the rule reads as if it covers the file, and quietly does not.
+  for (final entry in goldenCountExempt.entries) {
+    final file = File('${repositoryRoot.path}/${entry.key}');
+    if (!file.existsSync()) {
+      found.add(
+        Finding(
+          'goldenCountExempt → ${entry.key}',
+          'names a file that is not there; the exemption is wider than it reads',
+        ),
+      );
+      continue;
+    }
+    final text = _claimsRead(file, entry.key);
+    for (final fragment in entry.value.keys) {
+      if (!text.contains(fragment)) {
+        found.add(
+          Finding(
+            'goldenCountExempt → ${entry.key}',
+            'spares "$fragment", which the file no longer says',
+          ),
+        );
+      }
+    }
+  }
+
   // `hardwareMayUseFlutter` is keyed on basenames rather than paths, because
   // that is what the rule matches on. Same rot, same case trap.
   final hardware = packages['flutter3d_hardware'];
@@ -1743,6 +1775,19 @@ List<Finding> _goldenFiguresExist() {
   return found;
 }
 
+/// **It reads Dart now, and that is where most of the wrong numbers were.**
+/// `ssao_test.dart` said "thirty-one goldens" for eight scenes past the point
+/// where it was true, and said so in the same breath as the rule that was
+/// supposed to have caught it — which reads the scripts, `ARCHITECTURE.md` and
+/// the site, and not a line of code. `cpu_shaders_builtin.dart` opened on "all
+/// twenty-four of them". A number in a doc comment is a number nobody recounts,
+/// exactly like a number in a document, and there are far more of them.
+///
+/// Two things had to come with it. A comment wraps, so the claims are read out
+/// of [proseOf] rather than off the file — half of them cross a line. And Dart
+/// is where this repository keeps its history, so the sentences that are right
+/// about a past afternoon live in [goldenCountExempt] with the reason; that
+/// table is the rule, as much as the regular expression is.
 List<Finding> _goldenSceneCount() {
   final goldens = Directory(
     '${repositoryRoot.path}/packages/flutter3d_cpu/test/goldens',
@@ -1761,12 +1806,22 @@ List<Finding> _goldenSceneCount() {
       const Finding('flutter3d_cpu/test/goldens', 'holds no PNGs to count'),
     ];
   }
+  if (count >= _countedInWords.length) {
+    return <Finding>[
+      Finding(
+        'tool/structure/rules.dart',
+        'there are $count scenes and this check can only spell '
+            '${_countedInWords.length - 1}. Extend the list.',
+      ),
+    ];
+  }
 
-  final word = _numberWords[count];
+  final word = _countedInWords[count];
   final found = <Finding>[];
   // The site tells the same story on half a dozen pages, and its testing page
   // was still saying "thirty scenes" two recounts later — so the prose pages
-  // are scanned along with the scripts and ARCHITECTURE.md.
+  // are scanned along with the scripts and ARCHITECTURE.md, and every Dart file
+  // in the repository along with those.
   final files = <File>[
     for (final where in <String>[
       'tool/ci.sh',
@@ -1775,35 +1830,159 @@ List<Finding> _goldenSceneCount() {
     ])
       File('${repositoryRoot.path}/$where'),
     ..._prosePages(),
+    ..._everyDartFile(),
   ];
+  // Only the phrasings that are actually about the scenes, so a stray "32"
+  // elsewhere in a long document is not a false positive. `goldens` is here
+  // because that is the word the code uses for them; the documents say scenes.
+  final claim = RegExp(
+    r'([\w-]+) (?:golden )?(?:scenes|goldens)\b',
+    caseSensitive: false,
+  );
   for (final file in files) {
     final where = _inRepository(file);
     if (!file.existsSync()) {
       found.add(Finding(where, 'is not there'));
       continue;
     }
-    final text = file.readAsStringSync();
-    // Only the phrasings that are actually about the scenes, so a stray "32"
-    // elsewhere in a long document is not a false positive.
-    final claims = RegExp(
-      r'([\w-]+) (?:golden )?scenes',
-      caseSensitive: false,
-    ).allMatches(text).map((RegExpMatch m) => m.group(1)!).toSet();
-    for (final claim in claims) {
-      if (claim == '$count' || claim.toLowerCase() == word) continue;
-      // A word that is not a number at all — "the scenes", "thirty-two golden
-      // scenes" already matched — is not a claim about how many there are.
-      if (int.tryParse(claim) == null &&
-          !_numberWords.containsValue(claim.toLowerCase())) {
-        continue;
-      }
+    final text = _claimsRead(file, where);
+    final spared = goldenCountExempt[where] ?? const <String, String>{};
+    for (final match in claim.allMatches(text)) {
+      final said = match.group(1)!.toLowerCase();
+      if (said == '$count' || said == word) continue;
+      // A word that is not a number at all — "the scenes", "particle goldens" —
+      // is not a claim about how many there are.
+      final number = int.tryParse(said) ?? _countedInWords.indexOf(said);
+      if (number < 0) continue;
+      if (_sparedAt(text, match.start, spared.keys)) continue;
       found.add(
-        Finding(where, 'says "$claim scenes"; there are $count ($word)'),
+        Finding(where, 'says "${match.group(0)}"; there are ${_spell(count)}'),
       );
     }
   }
   return found;
 }
+
+/// Public members nothing in the repository names, and what they say for
+/// themselves.
+///
+/// **Deleting them is the wrong fix, which is why this is a rule and not a
+/// cull.** A published package's public member with no caller here has exactly
+/// one kind of caller: somebody outside. Taking it out is a breaking change for
+/// the only person it was ever for, and leaving it is fine — what is not fine is
+/// that nothing says so. The next reader finds an accessor with a one-line
+/// restatement of its own name, no caller, and no way to tell a considered part
+/// of the surface from something left behind by a refactor. Both were in the
+/// found set.
+///
+/// So: a sentence naming who reaches for it. `SphereVehicle.groundSample` and
+/// `SoLoudBackend.failedAssets` already had one — "read by whoever wants to know
+/// which surface the tyres are on", "kept so a caller can say which sounds a
+/// level is missing" — which is where the register comes from. The check is
+/// [saysWhoReachesForIt], and it is honest about what it can see: whether the
+/// sentence names anybody, not whether it names the right body.
+///
+/// **Named, not exported, and the difference is deliberate.** Working out what a
+/// barrel re-exports needs a resolver; a public name under `lib/` that nothing
+/// mentions is either surface with no caller here — this rule — or dead code
+/// behind a barrel that never exported it. That is the same finding with a
+/// different fix, and the sentence a writer has to produce is what tells the two
+/// apart.
+List<Finding> _unreferencedPublicMembers() {
+  final found = <Finding>[];
+  final sources = <File, String>{
+    for (final file in _everyDartFile()) file: file.readAsStringSync(),
+  };
+
+  // How often each identifier is written anywhere in the repository — tests,
+  // examples, applications and this tool included. A member used once is used
+  // by its own declaration and by nobody.
+  //
+  // **Code, not prose**, and this rule taught itself that lesson: naming
+  // `SphereVehicle.groundSample` in the paragraph above as an example of a
+  // member that gets this right silenced the check for it. A `[member]` in a doc
+  // comment is a cross-reference, not a caller, and a rule that counted them
+  // would go quiet on exactly the members somebody had already thought about.
+  final named = <String, int>{};
+  final identifier = RegExp(r'[A-Za-z_$][A-Za-z0-9_$]*');
+  for (final source in sources.values) {
+    for (final match in identifier.allMatches(codeOf(source))) {
+      named.update(match.group(0)!, (int n) => n + 1, ifAbsent: () => 1);
+    }
+  }
+
+  for (final entry in sources.entries) {
+    final where = _inRepository(entry.key);
+    // A package's own `lib/` only. An application's members are for that
+    // application and a test's are for that test, neither of which has an
+    // outside caller to be for — and `example/lib/` is an application that
+    // happens to live in a package.
+    if (!RegExp(r'^packages/[^/]+/lib/').hasMatch(where)) continue;
+    for (final member in publicMembersIn(entry.value)) {
+      if ((named[member.name] ?? 0) > 1) continue;
+      if (saysWhoReachesForIt(member.doc)) continue;
+      found.add(
+        Finding(
+          '$where:${member.line}',
+          '`${member.name}` is public and nothing in the repository names it, '
+              'and its doc comment does not say who does. Say who reaches for '
+              'it — deleting it is a breaking change for exactly that caller',
+        ),
+      );
+    }
+  }
+  return found;
+}
+
+/// A file's sentences, with the wrap undone, in the form a claim is matched in.
+///
+/// Dart comes through [proseOf], which is comments only. Markdown and shell are
+/// prose throughout, so a line is joined to the next unless a blank line ends
+/// the paragraph — the same reason and the same result: a claim written across
+/// two lines is one sentence to a reader and has to be one here.
+///
+/// The exemption table's fragments are matched against this, which is why it is
+/// one function: a fragment that reads right and matched something else would be
+/// an exemption sparing a claim nobody chose.
+String _claimsRead(File file, String where) {
+  final source = file.readAsStringSync();
+  return where.endsWith('.dart')
+      ? proseOf(source)
+      : source
+            .replaceAll(RegExp(r'[ \t]*\n[ \t]*(?=\S)'), ' ')
+            .replaceAll(RegExp(r'[ \t]+'), ' ');
+}
+
+/// Whether an exempt sentence covers the claim at [at].
+///
+/// Spanning rather than merely present: `engine_shaders.dart` restates the same
+/// sentence six times, and a fragment found once would have spared a seventh
+/// claim somewhere else in the file that nobody had looked at.
+bool _sparedAt(String text, int at, Iterable<String> fragments) {
+  for (final fragment in fragments) {
+    for (var from = text.indexOf(fragment); from >= 0;) {
+      if (at >= from && at < from + fragment.length) return true;
+      from = text.indexOf(fragment, from + 1);
+    }
+  }
+  return false;
+}
+
+/// Every Dart file in the repository: packages, applications and this tool.
+///
+/// This tool included, and not as a flourish: `rules.dart` quotes the three
+/// wrong answers the scene count was written for, so a rule that read every
+/// Dart file but its own would be exempting itself by omission.
+///
+/// **`repository.dart` is the one file left out, and only it.** That is where
+/// the exemption table lives, and every entry in it quotes the sentence it
+/// spares — so scanning it would need an exemption for each exemption, which is
+/// a table nobody could read and nothing anybody could be wrong about. The rules
+/// and the detectors are scanned; the list of what is spared is not.
+List<File> _everyDartFile() => <File>[
+  for (final where in <String>['packages', 'apps', 'tool'])
+    ...dartFilesIn(Directory('${repositoryRoot.path}/$where')),
+].where((File f) => !f.path.endsWith('structure/repository.dart')).toList();
 
 /// CONTRIBUTING.md and every Markdown page of the documentation site.
 ///
@@ -2167,24 +2346,3 @@ List<Finding> _shaderEntryPoints() {
 /// Where a file is, said the way a finding says it: relative to the root.
 String _inRepository(File file) =>
     file.path.substring(repositoryRoot.path.length + 1);
-
-/// Enough of them to name the counts this repository actually writes down.
-const Map<int, String> _numberWords = <int, String>{
-  24: 'twenty-four',
-  25: 'twenty-five',
-  26: 'twenty-six',
-  27: 'twenty-seven',
-  28: 'twenty-eight',
-  29: 'twenty-nine',
-  30: 'thirty',
-  31: 'thirty-one',
-  32: 'thirty-two',
-  33: 'thirty-three',
-  34: 'thirty-four',
-  35: 'thirty-five',
-  36: 'thirty-six',
-  37: 'thirty-seven',
-  38: 'thirty-eight',
-  39: 'thirty-nine',
-  40: 'forty',
-};

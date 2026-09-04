@@ -160,6 +160,110 @@ const Map<String, String> engineCompilesOffDevice = <String, String>{
       'unit test of bounds, shapes and mesh maths is spent on that being true',
 };
 
+/// Sentences that say a number of scenes and are not claims about how many
+/// there are, with the fragment that identifies each and why it is spared.
+///
+/// **The rule reads Dart now, and Dart is where this repository keeps its
+/// history.** A comment saying "thirty goldens leaked thirty of them" is right
+/// about the afternoon it describes and would be a lie rewritten to say
+/// thirty-nine; a comment saying "two goldens caught it at 25% and 0.6%" counts
+/// the two that caught a bug, not the set. Both read exactly like the claims the
+/// rule exists to recount, and no phrasing tells them apart — which is why this
+/// is a table of sentences rather than a cleverer regular expression.
+///
+/// The key is a fragment of the sentence *as the prose reads*, wrap undone. It
+/// has to span the number, and `_exemptionsResolve` checks that it is still in
+/// the file: rewrite the sentence and the exemption stops applying, which is the
+/// direction that matters. An exemption that outlives its sentence is the rule
+/// quietly narrower than it reads.
+const Map<String, Map<String, String>>
+goldenCountExempt = <String, Map<String, String>>{
+  // History: right about the day it describes.
+  'packages/flutter3d/example/lib/src/spike/golden_extras.dart':
+      <String, String>{
+        'all twenty-seven goldens came back byte-identical':
+            'the run that found the pool bug, on the day it was run',
+      },
+  'packages/flutter3d/lib/src/engine/render/renderer.dart': <String, String>{
+    'gives all twenty-seven goldens byte-identical':
+        'the experiment that settled the registration order, as it was run',
+  },
+  'packages/flutter3d/test/xray_test.dart': <String, String>{
+    'a call thirty-four goldens were recorded without':
+        'the recording those goldens came from; a later set does not '
+        'change what that one was recorded without',
+  },
+  'packages/flutter3d_testing/lib/src/golden.dart': <String, String>{
+    'thirty goldens leaked thirty of them':
+        'the leak as it was found, and the second number is the first',
+  },
+  'packages/flutter3d_cpu/test/ssao_test.dart': <String, String>{
+    'carried "thirty-one goldens" for eight scenes':
+        'the wrong number this rule was extended to catch, quoted. Both '
+        'numbers in it are about the drift, not about today',
+  },
+  'packages/flutter3d_webgl/test/bloom_orientation_test.dart': <String, String>{
+    'thirty-two goldens did not':
+        'the set on the day a flipped blit got past it',
+  },
+  'tool/structure/rules.dart': <String, String>{
+    '"thirty scenes" in `tool/ci.sh`':
+        'the three wrong answers this rule was written for, quoted',
+    '"twenty-six scenes" in `golden_web.sh`': 'the same three',
+    '"32 scenes" in `ARCHITECTURE.md`': 'the same three',
+    'still saying "thirty scenes" two recounts later':
+        'why the prose pages are scanned, told as what happened',
+    'said "thirty-one goldens" for eight scenes':
+        'the drift that made the rule read Dart, quoted from the file it '
+        'was found in',
+  },
+
+  // A subset: the number is right about some of them.
+  'packages/flutter3d/example/lib/cpu_main.dart': <String, String>{
+    'Two scenes, switched with the space bar':
+        'the example application\'s two scenes, which are not a golden set',
+  },
+  'packages/flutter3d/lib/src/engine/render/lighting_model.dart':
+      <String, String>{
+        'Two goldens caught it at 25% and 0.6%':
+            'the two that caught it, named with what each one showed',
+      },
+  'packages/flutter3d/test/lighting_model_test.dart': <String, String>{
+    'which two goldens found at 25% and 0.6%': 'the same two',
+  },
+  'packages/flutter3d_cpu/lib/src/cpu_encoder.dart': <String, String>{
+    'the twenty-seven scenes that have no mip chain':
+        'the scenes without a mip chain, which is fewer than all of them',
+  },
+  'packages/flutter3d_cpu/test/engine_parity_test.dart': <String, String>{
+    'the lesson of two goldens that sat at 0.178%':
+        'the two that sat under a threshold nobody was reading',
+  },
+  'packages/flutter3d_webgl/test/engine_parity_test.dart': <String, String>{
+    'how two goldens sat under one': 'the same two',
+    'the lesson of two goldens that sat at 0.178%': 'the same two',
+    'equal on both backends across six scenes': 'the six the atlas appeared in',
+  },
+  'packages/flutter3d_webgl/lib/engine_shaders.dart': <String, String>{
+    'equal on both backends across six scenes':
+        'the six the atlas appeared in, restated in each generated shader',
+  },
+  'packages/flutter3d_webgl/test/cross_backend_test.dart': <String, String>{
+    'Six scenes were in the second group':
+        'the six that disagreed by whole percents',
+    'the three scenes that were exactly': 'the three that were exactly zero',
+  },
+  // ARCHITECTURE.md's four are the same species, written up rather than in
+  // a comment: each counts the scenes one measurement touched.
+  'ARCHITECTURE.md': <String, String>{
+    'five scenes passed through it': 'the five that passed one merge',
+    'Six scenes disagreed by whole percents':
+        'the six the third set found on the day it was recorded',
+    'the three scenes that were': 'the three that were exactly zero',
+    'Six scenes were in whole percents': 'the same six',
+  },
+};
+
 /// Calls that put a document's contents into a world, or dress what it built.
 ///
 /// Each is something a shipped game does exactly once, and a second caller is a

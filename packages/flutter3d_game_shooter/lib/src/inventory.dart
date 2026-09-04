@@ -51,6 +51,13 @@ final class Inventory with KeyHolder {
   double remainingOf(String power) => _powers[power] ?? 0.0;
 
   bool get isInvulnerable => has('invulnerability');
+
+  /// Whether the damage multiplier is running.
+  ///
+  /// The simulation reads the power-up by name where it applies it, so this
+  /// spelling of it is called nowhere. It is for a game putting the state on
+  /// screen — a tinted overlay, a heartbeat on the audio — which wants the
+  /// question asked once rather than the string written in three places.
   bool get isBerserk => has('berserk');
 
   /// Whether the walls show what is behind them.

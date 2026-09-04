@@ -106,7 +106,16 @@ const int kKtx2LevelIndexEntryBytes = 24;
 /// key/value data, and (for a Basis Universal file) the supercompression
 /// global data this stage now reads.
 abstract final class Ktx2IndexField {
+  /// Where the data format descriptor is, and how long.
+  ///
+  /// The loader does not read the descriptor: it takes the format from the
+  /// header and the supercompression scheme, which is enough for every file this
+  /// engine loads. The two offsets are here for a caller that has to read it —
+  /// anybody handling a format this loader rejects, who would otherwise be
+  /// counting bytes out of the specification again.
   static const int dfdByteOffset = 0;
+
+  /// How long it is; for the caller [dfdByteOffset] names.
   static const int dfdByteLength = 4;
   static const int kvdByteOffset = 8;
   static const int kvdByteLength = 12;
@@ -153,11 +162,22 @@ abstract final class Ktx2GlobalDataField {
   static const int endpointsByteLength = 4;
   static const int selectorsByteLength = 8;
   static const int tablesByteLength = 12;
+
+  /// Where the extended data the transcoder does not use begins.
+  ///
+  /// This engine transcodes ETC1S, which puts nothing here. It is named for a
+  /// caller reading a UASTC file's global data, where the field is the only way
+  /// to find the end of the part that is understood.
   static const int extendedByteLength = 16;
   static const int headerBytes = 20;
 }
 
 abstract final class Ktx2ImageDescField {
+  /// Per-image flags — whether the slice is an I-frame, and the rest.
+  ///
+  /// The transcoder here treats every image as a key frame, so it never looks.
+  /// It is for a caller transcoding a video-like sequence, where an image that
+  /// is not a key frame cannot be decoded on its own and this is what says so.
   static const int imageFlags = 0;
   static const int rgbSliceByteOffset = 4;
   static const int rgbSliceByteLength = 8;

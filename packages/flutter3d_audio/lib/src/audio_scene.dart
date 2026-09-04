@@ -42,6 +42,13 @@ final class SoundEmitter {
   bool get isAudible => audibleGain > 0.0;
 
   bool _stopped = false;
+
+  /// Whether this emitter has been stopped and will not be heard again.
+  ///
+  /// The scene drops stopped emitters on its own update, so nothing here has to
+  /// check. It is for a game holding a handle to one — a machine it turned off,
+  /// a voice line it interrupted — that wants to know whether the thing it is
+  /// holding is still alive before asking it for anything else.
   bool get isStopped => _stopped;
 
   /// The speed this emitter was dealt, including the sound's own variance.

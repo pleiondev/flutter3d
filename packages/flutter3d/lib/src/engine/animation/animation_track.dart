@@ -98,6 +98,11 @@ final class AnimationTrack {
   /// the morph target count for weights.
   final int componentCount;
 
+  /// When the first keyframe is, in seconds.
+  ///
+  /// The player reads [endTime] to know when a clip is over and never needs
+  /// this, because it samples from zero. It is for a tool that lays tracks out
+  /// on a timeline, where a track starting late is a gap somebody has to see.
   double get startTime => times.first;
 
   double get endTime => times.last;

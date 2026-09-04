@@ -213,6 +213,11 @@ final class CompiledFrameGraph {
   };
 
   /// The same, with each version told apart.
+  ///
+  /// The engine reads [resources], because a pass cares which resources exist
+  /// and not how many times each was rewritten. This is for a tool drawing the
+  /// graph — a frame debugger that wants a node per version and an edge per
+  /// read, which is the picture that shows where a pass is waiting.
   Iterable<ResourceVersion> get resourceVersions => _lastUse.keys;
 
   /// The version of [id] the node at [index] reads, or null if it declares no

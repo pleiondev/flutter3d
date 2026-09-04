@@ -29,6 +29,12 @@ final class GltfAccessorReader {
   /// way the glTF `buffers` array is.
   final List<Uint8List> buffers;
 
+  /// How many accessors the file declared.
+  ///
+  /// The loader walks accessors by index from the meshes that name them and
+  /// never counts them. It is for a tool that reports what is in a glTF before
+  /// anything is decoded — an import dialog, or a check that a file somebody
+  /// exported is the shape it was meant to be.
   int get accessorCount => _accessors.length;
 
   /// Number of elements in an accessor (not components).

@@ -151,9 +151,9 @@ void main() {
 
   test('no fog is byte-identical to the fog nobody asked for', () async {
     // The early return at zero density is not an optimisation. The golden sets
-    // — thirty scenes, zero-pixel threshold, two backends — are all recorded
-    // with the default `FogSettings()`, and this is the property that lets them
-    // stay recorded.
+    // — thirty-nine scenes, zero-pixel threshold, three backends — are all
+    // recorded with the default `FogSettings()`, and this is the property that
+    // lets them stay recorded.
     final none = FogSettings();
     final explicitlyOff = FogSettings(
       color: Vector3(1.0, 0.0, 0.0),

@@ -190,8 +190,20 @@ final class Renderer implements RenderServices {
     FramePhase phase = FramePhase.overlay,
   }) => nodes.add(node, phase: phase);
 
+  /// Takes a contributor back out, and says whether it was there.
+  ///
+  /// Nothing here calls it: a game built on this engine adds its passes once and
+  /// runs. It is for an application that turns a feature off at run time — an
+  /// editor with a checkbox per pass, or a game dropping a post effect on a
+  /// machine that cannot afford it — where the alternative is rebuilding the
+  /// renderer and losing every resource it holds.
   bool removeContributor(PassContributor c) => contributors.remove(c);
 
+  /// Takes a node back out, and says whether it was there.
+  ///
+  /// For the same caller as [removeContributor], one node at a time: an editor
+  /// deleting the thing that was selected, which nothing in this repository
+  /// does because nothing here deletes anything mid-frame.
   bool removeNode(RenderNode node) => nodes.remove(node);
 
   final ShaderHandle vertexShader;

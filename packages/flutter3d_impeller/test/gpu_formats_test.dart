@@ -2,7 +2,7 @@
 ///
 /// The hazard this exists for: a wrong mapping compiles, runs, and renders
 /// wrong only for the values a scene happens to use. The goldens cover the
-/// values the twenty-three scenes exercise and nothing else — `BlendFactor` has
+/// values the thirty-nine scenes exercise and nothing else — `BlendFactor` has
 /// fifteen members and the engine draws with two of them — so a mistake in the
 /// other thirteen would be found by a user rather than by us.
 ///
