@@ -3,7 +3,7 @@
 #
 # Separate from tool/deploy.sh because the two change at different rates: the
 # prose is edited daily and the generated reference only when the source's public
-# API moves. Running dartdoc over twenty-two packages to publish a typo fix would
+# API moves. Running dartdoc over every package to publish a typo fix would
 # be minutes of work for nothing.
 set -euo pipefail
 

@@ -3,7 +3,7 @@
 // No framework and no client-side router. Every page is a file, which is what
 // makes the whole thing serveable by nginx with `try_files` and nothing else,
 // and what makes a broken page a broken page rather than a blank screen.
-import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, cpSync, existsSync, rmSync, readdirSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -16,6 +16,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const contentDir = join(root, 'content');
 const distDir = join(root, 'dist');
+
+// Counted, not written down. The topbar chip said "23 packages" while the page
+// it links to said twenty-four, on the same screen — because it was the one
+// number on this site with no scan behind it, and it would have drifted again
+// the next time a package was added. Reading the directory costs one `readdir`
+// at build time and cannot be wrong.
+const packageCount = readdirSync(join(root, '../packages'), {
+  withFileTypes: true,
+}).filter((entry) => entry.isDirectory()).length;
 
 // Pictures come from the golden sets, not from a screenshots folder. A golden
 // is re-recorded with the feature it pins, so a picture drawn from one is
@@ -328,7 +337,7 @@ gtag('config', 'G-6F6VZ4H7CF');
   <button class="rail-toggle" aria-expanded="false" aria-controls="rail">Menu</button>
   <div class="topbar-meta">
     <span class="chip">Flutter 3.47 · Impeller</span>
-    <a class="chip chip-link" href="/reference/packages/">23 packages</a>
+    <a class="chip chip-link" href="/reference/packages/">${packageCount} packages</a>
     <a class="chip chip-link" href="/docs/">API reference</a>
     ${iconLinks()}
   </div>

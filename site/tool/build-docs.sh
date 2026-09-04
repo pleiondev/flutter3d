@@ -10,7 +10,7 @@
 # stale the day somebody adds a package.
 #
 # The output does **not** go into site/dist/: `npm run build` wipes that on every
-# run, and regenerating twenty-three dartdoc trees to publish a typo fix would be
+# run, and regenerating a dartdoc tree per package to publish a typo fix would be
 # minutes of work for nothing. It is deployed separately by tool/deploy-docs.sh,
 # and tool/deploy.sh excludes /docs/ for the same reason it excludes /demo/.
 set -euo pipefail
@@ -30,7 +30,7 @@ for dir in "$repo"/packages/*/; do
 
   printf '%-26s ' "$name"
   # Retried once, because a failure here is not always about the package.
-  # `dart doc` precaches roughly 650k elements per run and one of twenty-two was
+  # `dart doc` precaches roughly 650k elements per run and one package's was
   # killed with SIGTERM part way through a full sweep, then documented cleanly on
   # its own seconds later. A reference silently missing a package is worse than a
   # slow one.

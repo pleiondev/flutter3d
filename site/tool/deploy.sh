@@ -23,7 +23,7 @@ tool/demos.sh
 
 # --delete, because a page removed from the nav must stop being reachable.
 # The generated API reference still lives beside the site rather than inside
-# dist/ — twenty-three dartdoc trees are minutes to regenerate and change only
+# dist/ — a dartdoc tree per package is minutes to regenerate and changes only
 # when a public API moves — so `/docs/` is still excluded, anchored: an
 # unanchored `docs/` would also match a page called that.
 rsync -az --delete --exclude '/docs/' dist/ "$host:$target/"

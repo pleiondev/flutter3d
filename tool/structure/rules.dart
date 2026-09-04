@@ -62,6 +62,10 @@ List<Rule> get allRules => <Rule>[
     run: _hardwareEnumCount,
   ),
   (
+    name: 'the site names every shader a bundle must answer to',
+    run: _shaderEntryPoints,
+  ),
+  (
     name: 'the compiled shader bundle is not older than its sources',
     run: _shaderBundleIsCurrent,
   ),
@@ -621,6 +625,7 @@ List<Finding> _ruleCount() {
     RegExp('one of ([\\w-]+) scans', caseSensitive: false),
     RegExp('([\\w-]+) green scans'),
     RegExp('([\\w-]+) checks that read source text'),
+    RegExp('one of the ([\\w-]+) checks it'),
   ];
   for (final page in _prosePages()) {
     final text = page.readAsStringSync();
@@ -642,6 +647,8 @@ List<Finding> _ruleCount() {
     }
   }
 
+  found.addAll(_theTestingPageAddsUp(actual, words));
+
   if (actual >= words.length) {
     found.add(
       Finding(
@@ -652,6 +659,55 @@ List<Finding> _ruleCount() {
     );
   }
   return found;
+}
+
+/// The testing page names some of the rules in a table and counts the rest.
+///
+/// **The page whose subject is "a number in prose is a number nobody recounts"
+/// was two short by its own addition**: eleven rules in the table and "ten more"
+/// under it, against twenty-three. Neither number is wrong on its face, which is
+/// why nobody noticed — it is the sum that fails, and a reader auditing which
+/// rules exist stops before the last two.
+///
+/// So the sum is checked rather than the sentence: the table's rows are counted
+/// where they are, and the number under it has to be the rest of them. The table
+/// is found by its header, because the same page carries a per-package test
+/// table whose rows look identical to a pattern.
+List<Finding> _theTestingPageAddsUp(int actual, List<String> words) {
+  const page = 'site/content/reference/testing.md';
+  final file = File('${repositoryRoot.path}/$page');
+  if (!file.existsSync()) return const <Finding>[];
+  final text = file.readAsStringSync();
+
+  final header = text.indexOf('| Rule | What it refuses |');
+  if (header < 0) return const <Finding>[];
+  final ends = text.indexOf('\n\n', header);
+  final rows = RegExp(
+    r'^\| `',
+    multiLine: true,
+  ).allMatches(text.substring(header, ends < 0 ? text.length : ends)).length;
+
+  final rest = RegExp(r'([\w-]+) more check the lists').firstMatch(text);
+  if (rest == null) {
+    return <Finding>[
+      const Finding(
+        page,
+        'no longer says how many rules its table leaves out, so nothing here '
+        'can tell whether the page adds up',
+      ),
+    ];
+  }
+  final said =
+      int.tryParse(rest.group(1)!) ??
+      words.indexOf(rest.group(1)!.toLowerCase());
+  if (said == actual - rows) return const <Finding>[];
+  return <Finding>[
+    Finding(
+      page,
+      'names $rows rules in its table and says ${rest.group(1)} more, which is '
+      '${said < 0 ? 'not a number' : said + rows} of $actual',
+    ),
+  ];
 }
 
 /// Every application that draws asks its platform to turn the GPU on.
@@ -1408,7 +1464,7 @@ List<Finding> _bundleOlderThan(
 /// than every sibling and two declared `>=3.3.0`. Under `resolution: workspace`
 /// a single lock file is resolved against the root, and CI pins one SDK — so no
 /// declared floor is ever exercised, in either direction. `tool/publish_check.sh`
-/// nonetheless reports all twenty-three "ready", which is one command away from
+/// nonetheless reported every one of them "ready", which is one command away from
 /// shipping packages whose stated floor cannot compile the siblings they depend
 /// on.
 ///
@@ -1789,6 +1845,10 @@ List<Finding> _conformanceCheckCount() {
   const words = _countedInWords;
   const spell = _spell;
 
+  // The site restates all of it — the backends page is where a third party
+  // reads how much of §7 the suite will hold them to, and it said fifteen when
+  // there were twenty. Held to the same lists as the library, in the same
+  // phrasings, so neither can be corrected without the other.
   final found = <Finding>[];
   for (final file in <File>[
     ...dartFilesIn(lib),
@@ -1797,6 +1857,7 @@ List<Finding> _conformanceCheckCount() {
       'packages/flutter3d_webgl/test/conformance_test.dart',
       'packages/flutter3d/example/lib/conformance_main.dart',
     ].map((String at) => File('${repositoryRoot.path}/$at')),
+    ..._prosePages(),
   ]) {
     if (!file.existsSync()) continue;
     final source = file.readAsStringSync();
@@ -1899,6 +1960,120 @@ List<Finding> _hardwareEnumCount() {
               '${_spell(declared.length)} — ${declared.join(', ')}',
             ),
   ];
+}
+
+/// Every entry point a bundle must answer to, against the list the site prints.
+///
+/// **The backends page told a third party its bundle needed twenty-six names
+/// when the engine asked for thirty-seven**, and printed the twenty-six as a
+/// table, so the eleven it left out were invisible rather than merely uncounted:
+/// `Renderer.create` throws on the first name it cannot find, and the page is
+/// the only place a backend author reads that list before writing one.
+///
+/// A test already keeps `kRequiredShaders` and the bundle manifest in step with
+/// each other. Nothing kept the page in step with either, which is how a list
+/// that was right on the day it was typed came to be eleven short — the sky, the
+/// object-id pass, the x-ray stage, instanced and lightmapped vertices, SSAO,
+/// luminance and the probe prefilter all arrived after it.
+///
+/// Both halves are checked, because they rot apart: the names in the table, and
+/// the count wherever a page states one in prose. The names are the load-bearing
+/// half — a count that is right about a table that is wrong is worse than
+/// neither.
+///
+/// Shown to fire by deleting `Xray` from the table and by writing "twenty-six"
+/// back into the sentence above it, and watching it name each one.
+List<Finding> _shaderEntryPoints() {
+  final declared = File(
+    '${repositoryRoot.path}/packages/flutter3d_shaders/lib/'
+    'flutter3d_shaders.dart',
+  );
+  if (!declared.existsSync()) {
+    return <Finding>[
+      const Finding(
+        'flutter3d_shaders/lib/flutter3d_shaders.dart',
+        'is not there, so nothing here can tell which names a bundle must '
+            'answer to',
+      ),
+    ];
+  }
+  final required = RegExp(r"\(name: '(\w+)', fragment:")
+      .allMatches(declared.readAsStringSync())
+      .map((RegExpMatch m) => m.group(1)!)
+      .toSet();
+  if (required.isEmpty) {
+    return <Finding>[
+      const Finding(
+        'flutter3d_shaders/lib/flutter3d_shaders.dart',
+        'no longer declares its entry points as `(name:, fragment:)` records, '
+            'so nothing here can count them',
+      ),
+    ];
+  }
+
+  const page = 'site/content/core/backends.md';
+  final found = <Finding>[];
+  final file = File('${repositoryRoot.path}/$page');
+  if (!file.existsSync()) {
+    found.add(const Finding(page, 'is not there'));
+  } else {
+    final text = file.readAsStringSync();
+    final header = text.indexOf('| Stage | Names |');
+    if (header < 0) {
+      found.add(
+        const Finding(
+          page,
+          'no longer lists the entry points by stage, so nothing here can '
+          'tell whether the list is whole',
+        ),
+      );
+    } else {
+      final ends = text.indexOf('\n\n', header);
+      final listed = RegExp(r'`(\w+)`')
+          .allMatches(text.substring(header, ends < 0 ? text.length : ends))
+          .map((RegExpMatch m) => m.group(1)!)
+          .toSet();
+      final missing = required.difference(listed).toList()..sort();
+      final extra = listed.difference(required).toList()..sort();
+      if (missing.isNotEmpty) {
+        found.add(
+          Finding(
+            page,
+            'does not name ${missing.join(', ')}, which a bundle must answer '
+            'to all the same',
+          ),
+        );
+      }
+      if (extra.isNotEmpty) {
+        found.add(
+          Finding(
+            page,
+            'names ${extra.join(', ')}, which nothing asks a bundle for',
+          ),
+        );
+      }
+    }
+  }
+
+  final claim = RegExp(r'([\w-]+) shader entry points');
+  for (final prose in _prosePages()) {
+    for (final match in claim.allMatches(prose.readAsStringSync())) {
+      final said = match.group(1)!;
+      final number =
+          int.tryParse(said) ?? _countedInWords.indexOf(said.toLowerCase());
+      if (number < 0) continue;
+      if (number != required.length) {
+        found.add(
+          Finding(
+            _inRepository(prose),
+            'says $said shader entry points; there are '
+            '${_spell(required.length)}',
+          ),
+        );
+      }
+    }
+  }
+  return found;
 }
 
 /// Where a file is, said the way a finding says it: relative to the root.

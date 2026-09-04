@@ -2,7 +2,7 @@
 # Writes site/docs-dist/index.html from whatever package trees are there.
 #
 # Split out of build-docs.sh so the landing page can be changed without a
-# twenty-two package dartdoc run behind it. Called at the end of that script;
+# full dartdoc run behind it. Called at the end of that script;
 # safe to run on its own.
 #
 # The list comes from the directories on disk rather than from a list in this

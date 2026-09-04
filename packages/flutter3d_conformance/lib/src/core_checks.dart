@@ -10,7 +10,7 @@ import '../flutter3d_conformance.dart';
 /// **This list is why the two exist separately.** The library used to say it
 /// was shader-free as a whole, and it stopped being true the day the third
 /// check needed a pipeline — so a new backend, following the promise, would
-/// have hit nineteen shader checks it had no way to act on yet. Clears, uploads
+/// have hit twenty shader checks it had no way to act on yet. Clears, uploads
 /// and readback only: the answers here are the cheapest ones to get, and they
 /// are the ones worth having first.
 Future<void> checkCapabilities(GraphicsDevice device) async {
