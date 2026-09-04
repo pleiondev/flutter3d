@@ -7,6 +7,8 @@ final class RunnerTuning {
     this.jumpCut = 0.45,
     this.coyoteTime = 0.12,
     this.slopeSpeed = 0.34,
+    this.glideFall = 4.0,
+    this.glideAfter = 0.2,
     this.dropThroughTime = 0.25,
     this.stompBounce = 7.5,
     this.stompBounceHeld = 11.0,
@@ -74,6 +76,27 @@ final class RunnerTuning {
   /// third at the steepest walkable ramp is noticeable without turning a hill
   /// into a wall. Zero is the old behaviour exactly.
   final double slopeSpeed;
+
+  /// The fastest a runner falls while gliding, in metres a second. Zero
+  /// switches gliding off.
+  ///
+  /// **Held, and only on the way down.** The jump is already cut short by
+  /// releasing the button ([jumpCut]), so holding it on the way *up* means
+  /// "the full jump" and cannot also mean "glide" without the two fighting.
+  /// After the apex the button is free to mean something else, which is what
+  /// every platformer that has both does.
+  ///
+  /// Four is about a third of terminal velocity: slow enough to cross a gap
+  /// that a jump cannot, fast enough that a player still has to aim.
+  final double glideFall;
+
+  /// How long after leaving the ground a glide may begin, in seconds.
+  ///
+  /// **Not immediately**, or a held jump button turns every jump into a float
+  /// and the arc of a jump — the thing a platformer is made of — stops
+  /// existing. A fifth of a second is past the apex of a short hop and well
+  /// inside a long one.
+  final double glideAfter;
 
   /// How long before landing a jump can be asked for and still happen.
   final double jumpBufferTime;

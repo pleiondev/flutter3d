@@ -10,6 +10,7 @@ import 'purse.dart';
 import 'runner_tuning.dart';
 import 'spring.dart';
 import 'surfaces.dart';
+import 'water.dart';
 
 /// The player: a body that runs, jumps twice, dashes, and carries a purse.
 ///
@@ -277,6 +278,8 @@ final class Runner
     _tryMantle();
     _tryJump();
     _cutJumpShort(input);
+    _glide(dt, input);
+    _swim(dt, input);
     _tryDash(input);
     _slideDownWall();
 
@@ -860,6 +863,90 @@ final class Runner
     _dashCooldown = tuning.dashCooldown;
     events?.add(const Dashed());
   }
+
+  /// Slows a fall to a drift while the jump button is held.
+  ///
+  /// **Falling only.** Gliding while rising would fight [_cutJumpShort], which
+  /// reads the same button on the way up and means the opposite by it.
+  ///
+  /// A ceiling on the speed rather than a force, because a force has to be
+  /// balanced against gravity and a ceiling cannot be got wrong: the runner
+  /// falls at whatever it was falling at, up to this, and a spring or a pound
+  /// that has already made it faster is left alone until it slows to the
+  /// limit on its own.
+  void _glide(double dt, InputState input) {
+    if (tuning.glideFall <= 0.0) return;
+    if (body.isGrounded) {
+      _airborneFor = 0.0;
+      _gliding = false;
+      return;
+    }
+
+    _airborneFor += dt;
+    final wants =
+        input.held(GameAction.jump) &&
+        body.velocity.y < 0.0 &&
+        _airborneFor >= tuning.glideAfter;
+    _gliding = wants;
+    if (!wants) return;
+
+    if (body.velocity.y < -tuning.glideFall) {
+      body.velocity.y = -tuning.glideFall;
+    }
+  }
+
+  /// Replaces the fall with buoyancy while the runner is under water.
+  ///
+  /// **Set by the simulation, not found here.** The runner does not know what
+  /// a level is and cannot go looking for pools; what it knows is whether it
+  /// is in one, which the step tells it before this runs.
+  void _swim(double dt, InputState input) {
+    final water = inWater;
+    if (water == null) {
+      _gliding = _gliding && true;
+      return;
+    }
+
+    // Gliding and swimming are the same button meaning two things, and being
+    // in water wins: a runner underwater is not falling.
+    _gliding = false;
+
+    final tuning = water.tuning;
+    final velocity = body.velocity;
+
+    if (input.held(GameAction.jump)) {
+      velocity.y = tuning.riseSpeed;
+    } else {
+      // Buoyancy fights gravity rather than replacing it, so a runner who does
+      // nothing sinks slowly instead of hanging still — floating by itself
+      // reads as a bug the first time somebody wants to reach the bottom.
+      velocity.y = math.max(
+        -tuning.sinkSpeed,
+        velocity.y + tuning.buoyancy * dt,
+      );
+    }
+
+    // Horizontal drag, which is what makes water feel like water: the
+    // controller has already accelerated this step, and this takes some of it
+    // back rather than capping it, so a runner entering fast slows down over a
+    // moment instead of stopping at the surface.
+    final slow = math.max(0.0, 1.0 - tuning.drag * dt);
+    velocity
+      ..x *= slow
+      ..z *= slow;
+  }
+
+  /// The water the runner is in, or null on dry land.
+  ///
+  /// Written by the step that owns this runner; see `PlatformerSimulation`.
+  Water? inWater;
+
+  /// Whether the runner is gliding right now, for a game drawing wings.
+  bool get isGliding => _gliding;
+  bool _gliding = false;
+
+  /// How long since the feet last left the ground.
+  double _airborneFor = 0.0;
 
   /// Brings speed above walking pace back down after a dash.
   ///

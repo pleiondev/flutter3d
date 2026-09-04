@@ -7,6 +7,7 @@ import 'collectible.dart';
 import 'events.dart';
 import 'runner.dart';
 import 'spring.dart';
+import 'water.dart';
 
 /// Where the run is.
 enum RunState {
@@ -251,6 +252,7 @@ final class PlatformerSimulation {
     _world.settle();
     _world.publish();
 
+    _readWater();
     _readCheckpoints();
     _readCollectibles();
     _readExits();
@@ -354,6 +356,28 @@ final class PlatformerSimulation {
         runner.applyDamage(actorDamage * dt);
       }
     }
+  }
+
+  /// Tells the runner which pool it is in, if any.
+  ///
+  /// **The chest, not the feet.** A capsule whose toes are wet is walking
+  /// through a puddle and a capsule whose middle is under is swimming, and
+  /// the difference is the whole of what makes a shallow stream different
+  /// from a lake.
+  void _readWater() {
+    final all = mechanisms?.all;
+    if (all == null) {
+      runner.inWater = null;
+      return;
+    }
+    final chest = runner.position;
+    for (final mechanism in all) {
+      if (mechanism is Water && mechanism.holds(chest)) {
+        runner.inWater = mechanism;
+        return;
+      }
+    }
+    runner.inWater = null;
   }
 
   void _readCheckpoints() {

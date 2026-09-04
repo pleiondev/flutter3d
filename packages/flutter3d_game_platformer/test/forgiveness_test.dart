@@ -553,4 +553,59 @@ void main() {
       expect(down, closeTo(up, up * 0.05 + 0.2));
     });
   });
+
+  group('gliding', () {
+    // Held, and only on the way down: the jump is already cut short by
+    // releasing the button, so holding it on the way up means "the full jump"
+    // and cannot also mean "glide" without the two fighting.
+
+    ({double fell, double lowest}) drop({
+      required bool holding,
+      double glide = 4.0,
+    }) {
+      final it = _Floor(from: 40.0, tuning: RunnerTuning(glideFall: glide));
+      var fastest = 0.0;
+      for (var i = 0; i < 180; i++) {
+        it.step(holding: holding ? <GameAction>{GameAction.jump} : const {});
+        final falling = -it.runner.body.velocity.y;
+        if (falling > fastest) fastest = falling;
+      }
+      return (fell: 40.0 - it.runner.position.y, lowest: fastest);
+    }
+
+    test('a held button turns a fall into a drift', () {
+      final free = drop(holding: false);
+      final glided = drop(holding: true);
+
+      expect(free.lowest, greaterThan(8.0), reason: 'it never got going');
+      expect(glided.lowest, closeTo(4.0, 0.6));
+      expect(glided.fell, lessThan(free.fell * 0.7));
+    });
+
+    test('and a glide of nothing is the old behaviour exactly', () {
+      final off = drop(holding: true, glide: 0.0);
+      final free = drop(holding: false, glide: 0.0);
+
+      expect(off.fell, closeTo(free.fell, 0.01));
+    });
+
+    test('and it does not begin until the jump has had its arc', () {
+      // A held button that glided at once turns every jump into a float, and
+      // the arc of a jump is what a platformer is made of.
+      final it = _Floor(from: 0.9);
+      it.step();
+      it.step(holding: <GameAction>{GameAction.jump});
+      expect(it.runner.body.velocity.y, greaterThan(0.0), reason: 'no jump');
+
+      for (var i = 0; i < 6; i++) {
+        it.step(holding: <GameAction>{GameAction.jump});
+      }
+
+      expect(
+        it.runner.isGliding,
+        isFalse,
+        reason: 'it glided a tenth of a second into a jump',
+      );
+    });
+  });
 }

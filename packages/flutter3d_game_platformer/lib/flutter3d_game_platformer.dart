@@ -34,3 +34,4 @@ export 'src/runner_tuning.dart';
 export 'src/simulation.dart';
 export 'src/spring.dart';
 export 'src/surfaces.dart';
+export 'src/water.dart';
