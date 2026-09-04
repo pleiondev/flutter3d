@@ -783,6 +783,71 @@ void main() {
       );
       expect(asset.materials, hasLength(1));
     });
+
+    // The extension was on the supported list and read by nothing, so an
+    // atlas-packed model — the export that needs it — loaded and drew every
+    // material sampling the whole atlas. Mutation: putting
+    // 'KHR_texture_transform' back in `_checkRequiredExtensions`'s
+    // `supported` set makes the load succeed and this expectation report
+    // false.
+    test('a required KHR_texture_transform is refused, not claimed', () async {
+      await expectLater(
+        GltfLoader().load(
+          buildGlb(<String, Object?>{
+            'asset': {'version': '2.0'},
+            'extensionsRequired': <Object?>['KHR_texture_transform'],
+          }),
+        ),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('KHR_texture_transform'),
+          ),
+        ),
+      );
+    });
+
+    // The commoner half: a file that lists the extension under
+    // `extensionsUsed` alone never reached the gate at all, so it drew
+    // untransformed with an empty `warnings`. Mutation: deleting the
+    // `infoExtensions` block in `_decodeMaterials` empties `warnings` and
+    // this expectation reports false.
+    test('a used KHR_texture_transform warns where the texture is', () async {
+      final asset = await GltfLoader().load(
+        buildGlb(<String, Object?>{
+          'asset': {'version': '2.0'},
+          'extensionsUsed': <Object?>['KHR_texture_transform'],
+          'materials': <Object?>[
+            {
+              'pbrMetallicRoughness': {
+                'baseColorTexture': {
+                  'index': 0,
+                  'extensions': {
+                    'KHR_texture_transform': {
+                      'offset': <double>[0.5, 0.0],
+                      'scale': <double>[0.5, 0.5],
+                    },
+                  },
+                },
+              },
+            },
+          ],
+          'textures': <Object?>[
+            {'source': 0},
+          ],
+          'images': <Object?>[
+            {'uri': 'data:image/png;base64,iVBORw0KGgo='},
+          ],
+        }),
+      );
+
+      expect(asset.materials.single.baseColorTexture, isNotNull);
+      expect(
+        asset.warnings.where((w) => w.contains('KHR_texture_transform')),
+        hasLength(1),
+      );
+    });
   });
 
   group('bounds', () {

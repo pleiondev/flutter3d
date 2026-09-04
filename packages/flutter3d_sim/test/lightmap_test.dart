@@ -21,30 +21,46 @@ Brush _box(double cx, double cy, double cz, double sx, double sy, double sz) =>
 
 /// An 8 × 3 × 8 room: floor at y = 0, ceiling at y = 3, walls a metre
 /// thick, all grey. Lit by one lamp in the middle, a metre and a half up.
-Level _room({List<Brush> extra = const <Brush>[], double intensity = 10.0}) =>
-    Level(
-      name: 'a room',
-      materials: <String, LevelMaterial>{
-        'stone': LevelMaterial(baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
-      },
-      brushes:
-          <Brush>[
-                _box(0.0, -0.5, 0.0, 10.0, 1.0, 10.0),
-                _box(0.0, 3.5, 0.0, 10.0, 1.0, 10.0),
-                _box(-4.5, 1.5, 0.0, 1.0, 3.0, 10.0),
-                _box(4.5, 1.5, 0.0, 1.0, 3.0, 10.0),
-                _box(0.0, 1.5, -4.5, 8.0, 3.0, 1.0),
-                _box(0.0, 1.5, 4.5, 8.0, 3.0, 1.0),
-                ...extra,
-              ]
-              .map(
-                (b) => Brush(centre: b.centre, size: b.size, material: 'stone'),
-              )
-              .toList(),
-      lights: <LevelLight>[
-        LevelLight(position: Vector3(0.0, 1.5, 0.0), intensity: intensity),
-      ],
-    );
+///
+/// [floorMaterial] repaints the floor without moving anything, and [extra]
+/// keeps each brush's own solidity, so the staleness tests can change one
+/// thing the bake reads at a time.
+Level _room({
+  List<Brush> extra = const <Brush>[],
+  double intensity = 10.0,
+  String floorMaterial = 'stone',
+}) => Level(
+  name: 'a room',
+  materials: <String, LevelMaterial>{
+    'stone': LevelMaterial(baseColor: Vector4(0.6, 0.6, 0.6, 1.0)),
+    'soot': LevelMaterial(baseColor: Vector4(0.02, 0.02, 0.02, 1.0)),
+  },
+  brushes: <Brush>[
+    Brush(
+      centre: Vector3(0.0, -0.5, 0.0),
+      size: Vector3(10.0, 1.0, 10.0),
+      material: floorMaterial,
+    ),
+    ...<Brush>[
+      _box(0.0, 3.5, 0.0, 10.0, 1.0, 10.0),
+      _box(-4.5, 1.5, 0.0, 1.0, 3.0, 10.0),
+      _box(4.5, 1.5, 0.0, 1.0, 3.0, 10.0),
+      _box(0.0, 1.5, -4.5, 8.0, 3.0, 1.0),
+      _box(0.0, 1.5, 4.5, 8.0, 3.0, 1.0),
+      ...extra,
+    ].map(
+      (b) => Brush(
+        centre: b.centre,
+        size: b.size,
+        material: b.material == 'default' ? 'stone' : b.material,
+        solid: b.solid,
+      ),
+    ),
+  ],
+  lights: <LevelLight>[
+    LevelLight(position: Vector3(0.0, 1.5, 0.0), intensity: intensity),
+  ],
+);
 
 /// The floor's upward face, which the layout planned.
 LightmapFace _floorTop(LightmapLayout layout) =>
@@ -251,6 +267,80 @@ void main() {
       final map = const LightmapBaker(bounces: 0).bake(_room());
       final moved = _room()..lights.first.position.x += 1.0;
       expect(map.isStaleFor(moved), isTrue);
+    });
+
+    // The density is the one number the sidecar narrows: `toBytes` writes it
+    // as float32 and the loader re-plans from what it read. 1.2 is the case
+    // that shows why it matters — `1.2 * 10` ceils to 12 and
+    // `1.2000000476837158 * 10` to 13, so the ten-metre floor would come
+    // back one texel wider and every shelf under it would move. Mutation:
+    // dropping the `Float32List` narrowing at the top of `LightmapLayout.plan`
+    // makes the baked and the re-planned atlas disagree, and both the width
+    // and the per-face expectations report false.
+    test('plans the same atlas from the density it read back', () {
+      final level = _room();
+      const density = 1.2;
+      final baked = const LightmapBaker(
+        texelsPerMetre: density,
+        bounces: 0,
+      ).bake(level);
+      final again = Lightmap.fromBytes(baked.toBytes());
+      final replanned = LightmapLayout.plan(
+        level,
+        texelsPerMetre: again.texelsPerMetre,
+      );
+
+      expect(again.texelsPerMetre, isNot(density), reason: 'float32 narrows');
+      expect(replanned.width, baked.width);
+      expect(replanned.height, baked.height);
+      final planned = LightmapLayout.plan(level, texelsPerMetre: density);
+      for (final face in planned.faces) {
+        final other = replanned.faceOf(face.brush, face.face);
+        expect(other, isNotNull);
+        expect(
+          (other!.x, other.y, other.width, other.height),
+          (face.x, face.y, face.width, face.height),
+        );
+      }
+    });
+
+    // A moulding stops nothing, so it never reaches the collision world —
+    // but `LightmapLayout.plan` packs a rectangle for its faces all the same,
+    // and every face packed after it moves. Mutation: dropping
+    // `mix(brush.solid ? 'solid' : 'open')` and the whole-brush loop's reach
+    // over non-solid brushes in `Lightmap.hashOf` — that is, restoring the
+    // delegation to `LevelVisibility.hashBrushes`, which skips them — leaves
+    // the hash equal and this expectation reports false.
+    test('is stale for a level that grew a decorative moulding', () {
+      final moulding = Brush(
+        centre: Vector3(0.0, 2.5, 3.0),
+        size: Vector3(3.0, 0.3, 0.3),
+        solid: false,
+      );
+      final map = const LightmapBaker(bounces: 0).bake(_room());
+      final decorated = _room(extra: <Brush>[moulding]);
+      // The layout really does change: this is what makes the map wrong.
+      expect(
+        LightmapLayout.plan(decorated).faces.length,
+        greaterThan(LightmapLayout.plan(_room()).faces.length),
+      );
+      expect(map.isStaleFor(decorated), isTrue);
+    });
+
+    // Repainting is not moving: every box and both materials are untouched,
+    // only which material the floor names. The bounce reads it through
+    // `Level.materialFor`, so the map is wrong. Mutation: dropping
+    // `mix(brush.material)` from `Lightmap.hashOf` leaves the hash equal and
+    // this expectation reports false.
+    test('is stale for a wall repainted from one material to another', () {
+      final map = const LightmapBaker(bounces: 1, samples: 8).bake(_room());
+      final repainted = _room(floorMaterial: 'soot');
+      final dark = const LightmapBaker(
+        bounces: 1,
+        samples: 8,
+      ).bake(repainted).pixels;
+      expect(map.pixels, isNot(dark), reason: 'the bounce really did change');
+      expect(map.isStaleFor(repainted), isTrue);
     });
 
     test('refuses the wrong magic and a short file', () {

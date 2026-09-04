@@ -60,6 +60,21 @@ extension _GltfMaterials on GltfLoader {
         );
       }
 
+      // A texture info's own extensions, not the material's. Only files that
+      // put `KHR_texture_transform` in `extensionsRequired` were ever
+      // refused, and the commoner atlas export lists it under
+      // `extensionsUsed` only — so without this it drew untransformed and
+      // said nothing. `TextureBinding` carries no offset, scale or rotation
+      // to put a transform in, and no shader reads one.
+      final infoExtensions = value['extensions'];
+      if (infoExtensions is Map &&
+          infoExtensions.containsKey('KHR_texture_transform')) {
+        warnings.add(
+          'A texture asks for KHR_texture_transform; no offset, scale or '
+          'rotation is applied, so it samples its whole image.',
+        );
+      }
+
       return TextureBinding(
         imageIndex: imageIndex,
         texCoordSet: texCoord,

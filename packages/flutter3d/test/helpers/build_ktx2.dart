@@ -8,10 +8,13 @@
 /// prove internal consistency; this proves the reader agrees with the
 /// format's actual authors.
 ///
-/// The data format descriptor and key/value data are left absent
-/// (`dfdByteLength`/`kvdByteLength` stay zero) — the loader never reads them,
-/// only `vkFormat` directly, so a file that omitted them is exactly as valid
-/// to it as one that carried them.
+/// The data format descriptor is left absent (`dfdByteLength` stays zero) —
+/// the loader never reads it, only `vkFormat` directly, so a file that
+/// omitted it is exactly as valid to it as one that carried it. The key/value
+/// data is absent by default for the same reason a real file may omit it,
+/// and [keyValues] writes a section when a test needs one: the loader does
+/// read that, to refuse an orientation, a swizzle or a premultiplication it
+/// cannot honour.
 ///
 /// Shared by `ktx2_test.dart`, which pushes fields out of range, and
 /// `texture_upload_test.dart`, which hands the results to a device.
@@ -29,12 +32,38 @@ Uint8List buildKtx2({
   int layerCount = 0,
   int faceCount = 1,
   int supercompressionScheme = Ktx2SupercompressionScheme.none,
+  Map<String, String> keyValues = const <String, String>{},
   List<List<int>> levels = const [
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
   ],
 }) {
   final levelCount = levels.length;
   var cursor = kKtx2LevelIndexOffset + levelCount * kKtx2LevelIndexEntryBytes;
+
+  // Key/value data, if any, sits between the level index and the pixels:
+  // per entry, a u32 length, then `key\0value\0`, then padding to four.
+  final kvdByteOffset = cursor;
+  final kvd = <int>[];
+  for (final entry in keyValues.entries) {
+    final pair = <int>[
+      ...entry.key.codeUnits,
+      0,
+      ...entry.value.codeUnits,
+      // `KTXpremultipliedAlpha` carries no value at all, only its key.
+      if (entry.value.isNotEmpty) 0,
+    ];
+    kvd
+      ..addAll(<int>[
+        pair.length & 0xFF,
+        (pair.length >> 8) & 0xFF,
+        (pair.length >> 16) & 0xFF,
+        (pair.length >> 24) & 0xFF,
+      ])
+      ..addAll(pair)
+      ..addAll(List<int>.filled((4 - pair.length % 4) % 4, 0));
+  }
+  cursor += kvd.length;
+
   final payloadOffsets = <int>[];
   for (final level in levels) {
     payloadOffsets.add(cursor);
@@ -56,6 +85,20 @@ Uint8List buildKtx2({
   putHeader(Ktx2HeaderField.faceCount, faceCount);
   putHeader(Ktx2HeaderField.levelCount, levelCount);
   putHeader(Ktx2HeaderField.supercompressionScheme, supercompressionScheme);
+
+  if (kvd.isNotEmpty) {
+    view.setUint32(
+      kKtx2IndexOffset + Ktx2IndexField.kvdByteOffset,
+      kvdByteOffset,
+      Endian.little,
+    );
+    view.setUint32(
+      kKtx2IndexOffset + Ktx2IndexField.kvdByteLength,
+      kvd.length,
+      Endian.little,
+    );
+    bytes.setRange(kvdByteOffset, kvdByteOffset + kvd.length, kvd);
+  }
 
   for (var i = 0; i < levelCount; i++) {
     final entry = kKtx2LevelIndexOffset + i * kKtx2LevelIndexEntryBytes;

@@ -82,6 +82,37 @@ void main() {
     }
   });
 
+  // `visibility_test.dart` holds the committed visibility tables fresh; the
+  // lightmaps beside the same documents had no such check, and a stale one is
+  // dropped at load — a level that quietly loses its bounce light rather than
+  // one that fails. Both halves matter: the hash says the bake read these
+  // brushes, these lights and these materials, and the size says this build's
+  // planner packs them into the atlas the bake wrote. Mutation: flipping any
+  // byte of the hash in one `.lightmap.bin` — offsets 20 to 23 — makes the
+  // first expectation report false.
+  test('and the lightmap committed beside each was baked from it', () {
+    for (final step in _chain()) {
+      final side =
+          '${step.path.substring(0, step.path.length - 5)}.lightmap.bin';
+      final map = Lightmap.fromBytes(File(side).readAsBytesSync());
+
+      expect(
+        map.isStaleFor(step.level),
+        isFalse,
+        reason: '$side: run dart run flutter3d_sim:bake_lightmap',
+      );
+      final layout = LightmapLayout.plan(
+        step.level,
+        texelsPerMetre: map.texelsPerMetre,
+      );
+      expect(
+        (layout.width, layout.height),
+        (map.width, map.height),
+        reason: '$side: the planner and the committed atlas disagree',
+      );
+    }
+  });
+
   test('and every one can be stood up in, with a way out of it', () {
     // Spawned, not merely parsed. A level whose entities refuse to spawn parses
     // perfectly and is unplayable, which is the failure the registry seam

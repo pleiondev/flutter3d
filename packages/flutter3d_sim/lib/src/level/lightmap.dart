@@ -33,7 +33,6 @@ import 'dart:typed_data';
 import 'package:vector_math/vector_math.dart';
 
 import 'level.dart';
-import 'level_visibility.dart';
 
 final class Lightmap {
   Lightmap({
@@ -166,10 +165,21 @@ final class Lightmap {
     );
   }
 
-  /// A hash of everything a bake reads: the solid brushes, the lights, and
-  /// the materials' colours. Anything else changing leaves the map valid.
+  /// A hash of everything a bake reads: every brush, the lights, and the
+  /// materials' colours. Anything else changing leaves the map valid.
+  ///
+  /// Every brush, not only the solid ones, and each brush's material name
+  /// along with its box. `LightmapLayout.plan` packs a rectangle for every
+  /// face `BrushGeometry.blockFaces` yields, and that walks the whole brush
+  /// list — so a decorative moulding, which stops nothing and so never
+  /// reaches the collision world, still shifts the shelves under every face
+  /// packed after it. And the bounce reflects `level.materialFor(brush)`, so
+  /// moving a wall from `stone` to `soot` changes the light in the room
+  /// while both materials, and every box, stay exactly as they were. Neither
+  /// is visible to `LevelVisibility.hashBrushes`, which hashes what decides
+  /// *visibility* — solid boxes only — and is right to.
   static int hashOf(Level level) {
-    var hash = LevelVisibility.hashBrushes(level);
+    var hash = 0x811C9DC5;
     void mix(String text) {
       for (final unit in text.codeUnits) {
         hash ^= unit;
@@ -179,6 +189,20 @@ final class Lightmap {
       hash = (hash * 0x01000193) & 0xFFFFFFFF;
     }
 
+    for (final brush in level.brushes) {
+      mix(brush.centre.x.toStringAsFixed(4));
+      mix(brush.centre.y.toStringAsFixed(4));
+      mix(brush.centre.z.toStringAsFixed(4));
+      mix(brush.size.x.toStringAsFixed(4));
+      mix(brush.size.y.toStringAsFixed(4));
+      mix(brush.size.z.toStringAsFixed(4));
+      final ramp = brush.ramp;
+      mix(ramp == null ? '-' : '${ramp.x},${ramp.z}');
+      // Solidity is not a face, but it is an occluder: a brush that stops
+      // nothing stops no ray either.
+      mix(brush.solid ? 'solid' : 'open');
+      mix(brush.material);
+    }
     for (final light in level.lights) {
       mix(light.type.name);
       mix(light.position.toString());

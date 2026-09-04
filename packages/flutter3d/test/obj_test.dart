@@ -442,6 +442,46 @@ Tr 0.25
         greaterThan(smooth.approximateRoughness),
       );
     });
+
+    // The `.obj` half has always named its unknown directives and the `.mtl`
+    // half named none, so a normal map — the commonest thing a `.mtl` carries
+    // that this does not read — loaded flat and silent while a *missing*
+    // texture file got a sentence. Mutation: dropping the `default` arm of
+    // `parseMtl`'s switch leaves `warnings` empty and both expectations
+    // report false.
+    test('names the directives it does not read, once each', () {
+      final warnings = <String>[];
+      parseMtl('''
+newmtl bumpy
+Kd 1 1 1
+map_Bump rock_n.png
+map_Ks rock_s.png
+illum 2
+Ni 1.45
+
+newmtl also
+map_Bump other_n.png
+''', warnings: warnings);
+
+      expect(
+        warnings.single,
+        allOf(
+          contains('map_Bump'),
+          contains('map_Ks'),
+          contains('illum'),
+          contains('Ni'),
+        ),
+      );
+      // Once each, not once per line: a library naming the same directive in
+      // twenty materials is one sentence, the way the `.obj` half does it.
+      expect('map_Bump'.allMatches(warnings.single), hasLength(1));
+    });
+
+    test('and says nothing about a library it fully understands', () {
+      final warnings = <String>[];
+      parseMtl('# a comment\nnewmtl a\nKd 1 1 1\n', warnings: warnings);
+      expect(warnings, isEmpty);
+    });
   });
 
   group('robustness', () {

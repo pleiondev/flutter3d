@@ -269,6 +269,37 @@ void main() {
       expect(document.surface.alphaMode, SurfaceAlphaMode.opaque);
       expect(document.warnings.single, contains('dissolve'));
     });
+
+    // The failure the doc comment claims to prevent, and the one a text
+    // format exists to make survivable: a hand-edit with a letter too many
+    // used to load with the default roughness and say nothing at all.
+    // Mutation: dropping `roughnesss` from the misspelling below — or
+    // dropping the `knownKeys` filter from `readFmat` — leaves `warnings`
+    // empty and the single-warning expectation reports false.
+    test('and a misspelt key is named rather than silently dropped', () {
+      final document = readFmat(
+        _bytes('{"fmat": 1, "roughnesss": 0.9, "roughness": 0.2}'),
+      );
+
+      expect(document.surface.roughness, 0.2);
+      expect(document.warnings.single, contains('roughnesss'));
+    });
+
+    // The open half of the format, which must stay quiet: an extra texture
+    // slot and an extra parameter are how a custom shader asks for something
+    // this engine has never heard of.
+    test('and an extra texture slot or parameter is not a warning', () {
+      final document = readFmat(
+        _bytes(
+          '{"fmat": 1, "textures": {"detail": "d.png"}, '
+          '"parameters": {"windStrength": 2.0}}',
+        ),
+      );
+
+      expect(document.extraTextures.keys, <String>['detail']);
+      expect(document.parameters.keys, <String>['windStrength']);
+      expect(document.warnings, isEmpty);
+    });
   });
 }
 

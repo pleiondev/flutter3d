@@ -45,17 +45,36 @@
 ///
 /// ## What this stage reads, and what it refuses
 ///
-/// Only the plain case: one 2D texture, no array layers, no cube faces, no
-/// depth, an explicit `vkFormat` (not the `0`/undefined that means Basis
-/// Universal, whose real format lives in the data format descriptor instead),
-/// and `supercompressionScheme` none — the mip bytes are the texture bytes.
-/// Everything else — Zstandard or Basis-LZ supercompression, texture arrays,
-/// cube maps, 3D textures, runtime-generated mip chains (`levelCount == 0`) —
-/// is refused with [Ktx2FormatException] naming what was found, not
-/// attempted. Each is a real feature with its own cost (a decompressor, a
-/// six-face upload path, a mip generator) and none of this repository's three
-/// games needs one yet; the point of refusing loudly is that adding one later
-/// is additive; guessing wrong quietly is not.
+/// One 2D texture, no array layers, no cube faces, no depth — that much is
+/// common to both shapes it takes. Within it there are two:
+///
+///  * **A plain format.** An explicit `vkFormat` from the subset
+///    [VkFormat] lists, with `supercompressionScheme` none: the mip bytes
+///    *are* the texture bytes, and reading the file is finding them.
+///  * **Basis Universal ETC1S.** `vkFormat` `0`/undefined — how a KTX2 file
+///    says its real format lives elsewhere — with `supercompressionScheme`
+///    Basis-LZ. Every mip level is transcoded to RGBA8 on the CPU by
+///    `basis_universal/etc1s_transcoder.dart`, which is why the loader reads
+///    the supercompression global data below and why a `.ktx2` can cost real
+///    time to open.
+///
+/// Everything else is refused with [Ktx2FormatException] naming what was
+/// found, not attempted: Zstandard or ZLIB supercompression, UASTC (an
+/// undefined `vkFormat` under any scheme but Basis-LZ — what `toktx --uastc`
+/// writes), texture arrays, cube maps, 3D textures, runtime-generated mip
+/// chains (`levelCount == 0`). Each is a real feature with its own cost (a
+/// decompressor, a second transcoder, a six-face upload path, a mip
+/// generator) and none of this repository's three games needs one yet; the
+/// point of refusing loudly is that adding one later is additive; guessing
+/// wrong quietly is not.
+///
+/// The key/value section is read for the same reason, and only for the three
+/// keys that describe pixels rather than provenance: a bottom-up
+/// `KTXorientation`, a `KTXswizzle` that is not `rgba`, and
+/// `KTXpremultipliedAlpha` are each refused, because honouring none of them
+/// and saying nothing draws a texture upside down, channel-shuffled or twice
+/// darkened, which reads as an authoring mistake. `_checkKeyValues` in
+/// `ktx2_loader.dart` says the rest.
 library;
 
 /// `AB 4B 54 58 20 32 30 BB 0D 0A 1A 0A` — the twelve-byte identifier every
@@ -114,9 +133,9 @@ abstract final class Ktx2IndexField {
 ///   u32 tablesByteLength
 ///   u32 extendedByteLength
 ///
-/// ImageDesc, 20 bytes, one per image — this stage reads exactly one,
-/// because it refuses every KTX2 file with more than one level, layer or
-/// face before reaching this section
+/// ImageDesc, 20 bytes, one per image — with no layers and one face an
+/// image is a mip level, so this stage reads `levelCount` of them, entry 0
+/// being level 0, whatever order the levels' bytes sit in the file
 ///   u32 imageFlags
 ///   u32 rgbSliceByteOffset,   u32 rgbSliceByteLength
 ///   u32 alphaSliceByteOffset, u32 alphaSliceByteLength
@@ -162,8 +181,10 @@ abstract final class Ktx2HeaderField {
 
 /// `supercompressionScheme` values this format defines.
 ///
-/// Values above `0xFFFF` are reserved for vendor schemes and have no name
-/// here; [Ktx2Texture.parse] reports the raw number for those.
+/// Khronos reserves everything up to `0xFFFF` for itself and leaves the rest
+/// to vendors, so a number between [zlib] and `0xFFFF` is a scheme this build
+/// predates rather than somebody's extension. [Ktx2Texture.parse] reports the
+/// raw number either way, and says which of the two it is.
 abstract final class Ktx2SupercompressionScheme {
   static const int none = 0;
   static const int basisLZ = 1;
@@ -171,8 +192,12 @@ abstract final class Ktx2SupercompressionScheme {
   static const int zlib = 3;
 }
 
-/// The subset of Vulkan's `VkFormat` this loader maps to a [TextureFormat] —
-/// exactly the values `flutter3d_hardware`'s enum already mirrors.
+/// The subset of Vulkan's `VkFormat` this loader maps to a [TextureFormat].
+///
+/// Not one to one: an `_SRGB` value and its `_UNORM` twin carry the same bits
+/// and map to the same engine format, because this engine's shaders decode
+/// sRGB themselves and a sampler that also decoded would decode twice. See
+/// `_engineFormat` in `ktx2_loader.dart`, which says why at length.
 ///
 /// Numbers are Khronos's, not this repository's: taken from
 /// `github.com/KhronosGroup/KTX-Software/lib/src/vkformat_enum.h`, the

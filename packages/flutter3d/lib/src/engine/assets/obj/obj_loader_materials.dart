@@ -77,7 +77,12 @@ extension _ObjMaterials on ObjLoader {
     for (final library in libraries) {
       try {
         final bytes = await resolveUri(library);
-        result.addAll(parseMtl(utf8.decode(bytes, allowMalformed: true)));
+        result.addAll(
+          parseMtl(
+            utf8.decode(bytes, allowMalformed: true),
+            warnings: warnings,
+          ),
+        );
       } catch (error) {
         warnings.add('Could not load material library "$library": $error');
       }
@@ -90,8 +95,16 @@ extension _ObjMaterials on ObjLoader {
 ///
 /// Exposed separately because it is a self-contained text format, which makes it
 /// testable without constructing an OBJ file around it.
-Map<String, MtlMaterial> parseMtl(String text) {
+///
+/// [warnings] hears the directives this reader does not know, once each,
+/// exactly as `ObjLoader.load` does for the `.obj` half. Without it the two
+/// halves disagreed about the same promise: a file missing its texture *file*
+/// got a sentence, and a file whose `.mtl` carried a `map_Bump` — a normal
+/// map, the commonest thing in a `.mtl` this does not read — loaded flat and
+/// said nothing.
+Map<String, MtlMaterial> parseMtl(String text, {List<String>? warnings}) {
   final result = <String, MtlMaterial>{};
+  final unknownDirectives = <String>{};
 
   String? name;
   Vector3? diffuse;
@@ -152,9 +165,19 @@ Map<String, MtlMaterial> parseMtl(String text) {
         // Options such as `-s 1 1 1` may precede the filename; the path is the
         // last token that is not an option value.
         if (args.isNotEmpty) diffuseTexture = args.last;
+
+      default:
+        unknownDirectives.add(keyword);
     }
   }
   flush();
+
+  if (unknownDirectives.isNotEmpty) {
+    warnings?.add(
+      'Ignored unsupported material directives: '
+      '${unknownDirectives.join(', ')}.',
+    );
+  }
 
   return result;
 }
