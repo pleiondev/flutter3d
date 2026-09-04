@@ -209,6 +209,21 @@ def build():
     k.pickup("armour", (0.0, 0.8, -50.0), amount=25)
     k.pickup("shells", (-14.0, 0.8, -62.0), amount=8)
     k.pickup("bullets", (14.0, 0.8, -62.0), amount=20)
+    # The two power-ups the game shipped a registry for and placed nowhere.
+    # Both are here, in the last hall, because both are answers to this fight
+    # and to no other: three tanks between the player and the way out is the
+    # only room in the crypt where twice the damage or twenty seconds of not
+    # taking any changes what is possible rather than merely what is
+    # comfortable.
+    #
+    # Placed apart on purpose. `invulnerability` is at the mouth of the hall,
+    # where the runners come from and the shooters can already see you, so it
+    # is spent crossing the floor; `berserk` is at the foot of the dais, so it
+    # is picked up facing the tanks with thirty seconds to spend on them. A
+    # player who wants both takes the long way and arrives with less of each,
+    # which is the choice rather than the reward.
+    k.pickup("invulnerability", (0.0, 0.8, -46.0), amount=20)
+    k.pickup("berserk", (0.0, 0.8, -58.0), amount=30)
     # On the top of the dais, which is where the tanks are standing.
     k.exit_at("the_light", (0.0, 0.9, -66.0))
 

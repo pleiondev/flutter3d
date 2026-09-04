@@ -101,7 +101,14 @@ class RaceReadout {
 }
 
 /// A lap, to the thousandth, and `--:--.---` when nobody has driven one.
-String formatLapTime(double seconds) => clockText(seconds, thousandths: true);
+///
+/// Nullable, because "nobody has driven one" is how this game says it: a best
+/// lap is null before there is one and a season can end without a clean lap in
+/// it. `clockText` already answers that case with the dashes — a nought is a
+/// lie, and a lap nobody drove is not a lap driven in no time — so callers pass
+/// the null straight through rather than each writing the same literal beside
+/// the same ternary.
+String formatLapTime(double? seconds) => clockText(seconds, thousandths: true);
 
 /// What is written across the middle of the screen this frame, or nothing.
 ///

@@ -4,10 +4,13 @@ import 'package:flutter3d_sim/flutter3d_sim.dart';
 import 'touch_action.dart';
 import 'touch_button.dart';
 import 'touch_stick.dart';
+import 'touch_toggle.dart';
 
 export 'touch_action.dart';
 export 'touch_button.dart';
+export 'touch_slots.dart';
 export 'touch_stick.dart';
+export 'touch_toggle.dart';
 
 /// A thumb stick and some buttons, drawn over a game that has no keyboard.
 ///
@@ -50,12 +53,21 @@ class TouchControls extends StatelessWidget {
     super.key,
     required this.state,
     required this.buttons,
+    this.toggles = const <TouchToggle>[],
     this.stickRadius = 64.0,
     this.buttonRadius = 34.0,
     this.margin = 28.0,
   });
 
   final InputState state;
+
+  /// Controls that are set rather than held — see [TouchToggle].
+  ///
+  /// Drawn in a row *above* [buttons] rather than among them, and the split is
+  /// the point: a control that stays on after the finger has gone is a
+  /// different kind of thing from a trigger, and a thumb reaching back for the
+  /// jump button should not be able to land on the sprint by a centimetre.
+  final List<TouchToggle> toggles;
 
   /// What the buttons on the right do, in the order they are drawn: the last is
   /// nearest the thumb.
@@ -84,18 +96,35 @@ class TouchControls extends StatelessWidget {
           Positioned(
             right: margin,
             bottom: margin,
-            child: Wrap(
-              spacing: 14,
-              runSpacing: 14,
-              alignment: WrapAlignment.end,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                for (final button in buttons)
-                  TouchButton(
-                    state: state,
-                    action: button.action,
-                    label: button.label,
-                    radius: buttonRadius,
+                if (toggles.isNotEmpty) ...<Widget>[
+                  Wrap(
+                    spacing: 14,
+                    runSpacing: 14,
+                    alignment: WrapAlignment.end,
+                    children: toggles,
                   ),
+                  // A gap the width of a thumb, not a margin: this is the
+                  // distance between a control that latches and one that fires.
+                  const SizedBox(height: 22),
+                ],
+                Wrap(
+                  spacing: 14,
+                  runSpacing: 14,
+                  alignment: WrapAlignment.end,
+                  children: <Widget>[
+                    for (final button in buttons)
+                      TouchButton(
+                        state: state,
+                        action: button.action,
+                        label: button.label,
+                        radius: buttonRadius,
+                      ),
+                  ],
+                ),
               ],
             ),
           ),

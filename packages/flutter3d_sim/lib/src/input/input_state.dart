@@ -241,6 +241,29 @@ final class InputState {
   /// Whether [action] latches rather than being held.
   bool isToggled(GameAction action) => _toggled.contains(action);
 
+  /// Turns [action] on if it is off and off if it is on.
+  ///
+  /// **For a thumb.** A key is held and a pad button is held, and both are
+  /// fine: a hand resting on a keyboard can hold shift for the length of a
+  /// climb. A thumb cannot — it is also the thing steering — so a phone's
+  /// sprint is a control that is *set* rather than one that is held, and
+  /// pinning one of two thumbs to a button for a whole level is the same
+  /// barrier [setToggled] exists for, arriving from the hardware instead of
+  /// from the player.
+  ///
+  /// Here rather than in the widget that draws that control, because the
+  /// correct sequence depends on whether [setToggled] is on for this action —
+  /// which is a setting the widget has no business reading. Latched, one
+  /// [press] flips it and [release] means nothing; unlatched, a press holds and
+  /// a release lets go. Both are one call from out here.
+  void toggle(GameAction action) {
+    if (_toggled.contains(action) || !_held.contains(action)) {
+      press(action);
+      return;
+    }
+    release(action);
+  }
+
   /// Says how hard an action is being asked for.
   ///
   /// Independent of [press] and [release]: a device that can measure travel

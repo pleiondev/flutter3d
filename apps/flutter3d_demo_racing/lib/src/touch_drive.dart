@@ -28,6 +28,7 @@ class TouchDrive extends StatelessWidget {
     required this.throttle,
     required this.brake,
     this.handbrake,
+    this.pitStop,
   });
 
   final InputState state;
@@ -41,9 +42,22 @@ class TouchDrive extends StatelessWidget {
   /// worse than a gap.
   final GameAction? handbrake;
 
+  /// Fresh tyres and a car put back together, or null for a game with no pit
+  /// lane.
+  ///
+  /// **The HUD asked for this and the phone could not answer.** The tyre line
+  /// reads `STOP FIRST` when a change is refused at speed, which is an
+  /// instruction — and on a touch build there was no control bound to
+  /// [Drive.tyres] at all, so a driver who stopped, read the line and did what
+  /// it said had nothing to press. Over the pedals rather than among them
+  /// because it is not one: it is pressed once, standing still, and a pedal-
+  /// sized target beside the throttle is a pit stop entered at two hundred.
+  final GameAction? pitStop;
+
   @override
   Widget build(BuildContext context) {
     final hand = handbrake;
+    final pit = pitStop;
     return SafeArea(
       child: Stack(
         children: <Widget>[
@@ -56,6 +70,20 @@ class TouchDrive extends StatelessWidget {
               right: steerRight,
             ),
           ),
+          // Top right, the far side of the screen from everything held: the
+          // one control here that is never wanted mid-corner is the one that
+          // should take a deliberate reach.
+          if (pit != null)
+            Positioned(
+              right: 24,
+              top: 24,
+              child: TouchButton(
+                state: state,
+                action: pit,
+                label: 'pit',
+                radius: 30.0,
+              ),
+            ),
           Positioned(
             right: 24,
             bottom: 24,

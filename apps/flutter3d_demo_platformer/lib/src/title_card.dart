@@ -51,6 +51,9 @@ class TitleCard extends StatelessWidget {
       ? const <String>[
           'The stick walks. Jump twice to reach the high ledges.',
           'Dash across the wide gaps; drop through the thin platforms.',
+          // The one control on this build that stays on after the finger has
+          // gone, so it is the one that has to be described rather than found.
+          'Sprint is a switch, not a button: tap it on and it stays on.',
           'Drag anywhere else to look around.',
           'A controller works too, if one is paired.',
         ]

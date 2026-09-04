@@ -488,6 +488,8 @@
     {"type": "pickup", "at": [0.0, 0.8, -50.0], "gives": "armour", "amount": 25},
     {"type": "pickup", "at": [-14.0, 0.8, -62.0], "gives": "shells", "amount": 8},
     {"type": "pickup", "at": [14.0, 0.8, -62.0], "gives": "bullets", "amount": 20},
+    {"type": "pickup", "at": [0.0, 0.8, -46.0], "gives": "invulnerability", "amount": 20},
+    {"type": "pickup", "at": [0.0, 0.8, -58.0], "gives": "berserk", "amount": 30},
     {"type": "exit", "name": "the_light", "at": [0.0, 2.2, -66.0]}
   ]
 }

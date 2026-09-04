@@ -267,6 +267,36 @@ void main() {
     );
   });
 
+  test('and the other two power-ups are handed out as well', () {
+    // **The same failure as the sensor, twice over.** `sampleGifts` offers
+    // `invulnerability` and `berserk`, `Inventory` answers for both, and no
+    // document in the shipped chain placed either — so `isInvulnerable` was
+    // read only by a unit test and `isBerserk` was read by nothing at all.
+    // A registry entry no level uses is a promise the game does not keep.
+    //
+    // Asked of the whole chain rather than of the sanctum, so moving the fight
+    // that wants them to another document is a level design decision rather
+    // than a red test.
+    //
+    // Mutation: drop either `k.pickup` line from `make_sanctum.py` and
+    // regenerate — the matching expectation fails, where before nothing did.
+    final given = <String>{
+      for (final step in _chain())
+        for (final entity in step.level.entities)
+          if (entity.type == 'pickup')
+            if (entity.properties['gives'] case final String gift) gift,
+    };
+
+    expect(
+      given,
+      containsAll(<String>['invulnerability', 'berserk']),
+      reason:
+          'the shipped registry offers power-ups no level hands out, so '
+          'Inventory.isInvulnerable and Inventory.isBerserk are dead code in '
+          'the shipped game',
+    );
+  });
+
   test('and every locked door has its key somewhere on the same level', () {
     // **The failure a chain makes possible.** Keys do not carry between levels
     // — deliberately, because a player arriving at the second level holding the

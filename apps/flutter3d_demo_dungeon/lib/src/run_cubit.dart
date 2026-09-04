@@ -37,6 +37,54 @@ final class LevelReady {
   final ModelAsset? exitModel;
 }
 
+/// What a crawl has come to: what it killed, how long it took, and how much of
+/// the crypt is behind it.
+///
+/// **The crypt could not say any of this at the end.** The last level's whole
+/// reward was three seconds of `You are out.` fading over a corridor, and the
+/// two numbers a shooter is played for — what you killed and how long it took —
+/// were counted per level by `GameSimulation.tally` and thrown away at every
+/// door. So they are counted here instead, where the run is, which is the one
+/// object in this game that outlives a level change.
+///
+/// Mutable fields rather than a value rebuilt per step: this is added to sixty
+/// times a second, and a record allocated on every one of them to hold three
+/// numbers is the sort of thing `ARCHITECTURE.md` §2.4 asks not to be done.
+///
+/// **These are the run's, not the save's.** A crawl resumed from disk starts
+/// again at nought — the save carries where the player is, not what the sitting
+/// has come to — so [levels] counts levels finished *this sitting*, and the
+/// screen that shows it says so.
+final class Crawl {
+  int kills = 0;
+
+  /// Simulated seconds, which is what the crypt's clock is made of and is not
+  /// the same as seconds of wall a slow machine spent on them.
+  double seconds = 0.0;
+
+  /// Levels this crawl has stood in. One from the moment the first is up.
+  ///
+  /// Counted on arrival rather than on leaving, because the last one is never
+  /// left: `RunSession.carryFrom` fires only where there is a next level, so a
+  /// crawl that finishes the sanctum would report four. Counted by the screen
+  /// rather than here for the same kind of reason — the screen is told once per
+  /// level actually put in front of the player, and a load that is overtaken by
+  /// a newer one is never announced.
+  int levels = 0;
+
+  /// One step's worth.
+  void step(double dt, {required int killed}) {
+    seconds += dt;
+    kills += killed;
+  }
+
+  void reset() {
+    kills = 0;
+    seconds = 0.0;
+    levels = 0;
+  }
+}
+
 /// This game's answers to the five questions a run asks.
 ///
 /// **The sequencing is not here any more.** Starting, restarting, moving on,
@@ -171,6 +219,9 @@ final class DungeonRun extends RunSession<LevelReady> {
   void restoreInto(LevelReady level, Snapshot snapshot) =>
       level.staged.sim.restore(snapshot);
 
+  /// What this crawl has come to, for the screen at the end of it.
+  final Crawl crawl = Crawl();
+
   /// Keys do **not** carry. A key opens one door in one place, and a player
   /// arriving at the second level already holding the third level's key is a
   /// level designer's promise broken by the plumbing.
@@ -178,9 +229,13 @@ final class DungeonRun extends RunSession<LevelReady> {
   void carryFrom(LevelReady level, String next) => inventory.keys.clear();
 
   /// Rebuilt rather than emptied: a run that begins with the health you died at
-  /// is not a restart.
+  /// is not a restart — and one that begins with the last run's kill count is
+  /// not one either.
   @override
-  void startFresh() => inventory = startingInventory();
+  void startFresh() {
+    inventory = startingInventory();
+    crawl.reset();
+  }
 }
 
 /// The run, as the widget tree sees it.
